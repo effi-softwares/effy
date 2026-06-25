@@ -16,6 +16,11 @@ with a **validation checkpoint** that verifies its acceptance scenarios via `qui
 auth slice is heavy on shared foundation, so US1 is the first demoable increment (MVP) and
 US2–US4 are smaller increments built on the same flow.
 
+**Scope (this slice)**: Customer **mobile only** (Android + iOS) per the refined spec. The
+customer **web** app and mobile↔web parity are a **separate future slice** — there are
+intentionally no web tasks here. FR-016/SC-007 parity is therefore Android↔iOS (validated by
+T057). Region: all AWS in **`ap-southeast-1`** (see Path Conventions).
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependency on an incomplete task)

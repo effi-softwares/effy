@@ -9,7 +9,8 @@
 **Input**: User description: "Auth + customer onboarding — a new customer can sign up with email
 and verify via a one-time code; a returning customer can sign in and stay signed in across app
 restarts; a profile is created automatically on first sign-in; a customer can sign out; clear
-feedback on every error. Customer surface only (mobile + web)."
+feedback on every error. Customer mobile surface (Android + iOS) this slice — the customer web
+surface is a separate future slice."
 
 ## Clarifications
 
@@ -18,12 +19,17 @@ feedback on every error. Customer surface only (mobile + web)."
 - Q: When a returning customer signs in, how do they prove identity — passwordless emailed
   code, or a password? → A: Passwordless — a one-time code is emailed for every sign-in (same
   mechanism as sign-up); no password is ever set or stored.
+- Q: The spec named mobile **and** web, but delivery is mobile-first — what is this slice's
+  scope? → A: **Mobile-only** (Android + iOS). The customer web surface and cross-surface
+  (mobile↔web) parity move to a separate future slice; the shared auth contract from this slice
+  will drive web when it ships. FR-016 and SC-007 re-scoped to Android/iOS (resolves analyze
+  findings F1/F2/F3).
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Create an account and land signed in (Priority: P1)
 
-A first-time customer opens the app (mobile or web), enters their email address, receives a
+A first-time customer opens the app (Android or iOS), enters their email address, receives a
 one-time verification code by email, enters it, and is immediately signed in with a customer
 profile that now exists. This is the entry point to the entire platform — nothing else a
 customer does is reachable until this works.
@@ -72,22 +78,20 @@ app reaches the signed-in state.
 
 ### User Story 3 - Stay signed in across restarts (Priority: P2)
 
-A signed-in customer closes/force-quits the app or browser and reopens it later, and is still
-signed in without having to authenticate again.
+A signed-in customer force-quits the app and reopens it later, and is still signed in without
+having to authenticate again.
 
 **Why this priority**: A platform that signs customers out every time they close the app feels
 broken and kills retention. High UX value; depends on a session existing (US1/US2).
 
-**Independent Test**: Sign in, force-quit and reopen the app (and on web, close and reopen the
-browser/tab), and confirm the customer is still signed in.
+**Independent Test**: Sign in, force-quit and reopen the app, and confirm the customer is still
+signed in.
 
 **Acceptance Scenarios**:
 
 1. **Given** a signed-in customer, **When** they force-quit and reopen the app, **Then** they
    are still signed in and land in the signed-in state.
-2. **Given** a signed-in customer on web, **When** they close and reopen the browser within the
-   session lifetime, **Then** they remain signed in.
-3. **Given** a customer whose session has expired, **When** they reopen the app, **Then** they
+2. **Given** a customer whose session has expired, **When** they reopen the app, **Then** they
    are returned to the signed-out state gracefully and prompted to sign in again.
 
 ---
@@ -128,7 +132,7 @@ again.
 - **Abandoned mid-flow**: customer enters email but never enters a code → no account is created
   and they can restart cleanly.
 - **Invalid email format**: rejected with a clear message before any code is sent.
-- **Same email used on both mobile and web**: resolves to the same single account.
+- **Same email used on multiple devices / after a reinstall**: resolves to the same single account.
 - **Network loss during verification**: customer sees a clear retry path; no partial/duplicate
   account is created.
 - **Session expires while the app is open**: customer is moved to the signed-out state
@@ -170,8 +174,10 @@ again.
   abuse, and communicate the limit to the customer.
 - **FR-015**: This flow MUST apply to the customer audience only and MUST NOT grant access to
   driver, store, or admin surfaces.
-- **FR-016**: Behavior and outcomes for all scenarios above MUST be equivalent on the mobile
-  app and the web app (parity across the two customer surfaces).
+- **FR-016**: Behavior and outcomes for all scenarios above MUST be equivalent across the
+  customer mobile platforms (Android and iOS). Cross-surface parity with the future customer web
+  app is out of scope for this slice and will be specified with that slice (the shared auth
+  contract produced here is what will drive it).
 
 ### Key Entities *(include if feature involves data)*
 
@@ -200,15 +206,14 @@ again.
   zero ambiguous or generic errors for those cases.
 - **SC-006**: After sign-out, 100% of attempts to reach signed-in functionality require
   re-authentication.
-- **SC-007**: The listed scenarios produce equivalent outcomes on mobile and web, verified on
-  both surfaces.
+- **SC-007**: The listed scenarios produce equivalent outcomes on Android and iOS, verified on
+  both platforms.
 
 ## Assumptions
 
 - **Auth method default**: Unless FR-006 is resolved otherwise, sign-in is assumed to be
   passwordless (a one-time emailed code), consistent with the platform's established
-  email-code authentication. The "wrong password" feedback is included only as a contingency
-  if the password-based option is selected.
+  email-code authentication.
 - **Session lifetime**: "Stay signed in" assumes a long-lived session with silent renewal; the
   exact duration and renewal behavior are an implementation decision for the plan, not a
   product requirement here. A reasonable default is on the order of weeks.
@@ -227,3 +232,5 @@ again.
 - Account deletion.
 - Driver, store, and admin authentication.
 - Collecting extended profile details beyond the minimal auto-created profile.
+- **Customer web app and mobile↔web parity** — deferred to a separate future slice. The shared
+  customer auth contract from this slice is the single source of truth that will drive it.
