@@ -53,3 +53,15 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 Jade brand #0FB57E / fill #047857, shared across all surfaces via one design-system package.
 Dark mode required. Mobile must feel native (iOS HIG / Android Material), fat-finger targets +
 micro-animations are requirements. Design refs: Uber / Bolt / foodpanda / eBay.
+
+<!-- SPECKIT START -->
+## Active feature
+
+- **001-customer-auth-onboarding** — Customer Auth & Onboarding (passwordless EMAIL_OTP).
+  Plan: [specs/001-customer-auth-onboarding/plan.md](specs/001-customer-auth-onboarding/plan.md)
+  Stack this slice: KMP + Compose Multiplatform (Android+iOS), Go hot-path `GET /v1/profile`
+  (Gin + pgx, JWKS validation), Cognito customer pool w/ custom-auth Lambda triggers, RDS
+  Postgres + Goose, Terraform (bootstrap + dev) + SSM, all AWS under `AWS_PROFILE=ef` +
+  `AWS_REGION=ap-southeast-1` (Singapore — isolates from `ef` in `ap-southeast-2`; revertable).
+<!-- SPECKIT END -->
+

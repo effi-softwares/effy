@@ -1,0 +1,94 @@
+openapi: 3.1.0
+info:
+  title: Effy Customer Profile API (hot path)
+  version: 0.1.0
+  description: >
+    Customer-facing hot-path service (Go + Gin + pgx). This slice exposes a single endpoint
+    that returns the authenticated customer's profile, lazily creating it on first call.
+    This document is the single source of truth for the contract; the later customer-web
+    client is generated from it (Constitution Principle II).
+servers:
+  - url: https://api.dev.effy.example/v1
+    description: Dev (placeholder host; resolved at infra time)
+  - url: http://localhost:8080/v1
+    description: Local (make api-run)
+
+paths:
+  /profile:
+    get:
+      operationId: getProfile
+      summary: Get the signed-in customer's profile (lazy-creates on first call)
+      description: >
+        Validates the customer-pool access token, then returns the profile for the customer
+        identified by the token `sub`. If no customer/profile exists yet (first sign-in), both
+        are created in a single transaction and the new profile is returned. Idempotent.
+      security:
+        - customerPoolJwt: []
+      responses:
+        '200':
+          description: The customer's profile (existing or just-created).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+              examples:
+                firstSignIn:
+                  summary: First call (profile just created)
+                  value:
+                    id: "9b2c1f8e-0d3a-4e6b-8c1a-2f5d7e9a0b13"
+                    email: "ada@example.com"
+                    displayName: null
+                    createdAt: "2026-06-25T10:15:30Z"
+        '401':
+          description: Missing, malformed, expired, or wrong-pool token.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                missingToken:
+                  value: { code: "unauthorized", message: "Authentication required." }
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+components:
+  securitySchemes:
+    customerPoolJwt:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        Cognito **customer pool** access token. The service validates RS256 against the pool
+        JWKS and asserts iss == customer pool issuer, token_use == "access", and
+        client_id == the customer app client. Tokens from any other pool are rejected (401).
+
+  schemas:
+    Profile:
+      type: object
+      required: [id, email, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Profile id.
+        email:
+          type: string
+          format: email
+          description: Customer email (from the verified identity).
+        displayName:
+          type: [string, "null"]
+          description: Reserved; null this slice.
+        createdAt:
+          type: string
+          format: date-time
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [unauthorized, internal]
+        message:
+          type: string
