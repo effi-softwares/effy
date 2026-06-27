@@ -1,0 +1,7 @@
+TEAM_ID=
+
+PRODUCT_NAME=customer-mobile
+PRODUCT_BUNDLE_IDENTIFIER=com.effyshopping.customer.mobile.customer-mobile$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
