@@ -182,8 +182,8 @@ namespace), so `effy-*` prefixing + separate state are kept regardless. Once the
 
 ## D12. Mobile architecture: Clean Architecture + MVI on ViewModel + Navigation 3 + BuildKonfig
 
-**Decision** (refined with the adopted package set — AGP 9 / Kotlin 2.3.20 / Compose MP 1.10.2,
-minSdk 24 / compileSdk 36):
+**Decision** (refined with the adopted package set — AGP 9.0.1 / Kotlin 2.4.0 / Compose MP 1.11.1,
+minSdk 24 / compileSdk + targetSdk 36):
 - **State**: MVI on top of **Compose Multiplatform `ViewModel`** (`lifecycle-viewmodel` +
   `viewmodel-compose`) — each feature ViewModel exposes `StateFlow<State>` + intent functions.
 - **Navigation**: **Navigation 3** (`navigation3-ui` + `lifecycle-viewmodel-navigation3`) —

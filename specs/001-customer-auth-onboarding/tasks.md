@@ -29,7 +29,7 @@ T057). Region: all AWS in **`ap-southeast-1`** (see Path Conventions).
 
 ## Path Conventions
 
-- Mobile (KMP): `apps/customer-mobile/composeApp/src/{commonMain,androidMain,iosMain}/kotlin/com/effy/customer/`
+- Mobile (KMP): shared module at `apps/customer-mobile/shared/src/{commonMain,androidMain,iosMain}/kotlin/com/effyshopping/customer/mobile/`; platform entry points at `apps/customer-mobile/androidApp/` (Android: MainActivity/manifest/resources) and `apps/customer-mobile/iosApp/` (iOS: SwiftUI host + Xcode project). Feature code lives in `shared/src/commonMain`; below, **`shared/…`** is shorthand for this module's package dir. (`driver-mobile` + `shop-mobile` are scaffolded siblings, out of scope for this slice.)
 - Go hot path: `services/api/`
 - Infra: `infra/{bootstrap,modules,envs/dev}/`
 - All AWS-touching commands run under `AWS_PROFILE=ef` **and** `AWS_REGION=ap-southeast-1`
@@ -48,7 +48,7 @@ T057). Region: all AWS in **`ap-southeast-1`** (see Path Conventions).
 - [X] T003 [P] Create root `Makefile` exporting `AWS_PROFILE=ef` + `AWS_REGION=ap-southeast-1` and target stubs: `tf-bootstrap`, `tf-dev-plan`, `tf-dev-apply`, `tf-dev-destroy`, `migrate`, `api-run`, `android`, `ios`
 - [X] T004 [P] Add reserved `pnpm-workspace.yaml` + `turbo.json` at repo root (empty/placeholder for the later JS/TS web packages)
 - [X] T005 Initialize the Go module `services/api/go.mod` (Go 1.25) with `gin-gonic/gin`, `jackc/pgx/v5`, `lestrrat-go/jwx/v2`, `pressly/goose/v3`, `aws-sdk-go-v2/ssm`
-- [X] T006 [P] Scaffold the KMP project `apps/customer-mobile` (`settings.gradle.kts`, `composeApp/` with android+ios targets, `iosApp/`, `gradle/libs.versions.toml`) on the adopted stack — Compose Multiplatform 1.10, AWS Amplify (auth), Navigation 3 + CMP ViewModel, Ktor, kotlinx-serialization, `multiplatform-settings`, BuildKonfig (no Koin); Android entry in `composeApp/src/androidMain` (idiomatic CMP, no separate `androidApp` module)
+- [X] T006 [P] Scaffold the KMP project `apps/customer-mobile` (`settings.gradle.kts` including `:shared` + `:androidApp`, `shared/` module with android+ios targets, `androidApp/` Android entry, `iosApp/`, `gradle/libs.versions.toml`) — base Compose Multiplatform template on **Kotlin 2.4.0 / CMP 1.11.1** (minSdk 24, compileSdk/targetSdk 36), package root `com.effyshopping.customer.mobile`. (`driver-mobile` + `shop-mobile` scaffolded the same way for later slices.) The adopted-stack libraries — AWS Amplify (auth), Navigation 3 + CMP ViewModel, Ktor, kotlinx-serialization, `multiplatform-settings`, BuildKonfig (no Koin) — are layered into the version catalog + modules during Foundational (T024–T029)
 - ~~T007 — Node/TS package for Cognito trigger Lambdas~~ **REMOVED**: managed EMAIL_OTP needs no triggers; the scaffold was deleted (research D1).
 - [X] T008 [P] Add `go.work` at repo root tying `services/api` for local dev
 
@@ -79,12 +79,12 @@ T057). Region: all AWS in **`ap-southeast-1`** (see Path Conventions).
 
 ### KMP app shell
 
-- [ ] T024 [P] Theme in `composeApp/.../ui/theme/` — Jade tokens (`#0FB57E` / fill `#047857`), dark mode, typography, base components
-- [ ] T025 [P] Navigation scaffold (signed-out ↔ signed-in graphs) + app entry in `composeApp/.../` using **Navigation 3** (`navigation3-ui` + `lifecycle-viewmodel-navigation3`)
+- [ ] T024 [P] Theme in `shared/.../ui/theme/` — Jade tokens (`#0FB57E` / fill `#047857`), dark mode, typography, base components
+- [ ] T025 [P] Navigation scaffold (signed-out ↔ signed-in graphs) + app entry in `shared/.../` using **Navigation 3** (`navigation3-ui` + `lifecycle-viewmodel-navigation3`)
 - [ ] T026 [P] Amplify setup: initialize Amplify Auth on each platform from BuildKonfig (`COGNITO_USER_POOL_ID` / `COGNITO_APP_CLIENT_ID` / `AWS_REGION`); Amplify owns token storage + refresh (research D7/D8). `multiplatform-settings` only for non-auth prefs
-- [ ] T027 `AuthRepository` in `composeApp/.../data/` — `expect` interface in commonMain; `actual` Android = Amplify Android, `actual` iOS = Amplify Swift bridge; passwordless `signIn(EMAIL_OTP)` / `confirmSignIn(code)` / `signUp` / session / `signOut` per `contracts/auth-flow.md`
-- [ ] T028 [P] Profile API Ktor client for `GET /v1/profile` (Bearer token from the Amplify session via ktor-client-auth) in `composeApp/.../data/`, typed from `contracts/profile-api.yaml`
-- [ ] T029 [P] Wire dependencies via manual / ViewModel factories (no Koin) and set up **BuildKonfig** config fields (region / pool id / app client id / API base URL) in `composeApp/.../`
+- [ ] T027 `AuthRepository` in `shared/.../data/` — `expect` interface in commonMain; `actual` Android = Amplify Android, `actual` iOS = Amplify Swift bridge; passwordless `signIn(EMAIL_OTP)` / `confirmSignIn(code)` / `signUp` / session / `signOut` per `contracts/auth-flow.md`
+- [ ] T028 [P] Profile API Ktor client for `GET /v1/profile` (Bearer token from the Amplify session via ktor-client-auth) in `shared/.../data/`, typed from `contracts/profile-api.yaml`
+- [ ] T029 [P] Wire dependencies via manual / ViewModel factories (no Koin) and set up **BuildKonfig** config fields (region / pool id / app client id / API base URL) in `shared/.../`
 
 **Checkpoint**: Cognito pool live, DB migrated, service validates tokens, app shell runs → user stories can begin.
 
@@ -99,11 +99,11 @@ the signed-in home; confirm `customers` + `profiles` rows now exist (quickstart 
 
 ### Implementation
 
-- [ ] T030 [US1] Auth domain use cases in `composeApp/.../domain/` — `RequestCode` (Amplify passwordless `signIn` EMAIL_OTP; sign up if the email is new) and `VerifyCode` (`confirmSignIn(code)`; Amplify persists the session) per research.md D2/D5
+- [ ] T030 [US1] Auth domain use cases in `shared/.../domain/` — `RequestCode` (Amplify passwordless `signIn` EMAIL_OTP; sign up if the email is new) and `VerifyCode` (`confirmSignIn(code)`; Amplify persists the session) per research.md D2/D5
 - [ ] T031 [US1] Profile repository (raw SQL, pgx) in `services/api/internal/profile/repository.go` — single-tx lazy upsert: `INSERT customers ON CONFLICT (cognito_sub) DO NOTHING` + ensure 1:1 `profiles` (data-model.md state transition)
 - [ ] T032 [US1] Profile handler + route `GET /v1/profile` in `services/api/internal/profile/handler.go`, mounted under the JWT middleware in `main.go`; returns `Profile` per `contracts/profile-api.yaml`
-- [ ] T033 [P] [US1] MVI `EmailEntryViewModel` (CMP ViewModel: validate email, submit, loading/error states) in `composeApp/.../feature/auth/`
-- [ ] T034 [P] [US1] MVI `CodeEntryViewModel` (submit code; wrong-code / expired / resend-cooldown / too-many-attempts states) in `composeApp/.../feature/auth/`
+- [ ] T033 [P] [US1] MVI `EmailEntryViewModel` (CMP ViewModel: validate email, submit, loading/error states) in `shared/.../feature/auth/`
+- [ ] T034 [P] [US1] MVI `CodeEntryViewModel` (submit code; wrong-code / expired / resend-cooldown / too-many-attempts states) in `shared/.../feature/auth/`
 - [ ] T035 [US1] Email-entry screen (Compose) wired to `EmailEntryViewModel` — native-feel, ≥48dp/44pt targets, invalid-email message
 - [ ] T036 [US1] Code-entry screen (Compose) wired to `CodeEntryViewModel` — all error states, resend button w/ cooldown, micro-animation on transition
 - [ ] T037 [US1] On verify success: Amplify persists the session; navigate to home (signed-in graph)
@@ -123,9 +123,9 @@ signed-in state and confirm the same single profile is returned (quickstart #4).
 
 ### Implementation
 
-- [ ] T040 [US2] Handle the existing-user path in `RequestCode` / `AuthRepository`: a known email signs in (Amplify `signIn` EMAIL_OTP); a duplicate sign-up resolves to sign-in (FR-013) in `composeApp/.../domain/` + `data/`
+- [ ] T040 [US2] Handle the existing-user path in `RequestCode` / `AuthRepository`: a known email signs in (Amplify `signIn` EMAIL_OTP); a duplicate sign-up resolves to sign-in (FR-013) in `shared/.../domain/` + `data/`
 - [ ] T041 [US2] Confirm returning sign-in returns the same profile (repository idempotency — no second row) in `services/api/internal/profile/`
-- [ ] T042 [US2] Entry-screen messaging/routing so the same email screen serves new and returning customers seamlessly in `composeApp/.../feature/auth/`
+- [ ] T042 [US2] Entry-screen messaging/routing so the same email screen serves new and returning customers seamlessly in `shared/.../feature/auth/`
 - [ ] T043 [US2] **Validate US2**: run quickstart scenario #4 (returning sign-in, same profile) on Android and iOS
 
 **Checkpoint**: New and returning customers both reach signed-in; one account per email.
@@ -141,8 +141,8 @@ refresh token and reopen → returned to signed-out gracefully (quickstart #5–
 
 ### Implementation
 
-- [ ] T044 [US3] Session-restore use case in `composeApp/.../domain/` — `Amplify.fetchAuthSession()` (Amplify silently refreshes); map to signed-in / signed-out
-- [ ] T045 [US3] App-launch session gate: route to signed-in vs signed-out based on the Amplify session in `composeApp/.../` (app entry / navigation)
+- [ ] T044 [US3] Session-restore use case in `shared/.../domain/` — `Amplify.fetchAuthSession()` (Amplify silently refreshes); map to signed-in / signed-out
+- [ ] T045 [US3] App-launch session gate: route to signed-in vs signed-out based on the Amplify session in `shared/.../` (app entry / navigation)
 - [ ] T046 [US3] Graceful expiry: when the Amplify session is invalid/expired → signed-out (US3 #3)
 - [ ] T047 [US3] Handle session-expired-while-open — a `401` from the profile API drops to signed-out at the next protected action (edge case in spec)
 - [ ] T048 [US3] **Validate US3**: run quickstart scenarios #5 (restart still signed in) and #6 (expired → graceful sign-out) on Android and iOS
@@ -160,8 +160,8 @@ sign-in again (quickstart #7).
 
 ### Implementation
 
-- [ ] T049 [US4] `SignOut` use case in `composeApp/.../domain/` — `Amplify.Auth.signOut()` (optionally global sign-out to revoke server-side)
-- [ ] T050 [US4] Sign-out action on the home screen → route back to the signed-out graph in `composeApp/.../feature/home/`
+- [ ] T049 [US4] `SignOut` use case in `shared/.../domain/` — `Amplify.Auth.signOut()` (optionally global sign-out to revoke server-side)
+- [ ] T050 [US4] Sign-out action on the home screen → route back to the signed-out graph in `shared/.../feature/home/`
 - [ ] T051 [US4] Gate protected screens after sign-out (no token → require re-auth) (FR-009)
 - [ ] T052 [US4] **Validate US4**: run quickstart scenario #7 (sign out → signed-out, re-auth required) on Android and iOS
 
@@ -224,7 +224,7 @@ T001 → T005/T006 → [T009 → T010 → T018 → T019] + [T020] → T023/T027 
 # Three independent foundational tracks run in parallel (infra / Go / KMP shell):
 Task: "T010 cognito-customer-pool (managed EMAIL_OTP) + T016 rds-postgres + T017 SES pool email"
 Task: "T021 SSM config loader + T022 pgx pool & Gin bootstrap (services/api)"
-Task: "T024 theme + T025 Navigation 3 scaffold + T026 Amplify setup (composeApp)"
+Task: "T024 theme + T025 Navigation 3 scaffold + T026 Amplify setup (shared module)"
 ```
 
 ---

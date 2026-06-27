@@ -28,14 +28,14 @@ slice; the OpenAPI contract and brand tokens are recorded centrally now to keep 
 
 **Language/Version**:
 - Hot path: **Go 1.25** (Gin + pgx/v5, raw SQL, no ORM).
-- Mobile: **Kotlin 2.3.20 + Compose Multiplatform 1.10.2** (AGP 9, minSdk 24 / compileSdk 36),
-  Clean Architecture + MVI on ViewModel, Navigation 3; AWS Amplify for auth.
+- Mobile: **Kotlin 2.4.0 + Compose Multiplatform 1.11.1** (AGP 9.0.1, minSdk 24 / compileSdk +
+  targetSdk 36), Clean Architecture + MVI on ViewModel, Navigation 3; AWS Amplify for auth.
 - Infra: **Terraform** (HCL), multi-env, remote state.
 
 **Primary Dependencies**:
 - Go: `gin-gonic/gin`, `jackc/pgx/v5` (+ `pgxpool`), `lestrrat-go/jwx/v2` (JWKS + RS256
   validation), `pressly/goose/v3` (migrations), `aws-sdk-go-v2/ssm` (read params).
-- Mobile: Compose Multiplatform 1.10.2 (material3 1.10), **AWS Amplify** (`aws-auth-cognito` on
+- Mobile: Compose Multiplatform 1.11.1 (material3 1.11), **AWS Amplify** (`aws-auth-cognito` on
   Android, Amplify Swift on iOS) behind an expect/actual `AuthRepository`; **Navigation 3** +
   **CMP ViewModel** (MVI); `ktor-client` (+ auth/logging/content-negotiation/json) for the Go
   API; `kotlinx-serialization`; `multiplatform-settings` (non-auth prefs); **BuildKonfig**
@@ -54,8 +54,8 @@ mandated (constitution Quality Gates verify against acceptance criteria, not TDD
 **Target Platform**: Android (minSdk 24 / compileSdk + target 36), iOS 15+, Go service on
 Linux/Fargate (run locally for this slice).
 
-**Project Type**: Mobile + API in a monorepo (Gradle owns `apps/customer-mobile`; Go owns
-`services/api` via its own `go.mod`; Terraform owns `infra/`).
+**Project Type**: Mobile + API in a monorepo (Gradle owns each app under `apps/*` as its own
+build; Go owns `services/api` via its own `go.mod`; Terraform owns `infra/`).
 
 **Performance Goals**: `GET /v1/profile` p95 < 200 ms (hot-path budget); OTP email delivered to
 inbox within 30 s for 95% of requests (SC-002); app cold-to-interactive sign-in screen < 2 s on
@@ -117,21 +117,23 @@ owns infra; pnpm/turbo reserved for the later web/JS packages):
 ```text
 effy/
 ├── apps/
-│   └── customer-mobile/             # KMP + Compose Multiplatform
-│       ├── composeApp/              # shared module (commonMain + androidMain + iosMain)
-│       │   └── src/
-│       │       ├── commonMain/kotlin/com/effy/customer/
-│       │       │   ├── data/        # AuthRepository (expect) + Ktor profile client
-│       │       │   ├── domain/      # entities, use cases (Clean Architecture)
-│       │       │   ├── feature/auth/    # MVI ViewModels: email → code → states
-│       │       │   ├── feature/home/    # signed-in home stub + sign out
-│       │       │   └── ui/theme/    # Jade tokens, dark mode, components
-│       │       ├── androidMain/kotlin/  # AuthRepository actual = Amplify Android (+ MainActivity)
-│       │       └── iosMain/kotlin/      # AuthRepository actual = Amplify Swift bridge
-│       ├── androidApp/              # (none) — Android entry now lives in composeApp/src/androidMain
-│       ├── iosApp/                  # iOS entry (SwiftUI host + Xcode project)
-│       ├── gradle/                  # version catalog (libs.versions.toml)
-│       └── settings.gradle.kts
+│   ├── customer-mobile/             # KMP + Compose Multiplatform (this slice's surface)
+│   │   ├── shared/                  # KMP shared module
+│   │   │   └── src/
+│   │   │       ├── commonMain/kotlin/com/effyshopping/customer/mobile/
+│   │   │       │   ├── data/        # AuthRepository (expect) + Ktor profile client
+│   │   │       │   ├── domain/      # entities, use cases (Clean Architecture)
+│   │   │       │   ├── feature/auth/    # MVI ViewModels: email → code → states
+│   │   │       │   ├── feature/home/    # signed-in home stub + sign out
+│   │   │       │   └── ui/theme/    # Jade tokens, dark mode, components
+│   │   │       ├── androidMain/kotlin/  # AuthRepository actual = Amplify Android
+│   │   │       └── iosMain/kotlin/      # AuthRepository actual = Amplify Swift bridge
+│   │   ├── androidApp/              # Android entry (MainActivity, manifest, resources)
+│   │   ├── iosApp/                  # iOS entry (SwiftUI host + Xcode project)
+│   │   ├── gradle/                  # version catalog (libs.versions.toml — Kotlin 2.4.0, CMP 1.11.1)
+│   │   └── settings.gradle.kts      # includes :shared + :androidApp
+│   ├── driver-mobile/               # KMP scaffold (com.effyshopping.driver.mobile) — future slice
+│   └── shop-mobile/                 # KMP scaffold (com.effyshopping.shop.mobile) — future slice
 ├── services/
 │   └── api/                         # Go hot-path service (own go.mod)
 │       ├── cmd/api/main.go          # Gin bootstrap, SSM config load
@@ -156,12 +158,15 @@ effy/
 ```
 
 **Structure Decision**: Mobile + API monorepo. Three build systems coexist by ownership
-boundary — **Gradle** under `apps/customer-mobile`, a standalone **Go module** under
-`services/api`, and **Terraform** under `infra/`. `pnpm-workspace.yaml` + `turbo.json` are
-placed at the root but empty/reserved so the later **customer-web** slice drops in without
-restructuring. The Android entry lives in `composeApp/src/androidMain` (idiomatic CMP — no
-separate `androidApp` module). Managed EMAIL_OTP means there are **no custom-auth Lambdas** —
-Cognito sends and validates the OTP, with SES configured as the pool's email sender.
+boundary — **Gradle** under `apps/*` (each mobile app is its own Gradle build), a standalone
+**Go module** under `services/api`, and **Terraform** under `infra/`. `pnpm-workspace.yaml` +
+`turbo.json` are placed at the root but empty/reserved so the later **customer-web** slice drops
+in without restructuring. Each KMP app uses the standard three-module layout — a `shared` module
+(`commonMain` + `androidMain` + `iosMain`), a separate `androidApp` module (Android entry), and
+`iosApp` (iOS entry); package root `com.effyshopping.<app>.mobile`. `customer-mobile` is the
+surface for this slice; `driver-mobile` and `shop-mobile` are scaffolded as siblings for later
+slices. Managed EMAIL_OTP means there are **no custom-auth Lambdas** — Cognito sends and
+validates the OTP, with SES configured as the pool's email sender.
 
 ## Complexity Tracking
 

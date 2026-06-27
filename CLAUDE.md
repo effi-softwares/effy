@@ -58,6 +58,20 @@ Jade brand #0FB57E / fill #047857, shared across all surfaces via one design-sys
 Dark mode required. Mobile must feel native (iOS HIG / Android Material), fat-finger targets +
 micro-animations are requirements. Design refs: Uber / Bolt / foodpanda / eBay.
 
+## Mobile apps (scaffolded)
+Three KMP + Compose Multiplatform apps live under `apps/`, each an **independent Gradle build**
+with the standard three-module layout (`shared` + `androidApp` + `iosApp`) and package root
+`com.effyshopping.<app>.mobile`:
+- `apps/customer-mobile` — `com.effyshopping.customer.mobile` — **active surface** (feature 001).
+- `apps/driver-mobile` — `com.effyshopping.driver.mobile` — scaffold, future slice.
+- `apps/shop-mobile` — `com.effyshopping.shop.mobile` — scaffold, future slice (the "store"
+  audience; the mobile app is named `shop`).
+
+Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
+compileSdk + targetSdk 36**. Currently the base KMP template (commonMain `Greeting`/`Platform`
+stubs); the auth stack (Amplify, Navigation 3 + CMP ViewModel, Ktor, kotlinx-serialization,
+multiplatform-settings, BuildKonfig) is layered into `customer-mobile` per the 001 plan/tasks.
+
 <!-- SPECKIT START -->
 ## Active feature
 
