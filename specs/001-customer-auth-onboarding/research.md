@@ -1,242 +1,204 @@
 # Phase 0 Research: Customer Auth & Onboarding
 
-All decisions below resolve the Technical Context for the plan. No blocking NEEDS
-CLARIFICATION remained from the spec (sign-in method was clarified to **passwordless**); a few
-defaults are confirmed here and flagged "confirm at implement" where an account-specific value
-is needed.
+All decisions below resolve the Technical Context for the plan. Sign-in was clarified to
+**passwordless** (spec). Two later decisions (2026-06-25, post-`/speckit-analyze`) reshaped the
+auth approach: the mobile app uses **AWS Amplify on both platforms**, and the backend uses
+**Cognito's managed passwordless EMAIL_OTP** (no custom-auth Lambda triggers). The decisions
+below reflect that.
 
 ---
 
-## D1. Passwordless mechanism: custom-auth Lambda triggers (chosen) vs native EMAIL_OTP
+## D1. Passwordless mechanism: Cognito **managed EMAIL_OTP** (chosen)
 
-**Decision**: Implement passwordless EMAIL_OTP via **Cognito custom-auth Lambda triggers**
-(`DefineAuthChallenge`, `CreateAuthChallenge`, `VerifyAuthChallengeResponse`, plus
-`PreSignUp`), as the user directed. The pool's app client enables `ALLOW_CUSTOM_AUTH` and
-`ALLOW_REFRESH_TOKEN_AUTH` only.
+**Decision**: Use Cognito's **managed passwordless EMAIL_OTP** via the **`USER_AUTH`** (choice-
+based) auth flow. The customer pool is on the **Essentials feature tier** (required for managed
+passwordless); the app client enables the `USER_AUTH` flow with `EMAIL_OTP` as the factor, plus
+`REFRESH_TOKEN_AUTH`. **No custom-auth Lambda triggers** (`Define/Create/Verify/PreSignUp`) and
+**no discarded-secret workaround** — Cognito generates, sends, and validates the OTP itself, and
+the account is truly passwordless.
 
-- `DefineAuthChallenge` — orchestrates the flow: issue a `CUSTOM_CHALLENGE`; on correct answer
-  issue tokens; after N failed attempts, fail the auth session (enforces FR-014).
-- `CreateAuthChallenge` — generates a numeric OTP, stores it in `privateChallengeParameters`
-  (never sent to the client), records `expiresAt`, and emails the code via SES.
-- `VerifyAuthChallengeResponse` — compares the submitted code to the private OTP and checks
-  expiry → sets `answerCorrect` (FR-011 single-use/expiry; FR-012 wrong/expired feedback).
-- `PreSignUp` — auto-confirms the user and auto-verifies email so a brand-new email can proceed
-  straight into the OTP challenge with no separate confirmation step (FR-003/FR-004).
+**Rationale**: Amplify is now the client (D5), and Amplify drives managed EMAIL_OTP end-to-end
+with almost no app code. Dropping the four triggers + the send-via-SES Lambda + the random-
+secret hack removes the largest, most error-prone part of the earlier plan. Truly "no password
+ever set" (FR-006).
 
-**Rationale**: Matches the user's explicit instruction and the locked platform pattern. Keeps
-all OTP policy (length, expiry, attempt caps, copy) in code we control, which the spec's
-error-feedback and rate-limit requirements lean on.
+**Cost note**: The Essentials tier bills per monthly active user above the free allotment —
+acceptable for dev; flag for the prod cost model later.
 
-**Alternatives considered**:
-- **Native managed passwordless `EMAIL_OTP` (USER_AUTH flow)** — Cognito sends/validates the
-  OTP itself; **no triggers, no SES wiring, and literally no password ever** (cleanest fit for
-  "no password ever set"). Requires the Essentials feature tier. **Recommended** if the team
-  later wants to drop the trigger/SES surface; flagged in plan Complexity Tracking. Not chosen
-  now because the user specified the custom-auth-trigger approach.
-- **Amplify Auth** — heavier client dependency; KMP support is immature. Rejected (we call
-  Cognito directly from Ktor — see D5).
+**Alternatives considered**: Custom-auth Lambda triggers (the earlier choice) — more control
+over OTP length/expiry/email copy, but four Lambdas + SES wiring + a secret workaround to
+maintain. Rejected once Amplify + managed EMAIL_OTP made it unnecessary.
 
 ---
 
-## D2. New-user creation & "email already registered" (FR-003, FR-013)
+## D2. Sign-up / "email already registered" (FR-003, FR-013)
 
-**Decision**: "Sign up" and "sign in" are the **same client flow**. The app first attempts the
-custom-auth challenge for the email; if Cognito reports the user does not exist, the app calls
-Cognito **`SignUp`** with the email as username and a **client-generated, high-entropy random
-secret that is never displayed, stored, or reused**, then immediately starts the custom-auth
-challenge. `PreSignUp` auto-confirms so no email-link step is needed.
+**Decision**: Sign-up and sign-in are one passwordless flow driven by Amplify. A new email is
+registered (passwordless sign-up; no password parameter) and immediately verified by the same
+emailed OTP; a known email simply signs in. Email is the unique account key (Cognito username
++ `email` attribute, case-insensitive). A sign-up attempt on an existing email surfaces the
+"already registered → signing you in" path (FR-013 — no duplicate).
 
-- Duplicate emails: `SignUp` on an existing username returns `UsernameExistsException` → the
-  app treats it as "already registered, signing you in" and proceeds to the OTP challenge for
-  the existing account (FR-013 — no duplicate; guided to sign-in).
-- Email is the unique account key (Cognito username + `email` attribute, case-insensitive).
-
-**Rationale**: A unified flow means the customer never picks "sign up vs sign in" — they enter
-an email and get a code, exactly as the spec describes. The random secret exists only to
-satisfy the `SignUp` API and is unrecoverable, preserving the passwordless UX.
-
-**Alternatives considered**: `AdminCreateUser` (server-side) — sets a temporary password and
-`FORCE_CHANGE_PASSWORD` status that conflicts with custom-auth; rejected. Native EMAIL_OTP
-avoids the secret entirely (see D1).
+**Rationale**: The customer never chooses "sign up vs sign in" — they enter an email and get a
+code, exactly as the spec describes. Managed passwordless needs no secret to satisfy any API.
 
 ---
 
-## D3. OTP policy: length, expiry, single-use, resend, rate limiting (FR-010, FR-011, FR-014)
+## D3. OTP policy: length, expiry, resend (FR-010, FR-011, FR-014)
 
-**Decision**:
-- 6-digit numeric code; **expiry 10 minutes**; **single-use** (cleared on success or on issuing
-  a new code).
-- **Max 3 wrong attempts** per auth session before `DefineAuthChallenge` fails it; the app then
-  restarts the flow.
-- **Resend cooldown 30 s** enforced client-side; a resend starts a fresh `InitiateAuth`
-  session, invalidating the prior code.
-- Cognito account-level request throttling provides a backstop against abuse.
+**Decision**: OTP length/expiry/validation are **managed by Cognito** (6-digit numeric;
+single-use; Cognito-enforced validity window). Resend = re-initiate the EMAIL_OTP challenge via
+Amplify (a fresh code; the prior is invalidated). Cognito's account-level throttling plus the
+client resend cooldown cover FR-014; there are no custom attempt counters to maintain.
 
-**Rationale**: Standard, user-friendly OTP ergonomics that satisfy SC-001 (≤2 min) and the
-spec's edge cases (wrong/expired/resend/too-many-attempts) without inventing a custom store —
-state lives in the Cognito auth session.
+**Rationale**: Managed EMAIL_OTP trades fine-grained control for zero custom code. The spec's
+wrong/expired/resend/too-many edges map onto Cognito's challenge errors, surfaced by Amplify.
 
-**Confirm at implement**: exact attempt count / cooldown are tunable; these are sane defaults.
+**Trade-off**: Less control over exact OTP length/expiry/email copy than the trigger approach.
+Email branding is tuned via the pool email configuration (D4), not a Lambda. Acceptable for
+this slice.
 
 ---
 
-## D4. OTP email delivery: Amazon SES (FR-002, SC-002)
+## D4. OTP email delivery: pool email configuration (FR-002, SC-002)
 
-**Decision**: `CreateAuthChallenge` sends the OTP through **SES v2** from a verified sender
-identity provisioned in dev. Email template is plain + minimal (code, expiry, "didn't request
-this?" line).
+**Decision**: Cognito sends the EMAIL_OTP message using the **user pool's email configuration**.
+For deliverability and branding, configure **Amazon SES** as the pool's email sender
+(`EmailSendingAccount = DEVELOPER` with a verified SES identity). Dev MAY start on Cognito's
+default email sender (low daily cap) and move to SES.
 
-**Rationale**: Custom-auth challenges must send their own email; Cognito's built-in emailer
-only covers its default messages. SES is the platform-standard sender and meets the 30 s
-delivery target.
+**Rationale**: No `CreateAuthChallenge` Lambda is needed — Cognito owns sending. SES as the pool
+sender is the production-grade path and meets the 30 s delivery target.
 
-**Dev caveat (important)**: SES starts in **sandbox mode** — it can only send to **verified
-recipient addresses**. For dev testing, either verify each tester's email in SES or request
-production access. This is captured as an infra task and called out in quickstart.md.
+**Dev caveat**: SES starts in **sandbox** (per-region, `ap-southeast-1`): verify test recipient
+addresses, or request production access. Captured in quickstart.md.
 
 ---
 
-## D5. Mobile → Cognito without Amplify: raw Ktor calls (Principle IV — frontend talks to Cognito directly)
+## D5. Mobile → Cognito: **AWS Amplify on both platforms** (Principle IV — frontend talks to Cognito directly)
 
-**Decision**: The KMP app calls the **Cognito Identity Provider JSON API directly via Ktor**:
-- `InitiateAuth` with `AuthFlow=CUSTOM_AUTH` → returns a `Session` + `CUSTOM_CHALLENGE`.
-- `RespondToAuthChallenge` with `ChallengeName=CUSTOM_CHALLENGE` and `ChallengeResponses`
-  (`USERNAME`, `ANSWER=<code>`) → returns the token set on success, or a new challenge/session.
-- `SignUp` for first-time users (D2). `InitiateAuth REFRESH_TOKEN_AUTH` for silent refresh.
+**Decision**: Auth lives behind a common `expect interface AuthRepository` in `commonMain`,
+with platform `actual`s:
+- **Android** — Amplify Android (`com.amplifyframework:aws-auth-cognito`).
+- **iOS** — **Amplify Swift** (added to the Xcode project via SPM), bridged to the iOS `actual`.
 
-Requests are unauthenticated POSTs to `https://cognito-idp.{region}.amazonaws.com/` with header
-`X-Amz-Target: AWSCognitoIdentityProviderService.<Action>` and `Content-Type:
-application/x-amz-json-1.1`. **No SigV4 signing** is needed because the app client has **no
-client secret** (public client).
+Both configure the same customer pool/app client (ids injected via BuildKonfig — D12). Amplify
+drives the managed EMAIL_OTP flow (`signUp` passwordless / `signIn` with `EMAIL_OTP` →
+`confirmSignIn(code)`), exposes the session/JWTs, and **owns token persistence + refresh** (D7).
 
-**Rationale**: Keeps the dependency surface tiny and fully cross-platform (one Ktor client in
-`commonMain`), and honors Principle IV literally — the frontend authenticates against Cognito
-directly, no proxy. SigV4 in KMP is the main thing this avoids.
+**Rationale**: Amplify is the native, first-class Cognito client on each platform and removes
+the hand-rolled auth/refresh/storage code the raw-Ktor approach would need. It authenticates
+**directly** against Cognito (a client SDK, not a proxy) — Principle IV holds. The cost is
+platform-specific auth code (normal for KMP via expect/actual) and an Amplify Swift dependency
+in the Xcode project.
 
-**Alternatives considered**: AWS SDK for Kotlin (JVM-leaning, awkward in `commonMain`) and
-Amplify (immature KMP) — both rejected.
+**Alternatives considered**: Raw Ktor→Cognito in `commonMain` (the earlier D5) — fully shared,
+but we'd own the OTP flow, refresh, and secure storage by hand. Amplify Android + AWS SDK Swift
+— mixed stacks. Both rejected in favor of Amplify-on-both.
+
+**Note**: Ktor remains for the **Go hot-path API** (`GET /v1/profile`); its `Authorization:
+Bearer` token comes from Amplify's current session (ktor-client-auth attaches/refreshes).
 
 ---
 
 ## D6. Go JWT validation: lestrrat-go/jwx/v2 with cached JWKS (Principle IV — backend validates per pool)
 
 **Decision**: A Gin middleware validates the **customer pool** access token:
-- Fetch `https://cognito-idp.{region}.amazonaws.com/{userPoolId}/.well-known/jwks.json` into a
-  **cached, auto-refreshing** `jwk.Cache` (lestrrat-go/jwx/v2).
-- Verify RS256 signature, then assert claims: `iss` == the pool issuer URL, `token_use` ==
-  `access`, `client_id` == the customer app client id, `exp`/`nbf` valid.
-- Extract `sub` (stable subject) and `email` for downstream profile use.
+- Cached, auto-refreshing JWKS (`jwk.Cache`) from `.../{userPoolId}/.well-known/jwks.json`.
+- Assert `iss` == the pool issuer, `token_use` == `access`, `client_id` == the customer app
+  client id, `exp`/`nbf` valid; extract `sub` + email.
 
-**Rationale**: `jwx/v2` is the de-facto Go library for JWKS-backed validation with built-in key
-caching/rotation; pinning `iss` + `client_id` to the **customer pool** is what enforces Auth
-Isolation server-side — a driver/store/admin token fails validation.
-
-**Alternatives considered**: `coreos/go-oidc` (heavier, OIDC-discovery oriented) and hand-rolled
-JWKS parsing (error-prone) — rejected.
+**Rationale**: Unchanged by the Amplify/EMAIL_OTP switch — the backend still receives a standard
+Cognito JWT and pins it to the **customer pool**, which is what enforces Auth Isolation server-
+side. A driver/store/admin token fails and returns 401.
 
 ---
 
-## D7. Session persistence across restarts (FR-007, US3)
+## D7. Session persistence across restarts (FR-007, US3) — **Amplify-owned**
 
-**Decision**: On successful auth, persist the **refresh token** (and current access/id tokens)
-to device **secure storage**. On app launch, if a refresh token exists, perform a **silent
-refresh** (`REFRESH_TOKEN_AUTH`) to mint a fresh access token before showing the home stub; if
-refresh fails (revoked/expired), drop to the signed-out state gracefully (US3 scenario 3).
-- **Refresh token lifetime ≈ 30 days** with rotation; access/id tokens 60 min (Cognito
-  defaults). "Stay signed in" = valid refresh token.
+**Decision**: **Amplify owns the session** on both platforms — it securely persists the token
+set and performs silent refresh. On launch the app calls `fetchAuthSession`; a valid session →
+signed-in, an expired/revoked refresh → signed-out (US3 #3). No manual refresh/launch-gate code
+beyond reading Amplify's session state.
 
-**Rationale**: This is the standard Cognito long-session pattern and directly satisfies "still
-signed in after force-quit" and "session expired → graceful sign-out".
-
-**Confirm at implement**: 30-day refresh lifetime is the spec's "order of weeks" default
-(spec Assumptions); tunable on the app client.
+**Rationale**: This is exactly what Amplify provides; it directly satisfies "still signed in
+after force-quit" and "expired → graceful sign-out" with no custom token plumbing.
 
 ---
 
-## D8. Secure storage abstraction (cross-platform)
+## D8. Secure storage — **Amplify-managed** for auth
 
-**Decision**: Use **`russhwolf/multiplatform-settings`** with platform-encrypted backends —
-`KeychainSettings` (iOS Keychain) and `EncryptedSharedPreferences` (Android Jetpack Security) —
-behind a `TokenStore` interface in `commonMain`. If a needed capability is missing, fall back
-to a thin `expect/actual TokenStore`.
+**Decision**: Cognito tokens are stored by **Amplify** (EncryptedSharedPreferences on Android,
+Keychain on iOS, internally). `multiplatform-settings` (no-arg + serialization) is retained only
+for **non-auth** preferences (e.g. UI state), not tokens.
 
-**Rationale**: Meets the spec/plan requirement (Keychain on iOS, encrypted prefs on Android)
-with a single shared interface and minimal platform code; avoids hand-writing Keychain/Cipher
-glue twice.
+**Rationale**: Avoids hand-writing Keychain/Cipher glue; Amplify's storage is the platform-
+correct default and removes the manual `TokenStore` the earlier plan needed.
 
 ---
 
 ## D9. Lazy profile creation (FR-005) — hot path, raw SQL
 
-**Decision**: `GET /v1/profile` reads `sub` + `email` from the validated JWT, then in a single
-transaction **upserts** the `customers` row (`INSERT ... ON CONFLICT (cognito_sub) DO NOTHING`)
-and ensures a 1:1 `profiles` row, returning the profile. Idempotent and concurrency-safe via the
-unique constraint.
+**Decision**: `GET /v1/profile` reads `sub` + `email` from the validated JWT, then upserts the
+`customers` row (`INSERT ... ON CONFLICT (cognito_sub) DO NOTHING`) and ensures a 1:1 `profiles`
+row in one transaction, returning the profile. Idempotent and concurrency-safe.
 
 **Rationale**: "Profile exists automatically on first sign-in" with no separate write endpoint;
-the read path self-heals the first time. Raw SQL via pgx (no ORM) per Tech Standards.
-
-**Alternatives considered**: A Cognito `PostAuthentication` trigger writing to RDS — couples
-auth infra to the DB and needs VPC access from the Lambda; rejected in favor of lazy-create on
-the hot path.
+raw SQL via pgx (no ORM). Unchanged by the auth-mechanism switch.
 
 ---
 
-## D10. Terraform layout, remote-state bootstrap, and SSM (Infra)
+## D10. Terraform layout, remote-state bootstrap, SSM, and region (Infra)
 
 **Decision**:
-- `infra/bootstrap/` creates the **S3 state bucket** (versioned, encrypted) + **DynamoDB lock
-  table**. It runs with **local state first**, then optionally migrates its own state into the
-  bucket. One-time, per the chicken-and-egg of remote state.
-- `infra/envs/dev/` uses the S3 backend and composes `modules/cognito-customer-pool` +
-  `modules/rds-postgres`, then writes **SSM Parameter Store** entries:
-  `/effy/dev/cognito/customer_pool_id`, `/effy/dev/cognito/customer_app_client_id`,
-  `/effy/dev/db/url` (SecureString for the URL).
-- The Go service reads these at boot via `aws-sdk-go-v2/ssm` (no secrets in code/repo).
-- **Region** is a single Terraform variable `region`, set to **`ap-southeast-1`** for effy
-  (see "Region (locked)" below). The Go service + KMP app read region from SSM/config — never
-  hardcoded — so reverting is a one-variable change.
-- **All** AWS-touching Terraform/CLI runs under `AWS_PROFILE=ef` **and**
-  `AWS_REGION=ap-southeast-1`. The `ef` profile's default region is `ap-southeast-2`, so region
-  MUST be set explicitly or commands hit the wrong region and won't find effy's resources.
+- `infra/bootstrap/` creates the **S3 state bucket** + **DynamoDB lock table** (local state
+  first, one-time).
+- `infra/envs/dev/` composes `modules/cognito-customer-pool` (now: Essentials tier + managed
+  EMAIL_OTP + SES pool email) and `modules/rds-postgres`, then writes SSM params
+  (`/effy/dev/cognito/customer_pool_id`, `/effy/dev/cognito/customer_app_client_id`,
+  `/effy/dev/db/url`).
+- Backend reads SSM at boot; the **mobile app** gets pool id / app client id / region / API base
+  URL via **BuildKonfig** (Gradle properties wired off the same TF outputs) — no hardcoding.
+- **Region** is a single TF variable `region` = **`ap-southeast-1`** (isolates effy from `ef` in
+  `ap-southeast-2`; revertable). All AWS-touching commands run under `AWS_PROFILE=ef` **and**
+  `AWS_REGION=ap-southeast-1` (the `ef` profile defaults to `ap-southeast-2`).
 
-**Rationale**: Standard, safe multi-env Terraform with a fresh effy-owned backend; SSM keeps the
-"no hardcoded secrets" constraint and gives the Go service one config source.
-
-**Region (locked)**: Deploy all effy resources to **`ap-southeast-1` (Singapore)**. The existing
-`ef` platform runs in **`ap-southeast-2` (Sydney)**, so a different region cleanly isolates every
-region-scoped resource (Cognito, RDS, SSM, Lambda, SES, the DynamoDB lock table) — no collisions
-while both platforms share the same AWS account. This is **revertable**: once the old
-`ap-southeast-2` resources are deleted, flip the `region` variable back to `ap-southeast-2` (the
-issuer/JWKS URLs and SES endpoint follow the variable automatically). Region does **not** isolate
-account-global resources (IAM names, the S3 bucket namespace), so `effy-*` name prefixing +
-separate state are kept regardless. Keep `region` per-env so prod can pick the region matching
-the user base — the hot-path latency budget is real (Principle III).
+**Region (locked)**: Deploy all effy resources to `ap-southeast-1`. Different region from `ef`
+cleanly isolates every region-scoped resource (Cognito, RDS, SSM, SES, the DynamoDB lock table)
+in the shared account. Region does not isolate account-global resources (IAM names, S3 bucket
+namespace), so `effy-*` prefixing + separate state are kept regardless. Once the old
+`ap-southeast-2` resources are deleted, flip `region` back.
 
 ---
 
 ## D11. Migrations: Goose forward-only (Tech Standards)
 
-**Decision**: SQL migrations in `services/api/migrations/`, run by **Goose** via
-`make migrate` against the dev DB (URL from SSM). Forward-only — no relied-upon down
-migrations. First migration creates `customers` + `profiles` (see data-model.md).
+**Decision**: SQL migrations in `services/api/migrations/`, run by **Goose** via `make migrate`
+(DB URL from SSM). Forward-only. First migration creates `customers` + `profiles`.
 
-**Rationale**: Matches the locked standard; embedding the migrations in the Go binary is an
-option for later deploy, but the Makefile target is enough for this slice.
+**Rationale**: Matches the locked standard. Unchanged.
 
 ---
 
-## D12. Mobile architecture: Clean Architecture + MVI + navigation
+## D12. Mobile architecture: Clean Architecture + MVI on ViewModel + Navigation 3 + BuildKonfig
 
-**Decision**: Layers in `commonMain` — `domain` (entities + use cases), `data` (Ktor Cognito
-client, `TokenStore`, profile repository), `feature/*` (MVI stores). Each MVI store is a
-`StateFlow<State>` + `onIntent(Intent)` reducer driving effects; UI is Compose Multiplatform.
-Navigation via **Compose Multiplatform Navigation**; DI via **Koin**.
+**Decision** (refined with the adopted package set — AGP 9 / Kotlin 2.3.20 / Compose MP 1.10.2,
+minSdk 24 / compileSdk 36):
+- **State**: MVI on top of **Compose Multiplatform `ViewModel`** (`lifecycle-viewmodel` +
+  `viewmodel-compose`) — each feature ViewModel exposes `StateFlow<State>` + intent functions.
+- **Navigation**: **Navigation 3** (`navigation3-ui` + `lifecycle-viewmodel-navigation3`) —
+  back stack as state; signed-out ↔ signed-in graphs.
+- **DI**: **no Koin** (dropped) — manual construction / ViewModel factories.
+- **Config**: **BuildKonfig** generates compile-time constants (`AWS_REGION`,
+  `COGNITO_USER_POOL_ID`, `COGNITO_APP_CLIENT_ID`, `API_BASE_URL`) from Gradle properties wired
+  off TF outputs — keeps Cognito config out of source.
+- **Auth**: Amplify behind `expect/actual AuthRepository` (D5).
+- **Layers** (`commonMain`): `domain` (entities + use cases), `data` (AuthRepository expect +
+  Ktor profile client), `feature/*` (ViewModels + Compose screens), `ui/theme` (Jade + dark).
 
-**Rationale**: Honors the locked "Clean Architecture + MVI" standard with the lightest moving
-parts for a solo team; a hand-rolled `StateFlow` MVI store avoids a heavyweight framework while
-keeping unidirectional data flow testable. Orbit-MVI/MVIKotlin/Decompose are viable but heavier;
-revisit if navigation complexity grows.
+**Rationale**: Honors the locked "Clean Architecture + MVI" standard on the modern CMP stack;
+ViewModel + Nav3 are the current idiomatic choices and integrate (viewmodel-navigation3) for
+scoping. Lighter than a DI framework for a solo team.
 
 ---
 
@@ -245,15 +207,16 @@ revisit if navigation complexity grows.
 | Item | Resolution |
 |------|-----------|
 | Sign-in credential method | Passwordless EMAIL_OTP (spec clarification) |
-| New-user creation | Unified flow; `SignUp` + discarded random secret + `PreSignUp` auto-confirm |
-| OTP length/expiry/attempts/resend | 6 digits / 10 min / 3 attempts / 30 s cooldown (tunable) |
-| Email delivery | SES v2 (dev sandbox → verify test recipients) |
-| Mobile↔Cognito | Raw Ktor calls (no SigV4, public app client, no Amplify) |
-| Backend JWT validation | lestrrat-go/jwx/v2, cached JWKS, pin iss + client_id to customer pool |
-| Session persistence | Refresh token in secure storage; silent refresh on launch; ~30-day refresh |
-| Secure storage | multiplatform-settings (Keychain / EncryptedSharedPreferences) |
+| Passwordless mechanism | **Cognito managed EMAIL_OTP** (USER_AUTH flow, Essentials tier) — no triggers |
+| New-user creation | Passwordless sign-up via Amplify; no secret; duplicate email → sign-in |
+| OTP policy | Cognito-managed (6-digit, single-use); resend re-initiates; throttling + client cooldown |
+| Email delivery | Cognito pool email config; SES as sender (sandbox in dev → verify recipients) |
+| Mobile ↔ Cognito | **Amplify on both platforms** behind expect/actual; Ktor only for the Go API |
+| Backend JWT validation | jwx/v2 cached JWKS; pin iss + client_id + token_use to customer pool |
+| Session persistence | **Amplify-owned** (secure storage + silent refresh, both platforms) |
+| Secure storage | Amplify-managed for tokens; multiplatform-settings for non-auth prefs |
 | Profile creation | Lazy upsert on `GET /v1/profile`, raw SQL transaction |
-| Remote state | Fresh effy S3 + DynamoDB via `infra/bootstrap/` |
-| Config delivery | SSM Parameter Store → Go service at boot |
-| AWS region | **`ap-southeast-1`** (TF `region` var) — isolates effy from `ef` in `ap-southeast-2`; revertable later |
-| AWS profile / region | `AWS_PROFILE=ef` **+ `AWS_REGION=ap-southeast-1`** on every AWS-touching command (profile default is `ap-southeast-2`) |
+| Mobile arch | MVI on CMP ViewModel + Navigation 3, no Koin, BuildKonfig config |
+| Android SDK levels | minSdk 24 / compileSdk 36 / targetSdk 36 (desugaring on) |
+| Remote state / region | S3+DynamoDB via bootstrap; all AWS in `ap-southeast-1` (`AWS_PROFILE=ef`) |
+| Config delivery | SSM → Go service; BuildKonfig (from TF outputs) → mobile app |

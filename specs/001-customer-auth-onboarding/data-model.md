@@ -8,8 +8,8 @@ Auth Isolation clean (no password/credential material in our DB).
 |-------------|----------|-------|
 | Customer Account (identity) | **Cognito customer pool** + mirrored in `customers` | Cognito holds email, verification status, the stable `sub`. We mirror the minimum (`cognito_sub`, `email`) so app data can FK to a customer. |
 | Customer Profile | **Postgres `profiles`** | 1:1 with `customers`; created lazily on first authenticated call. |
-| Verification Code | **Cognito custom-auth session** | OTP lives in `privateChallengeParameters`; never in our DB. |
-| Session | **Device secure storage** (token set) + Cognito | Refresh/access/id tokens; "signed in" = valid refresh token. |
+| Verification Code | **Cognito (managed EMAIL_OTP)** | Cognito generates/sends/validates the OTP; never in our DB. |
+| Session | **Amplify-managed** (token set) + Cognito | Amplify persists + refreshes the tokens on each platform; "signed in" = valid Amplify session. |
 
 ---
 
@@ -81,14 +81,14 @@ profile returned  ──(every later call)──>  existing row returned (no wri
 - Single transaction; safe under concurrent first-calls (the unique constraints serialize).
 - No delete path this slice (account deletion is out of scope per spec).
 
-### Session lifecycle (device + Cognito)
+### Session lifecycle (Amplify-managed)
 
 ```text
-SIGNED_OUT ──(OTP verified → tokens)──> SIGNED_IN (tokens in secure storage)
-SIGNED_IN ──(app launch)──> silent REFRESH_TOKEN_AUTH
-        ├─ success → SIGNED_IN (fresh access token)
-        └─ refresh invalid/expired → SIGNED_OUT (graceful, US3 #3)
-SIGNED_IN ──(sign out)──> clear secure storage → SIGNED_OUT (FR-008/FR-009)
+SIGNED_OUT ──(OTP confirmed → Amplify session)──> SIGNED_IN (Amplify persists tokens)
+SIGNED_IN ──(app launch: Amplify.fetchAuthSession)──>
+        ├─ valid (Amplify silently refreshes) → SIGNED_IN
+        └─ invalid/expired/revoked → SIGNED_OUT (graceful, US3 #3)
+SIGNED_IN ──(Amplify.Auth.signOut)──> SIGNED_OUT (FR-008/FR-009)
 ```
 
 ---

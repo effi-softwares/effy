@@ -27,8 +27,12 @@ We are using **spec-driven development via GitHub Spec Kit**. Read this before d
   Reason: solo/small team + pivot = consistency across surfaces is the #1 need; shared packages
   (design-system, api-client, shared-types) are the whole point.
 - **Methodology:** Spec Kit (official CLI), with a BMAD-style discovery Brief up front.
-- **Mode of work:** the USER creates/scaffolds; Claude TEACHES and REVIEWS. Don't scaffold
-  for the user unless asked.
+- **Mode of work:** Claude WRITES all the code — scaffolding plus app/service/infra source,
+  task by task per the plan. The USER runs every risky / outward-facing operation manually:
+  deployments, `terraform apply`/`tf-bootstrap`, DB migrations, and anything touching live AWS.
+  Claude authors Terraform, migration SQL, and Lambda source but does NOT run `terraform apply`,
+  migrations, or any command that provisions cloud resources or mutates live state — it hands
+  those steps to the user with exact commands to run.
 
 ## Workflow (the method)
 ```
@@ -59,9 +63,10 @@ micro-animations are requirements. Design refs: Uber / Bolt / foodpanda / eBay.
 
 - **001-customer-auth-onboarding** — Customer Auth & Onboarding (passwordless EMAIL_OTP).
   Plan: [specs/001-customer-auth-onboarding/plan.md](specs/001-customer-auth-onboarding/plan.md)
-  Stack this slice: KMP + Compose Multiplatform (Android+iOS), Go hot-path `GET /v1/profile`
-  (Gin + pgx, JWKS validation), Cognito customer pool w/ custom-auth Lambda triggers, RDS
-  Postgres + Goose, Terraform (bootstrap + dev) + SSM, all AWS under `AWS_PROFILE=ef` +
+  Stack this slice: KMP + Compose Multiplatform (Android+iOS) with **AWS Amplify** auth +
+  Navigation 3 + CMP ViewModel; Go hot-path `GET /v1/profile` (Gin + pgx, JWKS validation);
+  Cognito customer pool with **managed passwordless EMAIL_OTP** (no Lambda triggers); RDS
+  Postgres + Goose; Terraform (bootstrap + dev) + SSM; all AWS under `AWS_PROFILE=ef` +
   `AWS_REGION=ap-southeast-1` (Singapore — isolates from `ef` in `ap-southeast-2`; revertable).
 <!-- SPECKIT END -->
 

@@ -153,8 +153,8 @@ again.
 - **FR-006**: System MUST allow a returning customer with an existing account to sign in by
   entering a one-time verification code emailed to them at sign-in time (passwordless). No
   password is set or stored at any point.
-- **FR-007**: System MUST keep a signed-in customer signed in across app restarts and browser
-  sessions until they sign out or their session expires.
+- **FR-007**: System MUST keep a signed-in customer signed in across app restarts until they
+  sign out or their session expires.
 - **FR-008**: System MUST allow a signed-in customer to sign out and return to the signed-out
   state.
 - **FR-009**: After sign-out, System MUST require successful authentication before granting
@@ -165,8 +165,7 @@ again.
   requesting or using a new code MUST invalidate the prior one.
 - **FR-012**: System MUST present clear, specific, actionable feedback for each failure case:
   wrong code, expired code, email already registered (sign-up), invalid email format, and
-  too-many-attempts. (Wrong-password feedback applies only if the password-based option in
-  FR-006 is chosen.)
+  too-many-attempts.
 - **FR-013**: System MUST treat the email address as the unique identifier for a customer
   account; a sign-up attempt with an already-registered email MUST NOT create a duplicate and
   MUST guide the customer to sign in.
@@ -211,9 +210,9 @@ again.
 
 ## Assumptions
 
-- **Auth method default**: Unless FR-006 is resolved otherwise, sign-in is assumed to be
-  passwordless (a one-time emailed code), consistent with the platform's established
-  email-code authentication.
+- **Auth method (confirmed)**: Both sign-up and sign-in are passwordless — a one-time emailed
+  code each time; no password is ever set or stored (FR-006, clarified 2026-06-25), consistent
+  with the platform's established email-code authentication.
 - **Session lifetime**: "Stay signed in" assumes a long-lived session with silent renewal; the
   exact duration and renewal behavior are an implementation decision for the plan, not a
   product requirement here. A reasonable default is on the order of weeks.

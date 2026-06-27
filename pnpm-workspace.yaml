@@ -1,0 +1,6 @@
+# Reserved for the later JS/TS web slice (customer-web + shared design-system / api-client /
+# shared-types packages). Intentionally empty this slice — mobile (Gradle) and Go own their
+# own builds; nothing here yet. Uncomment when the web packages land.
+packages: []
+  # - "apps/customer-web"
+  # - "packages/*"

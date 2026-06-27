@@ -1,0 +1,55 @@
+# === Effy monorepo .gitignore ===
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.iml
+
+# --- Secrets / env (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Kotlin / Gradle / Android (apps/customer-mobile) ---
+.gradle/
+**/build/
+local.properties
+*.hprof
+captures/
+.kotlin/
+
+# --- iOS / Xcode (apps/customer-mobile/iosApp) ---
+xcuserdata/
+*.xcuserstate
+DerivedData/
+.swiftpm/
+Pods/
+
+# --- Go (services/api) ---
+*.exe
+*.test
+*.out
+vendor/
+/services/api/bin/
+
+# --- Node / TS (infra lambdas + reserved web) ---
+node_modules/
+dist/
+*.log
+.pnpm-store/
+
+# --- Terraform (infra) ---
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+override.tf
+override.tf.json

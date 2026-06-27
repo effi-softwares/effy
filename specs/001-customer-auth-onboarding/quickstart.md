@@ -9,15 +9,15 @@ is a run/validation guide — implementation detail lives in `tasks.md` and the 
   assumes both; the Makefile sets `AWS_PROFILE=ef` + `AWS_REGION=ap-southeast-1`). The `ef`
   profile's default region is `ap-southeast-2`, so region MUST be set explicitly or commands hit
   the wrong region. Confirm: `aws sts get-caller-identity --profile ef`.
-- Terraform, Go 1.25, JDK 17+ & Android SDK, Xcode (for iOS), Node 20 (trigger Lambdas),
-  `goose`, `pnpm` (reserved for later web).
+- Terraform, Go 1.25, JDK 17+ & Android SDK, Xcode (for iOS) + Amplify Swift, `goose`,
+  `pnpm` (reserved for later web).
 - A test email address **verified in SES** (dev SES is in sandbox — see research.md D4).
 
 ## One-time setup
 
 ```bash
 make tf-bootstrap     # creates the effy S3 state bucket + DynamoDB lock table (AWS_PROFILE=ef)
-make tf-dev-apply     # provisions dev: Cognito customer pool + triggers, RDS Postgres, SSM params
+make tf-dev-apply     # provisions dev: Cognito customer pool (managed EMAIL_OTP) + SES, RDS Postgres, SSM params
 make migrate          # runs Goose migrations (customers + profiles) against the dev DB
 ```
 

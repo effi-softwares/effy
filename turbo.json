@@ -1,0 +1,5 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "//": "Reserved for the later JS/TS web slice. No tasks/pipelines yet — mobile (Gradle) and Go are outside Turbo.",
+  "tasks": {}
+}
