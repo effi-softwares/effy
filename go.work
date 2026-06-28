@@ -1,5 +1,0 @@
-go 1.25
-
-// Ties the Go modules under services/* for local dev. One module today (the hot-path API);
-// future Go services join here.
-use ./services/api

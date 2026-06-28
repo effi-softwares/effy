@@ -37,8 +37,8 @@ Follow-up TODOs: none — all placeholders resolved; ratification date supplied 
 
 Effy is a grocery-delivery platform spanning four audiences — customers, drivers, stores,
 and admin/back-office. This document is a clean-rebuild charter: "same product, better built."
-It encodes the non-negotiable rules every spec, plan, and implementation MUST obey. Product
-context lives in `platform-brief.md`; this constitution governs how that product is built.
+It encodes the non-negotiable rules every spec, plan, and implementation MUST obey. This
+constitution governs how that product is built.
 
 ## Core Principles
 

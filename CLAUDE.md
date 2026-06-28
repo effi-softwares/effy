@@ -45,7 +45,7 @@ Brief (product pivot, user-authored)  →  /constitution (technical law, once)
 Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the earlier artifact.
 
 ## Order of operations
-1. Author the **Brief** (platform-brief.md) — capture the pivot. (Template provided.)
+1. Author the **Brief** — capture the pivot.
 2. Run **/constitution** — encode the technical law (dual-path, monorepo, no-ORM,
    native-feel mobile, Jade brand #0FB57E / fill #047857, 4-pool auth isolation).
 3. First slice: **Auth + customer onboarding** end-to-end (proves 4-pool auth + dual-path +
@@ -62,25 +62,20 @@ micro-animations are requirements. Design refs: Uber / Bolt / foodpanda / eBay.
 Three KMP + Compose Multiplatform apps live under `apps/`, each an **independent Gradle build**
 with the standard three-module layout (`shared` + `androidApp` + `iosApp`) and package root
 `com.effyshopping.<app>.mobile`:
-- `apps/customer-mobile` — `com.effyshopping.customer.mobile` — **active surface** (feature 001).
+- `apps/customer-mobile` — `com.effyshopping.customer.mobile` — primary customer surface.
 - `apps/driver-mobile` — `com.effyshopping.driver.mobile` — scaffold, future slice.
 - `apps/shop-mobile` — `com.effyshopping.shop.mobile` — scaffold, future slice (the "store"
   audience; the mobile app is named `shop`).
 
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
-compileSdk + targetSdk 36**. Currently the base KMP template (commonMain `Greeting`/`Platform`
-stubs); the auth stack (Amplify, Navigation 3 + CMP ViewModel, Ktor, kotlinx-serialization,
-multiplatform-settings, BuildKonfig) is layered into `customer-mobile` per the 001 plan/tasks.
+compileSdk + targetSdk 36**. All three are currently the base KMP template (commonMain
+`Greeting`/`Platform` stubs); each feature's stack is layered in per that feature's plan/tasks.
 
 <!-- SPECKIT START -->
 ## Active feature
 
-- **001-customer-auth-onboarding** — Customer Auth & Onboarding (passwordless EMAIL_OTP).
-  Plan: [specs/001-customer-auth-onboarding/plan.md](specs/001-customer-auth-onboarding/plan.md)
-  Stack this slice: KMP + Compose Multiplatform (Android+iOS) with **AWS Amplify** auth +
-  Navigation 3 + CMP ViewModel; Go hot-path `GET /v1/profile` (Gin + pgx, JWKS validation);
-  Cognito customer pool with **managed passwordless EMAIL_OTP** (no Lambda triggers); RDS
-  Postgres + Goose; Terraform (bootstrap + dev) + SSM; all AWS under `AWS_PROFILE=ef` +
-  `AWS_REGION=ap-southeast-1` (Singapore — isolates from `ef` in `ap-southeast-2`; revertable).
+_None yet._ The previous first slice (`001-customer-auth-onboarding`) was removed; the new first
+feature is being (re)scoped. Run `/speckit-specify` to create it — Spec Kit then maintains this
+block.
 <!-- SPECKIT END -->
 
