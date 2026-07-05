@@ -1,44 +1,53 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: (uninitialized template) → 1.0.0
-Bump rationale: Initial ratification — the template placeholders are replaced with
-                concrete, project-specific governance for the first time. MINOR/PATCH
-                do not apply to a first adoption; this is the 1.0.0 baseline.
+Version change: 1.2.0 → 1.3.0
+Bump rationale: MINOR — adds a new principle (VII. Observability & Telemetry) plus a new
+                Technology Standards group (Observability & notifications). No principle
+                removed or invalidated; existing plans remain valid.
 
-Modified principles (placeholder → concrete):
-  [PRINCIPLE_1] → I. Spec-Driven Development (NON-NEGOTIABLE)
-  [PRINCIPLE_2] → II. Monorepo with Shared Contracts
-  [PRINCIPLE_3] → III. Dual-Path Backend Discipline
-  [PRINCIPLE_4] → IV. Auth Isolation
-  [PRINCIPLE_5] → V. Native-Feel, Consistent Design
+Modified in this amendment:
+  - Added Principle VII. Observability & Telemetry → backend metrics (Prometheus) + structured
+    logs + Grafana dashboards/alerts; mobile crash reporting (Crashlytics); web error tracking
+    + product analytics (PostHog) via a shared event taxonomy; no PII in telemetry; push via
+    the notifications path (FCM + APNs); plans must declare their telemetry.
+  - Technology Standards (Locked) → new "Observability & notifications" group: Prometheus +
+    Grafana (self-hosted on ECS), Crashlytics, PostHog, FCM (+ APNs).
+  - Quality Gates → Constitution Check now includes telemetry declaration (Principle VII).
+  - ARCHITECTURE.md → new "Observability, Telemetry & Notifications" section (binding per VII).
 
-Added sections:
-  - Technology Standards (Locked)   [was SECTION_2 placeholder]
-  - Quality Gates                   [was SECTION_3 placeholder]
-
-Removed sections: none
+Unchanged: Principles I–VI (bodies + rationale); Governance.
 
 Templates requiring updates:
   ✅ .specify/templates/plan-template.md   — Constitution Check defers to this file
         dynamically ("[Gates determined based on constitution file]"); no edit needed.
-  ✅ .specify/templates/spec-template.md   — already enforces WHAT/WHY-only specs with
-        no tech sections; aligned with Principle I.
-  ✅ .specify/templates/tasks-template.md  — tests-optional, story-organized structure
-        aligns with the Quality Gates (verify-against-acceptance, no mandated TDD).
-  ✅ CLAUDE.md                             — already consistent with all five principles.
-  n/a .specify/templates/commands/*.md     — directory does not exist; nothing to reconcile.
-  n/a README.md / docs/quickstart.md       — do not exist; nothing to reconcile.
+  ✅ .specify/templates/spec-template.md   — WHAT/WHY-only specs; unaffected by Principle VII.
+  ✅ .specify/templates/tasks-template.md  — aligned with the Quality Gates; no edit needed.
+  ✅ CLAUDE.md                             — adds observability/telemetry to the stack + a note.
+  ✅ ARCHITECTURE.md                        — gains the Observability section; binding per VII.
+  ✅ platform-brief.md                     — gains one observability architecture-choices bullet.
 
-Follow-up TODOs: none — all placeholders resolved; ratification date supplied (2026-06-25).
+Follow-up TODOs: none.
+
+Prior history:
+  1.2.0 (2026-06-28) — Added Principle VI (Layered Architecture & Explicit Wiring); new file
+                       ARCHITECTURE.md as its binding elaboration.
+  1.1.0 (2026-06-28) — Reframed Effy as a new, original platform (no rewrite/rebuild framing);
+                       Principle IV pinned to passwordless EMAIL_OTP across all four pools;
+                       Mobile standard set to Clean Architecture + MVVM (was MVI).
+  1.0.0 (2026-06-25) — Initial ratification: template placeholders replaced with concrete,
+                       project-specific governance (five principles, Technology Standards,
+                       Quality Gates).
 -->
 
 # Effy Constitution
 
-Effy is a grocery-delivery platform spanning four audiences — customers, drivers, stores,
-and admin/back-office. This document is a clean-rebuild charter: "same product, better built."
-It encodes the non-negotiable rules every spec, plan, and implementation MUST obey. This
-constitution governs how that product is built.
+Effy is a single-brand, vertically-integrated grocery + e-commerce delivery platform spanning
+four audiences — customers, drivers, stores, and admin/back-office. Customers buy from one brand
+("Effy"); stores are hidden internal fulfillment nodes (dark-store-like) that customers never see;
+drivers and back-office staff are Effy employees on internal apps. This document encodes the
+non-negotiable rules every spec, plan, and implementation MUST obey. It governs how the platform
+is built.
 
 ## Core Principles
 
@@ -55,9 +64,8 @@ Every feature MUST flow through the pipeline: Brief → spec → plan → tasks 
 - No code is merged without a committed `spec.md`, `plan.md`, and `tasks.md` living alongside
   it for that feature.
 
-**Rationale**: A solo/small team rebuilding for a clean foundation needs the platform to be
-documented and intentional as it grows. Discipline at the artifact level is what keeps the six
-surfaces from drifting again.
+**Rationale**: A solo/small team needs the platform to be documented and intentional as it grows.
+Discipline at the artifact level is what keeps the six surfaces from drifting apart.
 
 ### II. Monorepo with Shared Contracts
 
@@ -69,8 +77,8 @@ All apps, services, and infrastructure live in ONE monorepo.
   generated from those contracts, never hand-redefined per surface.
 - A change to a shared contract is a single, atomic edit that all consumers pick up.
 
-**Rationale**: Consistency across the six surfaces is the primary reason for the rebuild.
-Shared packages are the mechanism that makes cross-cutting changes happen once.
+**Rationale**: Consistency across the six surfaces is a primary platform goal. Shared packages
+are the mechanism that makes cross-cutting changes happen once.
 
 ### III. Dual-Path Backend Discipline
 
@@ -91,11 +99,14 @@ Forcing each plan to declare its path keeps the boundary honest.
 
 Authentication uses four isolated Cognito pools: customer, driver, store, admin.
 
+- All four pools use **passwordless EMAIL_OTP** — there are no passwords anywhere on the platform.
 - Each pool is validated independently, with per-pool JWT validation.
 - Frontends authenticate against Cognito directly; backends validate tokens per pool.
 - There is **no auth proxy** — backends do not forward or broker authentication on behalf of
   another pool.
 - A token issued for one pool MUST NOT be accepted by a surface or service scoped to another.
+- The admin pool defines RBAC groups (admin / manager / csa), surfaced via the `cognito:groups`
+  JWT claim. Driver, store, and admin users are admin-provisioned (no self-signup).
 
 **Rationale**: Four audiences with different trust levels demand hard isolation. Direct
 Cognito + per-pool validation keeps blast radius small and the trust model auditable.
@@ -114,17 +125,65 @@ One design-system package drives every surface.
 **Rationale**: A single design system is how all surfaces stay visually and behaviorally
 coherent; native feel and tactile quality are part of the product, not a finishing pass.
 
+### VI. Layered Architecture & Explicit Wiring
+
+Every surface is organized the same way internally, so any feature is predictable to build and
+review. `ARCHITECTURE.md` is the binding elaboration of this principle; plans MUST conform to it.
+
+- **Three-layer slice per feature**: a thin edge (handler / UI) → service / use-case → repository.
+  Clean-Architecture dependency direction holds — the domain layer depends on nothing, data
+  implements it, and presentation / handlers consume it.
+- **Repository pattern with raw SQL** — no ORM and no query builder. Wire shapes (DTOs / rows) are
+  mapped explicitly to domain models and MUST NOT leak past the data layer.
+- **No DI framework** — dependencies are wired explicitly and greppably (by hand at the entry point,
+  in a single mobile container, or via cached module singletons).
+- **Unidirectional client state** — mobile uses MVVM as a strict state machine (immutable State +
+  typed Intents + one-off Effects via a ViewModel base); web treats the server-state cache as the
+  source of truth and keeps a client store only for genuine client state. Server data MUST NOT be
+  hand-cached in component state.
+- **One event language across backends** — both backends publish the same event envelope to the
+  shared topic, and event consumers MUST be idempotent.
+
+**Rationale**: One coherent shape across four languages and three runtimes is what lets a small team
+move between surfaces freely and keeps features predictable to write, read, and review.
+
+### VII. Observability & Telemetry
+
+The platform MUST be observable and measurable from day one. `ARCHITECTURE.md` is the binding
+elaboration of this principle.
+
+- **Backends** emit structured logs and expose **metrics** (Prometheus); customer-facing flows have
+  **dashboards and alerts** (Grafana).
+- **Mobile ships crash reporting** (Crashlytics); **web ships error tracking** (PostHog).
+- **Product analytics** (PostHog) is captured on every client through a shared, typed event taxonomy —
+  kept conceptually distinct from operational metrics (behavior vs. system health).
+- **No PII in telemetry** beyond the authenticated subject id; product analytics is
+  **consent-respecting**, and metric labels MUST stay low-cardinality.
+- **Push notifications** go through the platform notifications path (FCM + APNs), never ad hoc per
+  feature.
+- A plan that adds a user-facing flow MUST state its telemetry: the key product events, the metrics,
+  and the alerts it introduces.
+
+**Rationale**: A solo/small team can't watch the platform by hand. Baking in metrics, alerts, crash
+reporting, and product analytics from the start is what makes the system debuggable and the product
+decisions evidence-based.
+
 ## Technology Standards (Locked)
 
-These are kept from the prior platform and are not open for per-feature reinvention. Changing
+These are the locked platform standards and are not open for per-feature reinvention. Changing
 any entry requires a constitution amendment (see Governance).
 
-- **Mobile**: Kotlin Multiplatform + Compose; Clean Architecture + MVI.
+- **Mobile**: Kotlin Multiplatform + Compose; Clean Architecture + MVVM.
 - **Web**: React 19 + TypeScript; shadcn/ui + Tailwind; TanStack Query; Zustand.
 - **Hot path**: Go 1.25; Gin; pgx/v5; raw SQL. **No ORM.**
 - **Cold path**: Node 20 + TypeScript; Serverless Framework; Lambda on arm64.
 - **Database**: PostgreSQL 16; Goose migrations; **forward-only** (no down migrations relied on).
 - **Infrastructure**: Terraform; multi-environment; remote state.
+- **Observability & notifications**:
+  - **Metrics**: Prometheus + Grafana (self-hosted on ECS); Lambda metrics via CloudWatch datasource.
+  - **Crash reporting**: Firebase Crashlytics (mobile).
+  - **Product analytics + web error tracking**: PostHog (all clients).
+  - **Push notifications**: Firebase Cloud Messaging (FCM); APNs for iOS.
 
 A plan MAY introduce a new library only within these standards (e.g., a Go helper, a React
 utility). It MUST NOT swap a locked technology (e.g., add an ORM, change the migration tool,
@@ -139,7 +198,8 @@ Compliance is enforced at merge time, not discovered later.
 - No feature merges without `spec.md`, `plan.md`, and `tasks.md` committed alongside the code.
 - Every plan MUST pass the Constitution Check gate (path justification per Principle III,
   shared-contract usage per Principle II, auth isolation per Principle IV, design-system usage
-  per Principle V) before implementation begins.
+  per Principle V, architecture conformance per Principle VI, telemetry declaration per
+  Principle VII) before implementation begins.
 - Any deviation from a principle MUST be recorded as a justified exception in the plan's
   Complexity Tracking; an undocumented deviation is a defect.
 
@@ -163,4 +223,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-06-25
+**Version**: 1.3.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-06-28
