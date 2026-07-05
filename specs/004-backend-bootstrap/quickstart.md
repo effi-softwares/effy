@@ -43,6 +43,9 @@ SQL constants in repositories, wiring only in `cmd/`).
 ## US2 — edge-api deployed to dev (spec P2) 🧑‍💻
 
 ```bash
+make apply ENV=dev           # 🧑‍💻 FIRST: the edge network (default-VPC SGs, DB SG-to-SG
+                             # ingress, Secrets Manager endpoint, /effy/dev/edge/* params
+                             # — plan amendment A1)
 make edge-install            # pnpm install (workspace)
 make edge-test               # vitest green first
 make edge-deploy ENV=dev     # 🧑‍💻 wraps: sls deploy --stage dev (AWS_PROFILE=ef); prints the base URL

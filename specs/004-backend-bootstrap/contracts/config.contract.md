@@ -1,7 +1,13 @@
 # Contract: Configuration (what each service consumes from the platform)
 
-**Upstream contracts consumed** (established by 001/002; this slice adds **no new SSM
-keys** — it is a pure consumer):
+**Upstream contracts consumed** (established by 001/002), plus — **amended at first
+deploy** (plan amendment A1) — two keys this slice now WRITES for edge-api's
+default-VPC placement:
+
+| New key (written by 004's `infra/envs/dev/edge-network.tf`) | Type | Consumed by |
+|---|---|---|
+| `/effy/<env>/edge/security_group_id` | String | `serverless.yml` `provider.vpc` (deploy time) |
+| `/effy/<env>/edge/subnet_ids` | StringList | `serverless.yml` `provider.vpc` (deploy time) |
 
 | Key | Written by | Consumed by |
 |---|---|---|

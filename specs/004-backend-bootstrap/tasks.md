@@ -223,3 +223,9 @@ SC-001…SC-010.
   extension layer version first), T035 (token matrix), T039 live half (v1/v2/v3 curls on
   the deployed edge), T043 (newcomer exercise), T046 (Node 22 constitution PATCH),
   T047 (full quickstart SC-001…SC-010 sign-off), T048 (commit the slice).
+- **First-deploy findings (plan amendments A1/A2)**: dotted handler filenames crash the
+  Lambda runtime's handler parsing → renamed dash-separated + README rule; edge-api →
+  DB network path was a plan gap → `infra/envs/dev/edge-network.tf` (default-VPC
+  placement, SG-to-SG DB ingress, single-AZ Secrets Manager endpoint ≈ $9/mo lever,
+  new `/effy/<env>/edge/*` contract keys) + `provider.vpc` in serverless.yml;
+  `connectionTimeoutMillis` 10s → 5s so DB failures map to the error envelope.

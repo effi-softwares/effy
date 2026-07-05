@@ -38,7 +38,10 @@ them into a second service is prohibited (constitution Principle II).
 
 1. **Place it** ([path-assignment](../../docs/api/path-assignment.md)); the owning
    feature's plan.md records the decision.
-2. **Handler file**: `src/functions/<name>.v1.<method>.ts`. First line of the handler:
+2. **Handler file**: `src/functions/<name>-v1-<method>.ts` — dashes only, NEVER extra
+   dots (the Lambda runtime splits the handler string at the basename's first dot,
+   so `health.get.handler` resolves to module `health` and crashes at init).
+   First line of the handler:
    `const scope = preamble(event, context)` — it pins
    `callbackWaitsForEmptyEventLoop = false` (the cached-DB-socket hang guard; without
    it every invocation runs to timeout) and builds the per-request child logger.

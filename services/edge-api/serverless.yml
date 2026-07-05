@@ -60,6 +60,16 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
   layers:
     - ${param:secretsExtensionArn}
+  # Default-VPC placement (plan amendment A1): the dev DB only admits its own VPC's
+  # edge-lambda SG (SG-to-SG) — out-of-VPC Lambdas can never reach it. Secrets Manager
+  # is reached through the VPC interface endpoint (no NAT, no internet from here).
+  # Serverless v3 adds the ENI permissions to the role automatically.
+  vpc:
+    securityGroupIds:
+      - ${ssm:/effy/${sls:stage}/edge/security_group_id}
+    # StringList SSM param → serverless v3 splits it into an array at deploy time
+    # (IDE schema linters flag this line as "expected array" — false positive).
+    subnetIds: ${ssm:/effy/${sls:stage}/edge/subnet_ids}
   httpApi:
     metrics: true
     cors:
@@ -127,7 +137,7 @@ package:
 
 functions:
   health:
-    handler: src/functions/health.get.handler
+    handler: src/functions/health-get.handler
     description: Liveness + readiness (DB probe), public, unversioned
     events:
       - httpApi:
@@ -135,7 +145,7 @@ functions:
           path: /healthz
 
   platformStatusV1:
-    handler: src/functions/platform-status.v1.get.handler
+    handler: src/functions/platform-status-v1-get.handler
     description: Proving read v1 (three-layer traversal to the dev DB), public
     events:
       - httpApi:
@@ -143,7 +153,7 @@ functions:
           path: /v1/platform/status
 
   platformStatusV2:
-    handler: src/functions/platform-status.v2.get.handler
+    handler: src/functions/platform-status-v2-get.handler
     description: Proving read v2 — version-coexistence demo (reshaped payload)
     events:
       - httpApi:
@@ -151,7 +161,7 @@ functions:
           path: /v2/platform/status
 
   backOfficePingV1:
-    handler: src/functions/back-office-ping.v1.get.handler
+    handler: src/functions/back-office-ping-v1-get.handler
     description: Identity-enforcement proving route (back-office pool + group RBAC)
     events:
       - httpApi:

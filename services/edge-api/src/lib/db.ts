@@ -28,7 +28,9 @@ async function getPool(): Promise<pg.Pool> {
     max: 1,
     min: 0,
     idleTimeoutMillis: 120_000,
-    connectionTimeoutMillis: 10_000,
+    // MUST stay below the 10s function timeout: a dead DB then fails through OUR
+    // error mapping (problem+json / health 503) instead of a gateway timeout.
+    connectionTimeoutMillis: 5_000,
     ssl: { ca: RDS_CA_BUNDLE, rejectUnauthorized: true },
   });
   return pool;

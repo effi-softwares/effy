@@ -160,11 +160,12 @@ be force-updated). Ships conventions docs + the hot/cold path-assignment rule.
   four per-pool JWT authorizers, pg max-1 pool + runtime secret fetch, pino, alarms;
   tsc clean, vitest 31/31, turbo green); pnpm workspace + turbo activated; `docs/api/`
   contracts + both service READMEs shipped; Makefile `core-*`/`edge-*` targets; hygiene
-  sweep clean. **Open — the operator sitting** (tasks.md Implementation notes): FIRST the
-  002 allowlist apply, then T020 (live `make core-run`), T027 (first `make edge-deploy
-  ENV=dev`; confirm secrets-extension layer version), T035 (token matrix), T039 (live
-  v1/v2/v3 checks), T043 (newcomer exercise), **T046 (ratify Node 22 constitution
-  PATCH)**, T047 (quickstart SC-001…SC-010 sign-off), T048 (commit the slice).
+  sweep clean. **Deployed & verified live in dev** (2026-07-05): allowlist applied, 003
+  db-up applied, edge-api live behind API Gateway (health + v1/v2 proving reads + DB via
+  default-VPC SG-to-SG + Secrets Manager endpoint — plan amendments A1/A2 record the two
+  first-deploy fixes). Operator command reference: root [README.md](README.md). **Still
+  open**: T035 (full token matrix), T043 (newcomer exercise), **T046 (ratify Node 22
+  constitution PATCH)**, T047 (SC-001…SC-010 sign-off), T048 (commit the slice).
 
 **Previous slices** (docs in `specs/<slice>/`):
 - **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):

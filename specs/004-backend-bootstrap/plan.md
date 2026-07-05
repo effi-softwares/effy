@@ -253,3 +253,27 @@ Generated alongside this plan: [data-model.md](./data-model.md) ·
 [contracts/](./contracts/) (error-envelope, versioning-policy, core-api, edge-api,
 config) · [quickstart.md](./quickstart.md). Agent context (CLAUDE.md managed block)
 updated to point here. `/speckit-tasks` derives the ordered task list from these.
+
+## Plan amendments
+
+**A1 (2026-07-05, discovered at first dev deploy)** — *edge-api → database network
+path.* The plan placed edge-api's Lambdas outside any VPC; the dev DB's security group
+(002 cost-floor posture) allowlists only the operator's IP, so Lambda connections were
+refused — health honestly reported `database: unreachable`. Constitutional handling
+(Principle I: fix the earliest affected artifact): this amendment. **Decision**: place
+the functions in the **default VPC** (where the DB lives), admit them **SG-to-SG** via
+the rds-postgres module's `security_group_id` output (built for exactly this), and add
+a **single-AZ Secrets Manager interface endpoint** (~US$9/mo dev lever) since in-VPC
+Lambdas have no internet and the Parameters/Secrets extension is the one runtime AWS
+call. New infra: `infra/envs/dev/edge-network.tf`; new contract keys
+`/effy/<env>/edge/{security_group_id,subnet_ids}` (config.contract.md amended);
+`serverless.yml` gains `provider.vpc`. *Alternatives rejected*: NAT gateway (~$32/mo),
+world-open DB allowlist (unacceptable even in dev), RDS Proxy (cost, and solves a
+different problem).
+
+**A2 (same session)** — *Lambda handler naming.* Dotted handler filenames
+(`health.get.ts`) crash at init: the Lambda runtime splits the handler string at the
+basename's first dot (`Runtime.ImportModuleError: Cannot find module 'health'`).
+Convention corrected to dash-separated (`health-get.ts` etc.) in code + README; also
+`connectionTimeoutMillis` lowered to 5s (below the 10s function timeout) so DB failures
+map to the platform error envelope instead of gateway timeouts.
