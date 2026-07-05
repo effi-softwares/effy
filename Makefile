@@ -12,6 +12,7 @@
 
 AWS_PROFILE ?= ef
 ENV         ?= dev
+AWS_REGION  ?= ap-southeast-1
 
 INFRA_DIR     := infra
 BOOTSTRAP_DIR := $(INFRA_DIR)/bootstrap
@@ -23,7 +24,8 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_
 
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         db-new db-status db-up db-down check-goose \
-        core-run core-test core-lint core-build edge-install edge-offline edge-test edge-deploy
+        core-run core-test core-lint core-build edge-install edge-offline edge-test edge-deploy \
+        dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -147,7 +149,7 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 CORE_DIR := services/core-api
 EDGE_DIR := services/edge-api
 
-AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region ap-southeast-1 --query Parameter.Value --output text --name
+AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
 
 core-run: ## Run core-api locally in Docker with live reload (DSN + pool ids composed at invocation)
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
@@ -183,3 +185,47 @@ edge-deploy: ## OPERATOR: deploy edge-api to AWS (Lambda + API Gateway) for ENV
 	@printf 'serverless DEPLOY  →  stage=%s (Lambda + API Gateway, live AWS)\nContinue? [y/N] ' "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose
+
+## --- Dev cost control: stop the DB while you're not developing ---
+# The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its
+# ~US$2.5/mo storage still bills while stopped). Everything else is pay-per-use ≈ $0
+# idle, except edge-api's Secrets Manager interface endpoint (~US$9/mo) — deliberately
+# left always-on for now. CAVEAT: AWS auto-restarts a stopped RDS instance after
+# 7 days — check dev-status and re-run dev-stop if you stay away longer.
+
+DB_INSTANCE_ID = effy-$(ENV)-db
+RDS_CMD        = AWS_PROFILE=$(AWS_PROFILE) aws rds --region $(AWS_REGION)
+DB_STATUS_CMD  = $(RDS_CMD) describe-db-instances --db-instance-identifier $(DB_INSTANCE_ID) --query 'DBInstances[0].DBInstanceStatus' --output text
+
+check-dev-park:
+	@if [ "$(ENV)" != "dev" ]; then \
+		echo "dev-stop/dev-start REFUSED for ENV=$(ENV): the stop lever is a dev-only cost convenience."; \
+		exit 1; \
+	fi
+
+dev-status: check-dev-park ## Is the dev DB billing right now? (instance state)
+	@printf 'db (%s): ' "$(DB_INSTANCE_ID)"; \
+	$(DB_STATUS_CMD) 2>/dev/null || echo "not found"
+	@echo "(a stopped DB auto-restarts after 7 days — AWS behaviour, not ours)"
+
+dev-stop: check-dev-park ## OPERATOR: stop the dev DB instance (compute stops billing)
+	@printf 'STOP RDS %s\nContinue? [y/N] ' "$(DB_INSTANCE_ID)"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }
+	@status=$$($(DB_STATUS_CMD)) || exit 1; \
+	if [ "$$status" = "available" ]; then \
+		$(RDS_CMD) stop-db-instance --db-instance-identifier $(DB_INSTANCE_ID) --query 'DBInstance.DBInstanceStatus' --output text; \
+		echo "db: stopping (takes a few minutes; AWS auto-restarts it after 7 days)"; \
+	else \
+		echo "db: status '$$status' — not running, nothing to stop"; \
+	fi
+
+dev-start: check-dev-park ## OPERATOR: start the dev DB instance and wait until it's usable
+	@status=$$($(DB_STATUS_CMD)) || exit 1; \
+	if [ "$$status" = "stopped" ]; then \
+		$(RDS_CMD) start-db-instance --db-instance-identifier $(DB_INSTANCE_ID) --query 'DBInstance.DBInstanceStatus' --output text; \
+	else \
+		echo "db: status '$$status' — not stopped, nothing to start"; \
+	fi; \
+	echo "waiting for the DB to become available (usually 3-8 min)…"; \
+	$(RDS_CMD) wait db-instance-available --db-instance-identifier $(DB_INSTANCE_ID); \
+	echo "db: available"

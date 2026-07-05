@@ -40,6 +40,24 @@ Common reasons to re-apply dev:
 - Anything under `infra/envs/dev/*.tf` changed (e.g. `edge-network.tf` — the edge-api
   VPC plumbing: Lambda SG, DB SG-to-SG ingress, Secrets Manager endpoint).
 
+### Stopping the dev DB when you're not working (cost control)
+
+The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo).
+Everything else is pay-per-use ≈ $0 idle, except the Secrets Manager interface
+endpoint (~US$9/mo), deliberately left always-on for now.
+
+```bash
+make dev-status              # is the DB billing right now?
+make dev-stop                # 🧑‍💻 stop the DB instance (compute stops billing)
+make dev-start               # 🧑‍💻 start it again; waits until usable (usually 3-8 min)
+```
+
+Notes:
+- **AWS auto-restarts a stopped RDS instance after 7 days** — if you're away longer,
+  check `dev-status` and re-run `dev-stop`. DB storage (~US$2.5/mo) bills even while stopped.
+- While stopped, `db-*` targets, `core-run`, and the deployed edge-api's DB-backed
+  endpoints fail by design; health endpoints and everything non-DB keep working.
+
 ## 2. Database migrations (goose, forward-only)
 
 DSN is composed at invocation from SSM + Secrets Manager — never on disk, never echoed.
