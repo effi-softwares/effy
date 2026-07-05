@@ -104,6 +104,18 @@ Amplify on the clients drives this flow directly against Cognito (no auth proxy 
 (values `PASSWORD | EMAIL_OTP | SMS_OTP | WEB_AUTHN`) are supported by `hashicorp/aws` provider
 **v6.x** (and late v5.x). We pin `~> 6.0`.
 
+**Amendment (apply-time discovery, 2026-07-05)**: `CreateUserPool` **rejects** an
+`AllowedFirstAuthFactors` list without `PASSWORD`
+(`InvalidParameterException: Password should be configured as one of the allowed first auth
+factors.`) — the API mandates PASSWORD in the pool-level list; passwordless factors are additive.
+**Decision**: the module appends `PASSWORD` to the pool-level list itself (callers still pass only
+passwordless factors and are validated against passing PASSWORD). Passwordlessness is enforced at
+the layers where it actually binds, unchanged: the app clients enable **no password auth flow**
+(`ALLOW_USER_AUTH` + refresh only), self-signup uses the password-less `SignUp` call, and no user
+is ever created with a password credential — so no password sign-in can succeed. Spec FR-004 and
+constitution Principle IV remain satisfied as written (no passwords exist anywhere on the
+platform); only the literal pool-level API shape recorded here and in the module contract changed.
+
 **Alternatives considered**:
 - **Custom-auth Lambda triggers (the classic pre-2024 passwordless recipe)** — *Rejected.* More moving
   parts, cold-path code in an infra slice, and superseded by native EMAIL_OTP. CLAUDE.md history shows

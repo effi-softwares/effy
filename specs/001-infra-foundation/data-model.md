@@ -56,7 +56,7 @@ One module instance per Audience. The slice's central entity.
 | `user_pool_tier` | `ESSENTIALS` | Required for passwordless (D4). |
 | `username_attributes` | `["email"]` | Email is the identifier. |
 | `auto_verified_attributes` | `["email"]` | Needed for OTP delivery. |
-| `allowed_first_auth_factors` | `["EMAIL_OTP"]` | Passwordless only (FR-004); set via `sign_in_policy`. |
+| `allowed_first_auth_factors` | `["EMAIL_OTP"]` | Passwordless only (FR-004); set via `sign_in_policy`. The module appends the API-mandated `PASSWORD` entry (inert — no flow/credential; research.md D4 amendment). |
 | `mfa_configuration` | `OFF` | OTP **is** the first factor; not a second factor here. |
 | `groups` | list (back_office only) | `["admin","manager","csa"]` (D4/FR-007). Empty for the other three. |
 | `email_configuration` | object | `COGNITO_DEFAULT` (dev) or SES (D6). |

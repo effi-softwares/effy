@@ -33,11 +33,11 @@ hand off exact commands; Claude never runs them.
 
 **Purpose**: Repo-level scaffolding and shared tooling — no AWS calls, nothing applied.
 
-- [ ] T001 Create the `infra/` tree per plan.md: `infra/bootstrap/`, `infra/modules/cognito-user-pool/`, `infra/modules/ssm-parameters/`, `infra/envs/_shared/`, `infra/envs/{dev,qa,staging,prod}/`, `infra/scripts/` (add `.gitkeep` where empty)
-- [ ] T002 [P] Add Terraform ignores to root `.gitignore` (`.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `override.tf`, `*_override.tf`; keep `.terraform.lock.hcl` and `*.tfvars` committed — no secrets live in tfvars)
-- [ ] T003 [P] Author shared naming + base-tags locals in `infra/envs/_shared/tags.tf` (name prefix `effy-<env>`; base tags `Project=effy`, `ManagedBy=terraform`, `Slice=001-infra-foundation`, `Owner=platform`) per research.md D9
-- [ ] T004 [P] Author the root `Makefile` (ENV-parameterized; every target wraps `AWS_PROFILE=ef`; targets `bootstrap-init`, `bootstrap-apply`, `init`, `plan`, `apply`, `destroy`, `output`, `fmt`, `validate`, `lint`; **no `-auto-approve`**) per [contracts/makefile-targets.contract.md](./contracts/makefile-targets.contract.md)
-- [ ] T005 [P] Add static-analysis config: `infra/.tflint.hcl` and a `checkov`/`trivy config` invocation wired into the `make lint` target
+- [X] T001 Create the `infra/` tree per plan.md: `infra/bootstrap/`, `infra/modules/cognito-user-pool/`, `infra/modules/ssm-parameters/`, `infra/envs/_shared/`, `infra/envs/{dev,qa,staging,prod}/`, `infra/scripts/` (add `.gitkeep` where empty)
+- [X] T002 [P] Add Terraform ignores to root `.gitignore` (`.terraform/`, `*.tfstate`, `*.tfstate.*`, `crash.log`, `override.tf`, `*_override.tf`; keep `.terraform.lock.hcl` and `*.tfvars` committed — no secrets live in tfvars)
+- [X] T003 [P] Author shared naming + base-tags locals in `infra/envs/_shared/tags.tf` (name prefix `effy-<env>`; base tags `Project=effy`, `ManagedBy=terraform`, `Slice=001-infra-foundation`, `Owner=platform`) per research.md D9
+- [X] T004 [P] Author the root `Makefile` (ENV-parameterized; every target wraps `AWS_PROFILE=ef`; targets `bootstrap-init`, `bootstrap-apply`, `init`, `plan`, `apply`, `destroy`, `output`, `fmt`, `validate`, `lint`; **no `-auto-approve`**) per [contracts/makefile-targets.contract.md](./contracts/makefile-targets.contract.md)
+- [X] T005 [P] Add static-analysis config: `infra/.tflint.hcl` and a `checkov`/`trivy config` invocation wired into the `make lint` target
 
 **Checkpoint**: Tree + Makefile + lint config exist; `make fmt` runs (no resources yet).
 
@@ -50,13 +50,13 @@ user story can be provisioned or validated.
 
 **⚠️ CRITICAL**: No user-story pool work begins until this phase is complete.
 
-- [ ] T006 Author `infra/bootstrap/` (`versions.tf` with `required_version >= 1.11.0`, `aws ~> 6.0`, default local backend; `main.tf` hardened S3 state bucket — versioning on, default SSE, `BlockPublicAccess` all-on, bucket policy denying non-TLS, `prevent_destroy = true`; `variables.tf`; `outputs.tf` bucket name/arn; `README.md` "run once, first") per research.md D2/D3 + [data-model.md](./data-model.md) E2
-- [ ] T007 [P] Author `infra/modules/cognito-user-pool/` (`main.tf`: `aws_cognito_user_pool` on `ESSENTIALS` tier, `sign_in_policy.allowed_first_auth_factors=["EMAIL_OTP"]`, `username_attributes=["email"]`, `auto_verified_attributes=["email"]`, `admin_create_user_config.allow_admin_create_user_only = !var.self_signup_enabled`, optional `aws_cognito_user_group` from `var.groups`, `aws_cognito_user_pool_client` with `explicit_auth_flows=["ALLOW_USER_AUTH","ALLOW_REFRESH_TOKEN_AUTH"]` and **no** password flow; `variables.tf`; `outputs.tf`; `README.md`) per [contracts/cognito-user-pool.module.md](./contracts/cognito-user-pool.module.md)
-- [ ] T008 [P] Author `infra/modules/ssm-parameters/` (`main.tf`: `aws_ssm_parameter` `String` set writing one audience's `user_pool_id`/`app_client_id`/`user_pool_arn` under `/effy/<env>/auth/<audience>/…`; `variables.tf`; `outputs.tf`) per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
-- [ ] T009 Author `infra/envs/dev/versions.tf` (`required_version >= 1.11.0`; `aws ~> 6.0`)
-- [ ] T010 Author `infra/envs/dev/providers.tf` (aws provider `region = var.aws_region`; `allowed_account_ids = [var.aws_account_id]` wrong-account guard; `default_tags` from `_shared` base tags) per research.md D8/D9
-- [ ] T011 Author `infra/envs/dev/backend.tf` (S3 backend: bucket = bootstrap bucket name, `key = "envs/dev/terraform.tfstate"`, `region`, `use_lockfile = true`) per research.md D2
-- [ ] T012 Author `infra/envs/dev/variables.tf` + `infra/envs/dev/dev.tfvars` (`env="dev"`, `aws_region="ap-southeast-1"`, `aws_account_id`, `user_pool_tier="ESSENTIALS"`, `email_configuration` = `COGNITO_DEFAULT`, per-audience callback/logout URLs as dev placeholders) per [data-model.md](./data-model.md) E1
+- [X] T006 Author `infra/bootstrap/` (`versions.tf` with `required_version >= 1.11.0`, `aws ~> 6.0`, default local backend; `main.tf` hardened S3 state bucket — versioning on, default SSE, `BlockPublicAccess` all-on, bucket policy denying non-TLS, `prevent_destroy = true`; `variables.tf`; `outputs.tf` bucket name/arn; `README.md` "run once, first") per research.md D2/D3 + [data-model.md](./data-model.md) E2
+- [X] T007 [P] Author `infra/modules/cognito-user-pool/` (`main.tf`: `aws_cognito_user_pool` on `ESSENTIALS` tier, `sign_in_policy.allowed_first_auth_factors=["EMAIL_OTP"]`, `username_attributes=["email"]`, `auto_verified_attributes=["email"]`, `admin_create_user_config.allow_admin_create_user_only = !var.self_signup_enabled`, optional `aws_cognito_user_group` from `var.groups`, `aws_cognito_user_pool_client` with `explicit_auth_flows=["ALLOW_USER_AUTH","ALLOW_REFRESH_TOKEN_AUTH"]` and **no** password flow; `variables.tf`; `outputs.tf`; `README.md`) per [contracts/cognito-user-pool.module.md](./contracts/cognito-user-pool.module.md)
+- [X] T008 [P] Author `infra/modules/ssm-parameters/` (`main.tf`: `aws_ssm_parameter` `String` set writing one audience's `user_pool_id`/`app_client_id`/`user_pool_arn` under `/effy/<env>/auth/<audience>/…`; `variables.tf`; `outputs.tf`) per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
+- [X] T009 Author `infra/envs/dev/versions.tf` (`required_version >= 1.11.0`; `aws ~> 6.0`)
+- [X] T010 Author `infra/envs/dev/providers.tf` (aws provider `region = var.aws_region`; `allowed_account_ids = [var.aws_account_id]` wrong-account guard; `default_tags` from `_shared` base tags) per research.md D8/D9
+- [X] T011 Author `infra/envs/dev/backend.tf` (S3 backend: bucket = bootstrap bucket name, `key = "envs/dev/terraform.tfstate"`, `region`, `use_lockfile = true`) per research.md D2
+- [X] T012 Author `infra/envs/dev/variables.tf` + `infra/envs/dev/dev.tfvars` (`env="dev"`, `aws_region="ap-southeast-1"`, `aws_account_id`, `user_pool_tier="ESSENTIALS"`, `email_configuration` = `COGNITO_DEFAULT`, per-audience callback/logout URLs as dev placeholders) per [data-model.md](./data-model.md) E1
 
 **Checkpoint**: `make init ENV=dev` then `make plan ENV=dev` 🧑‍💻 produce a clean "no changes" plan (empty
 but valid root); modules and bootstrap authored and `terraform validate`-clean.
@@ -74,13 +74,13 @@ Steps 0–1, 5–6).
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Author `infra/envs/qa/` root (`versions.tf`, `providers.tf`, `backend.tf` with `key="envs/qa/terraform.tfstate"`, `variables.tf`, `qa.tfvars`) — authored, **NOT applied**
-- [ ] T014 [P] [US1] Author `infra/envs/staging/` root + `staging.tfvars` (same shape, `key="envs/staging/terraform.tfstate"`) — authored, **NOT applied**
-- [ ] T015 [P] [US1] Author `infra/envs/prod/` root + `prod.tfvars` (same shape, `key="envs/prod/terraform.tfstate"`; note tier may opt up to `PLUS` later via tfvars) — authored, **NOT applied**
-- [ ] T016 [US1] Author `infra/scripts/preflight.sh` (assert `aws sts get-caller-identity` account == expected before mutating targets) and wire an optional call into the Makefile `apply`/`destroy` targets
-- [ ] T017 [US1] Run `make fmt` + `make validate ENV=dev` and `terraform validate` for `bootstrap`, `qa`, `staging`, `prod`; confirm `make plan ENV=<each>` yields a valid plan (Claude runs `fmt`/`validate`/`plan` only — no apply)
+- [X] T013 [P] [US1] Author `infra/envs/qa/` root (`versions.tf`, `providers.tf`, `backend.tf` with `key="envs/qa/terraform.tfstate"`, `variables.tf`, `qa.tfvars`) — authored, **NOT applied**
+- [X] T014 [P] [US1] Author `infra/envs/staging/` root + `staging.tfvars` (same shape, `key="envs/staging/terraform.tfstate"`) — authored, **NOT applied**
+- [X] T015 [P] [US1] Author `infra/envs/prod/` root + `prod.tfvars` (same shape, `key="envs/prod/terraform.tfstate"`; note tier may opt up to `PLUS` later via tfvars) — authored, **NOT applied**
+- [X] T016 [US1] Author `infra/scripts/preflight.sh` (assert `aws sts get-caller-identity` account == expected before mutating targets) and wire an optional call into the Makefile `apply`/`destroy` targets
+- [X] T017 [US1] Run `make fmt` + `make validate ENV=dev` and `terraform validate` for `bootstrap`, `qa`, `staging`, `prod`; confirm `make plan ENV=<each>` yields a valid plan (Claude runs `fmt`/`validate`/`plan` only — no apply)
 - [ ] T018 [US1] 🧑‍💻 OPERATOR: run `make bootstrap-init && make bootstrap-apply`, then `make init ENV=dev` (exact commands in [quickstart.md](./quickstart.md) Steps 0–1). Acceptance: state bucket exists; dev backend initialized
-- [ ] T019 [US1] Verify safety guarantees against [quickstart.md](./quickstart.md) Step 6: no `-auto-approve` in any target (FR-015/SC-006); wrong-account guard errors on mismatch (D8); concurrent apply blocked by S3 lock (FR-013/SC-008)
+- [X] T019 [US1] Verify safety guarantees against [quickstart.md](./quickstart.md) Step 6: no `-auto-approve` in any target (FR-015/SC-006); wrong-account guard errors on mismatch (D8); concurrent apply blocked by S3 lock (FR-013/SC-008)
 
 **Checkpoint**: Multi-env workflow proven; `dev` initialized; `qa`/`staging`/`prod` plan cleanly with zero
 live resources (SC-004).
@@ -97,9 +97,9 @@ self-register and sign in with an OTP, no password.
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Author `infra/envs/dev/auth-customer.tf`: instantiate `modules/cognito-user-pool` (`audience="customer"`, `self_signup_enabled=true`, `user_pool_tier="ESSENTIALS"`, `allowed_first_auth_factors=["EMAIL_OTP"]`, `groups=[]`, callback/logout URLs from `var`); include the customer `output` blocks in this file
-- [ ] T021 [US2] In `infra/envs/dev/auth-customer.tf`, call `modules/ssm-parameters` for the customer audience (writes `/effy/dev/auth/customer/{user_pool_id,app_client_id,user_pool_arn}`) per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
-- [ ] T022 [US2] Run `make fmt` + `make validate ENV=dev`; confirm `make plan ENV=dev` shows the customer pool + app client + 3 SSM params to create
+- [X] T020 [US2] Author `infra/envs/dev/auth-customer.tf`: instantiate `modules/cognito-user-pool` (`audience="customer"`, `self_signup_enabled=true`, `user_pool_tier="ESSENTIALS"`, `allowed_first_auth_factors=["EMAIL_OTP"]`, `groups=[]`, callback/logout URLs from `var`); include the customer `output` blocks in this file
+- [X] T021 [US2] In `infra/envs/dev/auth-customer.tf`, call `modules/ssm-parameters` for the customer audience (writes `/effy/dev/auth/customer/{user_pool_id,app_client_id,user_pool_arn}`) per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
+- [X] T022 [US2] Run `make fmt` + `make validate ENV=dev`; confirm `make plan ENV=dev` shows the customer pool + app client + 3 SSM params to create
 - [ ] T023 [US2] 🧑‍💻 OPERATOR: `make apply ENV=dev`, then run [quickstart.md](./quickstart.md) Step 4 (self `sign-up` → EMAIL_OTP → tokens). Acceptance: registration + OTP sign-in succeed with no password (SC-002, FR-002/004/005)
 
 **Checkpoint**: A customer can self-register and sign in passwordlessly in `dev` — the MVP money path.
@@ -117,10 +117,10 @@ the three groups; `AllowAdminCreateUserOnly = true` on all three ([quickstart.md
 
 ### Implementation for User Story 3
 
-- [ ] T024 [P] [US3] Author `infra/envs/dev/auth-driver.tf`: `modules/cognito-user-pool` (`audience="driver"`, `self_signup_enabled=false`, `groups=[]`) + customer-style app client + `modules/ssm-parameters` for `driver` + `output` blocks
-- [ ] T025 [P] [US3] Author `infra/envs/dev/auth-shop.tf`: `modules/cognito-user-pool` (`audience="shop"`, `self_signup_enabled=false`, `groups=[]`) + app client + `ssm-parameters` for `shop` + `output` blocks
-- [ ] T026 [P] [US3] Author `infra/envs/dev/auth-backoffice.tf`: `modules/cognito-user-pool` (`audience="back_office"`, `self_signup_enabled=false`, `groups=[{admin},{manager},{csa}]`) + app client + `ssm-parameters` for `back-office` + `output` blocks per FR-007
-- [ ] T027 [US3] Run `make fmt` + `make validate ENV=dev`; confirm `make plan ENV=dev` shows 3 pools + the 3 back-office groups + their SSM params to create
+- [X] T024 [P] [US3] Author `infra/envs/dev/auth-driver.tf`: `modules/cognito-user-pool` (`audience="driver"`, `self_signup_enabled=false`, `groups=[]`) + customer-style app client + `modules/ssm-parameters` for `driver` + `output` blocks
+- [X] T025 [P] [US3] Author `infra/envs/dev/auth-shop.tf`: `modules/cognito-user-pool` (`audience="shop"`, `self_signup_enabled=false`, `groups=[]`) + app client + `ssm-parameters` for `shop` + `output` blocks
+- [X] T026 [P] [US3] Author `infra/envs/dev/auth-backoffice.tf`: `modules/cognito-user-pool` (`audience="back_office"`, `self_signup_enabled=false`, `groups=[{admin},{manager},{csa}]`) + app client + `ssm-parameters` for `back-office` + `output` blocks per FR-007
+- [X] T027 [US3] Run `make fmt` + `make validate ENV=dev`; confirm `make plan ENV=dev` shows 3 pools + the 3 back-office groups + their SSM params to create
 - [ ] T028 [US3] 🧑‍💻 OPERATOR: `make apply ENV=dev`, then run [quickstart.md](./quickstart.md) Step 3 (groups exist; `AllowAdminCreateUserOnly=true`) and the negative `sign-up` check. Acceptance: self-signup rejected on all three (SC-003); back-office groups present (FR-007)
 
 **Checkpoint**: All four pools live; isolation + signup rules + RBAC groups verified (FR-001/003/006).
@@ -137,8 +137,8 @@ the three groups; `AllowAdminCreateUserOnly = true` on all three ([quickstart.md
 
 ### Implementation for User Story 4
 
-- [ ] T029 [US4] Audit `infra/modules/*` and all `infra/envs/*` for hardcoded regions; confirm region flows only via `var.aws_region`; add `infra/envs/dev/region.tf` writing `/effy/dev/region` SSM param per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
-- [ ] T030 [US4] Document the region-relocation runbook (`ap-southeast-1` → `ap-southeast-2`) in `infra/envs/README.md`, noting Cognito pools are regional (relocation = re-provision, not in-place move) per research.md D7
+- [X] T029 [US4] Audit `infra/modules/*` and all `infra/envs/*` for hardcoded regions; confirm region flows only via `var.aws_region`; add `infra/envs/dev/region.tf` writing `/effy/dev/region` SSM param per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
+- [X] T030 [US4] Document the region-relocation runbook (`ap-southeast-1` → `ap-southeast-2`) in `infra/envs/README.md`, noting Cognito pools are regional (relocation = re-provision, not in-place move) per research.md D7
 - [ ] T031 [US4] Acceptance: confirm `dev` resources placed in `ap-southeast-1`; demonstrate that flipping `aws_region` in a throwaway `*.tfvars` re-targets the plan (SC-007, FR-019/020)
 
 **Checkpoint**: Region is config-driven and Sydney-ready.
@@ -149,11 +149,11 @@ the three groups; `AllowAdminCreateUserOnly = true` on all three ([quickstart.md
 
 **Purpose**: Documentation, hygiene, and full-slice validation.
 
-- [ ] T032 [P] Author `infra/README.md` (layout, "bootstrap first", env model, `AWS_PROFILE=ef`, links to this spec/plan/quickstart)
-- [ ] T033 [P] Ensure `make lint` passes across `infra/` (`terraform fmt -check`, `validate`, `tflint`, `checkov`/`trivy config`) per research.md D12
-- [ ] T034 Verify `default_tags` (`Project`/`Environment`/`ManagedBy`/`Slice`/`Owner`) appear on every resource via `terraform plan`/state inspection (SC-009, FR-021)
+- [X] T032 [P] Author `infra/README.md` (layout, "bootstrap first", env model, `AWS_PROFILE=ef`, links to this spec/plan/quickstart)
+- [X] T033 [P] Ensure `make lint` passes across `infra/` (`terraform fmt -check`, `validate`, `tflint`, `checkov`/`trivy config`) per research.md D12
+- [X] T034 Verify `default_tags` (`Project`/`Environment`/`ManagedBy`/`Slice`/`Owner`) appear on every resource via `terraform plan`/state inspection (SC-009, FR-021)
 - [ ] T035 🧑‍💻 OPERATOR: run the full [quickstart.md](./quickstart.md) end-to-end and check every acceptance criterion against the spec's Success Criteria (SC-001…SC-009)
-- [ ] T036 [P] (Optional) Add `.github/workflows/infra.yml` running `fmt`/`validate`/`lint`/`plan` on PRs — **never `apply`** (CI parity with `make lint`)
+- [X] T036 [P] (Optional) Add `.github/workflows/infra.yml` running `fmt`/`validate`/`lint`/`plan` on PRs — **never `apply`** (CI parity with `make lint`)
 
 ---
 

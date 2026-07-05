@@ -44,12 +44,15 @@ dist/
 .pnpm-store/
 
 # --- Terraform (infra) ---
+# NOTE: .terraform.lock.hcl and *.tfvars are COMMITTED on purpose — reproducible provider
+# versions and per-env config are code; no secrets live in tfvars (spec 001-infra-foundation).
 .terraform/
 *.tfstate
 *.tfstate.*
 crash.log
-*.tfvars
-!*.tfvars.example
-.terraform.lock.hcl
+crash.*.log
 override.tf
 override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfplan

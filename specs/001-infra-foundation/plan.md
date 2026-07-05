@@ -25,7 +25,8 @@ infra↔app contract for later slices.
   (the chicken-and-egg solution), then every env uses it with a distinct state key.
 - **Auth**: one reusable `cognito-user-pool` module, instantiated four times per env root. Pools run on
   the **Essentials** feature tier (required for passwordless), `sign_in_policy.allowed_first_auth_factors
-  = ["EMAIL_OTP"]`, app clients with the `ALLOW_USER_AUTH` choice-based flow. Self-signup toggled via
+  = ["EMAIL_OTP"]` (+ the API-mandated, inert `PASSWORD` entry — research.md D4 amendment), app clients
+  with the `ALLOW_USER_AUTH` choice-based flow. Self-signup toggled via
   `admin_create_user_config.allow_admin_create_user_only` (false for customer, true for the other three).
   The back-office pool additionally declares the `admin` / `manager` / `csa` groups.
 - **Safety**: provider pinned with `allowed_account_ids` so a misdirected apply fails loudly; consistent

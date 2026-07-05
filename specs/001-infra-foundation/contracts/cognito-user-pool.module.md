@@ -12,7 +12,7 @@ outputs the env root composes.
 | `audience` | string | yes | — | `customer | driver | shop | back_office`. |
 | `self_signup_enabled` | bool | yes | — | `true` only for customer; sets `allow_admin_create_user_only = !self_signup_enabled`. |
 | `user_pool_tier` | string | no | `"ESSENTIALS"` | `LITE | ESSENTIALS | PLUS`. Must be `ESSENTIALS`+ for EMAIL_OTP. |
-| `allowed_first_auth_factors` | list(string) | no | `["EMAIL_OTP"]` | First-factor sign-in methods. Passwordless ⇒ no `PASSWORD`. |
+| `allowed_first_auth_factors` | list(string) | no | `["EMAIL_OTP"]` | PASSWORDLESS first-factor methods. The module appends the API-mandated `PASSWORD` entry itself — callers must never pass it (unusable: no password flow or credential exists; research.md D4 amendment). |
 | `groups` | list(object({name,description})) | no | `[]` | Back-office passes `admin/manager/csa`; others `[]`. |
 | `email_configuration` | object | no | `{ email_sending_account = "COGNITO_DEFAULT" }` | SES fields optional for higher envs. |
 | `callback_urls` | list(string) | no | `[]` | App-client OAuth callback URLs. |
@@ -24,6 +24,9 @@ outputs the env root composes.
 
 - Pool is created on the requested tier; `sign_in_policy.allowed_first_auth_factors` is set ⇒ requires
   `ESSENTIALS`+ (validated; plan fails otherwise).
+- The pool-level factor list is `var.allowed_first_auth_factors + ["PASSWORD"]` — the Cognito API
+  refuses to omit PASSWORD. It is inert: no password flow is enabled on any client and no user ever
+  holds a password credential (research.md D4 amendment).
 - `username_attributes = ["email"]`, `auto_verified_attributes = ["email"]`.
 - App client `explicit_auth_flows = ["ALLOW_USER_AUTH","ALLOW_REFRESH_TOKEN_AUTH"]` — **no password
   flow** is ever enabled.

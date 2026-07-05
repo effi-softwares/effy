@@ -146,5 +146,9 @@ the first resources: the four isolated Cognito pools (customer/driver/shop/back-
 - Spec: [specs/001-infra-foundation/spec.md](specs/001-infra-foundation/spec.md)
 - Plan: [specs/001-infra-foundation/plan.md](specs/001-infra-foundation/plan.md)
 - Research / data-model / contracts / quickstart: `specs/001-infra-foundation/`
-- Next: `/speckit-tasks` to generate the ordered task list.
+- Tasks: [specs/001-infra-foundation/tasks.md](specs/001-infra-foundation/tasks.md)
+- Status: **implemented** — all Terraform/Makefile/scripts authored; `terraform validate` and
+  `make lint` clean on every root. Remaining: the operator-run steps per
+  [quickstart.md](specs/001-infra-foundation/quickstart.md) — T018 (bootstrap + dev init),
+  T023/T028 (dev apply + pool validation), T031 (region acceptance), T035 (full sign-off).
 <!-- SPECKIT END -->

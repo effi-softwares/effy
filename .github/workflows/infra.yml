@@ -1,0 +1,53 @@
+# CI parity with `make lint` — static checks ONLY. This workflow never runs plan/apply:
+# plan needs AWS credentials (add an OIDC role in a later slice if plan-on-PR is wanted),
+# and apply is operator-only by constitution (spec 001-infra-foundation, FR-015).
+name: infra
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - "Makefile"
+      - ".github/workflows/infra.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.8"
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive infra
+
+      - name: terraform validate (every root)
+        run: |
+          for dir in infra/bootstrap infra/envs/dev infra/envs/qa infra/envs/staging infra/envs/prod; do
+            echo "==> $dir"
+            terraform -chdir="$dir" init -backend=false -input=false > /dev/null
+            terraform -chdir="$dir" validate
+          done
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflint
+        working-directory: infra
+        run: |
+          tflint --init
+          tflint --recursive --minimum-failure-severity=error --config "$PWD/.tflint.hcl"
+
+      - name: trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          exit-code: "1"
+          severity: HIGH,CRITICAL
