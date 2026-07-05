@@ -36,3 +36,23 @@ auth_urls = {
     logout_urls   = ["http://localhost:5174/"]
   }
 }
+
+# --- Database (002-dev-database): the cost floor — ≈ US$22/mo, every paid extra OFF ---
+
+db_instance_class    = "db.t4g.micro"
+db_allocated_storage = 20
+db_storage_type      = "gp3"
+
+# ADD YOUR IP BEFORE APPLY (quickstart Step 1): curl -s https://checkip.amazonaws.com
+# [] means NOBODY can connect — the allowlist edit is a deliberate act.
+db_allowed_cidrs = ["112.134.236.103/32"] # operator IP, 2026-07-05 — update when your IP changes
+
+# Dev-only posture (002 research.md D4): public endpoint + strict allowlist + forced TLS
+# is the $0 network design; qa/staging/prod must use private placement instead.
+db_publicly_accessible = true
+
+# Grow-later levers — all at the floor (see quickstart runbook before flipping):
+db_multi_az              = false
+db_backup_retention_days = 0 # backups OFF: accepted dev risk, data is disposable
+db_deletion_protection   = false
+db_performance_insights  = false

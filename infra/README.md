@@ -16,7 +16,8 @@ infra/
 ├── bootstrap/            # ONE-TIME, local state — creates the S3 remote-state bucket. RUN FIRST.
 ├── modules/
 │   ├── cognito-user-pool/  # one audience's pool + app client (passwordless EMAIL_OTP)
-│   └── ssm-parameters/     # writes the app↔infra contract values to SSM
+│   ├── rds-postgres/       # one PostgreSQL instance at the cost floor (002) + SG/subnet/param groups
+│   └── ssm-parameters/     # writes the auth app↔infra contract values to SSM
 ├── envs/
 │   ├── _shared/            # naming + base tags (resource-less module)
 │   ├── dev/                # APPLIED — ap-southeast-1
@@ -37,8 +38,17 @@ infra/
   (`envs/<env>/terraform.tfstate`, S3-native lockfile — no DynamoDB).
 - **Modules never call modules.** Composition happens only in env roots.
 - **The SSM Parameter Store is the app↔infra contract** —
-  `/effy/<env>/auth/<audience>/…` and `/effy/<env>/region`; renaming a key is a breaking
-  change ([contract](../specs/001-infra-foundation/contracts/ssm-parameters.contract.md)).
+  `/effy/<env>/auth/<audience>/…`, `/effy/<env>/db/…` and `/effy/<env>/region`; renaming a
+  key is a breaking change
+  ([001 contract](../specs/001-infra-foundation/contracts/ssm-parameters.contract.md),
+  [002 db additions](../specs/002-dev-database/contracts/ssm-parameters.contract.md)).
+  Secret material never goes in parameters — the DB master password lives in Secrets
+  Manager; SSM carries its ARN.
+- **DB posture is per-env.** Dev's database runs the documented cost floor (public endpoint
+  + operator allowlist + forced TLS, no backups — [cost
+  posture](../specs/002-dev-database/contracts/cost-posture.contract.md)). That stance is
+  **dev-only**: qa/staging/prod must flip the durability levers and use private placement
+  at promotion (see [envs/README.md](./envs/README.md)).
 
 ## Command surface (from the repo root)
 

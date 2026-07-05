@@ -79,7 +79,7 @@ Steps 0–1, 5–6).
 - [X] T015 [P] [US1] Author `infra/envs/prod/` root + `prod.tfvars` (same shape, `key="envs/prod/terraform.tfstate"`; note tier may opt up to `PLUS` later via tfvars) — authored, **NOT applied**
 - [X] T016 [US1] Author `infra/scripts/preflight.sh` (assert `aws sts get-caller-identity` account == expected before mutating targets) and wire an optional call into the Makefile `apply`/`destroy` targets
 - [X] T017 [US1] Run `make fmt` + `make validate ENV=dev` and `terraform validate` for `bootstrap`, `qa`, `staging`, `prod`; confirm `make plan ENV=<each>` yields a valid plan (Claude runs `fmt`/`validate`/`plan` only — no apply)
-- [ ] T018 [US1] 🧑‍💻 OPERATOR: run `make bootstrap-init && make bootstrap-apply`, then `make init ENV=dev` (exact commands in [quickstart.md](./quickstart.md) Steps 0–1). Acceptance: state bucket exists; dev backend initialized
+- [X] T018 [US1] 🧑‍💻 OPERATOR: run `make bootstrap-init && make bootstrap-apply`, then `make init ENV=dev` (exact commands in [quickstart.md](./quickstart.md) Steps 0–1). Acceptance: state bucket exists; dev backend initialized
 - [X] T019 [US1] Verify safety guarantees against [quickstart.md](./quickstart.md) Step 6: no `-auto-approve` in any target (FR-015/SC-006); wrong-account guard errors on mismatch (D8); concurrent apply blocked by S3 lock (FR-013/SC-008)
 
 **Checkpoint**: Multi-env workflow proven; `dev` initialized; `qa`/`staging`/`prod` plan cleanly with zero
@@ -121,7 +121,7 @@ the three groups; `AllowAdminCreateUserOnly = true` on all three ([quickstart.md
 - [X] T025 [P] [US3] Author `infra/envs/dev/auth-shop.tf`: `modules/cognito-user-pool` (`audience="shop"`, `self_signup_enabled=false`, `groups=[]`) + app client + `ssm-parameters` for `shop` + `output` blocks
 - [X] T026 [P] [US3] Author `infra/envs/dev/auth-backoffice.tf`: `modules/cognito-user-pool` (`audience="back_office"`, `self_signup_enabled=false`, `groups=[{admin},{manager},{csa}]`) + app client + `ssm-parameters` for `back-office` + `output` blocks per FR-007
 - [X] T027 [US3] Run `make fmt` + `make validate ENV=dev`; confirm `make plan ENV=dev` shows 3 pools + the 3 back-office groups + their SSM params to create
-- [ ] T028 [US3] 🧑‍💻 OPERATOR: `make apply ENV=dev`, then run [quickstart.md](./quickstart.md) Step 3 (groups exist; `AllowAdminCreateUserOnly=true`) and the negative `sign-up` check. Acceptance: self-signup rejected on all three (SC-003); back-office groups present (FR-007)
+- [X] T028 [US3] 🧑‍💻 OPERATOR: `make apply ENV=dev`, then run [quickstart.md](./quickstart.md) Step 3 (groups exist; `AllowAdminCreateUserOnly=true`) and the negative `sign-up` check. Acceptance: self-signup rejected on all three (SC-003); back-office groups present (FR-007)
 
 **Checkpoint**: All four pools live; isolation + signup rules + RBAC groups verified (FR-001/003/006).
 
@@ -139,7 +139,7 @@ the three groups; `AllowAdminCreateUserOnly = true` on all three ([quickstart.md
 
 - [X] T029 [US4] Audit `infra/modules/*` and all `infra/envs/*` for hardcoded regions; confirm region flows only via `var.aws_region`; add `infra/envs/dev/region.tf` writing `/effy/dev/region` SSM param per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
 - [X] T030 [US4] Document the region-relocation runbook (`ap-southeast-1` → `ap-southeast-2`) in `infra/envs/README.md`, noting Cognito pools are regional (relocation = re-provision, not in-place move) per research.md D7
-- [ ] T031 [US4] Acceptance: confirm `dev` resources placed in `ap-southeast-1`; demonstrate that flipping `aws_region` in a throwaway `*.tfvars` re-targets the plan (SC-007, FR-019/020)
+- [X] T031 [US4] Acceptance: confirm `dev` resources placed in `ap-southeast-1`; demonstrate that flipping `aws_region` in a throwaway `*.tfvars` re-targets the plan (SC-007, FR-019/020)
 
 **Checkpoint**: Region is config-driven and Sydney-ready.
 

@@ -135,20 +135,28 @@ parallel: one vertical slice proves the foundation before the pattern scales.
 <!-- SPECKIT START -->
 ## Active feature
 
-**001-infra-foundation** — Platform Infrastructure Foundation & Four-Pool Authentication.
-Bootstrap the Terraform `infra/` (module + per-environment-root layout; S3 remote state with native
-lockfile via `infra/bootstrap/`), four env roots (`dev`/`qa`/`staging`/`prod`, only `dev` applied, in
-`ap-southeast-1`), a root `Makefile` (`init`/`plan`/`apply`, every target under `AWS_PROFILE=ef`), and
-the first resources: the four isolated Cognito pools (customer/driver/shop/back-office), passwordless
-**EMAIL_OTP** on the Essentials tier, self-signup **customer-only**. Pool ids published to SSM
-(app↔infra contract). Claude authors IaC; the operator runs every apply.
+**002-dev-database** — Cost-Minimized Development Database.
+Provision the platform's PostgreSQL 16 operational database in **dev** at the cost floor:
+RDS `db.t4g.micro` (ARM, on-demand), 20 GB gp3, single-AZ, **every separately-billed option
+off** (no PI/advanced Insights, no Enhanced Monitoring, backups retention 0, no snapshot
+exports, no RDS Proxy, no Extended Support exposure) — target ≈ US$22/mo (≤ $25 ceiling).
+Default VPC + strictly allowlisted SG + forced TLS (the $0 network); master password
+RDS-managed in Secrets Manager (never in TF state); connection config published to SSM
+`/effy/dev/db/*`. Every cost lever is a reversible tfvars flip with a grow-later runbook.
+Claude authors IaC; the operator runs every apply.
 
-- Spec: [specs/001-infra-foundation/spec.md](specs/001-infra-foundation/spec.md)
-- Plan: [specs/001-infra-foundation/plan.md](specs/001-infra-foundation/plan.md)
-- Research / data-model / contracts / quickstart: `specs/001-infra-foundation/`
-- Tasks: [specs/001-infra-foundation/tasks.md](specs/001-infra-foundation/tasks.md)
-- Status: **implemented** — all Terraform/Makefile/scripts authored; `terraform validate` and
-  `make lint` clean on every root. Remaining: the operator-run steps per
-  [quickstart.md](specs/001-infra-foundation/quickstart.md) — T018 (bootstrap + dev init),
-  T023/T028 (dev apply + pool validation), T031 (region acceptance), T035 (full sign-off).
+- Spec: [specs/002-dev-database/spec.md](specs/002-dev-database/spec.md) (+ binding
+  [operator-directives.md](specs/002-dev-database/operator-directives.md))
+- Plan: [specs/002-dev-database/plan.md](specs/002-dev-database/plan.md)
+- Research / data-model / contracts / quickstart: `specs/002-dev-database/`
+- Tasks: [specs/002-dev-database/tasks.md](specs/002-dev-database/tasks.md)
+- Status: **implemented** — module + dev wiring authored; `terraform validate`, `make lint`,
+  and the static cost-posture assertion all clean; plan previews exactly 9 adds. Remaining:
+  operator-run steps per [quickstart.md](specs/002-dev-database/quickstart.md) — T008
+  (allowlist + apply), T009 (contract connect + negative tests), T011 (live posture check),
+  T014 (lever preview), T017 (full sign-off; billing-cycle check due early Sept 2026).
+
+**Previous slice — 001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone,
+Makefile): **applied & verified in dev**; docs in `specs/001-infra-foundation/`. Open items:
+the operator OTP sign-in test (T023) and full quickstart sign-off (T035).
 <!-- SPECKIT END -->

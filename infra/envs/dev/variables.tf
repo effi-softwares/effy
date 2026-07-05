@@ -48,3 +48,59 @@ variable "auth_urls" {
   }))
   default = {}
 }
+
+# --- Database (002-dev-database) — defaults are the cost floor; each is a grow-later lever ---
+
+variable "db_instance_class" {
+  description = "RDS instance size lever."
+  type        = string
+  default     = "db.t4g.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "Storage GB (grow-only in RDS)."
+  type        = number
+  default     = 20
+}
+
+variable "db_storage_type" {
+  description = "gp3 preferred (research.md 002 D2)."
+  type        = string
+  default     = "gp3"
+}
+
+variable "db_allowed_cidrs" {
+  description = "Operator /32 allowlist for port 5432. [] = nobody can connect."
+  type        = list(string)
+  default     = []
+}
+
+variable "db_multi_az" {
+  description = "Durability lever (~2x instance cost)."
+  type        = bool
+  default     = false
+}
+
+variable "db_backup_retention_days" {
+  description = "0 = automated backups OFF (dev accepted risk); promotion sets 7+."
+  type        = number
+  default     = 0
+}
+
+variable "db_deletion_protection" {
+  description = "Flip true before an env holds real data."
+  type        = bool
+  default     = false
+}
+
+variable "db_performance_insights" {
+  description = "Paid observability lever; false = free floor."
+  type        = bool
+  default     = false
+}
+
+variable "db_publicly_accessible" {
+  description = "true is the documented DEV-ONLY allowlisted-public posture (002 research.md D4); qa+ must stay false."
+  type        = bool
+  default     = false
+}

@@ -19,12 +19,17 @@ never call each other (ARCHITECTURE.md).
 The higher roots are deliberately skeletons (no pools yet). To promote:
 
 1. Copy the composition files from `dev/` (`auth-customer.tf`, `auth-driver.tf`,
-   `auth-shop.tf`, `auth-backoffice.tf`, `region.tf`) into the target root.
+   `auth-shop.tf`, `auth-backoffice.tf`, `region.tf`, `db.tf`) into the target root.
 2. Set the real `aws_account_id` in the env's `.tfvars`.
 3. **Switch OTP email to SES** (`email_configuration = { email_sending_account = "DEVELOPER", … }`)
    — the Cognito default sender's ~50 emails/day cap is dev-only (research.md D6). SES domain
    verification + sandbox exit are prerequisites.
-4. `make plan ENV=<env>` → review → the **operator** runs `make apply ENV=<env>`.
+4. **Flip the database durability levers** — dev's cost floor is NOT a valid posture beyond
+   dev (002 quickstart runbook): `db_backup_retention_days = 7+`, `db_deletion_protection =
+   true`, `db_multi_az` per env criticality, `db_publicly_accessible = false` + explicit
+   `vpc_id`/`subnet_ids` (private placement — requires the network slice), and revisit
+   `db_instance_class`/storage for the real workload.
+5. `make plan ENV=<env>` → review → the **operator** runs `make apply ENV=<env>`.
 
 ## Region relocation runbook (e.g. `ap-southeast-1` → `ap-southeast-2`)
 
@@ -42,9 +47,12 @@ Region is a **single per-env variable** (`aws_region`); no module or root hardco
 Procedure:
 
 1. Edit the env's `.tfvars`: `aws_region = "ap-southeast-2"`.
-2. `make plan ENV=<env>` — the plan re-targets: every regional resource (pools, clients,
-   SSM parameters) is destroy-and-create in the new region. The `/effy/<env>/region` SSM
-   parameter updates automatically (it reads `var.aws_region`).
+2. `make plan ENV=<env>` — NEW resources target the new region and region-derived values
+   (e.g. `/effy/<env>/region`) update. Note (AWS provider v6, verified 2026-07-05): resources
+   that already exist keep the region recorded in their state — a region flip does NOT
+   silently destroy live resources. A true relocation of an applied env is therefore
+   `make destroy` (old region) followed by `make apply` (new region) — i.e. re-provision,
+   exactly as D7 anticipates.
 3. Coordinate consumers: pool ids and issuer hosts change — every app/backend reading the
    SSM contract picks up the new values; anything cached must be refreshed.
 4. The **operator** runs `make apply ENV=<env>` (never Claude, never CI).
