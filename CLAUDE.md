@@ -135,28 +135,34 @@ parallel: one vertical slice proves the foundation before the pattern scales.
 <!-- SPECKIT START -->
 ## Active feature
 
-**002-dev-database** — Cost-Minimized Development Database.
-Provision the platform's PostgreSQL 16 operational database in **dev** at the cost floor:
-RDS `db.t4g.micro` (ARM, on-demand), 20 GB gp3, single-AZ, **every separately-billed option
-off** (no PI/advanced Insights, no Enhanced Monitoring, backups retention 0, no snapshot
-exports, no RDS Proxy, no Extended Support exposure) — target ≈ US$22/mo (≤ $25 ceiling).
-Default VPC + strictly allowlisted SG + forced TLS (the $0 network); master password
-RDS-managed in Secrets Manager (never in TF state); connection config published to SSM
-`/effy/dev/db/*`. Every cost lever is a reversible tfvars flip with a grow-later runbook.
-Claude authors IaC; the operator runs every apply.
+**003-db-migrations** — Database Schema Migration Workflow.
+Set up **Goose** (locked standard) for the dev database: top-level `db/migrations/` home,
+SQL-only timestamp-named migrations (`-- +goose Up/Down`), `db/README.md` authoring guide +
+runbook, and root-Makefile targets `db-new` / `db-status` / `db-up` / `db-down` — DSN
+composed at invocation from the 002 contract (SSM `/effy/<env>/db/*` + Secrets Manager),
+libpq keyword format, `sslmode=require`, never on disk or echoed. **Forward-only** encoded
+structurally: `db-down` is single-step and hard-blocked outside dev (dev-iteration
+convenience only); shipped mistakes are fixed by new forward migrations. Proving migration:
+the `admin` schema shell (two-schema model). Claude authors; the operator runs every
+`db-up`/`db-down`.
 
-- Spec: [specs/002-dev-database/spec.md](specs/002-dev-database/spec.md) (+ binding
-  [operator-directives.md](specs/002-dev-database/operator-directives.md))
-- Plan: [specs/002-dev-database/plan.md](specs/002-dev-database/plan.md)
-- Research / data-model / contracts / quickstart: `specs/002-dev-database/`
-- Tasks: [specs/002-dev-database/tasks.md](specs/002-dev-database/tasks.md)
-- Status: **implemented** — module + dev wiring authored; `terraform validate`, `make lint`,
-  and the static cost-posture assertion all clean; plan previews exactly 9 adds. Remaining:
-  operator-run steps per [quickstart.md](specs/002-dev-database/quickstart.md) — T008
-  (allowlist + apply), T009 (contract connect + negative tests), T011 (live posture check),
-  T014 (lever preview), T017 (full sign-off; billing-cycle check due early Sept 2026).
+- Spec: [specs/003-db-migrations/spec.md](specs/003-db-migrations/spec.md) (+ binding
+  [operator-directives.md](specs/003-db-migrations/operator-directives.md))
+- Plan: [specs/003-db-migrations/plan.md](specs/003-db-migrations/plan.md)
+- Research / data-model / contracts / quickstart: `specs/003-db-migrations/`
+- Tasks: [specs/003-db-migrations/tasks.md](specs/003-db-migrations/tasks.md)
+- Status: **implemented** — `db/` + baseline migration + `db-dsn.sh` + Makefile `db-*`
+  targets authored; scaffolding, guards (commit gate, dev-only down, env fail-fast), and
+  hygiene all verified; `make lint` green. Remaining per
+  [quickstart.md](specs/003-db-migrations/quickstart.md): the operator sitting — FIRST the
+  pending 002 allowlist apply (`make apply ENV=dev`), then commit the migration files,
+  then T007-finish/T008 (db-status + first db-up), T010, T012, T015.
 
-**Previous slice — 001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone,
-Makefile): **applied & verified in dev**; docs in `specs/001-infra-foundation/`. Open items:
-the operator OTP sign-in test (T023) and full quickstart sign-off (T035).
+**Previous slices** (docs in `specs/<slice>/`):
+- **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):
+  **applied & verified in dev**. Open: operator OTP sign-in test (T023), sign-off (T035).
+- **002-dev-database** (`effy-dev-db` — t4g.micro/20GB gp3, all paid options off ≈$22/mo,
+  `/effy/dev/db/*` contract): **applied; posture verified live** (12/12 cost-posture rows).
+  Open: operator allowlist apply + contract connect test (T008/T009), lever preview (T014),
+  sign-off (T017; billing check due early Sept 2026).
 <!-- SPECKIT END -->
