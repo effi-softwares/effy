@@ -69,3 +69,13 @@ Full target contract:
 [makefile-targets.contract.md](../specs/001-infra-foundation/contracts/makefile-targets.contract.md).
 Environment model, promotion, and the region-relocation runbook:
 [envs/README.md](./envs/README.md).
+
+## Database migrations
+
+Schema changes are **Goose migrations** under [`db/`](../db/README.md) (raw SQL,
+forward-only), applied through the same root Makefile: `db-new` / `db-status` / `db-up` /
+`db-down` (dev-only). The DSN is composed at invocation from the SSM contract + Secrets
+Manager by [`scripts/db-dsn.sh`](./scripts/db-dsn.sh) — nothing to configure, nothing
+secret on disk. Prerequisite: your IP on the dev DB allowlist (`db_allowed_cidrs`).
+Guide + runbook: [db/README.md](../db/README.md); contract:
+[makefile-db-targets.contract.md](../specs/003-db-migrations/contracts/makefile-db-targets.contract.md).
