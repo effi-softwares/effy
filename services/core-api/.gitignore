@@ -1,0 +1,4 @@
+# service-local ignores (root .gitignore covers the monorepo-wide set)
+tmp/
+bin/
+coverage.out

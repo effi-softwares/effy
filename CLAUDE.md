@@ -132,31 +132,39 @@ backends, the database, and the infrastructure described above are the **documen
 get built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all surfaces in
 parallel: one vertical slice proves the foundation before the pattern scales.
 
-<!-- SPECKIT START -->
 ## Active feature
 
-**003-db-migrations** — Database Schema Migration Workflow.
-Set up **Goose** (locked standard) for the dev database: top-level `db/migrations/` home,
-SQL-only timestamp-named migrations (`-- +goose Up/Down`), `db/README.md` authoring guide +
-runbook, and root-Makefile targets `db-new` / `db-status` / `db-up` / `db-down` — DSN
-composed at invocation from the 002 contract (SSM `/effy/<env>/db/*` + Secrets Manager),
-libpq keyword format, `sslmode=require`, never on disk or echoed. **Forward-only** encoded
-structurally: `db-down` is single-step and hard-blocked outside dev (dev-iteration
-convenience only); shipped mistakes are fixed by new forward migrations. Proving migration:
-the `admin` schema shell (two-schema model). Claude authors; the operator runs every
-`db-up`/`db-down`.
+**004-backend-bootstrap** — Backend Service Foundations (Dual-Path Bootstrap).
+Bootstrap both backend services: **`core-api`** (hot path — Go + Gin + pgx/v5;
+latency-critical, high-traffic customer reads; **local Docker only this slice**, Fargate
+later) and **`edge-api`** (cold path — Serverless Framework v3 + TypeScript Lambdas behind
+API Gateway; latency-tolerant, cost-over-speed ops/profile/back-office; **deploys to dev
+now**, operator-run). Both strictly Clean Architecture per ARCHITECTURE.md (thin edge →
+service → repository, raw SQL, explicit wiring), each with a health check (liveness vs
+dependency readiness) + a proving endpoint traversing all three layers to the dev DB,
+per-pool JWT enforcement (cross-pool tokens structurally rejected), one shared error
+contract, structured correlated logs (+ `/metrics` on core), and **every non-health
+endpoint explicitly versioned** with side-by-side version coexistence (mobile fleets can't
+be force-updated). Ships conventions docs + the hot/cold path-assignment rule.
 
-- Spec: [specs/003-db-migrations/spec.md](specs/003-db-migrations/spec.md) (+ binding
-  [operator-directives.md](specs/003-db-migrations/operator-directives.md))
-- Plan: [specs/003-db-migrations/plan.md](specs/003-db-migrations/plan.md)
-- Research / data-model / contracts / quickstart: `specs/003-db-migrations/`
-- Tasks: [specs/003-db-migrations/tasks.md](specs/003-db-migrations/tasks.md)
-- Status: **implemented** — `db/` + baseline migration + `db-dsn.sh` + Makefile `db-*`
-  targets authored; scaffolding, guards (commit gate, dev-only down, env fail-fast), and
-  hygiene all verified; `make lint` green. Remaining per
-  [quickstart.md](specs/003-db-migrations/quickstart.md): the operator sitting — FIRST the
-  pending 002 allowlist apply (`make apply ENV=dev`), then commit the migration files,
-  then T007-finish/T008 (db-status + first db-up), T010, T012, T015.
+- Spec: [specs/004-backend-bootstrap/spec.md](specs/004-backend-bootstrap/spec.md)
+  (+ binding [operator-directives.md](specs/004-backend-bootstrap/operator-directives.md)
+  — pinned stacks and the internet-research mandates, incl. industry API-versioning
+  research)
+- Plan: [specs/004-backend-bootstrap/plan.md](specs/004-backend-bootstrap/plan.md)
+  (+ research.md, data-model.md, contracts/, quickstart.md, tasks.md)
+- Status: **implemented (code complete, 40/48 tasks)** — `services/core-api` (Go 1.25 +
+  Gin: platform layer, per-pool JWT verifiers, RED metrics, healthz/readyz, v1+v2
+  platform-status + customer ping; build/vet/gofmt clean, unit + testcontainers tests
+  green) and `services/edge-api` (serverless 3.40.0 pin, nodejs22.x/arm64, HTTP API with
+  four per-pool JWT authorizers, pg max-1 pool + runtime secret fetch, pino, alarms;
+  tsc clean, vitest 31/31, turbo green); pnpm workspace + turbo activated; `docs/api/`
+  contracts + both service READMEs shipped; Makefile `core-*`/`edge-*` targets; hygiene
+  sweep clean. **Open — the operator sitting** (tasks.md Implementation notes): FIRST the
+  002 allowlist apply, then T020 (live `make core-run`), T027 (first `make edge-deploy
+  ENV=dev`; confirm secrets-extension layer version), T035 (token matrix), T039 (live
+  v1/v2/v3 checks), T043 (newcomer exercise), **T046 (ratify Node 22 constitution
+  PATCH)**, T047 (quickstart SC-001…SC-010 sign-off), T048 (commit the slice).
 
 **Previous slices** (docs in `specs/<slice>/`):
 - **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):
@@ -165,4 +173,16 @@ the `admin` schema shell (two-schema model). Claude authors; the operator runs e
   `/effy/dev/db/*` contract): **applied; posture verified live** (12/12 cost-posture rows).
   Open: operator allowlist apply + contract connect test (T008/T009), lever preview (T014),
   sign-off (T017; billing check due early Sept 2026).
+- **003-db-migrations** (Goose workflow — `db/migrations/`, SQL-only timestamped files,
+  Makefile `db-new`/`db-status`/`db-up`/`db-down`, DSN composed at invocation from the 002
+  contract, forward-only with dev-only single-step down; proving migration = `admin` schema
+  shell): **implemented; guards + hygiene verified; `make lint` green**. Open (operator
+  sitting per [quickstart.md](specs/003-db-migrations/quickstart.md)): FIRST the pending
+  002 allowlist apply (`make apply ENV=dev`), then commit the migration files, then
+  T007-finish/T008 (db-status + first db-up), T010, T012, T015.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/004-backend-bootstrap/plan.md
 <!-- SPECKIT END -->

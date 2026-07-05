@@ -22,7 +22,8 @@ TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 TF_ROOTS := $(BOOTSTRAP_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
-        db-new db-status db-up db-down check-goose
+        db-new db-status db-up db-down check-goose \
+        core-run core-test core-lint core-build edge-install edge-offline edge-test edge-deploy
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -136,3 +137,49 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 	printf 'goose DOWN (one step)  →  env=%s  host=%s\nContinue? [y/N] ' "$(ENV)" "$$HOST"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing changed"; exit 1; }; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose down
+
+## --- Backend services (specs/004-backend-bootstrap) ---
+# core-api runs LOCALLY only this slice (Fargate deferred). The DSN and the customer
+# pool ids enter the container as process env composed AT INVOCATION from the platform
+# contract (SSM /effy/<env>/db|auth/* + Secrets Manager) — never a file, never echoed
+# (contracts/config.contract.md). edge-deploy mutates AWS → OPERATOR-run.
+
+CORE_DIR := services/core-api
+EDGE_DIR := services/edge-api
+
+AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region ap-southeast-1 --query Parameter.Value --output text --name
+
+core-run: ## Run core-api locally in Docker with live reload (DSN + pool ids composed at invocation)
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/user_pool_id)" || { echo "core-run: cannot read customer pool id from SSM (001 contract)"; exit 1; }; \
+	CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/app_client_id)" || exit 1; \
+	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AUTH_CUSTOMER_POOL_ID="$$POOL_ID" AUTH_CUSTOMER_CLIENT_ID="$$CLIENT_ID" \
+		docker compose -f $(CORE_DIR)/docker-compose.yml up --build
+
+core-test: ## core-api unit + handler tests (add FULL=1 for container-backed repository tests)
+	@if [ -n "$(FULL)" ]; then \
+		cd $(CORE_DIR) && go test ./...; \
+	else \
+		cd $(CORE_DIR) && go test -short ./...; \
+	fi
+
+core-lint: ## gofmt check + go vet for core-api
+	@cd $(CORE_DIR) && test -z "$$(gofmt -l .)" || { echo "gofmt needed on:"; gofmt -l .; exit 1; }
+	@cd $(CORE_DIR) && go vet ./...
+
+core-build: ## Build the production core-api image (distroless, TARGETARCH-aware)
+	@docker build --target runtime -t effy/core-api:local $(CORE_DIR)
+
+edge-install: ## Install edge-api workspace dependencies (pnpm)
+	@pnpm install --dir $(EDGE_DIR)
+
+edge-offline: ## Run edge-api locally via serverless-offline (resolves SSM → needs the ef profile)
+	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
+
+edge-test: ## edge-api typecheck + vitest
+	@cd $(EDGE_DIR) && pnpm exec tsc --noEmit && pnpm exec vitest run
+
+edge-deploy: ## OPERATOR: deploy edge-api to AWS (Lambda + API Gateway) for ENV
+	@printf 'serverless DEPLOY  →  stage=%s (Lambda + API Gateway, live AWS)\nContinue? [y/N] ' "$(ENV)"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
+	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose

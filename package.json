@@ -1,0 +1,14 @@
+{
+  "name": "effy",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "description": "Effy monorepo root — JS/TS workspace tooling (Turborepo + pnpm; CLAUDE.md locked). Go and Gradle builds live outside this file.",
+  "scripts": {
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0"
+  }
+}

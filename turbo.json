@@ -1,5 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
-  "//": "Reserved for the later JS/TS web slice. No tasks/pipelines yet — mobile (Gradle) and Go are outside Turbo.",
-  "tasks": {}
+  "//": "Minimal pipeline for the first workspace member (004-backend-bootstrap). Build/deploy for edge-api stays in the Makefile (operator-run serverless deploy) — turbo owns the fast checks.",
+  "tasks": {
+    "lint": {},
+    "typecheck": {},
+    "test": {
+      "dependsOn": ["typecheck"]
+    }
+  }
 }

@@ -1,6 +1,13 @@
-# Reserved for the later JS/TS web slice (customer-web + shared design-system / api-client /
-# shared-types packages). Intentionally empty this slice — mobile (Gradle) and Go own their
-# own builds; nothing here yet. Uncomment when the web packages land.
-packages: []
+# JS/TS workspace (Turborepo + pnpm — CLAUDE.md locked). First member landed with
+# 004-backend-bootstrap; the web surfaces and shared packages (design-system,
+# api-client, shared-types) join here with their own slices.
+packages:
+  - "services/edge-api"
   # - "apps/customer-web"
   # - "packages/*"
+
+# Postinstall scripts are opt-in under pnpm 10; these need theirs to function
+# (esbuild places its platform binary; turbo likewise).
+onlyBuiltDependencies:
+  - esbuild
+  - turbo
