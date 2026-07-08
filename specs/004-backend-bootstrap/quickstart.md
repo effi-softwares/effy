@@ -106,3 +106,38 @@ captured during US1–US3.
 Spec success criteria SC-001…SC-010 all demonstrably hold; the operator has ratified
 the **Node 22 constitution PATCH** (plan Complexity Tracking); implementation artifacts
 committed with spec/plan/tasks per Quality Gates.
+
+---
+
+## A3 — cold-path decomposition: migration + multi-service deploy runbook (operator)
+
+The dev environment has ONE live `effy-edge-api` stack today (it created the current HTTP API).
+Cutting over to the Terraform-owned shared gateway + per-service stacks (plan amendment A3):
+
+1. **🧑‍💻 Apply the shared gateway** (new Terraform): `make apply ENV=dev` after adding
+   `infra/envs/dev/edge-gateway.tf`. Creates a NEW HTTP API + 4 JWT authorizers + CORS + the
+   API-level 5xx alarm, and writes `/effy/dev/edge/{http_api_id,api_endpoint,authorizer/*}` to SSM
+   (shared-gateway.contract.md). MUST precede any service deploy.
+2. **🧑‍💻 Smoke-test the external-authorizer id** (research F2): deploy the `admin` service with ONE
+   authed route referencing `authorizer.id: ${ssm:.../authorizer/back-office_id}` and confirm SLS
+   3.40.0 accepts the bare SSM string. If the frozen schema rejects it, switch that route to a
+   resolved variable / `Fn::Sub` and re-verify before proceeding.
+3. **🧑‍💻 Deploy the services** (independent): `make edge-deploy SERVICE=admin ENV=dev` then
+   `SERVICE=store` (order irrelevant). Each attaches to the shared API under its `/<service>/…`
+   prefix. Verify each `/<service>/healthz` answers and each proving read works
+   (`/admin/v1/me`, `/admin/v1/admin-ping`, `/store/v1/status`, `/store/v1/ping`).
+4. **🧑‍💻 Verify deploy independence (SC-011)**: redeploy `admin` and confirm `store` stays
+   continuously reachable (and vice-versa) — each touches only its own routes.
+5. **🧑‍💻 Verify shared routing (SC-012)**: all services answer under the one `api_endpoint`, each
+   at its `/<service>/…` segment; a request to an unknown `/<service>` path returns the uniform
+   `no-route` problem.
+6. **🧑‍💻 Remove the old stack**: `serverless remove` the legacy `effy-edge-api` stack (deletes the
+   old API it created). The gateway URL changes to the new `api_endpoint` — dev-only, acceptable.
+7. **🧑‍💻 Repoint 005**: set the back-office console's `VITE_API_BASE_URL` to the new
+   `/effy/dev/edge/api_endpoint`; its paths are now `/admin/v1/me` + `/admin/v1/admin-ping`
+   (code change tracked in this slice's tasks). Re-run the 005 quickstart to confirm the console
+   still signs in and the proving/admin reads work against the new gateway.
+
+**Add-a-service check (FR-017/SC-011):** adding a third cold-path service = a new
+`apis/edge-api/<name>/` with `provider.httpApi.id` + its routes under `/<name>/…`; it deploys
+without touching admin/store, and needs no gateway change unless it introduces a new pool.

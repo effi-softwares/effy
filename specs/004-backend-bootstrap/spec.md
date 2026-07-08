@@ -10,10 +10,30 @@
 
 **Input (addendum, same session)**: "also we need to think about how we can have versioning for each and every api endpoint in both core and edage api. sincce we have mobile app we need to have api versionning so that backend can serve all the apps that are updated or not updated at same time" — "so research on ow industry do api verssioning and follow that architecture here!"
 
+**Input (addendum, 2026-07-08 — cold-path decomposition revision)**: "i want to change the architecture of edge-api. currently … everything is served in one serverless yml file. i want to divide the edge api into multiple services (like admin, store). … AWS api gateway which is the www.edge-api/… and multiple services like www.edge-api/<service name>/… each api is one serverless yml file and API gateway manages the request. move core-api out of services into an apis folder (./apis/core-api), edge-api in apis/edge-api with multiple services inside; follow layered clean architecture separating the services for edge-api." (Verbatim tech specifics recorded in operator-directives.md.)
+
 > Technology-specific directives from the description (service names, stacks, deployment
-> targets, and the internet research mandates — including the API-versioning research) are
-> recorded verbatim in [operator-directives.md](./operator-directives.md) as **plan-phase
-> input** — this spec stays free of implementation detail per constitution Principle I.
+> targets, and the internet research mandates — including the API-versioning research **and the
+> 2026-07-08 cold-path decomposition**) are recorded verbatim in
+> [operator-directives.md](./operator-directives.md) as **plan-phase input** — this spec stays
+> free of implementation detail per constitution Principle I.
+
+## Clarifications
+
+### Session 2026-07-08 (revision — cold-path decomposition)
+
+- Q: Should the cost-optimized (cold) path be one deployable service, or several? → A: **Several
+  independently deployable domain services behind one shared public entry point.** This slice is
+  revised so the cost-optimized path is a *family* of services split **by domain** (e.g., an
+  administrative/back-office domain, a store/operator domain), each its own independently
+  deployable unit, all fronted by **one** stable public entry point that routes each request to
+  its owning service by a per-service path segment (`<entry-point>/<service>/…`). Rationale: the
+  cold path serves several audiences with different change/deploy lifecycles; decomposing now —
+  before endpoints accumulate in one deployable — avoids a costly later migration and shrinks each
+  deploy's blast radius. The latency-critical (hot) path stays a **single** service. The backend
+  codebases are also reorganized under one consistent top-level home with a uniform per-service
+  layout. (Tech specifics — folder names, shared-gateway/authorizer sharing, path/version scheme —
+  are plan-phase input in [operator-directives.md](./operator-directives.md).)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -59,36 +79,48 @@ architecture reference.
 
 ---
 
-### User Story 2 - Cost-optimized service foundation is live in the development environment (Priority: P2)
+### User Story 2 - Cost-optimized path is a family of independently deployable services behind one entry point, live in dev (Priority: P2)
 
-The platform gains its second backend service: the foundation for latency-tolerant,
-cost-optimized functionality (the future home of profile changes, back-office and operator
-workflows). The operator deploys it to the development cloud environment by following a
-documented, repeatable runbook; after deployment it is reachable at a stable public entry
-point, its health check and proving endpoint answer from the internet, and its request
-logs land in the platform's log store. Redeploying after a code change is the same
-one-command, repeatable operation.
+The platform gains its cost-optimized backend path — the latency-tolerant, pay-per-use home for
+profile changes, back-office, and operator workflows. Rather than one monolithic deployable, this
+path is composed of **multiple independently deployable domain services** (e.g., an
+administrative/back-office domain and a store/operator domain), each owning its slice of the cold
+path and each deployable on its own **without disturbing the others**. All of them sit behind
+**one stable public entry point** that routes each request to its owning service by a per-service
+path segment, so callers see a single coherent API surface while the platform evolves each service
+independently. The operator deploys a service to the development cloud environment by a documented,
+repeatable runbook; after deployment its health check and proving endpoint answer from the
+internet, its request logs land in the platform's log store, and adding or redeploying one service
+leaves the others untouched. Cross-cutting conventions — identity verification, the error
+contract, versioning, structured logging — are shared across all services, never re-invented per
+service.
 
-**Why this priority**: The dual-path split is a constitutional commitment — the platform
-is not "bootstrapped" until both paths exist. This one proves the deployed, pay-per-use
-path and the operator's deployment loop, but it builds on conventions the first service
-establishes.
+**Why this priority**: The dual-path split is a constitutional commitment — the platform is not
+"bootstrapped" until both paths exist. This one proves the deployed, pay-per-use path, its
+**domain decomposition and independent-deploy loop**, and the operator's deployment runbook; it
+builds on conventions the first service establishes.
 
-**Independent Test**: Operator runs the documented deployment against the development
-environment; from any internet-connected machine, verify the health check and proving
-endpoint answer at the published entry point; make a trivial change and confirm redeploy
-is repeatable.
+**Independent Test**: Operator deploys the cost-optimized services to dev; from any
+internet-connected machine, verify each service's health check + proving endpoint answer at the
+**shared** entry point under its own path segment; redeploy ONE service and confirm the others are
+undisturbed; confirm a NEW service can be added following the same pattern.
 
 **Acceptance Scenarios**:
 
-1. **Given** the authored service and its deployment runbook, **When** the operator runs
-   the documented deployment, **Then** the service is live in the development environment
-   and reachable at a stable entry point over encrypted transport.
-2. **Given** the deployed service, **When** its health check and proving endpoint are
-   called from the public internet, **Then** they answer successfully and each request is
-   captured as a structured log record in the platform's log store.
-3. **Given** a subsequent code change, **When** the operator re-runs the same documented
-   deployment, **Then** the update goes live repeatably with no manual console work.
+1. **Given** the authored services and their deployment runbook, **When** the operator deploys
+   them, **Then** each is live in dev behind the **same** public entry point, reachable over
+   encrypted transport under its own service path segment.
+2. **Given** the deployed services, **When** each one's health check and proving endpoint are
+   called from the public internet, **Then** they answer successfully and each request is captured
+   as a structured log record in the platform's log store.
+3. **Given** a change to **one** service, **When** the operator redeploys just that service,
+   **Then** it goes live repeatably **without** redeploying or disturbing the sibling services.
+4. **Given** the shared public entry point, **When** requests for different services arrive,
+   **Then** each is routed to its owning service by its path segment, and a request to an unknown
+   service path is rejected with the uniform error contract.
+5. **Given** the documented pattern, **When** a developer adds a **new** cold-path domain service,
+   **Then** it attaches to the shared entry point and follows the same layered structure and
+   shared conventions with no bespoke, per-service re-wiring.
 
 ---
 
@@ -231,10 +263,11 @@ endpoints into the correct service; review the result against the conventions.
 
 ### Functional Requirements
 
-- **FR-001**: The platform MUST gain two separately deployable backend service
-  foundations: one for latency-critical, high-traffic functionality and one for
-  latency-tolerant, cost-optimized functionality (constitution Principle III). Each MUST
-  be independently buildable, runnable, and testable.
+- **FR-001**: The platform MUST gain its two backend **paths**: one **latency-critical service**
+  for high-traffic functionality, and one **cost-optimized path composed of multiple
+  independently deployable domain services** (constitution Principle III). Every service MUST be
+  independently buildable, runnable, and testable; every cost-optimized service MUST also be
+  independently deployable.
 - **FR-002**: Both foundations MUST follow the platform's binding layered architecture —
   thin edge → business logic → data access, with the mandated dependency direction, each
   concern separated into its own clearly named place, and explicit, greppable wiring
@@ -272,17 +305,19 @@ endpoints into the correct service; review the result against the conventions.
 - **FR-011**: The latency-critical service MUST run locally in an isolated, reproducible
   runtime started by a single documented command. Cloud deployment of this service is
   explicitly OUT of this slice's scope.
-- **FR-012**: The cost-optimized service MUST be deployable to the development cloud
-  environment behind the platform's managed public entry point, over encrypted transport,
-  via a documented, repeatable, one-command deployment executed by the **operator**
-  (per the platform's mode of work).
+- **FR-012**: Each cost-optimized **domain service** MUST be independently deployable to the
+  development cloud environment behind **one shared, stable public entry point**, over encrypted
+  transport, via a documented, repeatable, one-command deployment executed by the **operator**
+  (per the platform's mode of work); deploying one service MUST NOT require redeploying or
+  disturbing the others.
 - **FR-013**: Each service MUST ship its conventions as documentation: structure guide,
   "add an endpoint" walkthrough, local development workflow, the shared error contract,
   and (for the deployed service) the deployment runbook.
-- **FR-014**: The feature MUST record a written decision rule that assigns any future
-  endpoint to exactly one of the two services, based on latency criticality, traffic
-  volume, and cost tolerance — so path assignment is a documented decision, not a habit
-  (constitution Principle III).
+- **FR-014**: The feature MUST record a written decision rule that assigns any future endpoint
+  **first to one of the two paths** (latency-critical vs cost-optimized), based on latency
+  criticality, traffic volume, and cost tolerance, **and then — for cost-optimized endpoints — to
+  exactly one domain service** — so both path and service placement are documented decisions, not
+  habits (constitution Principle III).
 - **FR-015**: Every externally consumed endpoint on both services (health checks
   excepted) MUST be addressed through an explicit interface version from day one, and the
   foundations MUST be able to serve multiple versions of the same capability
@@ -294,11 +329,33 @@ endpoints into the correct service; review the result against the conventions.
   prevailing industry practice: how versions are identified, what kinds of change require
   a new version versus a compatible in-place change, how old and new versions coexist,
   and how deprecation and retirement are decided and communicated to client teams.
+- **FR-017**: The cost-optimized path MUST be **decomposed by domain into separate services**,
+  each a self-contained deployable owning its domain's endpoints; a service MUST be addable or
+  removable **without restructuring the others**, and each MUST follow the platform's binding
+  layered architecture internally (FR-002).
+- **FR-018**: All cost-optimized services MUST share **one public entry point** that routes each
+  request to its owning service by a stable per-service path segment (`<entry-point>/<service>/…`),
+  presenting callers a single coherent API surface; a request to an unknown service path MUST be
+  rejected with the uniform error contract. The cross-cutting conventions (identity verification,
+  error contract, interface versioning, structured logging) MUST be **consistent across all
+  services and MUST NOT be re-invented per service**.
+- **FR-019**: All backend codebases MUST be organized under **one consistent top-level home** with
+  a uniform per-service layout, so any service is predictable to locate and extend; the
+  latency-critical service MUST sit alongside the cost-optimized services under that home. (This
+  supersedes the earlier single-location assumption; any slice already built on the previous shape
+  is reconciled into the new layout during implementation.)
 
 ### Key Entities
 
-- **Service Foundation (×2)**: a runnable, deployable backend codebase embodying the
-  platform's layered architecture; the permanent home for one of the two traffic classes.
+- **Latency-Critical Service**: the single runnable/deployable backend for high-traffic
+  functionality, embodying the platform's layered architecture; local-only this slice.
+- **Cost-Optimized Path**: the **family** of independently deployable domain services for
+  latency-tolerant work, all behind one shared public entry point and sharing common conventions.
+- **Cold-Path Domain Service**: one self-contained, independently deployable service owning a
+  domain's cold-path endpoints (e.g., administrative/back-office, store/operator); attaches to the
+  shared entry point and follows the layered architecture + shared conventions.
+- **Shared Public Entry Point**: the single stable public address that fronts all cost-optimized
+  services and routes each request to its owning service by path segment.
 - **Proving Slice**: the minimal endpoint in each service that demonstrates a full
   edge → logic → data traversal to the development database; platform-owned, no product
   schema.
@@ -308,8 +365,9 @@ endpoints into the correct service; review the result against the conventions.
   the boundary that keeps internals from leaking.
 - **Identity Context**: the verified caller identity (audience + subject) attached to a
   protected request and available to business logic; the unit of Principle IV enforcement.
-- **Path Assignment Rule**: the written decision rule mapping any future endpoint to
-  exactly one service.
+- **Path Assignment Rule**: the written decision rule mapping any future endpoint to a **path**
+  (latency-critical vs cost-optimized) and, for cold-path endpoints, to a specific **domain
+  service**.
 - **Interface Version & Versioning Policy**: the explicit version identifier every
   non-health endpoint carries, plus the written rules for introducing, coexisting,
   deprecating, and retiring versions — the platform's guarantee to un-updated clients.
@@ -349,6 +407,12 @@ endpoints into the correct service; review the result against the conventions.
   each answering with its own documented behavior — demonstrating that a non-updated app
   and an updated app are both served correctly at the same time; a request for an
   unsupported version is rejected clearly in **100%** of attempts.
+- **SC-011**: A single cost-optimized domain service is redeployed to dev and goes live
+  **without redeploying or disturbing** its sibling services — verified by observing the siblings
+  remain continuously reachable across the deploy.
+- **SC-012**: All cost-optimized services answer under **one shared public entry point**, each at
+  its own service path segment; **100%** of sampled requests route to the correct service, and a
+  request to an unknown service path is rejected with the uniform error contract.
 
 ## Assumptions
 
@@ -372,6 +436,15 @@ endpoints into the correct service; review the result against the conventions.
   arrives in its own future slice on top of these foundations.
 - **The shared event backbone is out of scope** for this bootstrap; it arrives with the
   first feature that publishes a domain event, per its own slice.
+- **Cold-path decomposition (2026-07-08 revision).** The cost-optimized path is split into
+  multiple independently deployable domain services behind one shared public entry point. The
+  exact split (which domains become services now), the shared-entry-point + identity-verification
+  sharing mechanism, the per-service path/version scheme, and the codebase's top-level layout are
+  **plan-phase** decisions (operator-directives.md), selected via industry research. Reorganizing
+  the backend codebases' top-level home is a **structural** move, not a behavior change. **Any
+  slice already built on the previous single-service shape (notably 005-back-office-web) is
+  reconciled into the new layout as part of this revision's implementation** — 005's back-office
+  endpoints become the first real content of the administrative cold-path service.
 - **Versioning ships as structure, policy, and proof — not history.** One live interface
   version exists for real use; the side-by-side coexistence demonstration (US4) uses a
   deliberately published second version of the proving capability. No genuinely

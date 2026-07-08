@@ -151,6 +151,50 @@ error/versioning conventions, deploy runbook, and the path-assignment rule.
 
 ---
 
+## Phase 9: Cold-path decomposition (A3, 2026-07-08) — revised US2 (multi-service cold path)
+
+**Goal**: split the single `edge-api` into independently deployable domain services (`admin`,
+`store`) behind ONE Terraform-owned shared HTTP API; relocate the backends under `apis/`; reconcile
+005 into the new layout. See plan **Amendment A3** + research **Part F** + `contracts/shared-gateway.contract.md`.
+
+**Independent Test**: quickstart §A3 — each service answers at `<api_endpoint>/<service>/…`;
+redeploying one leaves the others reachable (SC-011); requests route by service + unknown-service
+→ `no-route` (SC-012).
+
+**⚠️ Prerequisite**: **commit the 005-back-office-web slice first** (it is verified + uncommitted;
+this phase moves the very files it added). T057 then reconciles it deliberately.
+
+### Restructure (repo layout — `services/` → `apis/`)
+
+- [ ] T049 [US2] Move the hot path: `services/core-api` → `apis/core-api` (Go internals unchanged); update `go.mod` module path (`…/services/core-api` → `…/apis/core-api`) + all internal import paths (mechanical), `Dockerfile`/`docker-compose.yml`/`.air.toml` paths, and Makefile `CORE_DIR`. Verify `make core-lint` + `make core-test` stay green.
+- [ ] T050 [P] [US2] Graduate the shared edge lib to a package `apis/edge-api/shared/` (`@effy/edge-shared` — Principle II single-source): move `services/edge-api/src/lib/{db,secrets,logger,http,claims}.ts` + `types.ts` + the RFC 9457 error-contract types + `certs/rds-global-bundle.pem`; add `package.json` + `tsconfig.json` + `src/index.ts` exports.
+- [ ] T051 [US2] Rewire the workspace: `pnpm-workspace.yaml` globs → `apis/edge-api/*` (replaces `services/edge-api`); `turbo.json`; Makefile edge targets become **per-service** (`edge-deploy SERVICE=<name> ENV=dev`, `edge-test`, `edge-install`) in `Makefile`.
+
+### Shared gateway (Terraform — the "define once" layer)
+
+- [ ] T052 [US2] Author `infra/envs/dev/edge-gateway.tf` (shared-gateway.contract.md): `aws_apigatewayv2_api` (HTTP) + `$default` auto-deploy stage + **API-level CORS** (`http://localhost:5173`, `:3000`) + four `aws_apigatewayv2_authorizer` (JWT, one per pool, `issuer`/`audience` from the 001 Cognito pool ids) + the **API-level 5xx alarm** (moved from the service); write SSM `/effy/dev/edge/{http_api_id, api_endpoint, authorizer/{customer,driver,shop,back-office}_id}`.
+
+### Per-service split (`admin`, `store`)
+
+- [ ] T053 [US2] Create `apis/edge-api/admin/` (back-office/admin service): `serverless.yml` — `provider.httpApi.id: ${ssm:…/http_api_id}` (external → **no** `authorizers`/`cors`), `provider.vpc` (SG/subnets from SSM), least-priv IAM, DB env + Parameters/Secrets layer, **per-function** alarms; `package.json` (`@effy/edge-shared` dep) + tsconfig + vitest. Move 005's `staff/*` + `functions/back-office-*` here, re-pointing imports to `@effy/edge-shared`. Routes (authorizer by id from SSM): `GET /admin/v1/me`, `GET /admin/v1/admin-ping`, `GET /admin/v1/ping`, `GET /admin/healthz` (public).
+- [ ] T054 [US2] Create `apis/edge-api/store/` (store/operator service): `serverless.yml` (attach shared API, same VPC/IAM/secrets pattern); re-home the **version-coexistence proving pair** as `GET /store/v1/status` + `GET /store/v2/status` (public — preserves US4/SC-010, v2 deliberately reshaped) + `GET /store/v1/ping` (shop authorizer by id) + `GET /store/healthz`; package.json/tsconfig/vitest, imports from `@effy/edge-shared`.
+- [ ] T055 [P] [US2] Tests: `apis/edge-api/admin/**` handler/repo/service tests (moved from 005 + import updates — admin served/denied incl. disabled, `/me` records role-less); `apis/edge-api/store/**` (v1 vs v2 status diverge, ping). `pnpm turbo typecheck test` green across `@effy/edge-shared` + both services.
+- [ ] T056 [P] [US2] Docs: update `docs/api/path-assignment.md` (add the **service axis** — path→service) + `docs/api/versioning-policy.md` (the `/<service>/v1/…` scheme); per-service `README.md` (structure guide + "add a cold-path service" walkthrough); ship `docs/api/shared-gateway.md` from the contract.
+
+### 005 reconciliation (console)
+
+- [ ] T057 [US2] Reconcile the 005 back-office console: `apps/back-office/src/features/staff-identity/repo.ts` paths → `/admin/v1/me` + `/admin/v1/admin-ping`; `VITE_API_BASE_URL` now points at the shared gateway (`/effy/dev/edge/api_endpoint`) — update `apps/back-office/.env.example`, `specs/005-back-office-web/contracts/config.contract.md`, and the 005 quickstart. Verify `make bo-lint bo-test bo-build` green.
+
+### Operator migration + sign-off
+
+- [ ] T058 [US2] 🧑‍💻 OPERATOR — A3 migration (quickstart §A3): `make apply ENV=dev` (gateway) → **smoke-test the bare-SSM `authorizer.id`** on one admin route (research F2; fallback `Fn::Sub`) → `make edge-deploy SERVICE=admin ENV=dev` + `SERVICE=store` → verify **deploy independence** (redeploy one, siblings stay up — SC-011) + **shared routing** + unknown-service `no-route` (SC-012) → `serverless remove` the legacy `effy-edge-api` stack → repoint 005 `VITE_API_BASE_URL` → re-run the 005 quickstart against the new gateway.
+- [ ] T059 [US2] Sign-off: SC-011/SC-012 verified + recorded; hygiene sweep over `apis/` (secrets/PII); update CLAUDE.md active-feature status (004 cold-path decomposed; 005 reconciled); commit the A3 revision with its artifacts (`apis/`, `infra/envs/dev/edge-gateway.tf`, `docs/api/`, workspace deltas) alongside the updated `specs/004-backend-bootstrap/`.
+
+**Checkpoint (Phase 9)**: cold path is a family of services behind one shared gateway; 005 works
+against the new layout; each service deploys independently.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

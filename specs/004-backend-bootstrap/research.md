@@ -653,3 +653,54 @@ markers, DSN composed at invocation via `infra/scripts/db-dsn.sh` — never on d
 **All spec-phase unknowns resolved; no NEEDS CLARIFICATION remains.** The single
 constitution tension (Node 20 → nodejs22.x) is carried into plan.md Complexity Tracking
 for operator ratification.
+
+---
+
+## Part F — Cold-path decomposition: many services behind one shared gateway (2026-07-08 revision)
+
+One internet research pass (Serverless Framework v3 docs + AWS + GitHub issues), consolidated
+below. Cited in **plan amendment A3**. Confirms the design against the frozen SLS **3.40.0**.
+
+**F1 — Attaching multiple SLS v3 services to ONE external HTTP API (`provider.httpApi.id`).**
+Decision: **use it.** Confirmed: `provider.httpApi.id: <api-id>` attaches a service's routes to an
+externally-created HTTP API; **no** API/stage/CORS/authorizers are created in that service. Each
+service still defines its own `functions` + `httpApi` route events (in its own CFN stack). Route
+keys (`METHOD /path`) must be **unique across the whole API** → disjoint `/<service>/` prefixes.
+*Alternatives*: a "base" SLS service owns the API (F3-b), per-service APIs + base-path mapping
+(F3-c) — both rejected below.
+
+**F2 — Referencing an EXTERNAL JWT authorizer by id — CONFIRMED.** A route can reference an
+authorizer created elsewhere via `authorizer: { type: jwt, id: <authorizer-id> }` — the docs show
+`httpApi.id` (external API) and `authorizer.id` **together**, exactly this platform's case
+(serverless#7598 → PR #7789). The id may be a `Ref`/`Fn::ImportValue` **or a plain string**, so it
+resolves from SSM at deploy time: `id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}`.
+No `provider.httpApi.authorizers` block (not allowed on an external API). **Caveat**: smoke-test a
+**bare SSM string** id on 3.40.0's frozen schema on one route before the full cutover; fallback is
+`Fn::Sub`/a resolved variable. Capability is confirmed; only that ergonomic detail warrants a trial.
+
+**F3 — Ownership: (a) Terraform owns the API + 4 authorizers.** Decision: **option (a).** It puts
+the gateway + authorizers in the same layer that already owns Cognito/VPC/RDS and writes
+`/effy/<env>/edge/*`; there is exactly one API and one set of 4 authorizers (no per-API
+duplication), and services read ids from SSM (loose coupling) exactly as they already read
+`security_group_id`/`subnet_ids`. *Rejected*: **(b)** a base SLS stack owning the API — fractures
+infra ownership + CFN `Fn::ImportValue` locks (can't change an exported value while a consumer
+imports it); **(c)** per-service APIs + custom-domain base-path mappings — forces the 4 authorizers
+to be **duplicated on every service's API** and adds a base-path-mapping layer to maintain.
+
+**F4 — Path/version scheme: `/<service>/v1/...`** (service first, then version). Ownership boundary
+= routing boundary → route-key uniqueness by construction; independent per-service version cadence
+(the point of side-by-side coexistence for un-updatable fleets); clean per-service catch-alls
+(`ANY /admin/{proxy+}` stays inside its subtree). Greedy `{proxy+}` must be the last segment and
+scoped under a service prefix. `/healthz` becomes `/<service>/healthz` (or one platform-owned
+health) so two services don't both claim `GET /healthz`.
+
+**F5 — Deploy independence + gotchas.** Holds because each service's routes/integrations/perms
+live in **its own** CFN stack — a deploy/`remove` only touches that service's routes on the shared
+API. Breakers to avoid: overlapping route keys / root-level greedy paths (→ disjoint prefixes);
+authorizer/API **shape** changes (a coordinated Terraform change, not a per-service deploy — but
+the SSM id is stable, so services don't redeploy unless the id changes); **ordering** — Terraform
+(API + authorizers + SSM) must exist before any service deploys (`${ssm:…}` resolves at deploy). In
+option (a) services read SSM strings (not CFN imports), so there is no export-lock.
+
+**F-sources**: serverless.com/framework/docs/providers/aws/events/http-api ·
+github.com/serverless/serverless issues #7598, #11573, #4711 · forum.serverless.com t/11531.

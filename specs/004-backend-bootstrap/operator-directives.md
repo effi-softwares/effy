@@ -89,3 +89,52 @@ return here if one proves impossible).
   (error envelope shape, event envelope later) must be single-source-of-truth. How much
   JS/TS workspace tooling (Turborepo/pnpm) this slice introduces for `edge-api` is a plan
   decision to record.
+
+---
+
+## Addendum — cold-path decomposition (2026-07-08, plan-phase input)
+
+Verbatim operator directive (a significant revision to this slice's edge-api architecture):
+
+> "i want to change the architecture of edge-api. currently it seems like everything is served in
+> one serverless yml file. i want to divide the edge api into multiple services (like admin,
+> store). so my idea is that we have AWS api gateway which is the www.edge-api/… and we have
+> multiple services like www.edge-api/<service name>/… so each api is one serverless yml file and
+> AWS api gateway will manage the request. so we need to change the services folder. move out the
+> core-api out from services and keep it in an apis folder. so file path is like ./apis/core-api
+> and we have edge api in apis/edge-api and inside edge api we should have multiple services like
+> things… basically we need to follow layered clean architecture separating the services for the
+> edge api. core-api feels good."
+
+### Decoded, itemized (binding plan-phase input)
+
+1. **Repo layout**: rename/relocate the top-level backend home from `services/` to **`apis/`**.
+   - `apis/core-api/` — the hot-path Go service, moved as-is (its internals are unchanged).
+   - `apis/edge-api/` — the cold path, now a **container of multiple services**, e.g.
+     `apis/edge-api/<service>/` (one `serverless.yml` per service).
+2. **Cold-path split by domain**: at least an **admin** (back-office) service and a **store**
+   (operator) service; the existing endpoints are re-homed into the right service (platform
+   status/health → a shared/platform service or each service's own health; back-office/admin
+   endpoints → the admin service).
+3. **One shared AWS API Gateway** fronting all edge services: public surface is
+   `www.edge-api/<service>/…`; each service **attaches its routes to the shared gateway** (not one
+   gateway per service). This is the key design nut — the gateway (and, most likely, the four
+   per-pool JWT authorizers) is defined **once** and referenced by id from each service's
+   `serverless.yml`. **Internet-research mandate** (per this slice's research discipline): current
+   best practice for Serverless Framework multiple services sharing one HTTP API + shared JWT
+   authorizers (`httpApi.id`/`authorizers` referencing, base-path vs path-prefix routing,
+   deploy-order/coupling, custom-domain base-path mapping). Confirm the per-service path scheme
+   (`/<service>/v1/…` vs `/v1/<service>/…`) against the versioning policy.
+4. **Layered clean architecture per service**: each edge service keeps the thin-handler →
+   service → repository shape internally (ARCHITECTURE.md); shared cross-cutting `lib`/contracts
+   are single-source-of-truth across services (a shared package or a shared base), never
+   copy-pasted per service.
+5. **core-api unchanged** in substance — only its folder moves to `apis/core-api`.
+
+### Reconciliation with 005-back-office-web (already implemented on the old shape)
+
+005 built `services/edge-api/{staff/*, functions/back-office-*, functions/platform-status-*}` and
+the console calls `/v1/back-office/{me,admin/ping}`. Under this revision those move into the
+**admin** cold-path service (`apis/edge-api/admin/…`), and the console's `VITE_API_BASE_URL` +
+paths are adjusted to the shared-gateway/service scheme. Plan/tasks MUST cover this migration; the
+console's API base + any path-prefix change is the main 005-facing impact.

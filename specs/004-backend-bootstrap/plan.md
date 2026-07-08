@@ -277,3 +277,103 @@ basename's first dot (`Runtime.ImportModuleError: Cannot find module 'health'`).
 Convention corrected to dash-separated (`health-get.ts` etc.) in code + README; also
 `connectionTimeoutMillis` lowered to 5s (below the 10s function timeout) so DB failures
 map to the platform error envelope instead of gateway timeouts.
+
+---
+
+**A3 (2026-07-08) — Cold-path decomposition: many services behind one shared gateway.**
+Revises this slice per the operator's directive + spec revision (Clarifications 2026-07-08;
+FR-017/018/019, SC-011/012). The single `edge-api` deployable becomes a **family of
+independently deployable domain services** behind **one shared AWS HTTP API**, and the backend
+codebases move under an `apis/` home. Design is grounded in Phase-0 research **Part F**
+([research.md](./research.md)) — confirmed against the Serverless v3 docs.
+
+**Decision — ownership split (research F, option a):** **Terraform owns** the shared HTTP API +
+the four per-pool JWT authorizers (same layer that already owns Cognito/VPC/RDS and writes
+`/effy/<env>/edge/*`); **each Serverless service** attaches to it and adds only its own routes.
+- Terraform (new `infra/envs/dev/edge-gateway.tf`, sibling of `edge-network.tf`): one
+  `aws_apigatewayv2_api` (HTTP) + `$default` auto-deploy stage + **API-level CORS** (the approved
+  dev origins, incl. `http://localhost:5173` for 005 and `:3000`) + four `aws_apigatewayv2_authorizer`
+  (JWT, one per pool, `issuer`/`audience` from the existing Cognito pools) + the **API-level 5xx
+  alarm** (moved here from the service). New SSM keys (config.contract.md amended):
+  `/effy/<env>/edge/http_api_id`, `/effy/<env>/edge/api_endpoint`, and
+  `/effy/<env>/edge/authorizer/{customer,driver,shop,back-office}_id`.
+- Each service `serverless.yml`: `provider.httpApi.id: ${ssm:/effy/${sls:stage}/edge/http_api_id}`
+  (external → **no** API/stage/CORS/authorizers created in the service — research F1); routes use
+  `authorizer: { type: jwt, id: ${ssm:.../authorizer/<pool>_id} }` (external authorizer by id —
+  research F2). Keeps: `nodejs22.x`/arm64, `provider.vpc` (SG/subnets from SSM), least-priv IAM,
+  DB env + runtime secret fetch, Parameters/Secrets layer, **per-function** Errors/Throttles/
+  Duration alarms. Drops: `provider.httpApi.{authorizers,cors}`, the `!Ref HttpApi` 5xx alarm.
+- **Smoke-test caveat (research F2):** confirm the frozen 3.40.0 schema accepts a **bare SSM
+  string** as `authorizer.id` on one route before the full cutover; fallback is `Fn::Sub`/a
+  resolved variable. Recorded in Complexity Tracking.
+
+**Repo restructure** (`services/` → `apis/`):
+```text
+apis/
+├── core-api/                 # moved as-is from services/core-api (Go internals UNCHANGED)
+└── edge-api/                 # container of independently-deployable cold-path services
+    ├── shared/               # @effy/edge-shared — the graduated cross-cutting lib + contracts
+    │   └── src/{db,secrets,logger,http,claims,types}.ts   # single source of truth, all services import it
+    ├── admin/                # the back-office/admin service (admin pool)
+    │   ├── serverless.yml     # attaches to shared API; routes under /admin/...
+    │   └── src/{functions,service.ts,repository.ts,...}   # layered per ARCHITECTURE
+    └── store/                # the store/operator service (shop pool) — the 2nd service proving the pattern
+        ├── serverless.yml
+        └── src/{...}
+```
+- **Shared `lib` graduates to a workspace package** `@effy/edge-shared` (the 004 plan's own
+  "graduation rule → packages/ at the 2nd service" now triggers — Principle II single-source, no
+  per-service copy-paste). pnpm workspace globs: `apps/*`, `packages/*`, **`apis/edge-api/*`**
+  (replaces `services/edge-api`). `core-api` (Go) is not a pnpm member.
+- Each service keeps the thin-handler → service → repository layering internally (Principle VI).
+
+**Path + version scheme (research F4): `/<service>/v1/...`** — service prefix first (ownership =
+routing boundary → route-key uniqueness by construction), then version (independent per-service
+version cadence). Health per service: `/<service>/healthz` (public, no authorizer). The version-
+coexistence proving pair (US4) is re-homed to one service's public routes (e.g. store `/store/v1/status`
++ `/store/v2/status`), unchanged in behavior.
+
+**Endpoint re-homing (from the current single edge-api + 005):**
+| Current | New home | New path |
+|---|---|---|
+| `platform-status` v1/v2 (public) | store | `/store/v1/status`, `/store/v2/status` |
+| `back-office/ping` (004) | admin | `/admin/v1/ping` (back-office authorizer) |
+| `/v1/back-office/me` (005) | admin | `/admin/v1/me` |
+| `/v1/back-office/admin/ping` (005) | admin | `/admin/v1/admin-ping` |
+| new store proving read | store | `/store/v1/ping` (shop authorizer) |
+
+**005 reconciliation (spec Assumptions + operator-directives addendum):** 005's `services/edge-api/`
+work (`staff/*`, `functions/back-office-*`, the shared `lib`) moves into `apis/edge-api/admin/` +
+`@effy/edge-shared`; the console's `VITE_API_BASE_URL` points at the new gateway
+(`/effy/dev/edge/api_endpoint`) and its two paths become `/admin/v1/me` + `/admin/v1/admin-ping`
+(`features/staff-identity/repo.ts` + config.contract + quickstart). This is a task in this slice.
+
+**Constitution re-check (post-A3):** **II** — the edge `lib`/contracts become a genuine shared
+package (`@effy/edge-shared`), realizing single-source-of-truth across services; cross-cutting
+conventions never re-invented per service. **III** — cold path now multi-service; path-assignment
+rule extended to the service axis (FR-014). **IV** — still exactly one authorizer per pool (now
+Terraform-owned, referenced by id); a cross-pool token is still structurally rejected; **no auth
+proxy**. **VI** — each service keeps the layered shape; explicit wiring. **VII** — per-function
+alarms per service; the API-level 5xx alarm graduates to Terraform (the API's owner). All PASS.
+
+**Migration sequence (operator-run — dev has one live `effy-edge-api` stack today):**
+1. Terraform `apply` the new gateway (creates a NEW HTTP API + authorizers + writes SSM). 2. Deploy
+`admin` + `store` services (attach to the new API). 3. `serverless remove` the old `effy-edge-api`
+stack (deletes the old API it created). 4. Repoint 005's `VITE_API_BASE_URL` to the new gateway.
+The gateway URL changes (the old one dies) — dev-only, acceptable. **Deploy independence** holds
+after cutover: each service's routes live in its own CFN stack; disjoint `/<service>/` prefixes
+prevent route-key collisions (research F5).
+
+**New Complexity Tracking entries:** (1) **Terraform now owns an API Gateway** (previously the
+serverless stack created it) — a deliberate ownership shift to the layer that owns Cognito/VPC/RDS;
+justified by shared-authorizer single-source + SSM loose coupling (research F3), not a CFN-export
+lock. (2) **Bare-SSM-string `authorizer.id` on frozen SLS 3.40.0** — smoke-test one route first
+(research F2). (3) **Second cold-path service (`store`) ships with a proving read only** — no
+product endpoints yet; it exists to prove the multi-service pattern + deploy independence (SC-011/012).
+
+**Phase-1 artifact deltas (this amendment):** new `contracts/shared-gateway.contract.md`;
+`contracts/config.contract.md` amended (the new `/effy/<env>/edge/{http_api_id,api_endpoint,
+authorizer/*}` keys); `contracts/versioning-policy.md` + `docs/api/path-assignment.md` note the
+`/<service>/v1` scheme + the service axis; [quickstart.md](./quickstart.md) gains the multi-service
+deploy + old-stack-removal + 005-repoint runbook. `/speckit-tasks` re-runs to append the
+restructure + gateway + per-service + 005-reconciliation tasks.

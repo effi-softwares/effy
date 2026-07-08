@@ -1,13 +1,23 @@
 # Contract: Configuration (what each service consumes from the platform)
 
 **Upstream contracts consumed** (established by 001/002), plus — **amended at first
-deploy** (plan amendment A1) — two keys this slice now WRITES for edge-api's
-default-VPC placement:
+deploy** (plan amendment A1) — two keys this slice WRITES for edge-api's
+default-VPC placement, plus — **amendment A3 (cold-path decomposition)** — the shared-gateway keys:
 
 | New key (written by 004's `infra/envs/dev/edge-network.tf`) | Type | Consumed by |
 |---|---|---|
-| `/effy/<env>/edge/security_group_id` | String | `serverless.yml` `provider.vpc` (deploy time) |
-| `/effy/<env>/edge/subnet_ids` | StringList | `serverless.yml` `provider.vpc` (deploy time) |
+| `/effy/<env>/edge/security_group_id` | String | each service `serverless.yml` `provider.vpc` |
+| `/effy/<env>/edge/subnet_ids` | StringList | each service `serverless.yml` `provider.vpc` |
+
+| New key (A3 — written by `infra/envs/dev/edge-gateway.tf`) | Type | Consumed by |
+|---|---|---|
+| `/effy/<env>/edge/http_api_id` | String | each service `provider.httpApi.id` (attach to shared API) |
+| `/effy/<env>/edge/api_endpoint` | String | 005 console `VITE_API_BASE_URL`; smoke tests |
+| `/effy/<env>/edge/authorizer/{customer,driver,shop,back-office}_id` | String | routes' `authorizer.id` (external JWT authorizer per pool) |
+
+See [shared-gateway.contract.md](./shared-gateway.contract.md). Renaming any `/effy/<env>/edge/*`
+key is a breaking change to this contract. The pre-A3 per-service `provider.httpApi.{authorizers,cors}`
+are **removed** — CORS + the 4 authorizers now live in Terraform (the API's owner).
 
 | Key | Written by | Consumed by |
 |---|---|---|
