@@ -1,0 +1,24 @@
+{
+  "name": "@effy/design-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy web design system — the brand SSOT (Jade #0FB57E / fill #047857) + Tailwind v4 theme tokens + dark mode + cn util (constitution Principle V). Internal package: exports TS source + tokens.css.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tokens.css": "./src/tokens.css"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"no tests\" && exit 0"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.5.5"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}

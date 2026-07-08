@@ -1,0 +1,19 @@
+{
+  "name": "@effy/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy shared web types — DTOs + the RFC 9457 problem shape (Principle II single source of truth). Internal package: exports TypeScript source, transpiled by each consumer's bundler.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"no tests\" && exit 0"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}

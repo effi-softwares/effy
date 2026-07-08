@@ -3,8 +3,8 @@
 # api-client, shared-types) join here with their own slices.
 packages:
   - "services/edge-api"
-  # - "apps/customer-web"
-  # - "packages/*"
+  - "apps/*"
+  - "packages/*"
 
 # Postinstall scripts are opt-in under pnpm 10; these need theirs to function
 # (esbuild places its platform binary; turbo likewise).

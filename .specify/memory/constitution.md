@@ -1,35 +1,38 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.2.0 → 1.3.0
-Bump rationale: MINOR — adds a new principle (VII. Observability & Telemetry) plus a new
-                Technology Standards group (Observability & notifications). No principle
-                removed or invalidated; existing plans remain valid.
+Version change: 1.3.1 → 1.4.0
+Bump rationale: MINOR — materially updates the locked Web Technology Standard: adopts the
+                TanStack client suite for the web surfaces and replaces Zustand with TanStack
+                Store as the web client-state library. No principle added or redefined; no
+                existing plan is invalidated (no shipped surface used Zustand yet).
 
-Modified in this amendment:
-  - Added Principle VII. Observability & Telemetry → backend metrics (Prometheus) + structured
-    logs + Grafana dashboards/alerts; mobile crash reporting (Crashlytics); web error tracking
-    + product analytics (PostHog) via a shared event taxonomy; no PII in telemetry; push via
-    the notifications path (FCM + APNs); plans must declare their telemetry.
-  - Technology Standards (Locked) → new "Observability & notifications" group: Prometheus +
-    Grafana (self-hosted on ECS), Crashlytics, PostHog, FCM (+ APNs).
-  - Quality Gates → Constitution Check now includes telemetry declaration (Principle VII).
-  - ARCHITECTURE.md → new "Observability, Telemetry & Notifications" section (binding per VII).
+Modified in this amendment (operator-directed, feature 005):
+  - Technology Standards (Locked) → Web: named the **TanStack suite** (Router, Query, Table,
+    Form, Store, Virtual, DevTools, Hotkeys) as the web client spine; **client state via
+    TanStack Store — Zustand removed** platform-wide (superseded by TanStack Store); pinned
+    Tailwind **v4** and shadcn/ui **Radix base**. TanStack DB is explicitly NOT adopted yet
+    (revisit when a real product-collection / optimistic-UI need exists — 005 research A3).
+  - ARCHITECTURE.md → "Operator / admin web (SPA)" wording softened: "server-state cache for
+    all server data; a minimal client store (TanStack Store) for genuine client state only"
+    (was "no separate client store"), consistent with Principle VI.
 
-Unchanged: Principles I–VI (bodies + rationale); Governance.
+Unchanged: Principles I–VII (bodies + rationale); Governance; all other Technology Standards
+           (Mobile, Hot path, Cold path, Database, Infrastructure, Observability).
 
 Templates requiring updates:
-  ✅ .specify/templates/plan-template.md   — Constitution Check defers to this file
-        dynamically ("[Gates determined based on constitution file]"); no edit needed.
-  ✅ .specify/templates/spec-template.md   — WHAT/WHY-only specs; unaffected by Principle VII.
-  ✅ .specify/templates/tasks-template.md  — aligned with the Quality Gates; no edit needed.
-  ✅ CLAUDE.md                             — adds observability/telemetry to the stack + a note.
-  ✅ ARCHITECTURE.md                        — gains the Observability section; binding per VII.
-  ✅ platform-brief.md                     — gains one observability architecture-choices bullet.
+  ✅ .specify/templates/plan-template.md   — Constitution Check defers dynamically; no edit needed.
+  ✅ .specify/templates/spec-template.md   — WHAT/WHY-only specs; unaffected.
+  ✅ .specify/templates/tasks-template.md  — unaffected.
+  ✅ CLAUDE.md                             — Web-stack line updated (Zustand → TanStack Store).
+  ✅ ARCHITECTURE.md                        — admin-web client-store wording softened (above).
 
 Follow-up TODOs: none.
 
 Prior history:
+  1.3.1 (2026-07-08) — PATCH: Cold path runtime "Node 20" → "Node 22 (current Lambda-supported LTS)".
+  1.3.0 (2026-06-28) — Added Principle VII (Observability & Telemetry) + Technology Standards
+                       "Observability & notifications" group; Quality Gates telemetry gate.
   1.2.0 (2026-06-28) — Added Principle VI (Layered Architecture & Explicit Wiring); new file
                        ARCHITECTURE.md as its binding elaboration.
   1.1.0 (2026-06-28) — Reframed Effy as a new, original platform (no rewrite/rebuild framing);
@@ -174,9 +177,12 @@ These are the locked platform standards and are not open for per-feature reinven
 any entry requires a constitution amendment (see Governance).
 
 - **Mobile**: Kotlin Multiplatform + Compose; Clean Architecture + MVVM.
-- **Web**: React 19 + TypeScript; shadcn/ui + Tailwind; TanStack Query; Zustand.
+- **Web**: React 19 + TypeScript; shadcn/ui (Radix base) + Tailwind v4. Client spine: the
+  **TanStack suite** — Router, Query (server-state cache = source of truth), Table, Form, Store,
+  Virtual, DevTools, Hotkeys. **Client state via TanStack Store** (genuine client state only —
+  **no Zustand**). TanStack DB is not adopted yet (revisit on a real product-collection need).
 - **Hot path**: Go 1.25; Gin; pgx/v5; raw SQL. **No ORM.**
-- **Cold path**: Node 20 + TypeScript; Serverless Framework; Lambda on arm64.
+- **Cold path**: Node 22 (current Lambda-supported LTS) + TypeScript; Serverless Framework; Lambda on arm64.
 - **Database**: PostgreSQL 16; Goose migrations; **forward-only** (no down migrations relied on).
 - **Infrastructure**: Terraform; multi-environment; remote state.
 - **Observability & notifications**:
@@ -223,4 +229,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.3.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-06-28
+**Version**: 1.4.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-08

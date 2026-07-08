@@ -25,6 +25,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         db-new db-status db-up db-down check-goose \
         core-run core-test core-lint core-build edge-install edge-offline edge-test edge-deploy \
+        bo-dev bo-build bo-lint bo-test \
         dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
@@ -185,6 +186,23 @@ edge-deploy: ## OPERATOR: deploy edge-api to AWS (Lambda + API Gateway) for ENV
 	@printf 'serverless DEPLOY  →  stage=%s (Lambda + API Gateway, live AWS)\nContinue? [y/N] ' "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose
+
+# --- back-office web (005): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on
+# :5173 against the live dev edge-api + admin Cognito pool. VITE_* config comes from
+# apps/back-office/.env.local (git-ignored) per contracts/config.contract.md.
+BO_DIR := apps/back-office
+
+bo-dev: ## Run back-office web locally (vite dev on http://localhost:5173)
+	@pnpm --filter @effy/back-office dev
+
+bo-build: ## Production build of back-office web
+	@pnpm --filter @effy/back-office build
+
+bo-lint: ## back-office typecheck (tsc --noEmit)
+	@pnpm --filter @effy/back-office typecheck
+
+bo-test: ## back-office unit/component tests (vitest)
+	@pnpm --filter @effy/back-office test
 
 ## --- Dev cost control: stop the DB while you're not developing ---
 # The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its

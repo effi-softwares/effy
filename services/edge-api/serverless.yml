@@ -16,6 +16,7 @@ params:
     logLevel: info
     corsOrigins:
       - http://localhost:3000
+      - http://localhost:5173 # back-office web dev origin (005) — Vite default port
     # AWS Parameters and Secrets Lambda Extension, ap-southeast-1 / arm64.
     # 🧑‍💻 CONFIRM the latest layer version for the region before the first deploy:
     # https://docs.aws.amazon.com/systems-manager/latest/userguide/ps-integration-lambda-extensions.html
@@ -167,6 +168,26 @@ functions:
       - httpApi:
           method: GET
           path: /v1/back-office/ping
+          authorizer:
+            name: backOfficeJwt
+
+  backOfficeAdminPingV1:
+    handler: src/functions/back-office-admin-ping-v1-get.handler
+    description: Administrator-only proving route (back-office pool + admin RBAC) — spec US3 (005)
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/back-office/admin/ping
+          authorizer:
+            name: backOfficeJwt
+
+  backOfficeMeV1:
+    handler: src/functions/back-office-me-v1-get.handler
+    description: Staff-identity read — records (JIT upsert) + returns the platform record — 005 (US4)
+    events:
+      - httpApi:
+          method: GET
+          path: /v1/back-office/me
           authorizer:
             name: backOfficeJwt
 
@@ -328,6 +349,86 @@ resources:
         Namespace: AWS/Lambda
         MetricName: Duration
         Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficePingV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    BackOfficeAdminPingV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-bo-admin-ping-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeAdminPingV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    BackOfficeAdminPingV1ThrottlesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-bo-admin-ping-v1-throttles
+        Namespace: AWS/Lambda
+        MetricName: Throttles
+        Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeAdminPingV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    BackOfficeAdminPingV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-bo-admin-ping-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeAdminPingV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    BackOfficeMeV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-bo-me-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeMeV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    BackOfficeMeV1ThrottlesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-bo-me-v1-throttles
+        Namespace: AWS/Lambda
+        MetricName: Throttles
+        Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeMeV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    BackOfficeMeV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-bo-me-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeMeV1LambdaFunction }]
         ExtendedStatistic: p95
         Period: 300
         EvaluationPeriods: 3

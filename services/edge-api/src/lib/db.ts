@@ -62,3 +62,23 @@ export async function query<R extends pg.QueryResultRow>(
     return await (await getPool()).query<R>(text, values as never);
   }
 }
+
+// withTransaction runs fn against a dedicated client inside BEGIN/COMMIT (ROLLBACK on throw).
+// Used for multi-statement atomic writes (the staff JIT upsert + role reconcile, 005). The
+// max:1 pool means the client is the container's single connection for the transaction's life.
+export async function withTransaction<T>(
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await (await getPool()).connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
+}

@@ -332,9 +332,10 @@ src/
 - Routes are a **programmatic tree**: a public auth layout (sign-in / verify) plus a **protected
   layout** whose `beforeLoad` ensures a session and redirects to sign-in otherwise. The router context
   carries the server-state client so route loads can prime data.
-- **Server-state cache only** — no separate client store. The session itself is a query; mutations
-  update the cache directly. Each feature's `repo.ts` calls the fetch wrapper; its `queries.ts` wraps
-  those calls and invalidates on success.
+- **Server-state cache for all server data; a minimal client store (TanStack Store) for genuine
+  client state only** (theme, command-palette, hotkey scope) — server data is never hand-cached
+  there. The session itself is a query; mutations update the cache directly. Each feature's
+  `repo.ts` calls the fetch wrapper; its `queries.ts` wraps those calls and invalidates on success.
 - **Forms** use a form library + schema validation, colocated with the form.
 - A **shared data-table layer** (sorting, client *or* server pagination, filtering, selection) is added
   where a console is list/CRUD-heavy; form/detail-heavy consoles skip it.

@@ -1,0 +1,88 @@
+/* Effy design tokens — the brand SSOT (constitution Principle V). Jade brand #0FB57E,
+   fill #047857. Tailwind v4: a consumer's entry stylesheet imports this AFTER
+   `@import "tailwindcss"`. Dark mode via the `.dark` class (shadcn convention) — REQUIRED
+   on every surface (FR-011). The brand lives here ONCE; never hardcode it per surface. */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.625rem;
+
+  --background: #ffffff;
+  --foreground: #0a0f0d;
+  --card: #ffffff;
+  --card-foreground: #0a0f0d;
+  --popover: #ffffff;
+  --popover-foreground: #0a0f0d;
+
+  /* Effy Jade brand */
+  --primary: #0fb57e;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f1f5f3;
+  --secondary-foreground: #0a0f0d;
+  --muted: #f1f5f3;
+  --muted-foreground: #5c6b64;
+  --accent: #e6f7f0;
+  --accent-foreground: #047857;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+
+  --border: #e2e8e5;
+  --input: #e2e8e5;
+  --ring: #0fb57e;
+}
+
+.dark {
+  --background: #0a0f0d;
+  --foreground: #f1f5f3;
+  --card: #111815;
+  --card-foreground: #f1f5f3;
+  --popover: #111815;
+  --popover-foreground: #f1f5f3;
+
+  --primary: #0fb57e; /* brand constant across appearances */
+  --primary-foreground: #04231a;
+
+  --secondary: #1a2420;
+  --secondary-foreground: #f1f5f3;
+  --muted: #1a2420;
+  --muted-foreground: #94a39b;
+  --accent: #063a2b; /* fill #047857 family, darkened */
+  --accent-foreground: #6ee7b7;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: #24312b;
+  --input: #24312b;
+  --ring: #0fb57e;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}

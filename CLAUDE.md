@@ -19,7 +19,8 @@ native web build).
   (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito).
 - **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `store-web` (Vite SPA, store
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
-  Tailwind v4, TanStack Query/Router, Zustand (customer-web), AWS Amplify.
+  Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
+  client state via TanStack Store (no Zustand; constitution v1.4.0), AWS Amplify.
 - **Backend — dual path:**
   - **Hot path:** Go + Gin + pgx/v5 on Fargate (ARM64) — latency-sensitive customer reads &
     transactions (catalog, profile, addresses, orders/checkout when built).
@@ -134,40 +135,37 @@ parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
 
-**004-backend-bootstrap** — Backend Service Foundations (Dual-Path Bootstrap).
-Bootstrap both backend services: **`core-api`** (hot path — Go + Gin + pgx/v5;
-latency-critical, high-traffic customer reads; **local Docker only this slice**, Fargate
-later) and **`edge-api`** (cold path — Serverless Framework v3 + TypeScript Lambdas behind
-API Gateway; latency-tolerant, cost-over-speed ops/profile/back-office; **deploys to dev
-now**, operator-run). Both strictly Clean Architecture per ARCHITECTURE.md (thin edge →
-service → repository, raw SQL, explicit wiring), each with a health check (liveness vs
-dependency readiness) + a proving endpoint traversing all three layers to the dev DB,
-per-pool JWT enforcement (cross-pool tokens structurally rejected), one shared error
-contract, structured correlated logs (+ `/metrics` on core), and **every non-health
-endpoint explicitly versioned** with side-by-side version coexistence (mobile fleets can't
-be force-updated). Ships conventions docs + the hot/cold path-assignment rule.
+**005-back-office-web** — Back-Office Web Foundation (Bootstrap).
+The platform's **first web surface**: the internal `back-office` admin console (Vite + React 19
+SPA, feature-sliced per ARCHITECTURE admin-web) + the **first shared web packages**
+(`@effy/design-system` = brand SSOT, `@effy/shared-types`, `@effy/api-client`). Passwordless
+**EMAIL_OTP** against the existing admin Cognito pool (Amplify v6); **TanStack client spine**
+(Router/Query/Table/Form/Store/Virtual/DevTools + alpha Hotkeys; **no** TanStack DB); shadcn/ui +
+Tailwind v4. Proves the MVP ladder: sign-in → session-guarded shell → record-backed identity read
+(`/me`) → **backend-authoritative** admin gate (`/admin/ping`, decided from the DB record —
+status + role). Adds the platform's **own** back-office staff/RBAC **system of record**
+(`admin.staff` / `admin.role` / `admin.staff_role` — the first real tables + first `db-up`) so
+RBAC does not rely solely on Cognito; `edge-api` gains `/v1/back-office/me` + `/v1/back-office/
+admin/ping`. **Local-only this slice** (hosted deploy deferred).
 
-- Spec: [specs/004-backend-bootstrap/spec.md](specs/004-backend-bootstrap/spec.md)
-  (+ binding [operator-directives.md](specs/004-backend-bootstrap/operator-directives.md)
-  — pinned stacks and the internet-research mandates, incl. industry API-versioning
-  research)
-- Plan: [specs/004-backend-bootstrap/plan.md](specs/004-backend-bootstrap/plan.md)
-  (+ research.md, data-model.md, contracts/, quickstart.md, tasks.md)
-- Status: **implemented (code complete, 40/48 tasks)** — `services/core-api` (Go 1.25 +
-  Gin: platform layer, per-pool JWT verifiers, RED metrics, healthz/readyz, v1+v2
-  platform-status + customer ping; build/vet/gofmt clean, unit + testcontainers tests
-  green) and `services/edge-api` (serverless 3.40.0 pin, nodejs22.x/arm64, HTTP API with
-  four per-pool JWT authorizers, pg max-1 pool + runtime secret fetch, pino, alarms;
-  tsc clean, vitest 31/31, turbo green); pnpm workspace + turbo activated; `docs/api/`
-  contracts + both service READMEs shipped; Makefile `core-*`/`edge-*` targets; hygiene
-  sweep clean. **Deployed & verified live in dev** (2026-07-05): allowlist applied, 003
-  db-up applied, edge-api live behind API Gateway (health + v1/v2 proving reads + DB via
-  default-VPC SG-to-SG + Secrets Manager endpoint — plan amendments A1/A2 record the two
-  first-deploy fixes). Operator command reference: root [README.md](README.md). **Still
-  open**: T035 (full token matrix), T043 (newcomer exercise), **T046 (ratify Node 22
-  constitution PATCH)**, T047 (SC-001…SC-010 sign-off), T048 (commit the slice).
+- Spec/plan/artifacts: [specs/005-back-office-web/](specs/005-back-office-web/) (spec, plan,
+  operator-directives, research, data-model, contracts/, quickstart, tasks).
+- Constitution amended: **v1.3.1** (Node 22) + **v1.4.0** (TanStack Store locked as the web
+  client-state lib; **Zustand removed** platform-wide).
+- Status: **implemented (code complete, 44/46 tasks)** — `apps/back-office` (auth/staff-identity
+  features, router guards, shadcn UI, dark mode, telemetry seam) + `packages/{design-system,
+  shared-types,api-client}` + `services/edge-api` staff domain (`staff/{repository,service}`,
+  `/me`, DB-backed admin gate) + the `db/migrations` staff/RBAC schema. **Full workspace pipeline
+  green**: turbo lint+typecheck+test **15/15**; app vitest **12/12**, edge vitest **38/38**, vite
+  build clean; secret/PII hygiene clean. **Open operator steps**: **T038** (`make db-up ENV=dev`
+  — first real migration — then `make edge-deploy ENV=dev` for `/me` + the DB admin gate + the
+  `:5173` CORS origin; subsumes the earlier T022/T029 deploys) and **T046** (live SC-001…SC-012
+  sign-off per [quickstart](specs/005-back-office-web/quickstart.md)).
 
 **Previous slices** (docs in `specs/<slice>/`):
+- **004-backend-bootstrap** (core-api hot path — local Docker; edge-api cold path — live in dev;
+  dual-path, per-pool JWT, RFC 9457 errors, URI-path versioning): **implemented; live & verified
+  in dev**. Open: operator T035 (full token matrix), T047 (SC-001…SC-010 sign-off), T048 (commit).
 - **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):
   **applied & verified in dev**. Open: operator OTP sign-in test (T023), sign-off (T035).
 - **002-dev-database** (`effy-dev-db` — t4g.micro/20GB gp3, all paid options off ≈$22/mo,
