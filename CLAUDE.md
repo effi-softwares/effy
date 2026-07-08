@@ -135,8 +135,25 @@ parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
 
-**004-backend-bootstrap — A3 cold-path decomposition** (latest revision; **implemented + live in
-dev**). The cost-optimized path is now a family of **independently deployable domain services
+**006-first-admin-bootstrap** — First Admin Bootstrap (Operator Break-Glass). **Code-complete +
+verified; operator run pending.**
+An **operator-run Go CLI** (+ `make create-first-admin EMAIL=… NAME=… ENV=dev`) that establishes the
+**first back-office super-admin** out-of-band — **no API, no UI** (breaks the chicken-and-egg: the
+console needs an admin, and privileged audiences forbid self-signup). It does two consistent writes:
+`AdminCreateUser` **with no password** (→ `CONFIRMED`, `SUPPRESS` invite, `email_verified`) +
+`AdminAddUserToGroup('admin')` in the back-office pool (001), and an idempotent upsert of
+`admin.staff`(active)/`admin.staff_role('admin')` keyed on the returned **`sub`** (the 005 gate's
+join key). Idempotent / break-glass. Adds one migration (`admin.staff.name`). Lives in
+`apis/core-api` (`cmd/create-first-admin` + `internal/adminbootstrap`) — **reuses** its already-wired
+Cognito SDK + pgx, **zero new deps**.
+- Spec/plan/artifacts: [specs/006-first-admin-bootstrap/](specs/006-first-admin-bootstrap/).
+- Status: **code-complete** — build/vet/gofmt clean, `make core-test` green (adminbootstrap unit
+  tests + the 004 suite), hygiene clean, no new API/UI surface. **Open (operator)**: **T009** (`make
+  db-up ENV=dev` + `make create-first-admin …` → sign in), **T013** (re-run/break-glass/bad-input),
+  **T017** (SC-001…SC-006 sign-off + commit). *Not committed yet.* `db-up` needs the migration
+  committed first (003 commit-guard).
+
+**004-backend-bootstrap — A3 cold-path decomposition** (**implemented + live in dev**). The cost-optimized path is now a family of **independently deployable domain services
 behind ONE shared HTTP API**, and the backends live under **`apis/`**:
 - `apis/core-api` (hot path — Go, local Docker only) + `apis/edge-api/{shared,admin,store}`. The
   shared library graduated to **`@effy/edge-shared`** (Principle II single-source); `admin`
@@ -182,5 +199,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/004-backend-bootstrap/plan.md
+at specs/006-first-admin-bootstrap/plan.md
 <!-- SPECKIT END -->
