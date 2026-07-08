@@ -1,4 +1,0 @@
-# service-local ignores (root .gitignore covers the monorepo-wide set)
-.serverless/
-.esbuild/
-coverage/
