@@ -135,37 +135,36 @@ parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
 
-**005-back-office-web** — Back-Office Web Foundation (Bootstrap).
-The platform's **first web surface**: the internal `back-office` admin console (Vite + React 19
-SPA, feature-sliced per ARCHITECTURE admin-web) + the **first shared web packages**
-(`@effy/design-system` = brand SSOT, `@effy/shared-types`, `@effy/api-client`). Passwordless
-**EMAIL_OTP** against the existing admin Cognito pool (Amplify v6); **TanStack client spine**
-(Router/Query/Table/Form/Store/Virtual/DevTools + alpha Hotkeys; **no** TanStack DB); shadcn/ui +
-Tailwind v4. Proves the MVP ladder: sign-in → session-guarded shell → record-backed identity read
-(`/me`) → **backend-authoritative** admin gate (`/admin/ping`, decided from the DB record —
-status + role). Adds the platform's **own** back-office staff/RBAC **system of record**
-(`admin.staff` / `admin.role` / `admin.staff_role` — the first real tables + first `db-up`) so
-RBAC does not rely solely on Cognito; `edge-api` gains `/v1/back-office/me` + `/v1/back-office/
-admin/ping`. **Local-only this slice** (hosted deploy deferred).
+**004-backend-bootstrap — A3 cold-path decomposition** (latest revision; **implemented + live in
+dev**). The cost-optimized path is now a family of **independently deployable domain services
+behind ONE shared HTTP API**, and the backends live under **`apis/`**:
+- `apis/core-api` (hot path — Go, local Docker only) + `apis/edge-api/{shared,admin,store}`. The
+  shared library graduated to **`@effy/edge-shared`** (Principle II single-source); `admin`
+  (back-office pool) and `store` (shop pool) each **attach to a Terraform-owned shared HTTP API**
+  (`infra/envs/dev/edge-gateway.tf`) via `provider.httpApi.id` and reference the four per-pool JWT
+  authorizers **by id** from SSM (`/effy/<env>/edge/{http_api_id,api_endpoint,authorizer/*}`). Path
+  scheme **`/<service>/v1/...`** (e.g. `/admin/v1/me`, `/store/v2/status`). Adding a service = a new
+  `apis/edge-api/<name>/` that attaches to the gateway — deploy-independent.
+- Spec + plan revised **in place** (amendment **A3**, research **Part F**, `contracts/shared-gateway.contract.md`);
+  tasks **Phase 9 (T049–T059)**. Status: **deployed to dev** — gateway applied, `admin`+`store`
+  live, old `effy-edge-api` stack removed. `turbo` **14/14**, core-api Go build+tests, `terraform
+  validate`, hygiene sweep — all green. Committed (`aacd7c5`).
 
-- Spec/plan/artifacts: [specs/005-back-office-web/](specs/005-back-office-web/) (spec, plan,
-  operator-directives, research, data-model, contracts/, quickstart, tasks).
-- Constitution amended: **v1.3.1** (Node 22) + **v1.4.0** (TanStack Store locked as the web
-  client-state lib; **Zustand removed** platform-wide).
-- Status: **implemented (code complete, 44/46 tasks)** — `apps/back-office` (auth/staff-identity
-  features, router guards, shadcn UI, dark mode, telemetry seam) + `packages/{design-system,
-  shared-types,api-client}` + `services/edge-api` staff domain (`staff/{repository,service}`,
-  `/me`, DB-backed admin gate) + the `db/migrations` staff/RBAC schema. **Full workspace pipeline
-  green**: turbo lint+typecheck+test **15/15**; app vitest **12/12**, edge vitest **38/38**, vite
-  build clean; secret/PII hygiene clean. **Open operator steps**: **T038** (`make db-up ENV=dev`
-  — first real migration — then `make edge-deploy ENV=dev` for `/me` + the DB admin gate + the
-  `:5173` CORS origin; subsumes the earlier T022/T029 deploys) and **T046** (live SC-001…SC-012
-  sign-off per [quickstart](specs/005-back-office-web/quickstart.md)).
+**005-back-office-web** — Back-Office Web Foundation (Bootstrap). **Implemented + committed;
+reconciled to A3.**
+The platform's **first web surface**: the internal `back-office` admin console (Vite + React 19
+SPA) + the **first shared web packages** (`@effy/design-system`, `@effy/shared-types`,
+`@effy/api-client`). Passwordless **EMAIL_OTP** (Amplify v6) → session-guarded shell → record-backed
+identity read → **backend-authoritative** admin gate decided from the DB record (status + role).
+Adds the platform's **own** back-office staff/RBAC system of record (`admin.staff`/`role`/`staff_role`
+— the first real tables + first `db-up`) so RBAC does not rely solely on Cognito.
+- Constitution amended: **v1.3.1** (Node 22) + **v1.4.0** (TanStack Store locked; Zustand removed).
+- Post-A3: its `edge-api` work lives in **`apis/edge-api/admin/`**; the console calls
+  **`/admin/v1/me`** + **`/admin/v1/admin-ping`** against the shared gateway
+  (`VITE_API_BASE_URL` = `/effy/dev/edge/api_endpoint`). App vitest **12/12**, build clean.
+- Open: **T046** (live SC-001…SC-012 sign-off per [quickstart](specs/005-back-office-web/quickstart.md)).
 
 **Previous slices** (docs in `specs/<slice>/`):
-- **004-backend-bootstrap** (core-api hot path — local Docker; edge-api cold path — live in dev;
-  dual-path, per-pool JWT, RFC 9457 errors, URI-path versioning): **implemented; live & verified
-  in dev**. Open: operator T035 (full token matrix), T047 (SC-001…SC-010 sign-off), T048 (commit).
 - **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):
   **applied & verified in dev**. Open: operator OTP sign-in test (T023), sign-off (T035).
 - **002-dev-database** (`effy-dev-db` — t4g.micro/20GB gp3, all paid options off ≈$22/mo,

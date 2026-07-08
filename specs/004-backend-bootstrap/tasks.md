@@ -187,8 +187,8 @@ this phase moves the very files it added). T057 then reconciles it deliberately.
 
 ### Operator migration + sign-off
 
-- [ ] T058 [US2] 🧑‍💻 OPERATOR — A3 migration (quickstart §A3): `make apply ENV=dev` (gateway) → **smoke-test the bare-SSM `authorizer.id`** on one admin route (research F2; fallback `Fn::Sub`) → `make edge-deploy SERVICE=admin ENV=dev` + `SERVICE=store` → verify **deploy independence** (redeploy one, siblings stay up — SC-011) + **shared routing** + unknown-service `no-route` (SC-012) → `serverless remove` the legacy `effy-edge-api` stack → repoint 005 `VITE_API_BASE_URL` → re-run the 005 quickstart against the new gateway.
-- [ ] T059 [US2] Sign-off: SC-011/SC-012 verified + recorded; hygiene sweep over `apis/` (secrets/PII); update CLAUDE.md active-feature status (004 cold-path decomposed; 005 reconciled); commit the A3 revision with its artifacts (`apis/`, `infra/envs/dev/edge-gateway.tf`, `docs/api/`, workspace deltas) alongside the updated `specs/004-backend-bootstrap/`.
+- [x] T058 [US2] 🧑‍💻 OPERATOR — A3 migration (quickstart §A3): `make apply ENV=dev` (gateway) → **smoke-test the bare-SSM `authorizer.id`** on one admin route (research F2; fallback `Fn::Sub`) → `make edge-deploy SERVICE=admin ENV=dev` + `SERVICE=store` → verify **deploy independence** (redeploy one, siblings stay up — SC-011) + **shared routing** + unknown-service `no-route` (SC-012) → `serverless remove` the legacy `effy-edge-api` stack → repoint 005 `VITE_API_BASE_URL` → re-run the 005 quickstart against the new gateway.
+- [x] T059 [US2] Sign-off: SC-011/SC-012 verified + recorded; hygiene sweep over `apis/` (secrets/PII); update CLAUDE.md active-feature status (004 cold-path decomposed; 005 reconciled); commit the A3 revision with its artifacts (`apis/`, `infra/envs/dev/edge-gateway.tf`, `docs/api/`, workspace deltas) alongside the updated `specs/004-backend-bootstrap/`.
 
 **Checkpoint (Phase 9)**: cold path is a family of services behind one shared gateway; 005 works
 against the new layout; each service deploys independently.
