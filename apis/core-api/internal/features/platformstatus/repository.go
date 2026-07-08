@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/db"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
 )
 
 // qStatus reads everything in one round trip. version 0 is goose's baseline marker

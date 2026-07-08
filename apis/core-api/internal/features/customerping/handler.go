@@ -9,8 +9,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/auth"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/httpx"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 )
 
 type pingDTO struct {

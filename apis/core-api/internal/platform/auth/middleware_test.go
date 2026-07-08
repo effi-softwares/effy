@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/httpx"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 )
 
 // The identity matrix (spec US3, quickstart §US3): every authentication failure —

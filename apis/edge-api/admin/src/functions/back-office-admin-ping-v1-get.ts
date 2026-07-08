@@ -5,9 +5,9 @@
 // it to the DB record.)
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import type { AuthedEvent } from "../lib/claims";
-import { subject } from "../lib/claims";
-import { forbidden, json, preamble, problem, ProblemType, unavailable } from "../lib/http";
+import type { AuthedEvent } from "@effy/edge-shared";
+import { subject } from "@effy/edge-shared";
+import { forbidden, json, preamble, problem, ProblemType, unavailable } from "@effy/edge-shared";
 import { isActiveAdmin } from "../staff/service";
 
 export const handler = async (

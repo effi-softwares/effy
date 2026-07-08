@@ -14,7 +14,7 @@ as `VITE_*` environment variables; a missing **required** value fails boot fast,
 |---|---|---|---|
 | `VITE_COGNITO_USER_POOL_ID` | Admin Cognito pool id (AWS region encoded in the `<region>_xxxx` prefix — no separate region var). | 001 SSM `/effy/dev/auth/back-office/user_pool_id` | ✅ |
 | `VITE_COGNITO_CLIENT_ID` | Admin **public** app-client id (no client secret — the 001 client is secretless). | 001 SSM `/effy/dev/auth/back-office/app_client_id` | ✅ |
-| `VITE_API_BASE_URL` | `edge-api` HTTP API base URL (e.g. `https://<api-id>.execute-api.ap-southeast-1.amazonaws.com`). | 004 `edge-deploy` stack output | ✅ |
+| `VITE_API_BASE_URL` | Shared edge gateway host; paths carry `/admin/v1/...` (004 A3). | 004 SSM `/effy/dev/edge/api_endpoint` | ✅ |
 
 ## Optional (telemetry — degrades to no-op if absent)
 

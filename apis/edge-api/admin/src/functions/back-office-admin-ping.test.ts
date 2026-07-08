@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const isActiveAdmin = vi.hoisted(() => vi.fn());
 vi.mock("../staff/service", () => ({ isActiveAdmin }));
 
-import type { AuthedEvent } from "../lib/claims";
+import type { AuthedEvent } from "@effy/edge-shared";
 import { handler } from "./back-office-admin-ping-v1-get";
 
 function fakeEvent(): AuthedEvent {

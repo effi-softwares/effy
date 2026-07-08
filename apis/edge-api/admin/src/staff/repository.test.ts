@@ -5,7 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
 const withTransaction = vi.hoisted(() => vi.fn());
-vi.mock("../lib/db", () => ({ query, withTransaction }));
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@effy/edge-shared")>()),
+  query,
+  withTransaction,
+}));
 
 import { authorizeAdmin, upsertOnContact } from "./repository";
 

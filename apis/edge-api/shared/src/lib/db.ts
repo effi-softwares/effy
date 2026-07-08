@@ -82,3 +82,9 @@ export async function withTransaction<T>(
     client.release();
   }
 }
+
+// pingDatabase is the health check's dependency probe — SELECT 1, no table dependency
+// (the 2s budget is enforced by the caller). Shared by every service's /<service>/healthz.
+export async function pingDatabase(): Promise<void> {
+  await query("SELECT 1");
+}

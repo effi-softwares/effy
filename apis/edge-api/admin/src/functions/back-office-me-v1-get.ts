@@ -9,9 +9,9 @@
 // slice — it would need a cognito-idp VPC endpoint the in-VPC Lambda doesn't have today.
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import type { AuthedEvent } from "../lib/claims";
-import { claim, groups, subject } from "../lib/claims";
-import { json, preamble, problem, ProblemType, unavailable } from "../lib/http";
+import type { AuthedEvent } from "@effy/edge-shared";
+import { claim, groups, subject } from "@effy/edge-shared";
+import { json, preamble, problem, ProblemType, unavailable } from "@effy/edge-shared";
 import { recordAndLoad } from "../staff/service";
 
 export const handler = async (

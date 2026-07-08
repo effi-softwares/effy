@@ -3,7 +3,7 @@ package customerping
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/auth"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
 )
 
 // Register mounts the customer-scoped ping under the v1 group, gated by the customer

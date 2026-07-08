@@ -20,15 +20,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
-	"github.com/effyshopping/effy/services/core-api/internal/features/customerping"
-	"github.com/effyshopping/effy/services/core-api/internal/features/platformstatus"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/auth"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/config"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/db"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/health"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/httpx"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/logger"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/metrics"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/customerping"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/platformstatus"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/config"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/health"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/metrics"
 )
 
 func main() {

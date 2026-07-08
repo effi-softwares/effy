@@ -5,7 +5,10 @@ import type { APIGatewayProxyEventV2, Context } from "aws-lambda";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const queryMock = vi.hoisted(() => vi.fn());
-vi.mock("../lib/db", () => ({ query: queryMock }));
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@effy/edge-shared")>()),
+  query: queryMock,
+}));
 
 import { handler as v1 } from "./platform-status-v1-get";
 import { handler as v2 } from "./platform-status-v2-get";

@@ -3,7 +3,7 @@ package auth
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/httpx"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 )
 
 // RequireGroups gates a route on group membership from the VERIFIED token.

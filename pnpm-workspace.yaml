@@ -2,7 +2,7 @@
 # 004-backend-bootstrap; the web surfaces and shared packages (design-system,
 # api-client, shared-types) join here with their own slices.
 packages:
-  - "services/edge-api"
+  - "apis/edge-api/*"
   - "apps/*"
   - "packages/*"
 

@@ -1,4 +1,4 @@
-module github.com/effyshopping/effy/services/core-api
+module github.com/effyshopping/effy/apis/core-api
 
 go 1.25.0
 

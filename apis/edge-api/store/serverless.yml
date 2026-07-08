@@ -1,0 +1,189 @@
+# edge-store — Effy cold-path store/operator service (004-backend-bootstrap, amendment A3).
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
+# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
+# under /store/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-store
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-1:044395824272:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:12
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-1
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  tags:
+    project: effy
+    slice: 004-backend-bootstrap
+    service: store
+  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  vpc:
+    securityGroupIds:
+      - ${ssm:/effy/${sls:stage}/edge/security_group_id}
+    subnetIds: ${ssm:/effy/${sls:stage}/edge/subnet_ids}
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  health:
+    handler: src/functions/health-get.handler
+    description: Liveness + readiness (DB probe), public — store service
+    events:
+      - httpApi:
+          method: GET
+          path: /store/healthz
+
+  platformStatusV1:
+    handler: src/functions/platform-status-v1-get.handler
+    description: Proving read v1 (three-layer traversal to the dev DB), public
+    events:
+      - httpApi:
+          method: GET
+          path: /store/v1/status
+
+  platformStatusV2:
+    handler: src/functions/platform-status-v2-get.handler
+    description: Proving read v2 — version-coexistence demo (reshaped payload), public
+    events:
+      - httpApi:
+          method: GET
+          path: /store/v2/status
+
+  storePingV1:
+    handler: src/functions/store-ping-v1-get.handler
+    description: Store identity-enforcement proving route (shop pool)
+    events:
+      - httpApi:
+          method: GET
+          path: /store/v1/ping
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+# Per-function CloudWatch alarms (Errors>0, Throttles>0, Duration p95). The API-level 5xx
+# alarm lives in Terraform (A3 — the API's owner), not here.
+resources:
+  Resources:
+    HealthErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-health-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref HealthLambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    HealthDurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-health-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref HealthLambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PlatformStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PlatformStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PlatformStatusV2ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-status-v2-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PlatformStatusV2LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    StorePingV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-store-ping-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref StorePingV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    StorePingV1ThrottlesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-store-ping-v1-throttles
+        Namespace: AWS/Lambda
+        MetricName: Throttles
+        Dimensions: [{ Name: FunctionName, Value: !Ref StorePingV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching

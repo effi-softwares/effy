@@ -1,7 +1,7 @@
 // Repository layer: raw parameterized SQL + explicit row → domain mapping, nothing
 // else. The proving read consumes platform-owned data only — the goose migration
 // ledger (003) and catalog functions — introducing zero product schema (research E2).
-import { query } from "./lib/db";
+import { query } from "@effy/edge-shared";
 import type { PlatformStatus } from "./types";
 
 const qStatus = `
@@ -43,9 +43,3 @@ export const statusRepository: StatusRepository = {
     };
   },
 };
-
-// pingDatabase is the health check's dependency probe (2s budget enforced by the
-// caller; SELECT 1 keeps it free of any table dependency).
-export async function pingDatabase(): Promise<void> {
-  await query("SELECT 1");
-}

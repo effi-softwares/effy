@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/logger"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 )
 
 const readinessTimeout = 2 * time.Second

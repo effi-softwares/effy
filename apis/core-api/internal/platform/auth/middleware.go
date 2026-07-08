@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/httpx"
-	"github.com/effyshopping/effy/services/core-api/internal/platform/logger"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 )
 
 // Identity is the verified caller attached to a protected request — the only identity

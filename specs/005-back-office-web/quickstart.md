@@ -58,10 +58,10 @@ make bo-lint bo-build  # typecheck + lint + production build
 ### US3 — Backend-authoritative role gating (SC-004) — the Option-B proof
 
 9. As the **admin** account: the admin-only area is visible; opening it calls
-   `/v1/back-office/admin/ping` → **200**, renders. ✅ FR-006a
+   `/admin/v1/admin-ping` → **200**, renders. ✅ FR-006a
 10. As the **manager/csa** account: the admin-only nav is **hidden**; if you force the route
     (paste its URL), the console blocks it **and** — the real proof — a direct call to
-    `/v1/back-office/admin/ping` returns **403 forbidden** from the backend, surfaced as
+    `/admin/v1/admin-ping` returns **403 forbidden** from the backend, surfaced as
     access-denied. ✅ FR-006a / SC-004 (backend refuses, not just the UI)
 11. As the **role-less** account: admitted to the shell, but no privileged area is reachable; the
     proving read shows a **no-privileges** state (no privileged data) and `/admin/ping` denies
@@ -102,9 +102,9 @@ make bo-lint bo-build  # typecheck + lint + production build
 ```bash
 make edge-test         # staff repo tests (upsert idempotency, reconcile, disabled-denial) + /me & /admin/ping handlers
 # 🧑‍💻 OPERATOR (post-deploy, with tokens per 004 quickstart Prereq 3):
-curl -H "Authorization: Bearer <ADMIN access>"   $VITE_API_BASE_URL/v1/back-office/me           # 200 StaffRecord
-curl -H "Authorization: Bearer <ADMIN access>"   $VITE_API_BASE_URL/v1/back-office/admin/ping   # 200 (active admin)
-curl -H "Authorization: Bearer <MANAGER access>" $VITE_API_BASE_URL/v1/back-office/admin/ping   # 403 problem+json
+curl -H "Authorization: Bearer <ADMIN access>"   $VITE_API_BASE_URL/admin/v1/me           # 200 StaffRecord
+curl -H "Authorization: Bearer <ADMIN access>"   $VITE_API_BASE_URL/admin/v1/admin-ping   # 200 (active admin)
+curl -H "Authorization: Bearer <MANAGER access>" $VITE_API_BASE_URL/admin/v1/admin-ping   # 403 problem+json
 ```
 
 ## Done / sign-off

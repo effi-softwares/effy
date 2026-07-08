@@ -147,8 +147,9 @@ db-down: check-goose ## OPERATOR: step back ONE migration — dev-only iteration
 # contract (SSM /effy/<env>/db|auth/* + Secrets Manager) — never a file, never echoed
 # (contracts/config.contract.md). edge-deploy mutates AWS → OPERATOR-run.
 
-CORE_DIR := services/core-api
-EDGE_DIR := services/edge-api
+CORE_DIR := apis/core-api
+# Cold path (A3): a family of services under apis/edge-api/<service>; SERVICE selects one.
+EDGE_DIR := apis/edge-api/$(SERVICE)
 
 AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
 
@@ -173,17 +174,19 @@ core-lint: ## gofmt check + go vet for core-api
 core-build: ## Build the production core-api image (distroless, TARGETARCH-aware)
 	@docker build --target runtime -t effy/core-api:local $(CORE_DIR)
 
-edge-install: ## Install edge-api workspace dependencies (pnpm)
-	@pnpm install --dir $(EDGE_DIR)
+edge-install: ## Install the JS/TS workspace dependencies (pnpm)
+	@pnpm install
 
-edge-offline: ## Run edge-api locally via serverless-offline (resolves SSM → needs the ef profile)
+edge-test: ## typecheck + vitest for every cold-path service (edge-shared + admin + store)
+	@pnpm --filter "@effy/edge-*" run typecheck && pnpm --filter "@effy/edge-*" run test
+
+edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|store; needs the ef profile)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|store ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
 
-edge-test: ## edge-api typecheck + vitest
-	@cd $(EDGE_DIR) && pnpm exec tsc --noEmit && pnpm exec vitest run
-
-edge-deploy: ## OPERATOR: deploy edge-api to AWS (Lambda + API Gateway) for ENV
-	@printf 'serverless DEPLOY  →  stage=%s (Lambda + API Gateway, live AWS)\nContinue? [y/N] ' "$(ENV)"; \
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|store ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|store ENV=dev"; exit 1; }
+	@printf 'serverless DEPLOY  →  service=%s stage=%s (attaches to the shared HTTP API, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose
 

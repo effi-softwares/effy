@@ -3,7 +3,7 @@
 // objects (FR-021).
 import type { PoolClient } from "pg";
 
-import { query, withTransaction } from "../lib/db";
+import { query, withTransaction } from "@effy/edge-shared";
 import { KNOWN_ROLES, type BackOfficeRole, type StaffRecord, type StaffStatus } from "./types";
 
 // Wire shape of the staff read — internal, never exported. role_keys aggregates staff_role.

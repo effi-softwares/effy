@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/logger"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 )
 
 // quiet paths describe the process, not the product — logging them per-scrape/probe is

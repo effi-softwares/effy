@@ -4,7 +4,7 @@
 // lives only at this edge (research A3; docs/api/versioning-policy.md rule 5).
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import { internal, json, preamble } from "../lib/http";
+import { internal, json, preamble } from "@effy/edge-shared";
 import { statusRepository } from "../repository";
 import { createPlatformStatusService } from "../service";
 

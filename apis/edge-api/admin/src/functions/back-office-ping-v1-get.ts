@@ -5,9 +5,9 @@
 // group-less (research C7/D3/D4).
 import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
-import type { AuthedEvent } from "../lib/claims";
-import { groups, hasAnyGroup, subject } from "../lib/claims";
-import { forbidden, json, preamble, problem, ProblemType } from "../lib/http";
+import type { AuthedEvent } from "@effy/edge-shared";
+import { groups, hasAnyGroup, subject } from "@effy/edge-shared";
+import { forbidden, json, preamble, problem, ProblemType } from "@effy/edge-shared";
 
 const BACK_OFFICE_GROUPS = ["admin", "manager", "csa"] as const;
 

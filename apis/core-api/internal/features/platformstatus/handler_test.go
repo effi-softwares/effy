@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/effyshopping/effy/services/core-api/internal/platform/httpx"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 )
 
 // newTestRouter assembles the engine the way main does: version groups + NoRoute,

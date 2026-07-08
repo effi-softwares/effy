@@ -45,3 +45,18 @@ An endpoint is never split across both paths, and neither path proxies the other
 A future feature's `plan.md` MUST contain a line: *"Path: core-api|edge-api — because
 <rule # + one sentence>."* An endpoint placed against this rule without a recorded,
 justified exception is a Constitution Check failure (Principle III).
+
+## Second axis — which cold-path service? (A3, 2026-07-08)
+
+The cold path is now several independently deployable domain services behind one shared HTTP API
+(`<api_endpoint>/<service>/...`; see [shared-gateway.md](./shared-gateway.md)). So a cold-path
+endpoint is placed twice:
+
+1. **Path** — latency-critical (core-api) vs cost-optimized (edge) — the rules above.
+2. **Service** — for a cost-optimized endpoint, which domain service owns it, by audience/domain:
+   - **admin** — back-office/administrative staff work (back-office pool). e.g. `/admin/v1/me`.
+   - **store** — store/operator work (shop pool) + the public platform-status/version demo.
+   - a new domain → a new `apis/edge-api/<service>/` (it attaches to the shared gateway; no
+     gateway change unless it introduces a new pool).
+
+A plan MUST record both: *"Path: edge — <rule>. Service: admin — <domain>."*

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 const recordAndLoad = vi.hoisted(() => vi.fn());
 vi.mock("../staff/service", () => ({ recordAndLoad }));
 
-import type { AuthedEvent } from "../lib/claims";
+import type { AuthedEvent } from "@effy/edge-shared";
 import { handler } from "./back-office-me-v1-get";
 
 function fakeEvent(groups?: string): AuthedEvent {
