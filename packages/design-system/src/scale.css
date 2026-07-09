@@ -1,0 +1,15 @@
+/* Effy design system — responsive UI scaling (Amendment D2-b, FR-025).
+
+   Fluid ROOT font-size: because the whole stack (Tailwind v4 spacing scale, type, control heights,
+   radii, sidebar width) is rem-based, scaling the root font-size scales the entire UI together —
+   type, spacing, and controls grow proportionally on wide displays, with ZERO per-component edits.
+
+   - `clamp()` is rem-anchored (not bare `vw`) so it still honours user zoom / browser font size
+     (WCAG 1.4.4). On the root element, `rem` resolves against the user's default size.
+   - Tuned so it equals the 16px baseline up to ~1536px (Tailwind `2xl`) and scales up ABOVE it,
+     reaching ~22px (1.375rem) around ~2560px, then capped. Laptop/standard widths are UNCHANGED.
+   - Unlayered (not inside `@layer`) so it wins over Tailwind's layered preflight. */
+
+:root {
+  font-size: clamp(1rem, calc(0.4375rem + 0.586vw), 1.375rem);
+}

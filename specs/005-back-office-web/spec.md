@@ -27,6 +27,12 @@ inherit everything this slice establishes.
 
 - Q: For US3 (role-aware console), how deep should back-office role differentiation go this slice, given the existing proving endpoint authorizes any back-office role equally? → A: **Option B** — demonstrate *backend-authoritative* inter-role gating now. The cost-optimized back-office backend gains **one minimal admin-only proving endpoint** (in addition to the any-role proving read); the console proves that an administrator is served while a manager/customer-service account is **refused by the backend itself** (not only hidden in the interface). This intentionally expands scope beyond "consume only the existing endpoint."
 - Q: Should back-office RBAC rely solely on the external identity provider (Cognito groups), or should the platform keep its own record of staff and roles? → A: **The platform keeps its own system of record.** The back-office backend persists a staff record (keyed to the verified identity subject) with the member's email, roles, and a platform-owned **active/disabled status**, created on first authenticated contact (staff are provisioned in the identity provider; the backend meets them on first request) and refreshed idempotently thereafter. Authorization for privileged access is decided from this record — including status — so a disabled staff member is refused even with a valid credential. The identity provider remains the authentication authority and the origin of role assignment this slice; the platform database becomes the authorization/audit system of record. This adds the first real tables (the back-office staff/role schema, in the `admin` data area) via the established migration workflow — a further scope expansion (new **User Story 4**).
+- Q: When bootstrapping the console, should the authenticated shell be a minimal greeting frame or a real dashboard layout? → A: **A default dashboard layout at bootstrap.** The authenticated console shell (US1) lands the staff member in a standard back-office **dashboard layout** — a persistent, collapsible side-navigation rail (brand, primary navigation, and a signed-in-user menu), a top bar showing the current location, and a main content region — rather than a bare greeting page. This is the reusable frame every future back-office screen slots into, wired from day one to the real console state: the sidebar user menu carries the verified identity and sign-out (US1), and navigation visibility is role-aware (US3/FR-006). The proving screens (US2/US3) render **inside** this layout. It consumes the shared design system (brand, dark mode) with no bespoke re-styling. (Layout is a presentation/foundation concern — no new backend, data, or auth scope; the specific layout source is recorded as plan-phase input in [operator-directives.md](./operator-directives.md).)
+
+### Session 2026-07-09
+
+- Q: The console's current theme tints its surfaces (sign-in background, sidebar, hover states) with the brand green in both appearances — should that stay? → A: **No — neutral surfaces with a single brand accent.** The console MUST drop the green-tinted surface treatment (the "green-white" light / "green-black" dark blends on the sign-in background, the sidebar, and hover states). All surfaces — backgrounds, sidebar, cards, borders, hovers — become **neutral**, and the brand green is used **only as the single accent** (primary actions, the active navigation item, focus, the brand mark), applied sparingly. This is a **design-system-wide** change (both the sign-in screen and the dashboard shell inherit it), consistent in light **and** dark. Presentation-only — no backend/data/auth change. (The concrete palette source and the accent's exact colour, plus any brand-token/constitution reconciliation, are plan-phase input in [operator-directives.md](./operator-directives.md).)
+- Q: On wide, large displays the interface looks under-sized and sparse while it reads correctly on laptops — how should it adapt? → A: **The interface scales proportionally with viewport width.** At standard/laptop widths the console keeps its current sizing (the baseline); on **large, wide displays above a defined threshold**, the interface's elements — text, spacing, controls, and overall density — scale up **proportionally together** so the layout no longer feels small or empty, while staying legible and never overflowing or clipping. This is a **design-system-wide** behaviour. Presentation-only — no backend/data/auth change. (The industry-standard scaling technique is to be researched and chosen at `/plan`; recorded as plan-phase input in [operator-directives.md](./operator-directives.md).)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -35,11 +41,14 @@ inherit everything this slice establishes.
 The platform gains its first internal web application. An Effy back-office staff member —
 whose account was provisioned for them (there is no public sign-up) — opens the console,
 enters their work email, receives a one-time code, enters it, and lands in an authenticated
-console shell that greets them by their verified identity. Their session persists across a
-page reload, protected areas are unreachable until they are signed in, and they can sign
-out to end the session cleanly. The codebase itself is the deliverable: it exhibits the
-platform's binding layered web architecture and native-quality, dark-mode-capable interface
-so every future screen has an established groove to follow.
+console shell: a standard back-office **dashboard layout** with a persistent, collapsible
+side-navigation rail (carrying the brand, the primary navigation, and a user menu that shows
+their verified identity and offers sign-out), a top bar showing their current location, and a
+main content region into which every screen renders. Their session persists across a page
+reload, protected areas are unreachable until they are signed in, and they can sign out to
+end the session cleanly. The codebase itself is the deliverable: it exhibits the platform's
+binding layered web architecture and native-quality, dark-mode-capable interface — with this
+dashboard shell as the established groove every future screen slots into.
 
 **Why this priority**: Authenticated entry is the irreducible core of an internal console —
 without it there is no console. It is also the first live proof of the admin identity pool
@@ -57,8 +66,9 @@ sign out and confirm protected areas become unreachable.
    member submits their work email, **Then** a one-time code is sent and the console prompts
    for it — never asking for a password (no passwords exist anywhere).
 2. **Given** a correct, unexpired one-time code, **When** it is submitted, **Then** the
-   staff member is admitted to the authenticated console shell, which displays their verified
-   identity.
+   staff member is admitted to the authenticated console shell — the standard dashboard
+   layout with its persistent side navigation, top location bar, and main content region —
+   and their verified identity is displayed in the sidebar user menu.
 3. **Given** an authenticated session, **When** the page is reloaded, **Then** the staff
    member remains signed in without re-entering a code, until the session legitimately
    expires.
@@ -67,6 +77,10 @@ sign out and confirm protected areas become unreachable.
    to sign-in and, after authenticating, returned to their intended destination.
 5. **Given** an authenticated session, **When** the staff member signs out, **Then** the
    session is cleared and every protected area becomes unreachable until they sign in again.
+6. **Given** the authenticated dashboard shell, **When** the staff member collapses or
+   expands the side-navigation rail, **Then** the layout responds cleanly (navigation
+   remaining reachable in its collapsed form) and the main content region reflows without a
+   broken interface, in both light and dark appearances.
 
 ---
 
@@ -269,7 +283,13 @@ conventions on the first attempt.
 - **Direct deep-link / browser back-forward into a protected route while signed out** →
   redirected to sign-in and returned to the intended place after authenticating.
 - **Light vs dark appearance** → the console is legible and on-brand in both; dark mode is a
-  requirement, not optional polish.
+  requirement, not optional polish. In both, surfaces are **neutral** and the brand green is the
+  **single accent** only — no brand-tinted surface blends (FR-024).
+- **Wide / large / ultrawide displays** → the interface scales up proportionally so it does not
+  look small or sparse, while staying legible and never overflowing or clipping (FR-025); an
+  ultrawide viewport must not stretch content into unreadably long line lengths.
+- **Standard / laptop widths** → the baseline sizing is preserved (scaling adds size only above
+  the large-width threshold; it never shrinks the small-screen presentation).
 - **Served from an unapproved origin** → the backend refuses the call; the console is served
   only from the platform's approved development origin, which is per-environment
   configuration, not hard-coded.
@@ -334,7 +354,8 @@ conventions on the first attempt.
 - **FR-011**: The design system MUST carry the platform brand and **MUST support dark mode**;
   the console MUST be legible and on-brand in both light and dark appearances and MUST meet
   the platform's interaction-quality bar (adequate touch/click targets, responsive layout,
-  accessible interactions).
+  accessible interactions). The brand is expressed per FR-024 (neutral surfaces + a single
+  accent) and the layout scales per FR-025 (proportional large-screen scaling).
 - **FR-012**: The console MUST treat the backend's responses as the **authoritative source
   of server state** and MUST NOT hand-duplicate server data into ad-hoc interface state;
   genuine client-only state is kept separately (constitution Principle V, unidirectional
@@ -388,6 +409,31 @@ conventions on the first attempt.
   the access decision**, so record and credential MUST NOT silently diverge on what access is
   granted. (Platform-authoritative role *management* — editing roles in the platform and pushing
   them outward — is a later slice.)
+- **FR-023**: The authenticated console MUST present a **default dashboard layout** at
+  bootstrap — a persistent, collapsible side-navigation rail (carrying the brand, primary
+  navigation, and a user menu exposing the verified identity and sign-out), a top bar
+  indicating the current location, and a main content region into which all protected screens
+  (including the US2/US3 proving screens) render. The layout MUST be built from the shared
+  design system (brand, dark mode) rather than re-styled per surface (FR-010/FR-011), MUST be
+  **role-aware** — navigation reveals only what the account's role permits (FR-006) — and MUST
+  serve as the reusable frame for every future back-office screen. It adds **no** backend,
+  data, or authentication scope (a presentation/foundation concern only).
+- **FR-024**: The console's visual theme MUST use **neutral surfaces with a single brand
+  accent**. All surfaces — page and sign-in backgrounds, the sidebar, cards, borders, and
+  **hover** states — MUST be neutral (no brand-tinted surface blends) in both light and dark;
+  the platform's brand green MUST appear **only as the single accent** (primary actions, the
+  active navigation item, focus indication, and the brand mark), used sparingly. This MUST be
+  set in the shared design system (the single source of truth, FR-010), so **every** surface —
+  the sign-in screen and the dashboard shell alike — inherits it, and MUST NOT be re-styled per
+  screen. Presentation-only (no backend/data/auth change).
+- **FR-025**: The console MUST **scale proportionally with viewport width**. At standard and
+  laptop widths it MUST retain its current (baseline) sizing; on **large, wide displays above a
+  defined width threshold**, the interface's text, spacing, controls, and overall density MUST
+  scale up **proportionally together** so the layout does not feel undersized or empty — while
+  remaining legible and **never** overflowing, clipping, or breaking layout at any width. This
+  MUST be a **design-system-wide** behaviour (both the sign-in screen and the shell benefit),
+  and the small-screen baseline MUST NOT shrink. Presentation-only (no backend/data/auth
+  change).
 
 ### Key Entities
 
@@ -405,8 +451,13 @@ conventions on the first attempt.
   identity provider.
 - **Role Assignment**: the association of a staff record with its back-office role(s); the
   normalized basis for authorization decisions and future role management.
-- **Proving Screen**: the minimal screen(s) that demonstrate a complete client → backend →
-  identity/role enforcement → platform data → back loop; foundation-only, no product data.
+- **Dashboard Shell**: the default authenticated layout the console lands in at bootstrap —
+  a persistent, collapsible side-navigation rail (brand, primary navigation, signed-in-user
+  menu with sign-out), a top location bar, and a main content region; the reusable, role-aware
+  frame into which every future back-office screen (and the proving screens) renders.
+- **Proving Screen**: the minimal screen(s) — rendered inside the Dashboard Shell — that
+  demonstrate a complete client → backend → identity/role enforcement → platform data → back
+  loop; foundation-only, no product data.
 - **Shared Web Foundation**: the brand design system plus shared, typed building blocks
   (backend interface, shared types, configuration) — the single source of truth every web
   surface consumes.
@@ -435,7 +486,8 @@ conventions on the first attempt.
   expired session, denied) render as a clear, recoverable console state; **zero** present a
   broken interface or expose internal detail/stack traces/credentials.
 - **SC-006**: The console is legible and on-brand in **both** light and dark appearances —
-  verified across the sign-in and proving screens — and meets the platform interaction bar.
+  verified across the sign-in and proving screens (and the dashboard shell) — with **neutral
+  surfaces and a single brand accent** (FR-024), and meets the platform interaction bar.
 - **SC-007**: **Zero** secret or credential material is found in the repository or the built
   bundle, and **100%** of emitted telemetry events carry no personal data beyond the subject
   identifier, across the entire local-run workflow.
@@ -453,9 +505,32 @@ conventions on the first attempt.
 - **SC-012**: A staff member the platform marks **disabled** is refused privileged access in
   **100%** of attempts **despite holding a valid credential** — demonstrating an authorization
   decision the platform owns independently of the identity provider.
+- **SC-013**: On completing sign-in, the staff member lands in the default dashboard layout —
+  persistent side navigation, top location bar, and main content region present — with their
+  verified identity and sign-out reachable from the sidebar user menu, and the navigation rail
+  collapses/expands cleanly in **both** light and dark appearances with **zero** broken layout
+  states; every proving screen (US2/US3) renders **inside** this shell.
+- **SC-014**: Across the sign-in screen and the dashboard shell, in **both** appearances,
+  **every** surface (backgrounds, sidebar, cards, hover states) is neutral and the brand green
+  appears **only** as the accent — **zero** brand-tinted surface blends remain (FR-024),
+  verified by inspecting the sign-in background, the sidebar, and hover states.
+- **SC-015**: On a large, wide display (above the defined threshold) the interface is visibly
+  and proportionally larger than at laptop width — text, spacing, and controls all scale
+  together — with **zero** overflow, clipping, or broken layout at any tested width from laptop
+  to ultrawide, and the laptop-width baseline is unchanged (FR-025).
 
 ## Assumptions
 
+- **The theme change (FR-024) keeps a green brand accent — it neutralises surfaces, it does not
+  drop the brand.** The platform's brand remains a green (emerald-family) accent; what changes is
+  that surfaces stop being brand-tinted and the accent is used sparingly. Whether this restates
+  the constitution's brand-colour definition and whether that warrants a constitution note
+  (Principle V, the brand identity) is a **plan/governance reconciliation** — flagged in
+  [operator-directives.md](./operator-directives.md), not decided in this spec.
+- **The theme and scaling changes (FR-024/FR-025) are presentation-only** and land in the shared
+  design system (the single source of truth), so every current and future web surface inherits
+  them. They add no backend, data, or authentication scope; the concrete palette source and the
+  scaling technique are plan-phase input (operator-directives), chosen at `/plan`.
 - **Feature 001 (four identity pools, passwordless EMAIL_OTP) is a prerequisite** and the
   sole identity source; this slice authenticates against the existing **admin** pool and
   introduces no new identity infrastructure. Back-office accounts are **admin-provisioned**

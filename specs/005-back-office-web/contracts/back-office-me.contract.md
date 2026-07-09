@@ -1,23 +1,24 @@
-# Contract — `GET /v1/back-office/me` (edge-api, NEW)
+# Contract — `GET /admin/v1/me` (edge-api, NEW)
 
-**Feature**: 005 (FR-005/019) · **Service**: `services/edge-api` (cold path) · **Status**: to
+**Feature**: 005 (FR-005/019) · **Service**: `apis/edge-api/admin` (cold path) · **Status**: to
 build this slice.
 
 The staff-identity read: the console's record-backed identity read **and** the JIT touchpoint that
 records/refreshes the staff member in the platform's own system of record. **Delivered at US4**;
-until then the console's P2 proving read uses the existing 004 `/v1/back-office/ping` (token echo),
+until then the console's P2 proving read uses the existing 004 `/admin/v1/ping` (token echo),
 then **graduates** to `/me` here. Unlike `/ping` (which denies role-less), `/me` **admits any
 authenticated back-office caller incl. role-less** — because its job is to *record* them.
 
 ## Request
 
 ```
-GET /v1/back-office/me
+GET /admin/v1/me
 Authorization: Bearer <back-office ACCESS token>
 ```
-Behind the existing `backOfficeJwt` authorizer (Principle IV). Any authenticated back-office
-caller (any role, incl. role-less) is admitted to *this* endpoint — it is the "who am I in the
-platform" read; privilege gating happens on `/admin/ping`.
+Behind the **back-office** JWT authorizer — A3-referenced **by id from SSM**
+(`/effy/<env>/edge/authorizer/back-office_id`; Terraform-owned at the shared gateway), Principle IV.
+Any authenticated back-office caller (any role, incl. role-less) is admitted to *this* endpoint —
+it is the "who am I in the platform" read; privilege gating happens on `/admin/v1/admin-ping`.
 
 ## Behavior (records, then returns)
 
@@ -47,8 +48,9 @@ platform" read; privilege gating happens on `/admin/ping`.
 
 - Handler `src/functions/back-office-me-v1-get.ts` → `staff.service` → `staff.repository`
   (three-layer slice, Principle VI). Reuse `preamble`/`json`/`problem` from `lib/`.
-- `serverless.yml`: function `backOfficeMeV1` → `httpApi GET /v1/back-office/me`,
-  `authorizer.name: backOfficeJwt`; 3 alarms matching the pattern.
+- `serverless.yml` (`apis/edge-api/admin/`): function `backOfficeMeV1` → `httpApi GET /admin/v1/me`,
+  authorizer referenced by id from SSM (`${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}` —
+  A3); 3 alarms matching the pattern.
 - Tests: first call creates the record + returns it; second call updates `last_seen_at` with no
   duplicate; role-less returns `roles: []`.
 - **PII**: `email` is returned to the authenticated owner and stored in the DB, but **never

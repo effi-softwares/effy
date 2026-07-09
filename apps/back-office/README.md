@@ -26,7 +26,13 @@ src/
 ├── routes/             # route definitions
 │   ├── __root.tsx      #   providers shell + dev-only unified TanStack DevTools + RouterContext type
 │   ├── auth.tsx        #   PUBLIC: /auth/sign-in (captures ?next)
-│   └── app.tsx         #   PROTECTED layout: beforeLoad → requireSession; shell (nav, theme, sign-out)
+│   └── app.tsx         #   PROTECTED layout: beforeLoad → requireSession; renders the dashboard shell
+├── components/layout/  # dashboard shell CHROME (sidebar-07; app shell, NOT a feature slice):
+│   ├── AppSidebar.tsx  #   brand mark + NavMain + NavUser (footer)
+│   ├── NavMain.tsx     #   primary nav from the role-aware model (nav.ts) — reflects the auth gate
+│   ├── NavUser.tsx     #   sidebar-footer menu: verified identity, sign-out, theme toggle
+│   ├── AppHeader.tsx   #   inset header: SidebarTrigger + route breadcrumb
+│   └── nav.ts          #   the typed nav model + visibleNav(roles) role filter
 ├── features/<domain>/  # the core unit — one folder per domain:
 │   ├── repo.ts         #   API calls via @effy/api-client + DTO↔domain mapping (wire never leaks up)
 │   ├── queries.ts      #   server-state hooks (queryOptions/mutations) + query keys
@@ -46,7 +52,13 @@ src/
 
 **Rules that keep this predictable** (constitution Principle VI):
 - **Server-state cache is the source of truth.** Never hand-cache server data in component state.
-  Genuine client-only state (theme, command palette) goes in `lib/ui-store.ts`, nothing else.
+  Genuine client-only state (theme, command palette, sidebar collapse) goes in `lib/ui-store.ts`,
+  nothing else — the dashboard shell drives `SidebarProvider` from `ui-store.sidebarOpen` (controlled),
+  never the shadcn block's cookie.
+- **Dashboard chrome lives in `components/layout/`, not `features/`.** It is app shell, shared across
+  every screen. To add a nav destination: add a `NavItem` to `components/layout/nav.ts` (set
+  `requiredRole` to role-gate it — it's filtered by the same predicate as the route guard), then add
+  its route. shadcn primitives stay in `components/ui/` and theme from `@effy/design-system`.
 - **DTOs are mapped to domain models in `repo.ts`** and never leak past it into screens.
 - **The access token** goes to the backend, never the ID token.
 - Brand tokens live once in `@effy/design-system` — **never hardcode `#0FB57E`** here.

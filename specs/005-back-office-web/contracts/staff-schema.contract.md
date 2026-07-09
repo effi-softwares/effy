@@ -1,6 +1,6 @@
 # Contract — Back-Office Staff & RBAC Schema (`admin` schema, NEW)
 
-**Feature**: 005 (FR-019/021/022) · **Area**: `db/migrations` (003 workflow) + `services/edge-api`
+**Feature**: 005 (FR-019/021/022) · **Area**: `db/migrations` (003 workflow) + `apis/edge-api/admin`
 `staff` domain · **Status**: to build this slice.
 
 The platform's own system of record for back-office staff + roles — the first real tables beyond
@@ -19,7 +19,7 @@ audit"). Normalized RBAC. Forward-only (003 discipline). See
 - The migration **seeds** the three `admin.role` rows idempotently (`ON CONFLICT DO NOTHING`).
 - `email` is **account data** — persisted, but **never logged or telemetried** (Principle VII).
 
-## Repository operations (`services/edge-api/src/staff/`, raw SQL, no ORM)
+## Repository operations (`apis/edge-api/admin/src/staff/`, raw SQL, no ORM)
 
 - **`upsertOnContact(sub, email, tokenGroups)`** — the JIT provisioning call (from `/me`):
   ```sql

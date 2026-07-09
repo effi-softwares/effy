@@ -62,14 +62,14 @@ type SessionState =
 
 Both come from `edge-api`; typed in `packages/shared-types`.
 
-**Staff-identity read** — `GET /v1/back-office/me` (NEW, FR-005/019) — records + returns the
+**Staff-identity read** — `GET /admin/v1/me` (NEW, FR-005/019) — records + returns the
 platform's own staff record (not a token echo):
 ```
 StaffRecordDTO = { subject: string; email: string; roles: string[]; status: 'active'|'disabled'; lastSeenAt: string }
   → StaffRecord = { subject: string; email: string; roles: BackOfficeRole[]; status: 'active'|'disabled' }
 ```
 
-**Admin-only ping** — `GET /v1/back-office/admin/ping` (NEW, FR-018/020) — authorizes from the DB
+**Admin-only ping** — `GET /admin/v1/admin-ping` (NEW, FR-018/020) — authorizes from the DB
 record (status active AND role admin), not the token claim:
 ```
 BackOfficeAdminPingDTO = { audience: 'back-office'; scope: 'admin'; subject: string; message: string }
@@ -160,11 +160,56 @@ Amplify session ──(access token)──▶ Identity{subject,roles}
                         │
                         ▼
               api-client (Bearer access token) ──▶ edge-api ──▶ admin.staff / staff_role (DB)
-                        │                              ├─ /v1/back-office/me          → StaffRecord (JIT upsert + return)
-                        ▼                              └─ /v1/back-office/admin/ping   → AdminPingResult | forbidden
+                        │                              ├─ /admin/v1/me          → StaffRecord (JIT upsert + return)
+                        ▼                              └─ /admin/v1/admin-ping   → AdminPingResult | forbidden
                   DomainError (problem+json)                (authz reads DB: status active AND role admin)
 ```
 
 No **product** entities exist in this slice — by design (FR-017). The staff/RBAC tables are
 platform **account/audit** data (`admin` schema). The first *product* data model arrives with the
 first real back-office feature slice, on top of this foundation.
+
+## 8. Dashboard-shell UI model (Amendment D1 — FR-023, presentation-only)
+
+Client-only model backing the default dashboard layout (the sidebar-07 shell). **No wire DTO, no
+persistence, no backend touch** — it is derived from the already-modeled Identity/roles (§1) and
+held in the existing `uiStore`.
+
+**Role-aware nav model** — the `NavMain` source (a small static list, filtered per session role;
+`requiredRole` absent → visible to any signed-in staff):
+```
+type NavItem = { label: string; to: string; requiredRole?: BackOfficeRole }
+const NAV: NavItem[] = [
+  { label: 'Dashboard', to: '/' },
+  { label: 'Admin',     to: '/admin', requiredRole: 'admin' },   // gated by the SAME isAdmin/requireGroup as mechanic 2
+]
+```
+- **Filter rule**: an item shows iff `requiredRole` is undefined **or** `roles` includes it — reusing
+  `isAdmin(roles)` / the `requireGroup` predicate that already guards the route (§ plan mechanic 2/4).
+  The nav is a **reflection** of the authoritative backend gate, never a substitute (FR-006/FR-006a).
+- **Breadcrumb**: derived from the active route (`Dashboard` / `Admin`) via the router — no separate model.
+- **NavUser** binds to existing state only: `identity.email`/`subject` (§1, `sessionQuery`), the
+  `useSignOut` mutation, and the `toggleTheme` action — no new fields.
+
+**`uiStore` extension** — the sidebar collapse bit is genuine client-only UI state (Principle V/VI),
+added alongside `theme` (research G6):
+```
+uiStore: { theme: 'light'|'dark'; sidebarOpen: boolean }   // sidebarOpen drives SidebarProvider (controlled)
+```
+- Only these client-UI concerns live in the store; **server state never does** (Principle VI). The
+  shadcn block's default cookie persistence is not used — the one sanctioned store owns it.
+
+## 9. Theme + responsive scaling (Amendment D2 — FR-024/FR-025) — pure CSS, no new state
+
+The neutral-theme rebase (FR-024) and the fluid root-font-size scaling (FR-025) are **design-system
+token / CSS changes only** ([plan § Amendment D2](./plan.md); research [Part H](./research.md#part-h) /
+[Part I](./research.md#part-i)). They add **no** data model, no wire DTO, and **no new client state**:
+
+- **Theme (D2-a)**: surface tokens in `packages/design-system/src/tokens.css` are rebased onto the neutral
+  scale; `--primary`/`--ring`/`--sidebar-primary` stay Jade `#0FB57E` (the single accent). Light/dark still
+  toggle via the existing `.dark` class driven by `uiStore.theme` — **unchanged**. No token is added to
+  `uiStore`.
+- **Scaling (D2-b)**: a `:root` font-size `clamp()` rule (rem-anchored) in the design-system scales all
+  rem-based sizing on wide viewports; a `max-width` cap on the content wrapper guards ultrawide line
+  length. **CSS only** — no JS, no state; `uiStore` (§8: `theme`, `commandPaletteOpen`, `sidebarOpen`) is
+  untouched.

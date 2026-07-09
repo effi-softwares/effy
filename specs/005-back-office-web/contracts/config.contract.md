@@ -33,13 +33,14 @@ as `VITE_*` environment variables; a missing **required** value fails boot fast,
   ```bash
   aws ssm get-parameter --name /effy/dev/auth/back-office/user_pool_id   --query Parameter.Value --output text
   aws ssm get-parameter --name /effy/dev/auth/back-office/app_client_id  --query Parameter.Value --output text
-  # VITE_API_BASE_URL: from `make edge-deploy ENV=dev` output (or the API Gateway console).
+  # VITE_API_BASE_URL: from `make edge-deploy SERVICE=admin ENV=dev` output (or the API Gateway console).
   ```
   These land in `apps/back-office/.env.local` (git-ignored) for local runs. Hosted deployment
   (a later slice) will inject them at build time via the hosting pipeline.
 
 ## CORS coupling (edge-api side, not a web var)
 
-The console's dev origin `http://localhost:5173` must be in edge-api's
-`corsOrigins` (admin-ping.contract.md D2) — otherwise every backend call is refused. This is an
-edge-api config + operator redeploy, tracked as a task, not a `VITE_*` value.
+The console's dev origin `http://localhost:5173` must be an allowed CORS origin at the
+**Terraform-owned shared gateway** (`infra/envs/dev/edge-gateway.tf` `cors_configuration.allow_origins`,
+A3 — admin-ping.contract.md D2) — otherwise every backend call is refused. This is a Terraform/
+operator `terraform apply` concern (already live), **not** a per-service setting or a `VITE_*` value.

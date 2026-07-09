@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@effy/design-system/tokens.css";
+@import "@effy/design-system/scale.css";
 
 @layer base {
   * {

@@ -21,9 +21,9 @@ error handling, and the role gate.
 
 | Endpoint | Purpose | Auth | Maps to |
 |---|---|---|---|
-| `GET /v1/back-office/ping` (004, existing) | identity proving read at **P2** (token echo; denies role-less) | Bearer **access** token | identity + roles |
-| `GET /v1/back-office/me` | record-backed identity read (**US4**; the P2 screen graduates to it) | Bearer **access** token | `StaffRecord` |
-| `GET /v1/back-office/admin/ping` | admin-only read — **role-claim gate (US3) → DB-record authz (US4)** | Bearer **access** token | `AdminPingResult` \| `forbidden` |
+| `GET /admin/v1/ping` (004, existing) | identity proving read at **P2** (token echo; denies role-less) | Bearer **access** token | identity + roles |
+| `GET /admin/v1/me` | record-backed identity read (**US4**; the P2 screen graduates to it) | Bearer **access** token | `StaffRecord` |
+| `GET /admin/v1/admin-ping` | admin-only read — **role-claim gate (US3) → DB-record authz (US4)** | Bearer **access** token | `AdminPingResult` \| `forbidden` |
 
 *Build order (decouple):* US2 proves the loop against the existing `/ping`; US4 introduces `/me`
 (records everyone, incl. role-less) and the console's identity screen graduates to it; the admin
@@ -52,18 +52,35 @@ gate ships role-claim-based at US3 and is upgraded to the DB record at US4.
 - Corollary (spec edge case): a call from an **unapproved origin** is refused by edge-api CORS;
   the console is served only from the approved dev origin (`localhost:5173`).
 
-## 5. Routing & guards (`src/router.tsx`, ARCHITECTURE admin-web)
+## 5. Routing, shell & guards (`src/router.tsx`, ARCHITECTURE admin-web)
 
 - **Public** `auth` layout: sign-in + OTP verify.
 - **Protected** `app` layout: `beforeLoad` ensures the session query (redirect to
-  `/auth/sign-in?next=…` if `signed-out`) — FR-004.
+  `/auth/sign-in?next=…` if `signed-out`) — FR-004. It renders the **default dashboard shell**
+  (Amendment D1 / FR-023): a persistent **collapsible sidebar** (`SidebarProvider → AppSidebar`)
+  + an **inset header** (`SidebarTrigger` + route **breadcrumb**) + a main content region hosting
+  the same `<Outlet/>`. Built from the shadcn `sidebar-07` block, themed from `design-system`
+  (§6) — no hardcoded brand.
+  - **Sidebar brand**: a single **Effy Back-Office** mark (single-brand platform — no team switcher).
+  - **NavMain (role-aware)**: items from a static nav model filtered by the **same** role logic as
+    the route guards (`isAdmin`/`requireGroup`) — the Admin item is hidden for manager/csa/role-less.
+    This is a reflection of the authoritative gate, never a substitute (FR-006/FR-006a).
+  - **NavUser (sidebar footer)**: verified identity (email/subject) + **Sign out** (`useSignOut` →
+    `/auth/sign-in`) + **theme toggle**. Collapse/expand state is client-UI state in `uiStore`.
 - **Admin-only** area: `beforeLoad` `requireGroup('admin')` (interface gate) **and** the screen
-  calls `/v1/back-office/admin/ping` (authoritative gate) — US3/FR-006a.
+  calls `/admin/v1/admin-ping` (authoritative gate) — US3/FR-006a.
 
 ## 6. Design + telemetry boundaries
 
-- Brand tokens (Jade `#0FB57E`/`#047857`) + **dark mode** consumed from
-  `packages/design-system`; no hardcoded brand in the app (FR-011).
+- Brand tokens + **dark mode** consumed from `packages/design-system`; no hardcoded brand in the
+  app (FR-011).
+- **Theme (FR-024, Amendment D2)**: **neutral surfaces** (backgrounds, sidebar, cards, borders,
+  hovers on the neutral scale — no brand-tinted blends) with the brand green **Jade `#0FB57E`** as
+  the **single accent** (primary, ring, brand mark). Set once in the design-system tokens; the
+  sign-in screen and the shell inherit it — never re-styled per screen. (Values: research Part H.)
+- **Responsive scaling (FR-025, Amendment D2)**: the UI scales proportionally on wide displays via
+  a design-system **root-font-size `clamp()`** rule (all rem-based sizing grows together); baseline
+  preserved at laptop width; a content `max-width` cap guards ultrawide. Pure CSS, no client state.
 - Telemetry (Principle VII): typed PostHog event taxonomy in `lib/telemetry` — sign-in lifecycle
   + `admin_area_access_denied`; runtime errors routed to PostHog. **No PII beyond `subject`**; a
   missing analytics key degrades to no-op.

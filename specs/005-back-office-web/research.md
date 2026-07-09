@@ -127,23 +127,34 @@ deploy). **This removes the largest execution risk.**
 base URL are **not secrets** (Cognito public client, public API). They reach the Vite build as
 `VITE_*` env (see config.contract.md), sourced by the operator from the 001/004 SSM contract
 values. No secret ever enters the web bundle or the repo (FR-014). The dev origin
-(`http://localhost:5173`, Vite default) must be added to edge-api's `corsOrigins` (see Part D).
+(`http://localhost:5173`, Vite default) must be an allowed CORS origin at the edge gateway (see
+Part D; under A3 this is the Terraform-owned shared gateway, already live).
 
 ---
 
 ## Part D — Backend addition: the admin-only proving endpoint (FR-018)
 
-**D1 — Shape.** One new route on the existing `edge-api` cold path:
-`GET /v1/back-office/admin/ping`, behind the existing **`backOfficeJwt`** authorizer, authorizing
-the **`admin`** group only (manager/csa → shared `forbidden` problem). Mirrors
-`back-office-ping-v1-get.ts` but with `ADMIN_GROUPS = ["admin"]`. New handler
-`src/functions/back-office-admin-ping-v1-get.ts` + serverless function `backOfficeAdminPingV1` +
-its 3 CloudWatch alarms (errors/throttles/duration-p95) matching the existing pattern.
-Reuses `lib/claims` (`hasAnyGroup`) and `lib/http` (`forbidden`, `json`, `preamble`) unchanged.
+> **A3 reconciliation (post-004-A3).** This Part D was written pre-A3; the committed reality: the
+> back-office service lives at **`apis/edge-api/admin/`**, routes are **`/admin/v1/...`** (e.g.
+> `/admin/v1/admin-ping`), the authorizer is **Terraform-owned at the shared gateway** and
+> referenced **by id from SSM** (`/effy/<env>/edge/authorizer/back-office_id`), and **CORS is a
+> gateway value** (`infra/envs/dev/edge-gateway.tf`), not a per-service setting. Deploy =
+> `make edge-deploy SERVICE=admin ENV=dev`. The D1/D2 specifics below are updated accordingly.
 
-**D2 — CORS.** Add `http://localhost:5173` to `provider.httpApi.cors.allowedOrigins`
-(`params.default.corsOrigins`) so the locally-run console (an approved dev origin) can call
-edge-api. Unapproved origins stay refused (spec edge case). Requires an operator `edge-deploy`.
+**D1 — Shape.** One new route on the back-office cold-path service (`apis/edge-api/admin/`):
+`GET /admin/v1/admin-ping`, behind the back-office JWT authorizer (A3: referenced by SSM id, not a
+local authorizer), authorizing the **`admin`** group only (manager/csa → shared `forbidden`
+problem). Mirrors `back-office-ping-v1-get.ts` but with `ADMIN_GROUPS = ["admin"]`. New handler
+`apis/edge-api/admin/src/functions/back-office-admin-ping-v1-get.ts` + serverless function
+`backOfficeAdminPingV1` + its 3 CloudWatch alarms (errors/throttles/duration-p95) matching the
+existing pattern. Reuses `lib/claims` (`hasAnyGroup`) and `lib/http` (`forbidden`, `json`,
+`preamble`) unchanged. *(US4 later upgrades the authz decision to the DB record — see Part F.)*
+
+**D2 — CORS.** The console's dev origin `http://localhost:5173` is an allowed origin on the
+**Terraform-owned shared gateway** (`infra/envs/dev/edge-gateway.tf` `cors_configuration.allow_origins`,
+A3 — **already live**), so the locally-run console can call the service. Unapproved origins stay
+refused (spec edge case). This is a `terraform apply` concern (already done), **not** a per-service
+`corsOrigins` edit or a `edge-deploy` step.
 
 **D3 — Versioning + error contract.** The new route carries `/v1` per the platform versioning
 policy (`docs/api/versioning-policy.md`); its refusals use the RFC 9457 problem+json envelope
@@ -160,7 +171,7 @@ else in the slice is the web app.
 **E1 — Placement.** `apps/back-office/` (first web surface; joins the pnpm workspace) +
 `packages/design-system`, `packages/shared-types`, `packages/api-client` (first shared web
 packages — FR-010; workspace globs `apps/*` + `packages/*` are activated). The edge-api change
-lands in the existing `services/edge-api/`.
+lands in the existing `apis/edge-api/admin/`.
 
 **E2 — Shared packages now vs later.** Spec FR-010/US4 **mandates** the shared web foundation
 this slice — so unlike 004's "defer to 2nd consumer" lib rule, the brand tokens (design-system,
@@ -207,7 +218,7 @@ beyond the 003 baseline shell; also the **first exercise of `make db-up`**.
 **F2 — JIT provisioning (upsert on first authenticated backend contact).** Staff are
 admin-provisioned in Cognito; the backend never sees sign-in (Amplify ↔ Cognito directly), so
 the **first authenticated request** is where the platform first meets them. The staff-identity
-read (`GET /v1/back-office/me`) upserts idempotently:
+read (`GET /admin/v1/me`) upserts idempotently:
 `INSERT ... ON CONFLICT (cognito_sub) DO UPDATE SET email=…, last_seen_at=now(), updated_at=now()`
 — safe under concurrent first contact (no duplicate; the unique `cognito_sub` + `ON CONFLICT`
 is the idempotency guarantee, mirroring 004's idempotent-consumer pattern). Roles are reconciled
@@ -215,7 +226,7 @@ from the token's `cognito:groups` into `admin.staff_role` in the same transactio
 + insert-present, or a small diff).
 
 **F3 — Authorization decision reads the platform record (status + role) — the "not solely
-Cognito" proof.** The admin-only gate (`GET /v1/back-office/admin/ping`, FR-018) authorizes by
+Cognito" proof.** The admin-only gate (`GET /admin/v1/admin-ping`, FR-018) authorizes by
 reading `admin.staff.status = 'active'` **AND** an `admin.staff_role` row with `role_key='admin'`
 — **not** the token claim alone. So a staff row set `status='disabled'` is **refused despite a
 valid admin token** (SC-012). Roles are seeded from Cognito (F2) so role-content matches the
@@ -232,7 +243,7 @@ no gain; `/me` is the natural touchpoint).
 
 **F6 — Build order (decouple — keeps priorities monotonic).** To avoid US4 (P4) becoming a hidden
 dependency of US2 (P2) and US3 (P3): US2's proving read uses the **existing 004
-`/v1/back-office/ping`** (token echo, no DB); US3's admin gate ships **role-claim-based**
+`/admin/v1/ping`** (token echo, no DB); US3's admin gate ships **role-claim-based**
 (`hasAnyGroup('admin')`, no DB); **US4** then introduces `/me` + the tables (the identity screen
 graduates from `/ping` to `/me`) and **upgrades** the admin gate to authorize from the DB record
 (status + role). Each story stays independently testable; the DB layer is a hardening step, not a
@@ -247,3 +258,179 @@ platform-status files moving to `src/platform-status/` (or staying, documented).
 `back-office-me-v1-get.ts` + the FR-018 `back-office-admin-ping-v1-get.ts` call the `staff`
 service. Repository tests use the existing testcontainers/local-PG pattern against the real
 `admin` tables.
+
+---
+
+## Part G — Default dashboard shell: shadcn `sidebar-07` block (Amendment D1, 2026-07-08)
+
+Operator directive (verbatim in operator-directives.md): the bootstrapped console must land in a
+**default dashboard layout** built from the shadcn **`sidebar-07`** block
+(https://ui.shadcn.com/blocks#sidebar-07) — "install it and use it or … copy the code." Spec
+FR-023 / US1 / SC-013. This is **presentation-only** (no backend/data/auth change). Decisions:
+
+**G1 — What `sidebar-07` is.** A shadcn **block** (not a preset, not a single component): a
+collapsible-**to-icon** sidebar shell = a sidebar with a brand/team header, a primary nav
+(`nav-main`), a footer user menu (`nav-user`, a dropdown), plus an **inset** content area whose
+header has a `SidebarTrigger` + a breadcrumb. It composes the `sidebar` primitive and its
+dependency components. This maps 1:1 onto FR-023's "persistent collapsible side-nav rail + top
+location bar + main content region."
+
+**G2 — Acquisition: `shadcn add` (default) or copy — both are the "components copied per app"
+model (research B3).** `pnpm dlx shadcn@latest add sidebar-07` resolves through the app's
+`components.json` (base radix, preset `b2BnwlLOK`) and writes the block into
+`apps/back-office/src/components/`. It pulls the **dependency components** the block needs:
+`sidebar`, `sheet` (mobile drawer), `separator`, `tooltip` (collapsed-rail labels), `skeleton`,
+`breadcrumb`, `dropdown-menu`, `avatar`, `collapsible`, plus the **`use-mobile`** hook. Copying the
+block source by hand yields the identical result — use it only if the CLI add fights the monorepo
+wiring (same fallback posture as B2's shadcn init). Pin nothing new at the npm level: these are
+copied source files on the existing Radix/Tailwind-v4 stack, not new runtime deps (the only new
+transitive Radix primitives, e.g. dropdown/avatar/tooltip/collapsible, arrive as shadcn-managed
+peer installs, catalog-aligned like the rest of `components/ui`).
+
+**G3 — Theming: block palette must NOT beat the design-system SSOT (Principle V).** shadcn blocks
+render against CSS variables (`--sidebar`, `--sidebar-foreground`, …). Those variables must resolve
+**from `packages/design-system`** (Jade `#0FB57E`/`#047857` + dark mode), not the block's shipped
+defaults — same rule as B2/B3 for the init preset. Verify no hardcoded hex lands in the copied
+files (SC-006/SC-009 hygiene grep already covers `apps/back-office/src`).
+
+**G4 — Placement vs Effy conventions.** The block dumps composed files flat in `components/`; Effy
+is feature-sliced (ARCHITECTURE admin-web). Resolution: the **primitives** stay in
+`components/ui/` (shadcn's model, B3); the **composed chrome** (`AppSidebar`, `NavMain`, `NavUser`,
+`AppHeader`) moves to **`components/layout/`** — it is app shell, not a `features/<domain>` slice
+and not a shared cross-surface package yet (a future surface graduates shared chrome up per the B3
+rule). `routes/app.tsx` hosts the composition.
+
+**G5 — Replace demo data with real console state (no fake teams/projects).** The block ships with
+placeholder teams, projects, and a user. Effy is **single-brand** (no team/org switcher — CLAUDE.md),
+data-less bootstrap (no projects). So: the team switcher → a single **Effy Back-Office** brand mark;
+`nav-main` → a small typed **nav model** filtered by the existing `isAdmin(roles)`/`requireGroup`
+role logic (mechanic 2) so the Admin item is role-gated (FR-006/FR-023); secondary/projects nav
+dropped; `nav-user` → the real verified identity + **Sign out** (`useSignOut`) + **theme toggle**
+(the actions the pre-amendment header held, relocated). The breadcrumb derives from the active
+route. *Rationale*: the shell reflects authoritative state, never invents a second source of truth.
+
+**G6 — Sidebar collapsed/expanded is genuine client UI state.** `sidebar-07` persists its
+open/collapsed bit (the block uses a cookie by default). Per Principle V/VI that bit is client-only
+UI state → hold it in the TanStack Store `uiStore` (alongside `theme`), driving `SidebarProvider`'s
+controlled `open`. Keeps "server-state in Query, client-state in the one store" honest and avoids a
+second persistence mechanism. *Alternative* (block default cookie) rejected — it would be a
+parallel, untyped client-state store outside the sanctioned one.
+
+**G7 — What stays OUT.** No command palette / hotkeys wiring beyond the existing `lib/` seam (the
+alpha Hotkeys stays trivially exercised — A2); no responsive/mobile-nav work beyond what the block
+provides for free (`sheet` drawer + `use-mobile`); no per-nav-item icons beyond lucide (already a
+dep). The shell is the frame; real navigational destinations arrive with real features.
+
+---
+
+## Part H — Neutral theme, single emerald accent (Amendment D2-a, 2026-07-09)
+
+Operator directive: remove the green-tinted surfaces ("green-white" light / "green-black" dark blends on
+the sign-in background, sidebar, hovers), follow the shadcn **`sidebar-07` neutral base**, keep **emerald
+as the only accent**. Spec FR-024 / SC-014. Presentation-only, edited **once** in the design-system SSOT.
+
+**H1 — Diagnosis.** The current `tokens.css` tints its *neutrals* with the brand green: `--accent`
+`#e6f7f0`/`#063a2b` (the green hover the user dislikes), `--sidebar` `#f4f8f6`/`#111815`, greenish
+`--secondary`/`--muted`/`--border`/`--input`, `--accent-foreground` `#047857`. shadcn's `sidebar-07`
+example ships on a **neutral** base color (Tailwind `neutral` scale) — pure greys, no hue — with the brand
+used only as `--primary`. The fix is to rebase every *surface* token onto neutral greys and keep only the
+accent coloured.
+
+**H2 — Decision: keep `#0FB57E` as the single accent; neutral everything else.** `--primary`, `--ring`,
+`--sidebar-primary` stay Jade `#0FB57E` (an emerald shade → satisfies "emerald as primary" with no
+constitution change). Every surface/hover token moves to the Tailwind `neutral` scale. The active nav item
+(driven by `--sidebar-accent`) becomes a neutral highlight — faithful to `sidebar-07`.
+
+**H3 — Pinned token values** (replace the current values in `packages/design-system/src/tokens.css`;
+`@theme inline` mappings already exist from D1 — no wiring change):
+
+| token | light (`:root`) | dark (`.dark`) | note |
+|---|---|---|---|
+| `--background` | `#ffffff` | `#0a0a0a` | neutral (was green-black in dark) |
+| `--foreground` | `#0a0a0a` | `#fafafa` | neutral |
+| `--card` / `--popover` | `#ffffff` | `#171717` | neutral elevated (dark) |
+| `--card-foreground` / `--popover-foreground` | `#0a0a0a` | `#fafafa` | |
+| `--primary` | `#0fb57e` | `#0fb57e` | **KEEP — the single accent (Jade/emerald)** |
+| `--primary-foreground` | `#ffffff` | `#052e1b` | readable on emerald |
+| `--secondary` / `--muted` | `#f5f5f5` | `#262626` | neutral (was greenish) |
+| `--secondary-foreground` | `#171717` | `#fafafa` | |
+| `--muted-foreground` | `#737373` | `#a1a1a1` | neutral grey (was green-grey) |
+| `--accent` (hover) | `#f5f5f5` | `#262626` | **neutral — kills the green hover** |
+| `--accent-foreground` | `#171717` | `#fafafa` | neutral (was `#047857`) |
+| `--border` / `--input` | `#e5e5e5` | `#262626` | neutral |
+| `--ring` | `#0fb57e` | `#0fb57e` | branded focus (accent) |
+| `--sidebar` | `#fafafa` | `#171717` | neutral surface (was `#f4f8f6`/`#111815`) |
+| `--sidebar-foreground` | `#0a0a0a` | `#fafafa` | |
+| `--sidebar-primary` | `#0fb57e` | `#0fb57e` | brand mark / any primary use |
+| `--sidebar-primary-foreground` | `#ffffff` | `#052e1b` | |
+| `--sidebar-accent` (hover/active) | `#f5f5f5` | `#262626` | **neutral** |
+| `--sidebar-accent-foreground` | `#171717` | `#fafafa` | neutral |
+| `--sidebar-border` | `#e5e5e5` | `#262626` | neutral |
+| `--sidebar-ring` | `#0fb57e` | `#0fb57e` | |
+
+- `--destructive` unchanged. Values mirror shadcn's `neutral` base (Tailwind `neutral-100 #f5f5f5`,
+  `neutral-200 #e5e5e5`, `neutral-500 #737373`, `neutral-800 #262626`, `neutral-900 #171717`,
+  `neutral-950 #0a0a0a`, `neutral-50 #fafafa`). Confirm-at-implement against the live `sidebar-07` block.
+
+**H4 — Governance (no constitution amendment).** Principle V: "Brand color is Jade `#0FB57E`; fill
+`#047857`." `#0FB57E` is **retained** as primary/accent (emerald shade). Fill `#047857` stays a defined
+brand token (available for a darker-jade state) but **no longer tints surfaces** — the constitution
+requires the fill to *exist*, not to tint backgrounds. Principle V holds → **no amendment**. (Adopting the
+literal Tailwind `emerald` hex `#10b981`/`#059669` instead of `#0FB57E` would be a token change **plus** a
+Principle-V note — not done unless the operator asks.)
+
+**H5 — Blast radius.** One file (`tokens.css`). Every surface — sign-in screen, dashboard shell, all
+shadcn primitives — consumes these tokens (Principle V), so they all re-theme with **zero** component
+edits. SC-007's `#0FB57E` hygiene grep still passes (brand only via the design-system). A cheap guard
+test MAY assert no green-tinted surface hex remains in `tokens.css`.
+
+---
+
+## Part I — Proportional UI scaling on large / wide screens (Amendment D2-b, 2026-07-09)
+
+Operator directive: on wide/large monitors components look small and the layout feels empty; scale them up
+proportionally — laptop = normal, wide = bigger — and **"find the industry-standard way first."** Spec
+FR-025 / SC-015. Researched live (2026-07-09).
+
+**I1 — Industry-standard survey.** The modern standard for size-adapting UI is **fluid sizing** — a value
+that scales continuously with the viewport, expressed with CSS **`clamp(min, preferred, max)`** where the
+preferred term uses a viewport unit. It is the dominant approach in 2025–26 design-token pipelines
+(Utopia, Style Dictionary, web.dev Baseline). Two granularities: **viewport-based** (`vw`) for
+page-level scaling, and **container queries** for component-local scaling.
+
+**I2 — Accessibility gotcha (decisive).** A **bare `vw`** font size does **not** respond to browser zoom /
+user font preference → fails WCAG 1.4.4 (resize text). The fix is to **anchor the preferred term in `rem`**:
+`clamp(1rem, 0.5rem + 1vw, 1.375rem)` still grows with the viewport **and** honours zoom. Any fluid rule we
+ship MUST keep a `rem` term.
+
+**I3 — Decision: scale the ROOT font-size (not per-component).** The enabling fact: **Tailwind v4 + shadcn
+are fully `rem`-based** — the spacing scale (`--spacing`, so every `p-*`/`gap-*`/`h-*`), type sizes,
+control heights, `--radius`, and `--sidebar-width: 16rem` are all `rem`. Therefore a **single rule on
+`:root`/`html` font-size scales type, spacing, controls, and layout density *together*** — precisely "make
+the components a bit bigger" — with **zero** per-component edits. This is the lowest-risk, highest-coverage
+technique and the right fit for a whole-dashboard scale-up.
+- **Rule**: `:root { font-size: clamp(1rem, <rem + vw>, ~1.375rem) }`, tuned so it equals the **laptop
+  baseline (16px) up to a large-width threshold (~`2xl` = 1536px)** and scales up **above** it, **capped**
+  for ultrawide. Baseline (small/laptop) is **unchanged** (FR-025). Tailwind's px breakpoints are
+  unaffected (they don't depend on root font-size), so layout structure holds while sizes grow.
+- **Alternative (recorded, also standard)**: stepped media queries —
+  `:root{font-size:16px} @media(min-width:1536px){:root{font-size:17px}} @media(min-width:1920px){:root{font-size:18px}} @media(min-width:2560px){:root{font-size:20px}}`.
+  Simpler and trivially testable (stepped), less smooth. Either is acceptable; **`clamp` chosen** for
+  smoothness with the stepped form as the fallback if the curve needs tuning.
+- **Rejected**: per-component `clamp()` on dozens of shadcn components (huge surface, misses spacing);
+  container queries (component-local — overkill for a uniform page-level scale-up this slice; revisit for
+  reusable data components later).
+
+**I4 — Guard against over-stretch.** Root scaling grows sizes but very wide viewports still risk over-long
+line lengths → cap the **main content region** with a large centered `max-width` (a layout class on the
+`SidebarInset` content wrapper in `routes/app.tsx`). This is the one component touch D2 allows; the sidebar
+stays fixed-`rem` width (it scales via the root font-size like everything else).
+
+**I5 — Placement.** The root-font-size rule + the max-width utility live in the **design-system**
+(`tokens.css` or a sibling `scale.css` it imports) so **every** surface (sign-in + shell) inherits it. Pure
+CSS — **no JS, no new client state** (the `uiStore` is untouched). Verification is visual (SC-015) via the
+screenshot harness at laptop / wide / ultrawide widths.
+
+**Sources** (Part I): [web.dev — fluid type with Baseline CSS](https://web.dev/articles/baseline-in-action-fluid-type) ·
+[LogRocket — fluid vs responsive typography with clamp](https://blog.logrocket.com/fluid-vs-responsive-typography-css-clamp/) ·
+[Hoverify — fluid typography with Tailwind + clamp](https://tryhoverify.com/blog/fluid-typography-tricks-scaling-text-seamlessly-across-devices-with-tailwind-and-css-clamp/).

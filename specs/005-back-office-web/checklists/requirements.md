@@ -45,5 +45,24 @@
   and preset `b2BnwlLOK`, Amplify) are kept OUT of `spec.md` and recorded verbatim in
   [operator-directives.md](../operator-directives.md) as plan-phase input — matching the 004
   precedent (constitution Principle I: specs carry zero tech).
+- Modification (Session 2026-07-08, third): **default dashboard layout at bootstrap.** US1's
+  authenticated shell graduates from a bare greeting frame to a standard back-office dashboard
+  layout (persistent collapsible side-nav rail + top location bar + main content region), the
+  reusable role-aware frame every future screen renders into. Captured tech-free in spec.md
+  (new Clarifications entry, expanded US1 + AS-6, FR-023, SC-013, Dashboard Shell entity). The
+  concrete layout source — shadcn `sidebar-07` block, "install or copy" — is recorded verbatim
+  in [operator-directives.md](../operator-directives.md) as plan-phase input (no "shadcn" /
+  "sidebar-07" leaks into spec.md). No new backend/data/auth scope — presentation only.
+- Modification (Session 2026-07-09, **Amendment D2**): **(1) neutral theme + single brand accent**
+  — drop the green-tinted surface blends (sign-in background, sidebar, hovers); neutral surfaces,
+  brand green only as the sparingly-used accent; design-system-wide, light **and** dark. **(2)
+  proportional large-screen scaling** — baseline at laptop width, scale up on wide/large displays.
+  Captured tech-free in spec.md (new Clarifications 2026-07-09 pair, FR-011 amend, **FR-024** +
+  **FR-025**, edge cases, SC-006 amend, **SC-014** + **SC-015**, two Assumptions). The concrete
+  palette (shadcn `sidebar-07` neutral base, "emerald" primary) + the scaling technique (research
+  "industry-standard", e.g. fluid root font-size / `clamp`) are recorded verbatim in
+  [operator-directives.md](../operator-directives.md) as plan-phase input — no framework/palette/
+  hex leaks into spec.md. **Presentation-only.** Open governance flag: the brand-accent may need a
+  constitution reconciliation (Jade → emerald family), to be decided at `/plan`.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.
   All items pass — spec is ready for `/speckit-plan`.

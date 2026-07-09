@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { createRoute, Link, Outlet, useNavigate } from "@tanstack/react-router";
+import { createRoute, Outlet } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
-import { Moon, Sun } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { AppSidebar } from "@/components/layout/AppSidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { requireSession } from "@/features/auth/guards";
-import { isAdmin } from "@/features/auth/model";
-import { sessionQuery, useSignOut } from "@/features/auth/queries";
+import { sessionQuery } from "@/features/auth/queries";
 import { AdminOnlyScreen } from "@/features/staff-identity/AdminOnlyScreen";
 import { ProvingScreen } from "@/features/staff-identity/ProvingScreen";
-import { toggleTheme, uiStore } from "@/lib/ui-store";
+import { setSidebarOpen, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
 
@@ -37,60 +37,25 @@ export const adminRoute = createRoute({
   component: AdminOnlyScreen,
 });
 
+// The default dashboard shell (FR-023 / Amendment D1, shadcn sidebar-07): a persistent collapsible
+// sidebar + an inset header (trigger + breadcrumb) + the content region every screen renders into.
+// The collapse bit is client-UI state owned by `uiStore` — the provider is driven controlled.
 function AppShell() {
-  const { data } = useQuery(sessionQuery);
-  const signOut = useSignOut();
-  const navigate = useNavigate();
-  const identity = data?.status === "signed-in" ? data.identity : null;
-  const roles = identity?.roles ?? [];
-  const theme = useStore(uiStore, (s) => s.theme);
+  const sidebarOpen = useStore(uiStore, (s) => s.sidebarOpen);
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <header className="flex items-center justify-between border-b px-6 py-3">
-        <div className="flex items-center gap-6">
-          <span className="font-semibold text-primary">Effy Back-Office</span>
-          <nav className="flex gap-4 text-sm">
-            <Link to="/" className="text-muted-foreground [&.active]:text-foreground">
-              Dashboard
-            </Link>
-            {isAdmin(roles) ? (
-              <Link to="/admin" className="text-muted-foreground [&.active]:text-foreground">
-                Admin
-              </Link>
-            ) : null}
-          </nav>
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+      <AppSidebar />
+      <SidebarInset>
+        <AppHeader />
+        {/* Content region: fills the pane, but capped + centered so ultrawide displays don't
+            stretch content into over-long line lengths (FR-025 / D2-b). Generous cap — the root
+            font-size scale (scale.css) does the "bigger on wide screens" work. */}
+        <div className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col gap-4 p-4">
+          <Outlet />
         </div>
-        <div className="flex items-center gap-3">
-          {identity?.email ? (
-            <span className="text-sm text-muted-foreground">{identity.email}</span>
-          ) : null}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Toggle theme"
-            onClick={() => toggleTheme()}
-          >
-            {theme === "dark" ? <Sun /> : <Moon />}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={signOut.isPending}
-            onClick={() =>
-              signOut.mutate(undefined, {
-                onSuccess: () => navigate({ to: "/auth/sign-in" }),
-              })
-            }
-          >
-            Sign out
-          </Button>
-        </div>
-      </header>
-      <main className="p-6">
-        <Outlet />
-      </main>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
 
@@ -104,7 +69,7 @@ function DashboardScreen() {
           Welcome{identity?.email ? `, ${identity.email}` : ""}
         </h1>
         <p className="text-muted-foreground">
-          You're signed in. Role-aware areas arrive with US3.
+          You're signed in to the Effy back-office console.
         </p>
       </div>
       <ProvingScreen />

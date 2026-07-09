@@ -1,63 +1,88 @@
-/* Effy design tokens — the brand SSOT (constitution Principle V). Jade brand #0FB57E,
-   fill #047857. Tailwind v4: a consumer's entry stylesheet imports this AFTER
-   `@import "tailwindcss"`. Dark mode via the `.dark` class (shadcn convention) — REQUIRED
-   on every surface (FR-011). The brand lives here ONCE; never hardcode it per surface. */
+/* Effy design tokens — the brand SSOT (constitution Principle V).
+
+   Amendment D2 (2026-07-09): surfaces are NEUTRAL (shadcn `sidebar-07` neutral base) and the brand
+   green Jade `#0FB57E` is the SINGLE ACCENT (primary / ring / brand mark) — no brand-tinted surface
+   blends anywhere (FR-024). Jade is retained as the emerald accent (no constitution change; the
+   `fill #047857` remains a brand token but no longer tints surfaces). Dark mode via the `.dark`
+   class (shadcn convention) — REQUIRED (FR-011). The brand lives here ONCE; never hardcode it.
+   Note: the accent's foreground is DARK — white text fails WCAG contrast on the bright emerald
+   `#0FB57E` (~2.3:1); dark green passes (~6.4:1). */
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
   --radius: 0.625rem;
 
+  /* Neutral surfaces (Tailwind `neutral` scale) */
   --background: #ffffff;
-  --foreground: #0a0f0d;
+  --foreground: #0a0a0a;
   --card: #ffffff;
-  --card-foreground: #0a0f0d;
+  --card-foreground: #0a0a0a;
   --popover: #ffffff;
-  --popover-foreground: #0a0f0d;
+  --popover-foreground: #0a0a0a;
 
-  /* Effy Jade brand */
+  /* Effy Jade brand — the single accent */
   --primary: #0fb57e;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #052e1b; /* dark on emerald — WCAG-legible */
 
-  --secondary: #f1f5f3;
-  --secondary-foreground: #0a0f0d;
-  --muted: #f1f5f3;
-  --muted-foreground: #5c6b64;
-  --accent: #e6f7f0;
-  --accent-foreground: #047857;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5; /* neutral hover — no green tint */
+  --accent-foreground: #171717;
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  --border: #e2e8e5;
-  --input: #e2e8e5;
-  --ring: #0fb57e;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #0fb57e; /* branded focus — the accent */
+
+  /* Dashboard sidebar — neutral surface, accent only where it's the brand mark */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #0fb57e;
+  --sidebar-primary-foreground: #052e1b;
+  --sidebar-accent: #f5f5f5; /* neutral hover / active-item highlight */
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #0fb57e;
 }
 
 .dark {
-  --background: #0a0f0d;
-  --foreground: #f1f5f3;
-  --card: #111815;
-  --card-foreground: #f1f5f3;
-  --popover: #111815;
-  --popover-foreground: #f1f5f3;
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
 
   --primary: #0fb57e; /* brand constant across appearances */
-  --primary-foreground: #04231a;
+  --primary-foreground: #052e1b;
 
-  --secondary: #1a2420;
-  --secondary-foreground: #f1f5f3;
-  --muted: #1a2420;
-  --muted-foreground: #94a39b;
-  --accent: #063a2b; /* fill #047857 family, darkened */
-  --accent-foreground: #6ee7b7;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a1a1a1;
+  --accent: #262626; /* neutral hover */
+  --accent-foreground: #fafafa;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --border: #24312b;
-  --input: #24312b;
+  --border: #262626;
+  --input: #262626;
   --ring: #0fb57e;
+
+  --sidebar: #171717;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #0fb57e;
+  --sidebar-primary-foreground: #052e1b;
+  --sidebar-accent: #262626;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #262626;
+  --sidebar-ring: #0fb57e;
 }
 
 @theme inline {
@@ -85,4 +110,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }

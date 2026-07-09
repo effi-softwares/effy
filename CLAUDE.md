@@ -167,8 +167,9 @@ behind ONE shared HTTP API**, and the backends live under **`apis/`**:
   live, old `effy-edge-api` stack removed. `turbo` **14/14**, core-api Go build+tests, `terraform
   validate`, hygiene sweep — all green. Committed (`aacd7c5`).
 
-**005-back-office-web** — Back-Office Web Foundation (Bootstrap). **Implemented + committed;
-reconciled to A3.**
+**005-back-office-web** — Back-Office Web Foundation (Bootstrap). **Phases 1–8 + Amendment D1
+(dashboard shell) + Amendment D2 (neutral theme + responsive scaling) implemented; reconciled to A3.
+Live SC sign-off (T046) pending; not yet committed.**
 The platform's **first web surface**: the internal `back-office` admin console (Vite + React 19
 SPA) + the **first shared web packages** (`@effy/design-system`, `@effy/shared-types`,
 `@effy/api-client`). Passwordless **EMAIL_OTP** (Amplify v6) → session-guarded shell → record-backed
@@ -178,8 +179,39 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 - Constitution amended: **v1.3.1** (Node 22) + **v1.4.0** (TanStack Store locked; Zustand removed).
 - Post-A3: its `edge-api` work lives in **`apis/edge-api/admin/`**; the console calls
   **`/admin/v1/me`** + **`/admin/v1/admin-ping`** against the shared gateway
-  (`VITE_API_BASE_URL` = `/effy/dev/edge/api_endpoint`). App vitest **12/12**, build clean.
-- Open: **T046** (live SC-001…SC-012 sign-off per [quickstart](specs/005-back-office-web/quickstart.md)).
+  (`VITE_API_BASE_URL` = `/effy/dev/edge/api_endpoint`).
+- **Amendment D1 — default dashboard shell** (spec FR-023 / US1 / SC-013): the authenticated
+  shell is now a shadcn **`sidebar-07`** dashboard layout — `routes/app.tsx` renders
+  `SidebarProvider → AppSidebar + SidebarInset(AppHeader + Outlet)`; chrome in
+  `apps/back-office/src/components/layout/` (`AppSidebar`/`NavMain`/`NavUser`/`AppHeader`/`nav.ts`),
+  shadcn primitives in `components/ui/`, sidebar tokens in `@effy/design-system`, collapse bit in
+  `ui-store.sidebarOpen` (controlled — no cookie). **Presentation-only** (no backend/data/auth
+  change). **Built + verified**: app vitest **18/18** (6 new: nav filter, sidebar toggle, NavUser
+  identity), typecheck + `build` clean, brand-hex hygiene clean. No operator/cloud step.
+- **T058 done** — the shell (SC-013/SC-006) is **visually verified** via a seeded-session
+  screenshot harness (light/dark × admin/manager × expanded/collapsed): dashboard layout,
+  icon-rail collapse with reflow, role-aware nav (manager loses the Admin item), footer identity,
+  on-brand jade in both appearances. Harness removed after capture.
+- **Amendment D2 — neutral theme + responsive scaling** (FR-024/FR-025, SC-014/SC-015):
+  **built + verified.** **(1)** surfaces rebased to neutral in `@effy/design-system` `tokens.css`
+  (shadcn `sidebar-07` neutral base); **Jade `#0FB57E` kept as the single accent** — primary/ring/
+  brand mark only (dark-on-emerald foreground for WCAG contrast); the green sign-in-bg / sidebar /
+  hover blends are gone, light **and** dark. **(2)** fluid root-font-size scaling in a new
+  `design-system/scale.css` (`clamp()`, rem-anchored/zoom-safe) → the whole rem-based UI scales
+  proportionally on wide displays; 16px baseline to ~1536px, up to ~22px by ~2560px; + a
+  `max-w-[1800px]` content cap in `routes/app.tsx`. **No constitution amendment** (Jade is an
+  emerald shade — Principle V holds; governance in plan § Amendment D2). Phase 10 (T059–T063) all
+  `[x]`; app vitest **20/20** (+2 token guard), typecheck/build clean; **visually verified** via the
+  screenshot harness (neutral surfaces + emerald accent light/dark; proportional scaling
+  1440→2560). Presentation-only, design-system-scoped.
+- Open: **T046** — the LIVE SC-001…SC-013 sign-off (real OTP sign-in, live proving reads/denials,
+  disabled-staff denial) is **operator-run** and gated on the still-open cloud steps **T022/T029/T038**
+  (`make db-up ENV=dev` — migration `3407603` is committed so this is unblocked — then `make
+  edge-deploy SERVICE=admin ENV=dev`, provisioned admin/manager/role-less accounts, an OTP inbox).
+  Runbook: [quickstart](specs/005-back-office-web/quickstart.md). Everything code-verifiable is green.
+- Doc reconciliation (2026-07-08): plan/tasks/research/data-model/contracts corrected to the A3
+  reality (`apis/edge-api/admin`, `/admin/v1/*` paths, gateway-owned CORS, `make edge-deploy
+  SERVICE=admin`) — closes the Governance drift the analyze pass flagged.
 
 **Previous slices** (docs in `specs/<slice>/`):
 - **001-infra-foundation** (four Cognito pools, EMAIL_OTP, state backbone, Makefile):
@@ -199,5 +231,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/006-first-admin-bootstrap/plan.md
+at specs/005-back-office-web/plan.md
 <!-- SPECKIT END -->

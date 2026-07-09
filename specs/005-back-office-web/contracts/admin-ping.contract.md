@@ -1,7 +1,7 @@
-# Contract — `GET /v1/back-office/admin/ping` (edge-api, NEW)
+# Contract — `GET /admin/v1/admin-ping` (edge-api, NEW)
 
 **Feature**: 005 (FR-018/020, spec Clarification Option B + persistence) · **Service**:
-`services/edge-api` (cold path) · **Status**: to build this slice.
+`apis/edge-api/admin` (cold path) · **Status**: to build this slice.
 
 The **administrator-only** proving endpoint that lets the console prove *backend-authoritative*
 inter-role gating (US3).
@@ -16,13 +16,15 @@ the DB-backed version; the US3 interim swaps `authorizeAdmin(sub)` for `hasAnyGr
 ## Request
 
 ```
-GET /v1/back-office/admin/ping
+GET /admin/v1/admin-ping
 Authorization: Bearer <admin-pool ACCESS token>
 ```
 
-- **Authorizer**: the existing `backOfficeJwt` HTTP API JWT authorizer (issuer = admin pool,
-  audience = admin app-client id). A non-back-office token never reaches the handler (Principle
-  IV). Unversioned health aside, the route carries `/v1` per `docs/api/versioning-policy.md`.
+- **Authorizer**: the **back-office** JWT authorizer (issuer = admin pool, audience = admin
+  app-client id). Under A3 it is **Terraform-owned at the shared gateway** and referenced **by id
+  from SSM** (`/effy/<env>/edge/authorizer/back-office_id`), not defined in this service. A
+  non-back-office token never reaches the handler (Principle IV). Health aside, the route carries
+  `/v1` per `docs/api/versioning-policy.md`; the path is `/admin/v1/admin-ping` (A3 `/<service>/v1/…`).
 
 ## Authorization (from the platform DB record — FR-020)
 
@@ -60,11 +62,14 @@ Per `docs/api/error-envelope.md` (RFC 9457), the existing `forbidden(scope)` hel
   `forbidden`, `json` from `lib/`; call `staff.authorizeAdmin(subject)` (see
   [staff-schema.contract.md](./staff-schema.contract.md)). `warn`-log a denial (`sub` only, no
   email/PII).
-- `serverless.yml`: new function `backOfficeAdminPingV1` → `httpApi GET /v1/back-office/admin/ping`
-  with `authorizer.name: backOfficeJwt`; add its 3 alarms (Errors>0, Throttles>0, Duration p95)
-  matching `BackOfficePingV1*`.
-- **CORS**: add `http://localhost:5173` to `params.default.corsOrigins` so the locally-run
-  console (approved dev origin) can call it. Requires an operator `make edge-deploy ENV=dev`.
+- `serverless.yml` (`apis/edge-api/admin/`): new function `backOfficeAdminPingV1` → `httpApi GET
+  /admin/v1/admin-ping` with the authorizer referenced **by id from SSM**
+  (`${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}` — A3, no local authorizer); add its
+  3 alarms (Errors>0, Throttles>0, Duration p95) matching `BackOfficePingV1*`.
+- **CORS**: the console's dev origin `http://localhost:5173` is a **Terraform gateway** value
+  (`infra/envs/dev/edge-gateway.tf` `cors_configuration.allow_origins`, A3 — **already live**), not
+  a per-service `corsOrigins` entry. Deploying the routes is an operator `make edge-deploy
+  SERVICE=admin ENV=dev`; the CORS origin needs no further change.
 - Test: admin+active → 200; manager/csa → 403; **admin+disabled → 403**; no record → 403
   (repository tests against local Postgres + handler tests with typed fake events).
 - `docs/api/`: one-line note registering the new route.
