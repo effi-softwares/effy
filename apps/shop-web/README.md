@@ -1,14 +1,15 @@
-# `@effy/shop-web` — the store operator console
+# `@effy/shop-web` — the shop operator console
 
-The web half of the **store** audience. A Vite + React 19 SPA on the **shop** Cognito pool,
-talking to the cold-path **store** service. **Local-only** this slice — there is no hosted deploy.
+The web half of the **shop** audience. A Vite + React 19 SPA on the **shop** Cognito pool,
+talking to the cold-path **shop** service. **Local-only** this slice — there is no hosted deploy.
 
 Spec: [specs/007-shop-web](../../specs/007-shop-web/). Its sibling surface is
 [`apps/shop-mobile`](../shop-mobile/), and the two are held at parity by
-[docs/audiences/store-capabilities.md](../../docs/audiences/store-capabilities.md).
+[docs/audiences/shop-capabilities.md](../../docs/audiences/shop-capabilities.md).
 
-> **Naming, once**: client surfaces are `shop-*`; the backend service and its paths are `store`;
-> the pool and its gateway authorizer are `shop`; the audience in prose is "store".
+> **Naming, once**: it is `shop` everywhere — the surfaces, the pool, the gateway authorizer, the
+> backend service, its route paths, its tables, its roles, and the audience in prose. The earlier
+> `shop`/`store` split was retired by 008-shop-naming-unification; `make verify-naming` enforces it.
 
 ## Run it locally (target: signed in within 15 minutes of a fresh clone)
 
@@ -91,21 +92,21 @@ stack trace, or a token.
 expected state, not a bug.
 
 Two states are **not** errors and must never read as one: a **role-less** operator (recorded, granted
-nothing) and an operator with **no assigned store** (expected — the record is created on first
-sign-in, before their store is known).
+nothing) and an operator with **no assigned shop** (expected — the record is created on first
+sign-in, before their shop is known).
 
 ## Role-aware interface, and what actually guards it
 
-`nav.ts` hides the Management item from anyone without `store_manager`. That is least-privilege UX
+`nav.ts` hides the Management item from anyone without `shop_manager`. That is least-privilege UX
 and defense in depth — **it is not the guard**. The backend decides independently, from the
 platform's own record, using three terms:
 
 ```
-role = store_manager   AND   staff.status = 'active'   AND   store.is_active (⇒ a store is assigned)
+role = shop_manager   AND   staff.status = 'active'   AND   shop.is_active (⇒ a shop is assigned)
 ```
 
-A `store_staff` operator who types `/manager` into the address bar reaches the screen and is refused
-by `GET /store/v1/manager-ping` with a uniform `403` that does not say *which* term failed. Hiding a
+A `shop_staff` operator who types `/manager` into the address bar reaches the screen and is refused
+by `GET /shop/v1/manager-ping` with a uniform `403` that does not say *which* term failed. Hiding a
 link is a courtesy; the refusal is the security boundary.
 
 ## Add a screen — walkthrough
@@ -117,7 +118,7 @@ link is a courtesy; the refusal is the security boundary.
 3. Add a `NAV` entry in `src/components/layout/nav.ts`. If it is privileged, set `requiredRole`
    **and add the matching backend gate**. A hidden nav item is not a gate.
 4. **Update the parity register**
-   ([docs/audiences/store-capabilities.md](../../docs/audiences/store-capabilities.md)): a
+   ([docs/audiences/shop-capabilities.md](../../docs/audiences/shop-capabilities.md)): a
    capability added here must record its state on `shop-mobile`. This step is not optional — an
    unstated cell is a defect.
 5. `make shop-lint shop-test`.

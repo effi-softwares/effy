@@ -85,13 +85,13 @@ involved at any step.
 2. **Given** a registered customer, **When** they request to sign in and enter the one-time passcode sent
    to their email, **Then** they are signed in successfully without ever providing a password.
 3. **Given** the sign-in flow, **When** at any point a password is expected, **Then** none is — the
-   customer pool never requests or stores a password.
+   customer pool never requests or shops a password.
 
 ---
 
 ### User Story 3 - Manually-provisioned internal audiences (Priority: P2)
 
-Driver, shop (store/operator), and back-office (admin) audiences each have their own isolated identity
+Driver, shop (shop/operator), and back-office (admin) audiences each have their own isolated identity
 foundation in which **self-registration is disabled**. Accounts for these audiences are created only by
 authorized staff — initially through the cloud provider's console, and later through an in-platform admin
 flow (a future slice). The back-office foundation additionally supports role groupings so a person's role
@@ -171,7 +171,7 @@ relocate the environment without restructuring the infrastructure code.
 **Authentication foundation**
 
 - **FR-001**: The platform MUST define four distinct, fully isolated identity pools — one each for the
-  **customer**, **driver**, **shop** (store/operator), and **back-office** (admin) audiences.
+  **customer**, **driver**, **shop** (shop/operator), and **back-office** (admin) audiences.
 - **FR-002**: The **customer** identity pool MUST permit self-service registration (self-signup).
 - **FR-003**: The **driver**, **shop**, and **back-office** identity pools MUST NOT permit self-service
   registration; accounts in these pools are created only by authorized staff.
@@ -231,7 +231,7 @@ relocate the environment without restructuring the infrastructure code.
 - **Environment**: An isolated, independently-provisioned deployment target (one of dev / qa / staging /
   prod). Owns its own provisioning state, configuration (including region), and its own set of resources.
   Provisioning or removing one Environment never affects another.
-- **Audience**: One of the four consumer groups of the platform — customer, driver, shop (store/operator),
+- **Audience**: One of the four consumer groups of the platform — customer, driver, shop (shop/operator),
   back-office (admin) — each with a distinct trust level.
 - **Identity Pool**: An isolated authentication directory bound to exactly one Audience within one
   Environment. Key attributes: whether self-registration is allowed (customer: yes; others: no), sign-in

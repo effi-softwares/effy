@@ -1,4 +1,4 @@
-import { toStoreRoles } from "@effy/shared-types";
+import { toShopRoles } from "@effy/shared-types";
 import { fetchAuthSession } from "aws-amplify/auth";
 
 import type { Session } from "./model";
@@ -14,7 +14,7 @@ export async function loadSession(): Promise<Session> {
 
   const subject = typeof access.payload.sub === "string" ? access.payload.sub : "";
   const groupsClaim = access.payload["cognito:groups"];
-  const roles = toStoreRoles(Array.isArray(groupsClaim) ? groupsClaim.map(String) : undefined);
+  const roles = toShopRoles(Array.isArray(groupsClaim) ? groupsClaim.map(String) : undefined);
 
   // The access token carries no `email` on an email-as-username pool (research R6); the ID token
   // does. This is display only — the platform record is what authorization reads.

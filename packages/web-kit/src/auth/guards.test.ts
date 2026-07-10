@@ -32,7 +32,7 @@ function fakeQueryClient(session: Session): QueryClient {
 
 describe("createSessionGuard", () => {
   it("returns the identity when signed in", async () => {
-    const identity: Identity = { subject: "sub-1", email: "op@effy.test", roles: ["store_manager"] };
+    const identity: Identity = { subject: "sub-1", email: "op@effy.test", roles: ["shop_manager"] };
     const result = await requireSession(fakeQueryClient({ status: "signed-in", identity }), "/");
     expect(result).toEqual(identity);
   });

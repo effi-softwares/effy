@@ -41,7 +41,7 @@ product data to administer yet):
   `beforeLoad` auth guard, Query as the server-state SSOT, Table, Form, unified DevTools;
   Virtual + `@tanstack/react-hotkeys` (alpha, operator-chosen) wired-as-foundation), **shadcn/ui**
   (Radix base, Tailwind v4, preset `b2BnwlLOK`), **AWS Amplify v6** passwordless **EMAIL_OTP**
-  against the existing 001 **admin** pool. Client state via **TanStack Store** (constitution
+  against the existing 001 **admin** pool. Client state via **TanStack Shop** (constitution
   v1.4.0 — Zustand removed). Proving surfaces: passwordless sign-in → console shell → a
   identity proving read (the existing `/admin/v1/ping` at P2, **graduating** to the
   record-backed `/admin/v1/me` at US4) → an **admin-only** read
@@ -469,7 +469,7 @@ scaling rule). **No** change to `features/*`, `components/*` (shadcn primitives 
 | Item | Status | Resolution / rationale |
 |---|---|---|
 | **TanStack Store as web client-state lib** (was: deviation from locked Zustand) | **RESOLVED — now the standard** | Operator ratified **v1.4.0**: Web standard = client state via TanStack Store, **Zustand removed** platform-wide. ARCHITECTURE admin-web wording softened to "server-state cache for all server data; a minimal client store (TanStack Store) for genuine client state only." Used for theme/command-palette/hotkey scope only. |
-| **Expanded TanStack footprint** (Router/Table/Form/Virtual/DevTools) | **RESOLVED** | v1.4.0 names the full TanStack suite as the locked web client spine, so store-web/customer-web inherit it rather than re-decide. |
+| **Expanded TanStack footprint** (Router/Table/Form/Virtual/DevTools) | **RESOLVED** | v1.4.0 names the full TanStack suite as the locked web client spine, so shop-web/customer-web inherit it rather than re-decide. |
 | **`@tanstack/react-hotkeys` (alpha)** for keyboard shortcuts | **Accepted risk (operator-chosen)** | Operator chose the alpha TanStack Hotkeys over GA `react-hotkeys-hook` (2026-07-08). API may change; contained by pinning exactly + isolating usage behind one `lib/` wrapper. Exercised trivially this slice. |
 | **TanStack DB** | **Dropped this slice (operator-confirmed)** | Not wired — beta/pre-1.0 with zero surface in a data-less bootstrap (research A3). Constitution v1.4.0 records it as not-yet-adopted. Revisit at the first real product-collection slice. |
 | **Scope expansion: first real `admin`-schema data layer** | **Not a deviation — constitution-aligned** | The staff/RBAC tables realize the `admin` schema's constitutional purpose ("back-office accounts + audit"); the DB is reached only via the cold path (Principle III) with raw SQL (Principle VI). Recorded because it grows the slice beyond a pure web bootstrap (operator's persistence decision). It also gives 003's `db-up` its first real exercise. |
@@ -500,7 +500,7 @@ contract file — the change is design-system tokens/CSS only.
 
 ## Follow-up raised by 007-shop-web (2026-07-09) — `admin.staff.email` may hold a UUID
 
-While designing the store staff record, feature 007 found a probable defect here. **Not fixed by
+While designing the shop staff record, feature 007 found a probable defect here. **Not fixed by
 007** (out of its scope); recorded so it is not silently inherited.
 
 `apis/edge-api/admin/src/functions/back-office-me-v1-get.ts` resolves the staff email as:

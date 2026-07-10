@@ -123,10 +123,10 @@ Cutting over to the Terraform-owned shared gateway + per-service stacks (plan am
    3.40.0 accepts the bare SSM string. If the frozen schema rejects it, switch that route to a
    resolved variable / `Fn::Sub` and re-verify before proceeding.
 3. **🧑‍💻 Deploy the services** (independent): `make edge-deploy SERVICE=admin ENV=dev` then
-   `SERVICE=store` (order irrelevant). Each attaches to the shared API under its `/<service>/…`
+   `SERVICE=shop` (order irrelevant). Each attaches to the shared API under its `/<service>/…`
    prefix. Verify each `/<service>/healthz` answers and each proving read works
-   (`/admin/v1/me`, `/admin/v1/admin-ping`, `/store/v1/status`, `/store/v1/ping`).
-4. **🧑‍💻 Verify deploy independence (SC-011)**: redeploy `admin` and confirm `store` stays
+   (`/admin/v1/me`, `/admin/v1/admin-ping`, `/shop/v1/status`, `/shop/v1/ping`).
+4. **🧑‍💻 Verify deploy independence (SC-011)**: redeploy `admin` and confirm `shop` stays
    continuously reachable (and vice-versa) — each touches only its own routes.
 5. **🧑‍💻 Verify shared routing (SC-012)**: all services answer under the one `api_endpoint`, each
    at its `/<service>/…` segment; a request to an unknown `/<service>` path returns the uniform
@@ -140,4 +140,4 @@ Cutting over to the Terraform-owned shared gateway + per-service stacks (plan am
 
 **Add-a-service check (FR-017/SC-011):** adding a third cold-path service = a new
 `apis/edge-api/<name>/` with `provider.httpApi.id` + its routes under `/<name>/…`; it deploys
-without touching admin/store, and needs no gateway change unless it introduces a new pool.
+without touching admin/shop, and needs no gateway change unless it introduces a new pool.

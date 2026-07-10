@@ -74,7 +74,7 @@ The four instances:
 |---|---|---|---|
 | `customer` | **true** | — | the only self-serve pool (FR-002/FR-005). |
 | `driver` | false | — | staff-provisioned (FR-003). |
-| `shop` | false | — | staff-provisioned (store/operator). |
+| `shop` | false | — | staff-provisioned (shop/operator). |
 | `back_office` | false | `admin, manager, csa` | admin pool + RBAC groups (FR-007). |
 
 ---

@@ -8,31 +8,31 @@
 
 ## 1. The one-line summary
 Effy is a **single-brand, vertically-integrated grocery + e-commerce delivery platform**. Customers
-shop from one brand ("Effy"); fulfillment happens behind the scenes from **hidden internal stores**;
+shop from one brand ("Effy"); fulfillment happens behind the scenes from **hidden internal shops**;
 **drivers and back-office staff are Effy employees**. Built spec-first from a clean foundation.
 
 ## 2. The product model (what makes Effy specific)
 - **One brand, no storefront marketplace.** Customers browse and buy from "Effy" — they never see,
-  choose, or even know about individual stores.
-- **Stores are hidden internal fulfillment nodes** (dark-store-like). They hold inventory and fulfill
+  choose, or even know about individual shops.
+- **Shops are hidden internal fulfillment nodes** (dark-store-like). They hold inventory and fulfill
   orders, but they are an internal concern, invisible to the customer.
 - **Drivers and back-office staff are Effy employees.** They use internal apps; there is no public
   self-signup for these audiences.
-- **Four audiences, four trust levels:** customer, driver, store/operator, admin/back-office.
+- **Four audiences, four trust levels:** customer, driver, shop/operator, admin/back-office.
 
 ## 3. The audiences & their core jobs
 - **Customers** — browse the catalog, search, build a cart, check out, track orders, reorder.
 - **Drivers** — receive dispatched deliveries, navigate, capture proof-of-delivery.
-- **Stores / operators** — manage store profile, products, inventory, and fulfill orders (internal,
+- **Shops / operators** — manage shop profile, products, inventory, and fulfill orders (internal,
   hidden from customers).
-- **Admin / back-office** — manage users / drivers / stores / catalog, with RBAC, audit, and
+- **Admin / back-office** — manage users / drivers / shops / catalog, with RBAC, audit, and
   merchandising (featured/recommended, category taxonomy).
 
 ## 4. Surfaces
-The customer and store audiences each get **two surfaces kept at feature parity** (a native mobile
+The customer and shop audiences each get **two surfaces kept at feature parity** (a native mobile
 build and a native web build — both native because the team prefers a native web implementation over
 a cross-platform web target).
-- **Mobile (3):** customer app, driver app, shop (store-operator) app.
+- **Mobile (3):** customer app, driver app, shop (shop-operator) app.
 - **Web (3):** customer-web storefront, store-web operator console, back-office admin console.
 - **Backends (2):** a Go hot-path API and a TypeScript serverless cold-path fleet.
 - **Plus:** database (PostgreSQL) and infrastructure-as-code (Terraform).
@@ -50,7 +50,7 @@ packages. Adding a feature should be fast and land coherently across every surfa
   Gin + pgx on Fargate); ops/admin/operator CRUD and async workers on the **cold path** (TS Lambdas).
   An **SNS → SQS** event backbone decouples the two and drives fulfillment fan-out.
 - **Clean Architecture everywhere; MVVM on mobile** (KMP + Compose Multiplatform).
-- **Auth:** four isolated AWS Cognito pools (customer / driver / store / admin), **passwordless
+- **Auth:** four isolated AWS Cognito pools (customer / driver / shop / admin), **passwordless
   EMAIL_OTP across all four**, per-pool JWT validation, no auth proxy. Admin pool has RBAC groups.
 - **Data:** PostgreSQL 16, raw SQL, Goose migrations, **no ORM**.
 - **Infra:** Terraform, multi-environment, remote state.
@@ -81,6 +81,6 @@ packages. Adding a feature should be fast and land coherently across every surfa
 - Native-feel mobile. Jade brand + dark mode. One design system across all surfaces.
 
 ## Open questions parking lot
-- OPEN: Order of surfaces after the customer slice (driver vs store vs back-office) — by business
+- OPEN: Order of surfaces after the customer slice (driver vs shop vs back-office) — by business
   priority.
 - OPEN: Per slice, decide in `/plan` how much to build fresh vs. lift from reference patterns.

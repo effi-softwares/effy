@@ -380,7 +380,7 @@ conventions on the first attempt.
   administrator-only) are foundation demonstrations, not product functionality. The back-office
   **staff and role records** established here (FR-019) are platform **account/RBAC data** (the
   back-office data area's designated purpose: accounts + audit), **not** product data;
-  catalog / order / store data remains out of scope.
+  catalog / order / shop data remains out of scope.
 - **FR-018**: The cost-optimized back-office backend MUST gain **one minimal
   administrator-only proving endpoint** to support FR-006a — versioned per the platform's
   interface-versioning policy, returning no product data, authorizing the administrator role
@@ -553,13 +553,13 @@ conventions on the first attempt.
   against the live development backend from an approved development origin; **hosted
   deployment (and its infrastructure/runbook) is deferred** to a later slice — mirroring how
   `core-api` was local-only in 004.
-- **No product administrative features ship.** Catalog, order, store, and product user
+- **No product administrative features ship.** Catalog, order, shop, and product user
   management are later slices that land on this foundation once the data they manage exists;
   this slice delivers auth, shell, the proving loop, role-awareness, the **platform-owned
   staff/RBAC record**, and the shared foundation only. (The staff/role tables are platform
   account/RBAC data, not product data.)
 - **This is the first web surface and the first shared web packages.** The shared foundation
-  is created here but populated only with what US1–US5 need; `customer-web` and `store-web`
+  is created here but populated only with what US1–US5 need; `customer-web` and `shop-web`
   extend it in their own slices. Per the platform's order-of-operations, the monorepo web
   scaffold is not pre-built ahead of this spec.
 - **The back-office roles are the platform's existing back-office RBAC groups**

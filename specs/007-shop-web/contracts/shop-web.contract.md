@@ -5,7 +5,7 @@
 
 The console's side of the platform contracts: how it authenticates, what it renders for every
 backend outcome, how it gates the interface by role, and what it reports. This is the document a
-newcomer reads before adding a store screen.
+newcomer reads before adding a shop screen.
 
 ---
 
@@ -26,7 +26,7 @@ Both steps come from `@effy/web-kit` (`auth/otp.ts`) — identical to back-offic
   to `/auth/sign-in?next=<href>` and returns the operator to their intended destination after
   authenticating (FR-004, SC-010).
 - **Sign-out** clears the session; every protected area becomes unreachable.
-- The **access token** is the bearer for `/store/v1/*` (never the ID token; research R6).
+- The **access token** is the bearer for `/shop/v1/*` (never the ID token; research R6).
 
 ### Sign-in error copy (no account-existence oracle)
 
@@ -75,18 +75,18 @@ it. Interface gating is **defense in depth**, never a substitute (FR-007).
 // src/components/layout/nav.ts
 export const NAV: NavItem[] = [
   { label: "Dashboard",  to: "/",        icon: LayoutDashboard },
-  { label: "Management", to: "/manager", icon: Shield, requiredRole: "store_manager" },
+  { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
 ];
-export function visibleNav(roles: readonly StoreRole[]): NavItem[]
+export function visibleNav(roles: readonly ShopRole[]): NavItem[]
 ```
 
-- A `store_staff` operator does not see the Management item **and** is refused by
-  `/store/v1/manager-ping` if they navigate to `/manager` directly.
+- A `shop_staff` operator does not see the Management item **and** is refused by
+  `/shop/v1/manager-ping` if they navigate to `/manager` directly.
 - A **role-less** operator sees no privileged item and reaches nothing privileged.
-- An operator with **no store assignment** is admitted to the shell and sees a clear "no store
+- An operator with **no shop assignment** is admitted to the shell and sees a clear "no shop
   assigned" state on the dashboard — explained, not a blank screen.
 
-Roles come from the **platform record** (`/store/v1/me`), not from the token, for everything the
+Roles come from the **platform record** (`/shop/v1/me`), not from the token, for everything the
 interface renders about privilege. The token's claim is only ever an input to the backend's
 reconcile.
 
@@ -109,7 +109,7 @@ reconcile.
 
 - The **server-state cache is the source of truth** for all server data (`sessionQuery`, `meQuery`,
   `managerPingQuery`). Server data is **never** hand-copied into component state or the client store.
-- **TanStack Store** holds genuine client state only: theme, sidebar collapse, command-palette
+- **TanStack Shop** holds genuine client state only: theme, sidebar collapse, command-palette
   open. No Zustand (constitution v1.4.0).
 - Feature slices are `repo.ts` (DTO ↔ domain) → `queries.ts` (query options + keys) →
   `<Screen>.tsx`. A screen never calls `api` directly.
@@ -119,13 +119,13 @@ reconcile.
 ## 6. Telemetry (Principle VII)
 
 PostHog via `createTelemetry` from `web-kit`, with a **`surface: "shop-web"` super-property** on
-every event so store-audience events are distinguishable from back-office events (FR-016).
+every event so shop-audience events are distinguishable from back-office events (FR-016).
 
 `shop_auth_sign_in_started` · `shop_auth_otp_submitted` · `shop_auth_sign_in_succeeded` ·
 `shop_auth_sign_in_failed` · `shop_auth_signed_out` · `shop_manager_area_access_denied` ·
-`shop_store_assignment_missing`
+`shop_assignment_missing`
 
-**No PII beyond the verified `subject`.** Never the email, the OTP code, a token, or a store code.
+**No PII beyond the verified `subject`.** Never the email, the OTP code, a token, or a shop code.
 Runtime errors route to PostHog as `$exception`. Absent `VITE_POSTHOG_KEY` ⇒ every call is a no-op.
 
 ---
@@ -137,6 +137,6 @@ Runtime errors route to PostHog as `$exception`. Absent `VITE_POSTHOG_KEY` ⇒ e
 2. Add the route in `src/routes/app.tsx` as a child of `appRoute`; register it in `router.tsx`.
 3. Add a `NAV` entry in `src/components/layout/nav.ts`, with `requiredRole` if privileged — and
    **add the matching backend gate**. A hidden nav item is not a gate.
-4. **Update the parity register** (`docs/audiences/store-capabilities.md`): a capability added to
+4. **Update the parity register** (`docs/audiences/shop-capabilities.md`): a capability added to
    the web surface must record its state on the mobile surface (FR-023a). This step is not optional.
 5. `make shop-lint shop-test`.

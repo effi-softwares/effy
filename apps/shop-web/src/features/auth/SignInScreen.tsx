@@ -8,7 +8,7 @@ import { track } from "@/lib/telemetry";
 import { sessionQuery } from "./queries";
 
 // The passwordless card (two-step email → code, uniform error copy, no password field anywhere) is
-// shared; navigation and the store audience's analytics taxonomy are not.
+// shared; navigation and the shop audience's analytics taxonomy are not.
 export function SignInScreen({ next }: { next?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();

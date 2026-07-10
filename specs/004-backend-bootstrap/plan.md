@@ -317,7 +317,7 @@ apis/
     ├── admin/                # the back-office/admin service (admin pool)
     │   ├── serverless.yml     # attaches to shared API; routes under /admin/...
     │   └── src/{functions,service.ts,repository.ts,...}   # layered per ARCHITECTURE
-    └── store/                # the store/operator service (shop pool) — the 2nd service proving the pattern
+    └── shop/                # the shop/operator service (shop pool) — the 2nd service proving the pattern
         ├── serverless.yml
         └── src/{...}
 ```
@@ -330,17 +330,17 @@ apis/
 **Path + version scheme (research F4): `/<service>/v1/...`** — service prefix first (ownership =
 routing boundary → route-key uniqueness by construction), then version (independent per-service
 version cadence). Health per service: `/<service>/healthz` (public, no authorizer). The version-
-coexistence proving pair (US4) is re-homed to one service's public routes (e.g. store `/store/v1/status`
-+ `/store/v2/status`), unchanged in behavior.
+coexistence proving pair (US4) is re-homed to one service's public routes (e.g. shop `/shop/v1/status`
++ `/shop/v2/status`), unchanged in behavior.
 
 **Endpoint re-homing (from the current single edge-api + 005):**
 | Current | New home | New path |
 |---|---|---|
-| `platform-status` v1/v2 (public) | store | `/store/v1/status`, `/store/v2/status` |
+| `platform-status` v1/v2 (public) | shop | `/shop/v1/status`, `/shop/v2/status` |
 | `back-office/ping` (004) | admin | `/admin/v1/ping` (back-office authorizer) |
 | `/v1/back-office/me` (005) | admin | `/admin/v1/me` |
 | `/v1/back-office/admin/ping` (005) | admin | `/admin/v1/admin-ping` |
-| new store proving read | store | `/store/v1/ping` (shop authorizer) |
+| new shop proving read | shop | `/shop/v1/ping` (shop authorizer) |
 
 **005 reconciliation (spec Assumptions + operator-directives addendum):** 005's `services/edge-api/`
 work (`staff/*`, `functions/back-office-*`, the shared `lib`) moves into `apis/edge-api/admin/` +
@@ -358,7 +358,7 @@ alarms per service; the API-level 5xx alarm graduates to Terraform (the API's ow
 
 **Migration sequence (operator-run — dev has one live `effy-edge-api` stack today):**
 1. Terraform `apply` the new gateway (creates a NEW HTTP API + authorizers + writes SSM). 2. Deploy
-`admin` + `store` services (attach to the new API). 3. `serverless remove` the old `effy-edge-api`
+`admin` + `shop` services (attach to the new API). 3. `serverless remove` the old `effy-edge-api`
 stack (deletes the old API it created). 4. Repoint 005's `VITE_API_BASE_URL` to the new gateway.
 The gateway URL changes (the old one dies) — dev-only, acceptable. **Deploy independence** holds
 after cutover: each service's routes live in its own CFN stack; disjoint `/<service>/` prefixes
@@ -368,7 +368,7 @@ prevent route-key collisions (research F5).
 serverless stack created it) — a deliberate ownership shift to the layer that owns Cognito/VPC/RDS;
 justified by shared-authorizer single-source + SSM loose coupling (research F3), not a CFN-export
 lock. (2) **Bare-SSM-string `authorizer.id` on frozen SLS 3.40.0** — smoke-test one route first
-(research F2). (3) **Second cold-path service (`store`) ships with a proving read only** — no
+(research F2). (3) **Second cold-path service (`shop`) ships with a proving read only** — no
 product endpoints yet; it exists to prove the multi-service pattern + deploy independence (SC-011/012).
 
 **Phase-1 artifact deltas (this amendment):** new `contracts/shared-gateway.contract.md`;

@@ -7,8 +7,8 @@ import { ConsoleShell } from "@effy/web-kit/console";
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
-import { ManagerOnlyScreen } from "@/features/store-identity/ManagerOnlyScreen";
-import { ProvingScreen } from "@/features/store-identity/ProvingScreen";
+import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen";
+import { ProvingScreen } from "@/features/shop-identity/ProvingScreen";
 import { setSidebarOpen, toggleTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
@@ -56,7 +56,7 @@ function AppShell() {
       surfaceLabel="Effy Shop"
       nav={NAV}
       roles={identity?.roles ?? []}
-      navGroupLabel="Store"
+      navGroupLabel="Shop"
       email={identity?.email ?? ""}
       theme={theme}
       onToggleTheme={toggleTheme}

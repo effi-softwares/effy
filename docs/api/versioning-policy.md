@@ -64,7 +64,7 @@ is deprecated or retired yet — rules 6.7 activate as the platform evolves.
 ## Path scheme under the shared gateway (A3, 2026-07-08)
 
 With the cold path decomposed into services behind one HTTP API, the version segment follows the
-service prefix: **`/<service>/v<major>/...`** (e.g. `/admin/v1/me`, `/store/v2/status`). Service
+service prefix: **`/<service>/v<major>/...`** (e.g. `/admin/v1/me`, `/shop/v2/status`). Service
 prefix first = the ownership boundary is the routing boundary (route-key uniqueness across the
 shared API by construction), and each service versions on its own cadence. Health is
 `/<service>/healthz` (public, unversioned). The rules above are otherwise unchanged.

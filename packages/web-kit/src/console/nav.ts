@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
  * Nav model, generic over a surface's role union.
  *
  * The kit never knows what a role *means* — only that an item may require one. Each console
- * supplies its own `NavItem<StoreRole>[]` / `NavItem<BackOfficeRole>[]`.
+ * supplies its own `NavItem<ShopRole>[]` / `NavItem<BackOfficeRole>[]`.
  */
 export interface NavItem<TRole extends string> {
   label: string;

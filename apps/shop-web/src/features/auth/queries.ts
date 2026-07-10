@@ -21,7 +21,7 @@ export function useSignOut() {
       // Drop every cached read, not just the session: the next operator to sign in on this browser
       // must not see the previous one's staff record for a frame.
       await queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
-      queryClient.removeQueries({ queryKey: ["store"] });
+      queryClient.removeQueries({ queryKey: ["shop"] });
     },
   });
 }

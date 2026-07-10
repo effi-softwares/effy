@@ -43,11 +43,11 @@ The console authenticates against the **shop** Cognito pool (`effy-<env>-shop`, 
   `back-office`.)
 - The shared HTTP API gateway (004 / A3) already exposes a **shop** JWT authorizer by id at
   `/effy/<env>/edge/authorizer/shop_id`.
-- `apis/edge-api/store/` already attaches to that gateway and has one shop-authorized
-  proving route, `GET /store/v1/ping`.
+- `apis/edge-api/shop/` already attaches to that gateway and has one shop-authorized
+  proving route, `GET /shop/v1/ping`.
 
 **Constraint (constitution Principle IV):** a back-office credential MUST be structurally
-rejected by the store service, and vice versa. There is no auth proxy.
+rejected by the shop service, and vice versa. There is no auth proxy.
 
 ### D3 — RBAC on the shop surface
 
@@ -73,10 +73,10 @@ spec Clarifications).
 
 ### D5 — Surface directory naming
 
-`CLAUDE.md` names the planned web surface **`store-web`** ("Vite SPA, store operator
+`CLAUDE.md` names the planned web surface **`shop-web`** ("Vite SPA, shop operator
 console"), while the operator's description and the mobile app say **`shop`**. The audience is
-"store/operator"; the mobile app is `shop`; the pool is `shop`; the edge service is `store`
-with `/store/v1/*` paths. `/plan` MUST pick one directory name and reconcile `CLAUDE.md`
+"shop/operator"; the mobile app is `shop`; the pool is `shop`; the edge service was `store`
+with `/store/v1/*` paths at the time of this directive (renamed to `shop` by 008). `/plan` MUST pick one directory name and reconcile `CLAUDE.md`
 accordingly, rather than introducing a third convention.
 
 ### D6 — Deploy target

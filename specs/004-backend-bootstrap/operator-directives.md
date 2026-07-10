@@ -112,7 +112,7 @@ Verbatim operator directive (a significant revision to this slice's edge-api arc
    - `apis/core-api/` — the hot-path Go service, moved as-is (its internals are unchanged).
    - `apis/edge-api/` — the cold path, now a **container of multiple services**, e.g.
      `apis/edge-api/<service>/` (one `serverless.yml` per service).
-2. **Cold-path split by domain**: at least an **admin** (back-office) service and a **store**
+2. **Cold-path split by domain**: at least an **admin** (back-office) service and a **shop**
    (operator) service; the existing endpoints are re-homed into the right service (platform
    status/health → a shared/platform service or each service's own health; back-office/admin
    endpoints → the admin service).

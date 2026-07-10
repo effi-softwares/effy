@@ -25,7 +25,7 @@
 - Q: Should the cost-optimized (cold) path be one deployable service, or several? → A: **Several
   independently deployable domain services behind one shared public entry point.** This slice is
   revised so the cost-optimized path is a *family* of services split **by domain** (e.g., an
-  administrative/back-office domain, a store/operator domain), each its own independently
+  administrative/back-office domain, a shop/operator domain), each its own independently
   deployable unit, all fronted by **one** stable public entry point that routes each request to
   its owning service by a per-service path segment (`<entry-point>/<service>/…`). Rationale: the
   cold path serves several audiences with different change/deploy lifecycles; decomposing now —
@@ -84,7 +84,7 @@ architecture reference.
 The platform gains its cost-optimized backend path — the latency-tolerant, pay-per-use home for
 profile changes, back-office, and operator workflows. Rather than one monolithic deployable, this
 path is composed of **multiple independently deployable domain services** (e.g., an
-administrative/back-office domain and a store/operator domain), each owning its slice of the cold
+administrative/back-office domain and a shop/operator domain), each owning its slice of the cold
 path and each deployable on its own **without disturbing the others**. All of them sit behind
 **one stable public entry point** that routes each request to its owning service by a per-service
 path segment, so callers see a single coherent API surface while the platform evolves each service
@@ -352,7 +352,7 @@ endpoints into the correct service; review the result against the conventions.
 - **Cost-Optimized Path**: the **family** of independently deployable domain services for
   latency-tolerant work, all behind one shared public entry point and sharing common conventions.
 - **Cold-Path Domain Service**: one self-contained, independently deployable service owning a
-  domain's cold-path endpoints (e.g., administrative/back-office, store/operator); attaches to the
+  domain's cold-path endpoints (e.g., administrative/back-office, shop/operator); attaches to the
   shared entry point and follows the layered architecture + shared conventions.
 - **Shared Public Entry Point**: the single stable public address that fronts all cost-optimized
   services and routes each request to its owning service by path segment.

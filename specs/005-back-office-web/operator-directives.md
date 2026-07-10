@@ -46,7 +46,7 @@
   - **Query** — server-state cache (the source of truth for backend data)
   - **Table** — data grids
   - **Form** — form state + validation
-  - **Store** — genuine client-only state · **LOCKED as the web client-state lib** (constitution
+  - **Shop** — genuine client-only state · **LOCKED as the web client-state lib** (constitution
     v1.4.0; Zustand removed platform-wide — operator decision 2026-07-08)
   - **DB** — client-side collections / reactive data layer · **DROPPED this slice** (operator
     decision: beta/pre-1.0, no data surface in a bootstrap — research A3; revisit later)
@@ -72,7 +72,7 @@ Consult current official docs for each before pinning versions and patterns:
 - TanStack Hotkeys — https://tanstack.com/hotkeys/latest
 - TanStack Form — https://tanstack.com/form/latest
 - TanStack Table — https://tanstack.com/table/latest
-- TanStack Store — https://tanstack.com/store/latest
+- TanStack Store — https://tanstack.com/shop/latest
 - TanStack DB — https://tanstack.com/db/latest
 - TanStack Router — https://tanstack.com/router/latest
 - TanStack Query — https://tanstack.com/query/latest
@@ -99,7 +99,7 @@ Consult current official docs for each before pinning versions and patterns:
     `edge-deploy` (+ `localhost:5173` CORS origin).
 - **First web surface + first shared web packages.** This slice births the shared web
   foundation (`design-system`, typed `api-client`, `shared-types`, `config`) that the other
-  two web surfaces (`customer-web`, `store-web`) will inherit — only what US1/US2 need gets
+  two web surfaces (`customer-web`, `shop-web`) will inherit — only what US1/US2 need gets
   populated now.
 
 ## Existing backend contract this slice consumes

@@ -1,0 +1,109 @@
+# store-token-allowlist.txt — the only places the retired token "store" may survive.
+#
+# Consumed by scripts/verify-no-store.sh (008-shop-naming-unification, SC-001).
+# One extended-regex per line, matched against a `path:line:text` grep hit.
+# Every pattern MUST carry a comment naming its category letter and its reason.
+#
+# Categories (specs/008-shop-naming-unification/contracts/naming.contract.md § 3):
+#   (a) TanStack Store / client-state terminology — a library name, not the audience
+#   (b) the customer "storefront" — the product model's own word
+#   (c) AWS "Parameter Store" — an AWS product name
+#   (d) the English verb, and unrelated compounds
+#   (e) historical record — text that would be FALSIFIED by rewriting it
+#   (f) meta — artifacts describing the rename itself (path-excluded in the guard, not here)
+#
+# The guard greps for the SUBSTRING "store", case-insensitively — not a word boundary. That is
+# deliberate: `\bstore` would miss `toStoreRoles`, `isStoreManager`, and `getStoreStaff`, which are
+# exactly the misses that matter. The cost is noise (`restore`, `truststore`, `zipStoreBase`), which
+# is what the (d) patterns below buy off. False positives are cheap; false negatives defeat SC-001.
+#
+# Adding a line here is a deliberate, reviewable act. A pattern broad enough to swallow a missed
+# rename silently defeats SC-001. Never add a bare `stores?`.
+
+# ---- (a) TanStack Store: the client-state library and its vocabulary ----------------------
+ui-store
+[Uu]iStore
+@tanstack/react-store
+TanStack Store
+[Cc]lient store
+[Cc]lient-state store
+[Ss]erver-state store
+useStore
+new Store<
+Store<UiState>
+# the TanStack package list, e.g. "Router/Query/Table/Form/Store/Virtual"
+Form/Store/Virtual
+Router/Query/Store
+Query, Store, Virtual
+Table, Form, Store
+`-store` 0\.11
+# Store as a locked technology choice / a decision record
+Store \(client state\)
+Store vs Zustand
+Store is the engine
+# the mobile DI container holds repositories, use-cases, and a client store
+use-case bundle, and store
+# 005's single sanctioned client store
+the one sanctioned store owns it
+the one store" honest
+existing mutation/store
+\(store . nav model\)
+`store` . `nav` model
+
+# ---- (b) the customer storefront ----------------------------------------------------------
+[Ss]torefront
+
+# ---- (c) AWS Parameter Store (an AWS product name) ----------------------------------------
+[Pp]arameter [Ss]tore
+
+# ---- (d) the English verb, and unrelated compounds ----------------------------------------
+# Enumerated from the real survivor set, never generalized to a bare \bstores?\b.
+[Rr]estore
+truststore
+zipStore
+\.pnpm-store
+no-store
+\.DS_Store
+[Ss]tored
+[Ss]torage
+dark-store
+secret store
+log store
+# "stores Terraform state" / "stores its state here" / "You can't store state remotely"
+stores Terraform state
+stores its state
+stores state in the bucket
+store state remotely
+can.t store state in a bucket
+# "We store the ... but not `email`"
+We store the
+
+# ---- (e) historical record — rewriting these would falsify them ---------------------------
+# The constitution's changelog line for v1.5.0 states the group names as they were at v1.5.0.
+introduced as .store_manager. / .store_staff.
+# The v1.6.0 Sync Impact Report necessarily names the token it retires.
+renamed from .store.
+its roles, and most prose were .store.
+[Ff]eature 008 retires .sto
+# "dark-store-like" is retained: it names an external retail concept (see also (d)).
+dark-store-like
+# Verbatim user directives and spec `**Input**:` quotes — records of what someone SAID.
+^specs/[0-9]+-[a-z-]+/operator-directives\.md:[0-9]+:>
+^specs/[0-9]+-[a-z-]+/spec\.md:[0-9]+:\*\*Input
+# Supersession notes: the sentence that RETIRES the split must be able to name it.
+.shop./.store. split
+shop. / .store. split
+the retired token
+retired by 008-shop-naming-unification
+were named .store. while everything client-facing
+originally kept a .shop./.store. split
+edge service was .store.
+# 007 research R1 is preserved as a superseded decision record; its argument is ABOUT the names.
+not .store-web.
+Naming the web half .store-web.
+`effy-edge-store`, routes `/store/v1/\.\.\.`
+The audience \| store \|
+and ./store/v1/\*. paths already consumed
+contained .store.\*\* \(the pool contract
+of ./store/v1/\*. was 007's own console
+with ./store/v1/\*. paths at the time of this directive

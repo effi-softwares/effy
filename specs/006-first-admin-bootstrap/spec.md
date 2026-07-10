@@ -19,7 +19,7 @@
 
 The back-office console (005) requires an authenticated **administrator**, but the platform has no
 way to create the *first* one: the console itself would require an existing admin, and the platform
-**forbids self-signup for privileged audiences** (Principle IV — driver/store/admin are
+**forbids self-signup for privileged audiences** (Principle IV — driver/shop/admin are
 admin-provisioned). This slice breaks that chicken-and-egg with an **operator-run, out-of-band**
 means to establish the **first back-office super-administrator** (all permissions) from initial
 data, so the console becomes usable. It is an **operator tool, not a product feature** — no public

@@ -1,10 +1,10 @@
-# Shop audience — store operators (hidden internal fulfillment nodes); staff-provisioned,
-# NO self-signup (FR-003, US3). The client surfaces for the "store" audience are named `shop`
-# (shop-mobile + shop-web); the cold-path service serving them is named `store`.
+# Shop audience — shop operators (hidden internal fulfillment nodes); staff-provisioned,
+# NO self-signup (FR-003, US3). It is `shop` everywhere: the client surfaces (shop-mobile +
+# shop-web), this pool, its gateway authorizer, and the cold-path service serving them.
 #
-# RBAC groups added by 007-shop-web (constitution v1.5.0 — pools MAY define role groups). The
-# cognito:groups claim is the ORIGIN of role assignment; the platform's public.store_staff record
-# is AUTHORITATIVE for the access decision (role AND status AND store scope). Adding a group is an
+# RBAC groups added by 007-shop-web (constitution v1.6.0 — pools MAY define role groups). The
+# cognito:groups claim is the ORIGIN of role assignment; the platform's public.shop_staff record
+# is AUTHORITATIVE for the access decision (role AND status AND shop scope). Adding a group is an
 # additive, create-only change — it never replaces the pool.
 
 module "shop_pool" {
@@ -20,8 +20,8 @@ module "shop_pool" {
   logout_urls                = try(var.auth_urls["shop"].logout_urls, [])
 
   groups = [
-    { name = "store_manager", description = "Manages a store: full operator access plus store-level administration." },
-    { name = "store_staff", description = "Baseline store operator: day-to-day fulfillment work." },
+    { name = "shop_manager", description = "Manages a shop: full operator access plus shop-level administration." },
+    { name = "shop_staff", description = "Baseline shop operator: day-to-day fulfillment work." },
   ]
 }
 

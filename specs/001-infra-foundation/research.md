@@ -225,7 +225,7 @@ attribution value.
 
 ## D10 — App↔infra contract via SSM Parameter Store
 
-**Decision**: Each env writes its pool ids and app-client ids to **SSM Parameter Store** under a
+**Decision**: Each env writes its pool ids and app-client ids to **SSM Parameter Shop** under a
 predictable prefix, e.g. `/effy/<env>/auth/<audience>/user_pool_id` and
 `/effy/<env>/auth/<audience>/app_client_id` (full contract in
 [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)). Non-secret values use

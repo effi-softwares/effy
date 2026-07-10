@@ -18,9 +18,9 @@ function wrap(children: ReactNode) {
 const RECORD = {
   subject: "sub-1",
   email: "sam@effy.test",
-  roles: ["store_manager" as const],
+  roles: ["shop_manager" as const],
   status: "active" as const,
-  store: { id: "store-1", code: "CMB-01", name: "Colombo 01", isActive: true },
+  shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", isActive: true },
 };
 
 function domainError(kind: DomainError["kind"], status: number): DomainError {
@@ -28,13 +28,13 @@ function domainError(kind: DomainError["kind"], status: number): DomainError {
 }
 
 describe("ProvingScreen", () => {
-  it("renders the identity, roles, and assigned store the backend returned", async () => {
+  it("renders the identity, roles, and assigned shop the backend returned", async () => {
     loadMe.mockResolvedValue(RECORD);
     wrap(<ProvingScreen />);
 
     expect(await screen.findByText("sub-1")).toBeInTheDocument();
     expect(screen.getByText("sam@effy.test")).toBeInTheDocument();
-    expect(screen.getByText("store_manager")).toBeInTheDocument();
+    expect(screen.getByText("shop_manager")).toBeInTheDocument();
     expect(screen.getByText("Colombo 01 (CMB-01)")).toBeInTheDocument();
   });
 
@@ -43,16 +43,16 @@ describe("ProvingScreen", () => {
     loadMe.mockResolvedValue({ ...RECORD, roles: [] });
     wrap(<ProvingScreen />);
 
-    expect(await screen.findByText(/no store roles are assigned yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no shop roles are assigned yet/i)).toBeInTheDocument();
     expect(screen.queryByText(/something went wrong/i)).not.toBeInTheDocument();
   });
 
-  // Unassigned is an EXPECTED state: the JIT upsert meets an operator before their store is known.
-  it("explains a missing store assignment instead of showing a failure", async () => {
-    loadMe.mockResolvedValue({ ...RECORD, store: null });
+  // Unassigned is an EXPECTED state: the JIT upsert meets an operator before their shop is known.
+  it("explains a missing shop assignment instead of showing a failure", async () => {
+    loadMe.mockResolvedValue({ ...RECORD, shop: null });
     wrap(<ProvingScreen />);
 
-    expect(await screen.findByText(/not assigned to a store yet/i)).toBeInTheDocument();
+    expect(await screen.findByText(/not assigned to a shop yet/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 

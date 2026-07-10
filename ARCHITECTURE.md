@@ -187,7 +187,7 @@ auth**. The auth middleware selects a JWT verifier by **URL path prefix**:
 | public reads (e.g. catalog) | none |
 | customer-scoped routes | customer pool |
 | driver-scoped routes | driver pool |
-| store-scoped routes | store pool |
+| shop-scoped routes | shop pool |
 | service-to-service routes | a shared internal secret (constant-time compare) |
 
 ### Auth: per-pool JWT verification
@@ -253,7 +253,7 @@ export const handler = async (event) => {
 ### Two service shapes: sync HTTP vs async worker
 
 - **Sync HTTP (ops / operator / admin CRUD)** — attaches to a shared HTTP gateway and gates each route
-  with a **per-pool JWT authorizer** (admin pool for admin work, store pool for operator work), with
+  with a **per-pool JWT authorizer** (admin pool for admin work, shop pool for operator work), with
   group-based RBAC. Cold starts are accepted in exchange for one consistent ops stack.
 - **Async event workers** — no HTTP auth:
   - A **webhook** with its own endpoint and **no authorizer** (it verifies a provider signature
@@ -348,7 +348,7 @@ Intentionally tiny: a folder of **ordered, reversible plain-SQL files** plus a t
 code, no app coupling.
 
 - Each file is numbered with `up` / `down` sections.
-- **Two schemas:** an operational schema (customers, drivers, stores, products, inventory, images,
+- **Two schemas:** an operational schema (customers, drivers, shops, products, inventory, images,
   orders, payments, deliveries, …) and an admin schema (back-office accounts + audit log).
 - **Run out-of-band**, never inside an app binary — locally against a developer database, and in CI as
   a pre-deploy step (the DB credential is fetched from the parameter store with decryption so it never

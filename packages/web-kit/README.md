@@ -32,10 +32,10 @@ it belongs here instead, parameterized.
 ## Role genericity
 
 `NavList`, `ConsoleShell`, and `createSessionGuard` are generic over the surface's role union
-(`BackOfficeRole`, `StoreRole`, …). The kit never knows what a role *means*, only that nav items may
+(`BackOfficeRole`, `ShopRole`, …). The kit never knows what a role *means*, only that nav items may
 require one.
 
 ## Consumers
 
 - `apps/back-office` — `BackOfficeRole` = `admin | manager | csa`
-- `apps/shop-web` — `StoreRole` = `store_manager | store_staff`
+- `apps/shop-web` — `ShopRole` = `shop_manager | shop_staff`

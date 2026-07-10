@@ -9,23 +9,23 @@ They are not infrastructure (`infra/scripts/` holds the Terraform/DB plumbing: `
 | Script | `make` target | Proves |
 |---|---|---|
 | `verify-cross-pool.sh` | `shop-verify-isolation` | SC-004 — a credential is usable only against its own audience, **both directions** |
-| `verify-manager-gate.sh` | `shop-verify-gate` | SC-005 / SC-005a — the manager gate is decided from the platform record (role AND status AND store scope), and its denial names no term |
+| `verify-manager-gate.sh` | `shop-verify-gate` | SC-005 / SC-005a — the manager gate is decided from the platform record (role AND status AND shop scope), and its denial names no term |
 | `token-claims.sh` | `shop-token-claims` | research R6 — whether a Cognito access token carries `email`, and whether `username` is an address or a UUID |
 
-### `EXPECT_STORE` — which half of the gate has data
+### `EXPECT_SHOP` — which half of the gate has data
 
-007 ships the store schema but **no way to create a store** (that is back-office store management,
-the next slice). The gate's predicate inner-joins `public.store`, so:
+007 ships the shop schema but **no way to create a shop** (that is back-office shop management,
+the next slice). The gate's predicate inner-joins `public.shop`, so:
 
 ```bash
-make shop-verify-gate …                    # EXPECT_STORE=0 (default, pre-store-management)
-                                           #   asserts the manager is REFUSED for lack of a store
-make shop-verify-gate … EXPECT_STORE=1     # once a store exists and the manager is assigned
+make shop-verify-gate …                    # EXPECT_SHOP=0 (default, pre-shop-management)
+                                           #   asserts the manager is REFUSED for lack of a shop
+make shop-verify-gate … EXPECT_SHOP=1     # once a shop exists and the manager is assigned
                                            #   asserts the manager is SERVED
 ```
 
 Both settings prove the gate. What changes is which side of it there is data for. The `0` case is
-not a weaker check — a `store_manager` holding the role in `cognito:groups` and still being refused
+not a weaker check — a `shop_manager` holding the role in `cognito:groups` and still being refused
 is the clearest possible demonstration that the **platform record, not the token, decides**.
 
 ## Why these are scripts and not tests
@@ -35,7 +35,7 @@ Two of this platform's most important guarantees live outside application code:
 - **Cross-pool isolation** is enforced by the shared gateway's per-pool JWT authorizers. A vitest
   assertion could only prove that a fixture *I wrote* is shaped the way I expect — it would tell you
   nothing about the deployed gate. So it is a `curl` against the real gateway with two real tokens.
-- **Store-scoped authorization** is enforced by a SQL join. Mocking the `pg` seam proves the query
+- **Shop-scoped authorization** is enforced by a SQL join. Mocking the `pg` seam proves the query
   text; only a real database proves the query's *meaning*.
 
 Asserting either in a unit test would be theater. See `specs/007-shop-web/research.md` R9.

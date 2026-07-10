@@ -10,64 +10,67 @@ assumptions and are called out as such.
 
 ---
 
-## Terminology — the `shop` / `store` split (settled first, because everything else reads on it)
+## Terminology — the `shop` / `store` split
 
-The repository already carries three names for one audience. This is pre-existing, not
-introduced here, and the plan does **not** rename what is deployed:
+> **SUPERSEDED by 008-shop-naming-unification (2026-07-10).** This section recorded a decision to
+> *keep* a two-name split for this audience. That split was retired: the audience, its pool, its
+> authorizer, its service, its routes, its tables, and its roles are now all named **shop**, and
+> `make verify-naming` enforces it. The record below is preserved because R1's argument — and the
+> cost estimate it got wrong — is the reason 008 exists.
 
-| Concept | Name in the repo | Why |
+The repository carried two names for one audience. 007 chose not to rename what was deployed:
+
+| Concept | Name at 007 | Name today (008) |
 |---|---|---|
-| The audience | **store** (store/operator) | constitution Principle IV, ARCHITECTURE.md |
-| The identity pool | **shop** — `effy-dev-shop`, SSM `/effy/<env>/auth/shop/*` | `infra/envs/dev/auth-shop.tf` |
-| The gateway authorizer | **shop** — SSM `/effy/<env>/edge/authorizer/shop_id` | `infra/envs/dev/edge-gateway.tf:71` |
-| The cold-path service | **store** — `effy-edge-store`, routes `/store/v1/...` | `apis/edge-api/store/serverless.yml` |
-| The mobile surface | **shop** — `apps/shop-mobile` | CLAUDE.md |
-| The web surface | **`shop-web`** ← decided here | see R1 |
+| The audience | store | **shop** |
+| The identity pool | shop | shop (unchanged) |
+| The gateway authorizer | shop | shop (unchanged) |
+| The cold-path service | `effy-edge-store`, routes `/store/v1/...` | **`effy-edge-shop`, routes `/shop/v1/...`** |
+| The mobile surface | shop | shop (unchanged) |
+| The web surface | `shop-web` ← decided by R1 | shop-web (unchanged) |
 
 ### R1 — The web surface is `apps/shop-web` (package `@effy/shop-web`)
 
-**Decision**: name the directory and package `shop-web`, not `store-web`.
+**Decision**: name the directory and package `shop-web`, not `store-web`. **Still correct.**
 
-**Rationale**: the parity pair this slice exists to establish (FR-023a) is
-`shop-web` ↔ `shop-mobile`. Naming the web half `store-web` would put the two surfaces of
-one audience under two different prefixes, which is precisely the drift the parity register
-is meant to prevent. The identity pool the surface authenticates against is also `shop`.
-The backend service keeps its deployed name (`store`, `/store/v1/...`) — renaming a live
-service to chase symmetry is churn with no user-visible benefit, and `shop-mobile` already
-calls `/store/v1/ping` today.
+**Rationale**: the parity pair this slice exists to establish (FR-023a) is `shop-web` ↔
+`shop-mobile`. Naming the web half `store-web` would put the two surfaces of one audience under two
+different prefixes — precisely the drift the parity register prevents.
 
-**Alternatives considered**:
-- `store-web`, as named in CLAUDE.md's vision section. Rejected: breaks the `shop-*` client
-  pair; CLAUDE.md is runtime guidance that "elaborates but never overrides" and is cheaper
-  to correct than the app directory. **Action: reconcile CLAUDE.md's platform-shape line
-  (`store-web` → `shop-web`) in this slice.**
-- Rename the service `store` → `shop`. Rejected: a live deployed stack, live SSM contract,
-  and `/store/v1/*` paths already consumed. Cost with no benefit.
+**Where R1 was wrong.** It also declined to rename the backend service, reasoning that "a live
+deployed stack, live SSM contract, and `/store/v1/*` paths already consumed" made renaming "churn
+with no user-visible benefit." Two of those three premises did not hold: **no SSM parameter ever
+contained `store`** (the pool contract was always `/effy/<env>/auth/shop/*`), and the only consumer
+of `/store/v1/*` was 007's own console, which had not shipped. The real cost was one `serverless
+remove` of a stack serving four proving routes with no consumers. The benefit R1 could not see from
+inside the slice was cumulative: every subsequent reader, author, and agent paid a mapping tax on
+every shop feature, forever. 008 pays the one-time cost instead.
 
-**Rule for readers**: *client surfaces are `shop-*`; the backend service and its paths are
-`store`; the pool and authorizer are `shop`; the audience in prose is "store".* Recorded in
-the plan's Terminology table so it is stated once, not rediscovered.
+**Rule for readers (as of 008)**: *it is `shop` everywhere.* The four surviving senses of the word
+"store" — the TanStack Store library, the customer "storefront", AWS "Parameter Store", and the
+English verb — are enumerated in
+[008's naming contract](../008-shop-naming-unification/contracts/naming.contract.md).
 
 ---
 
 ## R2 — RBAC on the shop pool (spec Q1) and the constitution tension
 
-**Decision**: two Cognito groups on the shop pool — **`store_manager`** (higher privilege)
-and **`store_staff`** (baseline operator) — created by the existing
+**Decision**: two Cognito groups on the shop pool — **`shop_manager`** (higher privilege)
+and **`shop_staff`** (baseline operator) — created by the existing
 `infra/modules/cognito-user-pool` `groups` variable. Roles originate in the identity
 provider (`cognito:groups` claim), are reconciled into the platform record on every visit,
-and the access decision is made from the platform record (role **and** status **and** store
+and the access decision is made from the platform record (role **and** status **and** shop
 scope), never from the claim alone.
 
 **Rationale**: this is the pattern the back-office pool already proves
 (`infra/envs/dev/auth-backoffice.tf:20-24` → `admin.staff_role` reconcile in
-`apis/edge-api/admin/src/staff/repository.ts`). Reusing it means the store service's staff
+`apis/edge-api/admin/src/staff/repository.ts`). Reusing it means the shop service's staff
 module is a structural twin of the admin one, and the module already supports it: `groups`
 is a `list(object({name, description}))` defaulting to `[]`, materialized as
 `aws_cognito_user_group` under `for_each`. Adding groups to an existing pool is an additive,
 create-only Terraform change — **no pool replacement, no user disruption**.
 
-**Group naming**: prefixed (`store_manager`, not `manager`) even though pool isolation makes
+**Group naming**: prefixed (`shop_manager`, not `manager`) even though pool isolation makes
 collision structurally impossible. The prefix keeps group names unambiguous in logs, JWT
 dumps, and cross-pool conversations, where `manager` already means a back-office role.
 
@@ -80,8 +83,8 @@ expansion of guidance → MINOR bump → v1.5.0**, not a silent deviation.
 **Proposed amendment (authored in this slice, before Phase 2 infra work)**:
 
 > Pools MAY define RBAC groups, surfaced via the `cognito:groups` JWT claim. The admin pool
-> defines `admin` / `manager` / `csa`; the store pool defines `store_manager` /
-> `store_staff`. The customer and driver pools define none. In every case the claim is the
+> defines `admin` / `manager` / `csa`; the shop pool defines `shop_manager` /
+> `shop_staff`. The customer and driver pools define none. In every case the claim is the
 > **origin of role assignment**; the platform's own record is authoritative for the access
 > decision.
 
@@ -95,17 +98,17 @@ expansion of guidance → MINOR bump → v1.5.0**, not a silent deviation.
 
 ---
 
-## R3 — Store entity + staff schema: shape, data area, and the three-term gate (spec Q2)
+## R3 — Shop entity + staff schema: shape, data area, and the three-term gate (spec Q2)
 
 **Decision**: four tables in the **`public`** (customer-operational) schema —
-`public.store`, `public.store_staff`, `public.store_role`, `public.store_staff_role` — via
-the 003 forward-only Goose workflow. Authorization is **role AND status AND store scope**.
+`public.shop`, `public.shop_staff`, `public.shop_role`, `public.shop_staff_role` — via
+the 003 forward-only Goose workflow. Authorization is **role AND status AND shop scope**.
 
 **Why `public` and not `admin`**: the `admin` schema's designated purpose is *back-office
-accounts + audit* (`db/migrations/20260705095817_baseline_admin_schema.sql`). A store is a
+accounts + audit* (`db/migrations/20260705095817_baseline_admin_schema.sql`). A shop is a
 fulfillment node — an operational entity every future slice (inventory, picking, orders)
-will join against. Putting `store` in `admin` would mean the operational schema's most
-central entity lives in the back-office schema. Store staff follow their store.
+will join against. Putting `shop` in `admin` would mean the operational schema's most
+central entity lives in the back-office schema. Shop staff follow their shop.
 
 **This is the platform's first `public` table.** Everything to date lives in `admin`. Worth
 naming: the 003 workflow's forward-only guarantees and the `db-up` commit-guard are
@@ -113,37 +116,37 @@ schema-agnostic (`Makefile:119-125` greps `git status --porcelain db/migrations`
 workflow change is needed — but this is the first exercise of the operational half of the
 two-schema model.
 
-**Store assignment is nullable.** `store_staff.store_id uuid NULL REFERENCES public.store(id)
+**Shop assignment is nullable.** `shop_staff.shop_id uuid NULL REFERENCES public.shop(id)
 ON DELETE RESTRICT`. The JIT upsert meets an operator on first authenticated contact and
-cannot know their store, so the record is created unassigned and the operator assigns it.
-Spec edge cases require exactly this: "authenticated but assigned to no store" is an expected
-state, not an error. `ON DELETE RESTRICT` prevents orphaning staff by deleting a store.
+cannot know their shop, so the record is created unassigned and the operator assigns it.
+Spec edge cases require exactly this: "authenticated but assigned to no shop" is an expected
+state, not an error. `ON DELETE RESTRICT` prevents orphaning staff by deleting a shop.
 
 **The gate is one SQL predicate**, mirroring `authorizeAdmin` in the admin service:
 
 ```sql
 SELECT EXISTS (
-  SELECT 1 FROM public.store_staff ss
-    JOIN public.store_staff_role ssr ON ssr.staff_id = ss.id
-    JOIN public.store st            ON st.id = ss.store_id
+  SELECT 1 FROM public.shop_staff ss
+    JOIN public.shop_staff_role ssr ON ssr.staff_id = ss.id
+    JOIN public.shop st            ON st.id = ss.shop_id
    WHERE ss.cognito_sub = $1
      AND ss.status  = 'active'
      AND st.is_active
-     AND ssr.role_key = 'store_manager'
+     AND ssr.role_key = 'shop_manager'
 ) AS ok
 ```
 
-The `JOIN public.store` is load-bearing: it makes "no store assignment" (NULL `store_id`, so
-the join drops the row) and "inactive store" (`is_active = false`) both refuse, satisfying
+The `JOIN public.shop` is load-bearing: it makes "no shop assignment" (NULL `shop_id`, so
+the join drops the row) and "inactive shop" (`is_active = false`) both refuse, satisfying
 SC-005a with no extra branch.
 
 **Alternatives considered**:
-- Staff-only, no store entity (spec option A). Rejected by the operator at Q2. It would have
-  made "store-scoped authorization" a phrase with nothing behind it.
-- Store staff in the `admin` schema. Rejected: conflates two audiences' identity systems and
+- Staff-only, no shop entity (spec option A). Rejected by the operator at Q2. It would have
+  made "shop-scoped authorization" a phrase with nothing behind it.
+- Shop staff in the `admin` schema. Rejected: conflates two audiences' identity systems and
   blurs the boundary the two-schema model was drawn for.
-- Many-stores-per-operator (`store_staff_store` join table). Rejected as premature: FR-020
-  says *at most one store*; a join table can arrive additively when a real multi-store
+- Many-shops-per-operator (`shop_staff_shop` join table). Rejected as premature: FR-020
+  says *at most one shop*; a join table can arrive additively when a real multi-shop
   operator exists.
 
 ---
@@ -153,26 +156,26 @@ SC-005a with no extra branch.
 **Path assignment** (`docs/api/path-assignment.md` requires this line verbatim in the plan):
 
 > **Path: edge — rule 2** (an internal operator console; latency-tolerant, low-frequency,
-> cold starts acceptable). **Service: store —** the store/operator domain, behind the shop
+> cold starts acceptable). **Service: shop —** the shop/operator domain, behind the shop
 > pool's authorizer.
 
-**Decision**: extend the existing `apis/edge-api/store/` service with two authenticated
+**Decision**: extend the existing `apis/edge-api/shop/` service with two authenticated
 routes, and restructure its source to the admin service's nested-domain layout.
 
 | Route | Auth | Purpose | FR |
 |---|---|---|---|
-| `GET /store/v1/me` | shop authorizer, any authenticated caller | Record-backed identity read + idempotent JIT upsert. Returns subject, email, roles, status, assigned store (or `null`). | FR-005, FR-020 |
-| `GET /store/v1/manager-ping` | shop authorizer + **DB gate** | Manager-only proving read. Served to an active `store_manager` at an active store; **refused by the backend** otherwise. | FR-008, FR-021 |
+| `GET /shop/v1/me` | shop authorizer, any authenticated caller | Record-backed identity read + idempotent JIT upsert. Returns subject, email, roles, status, assigned shop (or `null`). | FR-005, FR-020 |
+| `GET /shop/v1/manager-ping` | shop authorizer + **DB gate** | Manager-only proving read. Served to an active `shop_manager` at an active shop; **refused by the backend** otherwise. | FR-008, FR-021 |
 
-Existing routes are untouched: `/store/healthz`, `/store/v1/status`, `/store/v2/status`,
-`/store/v1/ping` (the token-echo proving route from 004). `/me` **admits role-less callers**
+Existing routes are untouched: `/shop/healthz`, `/shop/v1/status`, `/shop/v2/status`,
+`/shop/v1/ping` (the token-echo proving route from 004). `/me` **admits role-less callers**
 — its job is to *record* them; privilege gating lives on `/manager-ping`. This mirrors the
 admin service's `/me` vs `/admin-ping` split exactly.
 
 **Versioning**: both routes are born under `/v1` per `docs/api/versioning-policy.md` rule 1.
 Adding new operations to an existing version is *additive* (rule 3) — no `/v2`.
 
-**Layout change**: `store/src/` currently keeps its single domain flat
+**Layout change**: `shop/src/` currently keeps its single domain flat
 (`types.ts`/`repository.ts`/`service.ts` at `src/`). Adding a second domain (staff) forces a
 choice. Adopt the admin service's nested form — `src/staff/{types,repository,service}.ts` —
 and move the existing status domain to `src/status/`. This is a mechanical move that makes
@@ -194,7 +197,7 @@ back-office console is *inside the app*, not in a package:
 |---|---|---|
 | brand tokens, `cn`, scaling | `@effy/design-system` | ✅ already shared |
 | authed fetch + RFC 9457 → `DomainError` | `@effy/api-client` | ✅ already shared |
-| DTOs, role narrowing | `@effy/shared-types` | ✅ already shared (needs a `store.ts`) |
+| DTOs, role narrowing | `@effy/shared-types` | ✅ already shared (needs a `shop.ts`) |
 | shadcn primitives (12 files), `use-mobile` | `apps/back-office/src/components/ui/` | ✅ — Principle V: *one* design system drives every surface |
 | config load + fail-fast, Amplify wiring | `apps/back-office/src/lib/{env,amplify}.ts` | ✅ — Principle II names **configuration** as a shared concern |
 | EMAIL_OTP flow, session/token/claims, route guard | `.../features/auth/{repo,guards}.ts`, `lib/auth-session.ts` | ✅ — identical for every pool |
@@ -245,7 +248,7 @@ extraction path.
 
 ---
 
-## R6 — Where `/store/v1/me` gets the operator's email (and a defect this surfaces in 005)
+## R6 — Where `/shop/v1/me` gets the operator's email (and a defect this surfaces in 005)
 
 **Problem**: the shop pool sets `username_attributes = ["email"]`
 (`infra/modules/cognito-user-pool/main.tf`). In that configuration Cognito's internal
@@ -264,10 +267,10 @@ in a migration.
 
 **Decision** — design so the answer does not matter, then verify cheaply:
 
-1. `public.store_staff.email` is **nullable**.
-2. `/store/v1/me` resolves email as `claim("email") ?? emailShaped(claim("username")) ?? null`
+1. `public.shop_staff.email` is **nullable**.
+2. `/shop/v1/me` resolves email as `claim("email") ?? emailShaped(claim("username")) ?? null`
    and **never overwrites a non-null stored email with null**.
-3. The **staff-management step is authoritative** for email — back-office store management writes
+3. The **staff-management step is authoritative** for email — back-office shop management writes
    it (next slice), exactly as 006 seeds `admin.staff.name` out-of-band. Until then `email` stays
    null for operators whose token carries no address, which is a correct, visible state rather than
    a wrong value.
@@ -311,7 +314,7 @@ one operator apply, not two.
 |---|---|
 | `VITE_COGNITO_USER_POOL_ID` | SSM `/effy/dev/auth/shop/user_pool_id` |
 | `VITE_COGNITO_CLIENT_ID` | SSM `/effy/dev/auth/shop/app_client_id` |
-| `VITE_API_BASE_URL` | SSM `/effy/dev/edge/api_endpoint` (paths carry `/store/v1/...`) |
+| `VITE_API_BASE_URL` | SSM `/effy/dev/edge/api_endpoint` (paths carry `/shop/v1/...`) |
 | `VITE_POSTHOG_KEY` / `VITE_POSTHOG_HOST` | optional; absent → telemetry no-ops |
 
 `createConfig` fails fast on a missing required key (FR-017), rendering the configuration-error
@@ -322,16 +325,16 @@ page rather than silently pointing at the wrong pool.
 ## R8 — Telemetry (Principle VII declaration)
 
 **Product analytics + web error tracking — PostHog**, via `createTelemetry` from `web-kit`,
-with a `surface: "shop-web"` super-property on every event so store-audience events are
+with a `surface: "shop-web"` super-property on every event so shop-audience events are
 distinguishable from back-office events (FR-016). Typed event union, no PII beyond `subject`:
 
 `shop_auth_sign_in_started` · `shop_auth_otp_submitted` · `shop_auth_sign_in_succeeded` ·
 `shop_auth_sign_in_failed` · `shop_auth_signed_out` · `shop_manager_area_access_denied` ·
-`shop_store_assignment_missing`
+`shop_assignment_missing`
 
-**Metrics/alerts**: per-function CloudWatch alarms in `store/serverless.yml`, matching the
+**Metrics/alerts**: per-function CloudWatch alarms in `shop/serverless.yml`, matching the
 admin service's set — `Errors > 0` on both new functions, plus `Duration p95 > 5000ms` on
-`/store/v1/me` (the DB-touching read). The API-level 5xx alarm already exists in Terraform.
+`/shop/v1/me` (the DB-touching read). The API-level 5xx alarm already exists in Terraform.
 
 **No alerting on the console itself** this slice: it is local-only (FR-001), so there is no
 hosted surface to alert on.
@@ -342,8 +345,8 @@ hosted surface to alert on.
 
 Both directions are enforced by the gateway's per-pool JWT authorizers
 (`aws_apigatewayv2_authorizer.pool`, `for_each` over four pools, each pinned to one issuer +
-one client id). A back-office token presented to `/store/v1/me` fails `aud`/`iss` validation
-**at the authorizer**, returning 401 before any handler runs; a store token at `/admin/v1/me`
+one client id). A back-office token presented to `/shop/v1/me` fails `aud`/`iss` validation
+**at the authorizer**, returning 401 before any handler runs; a shop token at `/admin/v1/me`
 likewise.
 
 This is **structural, not code** — which means it cannot be unit-tested, and asserting it in
@@ -359,9 +362,9 @@ rather than assuming it.
 | # | Unknown | Resolution |
 |---|---|---|
 | R1 | Surface directory name | `apps/shop-web`; reconcile CLAUDE.md |
-| R2 | Store role model + origin | `store_manager`/`store_staff` as shop-pool groups; **constitution v1.5.0 amendment required** |
-| R3 | Store entity + data area | 4 tables in `public`; gate = role AND status AND store scope |
-| R4 | Backend home + routes | edge / store service; `/store/v1/me`, `/store/v1/manager-ping` |
+| R2 | Shop role model + origin | `shop_manager`/`shop_staff` as shop-pool groups; **constitution v1.5.0 amendment required** |
+| R3 | Shop entity + data area | 4 tables in `public`; gate = role AND status AND shop scope |
+| R4 | Backend home + routes | edge / shop service; `/shop/v1/me`, `/shop/v1/manager-ping` |
 | R5 | Shared-foundation reuse | extract `@effy/design-system/ui` + new `@effy/web-kit`; **corrects a spec assumption** |
 | R6 | Email claim source | nullable + operator-authoritative; verify token claims; 005 defect flagged |
 | R7 | Dev origin / CORS / config | `:5174`; gateway CORS updated in the same apply |

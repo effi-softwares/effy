@@ -22,7 +22,7 @@ Every route names its authorizer **by id from SSM**:
 
 | Route | Authorizer | SSM parameter |
 |---|---|---|
-| `/store/v1/*` (authenticated) | shop | `/effy/<env>/edge/authorizer/shop_id` |
+| `/shop/v1/*` (authenticated) | shop | `/effy/<env>/edge/authorizer/shop_id` |
 | `/admin/v1/*` | back-office | `/effy/<env>/edge/authorizer/back-office_id` |
 
 A token minted by the back-office pool fails `iss` **and** `aud` validation at the shop authorizer.
@@ -32,10 +32,10 @@ check to forget, and no auth proxy to misconfigure. The same holds in reverse.
 ## The contract
 
 1. A **shop** token presented to any `/admin/v1/*` route → `401`. Never `403`, never `200`.
-2. A **back-office** token presented to any authenticated `/store/v1/*` route → `401`.
+2. A **back-office** token presented to any authenticated `/shop/v1/*` route → `401`.
 3. Neither service ever forwards, brokers, exchanges, or introspects the other pool's token.
 4. Neither console ever presents its credential to a service of another audience. `shop-web`'s
-   `VITE_API_BASE_URL` + `/store/v1/...` paths make this structural on the client too.
+   `VITE_API_BASE_URL` + `/shop/v1/...` paths make this structural on the client too.
 5. The `401` body reveals nothing about the other audience's existence.
 
 ## Why this is not unit-tested
@@ -54,7 +54,7 @@ gateway that serves production traffic patterns.
 | Symptom | Likely cause |
 |---|---|
 | `403` instead of `401` on a cross-pool call | the route lost its authorizer and is falling through to a handler-level role check |
-| `200` on a cross-pool call | a route was attached with the **wrong** authorizer id (e.g. `back-office_id` on a `/store/` route) — the one mistake this design still permits |
+| `200` on a cross-pool call | a route was attached with the **wrong** authorizer id (e.g. `back-office_id` on a `/shop/` route) — the one mistake this design still permits |
 | `401` on a *same*-pool call | wrong `VITE_COGNITO_CLIENT_ID`, or the console sent an ID token where the audience expects the access token's `client_id` |
 
 The middle row is the reason `serverless.yml`'s authorizer references are reviewed as part of any

@@ -196,7 +196,7 @@ added alongside `theme` (research G6):
 ```
 uiStore: { theme: 'light'|'dark'; sidebarOpen: boolean }   // sidebarOpen drives SidebarProvider (controlled)
 ```
-- Only these client-UI concerns live in the store; **server state never does** (Principle VI). The
+- Only these client-UI concerns live in the shop; **server state never does** (Principle VI). The
   shadcn block's default cookie persistence is not used — the one sanctioned store owns it.
 
 ## 9. Theme + responsive scaling (Amendment D2 — FR-024/FR-025) — pure CSS, no new state

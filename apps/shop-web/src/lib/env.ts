@@ -23,7 +23,7 @@ export const config = {
   /** The SHOP pool — /effy/<env>/auth/shop/user_pool_id. Not back-office. */
   cognitoUserPoolId: (): string => cfg.require("VITE_COGNITO_USER_POOL_ID"),
   cognitoClientId: (): string => cfg.require("VITE_COGNITO_CLIENT_ID"),
-  /** The shared gateway host; paths carry /store/v1/... */
+  /** The shared gateway host; paths carry /shop/v1/... */
   apiBaseUrl: (): string => cfg.require("VITE_API_BASE_URL"),
   posthogKey: (): string | undefined => cfg.optional("VITE_POSTHOG_KEY"),
   posthogHost: (): string | undefined => cfg.optional("VITE_POSTHOG_HOST"),

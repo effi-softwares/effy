@@ -24,7 +24,8 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_
 
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         db-new db-status db-up db-down check-goose \
-        core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy \
+        core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        verify-naming \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
         shop-verify-isolation shop-verify-gate shop-token-claims \
@@ -65,6 +66,9 @@ fmt: ## Format all Terraform under infra/
 
 validate: ## Validate one env root (ENV=...); backend not required
 	cd $(ENV_DIR) && $(TF) init -backend=false -input=false > /dev/null && $(TF) validate
+
+verify-naming: ## One-name rule (008): fail on any retired audience token lacking a documented exclusion
+	@bash scripts/verify-no-store.sh
 
 lint: ## fmt-check + validate every root + tflint + trivy/checkov config scan
 	terraform fmt -check -recursive $(INFRA_DIR)
@@ -195,18 +199,25 @@ delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=d
 edge-install: ## Install the JS/TS workspace dependencies (pnpm)
 	@pnpm install
 
-edge-test: ## typecheck + vitest for every cold-path service (edge-shared + admin + store)
+edge-test: ## typecheck + vitest for every cold-path service (edge-shared + admin + shop)
 	@pnpm --filter "@effy/edge-*" run typecheck && pnpm --filter "@effy/edge-*" run test
 
-edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|store; needs the ef profile)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|store ENV=dev"; exit 1; }
+edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop; needs the ef profile)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|store ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|store ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop ENV=dev"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (attaches to the shared HTTP API, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose
+
+edge-remove: ## OPERATOR: tear down ONE cold-path service's CloudFormation stack (SERVICE=.. ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-remove SERVICE=admin|shop ENV=dev"; exit 1; }
+	@test -d "$(EDGE_DIR)" || { echo "edge-remove: no such service directory: $(EDGE_DIR)"; exit 1; }
+	@printf 'serverless REMOVE  →  service=%s stage=%s (DESTROYS the stack: lambdas, routes, alarms, deployment bucket)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing removed"; exit 1; }; \
+	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless remove --stage $(ENV) --verbose
 
 # --- back-office web (005): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on
 # :5173 against the live dev edge-api + admin Cognito pool. VITE_* config comes from
@@ -227,7 +238,7 @@ bo-test: ## back-office unit/component tests (vitest)
 
 # --- shop web (007): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on :5174
 # (an approved dev CORS origin — infra/envs/dev/edge-gateway.tf) against the live dev
-# store service + SHOP Cognito pool. VITE_* config comes from apps/shop-web/.env.local
+# shop service + SHOP Cognito pool. VITE_* config comes from apps/shop-web/.env.local
 # (git-ignored) per specs/007-shop-web/contracts/config.contract.md.
 SHOP_DIR := apps/shop-web
 
@@ -243,7 +254,7 @@ shop-lint: ## shop-web typecheck (tsc --noEmit)
 shop-test: ## shop-web unit/component tests (vitest)
 	@pnpm --filter @effy/shop-web test
 
-# --- store slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
+# --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted
 # here and run against the real gateway. See specs/007-shop-web/research.md R9.
 shop-verify-isolation: ## OPERATOR: SC-004 cross-pool isolation, both directions (SHOP_TOKEN=.. BO_TOKEN=..)

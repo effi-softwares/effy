@@ -18,24 +18,24 @@ import { meQuery } from "./queries";
 /**
  * US2 — the record-backed identity read.
  *
- * Proves the whole vertical: client → store backend → identity/role enforcement → platform record
+ * Proves the whole vertical: client → shop backend → identity/role enforcement → platform record
  * → back. Two states here are NOT failures and must not read like them:
  *   • role-less        — recorded, but granted nothing yet
- *   • no store assigned — expected, because the JIT upsert meets an operator before their store
- *                         is known; the operator assigns it out of band
+ *   • no shop assigned — expected, because the JIT upsert meets an operator before their shop
+ *                        is known; the operator assigns it out of band
  */
 export function ProvingScreen() {
   const { data, error, isPending, isError, refetch } = useQuery(meQuery);
 
-  const unassigned = data ? data.store === null : false;
+  const unassigned = data ? data.shop === null : false;
   useEffect(() => {
-    if (unassigned) track({ name: "shop_store_assignment_missing" });
+    if (unassigned) track({ name: "shop_assignment_missing" });
   }, [unassigned]);
 
   return (
     <Card className="max-w-md">
       <CardHeader>
-        <CardTitle>Your store record</CardTitle>
+        <CardTitle>Your shop record</CardTitle>
         <CardDescription>
           The platform's own record of you — proves this console reaches the backend as you.
         </CardDescription>
@@ -53,21 +53,21 @@ export function ProvingScreen() {
               <Row label="Roles" value={data.roles.length > 0 ? data.roles.join(", ") : "—"} />
               <Row label="Status" value={data.status} />
               <Row
-                label="Store"
-                value={data.store ? `${data.store.name} (${data.store.code})` : "—"}
+                label="Shop"
+                value={data.shop ? `${data.shop.name} (${data.shop.code})` : "—"}
               />
             </dl>
 
             {data.roles.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                You're recorded, but no store roles are assigned yet. Ask your manager to grant
+                You're recorded, but no shop roles are assigned yet. Ask your manager to grant
                 access.
               </p>
             ) : null}
 
-            {data.store === null ? (
+            {data.shop === null ? (
               <p className="text-sm text-muted-foreground">
-                You're not assigned to a store yet, so nothing is available here. Ask your manager
+                You're not assigned to a shop yet, so nothing is available here. Ask your manager
                 to assign you.
               </p>
             ) : null}

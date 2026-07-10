@@ -3,30 +3,30 @@ import { describe, expect, it } from "vitest";
 
 import { currentSection, visibleNav, type NavItem } from "./nav";
 
-type Role = "store_manager" | "store_staff";
+type Role = "shop_manager" | "shop_staff";
 
 const icon = Shield as LucideIcon;
 const NAV: NavItem<Role>[] = [
   { label: "Dashboard", to: "/", icon },
-  { label: "Management", to: "/manager", icon, requiredRole: "store_manager" },
+  { label: "Management", to: "/manager", icon, requiredRole: "shop_manager" },
 ];
 
 // Role-aware nav reflects the authoritative backend gate. Hiding a link is a courtesy, not a
 // guard — the backend refuses the same request regardless (FR-007).
 describe("visibleNav", () => {
   it("always shows the ungated item", () => {
-    for (const roles of [["store_manager"], ["store_staff"], []] as Role[][]) {
+    for (const roles of [["shop_manager"], ["shop_staff"], []] as Role[][]) {
       expect(visibleNav(NAV, roles).map((i) => i.to)).toContain("/");
     }
   });
 
   it("shows the gated item only to the role that requires it", () => {
-    expect(visibleNav(NAV, ["store_manager"]).map((i) => i.to)).toContain("/manager");
-    expect(visibleNav(NAV, ["store_staff", "store_manager"]).map((i) => i.to)).toContain("/manager");
+    expect(visibleNav(NAV, ["shop_manager"]).map((i) => i.to)).toContain("/manager");
+    expect(visibleNav(NAV, ["shop_staff", "shop_manager"]).map((i) => i.to)).toContain("/manager");
   });
 
   it("hides the gated item from a lower-privilege or role-less operator", () => {
-    expect(visibleNav(NAV, ["store_staff"]).map((i) => i.to)).not.toContain("/manager");
+    expect(visibleNav(NAV, ["shop_staff"]).map((i) => i.to)).not.toContain("/manager");
     expect(visibleNav(NAV, []).map((i) => i.to)).not.toContain("/manager");
   });
 });

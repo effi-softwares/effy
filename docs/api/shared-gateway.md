@@ -57,12 +57,12 @@ functions:
 | `GET /admin/v1/ping` | admin | back-office | 004 |
 | `GET /admin/v1/me` | admin | back-office | 005 |
 | `GET /admin/v1/admin-ping` | admin | back-office | 005 |
-| `GET /store/healthz` | store | — (public) | 004 |
-| `GET /store/v1/status` | store | — (public) | 004 |
-| `GET /store/v2/status` | store | — (public) | 004 |
-| `GET /store/v1/ping` | store | shop | 004 |
-| `GET /store/v1/me` | store | shop | **007** |
-| `GET /store/v1/manager-ping` | store | shop | **007** |
+| `GET /shop/healthz` | shop | — (public) | 004 |
+| `GET /shop/v1/status` | shop | — (public) | 004 |
+| `GET /shop/v2/status` | shop | — (public) | 004 |
+| `GET /shop/v1/ping` | shop | shop | 004 |
+| `GET /shop/v1/me` | shop | shop | **007** |
+| `GET /shop/v1/manager-ping` | shop | shop | **007** |
 
 Adding a route to an existing version is **additive** (`versioning-policy.md` rule 3) and needs no
 Terraform change — unless it introduces a new pool, which would need a new authorizer.

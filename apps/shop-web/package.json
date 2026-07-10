@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy shop web — the store operator console (007-shop-web). Vite + React 19 SPA on the shop Cognito pool; local-only this slice. Web half of the store audience; kept at parity with apps/shop-mobile.",
+  "description": "Effy shop web — the shop operator console (007-shop-web). Vite + React 19 SPA on the shop Cognito pool; local-only this slice. Web half of the shop audience; kept at parity with apps/shop-mobile.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

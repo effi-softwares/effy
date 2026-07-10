@@ -2,14 +2,14 @@ import { queryOptions } from "@tanstack/react-query";
 
 import { loadManagerPing, loadMe } from "./repo";
 
-// Server-state cache = source of truth. The `store` key prefix lets sign-out drop every store read
+// Server-state cache = source of truth. The `shop` key prefix lets sign-out drop every shop read
 // at once (see useSignOut).
 export const meQuery = queryOptions({
-  queryKey: ["store", "me"] as const,
+  queryKey: ["shop", "me"] as const,
   queryFn: loadMe,
 });
 
 export const managerPingQuery = queryOptions({
-  queryKey: ["store", "manager-ping"] as const,
+  queryKey: ["shop", "manager-ping"] as const,
   queryFn: loadManagerPing,
 });

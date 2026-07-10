@@ -9,7 +9,7 @@
 # Cognito's internal username is widely reported to be a generated UUID, and a Cognito ACCESS token
 # carries no `email` claim at all. We refused to guess that behaviour inside a migration, so:
 #
-#   • 007 made public.store_staff.email nullable, resolved it only when the token really carries an
+#   • 007 made public.shop_staff.email nullable, resolved it only when the token really carries an
 #     address, and made the operator provisioning step authoritative.
 #   • 005's /admin/v1/me does `claim("username") ?? sub` — if `username` is a UUID, admin.staff.email
 #     is storing UUIDs today. Recorded at the tail of specs/005-back-office-web/plan.md.

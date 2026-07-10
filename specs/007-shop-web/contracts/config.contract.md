@@ -14,7 +14,7 @@ environment or, worse, the **wrong identity pool**.
 |---|---|---|
 | `VITE_COGNITO_USER_POOL_ID` | `/effy/<env>/auth/shop/user_pool_id` | **shop** pool — not `back-office` |
 | `VITE_COGNITO_CLIENT_ID` | `/effy/<env>/auth/shop/app_client_id` | public PKCE client, no secret |
-| `VITE_API_BASE_URL` | `/effy/<env>/edge/api_endpoint` | shared gateway host; paths carry `/store/v1/...` |
+| `VITE_API_BASE_URL` | `/effy/<env>/edge/api_endpoint` | shared gateway host; paths carry `/shop/v1/...` |
 
 Note the SSM slug is **un-hyphenated `shop`**, unlike the back-office console's `back-office`. This
 asymmetry is pre-existing (`infra/envs/dev/auth-shop.tf` passes `audience = "shop"`).
@@ -33,7 +33,7 @@ asymmetry is pre-existing (`infra/envs/dev/auth-shop.tf` passes `audience = "sho
 configuration-error page.
 
 > **The failure mode this guards against**: pasting the back-office pool id into `shop-web`'s
-> `.env.local`. Sign-in would *succeed*, and every `/store/v1/*` call would then return `401` from
+> `.env.local`. Sign-in would *succeed*, and every `/shop/v1/*` call would then return `401` from
 > the shop authorizer — a confusing, hard-to-attribute failure. Config is checked for presence, not
 > for correctness; the isolation contract is what catches the mix-up, loudly.
 
@@ -60,7 +60,7 @@ attaching to an external HTTP API cannot configure it (A3). This ships in the **
 # Copy to .env.local and fill from the 001/004 SSM contract. NEVER commit real values.
 VITE_COGNITO_USER_POOL_ID=   # ssm /effy/dev/auth/shop/user_pool_id
 VITE_COGNITO_CLIENT_ID=      # ssm /effy/dev/auth/shop/app_client_id
-VITE_API_BASE_URL=           # ssm /effy/dev/edge/api_endpoint   (paths carry /store/v1/...)
+VITE_API_BASE_URL=           # ssm /effy/dev/edge/api_endpoint   (paths carry /shop/v1/...)
 # Optional telemetry — degrades to a no-op when absent.
 VITE_POSTHOG_KEY=
 VITE_POSTHOG_HOST=

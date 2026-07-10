@@ -55,8 +55,8 @@ endpoint is placed twice:
 1. **Path** — latency-critical (core-api) vs cost-optimized (edge) — the rules above.
 2. **Service** — for a cost-optimized endpoint, which domain service owns it, by audience/domain:
    - **admin** — back-office/administrative staff work (back-office pool). e.g. `/admin/v1/me`.
-   - **store** — store/operator work (shop pool) + the public platform-status/version demo.
-     e.g. `/store/v1/me`, `/store/v1/manager-ping` (007 — the shop-web console; rule 2: an internal
+      - **shop** — shop/operator work (shop pool) + the public platform-status/version demo.
+     e.g. `/shop/v1/me`, `/shop/v1/manager-ping` (007 — the shop-web console; rule 2: an internal
      operator console, latency-tolerant and low-frequency, cold starts acceptable).
    - a new domain → a new `apis/edge-api/<service>/` (it attaches to the shared gateway; no
      gateway change unless it introduces a new pool).

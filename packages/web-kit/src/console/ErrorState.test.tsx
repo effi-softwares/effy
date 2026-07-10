@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { ErrorState } from "./ErrorState";
 
 function domainError(kind: DomainError["kind"], status: number): DomainError {
-  return { kind, status, title: "t", detail: "SELECT * FROM public.store_staff failed" };
+  return { kind, status, title: "t", detail: "SELECT * FROM public.shop_staff failed" };
 }
 
 describe("ErrorState", () => {
@@ -33,7 +33,7 @@ describe("ErrorState", () => {
   // The whole point of the contract: internal detail never reaches the DOM.
   it("never renders the problem detail, status code, or any internal string", () => {
     const { container } = render(<ErrorState error={domainError("unavailable", 503)} />);
-    expect(container.textContent).not.toMatch(/SELECT|store_staff|503/);
+    expect(container.textContent).not.toMatch(/SELECT|shop_staff|503/);
   });
 
   it("treats a non-DomainError throw as a generic failure rather than crashing", () => {

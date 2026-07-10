@@ -5,19 +5,19 @@ it **spec-first** using **GitHub Spec Kit**. Read this before doing anything.
 
 ## What Effy is (the product model)
 - Customers buy from **one brand: "Effy."** There is no marketplace of named storefronts.
-- **Stores are hidden internal fulfillment nodes** (dark-store-like). Customers never see or pick a
-  store — the platform decides fulfillment behind the scenes.
+- **Shops are hidden internal fulfillment nodes** (dark-store-like). Customers never see or pick a
+  shop — the platform decides fulfillment behind the scenes.
 - **Drivers and back-office staff are Effy employees**, working in internal apps (no public signup).
-- Four audiences, each with its own trust level: **customer, driver, store/operator, admin/back-office.**
+- Four audiences, each with its own trust level: **customer, driver, shop/operator, admin/back-office.**
 
 ## Platform shape (the vision)
 The full platform is **six client surfaces + two backends + DB migrations + infrastructure**. The
-customer and store audiences each get **two surfaces kept at parity** (a native mobile build and a
+customer and shop audiences each get **two surfaces kept at parity** (a native mobile build and a
 native web build).
 
 - **Mobile (3):** `customer` / `driver` / `shop` — Kotlin Multiplatform + Compose Multiplatform
   (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito).
-- **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `shop-web` (Vite SPA, store
+- **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `shop-web` (Vite SPA, shop
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
   client state via TanStack Store (no Zustand; constitution v1.4.0), AWS Amplify.
@@ -101,11 +101,11 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
    gets scaffolded.
 
 ## Auth
-AWS Cognito, **four isolated pools**: customer / driver / store / admin. **All four pools use
-passwordless EMAIL_OTP** (no passwords anywhere). Driver / store / admin are admin-provisioned (no
+AWS Cognito, **four isolated pools**: customer / driver / shop / admin. **All four pools use
+passwordless EMAIL_OTP** (no passwords anywhere). Driver / shop / admin are admin-provisioned (no
 self-signup). **Pools MAY define RBAC groups** surfaced via the `cognito:groups` JWT claim: the
-admin pool defines `admin` / `manager` / `csa`; the store pool defines `store_manager` /
-`store_staff`; customer and driver define none. The claim is the **origin of role assignment**;
+admin pool defines `admin` / `manager` / `csa`; the shop pool defines `shop_manager` /
+`shop_staff`; customer and driver define none. The claim is the **origin of role assignment**;
 where a platform staff record exists it is **authoritative for the access decision** (role, status,
 scope). Frontends authenticate against Cognito directly via Amplify; backends
 validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a token issued for one
@@ -123,7 +123,7 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
 `com.effyshopping.<app>.mobile`:
 - `apps/customer-mobile` — `com.effyshopping.customer.mobile` — the customer shopping app.
 - `apps/driver-mobile` — `com.effyshopping.driver.mobile` — the driver delivery app.
-- `apps/shop-mobile` — `com.effyshopping.shop.mobile` — the store-operator app (the "store" audience;
+- `apps/shop-mobile` — `com.effyshopping.shop.mobile` — the shop-operator app (the "shop" audience;
   the mobile app is named `shop`).
 
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
@@ -132,7 +132,7 @@ compileSdk + targetSdk 36**. All three are currently the base KMP template (comm
 
 ## Current status
 Built so far: the **infrastructure** (four Cognito pools, dev DB, shared HTTP gateway), the
-**migration workflow**, the **cold path** (`apis/edge-api/{shared,admin,store}`), and **two web
+**migration workflow**, the **cold path** (`apis/edge-api/{shared,admin,shop}`), and **two web
 surfaces** — `apps/back-office` (005) and `apps/shop-web` (007) — on the shared packages
 `@effy/{design-system,shared-types,api-client,web-kit}`. The **three KMP mobile apps remain the base
 template**; `customer-web`, the hot path's product features, and the event backbone are still the
@@ -144,10 +144,10 @@ pattern scales.
 
 **007-shop-web** — Shop Web Foundation (Bootstrap). **Code-complete + verified; operator run pending.**
 The platform's **second web surface**: `apps/shop-web` (`@effy/shop-web`, Vite + React 19 SPA on
-:5174), the store operator console. Same stack as the back-office console, **shop** Cognito pool,
-and the store audience's **first RBAC model**.
+:5174), the shop operator console. Same stack as the back-office console, **shop** Cognito pool,
+and the shop audience's **first RBAC model**.
 - **Constitution amended → v1.5.0**: Principle IV generalized from "the admin pool defines RBAC
-  groups" to "pools MAY define RBAC groups"; the **shop pool gains `store_manager` / `store_staff`**.
+  groups" to "pools MAY define RBAC groups"; the **shop pool gains `shop_manager` / `shop_staff`**.
   The claim is the *origin* of role assignment; the platform record is *authoritative for the access
   decision*.
 - **Shared-foundation extraction** (the slice's core work, Principle II): the reusable half of the
@@ -158,17 +158,17 @@ and the store audience's **first RBAC model**.
   all generic over the surface's role union). `back-office` was refactored onto both and stayed
   **20/20 green**. **`@effy/api-client` needed no change at all** — the cleanest evidence the
   foundation was already audience-neutral (SC-009).
-- **Data**: the platform's **first `public`-schema tables** — `store`, `store_staff`, `store_role`,
-  `store_staff_role` (migration `20260710050004`). `store_staff.email` and `.store_id` are nullable
-  by design; **status and store assignment are platform-owned and never written from token data**.
-  **No store-creation path ships** (FR-019, revised 2026-07-10): no interface, no command, no seed
-  file. `public.store` is created empty and stays empty until **back-office store management** — the
-  **next slice** — fills it, so no store row ever exists that the product did not create.
-- **Backend** (`apis/edge-api/store`, restructured to nested domains `staff/` + `status/`):
-  `GET /store/v1/me` (record-backed identity read + idempotent JIT upsert) and
-  `GET /store/v1/manager-ping` (**gate = role AND status AND store scope**, one SQL predicate,
+- **Data**: the platform's **first `public`-schema tables** — `shop`, `shop_staff`, `shop_role`,
+  `shop_staff_role` (migration `20260710050004`). `shop_staff.email` and `.shop_id` are nullable
+  by design; **status and shop assignment are platform-owned and never written from token data**.
+  **No shop-creation path ships** (FR-019, revised 2026-07-10): no interface, no command, no seed
+  file. `public.shop` is created empty and stays empty until **back-office shop management** — the
+  **next slice** — fills it, so no shop row ever exists that the product did not create.
+- **Backend** (`apis/edge-api/shop`, restructured to nested domains `staff/` + `status/`):
+  `GET /shop/v1/me` (record-backed identity read + idempotent JIT upsert) and
+  `GET /shop/v1/manager-ping` (**gate = role AND status AND shop scope**, one SQL predicate,
   fail-closed, uniform 403 that never discloses which term failed).
-- **Parity**: [docs/audiences/store-capabilities.md](docs/audiences/store-capabilities.md) is the
+- **Parity**: [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) is the
   single register binding `shop-web` ↔ `shop-mobile`; the mobile column is **outstanding by design**
   (building it is its own slice).
 - Spec/plan/artifacts: [specs/007-shop-web/](specs/007-shop-web/).
@@ -176,20 +176,20 @@ and the store audience's **first RBAC model**.
   `make shop-verify-isolation` (SC-004, gateway authorizers), `make shop-verify-gate` (SC-005/005a,
   a SQL join), `make shop-token-claims` (research R6).
 - Status: **code-complete** — `pnpm typecheck` + `pnpm test` green across the workspace (**159
-  tests**: edge-shared 26, edge-admin 7, edge-store 39, web-kit 38, back-office 20, shop-web 29);
+  tests**: edge-shared 26, edge-admin 7, edge-shop 39, web-kit 38, back-office 20, shop-web 29);
   `terraform validate` + `fmt` clean; shellcheck clean; secret/PII sweep clean. **Open (operator)**:
   **T009** (`make apply ENV=dev` — 2 Cognito groups + the `:5174` CORS origin; *abort if the pool
   would be replaced*), **T012** (commit the migration, then `make db-up ENV=dev`), **T034**
-  (provision three shop accounts in Cognito + sign in), **T041** (`make edge-deploy SERVICE=store
+  (provision three shop accounts in Cognito + sign in), **T041** (`make edge-deploy SERVICE=shop
   ENV=dev`), **T045** (`make shop-verify-isolation` — expect `200 200 401 401`), **T054**/**T060**
   (`make shop-verify-gate` — the gate's negative half), **T068** (`make shop-token-claims` → settle
   research R6), **T070** (partial SC sign-off).
   Runbook: [quickstart](specs/007-shop-web/quickstart.md).
-- **Sign-off is partial by design.** **SC-005b** (a manager *served* at an active store; refused once
-  it is deactivated) and **SC-012** (a *disabled* operator refused) need store data only the
-  back-office store-management slice can create. All three gate terms are implemented + unit-tested
-  here; the role and store-scope terms are additionally proven **live** (an unassigned
-  `store_manager` is refused despite a valid claim — FR-021 in one line).
+- **Sign-off is partial by design.** **SC-005b** (a manager *served* at an active shop; refused once
+  it is deactivated) and **SC-012** (a *disabled* operator refused) need shop data only the
+  back-office shop-management slice can create. All three gate terms are implemented + unit-tested
+  here; the role and shop-scope terms are additionally proven **live** (an unassigned
+  `shop_manager` is refused despite a valid claim — FR-021 in one line).
 - **Raised, not fixed**: `/admin/v1/me` (005) resolves email as `claim("username") ?? sub` and may be
   storing UUIDs in `admin.staff.email`. Recorded at the tail of
   [specs/005-back-office-web/plan.md](specs/005-back-office-web/plan.md); 007 deliberately does not
@@ -215,15 +215,15 @@ Cognito SDK + pgx, **zero new deps**.
 
 **004-backend-bootstrap — A3 cold-path decomposition** (**implemented + live in dev**). The cost-optimized path is now a family of **independently deployable domain services
 behind ONE shared HTTP API**, and the backends live under **`apis/`**:
-- `apis/core-api` (hot path — Go, local Docker only) + `apis/edge-api/{shared,admin,store}`. The
+- `apis/core-api` (hot path — Go, local Docker only) + `apis/edge-api/{shared,admin,shop}`. The
   shared library graduated to **`@effy/edge-shared`** (Principle II single-source); `admin`
-  (back-office pool) and `store` (shop pool) each **attach to a Terraform-owned shared HTTP API**
+  (back-office pool) and `shop` (shop pool) each **attach to a Terraform-owned shared HTTP API**
   (`infra/envs/dev/edge-gateway.tf`) via `provider.httpApi.id` and reference the four per-pool JWT
   authorizers **by id** from SSM (`/effy/<env>/edge/{http_api_id,api_endpoint,authorizer/*}`). Path
-  scheme **`/<service>/v1/...`** (e.g. `/admin/v1/me`, `/store/v2/status`). Adding a service = a new
+  scheme **`/<service>/v1/...`** (e.g. `/admin/v1/me`, `/shop/v2/status`). Adding a service = a new
   `apis/edge-api/<name>/` that attaches to the gateway — deploy-independent.
 - Spec + plan revised **in place** (amendment **A3**, research **Part F**, `contracts/shared-gateway.contract.md`);
-  tasks **Phase 9 (T049–T059)**. Status: **deployed to dev** — gateway applied, `admin`+`store`
+  tasks **Phase 9 (T049–T059)**. Status: **deployed to dev** — gateway applied, `admin`+`shop`
   live, old `effy-edge-api` stack removed. `turbo` **14/14**, core-api Go build+tests, `terraform
   validate`, hygiene sweep — all green. Committed (`aacd7c5`).
 
@@ -291,5 +291,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/007-shop-web/plan.md
+at specs/008-shop-naming-unification/plan.md
 <!-- SPECKIT END -->

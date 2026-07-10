@@ -14,7 +14,7 @@ self-signup enabled only for customers. Four environment roots are authored (`de
 per-environment variable so a later move to `ap-southeast-2` is a config change. A root `Makefile`
 exposes `init` / `plan` / `apply` (and friends) per environment, every target run under
 `AWS_PROFILE=ef`. **Claude authors all code; the operator runs every `init`/`apply` by hand** — nothing
-is applied automatically. Pool ids and app-client ids are published to **SSM Parameter Store** as the
+is applied automatically. Pool ids and app-client ids are published to **SSM Parameter Shop** as the
 infra↔app contract for later slices.
 
 **Technical approach** (all decisions detailed in [research.md](./research.md)):
@@ -42,7 +42,7 @@ provider `hashicorp/aws ~> 6.0` (≥ 6.0 — `user_pool_tier` + `sign_in_policy`
 only, per ARCHITECTURE.md ("modules never call other modules; composition happens in env roots").
 
 **Storage**: Terraform remote state in **S3** (versioned, SSE, public-access-blocked, TLS-enforced),
-locked via the S3-native lockfile. Runtime app↔infra contract values written to **SSM Parameter Store**.
+locked via the S3-native lockfile. Runtime app↔infra contract values written to **SSM Parameter Shop**.
 
 **Testing**: `terraform fmt -check`, `terraform validate`, and `terraform plan` per env (the plan is the
 contract preview). `tflint` + `checkov`/`trivy` static checks via a `make lint` target. No live apply by
@@ -75,7 +75,7 @@ roots. Per env: 4 user pools + their app clients + SSM parameters. Initial live 
 | Principle | Gate | Status |
 |---|---|---|
 | **I. Spec-Driven Development** | spec.md committed; this plan cites the constitution; tasks come next; gaps go back to the artifact | ✅ spec.md exists; plan derived from it. |
-| **II. Monorepo + Shared Contracts** | Infra lives in the one monorepo; the app↔infra contract is single-sourced | ✅ `infra/` subtree; **SSM Parameter Store** is the single source of pool ids/ARNs for later slices. No copy-paste. |
+| **II. Monorepo + Shared Contracts** | Infra lives in the one monorepo; the app↔infra contract is single-sourced | ✅ `infra/` subtree; **SSM Parameter Shop** is the single source of pool ids/ARNs for later slices. No copy-paste. |
 | **III. Dual-Path Backend** | Plan declares which backend path(s) it targets | ✅ **N/A — neither path.** This slice provisions infrastructure only; no hot- or cold-path code. Explicitly recorded so the gate is satisfied, not skipped. |
 | **IV. Auth Isolation** | 4 isolated pools, passwordless EMAIL_OTP, customer-only self-signup, back-office RBAC groups, no auth proxy | ✅ **Core of this slice.** Four independent `aws_cognito_user_pool` instances; EMAIL_OTP via Essentials tier; self-signup only on customer; `admin`/`manager`/`csa` groups on back-office. Per-pool JWT validation is a later backend slice (noted, not built here). |
 | **V. Native-Feel, Consistent Design** | Design-system usage | ✅ **N/A** — no UI in this slice. |

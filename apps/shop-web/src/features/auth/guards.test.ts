@@ -21,7 +21,7 @@ describe("requireSession (shop-web)", () => {
     const identity = {
       subject: "sub-1",
       email: "sam@effy.test",
-      roles: ["store_manager" as const],
+      roles: ["shop_manager" as const],
     };
     const result = await requireSession(fakeQueryClient({ status: "signed-in", identity }), "/");
     expect(result).toEqual(identity);

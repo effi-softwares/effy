@@ -36,7 +36,7 @@ describe("ManagerOnlyScreen", () => {
     });
     const { container } = wrap(<ManagerOnlyScreen />);
 
-    expect(await screen.findByText(/can't reach store management/i)).toBeInTheDocument();
+    expect(await screen.findByText(/can't reach shop management/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
     expect(container.textContent).not.toMatch(/served this manager-only read|the record says disabled/);
   });
@@ -48,7 +48,7 @@ describe("ManagerOnlyScreen", () => {
     });
     wrap(<ManagerOnlyScreen />);
 
-    expect(await screen.findByText(/can't reach store management/i)).toBeInTheDocument();
+    expect(await screen.findByText(/can't reach shop management/i)).toBeInTheDocument();
     const denials = track.mock.calls.filter(
       (c) => (c[0] as { name: string }).name === "shop_manager_area_access_denied",
     );
@@ -63,6 +63,6 @@ describe("ManagerOnlyScreen", () => {
 
     expect(await screen.findByText(/service unavailable/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
-    expect(screen.queryByText(/can't reach store management/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/can't reach shop management/i)).not.toBeInTheDocument();
   });
 });

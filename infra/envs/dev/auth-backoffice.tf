@@ -16,7 +16,7 @@ module "back_office_pool" {
 
   groups = [
     { name = "admin", description = "Full administrative access across the back office." },
-    { name = "manager", description = "Operational management: catalog, stores, fulfillment oversight." },
+    { name = "manager", description = "Operational management: catalog, shops, fulfillment oversight." },
     { name = "csa", description = "Customer service agent: order lookup and customer support actions." },
   ]
 }

@@ -34,11 +34,11 @@ check() { # label path token expected
 echo "cross-pool isolation → ${API}"
 echo
 echo "same-pool (must be served):"
-check "shop token  → /store/v1/me"   "/store/v1/me"  "$SHOP_TOKEN" 200
+check "shop token  → /shop/v1/me"   "/shop/v1/me"  "$SHOP_TOKEN" 200
 check "bo token    → /admin/v1/me"   "/admin/v1/me"  "$BO_TOKEN"   200
 echo
 echo "cross-pool (must be refused at the authorizer):"
-check "bo token    → /store/v1/me"   "/store/v1/me"  "$BO_TOKEN"   401
+check "bo token    → /shop/v1/me"   "/shop/v1/me"  "$BO_TOKEN"   401
 check "shop token  → /admin/v1/me"   "/admin/v1/me"  "$SHOP_TOKEN" 401
 echo
 
