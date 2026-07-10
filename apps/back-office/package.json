@@ -16,6 +16,7 @@
     "@effy/api-client": "workspace:*",
     "@effy/design-system": "workspace:*",
     "@effy/shared-types": "workspace:*",
+    "@effy/web-kit": "workspace:*",
     "@tanstack/react-form": "^1.33.0",
     "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-query": "^5.101.2",

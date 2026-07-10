@@ -27,38 +27,43 @@ src/
 │   ├── __root.tsx      #   providers shell + dev-only unified TanStack DevTools + RouterContext type
 │   ├── auth.tsx        #   PUBLIC: /auth/sign-in (captures ?next)
 │   └── app.tsx         #   PROTECTED layout: beforeLoad → requireSession; renders the dashboard shell
-├── components/layout/  # dashboard shell CHROME (sidebar-07; app shell, NOT a feature slice):
-│   ├── AppSidebar.tsx  #   brand mark + NavMain + NavUser (footer)
-│   ├── NavMain.tsx     #   primary nav from the role-aware model (nav.ts) — reflects the auth gate
-│   ├── NavUser.tsx     #   sidebar-footer menu: verified identity, sign-out, theme toggle
-│   ├── AppHeader.tsx   #   inset header: SidebarTrigger + route breadcrumb
-│   └── nav.ts          #   the typed nav model + visibleNav(roles) role filter
+├── components/layout/  # dashboard shell CONFIG (the shell itself is @effy/web-kit/console):
+│   └── nav.ts          #   THIS surface's nav items + which role each requires
 ├── features/<domain>/  # the core unit — one folder per domain:
 │   ├── repo.ts         #   API calls via @effy/api-client + DTO↔domain mapping (wire never leaks up)
 │   ├── queries.ts      #   server-state hooks (queryOptions/mutations) + query keys
 │   ├── model.ts        #   domain types / state machine (optional; may live in shared-types)
 │   └── <Screen>.tsx    #   the screen(s)
-├── lib/                # app wiring (no DI framework — composed by hand):
-│   ├── env.ts          #   VITE_* config + assertConfig (fail-fast)
-│   ├── amplify.ts      #   Amplify → existing admin pool
-│   ├── auth-session.ts #   access token + cognito:groups from the session
+├── lib/                # THIN wiring over @effy/web-kit (no DI framework — composed by hand):
+│   ├── env.ts          #   which VITE_* keys this surface needs, and which pool it points at
+│   ├── amplify.ts      #   the back-office pool id → kit's configureAmplify
+│   ├── auth-session.ts #   kit's token accessors + narrowing cognito:groups to BackOfficeRole
 │   ├── api.ts          #   the one ApiClient (baseUrl + token provider)
-│   ├── query-client.ts #   the one QueryClient
-│   ├── ui-store.ts     #   TanStack Store — GENUINE CLIENT STATE ONLY (theme, palette, hotkeys)
-│   ├── telemetry.ts    #   PostHog seam (typed events, no PII beyond subject; no-op if unconfigured)
+│   ├── query-client.ts #   re-export of the kit's QueryClient factory
+│   ├── ui-store.ts     #   kit's client store, namespaced `effy.*` (theme, sidebar, palette)
+│   ├── telemetry.ts    #   THIS surface's typed event union over the kit's PostHog seam
 │   └── utils.ts        #   re-exports cn from @effy/design-system (for shadcn's generated imports)
-└── components/ui/      # shadcn components (themed FROM @effy/design-system tokens)
 ```
+
+**Almost none of the machinery is here.** The runtime (config, Amplify, the EMAIL_OTP flow, the
+session guard, the query client, telemetry, the client store) and the console chrome (shell,
+sidebar, header, user menu, sign-in card, `ErrorState`) live in
+[`@effy/web-kit`](../../packages/web-kit/); the shadcn primitives live in `@effy/design-system/ui`.
+This app supplies its brand, its nav, its role union, its feature slices, and its analytics
+taxonomy — nothing else. Its sibling, [`apps/shop-web`](../shop-web/), supplies the same set and
+nothing else either. That symmetry is the point (constitution Principle II).
 
 **Rules that keep this predictable** (constitution Principle VI):
 - **Server-state cache is the source of truth.** Never hand-cache server data in component state.
   Genuine client-only state (theme, command palette, sidebar collapse) goes in `lib/ui-store.ts`,
   nothing else — the dashboard shell drives `SidebarProvider` from `ui-store.sidebarOpen` (controlled),
   never the shadcn block's cookie.
-- **Dashboard chrome lives in `components/layout/`, not `features/`.** It is app shell, shared across
-  every screen. To add a nav destination: add a `NavItem` to `components/layout/nav.ts` (set
-  `requiredRole` to role-gate it — it's filtered by the same predicate as the route guard), then add
-  its route. shadcn primitives stay in `components/ui/` and theme from `@effy/design-system`.
+- **Dashboard chrome is `<ConsoleShell>` from `@effy/web-kit/console`**, not a feature slice and no
+  longer app-local. To add a nav destination: add a `NavItem` to `components/layout/nav.ts` (set
+  `requiredRole` to role-gate it — filtered by the same predicate as the route guard), then add its
+  route. A hidden nav item is **not** a gate: add the matching backend check too.
+- **If you are about to copy a file from `apps/shop-web`, it belongs in a package instead**,
+  parameterized. Copy-paste of cross-cutting logic across surfaces is prohibited (Principle II).
 - **DTOs are mapped to domain models in `repo.ts`** and never leak past it into screens.
 - **The access token** goes to the backend, never the ID token.
 - Brand tokens live once in `@effy/design-system` — **never hardcode `#0FB57E`** here.

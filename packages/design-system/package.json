@@ -3,9 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy web design system — the brand SSOT (Jade #0FB57E / fill #047857) + Tailwind v4 theme tokens + dark mode + cn util (constitution Principle V). Internal package: exports TS source + tokens.css.",
+  "description": "Effy web design system — the brand SSOT (Jade #0FB57E / fill #047857) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
+    "./ui": "./src/ui/index.ts",
+    "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./tokens.css": "./src/tokens.css",
     "./scale.css": "./src/scale.css"
   },
@@ -16,10 +18,21 @@
     "test": "echo \"no tests\" && exit 0"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
+    "radix-ui": "^1.6.2",
     "tailwind-merge": "^2.5.5"
   },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
   "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "typescript": "~5.9.2"
   }
 }

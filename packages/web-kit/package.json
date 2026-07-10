@@ -1,0 +1,52 @@
+{
+  "name": "@effy/web-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy shared web runtime + console chrome — config, Amplify wiring, the passwordless EMAIL_OTP flow, session guard, server-state client, telemetry, client store, and the SPA shell. Audience-neutral: every web surface consumes it, none re-implements it (constitution Principle II). Exports TS source.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./console": "./src/console/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@effy/api-client": "workspace:*",
+    "@effy/design-system": "workspace:*",
+    "@effy/shared-types": "workspace:*"
+  },
+  "peerDependencies": {
+    "@tanstack/react-form": "^1.33.0",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.0",
+    "@tanstack/react-store": "^0.11.0",
+    "aws-amplify": "^6.18.0",
+    "lucide-react": "^0.468.0",
+    "posthog-js": "^1.200.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-form": "^1.33.0",
+    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-router": "^1.170.0",
+    "@tanstack/react-store": "^0.11.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "aws-amplify": "^6.18.0",
+    "jsdom": "^25.0.1",
+    "lucide-react": "^0.468.0",
+    "posthog-js": "^1.200.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

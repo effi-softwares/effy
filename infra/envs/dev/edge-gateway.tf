@@ -21,8 +21,11 @@ resource "aws_apigatewayv2_api" "edge" {
   protocol_type = "HTTP"
   description   = "Effy cold-path shared HTTP API — services attach by id under /<service>/ (A3)"
 
+  # Approved dev origins. :5173 back-office (005) · :5174 shop-web (007) · :3000 reserved for
+  # customer-web. A service that attaches to an external HTTP API cannot configure CORS, so it
+  # lives here — a new console's origin is a Terraform change, not a code change.
   cors_configuration {
-    allow_origins  = ["http://localhost:5173", "http://localhost:3000"]
+    allow_origins  = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
     allow_methods  = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers  = ["Authorization", "Content-Type", "X-Request-ID"]
     expose_headers = ["x-request-id"]

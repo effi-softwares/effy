@@ -44,15 +44,28 @@ Consumers import both in their entry stylesheet **after** Tailwind:
 Dark mode is driven by the `.dark` class on `<html>` (shadcn convention); flip it from a client
 store (see `apps/back-office/src/lib/ui-store.ts`). Dark mode is **required** on every surface.
 
-## Component graduation rule
+## Component graduation rule — **exercised** (007-shop-web)
 
-shadcn's model copies UI primitives into each app (`apps/*/src/components/ui/`). That is fine — the
-**tokens** are shared here, the **components** start app-local. When a **second** web surface needs
-the *same* non-trivial component, graduate it up:
+shadcn's model copies UI primitives into each app. With one web surface that was fine: the **tokens**
+were shared, the **components** started app-local, and pre-abstracting a single consumer would have
+been speculation.
 
-1. Move the component into `@effy/design-system/src/components/`, keep it themed from these tokens.
-2. Re-export it; update both surfaces to import from `@effy/design-system`.
-3. Delete the per-app copies.
+**The second surface arrived**, and the rule fired. All 13 primitives plus `use-mobile` graduated
+out of `apps/back-office/src/components/ui/` into this package:
 
-Until then, do **not** pre-abstract — a single consumer needs no shared component layer (mirrors
-004's in-service `lib/` → package rule).
+```
+packages/design-system/src/
+├── ui/            # avatar, breadcrumb, button, card, collapsible, dropdown-menu, input,
+│   └── index.ts   #   label, separator, sheet, sidebar, skeleton, tooltip  → @effy/design-system/ui
+└── hooks/
+    └── use-mobile.ts                                     → @effy/design-system/hooks/use-mobile
+```
+
+Both consoles point `components.json` → `aliases.ui` at `@effy/design-system/ui`, so the shadcn CLI
+keeps generating correct imports. **There is no per-app copy.** Constitution Principle V — "one
+design-system package drives every surface" — is now literally true rather than aspirational.
+
+Adding a new primitive: `pnpm dlx shadcn@latest add <name>` inside a consuming app writes it to the
+alias path (this package), then export it from `src/ui/index.ts`.
+
+The rule for the *next* surface is unchanged: share what two consumers need, and not before.

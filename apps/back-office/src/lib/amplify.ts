@@ -1,18 +1,13 @@
-import { Amplify } from "aws-amplify";
+import { configureAmplify as configure } from "@effy/web-kit";
 
 import { config } from "./env";
 
-// Configure Amplify against the EXISTING admin Cognito pool (feature 001): no Amplify backend
-// project, no identity pool, no self sign-up. Region is derived from the pool-id prefix
-// (research C1). Call once at boot, AFTER assertConfig() (config.contract.md).
+// Point Amplify at the EXISTING back-office Cognito pool (feature 001): no Amplify backend project,
+// no identity pool, no self sign-up. Call once at boot, AFTER assertConfig() (config.contract.md).
+// The wiring is shared; the pool is this surface's alone.
 export function configureAmplify(): void {
-  Amplify.configure({
-    Auth: {
-      Cognito: {
-        userPoolId: config.cognitoUserPoolId(),
-        userPoolClientId: config.cognitoClientId(),
-        loginWith: { email: true },
-      },
-    },
+  configure({
+    userPoolId: config.cognitoUserPoolId(),
+    clientId: config.cognitoClientId(),
   });
 }

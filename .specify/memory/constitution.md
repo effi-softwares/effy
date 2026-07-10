@@ -1,35 +1,46 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.3.1 → 1.4.0
-Bump rationale: MINOR — materially updates the locked Web Technology Standard: adopts the
-                TanStack client suite for the web surfaces and replaces Zustand with TanStack
-                Store as the web client-state library. No principle added or redefined; no
-                existing plan is invalidated (no shipped surface used Zustand yet).
+Version change: 1.4.0 → 1.5.0
+Bump rationale: MINOR — materially expands Principle IV's guidance on RBAC groups: role groups
+                are no longer described as an admin-pool-only mechanism. The store pool gains
+                `store_manager` / `store_staff` (feature 007). No principle added or removed, and
+                no principle redefined in a way that invalidates an existing plan: the four-pool
+                isolation rule, the no-auth-proxy rule, and the cross-pool rejection rule are all
+                unchanged. 005's back-office RBAC (admin/manager/csa) reads identically before
+                and after.
 
-Modified in this amendment (operator-directed, feature 005):
-  - Technology Standards (Locked) → Web: named the **TanStack suite** (Router, Query, Table,
-    Form, Store, Virtual, DevTools, Hotkeys) as the web client spine; **client state via
-    TanStack Store — Zustand removed** platform-wide (superseded by TanStack Store); pinned
-    Tailwind **v4** and shadcn/ui **Radix base**. TanStack DB is explicitly NOT adopted yet
-    (revisit when a real product-collection / optimistic-UI need exists — 005 research A3).
-  - ARCHITECTURE.md → "Operator / admin web (SPA)" wording softened: "server-state cache for
-    all server data; a minimal client store (TanStack Store) for genuine client state only"
-    (was "no separate client store"), consistent with Principle VI.
+Modified in this amendment (operator-directed, feature 007-shop-web):
+  - Principle IV (Auth Isolation) → the RBAC bullet generalized from "The admin pool defines RBAC
+    groups (admin / manager / csa)" to "Pools MAY define RBAC groups", enumerating admin
+    (admin/manager/csa) and store (store_manager/store_staff), with customer and driver defining
+    none. Adds the standing distinction the platform already implements: the `cognito:groups`
+    claim is the **origin of role assignment**, while a platform-owned staff record — where one
+    exists — is **authoritative for the access decision** (role, status, and any scope it owns).
+    The admin-provisioned (no-self-signup) rule for driver/store/admin is preserved as its own
+    bullet.
 
-Unchanged: Principles I–VII (bodies + rationale); Governance; all other Technology Standards
-           (Mobile, Hot path, Cold path, Database, Infrastructure, Observability).
+Why now: feature 007 gives the store audience its first role model. Shipping Cognito groups on a
+         second pool while the constitution named groups on only one would have made the text
+         false as a description of the platform — an undocumented deviation, which the Quality
+         Gates define as a defect. See specs/007-shop-web/research.md R2 and plan.md § Amendment A.
+
+Unchanged: Principles I, II, III, V, VI, VII (bodies + rationale); the rest of Principle IV;
+           Governance; all Technology Standards; Quality Gates.
 
 Templates requiring updates:
   ✅ .specify/templates/plan-template.md   — Constitution Check defers dynamically; no edit needed.
   ✅ .specify/templates/spec-template.md   — WHAT/WHY-only specs; unaffected.
   ✅ .specify/templates/tasks-template.md  — unaffected.
-  ✅ CLAUDE.md                             — Web-stack line updated (Zustand → TanStack Store).
-  ✅ ARCHITECTURE.md                        — admin-web client-store wording softened (above).
+  ✅ CLAUDE.md                             — Auth section's RBAC sentence updated to match (007 T002).
+  ✅ ARCHITECTURE.md                        — states group-based RBAC generically ("Group-based RBAC
+                                             is enforced from the groups claim"); no edit needed.
 
 Follow-up TODOs: none.
 
 Prior history:
+  1.4.0 (2026-07-08) — MINOR: TanStack suite locked for web; Zustand removed platform-wide in
+                       favour of TanStack Store; Tailwind v4 + shadcn/ui Radix base pinned.
   1.3.1 (2026-07-08) — PATCH: Cold path runtime "Node 20" → "Node 22 (current Lambda-supported LTS)".
   1.3.0 (2026-06-28) — Added Principle VII (Observability & Telemetry) + Technology Standards
                        "Observability & notifications" group; Quality Gates telemetry gate.
@@ -108,8 +119,12 @@ Authentication uses four isolated Cognito pools: customer, driver, store, admin.
 - There is **no auth proxy** — backends do not forward or broker authentication on behalf of
   another pool.
 - A token issued for one pool MUST NOT be accepted by a surface or service scoped to another.
-- The admin pool defines RBAC groups (admin / manager / csa), surfaced via the `cognito:groups`
-  JWT claim. Driver, store, and admin users are admin-provisioned (no self-signup).
+- Pools MAY define **RBAC groups**, surfaced via the `cognito:groups` JWT claim. The **admin** pool
+  defines `admin` / `manager` / `csa`; the **store** pool defines `store_manager` / `store_staff`.
+  The customer and driver pools define none. In every case the claim is the **origin of role
+  assignment**; where the platform keeps its own staff record, that record is **authoritative for
+  the access decision** (role, status, and any scope it owns) — a valid claim never overrides it.
+- Driver, store, and admin users are admin-provisioned (no self-signup).
 
 **Rationale**: Four audiences with different trust levels demand hard isolation. Direct
 Cognito + per-pool validation keeps blast radius small and the trust model auditable.
@@ -229,4 +244,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.4.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-08
+**Version**: 1.5.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-09

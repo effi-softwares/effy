@@ -17,7 +17,7 @@ native web build).
 
 - **Mobile (3):** `customer` / `driver` / `shop` — Kotlin Multiplatform + Compose Multiplatform
   (shared iOS/Android), **Clean Architecture + MVVM**, Ktor client, AWS Amplify (Cognito).
-- **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `store-web` (Vite SPA, store
+- **Web (3):** `customer-web` (Next.js 16 SSR, customer storefront), `shop-web` (Vite SPA, store
   operator console), `back-office` (Vite SPA, internal admin) — React 19 + TypeScript, shadcn/ui +
   Tailwind v4, the TanStack suite (Router/Query/Table/Form/Store/Virtual/DevTools/Hotkeys),
   client state via TanStack Store (no Zustand; constitution v1.4.0), AWS Amplify.
@@ -103,8 +103,11 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 ## Auth
 AWS Cognito, **four isolated pools**: customer / driver / store / admin. **All four pools use
 passwordless EMAIL_OTP** (no passwords anywhere). Driver / store / admin are admin-provisioned (no
-self-signup); the admin pool defines RBAC groups (admin / manager / csa) surfaced via the
-`cognito:groups` JWT claim. Frontends authenticate against Cognito directly via Amplify; backends
+self-signup). **Pools MAY define RBAC groups** surfaced via the `cognito:groups` JWT claim: the
+admin pool defines `admin` / `manager` / `csa`; the store pool defines `store_manager` /
+`store_staff`; customer and driver define none. The claim is the **origin of role assignment**;
+where a platform staff record exists it is **authoritative for the access decision** (role, status,
+scope). Frontends authenticate against Cognito directly via Amplify; backends
 validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a token issued for one
 pool is structurally rejected by services scoped to another.
 
@@ -128,12 +131,57 @@ compileSdk + targetSdk 36**. All three are currently the base KMP template (comm
 `Greeting`/`Platform` stubs); each feature's stack is layered in per that feature's plan/tasks.
 
 ## Current status
-Only the **three KMP mobile apps are scaffolded** today (base KMP template). The web apps, the two
-backends, the database, and the infrastructure described above are the **documented vision** — they
-get built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all surfaces in
-parallel: one vertical slice proves the foundation before the pattern scales.
+Built so far: the **infrastructure** (four Cognito pools, dev DB, shared HTTP gateway), the
+**migration workflow**, the **cold path** (`apis/edge-api/{shared,admin,store}`), and **two web
+surfaces** — `apps/back-office` (005) and `apps/shop-web` (007) — on the shared packages
+`@effy/{design-system,shared-types,api-client,web-kit}`. The **three KMP mobile apps remain the base
+template**; `customer-web`, the hot path's product features, and the event backbone are still the
+**documented vision**. Everything gets built **slice by slice**, each driven by its own spec → plan →
+tasks. Don't build all surfaces in parallel: one vertical slice proves the foundation before the
+pattern scales.
 
 ## Active feature
+
+**007-shop-web** — Shop Web Foundation (Bootstrap). **Code-complete + verified; operator run pending.**
+The platform's **second web surface**: `apps/shop-web` (`@effy/shop-web`, Vite + React 19 SPA on
+:5174), the store operator console. Same stack as the back-office console, **shop** Cognito pool,
+and the store audience's **first RBAC model**.
+- **Constitution amended → v1.5.0**: Principle IV generalized from "the admin pool defines RBAC
+  groups" to "pools MAY define RBAC groups"; the **shop pool gains `store_manager` / `store_staff`**.
+  The claim is the *origin* of role assignment; the platform record is *authoritative for the access
+  decision*.
+- **Shared-foundation extraction** (the slice's core work, Principle II): the reusable half of the
+  back-office console moved into packages — **`@effy/design-system/ui`** (the platform's one set of
+  13 shadcn primitives + `use-mobile`) and a new **`@effy/web-kit`** (`.` = config · Amplify ·
+  EMAIL_OTP flow · session guard · query client · telemetry · client store; `./console` = the SPA
+  chrome: `ConsoleShell` / sidebar / header / user menu / `NavList` / `OtpSignInCard` / `ErrorState`,
+  all generic over the surface's role union). `back-office` was refactored onto both and stayed
+  **20/20 green**. **`@effy/api-client` needed no change at all** — the cleanest evidence the
+  foundation was already audience-neutral (SC-009).
+- **Data**: the platform's **first `public`-schema tables** — `store`, `store_staff`, `store_role`,
+  `store_staff_role` (migration `20260710050004`). `store_staff.email` and `.store_id` are nullable
+  by design; **status and store assignment are platform-owned and never written from token data**.
+- **Backend** (`apis/edge-api/store`, restructured to nested domains `staff/` + `status/`):
+  `GET /store/v1/me` (record-backed identity read + idempotent JIT upsert) and
+  `GET /store/v1/manager-ping` (**gate = role AND status AND store scope**, one SQL predicate,
+  fail-closed, uniform 403 that never discloses which term failed).
+- **Parity**: [docs/audiences/store-capabilities.md](docs/audiences/store-capabilities.md) is the
+  single register binding `shop-web` ↔ `shop-mobile`; the mobile column is **outstanding by design**
+  (building it is its own slice).
+- Spec/plan/artifacts: [specs/007-shop-web/](specs/007-shop-web/).
+- Status: **code-complete** — `pnpm typecheck` + `pnpm test` green across the workspace (**159
+  tests**: edge-shared 26, edge-admin 7, edge-store 39, web-kit 38, back-office 20, shop-web 29);
+  `terraform validate` + `fmt` clean; secret/PII sweep clean. **Open (operator)**: **T009**
+  (`make apply ENV=dev` — 2 Cognito groups + the `:5174` CORS origin; *abort if the pool would be
+  replaced*), **T012** (commit the migration, then `make db-up ENV=dev`), **T034** (provision three
+  shop accounts + sign in), **T041** (`make edge-deploy SERVICE=store ENV=dev`), **T045** (SC-004
+  cross-pool `curl`, both directions — expect `200 200 401 401`), **T054**/**T060** (manager gate +
+  term-flipping), **T068** (decode a real token → settle research R6), **T070** (SC sign-off).
+  Runbook: [quickstart](specs/007-shop-web/quickstart.md). *Not committed yet.*
+- **Raised, not fixed**: `/admin/v1/me` (005) resolves email as `claim("username") ?? sub` and may be
+  storing UUIDs in `admin.staff.email`. Recorded at the tail of
+  [specs/005-back-office-web/plan.md](specs/005-back-office-web/plan.md); 007 deliberately does not
+  inherit the pattern (research R6).
 
 **006-first-admin-bootstrap** — First Admin Bootstrap (Operator Break-Glass). **Code-complete +
 verified; operator run pending.**
@@ -181,13 +229,13 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
   **`/admin/v1/me`** + **`/admin/v1/admin-ping`** against the shared gateway
   (`VITE_API_BASE_URL` = `/effy/dev/edge/api_endpoint`).
 - **Amendment D1 — default dashboard shell** (spec FR-023 / US1 / SC-013): the authenticated
-  shell is now a shadcn **`sidebar-07`** dashboard layout — `routes/app.tsx` renders
-  `SidebarProvider → AppSidebar + SidebarInset(AppHeader + Outlet)`; chrome in
-  `apps/back-office/src/components/layout/` (`AppSidebar`/`NavMain`/`NavUser`/`AppHeader`/`nav.ts`),
-  shadcn primitives in `components/ui/`, sidebar tokens in `@effy/design-system`, collapse bit in
-  `ui-store.sidebarOpen` (controlled — no cookie). **Presentation-only** (no backend/data/auth
-  change). **Built + verified**: app vitest **18/18** (6 new: nav filter, sidebar toggle, NavUser
-  identity), typecheck + `build` clean, brand-hex hygiene clean. No operator/cloud step.
+  shell is a shadcn **`sidebar-07`** dashboard layout; sidebar tokens in `@effy/design-system`,
+  collapse bit in `ui-store.sidebarOpen` (controlled — no cookie). **Presentation-only** (no
+  backend/data/auth change). Built + verified; no operator/cloud step.
+  **⚠ Relocated by 007**: the chrome no longer lives in `apps/back-office/src/components/layout/`
+  and the primitives no longer live in `components/ui/`. `routes/app.tsx` now renders
+  **`<ConsoleShell>` from `@effy/web-kit/console`**, fed this surface's brand + nav config; the
+  primitives are **`@effy/design-system/ui`**. Only `components/layout/nav.ts` remains app-local.
 - **T058 done** — the shell (SC-013/SC-006) is **visually verified** via a seeded-session
   screenshot harness (light/dark × admin/manager × expanded/collapsed): dashboard layout,
   icon-rail collapse with reflow, role-aware nav (manager loses the Admin item), footer identity,

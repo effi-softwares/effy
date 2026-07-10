@@ -1,9 +1,10 @@
-import posthog from "posthog-js";
+import { createTelemetry } from "@effy/web-kit";
 
 import { config } from "./env";
 
-// Product analytics + web error tracking (Principle VII). Typed taxonomy so future screens extend
-// it, never re-invent it. NO PII beyond the auth subject id. Degrades to a no-op if unconfigured.
+// Product analytics + web error tracking (Principle VII). The PostHog wiring is shared; the event
+// TAXONOMY is this surface's own — a typed union, so a future screen extends it rather than
+// inventing free-form strings. No PII beyond the verified subject id.
 export type AnalyticsEvent =
   | { name: "auth_sign_in_started" }
   | { name: "auth_otp_submitted" }
@@ -12,30 +13,12 @@ export type AnalyticsEvent =
   | { name: "auth_signed_out" }
   | { name: "admin_area_access_denied" };
 
-let ready = false;
+const telemetry = createTelemetry<AnalyticsEvent>({
+  key: config.posthogKey(),
+  host: config.posthogHost(),
+  surface: "back-office",
+});
 
-export function initTelemetry(): void {
-  const key = config.posthogKey();
-  if (!key) return; // no key → no-op, never a crash
-  posthog.init(key, {
-    api_host: config.posthogHost() ?? "https://us.i.posthog.com",
-    capture_pageview: false,
-    autocapture: false,
-    person_profiles: "identified_only",
-  });
-  ready = true;
-}
-
-export function track(event: AnalyticsEvent): void {
-  if (!ready) return;
-  const { name, ...props } = event;
-  posthog.capture(name, props);
-}
-
-export function reportError(error: unknown, context?: Record<string, string>): void {
-  if (!ready) return;
-  posthog.capture("$exception", {
-    message: error instanceof Error ? error.message : String(error),
-    ...context,
-  });
-}
+export const initTelemetry = telemetry.init;
+export const track = telemetry.track;
+export const reportError = telemetry.reportError;

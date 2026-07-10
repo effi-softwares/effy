@@ -1,15 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
-import { createRoute, Outlet } from "@tanstack/react-router";
+import { createRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 
-import { AppHeader } from "@/components/layout/AppHeader";
-import { AppSidebar } from "@/components/layout/AppSidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { ConsoleShell } from "@effy/web-kit/console";
+
+import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
-import { sessionQuery } from "@/features/auth/queries";
+import { sessionQuery, useSignOut } from "@/features/auth/queries";
 import { AdminOnlyScreen } from "@/features/staff-identity/AdminOnlyScreen";
 import { ProvingScreen } from "@/features/staff-identity/ProvingScreen";
-import { setSidebarOpen, uiStore } from "@/lib/ui-store";
+import { setSidebarOpen, toggleTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
 
@@ -37,25 +37,36 @@ export const adminRoute = createRoute({
   component: AdminOnlyScreen,
 });
 
-// The default dashboard shell (FR-023 / Amendment D1, shadcn sidebar-07): a persistent collapsible
-// sidebar + an inset header (trigger + breadcrumb) + the content region every screen renders into.
-// The collapse bit is client-UI state owned by `uiStore` — the provider is driven controlled.
+// The default dashboard shell (FR-023 / Amendment D1, shadcn sidebar-07). The shell itself is
+// shared (@effy/web-kit/console); what this surface supplies is its brand, its nav config, the
+// session it reads roles from, and the client-state bits it owns. Wired by hand — no DI framework.
 function AppShell() {
   const sidebarOpen = useStore(uiStore, (s) => s.sidebarOpen);
+  const theme = useStore(uiStore, (s) => s.theme);
+  const { data } = useQuery(sessionQuery);
+  const signOut = useSignOut();
+  const navigate = useNavigate();
+
+  const identity = data?.status === "signed-in" ? data.identity : null;
 
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-      <AppSidebar />
-      <SidebarInset>
-        <AppHeader />
-        {/* Content region: fills the pane, but capped + centered so ultrawide displays don't
-            stretch content into over-long line lengths (FR-025 / D2-b). Generous cap — the root
-            font-size scale (scale.css) does the "bigger on wide screens" work. */}
-        <div className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col gap-4 p-4">
-          <Outlet />
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <ConsoleShell
+      brand={{ mark: "E", name: "Effy", surface: "Back-Office" }}
+      surfaceLabel="Effy Back-Office"
+      nav={NAV}
+      roles={identity?.roles ?? []}
+      email={identity?.email ?? ""}
+      theme={theme}
+      onToggleTheme={toggleTheme}
+      onSignOut={() =>
+        signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
+      }
+      signingOut={signOut.isPending}
+      sidebarOpen={sidebarOpen}
+      onSidebarOpenChange={setSidebarOpen}
+    >
+      <Outlet />
+    </ConsoleShell>
   );
 }
 

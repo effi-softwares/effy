@@ -26,6 +26,8 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_
         db-new db-status db-up db-down check-goose \
         core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy \
         bo-dev bo-build bo-lint bo-test \
+        shop-dev shop-build shop-lint shop-test check-psql shop-seed-store shop-provision-staff \
+        shop-create-account shop-verify-isolation shop-verify-gate shop-token-claims \
         dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
@@ -222,6 +224,93 @@ bo-lint: ## back-office typecheck (tsc --noEmit)
 
 bo-test: ## back-office unit/component tests (vitest)
 	@pnpm --filter @effy/back-office test
+
+# --- shop web (007): Vite SPA, LOCAL-ONLY this slice (no hosted deploy). Runs on :5174
+# (an approved dev CORS origin — infra/envs/dev/edge-gateway.tf) against the live dev
+# store service + SHOP Cognito pool. VITE_* config comes from apps/shop-web/.env.local
+# (git-ignored) per specs/007-shop-web/contracts/config.contract.md.
+SHOP_DIR := apps/shop-web
+
+shop-dev: ## Run shop web locally (vite dev on http://localhost:5174)
+	@pnpm --filter @effy/shop-web dev
+
+shop-build: ## Production build of shop web
+	@pnpm --filter @effy/shop-web build
+
+shop-lint: ## shop-web typecheck (tsc --noEmit)
+	@pnpm --filter @effy/shop-web typecheck
+
+shop-test: ## shop-web unit/component tests (vitest)
+	@pnpm --filter @effy/shop-web test
+
+# --- store provisioning (007): OPERATOR-run, no management UI ships this slice (FR-019).
+# Both compose the DSN at invocation via infra/scripts/db-dsn.sh, exactly as db-up does — the
+# credential never lands in argv or shell history. psql is required.
+check-psql:
+	@command -v psql > /dev/null 2>&1 || { echo "psql not installed — brew install libpq && brew link --force libpq"; exit 1; }
+
+shop-seed-store: check-psql ## OPERATOR: seed a store (CODE=CMB-01 NAME="Colombo 01" ENV=dev) — idempotent
+	@test -n "$(CODE)" && test -n "$(NAME)" || { echo 'usage: make shop-seed-store CODE=CMB-01 NAME="Colombo 01" ENV=dev'; exit 1; }
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+	psql "$$DSN" -v ON_ERROR_STOP=1 --set code="$(CODE)" --set name="$(NAME)" \
+		-c "INSERT INTO public.store (code, name) VALUES (:'code', :'name') ON CONFLICT (code) DO NOTHING;" \
+		-c "SELECT id, code, name, is_active FROM public.store WHERE code = :'code';"
+
+# The store_staff row is keyed on cognito_sub and is created by the JIT upsert on the operator's
+# FIRST sign-in — so this runs AFTER they have signed in once, and resolves their subject from
+# Cognito rather than matching on email (which starts NULL; research R6).
+shop-provision-staff: check-psql ## OPERATOR: set a store operator's email/store/status (EMAIL=.. STORE=CMB-01 [STATUS=active] ENV=dev)
+	@test -n "$(EMAIL)" && test -n "$(STORE)" || { echo 'usage: make shop-provision-staff EMAIL=sam@effy.test STORE=CMB-01 [STATUS=active] ENV=dev'; exit 1; }
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/shop/user_pool_id)" || { echo "shop-provision-staff: cannot read shop pool id from SSM (001 contract)"; exit 1; }; \
+	SUB="$$(AWS_PROFILE=$(AWS_PROFILE) aws cognito-idp admin-get-user --region $(AWS_REGION) \
+		--user-pool-id "$$POOL_ID" --username "$(EMAIL)" \
+		--query 'UserAttributes[?Name==`sub`].Value | [0]' --output text 2>/dev/null)"; \
+	[ -n "$$SUB" ] && [ "$$SUB" != "None" ] || { echo "shop-provision-staff: no shop-pool account for $(EMAIL)"; exit 1; }; \
+	STORE_ID="$$(psql "$$DSN" -tAc "SELECT id FROM public.store WHERE code = '$(STORE)';")" || exit 1; \
+	[ -n "$$STORE_ID" ] || { echo "shop-provision-staff: unknown store code $(STORE) — seed it first (make shop-seed-store)"; exit 1; }; \
+	ROWS="$$(psql "$$DSN" -tA -v ON_ERROR_STOP=1 --set sub="$$SUB" --set email="$(EMAIL)" \
+		--set store_id="$$STORE_ID" --set status="$(or $(STATUS),active)" \
+		-c "UPDATE public.store_staff SET email = :'email', store_id = :'store_id'::uuid, status = :'status', updated_at = now() WHERE cognito_sub = :'sub' RETURNING cognito_sub;")" || exit 1; \
+	[ -n "$$ROWS" ] || { echo "shop-provision-staff: no store_staff row for $(EMAIL) — they must sign in to shop-web once first (the record is created on first authenticated request)"; exit 1; }; \
+	echo "provisioned $(EMAIL) → store $(STORE), status $(or $(STATUS),active)"
+
+shop-create-account: ## OPERATOR: create a shop-pool account (EMAIL=.. [ROLE=store_manager|store_staff] ENV=dev)
+	@test -n "$(EMAIL)" || { echo 'usage: make shop-create-account EMAIL=sam@effy.test [ROLE=store_manager] ENV=dev'; exit 1; }
+	@case "$(ROLE)" in ""|store_manager|store_staff) ;; *) echo "ROLE must be store_manager, store_staff, or empty (role-less)"; exit 1;; esac
+	@POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/shop/user_pool_id)" || { echo "shop-create-account: cannot read shop pool id from SSM (001 contract)"; exit 1; }; \
+	AWS_PROFILE=$(AWS_PROFILE) aws cognito-idp admin-create-user --region $(AWS_REGION) \
+		--user-pool-id "$$POOL_ID" --username "$(EMAIL)" \
+		--user-attributes Name=email,Value="$(EMAIL)" Name=email_verified,Value=true \
+		--message-action SUPPRESS > /dev/null 2>&1 \
+		|| echo "  ($(EMAIL) already exists — continuing)"; \
+	if [ -n "$(ROLE)" ]; then \
+		AWS_PROFILE=$(AWS_PROFILE) aws cognito-idp admin-add-user-to-group --region $(AWS_REGION) \
+			--user-pool-id "$$POOL_ID" --username "$(EMAIL)" --group-name "$(ROLE)" || exit 1; \
+		echo "created $(EMAIL) with role $(ROLE)"; \
+	else \
+		echo "created $(EMAIL) with NO role (role-less test account)"; \
+	fi
+	@echo "  passwordless: no temporary password, invite SUPPRESSed → the account is CONFIRMED and can request an OTP now"
+
+# --- store slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
+# authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted
+# here and run against the real gateway. See specs/007-shop-web/research.md R9.
+shop-verify-isolation: ## OPERATOR: SC-004 cross-pool isolation, both directions (SHOP_TOKEN=.. BO_TOKEN=..)
+	@test -n "$(SHOP_TOKEN)" && test -n "$(BO_TOKEN)" || { echo 'usage: make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... ENV=dev'; exit 1; }
+	@API="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
+	API_ENDPOINT="$$API" SHOP_TOKEN="$(SHOP_TOKEN)" BO_TOKEN="$(BO_TOKEN)" bash scripts/verify-cross-pool.sh
+
+shop-verify-gate: ## OPERATOR: SC-005 manager gate is backend-authoritative (MANAGER_TOKEN=.. STAFF_TOKEN=.. NOBODY_TOKEN=..)
+	@test -n "$(MANAGER_TOKEN)" && test -n "$(STAFF_TOKEN)" && test -n "$(NOBODY_TOKEN)" \
+		|| { echo 'usage: make shop-verify-gate MANAGER_TOKEN=eyJ... STAFF_TOKEN=eyJ... NOBODY_TOKEN=eyJ... ENV=dev'; exit 1; }
+	@API="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" || exit 1; \
+	API_ENDPOINT="$$API" MANAGER_TOKEN="$(MANAGER_TOKEN)" STAFF_TOKEN="$(STAFF_TOKEN)" NOBODY_TOKEN="$(NOBODY_TOKEN)" \
+		bash scripts/verify-manager-gate.sh
+
+shop-token-claims: ## Decode a Cognito ACCESS token's claims (TOKEN=eyJ..) — settles research R6
+	@test -n "$(TOKEN)" || { echo 'usage: make shop-token-claims TOKEN=eyJ...'; exit 1; }
+	@TOKEN="$(TOKEN)" bash scripts/token-claims.sh
 
 ## --- Dev cost control: stop the DB while you're not developing ---
 # The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its

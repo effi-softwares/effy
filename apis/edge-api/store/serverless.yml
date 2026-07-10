@@ -105,6 +105,28 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  storeMeV1:
+    handler: src/functions/store-me-v1-get.handler
+    description: Store-identity read — records (JIT upsert) + returns the platform record (007)
+    events:
+      - httpApi:
+          method: GET
+          path: /store/v1/me
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  storeManagerPingV1:
+    handler: src/functions/store-manager-ping-v1-get.handler
+    description: Manager-only proving route — authorizes from the DB record (role AND status AND store scope, 007)
+    events:
+      - httpApi:
+          method: GET
+          path: /store/v1/manager-ping
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
 # Per-function CloudWatch alarms (Errors>0, Throttles>0, Duration p95). The API-level 5xx
 # alarm lives in Terraform (A3 — the API's owner), not here.
 resources:
@@ -181,6 +203,45 @@ resources:
         Namespace: AWS/Lambda
         MetricName: Throttles
         Dimensions: [{ Name: FunctionName, Value: !Ref StorePingV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    StoreMeV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-store-me-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref StoreMeV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    StoreMeV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-store-me-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref StoreMeV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    StoreManagerPingV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-store-manager-ping-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref StoreManagerPingV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1

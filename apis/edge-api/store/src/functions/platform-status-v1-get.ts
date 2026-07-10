@@ -4,8 +4,8 @@
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import { internal, json, preamble } from "@effy/edge-shared";
-import { statusRepository } from "../repository";
-import { createPlatformStatusService } from "../service";
+import { statusRepository } from "../status/repository";
+import { createPlatformStatusService } from "../status/service";
 
 // Module-scope wiring (cached singleton pattern — ARCHITECTURE.md): built once per
 // container, reused across warm invocations.

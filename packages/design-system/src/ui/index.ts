@@ -1,0 +1,23 @@
+/**
+ * shadcn/ui primitives (new-york, Radix base) — the platform's ONE set.
+ *
+ * These lived in `apps/back-office/src/components/ui/` until 007-shop-web needed them too.
+ * Constitution Principle V says one design-system package drives every surface; leaving a
+ * second copy in the second app would have made that sentence false.
+ *
+ * Consumers point `components.json` → `aliases.ui` at `@effy/design-system/ui`, so the shadcn
+ * CLI keeps generating correct imports.
+ */
+export * from "./avatar";
+export * from "./breadcrumb";
+export * from "./button";
+export * from "./card";
+export * from "./collapsible";
+export * from "./dropdown-menu";
+export * from "./input";
+export * from "./label";
+export * from "./separator";
+export * from "./sheet";
+export * from "./sidebar";
+export * from "./skeleton";
+export * from "./tooltip";

@@ -1,0 +1,4 @@
+# app-local ignores (root .gitignore covers the monorepo-wide set)
+coverage/
+.vite/
+*.local

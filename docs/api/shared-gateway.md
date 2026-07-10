@@ -49,6 +49,28 @@ functions:
   per-function alarms.
 - Route keys must be unique across the whole API → disjoint `/<service>/` prefixes guarantee it.
 
+## Route inventory (live)
+
+| Route | Service | Authorizer | Slice |
+|---|---|---|---|
+| `GET /admin/healthz` | admin | — (public) | 004 |
+| `GET /admin/v1/ping` | admin | back-office | 004 |
+| `GET /admin/v1/me` | admin | back-office | 005 |
+| `GET /admin/v1/admin-ping` | admin | back-office | 005 |
+| `GET /store/healthz` | store | — (public) | 004 |
+| `GET /store/v1/status` | store | — (public) | 004 |
+| `GET /store/v2/status` | store | — (public) | 004 |
+| `GET /store/v1/ping` | store | shop | 004 |
+| `GET /store/v1/me` | store | shop | **007** |
+| `GET /store/v1/manager-ping` | store | shop | **007** |
+
+Adding a route to an existing version is **additive** (`versioning-policy.md` rule 3) and needs no
+Terraform change — unless it introduces a new pool, which would need a new authorizer.
+
+**Approved CORS origins** (gateway-owned; a service on an external API cannot set them):
+`http://localhost:5173` (back-office) · `http://localhost:5174` (shop-web) · `http://localhost:3000`
+(reserved for customer-web).
+
 ## Invariants
 - **Ordering**: `terraform apply` (API + authorizers + SSM) MUST precede any service deploy
   (`${ssm:…}` resolves at deploy time). Then services deploy independently, any order.

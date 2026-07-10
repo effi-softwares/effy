@@ -495,3 +495,36 @@ data/contract artifact for the backend changes — there is no backend change.
 [back-office-web.contract.md § 6](./contracts/back-office-web.contract.md) (neutral surfaces + single
 accent + responsive scaling), and [quickstart.md](./quickstart.md) (SC-014/SC-015 visual checks). No new
 contract file — the change is design-system tokens/CSS only.
+
+---
+
+## Follow-up raised by 007-shop-web (2026-07-09) — `admin.staff.email` may hold a UUID
+
+While designing the store staff record, feature 007 found a probable defect here. **Not fixed by
+007** (out of its scope); recorded so it is not silently inherited.
+
+`apis/edge-api/admin/src/functions/back-office-me-v1-get.ts` resolves the staff email as:
+
+```ts
+const email = claim(event, "username") ?? sub;
+```
+
+The back-office pool sets `username_attributes = ["email"]`. In that configuration Cognito's
+internal username is widely reported to be a **generated UUID**, and a Cognito **access token
+carries no `email` claim** at all (`sub`, `username`, `cognito:groups`, `client_id`, …). If so,
+`admin.staff.email` is currently storing UUIDs rather than addresses, and `/admin/v1/me` returns one
+to the console.
+
+**Verify first** (2 minutes, operator): decode a real back-office access token and inspect
+`username` — the same check 007 scripts in
+[its quickstart §4](../007-shop-web/quickstart.md). Record the result before changing anything.
+
+**If confirmed**, 007's approach is the precedent to follow (see its
+[research R6](../007-shop-web/research.md)): make the column nullable, resolve the email only when
+the token genuinely carries one (`claim("email") ?? emailShaped(claim("username")) ?? null`), never
+overwrite a stored address with null (`COALESCE` in the upsert), and let the operator provisioning
+step be authoritative for the value — exactly as 006's `create-first-admin` already is for `name`.
+
+Deliberately **not** adopted as a fix: sending the ID token as bearer (it is not an authorization
+token), or calling `AdminGetUser` per first contact (IAM + a network hop on the auth path for a
+value provisioning already knows).

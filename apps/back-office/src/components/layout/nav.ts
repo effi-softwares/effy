@@ -1,26 +1,15 @@
-import { LayoutDashboard, Shield, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Shield } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
+import type { NavItem } from "@effy/web-kit/console";
 
-// Role-aware nav model (Amendment D1 / FR-023 / data-model §8). A small static list; NavMain
-// filters it by the session roles. `requiredRole` absent → visible to any signed-in staff.
-export interface NavItem {
-  label: string;
-  to: string;
-  icon: LucideIcon;
-  requiredRole?: BackOfficeRole;
-}
-
-export const NAV: NavItem[] = [
+// This surface's nav config. The NavItem model and the `visibleNav` filter are shared; WHAT is in
+// the menu, and which role each item requires, is the console's own.
+//
+// The Admin item is gated by the SAME role the backend gate checks — nav visibility REFLECTS the
+// authoritative backend gate, it is never a second source of truth. A manager/csa/role-less
+// account never sees a control it cannot use, and is refused if it asks anyway.
+export const NAV: NavItem<BackOfficeRole>[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
   { label: "Admin", to: "/admin", icon: Shield, requiredRole: "admin" },
 ];
-
-// The Admin item is gated by the SAME role predicate the admin route guard uses (plan mechanic
-// 2/4) — nav visibility REFLECTS the authoritative backend gate, it is never a second source of
-// truth. A manager/csa/role-less account never sees a control it cannot use.
-export function visibleNav(roles: readonly BackOfficeRole[]): NavItem[] {
-  return NAV.filter(
-    (item) => item.requiredRole === undefined || roles.includes(item.requiredRole),
-  );
-}
