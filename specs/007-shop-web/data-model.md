@@ -56,9 +56,10 @@ address, hours, capacity, delivery zones, or inventory. Customers never see it.
 | `created_at` | `timestamptz` | NOT NULL, default `now()` | |
 | `updated_at` | `timestamptz` | NOT NULL, default `now()` | |
 
-**Lifecycle**: operator-seeded (`db/seeds/dev-store.sql`, or `make shop-seed-store`). **No
-management interface ships** (FR-019); creating and editing stores from the back-office console is
-a later slice.
+**Lifecycle**: created by the platform's **back-office store-management capability** (the next
+slice). This slice ships **no way to create a store** — no interface, no command, no seed file
+(FR-019) — so no store row can exist that the product did not create. Until then the table is
+legitimately empty, and every operator is unassigned.
 
 **Validation**: `code` is unique across stores; deactivation is `is_active = false`, never a delete
 (staff reference it — see `ON DELETE RESTRICT` below).
@@ -84,8 +85,9 @@ The platform's own record of a store operator, keyed on the verified identity su
 
 **Why `store_id` is nullable**: the JIT upsert meets an operator on first contact and cannot know
 their store. The record is created unassigned, and the operator assigns it
-(`make shop-provision-staff`). The spec requires exactly this — "authenticated but assigned to no
-store" is an expected state, not an error.
+(from the back-office console, next slice). The spec requires exactly this — "authenticated but
+assigned to no store" is an expected state, not an error, and it is the *only* state that exists
+until store management ships.
 
 **Why `ON DELETE RESTRICT`**: deleting a store that still has staff would silently orphan them into
 an unassigned (and therefore unauthorized) state. Deactivate instead.
@@ -229,7 +231,7 @@ role value maps to nothing rather than throwing.
 
 | Spec requirement | Where it lands |
 |---|---|
-| FR-019 (minimal store record, operator-seeded, no management UI) | `public.store` + `db/seeds/dev-store.sql` |
+| FR-019 (minimal store record; no creation path ships here) | `public.store` — schema only; rows come from back-office store management |
 | FR-020 (own record: identity, email, roles, store, status; ≤1 store; idempotent) | `public.store_staff` + reconcile transaction |
 | FR-021 (role AND status AND store scope) | the authorization query above |
 | FR-022 (forward-only workflow, customer-operational area) | one Goose migration in `db/migrations/` |

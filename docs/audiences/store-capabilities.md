@@ -80,8 +80,21 @@ Nothing in rows 1–10 requires a backend change: the store service already serv
 
 These belong to later slices and are listed so their absence is a decision, not an oversight:
 
-- Store **management** (creating/editing stores) — stores are operator-seeded this slice (FR-019).
+- **Store management** — creating and editing stores, assigning staff to a store, and
+  enabling/disabling an operator. **The next slice**, in the back-office console. 007 defines the
+  `store` table and the authorization that depends on it, but ships **no way to create a store**
+  (FR-019): no interface, no command, no seed file. No store row will ever exist that the product
+  did not create.
 - Role **management** from within the platform — the `cognito:groups` claim remains the origin of
   role assignment (constitution Principle IV).
 - Any product store-operations capability: picking, packing, inventory, order handling (FR-025).
 - Hosted deployment of either surface.
+
+### What that defers
+
+Because the manager gate inner-joins `store`, no operator can hold a store assignment until store
+management ships. The gate's **negative half is fully proven now** — `store_staff`, role-less, and an
+unassigned `store_manager` are each refused, which is the store-scope term doing real work. Its
+**positive half** (a manager *served* at an active store), the **inactive-store** denial, and the
+**disabled-operator** denial are verified in the store-management slice, against data the product
+created. All three terms are implemented and unit-tested in 007.

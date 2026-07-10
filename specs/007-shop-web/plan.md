@@ -118,8 +118,6 @@ infra/envs/dev/
 
 db/migrations/
 └── <ts>_store_staff_rbac.sql        # NEW — public.store / store_staff / store_role / store_staff_role
-db/seeds/
-└── dev-store.sql                    # NEW — operator-seeded dev store
 
 apis/edge-api/store/
 ├── serverless.yml                   # + storeMeV1, storeManagerPingV1 (+3 alarms)
@@ -170,7 +168,9 @@ docs/audiences/
                                      #   from apps/shop-web/README.md AND apps/shop-mobile/README.md
 
 Makefile                             # + shop-dev, shop-build, shop-lint, shop-test,
-                                     #   shop-seed-store, shop-provision-staff
+                                     #   shop-verify-isolation, shop-verify-gate, shop-token-claims
+scripts/                             # NEW — operator verification (SC-004 / SC-005 / R6); the
+                                     #   guarantees that cannot honestly be unit-tested
 ```
 
 **Structure Decision**: the client surface is `apps/shop-web` (package `@effy/shop-web`), pairing
@@ -193,7 +193,7 @@ independent of each other; 6 needs both.
 |---|---|---|---|
 | 1 | **Governance** | Constitution v1.5.0 (Amendment A); CLAUDE.md reconciled | no |
 | 2 | **Infra** | Shop pool groups; gateway CORS `:5174` | ✋ `make apply ENV=dev` |
-| 3 | **Data** | Migration (4 tables) + `db/seeds/dev-store.sql` | ✋ commit, then `make db-up ENV=dev` |
+| 3 | **Data** | Migration (4 tables). **No seed** — stores are created by back-office store management (next slice), never by hand | ✋ commit, then `make db-up ENV=dev` |
 | 4 | **Backend** | `store` service: `staff/` domain, `/store/v1/me`, `/store/v1/manager-ping`, alarms, unit tests | ✋ `make edge-deploy SERVICE=store ENV=dev` |
 | 5 | **Shared foundation** | `@effy/design-system/ui`; new `@effy/web-kit`; **back-office refactored, 20/20 green** | no |
 | 6 | **Shop console** | `apps/shop-web` — auth, shell, proving + manager-only screens, telemetry, config | no |

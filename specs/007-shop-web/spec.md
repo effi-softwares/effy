@@ -34,6 +34,12 @@ by both this console and the `shop` mobile app, which must be kept at feature pa
 - Q: A store operator works *at a store*, but the platform has **no store record of any kind** (the customer-operational data area has zero tables). Does this slice introduce a store entity and scope staff to it? → A: **Yes — a minimal store entity, with each operator assigned to one store.** The platform gains a **minimal store record** (a stable identity, an operator-facing code, a name, and an active flag) in the **customer-operational data area** — the platform's **first** record there — and every store staff record is **scoped to exactly one store**. The authorization decision therefore becomes **role AND status AND store scope**: an operator with no store assignment, or one assigned to an inactive store, reaches nothing privileged. The store staff/role schema lives in the **customer-operational** data area alongside the store entity (**not** the back-office data area, whose designated purpose is back-office accounts + audit). This expands scope beyond a staff-only record. Store records are **operator-seeded** this slice; store *management* (creating and editing stores from the back-office console) is a later slice.
 - Q: The `shop` mobile app is currently an empty scaffold, so "same features" cannot mean porting existing features. How is parity with the mobile surface delivered in this slice? → A: **A parity contract; the web surface is built now.** This slice builds the **web console only** and records the store audience's **capability baseline** as a single-source **parity register** that both store surfaces are held to — each capability marked *delivered* on web and *outstanding* on mobile. Bootstrapping the `shop` KMP app to that same baseline is **its own later slice**, which closes the mobile column. This keeps the slice to one surface, as every prior slice has been, while making the mobile gap explicit rather than silent.
 
+### Session 2026-07-10 — store creation removed (revises Q2 above)
+
+- Q: Q2's answer said store records would be **operator-seeded** this slice, via an administrative command. Should that manual creation path ship? → A: **No — remove it entirely.** Store creation belongs to the platform's **back-office store-management capability**, which is the next slice. Shipping a seed command and a seed file now would create tooling that is dead the day that slice lands, and would allow store rows to exist that the product never created. **This slice therefore ships the store schema and the authorization that depends on it, but no way to create a store.**
+
+  **Consequence, accepted deliberately:** the manager gate's authorization predicate inner-joins the store, so with no store in existence **no operator can hold a store assignment**. The gate's *negative* half is fully provable now (a `store_staff`, a role-less operator, and an unassigned `store_manager` are each refused). Its *positive* half — a manager at an active store being **served** — and the disabled-staff and inactive-store denials each require store data that only the back-office slice can create. Those success criteria are therefore **verified as part of that slice**, against data the product itself produced. This slice ships **code-complete and partially signed off**, which is a stronger position than shipping fully signed off against rows inserted by hand.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A store operator signs in passwordlessly and reaches the console (Priority: P1)
@@ -408,8 +414,11 @@ explicit.
   greppable wiring (constitution Principle VI; ARCHITECTURE.md).
 - **FR-019**: The platform MUST gain a **minimal store record** — a stable identity, an
   operator-facing code unique across stores, a name, and an **active flag** — as the entity store
-  staff are assigned to. Store records are **operator-seeded** this slice; **no store-management
-  interface ships** (creating and editing stores from the back-office console is a later slice).
+  staff are assigned to. This slice defines the record and the authorization that depends on it;
+  it ships **no way to create one**. Store records are created by the platform's **back-office
+  store-management capability** (a later slice). **No manual seeding path ships** — no
+  administrative command, script, or seed file — so that no store row can ever exist that the
+  product did not create. (Revised 2026-07-10; see Clarifications.)
 - **FR-020**: The store backend MUST maintain the platform's **own system of record** for store
   staff — keyed to the verified identity subject — capturing at least each member's identity,
   contact email, assigned roles, the **store they are assigned to**, and an **active/disabled
@@ -497,20 +506,27 @@ explicit.
   flow in **under 2 minutes**, with **zero** password prompts anywhere in the flow.
 - **SC-003**: The proving screen demonstrably completes a full client → store backend → back
   round-trip — verified by observing the backend-returned verified identity, store roles, and
-  assigned store rendered in the console.
+  store assignment rendered in the console. Until stores exist, the assignment renders as the
+  explicit **"no store assigned"** state, which is itself a required outcome (FR-007), not a gap.
 - **SC-004**: Cross-audience isolation holds in **100%** of tested attempts, in **both**
   directions: a back-office credential presented to the store backend is refused, and a store
   credential presented to the back-office backend is refused; **zero** cross-audience request
   succeeds.
-- **SC-005**: The manager-only proving read is served to a `store manager` and **refused by the
-  backend** for `store staff` accounts in **100%** of direct attempts, and a **role-less** account
-  is denied **every** privileged read in **100%** of cases; **zero** manager-only data is ever
-  shown to a non-manager. (A `store staff` account retains its own identity-scoped read — the
-  gate distinguishes privilege levels, it does not lock out the baseline role.)
-- **SC-005a**: Store-scoped authorization holds in **100%** of attempts: an operator with **no
-  store assignment**, and one assigned to an **inactive store**, are refused privileged access
-  despite carrying a valid credential and a sufficient role — demonstrating that the decision
-  combines role, status, **and** store scope.
+- **SC-005**: The manager-only proving read is **refused by the backend** for `store staff` accounts
+  in **100%** of direct attempts, and a **role-less** account is denied **every** privileged read in
+  **100%** of cases; **zero** manager-only data is ever shown to a non-manager. (A `store staff`
+  account retains its own identity-scoped read — the gate distinguishes privilege levels, it does
+  not lock out the baseline role.)
+- **SC-005a**: Store-scoped authorization holds in **100%** of attempts: an operator with **no store
+  assignment** is refused privileged access despite carrying a valid credential **and a sufficient
+  role** — demonstrating that the decision combines role, status, **and** store scope, and that the
+  role alone grants nothing.
+- **SC-005b** *(verified in the back-office store-management slice)*: with a store in existence, a
+  `store manager` who is **active and assigned to an active store** is **served** the manager-only
+  read; and the same manager is **refused** once their store is deactivated. This is the positive
+  half of the gate plus the inactive-store denial. Neither can be exercised here, because this slice
+  ships no way to create a store (FR-019) — they are proven against product-created data, not
+  hand-inserted rows.
 - **SC-006**: **100%** of sampled backend-failure states (unreachable, slow cold start, expired
   session, denied, wrong-audience credential) render as a clear, recoverable console state;
   **zero** present a broken interface or expose internal detail, stack traces, or credentials.
@@ -533,9 +549,13 @@ explicit.
   refreshed on repeat visits with **zero** duplicate records and the store assignment preserved,
   verified by inspecting the record after first and subsequent requests, including concurrent
   first contact.
-- **SC-012**: An operator the platform marks **disabled** is refused privileged access in **100%**
-  of attempts **despite holding a valid credential** — demonstrating an authorization decision the
-  platform owns independently of the identity provider.
+- **SC-012** *(verified in the back-office store-management slice)*: an operator the platform marks
+  **disabled** is refused privileged access in **100%** of attempts **despite holding a valid
+  credential** — demonstrating an authorization decision the platform owns independently of the
+  identity provider. Marking an operator disabled is a **store-staff management** action, which this
+  slice deliberately ships no way to perform (FR-019); the `status` term is implemented and
+  unit-tested here, and exercised live there. The **role** and **store scope** terms are proven live
+  here (SC-005, SC-005a), so the record-is-authoritative claim is not left wholly unproven.
 - **SC-013**: On completing sign-in, the operator lands in the standard dashboard layout —
   persistent side navigation, top location bar, and main content region present — with their
   verified identity and sign-out reachable from the sidebar user menu, and the navigation rail
@@ -567,9 +587,15 @@ explicit.
   clarifying that the sentence enumerates the admin pool's groups rather than restricting groups to
   it. Flagged in [operator-directives.md](./operator-directives.md); it MUST NOT be resolved
   silently in code.
-- **Provisioning a store operator is a three-part operator step** this slice: create the account in
-  the store pool, grant it a store role, and assign it to a seeded store. There is no
-  self-service and no management interface for any of the three.
+- **Provisioning a store operator is a two-part identity step** this slice: create the account in the
+  store pool and grant it a store role. Both happen in the identity provider (there is no
+  self-service), and this slice ships **no tooling** for either — the operator uses the provider's
+  own administrative commands. The third part — **assigning the operator to a store** — cannot happen
+  here at all, because no store can exist (FR-019). It arrives with back-office store management.
+- **The store schema lands before anything can write to it.** Defining `store` and its authorization
+  predicate here, and creating store rows in the next slice, is deliberate: it lets the store service
+  and the console be built and proven against the *absence* of a store (the unassigned denial, the
+  "no store assigned" console state), which are real required behaviours rather than placeholders.
 - **Feature 004's store service is the backend this console consumes**, live in the development
   environment, reachable through the platform's shared gateway with the store pool's authorizer,
   and speaking the shared error contract. This slice's **bounded** backend additions are the

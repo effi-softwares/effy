@@ -32,9 +32,9 @@ store; deactivate instead).
 | Field | Written by | Never written by |
 |---|---|---|
 | `roles` (`store_staff_role`) | reconcile from the `cognito:groups` claim on every `/store/v1/me` | the console |
-| `status` | the operator (SQL / `make shop-provision-staff`) | **any token data** |
-| `store_id` | the operator (SQL / `make shop-provision-staff`) | **any token data** |
-| `email` | provisioning (authoritative); `/me` refreshes it **only** when the token carries a real email, and **never** overwrites a non-null value with null | — |
+| `status` | back-office store-staff management (later slice) | **any token data** |
+| `store_id` | back-office store-staff management (later slice) | **any token data** |
+| `email` | back-office management (authoritative); `/me` refreshes it **only** when the token carries a real email, and **never** overwrites a non-null value with null | — |
 | `last_seen_at` | `/me`, every authenticated contact | — |
 
 The identity provider is the **origin of role assignment**; the platform record is **authoritative
@@ -85,16 +85,37 @@ query builder (Principle VI).
   apply it**.
 - Reads/writes only platform-owned objects. No `admin`-schema object is touched.
 
-## Seeding and provisioning (operator, no UI ships)
+## Who writes what — and what this slice deliberately cannot write
 
-| Command | Effect |
-|---|---|
-| `make shop-seed-store CODE=CMB-01 NAME="Colombo 01" ENV=dev` | inserts a `public.store` row (idempotent on `code`) |
-| `make shop-provision-staff EMAIL=… STORE=CMB-01 [STATUS=active] ENV=dev` | sets `email`, `store_id`, `status` on the operator's row |
+| Object / column | Written by | Available in 007? |
+|---|---|---|
+| `public.store` rows | back-office **store management** | ❌ — no interface, no command, no seed file (FR-019) |
+| `store_staff` row (create) | the JIT upsert on first authenticated contact | ✅ automatic |
+| `store_staff_role` | reconcile from `cognito:groups`, every `/store/v1/me` | ✅ automatic |
+| `store_staff.store_id` | back-office **store-staff management** | ❌ — there is no store to assign |
+| `store_staff.status` | back-office **store-staff management** | ❌ |
+| `store_staff.email` | back-office management (authoritative); `/me` refreshes it opportunistically | partial — set only when the token carries a real address |
 
-`shop-provision-staff` runs **after** the operator's first sign-in, because the row is created by
-the JIT upsert. Both commands compose the DSN at invocation via `infra/scripts/db-dsn.sh`, exactly
-as `db-up` does — no credential in shell history.
+**This slice ships no write path for the platform-owned columns.** That is intentional: they are
+management concerns, and management belongs in the back-office console (the next slice). Shipping a
+seed command here would have created tooling that dies the day that slice lands, and would allow a
+store row to exist that the product never created.
 
-The Cognito half (create the user, add to `store_manager` / `store_staff`) is a separate
-`aws cognito-idp` step, scripted in [quickstart.md](../quickstart.md) §3.
+### What that means for the gate
+
+The authorization predicate **inner-joins** `public.store`. With no store in existence, no operator
+can hold an assignment, so:
+
+- ✅ **provable now** — `store_staff` refused, role-less refused, and an **unassigned
+  `store_manager` refused despite a sufficient role** (the store-scope term, doing real work).
+- ⏳ **proven in the store-management slice** — a manager at an **active** store is *served*; the
+  same manager is refused once the store is **deactivated**; a **disabled** operator is refused.
+  Each needs data only that slice can create.
+
+The role and store-scope terms are therefore demonstrated live here; the `status` and
+`is_active` terms are implemented and unit-tested here, and demonstrated live there.
+
+### Identity provisioning (unchanged, and out of the database)
+
+Creating a shop-pool account and granting it `store_manager` / `store_staff` happens in Cognito, via
+its own administrative commands — see [quickstart.md](../quickstart.md) §3. No self-signup exists.

@@ -8,12 +8,28 @@
 #
 # Each request below bypasses the interface entirely. A store_staff operator who never sees the
 # Management link is refused exactly the same way as one who types the URL.
+#
+# ── WHICH CHECKS CAN PASS TODAY ──────────────────────────────────────────────────────────────
+# 007 ships the store SCHEMA but no way to CREATE a store: that is back-office store management
+# (feature 008). Until 008 exists, no operator has a store assignment, so:
+#
+#   • the DENIAL checks all pass now  — store_staff, role-less, and unassigned are refused, which
+#     is exactly the negative half of the gate (SC-005, SC-005a).
+#   • the manager POSITIVE check (200) cannot pass — an inner join to public.store finds nothing.
+#
+# Run with EXPECT_STORE=0 (the default until 008) to assert the manager is refused *for lack of a
+# store*, and EXPECT_STORE=1 afterwards to assert they are served. Either way the gate is proven;
+# what changes is which side of it there is data for.
 set -euo pipefail
 
 API="${API_ENDPOINT:?API_ENDPOINT not set}"
 MANAGER_TOKEN="${MANAGER_TOKEN:?MANAGER_TOKEN not set}"
 STAFF_TOKEN="${STAFF_TOKEN:?STAFF_TOKEN not set}"
 NOBODY_TOKEN="${NOBODY_TOKEN:?NOBODY_TOKEN not set (a provisioned account with NO role)}"
+
+# 0 = no store assignments exist yet (pre-008): the manager must be refused for lack of a store.
+# 1 = 008 has created a store and assigned the manager to it: they must be served.
+EXPECT_STORE="${EXPECT_STORE:-0}"
 
 status() { curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $2" "${API}$1"; }
 body()   { curl -s -H "Authorization: Bearer $2" "${API}$1"; }
@@ -38,7 +54,11 @@ check "store_staff"                   "/store/v1/me" "$STAFF_TOKEN"   200
 check "role-less"                     "/store/v1/me" "$NOBODY_TOKEN"  200
 echo
 echo "/store/v1/manager-ping gates (the backend decides, not the interface):"
-check "store_manager, active, active store" "/store/v1/manager-ping" "$MANAGER_TOKEN" 200
+if [ "$EXPECT_STORE" = "1" ]; then
+  check "store_manager, active, at an active store" "/store/v1/manager-ping" "$MANAGER_TOKEN" 200
+else
+  check "store_manager, but NO store assigned (pre-008)" "/store/v1/manager-ping" "$MANAGER_TOKEN" 403
+fi
 check "store_staff  → refused by backend"   "/store/v1/manager-ping" "$STAFF_TOKEN"   403
 check "role-less    → refused by backend"   "/store/v1/manager-ping" "$NOBODY_TOKEN"  403
 echo
@@ -59,23 +79,34 @@ if [ "$fail" -ne 0 ]; then
   cat <<'DIAG'
 FAILED — likely causes:
 
-  manager gets 403   the platform record disagrees with the token. Check all three terms:
-                       SELECT ss.status, st.code, st.is_active,
-                              array_agg(ssr.role_key)
-                         FROM public.store_staff ss
-                         LEFT JOIN public.store_staff_role ssr ON ssr.staff_id = ss.id
-                         LEFT JOIN public.store st ON st.id = ss.store_id
-                        WHERE ss.email = '<manager email>' GROUP BY 1,2,3;
-                     Most often: they signed in but were never assigned a store
-                       → make shop-provision-staff EMAIL=... STORE=CMB-01 ENV=dev
+  manager 403, EXPECT_STORE=1   the platform record disagrees with the token. Inspect all three terms:
+                                  SELECT ss.status, st.code, st.is_active, array_agg(ssr.role_key)
+                                    FROM public.store_staff ss
+                                    LEFT JOIN public.store_staff_role ssr ON ssr.staff_id = ss.id
+                                    LEFT JOIN public.store st ON st.id = ss.store_id
+                                   WHERE ss.cognito_sub = '<sub>' GROUP BY 1,2,3;
+                                Most often the manager has no store assignment — assign one from the
+                                back-office store-management console (feature 008), then re-run.
 
-  staff gets 200     THE GATE IS BROKEN. The backend is trusting the claim, or the query lost a
-                     term. This is the failure this whole slice exists to prevent.
+  manager 200, EXPECT_STORE=0   a store assignment exists that this slice cannot have created.
+                                Either 008 already shipped (re-run with EXPECT_STORE=1), or a row was
+                                inserted by hand — which is exactly what 007 stopped doing.
 
-  anyone gets 503    the DB is unreachable — the gate FAILS CLOSED by design, so this is correct
-                     behaviour, not a grant. Check the allowlist / that the instance is running.
+  staff or role-less gets 200   THE GATE IS BROKEN. The backend is trusting the cognito:groups claim,
+                                or the predicate lost a term. This is the failure the slice exists to
+                                prevent — do not ship past it.
+
+  anyone gets 503               the DB is unreachable. The gate FAILS CLOSED by design, so this is
+                                correct behaviour, not a grant. Check the allowlist / that the
+                                instance is running.
 DIAG
   exit 1
 fi
 
-echo "PASS — role AND status AND store scope, decided from the platform's own record."
+if [ "$EXPECT_STORE" = "1" ]; then
+  echo "PASS — role AND status AND store scope, decided from the platform's own record."
+else
+  echo "PASS — the gate refuses every operator without a store. Re-run with EXPECT_STORE=1 once"
+  echo "       back-office store management (008) has created a store and assigned the manager,"
+  echo "       to prove the positive half."
+fi

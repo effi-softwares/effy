@@ -9,8 +9,14 @@ code-verifiable and green before you start.
 It doubles as the **verification script for SC-001…SC-016**. §5 and §6 are the two proofs that
 cannot be unit-tested (research R9) — they are the point of the slice, not a formality.
 
-**Prerequisites**: the `ef` AWS profile, the dev DB allowlist applied (002), `psql`, `jq`, `goose`,
-`pnpm`, Node 22.
+**Two criteria are deliberately deferred.** This slice ships the store schema but **no way to create
+a store** (FR-019) — that is back-office store management, the next slice. So SC-005b (a manager
+*served* at an active store) and SC-012 (a *disabled* operator refused) are verified there, against
+data the product created. Everything else is verifiable today, including the whole negative half of
+the gate. See §6.
+
+**Prerequisites**: the `ef` AWS profile, the dev DB allowlist applied (002), `psql`, `goose`,
+`pnpm`, Node 22, `python3` (for `shop-token-claims`).
 
 ---
 
@@ -58,11 +64,9 @@ The migration must be **committed first** — `make db-up` refuses uncommitted m
 git add db/migrations && git commit -m "feat(db): store staff RBAC schema"
 make db-status ENV=dev           # read-only; confirms the pending migration
 make db-up ENV=dev               # OPERATOR — y/N confirm
-
-make shop-seed-store CODE=CMB-01 NAME="Colombo 01" ENV=dev
 ```
 
-Verify (SC-011 groundwork):
+Verify the schema landed:
 
 ```bash
 psql "$(infra/scripts/db-dsn.sh dev)" -c "\dt public.*"
@@ -71,23 +75,42 @@ psql "$(infra/scripts/db-dsn.sh dev)" -c "SELECT key FROM public.store_role ORDE
 # → store_manager, store_staff
 ```
 
+> **`public.store` is empty, and stays empty.** This slice ships the store schema and the
+> authorization that depends on it, but **no way to create a store** (FR-019) — no interface, no
+> command, no seed file. Stores are created by **back-office store management**, the next slice, so
+> that no store row ever exists that the product did not create.
+>
+> Everything below is written for that reality. It is not a gap to work around: an operator with no
+> store assignment is a **required** state the console and the gate must both handle correctly, and
+> you are about to verify that they do.
+
 ---
 
 ## 3. Provision three store accounts
 
-Three, because the gate has three failure modes worth proving. Cognito first; the platform record
-comes later (it is created by the JIT upsert on their first sign-in).
+Three, because the gate has three ways to refuse. Identity only — Cognito, no database. The
+`store_staff` row appears by itself on each account's first sign-in (the JIT upsert).
 
 ```bash
-make shop-create-account EMAIL=sam.manager@effy.test ROLE=store_manager ENV=dev
-make shop-create-account EMAIL=ravi.staff@effy.test  ROLE=store_staff   ENV=dev
-make shop-create-account EMAIL=nobody@effy.test                          ENV=dev   # no role
+POOL=$(aws ssm get-parameter --profile ef --name /effy/dev/auth/shop/user_pool_id \
+        --query Parameter.Value --output text)
+
+for E in sam.manager@effy.test  ravi.staff@effy.test  nobody@effy.test; do
+  aws cognito-idp admin-create-user --profile ef \
+    --user-pool-id "$POOL" --username "$E" \
+    --user-attributes Name=email,Value="$E" Name=email_verified,Value=true \
+    --message-action SUPPRESS
+done
+
+aws cognito-idp admin-add-user-to-group --profile ef --user-pool-id "$POOL" \
+  --username sam.manager@effy.test --group-name store_manager
+aws cognito-idp admin-add-user-to-group --profile ef --user-pool-id "$POOL" \
+  --username ravi.staff@effy.test   --group-name store_staff
+# nobody@effy.test gets NO group — the role-less case.
 ```
 
-Each account is created with **no temporary password** and a **suppressed invite**, so it lands
-`CONFIRMED` on the passwordless pool and can request a one-time code immediately — the same trick
-006's `create-first-admin` uses. The target is idempotent: re-running it on an existing account
-just re-applies the group.
+> `--message-action SUPPRESS` with **no temporary password**: the pool is passwordless, so the user
+> lands `CONFIRMED` and can request an OTP immediately. Same trick as 006's `create-first-admin`.
 
 ---
 
@@ -104,21 +127,11 @@ Sign in as **`sam.manager@effy.test`** → OTP to the inbox → land in the dash
 - **SC-013**: sidebar + top location bar + main region present; identity and sign-out in the sidebar
   user menu; the rail collapses/expands cleanly in light **and** dark.
 - **SC-007**: neutral surfaces, single jade accent, proportional scaling — all inherited, nothing local.
+- **SC-003**: the proving screen shows the backend-returned subject, roles, and a **"no store
+  assigned"** state. That state *is* the expected result (FR-007) — the record was created before
+  anyone could know where this operator works, and nothing exists yet to assign.
 
-At this point Sam has **no store assignment**. The dashboard says so plainly and `/manager` is
-refused. That is correct — the record is created before anyone knows where they work. Now assign,
-having signed each account in once so its row exists:
-
-```bash
-make shop-provision-staff EMAIL=sam.manager@effy.test STORE=CMB-01 ENV=dev
-make shop-provision-staff EMAIL=ravi.staff@effy.test  STORE=CMB-01 ENV=dev
-```
-
-`shop-provision-staff` resolves the operator's `cognito_sub` from Cognito rather than matching on
-email — because `email` starts NULL (research R6). It refuses clearly if the account has never
-signed in, or if the store code is unknown.
-
-Reload. Sam now sees Management; `/store/v1/me` returns the store.
+Sign in as the other two accounts as well, so their `store_staff` rows exist for §6.
 
 ### Verify the token claims (research R6, ~2 minutes)
 
@@ -134,10 +147,9 @@ Then:
 make shop-token-claims TOKEN=eyJ...
 ```
 
-It prints the claim set and tells you which world you are in. **Record the verdict in
-[research.md](./research.md) R6.** If it reports `username` is an opaque id, that **confirms the 005
-defect** — `/admin/v1/me` is writing UUIDs into `admin.staff.email`. 007 is correct either way,
-by construction.
+It prints the claim set and states the verdict. **Record it in [research.md](./research.md) R6.** If
+it reports `username` is an opaque id, that **confirms the 005 defect** — `/admin/v1/me` is writing
+UUIDs into `admin.staff.email`. 007 is correct either way, by construction.
 
 ---
 
@@ -153,54 +165,67 @@ make shop-verify-isolation SHOP_TOKEN=eyJ... BO_TOKEN=eyJ... ENV=dev
 
 **Pass = `200 200 401 401`**: each token is served by its own audience and refused by the other's.
 
-The script explains any failure in place, but the short version: a **403** where a 401 belongs means
-a route lost its authorizer and fell through to a handler check; a **200** on a cross-pool call means
-a route was attached with the *wrong authorizer id* — the one mistake this design still permits,
-since the id is an opaque SSM string that type-checks and deploys fine either way.
+The script explains any failure in place. The short version: a **403** where a 401 belongs means a
+route lost its authorizer and fell through to a handler check; a **200** on a cross-pool call means a
+route was attached with the *wrong authorizer id* — the one mistake this design still permits, since
+the id is an opaque SSM string that type-checks and deploys fine either way.
 (See [cross-pool-isolation.contract.md](./contracts/cross-pool-isolation.contract.md).)
+
+This check is **complete today**. It needs no store.
 
 ---
 
-## 6. SC-005 / SC-005a / SC-012 — the manager gate, from the platform record ⭐
+## 6. SC-005 / SC-005a — the gate refuses, from the platform record ⭐
 
-Collect the three tokens (sign in as each account), then:
+Collect all three tokens (sign in as each account), then:
 
 ```bash
 make shop-verify-gate MANAGER_TOKEN=eyJ... STAFF_TOKEN=eyJ... NOBODY_TOKEN=eyJ... ENV=dev
 ```
 
-This asserts that `/store/v1/me` admits **everyone** (its job is to record them) while
-`/store/v1/manager-ping` serves only the manager — and that the `403` body **never names which term
-failed**. Every request bypasses the interface entirely: a `store_staff` operator who never sees the
-Management link is refused exactly like one who types the URL.
+`EXPECT_STORE` defaults to `0` — the pre-store-management world. The script asserts:
 
-Now flip each **platform-owned** term and re-run. Each must turn the manager's `200` into a `403`
-**while Sam's token stays perfectly valid** — that is the entire claim of FR-021.
+| Caller | `/store/v1/me` | `/store/v1/manager-ping` | Why |
+|---|---|---|---|
+| `store_manager` | `200` | **`403`** | **SC-005a** — a sufficient role, refused for lack of a store assignment. The store-scope term is doing real work. |
+| `store_staff` | `200` | `403` | **SC-005** — refused by the *backend*, bypassing the hidden nav item entirely |
+| role-less | `200` | `403` | recorded, granted nothing |
 
-```bash
-DSN="$(infra/scripts/db-dsn.sh dev)"
+It also asserts the `403` body **never names which term failed** — that would leak the platform's
+record state to a caller just told they may not read it.
 
-# SC-012 — disabled staff
-psql "$DSN" -c "UPDATE public.store_staff SET status='disabled' WHERE email='sam.manager@effy.test';"
-# → re-run shop-verify-gate: manager now 403.  Restore: status='active'
-
-# SC-005a — no store assignment
-psql "$DSN" -c "UPDATE public.store_staff SET store_id=NULL WHERE email='sam.manager@effy.test';"
-# → 403.  Restore: make shop-provision-staff EMAIL=sam.manager@effy.test STORE=CMB-01 ENV=dev
-
-# SC-005a — inactive store
-psql "$DSN" -c "UPDATE public.store SET is_active=false WHERE code='CMB-01';"
-# → 403.  Restore: is_active=true
-```
-
-Three different columns, three different owners, one uniform refusal. The token never changed.
+Note what the first row proves. Sam holds `store_manager` in the `cognito:groups` claim and is
+**still refused**, because the platform record — not the token — decides. That is FR-021 in one
+line, and it is provable precisely *because* no store exists.
 
 **SC-011 — idempotency.** Reload the console several times, then:
 
 ```bash
-psql "$DSN" -c "SELECT count(*) FROM public.store_staff WHERE email='sam.manager@effy.test';"     # → 1
-psql "$DSN" -c "SELECT last_seen_at FROM public.store_staff WHERE email='sam.manager@effy.test';" # advances
+DSN="$(infra/scripts/db-dsn.sh dev)"
+psql "$DSN" -c "SELECT count(*) FROM public.store_staff;"                    # → 3, one per account
+psql "$DSN" -c "SELECT cognito_sub, email, status, store_id, last_seen_at
+                  FROM public.store_staff ORDER BY created_at;"
+# every store_id NULL · status 'active' · last_seen_at advancing on each reload
 ```
+
+### Deferred to the store-management slice — SC-005b and SC-012
+
+These need store data, and this slice can create none:
+
+| Criterion | What it asserts | Blocked on |
+|---|---|---|
+| **SC-005b** | an active manager at an **active store** is *served* (`200`) | a store existing |
+| **SC-005b** | the same manager is refused once the store is **deactivated** | a store existing |
+| **SC-012** | a **disabled** operator is refused despite a valid credential | a way to disable one |
+
+All three terms are implemented and unit-tested here (`apis/edge-api/store/src/staff/`). When
+back-office store management ships, create a store through it, assign Sam, and re-run:
+
+```bash
+make shop-verify-gate MANAGER_TOKEN=… STAFF_TOKEN=… NOBODY_TOKEN=… EXPECT_STORE=1 ENV=dev
+```
+
+Then flip `status` and `is_active` from that console and watch a valid token stop working.
 
 ---
 
@@ -210,7 +235,7 @@ psql "$DSN" -c "SELECT last_seen_at FROM public.store_staff WHERE email='sam.man
 | SC | How to check |
 |---|---|
 | **SC-001** | Fresh clone → running console + OTP sign-in in **under 15 min** using only `apps/shop-web/README.md` |
-| **SC-003** | Proving screen renders the backend-returned subject, roles, **and assigned store** |
+| **SC-003** | Proving screen renders the backend-returned subject, roles, and the **"no store assigned"** state — the expected result until store management ships (FR-007) |
 | **SC-006** | Sample each failure: stop the backend (or use a bad `VITE_API_BASE_URL`) → degraded + Retry; expire a session → sign-in; `403` → access-denied. **Zero** stack traces, raw detail, or credentials on screen |
 | **SC-008** | `git grep -nE '(us-east-1_|AKIA|eyJ)' -- apps/shop-web` → nothing; inspect `make shop-build` output; confirm PostHog events carry only `subject` |
 | **SC-009** | `git grep -n "components/ui" apps/shop-web` → nothing (primitives come from `@effy/design-system/ui`); `grep -rn "function ErrorState" apps/` → nothing (the error contract has ONE implementation, in `@effy/web-kit`). Every shared concern resolves to a single source, and **`@effy/api-client` is unchanged by this slice** — the cleanest evidence the foundation was already audience-neutral |
@@ -219,19 +244,25 @@ psql "$DSN" -c "SELECT last_seen_at FROM public.store_staff WHERE email='sam.man
 | **SC-015** | A newcomer adds a practice screen from `shop-web.contract.md` §7 alone, correct on the first attempt |
 | **SC-016** | Sign in as each account; `/store/v1/me` returns the expected `roles` for each; the platform record matches after reconcile |
 
+**Deferred to the back-office store-management slice** (they need store data this slice cannot
+create — see §6): **SC-005b** (manager served at an active store; refused once it is deactivated)
+and **SC-012** (a disabled operator refused despite a valid credential). Both terms are implemented
+and unit-tested here.
+
 ---
 
 ## 8. Cleanup
 
+Nothing to undo: this slice writes no store rows and flips no platform-owned columns, so there is no
+fixture state to restore. The only rows that exist are the three `store_staff` records the JIT upsert
+created, and they are the real thing, not test data.
+
 ```bash
-psql "$DSN" -c "UPDATE public.store_staff SET status='active' WHERE email='sam.manager@effy.test';"
-psql "$DSN" -c "UPDATE public.store SET is_active=true WHERE code='CMB-01';"
-make shop-provision-staff EMAIL=sam.manager@effy.test STORE=CMB-01 ENV=dev
 make dev-stop ENV=dev        # park the RDS instance if you're done for the day
 ```
 
 Leave the three test accounts in place — §5 and §6 are worth re-running whenever a route's
-authorizer changes.
+authorizer changes, and §6 gets its `EXPECT_STORE=1` half once store management ships.
 
 ---
 

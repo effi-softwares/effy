@@ -9,8 +9,24 @@ They are not infrastructure (`infra/scripts/` holds the Terraform/DB plumbing: `
 | Script | `make` target | Proves |
 |---|---|---|
 | `verify-cross-pool.sh` | `shop-verify-isolation` | SC-004 — a credential is usable only against its own audience, **both directions** |
-| `verify-manager-gate.sh` | `shop-verify-gate` | SC-005 / SC-005a / SC-012 — the manager gate is decided from the platform record (role AND status AND store scope), and its denial names no term |
+| `verify-manager-gate.sh` | `shop-verify-gate` | SC-005 / SC-005a — the manager gate is decided from the platform record (role AND status AND store scope), and its denial names no term |
 | `token-claims.sh` | `shop-token-claims` | research R6 — whether a Cognito access token carries `email`, and whether `username` is an address or a UUID |
+
+### `EXPECT_STORE` — which half of the gate has data
+
+007 ships the store schema but **no way to create a store** (that is back-office store management,
+the next slice). The gate's predicate inner-joins `public.store`, so:
+
+```bash
+make shop-verify-gate …                    # EXPECT_STORE=0 (default, pre-store-management)
+                                           #   asserts the manager is REFUSED for lack of a store
+make shop-verify-gate … EXPECT_STORE=1     # once a store exists and the manager is assigned
+                                           #   asserts the manager is SERVED
+```
+
+Both settings prove the gate. What changes is which side of it there is data for. The `0` case is
+not a weaker check — a `store_manager` holding the role in `cognito:groups` and still being refused
+is the clearest possible demonstration that the **platform record, not the token, decides**.
 
 ## Why these are scripts and not tests
 

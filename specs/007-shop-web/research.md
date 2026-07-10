@@ -267,8 +267,10 @@ in a migration.
 1. `public.store_staff.email` is **nullable**.
 2. `/store/v1/me` resolves email as `claim("email") ?? emailShaped(claim("username")) ?? null`
    and **never overwrites a non-null stored email with null**.
-3. The **operator provisioning step is authoritative** for email — `make shop-provision-staff
-   EMAIL=… ROLE=…` writes it, exactly as 006 seeds `admin.staff.name` out-of-band.
+3. The **staff-management step is authoritative** for email — back-office store management writes
+   it (next slice), exactly as 006 seeds `admin.staff.name` out-of-band. Until then `email` stays
+   null for operators whose token carries no address, which is a correct, visible state rather than
+   a wrong value.
 4. A **2-minute operator verification task** decodes a real shop-pool access token and records
    the actual claim set in this file. If `email` is present, step 2's first branch wins and
    nothing changes. If it is absent, nothing changes either — the record is already correct

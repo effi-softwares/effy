@@ -161,6 +161,9 @@ and the store audience's **first RBAC model**.
 - **Data**: the platform's **first `public`-schema tables** — `store`, `store_staff`, `store_role`,
   `store_staff_role` (migration `20260710050004`). `store_staff.email` and `.store_id` are nullable
   by design; **status and store assignment are platform-owned and never written from token data**.
+  **No store-creation path ships** (FR-019, revised 2026-07-10): no interface, no command, no seed
+  file. `public.store` is created empty and stays empty until **back-office store management** — the
+  **next slice** — fills it, so no store row ever exists that the product did not create.
 - **Backend** (`apis/edge-api/store`, restructured to nested domains `staff/` + `status/`):
   `GET /store/v1/me` (record-backed identity read + idempotent JIT upsert) and
   `GET /store/v1/manager-ping` (**gate = role AND status AND store scope**, one SQL predicate,
@@ -169,15 +172,24 @@ and the store audience's **first RBAC model**.
   single register binding `shop-web` ↔ `shop-mobile`; the mobile column is **outstanding by design**
   (building it is its own slice).
 - Spec/plan/artifacts: [specs/007-shop-web/](specs/007-shop-web/).
+- **Verification**: `scripts/` holds the three checks that cannot honestly be unit-tested —
+  `make shop-verify-isolation` (SC-004, gateway authorizers), `make shop-verify-gate` (SC-005/005a,
+  a SQL join), `make shop-token-claims` (research R6).
 - Status: **code-complete** — `pnpm typecheck` + `pnpm test` green across the workspace (**159
   tests**: edge-shared 26, edge-admin 7, edge-store 39, web-kit 38, back-office 20, shop-web 29);
-  `terraform validate` + `fmt` clean; secret/PII sweep clean. **Open (operator)**: **T009**
-  (`make apply ENV=dev` — 2 Cognito groups + the `:5174` CORS origin; *abort if the pool would be
-  replaced*), **T012** (commit the migration, then `make db-up ENV=dev`), **T034** (provision three
-  shop accounts + sign in), **T041** (`make edge-deploy SERVICE=store ENV=dev`), **T045** (SC-004
-  cross-pool `curl`, both directions — expect `200 200 401 401`), **T054**/**T060** (manager gate +
-  term-flipping), **T068** (decode a real token → settle research R6), **T070** (SC sign-off).
-  Runbook: [quickstart](specs/007-shop-web/quickstart.md). *Not committed yet.*
+  `terraform validate` + `fmt` clean; shellcheck clean; secret/PII sweep clean. **Open (operator)**:
+  **T009** (`make apply ENV=dev` — 2 Cognito groups + the `:5174` CORS origin; *abort if the pool
+  would be replaced*), **T012** (commit the migration, then `make db-up ENV=dev`), **T034**
+  (provision three shop accounts in Cognito + sign in), **T041** (`make edge-deploy SERVICE=store
+  ENV=dev`), **T045** (`make shop-verify-isolation` — expect `200 200 401 401`), **T054**/**T060**
+  (`make shop-verify-gate` — the gate's negative half), **T068** (`make shop-token-claims` → settle
+  research R6), **T070** (partial SC sign-off).
+  Runbook: [quickstart](specs/007-shop-web/quickstart.md).
+- **Sign-off is partial by design.** **SC-005b** (a manager *served* at an active store; refused once
+  it is deactivated) and **SC-012** (a *disabled* operator refused) need store data only the
+  back-office store-management slice can create. All three gate terms are implemented + unit-tested
+  here; the role and store-scope terms are additionally proven **live** (an unassigned
+  `store_manager` is refused despite a valid claim — FR-021 in one line).
 - **Raised, not fixed**: `/admin/v1/me` (005) resolves email as `claim("username") ?? sub` and may be
   storing UUIDs in `admin.staff.email`. Recorded at the tail of
   [specs/005-back-office-web/plan.md](specs/005-back-office-web/plan.md); 007 deliberately does not
