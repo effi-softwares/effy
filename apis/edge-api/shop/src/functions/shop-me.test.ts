@@ -3,9 +3,9 @@ import type { Context } from "aws-lambda";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const recordAndLoad = vi.hoisted(() => vi.fn());
-vi.mock("../staff/service", () => ({ recordAndLoad, isActiveStoreManager: vi.fn() }));
+vi.mock("../staff/service", () => ({ recordAndLoad, isActiveShopManager: vi.fn() }));
 
-import { handler } from "./store-me-v1-get";
+import { handler } from "./shop-me-v1-get";
 
 const ctx = {
   awsRequestId: "aws-1",
@@ -14,7 +14,7 @@ const ctx = {
 
 function event(claims: Record<string, unknown>): AuthedEvent {
   return {
-    rawPath: "/store/v1/me",
+    rawPath: "/shop/v1/me",
     requestContext: { requestId: "req-1", authorizer: { jwt: { claims } } },
   } as unknown as AuthedEvent;
 }
@@ -22,20 +22,20 @@ function event(claims: Record<string, unknown>): AuthedEvent {
 const RECORD = {
   subject: "sub-1",
   email: "sam@effy.test",
-  roles: ["store_manager"],
+  roles: ["shop_manager"],
   status: "active",
-  store: { id: "store-1", code: "CMB-01", name: "Colombo 01", isActive: true },
+  shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", isActive: true },
   lastSeenAt: "2026-07-09T00:00:00.000Z",
 };
 
-describe("GET /store/v1/me", () => {
+describe("GET /shop/v1/me", () => {
   // Reset AFTER each test, not before: clearing a mock whose previous call rejected orphans
   // vitest's result-tracking promise, which then surfaces as a spurious unhandled error.
   afterEach(() => recordAndLoad.mockReset());
 
   it("records the operator and returns the platform record", async () => {
     recordAndLoad.mockResolvedValue(RECORD);
-    const res = await handler(event({ sub: "sub-1", "cognito:groups": "[store_manager]" }), ctx);
+    const res = await handler(event({ sub: "sub-1", "cognito:groups": "[shop_manager]" }), ctx);
 
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.body as string)).toEqual(RECORD);
@@ -43,13 +43,13 @@ describe("GET /store/v1/me", () => {
 
   // /me ADMITS role-less callers — its job is to record them. Gating lives on manager-ping.
   it("admits and records a role-less operator", async () => {
-    recordAndLoad.mockResolvedValue({ ...RECORD, roles: [], store: null });
+    recordAndLoad.mockResolvedValue({ ...RECORD, roles: [], shop: null });
     const res = await handler(event({ sub: "sub-1" }), ctx);
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.body as string);
     expect(body.roles).toEqual([]);
-    expect(body.store).toBeNull();
+    expect(body.shop).toBeNull();
   });
 
   it("rejects a request with no verified subject", async () => {
@@ -74,12 +74,12 @@ describe("GET /store/v1/me", () => {
 
   it("returns the uniform 503 problem on a repository failure, cause withheld", async () => {
     recordAndLoad.mockImplementation(async () => {
-      throw new Error('relation "public.store_staff" does not exist');
+      throw new Error('relation "public.shop_staff" does not exist');
     });
     const res = await handler(event({ sub: "sub-1" }), ctx);
 
     expect(res.statusCode).toBe(503);
     expect(res.headers?.["content-type"]).toBe("application/problem+json");
-    expect(res.body).not.toContain("store_staff");
+    expect(res.body).not.toContain("shop_staff");
   });
 });

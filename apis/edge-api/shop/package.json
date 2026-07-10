@@ -1,9 +1,9 @@
 {
-  "name": "@effy/edge-store",
+  "name": "@effy/edge-shop",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path store service (004-backend-bootstrap A3) — attaches to the shared HTTP API; routes under /store/.",
+  "description": "Effy cold-path shop service (004-backend-bootstrap A3) — attaches to the shared HTTP API; routes under /shop/.",
   "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": {
     "@effy/edge-shared": "workspace:*",

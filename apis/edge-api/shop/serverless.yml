@@ -1,8 +1,8 @@
-# edge-store — Effy cold-path store/operator service (004-backend-bootstrap, amendment A3).
+# edge-shop — Effy cold-path shop/operator service (004-backend-bootstrap, amendment A3).
 # Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
 # CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
-# under /store/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
-service: effy-edge-store
+# under /shop/. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-shop
 frameworkVersion: "3"
 
 plugins:
@@ -29,7 +29,7 @@ provider:
   tags:
     project: effy
     slice: 004-backend-bootstrap
-    service: store
+    service: shop
   # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
   httpApi:
     id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
@@ -72,11 +72,11 @@ package:
 functions:
   health:
     handler: src/functions/health-get.handler
-    description: Liveness + readiness (DB probe), public — store service
+    description: Liveness + readiness (DB probe), public — shop service
     events:
       - httpApi:
           method: GET
-          path: /store/healthz
+          path: /shop/healthz
 
   platformStatusV1:
     handler: src/functions/platform-status-v1-get.handler
@@ -84,7 +84,7 @@ functions:
     events:
       - httpApi:
           method: GET
-          path: /store/v1/status
+          path: /shop/v1/status
 
   platformStatusV2:
     handler: src/functions/platform-status-v2-get.handler
@@ -92,37 +92,37 @@ functions:
     events:
       - httpApi:
           method: GET
-          path: /store/v2/status
+          path: /shop/v2/status
 
-  storePingV1:
-    handler: src/functions/store-ping-v1-get.handler
-    description: Store identity-enforcement proving route (shop pool)
+  shopPingV1:
+    handler: src/functions/shop-ping-v1-get.handler
+    description: Shop identity-enforcement proving route (shop pool)
     events:
       - httpApi:
           method: GET
-          path: /store/v1/ping
+          path: /shop/v1/ping
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  storeMeV1:
-    handler: src/functions/store-me-v1-get.handler
-    description: Store-identity read — records (JIT upsert) + returns the platform record (007)
+  shopMeV1:
+    handler: src/functions/shop-me-v1-get.handler
+    description: Shop-identity read — records (JIT upsert) + returns the platform record (007)
     events:
       - httpApi:
           method: GET
-          path: /store/v1/me
+          path: /shop/v1/me
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
-  storeManagerPingV1:
-    handler: src/functions/store-manager-ping-v1-get.handler
-    description: Manager-only proving route — authorizes from the DB record (role AND status AND store scope, 007)
+  shopManagerPingV1:
+    handler: src/functions/shop-manager-ping-v1-get.handler
+    description: Manager-only proving route — authorizes from the DB record (role AND status AND shop scope, 007)
     events:
       - httpApi:
           method: GET
-          path: /store/v1/manager-ping
+          path: /shop/v1/manager-ping
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -183,65 +183,65 @@ resources:
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
-    StorePingV1ErrorsAlarm:
+    ShopPingV1ErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-store-ping-v1-errors
+        AlarmName: ${self:service}-${sls:stage}-shop-ping-v1-errors
         Namespace: AWS/Lambda
         MetricName: Errors
-        Dimensions: [{ Name: FunctionName, Value: !Ref StorePingV1LambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopPingV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
-    StorePingV1ThrottlesAlarm:
+    ShopPingV1ThrottlesAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-store-ping-v1-throttles
+        AlarmName: ${self:service}-${sls:stage}-shop-ping-v1-throttles
         Namespace: AWS/Lambda
         MetricName: Throttles
-        Dimensions: [{ Name: FunctionName, Value: !Ref StorePingV1LambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopPingV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
-    StoreMeV1ErrorsAlarm:
+    ShopMeV1ErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-store-me-v1-errors
+        AlarmName: ${self:service}-${sls:stage}-shop-me-v1-errors
         Namespace: AWS/Lambda
         MetricName: Errors
-        Dimensions: [{ Name: FunctionName, Value: !Ref StoreMeV1LambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopMeV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
-    StoreMeV1DurationP95Alarm:
+    ShopMeV1DurationP95Alarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-store-me-v1-duration-p95
+        AlarmName: ${self:service}-${sls:stage}-shop-me-v1-duration-p95
         Namespace: AWS/Lambda
         MetricName: Duration
-        Dimensions: [{ Name: FunctionName, Value: !Ref StoreMeV1LambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopMeV1LambdaFunction }]
         ExtendedStatistic: p95
         Period: 300
         EvaluationPeriods: 3
         Threshold: 5000
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
-    StoreManagerPingV1ErrorsAlarm:
+    ShopManagerPingV1ErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-store-manager-ping-v1-errors
+        AlarmName: ${self:service}-${sls:stage}-shop-manager-ping-v1-errors
         Namespace: AWS/Lambda
         MetricName: Errors
-        Dimensions: [{ Name: FunctionName, Value: !Ref StoreManagerPingV1LambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopManagerPingV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1

@@ -1,4 +1,4 @@
-// GET /store/v1/ping — the store/operator identity-enforcement proving route (shop pool). The
+// GET /shop/v1/ping — the shop/operator identity-enforcement proving route (shop pool). The
 // shared gateway's shop JWT authorizer has AUTHENTICATED the caller (a cross-pool token never
 // reaches here — Principle IV); this echoes the verified identity, proving the second cold-path
 // service and its per-pool authorizer wiring end to end.
@@ -21,7 +21,7 @@ export const handler = async (
   }
 
   return json(200, {
-    audience: "store",
+    audience: "shop",
     subject: sub,
     groups: groups(event),
     message: "pong",

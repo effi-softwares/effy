@@ -3,14 +3,14 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 import type { AuthedEvent } from "@effy/edge-shared";
 import { forbidden, json, preamble, problem, ProblemType, subject, unavailable } from "@effy/edge-shared";
 
-import { isActiveStoreManager } from "../staff/service";
+import { isActiveShopManager } from "../staff/service";
 
 /**
- * GET /store/v1/manager-ping — the manager-only proving read.
+ * GET /shop/v1/manager-ping — the manager-only proving read.
  *
- * Authorization is decided from the PLATFORM RECORD (role AND status AND store scope), never from
- * the cognito:groups claim. A token carrying `store_manager` is refused if the record says
- * disabled, unassigned, inactive-store, or role-less. That is the whole point (FR-021).
+ * Authorization is decided from the PLATFORM RECORD (role AND status AND shop scope), never from
+ * the cognito:groups claim. A token carrying `shop_manager` is refused if the record says
+ * disabled, unassigned, inactive-shop, or role-less. That is the whole point (FR-021).
  *
  * The 403 body is uniform and does NOT disclose which term failed — that would leak the platform's
  * record state to a caller who was just told they may not read it.
@@ -34,7 +34,7 @@ export const handler = async (
 
   let allowed: boolean;
   try {
-    allowed = await isActiveStoreManager(sub);
+    allowed = await isActiveShopManager(sub);
   } catch (err) {
     // FAIL CLOSED. A failed authorization check is never a grant.
     scope.log.error(
@@ -45,13 +45,13 @@ export const handler = async (
   }
 
   if (!allowed) {
-    scope.log.warn({ sub }, "manager ping: not an active store manager at an active store");
+    scope.log.warn({ sub }, "manager ping: not an active shop manager at an active shop");
     return forbidden(scope);
   }
 
   return json(
     200,
-    { audience: "store", scope: "store_manager", subject: sub, message: "pong" },
+    { audience: "shop", scope: "shop_manager", subject: sub, message: "pong" },
     scope,
   );
 };

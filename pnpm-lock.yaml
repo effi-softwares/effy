@@ -80,7 +80,7 @@ importers:
         specifier: ^3.0.0
         version: 3.2.6(@types/node@22.20.0)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)
 
-  apis/edge-api/store:
+  apis/edge-api/shop:
     dependencies:
       '@effy/edge-shared':
         specifier: workspace:*

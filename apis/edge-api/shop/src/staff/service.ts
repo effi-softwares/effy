@@ -1,5 +1,5 @@
-import { authorizeStoreManager, upsertOnContact } from "./repository";
-import type { StoreStaffRecord } from "./types";
+import { authorizeShopManager, upsertOnContact } from "./repository";
+import type { ShopStaffRecord } from "./types";
 
 // Orchestration only: no HTTP, no SQL (constitution Principle VI).
 
@@ -8,11 +8,11 @@ export async function recordAndLoad(
   sub: string,
   email: string | null,
   tokenRoles: readonly string[],
-): Promise<StoreStaffRecord> {
+): Promise<ShopStaffRecord> {
   return upsertOnContact(sub, email, tokenRoles);
 }
 
-/** Decide the manager gate from the platform record — role AND status AND store scope. */
-export async function isActiveStoreManager(sub: string): Promise<boolean> {
-  return authorizeStoreManager(sub);
+/** Decide the manager gate from the platform record — role AND status AND shop scope. */
+export async function isActiveShopManager(sub: string): Promise<boolean> {
+  return authorizeShopManager(sub);
 }

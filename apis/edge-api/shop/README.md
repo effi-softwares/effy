@@ -1,8 +1,8 @@
-# `@effy/edge-store` — cold-path store service (004 A3)
+# `@effy/edge-shop` — cold-path shop service (004 A3)
 
 An independently deployable Serverless service that **attaches to the Terraform-owned shared HTTP
 API** (`provider.httpApi.id` from SSM — see [docs/api/shared-gateway.md](../../../docs/api/shared-gateway.md)).
-Routes live under `/store/`; cross-cutting code comes from `@effy/edge-shared`.
+Routes live under `/shop/`; cross-cutting code comes from `@effy/edge-shared`.
 
 ## Layout (layered, per ARCHITECTURE.md)
 ```
@@ -15,10 +15,10 @@ src/
 
 ## Add an endpoint
 1. Add `src/functions/<name>-v<n>-get.ts` importing helpers from `@effy/edge-shared`.
-2. Add the route to `serverless.yml` under `/store/v<n>/...`; pick the pool via
+2. Add the route to `serverless.yml` under `/shop/v<n>/...`; pick the pool via
    `authorizer.id: ${ssm:/effy/${sls:stage}/edge/authorizer/<pool>_id}`.
-3. Add its per-function alarms. `pnpm --filter @effy/edge-store test`.
+3. Add its per-function alarms. `pnpm --filter @effy/edge-shop test`.
 
 ## Deploy (operator)
-`make edge-deploy SERVICE=store ENV=dev` — attaches to the shared gateway; touches only this
+`make edge-deploy SERVICE=shop ENV=dev` — attaches to the shared gateway; touches only this
 service's routes (deploy independence). The gateway (Terraform) must exist first.
