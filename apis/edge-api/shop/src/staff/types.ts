@@ -1,6 +1,9 @@
 export type ShopStaffStatus = "active" | "disabled";
 export type ShopRole = "shop_manager" | "shop_staff";
 
+/** Shop lifecycle status (009-shop-management). Only `active` shops serve their operators. */
+export type ShopLifecycleStatus = "active" | "suspended" | "disabled";
+
 /** Roles the platform recognises. A cognito:groups value outside this set is filtered out before
  *  reconcile, so an unrelated group can never become a platform role. */
 export const KNOWN_ROLES: readonly ShopRole[] = ["shop_manager", "shop_staff"];
@@ -10,7 +13,7 @@ export interface ShopSummary {
   id: string;
   code: string;
   name: string;
-  isActive: boolean;
+  status: ShopLifecycleStatus;
 }
 
 export interface ShopStaffRecord {

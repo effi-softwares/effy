@@ -147,7 +147,8 @@ The guard treats any occurrence matching a category below as permitted. Anything
 | **e** | **Historical record** | Text that rewriting would **falsify**. Not live names — records of what was true, or of what someone said. | The constitution's v1.5.0 changelog line and the v1.6.0 Sync Impact Report (which must name the token it retires); 007's superseded research R1; **verbatim user quotes** in every `operator-directives.md` and each spec's `**Input**:` line |
 | **f** | **Meta** | Artifacts *about* the rename, which necessarily quote the old name throughout. Path-excluded in the guard, not pattern-matched. | `specs/008-shop-naming-unification/`, `scripts/verify-no-store.sh`, `scripts/store-token-allowlist.txt` |
 
-**Categories (e) and (f) are additions to the spec's FR-002**, which enumerated four. Category (e) was
+**Categories (e) and (f) originated here, beyond FR-002's original four; FR-002 has since been
+reconciled to enumerate all six (Principle I).** Category (e) was
 foreseen by [research.md](../research.md) R6 for a single constitution line; implementation found it
 also covers verbatim user quotes and 007's superseded decision record. Category (f) was not foreseen at
 all — it exists because a document that *specifies* a rename cannot avoid naming what it retires.

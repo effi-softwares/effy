@@ -26,7 +26,7 @@ interface Row {
   shop_id: string | null;
   shop_code: string | null;
   shop_name: string | null;
-  shop_is_active: boolean | null;
+  shop_status: "active" | "suspended" | "disabled" | null;
 }
 
 /**
@@ -62,7 +62,7 @@ function fakeClient() {
             shop_id: null,
             shop_code: null,
             shop_name: null,
-            shop_is_active: null,
+            shop_status: null,
           });
           staffId = sub!;
         }
@@ -172,7 +172,7 @@ describe("shop staff record lifecycle", () => {
     row.shop_id = "shop-1";
     row.shop_code = "CMB-01";
     row.shop_name = "Colombo 01";
-    row.shop_is_active = true;
+    row.shop_status = "active";
 
     const record = await upsertOnContact("sub-1", "sam@effy.test", ["shop_manager"]);
 
@@ -181,7 +181,7 @@ describe("shop staff record lifecycle", () => {
       id: "shop-1",
       code: "CMB-01",
       name: "Colombo 01",
-      isActive: true,
+      status: "active",
     });
   });
 });

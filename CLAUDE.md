@@ -142,6 +142,34 @@ pattern scales.
 
 ## Active feature
 
+**009-shop-management** — Back-Office Shop Management. **Code-complete + verified; operator run pending.**
+The platform's shop-management capability in the **back-office** console: create shops, govern their
+lifecycle (active/suspended/disabled), and manage the people at each shop — provisioning shop users
+as passwordless **shop-pool** Cognito accounts + the platform record, kept consistent. It makes shop
+and shop-user existence **product data** and so **completes 007's deferred live sign-off** (SC-005b,
+SC-012 → this slice's SC-007/SC-008).
+- **Backend (cold path)**: a new `shops/` slice in **`apis/edge-api/admin`** (back-office authorizer)
+  — `/admin/v1/shops...` (list/detail/audit + create/update/status/delete + roster create/update).
+  Server-side Cognito Admin provisioning of shop-pool users follows 006's Cognito-first→DB idempotent
+  pattern (IAM scoped to the shop pool ARN; an authorized provisioning write, **not** cross-pool
+  auth — Principle IV holds, research R3). Two authz gates from the `admin.staff` record: read = any
+  active staff (incl. `csa`); mutate = `admin`/`manager` (A1).
+- **Data**: one forward-only migration (`20260710060000_shop_management.sql`) — `public.shop` gains a
+  3-value `status` (replacing 007's `is_active`) + `contact_phone`/`notes`; new general
+  **`admin.audit_log`**. The **007 shop manager gate was reconciled** to `status = 'active'` in
+  lockstep with its tests (research R2).
+- **Frontend**: a `features/shops/` slice in `apps/back-office` on the shared foundation; CRUD
+  primitives the design-system lacked (`table`/`dialog`/`alert-dialog`/`select`/`badge`) + a generic
+  `DataTable` in `@effy/web-kit/console` were added **to the packages** (Principle II); management
+  DTOs added to `@effy/shared-types`; `api-client` gained `post`/`patch`/`delete`.
+- Status: **code-complete** — full workspace `pnpm typecheck` + `pnpm -r test` (**184 tests**:
+  edge-shared 26, edge-admin 31 [+24 new `shops`], edge-shop 39, web-kit 38, back-office 21,
+  shop-web 29) + `turbo build` all green; secret/PII sweep clean. **Open (operator)**: **T067**
+  (`make apply ENV=dev` — Cognito IAM + `SHOP_USER_POOL_ID`), **T068** (commit migration + `make
+  db-up ENV=dev`), **T069** (`make edge-deploy SERVICE=admin` + `SERVICE=shop ENV=dev`), **T070**
+  (live SC-001…SC-015 incl. 007 sign-off closure), **T071** (parity-doc + sign-off).
+  Spec/plan/artifacts: [specs/009-shop-management/](specs/009-shop-management/).
+
 **007-shop-web** — Shop Web Foundation (Bootstrap). **Code-complete + verified; operator run pending.**
 The platform's **second web surface**: `apps/shop-web` (`@effy/shop-web`, Vite + React 19 SPA on
 :5174), the shop operator console. Same stack as the back-office console, **shop** Cognito pool,
@@ -291,5 +319,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/008-shop-naming-unification/plan.md
+at specs/009-shop-management/plan.md
 <!-- SPECKIT END -->

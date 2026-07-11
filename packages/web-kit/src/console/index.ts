@@ -11,4 +11,5 @@ export { ConsoleUserMenu, type ConsoleUserMenuProps } from "./ConsoleUserMenu";
 export { NavList, type NavListProps } from "./NavList";
 export { OtpSignInCard, type OtpSignInCardProps } from "./OtpSignInCard";
 export { ErrorState, type ErrorStateProps } from "./ErrorState";
+export { DataTable, type DataTableProps } from "./DataTable";
 export { currentSection, visibleNav, type NavItem } from "./nav";

@@ -20,7 +20,7 @@ const RECORD = {
   email: "sam@effy.test",
   roles: ["shop_manager" as const],
   status: "active" as const,
-  shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", isActive: true },
+  shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", status: "active" as const },
 };
 
 function domainError(kind: DomainError["kind"], status: number): DomainError {

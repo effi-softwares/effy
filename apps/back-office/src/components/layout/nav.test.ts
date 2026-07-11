@@ -13,6 +13,12 @@ describe("back-office nav (role-aware dashboard nav)", () => {
     }
   });
 
+  it("shows the ungated Shops item to every role (csa sees it read-only)", () => {
+    for (const roles of [["admin"], ["manager"], ["csa"], []] as const) {
+      expect(visibleNav(NAV, roles).map((i) => i.to)).toContain("/shops");
+    }
+  });
+
   it("shows the Admin item only to an administrator", () => {
     expect(visibleNav(NAV, ["admin"]).map((i) => i.to)).toContain("/admin");
     expect(visibleNav(NAV, ["manager", "admin"]).map((i) => i.to)).toContain("/admin");

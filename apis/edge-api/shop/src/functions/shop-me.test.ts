@@ -24,7 +24,7 @@ const RECORD = {
   email: "sam@effy.test",
   roles: ["shop_manager"],
   status: "active",
-  shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", isActive: true },
+  shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", status: "active" },
   lastSeenAt: "2026-07-09T00:00:00.000Z",
 };
 

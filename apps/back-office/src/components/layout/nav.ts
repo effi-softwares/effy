@@ -1,4 +1,4 @@
-import { LayoutDashboard, Shield } from "lucide-react";
+import { LayoutDashboard, Shield, Store } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -11,5 +11,8 @@ import type { NavItem } from "@effy/web-kit/console";
 // account never sees a control it cannot use, and is refused if it asks anyway.
 export const NAV: NavItem<BackOfficeRole>[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
+  // Shops has NO requiredRole: every back-office role sees it. csa gets a read-only register
+  // (mutating controls are gated in-screen and enforced by the backend); admin/manager can write.
+  { label: "Shops", to: "/shops", icon: Store },
   { label: "Admin", to: "/admin", icon: Shield, requiredRole: "admin" },
 ];

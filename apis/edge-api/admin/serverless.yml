@@ -39,12 +39,27 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # Shop-pool provisioning (009): the pool id the shops slice creates users in. Resolved from
+    # the auth contract at deploy time — never hard-coded (R3).
+    SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Shop-management provisioning (009): admin Cognito actions, scoped to the SHOP pool ARN
+        # ONLY (least privilege). An authorized server-side provisioning write, not token brokering
+        # — the routes stay behind the back-office authorizer (Constitution Check, research R3).
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminAddUserToGroup
+            - cognito-idp:AdminRemoveUserFromGroup
+            - cognito-idp:AdminDisableUser
+            - cognito-idp:AdminEnableUser
+          Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
   layers:
     - ${param:secretsExtensionArn}
   vpc:
@@ -109,6 +124,88 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── Shop management (009). All back-office authorizer; read = any active staff, mutate = admin/manager. ──
+  shopsListV1:
+    handler: src/functions/shops-list-v1-get.handler
+    description: List shops (paginated/filterable/searchable) — 009
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/shops
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopGetV1:
+    handler: src/functions/shop-get-v1-get.handler
+    description: Shop detail + roster — 009
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/shops/{shopId}
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopAuditV1:
+    handler: src/functions/shop-audit-v1-get.handler
+    description: Shop + user audit history — 009
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/shops/{shopId}/audit
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopCreateV1:
+    handler: src/functions/shop-create-v1-post.handler
+    description: Create shop + provision primary manager — 009
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/shops
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopUpdateV1:
+    handler: src/functions/shop-update-v1-patch.handler
+    description: Edit shop details — 009
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/shops/{shopId}
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopStatusV1:
+    handler: src/functions/shop-status-v1-post.handler
+    description: Change shop lifecycle status — 009
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/shops/{shopId}/status
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopDeleteV1:
+    handler: src/functions/shop-delete-v1-delete.handler
+    description: Remove a dependent-free shop — 009
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/shops/{shopId}
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopUserCreateV1:
+    handler: src/functions/shop-user-create-v1-post.handler
+    description: Add a user to a shop (provision) — 009
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/shops/{shopId}/users
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
+  shopUserUpdateV1:
+    handler: src/functions/shop-user-update-v1-patch.handler
+    description: Change a shop user's role and/or status — 009
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/shops/{shopId}/users/{userId}
+          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+
 # Per-function CloudWatch alarms. API-level 5xx alarm lives in Terraform (A3).
 resources:
   Resources:
@@ -171,6 +268,124 @@ resources:
         Namespace: AWS/Lambda
         MetricName: Errors
         Dimensions: [{ Name: FunctionName, Value: !Ref BackOfficeAdminPingV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    # Shop-management function error alarms (009).
+    ShopsListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shops-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopsListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopGetV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-get-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopGetV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopAuditV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-audit-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopAuditV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopUserCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-user-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopUserCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopUserUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-user-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopUserUpdateV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1

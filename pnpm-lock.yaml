@@ -14,9 +14,15 @@ importers:
 
   apis/edge-api/admin:
     dependencies:
+      '@aws-sdk/client-cognito-identity-provider':
+        specifier: ^3.700.0
+        version: 3.1079.0
       '@effy/edge-shared':
         specifier: workspace:*
         version: link:../shared
+      '@effy/shared-types':
+        specifier: workspace:*
+        version: link:../../../packages/shared-types
       pg:
         specifier: 8.22.0
         version: 8.22.0
@@ -415,6 +421,9 @@ importers:
       '@tanstack/react-store':
         specifier: ^0.11.0
         version: 0.11.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@tanstack/react-table':
+        specifier: ^8.21.3
+        version: 8.21.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.9.1

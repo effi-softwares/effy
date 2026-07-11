@@ -39,7 +39,7 @@ describe("authorizeShopManager (platform record: role AND status AND shop scope)
     expect(sql).toContain("ss.status = 'active'");
     expect(sql).toContain("ssr.role_key = 'shop_manager'");
     expect(sql).toContain("JOIN public.shop st ON st.id = ss.shop_id");
-    expect(sql).toContain("st.is_active");
+    expect(sql).toContain("st.status = 'active'");
     // An unassigned operator must drop out of the join, not be LEFT JOINed back in.
     expect(sql).not.toContain("LEFT JOIN public.shop st");
   });
@@ -55,7 +55,7 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
       shop_id: "shop-1",
       shop_code: "CMB-01",
       shop_name: "Colombo 01",
-      shop_is_active: true,
+      shop_status: "active",
     };
     withTransaction.mockImplementation((fn: (c: unknown) => Promise<unknown>) => fn(fakeClient()));
   });
@@ -71,7 +71,7 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
       email: "sam@effy.test",
       roles: ["shop_manager"], // unknown group filtered out before reconcile
       status: "active",
-      shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", isActive: true },
+      shop: { id: "shop-1", code: "CMB-01", name: "Colombo 01", status: "active" },
       lastSeenAt: "2026-07-09T00:00:00.000Z",
     });
 
@@ -99,7 +99,7 @@ describe("upsertOnContact (JIT provisioning + role reconcile)", () => {
   });
 
   it("returns shop: null for an operator with no assignment", async () => {
-    shopRow = { shop_id: null, shop_code: null, shop_name: null, shop_is_active: null };
+    shopRow = { shop_id: null, shop_code: null, shop_name: null, shop_status: null };
     const record = await upsertOnContact("sub-1", "sam@effy.test", ["shop_staff"]);
     expect(record.shop).toBeNull();
   });
@@ -134,7 +134,7 @@ let shopRow: Record<string, unknown> = {
   shop_id: "shop-1",
   shop_code: "CMB-01",
   shop_name: "Colombo 01",
-  shop_is_active: true,
+  shop_status: "active",
 };
 
 function fakeClient() {

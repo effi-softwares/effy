@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-10
 
-**Status**: Draft
+**Status**: Approved
 
 **Input**: User description: "in here some files and folders have name "store" and some have "shop". i want to have one name. everthing need to be streamline. so i think we need to rename every file, folder and any place that has mentioned or named as "store" to "shop". modify correct specs."
 
@@ -162,10 +162,17 @@ describes the audience, its pool, its roles, and its surfaces with a single cons
 - **FR-001**: The platform MUST use exactly one word — "shop" — to name the third audience, the people who
   work for it, the roles they hold, the entity they are assigned to, the surfaces they use, the service
   that serves them, and the records that describe them.
-- **FR-002**: The word "store" MUST NOT appear anywhere in the repository except within these four
+- **FR-002**: The word "store" MUST NOT appear anywhere in the repository except within these six
   excluded categories: (a) the TanStack Store library and client-state terminology, (b) the customer
-  "storefront", (c) the AWS "Parameter Store" product name, and (d) the ordinary English verb "store" and
-  its inflections, including the `no-store` cache directive and `.DS_Store` files.
+  "storefront", (c) the AWS "Parameter Store" product name, (d) the ordinary English verb "store" and
+  its inflections, including the `no-store` cache directive and `.DS_Store` files, (e) **historical
+  records** whose rewriting would falsify them (the constitution's v1.5.0 changelog and v1.6.0 Sync
+  Impact Report, 007's superseded research, and verbatim user quotes in `operator-directives.md` and
+  each spec's `**Input**:` line), and (f) **meta** artifacts about the rename itself, which must quote
+  the retired name (this feature's `specs/008-shop-naming-unification/` directory and the
+  `scripts/verify-no-store.sh` / `scripts/store-token-allowlist.txt` guard files). Categories (e) and
+  (f) are carve-outs for **records**, not live names. The authoritative category list is
+  [contracts/naming.contract.md § 3](./contracts/naming.contract.md).
 - **FR-003**: No name may mix both words. Any identifier, event name, label, or path that currently
   contains both MUST resolve to the single unified word.
 
@@ -241,7 +248,7 @@ The entities themselves are unchanged. Only their names change.
 ### Measurable Outcomes
 
 - **SC-001**: A case-insensitive search of the repository for "store" returns **zero** results outside the
-  four documented exclusion categories. Every surviving result is individually attributable to one of them.
+  six documented exclusion categories. Every surviving result is individually attributable to one of them.
 - **SC-002**: A contributor who searches for a single word — "shop" — reaches the console, the backend
   service, the routes, the tables, the roles, and the governing specification, without needing a second
   term.

@@ -20,6 +20,18 @@ export class ApiClient {
     return this.request<T>("GET", path);
   }
 
+  post<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>("POST", path, body);
+  }
+
+  patch<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>("PATCH", path, body);
+  }
+
+  delete<T>(path: string): Promise<T> {
+    return this.request<T>("DELETE", path);
+  }
+
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = await this.config.getToken();
     const headers: Record<string, string> = { Accept: "application/json" };

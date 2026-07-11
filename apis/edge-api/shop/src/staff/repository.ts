@@ -4,6 +4,7 @@ import { query, withTransaction } from "@effy/edge-shared";
 
 import {
   KNOWN_ROLES,
+  type ShopLifecycleStatus,
   type ShopRole,
   type ShopStaffRecord,
   type ShopStaffStatus,
@@ -21,16 +22,16 @@ interface StaffRow {
   shop_id: string | null;
   shop_code: string | null;
   shop_name: string | null;
-  shop_is_active: boolean | null;
+  shop_status: ShopLifecycleStatus | null;
 }
 
 const READ_BY_ID = `
 SELECT ss.cognito_sub, ss.email, ss.status, ss.last_seen_at,
        COALESCE(array_agg(ssr.role_key) FILTER (WHERE ssr.role_key IS NOT NULL), '{}') AS role_keys,
-       st.id        AS shop_id,
-       st.code      AS shop_code,
-       st.name      AS shop_name,
-       st.is_active AS shop_is_active
+       st.id     AS shop_id,
+       st.code   AS shop_code,
+       st.name   AS shop_name,
+       st.status AS shop_status
   FROM public.shop_staff ss
   LEFT JOIN public.shop_staff_role ssr ON ssr.staff_id = ss.id
   LEFT JOIN public.shop           st  ON st.id = ss.shop_id
@@ -75,7 +76,7 @@ SELECT EXISTS (
     JOIN public.shop            st  ON st.id = ss.shop_id
    WHERE ss.cognito_sub = $1
      AND ss.status      = 'active'
-     AND st.is_active
+     AND st.status      = 'active'
      AND ssr.role_key   = 'shop_manager'
 ) AS ok
 `;
@@ -137,7 +138,7 @@ function mapRow(row: StaffRow): ShopStaffRecord {
             id: row.shop_id,
             code: row.shop_code,
             name: row.shop_name,
-            isActive: row.shop_is_active ?? false,
+            status: row.shop_status ?? "disabled",
           }
         : null,
     lastSeenAt: (row.last_seen_at ?? new Date()).toISOString(),
