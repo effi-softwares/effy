@@ -132,7 +132,9 @@ functions:
       - httpApi:
           method: GET
           path: /admin/v1/shops
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopGetV1:
     handler: src/functions/shop-get-v1-get.handler
@@ -141,7 +143,9 @@ functions:
       - httpApi:
           method: GET
           path: /admin/v1/shops/{shopId}
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopAuditV1:
     handler: src/functions/shop-audit-v1-get.handler
@@ -150,7 +154,9 @@ functions:
       - httpApi:
           method: GET
           path: /admin/v1/shops/{shopId}/audit
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopCreateV1:
     handler: src/functions/shop-create-v1-post.handler
@@ -159,7 +165,9 @@ functions:
       - httpApi:
           method: POST
           path: /admin/v1/shops
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopUpdateV1:
     handler: src/functions/shop-update-v1-patch.handler
@@ -168,7 +176,9 @@ functions:
       - httpApi:
           method: PATCH
           path: /admin/v1/shops/{shopId}
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopStatusV1:
     handler: src/functions/shop-status-v1-post.handler
@@ -177,7 +187,9 @@ functions:
       - httpApi:
           method: POST
           path: /admin/v1/shops/{shopId}/status
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopDeleteV1:
     handler: src/functions/shop-delete-v1-delete.handler
@@ -186,7 +198,9 @@ functions:
       - httpApi:
           method: DELETE
           path: /admin/v1/shops/{shopId}
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopUserCreateV1:
     handler: src/functions/shop-user-create-v1-post.handler
@@ -195,7 +209,9 @@ functions:
       - httpApi:
           method: POST
           path: /admin/v1/shops/{shopId}/users
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
   shopUserUpdateV1:
     handler: src/functions/shop-user-update-v1-patch.handler
@@ -204,7 +220,9 @@ functions:
       - httpApi:
           method: PATCH
           path: /admin/v1/shops/{shopId}/users/{userId}
-          authorizer: { type: jwt, id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id} }
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
 # Per-function CloudWatch alarms. API-level 5xx alarm lives in Terraform (A3).
 resources:
