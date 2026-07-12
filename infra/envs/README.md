@@ -29,7 +29,43 @@ The higher roots are deliberately skeletons (no pools yet). To promote:
    true`, `db_multi_az` per env criticality, `db_publicly_accessible = false` + explicit
    `vpc_id`/`subnet_ids` (private placement — requires the network slice), and revisit
    `db_instance_class`/storage for the real workload.
+5. **🔴 CLOSE THE DEV DATABASE EXPOSURE — this is the one that bites.** See the debt note below.
+   `dev` sets `db_allowed_cidrs = ["0.0.0.0/0"]`. Copying `dev.tfvars` forward without changing
+   this ships a **publicly reachable production database**. It is not enough to flip
+   `db_publicly_accessible = false`: the edge-api Lambdas run **outside the VPC** and reach the DB
+   over its public endpoint, so making the DB private *also* requires giving them a private path
+   back (in-VPC placement + interface endpoints, or RDS Proxy). The two changes must land
+   together, or the API loses its database.
 5. `make plan ENV=<env>` → review → the **operator** runs `make apply ENV=<env>`.
+
+## 🔴 Known debt: the dev database is on the public internet (2026-07-12)
+
+**Status: accepted for `dev`, must be closed before any environment holds real data.**
+
+`dev` runs `db_allowed_cidrs = ["0.0.0.0/0"]` with `db_publicly_accessible = true` — Postgres 5432
+is reachable from anywhere, defended only by forced TLS (`rds.force_ssl = 1`) and the RDS-managed
+32-character master password. Public Postgres is discovered by scanners within hours and
+brute-forced continuously. This is a **real exposure**, not a theoretical one.
+
+**Why it was accepted.** The edge-api Lambdas run **outside the VPC**, so they egress from
+arbitrary AWS IPs that no allowlist can pin. They are outside the VPC because an *in-VPC* Lambda
+has no internet path without a NAT gateway (~$32/mo) — a public subnet does **not** help, since an
+internet gateway only translates for resources with a public IP and Lambda ENIs never get one.
+That forced a per-API interface endpoint (~$9/mo each): one for Secrets Manager, then 009's
+runtime Cognito call needed another, and every future AWS API would need one more. Moving the
+functions out of the VPC gives them ordinary egress for **$0** and deleted ~$18/mo of endpoints.
+The bill for that is the public DB. dev's data is disposable (backups off; the env was destroyed
+and rebuilt keeping nothing), so the blast radius is a throwaway box.
+
+**How to close it** (its own slice — do not bolt it on):
+
+- Put the DB in **private subnets**, `db_publicly_accessible = false`, allowlist emptied.
+- Give the functions a private path back — either return them to the VPC with interface endpoints
+  for every AWS API they call (Secrets Manager + Cognito today), or front the DB with RDS Proxy.
+- These two must land **together**. Doing only the first takes the database away from the API.
+
+Until then: **never point a non-dev environment at this posture**, and never put real user data in
+`dev`.
 
 ## Region relocation runbook
 

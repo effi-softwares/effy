@@ -16,6 +16,8 @@ module "db" {
   # TLS is the $0 network design. [] allowlist = nobody. qa+ must use private placement.
   publicly_accessible = var.db_publicly_accessible
   allowed_cidrs       = var.db_allowed_cidrs
+  # FR-006 escape hatch — false everywhere except dev. See variables.tf / dev.tfvars.
+  allow_public_ingress = var.db_allow_public_ingress
 
   multi_az                     = var.db_multi_az
   backup_retention_days        = var.db_backup_retention_days

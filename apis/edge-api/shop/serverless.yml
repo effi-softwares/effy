@@ -49,10 +49,9 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
   layers:
     - ${param:secretsExtensionArn}
-  vpc:
-    securityGroupIds:
-      - ${ssm:/effy/${sls:stage}/edge/security_group_id}
-    subnetIds: ${ssm:/effy/${sls:stage}/edge/subnet_ids}
+  # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). Same rationale
+  # as edge-admin: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev DB is
+  # reachable on its public endpoint instead. DEV ONLY — see infra/envs/README.md.
 
 custom:
   esbuild:

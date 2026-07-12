@@ -43,9 +43,24 @@ db_instance_class    = "db.t4g.micro"
 db_allocated_storage = 20
 db_storage_type      = "gp3"
 
-# ADD YOUR IP BEFORE APPLY (quickstart Step 1): curl -s https://checkip.amazonaws.com
-# [] means NOBODY can connect — the allowlist edit is a deliberate act.
-db_allowed_cidrs = ["112.134.0.0/16", "212.104.0.0/16"] # operator IP, 2026-07-05 — update when your IP changes
+# ⚠️ OPEN TO THE INTERNET — a deliberate DEV-ONLY choice (2026-07-12), not an oversight.
+# The edge-api Lambdas run OUTSIDE the VPC (see edge-network.tf) so they egress from arbitrary,
+# unpinnable AWS IPs and no allowlist can admit them. Rather than pay ~$18/mo in interface
+# endpoints to keep them inside the VPC, dev exposes the DB and accepts the risk: the data is
+# disposable (backups off; the env was destroyed and rebuilt on 2026-07-12 keeping nothing), and
+# the defences are forced TLS (rds.force_ssl=1) + the RDS-managed 32-char master password.
+#
+# Public Postgres IS scanned and brute-forced continuously — this is a real exposure, accepted
+# only because the blast radius is a throwaway dev box.
+#
+# qa/staging/prod MUST NOT copy this: db_publicly_accessible = false, DB in private subnets, and
+# a private path back for the functions. Tracked as debt in infra/envs/README.md.
+db_allowed_cidrs = ["0.0.0.0/0"] # DEV ONLY — public Postgres; see the note above
+
+# The conscious opt-in that unlocks 0.0.0.0/0 above (002 FR-006, amended 2026-07-12). Without
+# this the module REJECTS the plan — the guard is intact, the exception is just named. Leave this
+# false (its default) in every other environment.
+db_allow_public_ingress = true
 
 # Dev-only posture (002 research.md D4): public endpoint + strict allowlist + forced TLS
 # is the $0 network design; qa/staging/prod must use private placement instead.

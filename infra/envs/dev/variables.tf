@@ -104,3 +104,9 @@ variable "db_publicly_accessible" {
   type        = bool
   default     = false
 }
+
+variable "db_allow_public_ingress" {
+  description = "DEV-ONLY (002 FR-006, amended 2026-07-12). false = 0.0.0.0/0 in db_allowed_cidrs is REJECTED, so a public database cannot be created by accident. dev sets true because the edge-api Lambdas run outside the VPC and egress from unpinnable AWS IPs. NEVER true where real data lives."
+  type        = bool
+  default     = false
+}

@@ -62,10 +62,12 @@ provider:
           Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
   layers:
     - ${param:secretsExtensionArn}
-  vpc:
-    securityGroupIds:
-      - ${ssm:/effy/${sls:stage}/edge/security_group_id}
-    subnetIds: ${ssm:/effy/${sls:stage}/edge/subnet_ids}
+  # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). An in-VPC
+  # Lambda has no internet without NAT, so every public AWS API it calls (Cognito, for the 009
+  # shop-user provisioning) hangs to its timeout unless given an interface endpoint. Running
+  # outside the VPC gives Cognito + Secrets Manager a working path for $0 and drops ~$18/mo of
+  # endpoints. The trade: these functions reach the DB over its PUBLIC endpoint, so the dev DB
+  # admits 0.0.0.0/0 (TLS forced, RDS-managed 32-char password). DEV ONLY — see infra/envs/README.md.
 
 custom:
   esbuild:

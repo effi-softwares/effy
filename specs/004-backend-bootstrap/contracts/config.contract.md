@@ -1,13 +1,23 @@
 # Contract: Configuration (what each service consumes from the platform)
 
-**Upstream contracts consumed** (established by 001/002), plus — **amended at first
-deploy** (plan amendment A1) — two keys this slice WRITES for edge-api's
-default-VPC placement, plus — **amendment A3 (cold-path decomposition)** — the shared-gateway keys:
+**Upstream contracts consumed** (established by 001/002), plus — **amendment A3 (cold-path
+decomposition)** — the shared-gateway keys:
 
-| New key (written by 004's `infra/envs/dev/edge-network.tf`) | Type | Consumed by |
-|---|---|---|
-| `/effy/<env>/edge/security_group_id` | String | each service `serverless.yml` `provider.vpc` |
-| `/effy/<env>/edge/subnet_ids` | StringList | each service `serverless.yml` `provider.vpc` |
+> **RETIRED 2026-07-12 — `/effy/<env>/edge/security_group_id` and `/effy/<env>/edge/subnet_ids`.**
+> Amendment A1 wrote these two keys so each `serverless.yml` could place its functions in the
+> default VPC. **The functions no longer run in a VPC** (dev), so nothing reads them and Terraform
+> no longer writes them — `provider.vpc` is gone from both services.
+>
+> Why: an in-VPC Lambda has no internet without a NAT gateway, so every public AWS API it calls
+> needs its own interface endpoint. That was survivable when Secrets Manager was the only runtime
+> call, but 009 added a **runtime Cognito call** (shop-user provisioning) which simply *hung* to
+> the Lambda timeout. Rather than add an endpoint per API forever (~$9/mo each), the functions
+> moved outside the VPC: ordinary internet egress, $0, and both endpoints deleted.
+>
+> The cost is that the functions reach the DB on its **public** endpoint, so dev opens the DB to
+> `0.0.0.0/0`. **Dev-only** — see `infra/envs/dev/edge-network.tf` and the promotion checklist in
+> `infra/envs/README.md`. A higher env restoring private DB placement will need to reinstate an
+> in-VPC path, and with it these two keys.
 
 | New key (A3 — written by `infra/envs/dev/edge-gateway.tf`) | Type | Consumed by |
 |---|---|---|

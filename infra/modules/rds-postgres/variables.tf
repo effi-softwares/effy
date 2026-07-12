@@ -96,7 +96,7 @@ variable "publicly_accessible" {
 }
 
 variable "allowed_cidrs" {
-  description = "SG ingress on 5432. [] (default) = NOBODY can connect — adding a CIDR is a deliberate act. Internet-open ingress is structurally unexpressable."
+  description = "SG ingress on 5432. [] (default) = NOBODY can connect — adding a CIDR is a deliberate act. Internet-open ingress requires allow_public_ingress = true (002 spec FR-006, amended 2026-07-12)."
   type        = list(string)
   default     = []
 
@@ -105,10 +105,30 @@ variable "allowed_cidrs" {
     error_message = "Every entry in allowed_cidrs must be a valid CIDR (e.g. 203.0.113.7/32)."
   }
 
+  # FR-006 still holds BY DEFAULT: an internet-open database remains unexpressable unless the
+  # operator has consciously flipped allow_public_ingress. The rule did not get weaker — the
+  # exception just got a name, so it is greppable and reviewable instead of being a hole here.
   validation {
-    condition     = alltrue([for c in var.allowed_cidrs : !contains(["0.0.0.0/0", "::/0"], c)])
-    error_message = "allowed_cidrs must not contain 0.0.0.0/0 or ::/0 — the database is never open to the internet at large (spec FR-006)."
+    condition     = var.allow_public_ingress || alltrue([for c in var.allowed_cidrs : !contains(["0.0.0.0/0", "::/0"], c)])
+    error_message = "allowed_cidrs contains 0.0.0.0/0 or ::/0 but allow_public_ingress is false — the database is not open to the internet at large (spec FR-006). If you truly intend a public database, set allow_public_ingress = true in the env's tfvars and read the warning there."
   }
+}
+
+variable "allow_public_ingress" {
+  description = <<-EOT
+    DEV-ONLY ESCAPE HATCH (002 spec FR-006, amended 2026-07-12). Default false: 0.0.0.0/0 in
+    allowed_cidrs is rejected, so a public database cannot be created by accident.
+
+    Set true ONLY where a publicly reachable Postgres is a consciously accepted risk. It exists
+    because the edge-api Lambdas run outside the VPC (they need internet egress to reach Cognito
+    and Secrets Manager without paying for NAT or per-API interface endpoints) and therefore
+    egress from arbitrary AWS IPs that no allowlist can pin.
+
+    When true the database is exposed to the internet on 5432, defended only by forced TLS and
+    the RDS-managed master password. NEVER set this in an environment holding real data.
+  EOT
+  type        = bool
+  default     = false
 }
 
 variable "vpc_id" {

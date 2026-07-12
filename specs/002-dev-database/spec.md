@@ -133,6 +133,35 @@ rather than a rebuild or redesign.
   middleware.
 - **FR-006**: The database MUST NOT be reachable from the internet at large; connectivity is
   limited to explicitly authorized platform components and operator networks.
+
+  > **AMENDED 2026-07-12 — dev-only carve-out.** FR-006 stands for every environment that holds
+  > real data. **`dev` is now exempt**: its database accepts `0.0.0.0/0` on 5432.
+  >
+  > **Why.** The cold-path Lambdas were moved *outside* the VPC. Inside it they had no internet
+  > path (no NAT; a public subnet does not help, because an internet gateway only translates for
+  > resources with a public IP and Lambda ENIs never get one), so every public AWS API they called
+  > needed its own interface endpoint. That was tolerable while Secrets Manager was the only
+  > runtime call, but **009 added a runtime Cognito call** for shop-user provisioning, which did
+  > not error — it *hung* to the Lambda timeout. The choice was to add an endpoint per AWS API
+  > forever (~$9/mo each) or to run the functions outside the VPC. Outside the VPC they egress
+  > from **arbitrary AWS IPs that no allowlist can pin**, so reaching the DB means opening it.
+  >
+  > **What is actually exposed.** Postgres on 5432, to the internet, defended only by forced TLS
+  > (`rds.force_ssl = 1`) and the RDS-managed 32-character master password. Public Postgres is
+  > found by scanners within hours and brute-forced continuously. This is a **real exposure**,
+  > accepted solely because `dev` holds disposable data (backups off; the environment was
+  > destroyed and rebuilt from scratch on 2026-07-12 keeping nothing).
+  >
+  > **The guard is not weakened.** An internet-open database remains *unexpressable by default*:
+  > the `rds-postgres` module still rejects `0.0.0.0/0` unless the new `allow_public_ingress`
+  > flag is consciously set to `true`, which only `dev.tfvars` does. The exception has a name so
+  > it is greppable and reviewable — it is not a hole in the module.
+  >
+  > **Debt.** Closing this (private subnets + `db_publicly_accessible = false`, plus a private
+  > path back for the functions — in-VPC with endpoints, or RDS Proxy) is its own slice and is a
+  > **blocker for promoting any environment**. Tracked in
+  > [infra/envs/README.md](../../infra/envs/README.md); the two changes must land together, or
+  > the API loses its database.
 - **FR-007**: An administrative credential MUST be generated at provisioning time and held in
   the platform's secret storage — never committed to code, printed to logs, or hand-copied.
 - **FR-008**: Connection details (endpoint, port, database name, and where the credential
