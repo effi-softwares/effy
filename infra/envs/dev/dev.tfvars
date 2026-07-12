@@ -45,7 +45,7 @@ db_storage_type      = "gp3"
 
 # ADD YOUR IP BEFORE APPLY (quickstart Step 1): curl -s https://checkip.amazonaws.com
 # [] means NOBODY can connect — the allowlist edit is a deliberate act.
-db_allowed_cidrs = ["112.134.0.0/16"] # operator IP, 2026-07-05 — update when your IP changes
+db_allowed_cidrs = ["112.134.0.0/16", "212.104.0.0/16"] # operator IP, 2026-07-05 — update when your IP changes
 
 # Dev-only posture (002 research.md D4): public endpoint + strict allowlist + forced TLS
 # is the $0 network design; qa/staging/prod must use private placement instead.
