@@ -112,7 +112,13 @@ Get the live base URL any time:
 ```bash
 cd services/edge-api && AWS_PROFILE=ef pnpm exec serverless info --stage dev
 # The gateway host is a contract value — read it, never hardcode it (A3).
+# Since 010 this yields the platform-owned address (https://api.dev.effyshopping.com), not the
+# provider-generated execute-api hostname — the key is unchanged, only its value improved.
 export EDGE_URL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/edge/api_endpoint \
+  --region ap-southeast-2 --query Parameter.Value --output text)
+
+# The raw execute-api URL is still live and published as the break-glass fallback (010 FR-011):
+export EDGE_RAW_URL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/edge/api_default_endpoint \
   --region ap-southeast-2 --query Parameter.Value --output text)
 ```
 

@@ -69,13 +69,23 @@ package:
   individually: true
 
 functions:
-  health:
-    handler: src/functions/health-get.handler
-    description: Liveness + readiness (DB probe), public — shop service
+  # Two probes, both PUBLIC and unversioned. Split on purpose: a combined probe cannot tell
+  # "this service is not deployed" from "the database is down" — both just look red.
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the shop service deployed and executing? Touches nothing. Public.
     events:
       - httpApi:
           method: GET
           path: /shop/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the shop service serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/readyz
 
   platformStatusV1:
     handler: src/functions/platform-status-v1-get.handler
@@ -130,26 +140,45 @@ functions:
 # alarm lives in Terraform (A3 — the API's owner), not here.
 resources:
   Resources:
-    HealthErrorsAlarm:
+    # healthz does no work, so it can essentially only fail on a broken bundle or a runtime init
+    # error — which makes an error here an unambiguous "this deploy is broken" signal.
+    HealthzErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-health-errors
+        AlarmName: ${self:service}-${sls:stage}-healthz-errors
         Namespace: AWS/Lambda
         MetricName: Errors
-        Dimensions: [{ Name: FunctionName, Value: !Ref HealthLambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref HealthzLambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
-    HealthDurationP95Alarm:
+    # readyz is the probe that touches the database — the failures and the latency both live here.
+    # (A DB outage returns 503 rather than throwing, so this catches the probe ITSELF breaking.)
+    ReadyzErrorsAlarm:
       Type: AWS::CloudWatch::Alarm
       Properties:
-        AlarmName: ${self:service}-${sls:stage}-health-duration-p95
+        AlarmName: ${self:service}-${sls:stage}-readyz-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ReadyzLambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    # Duration belongs on readyz, NOT healthz: healthz does nothing, so its p95 measures only cold
+    # starts and would alarm on noise. readyz's p95 tracks the DB round-trip — a real signal.
+    ReadyzDurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-readyz-duration-p95
         Namespace: AWS/Lambda
         MetricName: Duration
-        Dimensions: [{ Name: FunctionName, Value: !Ref HealthLambdaFunction }]
+        Dimensions: [{ Name: FunctionName, Value: !Ref ReadyzLambdaFunction }]
         ExtendedStatistic: p95
         Period: 300
         EvaluationPeriods: 3

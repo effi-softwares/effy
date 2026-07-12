@@ -9,7 +9,7 @@ module "customer_pool" {
   self_signup_enabled        = true
   user_pool_tier             = var.user_pool_tier
   allowed_first_auth_factors = ["EMAIL_OTP"]
-  email_configuration        = var.email_configuration
+  email_configuration        = local.pool_email_configuration
   groups                     = []
   callback_urls              = try(var.auth_urls["customer"].callback_urls, [])
   logout_urls                = try(var.auth_urls["customer"].logout_urls, [])

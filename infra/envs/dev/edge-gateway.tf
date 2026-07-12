@@ -21,6 +21,11 @@ resource "aws_apigatewayv2_api" "edge" {
   protocol_type = "HTTP"
   description   = "Effy cold-path shared HTTP API — services attach by id under /<service>/ (A3)"
 
+  # ⚠ disable_execute_api_endpoint MUST remain false (its default). Setting it true kills the raw
+  # execute-api URL — silently violating 010's FR-011 (the cutover is ADDITIVE) and SC-004 (zero
+  # callers broken). The custom domain in edge-domain.tf is added ALONGSIDE it, never instead of it.
+  # The raw URL is published at /effy/<env>/edge/api_default_endpoint as the break-glass fallback.
+
   # Approved dev origins. :5173 back-office (005) · :5174 shop-web (007) · :3000 reserved for
   # customer-web. A service that attaches to an external HTTP API cannot configure CORS, so it
   # lives here — a new console's origin is a Terraform change, not a code change.
@@ -64,10 +69,17 @@ resource "aws_ssm_parameter" "edge_http_api_id" {
   tier  = "Standard"
 }
 
+# THE address callers should use. The KEY is unchanged (a rename is a breaking change to the 001
+# contract); only its VALUE improves — it now holds the platform-owned custom domain instead of the
+# provider-generated hostname (010 research R4). Every existing reader (both web .env files, the
+# Makefile verify targets, README.md) already means "where do I call this env's API", so all of them
+# pick up the branded address with zero code edits — that is SC-003 satisfied by construction.
+#
+# The raw URL is NOT lost: it is published at .../edge/api_default_endpoint (edge-domain.tf).
 resource "aws_ssm_parameter" "edge_api_endpoint" {
   name  = "/effy/${var.env}/edge/api_endpoint"
   type  = "String"
-  value = aws_apigatewayv2_api.edge.api_endpoint
+  value = local.api_url
   tier  = "Standard"
 }
 

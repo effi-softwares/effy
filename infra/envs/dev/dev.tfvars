@@ -11,10 +11,25 @@ aws_account_id = "724289623101"
 # ESSENTIALS = the passwordless minimum (research.md D4).
 user_pool_tier = "ESSENTIALS"
 
-# dev uses the Cognito built-in sender — zero setup, ~50 emails/day cap (research.md D6).
+# The FALLBACK sender, used whenever ses_sender_enabled = false: Cognito's built-in sender — zero
+# setup, ~50 emails/day cap, generic AWS from-address (001 research D6).
 email_configuration = {
   email_sending_account = "COGNITO_DEFAULT"
 }
+
+# --- Domain & DNS (010-domain-dns-foundation) ---
+
+# ⚠ TWO-STAGE. Leave this false for the FIRST apply: it creates the SES identity and its DKIM/SPF/
+# DMARC records, but AWS verifies them ASYNCHRONOUSLY — minutes after the apply returns. Cognito
+# REJECTS a source_arn whose identity is not yet verified, so switching the pools in the same apply
+# fails.
+#
+# Sequence: apply (false) → `make mail-verify ENV=dev` reports verified → set this true → apply
+# again. The second apply switches all four pools to no-reply@dev.effyshopping.com IN PLACE.
+#
+# ⚠ On that second apply: ABORT if any Cognito pool shows "must be replaced" / "-/+". A replaced
+# pool destroys every account in it — the 006 first admin and the 009 shop users included.
+ses_sender_enabled = false
 
 # Placeholder dev URLs — inert until an OAuth flow is enabled; the Amplify choice-based
 # EMAIL_OTP flow talks to Cognito directly and does not use them (data-model.md E4).

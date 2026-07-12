@@ -4,6 +4,7 @@ export * from "./lib/db";
 export * from "./lib/secrets";
 export * from "./lib/logger";
 export * from "./lib/http";
+export * from "./lib/health";
 export * from "./lib/claims";
 export * from "./lib/rds-ca";
 export * from "./validate";

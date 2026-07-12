@@ -10,7 +10,7 @@ module "back_office_pool" {
   self_signup_enabled        = false
   user_pool_tier             = var.user_pool_tier
   allowed_first_auth_factors = ["EMAIL_OTP"]
-  email_configuration        = var.email_configuration
+  email_configuration        = local.pool_email_configuration
   callback_urls              = try(var.auth_urls["back_office"].callback_urls, [])
   logout_urls                = try(var.auth_urls["back_office"].logout_urls, [])
 

@@ -73,11 +73,23 @@ Observable and measurable from day one (constitution Principle VII; full detail 
 - **Region: `ap-southeast-2` (Sydney).** Moved from `ap-southeast-1` (Singapore) on 2026-07-12 — dev
   was destroyed and re-provisioned from scratch (no data kept), and the Terraform state bucket moved
   with it (`effy-apse2-tfstate`). `ap-southeast-1` is empty. Region is config, never a literal: it
-  flows from `var.aws_region` / the `/effy/<env>/region` SSM contract. **Three values pin a region
+  flows from `var.aws_region` / the `/effy/<env>/region` SSM contract. **Four values pin a region
   outside Terraform** and must be changed by hand on any future move — the Lambda
   Parameters-and-Secrets **layer ARN** (its AWS-owned account id differs per region), the embedded
-  **RDS CA bundle** (`apis/edge-api/shared/src/lib/rds-ca.ts`, region-rooted chain), and each
-  `serverless.yml` `provider.region`. Runbook: [infra/envs/README.md](infra/envs/README.md).
+  **RDS CA bundle** (`apis/edge-api/shared/src/lib/rds-ca.ts`, region-rooted chain), each
+  `serverless.yml` `provider.region`, and (010) any **ACM certificate behind CloudFront/Amplify**,
+  which **must** live in **`us-east-1`** regardless of the platform's region — the regional API
+  Gateway certificate correctly follows `var.aws_region`, but a CloudFront-fronted one cannot.
+  **Route 53 hosted zones are global and have no region** — they survive a region move untouched.
+  Runbook: [infra/envs/README.md](infra/envs/README.md).
+- **Domain: `effyshopping.com`** (registered at **GoDaddy**; DNS authority delegated to Route 53).
+  The apex is **production's, and reserved** — nothing is deployed there. Every environment gets a
+  **delegated child namespace** it fully owns (`dev.effyshopping.com`), created by its own env root
+  along with its own `NS` delegation record in the parent — so destroying an env removes both
+  together and leaves no dangling delegation. The parent zone lives in a **new `infra/global/`
+  root** (`make global-apply`), deliberately outside the `ENV=` workflow so `make destroy ENV=dev`
+  can never take the platform's apex with it. Registrar control is an **out-of-code dependency**:
+  Terraform can rebuild every zone and record, but not the domain.
 - **Repo shape:** MONOREPO (Turborepo + pnpm for JS/TS; Go lives alongside with its own module; each
   KMP app is its own Gradle build). Reason: solo/small team → consistency across surfaces is the #1
   need; shared packages (design-system, api-client, shared-types, config) are the whole point.
@@ -149,6 +161,36 @@ tasks. Don't build all surfaces in parallel: one vertical slice proves the found
 pattern scales.
 
 ## Active feature
+
+**010-domain-dns-foundation** — Platform Domain & Per-Environment Namespaces. **Code-complete;
+operator run pending.**
+Makes the platform authoritative for **`effyshopping.com`**, gives each environment a **delegated
+child namespace**, moves the shared API onto **`edge-api.dev.effyshopping.com`**, and switches all four
+Cognito pools to **branded sign-in email** (`no-reply@dev.effyshopping.com`). **Terraform only — zero
+application code**, and the first slice since 002 with no SQL.
+- **New root `infra/global/`** owns the parent zone. It is deliberately **not an environment**: env
+  roots are destroyable (`make destroy ENV=dev` was used in the region relocation), and the apex must
+  not be collateral. Each env root creates its own child zone **and its own `NS` delegation in the
+  parent** — so destroy removes both together and no dangling delegation can be claimed.
+- **Two new modules**: `dns-env-zone` (child zone + delegation + wildcard ACM cert, DNS-validated)
+  and `ses-domain-identity` (SESv2 identity + DKIM/SPF/DMARC). Adding qa/staging is `env = "qa"`.
+- **Additive cutover**: the raw `execute-api` URL stays alive (`disable_execute_api_endpoint` must
+  remain `false`) and is published at `/effy/<env>/edge/api_default_endpoint`. The existing
+  `api_endpoint` key keeps its name and gains a better **value** → every reader picks up the branded
+  address with zero code edits.
+- **Why the email half matters**: EMAIL_OTP is the **only** credential the platform issues, on all
+  four pools. The built-in Cognito sender caps at ~50/day from a generic AWS address. Two alarms ship
+  with it — an SES reputation breach *pauses sending*, which means **nobody can sign in at all**.
+- **⚠ Ordering is load-bearing**: `make global-apply` → **repoint GoDaddy** → `dig` to confirm →
+  `make apply ENV=dev` → `make mail-verify` → flip `ses_sender_enabled = true` → apply again. ACM
+  validation and SES DKIM both need *public resolution*, so an early apply blocks 45 min and fails.
+  Cognito additionally **rejects an unverified SES identity**, which is why the pool switch is its
+  own stage.
+- Status: **code-complete** — `terraform validate` green on all roots, `fmt` clean, shellcheck clean.
+  **Open (operator)**: T016–T018 (global apply, GoDaddy repoint, dev apply), T022/T025 (custom domain
+  + re-read the two `.env` files), T026/T029/T032 (SES production access, pool switch, live mail),
+  T033/T034 (plan-only proofs), T040/T041 (sign-off + commit).
+  Spec/plan/artifacts: [specs/010-domain-dns-foundation/](specs/010-domain-dns-foundation/).
 
 **009-shop-management** — Back-Office Shop Management. **Code-complete + verified; operator run pending.**
 The platform's shop-management capability in the **back-office** console: create shops, govern their
@@ -327,5 +369,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/009-shop-management/plan.md
+at specs/010-domain-dns-foundation/plan.md
 <!-- SPECKIT END -->

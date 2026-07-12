@@ -116,7 +116,16 @@ was to leave `ap-southeast-1` entirely empty. If you relocate the backend:
    - `apis/edge-api/shared/src/lib/rds-ca.ts` → the **RDS CA bundle is region-rooted**. A bundle from
      the old region fails TLS against the new region's instance. Regenerate from
      `https://truststore.pki.rds.amazonaws.com/<region>/<region>-bundle.pem`.
+   - **ACM certificates for anything behind CloudFront** — including **Amplify Hosting**, where the
+     web consoles will live — **must be issued in `us-east-1`, not the platform's region** (010
+     research R2). No such certificate exists yet (nothing is behind CloudFront), but the slice that
+     hosts the consoles must create it under a `provider "aws" { alias = "us_east_1" }`, and that
+     alias is a region-pinned value `var.aws_region` does **not** cover. The regional API Gateway
+     certificate is unaffected — it correctly follows `var.aws_region`.
    - `Makefile` `AWS_REGION`, `infra/scripts/db-dsn.sh`, `apis/core-api/.env.example`.
+   - **DNS survives a region move untouched** — Route 53 hosted zones are **global** and have no
+     region. Do not recreate them. (Recreating the parent zone mints new name-servers and would
+     require a manual GoDaddy repoint — see below.)
 4. `make init ENV=<env>` (`-reconfigure` if the backend moved) → `make plan ENV=<env>` → the
    **operator** runs `make apply ENV=<env>` (never Claude, never CI).
 5. **Re-provision what lived only in the cloud**: DB migrations (`make db-up`), the first admin
@@ -125,3 +134,59 @@ was to leave `ap-southeast-1` entirely empty. If you relocate the backend:
    reading the SSM contract picks up the new values, but anything cached — notably each web app's
    local `.env` — must be refreshed by hand.
 7. If real users existed: plan a migration/re-registration path **before** step 1.
+
+---
+
+## The domain: `infra/global/` and the GoDaddy dependency (010)
+
+### `infra/global/` is a root, but NOT an environment
+
+It owns exactly one thing: the parent hosted zone for **`effyshopping.com`**. It is not in the
+`ENV=` workflow and has its own targets: `make global-init` / `global-plan` / `global-apply` /
+`global-output`.
+
+**Why it is separate**: env roots are *designed* to be destroyable — `make destroy ENV=dev` is a
+supported operation, and the 2026-07-12 region relocation actually used it. If the parent zone lived
+in `infra/envs/dev`, that routine command would destroy the platform's apex: every record under it,
+production's future delegation, and the name-servers GoDaddy points at.
+
+> ⚠ **Do not destroy `infra/global/` casually.** A re-created zone gets **new name-servers**, so
+> recovery requires a manual GoDaddy repoint *plus* a fresh propagation wait — during which nothing
+> under the domain resolves.
+
+### Each environment owns its own delegation
+
+An env root creates its own child zone (`dev.effyshopping.com`) **and writes its own `NS` delegation
+record into the parent**. That record lives in the **env's** state, so `terraform destroy` removes
+the delegation and the zone it points at *together* — a zone can never outlive its delegation, so
+there is no dangling `NS` for a third party to claim (subdomain takeover).
+
+An environment writes **exactly one** record outside its own zone: that delegation. Nothing else.
+
+### The registrar is an out-of-code dependency
+
+`effyshopping.com` is **registered at GoDaddy**; only DNS *authority* is delegated to Route 53.
+Terraform can rebuild every zone and every record — it **cannot** recover the domain itself. Loss of
+the GoDaddy account is loss of the namespace. This sits alongside the region-pinned values above as
+something no `terraform plan` will ever warn you about.
+
+### Two applies, with a human gate between them
+
+ACM certificate validation and SES DKIM verification both work by AWS **publicly resolving a record
+in the env's zone**. That requires the parent to delegate to it, which requires GoDaddy to point at
+the parent zone. So:
+
+```
+make global-apply                    # parent zone → outputs 4 name-servers
+🧑‍💻 repoint GoDaddy to those NS      # then: dig +short NS effyshopping.com
+make apply ENV=dev                   # child zone, cert, custom domain, SES identity
+🧑‍💻 wait for SES verification        # make mail-verify ENV=dev
+set ses_sender_enabled = true        # Cognito rejects an UNVERIFIED SES identity
+make apply ENV=dev                   # the four pools switch sender IN PLACE
+```
+
+Applying the env root before the repoint has propagated does not fail fast — it **blocks for 45
+minutes** on `aws_acm_certificate_validation` and then errors in a way that looks like Terraform's
+fault and is actually DNS's.
+
+Full runbook: [specs/010-domain-dns-foundation/quickstart.md](../../specs/010-domain-dns-foundation/quickstart.md).

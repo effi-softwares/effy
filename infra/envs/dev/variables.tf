@@ -110,3 +110,23 @@ variable "db_allow_public_ingress" {
   type        = bool
   default     = false
 }
+
+# --- Domain & DNS (010-domain-dns-foundation) ---
+
+variable "root_domain" {
+  description = "The platform's registered domain. This env's namespace is <env>.<root_domain>; the parent zone is owned by infra/global/ and looked up by name."
+  type        = string
+  default     = "effyshopping.com"
+}
+
+variable "api_subdomain" {
+  description = "Single label for the shared COLD-PATH API under this env's namespace → edge-api.dev.effyshopping.com. Named for the path it fronts, not generically: the hot path (core-api) gets its own name when it deploys, and a bare `api` would have quietly claimed the shared word for one of two backends. MUST stay one label — the wildcard certificate matches exactly one (010 research R3)."
+  type        = string
+  default     = "edge-api"
+}
+
+variable "ses_sender_enabled" {
+  description = "Flip to true ONLY after the SES domain identity reports VERIFIED (`make mail-verify ENV=dev`). Cognito REJECTS a source_arn whose identity is unverified, and verification is asynchronous — it completes minutes after the apply that creates the DKIM records returns. false = the four pools stay on the Cognito built-in sender; true = they send as no-reply@<env>.<root_domain>. This flag is the gate made explicit (010 tasks T028a)."
+  type        = bool
+  default     = false
+}

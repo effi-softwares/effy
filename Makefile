@@ -16,13 +16,15 @@ AWS_REGION  ?= ap-southeast-2
 
 INFRA_DIR     := infra
 BOOTSTRAP_DIR := $(INFRA_DIR)/bootstrap
+GLOBAL_DIR    := $(INFRA_DIR)/global
 ENV_DIR       := $(INFRA_DIR)/envs/$(ENV)
 TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 
 # All Terraform roots (for fmt-check / validate / lint sweeps).
-TF_ROOTS := $(BOOTSTRAP_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
+TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
+        global-init global-plan global-apply global-output dns-verify mail-verify edge-health \
         db-new db-status db-up db-down check-goose \
         core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming \
@@ -41,6 +43,21 @@ bootstrap-init: ## Init the bootstrap root (local state)
 
 bootstrap-apply: ## OPERATOR: create the S3 state bucket (one-time, interactive approval)
 	cd $(BOOTSTRAP_DIR) && $(TF) apply
+
+## --- Platform-wide root (010): the parent DNS zone. NOT an environment — no ENV= here. ---
+
+global-init: ## Init the global root (parent hosted zone)
+	cd $(GLOBAL_DIR) && $(TF) init
+
+global-plan: ## Preview the global root (never mutates)
+	cd $(GLOBAL_DIR) && $(TF) plan -var-file=global.tfvars
+
+global-apply: ## OPERATOR: apply the global root — creates the parent zone (interactive approval)
+	@echo "⚠  This root owns effyshopping.com. Destroying it mints NEW name-servers and needs a manual GoDaddy repoint."
+	cd $(GLOBAL_DIR) && $(TF) apply -var-file=global.tfvars
+
+global-output: ## Show the parent zone's name-servers (paste these into GoDaddy)
+	cd $(GLOBAL_DIR) && $(TF) output
 
 ## --- Per-environment workflow (ENV=dev|qa|staging|prod) ---
 
@@ -272,6 +289,22 @@ shop-verify-gate: ## OPERATOR: SC-005 manager gate is backend-authoritative (MAN
 shop-token-claims: ## Decode a Cognito ACCESS token's claims (TOKEN=eyJ..) — settles research R6
 	@test -n "$(TOKEN)" || { echo 'usage: make shop-token-claims TOKEN=eyJ...'; exit 1; }
 	@TOKEN="$(TOKEN)" bash scripts/token-claims.sh
+
+# --- domain slice verification (010). A DNS delegation, a TLS chain, and a DKIM signature cannot
+# honestly be unit-tested — they are properties of the live internet. Scripted here instead.
+dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL still works
+	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" \
+	API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
+	RAW_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_default_endpoint)" \
+		bash scripts/dns-verify.sh
+
+edge-health: ## Probe every cold-path service: healthz (liveness) + readyz (readiness). Public, no token.
+	@API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
+	SERVICES="admin shop" bash scripts/edge-health.sh
+
+mail-verify: ## SC-010: DKIM/SPF/DMARC published; the SES identity reports verified
+	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" AWS_PROFILE="$(AWS_PROFILE)" \
+	AWS_REGION="$(AWS_REGION)" bash scripts/mail-verify.sh
 
 ## --- Dev cost control: stop the DB while you're not developing ---
 # The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its
