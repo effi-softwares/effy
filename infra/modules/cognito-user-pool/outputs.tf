@@ -1,5 +1,5 @@
 output "user_pool_id" {
-  description = "Pool id, e.g. ap-southeast-1_ABC123."
+  description = "Pool id, e.g. ap-southeast-2_ABC123."
   value       = aws_cognito_user_pool.this.id
 }
 

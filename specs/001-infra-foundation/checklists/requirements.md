@@ -35,7 +35,7 @@
   remote-state design (S3 + DynamoDB locking and its bootstrap), one-time-passcode email delivery
   (Cognito default vs. SES), and the exact Makefile targets — is intentionally deferred to `/speckit-plan`,
   which the constitution requires to follow the most reliable industry-standard approach.
-- Named operational constraints retained in the spec (the `ef` access profile, the `ap-southeast-1`
+- Named operational constraints retained in the spec (the `ef` access profile, the `ap-southeast-2`
   region, dev-only apply) are business/operational constraints the user explicitly required, not
   framework/implementation choices, and are phrased as capabilities/constraints rather than mechanics.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`.

@@ -111,7 +111,9 @@ Get the live base URL any time:
 
 ```bash
 cd services/edge-api && AWS_PROFILE=ef pnpm exec serverless info --stage dev
-export EDGE_URL=https://9r8i2n1txk.execute-api.ap-southeast-1.amazonaws.com   # current dev URL
+# The gateway host is a contract value — read it, never hardcode it (A3).
+export EDGE_URL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/edge/api_endpoint \
+  --region ap-southeast-2 --query Parameter.Value --output text)
 ```
 
 Verify (first call after idle may be cold-slow — that's the accepted cold-path trade):
@@ -127,8 +129,8 @@ curl -si $EDGE_URL/v1/back-office/ping     # 401 {"message":"Unauthorized"} with
 Logs & alarms:
 
 ```bash
-AWS_PROFILE=ef aws logs tail /aws/lambda/effy-edge-api-dev-health --since 15m --region ap-southeast-1
-AWS_PROFILE=ef aws cloudwatch describe-alarms --alarm-name-prefix effy-edge-api-dev --region ap-southeast-1 \
+AWS_PROFILE=ef aws logs tail /aws/lambda/effy-edge-api-dev-health --since 15m --region ap-southeast-2
+AWS_PROFILE=ef aws cloudwatch describe-alarms --alarm-name-prefix effy-edge-api-dev --region ap-southeast-2 \
   --query 'MetricAlarms[].{name:AlarmName,state:StateValue}' --output table
 ```
 
@@ -138,29 +140,29 @@ Pool ids come from the SSM contract; users are admin-provisioned (except custome
 self-signup later):
 
 ```bash
-CPOOL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/customer/user_pool_id    --region ap-southeast-1 --query Parameter.Value --output text)
-BPOOL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/back-office/user_pool_id --region ap-southeast-1 --query Parameter.Value --output text)
-CCLIENT=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/customer/app_client_id    --region ap-southeast-1 --query Parameter.Value --output text)
-BCLIENT=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/back-office/app_client_id --region ap-southeast-1 --query Parameter.Value --output text)
+CPOOL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/customer/user_pool_id    --region ap-southeast-2 --query Parameter.Value --output text)
+BPOOL=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/back-office/user_pool_id --region ap-southeast-2 --query Parameter.Value --output text)
+CCLIENT=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/customer/app_client_id    --region ap-southeast-2 --query Parameter.Value --output text)
+BCLIENT=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/back-office/app_client_id --region ap-southeast-2 --query Parameter.Value --output text)
 
 # One-time test users (email must be real — the OTP is emailed):
 AWS_PROFILE=ef aws cognito-idp admin-create-user --user-pool-id $CPOOL --username you+cust@example.com \
-  --user-attributes Name=email,Value=you+cust@example.com Name=email_verified,Value=true --region ap-southeast-1
+  --user-attributes Name=email,Value=you+cust@example.com Name=email_verified,Value=true --region ap-southeast-2
 AWS_PROFILE=ef aws cognito-idp admin-create-user --user-pool-id $BPOOL --username you+admin@example.com \
-  --user-attributes Name=email,Value=you+admin@example.com Name=email_verified,Value=true --region ap-southeast-1
+  --user-attributes Name=email,Value=you+admin@example.com Name=email_verified,Value=true --region ap-southeast-2
 AWS_PROFILE=ef aws cognito-idp admin-add-user-to-group --user-pool-id $BPOOL --username you+admin@example.com \
-  --group-name admin --region ap-southeast-1
+  --group-name admin --region ap-southeast-2
 ```
 
 Passwordless EMAIL_OTP sign-in (per pool — repeat with `$BCLIENT` for back-office):
 
 ```bash
 AWS_PROFILE=ef aws cognito-idp initiate-auth --client-id $CCLIENT --auth-flow USER_AUTH \
-  --auth-parameters USERNAME=you+cust@example.com,PREFERRED_CHALLENGE=EMAIL_OTP --region ap-southeast-1
+  --auth-parameters USERNAME=you+cust@example.com,PREFERRED_CHALLENGE=EMAIL_OTP --region ap-southeast-2
 # => note the Session value; check your email for the code, then:
 AWS_PROFILE=ef aws cognito-idp respond-to-auth-challenge --client-id $CCLIENT \
   --challenge-name EMAIL_OTP --session '<session>' \
-  --challenge-responses USERNAME=you+cust@example.com,EMAIL_OTP_CODE=<code> --region ap-southeast-1
+  --challenge-responses USERNAME=you+cust@example.com,EMAIL_OTP_CODE=<code> --region ap-southeast-2
 # => AuthenticationResult.AccessToken  (use the ACCESS token, not the ID token)
 
 export CUSTOMER_TOKEN=<customer AccessToken>
@@ -199,7 +201,7 @@ endpoint belongs to: [docs/api/path-assignment.md](docs/api/path-assignment.md).
 git grep -iE 'password|secret[^_a-z]' -- services/ Makefile        # names/pointers only, never values
 find services -name ".env*"                                        # only .env.example
 AWS_PROFILE=ef aws cloudformation get-template --stack-name effy-edge-api-dev \
-  --region ap-southeast-1 | grep -ci password                      # 0 — the secret never enters the template
+  --region ap-southeast-2 | grep -ci password                      # 0 — the secret never enters the template
 ```
 
 ## 8. Where everything is specified

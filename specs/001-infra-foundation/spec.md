@@ -122,13 +122,18 @@ defined role groupings.
 
 ### User Story 4 - Region portability (Priority: P3)
 
-The development environment runs in the Singapore region today, and the foundation is structured so that
-relocating an environment to a different region (e.g., Sydney) later is a **configuration change, not a
-redesign**.
+The development environment runs in the Sydney region, and the foundation is structured so that
+relocating an environment to a different region later is a **configuration change, not a redesign**.
 
-**Why this priority**: Region placement is a real near-term constraint (dev in Singapore now, a likely
-move to Sydney later), but it does not block any functionality today. Designing for portability now
-avoids costly rework later at near-zero present cost.
+**Why this priority**: Region placement is a real near-term constraint, but it does not block any
+functionality today. Designing for portability now avoids costly rework later at near-zero present cost.
+
+> **Relocation exercised (2026-07-12)**: dev was originally provisioned in Singapore
+> (`ap-southeast-1`) and has since been relocated to Sydney (`ap-southeast-2`). The move was a
+> destroy-and-re-provision (Cognito pools are regional and cannot move in place — research D7), driven
+> entirely by the `aws_region` configuration value: **no infrastructure code was restructured**. That is
+> this story's portability property, demonstrated rather than merely asserted. Runbook:
+> [infra/envs/README.md](../../infra/envs/README.md).
 
 **Independent Test**: Inspect the environment configuration and confirm a single, environment-scoped
 configuration value controls the region in which resources are placed, such that changing it would
@@ -137,10 +142,9 @@ relocate the environment without restructuring the infrastructure code.
 **Acceptance Scenarios**:
 
 1. **Given** the development environment, **When** its resources are provisioned, **Then** they are
-   created in the Singapore region (`ap-southeast-1`).
-2. **Given** the foundation, **When** a future move to another region (e.g., `ap-southeast-2`) is needed,
-   **Then** it is achievable by changing environment configuration rather than redesigning or rewriting
-   the infrastructure code.
+   created in the Sydney region (`ap-southeast-2`).
+2. **Given** the foundation, **When** a move to another region is needed, **Then** it is achievable by
+   changing environment configuration rather than redesigning or rewriting the infrastructure code.
 
 ---
 
@@ -215,11 +219,11 @@ relocate the environment without restructuring the infrastructure code.
 
 **Placement, naming & traceability**
 
-- **FR-019**: The **dev** environment's resources MUST be created in the Singapore region
-  (`ap-southeast-1`).
+- **FR-019**: The **dev** environment's resources MUST be created in the Sydney region
+  (`ap-southeast-2`). *(Originally Singapore, `ap-southeast-1`; relocated 2026-07-12.)*
 - **FR-020**: The region in which an environment's resources are placed MUST be controlled by
-  environment-scoped configuration, so an environment can be relocated (e.g., to `ap-southeast-2`) by
-  changing configuration rather than redesigning the infrastructure.
+  environment-scoped configuration, so an environment can be relocated by changing configuration rather
+  than redesigning the infrastructure. *(Exercised 2026-07-12 by the Singapore → Sydney move.)*
 - **FR-021**: Every provisioned resource MUST carry consistent identifying metadata — at minimum the
   environment name, the owning brand/platform, and an indicator that it is managed by infrastructure code
   — for traceability and cost attribution.
@@ -283,8 +287,9 @@ relocate the environment without restructuring the infrastructure code.
   this slice is applied automatically.
 - **Access profile**: A cloud access profile named `ef` is configured on the operator's machine with
   sufficient permissions; all documented commands run under it.
-- **Region**: The development environment targets `ap-southeast-1` (Singapore); a likely future move to
-  `ap-southeast-2` (Sydney) is anticipated and the design accommodates it via configuration.
+- **Region**: The development environment targets `ap-southeast-2` (Sydney). It originally targeted
+  `ap-southeast-1` (Singapore); the anticipated move was carried out on 2026-07-12 via configuration
+  alone, exactly as this design accommodated.
 - **Greenfield**: There are no production users or data yet; only the development environment will hold
   live resources until the team decides to promote others. qa / staging / prod are authored now and
   applied later.

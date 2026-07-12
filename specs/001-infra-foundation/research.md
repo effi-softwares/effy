@@ -165,17 +165,29 @@ blocking anything.
 
 ---
 
-## D7 — Region parametrization (Singapore now, Sydney-ready)
+## D7 — Region parametrization (Sydney; relocated from Singapore 2026-07-12)
 
-**Decision**: Region is a single per-env variable `aws_region`, set to `ap-southeast-1` in `dev.tfvars`.
+**Decision**: Region is a single per-env variable `aws_region`, set to `ap-southeast-2` in `dev.tfvars`.
 The provider block uses `region = var.aws_region`; **no module hardcodes a region**. Relocating an env =
 change one `.tfvars` value (and re-provision). Cognito-issuer URLs and SSM parameters are derived from
 the region/account at plan time, never pinned literally.
 
 **Rationale**: Directly satisfies spec FR-019/FR-020 and SC-007 — region is config, not structure. A
-future `ap-southeast-2` move is a `.tfvars` edit, not a redesign. (Note: relocating Cognito means new
-pools in the new region — pools are regional and not movable in place — so the "move" is a re-provision +
-data consideration, acknowledged for when real users exist; for `dev` it's free.)
+region move is a `.tfvars` edit, not a redesign. (Note: relocating Cognito means new pools in the new
+region — pools are regional and not movable in place — so the "move" is a re-provision + data
+consideration, acknowledged for when real users exist; for `dev` it's free.)
+
+**Outcome (2026-07-12)**: this prediction was tested. `dev` moved Singapore (`ap-southeast-1`) → Sydney
+(`ap-southeast-2`) as a destroy + re-provision. The design held: **no module or root was restructured.**
+Two things the original decision did *not* anticipate, both now corrected in the code:
+
+- **Region-pinned values outside Terraform.** Three literals had to change alongside `aws_region`
+  because they encode a region in a form Terraform never sees: the Lambda Parameters-and-Secrets
+  extension **layer ARN** (a different AWS-owned account id per region), the embedded **RDS CA bundle**
+  (region-rooted certificate chain — a Singapore bundle fails TLS against a Sydney instance), and each
+  Serverless service's `provider.region`. "Region is one variable" is true *within* Terraform; the
+  cold path and its bundles need their own region-correctness check.
+- **State is not automatically region-independent.** See the correction in the runbook note below.
 
 **Alternatives considered**:
 - **Hardcoded region in providers/modules** — *Rejected.* Breaks portability (SC-007).

@@ -23,7 +23,7 @@ secret/DSN/password in the output. (SC-001: under 5 minutes.)
    ```bash
    # Cognito (read-only):
    AWS_PROFILE=ef aws cognito-idp admin-get-user --user-pool-id <back-office-pool-id> \
-     --username jane@effy.test --region ap-southeast-1 --query 'UserStatus'   # → CONFIRMED
+     --username jane@effy.test --region ap-southeast-2 --query 'UserStatus'   # → CONFIRMED
    ```
 2. **Sign in (the real proof)**: open the back-office console (`make bo-dev`), sign in as
    `jane@effy.test` via the emailed one-time code (no password), and confirm **every** admin-gated

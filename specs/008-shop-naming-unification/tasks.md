@@ -318,7 +318,9 @@ found it applies to verbatim quotes too. Category (f) is new.
   migrations report Applied. `research.md` R1 originally claimed `db-up` had never run — false, and
   corrected in place. The gate depends only on this one migration being Pending, which it is.)*
 - **T010 result**: shop pool `ap-southeast-1_JeKqQCyKK` has **zero groups and zero users**. The group
-  rename is a pure create; no token can be stranded.
+  rename is a pure create; no token can be stranded. *(Left verbatim: this is a dated record of what was
+  observed live, not a config value. That pool was destroyed in the 2026-07-12 Singapore → Sydney
+  relocation and no longer exists; the finding it supports — that the rename stranded no token — stands.)*
 - The rename lands as **one atomic commit**. The phase order above is the order of *work*, not of commits.
 - `[P]` = different files, no dependency on an incomplete task.
 - The guard (T004–T008) is written **before** the rename on purpose: its output is the worklist, and its

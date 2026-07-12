@@ -39,13 +39,13 @@ ARCHITECTURE.md. Reuses 001's `_shared` tags module, S3 state backend, Makefile 
 
 **Storage**: the feature IS storage — RDS **PostgreSQL 16** (constitution-locked engine),
 20 GB **gp3**, single-AZ, encrypted at rest (default KMS key, $0). Terraform state: existing
-`effy-apse1-tfstate` bucket, dev key.
+`effy-apse2-tfstate` bucket, dev key.
 
 **Testing**: `terraform fmt`/`validate`/`plan` + `make lint` (tflint, trivy). Live
 validation is operator-run per [quickstart.md](./quickstart.md): connect via allowlist,
 negative connect, cost-posture inspection commands, upgrade-lever plan preview.
 
-**Target Platform**: AWS `ap-southeast-1` via `var.aws_region` (region stays config, 001
+**Target Platform**: AWS `ap-southeast-2` via `var.aws_region` (region stays config, 001
 D7). **dev only applied**; higher envs receive the DB at promotion time.
 
 **Project Type**: Infrastructure-as-code slice under `infra/`. No application code, no

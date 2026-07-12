@@ -11,7 +11,7 @@ passwordless sign-in → confirm `qa`/`staging`/`prod` are authored-but-unapplie
 
 - Terraform **≥ 1.11** (`terraform version`), AWS CLI v2, the `ef` profile (`aws configure list-profiles`).
 - The target AWS account id (goes into each `*.tfvars` as `aws_account_id`).
-- Region for `dev`: `ap-southeast-1`.
+- Region for `dev`: `ap-southeast-2`.
 
 ## Step 0 — One-time: create the remote state bucket
 
@@ -39,27 +39,27 @@ clients, the back-office groups (`admin`/`manager`/`csa`), and the SSM parameter
 make apply ENV=dev          # review, type "yes"
 ```
 
-**Expected**: all resources created in `ap-southeast-1`. `make output ENV=dev` shows the four
+**Expected**: all resources created in `ap-southeast-2`. `make output ENV=dev` shows the four
 `user_pool_id`s and `app_client_id`s. Validates **spec SC-001** (no console steps to create pools).
 
 ## Step 3 — Verify the four pools & their rules
 
 ```
 # Pools exist and are isolated (4 distinct ids)
-AWS_PROFILE=ef aws cognito-idp list-user-pools --max-results 10 --region ap-southeast-1
+AWS_PROFILE=ef aws cognito-idp list-user-pools --max-results 10 --region ap-southeast-2
 
 # Customer pool allows self-signup; internal pools do not
 AWS_PROFILE=ef aws cognito-idp describe-user-pool --user-pool-id <customer_pool_id> \
-  --region ap-southeast-1 --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'   # => false
+  --region ap-southeast-2 --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'   # => false
 AWS_PROFILE=ef aws cognito-idp describe-user-pool --user-pool-id <driver_pool_id> \
-  --region ap-southeast-1 --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'   # => true
+  --region ap-southeast-2 --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly'   # => true
 
 # Back-office RBAC groups exist
-AWS_PROFILE=ef aws cognito-idp list-groups --user-pool-id <back_office_pool_id> --region ap-southeast-1
+AWS_PROFILE=ef aws cognito-idp list-groups --user-pool-id <back_office_pool_id> --region ap-southeast-2
 #   => admin, manager, csa
 
 # SSM contract is populated
-AWS_PROFILE=ef aws ssm get-parameters-by-path --path /effy/dev/auth --recursive --region ap-southeast-1
+AWS_PROFILE=ef aws ssm get-parameters-by-path --path /effy/dev/auth --recursive --region ap-southeast-2
 ```
 
 **Validates**: FR-001/002/003/006/007/008, SC-003 (internal pools admin-only), SC-009 (tags — inspect
@@ -72,18 +72,18 @@ Using the customer pool's app client id (public client, choice-based `USER_AUTH`
 ```
 # Self-register a customer (allowed only on the customer pool)
 AWS_PROFILE=ef aws cognito-idp sign-up --client-id <customer_client_id> \
-  --username test@example.com --user-attributes Name=email,Value=test@example.com --region ap-southeast-1
+  --username test@example.com --user-attributes Name=email,Value=test@example.com --region ap-southeast-2
 
 # Start passwordless sign-in → choose EMAIL_OTP → an OTP is emailed (Cognito default sender in dev)
 AWS_PROFILE=ef aws cognito-idp initiate-auth --client-id <customer_client_id> \
   --auth-flow USER_AUTH --auth-parameters USERNAME=test@example.com,PREFERRED_CHALLENGE=EMAIL_OTP \
-  --region ap-southeast-1
+  --region ap-southeast-2
 # => ChallengeName: EMAIL_OTP, Session: …
 
 # Respond with the emailed code → tokens returned, NO password anywhere
 AWS_PROFILE=ef aws cognito-idp respond-to-auth-challenge --client-id <customer_client_id> \
   --challenge-name EMAIL_OTP --session <session> \
-  --challenge-responses USERNAME=test@example.com,EMAIL_OTP_CODE=<code> --region ap-southeast-1
+  --challenge-responses USERNAME=test@example.com,EMAIL_OTP_CODE=<code> --region ap-southeast-2
 ```
 
 **Expected**: tokens (id/access/refresh) returned; no password ever set or requested. **Validates

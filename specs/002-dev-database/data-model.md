@@ -52,7 +52,7 @@ the module cannot express "open to the internet" (FR-006 structurally).
 
 | Parameter | Type | Example |
 |---|---|---|
-| `/effy/dev/db/endpoint` | String | `effy-dev-db.xxxx.ap-southeast-1.rds.amazonaws.com` |
+| `/effy/dev/db/endpoint` | String | `effy-dev-db.xxxx.ap-southeast-2.rds.amazonaws.com` |
 | `/effy/dev/db/port` | String | `5432` |
 | `/effy/dev/db/name` | String | `effy` |
 | `/effy/dev/db/master_username` | String | `effy_admin` |

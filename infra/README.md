@@ -20,7 +20,7 @@ infra/
 │   └── ssm-parameters/     # writes the auth app↔infra contract values to SSM
 ├── envs/
 │   ├── _shared/            # naming + base tags (resource-less module)
-│   ├── dev/                # APPLIED — ap-southeast-1
+│   ├── dev/                # APPLIED — ap-southeast-2
 │   └── qa/ staging/ prod/  # authored, NOT applied
 └── scripts/              # preflight.sh — account guard called by make apply/destroy
 ```

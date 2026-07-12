@@ -36,7 +36,7 @@ make bootstrap-apply          # creates the S3 state bucket — operator runs, o
 
 make init  ENV=dev            # wires the S3 backend for dev
 make plan  ENV=dev            # review: 4 pools + clients + SSM params to be created
-make apply ENV=dev            # operator confirms → dev is live in ap-southeast-1
+make apply ENV=dev            # operator confirms → dev is live in ap-southeast-2
 
 make plan  ENV=qa             # authored-but-unapplied: valid plan, nothing applied
 ```

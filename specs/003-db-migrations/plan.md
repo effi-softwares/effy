@@ -41,7 +41,7 @@ GNU Make targets. Tool: **pressly/goose v3** CLI (locked standard), installed vi
 atomicity demo, down/up dev iteration, credential-hygiene grep. No test framework (matches
 001/002 precedent for tooling slices).
 
-**Target Platform**: dev environment (`ap-southeast-1`), operator's machine (must be on
+**Target Platform**: dev environment (`ap-southeast-2`), operator's machine (must be on
 the 002 allowlist). Env-parameterized like every platform command (`ENV=dev` default).
 
 **Project Type**: developer/operator tooling + repository structure. Not an application

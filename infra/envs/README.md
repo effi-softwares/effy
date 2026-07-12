@@ -6,7 +6,7 @@ never call each other (ARCHITECTURE.md).
 
 | Env | State key | Status |
 |---|---|---|
-| `dev` | `envs/dev/terraform.tfstate` | **Applied** — the only live env (`ap-southeast-1`) |
+| `dev` | `envs/dev/terraform.tfstate` | **Applied** — the only live env (`ap-southeast-2`) |
 | `qa` | `envs/qa/terraform.tfstate` | Authored, **not applied** |
 | `staging` | `envs/staging/terraform.tfstate` | Authored, **not applied** |
 | `prod` | `envs/prod/terraform.tfstate` | Authored, **not applied** |
@@ -31,29 +31,61 @@ The higher roots are deliberately skeletons (no pools yet). To promote:
    `db_instance_class`/storage for the real workload.
 5. `make plan ENV=<env>` → review → the **operator** runs `make apply ENV=<env>`.
 
-## Region relocation runbook (e.g. `ap-southeast-1` → `ap-southeast-2`)
+## Region relocation runbook
+
+**Executed 2026-07-12: Singapore (`ap-southeast-1`) → Sydney (`ap-southeast-2`).** The notes below are
+the corrected procedure, rewritten from what the move actually required.
 
 Region is a **single per-env variable** (`aws_region`); no module or root hardcodes it
-(FR-019/FR-020, SC-007). But note what a "move" means:
+(FR-019/FR-020, SC-007). But a "move" is not a mutation — it is a **destroy + re-provision**:
 
 - **Cognito user pools are regional and cannot be moved in place** (research.md D7).
   Relocating an env **re-provisions** its pools in the new region: new pool ids, new issuer
   URLs, and — when real users exist — a user-migration exercise (users do not transfer).
   For pre-user environments the move is free.
-- **Terraform state does NOT move.** The state bucket (and each root's `backend.tf
-  region`) stays in `ap-southeast-1` regardless of where resources live. Do not touch
-  `backend.tf` when relocating resources.
+- **A region flip alone does not relocate anything.** Resources already in state keep the region
+  recorded there (AWS provider v6, verified 2026-07-05), so `apply` after a `.tfvars` edit will
+  *not* silently move or destroy them. You must `destroy` in the old region, then `apply` in the new.
+- **Order is load-bearing**: destroy runs from the **old** config. Terraform can only destroy what its
+  state and provider point at, so every region/backend edit must land *after* the old region is empty
+  (or on a branch you switch to afterwards). Editing first and destroying second strands the old
+  resources with no state to destroy them from.
+- **Region-pinned values live outside Terraform too.** Grep beyond `infra/` before you apply — see
+  the checklist below.
 
-Procedure:
+### Does the state bucket move?
 
-1. Edit the env's `.tfvars`: `aws_region = "ap-southeast-2"`.
-2. `make plan ENV=<env>` — NEW resources target the new region and region-derived values
-   (e.g. `/effy/<env>/region`) update. Note (AWS provider v6, verified 2026-07-05): resources
-   that already exist keep the region recorded in their state — a region flip does NOT
-   silently destroy live resources. A true relocation of an applied env is therefore
-   `make destroy` (old region) followed by `make apply` (new region) — i.e. re-provision,
-   exactly as D7 anticipates.
-3. Coordinate consumers: pool ids and issuer hosts change — every app/backend reading the
-   SSM contract picks up the new values; anything cached must be refreshed.
-4. The **operator** runs `make apply ENV=<env>` (never Claude, never CI).
-5. If real users existed: plan a migration/re-registration path **before** step 4.
+It does not *have* to: state is just an S3 object and can stay put while resources live elsewhere.
+The 2026-07-12 move **did relocate it** (`effy-apse1-tfstate` → `effy-apse2-tfstate`) because the goal
+was to leave `ap-southeast-1` entirely empty. If you relocate the backend:
+
+- The bucket has `prevent_destroy = true` (bootstrap `main.tf`) — Terraform will refuse to delete it.
+  Empty and delete the old bucket **out of band**, after the envs are destroyed and their state is
+  worthless, then discard the local bootstrap state and re-bootstrap in the new region.
+- Every `infra/envs/*/backend.tf` names the bucket **literally** (backends cannot use variables), so
+  all four change together. `terraform init -reconfigure` picks up the new backend; with the envs
+  already destroyed there is no state worth migrating.
+
+### Procedure
+
+1. **Destroy first, from the old config** — on the pre-change commit: `make destroy ENV=<env>`, plus
+   `make edge-remove SERVICE=<svc> ENV=<env>` for each Serverless stack (they are CloudFormation, not
+   Terraform, and are not in the Terraform state).
+2. Edit the env's `.tfvars`: `aws_region = "<new-region>"`. If moving the backend, also update the
+   bucket name + region in all four `backend.tf` files and in `infra/bootstrap/`.
+3. **Sweep the region-pinned values Terraform never sees** — each one silently breaks in a new region:
+   - `apis/edge-api/*/serverless.yml` → `provider.region` **and** the Parameters-and-Secrets extension
+     **layer ARN** (the AWS-owned account id in that ARN differs per region — it is not just the
+     region segment).
+   - `apis/edge-api/shared/src/lib/rds-ca.ts` → the **RDS CA bundle is region-rooted**. A bundle from
+     the old region fails TLS against the new region's instance. Regenerate from
+     `https://truststore.pki.rds.amazonaws.com/<region>/<region>-bundle.pem`.
+   - `Makefile` `AWS_REGION`, `infra/scripts/db-dsn.sh`, `apis/core-api/.env.example`.
+4. `make init ENV=<env>` (`-reconfigure` if the backend moved) → `make plan ENV=<env>` → the
+   **operator** runs `make apply ENV=<env>` (never Claude, never CI).
+5. **Re-provision what lived only in the cloud**: DB migrations (`make db-up`), the first admin
+   (`make create-first-admin`), and any Cognito accounts — a destroyed env takes all of them with it.
+6. Coordinate consumers: pool ids, issuer hosts, and the gateway URL all change. Every app/backend
+   reading the SSM contract picks up the new values, but anything cached — notably each web app's
+   local `.env` — must be refreshed by hand.
+7. If real users existed: plan a migration/re-registration path **before** step 1.

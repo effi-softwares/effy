@@ -5,7 +5,7 @@ option is off, and each one is verifiable with a single read-only CLI check. If 
 below drifts, that is a **contract violation** — either an accidental change (revert) or a
 deliberate promotion (update this contract for that env).
 
-All commands: `AWS_PROFILE=ef`, `--region ap-southeast-1`, `--db-instance-identifier effy-dev-db`
+All commands: `AWS_PROFILE=ef`, `--region ap-southeast-2`, `--db-instance-identifier effy-dev-db`
 (via `aws rds describe-db-instances --query 'DBInstances[0].<Field>'` unless noted).
 
 | # | Billed feature | Must read | Field / check |

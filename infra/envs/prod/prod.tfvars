@@ -2,7 +2,7 @@
 # resources until this env is deliberately promoted.
 
 env        = "prod"
-aws_region = "ap-southeast-1"
+aws_region = "ap-southeast-2"
 
 # Fill in before the first plan/apply — the placeholder fails validation loudly on purpose.
 aws_account_id = "724289623101"

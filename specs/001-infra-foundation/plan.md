@@ -10,8 +10,8 @@ Stand up the platform's **infrastructure-as-code foundation** — a reusable-mod
 Terraform layout with remote, locked state — and provision its **first resources**: the four isolated
 AWS Cognito user pools (customer, driver, shop, back-office), all passwordless **EMAIL_OTP**, with
 self-signup enabled only for customers. Four environment roots are authored (`dev`, `qa`, `staging`,
-`prod`); **only `dev` is applied**, in `ap-southeast-1` (Singapore), with region controlled by a single
-per-environment variable so a later move to `ap-southeast-2` is a config change. A root `Makefile`
+`prod`); **only `dev` is applied**, in `ap-southeast-2` (Sydney), with region controlled by a single
+per-environment variable so relocating an environment is a config change. A root `Makefile`
 exposes `init` / `plan` / `apply` (and friends) per environment, every target run under
 `AWS_PROFILE=ef`. **Claude authors all code; the operator runs every `init`/`apply` by hand** — nothing
 is applied automatically. Pool ids and app-client ids are published to **SSM Parameter Shop** as the
@@ -48,7 +48,7 @@ locked via the S3-native lockfile. Runtime app↔infra contract values written t
 contract preview). `tflint` + `checkov`/`trivy` static checks via a `make lint` target. No live apply by
 Claude — `dev` apply and validation are run by the operator per [quickstart.md](./quickstart.md).
 
-**Target Platform**: AWS, region `ap-southeast-1` for `dev` (per-env `aws_region` variable; future
+**Target Platform**: AWS, region `ap-southeast-2` for `dev` (per-env `aws_region` variable; future
 `ap-southeast-2`). Account access via the local `ef` named profile (`AWS_PROFILE=ef`).
 
 **Project Type**: Infrastructure-as-code (Terraform monorepo subtree under `infra/`). Not an
@@ -141,7 +141,7 @@ infra/
 │   │   ├── providers.tf            #   aws provider; region=var; allowed_account_ids guard
 │   │   ├── versions.tf             #   required_version + provider pins
 │   │   ├── outputs.tf              #   pool ids/clients (also mirrored to SSM)
-│   │   └── dev.tfvars              #   region=ap-southeast-1, account id, env="dev", callback urls…
+│   │   └── dev.tfvars              #   region=ap-southeast-2, account id, env="dev", callback urls…
 │   ├── qa/        # AUTHORED, NOT APPLIED  (same shape as dev/, qa.tfvars)
 │   ├── staging/   # AUTHORED, NOT APPLIED
 │   └── prod/      # AUTHORED, NOT APPLIED

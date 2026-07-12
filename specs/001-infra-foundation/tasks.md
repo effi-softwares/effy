@@ -56,7 +56,7 @@ user story can be provisioned or validated.
 - [X] T009 Author `infra/envs/dev/versions.tf` (`required_version >= 1.11.0`; `aws ~> 6.0`)
 - [X] T010 Author `infra/envs/dev/providers.tf` (aws provider `region = var.aws_region`; `allowed_account_ids = [var.aws_account_id]` wrong-account guard; `default_tags` from `_shared` base tags) per research.md D8/D9
 - [X] T011 Author `infra/envs/dev/backend.tf` (S3 backend: bucket = bootstrap bucket name, `key = "envs/dev/terraform.tfstate"`, `region`, `use_lockfile = true`) per research.md D2
-- [X] T012 Author `infra/envs/dev/variables.tf` + `infra/envs/dev/dev.tfvars` (`env="dev"`, `aws_region="ap-southeast-1"`, `aws_account_id`, `user_pool_tier="ESSENTIALS"`, `email_configuration` = `COGNITO_DEFAULT`, per-audience callback/logout URLs as dev placeholders) per [data-model.md](./data-model.md) E1
+- [X] T012 Author `infra/envs/dev/variables.tf` + `infra/envs/dev/dev.tfvars` (`env="dev"`, `aws_region="ap-southeast-2"`, `aws_account_id`, `user_pool_tier="ESSENTIALS"`, `email_configuration` = `COGNITO_DEFAULT`, per-audience callback/logout URLs as dev placeholders) per [data-model.md](./data-model.md) E1
 
 **Checkpoint**: `make init ENV=dev` then `make plan ENV=dev` 🧑‍💻 produce a clean "no changes" plan (empty
 but valid root); modules and bootstrap authored and `terraform validate`-clean.
@@ -129,19 +129,26 @@ the three groups; `AllowAdminCreateUserOnly = true` on all three ([quickstart.md
 
 ## Phase 6: User Story 4 — Region portability (Priority: P3)
 
-**Goal**: `dev` runs in `ap-southeast-1`; region is a single per-env variable so relocating (e.g. to
-`ap-southeast-2`) is a config change, not a redesign.
+**Goal**: `dev` runs in `ap-southeast-2`; region is a single per-env variable so relocating is a config
+change, not a redesign.
 
 **Independent Test**: No module hardcodes a region; changing `aws_region` in a scratch plan re-targets;
-`dev` resources are confirmed in `ap-southeast-1` ([quickstart.md](./quickstart.md) Step 5 region check).
+`dev` resources are confirmed in `ap-southeast-2` ([quickstart.md](./quickstart.md) Step 5 region check).
 
 ### Implementation for User Story 4
 
 - [X] T029 [US4] Audit `infra/modules/*` and all `infra/envs/*` for hardcoded regions; confirm region flows only via `var.aws_region`; add `infra/envs/dev/region.tf` writing `/effy/dev/region` SSM param per [contracts/ssm-parameters.contract.md](./contracts/ssm-parameters.contract.md)
 - [X] T030 [US4] Document the region-relocation runbook (`ap-southeast-1` → `ap-southeast-2`) in `infra/envs/README.md`, noting Cognito pools are regional (relocation = re-provision, not in-place move) per research.md D7
-- [X] T031 [US4] Acceptance: confirm `dev` resources placed in `ap-southeast-1`; demonstrate that flipping `aws_region` in a throwaway `*.tfvars` re-targets the plan (SC-007, FR-019/020)
+- [X] T031 [US4] Acceptance: confirm `dev` resources placed in the env's configured region; demonstrate that flipping `aws_region` in a throwaway `*.tfvars` re-targets the plan (SC-007, FR-019/020)
 
 **Checkpoint**: Region is config-driven and Sydney-ready.
+
+> **Runbook executed (2026-07-12)**: the anticipated Singapore → Sydney move was carried out for real.
+> `dev` was destroyed in `ap-southeast-1` and re-provisioned in `ap-southeast-2` from the same
+> infrastructure code — **only `.tfvars` / backend config changed**, which is SC-007 proven in
+> production rather than in a throwaway plan. The Terraform **state backend moved too** (new bucket
+> `effy-apse2-tfstate`), a step the original runbook explicitly said was unnecessary; see
+> [infra/envs/README.md](../../infra/envs/README.md) for the corrected procedure.
 
 ---
 

@@ -18,11 +18,11 @@ removing is a breaking change** to every consumer.
 
 | Key | Tier/Type | Secret? | Example |
 |---|---|---|---|
-| `/effy/dev/db/endpoint` | Standard / `String` | no | `effy-dev-db.xxxx.ap-southeast-1.rds.amazonaws.com` |
+| `/effy/dev/db/endpoint` | Standard / `String` | no | `effy-dev-db.xxxx.ap-southeast-2.rds.amazonaws.com` |
 | `/effy/dev/db/port` | Standard / `String` | no | `5432` |
 | `/effy/dev/db/name` | Standard / `String` | no | `effy` |
 | `/effy/dev/db/master_username` | Standard / `String` | no | `effy_admin` |
-| `/effy/dev/db/master_secret_arn` | Standard / `String` | no — it's a **pointer** | `arn:aws:secretsmanager:ap-southeast-1:…:secret:rds!…` |
+| `/effy/dev/db/master_secret_arn` | Standard / `String` | no — it's a **pointer** | `arn:aws:secretsmanager:ap-southeast-2:…:secret:rds!…` |
 
 ## Rules
 

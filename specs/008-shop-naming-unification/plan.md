@@ -42,7 +42,7 @@ web-kit 38, back-office 20, shop-web 29). The count is a hard invariant (SC-003)
 validate` + `fmt`, `tsc --noEmit` workspace-wide, shellcheck, and the three operator verification
 scripts.
 
-**Target Platform**: AWS `ap-southeast-1`, `dev` environment. Console runs locally on `:5174`.
+**Target Platform**: AWS `ap-southeast-2`, `dev` environment. Console runs locally on `:5174`.
 
 **Project Type**: Monorepo-wide cross-cutting rename. Not a feature; a refactor with a governance
 amendment attached.

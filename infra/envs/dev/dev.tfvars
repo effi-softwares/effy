@@ -1,8 +1,8 @@
-# dev — the only environment applied now (ap-southeast-1, spec 001-infra-foundation).
+# dev — the only environment applied now (ap-southeast-2, spec 001-infra-foundation).
 # Committed on purpose: nothing here is secret.
 
 env        = "dev"
-aws_region = "ap-southeast-1"
+aws_region = "ap-southeast-2"
 
 # Fill in the real 12-digit account id before the first plan/apply — the placeholder
 # fails validation (and the provider allowed_account_ids guard) loudly on purpose.

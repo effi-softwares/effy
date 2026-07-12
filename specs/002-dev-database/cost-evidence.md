@@ -2,6 +2,18 @@
 
 **Recorded**: 2026-07-05 (plan-time half of SC-001). Region: ap-southeast-1, on-demand.
 
+> ⚠️ **Superseded by the 2026-07-12 region relocation — figures below are NOT re-verified.**
+> This evidence was priced against **ap-southeast-1 (Singapore)**. `dev` now runs in
+> **ap-southeast-2 (Sydney)**, where RDS and gp3 rates differ. The numbers are left unedited on
+> purpose: they are a dated record of what was checked, and silently overwriting them with guessed
+> Sydney rates would turn evidence into fiction.
+>
+> **The $25/mo ceiling (SC-001) is therefore unproven in Sydney.** Re-price the same posture
+> (db.t4g.micro · 20 GB gp3 · single-AZ · no backups · 1 managed secret) against
+> [the AWS Pricing Calculator](https://calculator.aws) for `ap-southeast-2` and record the result
+> below as a new dated section before claiming SC-001. The shape of the estimate is unchanged —
+> only the rates move.
+
 ## Itemized steady-state estimate
 
 | Item | Basis | Est. / month (USD) |

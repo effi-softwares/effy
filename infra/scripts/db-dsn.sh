@@ -12,9 +12,9 @@
 set -euo pipefail
 
 ENV_NAME="${1:?usage: db-dsn.sh <dev|qa|staging|prod>}"
-# The contract lives beside the resources (ap-southeast-1 today). Override only if an
+# The contract lives beside the resources (ap-southeast-2 today). Override only if an
 # env's contract ever moves regions.
-REGION="${EFFY_CONTRACT_REGION:-ap-southeast-1}"
+REGION="${EFFY_CONTRACT_REGION:-ap-southeast-2}"
 PREFIX="/effy/${ENV_NAME}/db"
 
 get_param() {

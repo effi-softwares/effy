@@ -81,7 +81,7 @@ on any error (with a clear message; a partial failure is recoverable by re-runni
    ```bash
    AWS_PROFILE=ef aws cognito-idp admin-get-user \
      --user-pool-id "$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/auth/back-office/user_pool_id --query Parameter.Value --output text)" \
-     --username you@effy.test --region ap-southeast-1 --query 'UserStatus'   # → "CONFIRMED"
+     --username you@effy.test --region ap-southeast-2 --query 'UserStatus'   # → "CONFIRMED"
    ```
    And in the DB, `admin.staff` has your row (`status = 'active'`) with an `admin.staff_role`.
 

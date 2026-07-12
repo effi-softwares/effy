@@ -45,6 +45,11 @@ Calculator per SC-001)**: instance ≈ $0.026/hr ≈ **$19/mo**; 20 GB gp3 ≈ *
 managed master secret ≈ **$0.40/mo** (D5); KMS default key $0; basic CloudWatch metrics $0.
 **Total ≈ $22/mo ≤ the $25 ceiling**, with ~$3 headroom for pricing drift.
 
+> ⚠️ **These rates are Singapore rates.** `dev` moved to **ap-southeast-2 (Sydney)** on 2026-07-12
+> and the figures above have **not** been re-priced — see [cost-evidence.md](./cost-evidence.md).
+> The *posture* (every paid lever off) is region-independent and still holds; only the rates, and
+> hence the $25-ceiling margin, need re-checking.
+
 **Alternatives considered**:
 - **db.t3.micro** — *Rejected.* x86 costs more than Graviton for the same size; nothing in
   the stack needs x86.

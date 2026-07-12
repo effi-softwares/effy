@@ -17,7 +17,7 @@ state** because you can't store state in a bucket that doesn't exist yet (resear
    make bootstrap-apply     # review the plan, type "yes"
    ```
 
-**Expected**: bucket `effy-apse1-tfstate` — versioned, SSE-encrypted, all public access
+**Expected**: bucket `effy-apse2-tfstate` — versioned, SSE-encrypted, all public access
 blocked, non-TLS requests denied, `prevent_destroy` set.
 
 Then wire up the first environment:
@@ -34,7 +34,7 @@ make plan ENV=dev
   with a `backend "s3"` block + `terraform init -migrate-state` (not required for
   correctness).
 - **Bucket name is the backend contract.** Every `infra/envs/*/backend.tf` references
-  `effy-apse1-tfstate` literally (Terraform backends cannot use variables). If you must
+  `effy-apse2-tfstate` literally (Terraform backends cannot use variables). If you must
   rename: change `state_bucket_name` here **and** all four `backend.tf` files.
-- The bucket's region (`ap-southeast-1`) is independent of any environment's `aws_region` —
+- The bucket's region (`ap-southeast-2`) is independent of any environment's `aws_region` —
   relocating an env does not move its state.

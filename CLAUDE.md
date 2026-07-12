@@ -70,6 +70,14 @@ Observable and measurable from day one (constitution Principle VII; full detail 
   alongside email — never ad hoc per feature.
 
 ## Decisions locked
+- **Region: `ap-southeast-2` (Sydney).** Moved from `ap-southeast-1` (Singapore) on 2026-07-12 — dev
+  was destroyed and re-provisioned from scratch (no data kept), and the Terraform state bucket moved
+  with it (`effy-apse2-tfstate`). `ap-southeast-1` is empty. Region is config, never a literal: it
+  flows from `var.aws_region` / the `/effy/<env>/region` SSM contract. **Three values pin a region
+  outside Terraform** and must be changed by hand on any future move — the Lambda
+  Parameters-and-Secrets **layer ARN** (its AWS-owned account id differs per region), the embedded
+  **RDS CA bundle** (`apis/edge-api/shared/src/lib/rds-ca.ts`, region-rooted chain), and each
+  `serverless.yml` `provider.region`. Runbook: [infra/envs/README.md](infra/envs/README.md).
 - **Repo shape:** MONOREPO (Turborepo + pnpm for JS/TS; Go lives alongside with its own module; each
   KMP app is its own Gradle build). Reason: solo/small team → consistency across surfaces is the #1
   need; shared packages (design-system, api-client, shared-types, config) are the whole point.

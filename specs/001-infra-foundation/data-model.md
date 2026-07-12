@@ -14,7 +14,7 @@ One per `infra/envs/<env>/`. The unit of isolation.
 | Field | Source | Notes |
 |---|---|---|
 | `env` | `*.tfvars` (`env = "dev"`) | One of `dev | qa | staging | prod`. Feeds names/tags/SSM prefix. |
-| `aws_region` | `*.tfvars` | `dev`=`ap-southeast-1`. The only placement knob (D7). |
+| `aws_region` | `*.tfvars` | `dev`=`ap-southeast-2`. The only placement knob (D7). |
 | `aws_account_id` | `*.tfvars` | Pinned via provider `allowed_account_ids` (D8). |
 | `state key` | `backend.tf` | `envs/<env>/terraform.tfstate` — per-env state isolation (FR-012). |
 | `tier` | `*.tfvars` | Cognito `user_pool_tier`; default `ESSENTIALS` (D4). |
@@ -101,10 +101,10 @@ Written per env by the `ssm-parameters` module (D10). The runtime contract later
 
 | Parameter (per audience) | Type | Example value |
 |---|---|---|
-| `/effy/<env>/auth/<audience>/user_pool_id` | String | `ap-southeast-1_ABC123` |
+| `/effy/<env>/auth/<audience>/user_pool_id` | String | `ap-southeast-2_ABC123` |
 | `/effy/<env>/auth/<audience>/app_client_id` | String | `1h57kf5...` |
 | `/effy/<env>/auth/<audience>/user_pool_arn` | String | `arn:aws:cognito-idp:...` |
-| `/effy/<env>/region` | String | `ap-southeast-1` |
+| `/effy/<env>/region` | String | `ap-southeast-2` |
 
 **Rules**: non-secret (ids aren't secrets) → `String`, no KMS. Naming is the contract — renaming a key
 is a breaking change (ARCHITECTURE.md). `<audience>` ∈ {`customer`,`driver`,`shop`,`back-office`}.

@@ -12,7 +12,7 @@
 
 AWS_PROFILE ?= ef
 ENV         ?= dev
-AWS_REGION  ?= ap-southeast-1
+AWS_REGION  ?= ap-southeast-2
 
 INFRA_DIR     := infra
 BOOTSTRAP_DIR := $(INFRA_DIR)/bootstrap

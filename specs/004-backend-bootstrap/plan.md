@@ -69,7 +69,7 @@ threshold documented in research C4). DSN/credentials: composed at invocation fr
 
 **Target Platform**: core-api — linux (arm64-ready) Docker container, local only this
 slice. edge-api — AWS Lambda arm64 behind API Gateway HTTP API, `dev` stage,
-ap-southeast-1.
+ap-southeast-2.
 
 **Project Type**: two backend services in the monorepo (first entries under
 `services/`); edge-api activates the pnpm workspace + minimal Turborepo tasks.

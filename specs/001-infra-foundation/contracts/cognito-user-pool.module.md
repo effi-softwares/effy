@@ -38,7 +38,7 @@ outputs the env root composes.
 
 | Name | Description |
 |---|---|
-| `user_pool_id` | e.g. `ap-southeast-1_ABC123`. |
+| `user_pool_id` | e.g. `ap-southeast-2_ABC123`. |
 | `user_pool_arn` | Pool ARN. |
 | `user_pool_endpoint` | Issuer host (per-pool JWT validation will pin this later). |
 | `app_client_id` | The (public) app client id. |

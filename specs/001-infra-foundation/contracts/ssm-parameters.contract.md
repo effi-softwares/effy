@@ -20,13 +20,13 @@ ARCHITECTURE.md ("the infra ↔ app contract is the parameter store"). Renaming 
 
 | Key | Tier/Type | Secret? | Example |
 |---|---|---|---|
-| `/effy/dev/auth/customer/user_pool_id` | Standard / `String` | no | `ap-southeast-1_ABC123` |
+| `/effy/dev/auth/customer/user_pool_id` | Standard / `String` | no | `ap-southeast-2_ABC123` |
 | `/effy/dev/auth/customer/app_client_id` | Standard / `String` | no | `1h57kf5...` |
-| `/effy/dev/auth/customer/user_pool_arn` | Standard / `String` | no | `arn:aws:cognito-idp:ap-southeast-1:…` |
+| `/effy/dev/auth/customer/user_pool_arn` | Standard / `String` | no | `arn:aws:cognito-idp:ap-southeast-2:…` |
 | `/effy/dev/auth/driver/*` | … | no | (same triplet) |
 | `/effy/dev/auth/shop/*` | … | no | (same triplet) |
 | `/effy/dev/auth/back-office/*` | … | no | (same triplet) |
-| `/effy/dev/region` | Standard / `String` | no | `ap-southeast-1` |
+| `/effy/dev/region` | Standard / `String` | no | `ap-southeast-2` |
 
 ## Rules
 

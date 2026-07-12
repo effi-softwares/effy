@@ -35,7 +35,7 @@ tasks marked **🧑‍💻 OPERATOR** hand off exact commands; Claude never appl
 
 **Purpose**: Preconditions only — nothing authored, nothing applied.
 
-- [X] T001 Preflight (read-only): confirm the 001 foundation plans clean (`make plan ENV=dev` → no changes) and the default VPC exists (`AWS_PROFILE=ef aws ec2 describe-vpcs --filters Name=isDefault,Values=true --region ap-southeast-1` → one VPC; remedy in [quickstart.md](./quickstart.md) Prerequisites if not)
+- [X] T001 Preflight (read-only): confirm the 001 foundation plans clean (`make plan ENV=dev` → no changes) and the default VPC exists (`AWS_PROFILE=ef aws ec2 describe-vpcs --filters Name=isDefault,Values=true --region ap-southeast-2` → one VPC; remedy in [quickstart.md](./quickstart.md) Prerequisites if not)
 
 **Checkpoint**: clean baseline; network home for the DB confirmed.
 

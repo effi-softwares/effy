@@ -36,7 +36,7 @@ commands.
 
 **Purpose**: Tooling + preconditions; nothing authored yet.
 
-- [X] T001 Preflight: install/verify `goose` v3 (`brew install goose`; `goose --version`), verify AWS CLI + `ef` profile, and confirm the 002 contract exists (`AWS_PROFILE=ef aws ssm get-parameters-by-path --path /effy/dev/db --region ap-southeast-1` → 5 params). Note (not a blocker for authoring): live DB checks need the operator's IP on the 002 allowlist
+- [X] T001 Preflight: install/verify `goose` v3 (`brew install goose`; `goose --version`), verify AWS CLI + `ef` profile, and confirm the 002 contract exists (`AWS_PROFILE=ef aws ssm get-parameters-by-path --path /effy/dev/db --region ap-southeast-2` → 5 params). Note (not a blocker for authoring): live DB checks need the operator's IP on the 002 allowlist
 - [X] T002 Create the `db/` tree: `db/migrations/` directory (files arrive in US1)
 
 **Checkpoint**: goose runnable; contract confirmed; home exists.

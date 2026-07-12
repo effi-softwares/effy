@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "Region the state bucket lives in. Independent of any env's aws_region — state stays put even if an env relocates."
   type        = string
-  default     = "ap-southeast-1"
+  default     = "ap-southeast-2"
 }
 
 variable "aws_account_id" {
@@ -17,5 +17,5 @@ variable "aws_account_id" {
 variable "state_bucket_name" {
   description = "Globally-unique name of the S3 state bucket. If taken, override here AND update every infra/envs/*/backend.tf (breaking change to the backend contract)."
   type        = string
-  default     = "effy-apse1-tfstate"
+  default     = "effy-apse2-tfstate"
 }

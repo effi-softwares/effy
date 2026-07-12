@@ -11,8 +11,8 @@ grow-later lever. Assumes the 001 foundation is live (state bucket, dev root, Ma
 ## Prerequisites
 
 - 001 applied in dev; `make plan ENV=dev` currently clean.
-- **Default VPC exists** in `ap-southeast-1` (it does unless someone deleted it; remedy:
-  `AWS_PROFILE=ef aws ec2 create-default-vpc --region ap-southeast-1`).
+- **Default VPC exists** in `ap-southeast-2` (it does unless someone deleted it; remedy:
+  `AWS_PROFILE=ef aws ec2 create-default-vpc --region ap-southeast-2`).
 - Your public IP for the allowlist: `curl -s https://checkip.amazonaws.com`
 - `psql` client locally (`brew install libpq`), for the connect test.
 
@@ -47,8 +47,8 @@ the two-liner version:
 
 ```sh
 AWS_PROFILE=ef aws rds describe-db-instances --db-instance-identifier effy-dev-db \
-  --region ap-southeast-1 --query 'DBInstances[0].{MultiAZ:MultiAZ,Backups:BackupRetentionPeriod,PI:PerformanceInsightsEnabled,Insights:DatabaseInsightsMode,Monitoring:MonitoringInterval,Logs:EnabledCloudwatchLogsExports,MaxStorage:MaxAllocatedStorage,Engine:EngineVersion,Public:PubliclyAccessible,Encrypted:StorageEncrypted}'
-AWS_PROFILE=ef aws rds describe-db-proxies --region ap-southeast-1 --query 'DBProxies'   # => []
+  --region ap-southeast-2 --query 'DBInstances[0].{MultiAZ:MultiAZ,Backups:BackupRetentionPeriod,PI:PerformanceInsightsEnabled,Insights:DatabaseInsightsMode,Monitoring:MonitoringInterval,Logs:EnabledCloudwatchLogsExports,MaxStorage:MaxAllocatedStorage,Engine:EngineVersion,Public:PubliclyAccessible,Encrypted:StorageEncrypted}'
+AWS_PROFILE=ef aws rds describe-db-proxies --region ap-southeast-2 --query 'DBProxies'   # => []
 ```
 
 **Expected**: `MultiAZ:false, Backups:0, PI:false, Insights:"standard", Monitoring:0,
@@ -58,17 +58,17 @@ Logs:null, MaxStorage:null, Engine:16.x, Public:true, Encrypted:true`, proxies `
 
 ```sh
 # Config from the contract — the ONLY source a consumer needs
-AWS_PROFILE=ef aws ssm get-parameters-by-path --path /effy/dev/db --region ap-southeast-1 \
+AWS_PROFILE=ef aws ssm get-parameters-by-path --path /effy/dev/db --region ap-southeast-2 \
   --query 'Parameters[].[Name,Value]' --output table
 
 # Fetch the secret BY THE ARN FROM SSM (never printed into files)
 SECRET_ARN=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/db/master_secret_arn \
-  --region ap-southeast-1 --query Parameter.Value --output text)
+  --region ap-southeast-2 --query Parameter.Value --output text)
 PGPASSWORD=$(AWS_PROFILE=ef aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" \
-  --region ap-southeast-1 --query SecretString --output text | python3 -c 'import sys,json;print(json.load(sys.stdin)["password"])')
+  --region ap-southeast-2 --query SecretString --output text | python3 -c 'import sys,json;print(json.load(sys.stdin)["password"])')
 
 # Connect using only contract values (TLS is mandatory — sslmode below is belt-and-braces)
-HOST=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/db/endpoint --region ap-southeast-1 --query Parameter.Value --output text)
+HOST=$(AWS_PROFILE=ef aws ssm get-parameter --name /effy/dev/db/endpoint --region ap-southeast-2 --query Parameter.Value --output text)
 PGPASSWORD="$PGPASSWORD" psql "host=$HOST port=5432 dbname=effy user=effy_admin sslmode=require" -c 'select version();'
 ```
 
