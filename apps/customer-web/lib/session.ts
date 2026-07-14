@@ -27,8 +27,16 @@ const ID_TOKEN_RE = /^CognitoIdentityServiceProvider\..+\.idToken$/
 export interface ServerSession {
   sub: string
   email: string | null
-  /** First name, from the ID token's standard `given_name` claim. For the header greeting only. */
+  /**
+   * Name parts, from the ID token's standard `given_name` / `family_name` claims. For the header
+   * greeting and the avatar's initials — PRESENTATION ONLY.
+   *
+   * ⚠ These are CLAIMS, not the record. They can lag the record by up to a token lifetime, which is
+   * why `updateProfile` forces a token refresh after a name change (012 FR-008, research R11). Do not
+   * make any decision from them beyond what to draw.
+   */
   givenName: string | null
+  familyName: string | null
 }
 
 /** The signed-in customer, or null for a guest. Never throws — a guest is not an error. */
@@ -45,6 +53,7 @@ export async function readServerSession(): Promise<ServerSession | null> {
     sub: String(claims.sub),
     email: typeof claims.email === "string" ? claims.email : null,
     givenName: typeof claims.given_name === "string" ? claims.given_name : null,
+    familyName: typeof claims.family_name === "string" ? claims.family_name : null,
   }
 }
 

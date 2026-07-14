@@ -22,6 +22,10 @@ const row = (over: Partial<CustomerRow> = {}): CustomerRow => ({
   given_name: "Janith",
   family_name: "Madarasinghe",
   status: "active",
+  // 012 — platform-owned password state. `false`/`null` is the ordinary case: an email-OTP customer
+  // who has never had a password, which is a complete and permanent state, not a gap.
+  has_password: false,
+  password_updated_at: null,
   created_at: new Date("2026-07-14T00:00:00Z"),
   updated_at: new Date("2026-07-14T00:00:00Z"),
   ...over,
@@ -49,6 +53,8 @@ describe("getOrCreateCustomer", () => {
       givenName: "Janith",
       familyName: "Madarasinghe",
       status: "active",
+      hasPassword: false,
+      passwordUpdatedAt: null,
       createdAt: "2026-07-14T00:00:00.000Z",
     })
   })

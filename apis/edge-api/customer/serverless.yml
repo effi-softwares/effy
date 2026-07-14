@@ -47,12 +47,31 @@ provider:
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
     CUSTOMER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_id}
+    # 012 — the recovery-confirm route calls the UNAUTHENTICATED `ConfirmForgotPassword`, which is
+    # keyed on the app client id rather than the pool id.
+    CUSTOMER_APP_CLIENT_ID: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id}
+    # 012 FR-025 — the "your password changed" notification. Branded sender comes from 010.
+    NOTIFY_SENDER: no-reply@${sls:stage}.effyshopping.com
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+
+        # 012 FR-025 — the password-change notification. THE ONLY NEW PERMISSION IN THE 012 SLICE.
+        #
+        # ⚠ Worth pausing on: the four Cognito calls 012 adds (ChangePassword,
+        # GetUserAttributeVerificationCode, VerifyUserAttribute, GlobalSignOut) need NO IAM AT ALL.
+        # AWS is explicit — "Amazon Cognito doesn't evaluate IAM policies in requests for this API
+        # operation." They are authorized by the CUSTOMER'S OWN ACCESS TOKEN, so this service is
+        # relaying the customer's authority rather than exercising its own. A compromised customer
+        # Lambda still cannot touch an account whose token it does not hold.
+        #
+        # That is why the block below is about EMAIL, and not about passwords.
+        - Effect: Allow
+          Action: ses:SendEmail
+          Resource: "*"
 
         # Account linking (FR-011). An authorized ADMINISTRATIVE write against the CUSTOMER pool
         # — the same shape as 006's first-admin bootstrap and 009's shop-user provisioning. It is
@@ -123,6 +142,70 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ── 012: password & sessions ────────────────────────────────────────────────────────────────
+
+  # Sends the STEP-UP CODE that setting a first password costs (012 FR-017).
+  #
+  # ⚠ It GRANTS NOTHING — it puts a code in an inbox. No grant is minted and no state is stored, so
+  # there is nothing here for an attacker to steal. The code is only worth something when presented
+  # back, WITH a new password, to the route below, in ONE request.
+  customerPasswordV1Challenge:
+    handler: src/functions/customer-password-v1-challenge.handler
+    description: Step-up — email a single-purpose code before a FIRST password may be set (012 FR-017)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/password/challenge
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ⚠⚠ THE SECURITY CORE OF 012. ⚠⚠
+  #
+  # Cognito will let ANY bearer of a valid access token silently plant a permanent password on a
+  # PASSWORDLESS account — its own docs say `PreviousPassword` may be omitted when the user has none.
+  # That converts a borrowed session into durable, credentialed access, and an OTP-only customer would
+  # never notice. This route is where that is refused: `mode: set` verifies a freshly emailed code
+  # IMMEDIATELY BEFORE writing the password, in the same request.
+  customerPasswordV1Put:
+    handler: src/functions/customer-password-v1-put.handler
+    description: Set (step-up gated) or change (current-password gated) the password (012 FR-016/FR-017)
+    events:
+      - httpApi:
+          method: PUT
+          path: /customer/v1/password
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerSessionsV1Delete:
+    handler: src/functions/customer-sessions-v1-delete.handler
+    description: Sign out on all devices — the remedy for a hotel PC or a lost phone (012 FR-032)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /customer/v1/sessions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ⚠ DELIBERATELY PUBLIC — note the ABSENT `authorizer` block. This is not an omission.
+  #
+  # The caller has NO SESSION; that is the entire point of account recovery. They prove the INBOX
+  # instead, and Cognito checks the emailed code. The Cognito API it wraps (ConfirmForgotPassword) is
+  # itself unauthenticated and needs no IAM, so this route holds no privilege at all.
+  #
+  # It exists because leaving recovery client-side (as 011 did) caused two defects at once: it
+  # BYPASSED the breach screening, and it left `has_password` permanently WRONG — so the account page
+  # went on offering "Set a password" to someone who had one (012 FR-022b).
+  customerPasswordResetConfirm:
+    handler: src/functions/customer-password-reset-confirm.handler
+    description: PUBLIC — complete "forgot password"; screens the new password + records the state (012 FR-022b)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/password/reset-confirm
 
   # ⚠ NOT an HTTP route. This is a COGNITO TRIGGER — it is invoked by the customer user pool
   # itself, immediately before a profile is created. It has no `events` block on purpose; the

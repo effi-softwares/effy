@@ -54,7 +54,7 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 | 7 | **Self-registration / sign-in** — Google | ⏸ **PARKED** | ⏸ | Cognito customer pool + Google IdP |
 | 8 | All credential routes converge on **one identity** (one `sub`, one record) | 🔒 | ⬜ | Cognito (native routes); linking trigger (federation) |
 | 9 | **Account recovery** by proving control of the verified email | 🔒 | ⬜ | Cognito customer pool |
-| 10 | Session persists across reload/restart; sign-out clears it | ✅ | ⬜ | — |
+| 10 | Session persists across reload/restart | ✅ | ⬜ | — |
 | 11 | The sign-in demand is **deferred to the point of ordering** | ✅ | ⬜ | — |
 | 12 | Authenticating **returns the customer to exactly where they were** | ✅ | ⬜ | — |
 | 13 | **Declining** to sign in costs the customer nothing | ✅ | ⬜ | — |
@@ -69,6 +69,42 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 **🔒 rows are code-complete and blocked on the operator run** (Google OAuth client, `make apply`, the
 two spikes, `make db-up`, `make edge-deploy`). See
 [quickstart](../../specs/011-customer-storefront-web/quickstart.md).
+
+> **⚠ CORRECTION (2026-07-14, by 012).** Row 10 previously read *"Session persists across
+> reload/restart; **sign-out clears it**"* and was marked **✅ — delivered**.
+>
+> **The storefront had no sign-out at all.** It was never built. The two SPA consoles have one (via
+> `@effy/web-kit`), and the row appears to have been written from that, or from intent. A customer
+> could sign in and had no way to sign out from any page of the store.
+>
+> The claim is now split: persistence (which *was* delivered) keeps row 10; sign-out becomes row 24
+> below, where 012 actually delivers it. **A parity register that overstates is worse than none — it
+> is a lie the team trusts**, and the whole purpose of this file is to make an unstated capability
+> impossible. It failed at exactly that, so the failure is recorded rather than quietly patched.
+
+## Added by 012-customer-profile-management
+
+| # | Capability | Web (`customer-web`) | Mobile (`customer-mobile`) | Backend it depends on |
+|---|---|---|---|---|
+| 21 | See **who Effy thinks you are** — name, email, **initials avatar** | ✅ | ⬜ | `edge-api/customer` |
+| 22 | **Change your name**, reflected everywhere the platform greets you | 🔒 | ⬜ | `edge-api/customer` + Cognito attributes |
+| 23 | **Set a first password** — gated behind a **freshly emailed code**, never a bare session | 🔒 | ⬜ | `edge-api/customer` + Cognito + SES |
+| 24 | **Sign out** — reachable from **every page** | ✅ | ⬜ | `/sign-out` route handler |
+| 25 | **Sign out on all devices** | 🔒 | ⬜ | `edge-api/customer` (GlobalSignOut) |
+| 26 | **Change an existing password** (current password required) | 🔒 | ⬜ | `edge-api/customer` + Cognito |
+| 27 | New passwords are **screened against public breach corpora** (≥ 12 chars, no composition rules) | 🔒 | ⬜ | `edge-api/customer` |
+| 28 | The platform **knows** whether an account has a password (Cognito cannot be asked) | 🔒 | ⬜ | `public.customer.has_password` |
+| 29 | Account **recovery** obeys the same password rules and updates the record | 🔒 | ⬜ | `edge-api/customer` (public route) |
+
+**The mobile column is outstanding by design**, and rows 23 / 26 / 29 are the ones that will bite: a
+mobile app that lets a passwordless customer set a password **from a bare session** would re-open, on
+a second surface, the exact account-takeover primitive this slice was built to close. Whatever the
+mobile slice does, **the emailed-code step-up is not optional** — it is the capability, not an
+implementation detail of the web one.
+
+Rows 21 and 24 are **✅ today** because neither needs a deployed backend to be true: the avatar is
+derived client-side from the record the page already reads, and sign-out is a route handler that
+clears cookies.
 
 ## What the customer audience does NOT have yet
 

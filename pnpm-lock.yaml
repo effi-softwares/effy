@@ -66,6 +66,9 @@ importers:
       '@aws-sdk/client-cognito-identity-provider':
         specifier: 3.1086.0
         version: 3.1086.0
+      '@aws-sdk/client-sesv2':
+        specifier: 3.1086.0
+        version: 3.1086.0
       '@effy/edge-shared':
         specifier: workspace:*
         version: link:../shared
@@ -732,6 +735,10 @@ packages:
 
   '@aws-sdk/client-s3@3.1079.0':
     resolution: {integrity: sha512-di9U/7Po7qlVYb2dq58ULsbBAE1pBIk53rux+50LQCvH1X+/l1Ys+BIk/QLBtdaK1nADk0xRNEBbA1QWVnMccw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-sesv2@3.1086.0':
+    resolution: {integrity: sha512-n7AZDhboioUpPDbp/YC2mVYviOJQOaBtCNI51iQVV09IiG0YRRBBx8w73RE7LM8mrrAXIwZjaNJErxL9v5IXow==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/client-sts@3.1079.0':
@@ -6384,7 +6391,7 @@ snapshots:
       '@aws-amplify/api-rest': 4.6.4(@aws-amplify/core@6.16.4)
       '@aws-amplify/core': 6.16.4
       '@aws-amplify/data-schema': 1.26.0
-      '@aws-sdk/types': 3.973.15
+      '@aws-sdk/types': 3.974.0
       graphql: 15.8.0
       rxjs: 7.8.2
       tslib: 2.8.1
@@ -6465,12 +6472,12 @@ snapshots:
   '@aws-crypto/sha256-js@5.2.0':
     dependencies:
       '@aws-crypto/util': 5.2.0
-      '@aws-sdk/types': 3.973.15
+      '@aws-sdk/types': 3.974.0
       tslib: 2.8.1
 
   '@aws-crypto/util@5.2.0':
     dependencies:
-      '@aws-sdk/types': 3.973.15
+      '@aws-sdk/types': 3.974.0
       '@smithy/util-utf8': 2.3.0
       tslib: 2.8.1
 
@@ -6606,6 +6613,18 @@ snapshots:
       '@smithy/fetch-http-handler': 5.6.3
       '@smithy/node-http-handler': 4.9.3
       '@smithy/types': 4.15.1
+      tslib: 2.8.1
+
+  '@aws-sdk/client-sesv2@3.1086.0':
+    dependencies:
+      '@aws-sdk/core': 3.975.1
+      '@aws-sdk/credential-provider-node': 3.972.67
+      '@aws-sdk/signature-v4-multi-region': 3.996.39
+      '@aws-sdk/types': 3.974.0
+      '@smithy/core': 3.29.3
+      '@smithy/fetch-http-handler': 5.6.5
+      '@smithy/node-http-handler': 4.9.5
+      '@smithy/types': 4.16.1
       tslib: 2.8.1
 
   '@aws-sdk/client-sts@3.1079.0':

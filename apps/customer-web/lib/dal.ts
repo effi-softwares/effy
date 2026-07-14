@@ -41,7 +41,17 @@ import { edgeApi, perCustomer } from "@/lib/api/edge"
 
 export interface Session {
   sub: string
+  /** Authorizes at the gateway (the JWT authorizer's `audience` is the app client id). */
   idToken: string
+  /**
+   * Authorizes at COGNITO (012). The password + sign-out endpoints relay this to
+   * ChangePassword / GlobalSignOut / the attribute-verification pair, all of which are
+   * token-authorized rather than IAM-authorized — which is why this slice needs almost no IAM.
+   *
+   * ⚠ The backend refuses any request whose access-token `sub` differs from the gateway-verified
+   * one. See `apis/edge-api/customer/src/password/identity.ts` for the attack that closes.
+   */
+  accessToken: string | null
 }
 
 /**
@@ -68,7 +78,11 @@ export const getSession = cache(async (): Promise<Session | null> => {
   const sub = idToken.payload.sub
   if (typeof sub !== "string") return null
 
-  return { sub, idToken: idToken.toString() }
+  return {
+    sub,
+    idToken: idToken.toString(),
+    accessToken: session?.tokens?.accessToken?.toString() ?? null,
+  }
 })
 
 /**
@@ -88,10 +102,7 @@ export const requireCustomer = cache(
     }
 
     try {
-      return await edgeApi(session.idToken).get<CustomerDTO>(
-        "/customer/v1/me",
-        perCustomer,
-      )
+      return await edgeApi(session).get<CustomerDTO>("/customer/v1/me", perCustomer)
     } catch {
       // A 403 (barred) or an unreachable backend both land here. We do NOT distinguish them to the
       // customer: telling someone "your account is barred" is an information leak they cannot act

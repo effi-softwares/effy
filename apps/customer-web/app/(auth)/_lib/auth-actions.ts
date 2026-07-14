@@ -10,7 +10,7 @@ import {
   signInWithRedirect,
   signUp,
 } from "aws-amplify/auth"
-import type { CredentialRoute } from "@effy/shared-types"
+import { PASSWORD_MIN_LENGTH, type CredentialRoute } from "@effy/shared-types"
 
 /**
  * The three credential routes, in one place (contracts/auth-flows.contract.md).
@@ -148,16 +148,39 @@ export async function startPasswordReset(email: string) {
   return resetPassword({ username: email })
 }
 
-export async function finishPasswordReset(
-  email: string,
-  code: string,
-  newPassword: string,
-) {
-  return confirmResetPassword({
-    username: email,
-    confirmationCode: code,
-    newPassword,
+/**
+ * Finish "forgot password" — THROUGH THE BACKEND, not through Amplify (012 FR-022b).
+ *
+ * ⚠⚠ THIS USED TO CALL `confirmResetPassword` DIRECTLY, AND THAT WAS TWO BUGS AT ONCE. ⚠⚠
+ *
+ * 1. IT BYPASSED THE BREACH SCREENING. The account page refuses a password found in a public breach
+ *    corpus. This page did not — so any customer who wanted one simply came here instead. A rule
+ *    enforced on one path and not the other is not a rule; it is a detour sign.
+ *
+ * 2. IT CORRUPTED THE PLATFORM'S RECORD. Cognito cannot be asked whether a user has a password, so
+ *    the platform must remember. Setting one here, client-side, meant the platform NEVER FOUND OUT —
+ *    and the account page went on offering "Set a password" to someone who had one, permanently.
+ *
+ * The backend route is deliberately PUBLIC (there is no session here — that is what recovery IS). It
+ * holds no privilege: the Cognito API it wraps is itself unauthenticated. It exists solely to put the
+ * password rules and the record-keeping on the only path that was missing them.
+ *
+ * `import "aws-amplify/auth"` is still fine in this file — it is inside `app/(auth)/`, which is where
+ * the quarantine allows it (FR-006).
+ */
+export async function finishPasswordReset(email: string, code: string, newPassword: string) {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/customer/v1/password/reset-confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, code, newPassword }),
   })
+
+  if (!res.ok) {
+    const problem = (await res.json().catch(() => ({}))) as { detail?: string }
+    // The backend has already collapsed "wrong code" / "expired code" / "no such customer" into ONE
+    // message — deliberately, so this endpoint cannot be used to enumerate who shops at Effy.
+    throw new Error(problem.detail ?? "We couldn't reset your password. Please try again.")
+  }
 }
 
 // ── Errors the customer can act on (FR-015) ────────────────────────────────────────────────────
@@ -188,7 +211,14 @@ export function authErrorMessage(err: unknown): string {
     case "TooManyFailedAttemptsException":
       return "Too many attempts. Wait a few minutes and try again."
     case "InvalidPasswordException":
-      return "That password is too weak. Use at least 8 characters with upper and lower case letters and a number."
+      // ⚠ 012 — this string used to promise "at least 8 characters with upper and lower case letters
+      // and a number". The pool policy is now 12 characters and NO composition rules (current NIST
+      // guidance: composition rules are actively harmful — they produce `Password1!`). The old text
+      // became a LIE the moment the policy changed, so it changed in the same commit.
+      //
+      // The length lives in ONE place (`PASSWORD_MIN_LENGTH`), shared with the backend that enforces
+      // it, so this message cannot drift from the real rule again.
+      return `That password is too short. Use at least ${PASSWORD_MIN_LENGTH} characters — no special characters required.`
     case "UserLambdaValidationException":
       // The linking trigger refused — almost always an unverified email from the provider.
       return "We couldn't link that account. Make sure the email on your Google account is verified, then try again."

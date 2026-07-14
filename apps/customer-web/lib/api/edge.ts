@@ -16,8 +16,20 @@ import { edgeApiBaseUrl } from "@/lib/config"
  *
  * Everything reached through this client is PER-CUSTOMER and therefore NEVER cached.
  */
-export function edgeApi(token: string) {
-  return new ServerApiClient({ baseUrl: edgeApiBaseUrl(), token })
+/**
+ * ⚠ Takes the whole SESSION, not a bare token — because the privileged account routes need TWO.
+ *
+ * The gateway authorizes the ID token; Cognito's password APIs are authorized by the ACCESS token,
+ * which the backend relays. The backend refuses a mismatched pair (012 research R12), so both must
+ * come from the same session — which is exactly what passing the session object, rather than two
+ * loose strings, makes impossible to get wrong.
+ */
+export function edgeApi(session: { idToken: string; accessToken?: string | null }) {
+  return new ServerApiClient({
+    baseUrl: edgeApiBaseUrl(),
+    token: session.idToken,
+    accessToken: session.accessToken ?? null,
+  })
 }
 
 /** Account data is per-customer: it must never be cached, and never prerendered. */

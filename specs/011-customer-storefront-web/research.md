@@ -635,3 +635,69 @@ executed") — it can fetch the raw response and assert on it, which no unit tes
 11. **Async Server Components are E2E-tested, not unit-tested.**
 12. **Two spikes must run before the design is locked**: `AliasExistsException` (D17) and
     passwordless-user-sets-a-password (D17).
+
+---
+
+## D23 — The 6-vs-8 digit OTP mismatch (2026-07-15) — **accepted, not fixed**
+
+**Observed**: sign-up confirmation emails a **6-digit** code; email-OTP **sign-in** emails an **8-digit**
+code. Reported as a bug. It is not one — it is two different Cognito mechanisms with two different
+email templates:
+
+| | Sign-up | Sign-in |
+|---|---|---|
+| API | `SignUp` → `ConfirmSignUp` | `InitiateAuth USER_AUTH` → `RespondToAuthChallenge` |
+| Template | `verification_message_template` | `email_mfa_configuration` |
+| Length | **6 digits** | **8 digits** |
+
+**⚠ NEITHER LENGTH IS CONFIGURABLE — anywhere.** Not on the user pool, not on the app client, not in
+the message templates; not in the Cognito API, CloudFormation, or the Terraform provider schema. AWS
+does not even *document* the digit counts — both are empirical. The open feature request is
+[amplify-js#14428](https://github.com/aws-amplify/amplify-js/issues/14428) ("Allow configuration of the
+email and phone OTP length; currently fixed at an 8 digit PIN"), routed to the Cognito service team.
+Nothing has shipped.
+
+**Decision: accept the mismatch** (operator, 2026-07-15). Rationale:
+
+- **Nothing is broken.** The OTP inputs are length-agnostic — no `maxLength`, no fixed-box grid, no
+  auto-submit on the Nth keystroke. Both codes work today.
+- **A new customer never meets both in one journey.** Sign-up auto-signs them in (FR-009b), so they
+  see the 6-digit code exactly once, at registration, and only ever see 8-digit codes thereafter. The
+  inconsistency surfaces across sessions, not within a flow.
+- **The only way to force 6 everywhere is `CUSTOM_AUTH`** — Define/Create/Verify challenge Lambdas.
+  That would cost: choice-based auth (**foreclosing WEB_AUTHN passkeys**), auto-sign-in-after-sign-up,
+  and Cognito's managed rate limiting — replaced by our own OTP store, expiry and throttling, with
+  three Lambdas on the critical path of every sign-in. **~600 lines of security-critical code to
+  delete two digits.** Rejected.
+
+**Binding consequence — do not "fix" this by hardcoding a length.** A `maxLength={6}` on the code input
+would silently truncate every *sign-in* code and produce a "that code isn't right" error the customer
+cannot possibly resolve. The two OTP inputs carry a comment saying so.
+
+**Alternative left on the table** (if the mismatch ever becomes a real complaint): eliminate the
+6-digit code entirely by dropping `email` from `auto_verified_attributes` and routing new sign-ups
+straight into `USER_AUTH`/`EMAIL_OTP` — AWS documents that answering a passwordless OTP both verifies
+the email *and* flips the user `UNCONFIRMED` → `CONFIRMED`. That yields **one** code type platform-wide
+(8-digit), zero Lambdas, and stays on the managed path. ⚠ Gated on an unverified precondition: whether
+`InitiateAuth USER_AUTH` admits an `UNCONFIRMED` user. Fallback: a `PreSignUp` trigger with
+`autoConfirmUser = true`.
+
+### ⚠ D23a — a related gap that 010 will expose
+
+The **email-OTP sign-in message is governed by `email_mfa_configuration`, NOT by
+`verification_message_template`** — they are separate settings, and we currently configure **neither**
+for the sign-in OTP.
+
+Today that is invisible: Cognito's built-in sender uses its own default text. But **010 switches all
+four pools to branded SES sending** (`no-reply@dev.effyshopping.com`), at which point the sign-in code
+email will go out **from the Effy address with Cognito's generic default body** — branded envelope,
+unbranded letter. Two traps to expect when wiring it:
+
+1. **Terraform drops `email_mfa_configuration` on pool *create*** when `mfa_configuration = OFF` (which
+   ours is — passwordless is a first factor, not MFA). It is only sent on *update*, so it may need a
+   second apply.
+2. **Cognito rejects `EmailMfaConfiguration` when account recovery is email-only** — it demands a
+   recovery mechanism other than `verified_email`. Our customer pool currently has exactly one.
+
+Neither blocks this slice. Both belong to 010's operator run, and are recorded here so they are not
+rediscovered from a confused customer email.

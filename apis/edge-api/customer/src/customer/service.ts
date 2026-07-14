@@ -45,12 +45,22 @@ export async function getOrCreateCustomer(identity: {
   email: string
   givenName: string | null
   familyName: string | null
+  /**
+   * The registration-route hint (012 FR-013). Applied ONLY when this call CREATES the record.
+   *
+   * Cognito cannot be asked whether a user has a password, so the platform must seed the answer at
+   * registration from what the sign-up form declares. It is client-asserted and therefore untrusted
+   * — and safe, because lying in either direction grants no capability the inbox-holder did not
+   * already have. The full argument lives on `upsertCustomer`; read it before touching this.
+   */
+  seedHasPassword?: boolean
 }): Promise<CustomerDTO> {
   const row = await upsertCustomer({
     cognitoSub: identity.sub,
     email: identity.email,
     givenName: identity.givenName,
     familyName: identity.familyName,
+    seedHasPassword: identity.seedHasPassword,
   })
 
   assertActive(row)

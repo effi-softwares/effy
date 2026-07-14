@@ -175,6 +175,48 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**012-customer-profile-management** — Customer Profile Management. **Code-complete + verified;
+operator run pending (2 blocking spikes).**
+Completes the customer account page: identity (name · email · **initials avatar**), name editing,
+**change-or-set password**, and **sign out** — which the storefront did not have at all, despite the
+parity register claiming it did (now corrected).
+- **The slice exists for one requirement.** Cognito's `ChangePassword` docs: *"The user's previous
+  password is required **if the user has a password**. If the user has no password… **you can omit this
+  parameter**."* So **any bearer of a valid access token can silently plant a permanent password on a
+  passwordless account** — turning a borrowed phone or a stolen token into durable, credentialed access
+  that an OTP-only customer would never notice. **FR-017** closes it: setting a *first* password requires
+  a **freshly emailed code**, verified **server-side in the same request that writes the password**, so
+  there is no stored "grant" to steal. Changing an *existing* password requires the current one.
+- **Two spec defects found during planning, fixed in the spec (not papered over)**: **FR-024** was
+  *unbuildable* (Cognito's revocation is all-or-nothing — "revoke all but this device" does not exist), so
+  it was made **stronger**: a password change signs out **everywhere, including this device**. **FR-022**
+  was *bypassable* via "Forgot password?", which also left `has_password` permanently wrong — so recovery
+  moved behind the backend (**FR-022b**).
+- **`has_password` is a platform-owned column** — **Cognito cannot be asked** whether a user has a
+  password (no API field; `UserStatus` doesn't distinguish). It is seeded at registration from a
+  client-declared route, which is safe because **lying in either direction grants no capability the
+  inbox-holder didn't already have**. It is a UX hint, never an authorization input.
+- **The Cognito calls need NO IAM.** `ChangePassword` / `GlobalSignOut` / the attribute-verification pair
+  are **token-authorized** — the Lambda relays the *customer's own* authority. The only new permission in
+  the slice is `ses:SendEmail`.
+- **Sign-out is a route handler + plain HTML form**, not a Server Action: `aws-amplify/auth/server` has
+  **no `signOut`**, and importing the client one broke the quarantine guard (which was right). The header
+  became a **server component** (`<details>` + `<form>`) — sign-out now costs **zero client JS**, works
+  with JS disabled, and the guest bundle **fell 159.6 → 149.9 KB**. The correct architecture was cheaper.
+- **Password policy → 12 chars, no composition rules** (a documented deviation from NIST's 15, valid *only*
+  while breach screening + rate limiting hold) + **k-anonymity breach screening**, **fail-closed**,
+  backend-only so it cannot be skipped by a hostile client.
+- Status: **code-complete** — `pnpm typecheck` (11/11) + `pnpm -r test` (**286 tests**) + `turbo build` +
+  **70 Playwright E2E** all green; both gates green (**149.9/160 KB** budget; quarantine clean **and proven
+  by deliberately breaking it**); `terraform validate` + `fmt` clean; secret/PII sweep clean.
+  **⚠ Open (operator)**: **T001/T002 — the two BLOCKING spikes** (does `ChangePassword`-without-previous
+  actually work on our pool? and what does "Forgot password?" do *today* for a passwordless customer — that
+  path is **live right now** and its behavior is unknown); **T059** (`make apply` — password policy;
+  *abort if the pool would be replaced*), **T060** (migration + `db-up`), **T061** (`edge-deploy`), **T062**
+  (**SES must send — without it, set-password does not work at all**; 010 dependency), **T069** (live SC
+  sign-off incl. the adversarial SC-004/SC-005 proofs).
+  Spec/plan/artifacts: [specs/012-customer-profile-management/](specs/012-customer-profile-management/).
+
 **011-customer-storefront-web** — Customer Storefront (Bootstrap). **Code-complete + verified;
 operator run pending.**
 The platform's **fourth client surface and its FIRST PUBLIC one**: `apps/customer-web`
@@ -430,5 +472,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/011-customer-storefront-web/plan.md
+at specs/012-customer-profile-management/plan.md
 <!-- SPECKIT END -->

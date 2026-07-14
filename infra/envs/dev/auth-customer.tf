@@ -32,11 +32,37 @@ module "customer_pool" {
   # run by `make verify-pool-credentials`.
   enable_password_auth = true
 
+  # --- 012: the password policy, rebuilt on current NIST guidance -------------------------------
+  #
+  # ⚠ THIS IS A LOOSENING, AND IT IS DELIBERATE. Read before "fixing" it back.
+  #
+  # It was: 8 characters, with required upper case, lower case and digits. Every one of those
+  # composition rules is now gone, because current guidance (NIST SP 800-63B-4) says they are
+  # ACTIVELY HARMFUL: they do not produce strong passwords, they produce `Password1!` — a password
+  # that satisfies every rule and appears in every breach corpus on earth. They also block the
+  # long, memorable passphrases that actually are strong.
+  #
+  # The strength they pretended to add is picked up FOR REAL by the breached-password screening the
+  # pool cannot do, and which the customer service now performs on every path that establishes a
+  # password (012 FR-022, research R8).
+  #
+  # ⚠ 12, NOT NIST'S 15 — a documented deviation. 15 is the guidance for a password used as a SINGLE
+  # factor, which Effy's is. It was judged too costly on a storefront where a password is an OPTIONAL
+  # convenience in the first place: a customer who finds it onerous can simply keep using the emailed
+  # code, which is the safer route anyway.
+  #
+  # ⚠ THE DEVIATION IS ONLY DEFENSIBLE WHILE BREACH SCREENING AND RATE LIMITING BOTH HOLD. If either
+  # is ever removed, this number must go back up. That is not decoration — it is the entire basis on
+  # which 12 was chosen over 15.
+  #
+  # ⚠ IN-PLACE UPDATE. `password_policy` is not a ForceNew argument, so this does NOT replace the
+  # pool. STILL READ THE PLAN: if the customer pool shows "must be replaced" / "-/+", ABORT — a
+  # replaced pool destroys every account on the platform.
   password_policy = {
-    minimum_length    = 8
-    require_lowercase = true
-    require_uppercase = true
-    require_numbers   = true
+    minimum_length    = 12
+    require_lowercase = false
+    require_uppercase = false
+    require_numbers   = false
     require_symbols   = false
   }
 

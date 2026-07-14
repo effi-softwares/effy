@@ -63,8 +63,24 @@ export const handler = async (
   const givenName = claim(event, "given_name") ?? null
   const familyName = claim(event, "family_name") ?? null
 
+  // The registration-route hint (012 FR-013). Seeds `has_password` on the CREATING upsert only, and
+  // is ignored on every call thereafter.
+  //
+  // ⚠ Client-asserted, therefore untrusted — and safe. Cognito cannot be asked whether a user has a
+  // password, so the platform must seed the answer from what the sign-up form declares. Lying in
+  // either direction grants NO capability the inbox-holder did not already have (the full argument is
+  // on `upsertCustomer`). It is a UX hint, never an authorization input: the real gates are the
+  // emailed code and the current password, and Cognito enforces both regardless of this value.
+  const seedHasPassword = event.queryStringParameters?.route === "password"
+
   try {
-    const customer = await getOrCreateCustomer({ sub, email, givenName, familyName })
+    const customer = await getOrCreateCustomer({
+      sub,
+      email,
+      givenName,
+      familyName,
+      seedHasPassword,
+    })
     return json(200, customer, scope)
   } catch (err) {
     if (err instanceof CustomerBarredError) {

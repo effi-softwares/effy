@@ -24,7 +24,25 @@ export interface ServerApiClientConfig {
   baseUrl: string;
   /** Already-resolved bearer token, or null for an anonymous (public) read. */
   token?: string | null;
+
+  /**
+   * The customer's ACCESS token, for the privileged account routes (012).
+   *
+   * ⚠ WHY THERE ARE TWO TOKENS. The gateway's JWT authorizer is configured for the ID token
+   * (`audience = [app_client_id]`), and that is what `token` above carries. But the Cognito APIs the
+   * password endpoints must call — ChangePassword, GlobalSignOut, the attribute-verification pair —
+   * are authorized by the ACCESS token. So the backend needs both.
+   *
+   * ⚠ The backend REFUSES any request whose access-token `sub` differs from the one the gateway
+   * verified. Without that check, a victim's ID token could be paired with an attacker's access
+   * token — the platform would then update the victim's record while mutating the attacker's Cognito
+   * user (012 research R12). Do not send this header to any service that does not perform that check.
+   */
+  accessToken?: string | null;
 }
+
+/** The header the platform carries the access token on. Must match the backend's constant. */
+const ACCESS_TOKEN_HEADER = "X-Effy-Access-Token";
 
 export class ServerApiClient {
   constructor(private readonly config: ServerApiClientConfig) {}
@@ -35,6 +53,10 @@ export class ServerApiClient {
 
   post<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
     return this.request<T>("POST", path, body, init);
+  }
+
+  put<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
+    return this.request<T>("PUT", path, body, init);
   }
 
   patch<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
@@ -56,6 +78,7 @@ export class ServerApiClient {
       ...((init?.headers as Record<string, string> | undefined) ?? {}),
     };
     if (this.config.token) headers.Authorization = `Bearer ${this.config.token}`;
+    if (this.config.accessToken) headers[ACCESS_TOKEN_HEADER] = this.config.accessToken;
     if (body !== undefined) headers["Content-Type"] = "application/json";
 
     let res: Response;

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
+import { seedCredentialRoute } from "@/app/(auth)/_lib/seed-actions"
 import { googleEnabled } from "@/lib/auth-routes"
 import { safeNextTarget } from "@/lib/next-target"
 import { capture } from "@/lib/telemetry"
@@ -113,6 +114,12 @@ export function SignUpForm() {
                 await completeAutoSignIn()
               }
 
+              // 012 FR-013 — the platform CANNOT ask Cognito whether this customer has a password, so
+              // registration is the one moment it can learn. Seeded on the record's creating upsert;
+              // ignored forever after. A UX hint, never an authorization input — see seed-actions.ts
+              // for why lying about it gains a caller nothing.
+              await seedCredentialRoute(route)
+
               capture({ name: "sign_up_completed", props: { route } })
               if (next !== "/") {
                 capture({ name: "deferred_sign_in_resumed", props: { route } })
@@ -126,6 +133,15 @@ export function SignUpForm() {
           <p className="text-sm text-muted-foreground">
             We emailed a code to <strong className="text-foreground">{email}</strong>.
           </p>
+          {/* ⚠ NO `maxLength`, no fixed-box grid, and no auto-submit on the Nth keystroke — ON PURPOSE.
+              Cognito sends codes of DIFFERENT LENGTHS depending on the flow, and neither is
+              configurable (research D23):
+                • sign-up confirmation  → 6 digits  (verification_message_template)
+                • EMAIL_OTP sign-in     → 8 digits  (email_mfa_configuration)
+              They are two different Cognito mechanisms with two different email templates, and AWS
+              exposes no knob for either length. Hardcoding 6 here would silently truncate every
+              sign-in code and produce a "that code isn't right" error the customer cannot possibly
+              resolve. Keep this input length-agnostic. */}
           <Field
             label="Your code"
             id="code"

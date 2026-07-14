@@ -7,4 +7,5 @@ export * from "./lib/http";
 export * from "./lib/health";
 export * from "./lib/claims";
 export * from "./lib/rds-ca";
+export * from "./lib/password";
 export * from "./validate";

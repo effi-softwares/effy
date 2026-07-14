@@ -1,5 +1,7 @@
 import Link from "next/link"
 
+import { AccountMenu } from "@/components/header/AccountMenu"
+import { AuthSync } from "@/components/header/AuthSync"
 import { readServerSession } from "@/lib/session"
 
 /**
@@ -49,16 +51,31 @@ export async function UserIsland() {
 
   // Greet them by the name they gave us at registration (FR-009a) — not by the first half of their
   // email address, which is a machine's idea of a name.
+  //
+  // ⚠ This name comes from the ID TOKEN's claim, not the record — which is why `updateProfile`
+  // FORCES A TOKEN REFRESH after a name change. Without it, the customer edits their name, comes back
+  // to the storefront, and is greeted by their OLD one for up to an hour (012 FR-008, research R11).
   const label = session.givenName ?? "Account"
 
   return (
-    <Link
-      href="/account"
-      className="text-sm font-medium text-foreground hover:text-primary"
-      data-testid="account-link"
-    >
-      Hi, {label}
-    </Link>
+    <div className="flex items-center gap-3" data-testid="account-link">
+      <Link
+        href="/account"
+        className="hidden text-sm font-medium text-foreground hover:text-primary sm:inline"
+      >
+        Hi, {label}
+      </Link>
+
+      {/* 012 FR-028 — sign-out reachable from EVERY page, not just the account page. A SERVER
+          component: `<details>` for the disclosure and a `<form>` for sign-out, so it costs zero
+          client JS and never acquires an import path to the auth SDK. */}
+      <AccountMenu givenName={session.givenName} familyName={session.familyName} />
+
+      {/* 012 FR-030 — the ONLY client JS in this island, and it is mounted for a signed-in customer
+          ONLY. A guest downloads none of it. It re-checks the session when the tab is next looked at,
+          so a tab left open after signing out elsewhere corrects itself before it can mislead. */}
+      <AuthSync />
+    </div>
   )
 }
 
