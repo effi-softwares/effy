@@ -29,13 +29,25 @@ ok() { printf '  ✓ %s\n' "$*"; }
 echo "verify-pool-credentials: the INTERNAL audiences must stay passwordless (FR-017), env=${ENV}"
 echo
 
+# ⚠ The SSM path uses the HYPHENATED audience name (`back-office`), even though the Cognito module
+# takes the underscored one (`back_office`). Both spellings are live in infra/envs/<env>/*.tf, which
+# is exactly the sort of split the 008 one-name rule exists to prevent — but the SSM keys are a
+# published contract that other services read, so this script conforms to reality rather than
+# "correcting" it. Do not "fix" the hyphen here; you will break the lookup.
 for audience in driver shop back-office; do
-  ssm_key="${audience//-/_}"
-  pool_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${ssm_key}/user_pool_id" \
+  pool_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/user_pool_id" \
     --query 'Parameter.Value' --output text 2>/dev/null || true)
 
+  # ⚠ A MISSING POOL IS A FAILURE, NOT A SKIP.
+  #
+  # The first version of this script printed "no pool — skipping" and exited 0. It therefore
+  # reported ✓ PASS while silently not checking back-office AT ALL, because it was looking up the
+  # wrong SSM path. That is the worst possible behaviour for a security guard: a green tick over an
+  # audience nobody inspected. If an expected pool cannot be found, the guard has failed to do its
+  # job and must say so.
   if [ -z "$pool_id" ] || [ "$pool_id" = "None" ]; then
-    note "· ${audience}: no pool in ${ENV} — skipping"
+    bad "${audience}: NO POOL FOUND at /effy/${ENV}/auth/${audience}/user_pool_id — this audience was NOT verified."
+    echo
     continue
   fi
 
@@ -45,7 +57,7 @@ for audience in driver shop back-office; do
   #    CreateUserPool API refuses to omit it), so the POOL is not where the answer lives — the APP
   #    CLIENT is. A client without ALLOW_USER_SRP_AUTH / ALLOW_USER_PASSWORD_AUTH cannot run a
   #    password challenge at all.
-  client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${ssm_key}/app_client_id" \
+  client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/app_client_id" \
     --query 'Parameter.Value' --output text)
 
   flows=$($AWS cognito-idp describe-user-pool-client \
@@ -82,10 +94,49 @@ for audience in driver shop back-office; do
   echo
 done
 
+# --- The other half: the CUSTOMER pool must have actually GAINED what 011 gave it. ------------
+#
+# A guard that only checks "nothing widened" would pass just as happily if the apply had done
+# nothing at all. So we also assert the intended change landed — otherwise a green tick here would
+# be compatible with a storefront where nobody can sign in.
+cust_pool=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/customer/user_pool_id" \
+  --query 'Parameter.Value' --output text 2>/dev/null || true)
+
+if [ -z "$cust_pool" ] || [ "$cust_pool" = "None" ]; then
+  bad "customer: NO POOL FOUND — the audience this slice exists for was not verified."
+else
+  echo "customer (${cust_pool})  ← the ONLY audience allowed passwords / self-signup"
+  cust_client=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/customer/app_client_id" \
+    --query 'Parameter.Value' --output text)
+
+  cust_flows=$($AWS cognito-idp describe-user-pool-client \
+    --user-pool-id "$cust_pool" --client-id "$cust_client" \
+    --query 'UserPoolClient.ExplicitAuthFlows' --output text)
+
+  if grep -q 'ALLOW_USER_SRP_AUTH' <<<"$cust_flows"; then
+    ok "password route is usable (ALLOW_USER_SRP_AUTH — SRP, so the password never goes on the wire)"
+  else
+    bad "customer: ALLOW_USER_SRP_AUTH is MISSING — the email+password route cannot work (${cust_flows})."
+  fi
+
+  cust_signup=$($AWS cognito-idp describe-user-pool --user-pool-id "$cust_pool" \
+    --query 'UserPool.AdminCreateUserConfig.AllowAdminCreateUserOnly' --output text)
+
+  if [ "$cust_signup" = "False" ]; then
+    ok "open self-registration (the platform's only self-registering audience)"
+  else
+    bad "customer: SELF-SIGNUP IS CLOSED — no member of the public can create an account."
+  fi
+  echo
+fi
+
 if [ "$fail" -ne 0 ]; then
-  echo "✗ FR-017 BREACHED — an internal audience has gained a public-facing credential route."
-  echo "  Constitution v1.7.0 grants password / federation / self-signup to the CUSTOMER POOL ONLY."
+  echo "✗ FAILED."
+  echo "  FR-017: password / federation / self-signup belong to the CUSTOMER POOL ONLY"
+  echo "  (constitution v1.7.0). An internal audience must never gain a public-facing"
+  echo "  credential route — and the customer must never LOSE one."
   exit 1
 fi
 
-echo "✓ driver / shop / back-office are passwordless, unfederated, and admin-provisioned."
+echo "✓ driver / shop / back-office: passwordless, unfederated, admin-provisioned."
+echo "✓ customer: password + open self-registration, as intended."
