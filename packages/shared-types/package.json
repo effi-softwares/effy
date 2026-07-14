@@ -2,6 +2,7 @@
   "name": "@effy/shared-types",
   "version": "0.1.0",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "description": "Effy shared web types — DTOs + the RFC 9457 problem shape (Principle II single source of truth). Internal package: exports TypeScript source, transpiled by each consumer's bundler.",
   "exports": {

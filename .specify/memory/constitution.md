@@ -1,49 +1,64 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.5.0 → 1.6.0
-Bump rationale: MINOR — materially changes Principle IV's normative naming. The platform's third
-                audience, its pool, and its two RBAC groups are renamed from `store` to `shop`:
-                the pool is the **shop** pool, and its groups are `shop_manager` / `shop_staff`.
-                Not PATCH: `shop_manager` is a normative literal that Terraform creates, Cognito
-                asserts in a `cognito:groups` claim, a database CHECK constraint admits, and a
-                TypeScript union compares against — changing it changes what conforming code must
-                do. Not MAJOR: no principle is added, removed, or redefined in a way that
-                invalidates an existing plan. The four-pool isolation rule, per-pool validation,
-                the no-auth-proxy rule, the cross-pool rejection rule, and the
-                claim-as-origin / record-as-authority distinction are all unchanged in substance.
+Version change: 1.6.0 → 1.7.0
+Bump rationale: MINOR — Principle IV's credential rule is materially expanded. Until now the
+                principle said "All four pools use passwordless EMAIL_OTP — there are no passwords
+                anywhere on the platform." That sentence is now FALSE as a description of the
+                platform we are building: the customer audience (011-customer-storefront-web) is a
+                self-registering member of the PUBLIC, and gets three credential routes —
+                email+password, email OTP, and Google federated sign-in.
+                Not PATCH: it changes what conforming code must do. A password policy, an account-
+                recovery flow, a Cognito hosted domain, a Google identity provider, and a pre-sign-up
+                account-linking trigger all become permitted (indeed required) on the customer pool
+                where they were previously forbidden outright.
+                Not MAJOR: no principle is removed or redefined in a way that invalidates an existing
+                plan. Every prior slice (001, 005, 006, 007, 009) targets the driver/shop/admin
+                audiences, whose rule is UNCHANGED and re-affirmed: strictly passwordless EMAIL_OTP,
+                strictly admin-provisioned, no self-signup. Four-pool isolation, per-pool validation,
+                the pinned issuer, the no-auth-proxy rule, the cross-pool rejection rule, and the
+                claim-as-origin / record-as-authority distinction are all untouched in substance.
 
-Modified in this amendment (operator-directed, feature 008-shop-naming-unification):
-  - Preamble → the four audiences read "customers, drivers, shops, and admin/back-office";
-    "shops are hidden internal fulfillment nodes (dark-store-like)". "dark-store-like" is retained:
-    it names an external retail-industry concept, not an Effy entity.
-  - Principle IV (Auth Isolation) → "four isolated Cognito pools: customer, driver, shop, admin";
-    "the **shop** pool defines `shop_manager` / `shop_staff`"; "Driver, shop, and admin users are
-    admin-provisioned (no self-signup)."
+Modified in this amendment (operator-directed, feature 011-customer-storefront-web):
+  - Principle IV (Auth Isolation) → the blanket "all four pools use passwordless EMAIL_OTP / there
+    are no passwords anywhere" is replaced by a per-audience credential rule:
+      * CUSTOMER  — MAY offer email+password, email OTP, and federated (Google) sign-in; OPEN
+                    self-registration. Federated identities MUST be linked into the native profile
+                    so one person is one identity (one `sub`), and linking MUST require a
+                    provider-asserted VERIFIED email — linking on an unverified email is an
+                    account-takeover primitive, not a convenience.
+      * DRIVER / SHOP / ADMIN — remain STRICTLY passwordless EMAIL_OTP and admin-provisioned.
+    The "no passwords" guarantee therefore narrows from "the platform" to "the platform's INTERNAL
+    audiences", and is stated as such rather than quietly dropped.
 
-Why now: the platform addressed one audience by two names. The client surfaces, the Cognito pool,
-         and its gateway authorizer were always `shop`; the backend service, its routes, its
-         tables, its roles, and most prose were `store`. Every reader, author, and agent had to
-         know the mapping before they could find anything. Feature 008 retires `store` and this
-         amendment makes the constitution say what the platform now does — leaving it unchanged
-         would make the text false as a description of the platform, which the Quality Gates
-         define as a defect. See specs/008-shop-naming-unification/plan.md § Amendment A.
+Why now: the customer is the first audience the platform does not employ. A provisioned employee and
+         a self-registering shopper have different threat models and different expectations; the
+         security stance that is right for staff (no password to steal, no reset flow to attack)
+         should not be traded away platform-wide in order to serve the public one. Leaving the text
+         unchanged would make the constitution false as a description of the platform, which the
+         Quality Gates define as a defect. See specs/011-customer-storefront-web/research.md § D13–D18
+         and specs/011-customer-storefront-web/plan.md § Constitution Check.
 
-Unchanged: Principles I, II, III, V, VI, VII (bodies + rationale); the substance of Principle IV;
-           Governance; all Technology Standards; Quality Gates. In particular Principle VI's
-           "client store" and the Technology Standards' "TanStack Store" are UNTOUCHED — that is
-           a state-management library, not the audience.
+Unchanged: Principles I, II, III, V, VI, VII (bodies + rationale); the SUBSTANCE of Principle IV's
+           isolation model; Governance; all Technology Standards; Quality Gates.
 
 Templates requiring updates:
   ✅ .specify/templates/plan-template.md   — Constitution Check defers dynamically; no edit needed.
   ✅ .specify/templates/spec-template.md   — WHAT/WHY-only specs; unaffected.
   ✅ .specify/templates/tasks-template.md  — unaffected.
-  ✅ CLAUDE.md                             — audience list + Auth section's RBAC sentence updated (008).
-  ✅ ARCHITECTURE.md                        — audience rows + cold-path service name updated (008).
+  ⚠ CLAUDE.md                              — the "Auth" section's "All four pools use passwordless
+                                             EMAIL_OTP (no passwords anywhere)" sentence MUST be
+                                             updated in the same change (011 task).
+  ⚠ ARCHITECTURE.md                         — § "Customer web (SSR)" says the auth guard is edge
+                                             middleware; Next 16 renames middleware → proxy and its
+                                             own guide forbids relying on it for authorization
+                                             (research D20). Amended by 011.
 
 Follow-up TODOs: none.
 
 Prior history:
+  1.6.0 (2026-07-10) — MINOR: the third audience, its pool, and its two RBAC groups unified onto the
+                       single name `shop`; the retired token was removed platform-wide (feature 008).
   1.5.0 (2026-07-09) — MINOR: Principle IV generalized from "the admin pool defines RBAC groups"
                        to "pools MAY define RBAC groups"; the shop pool gained its two role groups
                        (introduced as `store_manager` / `store_staff`; renamed to `shop_*` in
@@ -122,8 +137,9 @@ Forcing each plan to declare its path keeps the boundary honest.
 
 Authentication uses four isolated Cognito pools: customer, driver, shop, admin.
 
-- All four pools use **passwordless EMAIL_OTP** — there are no passwords anywhere on the platform.
-- Each pool is validated independently, with per-pool JWT validation.
+**Isolation (applies to all four pools, without exception):**
+
+- Each pool is validated independently, with per-pool JWT validation and a pinned issuer.
 - Frontends authenticate against Cognito directly; backends validate tokens per pool.
 - There is **no auth proxy** — backends do not forward or broker authentication on behalf of
   another pool.
@@ -131,12 +147,33 @@ Authentication uses four isolated Cognito pools: customer, driver, shop, admin.
 - Pools MAY define **RBAC groups**, surfaced via the `cognito:groups` JWT claim. The **admin** pool
   defines `admin` / `manager` / `csa`; the **shop** pool defines `shop_manager` / `shop_staff`.
   The customer and driver pools define none. In every case the claim is the **origin of role
-  assignment**; where the platform keeps its own staff record, that record is **authoritative for
-  the access decision** (role, status, and any scope it owns) — a valid claim never overrides it.
-- Driver, shop, and admin users are admin-provisioned (no self-signup).
+  assignment**; where the platform keeps its own record of that person, that record is
+  **authoritative for the access decision** (role, status, and any scope it owns) — a valid claim
+  never overrides it.
 
-**Rationale**: Four audiences with different trust levels demand hard isolation. Direct
-Cognito + per-pool validation keeps blast radius small and the trust model auditable.
+**Credentials — the rule is per-audience, because the audiences differ in kind:**
+
+- **Internal audiences (driver, shop, admin)** — **strictly passwordless EMAIL_OTP**, and strictly
+  **admin-provisioned** (no self-signup). **There are no passwords on the platform's internal
+  audiences.** They are Effy employees; a password is a credential to steal and a reset flow to
+  attack, in exchange for nothing they need.
+- **The customer audience** — the only audience the platform does not employ, and the only one open
+  to the public. The customer pool MAY offer **email + password**, **email OTP**, and **federated
+  (Google) sign-in**, and it is **open to self-registration**.
+  - **One person is one identity.** All credential routes MUST converge on a **single** pool profile
+    (a single `sub`); a federated identity MUST be **linked into the native profile**, never left to
+    stand as a second account.
+  - **Linking MUST require a provider-asserted verified email**, matched against a verified email on
+    the native profile. Linking on an unverified email is an **account-takeover primitive**, not a
+    convenience, and is forbidden.
+  - The platform record remains authoritative for the access decision (status), per the isolation
+    rules above — a valid credential never overrides a barred customer.
+
+**Rationale**: Four audiences with different trust levels demand hard isolation; direct Cognito +
+per-pool validation keeps blast radius small and the trust model auditable. The credential rule
+splits because the threat model splits: a provisioned employee and a self-registering member of the
+public are not the same kind of principal, and forcing one credential policy onto both would either
+cripple the storefront or needlessly widen the attack surface on the internal consoles.
 
 ### V. Native-Feel, Consistent Design
 
@@ -253,4 +290,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.6.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-10
+**Version**: 1.7.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-14

@@ -282,15 +282,20 @@ into route segments, feature UI, and a typed service layer (`lib/`).
 
 ```
 app/
-├── (public)/    # server-rendered for SEO: storefront, product, search, cart
-├── (auth)/      # public: sign-in/up, confirm, reset, legal
+├── (shop)/      # PUBLIC, server-rendered for SEO: storefront, product, search, cart
+├── (auth)/      # public: sign-in/up, confirm, reset, legal — the ONLY place the auth SDK is configured
 ├── (account)/   # AUTH-GATED: profile, orders, addresses, checkout
 └── layout + client providers
 ```
 
 Route groups share a layout without adding URL segments. Public pages are **Server Components** that
-fetch at render time (with incremental revalidation); interactive pieces are client components (forms,
-cart, the payment form).
+fetch at render time (cached, with tag-based revalidation); interactive pieces are client components
+(forms, cart, the payment form).
+
+**The auth SDK is quarantined to `(auth)`.** Configuring it in the root layout — which is what the
+vendor's own docs suggest — puts it in the **shared client chunk that every page loads**, including
+guest pages, and blows the public-surface bundle budget by construction. Guest routes read session
+state **server-side only**; a dependency rule fails the build if a guest route imports it.
 
 ### Data layer: dual fetch clients
 
@@ -306,8 +311,33 @@ Domain wrappers sit on top, with DTO→domain converters.
   signed-out / signed-in / error) and the cart (persisted to local storage, snapshotting each line so
   a later price change doesn't silently mutate the cart).
 - The **server-state cache** for all server data (orders, addresses, profile).
-- **SSR auth guard:** edge middleware runs the auth server-context per request to guard the auth-gated
-  segment and redirect unauthenticated users (preserving a validated `next` target).
+
+### SSR auth guard: optimistic proxy + an authoritative Data Access Layer
+
+**Amended by 011** (was: "edge middleware runs the auth server-context per request to guard the
+auth-gated segment"). Next.js 16 renames `middleware.ts` → **`proxy.ts`** (Node runtime, not Edge),
+and its own authentication guide is explicit that a proxy check **"should not be your only line of
+defense… the majority of security checks should be performed as close as possible to your data
+source."** It further warns against auth checks in **layouts**, which do not re-render on navigation.
+So the guard is **two-tier**:
+
+- **`proxy.ts` — optimistic only.** A cookie-presence check on the auth-gated segments, to redirect
+  early and preserve a **validated** `next` target (same-origin relative path; reject `//…` and any
+  scheme — open redirect is the standard bug here). Its matcher is an **allowlist of protected
+  segments**, so public routes never run it. It performs **no** database or network check.
+- **A Data Access Layer (`lib/dal.ts`, `import 'server-only'`) — authoritative.** It verifies the
+  session and consults the platform's own record (status is platform-owned and decides access), and it
+  is called by **every** protected page, Server Action, and Route Handler. **Server Actions are treated
+  as public endpoints, because that is what they are.**
+
+### Personalization without losing the cache
+
+A personalized fragment (cart badge, "Hi <name>") **must not** make a public page dynamic. The page
+body is cached (`use cache`) and prerenders into a **static shell**; the personalized fragment is a
+**Server Component inside `<Suspense>`** that reads cookies at request time and **streams in**. One
+response, no extra client JS, no layout shift, and the public content stays cacheable and indexable.
+**`cookies()`/`headers()` are never called above a Suspense boundary** — doing so defers the whole app
+to request time and silently destroys the static shell for every page.
 
 ---
 

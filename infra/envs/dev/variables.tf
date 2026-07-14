@@ -40,6 +40,12 @@ variable "email_configuration" {
   default = {}
 }
 
+variable "customer_pre_sign_up_lambda_arn" {
+  description = "ARN of the Cognito pre-sign-up ACCOUNT-LINKING trigger (011, apis/edge-api/customer). Null until `make edge-deploy SERVICE=customer` has run once — the Lambda must EXIST before the pool can reference it, so the first apply leaves it null and a second apply wires it. Without the trigger, Google sign-in silently creates a DUPLICATE account for a customer who already has one, and there is no retroactive merge (FR-011)."
+  type        = string
+  default     = null
+}
+
 variable "auth_urls" {
   description = "Per-audience app-client callback/logout URLs (dev placeholders for now). Keys: customer, driver, shop, back_office."
   type = map(object({

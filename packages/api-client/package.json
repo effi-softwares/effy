@@ -2,6 +2,7 @@
   "name": "@effy/api-client",
   "version": "0.1.0",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "description": "Effy web API client — one authed fetch wrapper + RFC 9457 error mapping. Consumes @effy/shared-types. Internal package: exports TypeScript source.",
   "exports": {

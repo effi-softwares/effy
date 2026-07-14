@@ -2,6 +2,7 @@
   "name": "@effy/design-system",
   "version": "0.1.0",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "description": "Effy web design system — the brand SSOT (Jade #0FB57E / fill #047857) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
   "exports": {
@@ -20,9 +21,9 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.24.0",
     "radix-ui": "^1.6.2",
-    "tailwind-merge": "^2.5.5"
+    "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

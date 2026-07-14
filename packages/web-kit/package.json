@@ -2,6 +2,7 @@
   "name": "@effy/web-kit",
   "version": "0.1.0",
   "private": true,
+  "sideEffects": false,
   "type": "module",
   "description": "Effy shared web runtime + console chrome — config, Amplify wiring, the passwordless EMAIL_OTP flow, session guard, server-state client, telemetry, client store, and the SPA shell. Audience-neutral: every web surface consumes it, none re-implements it (constitution Principle II). Exports TS source.",
   "exports": {
@@ -26,7 +27,7 @@
     "@tanstack/react-store": "^0.11.0",
     "@tanstack/react-table": "^8.21.3",
     "aws-amplify": "^6.18.0",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.24.0",
     "posthog-js": "^1.200.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -44,7 +45,7 @@
     "@types/react-dom": "^19.0.0",
     "aws-amplify": "^6.18.0",
     "jsdom": "^25.0.1",
-    "lucide-react": "^0.468.0",
+    "lucide-react": "^1.24.0",
     "posthog-js": "^1.200.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

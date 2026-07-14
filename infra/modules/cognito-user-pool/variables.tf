@@ -39,10 +39,83 @@ variable "allowed_first_auth_factors" {
     error_message = "At least one first auth factor is required."
   }
 
+  # Still never passed explicitly — the module appends it (the CreateUserPool API refuses to omit
+  # it). But the reason has changed: under constitution v1.7.0 the CUSTOMER pool may legitimately
+  # OFFER passwords, and the pool-level policy entry is what enables that. Whether a password can
+  # actually be USED is decided by the app client's auth flows (var.enable_password_auth), which
+  # stays false for driver/shop/admin — so those three remain strictly passwordless.
   validation {
     condition     = alltrue([for f in var.allowed_first_auth_factors : contains(["EMAIL_OTP", "SMS_OTP", "WEB_AUTHN"], f)])
-    error_message = "Allowed factors: EMAIL_OTP, SMS_OTP, WEB_AUTHN. PASSWORD is forbidden platform-wide (constitution Principle IV)."
+    error_message = "Pass only passwordless factors: EMAIL_OTP, SMS_OTP, WEB_AUTHN. The module appends PASSWORD itself (the API mandates it); to make passwords USABLE, set enable_password_auth = true (customer pool only — constitution v1.7.0, Principle IV)."
   }
+}
+
+# --- 011: the customer audience's three credential routes. -------------------------------------
+# Every variable below defaults to the pre-011 behaviour, so driver / shop / back_office are
+# UNCHANGED by construction: strictly passwordless EMAIL_OTP, admin-provisioned, no IdP, no OAuth.
+# Constitution v1.7.0 permits these ONLY on the customer pool.
+
+variable "enable_password_auth" {
+  description = "Customer pool ONLY (constitution v1.7.0). Adds ALLOW_USER_SRP_AUTH to the app client, making the PASSWORD/PASSWORD_SRP challenge usable. SRP never puts the password on the wire. The three internal audiences MUST leave this false — they are Effy employees and have no need of a credential that can be stolen or a reset flow that can be attacked."
+  type        = bool
+  default     = false
+}
+
+variable "password_policy" {
+  description = "Only meaningful when enable_password_auth = true."
+  type = object({
+    minimum_length                   = optional(number, 8)
+    require_lowercase                = optional(bool, true)
+    require_uppercase                = optional(bool, true)
+    require_numbers                  = optional(bool, true)
+    require_symbols                  = optional(bool, false)
+    temporary_password_validity_days = optional(number, 7)
+  })
+  default = null
+}
+
+variable "account_recovery_via_email" {
+  description = "Enable ForgotPassword recovery via the VERIFIED email (FR-014). Customer pool only."
+  type        = bool
+  default     = false
+}
+
+variable "google" {
+  description = <<-EOT
+    Google federated sign-in. CUSTOMER POOL ONLY (constitution v1.7.0); null everywhere else.
+
+    Setting this creates THREE things inside this module — deliberately together, because they are
+    inseparable and because splitting them across modules produces a Terraform dependency CYCLE
+    (the app client must reference the IdP, the IdP needs the pool, the client lives with the pool):
+
+      1. a Cognito HOSTED DOMAIN — mandatory: there is no pure-SDK federation path (research D15),
+         federation is an OAuth redirect through /oauth2/authorize;
+      2. the Google identity provider, with `email_verified` MAPPED (a security control — see main.tf);
+      3. the OAuth settings on the app client.
+
+    `client_id` / `client_secret` are an OUT-OF-CODE, operator-owned dependency (like the domain
+    registrar in 010). Terraform can wire them; it cannot create them.
+  EOT
+  type = object({
+    domain_prefix = string # → <prefix>.auth.<region>.amazoncognito.com (no ACM cert needed)
+    client_id     = string
+    client_secret = string
+    scopes        = optional(list(string), ["openid", "email", "profile"])
+  })
+  default   = null
+  sensitive = true
+}
+
+variable "pre_sign_up_lambda_arn" {
+  description = "Pre-sign-up trigger. On the customer pool this is the ACCOUNT-LINKING trigger: it links a Google identity into the NATIVE profile so one person is one `sub` (FR-011), and it REFUSES to link unless the IdP asserts a verified email (FR-012) — linking on an unverified email is an account-takeover primitive, not a convenience."
+  type        = string
+  default     = null
+}
+
+variable "unwritable_attributes" {
+  description = "Attributes the app client may NOT write. `email` belongs here on the customer pool: a signed-in user who can rewrite their own email can walk onto another customer's record (the well-known Cognito takeover)."
+  type        = list(string)
+  default     = []
 }
 
 variable "groups" {

@@ -42,13 +42,16 @@ auth_urls = {
     callback_urls = ["effy-driver://auth/callback"]
     logout_urls   = ["effy-driver://signed-out"]
   }
+  # 011: these two were SWAPPED — shop-web runs on :5174 and back-office on :5173. Inert until
+  # now (neither pool had an OAuth flow), but 011 turns OAuth on for the first time, so the latent
+  # error is corrected before it can become a live one.
   shop = {
-    callback_urls = ["http://localhost:5173/auth/callback", "effy-shop://auth/callback"]
-    logout_urls   = ["http://localhost:5173/", "effy-shop://signed-out"]
+    callback_urls = ["http://localhost:5174/auth/callback", "effy-shop://auth/callback"]
+    logout_urls   = ["http://localhost:5174/", "effy-shop://signed-out"]
   }
   back_office = {
-    callback_urls = ["http://localhost:5174/auth/callback"]
-    logout_urls   = ["http://localhost:5174/"]
+    callback_urls = ["http://localhost:5173/auth/callback"]
+    logout_urls   = ["http://localhost:5173/"]
   }
 }
 

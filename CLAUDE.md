@@ -121,9 +121,17 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
    gets scaffolded.
 
 ## Auth
-AWS Cognito, **four isolated pools**: customer / driver / shop / admin. **All four pools use
-passwordless EMAIL_OTP** (no passwords anywhere). Driver / shop / admin are admin-provisioned (no
-self-signup). **Pools MAY define RBAC groups** surfaced via the `cognito:groups` JWT claim: the
+AWS Cognito, **four isolated pools**: customer / driver / shop / admin. **Credentials are
+per-audience** (constitution v1.7.0, amended by 011):
+- **Driver / shop / admin** — **strictly passwordless EMAIL_OTP**, admin-provisioned (no self-signup).
+  **There are no passwords on the platform's internal audiences.**
+- **Customer** — the only audience Effy does not employ, and the only one open to the public: **open
+  self-registration** with **three credential routes — email+password, email OTP, and Google
+  federated sign-in**. All three MUST converge on **one profile / one `sub`** (a federated identity is
+  **linked into the native profile**), and **linking requires a provider-asserted *verified* email** —
+  linking on an unverified email is an account-takeover primitive, not a convenience.
+
+**Pools MAY define RBAC groups** surfaced via the `cognito:groups` JWT claim: the
 admin pool defines `admin` / `manager` / `csa`; the shop pool defines `shop_manager` /
 `shop_staff`; customer and driver define none. The claim is the **origin of role assignment**;
 where a platform staff record exists it is **authoritative for the access decision** (role, status,
@@ -152,15 +160,68 @@ compileSdk + targetSdk 36**. All three are currently the base KMP template (comm
 
 ## Current status
 Built so far: the **infrastructure** (four Cognito pools, dev DB, shared HTTP gateway), the
-**migration workflow**, the **cold path** (`apis/edge-api/{shared,admin,shop}`), and **two web
-surfaces** — `apps/back-office` (005) and `apps/shop-web` (007) — on the shared packages
-`@effy/{design-system,shared-types,api-client,web-kit}`. The **three KMP mobile apps remain the base
-template**; `customer-web`, the hot path's product features, and the event backbone are still the
-**documented vision**. Everything gets built **slice by slice**, each driven by its own spec → plan →
-tasks. Don't build all surfaces in parallel: one vertical slice proves the foundation before the
-pattern scales.
+**migration workflow**, the **cold path** (`apis/edge-api/{shared,admin,shop,customer}`), and **all
+three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`apps/customer-web`
+(011 — the first PUBLIC surface, Next.js 16 SSR)** — on the shared packages
+`@effy/{design-system,shared-types,api-client,web-kit}`.
+
+The **three KMP mobile apps remain the base template**. Still the **documented vision**: the
+**catalog** (there are no product tables anywhere yet), **cart / checkout / payment**, the hot path's
+**cloud deployment** (`core-api` is local-Docker-only by decision — its go-live is its own slice), and
+the **event backbone**.
+
+Everything gets built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all
+surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**011-customer-storefront-web** — Customer Storefront (Bootstrap). **Code-complete + verified;
+operator run pending.**
+The platform's **fourth client surface and its FIRST PUBLIC one**: `apps/customer-web`
+(`@effy/customer-web`, **Next.js 16.2.6** App Router on :3000). Every surface before it sits behind a
+login and serves an Effy employee; this one is open to anyone, must be found by search engines, and
+serves a person who has no account until they choose to make one.
+- **Constitution amended → v1.7.0**: Principle IV's credential rule is now **per-audience**. The
+  **customer** pool gains **email+password · email OTP · Google**, with **open self-registration**;
+  **driver/shop/admin remain strictly passwordless EMAIL_OTP and admin-provisioned** ("no passwords"
+  narrows to the platform's *internal* audiences, rather than being silently dropped). Linking a
+  federated identity **requires a provider-asserted verified email** — linking on an unverified one is
+  an account-takeover primitive, and that is written into the constitution as a prohibition.
+- **SSR-first, guest-first**: `cacheComponents: true` (Next 16's Cache Components) makes PPR the
+  rendering model, so public pages prerender into a **static shell** and the personalized header is a
+  **server-rendered Suspense island** — personalization costs neither the cache nor the crawler. "Is
+  this page still cacheable?" is now a **build error**, not a Lighthouse score three months late.
+- **The Amplify quarantine (FR-006)**: `aws-amplify` lives **only** in `app/(auth)/`. Amplify's own
+  docs put `Amplify.configure()` in the root layout — for a storefront that is exactly wrong (it lands
+  in the shared chunk every page loads). Guests read session state **server-side** and download **zero
+  bytes** of auth SDK — verified, not asserted.
+- **Backend**: a new `apis/edge-api/customer` (customer authorizer) — `GET`/`PATCH /customer/v1/me`,
+  record-backed identity + idempotent JIT upsert + the **barred-customer refusal** (a valid credential
+  never overrides the record). Plus the **pre-sign-up account-linking Lambda**: without it, Google
+  sign-in silently creates a *second* account and **there is no retroactive merge**.
+- **Data**: one migration (`20260714120000_customer.sql`) — `public.customer`, keyed on `cognito_sub`
+  (which **survives federated linking**, so one person keeps one record across all three routes).
+- **The routing law (FR-028), binding on every later customer slice**: commerce (product · catalog ·
+  search · cart · order · payment) → **hot path** (`core-api`); customer profile/account → **cold
+  path**. Proven live against `core-api`'s `GET /v1/customer/ping`.
+- **⚠ Two corrections made during implementation, both recorded in research**: (1) the **120 KB bundle
+  budget was unreachable** — Next 16 + React 19's framework floor is ~136 KB with *zero* app code; the
+  enforced budget is **160 KB** against a measured **148.5 KB**, and it still catches Amplify (proven
+  by deliberately leaking it: 162.7 KB → build fails). (2) The **quarantine guard was initially wrong**
+  — dependency-cruiser matches *direct* imports by default, so it reported clean while Amplify was on
+  the home page via a component. Fixed with `reachable: true`; the lesson (*break a guard the way it
+  will actually break*) is in research D11.
+- Status: **code-complete** — workspace `pnpm typecheck` + `pnpm -r test` (**248 tests**) + `turbo
+  build` green; **27 Playwright E2E** green (raw-HTML SSR, SEO, no-cloaking, auth-outage, deferred
+  sign-in, open-redirect refusals); both gates green; `terraform validate` + `fmt` clean on all six
+  roots; shellcheck clean.
+  **Open (operator)**: **T050** (register the Google OAuth client — out-of-code), **T051** (`make apply
+  ENV=dev`; *abort if any pool would be replaced*), **⚠ T052/T053** (the two **spikes** —
+  `AliasExistsException` on first Google sign-in, and whether a never-had-a-password customer can set
+  one; **both can change the design**), **T081** (commit the migration + `make db-up ENV=dev`),
+  **T082** (`make edge-deploy SERVICE=customer ENV=dev`), **T090** (live SC sign-off).
+  Spec/plan/artifacts: [specs/011-customer-storefront-web/](specs/011-customer-storefront-web/).
+  Parity register: [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md).
 
 **010-domain-dns-foundation** — Platform Domain & Per-Environment Namespaces. **Code-complete;
 operator run pending.**
@@ -369,5 +430,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/010-domain-dns-foundation/plan.md
+at specs/011-customer-storefront-web/plan.md
 <!-- SPECKIT END -->

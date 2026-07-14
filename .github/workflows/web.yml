@@ -1,0 +1,108 @@
+# The JS/TS workspace's CI. Before 011 the repo had NO web CI at all — only `infra.yml`
+# (Terraform). That mattered more than it sounds: the customer storefront's headline promises
+# (FR-005 "budgets MUST be enforced automatically — a change that breaches one MUST fail the
+# build", FR-006 "guests download zero auth JS") are only real if a machine checks them on
+# every change. A budget that lives in a README is a budget nobody keeps.
+#
+# The three GATES below FAIL THE BUILD. They do not warn.
+name: web
+
+on:
+  pull_request:
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "apis/edge-api/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/web.yml"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Everything that is cheap and applies to the whole workspace.
+  workspace:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm -r test
+      - run: pnpm exec turbo build
+
+  # The customer storefront's own gates (011). These are the reason this workflow exists.
+  storefront-gates:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/customer-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+
+      # GATE 1 — the Amplify quarantine (FR-006). Fails if any GUEST route can reach
+      # `aws-amplify`. This is one careless import away at all times, produces no error, and
+      # nothing about the page would look wrong — it would simply be slower, forever.
+      - name: "Gate: auth SDK is quarantined from guest routes"
+        run: pnpm depcruise
+
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_CORE_API_BASE_URL: http://localhost:8080
+          EDGE_API_BASE_URL: http://localhost:4000
+
+      # GATE 2 — the bundle budget (FR-005 / SC-003). Next 16 no longer reports First Load JS at
+      # all ("inaccurate in server-driven architectures using RSC"), so we compute it ourselves
+      # from the prerendered HTML Next actually serves — see scripts/bundle-budget.mjs for why a
+      # glob over the chunks directory is NOT a budget.
+      - name: "Gate: guest bundle budget (<= 160 KB gz)"
+        run: pnpm size
+
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/customer-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+        working-directory: .
+      - run: pnpm exec playwright install --with-deps chromium
+
+      # Proves what units cannot: SC-004 (content in the raw HTML with no JS executed),
+      # SC-013 (an auth outage does not take down guest browsing), FR-008 (no cloaking).
+      - name: E2E (SSR / SEO / guest-first)
+        run: pnpm e2e
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_CORE_API_BASE_URL: http://localhost:8080
+          EDGE_API_BASE_URL: http://localhost:4000

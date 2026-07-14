@@ -107,3 +107,24 @@ and ./store/v1/\*. paths already consumed
 contained .store.\*\* \(the pool contract
 of ./store/v1/\*. was 007's own console
 with ./store/v1/\*. paths at the time of this directive
+
+# ---- (b) the customer storefront, continued — added by 011-customer-storefront-web ----------
+#
+# 011 built `apps/customer-web`: the customer STOREFRONT. Customers browse "the store" — a single
+# Effy brand. That is the product model's own word (platform-brief / CLAUDE.md) and it is a
+# DIFFERENT CONCEPT from the `shop` audience, which names the hidden internal fulfilment nodes a
+# customer never sees. Renaming customer-facing copy to "shop" would not fix a naming split; it
+# would CREATE one, by using the audience's word for something that is not the audience.
+#
+# Every pattern below is PATH-SCOPED (the guard matches `path:line:text`) so it cannot mask a
+# missed rename anywhere else in the platform.
+
+# The uppercase form, used in the emphatic warning comments.
+STOREFRONT
+
+# Customer-facing copy + prose in the storefront surface and its spec/docs: "the store",
+# "this store", "Back to the store", "around the store", "storefront".
+^apps/customer-web/.*[Ss]tore
+^apis/edge-api/customer/.*[Ss]tore
+^docs/audiences/customer-capabilities\.md:.*[Ss]tore
+^specs/011-customer-storefront-web/.*[Ss]tore

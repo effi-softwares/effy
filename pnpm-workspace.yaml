@@ -11,3 +11,6 @@ packages:
 onlyBuiltDependencies:
   - esbuild
   - turbo
+  # Next.js image optimization (011 customer-web). Without its postinstall, sharp cannot place
+  # its platform binary and next/image falls back to the (much slower) JS path.
+  - sharp

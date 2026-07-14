@@ -1,0 +1,26 @@
+{
+  "name": "@effy/edge-customer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy cold-path customer service (011) — attaches to the shared HTTP API; routes under /customer/. Profile & account management ONLY: commerce belongs to the hot path (FR-028). Also hosts the Cognito pre-sign-up account-linking trigger.",
+  "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "3.1086.0",
+    "@effy/edge-shared": "workspace:*",
+    "@effy/shared-types": "workspace:*",
+    "pg": "8.22.0",
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.162",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "esbuild": "0.28.1",
+    "serverless": "3.40.0",
+    "serverless-esbuild": "1.57.2",
+    "serverless-offline": "13.10.1",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

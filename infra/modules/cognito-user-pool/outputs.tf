@@ -24,3 +24,16 @@ output "app_client_ids" {
     (aws_cognito_user_pool_client.this.name) = aws_cognito_user_pool_client.this.id
   }
 }
+
+# --- Google federation (011; null on the internal pools) ---------------------------------------
+
+output "auth_domain_fqdn" {
+  description = "Cognito hosted-domain host. The storefront's Amplify oauth.domain, and the host the Google OAuth client must authorize (redirect URI: https://<this>/oauth2/idpresponse)."
+  value = var.google == null ? null : format(
+    "%s.auth.%s.amazoncognito.com",
+    aws_cognito_user_pool_domain.this[0].domain,
+    data.aws_region.current.region,
+  )
+}
+
+data "aws_region" "current" {}

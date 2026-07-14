@@ -27,9 +27,10 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         global-init global-plan global-apply global-output dns-verify mail-verify edge-health \
         db-new db-status db-up db-down check-goose \
         core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
-        verify-naming \
+        verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
+        cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
         dev-status dev-stop dev-start check-dev-park
 
@@ -86,6 +87,9 @@ validate: ## Validate one env root (ENV=...); backend not required
 
 verify-naming: ## One-name rule (008): fail on any retired audience token lacking a documented exclusion
 	@bash scripts/verify-no-store.sh
+
+verify-pool-credentials: ## OPERATOR (011 FR-017): assert driver/shop/admin stay passwordless, unfederated, admin-provisioned
+	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) bash scripts/verify-pool-credentials.sh
 
 lint: ## fmt-check + validate every root + tflint + trivy/checkov config scan
 	terraform fmt -check -recursive $(INFRA_DIR)
@@ -270,6 +274,34 @@ shop-lint: ## shop-web typecheck (tsc --noEmit)
 
 shop-test: ## shop-web unit/component tests (vitest)
 	@pnpm --filter @effy/shop-web test
+
+# --- customer storefront (011) — the platform's first PUBLIC surface. SSR-first, guest-first.
+# It runs against a LOCAL core-api (`make core-run`) + the LIVE dev edge-api.
+cw-dev: ## Run the customer storefront locally (next dev on http://localhost:3000)
+	@pnpm --filter @effy/customer-web dev
+
+cw-build: ## Production build of the customer storefront
+	@pnpm --filter @effy/customer-web build
+
+cw-lint: ## customer-web typecheck (tsc --noEmit)
+	@pnpm --filter @effy/customer-web typecheck
+
+cw-test: ## customer-web unit tests (vitest — async Server Components are E2E-tested, not unit-tested)
+	@pnpm --filter @effy/customer-web test
+
+cw-e2e: ## customer-web E2E (playwright) — SSR/SEO/auth/isolation. Proves what units cannot.
+	@pnpm --filter @effy/customer-web e2e
+
+# --- the three GATES (011 FR-005/FR-006). These FAIL THE BUILD; they do not warn.
+cw-gates: ## customer-web: the two build-failing gates (Amplify quarantine + guest bundle budget)
+	@pnpm --filter @effy/customer-web depcruise
+	@pnpm --filter @effy/customer-web size
+
+cw-size: ## customer-web bundle budget — guest routes MUST stay <= 120 KB First Load JS
+	@pnpm --filter @effy/customer-web size
+
+cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)
+	@pnpm --filter @effy/customer-web depcruise
 
 # --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted
