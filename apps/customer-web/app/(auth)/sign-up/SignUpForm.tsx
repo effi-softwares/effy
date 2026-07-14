@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
+import { googleEnabled } from "@/lib/auth-routes"
 import { safeNextTarget } from "@/lib/next-target"
 import { capture } from "@/lib/telemetry"
 import {
@@ -40,6 +41,10 @@ export function SignUpForm() {
   const [code, setCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+
+  // Google is BUILT but PARKED: no Cognito hosted domain configured → no federation → no button.
+  // Offering it would be offering a door with no room behind it. See lib/auth-routes.ts.
+  const showGoogle = googleEnabled()
 
   const run = (fn: () => Promise<void>) => {
     setError(null)
@@ -170,22 +175,26 @@ export function SignUpForm() {
         </form>
       )}
 
-      <Divider />
+      {showGoogle && (
+        <>
+          <Divider />
 
-      <button
-        type="button"
-        data-testid="google-signup"
-        disabled={pending}
-        onClick={() =>
-          run(async () => {
-            capture({ name: "sign_up_started", props: { route: "google" } })
-            await startGoogleSignIn(next)
-          })
-        }
-        className="flex h-11 w-full items-center justify-center rounded-md border text-sm font-medium hover:bg-accent"
-      >
-        Continue with Google
-      </button>
+          <button
+            type="button"
+            data-testid="google-signup"
+            disabled={pending}
+            onClick={() =>
+              run(async () => {
+                capture({ name: "sign_up_started", props: { route: "google" } })
+                await startGoogleSignIn(next)
+              })
+            }
+            className="flex h-11 w-full items-center justify-center rounded-md border text-sm font-medium hover:bg-accent"
+          >
+            Continue with Google
+          </button>
+        </>
+      )}
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}

@@ -40,6 +40,27 @@ variable "email_configuration" {
   default = {}
 }
 
+variable "customer_google_enabled" {
+  description = <<-EOT
+    Google federated sign-in for the CUSTOMER pool. PARKED (false) since 2026-07-14 by operator
+    decision.
+
+    false → the customer keeps TWO credential routes: email+password and email OTP. Both are
+            pure-SDK and need NO external dependency, so the whole slice can be applied, deployed
+            and signed off with nothing outside this repo.
+    true  → adds a Cognito hosted domain + the Google identity provider + OAuth on the app client.
+            Requires a Google OAuth client (an out-of-code, operator-owned dependency) with its
+            id/secret in SSM at /effy/<env>/auth/customer/google_client_{id,secret}.
+
+    ⚠ TURNING THIS ON REQUIRES `customer_pre_sign_up_lambda_arn` IN THE SAME CHANGE. Federation
+    without the linking trigger gives a customer who already has an account a SECOND one the first
+    time they use Google — and there is NO retroactive merge (AdminLinkProviderForUser requires the
+    federated user not to exist yet). The only fix at that point is deleting an account.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "customer_pre_sign_up_lambda_arn" {
   description = "ARN of the Cognito pre-sign-up ACCOUNT-LINKING trigger (011, apis/edge-api/customer). Null until `make edge-deploy SERVICE=customer` has run once — the Lambda must EXIST before the pool can reference it, so the first apply leaves it null and a second apply wires it. Without the trigger, Google sign-in silently creates a DUPLICATE account for a customer who already has one, and there is no retroactive merge (FR-011)."
   type        = string

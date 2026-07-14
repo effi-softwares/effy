@@ -23,8 +23,11 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 
 - **Guest-first.** Browsing requires no account, and the store never asks for one until the customer
   tries to order.
-- **Three credential routes, one identity.** Password, email code, and Google all converge on a single
-  Cognito profile (one `sub`) and a single `public.customer` record.
+- **Multiple credential routes, one identity.** Email+password and email code converge on a single
+  Cognito profile (one `sub`) and a single `public.customer` record. **Google is PARKED** (2026-07-14):
+  built, tested and dormant behind `customer_google_enabled`. Un-parking it REQUIRES the account-
+  linking trigger in the same change — federation without it hands an existing customer a *second*
+  account, and there is no retroactive merge.
 - **Speed and search visibility are product features**, not engineering preferences — this is the only
   surface a stranger judges before deciding whether Effy exists.
 
@@ -33,6 +36,7 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 | Symbol | Meaning |
 |---|---|
 | ✅ | Delivered and verified on that surface |
+| ⏸ | **Parked** — built, tested, and dormant behind a flag. Not deleted; not live. |
 | ⬜ | Outstanding — the capability exists for this audience but this surface does not have it |
 | — | Not applicable to that surface |
 | 🔒 | Blocked on an operator step (live AWS); code complete |
@@ -47,8 +51,8 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 | 4 | The storefront publishes a **sitemap** and **crawl directives** | ✅ | — | — |
 | 5 | **Self-registration** — email + password | 🔒 | ⬜ | Cognito customer pool |
 | 6 | **Self-registration** — email one-time code, **no password ever set** | 🔒 | ⬜ | Cognito customer pool |
-| 7 | **Self-registration / sign-in** — Google | 🔒 | ⬜ | Cognito customer pool + Google IdP |
-| 8 | All three routes converge on **one identity** (one `sub`, one record) | 🔒 | ⬜ | pre-sign-up linking trigger |
+| 7 | **Self-registration / sign-in** — Google | ⏸ **PARKED** | ⏸ | Cognito customer pool + Google IdP |
+| 8 | All credential routes converge on **one identity** (one `sub`, one record) | 🔒 | ⬜ | Cognito (native routes); linking trigger (federation) |
 | 9 | **Account recovery** by proving control of the verified email | 🔒 | ⬜ | Cognito customer pool |
 | 10 | Session persists across reload/restart; sign-out clears it | ✅ | ⬜ | — |
 | 11 | The sign-in demand is **deferred to the point of ordering** | ✅ | ⬜ | — |

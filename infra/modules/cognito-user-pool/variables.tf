@@ -99,11 +99,30 @@ variable "google" {
   type = object({
     domain_prefix = string # → <prefix>.auth.<region>.amazoncognito.com (no ACM cert needed)
     client_id     = string
-    client_secret = string
     scopes        = optional(list(string), ["openid", "email", "profile"])
   })
-  default   = null
-  sensitive = true
+  default = null
+
+  # ⚠ NOT `sensitive = true`, and the secret is carried in a SEPARATE variable below. That split is
+  # deliberate, and it was learned the hard way:
+  #
+  # Marking this whole object sensitive TAINTS EVERY EXPRESSION THAT READS IT. Because the app
+  # client's `supported_identity_providers`, `allowed_oauth_flows` and `allowed_oauth_scopes` are all
+  # computed from `var.google`, they printed as "(sensitive value)" in `terraform plan` — ON ALL FOUR
+  # POOLS, including the ones that pass `null`. It also made a root output containing the (entirely
+  # public) hosted-domain name a hard error.
+  #
+  # An unreadable plan is not a security win. It is a security LOSS: this module's whole safety story
+  # is "read the plan, abort if a pool would be replaced", and an operator cannot audit a diff that
+  # redacts the very attributes being changed. Nothing here is secret — the domain is a public URL and
+  # a Google OAuth client id is public by design. Only the SECRET is secret.
+}
+
+variable "google_client_secret" {
+  description = "The Google OAuth client secret. Kept OUT of var.google so its sensitivity does not taint the plan output for every attribute computed from it (see the note above). ⚠ Lands in Terraform state — accepted (the state bucket is private + encrypted), but it MUST come from SSM SecureString, never a committed .tfvars."
+  type        = string
+  default     = null
+  sensitive   = true
 }
 
 variable "pre_sign_up_lambda_arn" {

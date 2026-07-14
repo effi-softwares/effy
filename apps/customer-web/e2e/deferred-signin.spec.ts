@@ -84,21 +84,28 @@ test.describe("the return destination cannot be weaponised", () => {
 })
 
 /**
- * The three credential routes are all reachable from the sign-in page (FR-010).
+ * The credential routes on offer (FR-010).
  *
- * ⚠ We assert they are OFFERED, not that they complete: completing them needs a live Cognito pool
- * and a real inbox, which is an OPERATOR step (quickstart § 7, task T064). Pretending otherwise —
- * by mocking Cognito and calling it proof — would be exactly the kind of dishonest green this slice
- * has been careful to avoid.
+ * ⚠ GOOGLE IS BUILT BUT PARKED (operator decision, 2026-07-14). The code, the Terraform, the linking
+ * trigger and the callback all exist and are dormant behind `customer_google_enabled`. With no
+ * Cognito hosted domain configured there is no federation — and no button, because offering one
+ * would be offering a door with no room behind it.
+ *
+ * These tests therefore assert the CURRENT capability set, and assert that the parked route is
+ * genuinely absent rather than present-and-broken. When Google is un-parked, the domain lands in the
+ * environment and these expectations flip — the test below is where you will notice.
+ *
+ * ⚠ We assert routes are OFFERED, not that they COMPLETE. Completing them needs a live Cognito pool
+ * and a real inbox, which is an operator step (quickstart § 7). Mocking Cognito and calling that
+ * proof would be exactly the dishonest green this slice has been careful to avoid.
  */
-test.describe("all three credential routes are offered", () => {
+test.describe("the credential routes on offer", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
-  test("email code, password, and Google are all present", async ({ page }) => {
+  test("sign-in offers email code and password", async ({ page }) => {
     await page.goto("/sign-in")
 
     await expect(page.getByTestId("submit-email")).toBeVisible() // route (b) — the default
-    await expect(page.getByTestId("google-signin")).toBeVisible() // route (c)
 
     await page.getByTestId("toggle-mode").click()
     await expect(page.getByTestId("submit-password")).toBeVisible() // route (a)
@@ -108,11 +115,18 @@ test.describe("all three credential routes are offered", () => {
     await page.goto("/sign-up")
 
     // The fewer passwords the platform stores, the fewer it can lose — so the code route is the
-    // path of least resistance, and the password is the deliberate opt-in.
+    // path of least resistance, and the password is a deliberate opt-in.
     await expect(page.getByTestId("submit-email")).toBeVisible()
-    await expect(page.getByTestId("google-signup")).toBeVisible()
 
     await page.getByTestId("toggle-route").click()
     await expect(page.getByTestId("submit-password")).toBeVisible()
+  })
+
+  test("Google is PARKED — not offered, and not offered-but-broken", async ({ page }) => {
+    for (const path of ["/sign-in", "/sign-up"]) {
+      await page.goto(path)
+      await expect(page.getByTestId("google-signin")).toHaveCount(0)
+      await expect(page.getByTestId("google-signup")).toHaveCount(0)
+    }
   })
 })
