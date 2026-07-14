@@ -47,7 +47,9 @@ export async function UserIsland() {
     )
   }
 
-  const label = session.email?.split("@")[0] ?? "Account"
+  // Greet them by the name they gave us at registration (FR-009a) — not by the first half of their
+  // email address, which is a machine's idea of a name.
+  const label = session.givenName ?? "Account"
 
   return (
     <Link

@@ -77,6 +77,31 @@ door; and the platform's own **customer record** as the authority on that custom
   guarantee to cart contents, which is why the guarantee is stated in terms of *context* and not
   merely *URL*.)
 
+### Session 2026-07-15 — registration collects the customer's name (amends US2)
+
+- Q: Registration asked only for an email (and, on the password route, a password). Should it collect
+  the customer's **name**? → A: **Yes — a FIRST name and a LAST name, in two fields, collected AT
+  REGISTRATION on both native routes, before the account is created.** Two parts, not one free-text
+  name: a delivery label, an order confirmation and a support conversation all need the parts, and a
+  single name cannot be split back into them reliably (ask anyone with two surnames, or one name).
+  They map 1:1 onto the identity provider's standard given-name / family-name attributes, so they
+  travel with the verified identity rather than needing a bespoke field. A grocery order has to be handed to *someone*; a store
+  that knows a customer's email but not their name has to ask again at the worst possible moment —
+  mid-checkout. Asking once, up front, costs one field and removes a later interruption.
+
+  **Consequence**: `display_name` stops being an afterthought a customer may fill in later on the
+  account page (FR-026) and becomes **part of the identity captured at sign-up** (FR-009a). It stays
+  **nullable in the data model**, because the *federated* route (Google, parked) supplies whatever
+  the provider gives us and may give us nothing — the platform must not invent a name it was not
+  told. So: *required of the customer at registration on the two native routes; nullable in storage.*
+
+- Q: The password route redirected the customer to sign-in after registering. Is that right? → A:
+  **No — that was a defect against the existing US2 acceptance scenario 1**, which already said "an
+  account is created, **and they are signed in**". Both native routes sign the customer in
+  automatically once the emailed code is confirmed. Making someone type the password they just chose,
+  ten seconds after choosing it, is a self-inflicted drop-off. Fixed in code, not by weakening the
+  spec.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A stranger finds the store and browses it with no account (Priority: P1)
@@ -150,11 +175,16 @@ clearly enough to act on.
 
 **Acceptance Scenarios**:
 
-1. **Given** a visitor with no account, **When** they choose to register with an email address and a
-   password, **Then** their identity is verified, an account is created, and they are signed in.
-2. **Given** a visitor with no account, **When** they choose to register with only an email address,
-   **Then** a one-time code is sent to that address and, on submitting it correctly, an account is
-   created and they are signed in — with no password ever set.
+1. **Given** a visitor with no account, **When** they register with their **first name**, **last
+   name**, an email address, a password, and a confirmation of that password, **Then** their identity
+   is verified, an account is created **carrying both name parts**, and they are **signed in
+   automatically** — they are never asked to re-enter the password they just chose.
+1a. **Given** the password registration form, **When** the password and its confirmation do not match,
+   **Then** the customer is told so **before** the form is submitted, and no account is attempted.
+2. **Given** a visitor with no account, **When** they register with their **first name**, **last
+   name** and an email address only, **Then** a one-time code is sent to that address and, on
+   submitting it correctly, an account is created **carrying both name parts** and they are **signed
+   in automatically** — with no password ever set, and with **one** code, not two.
 3. **Given** a visitor with no account, **When** they choose to register with their Google account,
    **Then** they are taken to Google, and on returning successfully an account is created and they
    are signed in — with no password and no code.
@@ -244,7 +274,8 @@ credential.
    found and reused — repeated sign-ins never create a second record for the same person.
 3. **Given** a signed-in customer, **When** they open their account area, **Then** the storefront
    displays the details held in the platform's own record — not merely what their credential happens
-   to assert — and they can update the details that are theirs to change.
+   to assert — and they can update the details that are theirs to change (**their first and last
+   name**; never their email, which is an identity operation, and never their standing).
 4. **Given** a customer whose record the platform has marked as **barred**, **When** they present a
    completely valid credential, **Then** they are refused — the platform's record decides, and a
    valid credential never overrides it.
@@ -323,6 +354,17 @@ credential.
 - **FR-009**: A member of the public MUST be able to **register themselves** as a customer, with no
   invitation, provisioning, or approval step. The customer is the platform's first and only
   self-registering audience.
+- **FR-009a**: Registration MUST collect the customer's **first name and last name**, as **two
+  separate fields**, on both native routes (password and one-time code), **before the account is
+  created**, and the created account MUST carry both. A grocery order is handed to a person; a store
+  that must ask "who are you?" mid-checkout has asked too late.
+  *(Two parts, not one free-text name: the parts are what a delivery label and an order confirmation
+  need, and a single name cannot be reliably split back into them. The **federated** route supplies
+  whatever the provider asserts and may assert neither — the platform MUST NOT invent a name it was
+  not given, so both parts remain optional in storage.)*
+- **FR-009b**: On completing registration by **either** native route, the customer MUST be **signed in
+  automatically**. They MUST NOT be asked to re-enter a password they chose seconds earlier, nor to
+  request a second code.
 - **FR-010**: Registration and sign-in MUST be offered by **three routes**: (a) email and password,
   (b) a one-time code sent to an email address, with no password set, and (c) Google federated
   sign-in.
@@ -442,9 +484,11 @@ credential.
 - **SC-005**: **100%** of public pages carry a complete, accurate, page-specific machine-readable
   description (title, summary, canonical address, social preview), and the storefront publishes a
   valid page index and valid crawl directives.
-- **SC-006**: A new customer can **self-register and be signed in** by **each** of the three routes —
-  password, one-time code, and Google — with **no** invitation, provisioning, or approval, and each
-  route completes in **under 2 minutes**.
+- **SC-006**: A new customer can **self-register and be signed in** by **each** available route — with
+  **no** invitation, provisioning, or approval, and each route completes in **under 2 minutes**. On both
+  native routes the account is created **carrying the first and last name the customer gave**, and the
+  customer is **signed in automatically** — **zero** instances of being returned to a sign-in form to re-enter a
+  password they just set.
 - **SC-007**: A person who registers by one route and returns by another with the **same verified
   email** is recognised as **one customer**: the platform holds **exactly one** record for them, and
   **zero** duplicates — including when both routes are exercised **concurrently**.

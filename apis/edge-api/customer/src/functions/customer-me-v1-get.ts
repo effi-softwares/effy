@@ -57,11 +57,14 @@ export const handler = async (
     )
   }
 
-  // Cognito's `name` is optional and often absent (the OTP route never asks for one).
-  const name = claim(event, "name") ?? null
+  // Cognito STANDARD attributes, set at registration (FR-009a) and carried on the ID token.
+  // Nullable: a FEDERATED identity supplies whatever the provider asserts, and may assert neither —
+  // the platform must not invent a name it was never given.
+  const givenName = claim(event, "given_name") ?? null
+  const familyName = claim(event, "family_name") ?? null
 
   try {
-    const customer = await getOrCreateCustomer({ sub, email, name })
+    const customer = await getOrCreateCustomer({ sub, email, givenName, familyName })
     return json(200, customer, scope)
   } catch (err) {
     if (err instanceof CustomerBarredError) {

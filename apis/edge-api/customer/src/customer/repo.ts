@@ -33,33 +33,42 @@ import type { CustomerRow } from "./model"
 export async function upsertCustomer(input: {
   cognitoSub: string
   email: string
-  displayName: string | null
+  givenName: string | null
+  familyName: string | null
 }): Promise<CustomerRow> {
   const res = await query<CustomerRow>(
-    `INSERT INTO public.customer (cognito_sub, email, display_name)
-     VALUES ($1, $2, $3)
+    `INSERT INTO public.customer (cognito_sub, email, given_name, family_name)
+     VALUES ($1, $2, $3, $4)
      ON CONFLICT (cognito_sub) DO UPDATE
         SET email      = EXCLUDED.email,   -- the verified email can legitimately change at the IdP
             updated_at = now()
-            -- status: NEVER. See the warning above.
-     RETURNING id, cognito_sub, email, display_name, status, created_at, updated_at`,
-    [input.cognitoSub, input.email, input.displayName],
+            -- status:      NEVER. See the warning above.
+            -- given_name / family_name: NEVER either, and for a different reason. The name is
+            -- captured at registration and is then the CUSTOMER'S to change (FR-026). Refreshing it
+            -- from the token on every request would SILENTLY REVERT an edit made on the account page
+            -- the moment the customer loaded any other page — the token still carries whatever
+            -- Cognito was told at sign-up. The claim SEEDS the record once; the record is the
+            -- authority thereafter.
+     RETURNING id, cognito_sub, email, given_name, family_name, status, created_at, updated_at`,
+    [input.cognitoSub, input.email, input.givenName, input.familyName],
   )
   return res.rows[0]!
 }
 
 /** Update only what is the customer's to change (FR-026). */
-export async function updateDisplayName(
+export async function updateName(
   cognitoSub: string,
-  displayName: string | null,
+  givenName: string | null,
+  familyName: string | null,
 ): Promise<CustomerRow | null> {
   const res = await query<CustomerRow>(
     `UPDATE public.customer
-        SET display_name = $2,
-            updated_at   = now()
+        SET given_name  = $2,
+            family_name = $3,
+            updated_at  = now()
       WHERE cognito_sub = $1
-      RETURNING id, cognito_sub, email, display_name, status, created_at, updated_at`,
-    [cognitoSub, displayName],
+      RETURNING id, cognito_sub, email, given_name, family_name, status, created_at, updated_at`,
+    [cognitoSub, givenName, familyName],
   )
   return res.rows[0] ?? null
 }

@@ -27,6 +27,8 @@ const ID_TOKEN_RE = /^CognitoIdentityServiceProvider\..+\.idToken$/
 export interface ServerSession {
   sub: string
   email: string | null
+  /** First name, from the ID token's standard `given_name` claim. For the header greeting only. */
+  givenName: string | null
 }
 
 /** The signed-in customer, or null for a guest. Never throws — a guest is not an error. */
@@ -42,6 +44,7 @@ export async function readServerSession(): Promise<ServerSession | null> {
   return {
     sub: String(claims.sub),
     email: typeof claims.email === "string" ? claims.email : null,
+    givenName: typeof claims.given_name === "string" ? claims.given_name : null,
   }
 }
 

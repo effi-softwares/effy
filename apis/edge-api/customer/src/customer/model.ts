@@ -5,7 +5,8 @@ export interface CustomerRow {
   id: string
   cognito_sub: string
   email: string
-  display_name: string | null
+  given_name: string | null
+  family_name: string | null
   status: CustomerStatus
   created_at: Date
   updated_at: Date
@@ -22,7 +23,8 @@ export function toDTO(row: CustomerRow): CustomerDTO {
   return {
     id: row.id,
     email: row.email,
-    displayName: row.display_name,
+    givenName: row.given_name,
+    familyName: row.family_name,
     status: row.status,
     createdAt: row.created_at.toISOString(),
   }

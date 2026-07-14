@@ -19,15 +19,26 @@ import {
 type Step = "details" | "confirm"
 type Route = "otp" | "password"
 
+const MIN_PASSWORD = 8
+
 /**
  * Self-registration (FR-009) — the platform's first, and only, open sign-up.
  *
  * Every other audience on Effy is provisioned by staff. The customer walks up and creates an
  * account. That difference is why this surface exists in the shape it does.
  *
- * The DEFAULT is the passwordless route: type an email, get a code, you're in. A password is
- * offered for people who want one, but it is not the path of least resistance — the fewer
- * passwords the platform stores, the fewer it can lose.
+ * THE NAME IS COLLECTED HERE, BEFORE THE ACCOUNT EXISTS (FR-009a) — as FIRST and LAST name, mapping
+ * 1:1 onto Cognito's standard `given_name` / `family_name`. A grocery order gets handed to a person;
+ * a store that knows an email but not a name has to ask again at the worst possible moment —
+ * mid-checkout. Two fields now remove an interruption later.
+ *
+ * BOTH ROUTES SIGN THE CUSTOMER IN AUTOMATICALLY (FR-009b). Asking someone to re-type the password
+ * they chose ninety seconds ago, at the exact moment they have finally committed, is a self-inflicted
+ * drop-off.
+ *
+ * The DEFAULT is the passwordless route: name, email, code, done. A password is offered for people
+ * who want one, but it is not the path of least resistance — the fewer passwords the platform stores,
+ * the fewer it can lose.
  */
 export function SignUpForm() {
   const router = useRouter()
@@ -36,14 +47,15 @@ export function SignUpForm() {
 
   const [step, setStep] = useState<Step>("details")
   const [route, setRoute] = useState<Route>("otp")
+  const [given, setGiven] = useState("")
+  const [family, setFamily] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirm, setConfirm] = useState("")
   const [code, setCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  // Google is BUILT but PARKED: no Cognito hosted domain configured → no federation → no button.
-  // Offering it would be offering a door with no room behind it. See lib/auth-routes.ts.
   const showGoogle = googleEnabled()
 
   const run = (fn: () => Promise<void>) => {
@@ -56,6 +68,14 @@ export function SignUpForm() {
       }
     })
   }
+
+  /**
+   * Caught BEFORE the account is attempted (spec AS-1a). Telling someone their passwords don't match
+   * only after a round trip to Cognito — and after Cognito has already created the account with the
+   * first one — would be both slower and wrong.
+   */
+  const mismatch =
+    route === "password" && confirm.length > 0 && password !== confirm
 
   return (
     <div className="space-y-6">
@@ -86,14 +106,19 @@ export function SignUpForm() {
             run(async () => {
               const res = await confirmSignUpCode(email.trim(), code.trim())
 
-              // The OTP route chains registration → verification → session, so the customer types
-              // ONE code, not two.
+              // FR-009b — BOTH routes land the customer inside, signed in. `autoSignIn` was armed at
+              // sign-up, so confirming the code completes the session; there is no second code and no
+              // "now please sign in" detour.
               if (res.nextStep?.signUpStep === "COMPLETE_AUTO_SIGN_IN") {
                 await completeAutoSignIn()
               }
 
               capture({ name: "sign_up_completed", props: { route } })
-              router.replace(route === "otp" ? next : `/sign-in?next=${encodeURIComponent(next)}`)
+              if (next !== "/") {
+                capture({ name: "deferred_sign_in_resumed", props: { route } })
+              }
+
+              router.replace(next)
               router.refresh()
             })
           }}
@@ -111,25 +136,69 @@ export function SignUpForm() {
             required
           />
           <Submit pending={pending} label="Create account" testId="submit-confirm" />
+          <button
+            type="button"
+            className="w-full text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setStep("details")
+              setCode("")
+              setError(null)
+            }}
+          >
+            Go back
+          </button>
         </form>
       ) : (
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault()
+
+            if (route === "password" && password !== confirm) {
+              setError("Those passwords don't match.")
+              return
+            }
+
             run(async () => {
               capture({ name: "sign_up_started", props: { route } })
 
+              const name = { given: given.trim(), family: family.trim() }
+
               if (route === "password") {
-                await signUpWithPassword(email.trim(), password)
+                await signUpWithPassword(name, email.trim(), password)
               } else {
                 // No password. Not a blank one, not a random one — none. See auth-actions.ts.
-                await signUpWithOtp(email.trim())
+                await signUpWithOtp(name, email.trim())
               }
               setStep("confirm")
             })
           }}
         >
+          {/* FR-009a — asked once, up front, so nobody has to ask again at checkout.
+              TWO fields, mapping 1:1 onto Cognito's standard given_name / family_name. A delivery
+              label, an order confirmation and a support conversation all need the parts, and a
+              single free-text name cannot be split back into them reliably. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="First name"
+              id="givenName"
+              value={given}
+              onChange={setGiven}
+              autoComplete="given-name"
+              maxLength={60}
+              required
+            />
+            <Field
+              label="Last name"
+              id="familyName"
+              value={family}
+              onChange={setFamily}
+              autoComplete="family-name"
+              maxLength={60}
+              required
+            />
+          </div>
+
           <Field
             label="Email"
             id="email"
@@ -141,20 +210,42 @@ export function SignUpForm() {
           />
 
           {route === "password" && (
-            <Field
-              label="Password"
-              id="password"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="new-password"
-              minLength={8}
-              required
-            />
+            <>
+              <Field
+                label="Password"
+                id="password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD}
+                required
+              />
+              <Field
+                label="Confirm password"
+                id="confirm"
+                type="password"
+                value={confirm}
+                onChange={setConfirm}
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD}
+                required
+                aria-invalid={mismatch}
+              />
+              {mismatch && (
+                <p className="text-sm text-destructive" data-testid="password-mismatch">
+                  Those passwords don&apos;t match.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                At least {MIN_PASSWORD} characters, with upper and lower case letters and a number.
+              </p>
+            </>
           )}
 
           <Submit
             pending={pending}
+            disabled={mismatch}
             label={route === "password" ? "Create account" : "Email me a code"}
             testId={route === "password" ? "submit-password" : "submit-email"}
           />
@@ -165,6 +256,8 @@ export function SignUpForm() {
             className="w-full text-sm text-muted-foreground hover:text-foreground"
             onClick={() => {
               setRoute(route === "password" ? "otp" : "password")
+              setPassword("")
+              setConfirm("")
               setError(null)
             }}
           >
@@ -243,15 +336,17 @@ function Submit({
   pending,
   label,
   testId,
+  disabled,
 }: {
   pending: boolean
   label: string
   testId: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       data-testid={testId}
       className="h-11 w-full rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
     >

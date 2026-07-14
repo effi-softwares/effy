@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("./repo", () => ({
   upsertCustomer: vi.fn(),
-  updateDisplayName: vi.fn(),
+  updateName: vi.fn(),
 }))
 
-import { upsertCustomer, updateDisplayName } from "./repo"
+import { upsertCustomer, updateName } from "./repo"
 import {
   CustomerBarredError,
   CustomerNotFoundError,
@@ -19,14 +19,20 @@ const row = (over: Partial<CustomerRow> = {}): CustomerRow => ({
   id: "c-1",
   cognito_sub: "sub-1",
   email: "shopper@example.com",
-  display_name: "Janith",
+  given_name: "Janith",
+  family_name: "Madarasinghe",
   status: "active",
   created_at: new Date("2026-07-14T00:00:00Z"),
   updated_at: new Date("2026-07-14T00:00:00Z"),
   ...over,
 })
 
-const identity = { sub: "sub-1", email: "shopper@example.com", name: "Janith" }
+const identity = {
+  sub: "sub-1",
+  email: "shopper@example.com",
+  givenName: "Janith",
+  familyName: "Madarasinghe",
+}
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -40,7 +46,8 @@ describe("getOrCreateCustomer", () => {
     expect(dto).toEqual({
       id: "c-1",
       email: "shopper@example.com",
-      displayName: "Janith",
+      givenName: "Janith",
+      familyName: "Madarasinghe",
       status: "active",
       createdAt: "2026-07-14T00:00:00.000Z",
     })
@@ -71,41 +78,56 @@ describe("getOrCreateCustomer", () => {
     expect(upsertCustomer).toHaveBeenCalledWith({
       cognitoSub: "sub-1",
       email: "shopper@example.com",
-      displayName: "Janith",
+      givenName: "Janith",
+      familyName: "Madarasinghe",
     })
   })
 
-  it("tolerates a customer with no name (the OTP route never asks for one)", async () => {
-    vi.mocked(upsertCustomer).mockResolvedValue(row({ display_name: null }))
+  it("tolerates a customer with no name — a FEDERATED identity may supply neither", async () => {
+    // The platform must not invent a name it was never given.
+    vi.mocked(upsertCustomer).mockResolvedValue(
+      row({ given_name: null, family_name: null }),
+    )
 
-    const dto = await getOrCreateCustomer({ ...identity, name: null })
-    expect(dto.displayName).toBeNull()
+    const dto = await getOrCreateCustomer({
+      ...identity,
+      givenName: null,
+      familyName: null,
+    })
+    expect(dto.givenName).toBeNull()
+    expect(dto.familyName).toBeNull()
   })
 })
 
 describe("updateCustomerProfile", () => {
-  it("updates the display name", async () => {
-    vi.mocked(updateDisplayName).mockResolvedValue(row({ display_name: "Janith M" }))
+  it("updates both name parts", async () => {
+    vi.mocked(updateName).mockResolvedValue(
+      row({ given_name: "Jan", family_name: "M" }),
+    )
 
-    const dto = await updateCustomerProfile("sub-1", { displayName: "Janith M" })
+    const dto = await updateCustomerProfile("sub-1", {
+      givenName: "Jan",
+      familyName: "M",
+    })
 
-    expect(dto.displayName).toBe("Janith M")
-    expect(updateDisplayName).toHaveBeenCalledWith("sub-1", "Janith M")
+    expect(dto.givenName).toBe("Jan")
+    expect(dto.familyName).toBe("M")
+    expect(updateName).toHaveBeenCalledWith("sub-1", "Jan", "M")
   })
 
   it("REFUSES a barred customer", async () => {
-    vi.mocked(updateDisplayName).mockResolvedValue(row({ status: "barred" }))
+    vi.mocked(updateName).mockResolvedValue(row({ status: "barred" }))
 
     await expect(
-      updateCustomerProfile("sub-1", { displayName: "x" }),
+      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y" }),
     ).rejects.toBeInstanceOf(CustomerBarredError)
   })
 
   it("fails closed when there is no record", async () => {
-    vi.mocked(updateDisplayName).mockResolvedValue(null)
+    vi.mocked(updateName).mockResolvedValue(null)
 
     await expect(
-      updateCustomerProfile("sub-1", { displayName: "x" }),
+      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y" }),
     ).rejects.toBeInstanceOf(CustomerNotFoundError)
   })
 })

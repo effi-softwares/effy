@@ -18,7 +18,8 @@ accounts and audit.
 | `id` | `uuid` PK, default `gen_random_uuid()` | The platform's own identifier. |
 | `cognito_sub` | `text` **UNIQUE NOT NULL** | The join key. **Survives account linking** — see below. |
 | `email` | `citext` **UNIQUE NOT NULL** | The verified email. `citext` because email is case-insensitive in practice and `username_attributes = ["email"]` treats it so. |
-| `display_name` | `text` NULL | Customer-maintainable (FR-026). Nullable: the OTP route never asks for it. |
+| `given_name` | `text` NULL | First name. **Captured at registration** (FR-009a); customer-maintainable thereafter (FR-026). Maps 1:1 onto Cognito's standard `given_name`, so it rides on the ID token with no custom claim. |
+| `family_name` | `text` NULL | Last name. Same as above. **Two columns, not one**: a delivery label and an order confirmation need the parts, and a free-text name cannot be split back into them reliably. **Both nullable**: the *federated* route supplies whatever the provider asserts and may assert neither — the platform must not invent a name it was not given. |
 | `status` | `text NOT NULL DEFAULT 'active'` | `CHECK (status IN ('active','barred'))`. **Platform-owned.** |
 | `created_at` | `timestamptz NOT NULL DEFAULT now()` | |
 | `updated_at` | `timestamptz NOT NULL DEFAULT now()` | |
@@ -83,6 +84,18 @@ RETURNING id, cognito_sub, email, display_name, status, created_at, updated_at;
 
 `ON CONFLICT` makes it **safe under concurrent sign-ins** (SC-007, SC-010) — two simultaneous first
 requests produce one row, not a duplicate or a crash.
+
+⚠ **`given_name` / `family_name` are deliberately absent from the `DO UPDATE` set too, and for a
+different reason than `status`.** The name is captured at registration and is then **the customer's to
+change** (FR-026). If the upsert refreshed it from the token on every request, a customer who renamed
+themselves on the account page would have that edit **silently reverted on their next page load** —
+the token still carries whatever Cognito was told at sign-up. The record is the authority; the claim
+seeds it once and never overwrites it. (There is a guard test asserting exactly this.)
+
+**Amended 2026-07-15** (migration `20260715090000_customer_name_parts.sql`): `display_name` was
+replaced by `given_name` + `family_name`. Forward-only, per the constitution — the original migration
+was already applied, so it is history and is corrected by a new one, never rewritten. Safe to drop the
+column because `public.customer` was **empty** (verified: 0 rows) — nobody had completed a sign-up.
 
 ⚠ **`status` is deliberately absent from the `DO UPDATE` set.** A barred customer signing in again must
 **not** be silently reset to active by their own sign-in. This is the single most important line in the

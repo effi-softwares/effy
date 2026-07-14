@@ -22,11 +22,30 @@ import type { CredentialRoute } from "@effy/shared-types"
 
 // ── Route (a): email + password ────────────────────────────────────────────────────────────────
 
-export async function signUpWithPassword(email: string, password: string) {
+/**
+ * ⚠ `autoSignIn` is not a nicety — it is FR-009b.
+ *
+ * Without it, Cognito confirms the account and leaves the customer at a sign-in form, being asked to
+ * type the password they chose ninety seconds ago. That is a self-inflicted drop-off at the exact
+ * moment the customer has finally committed, and it was a defect against the spec's own acceptance
+ * scenario ("an account is created, AND THEY ARE SIGNED IN").
+ */
+export async function signUpWithPassword(
+  name: { given: string; family: string },
+  email: string,
+  password: string,
+) {
   return signUp({
     username: email,
     password,
-    options: { userAttributes: { email } },
+    options: {
+      // `given_name` / `family_name` are STANDARD Cognito attributes, so they ride on the ID token
+      // with no custom claim and the backend stores them on the first authenticated request
+      // (FR-009a). Two fields, not one: a delivery label needs the parts, and a single free-text
+      // name cannot be split back into them reliably.
+      userAttributes: { email, given_name: name.given, family_name: name.family },
+      autoSignIn: true,
+    },
   })
 }
 
@@ -57,11 +76,14 @@ export async function signInWithPassword(email: string, password: string) {
  * `autoSignIn` then chains registration → verification → session, so the customer types ONE code
  * rather than two.
  */
-export async function signUpWithOtp(email: string) {
+export async function signUpWithOtp(
+  name: { given: string; family: string },
+  email: string,
+) {
   return signUp({
     username: email,
     options: {
-      userAttributes: { email },
+      userAttributes: { email, given_name: name.given, family_name: name.family },
       autoSignIn: { authFlowType: "USER_AUTH" },
     },
   })

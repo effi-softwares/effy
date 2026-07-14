@@ -4,8 +4,15 @@ import { useState, useTransition } from "react"
 
 import { updateProfile } from "./actions"
 
-export function ProfileForm({ displayName }: { displayName: string | null }) {
-  const [name, setName] = useState(displayName ?? "")
+export function ProfileForm({
+  givenName,
+  familyName,
+}: {
+  givenName: string | null
+  familyName: string | null
+}) {
+  const [given, setGiven] = useState(givenName ?? "")
+  const [family, setFamily] = useState(familyName ?? "")
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null)
   const [pending, start] = useTransition()
 
@@ -16,7 +23,10 @@ export function ProfileForm({ displayName }: { displayName: string | null }) {
         e.preventDefault()
         setStatus(null)
         start(async () => {
-          const res = await updateProfile({ displayName: name })
+          const res = await updateProfile({
+            givenName: given,
+            familyName: family,
+          })
           setStatus(
             res.ok
               ? { ok: true, msg: "Saved." }
@@ -25,23 +35,38 @@ export function ProfileForm({ displayName }: { displayName: string | null }) {
         })
       }}
     >
-      <div className="space-y-2">
-        <label htmlFor="displayName" className="text-sm font-medium">
-          Display name
-        </label>
-        <input
-          id="displayName"
-          name="displayName"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          maxLength={120}
-          data-testid="display-name"
-          className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-        <p className="text-xs text-muted-foreground">
-          What we call you around the store. Optional.
-        </p>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <label htmlFor="givenName" className="text-sm font-medium">
+            First name
+          </label>
+          <input
+            id="givenName"
+            name="givenName"
+            value={given}
+            onChange={(e) => setGiven(e.target.value)}
+            maxLength={60}
+            data-testid="given-name"
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="familyName" className="text-sm font-medium">
+            Last name
+          </label>
+          <input
+            id="familyName"
+            name="familyName"
+            value={family}
+            onChange={(e) => setFamily(e.target.value)}
+            maxLength={60}
+            data-testid="family-name"
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
       </div>
+      {/* The EMAIL is deliberately not here. Changing it is an identity operation, not a profile
+          edit — and Cognito will not move the sign-in identity until the NEW address is verified. */}
 
       {status && (
         <p

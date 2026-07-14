@@ -131,8 +131,43 @@ variable "pre_sign_up_lambda_arn" {
   default     = null
 }
 
-variable "unwritable_attributes" {
-  description = "Attributes the app client may NOT write. `email` belongs here on the customer pool: a signed-in user who can rewrite their own email can walk onto another customer's record (the well-known Cognito takeover)."
+variable "writable_attributes" {
+  description = <<-EOT
+    Standard attributes the app client may write. Set EXPLICITLY, never left implicit.
+
+    ⚠ Leaving it unset does NOT mean "all writable" on an existing client — the provider treats the
+    value as computed and simply KEEPS whatever is already there. So a bad value, once applied,
+    cannot be undone by deleting the argument; it has to be overwritten. That is precisely how a
+    mistaken `write_attributes` that excluded `email` survived a plan that appeared to remove it.
+
+    `email` MUST be present: `SignUp` passes it (it is the username attribute), and Cognito refuses
+    any attribute the client cannot write. Excluding it makes REGISTRATION IMPOSSIBLE. The
+    email-swap takeover is locked by `require_verification_before_update`, not by this.
+  EOT
+  type        = list(string)
+  default     = null
+}
+
+variable "require_verification_before_update" {
+  description = <<-EOT
+    Attributes a user may change only by PROVING they own the new value. `["email"]` on the customer
+    pool.
+
+    ⚠ THIS REPLACED A BROKEN MITIGATION, AND THE REASON MATTERS.
+
+    The threat is real: a signed-in customer who can silently rewrite their own email to a victim's
+    address is the well-known Cognito account-takeover. The first attempt at blocking it removed
+    `email` from the app client's `write_attributes` — which does stop the swap, and ALSO STOPS
+    SIGN-UP: `SignUp` passes `email` as a user attribute (it is the username attribute), and Cognito
+    refuses any attribute the client cannot write. It would have made registration impossible — the
+    entire point of the surface — to close a hole that AWS provides a purpose-built lock for.
+
+    This is that lock. The customer may still request an email change; Cognito sends a code to the
+    NEW address and does not switch the sign-in identity until that code is confirmed. The attacker
+    never controls the victim's inbox, so the swap never completes.
+
+    Defence in depth remains: Effy keys `public.customer` on `sub`, never on email.
+  EOT
   type        = list(string)
   default     = []
 }

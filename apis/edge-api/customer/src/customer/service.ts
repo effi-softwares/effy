@@ -1,7 +1,7 @@
 import type { CustomerDTO } from "@effy/shared-types"
 
 import { toDTO, type CustomerRow } from "./model"
-import { updateDisplayName, upsertCustomer } from "./repo"
+import { updateName, upsertCustomer } from "./repo"
 
 /** A barred customer. Distinguished from every other failure so the handler can answer 403. */
 export class CustomerBarredError extends Error {
@@ -43,12 +43,14 @@ function assertActive(row: CustomerRow): void {
 export async function getOrCreateCustomer(identity: {
   sub: string
   email: string
-  name: string | null
+  givenName: string | null
+  familyName: string | null
 }): Promise<CustomerDTO> {
   const row = await upsertCustomer({
     cognitoSub: identity.sub,
     email: identity.email,
-    displayName: identity.name,
+    givenName: identity.givenName,
+    familyName: identity.familyName,
   })
 
   assertActive(row)
@@ -58,9 +60,9 @@ export async function getOrCreateCustomer(identity: {
 /** The customer maintains what is theirs to change (FR-026) — and only that. */
 export async function updateCustomerProfile(
   cognitoSub: string,
-  input: { displayName: string | null },
+  input: { givenName: string | null; familyName: string | null },
 ): Promise<CustomerDTO> {
-  const row = await updateDisplayName(cognitoSub, input.displayName)
+  const row = await updateName(cognitoSub, input.givenName, input.familyName)
   if (!row) throw new CustomerNotFoundError()
 
   // A barred customer may not edit their profile either.

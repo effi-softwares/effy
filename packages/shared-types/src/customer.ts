@@ -24,9 +24,23 @@ export type CustomerStatus = "active" | "barred";
  */
 export interface CustomerDTO {
   id: string;
-  /** The verified email. It is the identity key across all three credential routes. */
+  /** The verified email. It is the identity key across every credential route. */
   email: string;
-  displayName: string | null;
+
+  /**
+   * First and last name, captured AT REGISTRATION (FR-009a) and mapped 1:1 onto Cognito's standard
+   * `given_name` / `family_name` attributes — so they ride on the ID token with no custom claim.
+   *
+   * Two fields, not one: a delivery label, an order confirmation and a support conversation all need
+   * the parts, and a single free-text name cannot be split back into them reliably (ask anyone with
+   * two surnames, or one name). Captured at source; never inferred.
+   *
+   * Nullable because the FEDERATED route supplies whatever the provider asserts, and may assert
+   * neither. The platform must not invent a name it was never given.
+   */
+  givenName: string | null;
+  familyName: string | null;
+
   status: CustomerStatus;
   createdAt: string;
 }
@@ -39,7 +53,8 @@ export interface CustomerDTO {
  * takeover). `status` is absent because it is platform-owned.
  */
 export interface UpdateCustomerDTO {
-  displayName: string | null;
+  givenName: string | null;
+  familyName: string | null;
 }
 
 /** How a customer proved who they are. Telemetry + UI only — never an authorization input. */

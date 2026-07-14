@@ -68,11 +68,22 @@ module "customer_pool" {
   # replaced", and you cannot audit a diff that redacts what is changing.
   google_client_secret = var.customer_google_enabled ? data.aws_ssm_parameter.google_client_secret[0].value : null
 
-  # ⚠ SECURITY — `email` MUST NOT be writable by the app client. A signed-in customer who can
-  # rewrite their own email can point it at a victim's address: the well-known Cognito
-  # account-takeover. Effy keys its record on `sub`, which blunts it; the attribute is closed
-  # anyway. Defence in depth, not either/or.
-  unwritable_attributes = ["email"]
+  # ⚠ `email` IS IN THIS LIST DELIBERATELY. `SignUp` passes it (it is the username attribute) and
+  # Cognito refuses any attribute the client cannot write — excluding it blocks the email-swap
+  # takeover AND blocks REGISTRATION. It was tried; it made sign-up impossible.
+  #
+  # `name` is here because registration collects it (FR-009a).
+  writable_attributes = [
+    "address", "birthdate", "email", "family_name", "gender", "given_name", "locale",
+    "middle_name", "name", "nickname", "phone_number", "picture", "preferred_username",
+    "profile", "updated_at", "website", "zoneinfo",
+  ]
+
+  # ⚠ SECURITY — the email-swap takeover, LOCKED. A signed-in customer who can silently rewrite
+  # their own email to a victim's address owns that account. Cognito's purpose-built lock: the change
+  # is accepted, but a code goes to the NEW address and the sign-in identity does not move until it
+  # is confirmed. The attacker never holds the victim's inbox, so the swap never completes.
+  require_verification_before_update = ["email"]
 
   # THE ACCOUNT-LINKING TRIGGER (FR-011/FR-012).
   #

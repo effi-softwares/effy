@@ -61,7 +61,7 @@ async function AccountDetails() {
       {/* The email is deliberately NOT editable. Changing it is an identity operation, not a
           profile edit — a customer who can rewrite their own email can point it at someone else's.
           The Cognito app client refuses the write too; this is defence in depth, not either/or. */}
-      <ProfileForm displayName={customer.displayName} />
+      <ProfileForm givenName={customer.givenName} familyName={customer.familyName} />
     </>
   )
 }

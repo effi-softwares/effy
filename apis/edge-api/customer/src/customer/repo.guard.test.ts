@@ -58,6 +58,19 @@ describe("upsert SQL guard (FR-025)", () => {
     ).toBe(false)
   })
 
+  it("does NOT overwrite the customer's NAME on conflict either", () => {
+    // Different reason from `status`, same shape of bug: the name is captured at registration and is
+    // then the CUSTOMER'S to change (FR-026). Refreshing it from the token on every request would
+    // SILENTLY REVERT an edit made on the account page the moment they loaded any other page — the
+    // token still carries whatever Cognito was told at sign-up.
+    const doUpdate = /DO UPDATE([\s\S]*?)RETURNING/i.exec(sql)?.[1] ?? ""
+
+    expect(
+      /\bgiven_name\b\s*=/.test(doUpdate) || /\bfamily_name\b\s*=/.test(doUpdate),
+      "the upsert assigns the customer's name on conflict — a profile edit would be silently reverted on their next page load",
+    ).toBe(false)
+  })
+
   it("still refreshes the email, which legitimately changes at the IdP", () => {
     const doUpdate = /DO UPDATE([\s\S]*?)RETURNING/i.exec(sql)?.[1] ?? ""
     expect(/\bemail\b\s*=/.test(doUpdate)).toBe(true)

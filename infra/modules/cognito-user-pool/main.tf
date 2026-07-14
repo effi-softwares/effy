@@ -39,6 +39,23 @@ resource "aws_cognito_user_pool" "this" {
     allowed_first_auth_factors = concat(var.allowed_first_auth_factors, ["PASSWORD"])
   }
 
+  # ⚠ THE EMAIL-SWAP TAKEOVER, LOCKED (customer pool).
+  #
+  # A signed-in customer who can silently rewrite their own email to a victim's address is the
+  # well-known Cognito account-takeover. This is AWS's purpose-built lock: the change is accepted,
+  # but Cognito emails a code to the NEW address and does NOT switch the sign-in identity until that
+  # code is confirmed. The attacker never controls the victim's inbox, so the swap never completes.
+  #
+  # (The earlier attempt — removing `email` from the client's write_attributes — also blocked the
+  # swap, and ALSO BLOCKED SIGN-UP: `SignUp` passes `email`, and Cognito refuses any attribute the
+  # client cannot write. It made registration impossible in order to close a hole that has a lock.)
+  dynamic "user_attribute_update_settings" {
+    for_each = length(var.require_verification_before_update) == 0 ? [] : [1]
+    content {
+      attributes_require_verification_before_update = var.require_verification_before_update
+    }
+  }
+
   # OTP is the first factor, not a second one (data-model.md E3).
   # ⚠ Cognito forbids MFA together with passwordless — do not turn this on.
   mfa_configuration = "OFF"
@@ -193,6 +210,11 @@ resource "aws_cognito_user_pool_client" "this" {
   # Don't leak whether an email is registered.
   prevent_user_existence_errors = "ENABLED"
 
+  # ⚠ EXPLICIT, on purpose. Leaving this unset does not reset it — the provider keeps whatever the
+  # client already has, so a bad value survives its own removal. `email` MUST be in the list or
+  # SIGN-UP BREAKS (Cognito refuses attributes the client cannot write, and SignUp passes email).
+  write_attributes = var.writable_attributes
+
   # Google is added here for the customer pool ONLY. There is NO pure-SDK federation path — Cognito
   # federation is an OAuth redirect through the hosted domain above (research D15).
   #
@@ -208,17 +230,6 @@ resource "aws_cognito_user_pool_client" "this" {
   # Authorization-code + PKCE. A public client has no secret, so the implicit flow is never offered.
   allowed_oauth_flows  = var.google == null ? null : ["code"]
   allowed_oauth_scopes = var.google == null ? null : var.google.scopes
-
-  # ⚠ SECURITY: `email` MUST NOT be writable by the customer pool's client. A signed-in user who
-  # can rewrite their own email can point it at a victim's address — the well-known Cognito
-  # account-takeover. Effy keys its record on `sub`, which blunts it, but the attribute is closed
-  # anyway. Omitting write_attributes entirely means "all writable", so this is not optional.
-  write_attributes = length(var.unwritable_attributes) == 0 ? null : setsubtract(
-    ["address", "birthdate", "email", "family_name", "gender", "given_name", "locale",
-      "middle_name", "name", "nickname", "phone_number", "picture", "preferred_username",
-    "profile", "updated_at", "website", "zoneinfo"],
-    var.unwritable_attributes,
-  )
 
   callback_urls = length(var.callback_urls) > 0 ? var.callback_urls : null
   logout_urls   = length(var.logout_urls) > 0 ? var.logout_urls : null

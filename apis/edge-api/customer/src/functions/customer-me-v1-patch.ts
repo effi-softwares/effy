@@ -17,23 +17,22 @@ import {
   updateCustomerProfile,
 } from "../customer/service"
 
-const MAX_NAME = 120
+const MAX_NAME = 60
 
 /**
  * PATCH /customer/v1/me — the customer maintains their own details (FR-026).
  *
- * ⚠ `displayName` IS THE ONLY WRITABLE FIELD, and the omissions are deliberate:
+ * ⚠ `givenName` and `familyName` ARE THE ONLY WRITABLE FIELDS, and the omissions are deliberate:
  *
  *   • `email`  — changing it is an IDENTITY operation, not a profile edit. A customer who can
- *                rewrite their own email can point it at a victim's address; that is the
- *                well-known Cognito takeover, and it is why the app client also forbids writing
- *                the attribute. Email changes, if they are ever offered, need re-verification and
- *                a slice of their own.
- *   • `status` — platform-owned (FR-025). Letting a customer PATCH their own status would let a
- *                barred customer un-ban themselves in one request.
+ *                rewrite their own email can point it at a victim's address; that is the well-known
+ *                Cognito takeover. It is locked in Cognito by requiring verification of the NEW
+ *                address before the sign-in identity moves, and it is simply not accepted here.
+ *   • `status` — platform-owned (FR-025). Accepting it would let a barred customer un-ban themselves
+ *                in a single request.
  *   • `id` / `cognito_sub` — identity keys. Not data.
  *
- * Anything not listed above is IGNORED, not rejected: the update statement names its columns
+ * Anything not listed above is IGNORED rather than rejected: the UPDATE names its columns
  * explicitly, so an unexpected field in the body can never reach the database.
  */
 export const handler = async (
@@ -53,7 +52,7 @@ export const handler = async (
     )
   }
 
-  const body = parseJsonBody<{ displayName?: unknown }>(event.body)
+  const body = parseJsonBody<{ givenName?: unknown; familyName?: unknown }>(event.body)
   if (body.errors.length > 0 || !body.value) {
     return problem(
       400,
@@ -64,31 +63,23 @@ export const handler = async (
     )
   }
 
-  const raw = body.value.displayName
-  if (raw !== null && typeof raw !== "string") {
-    return problem(
-      400,
-      ProblemType.ValidationFailed,
-      "Invalid request",
-      "displayName must be a string, or null to clear it",
-      scope,
-    )
-  }
+  const given = normalise(body.value.givenName)
+  const family = normalise(body.value.familyName)
 
-  const displayName = raw === null ? null : raw.trim()
-  if (displayName !== null && displayName.length > MAX_NAME) {
+  if (given.error || family.error) {
     return problem(
       400,
       ProblemType.ValidationFailed,
       "Invalid request",
-      `displayName must be ${MAX_NAME} characters or fewer`,
+      `givenName and familyName must be strings of ${MAX_NAME} characters or fewer, or null to clear`,
       scope,
     )
   }
 
   try {
     const customer = await updateCustomerProfile(sub, {
-      displayName: displayName === "" ? null : displayName,
+      givenName: given.value,
+      familyName: family.value,
     })
     return json(200, customer, scope)
   } catch (err) {
@@ -103,7 +94,7 @@ export const handler = async (
       )
     }
     if (err instanceof CustomerNotFoundError) {
-      // They hold a valid token but have no record — they have never completed a GET /me.
+      // A valid token, but no record — they have never completed a GET /me.
       return problem(
         403,
         ProblemType.Forbidden,
@@ -115,4 +106,14 @@ export const handler = async (
     scope.log.error({ err, sub }, "profile update failed")
     return unavailable(scope)
   }
+}
+
+/** `null` clears the field; a string is trimmed; an empty string means "cleared". */
+function normalise(raw: unknown): { value: string | null; error?: true } {
+  if (raw === null || raw === undefined) return { value: null }
+  if (typeof raw !== "string") return { value: null, error: true }
+
+  const trimmed = raw.trim()
+  if (trimmed.length > MAX_NAME) return { value: null, error: true }
+  return { value: trimmed === "" ? null : trimmed }
 }

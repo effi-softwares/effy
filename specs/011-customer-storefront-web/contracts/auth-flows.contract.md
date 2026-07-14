@@ -22,13 +22,29 @@ self-signup. Their app clients keep `ALLOW_USER_AUTH` only.
 
 ## Route (a) — Email + password
 
+The form collects **name · email · password · confirm password** (FR-009a). The mismatch is caught
+client-side, before an account is attempted.
+
 ```ts
-// sign-up
-await signUp({ username: email, password, options: { userAttributes: { email } } })
-await confirmSignUp({ username: email, confirmationCode })   // code to the verified email
-// sign-in — SRP: the password never goes on the wire
+// sign-up — `name` is a standard Cognito attribute, so it rides on the ID token and the backend
+// stores it as the customer's display name on their first authenticated request.
+await signUp({
+  username: email,
+  password,
+  options: { userAttributes: { email, name }, autoSignIn: true },   // ← autoSignIn is FR-009b
+})
+await confirmSignUp({ username: email, confirmationCode })
+await autoSignIn()                       // → signed in. NOT bounced back to a sign-in form.
+
+// later sign-in — SRP: the password never goes on the wire
 await signIn({ username: email, password, options: { authFlowType: 'USER_SRP_AUTH' } })
 ```
+
+⚠ **`email` must remain WRITABLE on the app client.** `SignUp` passes it (it is the username
+attribute) and Cognito refuses any attribute the client cannot write — removing it from
+`write_attributes` blocks the email-swap takeover *and blocks registration*. The takeover is locked
+instead with `attributes_require_verification_before_update = ["email"]`: the change is accepted, but
+a code goes to the **new** address and the sign-in identity does not move until it is confirmed.
 
 Recovery (FR-014): `resetPassword` → code to the verified email → `confirmResetPassword`.
 

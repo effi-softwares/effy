@@ -18,8 +18,8 @@ import { getSession } from "@/lib/dal"
  * ran. It does not accept a customer id from the caller either — the identity comes from the token,
  * never from the request body.
  *
- * The backend then enforces what is actually writable: `displayName` only. `email` is an identity
- * operation (and an account-takeover vector), `status` is platform-owned.
+ * The backend then enforces what is actually writable: `givenName` / `familyName` only. `email` is
+ * an identity operation (and an account-takeover vector), `status` is platform-owned.
  */
 export async function updateProfile(
   input: UpdateCustomerDTO,
@@ -27,16 +27,17 @@ export async function updateProfile(
   const session = await getSession()
   if (!session) return { ok: false, error: "Please sign in again." }
 
-  const displayName = input.displayName?.trim() || null
+  const givenName = input.givenName?.trim() || null
+  const familyName = input.familyName?.trim() || null
 
-  if (displayName !== null && displayName.length > 120) {
+  if ((givenName?.length ?? 0) > 60 || (familyName?.length ?? 0) > 60) {
     return { ok: false, error: "That name is too long." }
   }
 
   try {
     const customer = await edgeApi(session.idToken).patch<CustomerDTO>(
       "/customer/v1/me",
-      { displayName } satisfies UpdateCustomerDTO,
+      { givenName, familyName } satisfies UpdateCustomerDTO,
       perCustomer,
     )
 

@@ -122,6 +122,38 @@ test.describe("the credential routes on offer", () => {
     await expect(page.getByTestId("submit-password")).toBeVisible()
   })
 
+  test("sign-up asks for FIRST and LAST name on both routes (FR-009a)", async ({ page }) => {
+    await page.goto("/sign-up")
+
+    // A grocery order gets handed to a person. Asking at checkout is asking too late.
+    // Two fields, mapping onto the identity provider's standard given/family name attributes — a
+    // single free-text name cannot be split back into the parts a delivery label needs.
+    await expect(page.getByLabel("First name")).toBeVisible()
+    await expect(page.getByLabel("Last name")).toBeVisible()
+
+    await page.getByTestId("toggle-route").click()
+    await expect(page.getByLabel("First name")).toBeVisible()
+    await expect(page.getByLabel("Last name")).toBeVisible()
+  })
+
+  test("the password route confirms the password, and catches a mismatch BEFORE submitting", async ({
+    page,
+  }) => {
+    await page.goto("/sign-up")
+    await page.getByTestId("toggle-route").click()
+
+    await page.getByLabel("First name").fill("Janith")
+    await page.getByLabel("Last name").fill("Madarasinghe")
+    await page.getByLabel("Email").fill("mismatch@example.com")
+    await page.getByLabel("Password", { exact: true }).fill("Password123")
+    await page.getByLabel("Confirm password").fill("Password124")
+
+    // Caught client-side: no account is attempted, so Cognito never creates one with the first
+    // password and then tells us the second didn't match.
+    await expect(page.getByTestId("password-mismatch")).toBeVisible()
+    await expect(page.getByTestId("submit-password")).toBeDisabled()
+  })
+
   test("Google is PARKED — not offered, and not offered-but-broken", async ({ page }) => {
     for (const path of ["/sign-in", "/sign-up"]) {
       await page.goto(path)
