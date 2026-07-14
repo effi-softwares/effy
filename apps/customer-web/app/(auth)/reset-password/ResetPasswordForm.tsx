@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 
-import { authErrorMessage, finishPasswordReset, startPasswordReset } from "../_lib/auth-actions"
+import { authErrorMessage, startPasswordReset } from "../_lib/auth-actions"
+// 012 FR-022b — a SERVER ACTION, not an Amplify call. The backend screens the new password against
+// breach corpora (which the browser cannot be trusted to do) and records that a password now exists
+// (which Cognito cannot be asked). See _lib/recovery-actions.ts.
+import { finishPasswordReset } from "../_lib/recovery-actions"
 
 /**
  * Password recovery (FR-014) — regain access by proving control of the verified email.
@@ -57,7 +61,11 @@ export function ResetPasswordForm() {
           onSubmit={(e) => {
             e.preventDefault()
             run(async () => {
-              await finishPasswordReset(email.trim(), code.trim(), password)
+              const res = await finishPasswordReset(email.trim(), code.trim(), password)
+              // ⚠ A Server Action RETURNS its failure rather than throwing it across the boundary. The
+              // backend's message is already safe to show: it collapses "wrong code" / "expired" / "no
+              // such customer" into one, so it cannot be used to discover who shops at Effy.
+              if (!res.ok) throw new Error(res.error)
               router.replace("/sign-in")
             })
           }}

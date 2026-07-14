@@ -32,5 +32,20 @@ export function edgeApi(session: { idToken: string; accessToken?: string | null 
   })
 }
 
+/**
+ * An ANONYMOUS edge client, for the one route that has no session: account recovery (012 FR-022b).
+ *
+ * ⚠ There is exactly one legitimate caller — `POST /customer/v1/password/reset-confirm`. A customer
+ * completing "forgot password" has, by definition, no way in; they prove the INBOX instead, and Cognito
+ * checks the emailed code. The backend route is public for the same reason.
+ *
+ * ⚠ IT MUST BE CALLED FROM THE SERVER. `EDGE_API_BASE_URL` deliberately carries no `NEXT_PUBLIC_`
+ * prefix — the browser never learns the backend's address. So recovery goes through a Server Action,
+ * not a client-side fetch.
+ */
+export function edgeApiPublic() {
+  return new ServerApiClient({ baseUrl: edgeApiBaseUrl(), token: null })
+}
+
 /** Account data is per-customer: it must never be cached, and never prerendered. */
 export const perCustomer: RequestInit = { cache: "no-store" }

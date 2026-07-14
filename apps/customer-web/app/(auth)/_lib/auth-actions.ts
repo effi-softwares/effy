@@ -149,39 +149,17 @@ export async function startPasswordReset(email: string) {
 }
 
 /**
- * Finish "forgot password" — THROUGH THE BACKEND, not through Amplify (012 FR-022b).
+ * ⚠ `finishPasswordReset` IS NOT HERE ANY MORE. It moved to `_lib/recovery-actions.ts` (012 FR-022b).
  *
- * ⚠⚠ THIS USED TO CALL `confirmResetPassword` DIRECTLY, AND THAT WAS TWO BUGS AT ONCE. ⚠⚠
+ * It used to call Amplify's `confirmResetPassword` directly from the browser, which was two bugs at
+ * once: it BYPASSED the breach screening (a rule enforced on the account page but not on the recovery
+ * page is a detour sign, not a rule), and it left the platform's `has_password` record permanently
+ * WRONG — because the platform never found out that a password now existed.
  *
- * 1. IT BYPASSED THE BREACH SCREENING. The account page refuses a password found in a public breach
- *    corpus. This page did not — so any customer who wanted one simply came here instead. A rule
- *    enforced on one path and not the other is not a rule; it is a detour sign.
- *
- * 2. IT CORRUPTED THE PLATFORM'S RECORD. Cognito cannot be asked whether a user has a password, so
- *    the platform must remember. Setting one here, client-side, meant the platform NEVER FOUND OUT —
- *    and the account page went on offering "Set a password" to someone who had one, permanently.
- *
- * The backend route is deliberately PUBLIC (there is no session here — that is what recovery IS). It
- * holds no privilege: the Cognito API it wraps is itself unauthenticated. It exists solely to put the
- * password rules and the record-keeping on the only path that was missing them.
- *
- * `import "aws-amplify/auth"` is still fine in this file — it is inside `app/(auth)/`, which is where
- * the quarantine allows it (FR-006).
+ * It is now a SERVER ACTION against a public backend route. That is not incidental: `EDGE_API_BASE_URL`
+ * deliberately has no `NEXT_PUBLIC_` prefix, so the browser does not know the backend's address and a
+ * client-side fetch could not have worked at all.
  */
-export async function finishPasswordReset(email: string, code: string, newPassword: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/customer/v1/password/reset-confirm`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, code, newPassword }),
-  })
-
-  if (!res.ok) {
-    const problem = (await res.json().catch(() => ({}))) as { detail?: string }
-    // The backend has already collapsed "wrong code" / "expired code" / "no such customer" into ONE
-    // message — deliberately, so this endpoint cannot be used to enumerate who shops at Effy.
-    throw new Error(problem.detail ?? "We couldn't reset your password. Please try again.")
-  }
-}
 
 // ── Errors the customer can act on (FR-015) ────────────────────────────────────────────────────
 
