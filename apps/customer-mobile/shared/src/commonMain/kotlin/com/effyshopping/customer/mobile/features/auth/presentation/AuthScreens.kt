@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AuthError
@@ -57,11 +59,16 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
 
     fun clearError() { _state.value = _state.value.copy(error = null) }
 
+    /** Reset the visible error/info when entering a new step; the pending flow state (email, seed,
+     *  returnTo) lives outside UiState and deliberately survives across the sign-in steps. */
+    fun clearTransient() { _state.value = AuthUiState() }
+
     fun registerWithPassword(email: String, password: String, given: String, family: String) = run {
         if (!passwordLongEnough(password)) return@run
+        pendingEmail = email.trim(); pendingSeedPassword = true
         drive(seedPassword = true) {
             container.authDriver.signUpWithPassword(email.trim(), password, given.trim(), family.trim())
-        }.also { pendingEmail = email.trim(); pendingSeedPassword = true }
+        }
     }
 
     fun registerPasswordless(email: String, given: String, family: String) = run {
@@ -72,7 +79,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     fun signInWithPassword(email: String, password: String, returnTo: AppRoute?) {
-        pendingReturnTo = returnTo
+        pendingEmail = email.trim(); pendingReturnTo = returnTo
         drive(seedPassword = false) { container.authDriver.signInWithPassword(email.trim(), password) }
     }
 
@@ -184,7 +191,8 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
 
 @Composable
 fun AuthRoutes(container: AppContainer, route: AppRoute) {
-    val vm = remember { AuthViewModel(container) }
+    val vm = viewModel { AuthViewModel(container) }
+    LaunchedEffect(route) { vm.clearTransient() }
     when (route) {
         is AppRoute.SignIn -> SignInScreen(container, vm, route.returnTo)
         AppRoute.SignUp -> SignUpScreen(container, vm)

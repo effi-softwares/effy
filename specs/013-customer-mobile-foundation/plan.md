@@ -90,7 +90,7 @@ confirm). Two backends addressed, one of them (`core-api`) with nothing to call 
 | **III — Dual-Path** | ✅ No new backend. The app obeys 011's routing law (FR-028): commerce → `core-api`, account → `edge-api`. Two Ktor clients are built so the law is **structural**, though `core-api` has nothing to call yet. |
 | **IV — Auth Isolation** | ✅ Customer pool only. **Two** credential routes; **no federation** while account-linking is unbuilt (Google stays parked on both surfaces). The **record**, not the claim, decides access (FR-033). No auth proxy: the app talks to Cognito directly; the backend relays *the customer's own* token authority (D2). |
 | **V — Design** | ⚠ **DEVIATION 1 — recorded, not waived.** See Complexity Tracking. |
-| **VI — Layered Architecture** | ✅ Clean Architecture per feature (`domain` ← `data`, `domain` ← `presentation`); MVVM as a strict State/Intent/Effect machine on the `BaseViewModel` contract; **no DI framework** — one hand-wired `AppContainer`. Conforms to `ARCHITECTURE.md` § *Mobile apps*. |
+| **VI — Layered Architecture** | ✅ Clean Architecture per feature (`domain` ← `data`, `domain` ← `presentation`); **MVVM** — a `ViewModel` per screen exposing an immutable `StateFlow<UiState>` + action functions (constitution **v1.8.0**; the earlier State/Intent/Effect MVI mandate was retired 2026-07-15 in favour of method-based MVVM); **no DI framework** — one hand-wired `AppContainer`. Conforms to `ARCHITECTURE.md` § *Mobile apps*. |
 | **VII — Observability** | ⚠ **DEVIATION 2 — recorded, not waived.** See Complexity Tracking. |
 
 ### Complexity Tracking — the two deviations
@@ -156,7 +156,7 @@ apps/customer-mobile/                       # an INDEPENDENT Gradle build (not a
 │   │   │   ├── auth/                       # AuthDriver INTERFACE + Session/AuthStep models  ← the security boundary
 │   │   │   ├── config/                     # BuildKonfig readers + the ONE Amplify config string (D12)
 │   │   │   ├── http/                       # Ktor factory ×2 base URLs; bearer plugin delegates to AuthDriver (D21)
-│   │   │   ├── presentation/               # BaseViewModel<State, Intent, Effect>
+│   │   │   ├── presentation/               # MVVM: a ViewModel exposing StateFlow<UiState> + action fns
 │   │   │   └── theme/                      # EffyTheme — consumes the GENERATED tokens
 │   │   ├── contract/                       # ⚙ GENERATED Dto.kt (from @effy/shared-types) — committed, do not edit
 │   │   ├── design/                         # ⚙ GENERATED EffyTokens.kt (from tokens.css) — committed, do not edit
@@ -249,7 +249,7 @@ Principle VII, and pays:
 | **1** | Design — data model, contracts, quickstart | ✅ done (this commit) |
 | **2** | The codegen pipelines: `shared-types` → `Dto.kt`; `tokens.css` → `EffyTokens.kt`; both committed + CI-diff-guarded | **Principle II is satisfied here or not at all** |
 | **3** | Build config: `libs.versions.toml`, BuildKonfig, the required-key `GradleException`, `secrets.properties.example`, the no-secret-key guard | A missing key **fails the build** (FR-041) |
-| **4** | Core: `BaseViewModel`, Ktor ×2, `AuthDriver` interface, `AppContainer`, `EffyTheme`, Nav3 graph | — |
+| **4** | Core: Ktor ×2, `AuthDriver` interface, `AppContainer`, `EffyTheme`, navigation (a `StateFlow` back stack + `BackHandler`), the MVVM `ViewModel` pattern | — |
 | **5** | The two driver implementations: Amplify Android (Kotlin) + **Amplify Swift** (Swift, injected) + the **escape-hatch build guard** (proved by breaking it) | The security boundary |
 | **6** | Features: home (honest empty state) · auth (sign-up ×2, sign-in ×2, recovery) · account (identity, name, password set/change, sign out ×2) | — |
 | **7** | Android Auto Backup exclusions; the credential-in-logs sweep | FR-020, FR-038 |

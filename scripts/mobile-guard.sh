@@ -15,7 +15,7 @@
 #      a leaked credential. So no BuildKonfig required-key name may look like a secret.
 #
 # Proven by DELIBERATELY breaking it (the 011 lesson: break a guard the way it will actually break).
-# Run: make mobile-guard   ·   scripts/mobile-guard.sh [--self-test]
+# Run: make mobile-guard   ·   scripts/mobile-guard.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

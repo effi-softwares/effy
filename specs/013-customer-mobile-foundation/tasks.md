@@ -113,6 +113,23 @@ The iOS auth path is built via the bridge pattern (D5): Swift implements a simpl
   `iosApp` target; ensure `SwiftAuthBridge.swift` is a member of the target; build on a simulator. T009 (the SPM
   dependency) is this step.
 
+### ⬆⬆⬆⬆ UPDATE (2026-07-15) — high-effort code review applied; MVI→MVVM standard settled
+
+A workflow-backed high-effort review (24 agents, 21 findings verified, 0 refuted) surfaced real
+presentation-layer bugs, all now **fixed and recompiled** (Android APK assembles, iOS Kotlin compiles,
+tests + guard green): `BackHandler` wired to the navigator (system Back was ejecting the app); the
+`viewModel { }` factory replacing `remember { }` (proper `ViewModelStore` / scope cancellation); transient
+account-screen state reset on route change; `sessionChanges` wired to Amplify's Hub (was dead code);
+bootstrap retry on transient 5xx/429; `pendingEmail` set on password sign-in; name-clear fixed (`""` not
+dropped-null); root safe-area insets; and cleanups (removed 4 unused deps — ktor-auth, both nav3, settings;
+fixed the `HttpEngine`/guard docs; deleted the dead `Session.expiresAt` field).
+
+**⚠ Architecture standard changed (constitution v1.7.0 → v1.8.0).** The mobile presentation standard is now
+**method-based MVVM** (a `ViewModel` exposing an immutable `StateFlow<UiState>` + action functions), NOT the
+strict State/Intent/Effect MVI the docs previously described under the "MVVM" label. The unused
+`BaseViewModel<State,Intent,Effect>` (T019) was **deleted**. Earlier status notes above that say
+"BaseViewModel compiled" are accurate history — the file existed and compiled before it was retired.
+
 ---
 
 ## Phase 0: Spikes & preconditions (BLOCKING) 🧑‍💻
@@ -165,7 +182,7 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 
 ### 2c — Core spine
 
-- [~] T019 [P] `core/presentation/BaseViewModel.kt` — the `BaseViewModel<State, Intent, Effect>` contract from [ARCHITECTURE.md](../../ARCHITECTURE.md): immutable `StateFlow` state, typed `onIntent`, one-off `Effect` over a `SharedFlow`. Unit-tested.
+- [~] T019 [P] **MVVM ViewModel pattern** — a `ViewModel` per screen exposing an immutable `StateFlow<UiState>` + action functions (constitution **v1.8.0**; the earlier `BaseViewModel<State,Intent,Effect>` MVI base was written, then **retired 2026-07-15** when the platform standardised on method-based MVVM — the file was deleted). Unit-tested via the state transitions.
 - [~] T020 [P] `core/theme/EffyTheme.kt` — a Material 3 theme consuming the **generated** `EffyLightColorScheme` / `EffyDarkColorScheme`, following the device appearance (dark mode, FR-005). Define the app's own spacing + type scale here (the one thing with **no** web source — D16). **No hardcoded hex** (FR-004).
 - [~] T021 `core/auth/AuthDriver.kt` — the interface + `Session`, `AuthStep`, `AuthError` per [contracts/auth-driver.contract.md](./contracts/auth-driver.contract.md). **No `updatePassword`, no `globalSignOut`, no `confirmResetPassword`, no escape hatch** — the absences are the security property. Pure Kotlin, no SDK types.
 - [~] T022 [P] `core/config/AppConfig.kt` + the **single Amplify config-string builder** from BuildKonfig constants (D12) — one string, handed to both driver impls. Unit-test the builder produces valid JSON for known inputs.
@@ -211,7 +228,7 @@ sign back in. Each lands on its own single account; the OTP customer is never as
 
 - [ ] T035 [P] [US2] `features/auth/domain/` — the auth use cases (`RegisterWithPassword`, `RegisterPasswordless`, `SignInWithPassword`, `SignInWithEmailOtp`, `ConfirmOtp`, `ConfirmSignUp`, `StartRecovery`) over the `AuthDriver` interface. Pure; unit-tested with a fake driver.
 - [ ] T036 [P] [US2] `features/auth/domain/AuthError` mapping → user-facing messages that **never disclose whether an email is registered** (FR-016): `UserNotFound` and `NotAuthorized` map to the **same** message. Unit-test the two are indistinguishable.
-- [ ] T037 [US2] `features/auth/presentation/` — sign-up (name + email, then **password OR OTP-only** — FR-011/FR-012), sign-in (password | OTP), and confirm-code screens, on `BaseViewModel`. Password field: paste-allowed, reveal toggle, no confirm-retype, length-only client check (12, no composition rules — the backend owns breach screening). Registration ends **signed in immediately** (FR-013).
+- [ ] T037 [US2] `features/auth/presentation/` — sign-up (name + email, then **password OR OTP-only** — FR-011/FR-012), sign-in (password | OTP), and confirm-code screens, as MVVM `ViewModel`s (immutable `StateFlow` state). Password field: paste-allowed, reveal toggle, no confirm-retype, length-only client check (12, no composition rules — the backend owns breach screening). Registration ends **signed in immediately** (FR-013).
 - [ ] T038 [US2] `features/auth/presentation/RecoveryScreen.kt` — start recovery via `AuthDriver.startPasswordReset` (client-side Cognito), then **finish via the backend** `POST /customer/v1/password/reset-confirm` (FR-015). **Do NOT call `confirmResetPassword` from the SDK** — it bypasses breach screening and corrupts `has_password` (contract § 6). Blocked-behaviour depends on **S2 (T004)**.
 - [ ] T039 [US2] Rate-limit UX (FR-017): a `RateLimited` result explains the wait; never a silent retry loop.
 - [ ] T040 [P] [US2] Unit tests: the OTP-only path **never sets a password** (SC-004); the password path signs in immediately; the enumeration-oracle test (T036) passes.

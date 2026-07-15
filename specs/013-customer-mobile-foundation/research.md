@@ -487,7 +487,7 @@ never to raw HTTP. One owner of the session, and it is Amplify.
 
 ### D22 — What can honestly be tested, and what needs a device.
 
-- **Unit (`commonTest`)**: reducers/ViewModels (State/Intent/Effect), DTO↔domain mappers, the config-string builder,
+- **Unit (`commonTest`)**: ViewModels (immutable-state transitions), DTO↔domain mappers, the config-string builder,
   password-policy length checks. Fast, real coverage of the state machine.
 - **Contract (`commonTest`)**: decode the **recorded dev fixtures** with `ignoreUnknownKeys = false` (D15). This is
   the drift alarm.

@@ -3,16 +3,16 @@ package com.effyshopping.customer.mobile.core.auth
 /**
  * A signed-in session. Carries BOTH tokens because every account route needs both (the two-token
  * protocol, 013 D2): the ID token is the gateway bearer (`Authorization`), the access token is relayed
- * to Cognito (`X-Effy-Access-Token`). [expiresAt] is epoch millis of the access token's expiry.
+ * to Cognito (`X-Effy-Access-Token`).
  *
- * These tokens live in the SDK's secure store (Keychain / Keystore-backed) — this object is a transient
- * in-memory read, never persisted by the app itself (FR-020).
+ * No expiry is carried: Amplify owns refresh (D21), and the app reads a fresh session per request rather
+ * than tracking expiry itself. These tokens live in the SDK's secure store (Keychain / Keystore-backed) —
+ * this object is a transient in-memory read, never persisted by the app itself (FR-020).
  */
 data class Session(
     val sub: String,
     val idToken: String,
     val accessToken: String,
-    val expiresAtEpochMillis: Long,
 )
 
 /** The outcome of an auth step. The ViewModel drives the flow off this, never off SDK types. */

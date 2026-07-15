@@ -52,7 +52,7 @@ The spine in five rules:
   models and never leak past the data layer.
 - **No DI framework** — dependencies are wired explicitly and greppably (by hand at the entry point,
   one mobile container, or cached module singletons).
-- **Unidirectional client state** — mobile MVVM (immutable State + typed Intents + one-off Effects);
+- **Unidirectional client state** — mobile MVVM (a ViewModel exposing immutable, observable state; the View calls its functions for user actions);
   web treats the server-state cache as the source of truth, with a client store only for genuine
   client state. Never hand-cache server data in component state.
 - **One event language across backends** — both publish the same event envelope; consumers are idempotent.

@@ -6,6 +6,7 @@ import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.features.account.domain.Customer
 import com.effyshopping.customer.mobile.features.account.domain.CustomerRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,20 +70,46 @@ class SessionManager(
     }
 
     private suspend fun loadRecord(seedPassword: Boolean) {
-        try {
-            setAuthenticated(customers.me(seedPassword))
-        } catch (e: AppException) {
-            when (e.error) {
-                // Barred mid-session (FR-033a): refuse, destroy the local session, and say why via Barred.
-                AppError.Forbidden -> {
-                    runCatching { authDriver.signOut() }
-                    _state.value = SessionState.Barred
+        var attempt = 0
+        while (true) {
+            try {
+                setAuthenticated(customers.me(seedPassword))
+                return
+            } catch (e: AppException) {
+                val error = e.error
+                when {
+                    // Barred mid-session (FR-033a): refuse, destroy the local session, say why via Barred.
+                    error == AppError.Forbidden -> {
+                        runCatching { authDriver.signOut() }
+                        _state.value = SessionState.Barred
+                        return
+                    }
+                    error == AppError.Unauthenticated -> {
+                        signOutLocally()
+                        return
+                    }
+                    // A TRANSIENT failure on a valid credential: retry a couple of times before giving
+                    // up, so a launch-time 5xx/429/blip doesn't masquerade as a sign-out.
+                    error == AppError.Network || error == AppError.Unavailable || error is AppError.RateLimited -> {
+                        if (attempt++ < MAX_BOOTSTRAP_RETRIES) {
+                            delay(RETRY_BASE_MILLIS * attempt)
+                            continue
+                        }
+                        // Exhausted retries — fall back to Guest; the Amplify session survives for a relaunch.
+                        _state.value = SessionState.Guest
+                        return
+                    }
+                    else -> {
+                        _state.value = SessionState.Guest
+                        return
+                    }
                 }
-                AppError.Unauthenticated -> signOutLocally()
-                // Network/other on bootstrap: we hold a valid credential but can't confirm the record.
-                // Fall back to Guest rather than hang in Restoring; the session survives for a retry.
-                else -> _state.value = SessionState.Guest
             }
         }
+    }
+
+    private companion object {
+        const val MAX_BOOTSTRAP_RETRIES = 2
+        const val RETRY_BASE_MILLIS = 700L
     }
 }

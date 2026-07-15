@@ -60,6 +60,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
+            implementation(libs.compose.ui.backhandler)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
@@ -68,14 +69,10 @@ kotlin {
             // 013 — networking (one client per base URL), serialization, async, nav, prefs
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)
-            implementation(libs.ktor.client.auth)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.serialization.json)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.navigation3.ui)
-            implementation(libs.lifecycle.viewmodel.navigation3)
-            implementation(libs.multiplatform.settings)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

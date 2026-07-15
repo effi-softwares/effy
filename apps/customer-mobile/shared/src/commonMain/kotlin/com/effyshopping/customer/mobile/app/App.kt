@@ -16,7 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.backhandler.BackHandler
 import com.effyshopping.customer.mobile.core.nav.AppRoute
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.theme.EffyTheme
@@ -38,7 +42,13 @@ fun App(container: AppContainer) {
 
         LaunchedEffect(Unit) { container.session.bootstrap() }
 
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(
+            // Edge-to-edge is enabled (MainActivity), so consume the safe-area insets HERE — the
+            // non-Scaffold auth/account screens would otherwise draw under the status/navigation bars,
+            // clipping titles and putting primary buttons under the gesture bar (Principle V, fat-finger).
+            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
+            color = MaterialTheme.colorScheme.background,
+        ) {
             when (session) {
                 SessionState.Restoring -> CenteredMessage { CircularProgressIndicator() }
 
@@ -64,9 +74,13 @@ fun App(container: AppContainer) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun RouteHost(container: AppContainer, session: SessionState) {
     val stack by container.navigator.stack.collectAsState()
+    // Wire the OS back gesture/button to our own back stack — otherwise system Back finishes the
+    // Activity and ejects the user from the app instead of popping a screen.
+    BackHandler(enabled = stack.size > 1) { container.navigator.pop() }
     when (val route = stack.last()) {
         AppRoute.Home -> HomeScreen(container, session)
         is AppRoute.SignIn, AppRoute.SignUp, is AppRoute.VerifyOtp, AppRoute.Recovery ->

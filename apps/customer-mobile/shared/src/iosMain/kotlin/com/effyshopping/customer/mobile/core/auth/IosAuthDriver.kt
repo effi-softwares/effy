@@ -26,7 +26,7 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
     override suspend fun currentSession(forceRefresh: Boolean): Session? =
         suspendCancellableCoroutine { cont ->
             bridge.fetchSession(forceRefresh) { s ->
-                cont.resumeIfActive(s?.let { Session(it.sub, it.idToken, it.accessToken, 0L) })
+                cont.resumeIfActive(s?.let { Session(it.sub, it.idToken, it.accessToken) })
             }
         }
 

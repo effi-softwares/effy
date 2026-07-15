@@ -10,10 +10,16 @@ import com.amplifyframework.auth.options.AuthFetchSessionOptions
 import com.amplifyframework.auth.options.AuthSignUpOptions
 import com.amplifyframework.auth.result.AuthSignInResult
 import com.amplifyframework.auth.result.step.AuthSignInStep
+import com.amplifyframework.auth.AuthChannelEventName
+import com.amplifyframework.hub.HubChannel
 import com.amplifyframework.kotlin.core.Amplify
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 
 /**
  * The Android implementation of [AuthDriver], over Amplify Android (Kotlin coroutines facade).
@@ -27,6 +33,22 @@ class AmplifyAuthDriver : AuthDriver {
     private val _sessionChanges = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     override val sessionChanges: Flow<Unit> = _sessionChanges.asSharedFlow()
 
+    // App-lifetime scope collecting Amplify's Hub, so an SDK-initiated session drop (session expiry, or
+    // the Keystore-failure sign-out — D11) actually fires sessionChanges and SessionManager re-bootstraps.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    init {
+        scope.launch {
+            Amplify.Hub.subscribe(HubChannel.AUTH).collect { event ->
+                if (event.name == AuthChannelEventName.SESSION_EXPIRED.toString() ||
+                    event.name == AuthChannelEventName.SIGNED_OUT.toString()
+                ) {
+                    _sessionChanges.tryEmit(Unit)
+                }
+            }
+        }
+    }
+
     override suspend fun currentSession(forceRefresh: Boolean): Session? = try {
         val options = AuthFetchSessionOptions.builder().forceRefresh(forceRefresh).build()
         val session = Amplify.Auth.fetchAuthSession(options) as AWSCognitoAuthSession
@@ -37,7 +59,6 @@ class AmplifyAuthDriver : AuthDriver {
                 sub = sub,
                 idToken = tokens.idToken.orEmpty(),
                 accessToken = tokens.accessToken.orEmpty(),
-                expiresAtEpochMillis = 0L, // Amplify owns refresh; the app does not rely on this (D21)
             )
         } else {
             null

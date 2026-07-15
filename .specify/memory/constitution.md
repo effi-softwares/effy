@@ -1,6 +1,28 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.7.0 → 1.8.0
+Bump rationale: MINOR — Principle VI's mobile presentation standard is changed from the strict
+                State/Intent/Effect (MVI-style) "state machine via a ViewModel base" to plain,
+                method-based MVVM: a ViewModel exposing immutable, observable UI state that the View
+                renders, with user actions invoking ViewModel functions (state flows down, events flow
+                up). This resolves a long-standing internal inconsistency — the constitution already
+                LABELLED the standard "MVVM" (v1.1.0, "was MVI") but continued to DESCRIBE MVI mechanics
+                (typed Intents, one-off Effects, a reducer, a BaseViewModel state machine).
+                Operator decision (2026-07-15), after building 013-customer-mobile-foundation: the
+                platform's first mobile surface shipped classic MVVM, and the platform standardises on
+                that as the simpler, Compose-idiomatic pattern across its three mobile apps.
+                Not MAJOR: no principle is removed, and the unidirectional / immutable-observable-state
+                discipline is retained — only the typed-Intent + one-off-Effect + reducer mechanics are
+                dropped.
+Dependent updates in THIS change:
+  ✅ ARCHITECTURE.md § Mobile apps — the State/Intent/Effect sketch + BaseViewModel base rewritten to
+     method-based MVVM (it is the binding elaboration of Principle VI).
+  ✅ CLAUDE.md — the "immutable State + typed Intents + one-off Effects" phrasing corrected to MVVM.
+  ✅ apps/customer-mobile — the unused `BaseViewModel<State,Intent,Effect>` MVI base class deleted.
+  ✅ specs/013-customer-mobile-foundation — plan/research/tasks/data-model MVI references reconciled.
+
+--- prior amendment (retained for history) ---
 Version change: 1.6.0 → 1.7.0
 Bump rationale: MINOR — Principle IV's credential rule is materially expanded. Until now the
                 principle said "All four pools use passwordless EMAIL_OTP — there are no passwords
@@ -201,10 +223,11 @@ review. `ARCHITECTURE.md` is the binding elaboration of this principle; plans MU
   mapped explicitly to domain models and MUST NOT leak past the data layer.
 - **No DI framework** — dependencies are wired explicitly and greppably (by hand at the entry point,
   in a single mobile container, or via cached module singletons).
-- **Unidirectional client state** — mobile uses MVVM as a strict state machine (immutable State +
-  typed Intents + one-off Effects via a ViewModel base); web treats the server-state cache as the
-  source of truth and keeps a client store only for genuine client state. Server data MUST NOT be
-  hand-cached in component state.
+- **Unidirectional client state** — mobile uses **MVVM**: a `ViewModel` exposes a single **immutable,
+  observable UI-state object** that the View renders, and the View invokes `ViewModel` functions for
+  user actions (state flows down, events flow up). Web treats the server-state cache as the source of
+  truth and keeps a client store only for genuine client state. Server data MUST NOT be hand-cached in
+  component state.
 - **One event language across backends** — both backends publish the same event envelope to the
   shared topic, and event consumers MUST be idempotent.
 
@@ -290,4 +313,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.7.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-14
+**Version**: 1.8.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-15

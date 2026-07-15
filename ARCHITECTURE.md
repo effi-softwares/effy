@@ -15,7 +15,7 @@ patterns are the law; concrete feature, service, and module names are decided pe
 
 | Surface | Architectural style | Presentation / request pattern | Dependency wiring |
 |---|---|---|---|
-| Mobile apps (KMP) | **Clean Architecture** (data / domain / presentation per feature) | **MVVM** — unidirectional: a `ViewModel` base with State + Intent + Effect | Manual DI via one container |
+| Mobile apps (KMP) | **Clean Architecture** (data / domain / presentation per feature) | **MVVM** — a `ViewModel` exposing immutable observable state; the View calls its functions | Manual DI via one container |
 | Hot-path API (Go) | **Layered, feature-sliced** (`features/` + a shared `platform/` layer) | Handler → Service → Repository | Manual DI at the entry point |
 | Cold-path services (serverless) | **Layered per-service** in a workspace monorepo | Handler → Service → Repository (+ event workers) | Cached module singletons + explicit imports |
 | Customer web (SSR) | App-Router app — feature segments + a typed `lib/` service layer | Server Components for reads, client components for interaction | Context + client store + server-state cache |
@@ -41,8 +41,8 @@ feel like one system despite spanning four languages and three runtimes:
 5. **One event language across backends.** Both backends publish the *same* event envelope to a shared
    topic; queue consumers are idempotent. This lets the cold path react to the hot path without
    coupling.
-6. **Unidirectional state on the clients.** Mobile uses MVVM as a strict unidirectional state machine
-   (State / Intent / Effect); web treats the server-state cache as the source of truth and keeps a
+6. **Unidirectional state on the clients.** Mobile uses MVVM with a single immutable, observable
+   UI-state object per screen (state down, events up); web treats the server-state cache as the source of truth and keeps a
    client store only for genuine client state. Server data is never hand-cached in component state.
 
 ---
@@ -73,44 +73,49 @@ features/<feature>/
 ├── data/                      # the I/O implementations
 │   ├── Http<Feature>Repository.kt  #   client-backed implementation of the interface
 │   └── dto/                   #   @Serializable DTOs + toDomain() mappers
-└── presentation/             # UI state machine
-    └── <Feature>ViewModel.kt  #   extends the shared ViewModel base
+└── presentation/             # MVVM: ViewModel + immutable UI state + screen composables
+    └── <Feature>ViewModel.kt  #   a ViewModel exposing StateFlow<UiState> + action functions
 ```
 
 **Dependency rule:** `presentation → domain ← data`. The domain layer depends on nothing; data
 implements domain's interfaces; presentation talks to domain use cases. DTOs are mapped to domain
 models via `toDomain()` and never leak out of `data/`.
 
-### Presentation: MVVM as unidirectional data flow
+### Presentation: MVVM (unidirectional, immutable state)
 
-The apps use **MVVM** implemented strictly: it is `ViewModel`-based, but state is a single immutable
-object mutated only through a reducer, and the View communicates back exclusively via typed Intents.
-One-off side effects (navigation, transient messages) are emitted separately so they fire once.
+The apps use **MVVM**: each screen has a `ViewModel` that exposes a single **immutable, observable
+UI-state object** (a `StateFlow<UiState>`), and the View invokes `ViewModel` functions for user
+actions. State flows down; events flow up. The flow is unidirectional — the View never mutates state
+directly, and the `ViewModel` never reaches into the View.
 
-A shared base class in `core/presentation/` formalizes the contract (generic sketch):
+A screen's `ViewModel` (generic sketch):
 
 ```kotlin
-abstract class BaseViewModel<UiState : Any, UiIntent : Any, UiEffect : Any>(
-    initialState: UiState,
-) : ViewModel() {
-    private val _uiState = MutableStateFlow(initialState)
-    val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+class ExampleViewModel(private val repo: ExampleRepository) : ViewModel() {
+    private val _state = MutableStateFlow(ExampleUiState())
+    val state: StateFlow<ExampleUiState> = _state.asStateFlow()
 
-    private val _effects = MutableSharedFlow<UiEffect>(extraBufferCapacity = 1)
-    val effects: SharedFlow<UiEffect> = _effects.asSharedFlow()
-
-    abstract fun onIntent(intent: UiIntent)
-    protected fun updateState(reducer: (UiState) -> UiState) = _uiState.update(reducer)
-    protected suspend fun emitEffect(effect: UiEffect) = _effects.emit(effect)
+    // User actions are ViewModel functions. Each launches on viewModelScope and updates the single
+    // immutable state object with copy(); errors map to a closed, user-facing error type.
+    fun load() {
+        _state.value = _state.value.copy(loading = true, error = null)
+        viewModelScope.launch {
+            runCatching { repo.fetch() }
+                .onSuccess { _state.value = _state.value.copy(loading = false, items = it) }
+                .onFailure { _state.value = _state.value.copy(loading = false, error = it.toUiError()) }
+        }
+    }
 }
 ```
 
-Each screen defines three types:
+Each screen defines:
 - **State** — one immutable `data class` holding everything the screen renders.
-- **Intent** — a `sealed interface` of everything the user can do.
-- **Effect** — a `sealed interface` of one-off side effects, delivered over a `SharedFlow`.
+- **ViewModel functions** — the actions the user can take (`load()`, `submit()`, …).
 
-The View renders `uiState` (a `StateFlow`), sends `onIntent(...)`, and collects `effects`.
+The View renders `state` (a `StateFlow`, collected with `collectAsState`) and calls the `ViewModel`
+functions. The `ViewModel` is obtained through the `viewModel { … }` factory (a real `ViewModelStore`,
+so `viewModelScope` is cancelled on disposal). (A typed-Intent + one-off-Effect / MVI variant is **not**
+required — see constitution v1.8.0.)
 
 ### Cross-cutting infrastructure (`core/`)
 
@@ -483,5 +488,5 @@ Despite four languages and three runtimes, the same handful of decisions repeat 
 3. **Explicit dependency wiring** — no DI container anywhere; the whole graph is greppable.
 4. **Auth everywhere, pinned per pool** — cross-pool token reuse is structurally blocked.
 5. **One event language across backends** — a shared envelope + idempotent consumers.
-6. **Unidirectional state on the clients** — MVVM (State/Intent/Effect) on mobile; the server-state
+6. **Unidirectional state on the clients** — MVVM (immutable observable state) on mobile; the server-state
    cache as the source of truth on web, with a client store only for genuine client state.

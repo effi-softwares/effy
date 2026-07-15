@@ -44,6 +44,8 @@ compose-material3 = { module = "org.jetbrains.compose.material3:material3", vers
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+# 013 — multiplatform BackHandler (wire OS back to our navigator; Android hardware/gesture back)
+compose-ui-backhandler = { module = "org.jetbrains.compose.ui:ui-backhandler", version.ref = "composeMultiplatform" }
 
 # 013 — networking (Ktor 3.x): one client per base URL, bearer plugin delegating to AuthDriver (D20/D21)
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }

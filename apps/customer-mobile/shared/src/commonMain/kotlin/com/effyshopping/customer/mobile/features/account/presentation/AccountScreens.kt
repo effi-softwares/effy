@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.error.AppError
@@ -61,7 +63,9 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
 
     fun updateName(given: String, family: String) = run {
         launch {
-            val updated = container.customers.updateName(given.trim().ifBlank { null }, family.trim().ifBlank { null })
+            // Send "" (not null) for a cleared field: the backend treats "" as a clear, but
+            // `explicitNulls=false` would silently DROP a null, leaving the old value in place.
+            val updated = container.customers.updateName(given.trim(), family.trim())
             container.session.setAuthenticated(updated)
             container.navigator.pop() // back to Account; the greeting reads the record, so it's fresh
         }
@@ -100,6 +104,12 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
         runCatching { container.customers.signOutEverywhere() }
         container.session.signOutLocally()
         container.navigator.resetTo(AppRoute.Home)
+    }
+
+    /** Reset transient state (error/info/masked destination) so one sub-screen's error doesn't bleed
+     *  onto another when navigating between Account / EditName / Password. */
+    fun clearTransient() {
+        _state.value = AccountUiState()
     }
 
     private suspend fun finishAfterPasswordWrite() {
@@ -151,7 +161,8 @@ fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionStat
         container.navigator.resetTo(AppRoute.Home)
         return
     }
-    val vm = remember { AccountViewModel(container) }
+    val vm = viewModel { AccountViewModel(container) }
+    LaunchedEffect(route) { vm.clearTransient() } // fresh transient state on each sub-screen
     when (route) {
         AppRoute.Account -> AccountScreen(container, vm, customer)
         AppRoute.EditName -> EditNameScreen(container, vm, customer)
