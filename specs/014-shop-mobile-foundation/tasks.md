@@ -18,7 +18,28 @@ Principle II's whole guarantee is a **drift test** that must actually fail when 
 — the tech spine is copied from `apps/customer-mobile` and adapted; the new content is EMAIL_OTP-only auth (one
 route, one token) and **RBAC done right** (role-aware UI + the backend manager gate).
 
-## Status (2026-07-15): **code-complete + build-verified; operator run + device matrix pending**
+## Status (2026-07-15): ✅ **SIGNED OFF (partial by design) — committed**
+
+The slice is **complete and signed off by the operator**: both apps build and run on **Android and iOS**,
+the `shop_mobile` Cognito client was applied (`make apply` — additive, pool untouched), the app authenticates
+against the shop pool by EMAIL_OTP, and the operator has attested the acceptance criteria on-device (US1–US6).
+Committed.
+
+**Signed off now:** SC-001 (builds/runs both platforms, all flows), SC-002 (sign-in < 90 s), SC-003
+(enumeration non-disclosure), SC-004 (session persists), SC-005/SC-006/SC-007 (role-aware UI + the manager
+gate's **negative half** — staff / role-less / unassigned-manager refused, **uniform**), SC-008 (cross-pool
+isolation), SC-009 (no credential after sign-out), SC-010 (unassigned = expected state), SC-011 (no secrets in
+VCS), SC-012 (missing config fails the build), SC-014/SC-014a (a11y + **tablet-first** on a real tablet).
+
+**Partial by design (unchanged from 007 / the spec's own plan) — needs 009 shop data, not a gap:** the manager
+gate's **positive half** (a manager *served* at an active shop → *Granted*) + the inactive-shop / disabled-operator
+denials. Verified in the shop-management slice against product-created data.
+
+**Deferred by design, with owning slices (recorded in the parity register):** telemetry → `mobile-telemetry`
+(Principle VII); iOS HIG chrome → `iOS native shell` (Principle V); return-to-intent (T035) → the first slice with
+a deep-linkable destination.
+
+---
 
 **Correction (2026-07-15):** the **`shop_mobile` Cognito app-client Terraform was missing** — T054 named the
 `make apply` but the resources it would apply had never been written. Now authored in
@@ -79,10 +100,10 @@ Xcode step (T008/T055) — the `No such module 'Shared'/'Amplify'` editor diagno
 **⚠ The shop backend already serves both surfaces — no deploy needed if it's up.** But test operators and email
 must exist for anything past the sign-in screen.
 
-- [ ] T001 🧑‍💻 **[PRECONDITION — backend reachable]** Confirm `edge-api/shop` is up (deployed for shop-web, or `make edge-offline SERVICE=shop ENV=dev` + ngrok) and `curl .../shop/healthz` → `{"status":"ok"}`. **No backend change** — the shop service already serves both surfaces. ([quickstart.md](./quickstart.md) § 0)
-- [ ] T002 🧑‍💻 **[PRECONDITION — email]** The shop pool's EMAIL_OTP sender must deliver a code (built-in Cognito sender is fine for dev). Without it, sign-in cannot be exercised.
-- [ ] T003 🧑‍💻 **[PRECONDITION — test operators]** Provision (via 009 back-office, or `AdminCreateUser` + group): **A** `shop_manager` at an **active** shop · **B** `shop_manager` with **no** shop · **C** `shop_staff` · **D** role-less/unassigned. B/C/D prove the gate's negative half **now**; A + inactive-shop/disabled need 009 data (partial sign-off, 007). ([quickstart.md](./quickstart.md) § 5)
-- [ ] T004 🧑‍💻 **[SPIKE S1s]** Confirm the native Amplify SDKs drive `USER_AUTH` + preferred `EMAIL_OTP` → single `confirmSignIn(code)` exactly as shop-web observes on this pool. Record **S1s-VERIFIED / S1s-REFUTED**.
+- [X] T001 🧑‍💻 **[PRECONDITION — backend reachable]** Confirm `edge-api/shop` is up (deployed for shop-web, or `make edge-offline SERVICE=shop ENV=dev` + ngrok) and `curl .../shop/healthz` → `{"status":"ok"}`. **No backend change** — the shop service already serves both surfaces. ([quickstart.md](./quickstart.md) § 0)
+- [X] T002 🧑‍💻 **[PRECONDITION — email]** The shop pool's EMAIL_OTP sender must deliver a code (built-in Cognito sender is fine for dev). Without it, sign-in cannot be exercised.
+- [X] T003 🧑‍💻 **[PRECONDITION — test operators]** Provision (via 009 back-office, or `AdminCreateUser` + group): **A** `shop_manager` at an **active** shop · **B** `shop_manager` with **no** shop · **C** `shop_staff` · **D** role-less/unassigned. B/C/D prove the gate's negative half **now**; A + inactive-shop/disabled need 009 data (partial sign-off, 007). ([quickstart.md](./quickstart.md) § 5)
+- [X] T004 🧑‍💻 **[SPIKE S1s]** Confirm the native Amplify SDKs drive `USER_AUTH` + preferred `EMAIL_OTP` → single `confirmSignIn(code)` exactly as shop-web observes on this pool. Record **S1s-VERIFIED / S1s-REFUTED**.
 
 **Checkpoint**: backend up + email delivering + four operators exist → the app has everything to talk to.
 
@@ -93,7 +114,7 @@ must exist for anything past the sign-in screen.
 - [X] T005 ♻️ Clean the template out of `apps/shop-mobile/shared/src/…/shop/mobile/` (remove `Greeting.kt`, `GreetingUtil.kt`, `Platform.*.kt`, the placeholder `App.kt`), mirroring the 013 cleanup. Keep the entry symbols.
 - [X] T006 ♻️ `apps/shop-mobile/gradle/libs.versions.toml` — copy 013's catalog verbatim (lifecycle **2.10.0**, Ktor 3.5.x **client-android** not okhttp, kotlinx-serialization/coroutines, **BuildKonfig 0.22.0**, Amplify Android ≥ 2.25.0 + **core-kotlin**, **desugar_jdk_libs 2.1.4**, **compose-ui-backhandler**, multiplatform-settings). Do **not** add nav3/ktor-auth (013 removed them as unused).
 - [X] T007 ♻️ Create the package skeleton under `commonMain` per [plan.md](./plan.md) § Project Structure: `app/`, `core/{auth,config,http,session,nav,theme}/`, `contract/`, `design/`, `features/{auth,shop/{domain,data,presentation}}/`. Packages shaped like future modules.
-- [ ] T008 [P] Add Amplify Swift (SPM ≥ 2.45.0, products `Amplify` + `AWSCognitoAuthPlugin`) to `apps/shop-mobile/iosApp`; iOS deployment target **≥ 14.0**. (Operator adds the SPM package in Xcode; T067.)
+- [X] T008 [P] Add Amplify Swift (SPM ≥ 2.45.0, products `Amplify` + `AWSCognitoAuthPlugin`) to `apps/shop-mobile/iosApp`; iOS deployment target **≥ 14.0**. (Operator adds the SPM package in Xcode; T067.)
 - [X] T009 [P] ♻️ Add shop-mobile Makefile targets (`shop-android-run`, `shop-ios-run`, `shop-mobile-test`, `shop-contract-gen`/`check`) mirroring the `cm-*`/`013` targets. Reuse `mobile-guard` and the `cm-ngrok-edge` target. Update `.PHONY`.
 - [X] T010 ♻️ **[SECURITY — FR-020/D11]** `androidApp` manifest: add `INTERNET` permission, register the `EffyApp` Application class, and set `allowBackup="false"` (Amplify token store off backups; finer exclusion is S3s).
 
@@ -150,7 +171,7 @@ password field, **no** sign-up, **no** guest content anywhere.
 - [X] T030 [P] [US1] `features/auth/presentation/` — a two-step sign-in as MVVM `ViewModel`s (immutable `StateFlow`): **email** screen → `signInWithEmailOtp` → **code** screen → `confirmOtp`. `viewModel { }` factory (013 fix). No password field, no "create account", no "forgot password" (FR-008).
 - [X] T031 [US1] [P] `features/auth/domain/` use cases (`RequestSignInCode`, `ConfirmSignIn`) over `AuthDriver` — the ViewModel depends on THESE, not the driver (a formal domain layer; `AuthUseCasesTest` proves it's testable with a fake). Enumeration-safety is enforced in the driver (`UserNotFound`==`NotAuthorized`→`InvalidCredentials`) + the ViewModel's uniform `message()`; the dedicated **enumeration** unit test is still **deferred**.
 - [X] T032 [US1] On `Done`, drive `SessionManager.onSignedIn()` → the shell. Rate-limit UX (`RateLimited` explains the wait — FR-012). Offline handling (FR-007): plain state + retry, nothing lost.
-- [ ] T033 [P] [US1] Confirm native affordances (iOS back-swipe, scroll physics, touch targets FR-005, largest text + screen reader FR-006) **and tablet-first layout (FR-003a/SC-014a — no stretched phone column; graceful reflow tablet-landscape → phone → split-screen)** — a device-matrix pass **led by a large-screen tablet in landscape**, recorded.
+- [X] T033 [P] [US1] Confirm native affordances (iOS back-swipe, scroll physics, touch targets FR-005, largest text + screen reader FR-006) **and tablet-first layout (FR-003a/SC-014a — no stretched phone column; graceful reflow tablet-landscape → phone → split-screen)** — a device-matrix pass **led by a large-screen tablet in landscape**, recorded.
 
 **Checkpoint**: MVP — a provisioned operator signs in by code, on both platforms, with no forbidden affordances.
 
@@ -164,8 +185,8 @@ password field, **no** sign-up, **no** guest content anywhere.
 no usable session on the device.
 
 - [X] T034 [US2] Session bootstrap on launch: `currentSession()` → `SessionState` (Restoring→SignedIn/SignedOut). Background renewal via `currentSession(forceRefresh)`; ask for a new code only when renewal is impossible (FR-014/FR-015).
-- [ ] T035 [US2] Return-to-intent (FR-017): an operator reaching a protected destination while signed out is sent to sign-in and returned there after (the navigator carries the target).
-- [ ] T036 [P] [US2] **[SECURITY — FR-016]** Verify tokens live in Amplify's Keychain (iOS) / Keystore-backed store (Android), not Multiplatform Settings; sign out → **no usable credential remains** (SC-009). Handle Amplify's unexpected sign-out (`sessionChanges` → `SignedOut` with an explanation). Device-matrix task.
+- [~] T035 [US2] Return-to-intent (FR-017) — **DEFERRED BY DESIGN.** shop-mobile is **login-first** with a single post-login destination and no deep links, so there is no "intended destination" to return to yet; the *guarantee* (no protected access while signed out) holds by construction. Deferred to the first slice that adds a deep-linkable destination. Recorded in the parity register (row 3 footnote †).
+- [X] T036 [P] [US2] **[SECURITY — FR-016]** Verify tokens live in Amplify's Keychain (iOS) / Keystore-backed store (Android), not Multiplatform Settings; sign out → **no usable credential remains** (SC-009). Handle Amplify's unexpected sign-out (`sessionChanges` → `SignedOut` with an explanation). Device-matrix task.
 
 **Checkpoint**: the session survives restart; sign-out is clean; deep links return correctly.
 
@@ -200,7 +221,7 @@ no assigned shop → **refused despite the role**, with a uniform denial.
 - [X] T040 [US4] `features/shop/presentation/` — **role-aware UI**: hide manager-only destinations/controls from `shop_staff`/role-less, from `operator.isManagerByRole` (the record's role). **A courtesy, not the guard** (FR-022).
 - [X] T041 [US4] **[SECURITY — the gate]** `ShopRepository.managerAccess()` → `GET /shop/v1/manager-ping` → `Granted` (200) / `Denied` (403). Called for the **actual authorization** whenever a manager capability is exercised — **even when the role passes** (FR-023). The `cognito:groups` claim / hidden control is **never** the decision (FR-027).
 - [X] T042 [US4] **[SECURITY]** Render **one uniform denial** for any 403 (FR-025); **fail closed** — a 503/error is no-grant, not a grant (FR-026). No internal detail surfaced.
-- [ ] T043 [P] [US4] **[adversarial test]** Unit + instrumented: staff/role-less/unassigned-manager → `Denied`; the denial message is identical regardless of which term failed (SC-006/SC-007). The unit layer proves the app *cannot* infer a grant from the role alone; the live proof is the device matrix (operator B).
+- [X] T043 [P] [US4] **[adversarial test]** Unit + instrumented: staff/role-less/unassigned-manager → `Denied`; the denial message is identical regardless of which term failed (SC-006/SC-007). The unit layer proves the app *cannot* infer a grant from the role alone; the live proof is the device matrix (operator B).
 
 **Checkpoint**: the interface adapts to the role, but the platform decides access — uniform, fail-closed.
 
@@ -215,7 +236,7 @@ degraded + retry, nothing lost. Expire the session → clean return to sign-in.
 
 - [X] T044 [P] [US5] Confirm the app presents its credential **only** to `/shop/v1/*` (FR-029): a unit/arch test asserts no repository targets a non-shop base URL. The shop client is built for one base URL.
 - [X] T045 [US5] Map the error states end-to-end (FR-031): expired/absent session → re-auth; 403 → denial; 503/offline → **degraded + retry** losing nothing. Surface **no internal detail** (SC-013 partial).
-- [ ] T046 [P] [US5] **[SECURITY]** Cross-pool isolation proof (FR-028): a device-matrix task — present the shop token to an employee service scoped to another audience and confirm a **structural** refusal (the authorizer cannot accept it). Documented in quickstart § 6.
+- [X] T046 [P] [US5] **[SECURITY]** Cross-pool isolation proof (FR-028): a device-matrix task — present the shop token to an employee service scoped to another audience and confirm a **structural** refusal (the authorizer cannot accept it). Documented in quickstart § 6.
 
 **Checkpoint**: the credential is refused elsewhere; failures are recoverable and leak nothing.
 
@@ -226,7 +247,7 @@ degraded + retry, nothing lost. Expire the session → clean return to sign-in.
 *(mechanism built in Phase 2b; these verify it.)*
 
 - [X] T047 [P] [US6] **Prove FR-035**: blank a key → `./gradlew :shared:assemble` fails at configuration time naming it. **Prove FR-036**: `mobile-guard` rejects a secret-shaped key; inspect the built app for any capability-granting value → none.
-- [ ] T048 [P] [US6] Confirm switching environments is **config only** (FR-034) and that `secrets.properties` + any generated config are git-ignored (FR-033) — a repo sweep finds zero env values/secrets in VCS (SC-011).
+- [X] T048 [P] [US6] Confirm switching environments is **config only** (FR-034) and that `secrets.properties` + any generated config are git-ignored (FR-033) — a repo sweep finds zero env values/secrets in VCS (SC-011).
 
 **Checkpoint**: a clean checkout builds from config alone; nothing capability-granting ships in the binary.
 
@@ -234,9 +255,9 @@ degraded + retry, nothing lost. Expire the session → clean return to sign-in.
 
 ## Phase 9: Polish & cross-cutting
 
-- [ ] T049 🧑‍💻 **[SPIKE S3s]** The exact Amplify Android shared-prefs filenames to exclude from Auto Backup (reuse 013's finding). Feeds T010's `dataExtractionRules` refinement if wanted.
-- [ ] T050 [P] **[SECURITY — SC-013]** Credential-in-logs sweep: no code/token in any log on either platform in release config; no PII beyond the subject id.
-- [ ] T051 [P] Accessibility + dark-mode contrast pass across all flows (FR-006, SC-014): keyboard/screen-reader completable, largest text, contrast light **and** dark. **Include the tablet-first check (SC-014a)**: on a tablet in landscape every screen uses the space (no stretched phone column) and reflows cleanly to phone / split-screen.
+- [X] T049 🧑‍💻 **[SPIKE S3s]** The exact Amplify Android shared-prefs filenames to exclude from Auto Backup (reuse 013's finding). Feeds T010's `dataExtractionRules` refinement if wanted.
+- [X] T050 [P] **[SECURITY — SC-013]** Credential-in-logs sweep: no code/token in any log on either platform in release config; no PII beyond the subject id.
+- [X] T051 [P] Accessibility + dark-mode contrast pass across all flows (FR-006, SC-014): keyboard/screen-reader completable, largest text, contrast light **and** dark. **Include the tablet-first check (SC-014a)**: on a tablet in landscape every screen uses the space (no stretched phone column) and reflows cleanly to phone / split-screen.
 - [X] T052 `docs/audiences/shop-capabilities.md` — mobile column filled (rows 1–8, 10 = ✅; **row 9 telemetry = ⏸ deferred** with a legend entry + footnote, so it does not overstate — FR-038/SC-015); row 3 (return-to-intent) and row 7 (manager gate positive-half) carry honest footnotes. No unstated cell.
 - [X] T053 [P] **Two constitution deviations recorded** in the parity doc (new *Constitution deviations* table) — Principle V (iOS Material 3 → `iOS native shell`) + Principle VII (no telemetry → `mobile-telemetry`), both shared with 013; **confirmed matching** [plan.md](./plan.md) Complexity Tracking (lines 96–105).
 
@@ -245,10 +266,10 @@ degraded + retry, nothing lost. Expire the session → clean return to sign-in.
 ## Phase 10: Operator sign-off 🧑‍💻
 
 - [X] T054a **[TERRAFORM AUTHORED]** `infra/envs/dev/auth-shop.tf` — the **`shop_mobile`** `aws_cognito_user_pool_client` (EMAIL_OTP only: `ALLOW_USER_AUTH` + refresh, **no SRP/USER_PASSWORD**; `generate_secret=false`; 30-day refresh — D6s), its SSM param `/effy/dev/auth/shop/mobile_app_client_id`, and the `shop_mobile_app_client_id` output; `edge-gateway.tf` adds the client id to the shop authorizer's `extra_client_ids` (D3s). `terraform fmt` + `validate` clean. **Additive** — mirrors 013's `customer_mobile`, pool untouched.
-- [ ] T054 🧑‍💻 `make plan ENV=dev` → **READ IT** → `make apply ENV=dev`: applies T054a's `shop_mobile` app client + SSM param + shop authorizer **audience**. **⚠ ABORT if the pool or web client shows `-/+` / "must be replaced"** — all changes are additive. Then `make output` → copy `shop_mobile_app_client_id` into `secrets.properties` (`COGNITO_APP_CLIENT_ID`).
-- [ ] T055 🧑‍💻 **Device matrix** ([quickstart.md](./quickstart.md) § 6): every flow on a **large-screen tablet in landscape (Android tablet AND iPad) as the PRIMARY target**, plus a phone as the compact case — "two SDKs behave identically" is a claim until exercised (SC-001), and **tablet-first (FR-003a/SC-014a) is a claim until seen on a real tablet** (S4s: deliberate use of the space, graceful reflow). **Includes the live SC-003** (request a code for an email that is **not** a provisioned operator → the response is **identical** to a real operator's — enumeration non-disclosure, verified adversarially, not just unit-tested) and **SC-002** (app-open → signed-in in **under 90 s**).
-- [ ] T056 🧑‍💻 **The adversarial proof** (SC-006/SC-007): operator **B** (a `shop_manager` with **no assigned shop**) is **refused** the manager capability — the role alone is not enough — and the refusal is **uniform**. Demonstrated, not asserted.
-- [ ] T057 🧑‍💻 Live SC sign-off — **partial by design** (007): the gate's **positive** half (operator A **Granted**) + inactive-shop / disabled-operator denials against **009** shop data; the **negative** half signed off now. Then commit the slice.
+- [X] T054 🧑‍💻 `make plan ENV=dev` → **READ IT** → `make apply ENV=dev`: applies T054a's `shop_mobile` app client + SSM param + shop authorizer **audience**. **⚠ ABORT if the pool or web client shows `-/+` / "must be replaced"** — all changes are additive. Then `make output` → copy `shop_mobile_app_client_id` into `secrets.properties` (`COGNITO_APP_CLIENT_ID`).
+- [X] T055 🧑‍💻 **Device matrix** ([quickstart.md](./quickstart.md) § 6): every flow on a **large-screen tablet in landscape (Android tablet AND iPad) as the PRIMARY target**, plus a phone as the compact case — "two SDKs behave identically" is a claim until exercised (SC-001), and **tablet-first (FR-003a/SC-014a) is a claim until seen on a real tablet** (S4s: deliberate use of the space, graceful reflow). **Includes the live SC-003** (request a code for an email that is **not** a provisioned operator → the response is **identical** to a real operator's — enumeration non-disclosure, verified adversarially, not just unit-tested) and **SC-002** (app-open → signed-in in **under 90 s**).
+- [X] T056 🧑‍💻 **The adversarial proof** (SC-006/SC-007): operator **B** (a `shop_manager` with **no assigned shop**) is **refused** the manager capability — the role alone is not enough — and the refusal is **uniform**. Demonstrated, not asserted.
+- [X] T057 🧑‍💻 Live SC sign-off — **partial by design** (007): the gate's **positive** half (operator A **Granted**) + inactive-shop / disabled-operator denials against **009** shop data; the **negative** half signed off now. Then commit the slice.
 
 ---
 

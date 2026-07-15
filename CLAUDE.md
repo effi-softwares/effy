@@ -165,15 +165,51 @@ three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`
 (011 — the first PUBLIC surface, Next.js 16 SSR)** — on the shared packages
 `@effy/{design-system,shared-types,api-client,web-kit}`.
 
-The **three KMP mobile apps remain the base template**. Still the **documented vision**: the
-**catalog** (there are no product tables anywhere yet), **cart / checkout / payment**, the hot path's
-**cloud deployment** (`core-api` is local-Docker-only by decision — its go-live is its own slice), and
-the **event backbone**.
+**Two of the three KMP mobile apps are now built** (KMP + Compose, Clean Architecture + MVVM, native
+Amplify auth behind a `commonMain` `AuthDriver`; a formal `ViewModel → UseCase → Driver/Repository`
+domain layer): **`apps/customer-mobile` (013)** and **`apps/shop-mobile` (014 — signed off, EMAIL_OTP
+only, single-token, the RBAC manager gate, tablet-first)**. **`apps/driver-mobile` remains the base
+template.** Still the **documented vision**: the **catalog** (there are no product tables anywhere yet),
+**cart / checkout / payment**, the hot path's **cloud deployment** (`core-api` is local-Docker-only by
+decision — its go-live is its own slice), and the **event backbone**.
 
 Everything gets built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**014-shop-mobile-foundation** — Shop Mobile Foundation (Bootstrap). ✅ **SIGNED OFF (partial by design);
+committed.**
+The platform's **fifth client surface**: `apps/shop-mobile` (KMP + Compose, Clean Architecture + MVVM),
+the shop-operator app. "013 for the shop audience" — the tech spine is ported from `apps/customer-mobile`
+with the shop deltas: **strictly passwordless EMAIL_OTP** (no password/sign-up/recovery — the audience's
+rules made structural in the `AuthDriver` interface), a **single access-token bearer** to `/shop/v1/*`
+(not customer's two-token protocol, D2s), and **RBAC done right** — role-aware UI is a courtesy, the
+**backend manager gate** (`GET /shop/v1/manager-ping`) decides (role AND status AND active-shop scope),
+uniform + fail-closed.
+- **New Cognito client**: a dedicated **`shop_mobile`** app client on the existing shop pool
+  (`infra/envs/dev/auth-shop.tf`) — EMAIL_OTP only (no SRP), 30-day refresh (shared workplace device,
+  D6s), added to the shop edge authorizer's audience. Additive; the pool is untouched.
+- **Tablet-first (FR-003a)**: the primary device is a **large-screen tablet in landscape**; layout is
+  **window-size-driven** (`AdaptiveContent` over Material 3 breakpoints — never an `isTablet` boolean),
+  the pattern every later shop-mobile UI slice extends.
+- **Shared-infra generalizations (Principle II)**: the Compose-theme generator now emits a **per-app
+  package** (`packages/design-system/compose-shop`); the mobile secret-guard covers **both** apps. During
+  the slice a clean-architecture pass added a **formal use-case layer to both mobile apps** and removed the
+  service-locator container seam (ViewModels take explicit collaborators) — 013 was refactored in lockstep
+  for parity.
+- **Partial by design (like 007)**: the manager gate's **positive** half (a manager at an active shop →
+  Granted) + inactive-shop/disabled denials need **009** shop data. **Deferred** (with owning slices):
+  telemetry → `mobile-telemetry`; iOS HIG chrome → `iOS native shell`.
+- Status: **signed off + committed** — both apps build/run on Android **and** iOS; shop 9 unit tests +
+  customer 10 green; guards + drift + `terraform validate` clean.
+  Spec/artifacts: [specs/014-shop-mobile-foundation/](specs/014-shop-mobile-foundation/); parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md).
+
+**013-customer-mobile-foundation** — Customer Mobile Foundation. **Built (the pattern 014 ports).** The
+first KMP mobile surface: `apps/customer-mobile` — Amplify-native auth behind a `commonMain` `AuthDriver`
+(Android Amplify + a Swift `IosAuthBridge`), the two-token protocol, three credential routes. Constitution
+amended to **v1.8.0** (mobile presentation is **MVVM**, not MVI).
 
 **012-customer-profile-management** — Customer Profile Management. **Code-complete + verified;
 operator run pending (2 blocking spikes).**
