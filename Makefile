@@ -33,6 +33,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
+        sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
         dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
@@ -316,6 +317,24 @@ cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts 
 cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
 	@bash scripts/mobile-guard.sh
 cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
+
+# --- shop-mobile (014). Same Principle-II codegen + build-failing guard as 013; EMAIL_OTP-only surface.
+# The shop contract (from shop.ts) and the shop-packaged Compose theme are committed + drift-guarded.
+sm-contract-gen: ## shop-mobile: regenerate the Kotlin shop DTOs from @effy/shared-types (014 D4s)
+	@pnpm --filter @effy/shared-types shop-contract:gen
+sm-contract-check: ## shop-mobile: FAIL if the committed shop Kotlin DTOs drift from the TS source (Principle II)
+	@pnpm --filter @effy/shared-types shop-contract:check
+sm-tokens-check: ## shop-mobile: FAIL if the committed Compose theme drifts from tokens.css (shared generator)
+	@pnpm --filter @effy/design-system tokens:check
+sm-guard: ## shop-mobile: the build-failing guard — escape-hatch ban (FR-028) + no secret-shaped keys (FR-036)
+	@bash scripts/mobile-guard.sh
+sm-codegen: sm-contract-check sm-tokens-check ## shop-mobile: both Principle-II drift checks together
+sm-test: ## shop-mobile: shared unit tests (JVM host) — the role-narrowing + gate logic
+	@cd apps/shop-mobile && ./gradlew :shared:testAndroidHostTest
+sm-ngrok-edge: ## Expose local edge-api on your ngrok static domain → SHOP_API_BASE_URL (run 'make edge-offline SERVICE=shop' first)
+	@test -n "$(NGROK_STATIC_DOMAIN)" || { echo "usage: make sm-ngrok-edge NGROK_STATIC_DOMAIN=<your-static>.ngrok-free.app  (run 'make edge-offline SERVICE=shop' first)"; exit 1; }
+	@command -v ngrok >/dev/null || { echo "sm-ngrok-edge: ngrok not found — install it and reserve a static domain first"; exit 1; }
+	ngrok http $(NGROK_EDGE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
 
 # --- expose a local backend to a physical phone via an ngrok STATIC domain (013 quickstart § 0 Path A).
 # A phone cannot reach localhost; ngrok gives a stable public https URL to put in secrets.properties.

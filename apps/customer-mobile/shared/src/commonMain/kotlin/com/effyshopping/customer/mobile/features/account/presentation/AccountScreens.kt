@@ -36,9 +36,16 @@ import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
+import com.effyshopping.customer.mobile.core.nav.AppNavigator
 import com.effyshopping.customer.mobile.core.nav.AppRoute
+import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
+import com.effyshopping.customer.mobile.features.account.domain.ChangePassword
 import com.effyshopping.customer.mobile.features.account.domain.Customer
+import com.effyshopping.customer.mobile.features.account.domain.RequestPasswordChallenge
+import com.effyshopping.customer.mobile.features.account.domain.SetPassword
+import com.effyshopping.customer.mobile.features.account.domain.SignOutEverywhere
+import com.effyshopping.customer.mobile.features.account.domain.UpdateName
 import com.effyshopping.customer.mobile.features.auth.presentation.PASSWORD_MIN_LENGTH
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,7 +64,15 @@ data class AccountUiState(
  * (FR-025). Neither call touches Cognito directly — they go to `edge-api/customer`. A successful
  * password write revokes EVERY session including this device (FR-027), so the app returns to sign-in.
  */
-class AccountViewModel(private val container: AppContainer) : ViewModel() {
+class AccountViewModel(
+    private val updateNameUseCase: UpdateName,
+    private val requestPasswordChallengeUseCase: RequestPasswordChallenge,
+    private val setPasswordUseCase: SetPassword,
+    private val changePasswordUseCase: ChangePassword,
+    private val signOutEverywhereUseCase: SignOutEverywhere,
+    private val session: SessionManager,
+    private val navigator: AppNavigator,
+) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state = _state.asStateFlow()
 
@@ -65,15 +80,15 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
         launch {
             // Send "" (not null) for a cleared field: the backend treats "" as a clear, but
             // `explicitNulls=false` would silently DROP a null, leaving the old value in place.
-            val updated = container.customers.updateName(given.trim(), family.trim())
-            container.session.setAuthenticated(updated)
-            container.navigator.pop() // back to Account; the greeting reads the record, so it's fresh
+            val updated = updateNameUseCase(given, family)
+            session.setAuthenticated(updated)
+            navigator.pop() // back to Account; the greeting reads the record, so it's fresh
         }
     }
 
     /** Step 1 of set-password: email the step-up code (FR-024). Returns the masked destination. */
     fun sendSetPasswordCode() = launch {
-        val masked = container.customers.requestPasswordChallenge()
+        val masked = requestPasswordChallengeUseCase()
         _state.value = _state.value.copy(maskedDestination = masked, info = "Enter the code we sent to $masked.")
     }
 
@@ -81,7 +96,7 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
     fun setPassword(code: String, newPassword: String) = run {
         if (!longEnough(newPassword)) return@run
         launch {
-            container.customers.setPassword(code.trim(), newPassword)
+            setPasswordUseCase(code, newPassword)
             finishAfterPasswordWrite()
         }
     }
@@ -90,20 +105,20 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
     fun changePassword(current: String, newPassword: String) = run {
         if (!longEnough(newPassword)) return@run
         launch {
-            container.customers.changePassword(current, newPassword)
+            changePasswordUseCase(current, newPassword)
             finishAfterPasswordWrite()
         }
     }
 
     fun signOut() = launch {
-        container.session.signOutLocally()
-        container.navigator.resetTo(AppRoute.Home)
+        session.signOutLocally()
+        navigator.resetTo(AppRoute.Home)
     }
 
     fun signOutEverywhere() = launch {
-        runCatching { container.customers.signOutEverywhere() }
-        container.session.signOutLocally()
-        container.navigator.resetTo(AppRoute.Home)
+        runCatching { signOutEverywhereUseCase() }
+        session.signOutLocally()
+        navigator.resetTo(AppRoute.Home)
     }
 
     /** Reset transient state (error/info/masked destination) so one sub-screen's error doesn't bleed
@@ -114,8 +129,8 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
 
     private suspend fun finishAfterPasswordWrite() {
         // FR-027: the write revoked EVERY session, including this device. Back to sign-in with the news.
-        container.session.signOutLocally()
-        container.navigator.resetTo(AppRoute.SignIn())
+        session.signOutLocally()
+        navigator.resetTo(AppRoute.SignIn())
     }
 
     private fun longEnough(pw: String): Boolean {
@@ -133,7 +148,7 @@ class AccountViewModel(private val container: AppContainer) : ViewModel() {
                 block()
             } catch (e: AppException) {
                 _state.value = _state.value.copy(error = message(e.error))
-                if (e.error == AppError.Forbidden) container.session.setBarred()
+                if (e.error == AppError.Forbidden) session.setBarred()
             } finally {
                 _state.value = _state.value.copy(loading = false)
             }
@@ -161,7 +176,12 @@ fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionStat
         container.navigator.resetTo(AppRoute.Home)
         return
     }
-    val vm = viewModel { AccountViewModel(container) }
+    val vm = viewModel {
+        AccountViewModel(
+            container.updateName, container.requestPasswordChallenge, container.setPassword,
+            container.changePassword, container.signOutEverywhere, container.session, container.navigator,
+        )
+    }
     LaunchedEffect(route) { vm.clearTransient() } // fresh transient state on each sub-screen
     when (route) {
         AppRoute.Account -> AccountScreen(container, vm, customer)

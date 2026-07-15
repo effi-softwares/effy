@@ -9,17 +9,21 @@
 locals {
   # audience → the pool it authorizes. Hyphenated 'back-office' matches the SSM auth path form.
   #
-  # `extra_client_ids` lets a pool authorize MORE THAN ONE app client — the customer pool has two
-  # (web + the 013 mobile client). Every entry carries the key (empty where unused) so the map stays a
-  # single object type; a heterogeneous map would fail the plan.
+  # `extra_client_ids` lets a pool authorize MORE THAN ONE app client — the customer and shop pools
+  # each have two (web + a mobile client, 013/014). Every entry carries the key (empty where unused) so
+  # the map stays a single object type; a heterogeneous map would fail the plan.
   edge_pools = {
     customer = {
       pool_id          = module.customer_pool.user_pool_id
       client_id        = module.customer_pool.app_client_id
       extra_client_ids = [aws_cognito_user_pool_client.customer_mobile.id]
     }
+    shop = {
+      pool_id          = module.shop_pool.user_pool_id
+      client_id        = module.shop_pool.app_client_id
+      extra_client_ids = [aws_cognito_user_pool_client.shop_mobile.id]
+    }
     driver        = { pool_id = module.driver_pool.user_pool_id, client_id = module.driver_pool.app_client_id, extra_client_ids = [] }
-    shop          = { pool_id = module.shop_pool.user_pool_id, client_id = module.shop_pool.app_client_id, extra_client_ids = [] }
     "back-office" = { pool_id = module.back_office_pool.user_pool_id, client_id = module.back_office_pool.app_client_id, extra_client_ids = [] }
   }
 }

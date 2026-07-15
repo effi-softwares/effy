@@ -1,0 +1,191 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "ProblemJSON": {
+      "additionalProperties": {},
+      "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "instance": {
+          "type": "string"
+        },
+        "status": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "title",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ShopLifecycleStatus": {
+      "description": "Shop lifecycle status (009-shop-management). Only `active` shops serve their operators; `suspended` (temporary hold) and `disabled` (deactivated, retained for audit) both refuse.",
+      "enum": [
+        "active",
+        "suspended",
+        "disabled"
+      ],
+      "type": "string"
+    },
+    "ShopManagerPingDTO": {
+      "additionalProperties": false,
+      "description": "Wire DTO for GET /shop/v1/manager-ping (contracts/shop-manager-ping.contract.md).",
+      "properties": {
+        "audience": {
+          "const": "shop",
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "scope": {
+          "const": "shop_manager",
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "audience",
+        "scope",
+        "subject",
+        "message"
+      ],
+      "type": "object"
+    },
+    "ShopRole": {
+      "description": "Shop RBAC roles. Prefixed so `manager` stays unambiguously the back-office role in logs.",
+      "enum": [
+        "shop_manager",
+        "shop_staff"
+      ],
+      "type": "string"
+    },
+    "ShopStaffRecordDTO": {
+      "additionalProperties": false,
+      "description": "Wire DTO for GET /shop/v1/me (contracts/shop-me.contract.md). `email` may be null until provisioning supplies it; `shop` is null for an unassigned operator — an expected state, not an error.",
+      "properties": {
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lastSeenAt": {
+          "type": "string"
+        },
+        "roles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "shop": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ShopSummaryDTO"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/ShopStaffStatus"
+        },
+        "subject": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "email",
+        "roles",
+        "status",
+        "shop",
+        "lastSeenAt"
+      ],
+      "type": "object"
+    },
+    "ShopStaffStatus": {
+      "description": "Platform-owned lifecycle. A disabled operator is denied despite an otherwise-valid token.",
+      "enum": [
+        "active",
+        "disabled"
+      ],
+      "type": "string"
+    },
+    "ShopSummaryDTO": {
+      "additionalProperties": false,
+      "description": "Wire DTO for the assigned shop, embedded in GET /shop/v1/me.",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/ShopLifecycleStatus"
+        }
+      },
+      "required": [
+        "id",
+        "code",
+        "name",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "Aggregator — codegen entry only. Every field forces a type into the schema.",
+  "properties": {
+    "lifecycleStatus": {
+      "$ref": "#/definitions/ShopLifecycleStatus"
+    },
+    "managerPing": {
+      "$ref": "#/definitions/ShopManagerPingDTO"
+    },
+    "problem": {
+      "$ref": "#/definitions/ProblemJSON"
+    },
+    "role": {
+      "$ref": "#/definitions/ShopRole"
+    },
+    "shopSummary": {
+      "$ref": "#/definitions/ShopSummaryDTO"
+    },
+    "staffRecord": {
+      "$ref": "#/definitions/ShopStaffRecordDTO"
+    },
+    "staffStatus": {
+      "$ref": "#/definitions/ShopStaffStatus"
+    }
+  },
+  "required": [
+    "role",
+    "staffStatus",
+    "lifecycleStatus",
+    "shopSummary",
+    "staffRecord",
+    "managerPing",
+    "problem"
+  ],
+  "type": "object",
+  "title": "ShopContract"
+}

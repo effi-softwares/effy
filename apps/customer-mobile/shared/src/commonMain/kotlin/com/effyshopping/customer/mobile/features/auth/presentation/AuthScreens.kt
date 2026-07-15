@@ -33,8 +33,18 @@ import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AuthError
 import com.effyshopping.customer.mobile.core.auth.AuthStep
 import com.effyshopping.customer.mobile.core.error.AppException
+import com.effyshopping.customer.mobile.core.nav.AppNavigator
 import com.effyshopping.customer.mobile.core.nav.AppRoute
 import com.effyshopping.customer.mobile.core.nav.OtpPurpose
+import com.effyshopping.customer.mobile.core.session.SessionManager
+import com.effyshopping.customer.mobile.features.auth.domain.ConfirmOtp
+import com.effyshopping.customer.mobile.features.auth.domain.ConfirmPasswordReset
+import com.effyshopping.customer.mobile.features.auth.domain.ConfirmSignUp
+import com.effyshopping.customer.mobile.features.auth.domain.RegisterPasswordless
+import com.effyshopping.customer.mobile.features.auth.domain.RegisterWithPassword
+import com.effyshopping.customer.mobile.features.auth.domain.SignInWithEmailOtp
+import com.effyshopping.customer.mobile.features.auth.domain.SignInWithPassword
+import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -49,11 +59,24 @@ data class AuthUiState(
 
 /**
  * The auth flow (013 US2). Registration (two routes), sign-in (two routes), OTP confirm, recovery.
- * On a terminal step it drives the [AppContainer.session] and navigates via [AppContainer.navigator].
- * Errors come from the closed [AuthError] set — `UserNotFound` and `NotAuthorized` are the SAME message
- * (FR-016), so the app is never an account-enumeration oracle.
+ * On a terminal step it drives the [session] and navigates via [navigator]. Errors come from the closed
+ * [AuthError] set — `UserNotFound` and `NotAuthorized` are the SAME message (FR-016), so the app is never
+ * an account-enumeration oracle.
+ *
+ * Dependencies are **explicit collaborators**, not the whole container (service-locator seam removed).
  */
-class AuthViewModel(private val container: AppContainer) : ViewModel() {
+class AuthViewModel(
+    private val registerWithPasswordUseCase: RegisterWithPassword,
+    private val registerPasswordlessUseCase: RegisterPasswordless,
+    private val confirmSignUpUseCase: ConfirmSignUp,
+    private val signInWithPasswordUseCase: SignInWithPassword,
+    private val signInWithEmailOtpUseCase: SignInWithEmailOtp,
+    private val confirmOtpUseCase: ConfirmOtp,
+    private val startPasswordResetUseCase: StartPasswordReset,
+    private val confirmPasswordResetUseCase: ConfirmPasswordReset,
+    private val session: SessionManager,
+    private val navigator: AppNavigator,
+) : ViewModel() {
     private val _state = MutableStateFlow(AuthUiState())
     val state = _state.asStateFlow()
 
@@ -67,32 +90,32 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         if (!passwordLongEnough(password)) return@run
         pendingEmail = email.trim(); pendingSeedPassword = true
         drive(seedPassword = true) {
-            container.authDriver.signUpWithPassword(email.trim(), password, given.trim(), family.trim())
+            registerWithPasswordUseCase(email, password, given, family)
         }
     }
 
     fun registerPasswordless(email: String, given: String, family: String) = run {
         pendingEmail = email.trim(); pendingSeedPassword = false
         drive(seedPassword = false) {
-            container.authDriver.signUpPasswordless(email.trim(), given.trim(), family.trim())
+            registerPasswordlessUseCase(email, given, family)
         }
     }
 
     fun signInWithPassword(email: String, password: String, returnTo: AppRoute?) {
         pendingEmail = email.trim(); pendingReturnTo = returnTo
-        drive(seedPassword = false) { container.authDriver.signInWithPassword(email.trim(), password) }
+        drive(seedPassword = false) { signInWithPasswordUseCase(email, password) }
     }
 
     fun signInWithOtp(email: String, returnTo: AppRoute?) {
         pendingEmail = email.trim(); pendingReturnTo = returnTo
-        drive(seedPassword = false) { container.authDriver.signInWithEmailOtp(email.trim()) }
+        drive(seedPassword = false) { signInWithEmailOtpUseCase(email) }
     }
 
     fun submitOtp(route: AppRoute.VerifyOtp, code: String) {
         pendingReturnTo = route.returnTo
         when (route.purpose) {
-            OtpPurpose.SIGN_IN -> drive(seedPassword = false) { container.authDriver.confirmOtp(code.trim()) }
-            OtpPurpose.SIGN_UP -> drive(seedPassword = pendingSeedPassword) { container.authDriver.confirmSignUp(route.email, code.trim()) }
+            OtpPurpose.SIGN_IN -> drive(seedPassword = false) { confirmOtpUseCase(code) }
+            OtpPurpose.SIGN_UP -> drive(seedPassword = pendingSeedPassword) { confirmSignUpUseCase(route.email, code) }
             OtpPurpose.RECOVERY -> {} // recovery uses its own screen (code + new password → backend)
         }
     }
@@ -100,7 +123,7 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     fun sendRecoveryCode(email: String) {
         pendingEmail = email.trim()
         launch {
-            when (val step = container.authDriver.startPasswordReset(email.trim())) {
+            when (val step = startPasswordResetUseCase(email)) {
                 is AuthStep.NeedsOtp -> _state.value = AuthUiState(info = "Enter the code we emailed and choose a new password.")
                 is AuthStep.Failed -> _state.value = AuthUiState(error = message(step.error))
                 else -> _state.value = AuthUiState(error = "Something went wrong. Try again.")
@@ -112,9 +135,9 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
         if (!passwordLongEnough(newPassword)) return
         launch {
             try {
-                container.customers.confirmPasswordReset(email.trim(), code.trim(), newPassword)
+                confirmPasswordResetUseCase(email, code, newPassword)
                 _state.value = AuthUiState(info = "Password updated. Sign in with your new password.")
-                container.navigator.resetTo(AppRoute.SignIn())
+                navigator.resetTo(AppRoute.SignIn())
             } catch (e: AppException) {
                 _state.value = AuthUiState(error = messageForApp(e))
             }
@@ -141,11 +164,11 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
                 is AuthStep.Done -> completeSignIn(seedPassword)
                 is AuthStep.NeedsOtp -> {
                     _state.value = AuthUiState()
-                    container.navigator.push(AppRoute.VerifyOtp(pendingEmail, OtpPurpose.SIGN_IN, pendingReturnTo))
+                    navigator.push(AppRoute.VerifyOtp(pendingEmail, OtpPurpose.SIGN_IN, pendingReturnTo))
                 }
                 is AuthStep.NeedsSignUpConfirmation -> {
                     _state.value = AuthUiState()
-                    container.navigator.push(AppRoute.VerifyOtp(step.email, OtpPurpose.SIGN_UP, pendingReturnTo))
+                    navigator.push(AppRoute.VerifyOtp(step.email, OtpPurpose.SIGN_UP, pendingReturnTo))
                 }
                 is AuthStep.Failed -> _state.value = AuthUiState(error = message(step.error))
             }
@@ -153,10 +176,10 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
     }
 
     private suspend fun completeSignIn(seedPassword: Boolean) {
-        container.session.onSignedIn(seedPassword)
+        session.onSignedIn(seedPassword)
         val returnTo = pendingReturnTo
-        container.navigator.resetTo(AppRoute.Home)
-        if (returnTo != null && returnTo != AppRoute.Home) container.navigator.push(returnTo)
+        navigator.resetTo(AppRoute.Home)
+        if (returnTo != null && returnTo != AppRoute.Home) navigator.push(returnTo)
     }
 
     private inline fun launch(crossinline block: suspend () -> Unit) {
@@ -191,7 +214,13 @@ class AuthViewModel(private val container: AppContainer) : ViewModel() {
 
 @Composable
 fun AuthRoutes(container: AppContainer, route: AppRoute) {
-    val vm = viewModel { AuthViewModel(container) }
+    val vm = viewModel {
+        AuthViewModel(
+            container.registerWithPassword, container.registerPasswordless, container.confirmSignUp,
+            container.signInWithPassword, container.signInWithEmailOtp, container.confirmOtp,
+            container.startPasswordReset, container.confirmPasswordReset, container.session, container.navigator,
+        )
+    }
     LaunchedEffect(route) { vm.clearTransient() }
     when (route) {
         is AppRoute.SignIn -> SignInScreen(container, vm, route.returnTo)

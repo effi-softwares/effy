@@ -5,6 +5,11 @@
 xcuserdata
 !src/**/build/
 local.properties
+# 013 FR-039 — build-time config & secrets NEVER committed (secrets.properties.example IS committed).
+secrets.properties
+# 013 D12 — we configure Amplify from code; if anyone reintroduces a generated file, keep it out too.
+amplifyconfiguration.json
+amplify_outputs.json
 .idea
 .DS_Store
 captures

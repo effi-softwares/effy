@@ -21,7 +21,13 @@ import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CSS = resolve(here, "../src/tokens.css");
-const OUT = resolve(here, "../compose/EffyTokens.kt");
+
+// ONE generator, ONE brand source — one derived, diff-guarded theme PER KMP app (Principle II/V). Each
+// app has its own package root, so each gets its own committed copy. tokens:check diffs them all.
+const TARGETS = [
+  { out: resolve(here, "../compose/EffyTokens.kt"), pkg: "com.effyshopping.customer.mobile.design" },
+  { out: resolve(here, "../compose-shop/EffyTokens.kt"), pkg: "com.effyshopping.shop.mobile.design" },
+];
 
 /** Parse a `:root { … }` or `.dark { … }` block into { cssVarName: "#rrggbb" }. */
 function parseBlock(css, selector) {
@@ -94,7 +100,7 @@ function colorScheme(fnName, valName, objName) {
   return `val ${valName}: ColorScheme = ${fnName}(\n${args.join("\n")}\n)`;
 }
 
-function generate() {
+function generate(target) {
   const css = readFileSync(CSS, "utf8");
   const light = parseBlock(css, ":root");
   const dark = parseBlock(css, ".dark");
@@ -109,7 +115,7 @@ function generate() {
 // The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).`;
 
   const out = `${banner}
-package com.effyshopping.customer.mobile.design
+package ${target.pkg}
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
@@ -133,9 +139,9 @@ ${colorScheme("lightColorScheme", "EffyLightColorScheme", "Light")}
 ${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark")}
 `;
 
-  mkdirSync(dirname(OUT), { recursive: true });
-  writeFileSync(OUT, out);
-  console.log(`gen-compose-theme: wrote ${OUT} (${COLOR_TOKENS.length} colors, radius ${radiusDp}.dp)`);
+  mkdirSync(dirname(target.out), { recursive: true });
+  writeFileSync(target.out, out);
+  console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors, radius ${radiusDp}.dp)`);
 }
 
-generate();
+for (const target of TARGETS) generate(target);

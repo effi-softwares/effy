@@ -4,7 +4,7 @@ import com.effyshopping.customer.mobile.core.auth.AuthDriver
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.features.account.domain.Customer
-import com.effyshopping.customer.mobile.features.account.domain.CustomerRepository
+import com.effyshopping.customer.mobile.features.account.domain.GetCustomer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,14 +15,14 @@ import kotlinx.coroutines.launch
 /**
  * Owns [SessionState] (013 data-model § 4). The single source of truth for "who is using the app".
  *
- * It reads the session from the [authDriver] (Amplify owns the tokens) and the record from
- * [customers] — because identity is displayed from the RECORD, never the token (FR-032), and the
+ * It reads the session from the [authDriver] (Amplify owns the tokens) and the record via
+ * [getCustomer] — because identity is displayed from the RECORD, never the token (FR-032), and the
  * record decides access (FR-033). It also listens for SDK-initiated session drops (Android Keystore
  * failure, D11): "signed out unexpectedly" is a real transition, not a swallowed error.
  */
 class SessionManager(
     private val authDriver: AuthDriver,
-    private val customers: CustomerRepository,
+    private val getCustomer: GetCustomer,
     scope: CoroutineScope,
 ) {
     private val _state = MutableStateFlow<SessionState>(SessionState.Restoring)
@@ -73,7 +73,7 @@ class SessionManager(
         var attempt = 0
         while (true) {
             try {
-                setAuthenticated(customers.me(seedPassword))
+                setAuthenticated(getCustomer(seedPassword))
                 return
             } catch (e: AppException) {
                 val error = e.error

@@ -15,48 +15,53 @@
 #      a leaked credential. So no BuildKonfig required-key name may look like a secret.
 #
 # Proven by DELIBERATELY breaking it (the 011 lesson: break a guard the way it will actually break).
+# Both KMP apps are guarded — customer-mobile (013) and shop-mobile (014). The rules are identical: no
+# escape hatch, no secret-shaped config key. (Shop is EMAIL_OTP-only, so it never even writes a password
+# — but the escape hatch would still hand out the raw Cognito client, so the ban holds all the same.)
 # Run: make mobile-guard   ·   scripts/mobile-guard.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP="$ROOT/apps/customer-mobile"
+APPS="apps/customer-mobile apps/shop-mobile"
 FAIL=0
 
-# ── 1. Escape-hatch ban ──────────────────────────────────────────────────────────────────────────
-# Forbidden anywhere under the app's Kotlin/Swift sources. Allowlist is intentionally empty.
-ESCAPE_PATTERN='escapeHatch|getEscapeHatch|cognitoidentityprovider|CognitoIdentityProviderClient'
-if [ -d "$APP" ]; then
-  # Search Kotlin + Swift source; ignore build output and this guard's own fixtures.
+for REL in $APPS; do
+  APP="$ROOT/$REL"
+  [ -d "$APP" ] || continue
+
+  # ── 1. Escape-hatch ban ────────────────────────────────────────────────────────────────────────
+  # Forbidden anywhere under the app's Kotlin/Swift sources. Allowlist is intentionally empty.
+  ESCAPE_PATTERN='escapeHatch|getEscapeHatch|cognitoidentityprovider|CognitoIdentityProviderClient'
   HITS="$(grep -rInE "$ESCAPE_PATTERN" \
       --include='*.kt' --include='*.swift' \
       --exclude-dir=build --exclude-dir='.gradle' --exclude-dir=DerivedData \
       "$APP" 2>/dev/null || true)"
   if [ -n "$HITS" ]; then
-    echo "✗ mobile-guard: FORBIDDEN Amplify escape-hatch / raw Cognito SDK reference (FR-024):"
+    echo "✗ mobile-guard [$REL]: FORBIDDEN Amplify escape-hatch / raw Cognito SDK reference (FR-024):"
     echo "$HITS" | sed 's/^/    /'
     echo "    Password writes MUST go to the backend. There is no allowed use of the escape hatch."
     FAIL=1
   fi
-fi
 
-# ── 2. No secret-shaped required config key (FR-042) ───────────────────────────────────────────────
-# Extract the `requiredKeys` list from build.gradle.kts and reject any credential-shaped name.
-GRADLE="$APP/build.gradle.kts"
-if [ -f "$GRADLE" ]; then
-  # Pull quoted identifiers from the requiredKeys = listOf( … ) block.
-  KEYS="$(awk '/val requiredKeys/{f=1} f{print} /\)/{if(f)f=0}' "$GRADLE" \
-          | grep -oE '"[A-Z0-9_]+"' | tr -d '"' || true)"
-  BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' || true)"
-  if [ -n "$BAD" ]; then
-    echo "✗ mobile-guard: a required build-config key is SECRET-SHAPED (FR-042):"
-    printf '%s\n' "$BAD" | sed 's/^/    /'
-    echo "    A mobile binary is published; nothing credentialed may ship in it. Pool/client IDs are"
-    echo "    NAMES, not keys — but anything matching SECRET/KEY/PASSWORD/TOKEN/CREDENTIAL is refused."
-    FAIL=1
+  # ── 2. No secret-shaped required config key (FR-042/FR-036) ─────────────────────────────────────
+  # Extract the `requiredKeys` list from build.gradle.kts and reject any credential-shaped name.
+  GRADLE="$APP/build.gradle.kts"
+  if [ -f "$GRADLE" ]; then
+    # Pull quoted identifiers from the requiredKeys = listOf( … ) block.
+    KEYS="$(awk '/val requiredKeys/{f=1} f{print} /\)/{if(f)f=0}' "$GRADLE" \
+            | grep -oE '"[A-Z0-9_]+"' | tr -d '"' || true)"
+    BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' || true)"
+    if [ -n "$BAD" ]; then
+      echo "✗ mobile-guard [$REL]: a required build-config key is SECRET-SHAPED (FR-042):"
+      printf '%s\n' "$BAD" | sed 's/^/    /'
+      echo "    A mobile binary is published; nothing credentialed may ship in it. Pool/client IDs are"
+      echo "    NAMES, not keys — but anything matching SECRET/KEY/PASSWORD/TOKEN/CREDENTIAL is refused."
+      FAIL=1
+    fi
   fi
-fi
+done
 
 if [ "$FAIL" -eq 0 ]; then
-  echo "✓ mobile-guard: escape-hatch ban clean; no secret-shaped config keys."
+  echo "✓ mobile-guard: escape-hatch ban clean; no secret-shaped config keys (customer-mobile + shop-mobile)."
 fi
 exit "$FAIL"

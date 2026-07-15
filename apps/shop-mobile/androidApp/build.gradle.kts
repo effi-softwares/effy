@@ -18,6 +18,9 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+
+    // 013 — Amplify Android requires core library desugaring (enabled in compileOptions below).
+    coreLibraryDesugaring(libs.android.desugar.jdk.libs)
 }
 
 android {
@@ -42,6 +45,8 @@ android {
         }
     }
     compileOptions {
+        // 013 — required by Amplify Android (backports java.time etc. below the API level it needs).
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
