@@ -8,11 +8,19 @@
 
 locals {
   # audience → the pool it authorizes. Hyphenated 'back-office' matches the SSM auth path form.
+  #
+  # `extra_client_ids` lets a pool authorize MORE THAN ONE app client — the customer pool has two
+  # (web + the 013 mobile client). Every entry carries the key (empty where unused) so the map stays a
+  # single object type; a heterogeneous map would fail the plan.
   edge_pools = {
-    customer      = { pool_id = module.customer_pool.user_pool_id, client_id = module.customer_pool.app_client_id }
-    driver        = { pool_id = module.driver_pool.user_pool_id, client_id = module.driver_pool.app_client_id }
-    shop          = { pool_id = module.shop_pool.user_pool_id, client_id = module.shop_pool.app_client_id }
-    "back-office" = { pool_id = module.back_office_pool.user_pool_id, client_id = module.back_office_pool.app_client_id }
+    customer = {
+      pool_id          = module.customer_pool.user_pool_id
+      client_id        = module.customer_pool.app_client_id
+      extra_client_ids = [aws_cognito_user_pool_client.customer_mobile.id]
+    }
+    driver        = { pool_id = module.driver_pool.user_pool_id, client_id = module.driver_pool.app_client_id, extra_client_ids = [] }
+    shop          = { pool_id = module.shop_pool.user_pool_id, client_id = module.shop_pool.app_client_id, extra_client_ids = [] }
+    "back-office" = { pool_id = module.back_office_pool.user_pool_id, client_id = module.back_office_pool.app_client_id, extra_client_ids = [] }
   }
 }
 
@@ -55,8 +63,10 @@ resource "aws_apigatewayv2_authorizer" "pool" {
   name             = "${module.shared.name_prefix}-edge-${each.key}"
 
   jwt_configuration {
-    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${each.value.pool_id}"
-    audience = [each.value.client_id]
+    issuer = "https://cognito-idp.${var.aws_region}.amazonaws.com/${each.value.pool_id}"
+    # The pool's app clients. Customer has two (web + 013 mobile); the rest have one. A mobile token
+    # carries the mobile client's id as `aud`, so it MUST be listed here or every mobile call 401s.
+    audience = concat([each.value.client_id], each.value.extra_client_ids)
   }
 }
 

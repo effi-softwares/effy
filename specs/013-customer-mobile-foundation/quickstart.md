@@ -25,20 +25,21 @@ already works (local-Docker-only by decision).
 ### Path A — local edge-api + ngrok (recommended for dev)
 
 ```bash
-make db-up ENV=dev                              # apply the 011/012 migrations to your dev/local DB
-make edge-offline SERVICE=customer ENV=dev &    # serverless-offline — the customer routes, locally
-ngrok http 3001                                 # public https URL the phone can reach (match edge-offline's port)
-curl -s http://localhost:3001/customer/healthz  # → {"status":"ok","service":"customer"}
+make db-up ENV=dev                                        # apply the 011/012 migrations to your dev/local DB
+make edge-offline SERVICE=customer ENV=dev &              # serverless-offline — the customer routes on :3000
+curl -s http://localhost:3000/customer/healthz            # → {"status":"ok","service":"customer"}
+make cm-ngrok-edge NGROK_STATIC_DOMAIN=<you>.ngrok-free.app   # stable public https URL the phone can reach
 ```
 
-Put the **ngrok https URL** in `secrets.properties` as `EDGE_API_BASE_URL` (§ 1). ⚠ A free ngrok URL changes each
-session — and `EDGE_API_BASE_URL` is **build-time** (BuildKonfig), so a new URL means a rebuild. A reserved/paid
-ngrok domain avoids the churn.
+Put the **ngrok static URL** in `secrets.properties` as `EDGE_API_BASE_URL` (§ 1). Because `EDGE_API_BASE_URL` is
+**build-time** (BuildKonfig), a **static/reserved** ngrok domain is worth it — a random per-session URL would force a
+rebuild every time. `make cm-ngrok-core` does the same for core-api (:8080) when commerce eventually needs it; for
+this slice only edge is called.
 
 ### Path B — deployed edge-api (for a shared/QA environment)
 
 ```bash
-make apply ENV=dev                              # incl. THIS slice's refresh_token_validity 30→90 (in-place)
+make apply ENV=dev                              # adds the customer-mobile app client (90-day refresh) + authorizer audience (D3a; additive)
 make db-up ENV=dev
 make edge-deploy SERVICE=customer ENV=dev
 curl -s https://edge-api.dev.effyshopping.com/customer/healthz   # → {"status":"ok","service":"customer"}
@@ -61,9 +62,11 @@ Fill `secrets.properties` from `make output` (values also in SSM `/effy/dev/auth
 
 ```properties
 COGNITO_USER_POOL_ID=ap-southeast-2_xxxxxxxxx
+# ⚠ the MOBILE client — output `customer_mobile_app_client_id` / SSM .../auth/customer/mobile_app_client_id.
+# NOT the web `app_client_id`. The mobile client is the one with the 90-day session (D3a).
 COGNITO_APP_CLIENT_ID=xxxxxxxxxxxxxxxxxxxxxxxxxx
 COGNITO_REGION=ap-southeast-2
-EDGE_API_BASE_URL=https://edge-api.dev.effyshopping.com
+EDGE_API_BASE_URL=https://edge-api.dev.effyshopping.com   # or your ngrok URL (Path A)
 CORE_API_BASE_URL=http://localhost:8080          # commerce; nothing to call yet
 ```
 
@@ -178,7 +181,8 @@ These are the reason the slice exists. **Perform them, do not reason about them.
 
 ## 8. Sign-off
 
-- [ ] O1 — `make apply ENV=dev`: `refresh_token_validity` 30→90 applied **in-place** (aborted if replace).
+- [ ] O1 — `make apply ENV=dev`: the **customer-mobile app client** (90-day refresh) + authorizer audience applied,
+      **additive** (aborted if the pool or *web* client would be replaced). Mobile client id → `secrets.properties`.
 - [ ] O2 — 011/012 backend deployed; `/customer/healthz` green; **SES sends**.
 - [ ] Every § 5 row passes on **both** platforms.
 - [ ] Every § 6 adversarial proof passes.

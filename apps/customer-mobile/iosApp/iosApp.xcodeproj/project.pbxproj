@@ -6,8 +6,27 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		067A700130077C7100CEE238 /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700030077C7100CEE238 /* Amplify */; };
+		067A700330077C7100CEE238 /* AmplifyFirehoseClient in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700230077C7100CEE238 /* AmplifyFirehoseClient */; };
+		067A700530077C7100CEE238 /* AmplifyFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700430077C7100CEE238 /* AmplifyFoundation */; };
+		067A700730077C7100CEE238 /* AmplifyFoundationBridge in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700630077C7100CEE238 /* AmplifyFoundationBridge */; };
+		067A700930077C7100CEE238 /* AmplifyKinesisClient in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700830077C7100CEE238 /* AmplifyKinesisClient */; };
+		067A700B30077C7100CEE238 /* AWSAPIPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700A30077C7100CEE238 /* AWSAPIPlugin */; };
+		067A700D30077C7100CEE238 /* AWSCloudWatchLoggingPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700C30077C7100CEE238 /* AWSCloudWatchLoggingPlugin */; };
+		067A700F30077C7100CEE238 /* AWSCognitoAuthPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700E30077C7100CEE238 /* AWSCognitoAuthPlugin */; };
+		067A701130077C7100CEE238 /* AWSDataStorePlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701030077C7100CEE238 /* AWSDataStorePlugin */; };
+		067A701330077C7100CEE238 /* AWSLocationGeoPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701230077C7100CEE238 /* AWSLocationGeoPlugin */; };
+		067A701530077C7100CEE238 /* AWSPinpointAnalyticsPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701430077C7100CEE238 /* AWSPinpointAnalyticsPlugin */; };
+		067A701730077C7100CEE238 /* AWSPinpointPushNotificationsPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701630077C7100CEE238 /* AWSPinpointPushNotificationsPlugin */; };
+		067A701930077C7100CEE238 /* AWSPluginsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701830077C7100CEE238 /* AWSPluginsCore */; };
+		067A701B30077C7100CEE238 /* AWSPredictionsPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701A30077C7100CEE238 /* AWSPredictionsPlugin */; };
+		067A701D30077C7100CEE238 /* AWSS3StoragePlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701C30077C7100CEE238 /* AWSS3StoragePlugin */; };
+		067A701F30077C7100CEE238 /* CoreMLPredictionsPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701E30077C7100CEE238 /* CoreMLPredictionsPlugin */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		682F1C166E0AD1A147C2786A /* customer-mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = customer-mobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		682F1C166E0AD1A147C2786A /* customer-mobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "customer-mobile.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -21,17 +40,17 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		AAA543DAE682C4F879682E54 /* Configuration */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Configuration;
+			sourceTree = "<group>";
+		};
 		E0E386380CB2E752183DC59D /* iosApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				3F589A459DD7440394A5C8FC /* Exceptions for "iosApp" folder in "iosApp" target */,
 			);
 			path = iosApp;
-			sourceTree = "<group>";
-		};
-		AAA543DAE682C4F879682E54 /* Configuration */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = Configuration;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -41,19 +60,33 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				067A700B30077C7100CEE238 /* AWSAPIPlugin in Frameworks */,
+				067A700130077C7100CEE238 /* Amplify in Frameworks */,
+				067A700730077C7100CEE238 /* AmplifyFoundationBridge in Frameworks */,
+				067A701130077C7100CEE238 /* AWSDataStorePlugin in Frameworks */,
+				067A701930077C7100CEE238 /* AWSPluginsCore in Frameworks */,
+				067A701D30077C7100CEE238 /* AWSS3StoragePlugin in Frameworks */,
+				067A700F30077C7100CEE238 /* AWSCognitoAuthPlugin in Frameworks */,
+				067A700330077C7100CEE238 /* AmplifyFirehoseClient in Frameworks */,
+				067A701330077C7100CEE238 /* AWSLocationGeoPlugin in Frameworks */,
+				067A701B30077C7100CEE238 /* AWSPredictionsPlugin in Frameworks */,
+				067A701730077C7100CEE238 /* AWSPinpointPushNotificationsPlugin in Frameworks */,
+				067A701530077C7100CEE238 /* AWSPinpointAnalyticsPlugin in Frameworks */,
+				067A701F30077C7100CEE238 /* CoreMLPredictionsPlugin in Frameworks */,
+				067A700D30077C7100CEE238 /* AWSCloudWatchLoggingPlugin in Frameworks */,
+				067A700530077C7100CEE238 /* AmplifyFoundation in Frameworks */,
+				067A700930077C7100CEE238 /* AmplifyKinesisClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		87DC12902BE94CFD72EC5A0D = {
+		067A6FFF30077C7100CEE238 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				AAA543DAE682C4F879682E54 /* Configuration */,
-				E0E386380CB2E752183DC59D /* iosApp */,
-				5251AB4807B23F90069732A9 /* Products */,
 			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 		5251AB4807B23F90069732A9 /* Products */ = {
@@ -62,6 +95,16 @@
 				682F1C166E0AD1A147C2786A /* customer-mobile.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		87DC12902BE94CFD72EC5A0D = {
+			isa = PBXGroup;
+			children = (
+				AAA543DAE682C4F879682E54 /* Configuration */,
+				E0E386380CB2E752183DC59D /* iosApp */,
+				067A6FFF30077C7100CEE238 /* Frameworks */,
+				5251AB4807B23F90069732A9 /* Products */,
+			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -85,6 +128,22 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				067A700030077C7100CEE238 /* Amplify */,
+				067A700230077C7100CEE238 /* AmplifyFirehoseClient */,
+				067A700430077C7100CEE238 /* AmplifyFoundation */,
+				067A700630077C7100CEE238 /* AmplifyFoundationBridge */,
+				067A700830077C7100CEE238 /* AmplifyKinesisClient */,
+				067A700A30077C7100CEE238 /* AWSAPIPlugin */,
+				067A700C30077C7100CEE238 /* AWSCloudWatchLoggingPlugin */,
+				067A700E30077C7100CEE238 /* AWSCognitoAuthPlugin */,
+				067A701030077C7100CEE238 /* AWSDataStorePlugin */,
+				067A701230077C7100CEE238 /* AWSLocationGeoPlugin */,
+				067A701430077C7100CEE238 /* AWSPinpointAnalyticsPlugin */,
+				067A701630077C7100CEE238 /* AWSPinpointPushNotificationsPlugin */,
+				067A701830077C7100CEE238 /* AWSPluginsCore */,
+				067A701A30077C7100CEE238 /* AWSPredictionsPlugin */,
+				067A701C30077C7100CEE238 /* AWSS3StoragePlugin */,
+				067A701E30077C7100CEE238 /* CoreMLPredictionsPlugin */,
 			);
 			productName = iosApp;
 			productReference = 682F1C166E0AD1A147C2786A /* customer-mobile.app */;
@@ -114,6 +173,9 @@
 			);
 			mainGroup = 87DC12902BE94CFD72EC5A0D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5251AB4807B23F90069732A9 /* Products */;
 			projectDirPath = "";
@@ -167,6 +229,120 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		720E8E8C06807F62129F2FF9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
+				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		81C3705FA4FCF782A3C75C10 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
+				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = iosApp/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		83034B977D749673640C2F76 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = AAA543DAE682C4F879682E54 /* Configuration */;
+			baseConfigurationReferenceRelativePath = Config.xcconfig;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 		EBEC854F1AC68ED5522BFCC3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = AAA543DAE682C4F879682E54 /* Configuration */;
@@ -232,120 +408,6 @@
 			};
 			name = Debug;
 		};
-		83034B977D749673640C2F76 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = AAA543DAE682C4F879682E54 /* Configuration */;
-			baseConfigurationReferenceRelativePath = Config.xcconfig;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		720E8E8C06807F62129F2FF9 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		81C3705FA4FCF782A3C75C10 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_ASSET_PATHS = "\"iosApp/Preview Content\"";
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -368,6 +430,100 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/aws-amplify/amplify-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.58.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		067A700030077C7100CEE238 /* Amplify */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = Amplify;
+		};
+		067A700230077C7100CEE238 /* AmplifyFirehoseClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AmplifyFirehoseClient;
+		};
+		067A700430077C7100CEE238 /* AmplifyFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AmplifyFoundation;
+		};
+		067A700630077C7100CEE238 /* AmplifyFoundationBridge */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AmplifyFoundationBridge;
+		};
+		067A700830077C7100CEE238 /* AmplifyKinesisClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AmplifyKinesisClient;
+		};
+		067A700A30077C7100CEE238 /* AWSAPIPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSAPIPlugin;
+		};
+		067A700C30077C7100CEE238 /* AWSCloudWatchLoggingPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSCloudWatchLoggingPlugin;
+		};
+		067A700E30077C7100CEE238 /* AWSCognitoAuthPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSCognitoAuthPlugin;
+		};
+		067A701030077C7100CEE238 /* AWSDataStorePlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSDataStorePlugin;
+		};
+		067A701230077C7100CEE238 /* AWSLocationGeoPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSLocationGeoPlugin;
+		};
+		067A701430077C7100CEE238 /* AWSPinpointAnalyticsPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSPinpointAnalyticsPlugin;
+		};
+		067A701630077C7100CEE238 /* AWSPinpointPushNotificationsPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSPinpointPushNotificationsPlugin;
+		};
+		067A701830077C7100CEE238 /* AWSPluginsCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSPluginsCore;
+		};
+		067A701A30077C7100CEE238 /* AWSPredictionsPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSPredictionsPlugin;
+		};
+		067A701C30077C7100CEE238 /* AWSS3StoragePlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = AWSS3StoragePlugin;
+		};
+		067A701E30077C7100CEE238 /* CoreMLPredictionsPlugin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
+			productName = CoreMLPredictionsPlugin;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6160C169066C99F7E952939F /* Project object */;
 }

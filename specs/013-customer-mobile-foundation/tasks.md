@@ -37,11 +37,81 @@ compiles and no device runs here. Marking discipline (honesty over green ticks):
   drawn where I can no longer *observe* the result.
 - **`[ ]` = not started** (feature screens, drivers needing the SDK, and everything operator-gated).
 
-Done + verified this pass: the two **Principle II codegen pipelines** (T011–T014) and their **drift guards**
-(proven to fail on a planted TS field / a changed token), the **build config + fail-loud contract source**
-(T007/T016/T017), and the **escape-hatch + no-secret-key guard** (T018/T030, proven both ways). The core Kotlin
-spine, the two Amplify drivers, nav, and every feature/operator task remain for a session with the real toolchain
-and the deployed backend (T001/T002) — and the account flows remain gated on spike **S1** (T003).
+**Done + verified [X]**: the two **Principle II codegen pipelines** (T011–T014) and their **drift guards** (proven
+to fail on a planted TS field / a changed token), the **build config + fail-loud contract source** (T017), and the
+**escape-hatch + no-secret-key guard** (T018/T030, proven both ways). Also `secrets.properties` is now git-ignored
+(a real FR-039 gap that existed).
+
+**Written as source, uncompiled [~]**: the version catalog (T007), the Gradle fail-loud config + generated-source
+wiring + BuildKonfig block (T015/T016), the Makefile passthroughs (T010), the package skeleton (T008), and the
+**SDK-independent core spine** — `BaseViewModel` (T019), `EffyTheme` (T020), the **`AuthDriver` interface + models**
+(T021, the security boundary — its *absences* are FR-024), and `AppConfig` + the Amplify config-string builder
+(T022). Cross-checked by hand: the theme's imports match the generated token package, and every `BuildKonfig.*`
+read matches a `requiredKeys` entry. **Not compiled — the first `./gradlew build` may still surface a typo.**
+
+**Remaining [ ]**: the Ktor factory + bearer plugin (T023/T024), the container (T025), nav (T026), the **two Amplify
+drivers** (T027/T028 — need the SDK; iOS is Swift), every feature screen (US1–US5), and all operator/device tasks.
+The backend is **deployable OR local** (quickstart § 0 Path A = local edge-api + ngrok — recommended); the account
+flows remain gated on spike **S1** (T003).
+
+### ⬆ UPDATE (2026-07-15) — the spine now COMPILES (verified on the real toolchain)
+
+The first Android Studio sync surfaced one real bug in my Gradle: `commonMain.kotlin.srcDir(...)` (the `commonMain`
+provider has no `.kotlin` accessor). Fixed to the block form `commonMain { kotlin.srcDir(...) }`. Then, on the
+machine with the SDK + `secrets.properties`:
+- `./gradlew :shared:help` → **BUILD SUCCESSFUL** (root fail-loud check passes with keys present; scripts configure).
+- `./gradlew :shared:compileCommonMainKotlinMetadata` → **BUILD SUCCESSFUL** — `generateBuildKonfig` ran, and the
+  **whole commonMain spine + both generated files compiled clean**: `BaseViewModel`, `AuthDriver` + models,
+  `EffyTheme` (against the generated `EffyColorScheme`s), `AppConfig` + the config-JSON builder, `Dto.kt`, `EffyTokens.kt`.
+
+So T007/T015/T016/T019/T020/T021/T022 are now **compile-verified** (upgraded from source-only). What remains for
+them is runtime/tests, not compilation. The Android Studio sync will now succeed ("Try Again").
+
+### ⬆⬆ UPDATE (2026-07-15, later) — ALL SIX user stories implemented; the Android APK assembles
+
+The full app was built bottom-up and **compile-verified on the real toolchain** — `./gradlew :androidApp:assembleDebug`
+→ **BUILD SUCCESSFUL**, a 20.7 MB installable APK. What now exists and compiles:
+
+- **US1** — guest-first `HomeScreen` (honest empty state, no mock products), `EffyTheme`, `App` root that renders by
+  `SessionState` (Restoring never flickers), Android entry (`EffyApp` + Amplify configure from the in-code string).
+- **US2** — `AuthViewModel` + screens: register (password **and** passwordless), sign-in (SRP **and** EMAIL_OTP),
+  OTP confirm, recovery-via-backend. Enumeration-safe error messages (FR-016).
+- **US3** — `SessionManager` state machine, session bootstrap, deferred sign-in raised **only** from Account (FR-002b),
+  return-to-destination.
+- **US4** — `HttpCustomerRepository` (`GET /me` idempotent, the **two-token protocol**), DTO→domain mapping, barred
+  handling → destroy local session (FR-033a), the routing law structural (edge vs core clients).
+- **US5** — `AccountViewModel` + screens: identity + **initials avatar** (grapheme-correct, unit-tested — SC-013),
+  name change, set-first-password behind the emailed step-up (FR-024), change-existing (FR-025), sign out + everywhere;
+  a password write returns to sign-in (FR-027).
+- **US6** — already verified (build config, codegen, guard).
+- **The `AmplifyAuthDriver` (Android)** compiles against the real SDK. **The escape-hatch guard still passes** — no
+  password write or `escapeHatch` reference anywhere (FR-024 enforcement held through the whole build).
+
+**Verified this session**: `:shared:compileCommonMainKotlinMetadata`, `:shared:compileAndroidMain`,
+`:androidApp:assembleDebug` all **BUILD SUCCESSFUL**; `:shared:testAndroidHostTest` green (the initials/SC-013 test);
+`mobile-guard` clean.
+
+**Still open**: (a) **runtime on device** — the app builds but has not been *run* against the local edge-api +
+Cognito (the adversarial SC-006/SC-007 proofs, the flows end-to-end) — that is the operator's device pass;
+(c) spike **S1** still gates live sign-off of the password flows.
+
+### ⬆⬆⬆ UPDATE (2026-07-15) — iOS driver written; Kotlin half compile-verified, Swift half pending Xcode
+
+The iOS auth path is built via the bridge pattern (D5): Swift implements a simple callback-based `IosAuthBridge`
+(no `suspend`/`Flow`, which Swift can't produce), and Kotlin's `IosAuthDriver` adapts it to the common `AuthDriver`.
+
+- **Kotlin side (`iosMain`) — VERIFIED**: `:shared:compileKotlinIosSimulatorArm64` and
+  `:shared:linkDebugFrameworkIosSimulatorArm64` both **BUILD SUCCESSFUL**. The generated ObjC header exports
+  `IosAuthBridge`, `BridgeAuthResult(outcome:destination:email:errorKind:)`, `BridgeSession(sub:idToken:accessToken:)`,
+  and `MainViewController(authBridge:)` — and the Swift code constructs those types with the exact matching initializers.
+- **Swift side — WRITTEN, not compiled here**: `iosApp/iosApp/SwiftAuthBridge.swift` (Amplify Swift), plus
+  `iOSApp.swift` (Amplify configure from the in-code string) and `ContentView.swift` (passes the bridge). The
+  Kotlin↔Swift boundary is verified against the header; the **Amplify Swift SDK calls** (session casting, sign-in
+  options, error enum cases) need the Xcode build to confirm and may need minor API fixes.
+- **Xcode setup the operator must do** (I cannot edit `project.pbxproj` reliably): add the **Amplify Swift** SPM
+  package (`github.com/aws-amplify/amplify-swift` ≥ 2.45.0 → products `Amplify` + `AWSCognitoAuthPlugin`) to the
+  `iosApp` target; ensure `SwiftAuthBridge.swift` is a member of the target; build on a simulator. T009 (the SPM
+  dependency) is this step.
 
 ---
 
@@ -69,7 +139,7 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 
 - [ ] T006 Clean the template out of `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/`: remove `Greeting.kt`, `GreetingUtil.kt`, `Platform.kt` stubs and the `App.kt` placeholder body (keep the entry symbols). Do the same for the `androidMain`/`iosMain` `Platform.*.kt`.
 - [~] T007 In `apps/customer-mobile/gradle/libs.versions.toml`: **pin `androidx-lifecycle` `2.11.0-beta01` → `2.10.0`** (D19 — no beta lifecycle under a stable Compose runtime). Add versions + libraries for **Ktor 3.5.x** (core, okhttp, darwin, content-negotiation, auth, logging, serialization-json), **kotlinx-serialization-json**, **kotlinx-coroutines** (core + test), **Navigation 3** (`org.jetbrains.androidx.navigation3:navigation3-ui` + `lifecycle-viewmodel-navigation3`), **Multiplatform Settings** (no-arg), **BuildKonfig 0.22.0** (plugin), **Amplify Android ≥ 2.25.0** (auth). Do **not** add Coil or Stripe (research: premature — no images, no checkout).
-- [ ] T008 Create the package skeleton under `commonMain` per [plan.md](./plan.md) § Project Structure: `app/`, `core/{auth,config,http,presentation,theme}/`, `contract/`, `design/`, `features/{home,auth,account}/{domain,data,presentation}/`. Add a one-line `package-info`-style KDoc in each `core/*` marking its role. **Packages shaped like future modules** (Structure Decision).
+- [~] T008 Create the package skeleton under `commonMain` per [plan.md](./plan.md) § Project Structure: `app/`, `core/{auth,config,http,presentation,theme}/`, `contract/`, `design/`, `features/{home,auth,account}/{domain,data,presentation}/`. Add a one-line `package-info`-style KDoc in each `core/*` marking its role. **Packages shaped like future modules** (Structure Decision).
 - [ ] T009 [P] Add the Swift + Amplify Swift dependency to `apps/customer-mobile/iosApp` (SPM: `amplify-swift ≥ 2.45.0`), and confirm the iOS deployment target is **≥ 14.0** (CMP 1.11 raised the floor). No code yet — just the dependency and the target.
 - [~] T010 [P] Add mobile targets to the root `Makefile` (`android-run`, `ios-run`, `mobile-test`, `mobile-fixtures`, `mobile-guard`, `contract-gen`/`tokens-gen` passthroughs). Help text mirrors the existing `edge-*` targets. Update `.PHONY`.
 
@@ -95,10 +165,10 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 
 ### 2c — Core spine
 
-- [ ] T019 [P] `core/presentation/BaseViewModel.kt` — the `BaseViewModel<State, Intent, Effect>` contract from [ARCHITECTURE.md](../../ARCHITECTURE.md): immutable `StateFlow` state, typed `onIntent`, one-off `Effect` over a `SharedFlow`. Unit-tested.
-- [ ] T020 [P] `core/theme/EffyTheme.kt` — a Material 3 theme consuming the **generated** `EffyLightColorScheme` / `EffyDarkColorScheme`, following the device appearance (dark mode, FR-005). Define the app's own spacing + type scale here (the one thing with **no** web source — D16). **No hardcoded hex** (FR-004).
-- [ ] T021 `core/auth/AuthDriver.kt` — the interface + `Session`, `AuthStep`, `AuthError` per [contracts/auth-driver.contract.md](./contracts/auth-driver.contract.md). **No `updatePassword`, no `globalSignOut`, no `confirmResetPassword`, no escape hatch** — the absences are the security property. Pure Kotlin, no SDK types.
-- [ ] T022 [P] `core/config/AppConfig.kt` + the **single Amplify config-string builder** from BuildKonfig constants (D12) — one string, handed to both driver impls. Unit-test the builder produces valid JSON for known inputs.
+- [~] T019 [P] `core/presentation/BaseViewModel.kt` — the `BaseViewModel<State, Intent, Effect>` contract from [ARCHITECTURE.md](../../ARCHITECTURE.md): immutable `StateFlow` state, typed `onIntent`, one-off `Effect` over a `SharedFlow`. Unit-tested.
+- [~] T020 [P] `core/theme/EffyTheme.kt` — a Material 3 theme consuming the **generated** `EffyLightColorScheme` / `EffyDarkColorScheme`, following the device appearance (dark mode, FR-005). Define the app's own spacing + type scale here (the one thing with **no** web source — D16). **No hardcoded hex** (FR-004).
+- [~] T021 `core/auth/AuthDriver.kt` — the interface + `Session`, `AuthStep`, `AuthError` per [contracts/auth-driver.contract.md](./contracts/auth-driver.contract.md). **No `updatePassword`, no `globalSignOut`, no `confirmResetPassword`, no escape hatch** — the absences are the security property. Pure Kotlin, no SDK types.
+- [~] T022 [P] `core/config/AppConfig.kt` + the **single Amplify config-string builder** from BuildKonfig constants (D12) — one string, handed to both driver impls. Unit-test the builder produces valid JSON for known inputs.
 - [ ] T023 `core/http/HttpClientFactory.kt` — a Ktor factory, **one client per base URL** (edge + core; FR-036/D20): `ContentNegotiation` (`ignoreUnknownKeys = true`), `expectSuccess = true`, `HttpTimeout`, `Logging` (**never `BODY` in release; `sanitizeHeader` the `Authorization` header** — FR-038/D20). `expect fun httpEngine()` (OkHttp/android, Darwin/ios) — the **only** legitimate `expect fun`.
 - [ ] T024 `core/http` bearer plugin: `Auth.bearer` whose `loadTokens`/`refreshTokens` **delegate to `AuthDriver.currentSession(forceRefresh)`** — **never** a raw HTTP refresh (D21: two refreshers racing over one token is a bug class). Attach the **two-token protocol** for edge routes: `Authorization: Bearer <idToken>` + `X-Effy-Access-Token: <accessToken>` (D2). Unit-test both headers are present on an edge call and the access-token header is absent on a core call.
 - [ ] T025 `app/AppContainer.kt` — the **one hand-wired DI container** (no framework; Principle VI): `by lazy` singletons for the two HTTP clients, repositories, the injected `AuthDriver`, use cases. `PlatformDeps` carries the platform `AuthDriver` + `PlatformContext`. Exposed to Compose via a `CompositionLocal`.
@@ -219,7 +289,7 @@ Sign out reachable from every screen.
 
 ## Phase 9: Operator sign-off 🧑‍💻
 
-- [ ] T064 🧑‍💻 `make plan ENV=dev` → **READ IT** → `make apply ENV=dev`: **`refresh_token_validity` 30 → 90** (FR-019a). **⚠ If the plan shows the pool or app client as `-/+` or "must be replaced", ABORT** — a replaced pool destroys every account on the platform. Validity is an **in-place** update.
+- [ ] T064 🧑‍💻 `make plan ENV=dev` → **READ IT** → `make apply ENV=dev`: adds the **dedicated `customer-mobile` app client** (90-day refresh, FR-019a) + its SSM param + the mobile client id in the **customer authorizer audience** (D3a). Both are **additive** — the **web client and pool are untouched**. **⚠ If the plan shows the pool or the *web* client as `-/+` / "must be replaced", ABORT** — a replaced pool destroys every account on the platform. Terraform `validate` + `fmt` already pass. Then `make output ENV=dev` → put `customer_mobile_app_client_id` in `secrets.properties` as `COGNITO_APP_CLIENT_ID`.
 - [ ] T065 🧑‍💻 **Device matrix + [SPIKE S3]** ([quickstart.md](./quickstart.md) § 5): run **every** flow on an Android device **and** an iOS device — "two SDKs behave identically" is a claim until exercised (SC-001). **Includes S3**: on a **physical iPhone**, confirm the Nav3 `SavedStateConfiguration` polymorphic route serializers (T026) work and the auth-stack swap + edge-swipe behave — reflection-based routes crash on iOS, so an Android pass proves nothing (D18). Record **S3-VERIFIED / S3-REFUTED**; if refuted, revisit T026 before sign-off.
 - [ ] T066 🧑‍💻 **The adversarial proofs live** ([quickstart.md](./quickstart.md) § 6): SC-006 (a second person, without the email, holding the unlocked signed-in phone, **cannot** set a password), SC-007, SC-019 (+ the email arrives with **no link**). **Demonstrated, not asserted.**
 - [ ] T067 🧑‍💻 **Session-bound proof** (SC-020): shorten the bound in a scratch config and confirm sign-out at expiry (not a 90-day wait).

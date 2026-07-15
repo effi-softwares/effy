@@ -32,7 +32,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
-        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen \
+        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
         dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
@@ -316,6 +316,28 @@ cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts 
 cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
 	@bash scripts/mobile-guard.sh
 cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
+
+# --- expose a local backend to a physical phone via an ngrok STATIC domain (013 quickstart § 0 Path A).
+# A phone cannot reach localhost; ngrok gives a stable public https URL to put in secrets.properties.
+# The static domain is reserved on YOUR ngrok account — pass it in (or export it); nothing is hardcoded.
+# Ports: core-api = 8080 (make core-run); edge-api serverless-offline = 3000 (make edge-offline).
+#
+#   ⚠ For 013 the account routes the app calls are on EDGE (cm-ngrok-edge → EDGE_API_BASE_URL). core-api
+#   is commerce and has nothing to call yet, so cm-ngrok-core is forward-looking. A FREE ngrok account
+#   has ONE static domain (one tunnel at a time) — for this slice, point it at edge.
+NGROK_CORE_PORT   ?= 8080
+NGROK_EDGE_PORT   ?= 3000
+NGROK_STATIC_DOMAIN ?=
+
+cm-ngrok-edge: ## Expose local edge-api on your ngrok static domain (NGROK_STATIC_DOMAIN=<name>.ngrok-free.app) → EDGE_API_BASE_URL
+	@test -n "$(NGROK_STATIC_DOMAIN)" || { echo "usage: make cm-ngrok-edge NGROK_STATIC_DOMAIN=<your-static>.ngrok-free.app  (run 'make edge-offline SERVICE=customer' first)"; exit 1; }
+	@command -v ngrok >/dev/null || { echo "cm-ngrok-edge: ngrok not found — install it and reserve a static domain first"; exit 1; }
+	ngrok http $(NGROK_EDGE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
+
+cm-ngrok-core: ## Expose local core-api (:8080, make core-run) on your ngrok static domain → CORE_API_BASE_URL
+	@test -n "$(NGROK_STATIC_DOMAIN)" || { echo "usage: make cm-ngrok-core NGROK_STATIC_DOMAIN=<your-static>.ngrok-free.app  (run 'make core-run' first)"; exit 1; }
+	@command -v ngrok >/dev/null || { echo "cm-ngrok-core: ngrok not found — install it and reserve a static domain first"; exit 1; }
+	ngrok http $(NGROK_CORE_PORT) --domain=$(NGROK_STATIC_DOMAIN)
 
 # --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted

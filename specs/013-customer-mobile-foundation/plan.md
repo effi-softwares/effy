@@ -18,8 +18,11 @@ persists a session, reads the platform's own customer record, and delivers the w
 web storefront.
 
 **The backend for this is already written.** `apis/edge-api/customer` implements every account route (011 + 012).
-This slice adds **no backend code, no SQL, and no new AWS resource** — it changes exactly **one Terraform value**
-(the app client's refresh-credential validity, 30 → 90 days, in-place).
+This slice adds **no backend code and no SQL.** Its only infra change is a **dedicated `customer-mobile`
+Cognito app client** on the existing customer pool (90-day refresh) plus adding that client's id to the customer
+edge authorizer's audience — **the web client and the pool are untouched** (see D3a). A separate client, rather
+than reusing the web one, is what lets the phone hold a 90-day session (FR-019a) without dragging the web session
+to 90 days; token lifetime is a per-client setting.
 
 The technical spine, decided in [research.md](research.md):
 
@@ -180,7 +183,8 @@ packages/design-system/
 ├── scripts/gen-compose-theme.mjs           # ⚙ NEW ~60-line parser
 └── compose/EffyTokens.kt                   # ⚙ NEW generated theme (committed, CI-diff-guarded)  (D16)
 
-infra/modules/cognito-user-pool/variables.tf    # refresh_token_validity default 30 → 90  (D10) — the ONLY infra change
+infra/envs/dev/auth-customer.tf                  # NEW: customer-mobile app client (90-day refresh) + its SSM param  (D3a)
+infra/envs/dev/edge-gateway.tf                   # customer authorizer audience += the mobile client id  (D3a) — the two infra changes
 Makefile                                        # + mobile targets (android/ios/test/contract/tokens/guards)
 docs/audiences/customer-capabilities.md         # the mobile column — filled in (FR-044)
 ```
@@ -261,7 +265,7 @@ Claude writes all the code; the operator runs everything that touches live AWS o
 
 | # | Step | Note |
 |---|---|---|
-| **O1** | `make apply ENV=dev` — **`refresh_token_validity` 30 → 90** | The **only** infra change in the slice. In-place on the app client. **Abort if the plan says the pool or client would be replaced.** |
+| **O1** | `make apply ENV=dev` — **the new `customer-mobile` app client (90-day refresh) + the authorizer audience** (D3a) | Both are **additive** (a new client; an extended audience list). The web client and the pool are **not** touched. **Abort if the plan shows the pool or the *web* client as `-/+` / "must be replaced".** Then `make output` → the mobile client id goes in `secrets.properties`. |
 | **O2** | **Deploy the backend this app depends on.** 011 and 012 are **code-complete but NOT deployed**: `make db-up ENV=dev`, `make edge-deploy SERVICE=customer ENV=dev`, and **SES must actually send** (012 T062) | **Without these, this app has no backend at all**, and set-password does not work even in principle. |
 | **O3** | **Spikes S1 + S2** (inherited from 012 T001/T002) | Both **can change the design**. S1 is FR-024's premise. |
 | **O4** | **Spike S3** — Nav3 polymorphic routes on a **real iPhone** | Green on Android **proves nothing** here (D18). |

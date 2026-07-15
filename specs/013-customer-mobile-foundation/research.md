@@ -63,13 +63,48 @@ Read from `infra/modules/cognito-user-pool/main.tf` + `infra/envs/dev/auth-custo
 | `mfa_configuration` | `OFF` | ✅ **and it must stay off** (D9) |
 | `user_pool_tier` | **`ESSENTIALS`** | ✅ required — `ALLOW_USER_AUTH` needs Essentials+ |
 | `access_token_validity` / `id_token_validity` | 60 min | ✅ |
-| **`refresh_token_validity`** | **30 days** | **⚠ CHANGES → 90 (D10)** |
+| **`refresh_token_validity`** (web client) | **30 days** | ✅ **stays 30** — mobile gets its own client at 90 (D3a) |
 | `callback_urls` | already includes **`effy-customer://auth/callback`** | ✅ a mobile scheme is pre-allowlisted (inert until Google un-parks) |
 | `lifecycle` | `prevent_destroy = true` | ✅ seatbelt |
 
-**The whole slice needs exactly one Terraform value changed.** `refresh_token_validity` is an **in-place** update
-on the app client (only `generate_secret` / `user_pool_id` force replacement — verified in 011 research D13). We
-still `terraform plan` and grep for `must be replaced` before applying.
+**The pool is untouched; the slice adds a dedicated mobile client (D3a).** Only `generate_secret` / `user_pool_id`
+force replacement (verified in 011 research D13), and we touch neither. We still `terraform plan` and grep for
+`must be replaced` before applying.
+
+### D3a — ⚠ A **dedicated `customer-mobile` app client** (decided during implementation, 2026-07-14)
+
+The plan first assumed the mobile app would **reuse the web app client** and simply bump its `refresh_token_validity`
+30 → 90 in-place. **That was wrong, and a live-security regression:** `refresh_token_validity` is a **per-client**
+setting, so bumping the shared client to 90 days would extend the **web** session to 90 days too — and a browser,
+possibly on a shared computer, is exactly the session you do **not** want long-lived.
+
+**Decision: a second, standalone public app client on the same customer pool**, for mobile only.
+
+| | Web client (existing) | **Mobile client (new)** |
+|---|---|---|
+| refresh | **30 days** (unchanged) | **90 days** (FR-019a) |
+| `generate_secret` | false | false |
+| auth flows | `USER_AUTH` + `REFRESH_TOKEN_AUTH` + `USER_SRP_AUTH` | **identical** |
+| `prevent_user_existence_errors` | ENABLED | ENABLED |
+| callbacks | web + mobile scheme | **mobile scheme only** |
+
+Why this is safe and correct:
+- **Identity is per-POOL, not per-client.** `sub` is unaffected, so *one person → one sub → one `public.customer`
+  row* holds across both clients: a customer who registered on web signs in on mobile and lands on the **same
+  record**. App clients do not fork identity.
+- **The only real coupling is the edge authorizer's audience.** It pins `audience = [web_client_id]`
+  (`edge-gateway.tf:59`); a mobile token carries the **mobile** client's id as `aud`, so **the audience must become
+  a list including both**, or every mobile call 401s. Done via an `extra_client_ids` field on the `edge_pools`
+  local (every entry carries it — empty for the single-client pools — so the map stays one object type).
+- Bonus: independent lifecycle (rotate/disable one surface without the other) and per-surface attribution (the
+  `client_id` claim distinguishes mobile from web traffic).
+
+**Changes (both additive, pool untouched):** a new `aws_cognito_user_pool_client.customer_mobile` +
+`/effy/<env>/auth/customer/mobile_app_client_id` SSM param in `auth-customer.tf`; the customer authorizer audience
+in `edge-gateway.tf`. **Verified: `terraform fmt` clean, `terraform validate` → Success.** The app's
+`COGNITO_APP_CLIENT_ID` reads the **mobile** SSM param, not the web `app_client_id`.
+
+Supersedes the "one value, in-place bump" framing in D3/D10 above.
 
 ### D4 — ⚠ `apps/customer-web/lib/amplify-config.ts` declares a **stale password policy**. Do not copy it.
 
@@ -211,8 +246,9 @@ of the original** refresh token."*
 So the spec's original **"30 days of inactivity"** was **not implementable**, and worse, the naive reading of it
 would have signed out a **daily-active** customer on day 30 — the precise opposite of the intent.
 
-**Decision**: `refresh_token_validity` **30 → 90 days** (in-place app-client update). Spec FR-019a, US3-2 and
-SC-020 rewritten to say **"90 days from sign-in"**, with the reasoning recorded inline.
+**Decision**: **90 days from sign-in**, delivered on the **dedicated mobile app client** (D3a) — *not* by bumping
+the shared web client, which would extend the web session too. Spec FR-019a, US3-2 and SC-020 say **"90 days from
+sign-in"**, with the reasoning recorded inline.
 
 **Rotation stays OFF.** Beyond not extending the window, enabling it **disables `REFRESH_TOKEN_AUTH`** in favour of
 `GetTokensFromRefreshToken` — and **whether Amplify Android/Swift 2.x use the new API is UNCONFIRMED**. Turning

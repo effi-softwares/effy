@@ -13,6 +13,17 @@
 # STILL READ THE PLAN. If any pool shows "must be replaced" / "-/+", ABORT: a replaced pool
 # destroys every account in it — the 006 first admin, the 009 shop users, and every customer.
 
+locals {
+  # The customer pool's writable attributes — shared by BOTH app clients (web + mobile, 013) so a
+  # customer can register identically on either surface. `email` MUST stay in the list or SignUp
+  # breaks (Cognito refuses attributes a client cannot write); `name` is here for FR-009a.
+  customer_writable_attributes = [
+    "address", "birthdate", "email", "family_name", "gender", "given_name", "locale",
+    "middle_name", "name", "nickname", "phone_number", "picture", "preferred_username",
+    "profile", "updated_at", "website", "zoneinfo",
+  ]
+}
+
 module "customer_pool" {
   source = "../../modules/cognito-user-pool"
 
@@ -94,16 +105,10 @@ module "customer_pool" {
   # replaced", and you cannot audit a diff that redacts what is changing.
   google_client_secret = var.customer_google_enabled ? data.aws_ssm_parameter.google_client_secret[0].value : null
 
-  # ⚠ `email` IS IN THIS LIST DELIBERATELY. `SignUp` passes it (it is the username attribute) and
-  # Cognito refuses any attribute the client cannot write — excluding it blocks the email-swap
-  # takeover AND blocks REGISTRATION. It was tried; it made sign-up impossible.
-  #
-  # `name` is here because registration collects it (FR-009a).
-  writable_attributes = [
-    "address", "birthdate", "email", "family_name", "gender", "given_name", "locale",
-    "middle_name", "name", "nickname", "phone_number", "picture", "preferred_username",
-    "profile", "updated_at", "website", "zoneinfo",
-  ]
+  # ⚠ `email` IS IN THIS LIST DELIBERATELY (see the local). `SignUp` passes it (it is the username
+  # attribute) and Cognito refuses any attribute the client cannot write — excluding it blocks the
+  # email-swap takeover AND blocks REGISTRATION. Shared with the mobile client so both register alike.
+  writable_attributes = local.customer_writable_attributes
 
   # ⚠ SECURITY — the email-swap takeover, LOCKED. A signed-in customer who can silently rewrite
   # their own email to a victim's address owns that account. Cognito's purpose-built lock: the change
@@ -126,6 +131,76 @@ module "customer_pool" {
 
   callback_urls = try(var.auth_urls["customer"].callback_urls, [])
   logout_urls   = try(var.auth_urls["customer"].logout_urls, [])
+}
+
+# ── The customer MOBILE app client (013-customer-mobile-foundation) ──────────────────────────────
+#
+# A SECOND public app client on the SAME customer pool, for `apps/customer-mobile`. It is a standalone
+# resource (not a second client baked into the module) so the pool and the web client are untouched.
+#
+# WHY A SEPARATE CLIENT, not reuse the web one:
+#   • Token lifetime is PER-CLIENT. Mobile wants a 90-day refresh (a phone kept signed in, 013 FR-019a);
+#     web keeps its 30-day refresh (a browser, possibly a shared computer). You cannot give mobile 90
+#     without dragging web to 90 if they share a client. THIS is the decisive reason.
+#   • Independent lifecycle (rotate/disable one surface without breaking the other) and per-surface
+#     attribution (the `client_id` claim distinguishes mobile from web traffic).
+#
+# Identity is UNAFFECTED: `sub` is per-POOL, not per-client, so "one person, one sub, one record" holds
+# across both clients — a customer who registered on web signs in on mobile and lands on the same record.
+#
+# ⚠ Its id MUST be added to the customer edge JWT authorizer's audience (edge-gateway.tf) or every
+# mobile call 401s — mobile tokens carry THIS client's id as `aud`, and the authorizer pins the audience.
+resource "aws_cognito_user_pool_client" "customer_mobile" {
+  name         = "${module.shared.name_prefix}-customer-mobile-app"
+  user_pool_id = module.customer_pool.user_pool_id
+
+  # Identical credential model to the web client (constitution v1.7.0, customer pool):
+  #   ALLOW_USER_AUTH          — EMAIL_OTP + choice-based sign-in
+  #   ALLOW_USER_SRP_AUTH      — password over SRP (the password never travels on the wire)
+  #   ALLOW_REFRESH_TOKEN_AUTH — sessions
+  # Plain ALLOW_USER_PASSWORD_AUTH is deliberately NOT offered (it would put the password on the wire).
+  explicit_auth_flows = ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"]
+
+  # Public client: PKCE, NO client secret. A secret in a published mobile binary is a LEAKED secret
+  # (013 FR-042) — and Amplify's config has no field for one anyway.
+  generate_secret = false
+
+  # Don't leak whether an email is registered (FR-016).
+  prevent_user_existence_errors = "ENABLED"
+
+  # Same writable set as the pool/web client, so registration behaves identically on both surfaces.
+  write_attributes = local.customer_writable_attributes
+
+  # Google is PARKED, same as web. Un-parking adds it here AND to the web client in the same change.
+  supported_identity_providers = ["COGNITO"]
+
+  # 60-minute access/ID tokens (the platform default), but a 90-DAY refresh — the ONE setting that
+  # differs from web, and the whole reason mobile has its own client (FR-019a). There is NO Cognito
+  # inactivity window: this is 90 days from sign-in (research D10). Rotation stays OFF pending spike S4.
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 90
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+
+  # The mobile redirect scheme (already allowlisted in dev.tfvars). Native EMAIL_OTP / password / SRP
+  # flows use NO callback; these matter only when Google un-parks, and are kept here so that day is a
+  # one-line change rather than a rethink.
+  callback_urls = ["effy-customer://auth/callback"]
+  logout_urls   = ["effy-customer://signed-out"]
+}
+
+# App↔infra contract: /effy/<env>/auth/customer/mobile_app_client_id — the mobile app reads THIS
+# (not the web `app_client_id`) into its COGNITO_APP_CLIENT_ID build config.
+resource "aws_ssm_parameter" "customer_mobile_app_client_id" {
+  name        = "/effy/${var.env}/auth/customer/mobile_app_client_id"
+  description = "Customer MOBILE public app client id (013). Separate from web so the phone can hold a 90-day session (FR-019a) without changing web's posture."
+  type        = "String"
+  value       = aws_cognito_user_pool_client.customer_mobile.id
 }
 
 # The Google OAuth client — an OUT-OF-CODE, operator-owned dependency, exactly like the domain
@@ -175,8 +250,13 @@ output "customer_user_pool_id" {
 }
 
 output "customer_app_client_id" {
-  description = "Customer public app client id."
+  description = "Customer WEB public app client id."
   value       = module.customer_pool.app_client_id
+}
+
+output "customer_mobile_app_client_id" {
+  description = "Customer MOBILE public app client id (013) — 90-day refresh; the value for the app's COGNITO_APP_CLIENT_ID."
+  value       = aws_cognito_user_pool_client.customer_mobile.id
 }
 
 output "customer_user_pool_arn" {

@@ -1,13 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
-        android:allowBackup="true"
+        android:name=".EffyApp"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
+        <!-- 013 FR-020/D11: allowBackup=false keeps Amplify's encrypted token store off device backups.
+             A finer-grained dataExtractionRules exclusion is spike S6/T058 (the exact prefs filenames). -->
         <activity
             android:exported="true"
             android:name=".MainActivity">
