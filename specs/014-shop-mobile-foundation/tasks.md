@@ -237,8 +237,8 @@ degraded + retry, nothing lost. Expire the session → clean return to sign-in.
 - [ ] T049 🧑‍💻 **[SPIKE S3s]** The exact Amplify Android shared-prefs filenames to exclude from Auto Backup (reuse 013's finding). Feeds T010's `dataExtractionRules` refinement if wanted.
 - [ ] T050 [P] **[SECURITY — SC-013]** Credential-in-logs sweep: no code/token in any log on either platform in release config; no PII beyond the subject id.
 - [ ] T051 [P] Accessibility + dark-mode contrast pass across all flows (FR-006, SC-014): keyboard/screen-reader completable, largest text, contrast light **and** dark. **Include the tablet-first check (SC-014a)**: on a tablet in landscape every screen uses the space (no stretched phone column) and reflows cleanly to phone / split-screen.
-- [ ] T052 Update `docs/audiences/shop-capabilities.md` — fill the **mobile column** for every row this slice delivers, and **⚠ reconcile row 9 (telemetry) to "deferred"** so the register does not overstate (FR-038, SC-015). No unstated cell.
-- [ ] T053 [P] Record the **two constitution deviations** in the parity doc + confirm they match [plan.md](./plan.md) Complexity Tracking: Principle V (iOS Material 3 → `iOS native shell`), Principle VII (no telemetry → `mobile-telemetry`). Both shared with 013.
+- [X] T052 `docs/audiences/shop-capabilities.md` — mobile column filled (rows 1–8, 10 = ✅; **row 9 telemetry = ⏸ deferred** with a legend entry + footnote, so it does not overstate — FR-038/SC-015); row 3 (return-to-intent) and row 7 (manager gate positive-half) carry honest footnotes. No unstated cell.
+- [X] T053 [P] **Two constitution deviations recorded** in the parity doc (new *Constitution deviations* table) — Principle V (iOS Material 3 → `iOS native shell`) + Principle VII (no telemetry → `mobile-telemetry`), both shared with 013; **confirmed matching** [plan.md](./plan.md) Complexity Tracking (lines 96–105).
 
 ---
 

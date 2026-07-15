@@ -29,36 +29,55 @@ The earlier `shop`/`store` split was retired by
 |---|---|
 | ✅ | Delivered and verified on that surface |
 | ⬜ | Outstanding — the capability exists for this audience but this surface does not have it |
+| ⏸ | Deferred by design — a documented constitution deviation, not an oversight (see below) |
 | — | Not applicable to that surface |
 
-## Baseline — established by 007-shop-web
+## Baseline — established by 007-shop-web, mobile delivered by 014-shop-mobile-foundation
 
 | # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
 |---|---|---|---|---|
-| 1 | Passwordless EMAIL_OTP sign-in against the **shop** pool | ✅ | ⬜ | Cognito shop pool (001) |
-| 2 | Session persists across restart; explicit sign-out clears it | ✅ | ⬜ | — |
-| 3 | Protected areas unreachable when signed out; return-to-intent after sign-in | ✅ | ⬜ | — |
-| 4 | Authenticated shell (navigation, current location, identity + sign-out) | ✅ | ⬜ | — |
-| 5 | Record-backed identity read (subject, email, roles, status, assigned shop) | ✅ | ⬜ | `GET /shop/v1/me` |
-| 6 | Role-aware interface: privileged controls hidden from `shop_staff` / role-less | ✅ | ⬜ | — |
-| 7 | Backend-authoritative manager gate (role **and** status **and** shop scope) | ✅ | ⬜ | `GET /shop/v1/manager-ping` |
-| 8 | Graceful degraded / expired-session / denied states, no internal detail shown | ✅ | ⬜ | shared error envelope |
-| 9 | Product analytics + error telemetry with a `surface` property, no PII | ✅ | ⬜ | PostHog |
-| 10 | Cross-pool isolation: a shop credential is refused by other audiences' services | ✅ | ⬜ | gateway JWT authorizers |
+| 1 | Passwordless EMAIL_OTP sign-in against the **shop** pool | ✅ | ✅ | Cognito shop pool (001) |
+| 2 | Session persists across restart; explicit sign-out clears it | ✅ | ✅ | — |
+| 3 | Protected areas unreachable when signed out; return-to-intent after sign-in | ✅ | ✅ † | — |
+| 4 | Authenticated shell (navigation, current location, identity + sign-out) | ✅ | ✅ | — |
+| 5 | Record-backed identity read (subject, email, roles, status, assigned shop) | ✅ | ✅ | `GET /shop/v1/me` |
+| 6 | Role-aware interface: privileged controls hidden from `shop_staff` / role-less | ✅ | ✅ | — |
+| 7 | Backend-authoritative manager gate (role **and** status **and** shop scope) | ✅ | ✅ ‡ | `GET /shop/v1/manager-ping` |
+| 8 | Graceful degraded / expired-session / denied states, no internal detail shown | ✅ | ✅ | shared error envelope |
+| 9 | Product analytics + error telemetry with a `surface` property, no PII | ✅ | ⏸ | PostHog |
+| 10 | Cross-pool isolation: a shop credential is refused by other audiences' services | ✅ | ✅ | gateway JWT authorizers |
 
-**Mobile column is outstanding by design.** `apps/shop-mobile` is still the base KMP template
-(commonMain `Greeting`/`Platform` stubs). Building it is **out of scope for 007** (FR-023a) and is
-its own slice.
+**Mobile delivered by [014-shop-mobile-foundation](../../specs/014-shop-mobile-foundation/)** (KMP +
+Compose, Clean Architecture + MVVM, native Amplify auth). Code-complete + build-verified on Android and
+iOS; runs on both. Ported from 013's foundation with the shop deltas (single access-token bearer,
+EMAIL_OTP-only, the RBAC gate).
 
-## What the mobile bootstrap slice must build
+**Footnotes:**
+- **† Row 3 (return-to-intent):** shop-mobile is **login-first**, so protected areas are unreachable when
+  signed out *by construction* (nothing is reachable without signing in). "Return-to-intent" has no target
+  yet — the foundation has a single post-login destination and no deep links — so it is deferred to the
+  first slice that adds a deep-linkable destination (014 T035). The *guarantee* (no protected access while
+  signed out) holds today; only the *convenience* is deferred.
+- **‡ Row 7 (manager gate):** the gate is delivered, and its **negative half** — `shop_staff`, role-less,
+  and an **unassigned** `shop_manager` each refused with a **uniform** denial — is implemented and
+  unit-tested. Its **positive half** (a manager *served* at an active shop → *Granted*) plus the
+  inactive-shop / disabled-operator denials need **009** shop data, so live sign-off is **partial by
+  design**, exactly as 007's is. See *What that defers* below.
+- **⏸ Row 9 (telemetry):** **deferred for shop-mobile** — a documented Principle VII deviation shared with
+  013's customer-mobile (the `mobile-telemetry` closing slice). PostHog/Crashlytics wiring is not in the
+  bootstrap; recorded here so the register does not overstate what mobile delivers (014 FR-038, SC-015).
 
-Scoped directly from the ⬜ column above, so it does not have to be re-derived:
+## What the mobile bootstrap slice built (014)
+
+Scoped directly from what was the ⬜ column, and **delivered by 014** (rows 1–8, 10; row 9 deferred):
 
 1. **Auth (rows 1–3)** — Amplify (or the Cognito SDK) against the **shop** pool, passwordless
    EMAIL_OTP, no password field. Session in secure storage; sign-out clears it. A signed-out user
    cannot reach a protected destination, and is returned to it after signing in.
-2. **Shell (row 4)** — the app's navigation frame with the verified identity and sign-out, honouring
-   iOS HIG / Android Material (constitution Principle V) rather than porting the web sidebar.
+2. **Shell (row 4)** — the app's navigation frame with the verified identity and sign-out, rather than
+   porting the web sidebar. **Behaviour** is native on each platform; **visual chrome** is Material 3 on
+   both (a recorded Principle V deviation — see *Constitution deviations* below). Tablet-first layout
+   (FR-003a): a window-size-driven shell, not a stretched phone column.
 3. **Identity read (row 5)** — `GET /shop/v1/me` through the Ktor client with the access token as
    bearer. Types come from the same contract as the web: `ShopStaffRecordDTO`. A role-less operator
    and an operator with no assigned shop are **expected states**, not errors.
@@ -67,12 +86,28 @@ Scoped directly from the ⬜ column above, so it does not have to be re-derived:
    the guard.
 5. **Error contract (row 8)** — map the RFC 9457 problem envelope to the same states the web renders:
    `unauthenticated` → recover or re-auth · `forbidden` → denial · `unavailable` → degraded + retry.
-6. **Telemetry (row 9)** — PostHog with `surface: "shop-mobile"`, plus Crashlytics per Principle VII.
-   No PII beyond the subject id.
+6. **Telemetry (row 9)** — **DEFERRED** (Principle VII deviation, below). PostHog `surface:
+   "shop-mobile"` + Crashlytics are not in the bootstrap; they land in the shared `mobile-telemetry`
+   slice. When built: no PII beyond the subject id.
 7. **Isolation (row 10)** — the app authenticates against the shop pool only, and presents its
    credential to `/shop/v1/*` only.
 
 Nothing in rows 1–10 requires a backend change: the shop service already serves both surfaces.
+
+## Constitution deviations (014 — both shared with 013's customer-mobile)
+
+Two deviations are taken **knowingly** by the mobile bootstrap and recorded here and in
+[plan.md](../../specs/014-shop-mobile-foundation/plan.md) *Complexity Tracking* (they must match). Both
+are shared with 013 so the two mobile surfaces stay consistent, and each names the slice that closes it —
+a deviation is only legitimate while it has an owner.
+
+| # | Principle | Deviation | Why | Closes in |
+|---|---|---|---|---|
+| 1 | **V — Design** | iOS renders **Material 3 chrome**, not full Apple HIG component parity. *Behaviour* (scroll, back-gesture, text, accessibility) is native on both platforms; only the visual component language is shared. | A single Compose UI ships to both platforms in the bootstrap; a HIG-conformant SwiftUI shell is a distinct body of work, and isolating presentation now means adopting it later touches only that layer. | `iOS native shell` slice |
+| 2 | **VII — Observability** | **No telemetry** on mobile — no PostHog analytics, no Crashlytics — so row 9 is ⏸, not ✅. | Telemetry is a cross-cutting concern better wired once, across all three mobile apps, than bolted per-slice; the bootstrap's job is the auth + identity + gate spine. | `mobile-telemetry` slice |
+
+Neither deviation weakens a security property: authorization is still backend-decided (row 7), the
+credential is still pool-isolated (row 10), and no PII is emitted (there is nothing emitting at all yet).
 
 ## Shared contracts both surfaces are typed from
 
