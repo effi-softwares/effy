@@ -145,6 +145,17 @@ Jade brand **#0FB57E** / fill **#047857**, shared across all surfaces via one de
 targets + micro-animations are requirements, not optional polish. Design refs: Uber / Bolt /
 foodpanda / eBay.
 
+**Design reference & layout doctrine (constitution v1.9.0, Principle V):**
+- **Reference platforms** — Effy is **"Uber Eats + eBay, food-first."** For any feature's business
+  logic, data model, entities, or UI/UX, look to how Uber Eats (food, menus, modifiers, discovery)
+  and eBay (rich product entities, item-specifics, category taxonomy, search/filter) solve the same
+  problem; adapt to Effy's single-brand hidden-fulfillment model; prefer the industry-standard,
+  production-grade pattern. Food and food-related products get priority.
+- **No card layouts** — do NOT use card-style containers or metric/summary cards to lay out content,
+  and no metric cards at the top of pages, **unless a card is genuinely the right pattern and no
+  better layout exists** (record the justification in the plan). Prefer tables, lists, sectioned
+  pages, tabs, and detail rows.
+
 ## Mobile apps (scaffolded)
 Three KMP + Compose Multiplatform apps live under `apps/`, each an **independent Gradle build** with
 the standard three-module layout (`shared` + `androidApp` + `iosApp`) and package root
@@ -509,5 +520,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/014-shop-mobile-foundation/plan.md
+at specs/015-shop-product-catalog/plan.md
 <!-- SPECKIT END -->

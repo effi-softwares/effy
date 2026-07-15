@@ -1,6 +1,46 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.8.0 → 1.9.0
+Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains two platform-wide design
+                doctrines that were previously unwritten:
+                (1) a REFERENCE-PLATFORM doctrine — Effy is "Uber Eats + eBay, food-first"; feature
+                    business logic, data models, entities, and UI SHOULD be modelled on how those
+                    production platforms solve the same problem, adapted to Effy's single-brand,
+                    hidden-fulfillment model, favouring the industry-standard pattern over a bespoke one,
+                    with food and food-related products prioritised.
+                (2) a NO-CARD-LAYOUT doctrine — card-style containers and metric/summary cards MUST NOT
+                    be used to lay out content unless a card is demonstrably the right pattern for that
+                    content and no better layout exists, in which case the plan MUST record the
+                    justification. Prefer tables, lists, sectioned pages, tabs, and detail rows.
+                Not MAJOR: no existing principle is removed or redefined in a way that invalidates a
+                committed plan; this is additive guidance under an existing principle. Surfaces already
+                built predate the doctrines and are not retroactively out of compliance, though the
+                no-card rule SHOULD guide their future changes.
+                Operator decision (2026-07-15), raised while specifying 015-shop-product-catalog, where
+                both rules first bite: a rich product entity modelled on eBay item-specifics + Uber Eats
+                menus, and a product-details page the operator required to be sectioned/tabbed, never
+                carded, with no metric cards at the top of pages.
+
+Modified in this amendment (operator-directed, feature 015-shop-product-catalog):
+  - Principle V (Native-Feel, Consistent Design) → two bullets added: the reference-platform doctrine
+    and the no-card-layout doctrine.
+
+Dependent updates in THIS change:
+  ✅ CLAUDE.md — a "Design reference & layout doctrine" note added under § Design system (elaboration,
+     not override) so day-to-day agent guidance carries both rules.
+  ✅ specs/015-shop-product-catalog/spec.md — already carries both as DOCTRINE-1 / DOCTRINE-2; the
+     spec's "SHOULD be promoted" note is now satisfied.
+  ✅ .specify/templates/{plan,spec,tasks}-template.md — Constitution Check defers to Principle V
+     dynamically; no structural edit needed.
+
+Unchanged: Principles I, II, III, IV, VI, VII (bodies + rationale); Governance; all Technology
+           Standards; Quality Gates; the rest of Principle V (design-system single-source, Jade tokens,
+           dark mode, native feel, touch targets, micro-animations).
+
+Follow-up TODOs: none.
+
+--- prior amendment (retained for history) ---
 Version change: 1.7.0 → 1.8.0
 Bump rationale: MINOR — Principle VI's mobile presentation standard is changed from the strict
                 State/Intent/Effect (MVI-style) "state machine via a ViewModel base" to plain,
@@ -207,9 +247,23 @@ One design-system package drives every surface.
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
   polish.
+- **Reference platforms**: Effy is **"Uber Eats + eBay, food-first."** When deciding business logic,
+  data models, entities, or UI/UX for a feature, the team SHOULD look to how **Uber Eats** (food,
+  menus, modifiers, discovery) and **eBay** (rich product entities, attributes/item-specifics,
+  category taxonomy, search/filter) solve the same problem, adapt it to Effy's single-brand,
+  hidden-fulfillment model, and favour the industry-standard, production-grade pattern over a
+  bespoke one. Food and food-related products get priority.
+- **No card layouts**: Card-style containers (bordered/elevated boxes tiling content; "metric cards";
+  dashboard summary cards) MUST NOT be used to lay out content, and pages MUST NOT show metric/summary
+  cards at the top — **unless a card is demonstrably the right pattern for that specific content and no
+  better layout exists**, in which case the plan MUST record the justification. Prefer tables, lists,
+  sectioned pages, tabs, and detail rows.
 
 **Rationale**: A single design system is how all surfaces stay visually and behaviorally
-coherent; native feel and tactile quality are part of the product, not a finishing pass.
+coherent; native feel and tactile quality are part of the product, not a finishing pass. The two
+doctrines keep that coherence *directional*: a shared reference for how features should look and
+behave, and a standing bias away from the card-tiled dashboard aesthetic the team has rejected —
+so consistency is decided once, in the constitution, not re-litigated per surface.
 
 ### VI. Layered Architecture & Explicit Wiring
 
@@ -313,4 +367,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.8.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-15
+**Version**: 1.9.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-15
