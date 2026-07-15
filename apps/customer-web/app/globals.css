@@ -16,11 +16,8 @@
 /* Tailwind v4 scans these for class usage — the design system ships raw TS/TSX source. */
 @source "../../../packages/design-system/src";
 
-/* Tokens + the @theme mapping + the `dark` variant, all from the design system.
-   scale.css: fluid root-font-size scaling (005 Amendment D2) — the whole rem-based UI scales
-   proportionally on wide displays. */
+/* Tokens + the @theme mapping + the `dark` variant, all from the design system. */
 @import "@effy/design-system/tokens.css";
-@import "@effy/design-system/scale.css";
 
 @layer base {
   * {

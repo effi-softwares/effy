@@ -31,7 +31,8 @@ The shop console MUST be built on the identical web stack established by
 `@effy/shared-types`, and `@effy/api-client` already exist (005). This slice **consumes and
 extends** them (Principle II, single source of truth) — it MUST NOT fork, copy, or
 re-implement them per surface. The design-system work of Amendment D2 (neutral surfaces +
-single jade accent, `scale.css` proportional scaling) is inherited automatically.
+single jade accent) is inherited automatically. *(2026-07-15: Amendment D2's `scale.css`
+proportional scaling was later removed platform-wide; sizing is the shadcn/Tailwind default.)*
 
 ### D2 — A different identity pool
 

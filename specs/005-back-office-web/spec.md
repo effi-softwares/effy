@@ -426,14 +426,17 @@ conventions on the first attempt.
   set in the shared design system (the single source of truth, FR-010), so **every** surface —
   the sign-in screen and the dashboard shell alike — inherits it, and MUST NOT be re-styled per
   screen. Presentation-only (no backend/data/auth change).
-- **FR-025**: The console MUST **scale proportionally with viewport width**. At standard and
+- **FR-025**: ~~The console MUST **scale proportionally with viewport width**. At standard and
   laptop widths it MUST retain its current (baseline) sizing; on **large, wide displays above a
   defined width threshold**, the interface's text, spacing, controls, and overall density MUST
   scale up **proportionally together** so the layout does not feel undersized or empty — while
   remaining legible and **never** overflowing, clipping, or breaking layout at any width. This
   MUST be a **design-system-wide** behaviour (both the sign-in screen and the shell benefit),
   and the small-screen baseline MUST NOT shrink. Presentation-only (no backend/data/auth
-  change).
+  change).~~ **⚠ SUPERSEDED / REMOVED (2026-07-15).** The fluid large-display scaling was
+  reverted by request across all three web surfaces; sizing is now the **shadcn/Tailwind default**
+  (16px root, no viewport-driven scaling, full-width content). `design-system/scale.css` and the
+  `max-w-[1800px]` content cap are deleted. FR-024 (neutral theme + Jade accent) is unaffected.
 
 ### Key Entities
 
@@ -514,10 +517,11 @@ conventions on the first attempt.
   **every** surface (backgrounds, sidebar, cards, hover states) is neutral and the brand green
   appears **only** as the accent — **zero** brand-tinted surface blends remain (FR-024),
   verified by inspecting the sign-in background, the sidebar, and hover states.
-- **SC-015**: On a large, wide display (above the defined threshold) the interface is visibly
+- **SC-015**: ~~On a large, wide display (above the defined threshold) the interface is visibly
   and proportionally larger than at laptop width — text, spacing, and controls all scale
   together — with **zero** overflow, clipping, or broken layout at any tested width from laptop
-  to ultrawide, and the laptop-width baseline is unchanged (FR-025).
+  to ultrawide, and the laptop-width baseline is unchanged (FR-025).~~ **⚠ SUPERSEDED / REMOVED
+  (2026-07-15)** — see FR-025. Scaling was reverted; no large-display scaling behaviour exists.
 
 ## Assumptions
 

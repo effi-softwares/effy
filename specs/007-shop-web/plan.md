@@ -54,7 +54,7 @@ first test of whether the shared web foundation is genuinely reusable or merely 
 | **II. Monorepo with Shared Contracts** | ✅ PASS (and it is the slice's core work) | Zero copy-paste of cross-cutting logic: the reusable half of the back-office console is extracted to `@effy/design-system/ui` + `@effy/web-kit` **before** the second surface is built (R5). Shop DTOs are added to `@effy/shared-types` and both sides type from them. |
 | **III. Dual-Path Backend Discipline** | ✅ PASS | **Path: edge — rule 2** (an internal operator console; latency-tolerant, low-frequency, cold starts acceptable). **Service: shop —** the shop/operator domain behind the shop pool's authorizer. This line is required verbatim by `docs/api/path-assignment.md`. |
 | **IV. Auth Isolation** | ⚠️ **CONDITIONAL → resolved by amendment** | The slice *strengthens* isolation: SC-004 proves it in both directions for the first time; there is no auth proxy; a shop token is structurally rejected by the admin service and vice versa. **But** Principle IV names RBAC groups on the admin pool only, and this slice puts groups on the shop pool. Resolved by **constitution v1.5.0**, authored as the slice's first task (*Amendment A* below). Not a deviation — an amendment, per Governance. |
-| **V. Native-Feel, Consistent Design** | ✅ PASS | `shop-web` defines **no theme of its own** (FR-013, SC-007): brand, dark mode, neutral surfaces + single accent, and `scale.css` are inherited from `@effy/design-system`. Token files are not touched, so 005's D2 visual sign-off stands. The shadcn primitives move *into* the design system — Principle V's "one design-system package drives every surface", made literal. |
+| **V. Native-Feel, Consistent Design** | ✅ PASS | `shop-web` defines **no theme of its own** (FR-013, SC-007): brand, dark mode, and neutral surfaces + single accent are inherited from `@effy/design-system` (sizing is the shadcn/Tailwind default). Token files are not touched, so 005's D2 neutral-theme visual sign-off stands. The shadcn primitives move *into* the design system — Principle V's "one design-system package drives every surface", made literal. *(2026-07-15: the shared `scale.css` fluid scaling that this once also inherited was removed platform-wide.)* |
 | **VI. Layered Architecture & Explicit Wiring** | ✅ PASS | Backend: handler → service → repository, raw SQL, explicit row→domain mapping (`shop/src/staff/`), structurally identical to `admin/src/staff/`. Client: feature-sliced (`repo.ts` → `queries.ts` → `<Screen>.tsx`), server-state cache authoritative, TanStack Store for client state only. No DI framework: wiring is by hand at `main.tsx` and by cached module singletons in Lambda. |
 | **VII. Observability & Telemetry** | ✅ PASS | Declared in research R8: 7 typed PostHog events carrying a `surface: "shop-web"` property and no PII beyond `subject`; 3 new per-function CloudWatch alarms (`Errors>0` ×2, `Duration p95` on `/me`). No alerting on the console itself — it is local-only, so nothing hosted exists to alert on. |
 
@@ -135,9 +135,9 @@ apis/edge-api/shop/
 
 packages/
 ├── design-system/                   # GROWS
-│   └── src/{tokens.css, scale.css, cn.ts, index.ts,
+│   └── src/{tokens.css, cn.ts, index.ts,          # scale.css removed 2026-07-15 (scaling reverted)
 │            ui/*.tsx,               # ← moved from apps/back-office/src/components/ui/
-│            hooks/use-mobile.ts}    # exports: ".", "./ui", "./tokens.css", "./scale.css"
+│            hooks/use-mobile.ts}    # exports: ".", "./ui", "./tokens.css"
 ├── shared-types/                    # GROWS
 │   └── src/{problem.ts, back-office.ts, shop.ts ← NEW, index.ts}
 ├── api-client/                      # UNCHANGED (already audience-neutral — SC-009 evidence)

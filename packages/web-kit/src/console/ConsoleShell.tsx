@@ -43,7 +43,7 @@ export interface ConsoleShellProps<TRole extends string> {
   sidebarOpen: boolean;
   onSidebarOpenChange: (open: boolean) => void;
 
-  /** Caps line length on very wide displays; the design system scales the rest. */
+  /** Class applied to the main content region; defaults to the shadcn full-width layout. */
   contentClassName?: string;
   children: ReactNode;
 }
@@ -61,7 +61,7 @@ export function ConsoleShell<TRole extends string>({
   signingOut,
   sidebarOpen,
   onSidebarOpenChange,
-  contentClassName = "mx-auto flex w-full max-w-[1800px] flex-1 flex-col gap-4 p-4",
+  contentClassName = "flex w-full flex-1 flex-col gap-4 p-4",
   children,
 }: ConsoleShellProps<TRole>) {
   return (

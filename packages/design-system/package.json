@@ -9,8 +9,7 @@
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
-    "./tokens.css": "./src/tokens.css",
-    "./scale.css": "./src/scale.css"
+    "./tokens.css": "./src/tokens.css"
   },
   "types": "./src/index.ts",
   "scripts": {

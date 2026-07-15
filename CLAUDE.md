@@ -445,7 +445,7 @@ behind ONE shared HTTP API**, and the backends live under **`apis/`**:
   validate`, hygiene sweep — all green. Committed (`aacd7c5`).
 
 **005-back-office-web** — Back-Office Web Foundation (Bootstrap). **Phases 1–8 + Amendment D1
-(dashboard shell) + Amendment D2 (neutral theme + responsive scaling) implemented; reconciled to A3.
+(dashboard shell) + Amendment D2 (neutral theme) implemented; reconciled to A3.
 Live SC sign-off (T046) pending; not yet committed.**
 The platform's **first web surface**: the internal `back-office` admin console (Vite + React 19
 SPA) + the **first shared web packages** (`@effy/design-system`, `@effy/shared-types`,
@@ -469,18 +469,19 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
   screenshot harness (light/dark × admin/manager × expanded/collapsed): dashboard layout,
   icon-rail collapse with reflow, role-aware nav (manager loses the Admin item), footer identity,
   on-brand jade in both appearances. Harness removed after capture.
-- **Amendment D2 — neutral theme + responsive scaling** (FR-024/FR-025, SC-014/SC-015):
-  **built + verified.** **(1)** surfaces rebased to neutral in `@effy/design-system` `tokens.css`
-  (shadcn `sidebar-07` neutral base); **Jade `#0FB57E` kept as the single accent** — primary/ring/
-  brand mark only (dark-on-emerald foreground for WCAG contrast); the green sign-in-bg / sidebar /
-  hover blends are gone, light **and** dark. **(2)** fluid root-font-size scaling in a new
-  `design-system/scale.css` (`clamp()`, rem-anchored/zoom-safe) → the whole rem-based UI scales
-  proportionally on wide displays; 16px baseline to ~1536px, up to ~22px by ~2560px; + a
-  `max-w-[1800px]` content cap in `routes/app.tsx`. **No constitution amendment** (Jade is an
-  emerald shade — Principle V holds; governance in plan § Amendment D2). Phase 10 (T059–T063) all
-  `[x]`; app vitest **20/20** (+2 token guard), typecheck/build clean; **visually verified** via the
-  screenshot harness (neutral surfaces + emerald accent light/dark; proportional scaling
-  1440→2560). Presentation-only, design-system-scoped.
+- **Amendment D2 — neutral theme** (FR-024, SC-014): **built + verified.** Surfaces rebased to
+  neutral in `@effy/design-system` `tokens.css` (shadcn `sidebar-07` neutral base); **Jade
+  `#0FB57E` kept as the single accent** — primary/ring/brand mark only (dark-on-emerald foreground
+  for WCAG contrast); the green sign-in-bg / sidebar / hover blends are gone, light **and** dark.
+  **No constitution amendment** (Jade is an emerald shade — Principle V holds; governance in plan
+  § Amendment D2). App vitest green (+2 token guard), typecheck/build clean; **visually verified**
+  via the screenshot harness (neutral surfaces + emerald accent light/dark). Presentation-only,
+  design-system-scoped.
+  - **⚠ Reverted (2026-07-15)**: D2's responsive-scaling half (FR-025/SC-015 — the fluid
+    `clamp()` root-font-size in `design-system/scale.css` + the `max-w-[1800px]` content cap in
+    `ConsoleShell`) was **removed across all three web surfaces** by request. Sizing is now the
+    **shadcn/Tailwind default** (16px root, full-width content) everywhere; `scale.css` and its
+    export are deleted. Neutral theme + Jade accent are unaffected.
 - Open: **T046** — the LIVE SC-001…SC-013 sign-off (real OTP sign-in, live proving reads/denials,
   disabled-staff denial) is **operator-run** and gated on the still-open cloud steps **T022/T029/T038**
   (`make db-up ENV=dev` — migration `3407603` is committed so this is unblocked — then `make

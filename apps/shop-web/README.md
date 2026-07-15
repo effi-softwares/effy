@@ -125,7 +125,7 @@ link is a courtesy; the refusal is the security boundary.
 
 ## Theme
 
-This surface defines **no theme of its own**. Brand, dark mode, neutral surfaces with a single jade
-accent, and the fluid large-display scaling all come from `@effy/design-system`
-(`tokens.css` + `scale.css`). `src/theme-tokens.test.ts` fails the build if a colour literal, a
-`@theme` block, or a local `font-size: clamp()` appears in `styles.css`.
+This surface defines **no theme of its own**. Brand, dark mode, and neutral surfaces with a single
+jade accent all come from `@effy/design-system` (`tokens.css`). Sizing is the shadcn/Tailwind
+default (16px root, no fluid scaling). `src/theme-tokens.test.ts` fails the build if a colour
+literal, a `@theme` block, or a local `font-size: clamp()` appears in `styles.css`.

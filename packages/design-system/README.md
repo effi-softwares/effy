@@ -18,12 +18,11 @@ source + CSS token files (each consumer's bundler transpiles).
   shadcn primitives) consumes these tokens, so a single edit re-themes the whole app. Never hardcode
   a colour in a component.
 
-## Responsive scaling (Amendment D2)
+## Sizing: shadcn defaults
 
-`src/scale.css` sets a **fluid root font-size** (`clamp()`, rem-anchored for zoom-safety). Because
-the whole stack is rem-based (Tailwind spacing/type/controls), the entire UI scales **proportionally
-together** on wide displays — baseline (~16px) preserved to ~1536px, scaling up to ~22px by ~2560px,
-capped. No per-component work; import it after the tokens.
+The UI uses **shadcn/Tailwind default sizing** — the browser-default 16px root font-size, no fluid
+responsive scaling. (An earlier fluid `clamp()` root font-size that grew the whole UI on wide
+displays was removed; surfaces render at their native size at every width.)
 
 ## Exports
 
@@ -31,14 +30,12 @@ capped. No per-component work; import it after the tokens.
 |---|---|
 | `@effy/design-system` | `cn(...)` — the Tailwind class-merge util |
 | `@effy/design-system/tokens.css` | Tailwind v4 `@theme` tokens + light/dark CSS variables (neutral surfaces + Jade accent) |
-| `@effy/design-system/scale.css` | fluid root font-size (responsive UI scaling) |
 
-Consumers import both in their entry stylesheet **after** Tailwind:
+Consumers import the tokens in their entry stylesheet **after** Tailwind:
 
 ```css
 @import "tailwindcss";
 @import "@effy/design-system/tokens.css";
-@import "@effy/design-system/scale.css";
 ```
 
 Dark mode is driven by the `.dark` class on `<html>` (shadcn convention); flip it from a client

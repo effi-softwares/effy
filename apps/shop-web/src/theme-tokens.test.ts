@@ -17,9 +17,8 @@ const tokensCss = readFileSync(
 const appCssCode = appCss.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase();
 
 describe("shop-web inherits the design system and defines no theme of its own", () => {
-  it("imports the shared tokens and the shared scaling rule", () => {
+  it("imports the shared tokens", () => {
     expect(appCssCode).toContain('@import "@effy/design-system/tokens.css"');
-    expect(appCssCode).toContain('@import "@effy/design-system/scale.css"');
   });
 
   it("declares zero colour literals locally", () => {
@@ -32,7 +31,7 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(appCssCode).not.toMatch(/^\s*--(color|sidebar|radius|primary|background)[\w-]*\s*:/m);
   });
 
-  it("declares no root font-size scaling of its own (scale.css owns it)", () => {
+  it("declares no root font-size scaling of its own (shadcn defaults, no fluid scaling)", () => {
     expect(appCssCode).not.toMatch(/font-size\s*:\s*clamp\(/);
   });
 

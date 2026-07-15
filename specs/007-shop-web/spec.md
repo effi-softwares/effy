@@ -315,8 +315,9 @@ explicit.
 - **Light vs dark appearance** → the console is legible and on-brand in both; dark mode is a
   requirement. Surfaces are **neutral** with the brand green as the **single accent**, inherited
   from the shared design system — the console defines no theme of its own.
-- **Wide / large / ultrawide displays** → the interface scales up proportionally, inherited from
-  the shared design system; the laptop-width baseline is unchanged.
+- **Wide / large / ultrawide displays** → shadcn/Tailwind default sizing applies at every width
+  (no viewport-driven scaling). *(The shared fluid scaling this once inherited was removed
+  platform-wide on 2026-07-15.)*
 - **Served from an unapproved origin** → the backend refuses the call; the console is served only
   from the platform's approved development origin, which is per-environment configuration, not
   hard-coded.
@@ -388,10 +389,11 @@ explicit.
   locally (constitution Principle II). Where the foundation proves back-office-shaped rather than
   audience-neutral, it MUST be **generalized in the shared package**, not worked around per
   surface.
-- **FR-013**: The console MUST inherit the shared design system's brand, **dark mode**, neutral
-  surfaces with a single brand accent, and proportional large-display scaling — defining **no**
-  theme of its own — and MUST meet the platform's interaction-quality bar (adequate touch/click
-  targets, responsive layout, accessible interactions).
+- **FR-013**: The console MUST inherit the shared design system's brand, **dark mode**, and neutral
+  surfaces with a single brand accent — defining **no** theme of its own (sizing is the
+  shadcn/Tailwind default) — and MUST meet the platform's interaction-quality bar (adequate
+  touch/click targets, responsive layout, accessible interactions). *(2026-07-15: the shared
+  fluid large-display scaling this clause once also inherited was removed platform-wide.)*
 - **FR-014**: The authenticated console MUST present the platform's standard **dashboard layout**
   — a persistent, collapsible side-navigation rail (brand, primary navigation, and a user menu
   exposing the verified identity and sign-out), a top bar indicating the current location, and a
@@ -532,8 +534,9 @@ explicit.
   **zero** present a broken interface or expose internal detail, stack traces, or credentials.
 - **SC-007**: The console is legible and on-brand in **both** light and dark appearances —
   verified across the sign-in and proving screens and the dashboard shell — with neutral surfaces
-  and a single brand accent, and it scales proportionally on a large display, **entirely by
-  inheritance** from the shared design system (**zero** theme or scaling rules defined locally).
+  and a single brand accent, **entirely by inheritance** from the shared design system (**zero**
+  theme rules defined locally; sizing is the shadcn/Tailwind default). *(2026-07-15: the shared
+  fluid large-display scaling this once also inherited was removed platform-wide.)*
 - **SC-008**: **Zero** secret or credential material is found in the repository or the built
   bundle, and **100%** of emitted telemetry events carry no personal data beyond the subject
   identifier, across the entire local-run workflow.

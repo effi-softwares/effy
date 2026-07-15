@@ -97,10 +97,12 @@ reconcile.
 - The authenticated shell is `<ConsoleShell>` from `@effy/web-kit/console`: collapsible sidebar
   rail (brand, role-aware nav, user menu with identity + sign-out), a top bar showing the current
   location, and a main content region into which every screen renders (FR-014).
-- `shop-web` **defines no theme of its own** (FR-013, SC-007). Brand, dark mode, neutral surfaces
-  with a single jade accent, and proportional large-display scaling are inherited from
-  `@effy/design-system` (`tokens.css` + `scale.css`). **Zero** local theme or scaling rules — this
-  is asserted by a token-guard test, mirroring back-office's.
+- `shop-web` **defines no theme of its own** (FR-013, SC-007). Brand, dark mode, and neutral
+  surfaces with a single jade accent are inherited from `@effy/design-system` (`tokens.css`);
+  sizing is the shadcn/Tailwind default. **Zero** local theme rules — asserted by a token-guard
+  test, mirroring back-office's. *(2026-07-15: the shared `scale.css` fluid large-display scaling
+  this once also inherited was removed platform-wide; the guard still forbids any local
+  `font-size: clamp()`.)*
 - shadcn primitives come from `@effy/design-system/ui`, not a local copy.
 
 ---

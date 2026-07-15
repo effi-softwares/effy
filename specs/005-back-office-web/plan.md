@@ -383,6 +383,13 @@ except the web contract's routing/shell note.
 
 ## Amendment D2 — Neutral theme + responsive scaling (FR-024/FR-025, presentation-only)
 
+> **⚠ Reversal (2026-07-15) — the responsive-scaling half was removed.** The fluid root-font-size
+> scaling (D2-b below, FR-025/SC-015) and the `max-w-[1800px]` content cap were reverted by request
+> across all three web surfaces. `packages/design-system/src/scale.css` and its `./scale.css`
+> package export are **deleted**; no surface imports it. Sizing is now the **shadcn/Tailwind default**
+> (16px root, full-width content). **The neutral-theme half (D2-a, FR-024/SC-014) still stands** —
+> everything in this section about surfaces/accent remains in effect; only the scaling is gone.
+
 **Trigger**: operator directive (2026-07-09, verbatim in [operator-directives.md](./operator-directives.md)) —
 remove the green-tinted surfaces ("green-white"/"green-black" blends on the sign-in background, sidebar,
 hovers), follow the shadcn **`sidebar-07` neutral base**, keep **emerald as the only accent**; and add

@@ -2,7 +2,6 @@
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
 @import "@effy/design-system/tokens.css";
-@import "@effy/design-system/scale.css";
 
 @layer base {
   * {

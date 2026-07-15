@@ -2,12 +2,10 @@
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
 @import "@effy/design-system/tokens.css";
-@import "@effy/design-system/scale.css";
 
-/* This surface defines NO theme of its own (FR-013 / SC-007). Brand, dark mode, neutral surfaces
-   with a single jade accent, and the fluid large-display scaling all arrive from the shared design
-   system. The two rules below only bind Tailwind's defaults to those tokens — asserted by
-   src/theme-tokens.test.ts. */
+/* This surface defines NO theme of its own (FR-013 / SC-007). Brand, dark mode, and neutral
+   surfaces with a single jade accent all arrive from the shared design system. The two rules
+   below only bind Tailwind's defaults to those tokens — asserted by src/theme-tokens.test.ts. */
 @layer base {
   * {
     border-color: var(--color-border);
