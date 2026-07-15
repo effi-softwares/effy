@@ -81,6 +81,32 @@ this phone), with the reasoning recorded inline so the next reader does not "fix
 Requirements grew 44 → 49; success criteria 18 → 21. Checklist re-validated after the rewrite: **16/16 still
 passing**, no regressions.
 
+### Plan pass (2026-07-14) — two more spec defects caught by research, both fixed in the spec
+
+Planning ran four parallel research streams (repo integration, Amplify native SDKs, CMP/iOS/Nav3, contract+token
+sharing). Two of them turned up **requirements that could not be built as written** — same class of defect as the
+clarify pass, caught one artifact later:
+
+- **FR-027** still carried 012's **pre-amendment** "sign out every *other* device" wording in one place the clarify
+  pass had already corrected elsewhere. Reconciled: **every session, including this phone** (Cognito revokes
+  all-or-nothing).
+- **FR-019a** asked for a **"30 days of inactivity"** window. Research confirmed against AWS docs that **Cognito has
+  no inactivity window at all** — the refresh credential expires a fixed period *after sign-in*. Unbuildable, and it
+  would have signed out a daily-active customer. Corrected to **90 days from sign-in** (operator decision), with the
+  reasoning recorded inline.
+
+Both fixes live in `spec.md` (Principle I: fix the earliest affected artifact), not in the plan. Checklist
+re-validated against the corrected spec: **still 16/16.**
+
+### Two deviations, both recorded rather than waived
+
+The plan carries **two** knowing constitution deviations, each in Complexity Tracking with a **named closing
+slice**: **Principle V** (iOS ships Material 3, not HIG — closing slice `iOS native shell`) and **Principle VII**
+(no telemetry — closing slice `customer-catalog`). Neither required a constitution amendment; the constitution keeps
+telling the truth about what is owed, and the plan records the debt. This satisfies the "no [NEEDS CLARIFICATION]"
+and "scope bounded" checklist items rather than contradicting them — a recorded, bounded, reversible deviation is a
+decision, not an ambiguity.
+
 ### Two dependencies that can invalidate design, flagged loudly
 
 The spec's hardest requirement — **FR-024**, the emailed-code step-up before a first password — rests on the

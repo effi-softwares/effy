@@ -64,10 +64,22 @@ later mobile slice — catalog, cart, checkout, orders — stands on.
 
 - **Q: Crash reporting and product analytics — Constitution Principle VII requires both on every mobile
   surface. Are they in this slice?** → **A: Deferred to a later slice.** This is a **knowing deviation
-  from Principle VII**, and it is the only one in this feature. It is recorded in *Constitution Impact*
-  below and **MUST** be carried into the plan's Complexity Tracking with a justification and a named
-  slice that closes it. It is not a silent omission, and it is not permission to ship the platform's
-  first mobile surface permanently unmeasured.
+  from Principle VII** — **one of two** this feature takes (the other is the iOS-chrome deviation
+  below). It is recorded in *Constitution Impact* below and **MUST** be carried into the plan's
+  Complexity Tracking with a justification and a named slice that closes it. It is not a silent omission,
+  and it is not permission to ship the platform's first mobile surface permanently unmeasured.
+
+- **Q (raised during planning, 2026-07-14): iOS native feel — Principle V requires iOS to follow Apple
+  HIG, but a shared Compose UI renders Material 3 (Android's design language) on iOS, and Apple's iOS 26
+  "Liquid Glass" system look is painted only for native chrome.** → **A: Ship Material 3 on both
+  platforms for now; record the deviation, do not amend the constitution.** iOS keeps native scroll
+  physics, native back-swipe, native text editing, and native accessibility, but its **chrome is
+  Material's, not Apple's** — a **knowing Principle V deviation**, bounded and reversible (the presentation
+  layer is the only thing a later HIG pass touches; ViewModels/domain/data are shared). It is the
+  **second** deviation in this feature, recorded in *Constitution Impact* row V and carried into the
+  plan's Complexity Tracking with a named closing slice (`iOS native shell`). The HIG-conformant
+  alternative (a SwiftUI shell hosting Compose content) is JetBrains' own documented pattern and is what
+  that later slice adopts.
 
 - **Q: How far does the app have to travel to be "done"?** → **A: It runs.** Done means: builds and runs
   on an Android device/emulator **and** an iOS device/simulator, and completes every flow in this spec
@@ -400,8 +412,13 @@ application for any value whose disclosure would grant capability; find none.
   Account**. On success the customer MUST land on Account; on declining they MUST be returned to browsing
   having lost nothing, and MUST NOT be asked again in that session. No other part of the app MUST ask a guest
   to authenticate.
-- **FR-003**: The app MUST **feel native on each platform** — navigation, gestures, transitions, and controls
-  MUST follow that platform's conventions, and MUST NOT present one platform's idioms on the other.
+- **FR-003**: The app MUST **feel native on each platform** in **behaviour** — scroll physics, the back gesture,
+  text editing, and accessibility MUST be the platform's own, on both platforms.
+  - **⚠ Bounded exception (a recorded Principle V deviation — see Clarifications and Constitution Impact row V).**
+    **Visual chrome is exempt for now**: the app renders **Material 3 on both platforms**, so iOS chrome is not
+    Apple's design language and does not receive HIG component parity or "Liquid Glass". This is knowing and
+    reversible; **HIG component parity is deferred to the `iOS native shell` slice.** Behaviour (the clause above)
+    is **not** exempt — it MUST be native on each platform from day one.
 - **FR-004**: The app MUST render exclusively from **the platform's design tokens** — Effy's brand colour and
   its scale — and MUST NOT hardcode a colour, a spacing value, or a type ramp of its own.
 - **FR-005**: The app MUST support **dark mode**, following the device's appearance setting.
@@ -667,7 +684,7 @@ deviation is taken knowingly and recorded.
 | **II — Shared Contracts** | **This surface stresses the principle.** The platform's shared contracts are consumed natively by the web surfaces; this one cannot consume them the same way. FR-043 refuses to let that become an excuse: the plan MUST state how one source of truth is preserved **and how drift is detected**. |
 | **III — Dual-Path** | FR-036 binds the app to the routing law 011 already committed to (FR-028). No new backend path. |
 | **IV — Auth Isolation** | Honoured exactly: the customer pool only (FR-011, FR-014); no third credential route; **no federation** while account linking is unbuilt; the record — not the claim — decides access (FR-033). |
-| **V — Design** | FR-003 – FR-007: native feel per platform, tokens only, dark mode, fat-finger targets. |
+| **V — Design** | ⚠ **DEVIATION, taken knowingly.** Tokens only, dark mode, and fat-finger targets hold (FR-004 – FR-007). But **iOS chrome ships as Material 3, not Apple HIG** — a shared Compose UI cannot render Apple's design language, and iOS 26 "Liquid Glass" is painted only for native chrome. iOS keeps native scroll physics, back-swipe, text editing, and accessibility; it does **not** get HIG component parity. Bounded and reversible (the presentation layer is all a later HIG pass touches). The plan **MUST** record this in **Complexity Tracking** with a justification and **name the slice that closes it** (`iOS native shell`). See FR-003's bounded exception. |
 | **VI — Layered Architecture** | Binding, and the reason the request cited `ARCHITECTURE.md`. The *shape* (Clean Architecture; MVVM as a strict State/Intent/Effect machine; no DI framework; one manual container) is **HOW** and belongs to `/plan`, which MUST conform to `ARCHITECTURE.md` § *Mobile apps*. |
 | **VII — Observability** | **⚠ DEVIATION, taken knowingly.** Crash reporting and product analytics are **deferred**. Principle VII requires both on mobile, and requires a plan adding user-facing flows to state its telemetry. The plan **MUST** record this in **Complexity Tracking** with a justification and **name the slice that closes it**. Note that FR-038 (no credentials in telemetry) still binds whatever telemetry exists later. |
 
