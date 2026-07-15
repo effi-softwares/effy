@@ -16,7 +16,9 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests\" && exit 0"
+    "test": "echo \"no tests\" && exit 0",
+    "tokens:gen": "node scripts/gen-compose-theme.mjs",
+    "tokens:check": "node scripts/gen-compose-theme.mjs && git diff --exit-code compose/"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

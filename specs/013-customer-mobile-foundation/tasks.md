@@ -26,6 +26,23 @@ later mobile slice stands on.
 - **[Story]**: US1 · US2 · US3 · US4 · US5 · US6 (from [spec.md](./spec.md))
 - **🧑‍💻**: **OPERATOR-RUN.** Claude does not run these — live AWS, real devices, deploys (CLAUDE.md).
 
+## Implementation status (2026-07-14 — "buildable foundation" pass)
+
+This environment has Node + pnpm + JDK, but **no Android SDK / Xcode / Gradle-with-Amplify**, so no Kotlin
+compiles and no device runs here. Marking discipline (honesty over green ticks):
+
+- **`[X]` = actually run and verified in this session** (the codegen pipelines + drift guards + the build guard,
+  all proven by deliberately breaking them).
+- **`[~]` = written as source, NOT compiled/run** (Gradle/Kotlin/Swift the operator must build). The line is
+  drawn where I can no longer *observe* the result.
+- **`[ ]` = not started** (feature screens, drivers needing the SDK, and everything operator-gated).
+
+Done + verified this pass: the two **Principle II codegen pipelines** (T011–T014) and their **drift guards**
+(proven to fail on a planted TS field / a changed token), the **build config + fail-loud contract source**
+(T007/T016/T017), and the **escape-hatch + no-secret-key guard** (T018/T030, proven both ways). The core Kotlin
+spine, the two Amplify drivers, nav, and every feature/operator task remain for a session with the real toolchain
+and the deployed backend (T001/T002) — and the account flows remain gated on spike **S1** (T003).
+
 ---
 
 ## Phase 0: Spikes & preconditions (BLOCKING) 🧑‍💻
@@ -38,8 +55,8 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 > (rotation compatibility) is **T057** and **S6** (Auto-Backup filenames) is **T059** — both feed Phase 8 polish
 > rather than blocking the build.
 
-- [ ] T001 🧑‍💻 **[PRECONDITION — the backend]** Deploy 011 + 012: `make db-up ENV=dev`, `make edge-deploy SERVICE=customer ENV=dev`, and confirm `curl https://edge-api.dev.effyshopping.com/customer/healthz` → `{"status":"ok"}`. **This app has no backend of its own; until this passes, no flow beyond the guest home works.** ([quickstart.md](./quickstart.md) § 0)
-- [ ] T002 🧑‍💻 **[PRECONDITION — email]** Verify SES actually sends (`make mail-verify ENV=dev`). **Hard dependency on 010, whose SES steps are open. Without email, set-password (FR-024) does not work at all** — the code never arrives — and account recovery is dead too. (012 T062)
+- [ ] T001 🧑‍💻 **[PRECONDITION — a reachable backend, deployed OR local]** Make `edge-api/customer` reachable and apply the 011/012 migrations. **Recommended dev path: local** — `make db-up ENV=dev` + `make edge-offline SERVICE=customer ENV=dev` + `ngrok`, then put the ngrok URL in `secrets.properties` (quickstart § 0 Path A). Deployed path is § 0 Path B. The **customer Cognito pool is real dev AWS and already exists** (direct auth, no local substitute). **Until the backend is reachable, no flow beyond the guest home works.**
+- [ ] T002 🧑‍💻 **[PRECONDITION — email]** An inbox must receive OTP + the step-up code. **The built-in Cognito sender is fine for dev volume** — SES production access / `mail-verify` is a **go-live** concern (012 T062), not a dev blocker. Without *some* working email, set-password (FR-024) and recovery cannot be exercised.
 - [ ] T003 🧑‍💻 **[SPIKE S1 — blocks US5 password flows]** On the dev pool, prove `ChangePassword` with `PreviousPassword` **omitted** succeeds for an OTP-only customer, and that **both** sign-in routes work afterwards (new password **and** emailed code). Record in research.md as **S1-VERIFIED / S1-REFUTED**. **If refuted: STOP, re-plan FR-024.** (Inherited 012 T001.)
 - [ ] T004 🧑‍💻 **[SPIKE S2]** Determine what "Forgot password?" does **today** for a passwordless customer — that path is live now and its behaviour is unknown. Decides whether recovery (FR-015) is buildable as designed. Record **S2-VERIFIED / S2-REFUTED**. (Inherited 012 T002.)
 - [ ] T005 🧑‍💻 **[SPIKE S5]** Call Amplify `updatePassword` with an **empty-string** old password on a passwordless user: is it dropped (→ the attack is reachable) or `InvalidParameterException`? Decides how load-bearing the escape-hatch guard (T041) must be. One line to test. Record **S5-VERIFIED / S5-REFUTED**.
@@ -51,10 +68,10 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 ## Phase 1: Setup (scaffold, deps, module shape)
 
 - [ ] T006 Clean the template out of `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/`: remove `Greeting.kt`, `GreetingUtil.kt`, `Platform.kt` stubs and the `App.kt` placeholder body (keep the entry symbols). Do the same for the `androidMain`/`iosMain` `Platform.*.kt`.
-- [ ] T007 In `apps/customer-mobile/gradle/libs.versions.toml`: **pin `androidx-lifecycle` `2.11.0-beta01` → `2.10.0`** (D19 — no beta lifecycle under a stable Compose runtime). Add versions + libraries for **Ktor 3.5.x** (core, okhttp, darwin, content-negotiation, auth, logging, serialization-json), **kotlinx-serialization-json**, **kotlinx-coroutines** (core + test), **Navigation 3** (`org.jetbrains.androidx.navigation3:navigation3-ui` + `lifecycle-viewmodel-navigation3`), **Multiplatform Settings** (no-arg), **BuildKonfig 0.22.0** (plugin), **Amplify Android ≥ 2.25.0** (auth). Do **not** add Coil or Stripe (research: premature — no images, no checkout).
+- [~] T007 In `apps/customer-mobile/gradle/libs.versions.toml`: **pin `androidx-lifecycle` `2.11.0-beta01` → `2.10.0`** (D19 — no beta lifecycle under a stable Compose runtime). Add versions + libraries for **Ktor 3.5.x** (core, okhttp, darwin, content-negotiation, auth, logging, serialization-json), **kotlinx-serialization-json**, **kotlinx-coroutines** (core + test), **Navigation 3** (`org.jetbrains.androidx.navigation3:navigation3-ui` + `lifecycle-viewmodel-navigation3`), **Multiplatform Settings** (no-arg), **BuildKonfig 0.22.0** (plugin), **Amplify Android ≥ 2.25.0** (auth). Do **not** add Coil or Stripe (research: premature — no images, no checkout).
 - [ ] T008 Create the package skeleton under `commonMain` per [plan.md](./plan.md) § Project Structure: `app/`, `core/{auth,config,http,presentation,theme}/`, `contract/`, `design/`, `features/{home,auth,account}/{domain,data,presentation}/`. Add a one-line `package-info`-style KDoc in each `core/*` marking its role. **Packages shaped like future modules** (Structure Decision).
 - [ ] T009 [P] Add the Swift + Amplify Swift dependency to `apps/customer-mobile/iosApp` (SPM: `amplify-swift ≥ 2.45.0`), and confirm the iOS deployment target is **≥ 14.0** (CMP 1.11 raised the floor). No code yet — just the dependency and the target.
-- [ ] T010 [P] Add mobile targets to the root `Makefile` (`android-run`, `ios-run`, `mobile-test`, `mobile-fixtures`, `mobile-guard`, `contract-gen`/`tokens-gen` passthroughs). Help text mirrors the existing `edge-*` targets. Update `.PHONY`.
+- [~] T010 [P] Add mobile targets to the root `Makefile` (`android-run`, `ios-run`, `mobile-test`, `mobile-fixtures`, `mobile-guard`, `contract-gen`/`tokens-gen` passthroughs). Help text mirrors the existing `edge-*` targets. Update `.PHONY`.
 
 ---
 
@@ -64,17 +81,17 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 
 ### 2a — Principle II: the two codegen pipelines (satisfied here or not at all)
 
-- [ ] T011 [P] Add `contract:gen` to `packages/shared-types/package.json`: `ts-json-schema-generator -p src/index.ts -t '*'` → `contract/schema.json`, then `quicktype --src-lang schema --lang kotlin --framework kotlinx --package com.effyshopping.customer.mobile.contract` → `contract/Dto.kt`. **Commit both outputs.** (research D15)
-- [ ] T012 Run `contract:gen`; review `contract/Dto.kt`. If the `PasswordWriteDTO` discriminated union is mangled, **hand-fix that one type** and add `@JsonClassDiscriminator("mode")` — the schema snapshot keeps guarding it (D15). Verify `CustomerDTO.passwordUpdatedAt` is nullable and `status` is the `active|barred` union.
-- [ ] T013 Add `contract:check` (`contract:gen && git diff --exit-code contract/`) and wire it into CI/`make mobile-test`. **This is the drift alarm** — the day a TS field changes and the Kotlin doesn't, CI goes red.
-- [ ] T014 [P] Create `packages/design-system/scripts/gen-compose-theme.mjs` (~60 lines): parse `tokens.css` `:root` + `.dark`, apply the fixed shadcn→M3 lookup (`--card`→`surface`, `--border`→`outline`, `--destructive`→`error`), emit `compose/EffyTokens.kt` — a `Color` object + light/dark `ColorScheme` + `EffyRadius`. M3 slots with no CSS source **left at the M3 default in the script, never invented in Kotlin** (D16). Add `tokens:gen` + `tokens:check`. **Commit the output.**
-- [ ] T015 [P] Wire the two generated files into the KMP build: `contract/Dto.kt` and `EffyTokens.kt` copied/symlinked into `commonMain` source sets. Confirm they compile. Add a header banner to each: `// GENERATED — DO NOT EDIT`.
+- [X] T011 [P] Add `contract:gen` to `packages/shared-types/package.json`: `ts-json-schema-generator -p src/index.ts -t '*'` → `contract/schema.json`, then `quicktype --src-lang schema --lang kotlin --framework kotlinx --package com.effyshopping.customer.mobile.contract` → `contract/Dto.kt`. **Commit both outputs.** (research D15)
+- [~] T012 Run `contract:gen`; review `contract/Dto.kt`. If the `PasswordWriteDTO` discriminated union is mangled, **hand-fix that one type** and add `@JsonClassDiscriminator("mode")` — the schema snapshot keeps guarding it (D15). Verify `CustomerDTO.passwordUpdatedAt` is nullable and `status` is the `active|barred` union.
+- [X] T013 Add `contract:check` (`contract:gen && git diff --exit-code contract/`) and wire it into CI/`make mobile-test`. **This is the drift alarm** — the day a TS field changes and the Kotlin doesn't, CI goes red.
+- [X] T014 [P] Create `packages/design-system/scripts/gen-compose-theme.mjs` (~60 lines): parse `tokens.css` `:root` + `.dark`, apply the fixed shadcn→M3 lookup (`--card`→`surface`, `--border`→`outline`, `--destructive`→`error`), emit `compose/EffyTokens.kt` — a `Color` object + light/dark `ColorScheme` + `EffyRadius`. M3 slots with no CSS source **left at the M3 default in the script, never invented in Kotlin** (D16). Add `tokens:gen` + `tokens:check`. **Commit the output.**
+- [~] T015 [P] Wire the two generated files into the KMP build: `contract/Dto.kt` and `EffyTokens.kt` copied/symlinked into `commonMain` source sets. Confirm they compile. Add a header banner to each: `// GENERATED — DO NOT EDIT`.
 
 ### 2b — Build config & the fail-loud contract (US6's mechanism)
 
-- [ ] T016 [US6] In `apps/customer-mobile/build.gradle.kts`: read a git-ignored `secrets.properties` (env vars win over it), define `requiredKeys = [COGNITO_USER_POOL_ID, COGNITO_APP_CLIENT_ID, COGNITO_REGION, EDGE_API_BASE_URL, CORE_API_BASE_URL]`, and **throw `GradleException` at configuration time naming every missing/blank key and where to get it** (FR-041, D14). `defaultConfigs` only — no `targetConfigs` (dodges the K2 `expect const val` limit, D13).
-- [ ] T017 [P] [US6] Create committed `apps/customer-mobile/secrets.properties.example` (the key contract, dummy values) and add `secrets.properties` to `.gitignore` (confirm the monorepo ignore already covers it). **No `amplifyconfiguration.json` anywhere** — the Amplify config is built in code (T024).
-- [ ] T018 [P] [US6] **[SECURITY]** Add the no-secret-key guard to `mobile-guard`: assert no name in `requiredKeys` matches `/SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL/i` (FR-042). A user-pool id / client id is a **name, not a key** — the guard enforces the distinction so it is not a matter of memory.
+- [~] T016 [US6] In `apps/customer-mobile/build.gradle.kts`: read a git-ignored `secrets.properties` (env vars win over it), define `requiredKeys = [COGNITO_USER_POOL_ID, COGNITO_APP_CLIENT_ID, COGNITO_REGION, EDGE_API_BASE_URL, CORE_API_BASE_URL]`, and **throw `GradleException` at configuration time naming every missing/blank key and where to get it** (FR-041, D14). `defaultConfigs` only — no `targetConfigs` (dodges the K2 `expect const val` limit, D13).
+- [X] T017 [P] [US6] Create committed `apps/customer-mobile/secrets.properties.example` (the key contract, dummy values) and add `secrets.properties` to `.gitignore` (confirm the monorepo ignore already covers it). **No `amplifyconfiguration.json` anywhere** — the Amplify config is built in code (T024).
+- [X] T018 [P] [US6] **[SECURITY]** Add the no-secret-key guard to `mobile-guard`: assert no name in `requiredKeys` matches `/SECRET|KEY|PASSWORD|TOKEN|CREDENTIAL/i` (FR-042). A user-pool id / client id is a **name, not a key** — the guard enforces the distinction so it is not a matter of memory.
 
 ### 2c — Core spine
 
@@ -92,7 +109,7 @@ stories (US4, US5) can be trusted until S1 returns green, and nothing runs at al
 - [ ] T027 `shared/src/androidMain/.../AmplifyAuthDriver.kt` — implements `AuthDriver` over **Amplify Android**: passwordless sign-up, sign-up-with-password, EMAIL_OTP sign-in (`USER_AUTH` + `preferredFirstFactor(EMAIL_OTP)` — **always** state it, D7), SRP password sign-in, `confirmSignUp`/`confirmOtp`, `startPasswordReset`, local `signOut`, `currentSession(forceRefresh)`. Absorbs the `callingActivity` asymmetry via `PlatformContext`. Emits `sessionChanges` on Amplify's own session-dropped events (the Keystore-failure sign-out, D11).
 - [ ] T028 `apps/customer-mobile/iosApp/SwiftAuthDriver.swift` — implements the **Kotlin `AuthDriver` interface in Swift** over **Amplify Swift** (D5: Kotlin/Native cannot call Amplify Swift, so Swift implements and is injected). Same behaviour as Android; factor as the enum associated value `.userAuth(preferredFirstFactor: .emailOTP)`.
 - [ ] T029 Inject the drivers at each entry point: `androidApp` `MainActivity` builds `AppContainer` with `AmplifyAuthDriver`; `iosApp` `iOSApp.swift` builds it with `SwiftAuthDriver`. Configure Amplify from the T022 config string on both (`AmplifyOutputs.fromString` / `.data`).
-- [ ] T030 [P] **[SECURITY — the FR-024 enforcement]** Add the escape-hatch guard to `mobile-guard`: fail the build on any reference to `escapeHatch` / `getEscapeHatch` / a direct `cognitoidentityprovider` import outside the (empty) driver allowlist (D8). **Then prove it by deliberately adding a `getEscapeHatch()` reference and confirming the build fails** — the 011 lesson: break the guard the way it will actually break ([quickstart.md](./quickstart.md) § 3).
+- [X] T030 [P] **[SECURITY — the FR-024 enforcement]** Add the escape-hatch guard to `mobile-guard`: fail the build on any reference to `escapeHatch` / `getEscapeHatch` / a direct `cognitoidentityprovider` import outside the (empty) driver allowlist (D8). **Then prove it by deliberately adding a `getEscapeHatch()` reference and confirming the build fails** — the 011 lesson: break the guard the way it will actually break ([quickstart.md](./quickstart.md) § 3).
 
 **Checkpoint**: the app builds on both platforms, configures Amplify from code, a missing key fails the build, the
 generated contract/theme compile, and the escape-hatch guard has been *seen to fail*. Foundation ready.

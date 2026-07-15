@@ -32,6 +32,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
+        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen \
         dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
@@ -302,6 +303,19 @@ cw-size: ## customer-web bundle budget — guest routes MUST stay <= 120 KB Firs
 
 cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)
 	@pnpm --filter @effy/customer-web depcruise
+
+# --- customer-mobile (013). Principle-II codegen (committed + drift-guarded) + the build-failing guard.
+cm-contract-gen: ## customer-mobile: regenerate the Kotlin DTOs from @effy/shared-types (013 D15)
+	@pnpm --filter @effy/shared-types contract:gen
+cm-contract-check: ## customer-mobile: FAIL if the committed Kotlin DTOs drift from the TS source (Principle II)
+	@pnpm --filter @effy/shared-types contract:check
+cm-tokens-gen: ## customer-mobile: regenerate the Compose theme from tokens.css (013 D16)
+	@pnpm --filter @effy/design-system tokens:gen
+cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts from tokens.css (Principle II)
+	@pnpm --filter @effy/design-system tokens:check
+cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
+	@bash scripts/mobile-guard.sh
+cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
 
 # --- shop slice verification (007). SC-004 and SC-005a are enforced structurally (gateway JWT
 # authorizers) and relationally (a SQL join) — they cannot be unit-tested, so they are scripted

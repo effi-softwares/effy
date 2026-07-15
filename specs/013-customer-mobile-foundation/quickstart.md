@@ -9,26 +9,42 @@ identities, no TestFlight/Play distribution.
 
 ---
 
-## 0. Prerequisites — the backend must exist first
+## 0. Prerequisites — a reachable backend (deployed OR local)
 
-⚠ **This app has no backend of its own, and the backend it needs is not deployed yet.** 011 and 012 are
-code-complete but their operator runs are **open**. Before any account flow can work:
+This app has no backend of its own; it calls `edge-api/customer` (011/012). That backend can be **deployed** or
+**run locally** — a physical phone reaches either. **Local is the recommended dev path** and mirrors how `core-api`
+already works (local-Docker-only by decision).
+
+**What is genuinely required, regardless of path:**
+- The **customer Cognito pool** — this is real dev AWS and already exists (the app authenticates directly against
+  Cognito; there is no local substitute). Pool id / client id from `make output ENV=dev`.
+- The **customer table + `has_password` migration** applied to whatever DB the edge-api points at.
+- A working **email inbox** for OTP + the step-up code. *(The built-in Cognito sender is fine for dev volume; SES
+  production access / `mail-verify` is a go-live concern, not a dev blocker — ignore it until you choose to.)*
+
+### Path A — local edge-api + ngrok (recommended for dev)
 
 ```bash
-make apply ENV=dev                              # 011/012 pool + THIS slice's refresh_token_validity 30→90
-make db-up ENV=dev                              # the customer table (011) + has_password (012)
-make edge-deploy SERVICE=customer ENV=dev       # the routes this app calls
-make mail-verify ENV=dev                        # SES MUST send — without it, set-password does not work AT ALL (012 T062)
+make db-up ENV=dev                              # apply the 011/012 migrations to your dev/local DB
+make edge-offline SERVICE=customer ENV=dev &    # serverless-offline — the customer routes, locally
+ngrok http 3001                                 # public https URL the phone can reach (match edge-offline's port)
+curl -s http://localhost:3001/customer/healthz  # → {"status":"ok","service":"customer"}
 ```
 
-Then confirm the contract is live:
+Put the **ngrok https URL** in `secrets.properties` as `EDGE_API_BASE_URL` (§ 1). ⚠ A free ngrok URL changes each
+session — and `EDGE_API_BASE_URL` is **build-time** (BuildKonfig), so a new URL means a rebuild. A reserved/paid
+ngrok domain avoids the churn.
+
+### Path B — deployed edge-api (for a shared/QA environment)
 
 ```bash
-curl -s https://edge-api.dev.effyshopping.com/customer/healthz     # → {"status":"ok","service":"customer"}
+make apply ENV=dev                              # incl. THIS slice's refresh_token_validity 30→90 (in-place)
+make db-up ENV=dev
+make edge-deploy SERVICE=customer ENV=dev
+curl -s https://edge-api.dev.effyshopping.com/customer/healthz   # → {"status":"ok","service":"customer"}
 ```
 
-You also need: a **JDK 17+**, **Xcode 26 / iOS 26 SDK** (iOS deployment target ≥ 14), an Android SDK, and an email
-inbox you control for OTP.
+**Toolchain (both paths):** a **JDK 17+**, **Xcode 26 / iOS 26 SDK** (iOS deployment target ≥ 14), an Android SDK.
 
 ---
 

@@ -12,7 +12,9 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests\" && exit 0"
+    "test": "echo \"no tests\" && exit 0",
+    "contract:gen": "node scripts/gen-kotlin-contract.mjs",
+    "contract:check": "node scripts/gen-kotlin-contract.mjs && git diff --exit-code contract/"
   },
   "devDependencies": {
     "typescript": "~5.9.2"
