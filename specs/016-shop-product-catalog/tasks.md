@@ -1,10 +1,10 @@
 ---
-description: "Task list for 015-shop-product-catalog"
+description: "Task list for 016-shop-product-catalog"
 ---
 
 # Tasks: Shop Product Catalog Management
 
-**Input**: Design documents from `specs/015-shop-product-catalog/`
+**Input**: Design documents from `specs/016-shop-product-catalog/`
 **Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/](./contracts/)
 
 **Tests**: Included as normal tasks (not TDD-first). The constitution's Quality Gates and every existing

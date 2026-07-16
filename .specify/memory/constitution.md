@@ -17,19 +17,19 @@ Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains two
                 committed plan; this is additive guidance under an existing principle. Surfaces already
                 built predate the doctrines and are not retroactively out of compliance, though the
                 no-card rule SHOULD guide their future changes.
-                Operator decision (2026-07-15), raised while specifying 015-shop-product-catalog, where
+                Operator decision (2026-07-15), raised while specifying 016-shop-product-catalog, where
                 both rules first bite: a rich product entity modelled on eBay item-specifics + Uber Eats
                 menus, and a product-details page the operator required to be sectioned/tabbed, never
                 carded, with no metric cards at the top of pages.
 
-Modified in this amendment (operator-directed, feature 015-shop-product-catalog):
+Modified in this amendment (operator-directed, feature 016-shop-product-catalog):
   - Principle V (Native-Feel, Consistent Design) → two bullets added: the reference-platform doctrine
     and the no-card-layout doctrine.
 
 Dependent updates in THIS change:
   ✅ CLAUDE.md — a "Design reference & layout doctrine" note added under § Design system (elaboration,
      not override) so day-to-day agent guidance carries both rules.
-  ✅ specs/015-shop-product-catalog/spec.md — already carries both as DOCTRINE-1 / DOCTRINE-2; the
+  ✅ specs/016-shop-product-catalog/spec.md — already carries both as DOCTRINE-1 / DOCTRINE-2; the
      spec's "SHOULD be promoted" note is now satisfied.
   ✅ .specify/templates/{plan,spec,tasks}-template.md — Constitution Check defers to Principle V
      dynamically; no structural edit needed.

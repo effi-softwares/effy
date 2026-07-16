@@ -1,4 +1,4 @@
-# Quickstart & Validation: Shop Product Catalog (015)
+# Quickstart & Validation: Shop Product Catalog (016)
 
 A run/validation guide, not implementation. Implementation detail lives in `tasks.md` (Phase 2) and
 the code. Steps marked **[operator]** touch live AWS / migrations and are **operator-run** (CLAUDE.md

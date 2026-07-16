@@ -1,4 +1,4 @@
-# Research: Shop Product Catalog Management (015)
+# Research: Shop Product Catalog Management (016)
 
 Phase 0 decisions. Each resolves an unknown or pins a convention so Phase 1 (data-model, contracts)
 and later tasks have no open technical questions. Conventions were verified against the live tree

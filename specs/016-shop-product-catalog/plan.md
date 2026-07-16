@@ -1,8 +1,8 @@
 # Implementation Plan: Shop Product Catalog Management
 
-**Branch**: `015-shop-product-catalog` | **Date**: 2026-07-15 | **Spec**: [spec.md](./spec.md)
+**Branch**: `016-shop-product-catalog` | **Date**: 2026-07-15 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `specs/015-shop-product-catalog/spec.md`
+**Input**: Feature specification from `specs/016-shop-product-catalog/spec.md`
 
 ## Summary
 
@@ -89,7 +89,7 @@ principle breach; it is mitigated by phasing (below) and recorded in Complexity 
 ### Documentation (this feature)
 
 ```text
-specs/015-shop-product-catalog/
+specs/016-shop-product-catalog/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 — decisions + rationale + alternatives
 ├── data-model.md        # Phase 1 — tables, DTOs, relationships, validation, state

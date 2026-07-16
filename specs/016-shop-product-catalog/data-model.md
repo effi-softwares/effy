@@ -1,4 +1,4 @@
-# Data Model: Shop Product Catalog Management (015)
+# Data Model: Shop Product Catalog Management (016)
 
 Phase 1 data design. Tables live in the **`public`** schema (operational, alongside `public.shop`),
 raw SQL, Goose forward-only migration, `text CHECK` enums (no native PG enums, no `updated_by`, no

@@ -1,6 +1,6 @@
 # Feature Specification: Shop Product Catalog Management
 
-**Feature Branch**: `015-shop-product-catalog`
+**Feature Branch**: `016-shop-product-catalog`
 
 **Created**: 2026-07-15
 
