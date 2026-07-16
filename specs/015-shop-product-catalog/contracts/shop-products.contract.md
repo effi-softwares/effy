@@ -11,7 +11,8 @@ assigned shop (**any** role — `shop_manager` or `shop_staff`, R5). **Every** q
 Denials are uniform (403) and never disclose which term failed; infra throw → 503.
 
 **Errors**: RFC 9457; `validation`→400 (+`errors[]`), `not_found`→404, `conflict`→409
-(SKU dup / hard-delete-guard / schema-in-use), unknown→503. Error bodies never leak internals.
+(SKU dup / hard-delete-guard / schema-in-use / **stale `expectedUpdatedAt`**), unknown→503. Error
+bodies never leak internals.
 
 ---
 
@@ -26,9 +27,9 @@ Denials are uniform (403) and never disclose which term failed; infra throw → 
 | Method | Path | Query / Body | Response |
 |---|---|---|---|
 | GET | `/shop/v1/products` | `page,pageSize,q,type,category,section,status,priceMin,priceMax,sort(name\|price\|recent),order(asc\|desc)` | `PagedDTO<ProductListItemDTO>` (`items,total,page,pageSize`) — **all backend-computed** (FR-017); `pageSize` clamped ≤100; `q` matches name/sku/brand/short_description |
-| GET | `/shop/v1/products/{id}` | — | `ProductDetailDTO` (+ attributes, media w/ presigned GET urls, sections); 404 if not this shop's |
-| POST | `/shop/v1/products` | `CreateProductRequest` | `201 ProductDetailDTO` — validates universal + type-mandatory attributes; 400 field errors; 409 on dup SKU |
-| PATCH | `/shop/v1/products/{id}` | `UpdateProductRequest` (subset) | `ProductDetailDTO` — **focused edit**: updates only supplied fields/attributes, re-validates them (mandatory cannot be cleared) (FR-023/FR-024) |
+| GET | `/shop/v1/products/{id}` | — | `ProductDetailDTO` (+ `brand`, `updatedAt` token, attributes, media w/ presigned GET urls, sections, `missingMandatoryAttributes[]` per FR-020a); 404 if not this shop's |
+| POST | `/shop/v1/products` | `CreateProductRequest` (incl. optional `brand`) | `201 ProductDetailDTO` — validates universal + type-mandatory attributes; 400 field errors; 409 on dup SKU |
+| PATCH | `/shop/v1/products/{id}` | `UpdateProductRequest` (subset + `expectedUpdatedAt`) | `ProductDetailDTO` — **focused edit**: updates only supplied fields/attributes, re-validates them (mandatory cannot be cleared) (FR-023/FR-024); **409 if `expectedUpdatedAt` is stale** (optimistic concurrency, FR-023a) |
 | POST | `/shop/v1/products/{id}/status` | `ChangeProductStatusRequest` (`draft\|active\|unavailable\|archived`) | `ProductDetailDTO` — publish re-validates mandatory; archive is the default "remove" |
 | DELETE | `/shop/v1/products/{id}` | — | `204` — **hard delete only if unreferenced/draft** else `409` "archive instead" (R8) |
 
@@ -69,6 +70,9 @@ must be added to the shop package's deps (currently only admin depends on it).
   client receives one page (never the whole catalog).
 - Create: rejects missing universal/type-mandatory fields; rejects out-of-range/typed attribute
   values; 409 on dup SKU; 400 without a primary image.
-- PATCH: updates only supplied subset; refuses clearing a mandatory attribute.
+- PATCH: updates only supplied subset; refuses clearing a mandatory attribute; **409 on a stale
+  `expectedUpdatedAt`** (concurrent-edit conflict signal, not silent overwrite).
+- Detail: `missingMandatoryAttributes[]` lists attributes made mandatory after the product was created
+  (schema-drift indicator); `brand` is present as a first-class field.
 - Status/Delete: publish re-validates; DELETE 409 for a published/referenced product.
 - Every error body: `application/problem+json`, no internal identifiers leaked.

@@ -193,6 +193,17 @@ slice — consistent with 007/009 shop side; a future enhancement.)
   of `attribute_allowed_value`. Reject with inline reasons (FR-023).
 - **SKU**: optional; when present, unique within `shop_id` (partial unique index → 409 conflict on
   `23505`); blank always allowed (R6).
+- **Brand (FR-010a)**: optional; written to the first-class `product.brand` column on create/edit (its
+  single authority) so `q` search covers it. There is no `brand` attribute definition.
+- **Focused-edit concurrency (FR-023a)**: `PATCH /shop/v1/products/{id}` carries `expectedUpdatedAt`
+  (the `updated_at` the client last read). The update runs `... WHERE id = :id AND shop_id = :actorShopId
+  AND updated_at = :expectedUpdatedAt`; **0 rows affected → 409 conflict** ("product changed, reload").
+  This is optimistic concurrency using the existing `updated_at` — no version column is added. Edits to
+  different sections still both succeed unless they race the *same* row's `updated_at`.
+- **Schema-drift indicator (FR-020a)**: on detail read, the service computes the set of the product
+  type's currently-mandatory attributes that the product has no `product_attribute_value` for, and
+  returns it as `ProductDetailDTO.missingMandatoryAttributes` (a non-blocking notice; never hides the
+  product).
 - **Schema-change safety (FR-006)**: retiring/deleting an attribute or removing an allowed value that
   is referenced by any `product_attribute_value` is blocked (409) with the conflict surfaced; retiring a
   product type does not corrupt existing products.
@@ -241,9 +252,11 @@ Enum unions + `readonly[]` constants mirroring the SQL CHECK sets:
 
 **Shop-facing DTOs** (also regenerated to Kotlin): `CatalogSchemaDTO` (active types + their assigned
 attributes + active category tree, for the create form), `ProductListItemDTO` (thin row: id, name,
-primaryImageUrl, typeName, categoryName, price, currency, status, sku), `ProductDetailDTO` (full +
-`attributes: ProductAttributeValueDTO[]` + `media: ProductMediaDTO[]` + `sections: string[]`),
-`CreateProductRequest`, `UpdateProductRequest` (all fields optional — focused edits PATCH a subset),
+brand, primaryImageUrl, typeName, categoryName, price, currency, status, sku), `ProductDetailDTO`
+(full + `brand` + `updatedAt` (the concurrency token) + `attributes: ProductAttributeValueDTO[]` +
+`media: ProductMediaDTO[]` + `sections: string[]` + `missingMandatoryAttributes: string[]` (FR-020a)),
+`CreateProductRequest` (incl. optional `brand`), `UpdateProductRequest` (all fields optional — focused
+edits PATCH a subset — plus a required `expectedUpdatedAt` concurrency token, FR-023a),
 `ChangeProductStatusRequest`, `ProductMediaDTO`, `CreatePresignedUploadRequest`/`Response`,
 `ShopSectionDTO`, `CreateShopSectionRequest`. List envelope: `PagedDTO<ProductListItemDTO>`.
 
@@ -256,10 +269,15 @@ narrowing helper (the `toShopRoles` pattern) for values authored by the back off
 
 Inserted `ON CONFLICT (key) DO NOTHING`: product types `prepared_food`, `packaged_grocery`,
 `beverage`, `household`; a starter attribute library (`dietary_labels` multi_select,
-`allergens` multi_select, `spice_level` single_select, `prep_time` number/min, `brand` short_text,
+`allergens` multi_select, `spice_level` single_select, `prep_time` number/min,
 `net_weight` number/g, `net_volume` number/ml, `storage` single_select, `country_of_origin` short_text,
 `ingredients` long_text, `material` short_text, `dimensions` short_text); their type assignments
-(food gets dietary/allergens/spice/prep; grocery gets brand/net_weight/storage/origin; etc.); and a
+(food gets dietary/allergens/spice/prep; grocery gets net_weight/storage/origin; etc.); and a
 small category tree (Food → {Meals, Bakery, …}, Grocery → {Pantry, Chilled, Frozen, …}, Household).
+
+> **Brand is deliberately NOT seeded as an attribute (F1 / FR-010a).** Brand has a **single
+> authority**: the first-class `product.brand` column (§2.6), captured in the creation basics and
+> covered by the `q` search index. Modelling it *also* as a dynamic attribute would split its authority
+> and leave `product.brand` (and therefore brand search) empty.
 The starter set makes the feature usable day one; everything remains editable in the back office
 (SC-001).

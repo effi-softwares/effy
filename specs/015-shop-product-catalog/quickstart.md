@@ -57,9 +57,12 @@ Ordering matters — the migration must be committed before `db-up`, and infra b
 
 ### SC-004 / SC-005 — backend search/filter, shop isolation (US3)
 1. Seed >1 page of products (script). Search `q`, filter by status/type/category/price; page through.
-2. **Expected**: correct paginated results + `total` reflect filters, computed backend-side; first
-   page + count returns < 1s at 10k+; the client holds one page only. A second shop's operator sees
-   **only** their own products across list/search/detail (100% isolation).
+2. **Expected**: correct paginated results + `total` reflect filters, computed backend-side; the client
+   holds one page only. A second shop's operator sees **only** their own products across
+   list/search/detail (100% isolation).
+3. **SC-004 latency (T088a)**: seed **≥10,000** products into one shop; measure `GET /shop/v1/products`
+   first-page + total-count latency and confirm **< 1s**. This is the explicit verification of SC-004
+   (the Duration-p95 alarm is ongoing monitoring, not the acceptance proof).
 
 ### SC-006 / SC-007 — focused edit, no cards (US4)
 1. Open a product → **details page**: tabs (Overview/Attributes/Media/Pricing/Categorization),

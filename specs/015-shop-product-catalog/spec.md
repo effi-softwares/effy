@@ -10,7 +10,7 @@
 
 ## Platform design doctrine (established by this feature) *(binding, cross-cutting)*
 
-Two platform-wide rules are first written down here because this feature is where they first bite. They are **not scoped to this feature** — they are meant to guide every current and future surface, and SHOULD be promoted into the constitution (Principle V — Native-Feel, Consistent Design) so every agent and contributor inherits them.
+Two platform-wide rules were first written down here because this feature is where they first bite. They are **not scoped to this feature** — they guide every current and future surface, and were **promoted into the constitution** (Principle V — Native-Feel, Consistent Design) at **v1.9.0**, so every agent and contributor inherits them.
 
 - **DOCTRINE-1 — Reference platforms.** Effy is *"Uber Eats + eBay, food-first."* When deciding business logic, data models, entities, or UI/UX for any feature, the team looks to how **Uber Eats** (food, menus, modifiers, discovery) and **eBay** (rich product entities, attributes/item-specifics, category taxonomy, search/filter) solve the same problem, adapts it to Effy's single-brand hidden-fulfillment model, and prefers the industry-standard, production-grade pattern over a bespoke one. Food and food-related products get priority.
 - **DOCTRINE-2 — No card layouts.** Card-style containers (bordered/elevated boxes tiling content, "metric cards," dashboard summary cards) MUST NOT be used to lay out content, **unless a card is genuinely the right pattern for that specific content and no better layout exists** — in which case the plan records the justification. Prefer tables, lists, sectioned pages, tabs, and detail rows. There are **no metric/summary cards at the top of pages.**
@@ -117,8 +117,8 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 
 - **Empty catalog**: a shop with zero products sees a helpful empty state (with a prominent Add-product action), not an error or a blank table.
 - **No schema yet**: if no product types exist, the add-product flow explains that catalog setup is pending rather than presenting an empty type list.
-- **Schema drift after creation**: if the back office later marks an attribute mandatory, or retires a product type, existing products that predate the change remain valid and viewable; the system must not corrupt or hide them, and must indicate when an existing product is now missing a newly-required attribute.
-- **Concurrent edits**: two operators editing the same product's different sections should not clobber each other's unrelated changes; editing the same field concurrently must resolve deterministically (last-write with a conflict signal, not silent loss).
+- **Schema drift after creation**: if the back office later marks an attribute mandatory, or retires a product type, existing products that predate the change remain valid and viewable; the system must not corrupt or hide them, and must indicate when an existing product is now missing a newly-required attribute (surfaced per **FR-020a**).
+- **Concurrent edits**: two operators editing the same product's different sections should not clobber each other's unrelated changes; editing the same field concurrently must resolve deterministically via the revision check in **FR-023a** (a stale save is refused with a conflict signal, not silent loss).
 - **Draft on a different device**: a local draft is device-local; an operator who switches devices will not see it, and this is acceptable and expected (drafts are explicitly not synced).
 - **Large media / unsupported file**: image uploads that are too large or of an unsupported type are rejected with a clear reason, not a silent failure.
 - **Cross-shop isolation**: an operator must never see, search, edit, or link to another shop's products; attempts to reach another shop's product by direct reference are refused.
@@ -147,6 +147,7 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 - **FR-008**: A shop operator MUST be able to create a product for **their own shop** via a **guided multi-step form**, presented on web as a focused drawer/dialog and on mobile as a bottom-sheet drawer.
 - **FR-009**: The creation flow MUST require the operator to **select a product type**, and MUST then present **exactly that type's** mandatory and optional attributes, clearly separated and grouped, with optional attributes visibly marked as skippable.
 - **FR-010**: The creation flow MUST capture a set of **universal mandatory basics** for every product regardless of type — at minimum: **name/title, product type, primary category, price with currency, at least one product image, and a short description** — and MUST block publication until all mandatory fields (universal + the type's mandatory attributes) are valid.
+- **FR-010a**: **Brand** is an **optional universal field**, captured in the creation basics and stored as a **first-class product field** (not a dynamic attribute) so it is searchable (FR-015) and consistent across every type. It is never mandatory. Brand MUST have a **single authority** — it MUST NOT also be modelled as a back-office attribute definition; the platform seeds no `brand` attribute.
 - **FR-011**: The creation flow MUST accept **optional attributes** without ever requiring them, storing any provided values against the product.
 - **FR-012**: The system MUST preserve an in-progress creation as a **device-local draft** (local storage on web, local persistence on mobile) that is **not** persisted to the platform, MUST restore it when the operator reopens the flow on the same device, and MUST clear it on successful publish or explicit discard.
 - **FR-013**: On successful creation the product MUST appear in that shop's catalog, associated only with that shop.
@@ -164,9 +165,11 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 **Product details & focused editing**
 
 - **FR-020**: Selecting a product MUST open a dedicated **details page** presenting all of the product's information organized into **sections and, where helpful, tabs** (e.g., overview, attributes, media, pricing, categorization).
+- **FR-020a**: When a product predates a back-office schema change that made an attribute **mandatory** for its type, the details page MUST **indicate** (a non-blocking notice) that the product is now missing a required attribute, so the operator can complete it. Existing products are never hidden or corrupted by the change (see the Schema-drift edge case).
 - **FR-021**: The details page MUST NOT use **card-style layouts**, and pages MUST NOT show **summary/metric cards** (DOCTRINE-2).
 - **FR-022**: Each section (or a small related group of fields) MUST provide a **focused edit affordance (pencil icon)** that opens a **small** editor scoped to only that field or group — a **dialog on web**, a **bottom-sheet drawer on mobile**.
 - **FR-023**: Focused editing MUST update **only** the field(s)/group being edited, leaving the rest of the product unchanged, and MUST validate against the schema (mandatory attributes cannot be cleared; typed/constrained values are enforced) with inline reasons on failure.
+- **FR-023a**: Focused editing MUST be **conflict-safe**: a save carries the product's **last-seen revision marker**, and if the product changed since it was loaded the save is **rejected with a conflict signal** (the operator is told to reload) rather than silently overwriting another operator's change. Edits to *different* sections never conflict.
 - **FR-024**: The system MUST NOT present a single "edit the whole product" mega-form as the primary editing model; editing is decomposed into small focused actions.
 
 **Media**
@@ -205,7 +208,7 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 - **Product Type**: A back-office-defined classification (e.g., *Prepared Food*, *Packaged Grocery*, *Beverage*, *Household*) that determines which attributes a product carries. Has a name, description, status, and an ordered set of attribute assignments.
 - **Attribute Definition**: A reusable, back-office-defined attribute (e.g., *Brand*, *Net weight*, *Allergens*, *Dietary labels*, *Spice level*, *Preparation time*, *Storage temperature*, *Country of origin*, *Ingredients*, *Material*, *Dimensions*). Carries a data type, optional unit, optional allowed values, optional validation, and help text. Reusable across many product types.
 - **Attribute Assignment**: The link between an Attribute Definition and a Product Type, carrying the **mandatory/optional** flag, display order, and grouping/section hint. This is what makes creation "type-driven."
-- **Product**: A **shop-owned** catalog item. Carries universal fields (name/title, owning shop, product type, primary category, price + currency, optional compare-at/sale price, short + long description, lifecycle status, GTIN/barcode, and an optional **SKU** that — when set — is **unique within the owning shop**) plus a set of attribute values keyed to its type's schema, plus media and section memberships. GTIN/barcode is captured to enable a **future** cross-shop master-catalog dedupe without committing to it now (and is not itself a uniqueness key).
+- **Product**: A **shop-owned** catalog item. Carries universal fields (name/title, owning shop, product type, primary category, price + currency, optional compare-at/sale price, short + long description, lifecycle status, optional **brand** (a first-class searchable field, not a dynamic attribute — FR-010a), GTIN/barcode, and an optional **SKU** that — when set — is **unique within the owning shop**) plus a set of attribute values keyed to its type's schema, plus media and section memberships. GTIN/barcode is captured to enable a **future** cross-shop master-catalog dedupe without committing to it now (and is not itself a uniqueness key).
 - **Product Attribute Value**: The value a specific product holds for a specific assigned attribute (the dynamic, schema-driven data).
 - **Category (platform taxonomy)**: A back-office-managed hierarchical classification (parent/child) that products are filed under; shared across all shops for consistent classification.
 - **Shop Section**: A **shop-local** grouping (like a menu section or aisle) that a shop defines to organize its own catalog; does not affect the platform taxonomy.
@@ -252,7 +255,7 @@ A shop operator organizes its catalog into its own **sections** (e.g., "Breakfas
 - **Back-office console & RBAC** (005 / 009): the schema-authority screens live in the back-office console and reuse its admin/manager RBAC.
 - **Shop capability parity register** (`docs/audiences/shop-capabilities.md`): MUST gain catalog rows for both shop surfaces as part of this feature.
 - **Shop data** (009): products belong to real shops created by back-office shop management.
-- **Constitution promotion (recommended)**: DOCTRINE-1 and DOCTRINE-2 SHOULD be promoted into constitution Principle V via a `/constitution` amendment so they bind platform-wide beyond this feature.
+- **Constitution promotion (done)**: DOCTRINE-1 and DOCTRINE-2 were promoted into constitution Principle V at **v1.9.0** via `/constitution`, so they bind platform-wide beyond this feature.
 
 ## Out of Scope
 
