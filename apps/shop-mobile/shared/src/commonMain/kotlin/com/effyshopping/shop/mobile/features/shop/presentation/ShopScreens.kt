@@ -5,27 +5,37 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.effyshopping.mobile.kit.nav.rememberTabBackStacks
+import com.effyshopping.mobile.kit.shell.AdaptiveNavShell
+import com.effyshopping.mobile.kit.shell.NavDestination
+import com.effyshopping.mobile.kit.shell.NavGlyph
+import com.effyshopping.mobile.kit.ui.AdaptiveContent
 import com.effyshopping.shop.mobile.app.AppContainer
-import com.effyshopping.shop.mobile.core.nav.AppRoute
+import com.effyshopping.shop.mobile.core.nav.AccountRoot
+import com.effyshopping.shop.mobile.core.nav.CatalogRoot
+import com.effyshopping.shop.mobile.core.nav.HomeRoot
+import com.effyshopping.shop.mobile.core.nav.ManagerArea
+import com.effyshopping.shop.mobile.core.nav.OrdersRoot
+import com.effyshopping.shop.mobile.core.nav.ShopTab
+import com.effyshopping.shop.mobile.core.nav.shopNavJson
+import com.effyshopping.shop.mobile.core.nav.shopStartRoute
 import com.effyshopping.shop.mobile.core.session.SessionManager
 import com.effyshopping.shop.mobile.core.session.SessionState
-import com.effyshopping.shop.mobile.core.ui.AdaptiveContent
 import com.effyshopping.shop.mobile.features.shop.domain.CheckManagerAccess
 import com.effyshopping.shop.mobile.features.shop.domain.ManagerAccess
 import com.effyshopping.shop.mobile.features.shop.domain.Operator
@@ -34,8 +44,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** The home shell's own ViewModel — one screen, one responsibility (its only action is sign-out). */
-class HomeViewModel(private val session: SessionManager) : ViewModel() {
+/** Owns the app's only cross-tab action: sign-out. */
+class ShopShellViewModel(private val session: SessionManager) : ViewModel() {
     fun signOut() = viewModelScope.launch { session.signOutLocally() }
 }
 
@@ -46,7 +56,7 @@ class ManagerViewModel(private val checkManagerAccess: CheckManagerAccess) : Vie
     private val _gate = MutableStateFlow(Gate.CHECKING)
     val gate = _gate.asStateFlow()
 
-    /** THE authorization decision (FR-023): the BACKEND gate, called even though the role passed. */
+    /** THE authorization decision: the BACKEND gate, called even though the role passed. */
     fun checkManagerGate() {
         _gate.value = Gate.CHECKING
         viewModelScope.launch {
@@ -58,54 +68,96 @@ class ManagerViewModel(private val checkManagerAccess: CheckManagerAccess) : Vie
     }
 }
 
-/** The role-aware shell (014 US3/US4). Identity from the RECORD; manager entry hidden from non-managers. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * The signed-in shop shell (015 US3). Adaptive primary navigation — a bottom bar on a phone, a navigation
+ * rail on a tablet — over four tabs, each with its own back stack. Login-first: this only ever renders for
+ * a [SessionState.SignedIn], selected by the top-level session gate in `App`.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun HomeScreen(container: AppContainer, session: SessionState.SignedIn) {
-    val vm = viewModel { HomeViewModel(container.session) }
-    val operator = session.operator
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Effy Shop") },
-                actions = { TextButton(onClick = vm::signOut) { Text("Sign out") } },
-            )
-        },
-    ) { padding ->
-        // Tablet-first (FR-003a): identity reads as a bounded card on a tablet, full-width on a phone.
-        AdaptiveContent(
-            modifier = Modifier.padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(operator.display, style = MaterialTheme.typography.titleLarge)
-            IdentityRow("Role", roleLabel(operator))
-            IdentityRow("Status", if (operator.status == OperatorStatus.ACTIVE) "Active" else "Disabled")
-            IdentityRow("Shop", operator.shop?.name ?: "Not assigned yet")   // null = expected (FR-021)
+fun ShopShell(container: AppContainer, session: SessionState.SignedIn) {
+    val vm = viewModel { ShopShellViewModel(container.session) }
+    val tabs = rememberTabBackStacks(
+        tabs = ShopTab.entries.toList(),
+        initialTab = ShopTab.HOME,
+        tabId = { it.name },
+        tabById = { ShopTab.valueOf(it) },
+        startRoute = ::shopStartRoute,
+        json = shopNavJson,
+    )
 
-            HorizontalDivider()
-            // Role-aware UI (FR-022): the manager entry is a COURTESY, hidden from non-managers.
-            // Whether it's actually allowed is decided by the gate on the next screen — NOT here.
-            if (operator.isManagerByRole) {
-                Button(onClick = { container.navigator.push(AppRoute.ManagerArea) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Manager area")
-                }
-            } else {
-                Text(
-                    "You're set up as shop staff. Manager tools aren't available on your account.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+    // Back: unwind the current tab; at a tab root, fall back to Home; at Home root, let the system handle it.
+    BackHandler(enabled = tabs.canGoBack || tabs.currentTab != ShopTab.HOME) {
+        if (tabs.canGoBack) tabs.pop() else tabs.selectTab(ShopTab.HOME)
+    }
+
+    val destinations = ShopTab.entries.map { tab ->
+        NavDestination<ShopTab>(tab = tab, label = tab.label, icon = { sel -> NavGlyph(tab.label, sel) })
+    }
+
+    AdaptiveNavShell(
+        destinations = destinations,
+        selectedTab = tabs.currentTab,
+        onSelectTab = { tabs.selectTab(it) },
+    ) {
+        when (tabs.currentRoute) {
+            HomeRoot -> HomeTab(session.operator, onOpenManager = { tabs.push(ManagerArea) })
+            ManagerArea -> ManagerAreaTab(container, onBack = { tabs.pop() })
+            CatalogRoot -> ComingSoonTab("Catalog", "Your shop's products will live here.")
+            OrdersRoot -> ComingSoonTab("Orders", "Incoming orders will appear here.")
+            AccountRoot -> AccountTab(session.operator, onSignOut = vm::signOut)
+            else -> HomeTab(session.operator, onOpenManager = { tabs.push(ManagerArea) })
         }
     }
 }
 
-/** The manager-gated destination (014 US4). The BACKEND gate decides — the hidden control was only UX. */
+/** Home tab — a role-aware landing. Sectioned rows, no card (DOCTRINE-2). */
 @Composable
-fun ManagerAreaScreen(container: AppContainer, session: SessionState.SignedIn) {
+private fun HomeTab(operator: Operator, onOpenManager: () -> Unit) {
+    AdaptiveContent(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Effy Shop", style = MaterialTheme.typography.headlineSmall)
+        Text(
+            operator.shop?.name ?: "No shop assigned yet",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        HorizontalDivider()
+        if (operator.isManagerByRole) {
+            Button(onClick = onOpenManager, modifier = Modifier.fillMaxWidth()) { Text("Manager area") }
+        } else {
+            Text(
+                "You're set up as shop staff. Manager tools aren't available on your account.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** Account tab — identity from the RECORD (sectioned rows, no card) + sign-out. */
+@Composable
+private fun AccountTab(operator: Operator, onSignOut: () -> Unit) {
+    AdaptiveContent(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(operator.display, style = MaterialTheme.typography.titleLarge)
+        IdentityRow("Role", roleLabel(operator))
+        IdentityRow("Status", if (operator.status == OperatorStatus.ACTIVE) "Active" else "Disabled")
+        IdentityRow("Shop", operator.shop?.name ?: "Not assigned yet")
+        HorizontalDivider()
+        TextButton(onClick = onSignOut) { Text("Sign out") }
+    }
+}
+
+/** The manager-gated destination (014 carried forward) — the BACKEND gate decides. */
+@Composable
+private fun ManagerAreaTab(container: AppContainer, onBack: () -> Unit) {
     val vm = viewModel { ManagerViewModel(container.checkManagerAccess) }
     val gate by vm.gate.collectAsState()
-    // The gate check is a lifecycle-safe effect, not a side-effect in composition — it runs once on entry.
     LaunchedEffect(Unit) { vm.checkManagerGate() }
 
     AdaptiveContent(
@@ -119,14 +171,26 @@ fun ManagerAreaScreen(container: AppContainer, session: SessionState.SignedIn) {
                 "You're a manager at an active shop. Shop-level tools will live here in a later slice.",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            // ONE uniform denial for any 403 (FR-025) — it never says which of role/status/shop failed.
             ManagerViewModel.Gate.DENIED -> Text(
                 "You don't have access to this area.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.error,
             )
         }
-        TextButton(onClick = { container.navigator.pop() }) { Text("Back") }
+        TextButton(onClick = onBack) { Text("Back") }
+    }
+}
+
+/** A navigable "coming soon" placeholder for a tab whose feature slice hasn't landed (FR-025). */
+@Composable
+private fun ComingSoonTab(title: String, subtitle: String) {
+    AdaptiveContent(
+        modifier = Modifier.padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.headlineSmall)
+        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Coming soon", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -136,7 +200,7 @@ private fun IdentityRow(label: String, value: String) {
 }
 
 private fun roleLabel(operator: Operator): String = when {
-    operator.roles.isEmpty() -> "No role yet"                // expected in-progress state (FR-021)
+    operator.roles.isEmpty() -> "No role yet"
     operator.isManagerByRole -> "Shop manager"
     else -> "Shop staff"
 }

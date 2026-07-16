@@ -520,5 +520,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/016-shop-product-catalog/plan.md
+at specs/015-mobile-app-shell/plan.md
 <!-- SPECKIT END -->

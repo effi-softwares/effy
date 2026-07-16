@@ -1,4 +1,4 @@
-package com.effyshopping.shop.mobile.core.ui
+package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,9 +15,13 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * Window width classes (014 FR-003a / D10s). Material 3's breakpoints, measured from the WINDOW — never
- * the device type. A tablet in split-screen is [Compact]; a large foldable is [Expanded]. Layout branches
- * on this, never on an `isTablet` boolean or a platform check.
+ * Window width classes. Material 3's breakpoints, measured from the WINDOW — never the device type. A tablet
+ * in split-screen is [COMPACT]; a large foldable is [EXPANDED]. Layout branches on this, never on an
+ * `isTablet` boolean or a platform check.
+ *
+ * Shared mobile-kit (015): promoted from shop-mobile's app-local `core/ui/WindowSize.kt` so BOTH mobile apps
+ * get the adaptive layer (the customer app had none). The `NavigationSuiteScaffold` shell derives the
+ * bar↔rail form from the same window size class; this enum is retained for content bounding INSIDE a tab.
  */
 enum class WindowWidth { COMPACT, MEDIUM, EXPANDED }
 
@@ -29,10 +33,10 @@ fun widthClassFor(maxWidth: Dp): WindowWidth = when {
 }
 
 /**
- * Tablet-first content shell (FR-003a). On a **tablet / large window** the content is centered and bounded
- * to a comfortable reading width instead of stretched edge-to-edge; on a **compact** window it fills the
- * width (the phone reflow). The primary target is a tablet in landscape, so this is the DEFAULT wrapper for
- * a single-column screen — a later multi-pane slice branches on [widthClassFor] to a two-pane layout.
+ * Tablet-first content shell. On a **tablet / large window** the content is centered and bounded to a
+ * comfortable reading width instead of stretched edge-to-edge; on a **compact** window it fills the width
+ * (the phone reflow). The primary shop target is a tablet in landscape, so this is the DEFAULT wrapper for a
+ * single-column screen — a multi-pane layout branches on [widthClassFor] to two panes.
  *
  * @param maxContentWidth the bound applied on non-compact windows (forms read best ~560dp; lists wider).
  */

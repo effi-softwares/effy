@@ -140,3 +140,15 @@ unassigned `shop_manager` are each refused, which is the shop-scope term doing r
 **positive half** (a manager *served* at an active shop), the **inactive-shop** denial, and the
 **disabled-operator** denial are verified in the shop-management slice, against data the product
 created. All three terms are implemented and unit-tested in 007.
+
+## 015 — Mobile app shell & adaptive navigation
+
+`apps/shop-mobile` gains a production **navigation shell** (spec 015): a top-level session gate
+(login-first — sign-in is the only public screen, every tab requires the session) wrapping an
+**adaptive** primary navigation — a **bottom bar on a phone, a navigation rail on a tablet** — over four
+tabs (**Home · Catalog · Orders · Account**), each with its own back stack. Catalog/Orders are
+"coming soon" placeholders until their slices land; the identity block is sectioned rows (no card,
+DOCTRINE-2); sign-out lives in the Account tab and returns to sign-in. Built on the shared
+`packages/mobile-kit` (adaptive shell + per-tab back stacks) on stable Material 3. Verified: compiles +
+unit tests green on Android, links for iOS. **Web (`shop-web`) is unaffected** — this is a mobile-only
+navigation capability. Live device/simulator sign-off is the operator's step.

@@ -44,6 +44,10 @@ kotlin {
         commonMain {
             kotlin.srcDir(rootProject.file("../../packages/shared-types/contract-shop"))
             kotlin.srcDir(rootProject.file("../../packages/design-system/compose-shop"))
+            // 015 — the shared, audience-neutral mobile navigation shell (Principle II): adaptive
+            // window sizing, the session gate, the NavKey serialization scaffold, and the deferred-intent
+            // store. Consumed by BOTH mobile apps; each supplies only its routes/tabs/session mapping.
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit"))
         }
 
         androidMain.dependencies {

@@ -23,7 +23,7 @@ import com.effyshopping.shop.mobile.app.AppContainer
 import com.effyshopping.shop.mobile.core.auth.AuthError
 import com.effyshopping.shop.mobile.core.auth.AuthStep
 import com.effyshopping.shop.mobile.core.session.SessionManager
-import com.effyshopping.shop.mobile.core.ui.AdaptiveContent
+import com.effyshopping.mobile.kit.ui.AdaptiveContent
 import com.effyshopping.shop.mobile.features.auth.domain.ConfirmSignIn
 import com.effyshopping.shop.mobile.features.auth.domain.RequestSignInCode
 import kotlinx.coroutines.flow.MutableStateFlow

@@ -126,3 +126,14 @@ These are not web concerns; they are **audience** concerns, and the KMP app must
    credential route that bypasses the linking trigger.
 2. **The platform record is authoritative for access.** A barred customer holds a perfectly valid
    token. The mobile app must not infer permission from the token alone, any more than the web does.
+
+## 015 — Mobile app shell & adaptive navigation
+
+`apps/customer-mobile` gains a **guest-first** navigation shell (spec 015): an **adaptive** primary
+navigation — **bottom bar on a phone, navigation rail on a tablet** — over four tabs (**Home · Search ·
+Orders · Account**). Home/Search are **public** (usable with no session); Orders/Account are visible but
+**gated** — tapping one as a guest raises **deferred sign-in** and, on success, returns to the intended
+tab (return-to-intent). The Account tab reuses the existing 013 auth/account sub-graph unchanged;
+sign-out returns to the guest shell with public content intact. Built on the shared `packages/mobile-kit`
+(the customer app's first adaptive layer). Verified: compiles + unit tests green on Android, links for
+iOS. Live device/simulator sign-off is the operator's step.

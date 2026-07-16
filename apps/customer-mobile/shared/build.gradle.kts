@@ -46,6 +46,9 @@ kotlin {
         commonMain {
             kotlin.srcDir(rootProject.file("../../packages/shared-types/contract"))
             kotlin.srcDir(rootProject.file("../../packages/design-system/compose"))
+            // 015 — the shared, audience-neutral mobile navigation shell (Principle II). Also gives the
+            // customer app its FIRST adaptive layer (WindowSize/AdaptiveContent were shop-only before).
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit"))
         }
 
         androidMain.dependencies {

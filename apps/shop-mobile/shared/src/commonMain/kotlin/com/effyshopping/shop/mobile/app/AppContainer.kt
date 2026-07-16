@@ -3,7 +3,6 @@ package com.effyshopping.shop.mobile.app
 import com.effyshopping.shop.mobile.core.auth.AuthDriver
 import com.effyshopping.shop.mobile.core.config.AppConfig
 import com.effyshopping.shop.mobile.core.http.createHttpClient
-import com.effyshopping.shop.mobile.core.nav.AppNavigator
 import com.effyshopping.shop.mobile.core.session.SessionManager
 import com.effyshopping.shop.mobile.features.auth.domain.ConfirmSignIn
 import com.effyshopping.shop.mobile.features.auth.domain.RequestSignInCode
@@ -42,6 +41,6 @@ class AppContainer(
 
     // ── app services / presentation wiring ──────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getOperator, appScope) }
-
-    val navigator: AppNavigator = AppNavigator()
+    // Navigation state (per-tab back stacks) lives in the composition via `rememberTabBackStacks` (015),
+    // not here — so it is saveable across configuration change and process death.
 }
