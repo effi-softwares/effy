@@ -27,6 +27,7 @@ import com.effyshopping.mobile.kit.shell.NavGlyph
 import com.effyshopping.mobile.kit.ui.AdaptiveContent
 import com.effyshopping.shop.mobile.app.AppContainer
 import com.effyshopping.shop.mobile.core.nav.AccountRoot
+import com.effyshopping.shop.mobile.core.nav.CatalogProductRoute
 import com.effyshopping.shop.mobile.core.nav.CatalogRoot
 import com.effyshopping.shop.mobile.core.nav.HomeRoot
 import com.effyshopping.shop.mobile.core.nav.ManagerArea
@@ -34,6 +35,8 @@ import com.effyshopping.shop.mobile.core.nav.OrdersRoot
 import com.effyshopping.shop.mobile.core.nav.ShopTab
 import com.effyshopping.shop.mobile.core.nav.shopNavJson
 import com.effyshopping.shop.mobile.core.nav.shopStartRoute
+import com.effyshopping.shop.mobile.features.catalog.presentation.CatalogListScreen
+import com.effyshopping.shop.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.shop.mobile.core.session.SessionManager
 import com.effyshopping.shop.mobile.core.session.SessionState
 import com.effyshopping.shop.mobile.features.shop.domain.CheckManagerAccess
@@ -100,20 +103,29 @@ fun ShopShell(container: AppContainer, session: SessionState.SignedIn) {
         selectedTab = tabs.currentTab,
         onSelectTab = { tabs.selectTab(it) },
     ) {
-        when (tabs.currentRoute) {
-            HomeRoot -> HomeTab(session.operator, onOpenManager = { tabs.push(ManagerArea) })
+        when (val route = tabs.currentRoute) {
+            HomeRoot -> HomeTab(
+                session.operator,
+                onOpenManager = { tabs.push(ManagerArea) },
+                onOpenCatalog = { tabs.selectTab(ShopTab.CATALOG) },
+            )
             ManagerArea -> ManagerAreaTab(container, onBack = { tabs.pop() })
-            CatalogRoot -> ComingSoonTab("Catalog", "Your shop's products will live here.")
+            CatalogRoot -> CatalogListScreen(container, onOpenProduct = { tabs.push(CatalogProductRoute(it)) })
+            is CatalogProductRoute -> ProductDetailScreen(container, id = route.id, onBack = { tabs.pop() })
             OrdersRoot -> ComingSoonTab("Orders", "Incoming orders will appear here.")
             AccountRoot -> AccountTab(session.operator, onSignOut = vm::signOut)
-            else -> HomeTab(session.operator, onOpenManager = { tabs.push(ManagerArea) })
+            else -> HomeTab(
+                session.operator,
+                onOpenManager = { tabs.push(ManagerArea) },
+                onOpenCatalog = { tabs.selectTab(ShopTab.CATALOG) },
+            )
         }
     }
 }
 
 /** Home tab — a role-aware landing. Sectioned rows, no card (DOCTRINE-2). */
 @Composable
-private fun HomeTab(operator: Operator, onOpenManager: () -> Unit) {
+private fun HomeTab(operator: Operator, onOpenManager: () -> Unit, onOpenCatalog: () -> Unit) {
     AdaptiveContent(
         modifier = Modifier.padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -125,6 +137,7 @@ private fun HomeTab(operator: Operator, onOpenManager: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         HorizontalDivider()
+        Button(onClick = onOpenCatalog, modifier = Modifier.fillMaxWidth()) { Text("Browse catalog") }
         if (operator.isManagerByRole) {
             Button(onClick = onOpenManager, modifier = Modifier.fillMaxWidth()) { Text("Manager area") }
         } else {

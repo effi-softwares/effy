@@ -1,4 +1,4 @@
-import { LayoutDashboard, Shield, Store } from "lucide-react";
+import { LayoutDashboard, Shield, Store, Tags } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -14,5 +14,8 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // Shops has NO requiredRole: every back-office role sees it. csa gets a read-only register
   // (mutating controls are gated in-screen and enforced by the backend); admin/manager can write.
   { label: "Shops", to: "/shops", icon: Store },
+  // Catalog has NO requiredRole: every back-office role sees the schema read-only (csa included);
+  // admin/manager get the mutating controls (gated in-screen, enforced by the backend).
+  { label: "Catalog", to: "/catalog", icon: Tags },
   { label: "Admin", to: "/admin", icon: Shield, requiredRole: "admin" },
 ];

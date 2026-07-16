@@ -20,7 +20,11 @@ export type AnalyticsEvent =
   | { name: "shop_deleted"; shopId: string }
   | { name: "shop_user_provisioned"; shopId: string }
   | { name: "shop_user_role_changed"; shopId: string }
-  | { name: "shop_user_status_changed"; shopId: string };
+  | { name: "shop_user_status_changed"; shopId: string }
+  // Catalog schema-authority events (016). No PII — the ids are platform identifiers, never
+  // operator-typed values.
+  | { name: "schema_type_created"; productTypeId: string }
+  | { name: "schema_attribute_created"; attributeId: string };
 
 const telemetry = createTelemetry<AnalyticsEvent>({
   key: config.posthogKey(),

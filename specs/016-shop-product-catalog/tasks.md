@@ -28,13 +28,13 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 **Purpose**: Cross-cutting scaffolding every story builds on. No live AWS.
 
-- [ ] T001 [P] Author catalog wire DTOs in `packages/shared-types/src/catalog.ts` — enum unions + `readonly[]` constants (`ProductStatus`, `AttributeDataType`, `SchemaStatus`) and all schema + shop-facing interfaces per [data-model.md §5](./data-model.md); reuse `PagedDTO<T>`; add tolerant-reader narrowing helpers for back-office-authored enums.
-- [ ] T002 Add `export * from "./catalog";` to `packages/shared-types/src/index.ts` (depends: T001).
-- [ ] T003 Ensure the shop-facing catalog DTO subset is emitted to Kotlin: inspect `packages/shared-types` `contract:gen` config; author/wire the shop-facing catalog DTOs into the generated source set and run `pnpm --filter @effy/shared-types contract:gen` (resolves research R10 open detail) (depends: T001).
-- [ ] T004 [P] Add `@effy/shared-types` to `apis/edge-api/shop/package.json` dependencies (shop service does not yet depend on it).
-- [ ] T005 [P] Add missing shadcn primitives to `packages/design-system/src/ui/` (via CLI into the shared package) and re-export from `packages/design-system/src/ui/index.ts`: `tabs`, `textarea`, `switch`, `checkbox`, `radio-group`, `popover`, `sonner` (toast). Do NOT add shadcn `form` (TanStack Form is used).
-- [ ] T006 [P] Author `infra/envs/dev/media.tf` — private S3 product-media bucket (`effy-<env>-product-media`, region from `var.aws_region`), bucket CORS for browser PUT, and an SSM param `/effy/<env>/media/bucket`. Author only (operator applies in Phase 10).
-- [ ] T007 [P] Extend `apis/edge-api/shop/serverless.yml` provider env with `S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}` and an IAM statement allowing `s3:PutObject`/`s3:GetObject` scoped to the bucket ARN (author only).
+- [X] T001 [P] Author catalog wire DTOs in `packages/shared-types/src/catalog.ts` — enum unions + `readonly[]` constants (`ProductStatus`, `AttributeDataType`, `SchemaStatus`) and all schema + shop-facing interfaces per [data-model.md §5](./data-model.md); reuse `PagedDTO<T>`; add tolerant-reader narrowing helpers for back-office-authored enums.
+- [X] T002 Add `export * from "./catalog";` to `packages/shared-types/src/index.ts` (depends: T001).
+- [X] T003 Ensure the shop-facing catalog DTO subset is emitted to Kotlin: inspect `packages/shared-types` `contract:gen` config; author/wire the shop-facing catalog DTOs into the generated source set and run `pnpm --filter @effy/shared-types contract:gen` (resolves research R10 open detail) (depends: T001).
+- [X] T004 [P] Add `@effy/shared-types` to `apis/edge-api/shop/package.json` dependencies (shop service does not yet depend on it).
+- [X] T005 [P] Add missing shadcn primitives to `packages/design-system/src/ui/` (via CLI into the shared package) and re-export from `packages/design-system/src/ui/index.ts`: `tabs`, `textarea`, `switch`, `checkbox`, `radio-group`, `popover`, `sonner` (toast). Do NOT add shadcn `form` (TanStack Form is used).
+- [X] T006 [P] Author `infra/envs/dev/media.tf` — private S3 product-media bucket (`effy-<env>-product-media`, region from `var.aws_region`), bucket CORS for browser PUT, and an SSM param `/effy/<env>/media/bucket`. Author only (operator applies in Phase 10).
+- [X] T007 [P] Extend `apis/edge-api/shop/serverless.yml` provider env with `S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}` and an IAM statement allowing `s3:PutObject`/`s3:GetObject` scoped to the bucket ARN (author only).
 
 ---
 
@@ -42,14 +42,14 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 **⚠️ CRITICAL**: No user story can begin until this phase is complete.
 
-- [ ] T008 Scaffold the migration: `make db-new name=product_catalog` → `db/migrations/<ts>_product_catalog.sql`.
-- [ ] T009 Write the `-- +goose Up` schema-authority tables in the migration (all `public`, `text CHECK` enums, index every FK, `COMMENT ON` each): `product_type`, `attribute_definition`, `attribute_allowed_value`, `product_type_attribute`, `category` per [data-model.md §2.1–2.5](./data-model.md) (depends: T008).
-- [ ] T010 Write the `-- +goose Up` product tables in the migration: `product` (+ btree indexes, partial-unique `product_shop_sku_uq`, `pg_trgm` GIN search index), `product_attribute_value`, `product_media` (+ partial-unique primary), `shop_section`, `product_section` per [data-model.md §2.6–2.10](./data-model.md) (depends: T009).
-- [ ] T011 Write the `-- +goose Up` starter seed (`INSERT … ON CONFLICT (key) DO NOTHING`): product types, attribute library, type↔attribute assignments, category tree per [data-model.md §6](./data-model.md). **Do NOT seed a `brand` attribute** — brand's single authority is the `product.brand` column (F1 / FR-010a) (depends: T010).
-- [ ] T012 Verify `admin.audit_log` accepts the new `target_type` values (`product_type`,`attribute_definition`,`category`) and actions; adjust the audit table CHECK in this migration if it is constrained (depends: T009).
-- [ ] T013 Write the `-- +goose Down` section: FK-safe drop order (children→parents), dev-iteration only (depends: T010).
-- [ ] T014 [P] Author `authorizeShopMember(sub)` in `apis/edge-api/shop/src/products/authz.ts` — record-backed predicate (`shop_staff.status='active' AND shop.status='active'`, **any** role) resolving the actor's `shop_id`; fail-closed; + `authz.test.ts` (member allowed; role-less/unassigned/inactive-shop refused).
-- [ ] T015 [P] Author `apis/edge-api/admin/src/catalog/authz.ts` reusing the `shops/` `guard(read|mutate)` pattern — read = any active `admin.staff`; mutate = `admin`/`manager`; + `authz.test.ts`.
+- [X] T008 Scaffold the migration: `make db-new name=product_catalog` → `db/migrations/<ts>_product_catalog.sql`.
+- [X] T009 Write the `-- +goose Up` schema-authority tables in the migration (all `public`, `text CHECK` enums, index every FK, `COMMENT ON` each): `product_type`, `attribute_definition`, `attribute_allowed_value`, `product_type_attribute`, `category` per [data-model.md §2.1–2.5](./data-model.md) (depends: T008).
+- [X] T010 Write the `-- +goose Up` product tables in the migration: `product` (+ btree indexes, partial-unique `product_shop_sku_uq`, `pg_trgm` GIN search index), `product_attribute_value`, `product_media` (+ partial-unique primary), `shop_section`, `product_section` per [data-model.md §2.6–2.10](./data-model.md) (depends: T009).
+- [X] T011 Write the `-- +goose Up` starter seed (`INSERT … ON CONFLICT (key) DO NOTHING`): product types, attribute library, type↔attribute assignments, category tree per [data-model.md §6](./data-model.md). **Do NOT seed a `brand` attribute** — brand's single authority is the `product.brand` column (F1 / FR-010a) (depends: T010).
+- [X] T012 Verify `admin.audit_log` accepts the new `target_type` values (`product_type`,`attribute_definition`,`category`) and actions; adjust the audit table CHECK in this migration if it is constrained (depends: T009).
+- [X] T013 Write the `-- +goose Down` section: FK-safe drop order (children→parents), dev-iteration only (depends: T010).
+- [X] T014 [P] Author `authorizeShopMember(sub)` in `apis/edge-api/shop/src/products/authz.ts` — record-backed predicate (`shop_staff.status='active' AND shop.status='active'`, **any** role) resolving the actor's `shop_id`; fail-closed; + `authz.test.ts` (member allowed; role-less/unassigned/inactive-shop refused).
+- [X] T015 [P] Author `apis/edge-api/admin/src/catalog/authz.ts` reusing the `shops/` `guard(read|mutate)` pattern — read = any active `admin.staff`; mutate = `admin`/`manager`; + `authz.test.ts`.
 
 **Checkpoint**: Migration authored (commit + `db-up` is Phase 10); authz predicates ready. Stories can start.
 
@@ -63,27 +63,27 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 ### Backend — `apis/edge-api/admin/src/catalog/`
 
-- [ ] T016 [P] [US1] `types.ts` — domain models (ProductType, AttributeDefinition, AllowedValue, Assignment, Category) + `CatalogError` (validation/conflict/not_found).
-- [ ] T017 [US1] `repository.ts` — raw SQL for product-type, attribute-definition (+allowed values), and category CRUD/status + assignment writes; each mutation co-writes an `admin.audit_log` row inside `withTransaction`; in-use guards for retire/delete (depends: T016).
-- [ ] T018 [US1] `service.ts` — validation + orchestration: non-empty name, `dataType` ∈ union, `validation` shape, allowed-value uniqueness, category no-cycle, retire-in-use → conflict (FR-006) (depends: T017).
-- [ ] T019 [US1] `handler-support.ts` — `guard(event,scope,level)` wrapper, DTO mappers (domain→`@effy/shared-types`), `mapCatalogError` (depends: T018).
-- [ ] T020 [US1] Handlers `functions/catalog-product-types-*.ts` (list/get/create/patch/status + attribute assign/patch/unassign) (depends: T019).
-- [ ] T021 [US1] Handlers `functions/catalog-attributes-*.ts` (list/get/create/patch/status + allowed-value delete) (depends: T019).
-- [ ] T022 [US1] Handlers `functions/catalog-categories-*.ts` (list/create/patch/status) (depends: T019).
-- [ ] T023 [US1] Register all catalog functions in `apis/edge-api/admin/serverless.yml` under `/admin/v1/catalog/*` with `authorizer.id: ${ssm:.../edge/authorizer/back-office_id}`, per-function `Errors>0` alarms + `Duration p95` on list/tree reads (depends: T020–T022).
-- [ ] T024 [P] [US1] Unit tests `catalog/service.test.ts` (validation, in-use guard, cycle) with `vi.hoisted`/`vi.mock`.
-- [ ] T025 [P] [US1] Handler test (shape, 403 for `csa` mutate, no internal leakage in error bodies).
+- [X] T016 [P] [US1] `types.ts` — domain models (ProductType, AttributeDefinition, AllowedValue, Assignment, Category) + `CatalogError` (validation/conflict/not_found).
+- [X] T017 [US1] `repository.ts` — raw SQL for product-type, attribute-definition (+allowed values), and category CRUD/status + assignment writes; each mutation co-writes an `admin.audit_log` row inside `withTransaction`; in-use guards for retire/delete (depends: T016).
+- [X] T018 [US1] `service.ts` — validation + orchestration: non-empty name, `dataType` ∈ union, `validation` shape, allowed-value uniqueness, category no-cycle, retire-in-use → conflict (FR-006) (depends: T017).
+- [X] T019 [US1] `handler-support.ts` — `guard(event,scope,level)` wrapper, DTO mappers (domain→`@effy/shared-types`), `mapCatalogError` (depends: T018).
+- [X] T020 [US1] Handlers `functions/catalog-product-types-*.ts` (list/get/create/patch/status + attribute assign/patch/unassign) (depends: T019).
+- [X] T021 [US1] Handlers `functions/catalog-attributes-*.ts` (list/get/create/patch/status + allowed-value delete) (depends: T019).
+- [X] T022 [US1] Handlers `functions/catalog-categories-*.ts` (list/create/patch/status) (depends: T019).
+- [X] T023 [US1] Register all catalog functions in `apis/edge-api/admin/serverless.yml` under `/admin/v1/catalog/*` with `authorizer.id: ${ssm:.../edge/authorizer/back-office_id}`, per-function `Errors>0` alarms + `Duration p95` on list/tree reads (depends: T020–T022).
+- [X] T024 [P] [US1] Unit tests `catalog/service.test.ts` (validation, in-use guard, cycle) with `vi.hoisted`/`vi.mock`.
+- [X] T025 [P] [US1] Handler test (shape, 403 for `csa` mutate, no internal leakage in error bodies).
 
 ### Frontend — `apps/back-office/src/features/catalog-schema/`
 
-- [ ] T026 [P] [US1] `model.ts` — domain aliases of the catalog DTOs + list-param types.
-- [ ] T027 [US1] `repo.ts` — `api.get/post/patch/delete` for `/admin/v1/catalog/*` (depends: T026).
-- [ ] T028 [US1] `queries.ts` — TanStack `queryOptions` + mutation hooks with coarse invalidation (depends: T027).
-- [ ] T029 [P] [US1] `access.ts` (`canManageCatalog(roles)`) + `errorText.ts` (map `DomainError` → safe copy, no `detail` leak).
-- [ ] T030 [US1] Schema screens (sectioned/tabbed, **no cards**): Product Types, Attributes, Categories — tables + detail, using `DataTable`/`Tabs`/`dl` rows (depends: T028).
-- [ ] T031 [US1] Dialogs (TanStack Form): create/edit type (+assign attributes), create/edit attribute (`dataType` select, allowed-values editor, validation fields), create/edit category (parent select) (depends: T030).
-- [ ] T032 [US1] `routes/catalog-schema.tsx` (+ `$` detail if needed), register in `apps/back-office/src/routes/router.tsx`, add nav entry in `apps/back-office/src/components/layout/nav.ts` (read for all staff; mutate gated in-screen) (depends: T030).
-- [ ] T033 [P] [US1] vitest units: repo mapping, `access`, `errorText`.
+- [X] T026 [P] [US1] `model.ts` — domain aliases of the catalog DTOs + list-param types.
+- [X] T027 [US1] `repo.ts` — `api.get/post/patch/delete` for `/admin/v1/catalog/*` (depends: T026).
+- [X] T028 [US1] `queries.ts` — TanStack `queryOptions` + mutation hooks with coarse invalidation (depends: T027).
+- [X] T029 [P] [US1] `access.ts` (`canManageCatalog(roles)`) + `errorText.ts` (map `DomainError` → safe copy, no `detail` leak).
+- [X] T030 [US1] Schema screens (sectioned/tabbed, **no cards**): Product Types, Attributes, Categories — tables + detail, using `DataTable`/`Tabs`/`dl` rows (depends: T028).
+- [X] T031 [US1] Dialogs (TanStack Form): create/edit type (+assign attributes), create/edit attribute (`dataType` select, allowed-values editor, validation fields), create/edit category (parent select) (depends: T030).
+- [X] T032 [US1] `routes/catalog-schema.tsx` (+ `$` detail if needed), register in `apps/back-office/src/routes/router.tsx`, add nav entry in `apps/back-office/src/components/layout/nav.ts` (read for all staff; mutate gated in-screen) (depends: T030).
+- [X] T033 [P] [US1] vitest units: repo mapping, `access`, `errorText`.
 
 **Checkpoint**: US1 fully functional — the schema authority exists and is demoable on its own.
 
@@ -97,25 +97,25 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 ### Backend — `apis/edge-api/shop/src/products/`
 
-- [ ] T034 [P] [US2] `types.ts` (domain + `ProductError`) and `media.ts` (S3 client singleton + presigned-PUT/GET helpers, content-type + size validation).
-- [ ] T035 [US2] `repository.ts` — `catalog-schema` read query (active types + assignments + active category tree); product insert + attribute-value rows + media registration inside `withTransaction`; SKU `23505` → conflict (depends: T034).
-- [ ] T036 [US2] `service.ts` — create validation: universal mandatory (name/type/category/price/short_description/primary image), type-mandatory attributes present, attribute values typed + within `validation`, SKU uniqueness; **write optional `brand` to the `product.brand` column** (F1 / FR-010a — never as an attribute); schema assembly (depends: T035).
-- [ ] T037 [US2] `handler-support.ts` — `authorizeShopMember` gate wrapper (resolve `actorShopId`), DTO mappers, `mapProductError` (depends: T036).
-- [ ] T038 [US2] Handler `functions/catalog-schema-v1-get.ts` (`GET /shop/v1/catalog/schema`) (depends: T037).
-- [ ] T039 [US2] Handler `functions/product-create-v1-post.ts` (`POST /shop/v1/products`) (depends: T037).
-- [ ] T040 [US2] Handlers `functions/product-media-create-v1-post.ts` (presign) + `product-media-register-v1-post.ts` (depends: T037).
-- [ ] T041 [US2] Register the above in `apis/edge-api/shop/serverless.yml` under `/shop/v1/...` (shop authorizer id, `Errors` alarms) (depends: T038–T040).
-- [ ] T042 [P] [US2] Unit tests `products/service.test.ts` (mandatory enforcement, attribute typing, SKU dup→409, missing primary image→400) + media presign test + a handler test.
+- [X] T034 [P] [US2] `types.ts` (domain + `ProductError`) and `media.ts` (S3 client singleton + presigned-PUT/GET helpers, content-type + size validation).
+- [X] T035 [US2] `repository.ts` — `catalog-schema` read query (active types + assignments + active category tree); product insert + attribute-value rows + media registration inside `withTransaction`; SKU `23505` → conflict (depends: T034).
+- [X] T036 [US2] `service.ts` — create validation: universal mandatory (name/type/category/price/short_description/primary image), type-mandatory attributes present, attribute values typed + within `validation`, SKU uniqueness; **write optional `brand` to the `product.brand` column** (F1 / FR-010a — never as an attribute); schema assembly (depends: T035).
+- [X] T037 [US2] `handler-support.ts` — `authorizeShopMember` gate wrapper (resolve `actorShopId`), DTO mappers, `mapProductError` (depends: T036).
+- [X] T038 [US2] Handler `functions/catalog-schema-v1-get.ts` (`GET /shop/v1/catalog/schema`) (depends: T037).
+- [X] T039 [US2] Handler `functions/product-create-v1-post.ts` (`POST /shop/v1/products`) (depends: T037).
+- [X] T040 [US2] Handlers `functions/product-media-create-v1-post.ts` (presign) + `product-media-register-v1-post.ts` (depends: T037).
+- [X] T041 [US2] Register the above in `apis/edge-api/shop/serverless.yml` under `/shop/v1/...` (shop authorizer id, `Errors` alarms) (depends: T038–T040).
+- [X] T042 [P] [US2] Unit tests `products/service.test.ts` (mandatory enforcement, attribute typing, SKU dup→409, missing primary image→400) + media presign test + a handler test.
 
 ### Frontend — `apps/shop-web/src/features/catalog/`
 
-- [ ] T043 [P] [US2] `model.ts` + `repo.ts` (schema query, create, media upload) + `queries.ts`.
-- [ ] T044 [US2] `draft.ts` — device-local draft store (localStorage, keyed per shop+subject): save/load/clear (FR-012).
-- [ ] T045 [US2] `ProductCreateFlow` — multi-step `Dialog` (desktop) / bottom `Sheet` (mobile-web): Step 1 select type → Step 2 basics (name/category/price/short desc/primary image/**optional brand**) → Step 3 dynamic type attributes → Step 4 review/publish; blocks advance on unmet mandatory (depends: T043, T044).
-- [ ] T046 [US2] Dynamic attribute field renderer (`AttributeDataType` → input/textarea/number/switch/select/checkbox-group) reused by create + focused edit (depends: T043).
-- [ ] T047 [US2] Media upload component — presigned PUT to S3, progress, set primary (depends: T043).
-- [ ] T048 [US2] Wire draft restore/clear on open/publish/discard + PostHog `product_create_started`/`product_created` (depends: T045).
-- [ ] T049 [P] [US2] vitest units: draft persistence, step validation, attribute-renderer mapping.
+- [X] T043 [P] [US2] `model.ts` + `repo.ts` (schema query, create, media upload) + `queries.ts`.
+- [X] T044 [US2] `draft.ts` — device-local draft store (localStorage, keyed per shop+subject): save/load/clear (FR-012).
+- [X] T045 [US2] `ProductCreateFlow` — multi-step `Dialog` (desktop) / bottom `Sheet` (mobile-web): Step 1 select type → Step 2 basics (name/category/price/short desc/primary image/**optional brand**) → Step 3 dynamic type attributes → Step 4 review/publish; blocks advance on unmet mandatory (depends: T043, T044).
+- [X] T046 [US2] Dynamic attribute field renderer (`AttributeDataType` → input/textarea/number/switch/select/checkbox-group) reused by create + focused edit (depends: T043).
+- [X] T047 [US2] Media upload component — presigned PUT to S3, progress, set primary (depends: T043).
+- [X] T048 [US2] Wire draft restore/clear on open/publish/discard + PostHog `product_create_started`/`product_created` (depends: T045).
+- [X] T049 [P] [US2] vitest units: draft persistence, step validation, attribute-renderer mapping.
 
 **Checkpoint**: US1 + US2 work — schema exists and shops can create products (draft-resilient).
 
@@ -129,17 +129,17 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 ### Backend
 
-- [ ] T050 [US3] `products/repository.ts` — list query: `q` (trgm ILIKE over name/sku/brand/short_description), filters (type/category/section/status/priceMin/priceMax), `sort`/`order`, `count(*) OVER()`, `LIMIT/OFFSET`, `WHERE shop_id = :actorShopId` (depends: T035).
-- [ ] T051 [US3] `products/service.ts` list param clamp/validate + handlers `functions/products-list-v1-get.ts` and `product-get-v1-get.ts` (detail read, shop-scoped) (depends: T050).
-- [ ] T052 [US3] Register list/detail in `serverless.yml` (+ `Duration p95` alarm on the list route — the <1s SC-004 route) (depends: T051).
-- [ ] T053 [P] [US3] Unit tests: param clamp, shop isolation, pagination shape, search-field coverage.
+- [X] T050 [US3] `products/repository.ts` — list query: `q` (trgm ILIKE over name/sku/brand/short_description), filters (type/category/section/status/priceMin/priceMax), `sort`/`order`, `count(*) OVER()`, `LIMIT/OFFSET`, `WHERE shop_id = :actorShopId` (depends: T035).
+- [X] T051 [US3] `products/service.ts` list param clamp/validate + handlers `functions/products-list-v1-get.ts` and `product-get-v1-get.ts` (detail read, shop-scoped) (depends: T050).
+- [X] T052 [US3] Register list/detail in `serverless.yml` (+ `Duration p95` alarm on the list route — the <1s SC-004 route) (depends: T051).
+- [X] T053 [P] [US3] Unit tests: param clamp, shop isolation, pagination shape, search-field coverage.
 
 ### Frontend
 
-- [ ] T054 [P] [US3] `CatalogListScreen` — `DataTable` columns (image/name/type/category/price/status/sku), filter row (`q` input, type/category/status selects, price range), manual Prev/Next + total; **no cards, no metric cards** (depends: T043).
-- [ ] T055 [US3] `queries.ts` `productListQuery(params)` keyed per filter/page; empty state + `ErrorState` (depends: T054).
-- [ ] T056 [US3] `routes/catalog.tsx` (index) + register + `Catalog` nav entry; PostHog `catalog_search`/`catalog_filter_applied` (depends: T054).
-- [ ] T057 [P] [US3] vitest: list-param encoding, column render.
+- [X] T054 [P] [US3] `CatalogListScreen` — `DataTable` columns (image/name/type/category/price/status/sku), filter row (`q` input, type/category/status selects, price range), manual Prev/Next + total; **no cards, no metric cards** (depends: T043).
+- [X] T055 [US3] `queries.ts` `productListQuery(params)` keyed per filter/page; empty state + `ErrorState` (depends: T054).
+- [X] T056 [US3] `routes/catalog.tsx` (index) + register + `Catalog` nav entry; PostHog `catalog_search`/`catalog_filter_applied` (depends: T054).
+- [X] T057 [P] [US3] vitest: list-param encoding, column render.
 
 **Checkpoint**: 🎯 **MVP complete** — back-office schema + shop create + shop browse on the web.
 
@@ -153,18 +153,18 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 ### Backend
 
-- [ ] T058 [US4] `products/repository.ts` — full detail assembly (attributes + media presigned-GET + sections + `updatedAt` token + `missingMandatoryAttributes` computed vs the type's current mandatory set, **FR-020a**); PATCH partial update `... WHERE id AND shop_id AND updated_at = :expectedUpdatedAt` (0 rows → conflict, **FR-023a**), attribute upserts inside `withTransaction`; media patch/delete (depends: T050).
-- [ ] T059 [US4] `products/service.ts` focused-edit validation (mandatory cannot be cleared; typed values; **require + enforce `expectedUpdatedAt`, map 0-rows → 409 conflict**, FR-023a) + handlers `product-update-v1-patch.ts`, `product-media-patch/-delete` (depends: T058).
-- [ ] T060 [US4] Register PATCH/media functions in `serverless.yml` + alarms (depends: T059).
-- [ ] T061 [P] [US4] Unit tests: PATCH updates only the subset; mandatory-clear refusal; **stale `expectedUpdatedAt` → 409**; `missingMandatoryAttributes` computed correctly; media rules.
+- [X] T058 [US4] `products/repository.ts` — full detail assembly (attributes + media presigned-GET + sections + `updatedAt` token + `missingMandatoryAttributes` computed vs the type's current mandatory set, **FR-020a**); PATCH partial update `... WHERE id AND shop_id AND updated_at = :expectedUpdatedAt` (0 rows → conflict, **FR-023a**), attribute upserts inside `withTransaction`; media patch/delete (depends: T050).
+- [X] T059 [US4] `products/service.ts` focused-edit validation (mandatory cannot be cleared; typed values; **require + enforce `expectedUpdatedAt`, map 0-rows → 409 conflict**, FR-023a) + handlers `product-update-v1-patch.ts`, `product-media-patch/-delete` (depends: T058).
+- [X] T060 [US4] Register PATCH/media functions in `serverless.yml` + alarms (depends: T059).
+- [X] T061 [P] [US4] Unit tests: PATCH updates only the subset; mandatory-clear refusal; **stale `expectedUpdatedAt` → 409**; `missingMandatoryAttributes` computed correctly; media rules.
 
 ### Frontend
 
-- [ ] T062 [P] [US4] `ProductDetailScreen` — `Tabs` (Overview/Attributes/Media/Pricing/Categorization) + sectioned `dl` rows, **no cards**; render a non-blocking **"missing required attribute" notice** from `missingMandatoryAttributes` (FR-020a) (depends: T043).
-- [ ] T063 [US4] Focused-edit dialogs — one pencil per section opening a small `Dialog` scoped to that field/group; PATCH subset **with `expectedUpdatedAt` from the loaded detail**; on **409 show a "changed elsewhere — reload" message** (FR-023a); invalidate detail; reuse the attribute renderer (T046) (depends: T062).
-- [ ] T064 [US4] Media gallery management (add/reorder/set-primary/delete) (depends: T062).
-- [ ] T065 [US4] `routes/catalog.$productId.tsx` + register; PostHog `product_edit_saved` (depends: T062).
-- [ ] T066 [P] [US4] vitest: detail mapping, focused-edit payload builds only the subset.
+- [X] T062 [P] [US4] `ProductDetailScreen` — `Tabs` (Overview/Attributes/Media/Pricing/Categorization) + sectioned `dl` rows, **no cards**; render a non-blocking **"missing required attribute" notice** from `missingMandatoryAttributes` (FR-020a) (depends: T043).
+- [X] T063 [US4] Focused-edit dialogs — one pencil per section opening a small `Dialog` scoped to that field/group; PATCH subset **with `expectedUpdatedAt` from the loaded detail**; on **409 show a "changed elsewhere — reload" message** (FR-023a); invalidate detail; reuse the attribute renderer (T046) (depends: T062).
+- [X] T064 [US4] Media gallery management (add/reorder/set-primary/delete) (depends: T062).
+- [X] T065 [US4] `routes/catalog.$productId.tsx` + register; PostHog `product_edit_saved` (depends: T062).
+- [X] T066 [P] [US4] vitest: detail mapping, focused-edit payload builds only the subset.
 
 **Checkpoint**: US1–US4 work on the web.
 
@@ -178,16 +178,16 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 ### Backend
 
-- [ ] T067 [US5] `apis/edge-api/shop/src/sections/` slice (types/service/repository) — section CRUD + `product_section` assignment; product status change; hard-delete guard (409 unless draft/unreferenced) (depends: T035).
-- [ ] T068 [US5] Handlers `sections-*.ts`, `product-status-v1-post.ts`, `product-delete-v1-delete.ts`, `product-sections-v1-patch.ts` (depends: T067).
-- [ ] T069 [US5] Register in `serverless.yml` + alarms (depends: T068).
-- [ ] T070 [P] [US5] Unit tests: section CRUD, status transitions, hard-delete guard, archive-by-default.
+- [X] T067 [US5] `apis/edge-api/shop/src/sections/` slice (types/service/repository) — section CRUD + `product_section` assignment; product status change; hard-delete guard (409 unless draft/unreferenced) (depends: T035).
+- [X] T068 [US5] Handlers `sections-*.ts`, `product-status-v1-post.ts`, `product-delete-v1-delete.ts`, `product-sections-v1-patch.ts` (depends: T067).
+- [X] T069 [US5] Register in `serverless.yml` + alarms (depends: T068).
+- [X] T070 [P] [US5] Unit tests: section CRUD, status transitions, hard-delete guard, archive-by-default.
 
 ### Frontend
 
-- [ ] T071 [P] [US5] shop-web sections management UI (list/create/edit/delete + assign products; filter list by section) (depends: T054).
-- [ ] T072 [US5] Lifecycle controls (status menu → publish/unavailable/archive; archive-vs-delete `AlertDialog`); inventory **"coming soon"** placeholder (no stock entry) (depends: T062).
-- [ ] T073 [P] [US5] vitest: status-control logic, delete-guard messaging.
+- [X] T071 [P] [US5] shop-web sections management UI (list/create/edit/delete + assign products; filter list by section) (depends: T054).
+- [X] T072 [US5] Lifecycle controls (status menu → publish/unavailable/archive; archive-vs-delete `AlertDialog`); inventory **"coming soon"** placeholder (no stock entry) (depends: T062).
+- [X] T073 [P] [US5] vitest: status-control logic, delete-guard messaging.
 
 **Checkpoint**: Full web capability (US1–US5) complete.
 
@@ -199,17 +199,17 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 **Independent Test**: On Android + iOS, an operator creates (bottom-sheet step form, draft restored), browses (LazyColumn + backend filters, two-pane on EXPANDED), and edits (focused bottom sheet) a product.
 
-- [ ] T074 [P] [US2] `features/catalog/domain/` — `CatalogRepository` interface + pure models (`Product`, `ProductType`, `AttributeDef`, `Category`).
-- [ ] T075 [US2] `features/catalog/domain/CatalogUseCases.kt` — `GetCatalogSchema`, `ListProducts`, `GetProduct`, `CreateProduct`, `UpdateProduct`, `ChangeProductStatus` (depends: T074).
-- [ ] T076 [US2] `features/catalog/data/` — `HttpCatalogRepository` (Ktor, relative `shop/v1/...`, `ensureSuccess()`/`toAppException()`) + `CatalogMappers.kt` (generated DTO→domain) (depends: T074, T003/T084 for DTOs).
-- [ ] T077 [US2] `core/…/DraftStore` — commonMain interface + platform actuals (multiplatform-settings or file); device-local create draft (FR-012).
-- [ ] T078 [US2] Wire in `app/AppContainer.kt` (repository private, use cases as explicit collaborators); add `AppRoute.ProductList`/`ProductDetail(id)`; extend `app/App.kt` `when(stack.last())`; add a Home entry (depends: T075, T076, T077).
-- [ ] T079 [US3] `presentation/CatalogListScreens.kt` — `CatalogListViewModel` (immutable `UiState` with `q`/filters) + `LazyColumn` list; `AdaptiveContent` two-pane on `WindowWidth.EXPANDED`; no cards (depends: T078).
-- [ ] T080 [US2] `presentation/ProductCreateSheet.kt` — `ModalBottomSheet` multi-step (`Step` enum + fields + `draft` in `UiState`), dynamic attribute fields, media upload; `CreateViewModel` (depends: T078).
-- [ ] T081 [US4] `presentation/ProductDetailScreens.kt` — `DetailViewModel` + `TabRow` + sectioned rows (`HorizontalDivider`) + focused `ModalBottomSheet` edits (send `expectedUpdatedAt`; handle 409 reload, FR-023a) + a "missing required attribute" notice (FR-020a); no cards (depends: T078).
-- [ ] T082 [US5] Mobile lifecycle controls (status change; archive vs guarded delete) + sections read/assign + inventory **"coming soon"** (depends: T081).
-- [ ] T083 [P] [US2] `commonTest` — `CatalogUseCasesTest` + ViewModel state tests (step flow, draft restore, list filter) with a hand-written `FakeCatalogRepository` (depends: T075).
-- [ ] T084 [US2] Regenerate the Kotlin contract (`contract:gen`) for catalog DTOs and verify `:shared:allTests` + Android + iOS builds are green (depends: T003).
+- [X] T074 [P] [US2] `features/catalog/domain/` — `CatalogRepository` interface + pure models (`Product`, `ProductType`, `AttributeDef`, `Category`).
+- [X] T075 [US2] `features/catalog/domain/CatalogUseCases.kt` — `GetCatalogSchema`, `ListProducts`, `GetProduct`, `CreateProduct`, `UpdateProduct`, `ChangeProductStatus` (depends: T074).
+- [X] T076 [US2] `features/catalog/data/` — `HttpCatalogRepository` (Ktor, relative `shop/v1/...`, `ensureSuccess()`/`toAppException()`) + `CatalogMappers.kt` (generated DTO→domain) (depends: T074, T003/T084 for DTOs).
+- [X] T077 [US2] `core/…/DraftStore` — commonMain interface + platform actuals (multiplatform-settings or file); device-local create draft (FR-012).
+- [X] T078 [US2] Wire in `app/AppContainer.kt` (repository private, use cases as explicit collaborators); add `AppRoute.ProductList`/`ProductDetail(id)`; extend `app/App.kt` `when(stack.last())`; add a Home entry (depends: T075, T076, T077).
+- [X] T079 [US3] `presentation/CatalogListScreens.kt` — `CatalogListViewModel` (immutable `UiState` with `q`/filters) + `LazyColumn` list; `AdaptiveContent` two-pane on `WindowWidth.EXPANDED`; no cards (depends: T078).
+- [X] T080 [US2] `presentation/ProductCreateSheet.kt` — `ModalBottomSheet` multi-step (`Step` enum + fields + `draft` in `UiState`), dynamic attribute fields, media upload; `CreateViewModel` (depends: T078).
+- [X] T081 [US4] `presentation/ProductDetailScreens.kt` — `DetailViewModel` + `TabRow` + sectioned rows (`HorizontalDivider`) + focused `ModalBottomSheet` edits (send `expectedUpdatedAt`; handle 409 reload, FR-023a) + a "missing required attribute" notice (FR-020a); no cards (depends: T078).
+- [X] T082 [US5] Mobile lifecycle controls (status change; archive vs guarded delete) + sections read/assign + inventory **"coming soon"** (depends: T081).
+- [X] T083 [P] [US2] `commonTest` — `CatalogUseCasesTest` + ViewModel state tests (step flow, draft restore, list filter) with a hand-written `FakeCatalogRepository` (depends: T075).
+- [X] T084 [US2] Regenerate the Kotlin contract (`contract:gen`) for catalog DTOs and verify `:shared:allTests` + Android + iOS builds are green (depends: T003).
 
 **Checkpoint**: Shop capability at parity on web + mobile.
 
@@ -217,13 +217,13 @@ deploy are **[operator]** — listed in Phase 10, gated on committed code.
 
 ## Phase 9: Polish & Cross-Cutting
 
-- [ ] T085 [P] Update `docs/audiences/shop-capabilities.md` — add catalog rows for **both** shop surfaces (web ✅; mobile ✅, telemetry ⏸) with the backend they depend on.
-- [ ] T086 [P] Confirm the shared PostHog event taxonomy documents every catalog web event (`product_create_started/created`, `product_edit_saved`, `product_archived`, `catalog_search`, `catalog_filter_applied`, `schema_type_created`, `schema_attribute_created`).
-- [ ] T087 [P] No-card design audit (DOCTRINE-2) on shop-web detail, back-office schema screens, and shop-mobile detail; no metric/summary cards at page tops. **Also verify shop-web responsive range** (SC-009/FR-033): the catalog **list and detail** screens remain usable desktop→mobile-web (table reflow/scroll, focused-edit dialog reachable), not just the create Sheet/Dialog switch.
-- [ ] T088 Secret/PII sweep across new backend + web + mobile code; verify error bodies leak nothing (subject-only logs).
+- [X] T085 [P] Update `docs/audiences/shop-capabilities.md` — add catalog rows for **both** shop surfaces (web ✅; mobile ✅, telemetry ⏸) with the backend they depend on.
+- [X] T086 [P] Confirm the shared PostHog event taxonomy documents every catalog web event (`product_create_started/created`, `product_edit_saved`, `product_archived`, `catalog_search`, `catalog_filter_applied`, `schema_type_created`, `schema_attribute_created`).
+- [X] T087 [P] No-card design audit (DOCTRINE-2) on shop-web detail, back-office schema screens, and shop-mobile detail; no metric/summary cards at page tops. **Also verify shop-web responsive range** (SC-009/FR-033): the catalog **list and detail** screens remain usable desktop→mobile-web (table reflow/scroll, focused-edit dialog reachable), not just the create Sheet/Dialog switch.
+- [X] T088 Secret/PII sweep across new backend + web + mobile code; verify error bodies leak nothing (subject-only logs).
 - [ ] T088a [P] **SC-004 latency verification**: author a throwaway seed script that inserts ≥10,000 products into one shop, then measure `GET /shop/v1/products` first-page + total-count latency and assert **< 1s**; record the result (this verifies SC-004, distinct from the production p95 alarm in T052). Remove the seed afterward.
-- [ ] T089 [P] Author slice READMEs / notes for `apis/edge-api/admin/catalog` and `apis/edge-api/shop/products` (routes, authz, audit actions).
-- [ ] T090 Full static gate: `pnpm typecheck` + `pnpm -r test` + `turbo build` + `apps/shop-mobile ./gradlew :shared:allTests` + `terraform -chdir=infra/envs/dev validate`/`fmt -check` all green.
+- [X] T089 [P] Author slice READMEs / notes for `apis/edge-api/admin/catalog` and `apis/edge-api/shop/products` (routes, authz, audit actions).
+- [X] T090 Full static gate: `pnpm typecheck` + `pnpm -r test` + `turbo build` + `apps/shop-mobile ./gradlew :shared:allTests` + `terraform -chdir=infra/envs/dev validate`/`fmt -check` all green.
 
 ---
 

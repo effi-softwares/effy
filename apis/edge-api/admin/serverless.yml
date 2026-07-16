@@ -236,6 +236,206 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── Catalog schema authority (016). All back-office authorizer; read = any active staff,
+  #    mutate = admin/manager (contracts/admin-catalog.contract.md). Every mutation audits. ──
+  catalogProductTypesListV1:
+    handler: src/functions/catalog-product-types-list-v1-get.handler
+    description: List product types + assigned attributes — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/catalog/product-types
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeGetV1:
+    handler: src/functions/catalog-product-types-get-v1-get.handler
+    description: Product type detail — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/catalog/product-types/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeCreateV1:
+    handler: src/functions/catalog-product-types-create-v1-post.handler
+    description: Create a product type — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/product-types
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeUpdateV1:
+    handler: src/functions/catalog-product-types-update-v1-patch.handler
+    description: Edit a product type — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/catalog/product-types/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeStatusV1:
+    handler: src/functions/catalog-product-types-status-v1-post.handler
+    description: Retire/activate a product type — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/product-types/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeAssignV1:
+    handler: src/functions/catalog-product-type-attributes-assign-v1-post.handler
+    description: Assign an attribute to a product type — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/product-types/{id}/attributes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeAssignUpdateV1:
+    handler: src/functions/catalog-product-type-attributes-update-v1-patch.handler
+    description: Edit a type↔attribute assignment — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/catalog/product-types/{id}/attributes/{attrId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogProductTypeUnassignV1:
+    handler: src/functions/catalog-product-type-attributes-unassign-v1-delete.handler
+    description: Unassign an attribute from a product type — 016
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/catalog/product-types/{id}/attributes/{attrId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogAttributesListV1:
+    handler: src/functions/catalog-attributes-list-v1-get.handler
+    description: List attribute definitions — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/catalog/attributes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogAttributeGetV1:
+    handler: src/functions/catalog-attributes-get-v1-get.handler
+    description: Attribute definition detail — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/catalog/attributes/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogAttributeCreateV1:
+    handler: src/functions/catalog-attributes-create-v1-post.handler
+    description: Create an attribute definition — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/attributes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogAttributeUpdateV1:
+    handler: src/functions/catalog-attributes-update-v1-patch.handler
+    description: Edit an attribute definition — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/catalog/attributes/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogAttributeStatusV1:
+    handler: src/functions/catalog-attributes-status-v1-post.handler
+    description: Retire/activate an attribute (in-use → 409) — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/attributes/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogAllowedValueDeleteV1:
+    handler: src/functions/catalog-attribute-allowed-value-delete-v1-delete.handler
+    description: Remove an allowed value (in-use → 409) — 016
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/catalog/attributes/{id}/allowed-values/{valueId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogCategoriesListV1:
+    handler: src/functions/catalog-categories-list-v1-get.handler
+    description: List categories (flat, parentId-linked) — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/catalog/categories
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogCategoryCreateV1:
+    handler: src/functions/catalog-categories-create-v1-post.handler
+    description: Create a category — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/categories
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogCategoryUpdateV1:
+    handler: src/functions/catalog-categories-update-v1-patch.handler
+    description: Edit a category — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/catalog/categories/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  catalogCategoryStatusV1:
+    handler: src/functions/catalog-categories-status-v1-post.handler
+    description: Retire/activate a category (active products → 409) — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/catalog/categories/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
 # Per-function CloudWatch alarms. API-level 5xx alarm lives in Terraform (A3).
 resources:
   Resources:
@@ -437,5 +637,267 @@ resources:
         Period: 300
         EvaluationPeriods: 1
         Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # ── Catalog (016) per-function Errors alarms + Duration p95 on the list reads. ──
+    CatalogProductTypesListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-types-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypesListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeGetV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-get-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeGetV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeAssignV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-assign-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeAssignV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeAssignUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-assign-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeAssignUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypeUnassignV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-type-unassign-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypeUnassignV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogAttributesListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-attributes-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogAttributesListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogAttributeGetV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-attribute-get-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogAttributeGetV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogAttributeCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-attribute-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogAttributeCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogAttributeUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-attribute-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogAttributeUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogAttributeStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-attribute-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogAttributeStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogAllowedValueDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-allowed-value-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogAllowedValueDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogCategoriesListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-categories-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogCategoriesListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogCategoryCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-category-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogCategoryCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogCategoryUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-category-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogCategoryUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogCategoryStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-category-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogCategoryStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogProductTypesListV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-product-types-list-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogProductTypesListV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    CatalogCategoriesListV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-categories-list-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogCategoriesListV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching

@@ -3,13 +3,20 @@ import { createRouter } from "@tanstack/react-router";
 
 import { adminRoute, appIndexRoute, appRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
+import { catalogSchemaRoute } from "./routes/catalog-schema";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
 
-// Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops'), public
-// auth at '/auth/sign-in'.
+// Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops',
+// '/catalog'), public auth at '/auth/sign-in'.
 const routeTree = rootRoute.addChildren([
-  appRoute.addChildren([appIndexRoute, adminRoute, shopsIndexRoute, shopDetailRoute]),
+  appRoute.addChildren([
+    appIndexRoute,
+    adminRoute,
+    shopsIndexRoute,
+    shopDetailRoute,
+    catalogSchemaRoute,
+  ]),
   authLayoutRoute.addChildren([signInRoute]),
 ]);
 

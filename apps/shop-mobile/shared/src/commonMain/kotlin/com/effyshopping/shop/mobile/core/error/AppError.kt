@@ -13,6 +13,16 @@ sealed interface AppError {
     /** A denial: the manager gate refused, or a disabled operator. Rendered uniformly (FR-025). */
     data object Forbidden : AppError
 
+    /** The resource is gone / not this shop's (404). Detail screens turn this into a "no longer available". */
+    data object NotFound : AppError
+
+    /**
+     * A 409 conflict: a stale `expectedUpdatedAt` on a focused edit (concurrent-edit signal, FR-023a — the
+     * UI prompts a reload rather than silently overwriting), a duplicate SKU on create, or a hard-delete
+     * guard ("archive instead", R8). Distinct from [Validation] so the UI can react specifically.
+     */
+    data object Conflict : AppError
+
     /** Throttled. [retryAfterSeconds] is shown; explain the wait, never loop (FR-012). */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 

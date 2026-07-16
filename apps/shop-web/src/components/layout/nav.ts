@@ -1,4 +1,4 @@
-import { LayoutDashboard, Shield } from "lucide-react";
+import { LayoutDashboard, Package, Shield } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -12,5 +12,8 @@ import type { NavItem } from "@effy/web-kit/console";
 // if they ask directly anyway.
 export const NAV: NavItem<ShopRole>[] = [
   { label: "Dashboard", to: "/", icon: LayoutDashboard },
+  // Catalog is open to any shop member (the backend allows shop_manager OR shop_staff), so no
+  // requiredRole — every operator can browse and add products.
+  { label: "Catalog", to: "/catalog", icon: Package },
   { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
 ];

@@ -152,3 +152,45 @@ DOCTRINE-2); sign-out lives in the Account tab and returns to sign-in. Built on 
 `packages/mobile-kit` (adaptive shell + per-tab back stacks) on stable Material 3. Verified: compiles +
 unit tests green on Android, links for iOS. **Web (`shop-web`) is unaffected** — this is a mobile-only
 navigation capability. Live device/simulator sign-off is the operator's step.
+
+## 016 — Product catalog management
+
+`apps/shop-web` and `apps/shop-mobile` gain the **product catalog** (spec 016): each shop authors
+**shop-owned** products against a back-office-managed schema (product types + a dynamic attribute
+library + a category taxonomy, `apis/edge-api/admin` `catalog/`), browses them in a
+backend-paginated/searched/filtered table, and views/edits each on a sectioned/tabbed detail page
+with **focused edits** — all **no cards** (DOCTRINE-2), modelled on eBay item-specifics + Uber Eats
+menus (DOCTRINE-1). Backend: `apis/edge-api/shop` `products/` + `sections/` (shop authorizer; every
+query scoped to the operator's resolved shop; EAV attribute typing; optimistic-concurrency focused
+edits; draft-first create with publish-time mandatory enforcement; private-S3 presigned media).
+
+| # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
+|---|---|---|---|---|
+| 16.1 | Read the catalog schema (types + attributes + category tree) that drives the create form | ✅ | ✅ | `GET /shop/v1/catalog/schema` |
+| 16.2 | Create a product via a schema-driven multi-step form with a **device-local draft** (FR-012) | ✅ | ✅ | `POST /shop/v1/products` |
+| 16.3 | Backend search / filter / sort / paginate the shop's products (< 1s at 10k+, SC-004) | ✅ | ✅ | `GET /shop/v1/products` |
+| 16.4 | Sectioned/tabbed product detail; **schema-drift notice** (FR-020a) | ✅ | ✅ | `GET /shop/v1/products/{id}` |
+| 16.5 | Focused edits with **optimistic concurrency** — stale ⇒ reload (FR-023a) | ✅ | ✅ | `PATCH /shop/v1/products/{id}` |
+| 16.6 | Lifecycle: publish (re-validates mandatory + primary image) / unavailable / archive | ✅ | ✅ | `POST /shop/v1/products/{id}/status` |
+| 16.7 | Guarded hard-delete (draft only; else archive) (R8) | ✅ | ✅ | `DELETE /shop/v1/products/{id}` |
+| 16.8 | Shop-local **sections**: define, assign, filter | ✅ | ✅ ◇ | `GET/POST/PATCH/DELETE /shop/v1/sections`, `PATCH .../sections` |
+| 16.9 | Product **media** (primary image + gallery, private-S3 presigned) | ✅ | ⏸ ▽ | `POST .../media` + `.../media/register` + patch/delete |
+| 16.10 | Inventory | "coming soon" | "coming soon" | — (a later slice) |
+| 16.11 | Catalog product-analytics events (create/edit/archive/search/filter) | ✅ | ⏸ | PostHog |
+| 16.12 | Shop isolation: every catalog query scoped to the operator's shop, never client input | ✅ | ✅ | `authorizeShopMember` (shop record) |
+
+**Footnotes:**
+- **▽ Row 16.9 (mobile media):** the presign/register repository calls exist on mobile, but the native
+  **file picker + S3 PUT** is a "coming soon" affordance (needs a platform image picker) — so a mobile
+  operator cannot yet attach the primary image a live *publish* requires. Web delivers media fully; the
+  mobile picker is later polish (research R13). The backend + web are unaffected.
+- **◇ Row 16.8 (mobile sections):** mobile reads sections and assigns a product to them; full section
+  CRUD (create/rename/delete) is the web console's richer surface.
+- **⏸ Row 16.11 (mobile telemetry):** deferred by design (documented Principle VII deviation, owned by
+  the `mobile-telemetry` slice, consistent with 013/014).
+
+**Verification:** web — `pnpm typecheck` + `pnpm -r test` (back-office 35, shop-web 99) + `turbo build`
+all green. Backend — edge-admin 52 (incl. catalog authz/service/handler), edge-shop 77 (incl. products
+authz/service/lifecycle/media). Mobile — `:shared:allTests` green on Android + iOS (13 new catalog
+tests); commonMain compiles on both targets. Live sign-off (real OTP sign-in, real data) is the
+operator's step (spec 016 Phase 10 / quickstart).

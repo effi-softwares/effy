@@ -2,6 +2,336 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "AttributeAllowedValueDTO": {
+      "additionalProperties": false,
+      "description": "An option for a select-typed attribute.",
+      "properties": {
+        "displayOrder": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "value",
+        "label",
+        "displayOrder"
+      ],
+      "type": "object"
+    },
+    "AttributeDataType": {
+      "description": "The data type of a back-office-authored attribute — drives the form input + value column.",
+      "enum": [
+        "short_text",
+        "long_text",
+        "number",
+        "boolean",
+        "single_select",
+        "multi_select"
+      ],
+      "type": "string"
+    },
+    "AttributeValidationDTO": {
+      "additionalProperties": false,
+      "description": "Optional per-attribute validation envelope (jsonb `validation`). All fields optional.",
+      "properties": {
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxLength": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "AttributeValueInputDTO": {
+      "additionalProperties": false,
+      "description": "A value supplied for one attribute on create/edit (only the field matching the data type is set).",
+      "properties": {
+        "attributeId": {
+          "type": "string"
+        },
+        "valueBoolean": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "valueNumber": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "valueOptions": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valueText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "attributeId"
+      ],
+      "type": "object"
+    },
+    "CatalogSchemaDTO": {
+      "additionalProperties": false,
+      "description": "One call bootstraps the create form: the active types (each with their assigned attributes) and the active category tree (flat, parentId-linked).",
+      "properties": {
+        "categories": {
+          "items": {
+            "$ref": "#/definitions/CategoryDTO"
+          },
+          "type": "array"
+        },
+        "productTypes": {
+          "items": {
+            "$ref": "#/definitions/ProductTypeDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "productTypes",
+        "categories"
+      ],
+      "type": "object"
+    },
+    "CategoryDTO": {
+      "additionalProperties": false,
+      "description": "A node in the platform category taxonomy (flat list; the tree is built client-side via parentId).",
+      "properties": {
+        "displayOrder": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parentId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/SchemaStatus"
+        }
+      },
+      "required": [
+        "id",
+        "parentId",
+        "key",
+        "name",
+        "displayOrder",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ChangeProductStatusRequest": {
+      "additionalProperties": false,
+      "description": "POST /shop/v1/products/{id}/status — lifecycle transition.",
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/ProductStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "CreatePresignedUploadRequest": {
+      "additionalProperties": false,
+      "description": "POST /shop/v1/products/{id}/media — request a presigned direct-to-S3 upload.",
+      "properties": {
+        "contentType": {
+          "type": "string"
+        },
+        "fileSize": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "contentType",
+        "fileSize"
+      ],
+      "type": "object"
+    },
+    "CreatePresignedUploadResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "storageKey": {
+          "type": "string"
+        },
+        "uploadUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uploadUrl",
+        "storageKey"
+      ],
+      "type": "object"
+    },
+    "CreateProductRequest": {
+      "additionalProperties": false,
+      "description": "POST /shop/v1/products — create a shop-owned product. `brand` is a first-class column (FR-010a).",
+      "properties": {
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/AttributeValueInputDTO"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gtin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "longDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "altText": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "displayOrder": {
+                "type": "number"
+              },
+              "isPrimary": {
+                "type": "boolean"
+              },
+              "storageKey": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "storageKey"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "primaryCategoryId": {
+          "type": "string"
+        },
+        "primaryMediaStorageKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "productTypeId": {
+          "type": "string"
+        },
+        "sectionIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "shortDescription": {
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "productTypeId",
+        "primaryCategoryId",
+        "name",
+        "priceAmount",
+        "shortDescription"
+      ],
+      "type": "object"
+    },
+    "CreateShopSectionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "displayOrder": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
     "ProblemJSON": {
       "additionalProperties": {},
       "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
@@ -26,6 +356,501 @@
         "type",
         "title",
         "status"
+      ],
+      "type": "object"
+    },
+    "ProductAttributeValueDTO": {
+      "additionalProperties": false,
+      "description": "A typed attribute value on a product (EAV, one value shape per data type).",
+      "properties": {
+        "attributeId": {
+          "type": "string"
+        },
+        "dataType": {
+          "$ref": "#/definitions/AttributeDataType"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "valueBoolean": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "valueNumber": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "valueOptions": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valueText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "attributeId",
+        "key",
+        "name",
+        "dataType",
+        "unit",
+        "valueText",
+        "valueNumber",
+        "valueBoolean",
+        "valueOptions"
+      ],
+      "type": "object"
+    },
+    "ProductDetailDTO": {
+      "additionalProperties": false,
+      "description": "Full product detail. `updatedAt` is the optimistic-concurrency token (FR-023a); `missingMandatoryAttributes` is the non-blocking schema-drift notice (FR-020a).",
+      "properties": {
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/ProductAttributeValueDTO"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categoryName": {
+          "type": "string"
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "gtin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "longDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "media": {
+          "items": {
+            "$ref": "#/definitions/ProductMediaDTO"
+          },
+          "type": "array"
+        },
+        "missingMandatoryAttributes": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "primaryCategoryId": {
+          "type": "string"
+        },
+        "productTypeId": {
+          "type": "string"
+        },
+        "sections": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "shopId": {
+          "type": "string"
+        },
+        "shortDescription": {
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/ProductStatus"
+        },
+        "typeName": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "shopId",
+        "productTypeId",
+        "typeName",
+        "primaryCategoryId",
+        "categoryName",
+        "name",
+        "sku",
+        "gtin",
+        "brand",
+        "priceAmount",
+        "currency",
+        "compareAtAmount",
+        "shortDescription",
+        "longDescription",
+        "status",
+        "attributes",
+        "media",
+        "sections",
+        "missingMandatoryAttributes",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "ProductListDTO": {
+      "additionalProperties": false,
+      "description": "Paged product list envelope. Structurally a `PagedDTO<ProductListItemDTO>` but declared concretely (not a generic alias) so the Kotlin contract generator can name it.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/ProductListItemDTO"
+          },
+          "type": "array"
+        },
+        "page": {
+          "type": "number"
+        },
+        "pageSize": {
+          "type": "number"
+        },
+        "total": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "page",
+        "pageSize"
+      ],
+      "type": "object"
+    },
+    "ProductListItemDTO": {
+      "additionalProperties": false,
+      "description": "A thin row in the shop catalog table (backend-paginated).",
+      "properties": {
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categoryName": {
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "primaryImageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/ProductStatus"
+        },
+        "typeName": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "brand",
+        "primaryImageUrl",
+        "typeName",
+        "categoryName",
+        "priceAmount",
+        "currency",
+        "status",
+        "sku",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "ProductMediaDTO": {
+      "additionalProperties": false,
+      "description": "A media object on a product (list/detail carry short-lived presigned GET urls).",
+      "properties": {
+        "altText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayOrder": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        },
+        "storageKey": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "url",
+        "storageKey",
+        "isPrimary",
+        "displayOrder",
+        "altText"
+      ],
+      "type": "object"
+    },
+    "ProductStatus": {
+      "description": "Product lifecycle. `draft` → `active` (publish) ↔ `unavailable`; any → `archived` (soft remove).",
+      "enum": [
+        "draft",
+        "active",
+        "unavailable",
+        "archived"
+      ],
+      "type": "string"
+    },
+    "ProductTypeAttributeDTO": {
+      "additionalProperties": false,
+      "description": "An attribute assigned to a product type (the join, carrying the per-type facts).",
+      "properties": {
+        "allowedValues": {
+          "items": {
+            "$ref": "#/definitions/AttributeAllowedValueDTO"
+          },
+          "type": "array"
+        },
+        "attributeId": {
+          "type": "string"
+        },
+        "dataType": {
+          "$ref": "#/definitions/AttributeDataType"
+        },
+        "displayOrder": {
+          "type": "number"
+        },
+        "groupLabel": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "helpText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "isMandatory": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "validation": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/AttributeValidationDTO"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "attributeId",
+        "key",
+        "name",
+        "dataType",
+        "unit",
+        "helpText",
+        "validation",
+        "allowedValues",
+        "isMandatory",
+        "displayOrder",
+        "groupLabel"
+      ],
+      "type": "object"
+    },
+    "ProductTypeDTO": {
+      "additionalProperties": false,
+      "description": "A back-office product classification, with its assigned attributes.",
+      "properties": {
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/ProductTypeAttributeDTO"
+          },
+          "type": "array"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/SchemaStatus"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "key",
+        "name",
+        "description",
+        "status",
+        "attributes",
+        "createdAt",
+        "updatedAt"
+      ],
+      "type": "object"
+    },
+    "RegisterMediaRequest": {
+      "additionalProperties": false,
+      "description": "POST /shop/v1/products/{id}/media/register — record an uploaded object.",
+      "properties": {
+        "altText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayOrder": {
+          "type": "number"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        },
+        "storageKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "storageKey"
+      ],
+      "type": "object"
+    },
+    "SchemaStatus": {
+      "description": "Lifecycle for the managed schema entities (product types, attributes, categories).",
+      "enum": [
+        "active",
+        "retired"
+      ],
+      "type": "string"
+    },
+    "SetProductSectionsRequest": {
+      "additionalProperties": false,
+      "description": "PATCH /shop/v1/products/{id}/sections — set a product's section membership.",
+      "properties": {
+        "sectionIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "sectionIds"
       ],
       "type": "object"
     },
@@ -72,6 +897,27 @@
         "shop_staff"
       ],
       "type": "string"
+    },
+    "ShopSectionDTO": {
+      "additionalProperties": false,
+      "description": "A shop-local section (grouping; Uber-Eats-style menu section).",
+      "properties": {
+        "displayOrder": {
+          "type": "number"
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "displayOrder"
+      ],
+      "type": "object"
     },
     "ShopStaffRecordDTO": {
       "additionalProperties": false,
@@ -151,21 +997,152 @@
         "status"
       ],
       "type": "object"
+    },
+    "UpdateMediaRequest": {
+      "additionalProperties": false,
+      "description": "PATCH /shop/v1/products/{id}/media/{mediaId} — reorder / set primary / alt text.",
+      "properties": {
+        "altText": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "displayOrder": {
+          "type": "number"
+        },
+        "isPrimary": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "UpdateProductRequest": {
+      "additionalProperties": false,
+      "description": "PATCH /shop/v1/products/{id} — focused edit. All content fields optional (a subset is patched); `expectedUpdatedAt` is REQUIRED (optimistic concurrency — a stale value → 409, FR-023a).",
+      "properties": {
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/AttributeValueInputDTO"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expectedUpdatedAt": {
+          "type": "string"
+        },
+        "gtin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "longDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "primaryCategoryId": {
+          "type": "string"
+        },
+        "productTypeId": {
+          "type": "string"
+        },
+        "shortDescription": {
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "expectedUpdatedAt"
+      ],
+      "type": "object"
+    },
+    "UpdateShopSectionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "displayOrder": {
+          "type": "number"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "type": "object"
     }
   },
-  "description": "Aggregator — codegen entry only. Every field forces a type into the schema.",
+  "description": "Aggregator — codegen entry only. Every field forces a type into the schema. The catalog block is the shop-facing subset (016) the mobile app consumes; admin-only schema-authoring request DTOs are deliberately NOT here.",
   "properties": {
+    "catalogSchema": {
+      "$ref": "#/definitions/CatalogSchemaDTO"
+    },
+    "changeProductStatus": {
+      "$ref": "#/definitions/ChangeProductStatusRequest"
+    },
+    "createPresignedUpload": {
+      "$ref": "#/definitions/CreatePresignedUploadRequest"
+    },
+    "createProduct": {
+      "$ref": "#/definitions/CreateProductRequest"
+    },
+    "createShopSection": {
+      "$ref": "#/definitions/CreateShopSectionRequest"
+    },
     "lifecycleStatus": {
       "$ref": "#/definitions/ShopLifecycleStatus"
     },
     "managerPing": {
       "$ref": "#/definitions/ShopManagerPingDTO"
     },
+    "presignedUploadResponse": {
+      "$ref": "#/definitions/CreatePresignedUploadResponse"
+    },
     "problem": {
       "$ref": "#/definitions/ProblemJSON"
     },
+    "productDetail": {
+      "$ref": "#/definitions/ProductDetailDTO"
+    },
+    "productList": {
+      "$ref": "#/definitions/ProductListDTO"
+    },
+    "productListItem": {
+      "$ref": "#/definitions/ProductListItemDTO"
+    },
+    "registerMedia": {
+      "$ref": "#/definitions/RegisterMediaRequest"
+    },
     "role": {
       "$ref": "#/definitions/ShopRole"
+    },
+    "setProductSections": {
+      "$ref": "#/definitions/SetProductSectionsRequest"
+    },
+    "shopSection": {
+      "$ref": "#/definitions/ShopSectionDTO"
     },
     "shopSummary": {
       "$ref": "#/definitions/ShopSummaryDTO"
@@ -175,6 +1152,15 @@
     },
     "staffStatus": {
       "$ref": "#/definitions/ShopStaffStatus"
+    },
+    "updateMedia": {
+      "$ref": "#/definitions/UpdateMediaRequest"
+    },
+    "updateProduct": {
+      "$ref": "#/definitions/UpdateProductRequest"
+    },
+    "updateShopSection": {
+      "$ref": "#/definitions/UpdateShopSectionRequest"
     }
   },
   "required": [
@@ -184,7 +1170,22 @@
     "shopSummary",
     "staffRecord",
     "managerPing",
-    "problem"
+    "problem",
+    "catalogSchema",
+    "productListItem",
+    "productList",
+    "productDetail",
+    "createProduct",
+    "updateProduct",
+    "changeProductStatus",
+    "createPresignedUpload",
+    "presignedUploadResponse",
+    "registerMedia",
+    "updateMedia",
+    "setProductSections",
+    "shopSection",
+    "createShopSection",
+    "updateShopSection"
   ],
   "type": "object",
   "title": "ShopContract"

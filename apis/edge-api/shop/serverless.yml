@@ -41,12 +41,22 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # Product-media bucket (016). Provisioned by infra/envs/<env>/media.tf; the name is published
+    # at /effy/<env>/media/bucket. Direct-to-S3 presigned upload/read (research R9).
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Product media (016): read/write objects in the product-media bucket only. Scoped to the
+        # bucket's object ARN — never a wildcard. Presigned URLs inherit this identity's authority.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). Same rationale
@@ -132,6 +142,183 @@ functions:
       - httpApi:
           method: GET
           path: /shop/v1/manager-ping
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  # ── Product catalog (016). Shop authorizer; any active shop member; every query shop-scoped. ──
+  catalogSchemaV1:
+    handler: src/functions/catalog-schema-v1-get.handler
+    description: Catalog schema-read — active types + attributes + category tree (drives the create form) — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/catalog/schema
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productsListV1:
+    handler: src/functions/products-list-v1-get.handler
+    description: List products — backend search/filter/sort/pagination, shop-scoped (SC-004) — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/products
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productGetV1:
+    handler: src/functions/product-get-v1-get.handler
+    description: Product detail, shop-scoped — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/products/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productCreateV1:
+    handler: src/functions/product-create-v1-post.handler
+    description: Create a shop-owned product (draft) — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productMediaCreateV1:
+    handler: src/functions/product-media-create-v1-post.handler
+    description: Presign a direct-to-S3 image upload — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products/{id}/media
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productMediaRegisterV1:
+    handler: src/functions/product-media-register-v1-post.handler
+    description: Register an uploaded image object — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products/{id}/media/register
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productUpdateV1:
+    handler: src/functions/product-update-v1-patch.handler
+    description: Focused edit with optimistic concurrency (FR-023a) — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/products/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productStatusV1:
+    handler: src/functions/product-status-v1-post.handler
+    description: Change product lifecycle status (publish re-validates mandatory) — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productDeleteV1:
+    handler: src/functions/product-delete-v1-delete.handler
+    description: Hard-delete an unreferenced draft (else 409, archive) — 016
+    events:
+      - httpApi:
+          method: DELETE
+          path: /shop/v1/products/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productSectionsV1:
+    handler: src/functions/product-sections-v1-patch.handler
+    description: Set a product's section membership — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/products/{id}/sections
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productMediaPatchV1:
+    handler: src/functions/product-media-patch-v1-patch.handler
+    description: Reorder / set primary / alt text on a media object — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/products/{id}/media/{mediaId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productMediaDeleteV1:
+    handler: src/functions/product-media-delete-v1-delete.handler
+    description: Delete a media object (active product keeps a primary) — 016
+    events:
+      - httpApi:
+          method: DELETE
+          path: /shop/v1/products/{id}/media/{mediaId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  sectionsListV1:
+    handler: src/functions/sections-list-v1-get.handler
+    description: List this shop's sections — 016
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/sections
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  sectionCreateV1:
+    handler: src/functions/sections-create-v1-post.handler
+    description: Create a shop section — 016
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/sections
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  sectionUpdateV1:
+    handler: src/functions/sections-update-v1-patch.handler
+    description: Rename / reorder a section — 016
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/sections/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  sectionDeleteV1:
+    handler: src/functions/sections-delete-v1-delete.handler
+    description: Delete a section — 016
+    events:
+      - httpApi:
+          method: DELETE
+          path: /shop/v1/sections/{id}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
@@ -274,5 +461,228 @@ resources:
         Period: 300
         EvaluationPeriods: 1
         Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # ── Catalog (016) per-function Errors alarms + Duration p95 on the list route (SC-004). ──
+    CatalogSchemaV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-catalog-schema-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref CatalogSchemaV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductsListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-products-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductsListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductGetV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-get-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductGetV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductMediaCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-media-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductMediaCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductMediaRegisterV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-media-register-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductMediaRegisterV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductSectionsV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-sections-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductSectionsV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductMediaPatchV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-media-patch-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductMediaPatchV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductMediaDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-product-media-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductMediaDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    SectionsListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-sections-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref SectionsListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    SectionCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-section-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref SectionCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    SectionUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-section-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref SectionUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    SectionDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-section-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref SectionDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ProductsListV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-products-list-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref ProductsListV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching

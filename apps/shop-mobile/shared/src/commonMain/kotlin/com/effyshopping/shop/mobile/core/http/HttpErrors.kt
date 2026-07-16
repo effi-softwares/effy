@@ -17,6 +17,8 @@ suspend fun HttpResponse.toAppException(): AppException {
     val error = when (status.value) {
         401 -> AppError.Unauthenticated
         403 -> AppError.Forbidden
+        404 -> AppError.NotFound
+        409 -> AppError.Conflict
         429 -> AppError.RateLimited()
         in 500..599 -> AppError.Unavailable
         400 -> AppError.Validation(problem?.detail ?: problem?.title ?: "That didn't work — please try again.")

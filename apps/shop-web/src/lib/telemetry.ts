@@ -15,7 +15,14 @@ export type ShopAnalyticsEvent =
   | { name: "shop_auth_sign_in_failed"; reason: string }
   | { name: "shop_auth_signed_out" }
   | { name: "shop_manager_area_access_denied" }
-  | { name: "shop_assignment_missing" };
+  | { name: "shop_assignment_missing" }
+  // Catalog (016) — no PII beyond the subject id; never a product name, SKU, or the search text.
+  | { name: "product_create_started" }
+  | { name: "product_created"; productId: string }
+  | { name: "product_edit_saved"; productId: string }
+  | { name: "product_archived"; productId: string }
+  | { name: "catalog_search" }
+  | { name: "catalog_filter_applied" };
 
 const telemetry = createTelemetry<ShopAnalyticsEvent>({
   key: config.posthogKey(),

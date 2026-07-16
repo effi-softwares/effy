@@ -18,6 +18,23 @@ import type {
   ShopManagerPingDTO,
 } from "./shop";
 import type { ProblemJSON } from "./problem";
+import type {
+  CatalogSchemaDTO,
+  ProductListItemDTO,
+  ProductListDTO,
+  ProductDetailDTO,
+  CreateProductRequest,
+  UpdateProductRequest,
+  ChangeProductStatusRequest,
+  CreatePresignedUploadRequest,
+  CreatePresignedUploadResponse,
+  RegisterMediaRequest,
+  UpdateMediaRequest,
+  SetProductSectionsRequest,
+  ShopSectionDTO,
+  CreateShopSectionRequest,
+  UpdateShopSectionRequest,
+} from "./catalog";
 
 export type {
   ShopRole,
@@ -27,9 +44,26 @@ export type {
   ShopStaffRecordDTO,
   ShopManagerPingDTO,
   ProblemJSON,
+  CatalogSchemaDTO,
+  ProductListItemDTO,
+  ProductListDTO,
+  ProductDetailDTO,
+  CreateProductRequest,
+  UpdateProductRequest,
+  ChangeProductStatusRequest,
+  CreatePresignedUploadRequest,
+  CreatePresignedUploadResponse,
+  RegisterMediaRequest,
+  UpdateMediaRequest,
+  SetProductSectionsRequest,
+  ShopSectionDTO,
+  CreateShopSectionRequest,
+  UpdateShopSectionRequest,
 };
 
-/** Aggregator — codegen entry only. Every field forces a type into the schema. */
+/** Aggregator — codegen entry only. Every field forces a type into the schema.
+ *  The catalog block is the shop-facing subset (016) the mobile app consumes; admin-only
+ *  schema-authoring request DTOs are deliberately NOT here. */
 export interface ShopContract {
   role: ShopRole;
   staffStatus: ShopStaffStatus;
@@ -38,4 +72,20 @@ export interface ShopContract {
   staffRecord: ShopStaffRecordDTO;
   managerPing: ShopManagerPingDTO;
   problem: ProblemJSON;
+  // ── 016 shop-facing catalog subset ──
+  catalogSchema: CatalogSchemaDTO;
+  productListItem: ProductListItemDTO;
+  productList: ProductListDTO;
+  productDetail: ProductDetailDTO;
+  createProduct: CreateProductRequest;
+  updateProduct: UpdateProductRequest;
+  changeProductStatus: ChangeProductStatusRequest;
+  createPresignedUpload: CreatePresignedUploadRequest;
+  presignedUploadResponse: CreatePresignedUploadResponse;
+  registerMedia: RegisterMediaRequest;
+  updateMedia: UpdateMediaRequest;
+  setProductSections: SetProductSectionsRequest;
+  shopSection: ShopSectionDTO;
+  createShopSection: CreateShopSectionRequest;
+  updateShopSection: UpdateShopSectionRequest;
 }

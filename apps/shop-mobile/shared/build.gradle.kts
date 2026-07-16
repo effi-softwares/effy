@@ -74,6 +74,9 @@ kotlin {
             implementation(libs.ktor.serialization.json)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines.core)
+            // 016 — device-local create-draft persistence (FR-012). The `-no-arg` variant exposes a common
+            // `Settings()` factory (NSUserDefaults on iOS, SharedPreferences on Android) — no platform wiring.
+            implementation(libs.multiplatform.settings)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
