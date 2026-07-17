@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
+import { Box, CupSoda, type LucideIcon, Package, SprayCan, UtensilsCrossed } from "lucide-react";
 
 import type { CreateProductRequest } from "@effy/shared-types";
 import {
@@ -32,6 +33,8 @@ import { ErrorState } from "@effy/web-kit/console";
 import { meQuery } from "@/features/shop-identity/queries";
 import { sessionQuery } from "@/features/auth/queries";
 import { track } from "@/lib/telemetry";
+
+import { cn } from "@/lib/utils";
 
 import { AttributeField } from "./AttributeField";
 import { MediaUpload } from "./MediaUpload";
@@ -203,7 +206,7 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
   );
 
   const body = (
-    <div className="space-y-4">
+    <div className="flex h-full flex-col gap-4">
       {schema.isError ? (
         <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
       ) : schema.isPending ? (
@@ -273,16 +276,16 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto">
-          <SheetHeader>
+        {/* Fixed-height bottom sheet: pinned header + footer, the body is the only scroll region so
+            the Next / Discard buttons never scroll out of reach. */}
+        <SheetContent side="bottom" className="flex h-[85dvh] flex-col gap-0 p-0">
+          <SheetHeader className="shrink-0 border-b">
             <SheetTitle>{title}</SheetTitle>
             <SheetDescription>{description}</SheetDescription>
-          </SheetHeader>
-          <div className="px-4">
             {header}
-            <div className="mt-4">{body}</div>
-          </div>
-          <SheetFooter>{footer}</SheetFooter>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{body}</div>
+          <SheetFooter className="shrink-0 border-t">{footer}</SheetFooter>
         </SheetContent>
       </Sheet>
     );
@@ -290,20 +293,35 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
+      {/* Fixed size (75dvw × 70dvh) so the dialog never resizes as the step content changes. It is a
+          flex column: a pinned header, a single scroll region for the body, and a pinned footer. */}
+      <DialogContent className="flex h-[85dvh] w-[75dvw] max-w-[80dvw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[85dvw]">
+        <DialogHeader className="shrink-0 border-b px-6 py-4">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
+          {header}
         </DialogHeader>
-        {header}
-        {body}
-        <DialogFooter>{footer}</DialogFooter>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{body}</div>
+        <DialogFooter className="shrink-0 border-t px-6 py-4">{footer}</DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
 // ── Steps ─────────────────────────────────────────────────────────────────────────────────────
+
+// Map a (back-office-defined) product type to an icon by matching its slug/name. Types are dynamic,
+// so this is a best-effort visual cue with a neutral fallback — never a hard dependency.
+const TYPE_ICONS: { match: RegExp; icon: LucideIcon }[] = [
+  { match: /food|meal|prepared|deli|kitchen|bakery|snack/i, icon: UtensilsCrossed },
+  { match: /beverage|drink|juice|water|coffee|tea|soda/i, icon: CupSoda },
+  { match: /grocery|packaged|pantry|canned|chilled|frozen/i, icon: Package },
+  { match: /household|clean|home|paper|non-food/i, icon: SprayCan },
+];
+function iconForType(t: ProductType): LucideIcon {
+  const hay = `${t.key} ${t.name}`;
+  return TYPE_ICONS.find((m) => m.match.test(hay))?.icon ?? Box;
+}
 
 function TypeStep({
   types,
@@ -321,26 +339,57 @@ function TypeStep({
       </p>
     );
   }
+  // Alphabetical order, and a square-ish grid whose column count follows the card count
+  // (ceil(√n): 2→2, 3–4→2×2, 5–9→3×3, 10–16→4×4, …). Dynamic, so the template is an inline style
+  // (Tailwind can't emit a class it can't see at build time).
+  const sorted = [...types].sort((a, b) => a.name.localeCompare(b.name));
+  const columns = Math.max(1, Math.ceil(Math.sqrt(sorted.length)));
   return (
-    <div className="space-y-2">
-      <p className="text-sm text-muted-foreground">Pick what kind of product this is.</p>
-      <div className="divide-y rounded-md border">
-        {types.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => onSelect(t.id)}
-            className={`flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left hover:bg-muted/50 ${
-              selectedId === t.id ? "bg-muted" : ""
-            }`}
-            aria-pressed={selectedId === t.id}
-          >
-            <span className="font-medium">{t.name}</span>
-            {t.description ? (
-              <span className="text-xs text-muted-foreground">{t.description}</span>
-            ) : null}
-          </button>
-        ))}
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-3">
+      <p className="shrink-0 text-sm text-muted-foreground">Pick what kind of product this is.</p>
+      {/* A selectable option grid (radio-card) that FILLS the content area like a dialpad:
+          equal-height rows (auto-rows-fr) grow to occupy the whole space; each cell is one click. */}
+      {/* p-1 keeps the tile borders + selected ring off the scroll box's clip edge (overflow-y-auto
+          also clips the x-axis), so no side looks shaved. */}
+      <div
+        className="grid min-h-0 flex-1 auto-rows-fr gap-3 overflow-y-auto p-1"
+        style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+      >
+        {sorted.map((t) => {
+          const Icon = iconForType(t);
+          const selected = selectedId === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => onSelect(t.id)}
+              aria-pressed={selected}
+              className={cn(
+                "flex h-full min-h-28 flex-col items-center justify-center gap-3 rounded-lg border p-4 text-center transition-colors",
+                "hover:border-primary/60 hover:bg-muted/40",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex size-12 shrink-0 items-center justify-center rounded-full transition-colors",
+                  selected
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                <Icon className="size-6" />
+              </span>
+              <span className="min-w-0">
+                <span className="block font-medium leading-tight">{t.name}</span>
+                {t.description ? (
+                  <span className="mt-1 block text-xs text-muted-foreground">{t.description}</span>
+                ) : null}
+              </span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
