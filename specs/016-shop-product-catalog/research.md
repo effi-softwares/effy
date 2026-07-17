@@ -309,3 +309,55 @@ Commit the file **before** `make db-up` (the commit-guard).
 
 **Rationale**: Verified Goose/house conventions; the seed satisfies "usable on day one" without
 violating "addable without a deployment."
+
+---
+
+## R16 — Dedicated primary-image step + modern upload UX (drag-drop · click · paste)
+
+**Decision (UI refinement, post-MVP)**: The primary image is captured in its **own dedicated step**
+in the shop-web create flow, inserted **immediately after the Basics step** (step 3), rather than as a field
+inside it. New step order: **Type → Basics → Image → Details → Review** (5 steps). The
+step presents a single, large, professional **image dropzone** supporting **three input modalities**:
+(1) **click** to open the file picker, (2) **drag-and-drop**, and (3) **paste** (Ctrl/⌘-V a copied
+image). It shows a live preview that fills the step area, a Replace/Remove affordance, and client-side
+type/size validation that mirrors the backend allow-list.
+
+**Rationale**:
+- **Reference platforms (DOCTRINE-1)**: eBay's listing flow and Shopify/Square/Uber-Eats-merchant all
+  give media its own dedicated section/step with a big drop target — media is a first-class,
+  publish-mandatory asset (FR-010), not one field among many. A dedicated step de-clutters Basics and
+  gives the image the space a proper drop zone needs.
+- **Three modalities, native APIs, no new dependency**:
+  - **Click** — a hidden `<input type="file" accept="image/jpeg,image/png,image/webp">` triggered from
+    the zone (also keyboard-activatable: the zone is a `<button>`).
+  - **Drag-and-drop** — the HTML Drag-and-Drop API: `onDragOver` (must `preventDefault` to allow a
+    drop), `onDragEnter`/`onDragLeave` for the active-highlight state, `onDrop` reads
+    `e.dataTransfer.files[0]`.
+  - **Paste** — a `document`-level `paste` `ClipboardEvent` listener mounted **only while the step is
+    shown**; it scans `clipboardData.items` for the first `image/*` and takes `item.getAsFile()`.
+    Document-scoped is safe here because the Image step has no other input to steal a paste from.
+  - Rejected **react-dropzone / filepond / uppy** — the three native APIs are ~60 lines and keep the
+    storefront-adjacent console bundle lean (consistent with 011's bundle discipline); a library buys
+    nothing we need here.
+- **Validation mirrors the backend** (`apis/edge-api/shop/src/products/media.ts`): type ∈
+  `{jpeg, png, webp}`, size ≤ **10 MB**. The backend re-validates on presign (authoritative); the
+  client check is a courtesy that fails fast with an inline message.
+- **Preview lifecycle**: `URL.createObjectURL` on select, **revoked** on change/unmount (no leak) —
+  the pattern the existing picker already used.
+- **Accessibility**: the empty zone is a focusable `<button>` (Enter/Space opens the picker); the
+  active drag state is a visual + `aria` cue; the preview's Remove control is `aria-label`led.
+- **Draft interaction (FR-012)**: unchanged — the chosen `File` still is **not** persisted to
+  `localStorage` (a `File` can't be revived across reload); the operator re-picks on reopen, and the
+  Image step's advance gate re-checks presence. Every other field still restores.
+
+**Upload timing is unchanged (create-then-attach, R9/FR-010)**: this is purely *capture* UX. The
+presign → PUT → register still runs on **publish** once the product row exists; the upload progress
+bar renders on the **Review** step during publish.
+
+**Component**: a new feature-local `ImageDropzone.tsx` (not promoted to the design-system yet — it is
+catalog-create-specific; promote to `@effy/web-kit` only if a second surface needs the same control).
+It supersedes the inline `MediaUpload` picker in the create flow. Mobile-web keeps the same step via
+the bottom-sheet path (the zone falls back to click + paste; drag-drop is a no-op on touch, expected).
+
+**Out of scope (recorded)**: multi-image gallery capture during create (still primary-only at create;
+the gallery is US4's detail-page concern), image cropping/rotation, and camera capture — later polish.

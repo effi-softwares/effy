@@ -215,3 +215,24 @@ Recorded here so they are visible early; the runbook is in [quickstart.md](./qui
 **`SERVICE=shop ENV=dev`**, provisioning at least one back-office admin/manager and one shop
 manager+staff for live sign-off, and the SES/OTP inboxes for sign-in are all **operator-run**.
 ```
+
+## Amendment UI-1 — Dedicated primary-image step (shop-web create flow)
+
+Post-MVP UI refinement (research **R16**, spec **FR-010b**). The `apps/shop-web` create flow moves the
+primary image out of the Basics step into its **own dedicated step** at **step 3**, right after Basics. New order:
+**Type → Basics → Image → Details → Review** (5 steps).
+
+- New feature-local component **`apps/shop-web/src/features/catalog/ImageDropzone.tsx`** — a modern
+  image dropzone: **click-to-browse** (hidden `<input type=file>`), **drag-and-drop** (native
+  Drag-and-Drop API), and **clipboard paste** (a `document`-scoped `paste` listener mounted only while
+  the step is shown). Live preview via `createObjectURL` (revoked on change/unmount), replace/remove,
+  and client-side type/size validation mirroring the backend (`media.ts`: JPEG/PNG/WebP, ≤10 MB). No
+  new dependency (native APIs; rejected react-dropzone — R16). It **supersedes** the inline
+  `MediaUpload` picker in the create flow.
+- `ProductCreateFlow` gains an `ImageStep`; the step-advance gate for the image moves from Basics to
+  the Image step; `basicsComplete` no longer includes the image. Upload timing is **unchanged**
+  (create-then-attach on publish, R9); the progress bar renders on the **Review** step during publish.
+- **Presentation-only, shop-web-scoped.** No backend/DTO/migration/infra change; DOCTRINE-2 holds
+  (the dropzone is a form control, not a content/metric card). Mobile-web keeps the same step via the
+  bottom-sheet path (drag-drop is a no-op on touch; click + paste remain). shop-mobile (KMP) is
+  unchanged by this amendment — its media capture stays the documented "coming soon" affordance.

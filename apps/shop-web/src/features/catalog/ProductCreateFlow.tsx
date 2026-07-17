@@ -37,7 +37,7 @@ import { track } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 
 import { AttributeField } from "./AttributeField";
-import { MediaUpload } from "./MediaUpload";
+import { ImageDropzone } from "./ImageDropzone";
 import { orderCategories } from "./categories";
 import {
   clearDraft,
@@ -80,7 +80,8 @@ export interface ProductCreateFlowProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const STEP_TITLES = ["Product type", "Basics", "Details", "Review"] as const;
+// Image is its own dedicated step, at step 3 — right after Basics (FR-010b / research R16).
+const STEP_TITLES = ["Product type", "Basics", "Image", "Details", "Review"] as const;
 
 export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps) {
   const isMobile = useIsMobile();
@@ -141,15 +142,18 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
   const step = draft.step;
   const attrErrors = selectedType ? attributeErrors(selectedType, draft.attributes) : {};
 
-  // Step-advance gate — mandatory (universal + the type's mandatory attributes) must be met (FR-011).
+  // Step-advance gate — mandatory (universal + the type's mandatory attributes + the primary image on
+  // its own step) must be met (FR-010b/FR-011).
   const canAdvance =
     step === 0
       ? !!selectedType
       : step === 1
-        ? basicsComplete(draft) && !!imageFile
+        ? basicsComplete(draft)
         : step === 2
-          ? !!selectedType && attributesValid(selectedType, draft.attributes)
-          : true;
+          ? !!imageFile
+          : step === 3
+            ? !!selectedType && attributesValid(selectedType, draft.attributes)
+            : true;
 
   const busy = createProduct.isPending || uploadProgress != null;
 
@@ -218,15 +222,10 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
           onSelect={(id) => update({ productTypeId: id })}
         />
       ) : step === 1 ? (
-        <BasicsStep
-          draft={draft}
-          categories={orderedCategories}
-          imageFile={imageFile}
-          uploadProgress={uploadProgress}
-          onField={update}
-          onImage={setImageFile}
-        />
+        <BasicsStep draft={draft} categories={orderedCategories} onField={update} />
       ) : step === 2 ? (
+        <ImageDropzone file={imageFile} onChange={setImageFile} disabled={busy} />
+      ) : step === 3 ? (
         <AttributesStep
           type={selectedType}
           values={draft.attributes}
@@ -234,7 +233,13 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
           onChange={updateAttr}
         />
       ) : (
-        <ReviewStep draft={draft} type={selectedType} categories={orderedCategories} />
+        <ReviewStep
+          draft={draft}
+          type={selectedType}
+          categories={orderedCategories}
+          imageFile={imageFile}
+          uploadProgress={uploadProgress}
+        />
       )}
 
       {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
@@ -398,17 +403,11 @@ function TypeStep({
 function BasicsStep({
   draft,
   categories,
-  imageFile,
-  uploadProgress,
   onField,
-  onImage,
 }: {
   draft: ProductDraft;
   categories: { category: Category; depth: number }[];
-  imageFile: File | null;
-  uploadProgress: number | null;
   onField: (patch: Partial<ProductDraft>) => void;
-  onImage: (file: File | null) => void;
 }) {
   return (
     <div className="space-y-4">
@@ -485,8 +484,6 @@ function BasicsStep({
           onChange={(e) => onField({ shortDescription: e.target.value })}
         />
       </div>
-
-      <MediaUpload file={imageFile} onChange={onImage} progress={uploadProgress} />
     </div>
   );
 }
@@ -546,16 +543,62 @@ function ReviewStep({
   draft,
   type,
   categories,
+  imageFile,
+  uploadProgress,
 }: {
   draft: ProductDraft;
   type: ProductType | undefined;
   categories: { category: Category; depth: number }[];
+  imageFile: File | null;
+  uploadProgress: number | null;
 }) {
   const categoryName =
     categories.find((c) => c.category.id === draft.primaryCategoryId)?.category.name ?? "—";
 
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!imageFile) {
+      setThumbUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setThumbUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
   return (
-    <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <div className="space-y-5">
+      <div className="flex items-center gap-4">
+        {thumbUrl ? (
+          <img
+            src={thumbUrl}
+            alt="Primary product"
+            className="size-20 shrink-0 rounded-md border object-cover"
+          />
+        ) : null}
+        <div className="min-w-0">
+          <p className="truncate font-medium">{draft.name || "Untitled product"}</p>
+          <p className="text-sm text-muted-foreground">{type?.name ?? "—"}</p>
+        </div>
+      </div>
+
+      {uploadProgress != null ? (
+        <div className="space-y-1">
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${uploadProgress}%` }}
+              role="progressbar"
+              aria-valuenow={uploadProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">Uploading image… {uploadProgress}%</p>
+        </div>
+      ) : null}
+
+      <dl className="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-2 text-sm">
       <dt className="text-muted-foreground">Type</dt>
       <dd>{type?.name ?? "—"}</dd>
       <dt className="text-muted-foreground">Name</dt>
@@ -578,7 +621,8 @@ function ReviewStep({
       ) : null}
       <dt className="text-muted-foreground">Description</dt>
       <dd>{draft.shortDescription || "—"}</dd>
-    </dl>
+      </dl>
+    </div>
   );
 }
 

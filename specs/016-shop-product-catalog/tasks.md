@@ -298,3 +298,24 @@ Task: "T025 [US1] catalog handler test"
 - The `products` `repository.ts`/`service.ts` are touched by US2/US3/US4/US5 — those tasks are sequenced (not `[P]`) where they share a file.
 - Commit after each task or logical group; the migration must be committed before `db-up` (commit-guard).
 - Stop at any checkpoint to validate a story independently.
+
+---
+
+## Phase 11: UI refinement — dedicated primary-image step (shop-web) — Amendment UI-1
+
+Post-MVP polish (research R16, spec FR-010b, plan Amendment UI-1). Presentation-only, `apps/shop-web`.
+
+- [X] T096 [P] Author `apps/shop-web/src/features/catalog/ImageDropzone.tsx` — modern image dropzone:
+      click-to-browse + drag-and-drop (native DnD API) + clipboard paste (document-scoped `paste`
+      listener while mounted); live `createObjectURL` preview (revoked on change/unmount); replace +
+      remove; client-side type/size validation mirroring `media.ts` (JPEG/PNG/WebP, ≤10 MB); a11y
+      (focusable button zone, aria on remove). No new dependency.
+- [X] T097 [US2] Rework `ProductCreateFlow` — remove the image field from `BasicsStep`; add an
+      `ImageStep` rendering `ImageDropzone`, inserted after Basics at step 3 (order: Type → Basics →
+      Image → Details → Review); move the image advance-gate to the Image step; show the upload progress bar on
+      the Review step during publish (depends: T096).
+- [X] T098 [US2] Update `validation.ts`/gating: `basicsComplete` drops the image; add/adjust the
+      Image-step gate. Delete the now-unused `MediaUpload.tsx` (superseded — no dead code).
+- [X] T099 [P] [US2] vitest units: dropzone accepts drop/paste/click files, rejects wrong type/size;
+      step-order + gating (Basics no longer blocks on image; Image step blocks until present).
+- [X] T100 Static gate for the change: `pnpm --filter @effy/shop-web typecheck` + `test` + `build`.
