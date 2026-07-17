@@ -201,6 +201,9 @@ importers:
       '@effy/web-kit':
         specifier: workspace:*
         version: link:../../packages/web-kit
+      '@fontsource-variable/nunito-sans':
+        specifier: ^5.2.5
+        version: 5.2.7
       '@tanstack/react-form':
         specifier: ^1.33.0
         version: 1.33.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -407,6 +410,9 @@ importers:
       '@effy/web-kit':
         specifier: workspace:*
         version: link:../../packages/web-kit
+      '@fontsource-variable/nunito-sans':
+        specifier: ^5.2.5
+        version: 5.2.7
       '@tanstack/react-form':
         specifier: ^1.33.0
         version: 1.33.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -1265,6 +1271,9 @@ packages:
 
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
+
+  '@fontsource-variable/nunito-sans@5.2.7':
+    resolution: {integrity: sha512-rflH5HeAoNjIkwftStzQvxqCJhIS+usMr/lfslWg/RCa499B5qxyjo+74R/QMM0geQt4AY1URlG7wAR1iq6KPQ==}
 
   '@hapi/accept@6.0.3':
     resolution: {integrity: sha512-p72f9k56EuF0n3MwlBNThyVE5PXX40g+aQh+C/xbKrfzahM2Oispv3AXmOIU51t3j77zay1qrX7IIziZXspMlw==}
@@ -7473,6 +7482,8 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
 
   '@floating-ui/utils@0.2.11': {}
+
+  '@fontsource-variable/nunito-sans@5.2.7': {}
 
   '@hapi/accept@6.0.3':
     dependencies:

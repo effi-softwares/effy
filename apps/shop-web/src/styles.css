@@ -4,7 +4,7 @@
 @import "@effy/design-system/tokens.css";
 
 /* This surface defines NO theme of its own (FR-013 / SC-007). Brand, dark mode, and neutral
-   surfaces with a single jade accent all arrive from the shared design system. The two rules
+   surfaces with the single Effy Forest accent all arrive from the shared design system. The rules
    below only bind Tailwind's defaults to those tokens — asserted by src/theme-tokens.test.ts. */
 @layer base {
   * {
@@ -13,5 +13,6 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-family: var(--font-sans);
   }
 }

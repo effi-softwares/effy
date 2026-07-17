@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import Link from "next/link"
 
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
+import { AppearanceControl } from "@/components/theme/AppearanceControl"
 
 /**
  * The PUBLIC storefront shell.
@@ -39,6 +40,9 @@ export default function ShopLayout({
           </nav>
 
           <div className="flex-1" />
+
+          {/* Static client island: appearance switcher (017). No cookies, no SDK — stays in the shell. */}
+          <AppearanceControl className="mr-1" />
 
           {/* DYNAMIC HOLE — and the only one. Reads cookies at request time and streams into
               this reserved slot while the rest of the page is already on screen. */}

@@ -35,7 +35,7 @@ export interface ConsoleShellProps<TRole extends string> {
 
   email: string;
   theme: Theme;
-  onToggleTheme: () => void;
+  onSetTheme: (theme: Theme) => void;
   onSignOut: () => void;
   signingOut?: boolean;
 
@@ -56,7 +56,7 @@ export function ConsoleShell<TRole extends string>({
   navGroupLabel,
   email,
   theme,
-  onToggleTheme,
+  onSetTheme,
   onSignOut,
   signingOut,
   sidebarOpen,
@@ -77,7 +77,7 @@ export function ConsoleShell<TRole extends string>({
           <ConsoleUserMenu
             email={email}
             theme={theme}
-            onToggleTheme={onToggleTheme}
+            onSetTheme={onSetTheme}
             onSignOut={onSignOut}
             signingOut={signingOut}
           />

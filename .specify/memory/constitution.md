@@ -1,6 +1,39 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.9.0 → 1.10.0
+Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
+                The single accent changes from Jade #0FB57E (fill #047857) to Effy Emerald —
+                accent #065f46 (emerald-800), white label both modes — with a terracotta
+                accent #d0735a over neutral-scale surfaces, and the design-system SSOT now additionally carries the Nunito Sans typeface,
+                a spacing scale, and a radius scale. Dark mode remains REQUIRED and becomes
+                user-selectable (Light / Dark / Follow-System) on every surface.
+                Not MAJOR: no principle is removed and no committed plan's STRUCTURE is invalidated — every
+                surface still consumes the one design-system package; only the brand VALUES change. Prior
+                surfaces are rebranded by feature 017, not left non-compliant.
+                Operator decision (2026-07-17), feature 017-platform-theme-tokens: a richer, more
+                professional multi-role palette supplied as design tokens, applied identically to all web
+                and mobile surfaces, with a runtime appearance switcher.
+
+Modified in this amendment (operator-directed, feature 017-platform-theme-tokens):
+  - Principle V (Native-Feel, Consistent Design) → the brand-color bullet: Jade #0FB57E / fill #047857
+    replaced by Effy Emerald #065f46 (emerald-800, white label) + terracotta #d0735a over neutral
+    surfaces; a note added that the Nunito Sans
+    typeface + spacing + radius scales are part of the design-system SSOT; dark mode is now user-selectable.
+
+Dependent updates in THIS change:
+  ✅ CLAUDE.md — § Design system + the /constitution order-of-operations note rebranded (Jade → Forest).
+  ✅ packages/design-system/src/tokens.css + package.json — the brand SSOT rewritten to the new palette.
+  ✅ specs/017-platform-theme-tokens/* — spec/plan/tasks carry the amendment as FR-016 / research R9.
+  ⏳ Historical D2 notes in CLAUDE.md (feature 005) are retained as history, not rewritten.
+
+Unchanged: Principles I, II, III, IV, VI, VII (bodies + rationale); Governance; Technology Standards;
+           Quality Gates; the rest of Principle V (design-system single-source, dark mode REQUIRED,
+           native feel, touch targets, micro-animations, reference-platform + no-card doctrines).
+
+Follow-up TODOs: none.
+
+--- prior amendment (retained for history) ---
 Version change: 1.8.0 → 1.9.0
 Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains two platform-wide design
                 doctrines that were previously unwritten:
@@ -241,9 +274,12 @@ cripple the storefront or needlessly widen the attack surface on the internal co
 
 One design-system package drives every surface.
 
-- Brand color is Jade `#0FB57E`; fill `#047857`. These tokens come from the design-system
-  package, not hardcoded per surface.
-- Dark mode is REQUIRED on every surface.
+- Brand color is Effy Emerald — accent `#065f46` (emerald-800) with a white label in both modes, over
+  neutral-scale surfaces (no brand tint), with a terracotta accent `#d0735a`. The full token set —
+  this palette (light + dark), the Nunito Sans typeface, and the spacing + radius scales — comes from the
+  design-system package (the SSOT), never hardcoded per surface. (Superseded Jade `#0FB57E` / fill
+  `#047857` as of v1.10.0.)
+- Dark mode is REQUIRED on every surface, and MUST be user-selectable (Light / Dark / Follow-System).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
   polish.
@@ -367,4 +403,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.9.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-15
+**Version**: 1.10.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-17

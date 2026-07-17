@@ -1,4 +1,5 @@
-import { ChevronsUpDown, LogOut, Moon, Sun } from "lucide-react";
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import type { ComponentType } from "react";
 
 import {
   Avatar,
@@ -18,7 +19,7 @@ import {
 import type { Theme } from "../runtime/ui-store";
 
 /**
- * The sidebar footer's identity + account menu: who am I, light/dark, sign out.
+ * The sidebar footer's identity + account menu: who am I, appearance (Light/Dark/System), sign out.
  *
  * Takes the identity and the callbacks rather than reaching for a session query, so it works for
  * any surface (and renders in a test without a router or a query client).
@@ -26,15 +27,21 @@ import type { Theme } from "../runtime/ui-store";
 export interface ConsoleUserMenuProps {
   email: string;
   theme: Theme;
-  onToggleTheme: () => void;
+  onSetTheme: (theme: Theme) => void;
   onSignOut: () => void;
   signingOut?: boolean;
 }
 
+const APPEARANCE_MODES: readonly { value: Theme; label: string; Icon: ComponentType }[] = [
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "dark", label: "Dark", Icon: Moon },
+  { value: "system", label: "System", Icon: Monitor },
+];
+
 export function ConsoleUserMenu({
   email,
   theme,
-  onToggleTheme,
+  onSetTheme,
   onSignOut,
   signingOut = false,
 }: ConsoleUserMenuProps) {
@@ -82,10 +89,16 @@ export function ConsoleUserMenu({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => onToggleTheme()}>
-              {theme === "dark" ? <Sun /> : <Moon />}
-              {theme === "dark" ? "Light mode" : "Dark mode"}
-            </DropdownMenuItem>
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              Appearance
+            </DropdownMenuLabel>
+            {APPEARANCE_MODES.map(({ value, label, Icon }) => (
+              <DropdownMenuItem key={value} onSelect={() => onSetTheme(value)}>
+                <Icon />
+                {label}
+                {theme === value && <Check className="ml-auto size-4" />}
+              </DropdownMenuItem>
+            ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem disabled={signingOut} onSelect={() => onSignOut()}>
               <LogOut />

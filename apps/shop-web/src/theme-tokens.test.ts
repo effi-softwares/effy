@@ -35,7 +35,9 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(appCssCode).not.toMatch(/font-size\s*:\s*clamp\(/);
   });
 
-  it("still resolves Jade #0FB57E as the single brand accent, from the shared source", () => {
-    expect(tokensCss).toContain("#0fb57e");
+  it("resolves Effy Emerald #065f46 as the single brand accent (Jade retired), from the shared source", () => {
+    expect(tokensCss).toContain("#065f46");
+    expect(tokensCss).not.toContain("#0fb57e");
+    expect(tokensCss).not.toContain("#047857");
   });
 });

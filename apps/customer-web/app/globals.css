@@ -6,8 +6,8 @@
    below. A second set of brand tokens on this surface would be a second source of truth, which
    is exactly what Principle V forbids (SC-014: zero surface-local brand colours).
 
-   The preset's `baseColor: neutral` happens to agree with the platform's 005 Amendment D2
-   (neutral surfaces, Jade #0FB57E as the single accent), so this is a clean swap rather than a
+   The preset's `baseColor: neutral` happens to agree with the platform's brand direction
+   (neutral-leaning surfaces, a single Effy Forest accent), so this is a clean swap rather than a
    restyle. */
 
 @import "tailwindcss";

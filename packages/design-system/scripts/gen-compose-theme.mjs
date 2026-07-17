@@ -12,8 +12,8 @@
 //  - M3 slots with no CSS source (secondaryContainer, tertiary, …) are LEFT AT THE M3 DEFAULT
 //    (i.e. not emitted into the ColorScheme call) — NEVER invented here, or we reintroduce the
 //    second source of truth this whole approach exists to kill.
-//  - `#047857` ("fill") is a documented-but-unused brand token; it is NOT in tokens.css, so it does
-//    not appear here. `#0FB57E` is the live accent.
+//  - The brand is Effy Forest: `#26483a` is the live accent (light), lifting to `#69b08b` on dark
+//    surfaces; `#d0735a` (terracotta) is the destructive accent. Retired Jade `#0FB57E`/`#047857` are gone.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -27,6 +27,7 @@ const CSS = resolve(here, "../src/tokens.css");
 const TARGETS = [
   { out: resolve(here, "../compose/EffyTokens.kt"), pkg: "com.effyshopping.customer.mobile.design" },
   { out: resolve(here, "../compose-shop/EffyTokens.kt"), pkg: "com.effyshopping.shop.mobile.design" },
+  { out: resolve(here, "../compose-driver/EffyTokens.kt"), pkg: "com.effyshopping.driver.mobile.design" },
 ];
 
 /** Parse a `:root { … }` or `.dark { … }` block into { cssVarName: "#rrggbb" }. */
@@ -105,10 +106,17 @@ function generate(target) {
   const light = parseBlock(css, ":root");
   const dark = parseBlock(css, ".dark");
 
-  // --radius: 0.625rem -> dp at the 16px root => 10.dp
-  const radiusRem = css.match(/--radius\s*:\s*([\d.]+)rem/);
-  if (!radiusRem) throw new Error("gen-compose-theme: no --radius in tokens.css");
-  const radiusDp = Math.round(parseFloat(radiusRem[1]) * 16);
+  // Radii: rem -> dp at the 16px root. --radius (base = md), --radius-sm, --radius-md — pinned EXPLICITLY
+  // in tokens.css so web px == these dp (017 SC-004). Pill (scale xl = 100) is RoundedCornerShape(50%),
+  // NOT a numeric token, so it is not emitted here.
+  const radiusRem = (name) => {
+    const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
+    if (!m) throw new Error(`gen-compose-theme: no ${name} in tokens.css`);
+    return Math.round(parseFloat(m[1]) * 16);
+  };
+  const radiusDefaultDp = radiusRem("--radius"); // 16
+  const radiusSmDp = radiusRem("--radius-sm"); // 8
+  const radiusMdDp = radiusRem("--radius-md"); // 16
 
   const banner = `// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/design-system tokens:gen
@@ -123,15 +131,28 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-/** The raw Effy brand tokens, light and dark. Jade #0FB57E is the single accent. */
+/** The raw Effy brand tokens, light and dark. Effy Forest #26483a is the accent (lifts to #69b08b on dark). */
 object EffyColor {
 ${colorObject("Light", light)}
 
 ${colorObject("Dark", dark)}
 }
 
+/** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
 object EffyRadius {
-    val default = ${radiusDp}.dp
+    val sm = ${radiusSmDp}.dp
+    val md = ${radiusMdDp}.dp
+    val default = ${radiusDefaultDp}.dp
+}
+
+/** The Effy spacing scale (dp), mirroring the design tokens (xs 4 · s 8 · md 12 · lg 16 · xl 20 · 4xl 40 → xxxl). */
+object EffySpacing {
+    val xs = 4.dp
+    val s = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 20.dp
+    val xxxl = 40.dp
 }
 
 ${colorScheme("lightColorScheme", "EffyLightColorScheme", "Light")}
@@ -141,7 +162,7 @@ ${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark")}
 
   mkdirSync(dirname(target.out), { recursive: true });
   writeFileSync(target.out, out);
-  console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors, radius ${radiusDp}.dp)`);
+  console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors, radius sm/md/default ${radiusSmDp}/${radiusMdDp}/${radiusDefaultDp}.dp)`);
 }
 
 for (const target of TARGETS) generate(target);

@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Nunito_Sans } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -26,8 +26,9 @@ import { siteUrl } from "@/lib/config"
 
 // next/font self-hosts at build time: no request to fonts.gstatic.com, no third-party origin on
 // the critical path, no preconnect needed, and a metric-matched fallback that eliminates
-// swap-induced layout shift. One family, one variable.
-const inter = Inter({
+// swap-induced layout shift. One family, one variable. Nunito Sans is the brand typeface (constitution
+// Principle V, v1.10.0); the design system's --font-sans token references "Nunito Sans" first.
+const nunitoSans = Nunito_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
@@ -55,7 +56,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", inter.variable, "font-sans")}
+      className={cn("antialiased", nunitoSans.variable, "font-sans")}
     >
       <body>
         <ThemeProvider>{children}</ThemeProvider>

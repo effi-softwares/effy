@@ -4,7 +4,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web design system — the brand SSOT (Jade #0FB57E / fill #047857) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
+  "description": "Effy web design system — the brand SSOT (Effy Emerald #065f46 accent + terracotta #d0735a over neutral surfaces, Nunito Sans type, spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",
@@ -15,9 +15,10 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests\" && exit 0",
+    "test": "node scripts/check-tokens.mjs",
+    "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs",
-    "tokens:check": "node scripts/gen-compose-theme.mjs && git diff --exit-code compose/ compose-shop/"
+    "tokens:check": "node scripts/gen-compose-theme.mjs && git diff --exit-code compose/ compose-shop/ compose-driver/"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

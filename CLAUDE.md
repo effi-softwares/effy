@@ -114,7 +114,8 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 ## Order of operations
 1. The **Brief** (platform-brief.md) captures the product.
 2. **/constitution** encodes the technical law (dual-path, monorepo, no-ORM, native-feel mobile,
-   Jade brand #0FB57E / fill #047857, 4-pool auth isolation with passwordless EMAIL_OTP).
+   Effy Emerald brand #065f46 + terracotta #d0735a (was Jade #0FB57E, v1.10.0), 4-pool auth isolation
+   with passwordless EMAIL_OTP).
 3. First slice: **Auth + customer onboarding** end-to-end (proves 4-pool auth + dual-path +
    monorepo, and unblocks everything else). Catalog browse is the recommended second slice.
 4. Do NOT pre-build the monorepo scaffold ahead of the specs — let each feature's plan drive what
@@ -140,8 +141,11 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
-Jade brand **#0FB57E** / fill **#047857**, shared across all surfaces via one design-system package.
-**Dark mode required.** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
+Effy Emerald brand — accent **#065f46** (emerald-800, white label in both modes) + terracotta
+**#d0735a**, over **neutral-scale** surfaces (no brand tint), plus the **Nunito Sans** typeface and
+spacing/radius scales — shared across all surfaces via one design-system package (constitution
+v1.10.0; superseded Jade **#0FB57E** / fill **#047857**). **Dark mode required, and user-selectable
+(Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
 targets + micro-animations are requirements, not optional polish. Design refs: Uber / Bolt /
 foodpanda / eBay.
 
@@ -556,5 +560,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/015-mobile-app-shell/plan.md
+at specs/017-platform-theme-tokens/plan.md
 <!-- SPECKIT END -->

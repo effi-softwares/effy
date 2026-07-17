@@ -10,6 +10,7 @@ import { assertConfig } from "./lib/env";
 import { initTelemetry } from "./lib/telemetry";
 import { applyTheme, uiStore } from "./lib/ui-store";
 import { createAppRouter } from "./router";
+import "@fontsource-variable/nunito-sans"; // self-hosted brand typeface (Nunito Sans) (constitution Principle V, v1.10.0)
 import "./styles.css";
 
 const rootEl = document.getElementById("root");

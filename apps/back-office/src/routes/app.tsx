@@ -9,7 +9,7 @@ import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
 import { AdminOnlyScreen } from "@/features/staff-identity/AdminOnlyScreen";
 import { ProvingScreen } from "@/features/staff-identity/ProvingScreen";
-import { setSidebarOpen, toggleTheme, uiStore } from "@/lib/ui-store";
+import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
 
@@ -57,7 +57,7 @@ function AppShell() {
       roles={identity?.roles ?? []}
       email={identity?.email ?? ""}
       theme={theme}
-      onToggleTheme={toggleTheme}
+      onSetTheme={setTheme}
       onSignOut={() =>
         signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
       }

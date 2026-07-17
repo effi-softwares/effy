@@ -11,7 +11,11 @@ import com.effyshopping.customer.mobile.design.EffyLightColorScheme
  *
  * Colours come ONLY from the GENERATED [EffyLightColorScheme] / [EffyDarkColorScheme] — derived from
  * `packages/design-system/src/tokens.css`, the brand's single source of truth, and diff-guarded so
- * they cannot drift (research D16). Never hardcode a colour here. Dark mode follows the device.
+ * they cannot drift (research D16). Never hardcode a colour here.
+ *
+ * Appearance (017 US2): the caller supplies an [AppearanceMode] (persisted per user). `System`
+ * follows the device via [isSystemInDarkTheme]; `Light`/`Dark` force it. The default is `System`, so
+ * `EffyTheme { … }` with no mode behaves exactly as before (device-driven).
  *
  * NOTE (Principle V deviation, recorded in plan Complexity Tracking): this is Material 3 on BOTH
  * platforms. iOS gets native behaviour (scroll, back-swipe, text, accessibility) but Material chrome,
@@ -20,9 +24,10 @@ import com.effyshopping.customer.mobile.design.EffyLightColorScheme
  */
 @Composable
 fun EffyTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    mode: AppearanceMode = AppearanceMode.System,
     content: @Composable () -> Unit,
 ) {
+    val darkTheme = mode.resolveDark(isSystemInDarkTheme())
     MaterialTheme(
         colorScheme = if (darkTheme) EffyDarkColorScheme else EffyLightColorScheme,
         content = content,

@@ -9,55 +9,68 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-/** The raw Effy brand tokens, light and dark. Jade #0FB57E is the single accent. */
+/** The raw Effy brand tokens, light and dark. Effy Forest #26483a is the accent (lifts to #69b08b on dark). */
 object EffyColor {
     object Light {
-        val background = Color(0xFFFFFFFF)
-        val foreground = Color(0xFF0A0A0A)
+        val background = Color(0xFFEFEFF1)
+        val foreground = Color(0xFF171717)
         val card = Color(0xFFFFFFFF)
-        val cardForeground = Color(0xFF0A0A0A)
+        val cardForeground = Color(0xFF171717)
         val popover = Color(0xFFFFFFFF)
-        val popoverForeground = Color(0xFF0A0A0A)
-        val primary = Color(0xFF0FB57E)
-        val primaryForeground = Color(0xFF052E1B)
-        val secondary = Color(0xFFF5F5F5)
+        val popoverForeground = Color(0xFF171717)
+        val primary = Color(0xFF065F46)
+        val primaryForeground = Color(0xFFFFFFFF)
+        val secondary = Color(0xFFD4D4D4)
         val secondaryForeground = Color(0xFF171717)
-        val muted = Color(0xFFF5F5F5)
-        val mutedForeground = Color(0xFF737373)
-        val accent = Color(0xFFF5F5F5)
+        val muted = Color(0xFFD4D4D4)
+        val mutedForeground = Color(0xFF525252)
+        val accent = Color(0xFFD4D4D4)
         val accentForeground = Color(0xFF171717)
-        val destructive = Color(0xFFDC2626)
+        val destructive = Color(0xFFBF5540)
         val destructiveForeground = Color(0xFFFFFFFF)
-        val border = Color(0xFFE5E5E5)
-        val input = Color(0xFFE5E5E5)
-        val ring = Color(0xFF0FB57E)
+        val border = Color(0xFFD4D4D4)
+        val input = Color(0xFFD4D4D4)
+        val ring = Color(0xFF065F46)
     }
 
     object Dark {
-        val background = Color(0xFF0A0A0A)
+        val background = Color(0xFF171717)
         val foreground = Color(0xFFFAFAFA)
-        val card = Color(0xFF171717)
+        val card = Color(0xFF262626)
         val cardForeground = Color(0xFFFAFAFA)
-        val popover = Color(0xFF171717)
+        val popover = Color(0xFF262626)
         val popoverForeground = Color(0xFFFAFAFA)
-        val primary = Color(0xFF0FB57E)
-        val primaryForeground = Color(0xFF052E1B)
+        val primary = Color(0xFF065F46)
+        val primaryForeground = Color(0xFFFFFFFF)
         val secondary = Color(0xFF262626)
         val secondaryForeground = Color(0xFFFAFAFA)
         val muted = Color(0xFF262626)
-        val mutedForeground = Color(0xFFA1A1A1)
-        val accent = Color(0xFF262626)
+        val mutedForeground = Color(0xFFA3A3A3)
+        val accent = Color(0xFF404040)
         val accentForeground = Color(0xFFFAFAFA)
-        val destructive = Color(0xFFEF4444)
-        val destructiveForeground = Color(0xFFFFFFFF)
+        val destructive = Color(0xFFDD8368)
+        val destructiveForeground = Color(0xFF0A0A0A)
         val border = Color(0xFF262626)
-        val input = Color(0xFF262626)
-        val ring = Color(0xFF0FB57E)
+        val input = Color(0xFF404040)
+        val ring = Color(0xFF10B981)
     }
 }
 
+/** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
 object EffyRadius {
-    val default = 10.dp
+    val sm = 8.dp
+    val md = 16.dp
+    val default = 16.dp
+}
+
+/** The Effy spacing scale (dp), mirroring the design tokens (xs 4 · s 8 · md 12 · lg 16 · xl 20 · 4xl 40 → xxxl). */
+object EffySpacing {
+    val xs = 4.dp
+    val s = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 20.dp
+    val xxxl = 40.dp
 }
 
 val EffyLightColorScheme: ColorScheme = lightColorScheme(

@@ -35,6 +35,12 @@ kotlin {
     }
     
     sourceSets {
+        // The shared Effy theme (generated from packages/design-system/src/tokens.css, the one brand
+        // SSOT — Principle II/V) into the driver app's design package. Diff-guarded by tokens:check so
+        // it can never drift from customer/shop/web.
+        commonMain {
+            kotlin.srcDir(rootProject.file("../../packages/design-system/compose-driver"))
+        }
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
         }

@@ -1,95 +1,113 @@
-/* Effy design tokens — the brand SSOT (constitution Principle V).
+/* Effy design tokens — the brand SSOT (constitution Principle V, v1.10.0).
 
-   Amendment D2 (2026-07-09): surfaces are NEUTRAL (shadcn `sidebar-07` neutral base) and the brand
-   green Jade `#0FB57E` is the SINGLE ACCENT (primary / ring / brand mark) — no brand-tinted surface
-   blends anywhere (FR-024). Jade is retained as the emerald accent (no constitution change; the
-   `fill #047857` remains a brand token but no longer tints surfaces). Dark mode via the `.dark`
-   class (shadcn convention) — REQUIRED (FR-011). The brand lives here ONCE; never hardcode it.
-   Note: the accent's foreground is DARK — white text fails WCAG contrast on the bright emerald
-   `#0FB57E` (~2.3:1); dark green passes (~6.4:1). */
+   Feature 017 (2026-07-17): the brand is Effy Emerald — accent `#065f46` (emerald-800) with a WHITE
+   label in both modes, over neutral surfaces, plus a terracotta accent `#d0735a`, the Nunito Sans typeface, and explicit
+   spacing/radius scales. This SUPERSEDES the retired Jade accent (feature 017). Surfaces are the shadcn
+   `neutral` scale — NO brand tint, NO green/black blend (revised after review): light = a soft neutral-200
+   ground with white cards; dark = neutral-900 ground, neutral-800 cards, neutral-700 borders. The accent
+   LIGHTENS on dark (#69b08b) so a filled action still reads. Dark mode via the `.dark` class — REQUIRED, and
+   user-selectable (Light / Dark / Follow-System). The brand lives here ONCE; never hardcode it.
+
+   Contrast (WCAG 2.1 AA) is machine-enforced by src/tokens.test.ts — every FG/BG pair, both appearances.
+   The accent's label is WHITE in both appearances (emerald-800 is dark enough for ~7.7:1). The focus
+   RING brightens to emerald-500 on dark so it stays visible. Radii are pinned EXPLICITLY (not shadcn's calc chain) so web == mobile
+   EffyRadius: sm=8px, md=16px (017 data-model / SC-004). */
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
+  /* Radius base = md (16px); the scale is pinned explicitly in @theme (not calc). Pill via rounded-full. */
+  --radius: 1rem;
 
-  /* Neutral surfaces (Tailwind `neutral` scale) */
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  /* Surfaces — shadcn `neutral` scale (no brand tint). Soft off-white ground, white cards. */
+  --background: #EFEFF1; /* neutral-100 — soft light ground (gives the emerald accent enough contrast) */
+  --foreground: #171717; /* neutral-900 */
+  --card: #ffffff; /* white raised cards */
+  --card-foreground: #171717;
   --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
+  --popover-foreground: #171717;
 
-  /* Effy Jade brand — the single accent */
-  --primary: #0fb57e;
-  --primary-foreground: #052e1b; /* dark on emerald — WCAG-legible */
+  /* Effy Emerald — the brand accent (emerald-800). White label passes AA (~7.7:1) in both modes. */
+  --primary: #065f46; /* emerald-800 */
+  --primary-foreground: #ffffff;
 
-  --secondary: #f5f5f5;
+  --secondary: #d4d4d4; /* neutral-300 */
   --secondary-foreground: #171717;
-  --muted: #f5f5f5;
-  --muted-foreground: #737373;
-  --accent: #f5f5f5; /* neutral hover — no green tint */
+  --muted: #d4d4d4; /* neutral-300 */
+  --muted-foreground: #525252; /* neutral-600 — AA on neutral-200/300 */
+  --accent: #d4d4d4; /* neutral-300 hover — no brand tint */
   --accent-foreground: #171717;
 
-  --destructive: #dc2626;
+  /* Terracotta — supplied #d0735a, AA-tuned to #bf5540 so white text passes 4.5:1 */
+  --destructive: #bf5540;
   --destructive-foreground: #ffffff;
 
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #0fb57e; /* branded focus — the accent */
+  --border: #d4d4d4; /* neutral-300 */
+  --input: #d4d4d4;
+  --ring: #065f46; /* branded focus — emerald-800 (7:1 on the light ground) */
 
-  /* Dashboard sidebar — neutral surface, accent only where it's the brand mark */
-  --sidebar: #fafafa;
-  --sidebar-foreground: #0a0a0a;
-  --sidebar-primary: #0fb57e;
-  --sidebar-primary-foreground: #052e1b;
-  --sidebar-accent: #f5f5f5; /* neutral hover / active-item highlight */
+  /* Dashboard sidebar — neutral surface, emerald accent as the brand mark */
+  --sidebar: #fafafa; /* neutral-50 */
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #065f46;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e5e5e5; /* neutral-200 hover / active-item highlight */
   --sidebar-accent-foreground: #171717;
   --sidebar-border: #e5e5e5;
-  --sidebar-ring: #0fb57e;
+  --sidebar-ring: #065f46;
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #fafafa;
-  --card: #171717;
+  /* Pure neutral dark (shadcn `neutral`) — NO green/black blend. Ground neutral-900, cards neutral-800. */
+  --background: #171717; /* neutral-900 */
+  --foreground: #fafafa; /* neutral-50 */
+  --card: #262626; /* neutral-800 */
   --card-foreground: #fafafa;
-  --popover: #171717;
+  --popover: #262626;
   --popover-foreground: #fafafa;
 
-  --primary: #0fb57e; /* brand constant across appearances */
-  --primary-foreground: #052e1b;
+  /* Same emerald-800 fill as light, white label. The RING is brighter (emerald-500) so keyboard focus
+     stays visible against the dark ground — emerald-800 alone would be too low-contrast there. */
+  --primary: #065f46; /* emerald-800 */
+  --primary-foreground: #ffffff;
 
-  --secondary: #262626;
+  --secondary: #262626; /* neutral-800 */
   --secondary-foreground: #fafafa;
-  --muted: #262626;
-  --muted-foreground: #a1a1a1;
-  --accent: #262626; /* neutral hover */
+  --muted: #262626; /* neutral-800 */
+  --muted-foreground: #a3a3a3; /* neutral-400 */
+  --accent: #404040; /* neutral-700 hover */
   --accent-foreground: #fafafa;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #dd8368; /* terracotta lifted for dark ground */
+  --destructive-foreground: #0a0a0a;
 
-  --border: #262626;
-  --input: #262626;
-  --ring: #0fb57e;
+  --border: #262626; /* neutral-800 — subtle divider, close to the neutral-900 ground */
+  --input: #404040; /* neutral-700 — a step more visible than borders so form fields stay discoverable */
+  --ring: #10b981; /* emerald-500 — visible focus on the dark ground */
 
-  --sidebar: #171717;
+  --sidebar: #101010; /* deeper than the content ground for depth */
   --sidebar-foreground: #fafafa;
-  --sidebar-primary: #0fb57e;
-  --sidebar-primary-foreground: #052e1b;
-  --sidebar-accent: #262626;
+  --sidebar-primary: #065f46; /* emerald-800 */
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #262626; /* neutral-800 — active/hover item */
   --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #262626;
-  --sidebar-ring: #0fb57e;
+  --sidebar-border: #171717; /* neutral-900 — subtle against the deeper sidebar */
+  --sidebar-ring: #10b981;
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Radius — pinned EXPLICITLY (no calc chain) so web px == mobile EffyRadius dp (017 SC-004).
+     sm=8px, md=16px (brand default), lg=16px, xl=20px; pill via rounded-full. */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+
+  /* Typography — Nunito Sans is the one family (title + body); apps self-host it. "Nunito Sans Variable"
+     is the family name @fontsource-variable/nunito-sans registers (Vite consoles); "Nunito Sans" is
+     next/font's family on customer-web, which also overrides --font-sans on <html> with its own value. */
+  --font-sans: "Nunito Sans Variable", "Nunito Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -2,9 +2,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Amendment D2 guard (FR-024 / SC-014): the design-system surfaces must be NEUTRAL — the old
-// green-tinted blends are gone — and Jade #0FB57E remains the single accent. Mirrors the SC-007
-// hygiene grep, but automated. (Vitest runs from the app dir → resolve the SSOT from there.)
+// Brand guard (017 SC-002 / SC-008): the design-system surfaces stay neutral-leaning, the retired
+// Jade accent is gone, and Effy Forest #26483a is the single brand accent. Mirrors the no-Jade
+// sweep, but automated. (Vitest runs from the app dir → resolve the SSOT from there.)
 const tokensCss = readFileSync(
   resolve(process.cwd(), "../../packages/design-system/src/tokens.css"),
   "utf8",
@@ -31,14 +31,20 @@ const FORBIDDEN_SURFACE_HEX = [
   "#94a39b", // green-grey dark muted-foreground
 ];
 
-describe("design-system tokens — Amendment D2 (neutral surfaces, single accent)", () => {
+describe("design-system tokens — Effy Forest brand (017)", () => {
   it("contains none of the removed green-tinted surface blends", () => {
     for (const hex of FORBIDDEN_SURFACE_HEX) {
       expect(tokensCss, `unexpected green-tinted surface token ${hex}`).not.toContain(hex);
     }
   });
 
-  it("keeps Jade #0FB57E as the single brand accent", () => {
-    expect(tokensCss).toContain("#0fb57e");
+  it("uses Effy Emerald #065f46 as the single brand accent (both modes; ring brightens to #10b981 on dark)", () => {
+    expect(tokensCss).toContain("#065f46");
+    expect(tokensCss).toContain("#10b981");
+  });
+
+  it("has fully retired the Jade brand values", () => {
+    expect(tokensCss).not.toContain("#0fb57e");
+    expect(tokensCss).not.toContain("#047857");
   });
 });

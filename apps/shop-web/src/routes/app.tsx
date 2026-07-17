@@ -9,7 +9,7 @@ import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
 import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen";
 import { ProvingScreen } from "@/features/shop-identity/ProvingScreen";
-import { setSidebarOpen, toggleTheme, uiStore } from "@/lib/ui-store";
+import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
 
@@ -59,7 +59,7 @@ function AppShell() {
       navGroupLabel="Shop"
       email={identity?.email ?? ""}
       theme={theme}
-      onToggleTheme={toggleTheme}
+      onSetTheme={setTheme}
       onSignOut={() =>
         signOut.mutate(undefined, { onSuccess: () => navigate({ to: "/auth/sign-in" }) })
       }
