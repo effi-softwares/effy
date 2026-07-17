@@ -4,7 +4,7 @@
 
 **Created**: 2026-07-17
 
-**Status**: Draft
+**Status**: Concluded — web complete + verified; mobile theme foundation done + drift-guarded; mobile font/persistence/UI + device builds + commit are operator/toolchain-gated (see As-Built Reconciliation)
 
 **Input**: User description: "Modify the platform theme. We currently have one color theme (emerald + white/black); introduce a richer, more professional multi-color theme from the supplied token set (forest-green accent, terracotta, neutral greys, surfaces, Outfit typography, spacing + radius scales). Decide dark-mode values. Every web app and mobile app MUST share the exact same theme, with a runtime theme switcher."
 
@@ -132,3 +132,37 @@ The theme is defined exactly once and consumed everywhere, so a change to a toke
 
 - **Governing brand definition (constitution Principle V)** must be amended from Jade to the new brand before the change can ship (FR-016).
 - **Every built surface** (005 back-office, 007 shop-web, 011 customer-web, 013 customer-mobile, 014 shop-mobile, plus the 015 mobile shell) consumes the shared theme and is touched by this change; driver-mobile inherits it when built.
+
+## As-Built Reconciliation (concluded 2026-07-17)
+
+The design iterated during implementation. **`packages/design-system/src/tokens.css` is the authoritative
+record of exact values** — where the iteration-time hexes in `data-model.md` / `research.md` differ, the
+tokens file wins. Final decisions:
+
+- **Brand accent → Effy Emerald `#065f46`** (emerald-800), **white label in both modes**; the focus ring
+  brightens to `#10b981` (emerald-500) on dark for visibility. (Evolved during review: Jade → Forest
+  `#26483a` → emerald-600 `#059669` → **emerald-800 `#065f46`**.) Constitution amended to **v1.10.0**.
+- **Surfaces → shadcn `neutral` scale, no brand tint / no green-black blend** (the plan's authored
+  green-tinted dark ground was rejected in review). Light: `#f5f5f5` ground, white cards, neutral-300
+  borders. Dark: `#171717` ground, `#262626` cards, **subtle neutral-800 borders**, sidebar deepened to
+  `#101010`. Destructive terracotta `#d0735a` → AA-tuned `#bf5540` (light) / `#dd8368` (dark).
+- **Typeface → Nunito Sans** (evolved Outfit → Inter → **Nunito Sans**; all SIL OFL, self-hosted; no
+  external origin). Radii pinned explicit sm 8 / md 16 (pill via `rounded-full`).
+- **All SIX surfaces now consume the one SSOT** — including **driver-mobile**, which was wired in
+  (3rd generator target `compose-driver/`, srcDir, `EffyTheme`/`AppearanceMode`, root wrapped) rather
+  than left as a template exception. `tokens:check` drift-guards all three mobile targets together.
+- **WCAG AA is machine-enforced** (`scripts/check-tokens.mjs`): every FG/BG pair ≥ 4.5:1 in both
+  appearances; radii pinned 8/16.
+
+### Concluded status
+
+- **Web (customer-web · shop-web · back-office): COMPLETE + verified.** Palette + Nunito Sans + radius +
+  the Light/Dark/System switcher ship on all three. Green: `check-tokens`, `pnpm -r typecheck`,
+  `pnpm -r test` (web-kit 44 · shop-web 106 · customer-web 45 · back-office 36), customer-web `build`
+  (PPR intact) + `size` (159.0/160 KB) + `depcruise` (Amplify quarantine clean), no-Jade sweep + its
+  negative proof, fork-guard negative proof.
+- **Mobile (customer · shop · driver): color/radius/spacing/appearance foundation done + drift-guarded**;
+  compile-safe (`AppearanceMode`, `EffyTheme(mode)`, tests). **Operator/toolchain-gated:** Nunito Sans
+  `.ttf` + Compose `Typography`, persisted `AppearanceStore` + Account switcher UI, and Android/iOS
+  device builds (mobile can't be compiled/validated in this environment).
+- **Operator:** customer-web Playwright E2E, live SC sign-off, and the commit. **Nothing is committed.**

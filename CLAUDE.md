@@ -196,6 +196,28 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**017-platform-theme-tokens** — Platform Theme & Design Tokens Refresh. ✅ **Concluded — web complete +
+verified; mobile theme foundation done + drift-guarded; not committed.**
+A platform-wide rebrand + a runtime appearance switcher, all from the ONE token SSOT
+(`packages/design-system/src/tokens.css`).
+- **Brand → Effy Emerald `#065f46`** (emerald-800, white label both modes; focus ring brightens to
+  `#10b981` on dark) + terracotta destructive (`#bf5540`/`#dd8368`), over the **shadcn `neutral` scale**
+  (no brand tint / no green-black blend). Light `#f5f5f5` ground / white cards; dark `#171717` ground /
+  `#262626` cards / subtle neutral-800 borders / `#101010` sidebar. Typeface **Nunito Sans**; radii pinned
+  sm 8 / md 16. Constitution amended → **v1.10.0** (Jade retired).
+- **Runtime appearance switcher** — Light / Dark / Follow-System, default System, persisted, live OS
+  tracking. Web: `@effy/web-kit` `ui-store` tri-state + 3-way `ConsoleUserMenu` (consoles); `next-themes`
+  + a header `AppearanceControl` island (customer-web). Mobile: `AppearanceMode` + `EffyTheme(mode)`.
+- **All SIX surfaces share the theme** — the generator emits `compose/` (customer), `compose-shop/`,
+  **`compose-driver/`** (driver-mobile wired in, no longer a template exception), all srcDir'd + diff-guarded
+  together by `tokens:check`. **WCAG AA machine-enforced** by `scripts/check-tokens.mjs`; **no-Jade** sweep
+  `scripts/check-no-jade.sh`.
+- **Verified:** `pnpm -r typecheck` + web tests (web-kit 44 · shop-web 106 · customer-web 45 · back-office
+  36) green; customer-web build (PPR) + `size` 159.0/160 KB + `depcruise` clean; guards + negative proofs green.
+- **Operator/toolchain-gated:** mobile Nunito Sans `.ttf` + Compose `Typography`, mobile persisted store +
+  Account switcher UI, Android/iOS device builds, customer-web E2E, and the commit.
+  Spec/artifacts: [specs/017-platform-theme-tokens/](specs/017-platform-theme-tokens/).
+
 **015-mobile-app-shell** — Mobile App Shell & Navigation (Customer + Shop). ✅ **BUILT + live-validated on
 device (Android + iOS); not yet committed.**
 A **mobile-only** slice (no backend/infra/DB): a production **navigation shell** for **both** KMP apps,
