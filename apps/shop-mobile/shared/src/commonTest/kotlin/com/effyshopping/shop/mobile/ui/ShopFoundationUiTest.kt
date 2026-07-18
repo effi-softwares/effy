@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.v2.runComposeUiTest
@@ -40,9 +41,14 @@ import com.effyshopping.shop.mobile.features.home.domain.RecentOrder
 import com.effyshopping.shop.mobile.features.home.domain.StorageState
 import com.effyshopping.shop.mobile.features.home.domain.StorageZone
 import com.effyshopping.shop.mobile.features.home.presentation.HomeDashboardUiState
+import com.effyshopping.shop.mobile.features.catalog.presentation.CatalogFilter
+import com.effyshopping.shop.mobile.features.catalog.presentation.CatalogScreen
+import com.effyshopping.shop.mobile.features.catalog.presentation.CatalogUiState
 import com.effyshopping.shop.mobile.features.shop.presentation.AccountScreen
 import com.effyshopping.shop.mobile.features.shop.presentation.FoundationPlaceholderScreen
 import com.effyshopping.shop.mobile.features.shop.presentation.HomeScreen
+import com.effyshopping.shop.mobile.features.catalog.sampleDetail
+import com.effyshopping.shop.mobile.features.catalog.sampleListItem
 import com.effyshopping.shop.mobile.features.shop.presentation.ManagerAccessScreen
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -173,6 +179,42 @@ class ShopFoundationUiTest {
             }
             onNodeWithText("You don't have access to this area.").assertExists()
             onNodeWithText("New product").assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun catalog_screen_renders_real_product_list_and_detail_affordances() {
+        if (!canRunComposeUiTestOnHost()) return
+        runComposeUiTest {
+            setContent {
+                EffyTheme {
+                    CatalogScreen(
+                        state = CatalogUiState(
+                            filter = CatalogFilter.ALL,
+                            page = com.effyshopping.shop.mobile.features.catalog.domain.ProductPage(
+                                items = listOf(sampleListItem()),
+                                total = 1,
+                                page = 1,
+                                pageSize = 25,
+                            ),
+                            selectedId = "p1",
+                            detail = sampleDetail(),
+                            isLoadingList = false,
+                        ),
+                        onSelectFilter = {},
+                        onSelectProduct = {},
+                        onRetry = {},
+                        onNewProduct = {},
+                        onEditDetails = {},
+                    )
+                }
+            }
+            awaitIdle()
+            onNodeWithText("Catalog").assertExists()
+            onNodeWithText("+ New product").assertExists()
+            assertTrue(onAllNodes(hasText("Chicken Biryani")).fetchSemanticsNodes().size >= 2)
+            onNodeWithText("Edit details").assertExists()
+            onNodeWithText("Overview").assertExists()
         }
     }
 

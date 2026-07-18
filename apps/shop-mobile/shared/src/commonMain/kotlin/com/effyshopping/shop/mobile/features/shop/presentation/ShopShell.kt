@@ -43,6 +43,7 @@ import com.effyshopping.shop.mobile.core.nav.ShopTab
 import com.effyshopping.shop.mobile.core.nav.shopNavJson
 import com.effyshopping.shop.mobile.core.nav.shopStartRoute
 import com.effyshopping.shop.mobile.core.session.SessionState
+import com.effyshopping.shop.mobile.features.catalog.presentation.CatalogRoute
 import com.effyshopping.shop.mobile.resources.Res
 import com.effyshopping.shop.mobile.resources.ic_account_outlined
 import com.effyshopping.shop.mobile.resources.ic_account_selected
@@ -113,9 +114,9 @@ fun ShopShell(
                     onOpenManager = { tabs.push(ManagerArea) },
                 )
                 ManagerArea -> ManagerAccessScreen(container.checkManagerAccess, onBack = { tabs.pop() })
-                CatalogRoot -> FoundationPlaceholderScreen(
-                    title = "Catalog",
-                    description = "Products, availability, and pricing will return here in the redesigned catalog.",
+                CatalogRoot -> CatalogRoute(
+                    listProducts = container.listProducts,
+                    getProduct = container.getProduct,
                 )
                 OrdersRoot -> FoundationPlaceholderScreen(
                     title = "Orders",
