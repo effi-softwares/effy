@@ -118,6 +118,7 @@ fun CatalogScreen(
                     CatalogDetailPane(
                         state = state,
                         onEditDetails = onEditDetails,
+                        scrollable = true,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
@@ -135,6 +136,7 @@ fun CatalogScreen(
                     CatalogDetailPane(
                         state = state,
                         onEditDetails = onEditDetails,
+                        scrollable = false,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -261,13 +263,16 @@ private fun CatalogProductRow(product: ProductListItem, selected: Boolean, onCli
 private fun CatalogDetailPane(
     state: CatalogUiState,
     onEditDetails: () -> Unit,
+    scrollable: Boolean,
     modifier: Modifier,
 ) {
+    val paneModifier = modifier
+        .background(MaterialTheme.colorScheme.background)
+        .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+        .padding(EffySpacing.xl)
+
     Column(
-        modifier = modifier
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState())
-            .padding(EffySpacing.xl),
+        modifier = paneModifier,
         verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
     ) {
         when {
