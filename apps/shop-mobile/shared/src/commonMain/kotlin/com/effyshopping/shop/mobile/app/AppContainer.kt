@@ -6,6 +6,7 @@ import com.effyshopping.shop.mobile.core.draft.DraftStore
 import com.effyshopping.shop.mobile.core.draft.SettingsDraftStore
 import com.effyshopping.shop.mobile.core.http.createHttpClient
 import com.effyshopping.shop.mobile.core.session.SessionManager
+import com.effyshopping.shop.mobile.core.theme.AppearancePreferenceStore
 import com.effyshopping.shop.mobile.features.auth.domain.ConfirmSignIn
 import com.effyshopping.shop.mobile.features.auth.domain.RequestSignInCode
 import com.effyshopping.shop.mobile.features.catalog.data.HttpCatalogRepository
@@ -19,6 +20,9 @@ import com.effyshopping.shop.mobile.features.catalog.domain.GetProduct
 import com.effyshopping.shop.mobile.features.catalog.domain.ListProducts
 import com.effyshopping.shop.mobile.features.catalog.domain.ListShopSections
 import com.effyshopping.shop.mobile.features.catalog.domain.UpdateProduct
+import com.effyshopping.shop.mobile.features.home.data.DummyHomeDashboardRepository
+import com.effyshopping.shop.mobile.features.home.domain.GetHomeDashboard
+import com.effyshopping.shop.mobile.features.home.domain.HomeDashboardRepository
 import com.effyshopping.shop.mobile.features.shop.data.HttpShopRepository
 import com.effyshopping.shop.mobile.features.shop.domain.CheckManagerAccess
 import com.effyshopping.shop.mobile.features.shop.domain.GetOperator
@@ -46,18 +50,21 @@ class AppContainer(
         createHttpClient(AppConfig.shopApiBaseUrl, sessionProvider = { authDriver.currentSession() }, debug = debugLogging)
     }
     private val shop: ShopRepository by lazy { HttpShopRepository(shopClient) }
+    private val homeDashboard: HomeDashboardRepository by lazy { DummyHomeDashboardRepository() }
     // The catalog repository reuses the SAME shop client (single bearer, cross-pool isolation) — private,
     // reached only through the use cases below (Principle VI).
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(shopClient) }
     // Device-local create draft (FR-012). `Settings()` is the no-arg factory (NSUserDefaults / SharedPrefs);
     // the draft is device-only, never synced.
     val draftStore: DraftStore by lazy { SettingsDraftStore(Settings()) }
+    val appearance: AppearancePreferenceStore by lazy { AppearancePreferenceStore(Settings()) }
 
     // ── domain (use cases) — the layer the ViewModels and SessionManager depend on ──────────────────
     val requestSignInCode by lazy { RequestSignInCode(authDriver) }
     val confirmSignIn by lazy { ConfirmSignIn(authDriver) }
     val getOperator by lazy { GetOperator(shop) }
     val checkManagerAccess by lazy { CheckManagerAccess(shop) }
+    val getHomeDashboard by lazy { GetHomeDashboard(homeDashboard) }
 
     // catalog (016 US2–US5)
     val getCatalogSchema by lazy { GetCatalogSchema(catalog) }

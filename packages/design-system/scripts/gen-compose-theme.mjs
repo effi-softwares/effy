@@ -1,19 +1,20 @@
 // GENERATOR — parses src/tokens.css and emits compose/EffyTokens.kt (013 research D16).
 //
 // tokens.css is the SINGLE SOURCE OF TRUTH for the brand. This script makes the Compose
-// theme a DERIVED, COMMITTED artifact that cannot drift: CI runs `tokens:check`
-// (gen + `git diff --exit-code`), so a change to tokens.css that is not regenerated fails the build.
+// theme a DERIVED, COMMITTED artifact that cannot drift: CI runs `tokens:check`, which snapshots the
+// committed artifacts, regenerates them, and fails if their contents changed. This stays reliable in a
+// dirty development worktree and does not depend on Git staging state.
 //
 // Zero dependencies by design — Node's stdlib only. If this script ever needs a package,
 // reconsider it: the whole point is that the generator is NOT load-bearing in any build graph.
 //
 // Design notes:
 //  - The shadcn token names → Material 3 ColorScheme slots via a FIXED lookup table below.
-//  - M3 slots with no CSS source (secondaryContainer, tertiary, …) are LEFT AT THE M3 DEFAULT
-//    (i.e. not emitted into the ColorScheme call) — NEVER invented here, or we reintroduce the
-//    second source of truth this whole approach exists to kill.
-//  - The brand is Effy Forest: `#26483a` is the live accent (light), lifting to `#69b08b` on dark
-//    surfaces; `#d0735a` (terracotta) is the destructive accent. Retired Jade `#0FB57E`/`#047857` are gone.
+//  - Every Material role used by the mobile foundation maps to an existing semantic token. Container,
+//    inverse, fixed and tertiary roles intentionally reuse the nearest authored Effy role; no library
+//    default is allowed to leak a second palette into navigation, controls or feedback.
+//  - The brand is Effy Emerald: `#065f46` is the accent in both modes; `#d0735a` is the authored
+//    terracotta reference, contrast-tuned per mode in tokens.css. Retired Jade values are gone.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -23,7 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const CSS = resolve(here, "../src/tokens.css");
 
 // ONE generator, ONE brand source — one derived, diff-guarded theme PER KMP app (Principle II/V). Each
-// app has its own package root, so each gets its own committed copy. tokens:check diffs them all.
+// app has its own package root, so each gets its own committed copy. tokens:check compares them all.
 const TARGETS = [
   { out: resolve(here, "../compose/EffyTokens.kt"), pkg: "com.effyshopping.customer.mobile.design" },
   { out: resolve(here, "../compose-shop/EffyTokens.kt"), pkg: "com.effyshopping.shop.mobile.design" },
@@ -71,21 +72,57 @@ const COLOR_TOKENS = [
   ["ring", "ring"],
 ];
 
-// shadcn token -> Material 3 ColorScheme slot. FIXED. M3 slots absent here keep the M3 default.
+// Authored token -> Material 3 ColorScheme slot. FIXED. Reuse is deliberate: CSS remains the only
+// color authority while Material components receive a complete semantic scheme rather than defaults.
 const M3_MAP = [
   ["primary", "primary"],
   ["primaryForeground", "onPrimary"],
+  ["accent", "primaryContainer"],
+  ["accentForeground", "onPrimaryContainer"],
+  ["primary", "inversePrimary"],
   ["secondary", "secondary"],
   ["secondaryForeground", "onSecondary"],
+  ["secondary", "secondaryContainer"],
+  ["secondaryForeground", "onSecondaryContainer"],
+  ["accent", "tertiary"],
+  ["accentForeground", "onTertiary"],
+  ["accent", "tertiaryContainer"],
+  ["accentForeground", "onTertiaryContainer"],
   ["background", "background"],
   ["foreground", "onBackground"],
   ["card", "surface"],
   ["cardForeground", "onSurface"],
   ["muted", "surfaceVariant"],
   ["mutedForeground", "onSurfaceVariant"],
+  ["primary", "surfaceTint"],
+  ["foreground", "inverseSurface"],
+  ["background", "inverseOnSurface"],
   ["destructive", "error"],
   ["destructiveForeground", "onError"],
+  ["destructive", "errorContainer"],
+  ["destructiveForeground", "onErrorContainer"],
   ["border", "outline"],
+  ["border", "outlineVariant"],
+  ["foreground", "scrim"],
+  ["card", "surfaceBright"],
+  ["background", "surfaceDim"],
+  ["card", "surfaceContainer"],
+  ["popover", "surfaceContainerHigh"],
+  ["popover", "surfaceContainerHighest"],
+  ["background", "surfaceContainerLow"],
+  ["background", "surfaceContainerLowest"],
+  ["primary", "primaryFixed"],
+  ["ring", "primaryFixedDim"],
+  ["primaryForeground", "onPrimaryFixed"],
+  ["primaryForeground", "onPrimaryFixedVariant"],
+  ["secondary", "secondaryFixed"],
+  ["muted", "secondaryFixedDim"],
+  ["secondaryForeground", "onSecondaryFixed"],
+  ["secondaryForeground", "onSecondaryFixedVariant"],
+  ["accent", "tertiaryFixed"],
+  ["muted", "tertiaryFixedDim"],
+  ["accentForeground", "onTertiaryFixed"],
+  ["accentForeground", "onTertiaryFixedVariant"],
 ];
 
 function colorObject(name, tokens) {
@@ -131,7 +168,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-/** The raw Effy brand tokens, light and dark. Effy Forest #26483a is the accent (lifts to #69b08b on dark). */
+/** The raw Effy brand tokens, light and dark. Effy Emerald #065f46 is the primary accent. */
 object EffyColor {
 ${colorObject("Light", light)}
 

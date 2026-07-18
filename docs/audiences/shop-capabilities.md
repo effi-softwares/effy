@@ -153,7 +153,7 @@ DOCTRINE-2); sign-out lives in the Account tab and returns to sign-in. Built on 
 unit tests green on Android, links for iOS. **Web (`shop-web`) is unaffected** — this is a mobile-only
 navigation capability. Live device/simulator sign-off is the operator's step.
 
-## 016 — Product catalog management
+## 016 — Product catalog management (web delivered; mobile presentation retired by 018)
 
 `apps/shop-web` and `apps/shop-mobile` gain the **product catalog** (spec 016): each shop authors
 **shop-owned** products against a back-office-managed schema (product types + a dynamic attribute
@@ -166,31 +166,39 @@ edits; draft-first create with publish-time mandatory enforcement; private-S3 pr
 
 | # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
 |---|---|---|---|---|
-| 16.1 | Read the catalog schema (types + attributes + category tree) that drives the create form | ✅ | ✅ | `GET /shop/v1/catalog/schema` |
-| 16.2 | Create a product via a schema-driven multi-step form with a **device-local draft** (FR-012) | ✅ | ✅ | `POST /shop/v1/products` |
-| 16.3 | Backend search / filter / sort / paginate the shop's products (< 1s at 10k+, SC-004) | ✅ | ✅ | `GET /shop/v1/products` |
-| 16.4 | Sectioned/tabbed product detail; **schema-drift notice** (FR-020a) | ✅ | ✅ | `GET /shop/v1/products/{id}` |
-| 16.5 | Focused edits with **optimistic concurrency** — stale ⇒ reload (FR-023a) | ✅ | ✅ | `PATCH /shop/v1/products/{id}` |
-| 16.6 | Lifecycle: publish (re-validates mandatory + primary image) / unavailable / archive | ✅ | ✅ | `POST /shop/v1/products/{id}/status` |
-| 16.7 | Guarded hard-delete (draft only; else archive) (R8) | ✅ | ✅ | `DELETE /shop/v1/products/{id}` |
-| 16.8 | Shop-local **sections**: define, assign, filter | ✅ | ✅ ◇ | `GET/POST/PATCH/DELETE /shop/v1/sections`, `PATCH .../sections` |
-| 16.9 | Product **media** (primary image + gallery, private-S3 presigned) | ✅ | ⏸ ▽ | `POST .../media` + `.../media/register` + patch/delete |
+| 16.1 | Read the catalog schema (types + attributes + category tree) that drives the create form | ✅ | ⬜ | `GET /shop/v1/catalog/schema` |
+| 16.2 | Create a product via a schema-driven multi-step form with a **device-local draft** (FR-012) | ✅ | ⬜ | `POST /shop/v1/products` |
+| 16.3 | Backend search / filter / sort / paginate the shop's products (< 1s at 10k+, SC-004) | ✅ | ⬜ | `GET /shop/v1/products` |
+| 16.4 | Sectioned/tabbed product detail; **schema-drift notice** (FR-020a) | ✅ | ⬜ | `GET /shop/v1/products/{id}` |
+| 16.5 | Focused edits with **optimistic concurrency** — stale ⇒ reload (FR-023a) | ✅ | ⬜ | `PATCH /shop/v1/products/{id}` |
+| 16.6 | Lifecycle: publish (re-validates mandatory + primary image) / unavailable / archive | ✅ | ⬜ | `POST /shop/v1/products/{id}/status` |
+| 16.7 | Guarded hard-delete (draft only; else archive) (R8) | ✅ | ⬜ | `DELETE /shop/v1/products/{id}` |
+| 16.8 | Shop-local **sections**: define, assign, filter | ✅ | ⬜ | `GET/POST/PATCH/DELETE /shop/v1/sections`, `PATCH .../sections` |
+| 16.9 | Product **media** (primary image + gallery, private-S3 presigned) | ✅ | ⬜ | `POST .../media` + `.../media/register` + patch/delete |
 | 16.10 | Inventory | "coming soon" | "coming soon" | — (a later slice) |
 | 16.11 | Catalog product-analytics events (create/edit/archive/search/filter) | ✅ | ⏸ | PostHog |
 | 16.12 | Shop isolation: every catalog query scoped to the operator's shop, never client input | ✅ | ✅ | `authorizeShopMember` (shop record) |
 
 **Footnotes:**
-- **▽ Row 16.9 (mobile media):** the presign/register repository calls exist on mobile, but the native
-  **file picker + S3 PUT** is a "coming soon" affordance (needs a platform image picker) — so a mobile
-  operator cannot yet attach the primary image a live *publish* requires. Web delivers media fully; the
-  mobile picker is later polish (research R13). The backend + web are unaffected.
-- **◇ Row 16.8 (mobile sections):** mobile reads sections and assigns a product to them; full section
-  CRUD (create/rename/delete) is the web console's richer surface.
+- The mobile catalog repositories, use cases, draft store, schema client, section operations, and media
+  registration calls remain in the codebase for a future presentation rebuild. They are not counted as
+  operator-facing mobile capabilities while no route exposes them.
 - **⏸ Row 16.11 (mobile telemetry):** deferred by design (documented Principle VII deviation, owned by
   the `mobile-telemetry` slice, consistent with 013/014).
 
-**Verification:** web — `pnpm typecheck` + `pnpm -r test` (back-office 35, shop-web 99) + `turbo build`
-all green. Backend — edge-admin 52 (incl. catalog authz/service/handler), edge-shop 77 (incl. products
-authz/service/lifecycle/media). Mobile — `:shared:allTests` green on Android + iOS (13 new catalog
-tests); commonMain compiles on both targets. Live sign-off (real OTP sign-in, real data) is the
-operator's step (spec 016 Phase 10 / quickstart).
+**Historical 016 verification:** web — `pnpm typecheck` + `pnpm -r test` (back-office 35, shop-web 99)
+and `turbo build` all green. Backend — edge-admin 52 (including catalog authz/service/handler), edge-shop
+77 (including products authz/service/lifecycle/media). The mobile presentation tests recorded by 016
+were retired with that presentation in 018; retained mobile catalog domain and repository tests remain.
+
+## 018 — Shop mobile UI foundation reset
+
+The mobile presentation has been intentionally reset. Authentication, session restoration/refusal,
+record-backed Home and Account screens, the backend-authoritative manager gate, Light/Dark/System
+appearance, and the responsive Home/Catalog/Orders/Account shell are delivered. Catalog and Orders now
+show explicit foundation placeholders; the previous mobile catalog list, product detail, edit, and create
+sheet are not reachable and their presentation code has been removed.
+
+The catalog repository, use cases, device-local draft store, generated contracts, and backend remain
+intact. Rows 16.1–16.9 are therefore marked outstanding for mobile until dedicated specifications rebuild
+those user-facing workflows. Product creation must return as a recoverable full-screen flow, not a sheet.

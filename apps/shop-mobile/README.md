@@ -1,53 +1,42 @@
-# `shop-mobile` — the shop operator app
+# Effy Shop Mobile
 
-This is a Kotlin Multiplatform project targeting Android, iOS.
+Kotlin Multiplatform shop-operator app for Android and iOS. It shares domain and Compose presentation code,
+with native authentication and system-UI adapters at the platform boundary.
 
-## Surface parity (read this before adding a feature)
+## Delivered foundation
 
-`shop-mobile` is **one of two surfaces** serving the **shop** audience; the other is
-[`apps/shop-web`](../shop-web/). The platform commits to keeping them at feature parity, and the
-binding record of what that means is:
+- Passwordless work-email → one-time-code authentication against the shop audience only.
+- Session restoration, uniform refusal, protected-content isolation, and explicit sign-out.
+- Safe-area-aware edge-to-edge rendering with visible, legible system status and gesture areas.
+- Four fixed destinations: Home, Catalog, Orders, Account.
+- Bottom navigation below 600dp usable width and a side rail from 600dp upward, preserving tab state.
+- Record-backed Home/Account content and a backend-authoritative manager gate.
+- Effy-generated Light/Dark/System colors, Nunito Sans type, semantic spacing, and reduced-motion support.
 
-### → [docs/audiences/shop-capabilities.md](../../docs/audiences/shop-capabilities.md)
+Catalog and Orders currently show intentional foundation placeholders. The former catalog list/detail/edit
+and product-creation sheet were retired by feature 018. Catalog data/domain/use cases and local draft
+persistence remain available for later UI specifications. Product creation must be rebuilt as a dedicated,
+recoverable full-screen workflow.
 
-That register lists every shop-audience capability with its explicit state on **each** surface. A
-change that adds or removes a capability here **must** update it in the same change — a row with an
-unstated cell is a defect, not a TODO.
+Capability truth for both shop surfaces lives in
+[docs/audiences/shop-capabilities.md](../../docs/audiences/shop-capabilities.md).
 
-**Current state**: this app is still the base KMP template (commonMain `Greeting`/`Platform`
-stubs). Every capability in the register is ⬜ outstanding on mobile. The register's *"What the
-mobile bootstrap slice must build"* section scopes that work — sign-in against the **shop** Cognito
-pool, the shell, the record-backed identity read (`GET /shop/v1/me`), the role-aware UI, the
-backend-authoritative manager gate, the error contract, and telemetry — so it does not have to be
-re-derived. Its web half was delivered by
-[specs/007-shop-web](../../specs/007-shop-web/).
+## Structure
 
-> **Naming, once**: it is `shop` everywhere — the surfaces, the identity pool, its gateway
-> authorizer, the backend service, its route paths, its tables, its roles, and the audience in
-> prose. The earlier `shop`/`store` split was retired by 008-shop-naming-unification.
+- `shared/src/commonMain`: app/session wiring, domain/data, theme, navigation, and shared Compose screens.
+- `shared/src/androidMain`: Amplify Android, system UI, and Android OTP input behavior.
+- `shared/src/iosMain`: Swift auth bridge adapter, UIKit system UI, and native `.oneTimeCode` field.
+- `androidApp`: Android host.
+- `iosApp`: SwiftUI/UIViewController host.
 
----
+## Verify
 
+```sh
+./gradlew :shared:allTests :androidApp:assembleDebug :shared:linkDebugFrameworkIosSimulatorArm64
+```
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+From the repository root, also run:
 
-* [/shared](./shared/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./shared/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./shared/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./shared/src/jvmMain/kotlin)
-    folder is the appropriate location.
-
-### Running the apps
-
-Use the run configurations provided by the run widget in your IDE's toolbar. You can also use these commands and options:
-
-- Android app: `./gradlew :androidApp:assembleDebug`
-- iOS app: open the [/iosApp](./iosApp) directory in Xcode and run it from there.
-
----
-
-Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)…
+```sh
+make sm-contract-check sm-tokens-check sm-guard
+```

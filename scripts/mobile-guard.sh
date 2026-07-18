@@ -61,7 +61,35 @@ for REL in $APPS; do
   fi
 done
 
+# ── 3. Shop UI reset: retired presentation must not return (018 FR-028/SC-009) ─────────────────────
+SHOP_APP="$ROOT/apps/shop-mobile"
+RETIRED_SHOP_FILES="
+$SHOP_APP/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/features/catalog/presentation/CatalogListScreens.kt
+$SHOP_APP/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/features/catalog/presentation/ProductDetailScreens.kt
+$SHOP_APP/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/features/catalog/presentation/ProductCreateSheet.kt
+"
+for RETIRED_FILE in $RETIRED_SHOP_FILES; do
+  if [ -e "$RETIRED_FILE" ]; then
+    echo "✗ mobile-guard [apps/shop-mobile]: retired UI file returned: ${RETIRED_FILE#"$ROOT/"}"
+    FAIL=1
+  fi
+done
+
+RETIRED_SHOP_PATTERN='CatalogProductRoute|CatalogListScreen|ProductDetailScreen|ProductCreateSheet|ModalBottomSheet|NavGlyph'
+RETIRED_SHOP_HITS="$(grep -rInE "$RETIRED_SHOP_PATTERN" \
+  --include='*.kt' --include='*.swift' \
+  --exclude-dir=build --exclude-dir='.gradle' --exclude-dir=DerivedData \
+  "$SHOP_APP/shared/src/commonMain/kotlin" \
+  "$SHOP_APP/shared/src/androidMain/kotlin" \
+  "$SHOP_APP/shared/src/iosMain/kotlin" \
+  "$SHOP_APP/androidApp/src" "$SHOP_APP/iosApp" 2>/dev/null || true)"
+if [ -n "$RETIRED_SHOP_HITS" ]; then
+  echo "✗ mobile-guard [apps/shop-mobile]: retired presentation symbol returned (018 FR-028):"
+  echo "$RETIRED_SHOP_HITS" | sed 's/^/    /'
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
-  echo "✓ mobile-guard: escape-hatch ban clean; no secret-shaped config keys (customer-mobile + shop-mobile)."
+  echo "✓ mobile-guard: auth/config checks clean; retired shop presentation remains absent."
 fi
 exit "$FAIL"

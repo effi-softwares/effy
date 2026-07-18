@@ -28,14 +28,6 @@ data object AccountRoot : AppNavKey
 data object ManagerArea : AppNavKey
 
 /**
- * A product's detail screen, pushed within the Catalog tab (016 US4). Carries the product id so the back
- * stack round-trips across process death (the id is all the detail screen needs to re-fetch). On a tablet
- * the detail is a pane inside the list instead, so this route is used only on compact/medium windows.
- */
-@Serializable
-data class CatalogProductRoute(val id: String) : AppNavKey
-
-/**
  * The shop app's primary tabs. The whole shell is gated (login-first, FR-014/015), so every tab is
  * authenticated. Catalog/Orders are "coming soon" until their feature slices land.
  */
@@ -57,6 +49,5 @@ val shopNavJson: Json = Json {
         subclass(OrdersRoot::class, OrdersRoot.serializer())
         subclass(AccountRoot::class, AccountRoot.serializer())
         subclass(ManagerArea::class, ManagerArea.serializer())
-        subclass(CatalogProductRoute::class, CatalogProductRoute.serializer())
     }
 }

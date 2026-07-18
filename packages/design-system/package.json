@@ -18,7 +18,7 @@
     "test": "node scripts/check-tokens.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs",
-    "tokens:check": "node scripts/gen-compose-theme.mjs && git diff --exit-code compose/ compose-shop/ compose-driver/"
+    "tokens:check": "node scripts/check-compose-theme.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

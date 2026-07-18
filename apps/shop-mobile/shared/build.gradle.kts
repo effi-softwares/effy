@@ -51,6 +51,7 @@ kotlin {
         }
 
         androidMain.dependencies {
+            implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.android)
             // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
@@ -60,6 +61,7 @@ kotlin {
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
+            implementation(libs.compose.animation)
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.ui.backhandler)
@@ -84,6 +86,7 @@ kotlin {
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.compose.uiTest)
         }
     }
 }
@@ -104,4 +107,8 @@ buildkonfig {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+}
+
+compose.resources {
+    packageOfResClass = "com.effyshopping.shop.mobile.resources"
 }

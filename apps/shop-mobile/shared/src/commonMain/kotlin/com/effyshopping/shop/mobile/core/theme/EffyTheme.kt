@@ -2,9 +2,13 @@ package com.effyshopping.shop.mobile.core.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.effyshopping.shop.mobile.design.EffyDarkColorScheme
 import com.effyshopping.shop.mobile.design.EffyLightColorScheme
+import com.effyshopping.shop.mobile.design.EffyRadius
 
 /**
  * The app's theme (constitution Principle V; 013 FR-004/FR-005).
@@ -25,11 +29,21 @@ import com.effyshopping.shop.mobile.design.EffyLightColorScheme
 @Composable
 fun EffyTheme(
     mode: AppearanceMode = AppearanceMode.System,
+    onResolvedAppearance: (isDark: Boolean) -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     val darkTheme = mode.resolveDark(isSystemInDarkTheme())
+    SideEffect { onResolvedAppearance(darkTheme) }
     MaterialTheme(
         colorScheme = if (darkTheme) EffyDarkColorScheme else EffyLightColorScheme,
+        typography = effyTypography(),
+        shapes = Shapes(
+            extraSmall = RoundedCornerShape(EffyRadius.sm),
+            small = RoundedCornerShape(EffyRadius.sm),
+            medium = RoundedCornerShape(EffyRadius.md),
+            large = RoundedCornerShape(EffyRadius.md),
+            extraLarge = RoundedCornerShape(EffyRadius.md),
+        ),
         content = content,
     )
 }

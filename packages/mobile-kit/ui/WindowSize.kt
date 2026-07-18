@@ -25,12 +25,17 @@ import androidx.compose.ui.unit.dp
  */
 enum class WindowWidth { COMPACT, MEDIUM, EXPANDED }
 
+enum class NavigationPresentation { BottomBar, SideRail }
+
 /** Material 3 width breakpoints: compact < 600dp · medium 600–839dp · expanded ≥ 840dp. */
 fun widthClassFor(maxWidth: Dp): WindowWidth = when {
     maxWidth < 600.dp -> WindowWidth.COMPACT
     maxWidth < 840.dp -> WindowWidth.MEDIUM
     else -> WindowWidth.EXPANDED
 }
+
+fun navigationPresentationFor(usableWidth: Dp): NavigationPresentation =
+    if (usableWidth < 600.dp) NavigationPresentation.BottomBar else NavigationPresentation.SideRail
 
 /**
  * Tablet-first content shell. On a **tablet / large window** the content is centered and bounded to a
