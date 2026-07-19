@@ -15,11 +15,12 @@ type Config struct {
 	Env  string `env:"EFFY_ENV,required,notEmpty"`
 	Port int    `env:"PORT" envDefault:"8080"`
 
-	DB   DB   `envPrefix:"DB_"`
-	AWS  AWS  `envPrefix:"AWS_"`
-	Auth Auth `envPrefix:"AUTH_"`
-	CORS CORS `envPrefix:"CORS_"`
-	Log  Log  `envPrefix:"LOG_"`
+	DB     DB     `envPrefix:"DB_"`
+	AWS    AWS    `envPrefix:"AWS_"`
+	Auth   Auth   `envPrefix:"AUTH_"`
+	CORS   CORS   `envPrefix:"CORS_"`
+	Log    Log    `envPrefix:"LOG_"`
+	Stripe Stripe `envPrefix:"STRIPE_"`
 
 	Server Server
 }
@@ -32,6 +33,21 @@ type DB struct {
 
 type AWS struct {
 	Region string `env:"REGION,required,notEmpty"`
+	// MediaBucket is the private product-media bucket (016) core-api mints presigned
+	// GET URLs from. Read from SSM /effy/<env>/media/bucket at invocation (research R7).
+	MediaBucket string `env:"MEDIA_BUCKET,required,notEmpty"`
+}
+
+// Stripe carries the payment provider's server-side secrets. Both are REQUIRED so the
+// commerce routes never boot without a working payment path (fail-closed); neither ever
+// leaves core-api or is logged (research R3, SC-012). Test-mode values in dev
+// (sk_test_… / whsec_…).
+type Stripe struct {
+	SecretKey     string `env:"SECRET_KEY,required,notEmpty"`
+	WebhookSecret string `env:"WEBHOOK_SECRET,required,notEmpty"`
+	// PublishableKey is NOT a secret (a name); optional here because each client already carries its
+	// own. When set, checkout echoes it in the intent response as a convenience.
+	PublishableKey string `env:"PUBLISHABLE_KEY"`
 }
 
 // Auth carries one Pool per audience this service serves. A pool with routes mounted

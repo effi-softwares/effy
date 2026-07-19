@@ -18,10 +18,19 @@ services:
       AUTH_CUSTOMER_CLIENT_ID: ${AUTH_CUSTOMER_CLIENT_ID:?fetched from SSM by `make core-run`}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # 019 commerce: product media (016 bucket) + Stripe test secrets. Fetched by `make core-run`
+      # from SSM/Secrets Manager at invocation and injected — never written to a file (SC-012).
+      AWS_MEDIA_BUCKET: ${AWS_MEDIA_BUCKET:?fetched from SSM /effy/<env>/media/bucket by `make core-run`}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:?fetched from Secrets Manager by `make core-run` (019)}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:?fetched from Secrets Manager by `make core-run` (019)}
+      # The SDK inside the container resolves the developer's profile for S3 presign (research R7).
+      AWS_PROFILE: ${AWS_PROFILE:-ef}
     volumes:
       - .:/app
       - gomod:/go/pkg/mod
       - gocache:/root/.cache/go-build
+      # Read-only mount so the in-container AWS SDK resolves the `ef` profile for S3 presign.
+      - ${HOME}/.aws:/root/.aws:ro
 
 volumes:
   gomod:

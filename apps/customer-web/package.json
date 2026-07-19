@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Effy customer storefront \u2014 the platform's first PUBLIC surface (specs/011-customer-storefront-web). Next.js 16 App Router, SSR-first, guest-first, SEO-bearing. LOCAL-ONLY this slice (no hosted deploy).",
+  "description": "Effy customer storefront — the platform's first PUBLIC surface (specs/011-customer-storefront-web). Next.js 16 App Router, SSR-first, guest-first, SEO-bearing. LOCAL-ONLY this slice (no hosted deploy).",
   "scripts": {
     "dev": "next dev --port 3000",
     "build": "next build",
@@ -21,6 +21,8 @@
     "@effy/api-client": "workspace:*",
     "@effy/design-system": "workspace:*",
     "@effy/shared-types": "workspace:*",
+    "@stripe/react-stripe-js": "^6.8.0",
+    "@stripe/stripe-js": "^9.10.0",
     "aws-amplify": "^6.18.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

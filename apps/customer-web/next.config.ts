@@ -34,9 +34,12 @@ const nextConfig: NextConfig = {
     // AVIF first — materially smaller than WebP for product photography.
     formats: ["image/avif", "image/webp"],
     // `images.domains` is deprecated in Next 16; remotePatterns replaces it.
-    // No product imagery exists yet (no catalog this slice) — the catalog slice adds
-    // its bucket/CDN host here.
-    remotePatterns: [],
+    // 019: product images are PRESIGNED, expiring S3 GET URLs (research R7) — rendered
+    // `unoptimized` (the optimizer cannot cache a signed URL). The private product-media
+    // bucket is virtual-hosted under *.amazonaws.com. A CDN-backed optimized path is a later slice.
+    remotePatterns: [
+      { protocol: "https", hostname: "**.amazonaws.com", pathname: "/**" },
+    ],
   },
 
   // Don't advertise the framework to the entire internet.

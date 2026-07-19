@@ -1,0 +1,1 @@
+make cm-ngrok-core NGROK_STATIC_DOMAIN=tadpole-funky-jay.ngrok-free.app

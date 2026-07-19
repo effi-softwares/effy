@@ -16,6 +16,7 @@ kotlin = "2.4.0"
 material3 = "1.11.0-alpha07"
 # 013 — networking, auth, nav, config, storage, async
 ktor = "3.5.1"
+coil = "3.1.0"
 kotlinxSerialization = "1.9.0"
 kotlinxCoroutines = "1.10.2"
 navigation3 = "1.1.1"
@@ -57,6 +58,10 @@ ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotia
 ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-serialization-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+# 019 — product images. Coil3 Compose Multiplatform + its Ktor3 network fetcher (matches Ktor 3.x); the
+# network fetcher auto-registers when the artifact is on the classpath, so `AsyncImage(model=url)` works.
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 # 013 — serialization + async
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }

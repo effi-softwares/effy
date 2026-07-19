@@ -5,6 +5,7 @@ import android.util.Log
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AmplifyAuthDriver
 import com.effyshopping.customer.mobile.core.auth.AmplifyBootstrap
+import com.effyshopping.customer.mobile.core.payment.AndroidPaymentDriver
 
 /**
  * The Android application. Configures Amplify ONCE (from the in-code config string — no
@@ -13,7 +14,9 @@ import com.effyshopping.customer.mobile.core.auth.AmplifyBootstrap
  */
 class EffyApp : Application() {
 
-    val container: AppContainer by lazy { AppContainer(authDriver = AmplifyAuthDriver()) }
+    val container: AppContainer by lazy {
+        AppContainer(authDriver = AmplifyAuthDriver(), paymentDriver = AndroidPaymentDriver())
+    }
 
     override fun onCreate() {
         super.onCreate()

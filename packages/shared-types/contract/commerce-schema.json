@@ -1,0 +1,1149 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "AddToCartRequest": {
+      "additionalProperties": false,
+      "description": "POST /v1/cart/items — add or increment a line.",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "productId",
+        "quantity"
+      ],
+      "type": "object"
+    },
+    "AddressDTO": {
+      "additionalProperties": false,
+      "description": "A saved delivery address (GET /v1/addresses).",
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "recipientName",
+        "phone",
+        "line1",
+        "line2",
+        "city",
+        "region",
+        "postalCode",
+        "country",
+        "isDefault"
+      ],
+      "type": "object"
+    },
+    "BannerDTO": {
+      "additionalProperties": false,
+      "description": "A promotional hero banner. Minimal/derived in this slice (no CMS).",
+      "properties": {
+        "href": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "key": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "subtitle",
+        "imageUrl",
+        "href"
+      ],
+      "type": "object"
+    },
+    "CartDTO": {
+      "additionalProperties": false,
+      "description": "The full cart (GET /v1/cart and every mutating response).",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "deliveryFeeAmount": {
+          "type": "string"
+        },
+        "grandTotalAmount": {
+          "type": "string"
+        },
+        "itemSubtotalAmount": {
+          "type": "string"
+        },
+        "lines": {
+          "items": {
+            "$ref": "#/definitions/CartLineDTO"
+          },
+          "type": "array"
+        },
+        "notices": {
+          "items": {
+            "$ref": "#/definitions/CartNoticeDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "lines",
+        "itemSubtotalAmount",
+        "deliveryFeeAmount",
+        "grandTotalAmount",
+        "currency",
+        "notices"
+      ],
+      "type": "object"
+    },
+    "CartLineDTO": {
+      "additionalProperties": false,
+      "description": "A cart line (re-priced against the catalog on every read).",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lineSubtotalAmount": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceChangedFrom": {
+          "description": "When the authoritative price differs from what the client last saw, the prior amount (UX only).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "productId": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unitPriceAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "productId",
+        "name",
+        "imageUrl",
+        "unitPriceAmount",
+        "quantity",
+        "lineSubtotalAmount",
+        "available"
+      ],
+      "type": "object"
+    },
+    "CartNoticeDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/CartNoticeKind"
+        },
+        "productId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "productId",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "CartNoticeKind": {
+      "description": "A cart-level notice surfaced at read/checkout (an item went away or changed price).",
+      "enum": [
+        "unavailable",
+        "price_changed"
+      ],
+      "type": "string"
+    },
+    "ConfirmCheckoutRequest": {
+      "additionalProperties": false,
+      "description": "POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook).",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "orderId"
+      ],
+      "type": "object"
+    },
+    "CreateAddressRequest": {
+      "additionalProperties": false,
+      "description": "POST /v1/addresses — the first address created becomes the default.",
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "makeDefault": {
+          "type": "boolean"
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "recipientName",
+        "line1",
+        "city",
+        "postalCode"
+      ],
+      "type": "object"
+    },
+    "CreateCheckoutIntentRequest": {
+      "additionalProperties": false,
+      "description": "POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent.",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "addressId"
+      ],
+      "type": "object"
+    },
+    "CreateCheckoutIntentResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "clientSecret": {
+          "description": "Authorizes confirming exactly this PaymentIntent from the client. Never a secret key.",
+          "type": "string"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "grandTotalAmount": {
+          "type": "string"
+        },
+        "orderId": {
+          "type": "string"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "publishableKey": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "orderId",
+        "orderNumber",
+        "clientSecret",
+        "publishableKey",
+        "grandTotalAmount",
+        "currency"
+      ],
+      "type": "object"
+    },
+    "FavoriteDTO": {
+      "additionalProperties": false,
+      "description": "A saved product (product card fields + when it was saved).",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "badges": {
+          "items": {
+            "$ref": "#/definitions/ProductBadge"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "savedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "available",
+        "badges",
+        "brand",
+        "compareAtAmount",
+        "currency",
+        "id",
+        "imageUrl",
+        "name",
+        "priceAmount",
+        "savedAt"
+      ],
+      "type": "object"
+    },
+    "MediaDTO": {
+      "additionalProperties": false,
+      "description": "A product image (presigned GET URL + alt text).",
+      "properties": {
+        "alt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "imageUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "imageUrl",
+        "alt"
+      ],
+      "type": "object"
+    },
+    "MergeCartRequest": {
+      "additionalProperties": false,
+      "description": "POST /v1/cart/merge — merge a device-local guest cart on sign-in (sums qty per product).",
+      "properties": {
+        "lines": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "productId": {
+                "type": "string"
+              },
+              "quantity": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "productId",
+              "quantity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "lines"
+      ],
+      "type": "object"
+    },
+    "OrderAddressDTO": {
+      "additionalProperties": false,
+      "description": "The snapshotted delivery address on the receipt.",
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "recipientName",
+        "phone",
+        "line1",
+        "line2",
+        "city",
+        "region",
+        "postalCode",
+        "country"
+      ],
+      "type": "object"
+    },
+    "OrderDTO": {
+      "additionalProperties": false,
+      "description": "Full order / receipt (GET /v1/orders/{id}).",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "deliveryAddress": {
+          "$ref": "#/definitions/OrderAddressDTO"
+        },
+        "deliveryFeeAmount": {
+          "type": "string"
+        },
+        "fulfillments": {
+          "items": {
+            "$ref": "#/definitions/OrderFulfillmentDTO"
+          },
+          "type": "array"
+        },
+        "grandTotalAmount": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "itemSubtotalAmount": {
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/definitions/OrderItemDTO"
+          },
+          "type": "array"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "paymentStatus": {
+          "$ref": "#/definitions/PaymentStatus"
+        },
+        "placedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/OrderStatus"
+        }
+      },
+      "required": [
+        "id",
+        "orderNumber",
+        "status",
+        "placedAt",
+        "items",
+        "deliveryAddress",
+        "itemSubtotalAmount",
+        "deliveryFeeAmount",
+        "grandTotalAmount",
+        "currency",
+        "paymentStatus",
+        "fulfillments"
+      ],
+      "type": "object"
+    },
+    "OrderFulfillmentDTO": {
+      "additionalProperties": false,
+      "description": "An anonymous per-shop fulfillment portion — NO shop identity (FR-033).",
+      "properties": {
+        "itemCount": {
+          "type": "number"
+        },
+        "status": {
+          "enum": [
+            "pending",
+            "received"
+          ],
+          "type": "string"
+        },
+        "subtotalAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "itemCount",
+        "subtotalAmount"
+      ],
+      "type": "object"
+    },
+    "OrderItemDTO": {
+      "additionalProperties": false,
+      "description": "A line on the receipt (product snapshot — never a shop).",
+      "properties": {
+        "lineSubtotalAmount": {
+          "type": "string"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "productName": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "unitPriceAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "productId",
+        "productName",
+        "unitPriceAmount",
+        "quantity",
+        "lineSubtotalAmount"
+      ],
+      "type": "object"
+    },
+    "OrderStatus": {
+      "description": "Order lifecycle mirrored to the client (payment-driven).",
+      "enum": [
+        "pending_payment",
+        "paid",
+        "failed",
+        "canceled"
+      ],
+      "type": "string"
+    },
+    "OrderSummaryDTO": {
+      "additionalProperties": false,
+      "description": "A row in the order history (GET /v1/orders).",
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "grandTotalAmount": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "itemCount": {
+          "type": "number"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "placedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/OrderStatus"
+        }
+      },
+      "required": [
+        "id",
+        "orderNumber",
+        "status",
+        "placedAt",
+        "itemCount",
+        "grandTotalAmount",
+        "currency"
+      ],
+      "type": "object"
+    },
+    "PaymentStatus": {
+      "description": "Payment outcome mirrored from the Stripe PaymentIntent.",
+      "enum": [
+        "requires_payment",
+        "requires_action",
+        "succeeded",
+        "failed",
+        "canceled"
+      ],
+      "type": "string"
+    },
+    "ProductAttributeGroupDTO": {
+      "additionalProperties": false,
+      "description": "A labelled group of attribute rows on the product detail page (never laid out as cards).",
+      "properties": {
+        "groupLabel": {
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "label": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "label",
+              "value"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "groupLabel",
+        "items"
+      ],
+      "type": "object"
+    },
+    "ProductBadge": {
+      "description": "A badge shown on a product card. Derived server-side (on_sale = has compare-at; new = newest).",
+      "enum": [
+        "on_sale",
+        "new"
+      ],
+      "type": "string"
+    },
+    "ProductSearchResultDTO": {
+      "additionalProperties": false,
+      "description": "A page of search results with a keyset cursor for infinite scroll.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/StorefrontProductCardDTO"
+          },
+          "type": "array"
+        },
+        "nextCursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "nextCursor"
+      ],
+      "type": "object"
+    },
+    "StorefrontCategoryDTO": {
+      "additionalProperties": false,
+      "description": "A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the admin/shop `CategoryDTO` in catalog.ts — this carries no internal id/status/order.",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "parentKey": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "key",
+        "name",
+        "parentKey"
+      ],
+      "type": "object"
+    },
+    "StorefrontHomeDTO": {
+      "additionalProperties": false,
+      "description": "The composed Home payload (GET /v1/storefront/home).",
+      "properties": {
+        "banners": {
+          "items": {
+            "$ref": "#/definitions/BannerDTO"
+          },
+          "type": "array"
+        },
+        "rails": {
+          "items": {
+            "$ref": "#/definitions/StorefrontRailDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "banners",
+        "rails"
+      ],
+      "type": "object"
+    },
+    "StorefrontProductCardDTO": {
+      "additionalProperties": false,
+      "description": "The at-a-glance product card used in rails, search results, favorites and recently-viewed.",
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "badges": {
+          "items": {
+            "$ref": "#/definitions/ProductBadge"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "brand",
+        "imageUrl",
+        "priceAmount",
+        "currency",
+        "compareAtAmount",
+        "badges",
+        "available"
+      ],
+      "type": "object"
+    },
+    "StorefrontProductDetailDTO": {
+      "additionalProperties": false,
+      "description": "Full product detail (gallery, description, grouped attributes, category path).",
+      "properties": {
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/ProductAttributeGroupDTO"
+          },
+          "type": "array"
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "badges": {
+          "items": {
+            "$ref": "#/definitions/ProductBadge"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categoryPath": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": "string"
+        },
+        "gallery": {
+          "items": {
+            "$ref": "#/definitions/MediaDTO"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "longDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "attributes",
+        "available",
+        "badges",
+        "brand",
+        "categoryPath",
+        "compareAtAmount",
+        "currency",
+        "gallery",
+        "id",
+        "imageUrl",
+        "longDescription",
+        "name",
+        "priceAmount"
+      ],
+      "type": "object"
+    },
+    "StorefrontRailDTO": {
+      "additionalProperties": false,
+      "description": "A merchandising rail on Home (Featured / On-sale / a category rail).",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "products": {
+          "items": {
+            "$ref": "#/definitions/StorefrontProductCardDTO"
+          },
+          "type": "array"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "products"
+      ],
+      "type": "object"
+    },
+    "UpdateAddressRequest": {
+      "additionalProperties": false,
+      "description": "PATCH /v1/addresses/{id} — partial update / set default.",
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "label": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "makeDefault": {
+          "type": "boolean"
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
+    "UpdateCartLineRequest": {
+      "additionalProperties": false,
+      "description": "PATCH /v1/cart/items/{productId} — set a line quantity (0 removes).",
+      "properties": {
+        "quantity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "quantity"
+      ],
+      "type": "object"
+    }
+  },
+  "description": "Aggregator — codegen entry only (see file header). Every field forces a type into the schema.",
+  "properties": {
+    "addToCart": {
+      "$ref": "#/definitions/AddToCartRequest"
+    },
+    "address": {
+      "$ref": "#/definitions/AddressDTO"
+    },
+    "attributeGroup": {
+      "$ref": "#/definitions/ProductAttributeGroupDTO"
+    },
+    "banner": {
+      "$ref": "#/definitions/BannerDTO"
+    },
+    "cart": {
+      "$ref": "#/definitions/CartDTO"
+    },
+    "cartLine": {
+      "$ref": "#/definitions/CartLineDTO"
+    },
+    "cartNotice": {
+      "$ref": "#/definitions/CartNoticeDTO"
+    },
+    "category": {
+      "$ref": "#/definitions/StorefrontCategoryDTO"
+    },
+    "confirmCheckout": {
+      "$ref": "#/definitions/ConfirmCheckoutRequest"
+    },
+    "createAddress": {
+      "$ref": "#/definitions/CreateAddressRequest"
+    },
+    "createCheckoutIntent": {
+      "$ref": "#/definitions/CreateCheckoutIntentRequest"
+    },
+    "createCheckoutIntentResponse": {
+      "$ref": "#/definitions/CreateCheckoutIntentResponse"
+    },
+    "favorite": {
+      "$ref": "#/definitions/FavoriteDTO"
+    },
+    "home": {
+      "$ref": "#/definitions/StorefrontHomeDTO"
+    },
+    "media": {
+      "$ref": "#/definitions/MediaDTO"
+    },
+    "mergeCart": {
+      "$ref": "#/definitions/MergeCartRequest"
+    },
+    "order": {
+      "$ref": "#/definitions/OrderDTO"
+    },
+    "orderAddress": {
+      "$ref": "#/definitions/OrderAddressDTO"
+    },
+    "orderFulfillment": {
+      "$ref": "#/definitions/OrderFulfillmentDTO"
+    },
+    "orderItem": {
+      "$ref": "#/definitions/OrderItemDTO"
+    },
+    "orderSummary": {
+      "$ref": "#/definitions/OrderSummaryDTO"
+    },
+    "productCard": {
+      "$ref": "#/definitions/StorefrontProductCardDTO"
+    },
+    "productDetail": {
+      "$ref": "#/definitions/StorefrontProductDetailDTO"
+    },
+    "rail": {
+      "$ref": "#/definitions/StorefrontRailDTO"
+    },
+    "searchResult": {
+      "$ref": "#/definitions/ProductSearchResultDTO"
+    },
+    "updateAddress": {
+      "$ref": "#/definitions/UpdateAddressRequest"
+    },
+    "updateCartLine": {
+      "$ref": "#/definitions/UpdateCartLineRequest"
+    }
+  },
+  "required": [
+    "home",
+    "productCard",
+    "productDetail",
+    "rail",
+    "banner",
+    "media",
+    "attributeGroup",
+    "category",
+    "searchResult",
+    "cart",
+    "cartLine",
+    "cartNotice",
+    "addToCart",
+    "updateCartLine",
+    "mergeCart",
+    "address",
+    "createAddress",
+    "updateAddress",
+    "createCheckoutIntent",
+    "createCheckoutIntentResponse",
+    "confirmCheckout",
+    "orderSummary",
+    "order",
+    "orderItem",
+    "orderAddress",
+    "orderFulfillment",
+    "favorite"
+  ],
+  "type": "object",
+  "title": "CustomerCommerceContract"
+}

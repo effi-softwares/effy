@@ -27,6 +27,10 @@ export default function robots(): MetadataRoute.Robots {
         "/sign-up",
         "/callback",
         "/api/",
+        // 019 US4 — search FACET params (category/price/sale/attributes) generate combinatorial
+        // near-duplicate URLs; Disallow the fetch (noindex would still burn crawl budget). The bare
+        // /search page stays crawlable.
+        "/search?",
       ],
     },
     sitemap: `${siteUrl()}/sitemap.xml`,

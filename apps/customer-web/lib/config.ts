@@ -73,3 +73,17 @@ export function posthogConfig() {
     host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
   }
 }
+
+/**
+ * Stripe (019 checkout). The PUBLISHABLE key is browser-safe — it is a NAME, not a secret (research
+ * R3): it can only confirm an intent core-api already authorized. The SECRET key lives ONLY in
+ * core-api and never appears here. Test-mode (`pk_test_…`) in dev.
+ */
+export function stripeConfig() {
+  return {
+    publishableKey: required(
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+      process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    ),
+  }
+}

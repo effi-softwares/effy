@@ -15,19 +15,28 @@ import (
 
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/features/addresses"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/cart"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/checkout"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/customerping"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/favorites"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/orders"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/platformstatus"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/storefront"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/config"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/customeridentity"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/health"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/metrics"
 )
 
@@ -47,6 +56,21 @@ type dependencies struct {
 	status           *platformstatus.Service
 	customerVerifier *auth.PoolVerifier
 	cognito          *cognitoidentityprovider.Client
+
+	// 019 commerce shared collaborators — constructed once, wired into each feature slice's
+	// Register as the commerce features (storefront/cart/addresses/checkout/orders/favorites) land.
+	pool     *pgxpool.Pool
+	customer *customeridentity.Resolver
+	presign  *media.Resolver
+	payments *checkout.StripeGateway
+
+	// Feature services (customer commerce).
+	storefront *storefront.Service
+	cart       *cart.Service
+	favorites  *favorites.Service
+	addresses  *addresses.Service
+	checkout   *checkout.Service
+	orders     *orders.Service
 }
 
 func run() error {
@@ -86,10 +110,27 @@ func run() error {
 	m := metrics.New()
 	m.RegisterPoolStats(pool)
 
+	// 019 commerce shared collaborators, built once (research R2/R3/R7).
+	presign := media.NewResolver(s3.NewFromConfig(awsCfg), cfg.AWS.MediaBucket)
+	paymentGateway := checkout.NewStripeGateway(cfg.Stripe.SecretKey, cfg.Stripe.WebhookSecret)
+
 	deps := dependencies{
 		status:           platformstatus.NewService(platformstatus.NewRepository(pool), cfg.Env),
 		customerVerifier: customerVerifier,
 		cognito:          cognitoidentityprovider.NewFromConfig(awsCfg),
+
+		// 019 commerce shared collaborators (research R2/R3/R7).
+		pool:     pool,
+		customer: customeridentity.NewResolver(pool),
+		presign:  presign,
+		payments: paymentGateway,
+
+		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
+		cart:       cart.NewService(cart.NewRepository(pool), presign),
+		favorites:  favorites.NewService(favorites.NewRepository(pool), presign),
+		addresses:  addresses.NewService(addresses.NewRepository(pool)),
+		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey),
+		orders:     orders.NewService(orders.NewRepository(pool)),
 	}
 
 	router := newRouter(cfg, log, pool, m, deps)
@@ -169,4 +210,13 @@ func newRouter(cfg config.Config, log *zap.Logger, pool *pgxpool.Pool, m *metric
 func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 	platformstatus.Register(v1, v2, platformstatus.NewHandler(deps.status))
 	customerping.Register(v1, deps.customerVerifier)
+
+	// 019 customer commerce. Storefront reads are public; customer-scoped features mount behind
+	// auth.Middleware + customeridentity.Middleware (the resolved customer id scopes every query).
+	storefront.Register(v1, storefront.NewHandler(deps.storefront))
+	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
+	favorites.Register(v1, deps.customerVerifier, deps.customer, favorites.NewHandler(deps.favorites))
+	addresses.Register(v1, deps.customerVerifier, deps.customer, addresses.NewHandler(deps.addresses))
+	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))
+	checkout.Register(v1, deps.customerVerifier, deps.customer, checkout.NewHandler(deps.checkout))
 }

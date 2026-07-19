@@ -16,7 +16,9 @@
     "contract:gen": "node scripts/gen-kotlin-contract.mjs",
     "contract:check": "node scripts/gen-kotlin-contract.mjs && git diff --exit-code contract/Dto.kt contract/schema.json",
     "shop-contract:gen": "node scripts/gen-kotlin-shop-contract.mjs",
-    "shop-contract:check": "node scripts/gen-kotlin-shop-contract.mjs && git diff --exit-code contract-shop/"
+    "shop-contract:check": "node scripts/gen-kotlin-shop-contract.mjs && git diff --exit-code contract-shop/",
+    "commerce-contract:gen": "node scripts/gen-kotlin-commerce-contract.mjs",
+    "commerce-contract:check": "node scripts/gen-kotlin-commerce-contract.mjs && git diff --exit-code contract/CommerceDto.kt contract/commerce-schema.json"
   },
   "devDependencies": {
     "typescript": "~5.9.2"

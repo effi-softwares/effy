@@ -1,6 +1,10 @@
 package com.effyshopping.customer.mobile.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -23,7 +27,14 @@ import com.effyshopping.customer.mobile.core.nav.AppRoute
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
-import com.effyshopping.customer.mobile.features.home.presentation.HomeTabContent
+import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
+import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
+import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
+import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
+import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutScreen
+import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
+import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptScreen
+import com.effyshopping.customer.mobile.features.favorites.presentation.FavoritesScreen
 import com.effyshopping.mobile.kit.shell.AdaptiveNavShell
 import com.effyshopping.mobile.kit.shell.NavDestination
 import com.effyshopping.mobile.kit.shell.NavGlyph
@@ -46,6 +57,20 @@ enum class CustomerTab(val label: String) { HOME("Home"), SEARCH("Search"), ORDE
 fun CustomerShell(container: AppContainer, session: SessionState) {
     var currentTabName by rememberSaveable { mutableStateOf(CustomerTab.HOME.name) }
     var pendingTabName by rememberSaveable { mutableStateOf<String?>(null) }
+    // US2/US3: the Home tab's back stack (Home → Product → Cart → Checkout → Receipt), as a
+    // delimiter-joined saveable String (survives config change / process death). A lightweight stand-in
+    // for the mobile-kit TabBackStacks until that adoption. Routes: "home" | "product:<id>" | "cart" |
+    // "checkout" | "receipt:<orderId>".
+    // US5: the Orders tab's list↔detail selection.
+    var ordersDetailId by rememberSaveable { mutableStateOf<String?>(null) }
+    var homeStackRaw by rememberSaveable { mutableStateOf("home") }
+    val homeStack = homeStackRaw.split('\u0001')
+    val homeTop = homeStack.last()
+    fun pushHome(route: String) { homeStackRaw = "$homeStackRaw\u0001$route" }
+    fun popHome() { if (homeStack.size > 1) homeStackRaw = homeStack.dropLast(1).joinToString("\u0001") }
+    fun resetHome(route: String) { homeStackRaw = "home\u0001$route" }
+    fun goHome() { homeStackRaw = "home" }
+
     val currentTab = CustomerTab.valueOf(currentTabName)
     val signedIn = session is SessionState.Authenticated
 
@@ -56,11 +81,19 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
     val stack by container.navigator.stack.collectAsState()
     val accountCanGoBack = stack.size > 1
+    val homeHasBack = currentTab == CustomerTab.HOME && homeStack.size > 1
+    val ordersHasDetail = currentTab == CustomerTab.ORDERS && ordersDetailId != null
     BackHandler(
-        enabled = (currentTab == CustomerTab.ACCOUNT && accountCanGoBack) || currentTab != CustomerTab.HOME,
+        enabled = homeHasBack || ordersHasDetail ||
+            (currentTab == CustomerTab.ACCOUNT && accountCanGoBack) ||
+            currentTab != CustomerTab.HOME,
     ) {
-        if (currentTab == CustomerTab.ACCOUNT && accountCanGoBack) container.navigator.pop()
-        else currentTabName = CustomerTab.HOME.name
+        when {
+            homeHasBack -> popHome()
+            ordersHasDetail -> ordersDetailId = null
+            currentTab == CustomerTab.ACCOUNT && accountCanGoBack -> container.navigator.pop()
+            else -> currentTabName = CustomerTab.HOME.name
+        }
     }
 
     val destinations = CustomerTab.entries.map { tab ->
@@ -75,10 +108,62 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     ) {
         stateHolder.SaveableStateProvider(currentTabName) {
             when (currentTab) {
-                CustomerTab.HOME -> HomeTabContent()
-                CustomerTab.SEARCH -> ComingSoonTab("Search", "Search Effy's products here soon.")
+                CustomerTab.HOME -> {
+                    val requireSignIn = {
+                        // Deferred sign-in: jump to the Account tab's auth graph; the Home stack is kept
+                        // so the customer returns to where they were via Back.
+                        currentTabName = CustomerTab.ACCOUNT.name
+                        container.navigator.push(AppRoute.SignIn())
+                    }
+                    val openFavorites = { if (signedIn) pushHome("favorites") else requireSignIn() }
+                    when {
+                        homeTop == "home" ->
+                            HomeStackHost(container, onCart = { pushHome("cart") }, onFavorites = openFavorites) {
+                                HomeScreen(container, onProductClick = { pushHome("product:$it") })
+                            }
+
+                        homeTop == "favorites" ->
+                            FavoritesScreen(container, onOpen = { pushHome("product:$it") })
+
+                        homeTop.startsWith("product:") ->
+                            ProductDetailScreen(
+                                container = container,
+                                productId = homeTop.removePrefix("product:"),
+                                session = session,
+                                onRequireSignIn = requireSignIn,
+                                onBack = { popHome() },
+                            )
+
+                        homeTop == "cart" ->
+                            CartScreen(container, onCheckout = {
+                                if (signedIn) pushHome("checkout") else requireSignIn()
+                            })
+
+                        homeTop == "checkout" ->
+                            CheckoutScreen(
+                                container = container,
+                                onPlaced = { orderId -> resetHome("receipt:$orderId") },
+                                onBack = { popHome() },
+                            )
+
+                        homeTop.startsWith("receipt:") ->
+                            ReceiptScreen(container, homeTop.removePrefix("receipt:"), onDone = { goHome() })
+
+                        else -> HomeScreen(container, onProductClick = { pushHome("product:$it") })
+                    }
+                }
+                CustomerTab.SEARCH -> SearchScreen(container, onProductClick = {
+                    // Open the product in the Home tab's stack (shared detail view).
+                    pushHome("product:$it")
+                    currentTabName = CustomerTab.HOME.name
+                })
                 CustomerTab.ORDERS -> if (signedIn) {
-                    ComingSoonTab("Orders", "Your orders will appear here.")
+                    val detail = ordersDetailId
+                    if (detail != null) {
+                        ReceiptScreen(container, detail, onDone = { ordersDetailId = null })
+                    } else {
+                        OrdersScreen(container, onOpen = { ordersDetailId = it })
+                    }
                 } else {
                     GatedTab("Orders", "Sign in to see your orders.") {
                         pendingTabName = CustomerTab.ORDERS.name
@@ -89,6 +174,25 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 CustomerTab.ACCOUNT -> AccountTab(container, session)
             }
         }
+    }
+}
+
+/** Wraps a Home-stack screen with a top cart affordance (the mobile analogue of the web header badge). */
+@Composable
+private fun HomeStackHost(
+    container: AppContainer,
+    onCart: () -> Unit,
+    onFavorites: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val lines by container.guestCart.lines.collectAsState()
+    val count = lines.sumOf { it.quantity }
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = onFavorites) { Text("♥") }
+            TextButton(onClick = onCart) { Text(if (count > 0) "Cart ($count)" else "Cart") }
+        }
+        Box(modifier = Modifier.weight(1f)) { content() }
     }
 }
 

@@ -4,6 +4,8 @@ import Link from "next/link"
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
 import { AppearanceControl } from "@/components/theme/AppearanceControl"
 
+import { CartBadge } from "./_components/CartBadge"
+
 /**
  * The PUBLIC storefront shell.
  *
@@ -43,6 +45,9 @@ export default function ShopLayout({
 
           {/* Static client island: appearance switcher (017). No cookies, no SDK — stays in the shell. */}
           <AppearanceControl className="mr-1" />
+
+          {/* Cart indicator (US2) — a client island reading the device-local guest cart count. */}
+          <CartBadge />
 
           {/* DYNAMIC HOLE — and the only one. Reads cookies at request time and streams into
               this reserved slot while the rest of the page is already on screen. */}

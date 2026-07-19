@@ -69,6 +69,15 @@ export type StorefrontEvent =
   | { name: "deferred_sign_in_resumed"; props: { route: CredentialRoute } }
   | { name: "sign_in_declined"; props?: Record<string, never> }
   | { name: "account_linked"; props: { provider: "google" } }
+  // 019 commerce funnel (shared taxonomy — customer-mobile adopts these SAME names when its telemetry
+  // lands; NO PII, product ids only). discover → product → cart → checkout → order.
+  | { name: "product_viewed"; props: { productId: string } }
+  | { name: "product_added_to_cart"; props: { productId: string; quantity: number } }
+  | { name: "cart_viewed"; props?: Record<string, never> }
+  | { name: "checkout_started"; props?: Record<string, never> }
+  | { name: "order_placed"; props: { orderId: string } }
+  | { name: "product_favorited"; props: { productId: string } }
+  | { name: "search_performed"; props?: Record<string, never> }
 
 export function capture(event: StorefrontEvent) {
   if (!started || getConsent() !== "granted") return

@@ -54,5 +54,5 @@ export function proxy(request: NextRequest) {
  * storefront must not pay for the account system, not even one cookie read.
  */
 export const config = {
-  matcher: ["/account/:path*", "/checkout/:path*"],
+  matcher: ["/account/:path*", "/checkout/:path*", "/orders/:path*", "/favorites/:path*"],
 }

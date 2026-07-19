@@ -137,3 +137,30 @@ tab (return-to-intent). The Account tab reuses the existing 013 auth/account sub
 sign-out returns to the guest shell with public content intact. Built on the shared `packages/mobile-kit`
 (the customer app's first adaptive layer). Verified: compiles + unit tests green on Android, links for
 iOS. Live device/simulator sign-off is the operator's step.
+
+## 019 — Customer commerce flow (browse → order)
+
+The commerce journey, built across **both** surfaces and served by the **hot path** (`core-api`, per the
+FR-028 routing law). Legend as above (✅ delivered+verified · 🔒 blocked on an operator step · ⬜
+outstanding · ~ partial/documented).
+
+| # | Capability | Web (`customer-web`) | Mobile (`customer-mobile`) | Backend |
+|---|---|---|---|---|
+| 30 | Merchandised **Home** (banner, category chips, rails, cards, badges, recently-viewed) | ✅ | ✅ *(iOS-verified)* | `storefront` |
+| 31 | **Product detail** (gallery, attributes as detail rows, add-to-cart, save favourite) | ✅ | ✅ | `storefront` |
+| 32 | **Search** — text + filters + **keyset infinite scroll** | ✅ | ✅ | `storefront` search |
+| 33 | **Cart** — one unified Effy cart, no shop identity; qty edit/remove; totals | ✅ | ✅ | `cart` |
+| 34 | Guest cart is **device-local**, **merged** into the server cart on sign-in | ✅ | ✅ | `cart` merge |
+| 35 | **Checkout** — deferred sign-in, delivery address, **pay by card (Stripe)** | ✅ | ~ *(iOS bridge coded; Android PaymentSheet + Swift bridge = operator)* | `checkout` + `addresses` |
+| 36 | Charged **once** for the whole cart; **idempotent** (no double order/charge) | ✅ | ✅ | `checkout` (webhook authority) |
+| 37 | **Receipt** — webhook-authoritative order, itemized by product, **no shop identity** | ✅ | ✅ | `orders` |
+| 38 | **Order history** — list + re-open receipt | ✅ | ✅ | `orders` |
+| 39 | **Favourites** — save/un-save + list + add-to-cart | ✅ | ✅ | `favorites` |
+| 40 | Multi-shop order **fans out** to per-shop `shop_fulfillment` + `order.placed` outbox | — *(invisible)* | — *(invisible)* | `checkout` finalizer |
+
+**Verification**: web — typecheck + Vitest (63) + `pnpm build` (all commerce routes `◐ PPR`); backend —
+`go test` (storefront/cart/checkout/money/addresses/orders); mobile — iOS Kotlin/Native compile + all
+`commonTest` green. **⚠ Operator-gated to go LIVE**: `make db-up` (the commerce migration), Stripe test
+keys (Secrets Manager + client env), `make core-run` + the webhook tunnel, the Android Stripe PaymentSheet
++ iOS `SwiftPaymentBridge.swift`, and E2E/on-device sign-off. `core-api` itself is local-only until its
+own cloud slice — so this flow is **built + locally verifiable**, live go-live tracks the hot-path deploy.

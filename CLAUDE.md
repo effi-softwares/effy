@@ -196,6 +196,42 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**019-customer-commerce-flow** — Customer Commerce Flow (Browse → Order). **Code-complete + verified
+across all three surfaces; operator run pending; not committed.**
+The platform's **first commerce slice** — the customer's complete journey (discover → product → cart →
+checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** customer surfaces, served by the
+**hot path** (`core-api`, FR-028). Turns the 016 catalog into a shoppable storefront.
+- **Backend (net-new on the Go hot path)**: `storefront` (home rails, product detail, **search** w/
+  `pg_trgm` + keyset pagination), `cart` (server cart + merge, re-price, unavailable-exclusion, flat
+  delivery fee), `addresses`, `checkout` (server-authoritative amount, **deterministic-idempotency**
+  PaymentIntent, the **signature-verified webhook finalizer** = paid-transition + per-shop
+  `shop_fulfillment` fan-out + `order.placed` **outbox** + empty-cart, all one tx), `orders` (receipt +
+  history), `favorites`. New platform pkgs: `money` (integer-cents), `pricing`, `events` (outbox),
+  `customeridentity` (`sub→customer.id` + barred gate), `media` (S3 presign via built-in
+  `s3.NewPresignClient`). **Payment = Stripe** (`stripe-go/v82`); the SECRET never leaves core-api.
+- **Web** (`customer-web`, Next 16): merchandised Home, product page, search (infinite scroll), cart,
+  the **Stripe Payment Element** checkout (under `app/checkout/`, OUTSIDE the `(shop)` Amplify
+  quarantine — session-safe), webhook-authoritative receipt, orders, favourites. ⚠ **Dependency-free
+  cart** (`useSyncExternalStore` — no TanStack, by this app's tiny-guest-bundle design). All commerce
+  routes build as **`◐ PPR`**; Stripe stays out of the guest bundle.
+- **Mobile** (`customer-mobile`, KMP): the same flow — catalog/cart/checkout/orders/favorites features
+  (Clean-Arch + MVVM), a `PaymentDriver` capability (real **iOS** Swift-bridge path; **Android**
+  PaymentSheet is an operator-gated placeholder), a saveable Home back stack (Home→Product→Cart→
+  Checkout→Receipt). Commerce DTOs generated to Kotlin (`contract/CommerceDto.kt`, own package).
+- **Data**: one forward-only migration `20260719120000_customer_commerce.sql` — `public.{customer_address,
+  cart, cart_item, order, order_item, shop_fulfillment, payment, stripe_event, customer_favorite,
+  event_outbox}`.
+- **Verified (all layers)**: `go test` (storefront/cart/checkout/money/…); web `pnpm typecheck` + Vitest
+  (63) + `pnpm build`; mobile **iOS Kotlin/Native compile + `commonTest` all green**. Secret/PII sweep
+  clean (no card data — Stripe Elements/PaymentSheet own it). Parity register updated
+  ([docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §019).
+- **⚠ Open (operator / device)**: commit + `make db-up ENV=dev` (the migration; 003 commit-guard);
+  Stripe **test** keys → Secrets Manager + client env/`secrets.properties` (T003/T006); `make core-run` +
+  webhook tunnel (`stripe listen`); core-api role `s3:GetObject` on the media bucket; the **Android
+  PaymentSheet** + iOS `SwiftPaymentBridge.swift`; Playwright/`FULL=1` testcontainers/on-device E2E;
+  **cloud go-live tracks the hot path's own deploy slice** (core-api is local-only). Spec/artifacts:
+  [specs/019-customer-commerce-flow/](specs/019-customer-commerce-flow/).
+
 **017-platform-theme-tokens** — Platform Theme & Design Tokens Refresh. ✅ **Concluded — web complete +
 verified; mobile theme foundation done + drift-guarded; not committed.**
 A platform-wide rebrand + a runtime appearance switcher, all from the ONE token SSOT
