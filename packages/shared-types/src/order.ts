@@ -67,11 +67,34 @@ export interface OrderAddressDTO {
   country: string;
 }
 
-/** An anonymous per-shop fulfillment portion — NO shop identity (FR-033). */
+/**
+ * An item the customer paid for and will NOT receive (020 FR-018b).
+ *
+ * Disclosed at item level, but ONLY once the portion is terminal — a flag raised and then undone
+ * mid-pick must never reach the customer (SC-017). Naming the customer's own item discloses nothing
+ * about fulfillment structure (FR-018c).
+ *
+ * Carries NO refund promise: no money moves in 020, and the shortfall is left deliberately visible
+ * for a later refunds slice to resolve (FR-010b, FR-018a).
+ */
+export interface OrderShortfallDTO {
+  productName: string;
+  quantity: number;
+}
+
+/**
+ * An anonymous per-shop fulfillment portion — NO shop identity (FR-033).
+ *
+ * 020 gave `status` a life: 019 created every portion `pending` and no code path ever changed it.
+ * The values now span the shop's real working lifecycle. Still no shop name, id, or count that
+ * would imply WHO is fulfilling (FR-018, SC-009).
+ */
 export interface OrderFulfillmentDTO {
-  status: "pending" | "received";
+  status: "pending" | "received" | "picking" | "ready_for_pickup" | "collected";
   itemCount: number;
   subtotalAmount: string;
+  /** Present ONLY when the portion has reached a terminal state (FR-018b). Absent while picking. */
+  unavailableItems?: OrderShortfallDTO[];
 }
 
 /** Full order / receipt (GET /v1/orders/{id}). */

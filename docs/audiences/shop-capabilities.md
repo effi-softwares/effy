@@ -202,3 +202,67 @@ sheet are not reachable and their presentation code has been removed.
 The catalog repository, use cases, device-local draft store, generated contracts, and backend remain
 intact. Rows 16.1–16.9 are therefore marked outstanding for mobile until dedicated specifications rebuild
 those user-facing workflows. Product creation must return as a recoverable full-screen flow, not a sheet.
+
+## 020 — Order fulfilment (receive → pick → handoff)
+
+`apps/shop-web` and `apps/shop-mobile` gain the shop audience's **order-handling** capability (spec
+020). 019 already wrote one `public.shop_fulfillment` row per (order, shop) on every paid order and
+an `order.placed` outbox event — **and nothing consumed either**, so a portion's status had never
+once left `pending`. This slice is that consumer: a queue, a pick screen, and a state machine ending
+at `ready_for_pickup`, at parity on both surfaces. It is the first time the platform's fulfilment
+side does anything at all.
+
+**Path**: cold path — `apis/edge-api/shop` `fulfillments/` (`/shop/v1/fulfillments…`), per
+[docs/api/path-assignment.md](../api/path-assignment.md) rule 2 (internal operator console,
+latency-tolerant). The **customer-facing** half of the same capability stays on the **hot path**
+(`core-api` `orders`), where the customer's receipt already lived — one capability, two audiences,
+two paths, each chosen on its own merits.
+
+**Authorization is role-agnostic**: both `shop_manager` and `shop_staff` have full fulfilment access
+(FR-019a) — fulfilment is floor work and this slice contains no adjudicable decisions. The 007
+manager gate is deliberately **not** reused. The audit trail (`public.fulfillment_event`) is
+therefore the **sole** accountability control, which is why it is written in the same transaction as
+every change it records.
+
+| ID | Capability | shop-web | shop-mobile | Notes |
+|---|---|---|---|---|
+| 20.1 | Order queue for **this shop only**, promise-ordered, stable position | ✅ | ✅ | `GET /shop/v1/fulfillments` |
+| 20.2 | Near-real-time arrival (15s interval refetch, background-paused) | ✅ | ✅ | First polling in the monorepo (research R8) |
+| 20.3 | Explicit empty state | ✅ | ✅ | — |
+| 20.4 | At-risk escalation **in place** (prominence, never reordering) | ✅ | ✅ | SC-018 |
+| 20.5 | Active / completed views | ✅ | ✅ | `?state=active\|completed` |
+| 20.6 | Pick screen: this shop's lines, quantities, delivery context | ✅ | ✅ | `GET /shop/v1/fulfillments/{id}` |
+| 20.7 | Implicit acknowledge on first open (`pending → received`) | ✅ | ✅ | FR-011a; guarded, so concurrent opens yield one transition |
+| 20.8 | Durable picking progress (survives navigation, device, operator) | ✅ | ✅ | `public.fulfillment_item` |
+| 20.9 | Flag an item unavailable **and un-flag it** | ✅ | ✅ | FR-010a/FR-010d; absolute quantities, idempotent |
+| 20.10 | Advance to `ready_for_pickup`; one permitted reversal | ✅ | ✅ | `POST .../status`; FR-011d |
+| 20.11 | Concurrency-safe transitions (exactly one applied) | ✅ | ✅ | Guarded conditional `UPDATE`; SC-005 |
+| 20.12 | Tablet-first two-pane layout (≥840dp) | n/a | ✅ | FR-023 |
+| 20.13 | Shop isolation: every query scoped to the operator's own shop, never client input | ✅ | ✅ | `resolveActor` (shop record); no endpoint accepts a shop id |
+| 20.14 | No payment data and no order-level total ever reaches a shop | ✅ | ✅ | SC-007; asserted in `repository.test.ts` + `fulfillments.test.ts` |
+| 20.15 | Fulfilment product-analytics events | ✅ | ⏸ | PostHog |
+
+**Customer-side (not a shop capability, recorded for traceability)**: the customer's order view now
+reflects real fulfilment progress and discloses item-level shortfalls — but **only once a portion is
+terminal**, so a flag raised and undone mid-pick never reaches them (FR-018b, SC-017). The customer
+sees **one aggregate line**, never a per-portion breakdown: a count would disclose the fan-out as
+surely as a shop name would (FR-018, SC-009).
+
+**Footnotes:**
+- **⏸ Row 20.15 (mobile telemetry):** deferred by design — the standing Principle VII deviation owned
+  by the `mobile-telemetry` slice, consistent with 013/014/015/016.
+- **A portion is never 404.** Missing and belonging-to-another-shop both return the uniform 403,
+  deliberately unlike the sibling `products` slice: every read is already shop-scoped, so distinct
+  codes would hand a caller an oracle for enumerating other shops' orders by id (SC-007).
+- **⚠ The shortfall is an unresolved financial debt.** Flagging an item unavailable moves no money —
+  the customer has paid for something they will not receive. That is accepted and time-boxed by this
+  slice; `fulfillment_item` stores it as quantities precisely so the obligation stays *queryable* for
+  the refunds slice rather than needing reconstruction.
+- **⚠ The dev-only pickup stub has NO route in any environment.** `POST /shop/v1/fulfillments/{id}/pickup`
+  correctly returns **404** even in dev — it is invoked locally only via
+  `apis/edge-api/shop/scripts/invoke-pickup-stub.mjs`. It accepts a caller-supplied driver identity,
+  so a reachable deployed route would be an order-state forgery primitive. Removal trigger: the
+  driver slice's real dispatch path (FR-034).
+- **Delivery promise is read-only here** and owned by **021-delivery-zones-pricing**. Until 021 ships
+  every order carries the same promise, so promise-ordering collapses to strict FIFO by construction
+  (FR-001b, SC-020) — no rework when 021 lands.

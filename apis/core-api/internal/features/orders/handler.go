@@ -32,10 +32,19 @@ type itemDTO struct {
 	LineSubtotalAmount string `json:"lineSubtotalAmount"`
 }
 
+// A shortfall the customer is being told about — product name and quantity only, NO shop (FR-018c).
+type shortfallDTO struct {
+	ProductName string `json:"productName"`
+	Quantity    int    `json:"quantity"`
+}
+
 type fulfillmentDTO struct {
 	Status         string `json:"status"`
 	ItemCount      int    `json:"itemCount"`
 	SubtotalAmount string `json:"subtotalAmount"`
+	// Omitted entirely while the portion is still being picked (FR-018b, SC-017), so a flag that is
+	// later undone never reaches the customer. `omitempty` is load-bearing, not cosmetic.
+	Unavailable []shortfallDTO `json:"unavailableItems,omitempty"`
 }
 
 type orderDTO struct {
@@ -101,7 +110,14 @@ func (h *Handler) get(c *gin.Context) {
 	}
 	ful := make([]fulfillmentDTO, 0, len(order.Fulfillments))
 	for _, f := range order.Fulfillments {
-		ful = append(ful, fulfillmentDTO{Status: f.Status, ItemCount: f.ItemCount, SubtotalAmount: f.SubtotalAmount})
+		var short []shortfallDTO
+		for _, sh := range f.Unavailable {
+			short = append(short, shortfallDTO{ProductName: sh.ProductName, Quantity: sh.Quantity})
+		}
+		ful = append(ful, fulfillmentDTO{
+			Status: f.Status, ItemCount: f.ItemCount, SubtotalAmount: f.SubtotalAmount,
+			Unavailable: short,
+		})
 	}
 	address := order.DeliveryAddress
 	if len(address) == 0 {

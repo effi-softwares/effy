@@ -19,14 +19,18 @@ manager gate is deliberately *not* reused.
 | Status | Type | When |
 |---|---|---|
 | 401 | `unauthenticated` | No verified `sub` on the request. |
-| 403 | `forbidden` | Not an active member of an active shop, **or** the target portion belongs to another shop. **Uniform body — never discloses which term failed** (FR-020, SC-008). |
-| 404 | `not-found` | The portion does not exist. Returned only after shop scope passes, so it can never be used to probe another shop's portions. |
+| 403 | `forbidden` | Not an active member of an active shop, **or** the portion does not exist, **or** it belongs to another shop. **Uniform body — never discloses which term failed** (FR-020, SC-008). |
 | 409 | `conflict` | The requested transition is not legal from the current state. |
+| 400 | `validation-failed` | Malformed body or quantities exceeding the amount ordered. |
 | 503 | `unavailable` | A dependency failed. **Fail closed** — an authorization check that throws is never a grant. |
 
-> **Cross-shop reads return 403, not 404.** A portion belonging to another shop is refused at the scope
-> predicate, which is indistinguishable from any other denial. This prevents using response codes to
-> enumerate the existence of other shops' orders.
+> **A portion is NEVER 404. Missing and another-shop's both return the uniform 403.**
+>
+> This is a deliberate departure from the sibling `products` slice (which maps not-found → 404), and it
+> matters: every repository read here is already shop-scoped, so "no such portion" and "not yours" are
+> indistinguishable *by construction* before the error is even raised. Emitting different codes would
+> hand an attacker an oracle for enumerating other shops' orders by id. One code, one body, no signal
+> (SC-007).
 
 ---
 
@@ -85,8 +89,7 @@ one transition.
   "delivery": {                            // enough to prepare and label (FR-009)
     "recipientName": "…",
     "line1": "…", "line2": null,
-    "suburb": "…", "state": "VIC", "postcode": "3000",
-    "instructions": "Leave at door"
+    "city": "…", "region": "VIC", "postalCode": "3000", "country": "AU"
   },
   "items": [
     {

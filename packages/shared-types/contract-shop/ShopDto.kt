@@ -205,6 +205,178 @@ data class CreateShopSectionRequest (
 )
 
 /**
+ * What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).
+ *
+ * Owned by 021. While only one service level exists, `readyBy` is a constant offset from
+ * the order's placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).
+ *
+ * Says NOTHING about who delivers. There is no carrier, driver, or provider field here, by
+ * design.
+ */
+@Serializable
+data class DeliveryPromiseDTO (
+    /**
+     * ISO-8601. The time by which THIS shop must be ready.
+     */
+    val readyBy: String,
+
+    /**
+     * e.g. "standard". A service level the customer bought — never a fulfillment mechanism.
+     */
+    val serviceLevel: String
+)
+
+/**
+ * The delivery context a shop needs to prepare and label the order (FR-009). Snapshotted
+ * onto the order at placement by 019, so it never changes retroactively.
+ */
+@Serializable
+data class FulfillmentDeliveryDTO (
+    val city: String,
+    val country: String,
+    val line1: String,
+    val line2: String? = null,
+    val phone: String? = null,
+    val postalCode: String,
+    val recipientName: String,
+    val region: String? = null
+)
+
+/**
+ * The pick screen (GET /shop/v1/fulfillments/{id}).
+ */
+@Serializable
+data class FulfillmentDetailDTO (
+    val delivery: FulfillmentDeliveryDTO,
+    val id: String,
+
+    /**
+     * THIS shop's lines only. Never another shop's, and never an order-level total.
+     */
+    val items: List<FulfillmentItemDTO>,
+
+    val orderNumber: String,
+    val placedAt: String,
+    val promise: DeliveryPromiseDTO,
+    val stateChangedAt: String,
+    val status: FulfillmentStatus
+)
+
+/**
+ * One line to pick. Quantities are absolute, never deltas.
+ *
+ * `orderedQuantity - gatheredQuantity` on a terminal portion is the SHORTFALL — what the
+ * customer paid for and will not receive. It carries no financial effect in this slice
+ * (FR-010b) and exists to be resolved by a later refunds slice, which is why it must stay
+ * queryable rather than implied.
+ */
+@Serializable
+data class FulfillmentItemDTO (
+    val gatheredQuantity: Double,
+
+    /**
+     * Presigned; may be absent.
+     */
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
+    val name: String,
+    val orderedQuantity: Double,
+
+    @SerialName("orderItemId")
+    val orderItemID: String,
+
+    val sku: String? = null,
+    val unavailableQuantity: Double
+)
+
+/**
+ * The fulfillment state machine (FR-011).
+ *
+ * `pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until
+ * now — it means a human acknowledged the order, which is what distinguishes untouched work
+ * from work in progress. `collected` is reachable ONLY via the dev-only pickup stub
+ * (FR-030) and is terminal + immutable (FR-011f).
+ */
+@Serializable
+enum class FulfillmentStatus(val value: String) {
+    @SerialName("collected") Collected("collected"),
+    @SerialName("pending") Pending("pending"),
+    @SerialName("picking") Picking("picking"),
+    @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup"),
+    @SerialName("received") Received("received");
+}
+
+@Serializable
+data class FulfillmentQueueDTO (
+    val items: List<FulfillmentSummaryDTO>
+)
+
+/**
+ * A row in the shop's order queue (GET /shop/v1/fulfillments).
+ */
+@Serializable
+data class FulfillmentSummaryDTO (
+    /**
+     * Computed against the promise — drives in-place escalation, never reordering (FR-001a,
+     * SC-018).
+     */
+    val atRisk: Boolean,
+
+    val gatheredCount: Double,
+
+    /**
+     * shop_fulfillment.id — the portion, not the order.
+     */
+    val id: String,
+
+    /**
+     * Items THIS shop must gather. Never the order's total item count.
+     */
+    val itemCount: Double,
+
+    val orderNumber: String,
+
+    /**
+     * ISO-8601, when the customer placed the order.
+     */
+    val placedAt: String,
+
+    val promise: DeliveryPromiseDTO,
+
+    /**
+     * ISO-8601, when the portion last changed state — drives time-in-state (FR-011c).
+     */
+    val stateChangedAt: String,
+
+    val status: FulfillmentStatus,
+    val unavailableCount: Double
+)
+
+/**
+ * Which slice of the queue to read (FR-016).
+ */
+@Serializable
+enum class FulfillmentQueueState(val value: String) {
+    @SerialName("active") Active("active"),
+    @SerialName("completed") Completed("completed");
+}
+
+/**
+ * Record picking progress (PATCH /shop/v1/fulfillments/{id}/items/{orderItemId}).
+ *
+ * Absolute values, not deltas — idempotent under retry, which matters on a shop tablet with
+ * a flaky connection. Lowering `unavailableQuantity` is how an item is un-flagged when it
+ * turns up (FR-010d). `gathered + unavailable <= ordered` is enforced server-side and by a
+ * DB CHECK.
+ */
+@Serializable
+data class ItemProgressRequest (
+    val gatheredQuantity: Double? = null,
+    val unavailableQuantity: Double? = null
+)
+
+/**
  * Shop lifecycle status (009-shop-management). Only `active` shops serve their operators;
  * `suspended` (temporary hold) and `disabled` (deactivated, retained for audit) both refuse.
  */
@@ -235,6 +407,24 @@ enum class Audience(val value: String) {
 enum class Scope(val value: String) {
     @SerialName("shop_manager") ShopManager("shop_manager");
 }
+
+/**
+ * ⚠ DEV-ONLY SCAFFOLD (POST /shop/v1/fulfillments/{id}/pickup) — FR-030…FR-034.
+ *
+ * Stands in for a driver collecting the order so the lifecycle is exercisable before a
+ * driver surface exists. The endpoint is STRUCTURALLY ABSENT outside local development
+ * (FR-031): it accepts a caller-supplied identity, so a reachable deployed instance would
+ * be an order-state forgery primitive. Scheduled for deletion when the driver slice ships
+ * (FR-034).
+ */
+@Serializable
+data class PickupStubRequest (
+    /**
+     * Stored MARKED AS A PLACEHOLDER so stub collections never resemble a real dispatch
+     * (FR-033).
+     */
+    val driverRef: String
+)
 
 @Serializable
 data class CreatePresignedUploadResponse (
@@ -372,6 +562,20 @@ data class RegisterMediaRequest (
 )
 
 /**
+ * Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).
+ *
+ * Only `picking` and `ready_for_pickup` are requestable: `pending` is the fan-out's,
+ * `received` is implicit on first open (FR-011a), and `collected` belongs to the pickup
+ * stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted reversal
+ * (FR-011d).
+ */
+@Serializable
+enum class RequestableTransition(val value: String) {
+    @SerialName("picking") Picking("picking"),
+    @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup");
+}
+
+/**
  * Shop RBAC roles. Prefixed so `manager` stays unambiguously the back-office role in logs.
  */
 @Serializable
@@ -433,6 +637,11 @@ enum class ShopStaffStatus(val value: String) {
     @SerialName("active") Active("active"),
     @SerialName("disabled") Disabled("disabled");
 }
+
+@Serializable
+data class TransitionRequest (
+    val to: RequestableTransition
+)
 
 /**
  * PATCH /shop/v1/products/{id}/media/{mediaId} — reorder / set primary / alt text.

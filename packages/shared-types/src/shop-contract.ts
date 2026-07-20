@@ -19,6 +19,20 @@ import type {
 } from "./shop";
 import type { ProblemJSON } from "./problem";
 import type {
+  FulfillmentStatus,
+  FulfillmentQueueState,
+  RequestableTransition,
+  DeliveryPromiseDTO,
+  FulfillmentSummaryDTO,
+  FulfillmentQueueDTO,
+  FulfillmentDeliveryDTO,
+  FulfillmentItemDTO,
+  FulfillmentDetailDTO,
+  TransitionRequest,
+  ItemProgressRequest,
+  PickupStubRequest,
+} from "./shop-order";
+import type {
   CatalogSchemaDTO,
   ProductListItemDTO,
   ProductListDTO,
@@ -59,6 +73,18 @@ export type {
   ShopSectionDTO,
   CreateShopSectionRequest,
   UpdateShopSectionRequest,
+  FulfillmentStatus,
+  FulfillmentQueueState,
+  DeliveryPromiseDTO,
+  FulfillmentSummaryDTO,
+  FulfillmentQueueDTO,
+  FulfillmentDeliveryDTO,
+  FulfillmentItemDTO,
+  FulfillmentDetailDTO,
+  RequestableTransition,
+  TransitionRequest,
+  ItemProgressRequest,
+  PickupStubRequest,
 };
 
 /** Aggregator — codegen entry only. Every field forces a type into the schema.
@@ -88,4 +114,18 @@ export interface ShopContract {
   shopSection: ShopSectionDTO;
   createShopSection: CreateShopSectionRequest;
   updateShopSection: UpdateShopSectionRequest;
+  // ── 020 shop order fulfillment ──
+  // Every type must be named here or codegen silently drops it from the Kotlin DTOs.
+  fulfillmentStatus: FulfillmentStatus;
+  fulfillmentQueueState: FulfillmentQueueState;
+  deliveryPromise: DeliveryPromiseDTO;
+  fulfillmentSummary: FulfillmentSummaryDTO;
+  fulfillmentQueue: FulfillmentQueueDTO;
+  fulfillmentDelivery: FulfillmentDeliveryDTO;
+  fulfillmentItem: FulfillmentItemDTO;
+  fulfillmentDetail: FulfillmentDetailDTO;
+  requestableTransition: RequestableTransition;
+  transitionRequest: TransitionRequest;
+  itemProgressRequest: ItemProgressRequest;
+  pickupStubRequest: PickupStubRequest;
 }

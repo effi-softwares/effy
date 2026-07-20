@@ -37,10 +37,22 @@ type Item struct {
 	LineSubtotalAmount string
 }
 
+// Shortfall is an item the customer paid for and will NOT receive (020 FR-018b).
+//
+// Disclosed at item level, but ONLY on a terminal portion — a flag raised and undone mid-pick must
+// never reach the customer (SC-017). Carries no refund promise: no money moves in 020, and the debt
+// is left deliberately visible for a later refunds slice.
+type Shortfall struct {
+	ProductName string
+	Quantity    int
+}
+
 type Fulfillment struct {
 	Status         string
 	ItemCount      int
 	SubtotalAmount string
+	// Nil while the portion is still being picked. Never carries shop identity.
+	Unavailable []Shortfall
 }
 
 type Order struct {
@@ -158,15 +170,25 @@ FROM public.order_item WHERE order_id = $1 ORDER BY created_at ASC`, orderID)
 }
 
 type fulfillmentRow struct {
+	ID       string `db:"id"`
 	Status   string `db:"status"`
 	Count    int    `db:"item_count"`
 	Subtotal string `db:"subtotal_amount"`
 }
 
+type shortfallRow struct {
+	FulfillmentID string `db:"shop_fulfillment_id"`
+	ProductName   string `db:"product_name"`
+	Quantity      int    `db:"quantity"`
+}
+
 // Fulfillments returns the per-shop portions WITHOUT shop identity (only status/count/subtotal).
+//
+// 020 gave `status` a life: 019 created every portion `pending` and nothing could ever change it.
+// The id is selected only to join shortfalls below — it is NOT a shop id and never reaches the wire.
 func (r *Repository) Fulfillments(ctx context.Context, orderID string) ([]fulfillmentRow, error) {
 	rows, err := r.db.Query(ctx, `
-SELECT status AS status, item_count AS item_count, subtotal_amount::text AS subtotal_amount
+SELECT id::text AS id, status AS status, item_count AS item_count, subtotal_amount::text AS subtotal_amount
 FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at ASC`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("orders: fulfillments: %w", err)
@@ -178,6 +200,37 @@ FROM public.shop_fulfillment WHERE order_id = $1 ORDER BY created_at ASC`, order
 	return out, nil
 }
 
+// Shortfalls returns items the customer paid for but will not receive (020 US5, FR-018b).
+//
+// The `sf.status IN (terminal)` predicate is the WHOLE POINT and is enforced here in SQL rather than
+// filtered in Go: a shop may flag an item unavailable and then un-flag it when it turns up
+// (FR-010d), and a customer watching live would otherwise see the item vanish and reappear. They are
+// told a settled fact, per portion, or nothing at all (SC-017).
+//
+// Selects the customer's own product name and quantity — and NO shop column. Naming the customer's
+// own item discloses nothing about fulfilment structure (FR-018c), but a shop id would (FR-018).
+func (r *Repository) Shortfalls(ctx context.Context, orderID string) ([]shortfallRow, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT fi.shop_fulfillment_id::text AS shop_fulfillment_id,
+       oi.product_name              AS product_name,
+       fi.unavailable_quantity      AS quantity
+FROM public.fulfillment_item fi
+JOIN public.shop_fulfillment sf ON sf.id = fi.shop_fulfillment_id
+JOIN public.order_item oi       ON oi.id = fi.order_item_id
+WHERE sf.order_id = $1
+  AND sf.status IN ('ready_for_pickup', 'collected')
+  AND fi.unavailable_quantity > 0
+ORDER BY oi.product_name ASC`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("orders: shortfalls: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[shortfallRow])
+	if err != nil {
+		return nil, fmt.Errorf("orders: scan shortfalls: %w", err)
+	}
+	return out, nil
+}
+
 // ── Service ─────────────────────────────────────────────────────────────────────────────────────
 
 type Repo interface {
@@ -185,6 +238,7 @@ type Repo interface {
 	Get(ctx context.Context, customerID, orderID string) (orderRow, error)
 	Items(ctx context.Context, orderID string) ([]itemRow, error)
 	Fulfillments(ctx context.Context, orderID string) ([]fulfillmentRow, error)
+	Shortfalls(ctx context.Context, orderID string) ([]shortfallRow, error)
 }
 
 type Service struct {
@@ -234,9 +288,24 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 			Quantity: it.Quantity, LineSubtotalAmount: it.LineSubtotal,
 		})
 	}
+	short, err := s.repo.Shortfalls(ctx, orderID)
+	if err != nil {
+		return Order{}, err
+	}
+	byPortion := make(map[string][]Shortfall, len(short))
+	for _, sh := range short {
+		byPortion[sh.FulfillmentID] = append(byPortion[sh.FulfillmentID],
+			Shortfall{ProductName: sh.ProductName, Quantity: sh.Quantity})
+	}
+
 	domainFul := make([]Fulfillment, 0, len(ful))
 	for _, f := range ful {
-		domainFul = append(domainFul, Fulfillment{Status: f.Status, ItemCount: f.Count, SubtotalAmount: f.Subtotal})
+		// f.ID is used ONLY to attach shortfalls here; it never reaches the DTO. The portion stays
+		// anonymous to the customer (FR-018, SC-009).
+		domainFul = append(domainFul, Fulfillment{
+			Status: f.Status, ItemCount: f.Count, SubtotalAmount: f.Subtotal,
+			Unavailable: byPortion[f.ID],
+		})
 	}
 	payment := "requires_payment"
 	if row.PaymentStatus != nil {

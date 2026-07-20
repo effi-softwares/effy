@@ -21,6 +21,12 @@ import com.effyshopping.shop.mobile.features.catalog.domain.ListProducts
 import com.effyshopping.shop.mobile.features.catalog.domain.ListShopSections
 import com.effyshopping.shop.mobile.features.catalog.domain.UpdateProduct
 import com.effyshopping.shop.mobile.features.home.data.DummyHomeDashboardRepository
+import com.effyshopping.shop.mobile.features.orders.data.HttpOrderRepository
+import com.effyshopping.shop.mobile.features.orders.domain.AdvanceFulfillment
+import com.effyshopping.shop.mobile.features.orders.domain.GetFulfillment
+import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
+import com.effyshopping.shop.mobile.features.orders.domain.OrderRepository
+import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import com.effyshopping.shop.mobile.features.home.domain.GetHomeDashboard
 import com.effyshopping.shop.mobile.features.home.domain.HomeDashboardRepository
 import com.effyshopping.shop.mobile.features.shop.data.HttpShopRepository
@@ -54,6 +60,9 @@ class AppContainer(
     // The catalog repository reuses the SAME shop client (single bearer, cross-pool isolation) — private,
     // reached only through the use cases below (Principle VI).
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(shopClient) }
+    // Order fulfillment (020) reuses the SAME shop client — the shop is resolved server-side from the
+    // bearer, so nothing here can name a shop even by accident (FR-019).
+    private val orders: OrderRepository by lazy { HttpOrderRepository(shopClient) }
     // Device-local create draft (FR-012). `Settings()` is the no-arg factory (NSUserDefaults / SharedPrefs);
     // the draft is device-only, never synced.
     val draftStore: DraftStore by lazy { SettingsDraftStore(Settings()) }
@@ -76,6 +85,12 @@ class AppContainer(
     val deleteProduct by lazy { DeleteProduct(catalog) }
     val listShopSections by lazy { ListShopSections(catalog) }
     val assignSections by lazy { AssignSections(catalog) }
+
+    // order fulfillment (020 US1–US4)
+    val listFulfillments by lazy { ListFulfillments(orders) }
+    val getFulfillment by lazy { GetFulfillment(orders) }
+    val advanceFulfillment by lazy { AdvanceFulfillment(orders) }
+    val recordItemProgress by lazy { RecordItemProgress(orders) }
 
     // ── app services / presentation wiring ──────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getOperator, appScope) }

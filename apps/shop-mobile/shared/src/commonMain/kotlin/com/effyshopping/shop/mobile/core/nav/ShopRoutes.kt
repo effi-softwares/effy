@@ -28,6 +28,14 @@ data object AccountRoot : AppNavKey
 data object ManagerArea : AppNavKey
 
 /**
+ * One fulfillment portion, pushed within the Orders tab (020 US2). Carries the portion id so a compact-width
+ * pick survives configuration change AND iOS process death — the operator's tablet can be locked mid-pick and
+ * reopen on the same order. Wide layouts show the queue and this pane side by side and never push it.
+ */
+@Serializable
+data class OrderDetail(val id: String) : AppNavKey
+
+/**
  * The shop app's primary tabs. The whole shell is gated (login-first, FR-014/015), so every tab is
  * authenticated. Catalog/Orders are "coming soon" until their feature slices land.
  */
@@ -49,5 +57,8 @@ val shopNavJson: Json = Json {
         subclass(OrdersRoot::class, OrdersRoot.serializer())
         subclass(AccountRoot::class, AccountRoot.serializer())
         subclass(ManagerArea::class, ManagerArea.serializer())
+        // Every route MUST be registered here: an unregistered subclass fails state restore SILENTLY on iOS
+        // (the back stack decodes to nothing rather than throwing), which looks like "the app forgot".
+        subclass(OrderDetail::class, OrderDetail.serializer())
     }
 }

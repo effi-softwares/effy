@@ -332,6 +332,279 @@
       ],
       "type": "object"
     },
+    "DeliveryPromiseDTO": {
+      "additionalProperties": false,
+      "description": "What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).\n\nOwned by 021. While only one service level exists, `readyBy` is a constant offset from the order's placement, so ordering by promise IS ordering by arrival (FR-001b, SC-020).\n\nSays NOTHING about who delivers. There is no carrier, driver, or provider field here, by design.",
+      "properties": {
+        "readyBy": {
+          "description": "ISO-8601. The time by which THIS shop must be ready.",
+          "type": "string"
+        },
+        "serviceLevel": {
+          "description": "e.g. \"standard\". A service level the customer bought — never a fulfillment mechanism.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "serviceLevel",
+        "readyBy"
+      ],
+      "type": "object"
+    },
+    "FulfillmentDeliveryDTO": {
+      "additionalProperties": false,
+      "description": "The delivery context a shop needs to prepare and label the order (FR-009). Snapshotted onto the order at placement by 019, so it never changes retroactively.",
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "recipientName": {
+          "type": "string"
+        },
+        "region": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "recipientName",
+        "phone",
+        "line1",
+        "line2",
+        "city",
+        "region",
+        "postalCode",
+        "country"
+      ],
+      "type": "object"
+    },
+    "FulfillmentDetailDTO": {
+      "additionalProperties": false,
+      "description": "The pick screen (GET /shop/v1/fulfillments/{id}).",
+      "properties": {
+        "delivery": {
+          "$ref": "#/definitions/FulfillmentDeliveryDTO"
+        },
+        "id": {
+          "type": "string"
+        },
+        "items": {
+          "description": "THIS shop's lines only. Never another shop's, and never an order-level total.",
+          "items": {
+            "$ref": "#/definitions/FulfillmentItemDTO"
+          },
+          "type": "array"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "placedAt": {
+          "type": "string"
+        },
+        "promise": {
+          "$ref": "#/definitions/DeliveryPromiseDTO"
+        },
+        "stateChangedAt": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/FulfillmentStatus"
+        }
+      },
+      "required": [
+        "id",
+        "orderNumber",
+        "placedAt",
+        "status",
+        "stateChangedAt",
+        "promise",
+        "delivery",
+        "items"
+      ],
+      "type": "object"
+    },
+    "FulfillmentItemDTO": {
+      "additionalProperties": false,
+      "description": "One line to pick. Quantities are absolute, never deltas.\n\n`orderedQuantity - gatheredQuantity` on a terminal portion is the SHORTFALL — what the customer paid for and will not receive. It carries no financial effect in this slice (FR-010b) and exists to be resolved by a later refunds slice, which is why it must stay queryable rather than implied.",
+      "properties": {
+        "gatheredQuantity": {
+          "type": "number"
+        },
+        "imageUrl": {
+          "description": "Presigned; may be absent.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "orderItemId": {
+          "type": "string"
+        },
+        "orderedQuantity": {
+          "type": "number"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unavailableQuantity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "orderItemId",
+        "name",
+        "sku",
+        "imageUrl",
+        "orderedQuantity",
+        "gatheredQuantity",
+        "unavailableQuantity"
+      ],
+      "type": "object"
+    },
+    "FulfillmentQueueDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/FulfillmentSummaryDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
+    "FulfillmentQueueState": {
+      "description": "Which slice of the queue to read (FR-016).",
+      "enum": [
+        "active",
+        "completed"
+      ],
+      "type": "string"
+    },
+    "FulfillmentStatus": {
+      "description": "The fulfillment state machine (FR-011).\n\n`pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until now — it means a human acknowledged the order, which is what distinguishes untouched work from work in progress. `collected` is reachable ONLY via the dev-only pickup stub (FR-030) and is terminal + immutable (FR-011f).",
+      "enum": [
+        "pending",
+        "received",
+        "picking",
+        "ready_for_pickup",
+        "collected"
+      ],
+      "type": "string"
+    },
+    "FulfillmentSummaryDTO": {
+      "additionalProperties": false,
+      "description": "A row in the shop's order queue (GET /shop/v1/fulfillments).",
+      "properties": {
+        "atRisk": {
+          "description": "Computed against the promise — drives in-place escalation, never reordering (FR-001a, SC-018).",
+          "type": "boolean"
+        },
+        "gatheredCount": {
+          "type": "number"
+        },
+        "id": {
+          "description": "shop_fulfillment.id — the portion, not the order.",
+          "type": "string"
+        },
+        "itemCount": {
+          "description": "Items THIS shop must gather. Never the order's total item count.",
+          "type": "number"
+        },
+        "orderNumber": {
+          "type": "string"
+        },
+        "placedAt": {
+          "description": "ISO-8601, when the customer placed the order.",
+          "type": "string"
+        },
+        "promise": {
+          "$ref": "#/definitions/DeliveryPromiseDTO"
+        },
+        "stateChangedAt": {
+          "description": "ISO-8601, when the portion last changed state — drives time-in-state (FR-011c).",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/FulfillmentStatus"
+        },
+        "unavailableCount": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "orderNumber",
+        "placedAt",
+        "status",
+        "stateChangedAt",
+        "itemCount",
+        "gatheredCount",
+        "unavailableCount",
+        "promise",
+        "atRisk"
+      ],
+      "type": "object"
+    },
+    "ItemProgressRequest": {
+      "additionalProperties": false,
+      "description": "Record picking progress (PATCH /shop/v1/fulfillments/{id}/items/{orderItemId}).\n\nAbsolute values, not deltas — idempotent under retry, which matters on a shop tablet with a flaky connection. Lowering `unavailableQuantity` is how an item is un-flagged when it turns up (FR-010d). `gathered + unavailable <= ordered` is enforced server-side and by a DB CHECK.",
+      "properties": {
+        "gatheredQuantity": {
+          "type": "number"
+        },
+        "unavailableQuantity": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "PickupStubRequest": {
+      "additionalProperties": false,
+      "description": "⚠ DEV-ONLY SCAFFOLD (POST /shop/v1/fulfillments/{id}/pickup) — FR-030…FR-034.\n\nStands in for a driver collecting the order so the lifecycle is exercisable before a driver surface exists. The endpoint is STRUCTURALLY ABSENT outside local development (FR-031): it accepts a caller-supplied identity, so a reachable deployed instance would be an order-state forgery primitive. Scheduled for deletion when the driver slice ships (FR-034).",
+      "properties": {
+        "driverRef": {
+          "description": "Stored MARKED AS A PLACEHOLDER so stub collections never resemble a real dispatch (FR-033).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "driverRef"
+      ],
+      "type": "object"
+    },
     "ProblemJSON": {
       "additionalProperties": {},
       "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
@@ -830,6 +1103,14 @@
       ],
       "type": "object"
     },
+    "RequestableTransition": {
+      "description": "Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).\n\nOnly `picking` and `ready_for_pickup` are requestable: `pending` is the fan-out's, `received` is implicit on first open (FR-011a), and `collected` belongs to the pickup stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted reversal (FR-011d).",
+      "enum": [
+        "picking",
+        "ready_for_pickup"
+      ],
+      "type": "string"
+    },
     "SchemaStatus": {
       "description": "Lifecycle for the managed schema entities (product types, attributes, categories).",
       "enum": [
@@ -998,6 +1279,18 @@
       ],
       "type": "object"
     },
+    "TransitionRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "to": {
+          "$ref": "#/definitions/RequestableTransition"
+        }
+      },
+      "required": [
+        "to"
+      ],
+      "type": "object"
+    },
     "UpdateMediaRequest": {
       "additionalProperties": false,
       "description": "PATCH /shop/v1/products/{id}/media/{mediaId} — reorder / set primary / alt text.",
@@ -1111,11 +1404,41 @@
     "createShopSection": {
       "$ref": "#/definitions/CreateShopSectionRequest"
     },
+    "deliveryPromise": {
+      "$ref": "#/definitions/DeliveryPromiseDTO"
+    },
+    "fulfillmentDelivery": {
+      "$ref": "#/definitions/FulfillmentDeliveryDTO"
+    },
+    "fulfillmentDetail": {
+      "$ref": "#/definitions/FulfillmentDetailDTO"
+    },
+    "fulfillmentItem": {
+      "$ref": "#/definitions/FulfillmentItemDTO"
+    },
+    "fulfillmentQueue": {
+      "$ref": "#/definitions/FulfillmentQueueDTO"
+    },
+    "fulfillmentQueueState": {
+      "$ref": "#/definitions/FulfillmentQueueState"
+    },
+    "fulfillmentStatus": {
+      "$ref": "#/definitions/FulfillmentStatus"
+    },
+    "fulfillmentSummary": {
+      "$ref": "#/definitions/FulfillmentSummaryDTO"
+    },
+    "itemProgressRequest": {
+      "$ref": "#/definitions/ItemProgressRequest"
+    },
     "lifecycleStatus": {
       "$ref": "#/definitions/ShopLifecycleStatus"
     },
     "managerPing": {
       "$ref": "#/definitions/ShopManagerPingDTO"
+    },
+    "pickupStubRequest": {
+      "$ref": "#/definitions/PickupStubRequest"
     },
     "presignedUploadResponse": {
       "$ref": "#/definitions/CreatePresignedUploadResponse"
@@ -1135,6 +1458,9 @@
     "registerMedia": {
       "$ref": "#/definitions/RegisterMediaRequest"
     },
+    "requestableTransition": {
+      "$ref": "#/definitions/RequestableTransition"
+    },
     "role": {
       "$ref": "#/definitions/ShopRole"
     },
@@ -1152,6 +1478,9 @@
     },
     "staffStatus": {
       "$ref": "#/definitions/ShopStaffStatus"
+    },
+    "transitionRequest": {
+      "$ref": "#/definitions/TransitionRequest"
     },
     "updateMedia": {
       "$ref": "#/definitions/UpdateMediaRequest"
@@ -1185,7 +1514,19 @@
     "setProductSections",
     "shopSection",
     "createShopSection",
-    "updateShopSection"
+    "updateShopSection",
+    "fulfillmentStatus",
+    "fulfillmentQueueState",
+    "deliveryPromise",
+    "fulfillmentSummary",
+    "fulfillmentQueue",
+    "fulfillmentDelivery",
+    "fulfillmentItem",
+    "fulfillmentDetail",
+    "requestableTransition",
+    "transitionRequest",
+    "itemProgressRequest",
+    "pickupStubRequest"
   ],
   "type": "object",
   "title": "ShopContract"

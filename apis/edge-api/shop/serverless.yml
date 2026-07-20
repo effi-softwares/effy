@@ -323,6 +323,70 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── Order fulfilment (020). Shop authorizer; ANY active shop member (both shop_manager and
+  # shop_staff — fulfilment is floor work, FR-019a); every query scoped to the caller's own shop,
+  # never client input. ──
+  fulfillmentsListV1:
+    handler: src/functions/fulfillments-list-v1-get.handler
+    description: The shop's order queue — promise-ordered, shop-scoped (SC-002) — 020
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/fulfillments
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  fulfillmentGetV1:
+    handler: src/functions/fulfillment-get-v1-get.handler
+    description: Pick screen — this shop's lines only, no payment data; acknowledges on first open — 020
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/fulfillments/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  fulfillmentStatusV1:
+    handler: src/functions/fulfillment-status-v1-post.handler
+    description: Advance or reverse a portion — guarded, concurrency-safe (FR-014, SC-005) — 020
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/fulfillments/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  fulfillmentItemV1:
+    handler: src/functions/fulfillment-item-v1-patch.handler
+    description: Record picking progress / flag an item unavailable — no money moves (FR-010b) — 020
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/fulfillments/{id}/items/{orderItemId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  # ⚠ THE DEV-ONLY PICKUP STUB IS DELIBERATELY **NOT REGISTERED HERE** (020 FR-031, SC-013).
+  #
+  # src/functions/fulfillment-pickup-v1-post.ts exists and is unit-tested, but NO route points at it
+  # in ANY environment — so `POST /shop/v1/fulfillments/{id}/pickup` correctly returns 404 even in
+  # dev. That is the expected probe result, and a 403 would mean the route had been added and is a
+  # SC-013 failure.
+  #
+  # Why absence rather than a flag: the endpoint accepts a CALLER-SUPPLIED driver identity. Reachable
+  # anywhere deployed, it is an order-state forgery primitive — anyone who can reach the URL could
+  # mark any shop's order collected with no driver involved. A runtime flag or env var is the wrong
+  # control because it can be misconfigured into being on; an absent route cannot.
+  #
+  # To exercise it locally: `pnpm --filter @effy/edge-shop stub:pickup` (scripts/invoke-pickup-stub.mjs)
+  # invokes the handler in-process against your local DB. Do NOT add an httpApi event to make that
+  # easier. REMOVAL TRIGGER: delete the handler, this comment, scripts/invoke-pickup-stub.mjs, and
+  # repository.collectViaStub() when the driver slice ships a real dispatch path (FR-034).
+
 # Per-function CloudWatch alarms (Errors>0, Throttles>0, Duration p95). The API-level 5xx
 # alarm lives in Terraform (A3 — the API's owner), not here.
 resources:
@@ -684,5 +748,74 @@ resources:
         Period: 300
         EvaluationPeriods: 3
         Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # ── 020 order fulfilment ──
+    # A blind shop is an unfulfilled order, so the queue read carries a latency alarm as well as an
+    # error alarm — a queue that is merely slow still fails SC-001's 30-second budget.
+    FulfillmentsListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-fulfillments-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref FulfillmentsListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    FulfillmentsListV1DurationP95Alarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-fulfillments-list-v1-duration-p95
+        Namespace: AWS/Lambda
+        MetricName: Duration
+        Dimensions: [{ Name: FunctionName, Value: !Ref FulfillmentsListV1LambdaFunction }]
+        ExtendedStatistic: p95
+        Period: 300
+        EvaluationPeriods: 3
+        Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    FulfillmentGetV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-fulfillment-get-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref FulfillmentGetV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    FulfillmentStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-fulfillment-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref FulfillmentStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    FulfillmentItemV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-fulfillment-item-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref FulfillmentItemV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching

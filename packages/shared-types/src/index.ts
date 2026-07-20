@@ -10,3 +10,5 @@ export * from "./address";
 export * from "./checkout";
 export * from "./order";
 export * from "./favorite";
+// 020-shop-order-fulfillment
+export * from "./shop-order";
