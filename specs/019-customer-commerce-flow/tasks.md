@@ -5,6 +5,14 @@ description: "Task list for 019-customer-commerce-flow"
 
 # Tasks: Customer Commerce Flow (Browse → Cart → Checkout → Order)
 
+> ✅ **SIGNED OFF 2026-07-20 — 68 done · 5 partial · 4 outstanding (of 77).**
+> All six user stories are built + verified on all three surfaces. **SC-005** (multi-shop fan-out) and
+> **SC-006** (idempotency) were proven against the live dev schema with real two-shop data.
+> **Carry-forwards (NOT done, tracked for follow-up):** (1) **Android card payment is a placeholder** —
+> real Stripe PaymentSheet still needed (**T003/T006/T054**); (2) **no live end-to-end purchase has
+> run** (SC-001/SC-002 unproven live); (3) Playwright E2E (**T053/T060/T066/T070**) + `FULL=1`
+> testcontainers. See spec.md § Sign-off.
+
 **Input**: Design documents from `specs/019-customer-commerce-flow/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
 

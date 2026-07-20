@@ -4,7 +4,8 @@
 
 **Created**: 2026-07-18
 
-**Status**: Draft
+**Status**: ✅ **SIGNED OFF — 2026-07-20** (operator sign-off; complete with two documented
+carry-forwards, see § Sign-off below)
 
 **Input**: User description: "Complete the customer mobile app and customer web app: (1) auth screen if not implemented, (2) home page with banners / horizontal scrolling lists / featured & recently-viewed products / carousel / search bar / tags / badges / product cards, (3) product detail page with images, add-to-cart and save-as-favorite, (4) search page with infinite scroll, filters, badges, (5) cart with a checkout button, (6) checkout that places an order with Stripe as the payment gateway (implemented on both mobile and web), (7) a receipt after the order is placed, (8) routing the order into the respective shops — one order can contain items from multiple shops. Follow eBay and Uber Eats for UI/UX and features. Deliver the full end-to-end flow. Stripe sandbox keys can go in env / secrets files. Use core-api for the APIs."
 
@@ -555,3 +556,51 @@ remove a favorite and confirm it disappears.
   **observability/analytics** paths (metrics, product analytics) that every new flow must feed.
 - The hot-path backend runtime for local end-to-end verification (its cloud deployment is a separate,
   later slice and is not a blocker for building and demonstrating this flow locally).
+
+---
+
+## Sign-off (2026-07-20)
+
+Operator sign-off. The customer commerce journey is **built and verified across all three surfaces**:
+`browse → search → product → cart → checkout → Stripe pay → receipt → multi-shop fan-out`.
+
+### Delivered
+- **Backend (net-new on the Go hot path)** — `storefront` (home rails, product detail, `pg_trgm` search
+  with keyset pagination), `cart` (server cart + guest merge, re-price, unavailable-exclusion, flat
+  delivery fee), `addresses`, `checkout` (server-authoritative amount, deterministic-idempotency
+  PaymentIntent, signature-verified webhook finalizer), `orders`, `favorites`. New platform packages:
+  `money` (integer cents), `pricing`, `events` (transactional outbox), `customeridentity`, `media`.
+- **Web** (`customer-web`) — merchandised Home, product page, search (infinite scroll), cart, Stripe
+  Payment Element checkout, webhook-authoritative receipt, order history, favourites.
+- **Mobile** (`customer-mobile`) — the same flow in KMP/Compose (Clean-Arch + MVVM), `PaymentDriver`
+  capability, Home back stack, Coil3 product images.
+- **Data** — one forward-only migration `20260719120000_customer_commerce.sql` (10 tables).
+
+### Verification performed
+| Layer | Evidence |
+|---|---|
+| core-api | `go build` + `go vet` + `gofmt` + `go test` green (storefront/cart/checkout/money/…) |
+| customer-web | `pnpm typecheck` + **63 Vitest** + `pnpm build` — all commerce routes `◐ PPR`; Stripe kept out of the guest bundle |
+| customer-mobile | iOS Kotlin/Native compile + **all `commonTest` green** |
+| **SC-005 multi-shop fan-out** | **Proven against the live dev schema** with real two-shop data: 3 order lines / 2 shops → exactly 2 `shop_fulfillment` rows, each holding only its own shop's items; Σ shop subtotals == order subtotal ($45.00); 4 items ordered == 4 fanned. Executed in a rolled-back transaction. |
+| **SC-006 idempotency** | Fan-out re-run (webhook redelivery) inserted **0** rows |
+| Secrets/PII | Sweep clean — no card data anywhere (Stripe Elements/PaymentSheet own it), no `sk_`/`whsec_` literals |
+| Seed data | 2 shops, 38 active products, 92 images (Openverse CC → S3, presign-verified) |
+
+### ⚠ Carry-forwards (known, accepted at sign-off)
+These are **not** done and are carried into follow-up work — recorded so they are not mistaken for complete:
+
+1. **Android card payment is a placeholder.** `AndroidPaymentDriver` returns a "use web checkout"
+   failure. The real Stripe Android **PaymentSheet** needs the SDK + Activity-scoped
+   `ActivityResultRegistry` wiring (tasks **T003 / T006 / T054**). iOS has the real Swift-bridge path
+   coded (compile-verified, not device-run); **web checkout is fully live**.
+2. **No live end-to-end purchase has been executed.** SC-001/SC-002 (a real paid order) remain proven
+   only at the layer below — the fan-out and idempotency are verified against the real schema, and the
+   Stripe integration is unit-verified with a `PaymentGateway` fake, but no actual payment has flowed
+   through Stripe → webhook → finalizer. Requires the `stripe listen` tunnel + a test-card checkout.
+
+Also outstanding: Playwright E2E (**T053/T060/T066/T070**) and `FULL=1` testcontainers repo tests.
+`core-api` remains **local-Docker only** — cloud go-live tracks the hot path's own deployment slice.
+
+**Final task tally: 68 done · 5 partial · 4 outstanding (of 77)** — all remaining items are
+operator/device-gated or the carry-forwards above.

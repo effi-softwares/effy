@@ -196,8 +196,20 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**019-customer-commerce-flow** — Customer Commerce Flow (Browse → Order). **Code-complete + verified
-across all three surfaces; operator run pending; not committed.**
+**019-customer-commerce-flow** — Customer Commerce Flow (Browse → Order). ✅ **SIGNED OFF 2026-07-20 —
+68/77 tasks; verified on all three surfaces. TWO CARRY-FORWARDS (below) are NOT done.**
+- ⚠ **Carry-forward 1 — Android card payment is a PLACEHOLDER.** `AndroidPaymentDriver` returns a
+  "use web checkout" failure; the real Stripe **PaymentSheet** (SDK + Activity `ActivityResultRegistry`
+  wiring) is still outstanding (**T003/T006/T054**). iOS Swift-bridge path is coded (compile-verified,
+  not device-run). **Web checkout is fully live.**
+- ⚠ **Carry-forward 2 — no live end-to-end purchase has ever run.** SC-001/SC-002 are unproven live;
+  Stripe→webhook→finalizer has never executed against real Stripe. Needs `stripe listen` + a test-card
+  checkout. (Also outstanding: Playwright E2E T053/T060/T066/T070, `FULL=1` testcontainers.)
+- ✅ **SC-005 (multi-shop fan-out) + SC-006 (idempotency) PROVEN** against the live dev schema with real
+  two-shop data: 3 lines / 2 shops → exactly 2 `shop_fulfillment` rows, each only its own shop's items,
+  Σ subtotals == order subtotal, 4 items ordered == 4 fanned; re-run inserted 0 rows. (Rolled back.)
+- **Dev seed data**: 2 shops — `shop one` (26 products) + `Effy SHOP TWO` (12 grocery/household) — 92
+  Openverse CC images in S3 (presign-verified). Seeder is scratchpad-only (not yet in the repo).
 The platform's **first commerce slice** — the customer's complete journey (discover → product → cart →
 checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** customer surfaces, served by the
 **hot path** (`core-api`, FR-028). Turns the 016 catalog into a shoppable storefront.
