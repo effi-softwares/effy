@@ -61,7 +61,14 @@ func (g *StripeGateway) RetrievePaymentIntent(ctx context.Context, intentID stri
 // ConstructWebhookEvent verifies the Stripe signature over the RAW body (HMAC + timestamp tolerance)
 // and extracts the PaymentIntent id + status. A bad signature is an error (the handler 400s).
 func (g *StripeGateway) ConstructWebhookEvent(payload []byte, signatureHeader string) (WebhookEvent, error) {
-	event, err := webhook.ConstructEvent(payload, signatureHeader, g.webhookSecret)
+	// IgnoreAPIVersionMismatch: the account's default API version can be newer than the one
+	// stripe-go/v82 pins (e.g. an account on `2026-05-27.dahlia` while the SDK expects
+	// `2025-08-27.basil`). ConstructEvent treats that as a hard error, which would 400 every webhook
+	// and leave every paid order stuck at pending_payment. We only read the event type and the
+	// PaymentIntent id below — both stable across these versions — so a mismatched deserialization of
+	// fields we never touch is harmless. The HMAC signature is still fully verified either way.
+	event, err := webhook.ConstructEventWithOptions(payload, signatureHeader, g.webhookSecret,
+		webhook.ConstructEventOptions{IgnoreAPIVersionMismatch: true})
 	if err != nil {
 		return WebhookEvent{}, fmt.Errorf("checkout: webhook signature: %w", err)
 	}
