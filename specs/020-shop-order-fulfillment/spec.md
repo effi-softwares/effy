@@ -4,7 +4,34 @@
 
 **Created**: 2026-07-20
 
-**Status**: Draft
+**Status**: ✅ **SIGNED OFF (partial by design) — 2026-07-21.** The commerce→fulfilment loop is **proven
+live** with a real Stripe charge: SC-001 and SC-002 verified against the dev DB (order `EFY-HVX2AE`
+→ `paid`; fan-out to 2 shops — `shop one` 2 items/$20.00, `Effy SHOP TWO` 6 items/$37.80; Σ portions
+$57.80 == order item subtotal; `Effy SHOP TWO` advanced to `picking` in the shop app, so US1/US2/US3
+are live on that surface). Code-verified everywhere: workspace typecheck + **576 JS/TS tests** + build,
+Go build/vet/test/gofmt, **152 shop-mobile tests** (Android + iOS), mobile-guard, contract drift guard.
+**Carry-forwards** (below) are NOT done.
+
+⚠ **Carry-forward 1 — a live-only Stripe bug was found and fixed during sign-off.**
+`webhook.ConstructEvent` (stripe-go/v82) hard-rejects a newer account API version
+(`2026-05-27.dahlia` vs the SDK's `2025-08-27.basil`), 400-ing every webhook and stranding every paid
+order at `pending_payment` with no fan-out. Fixed via `ConstructEventWithOptions{IgnoreAPIVersionMismatch:
+true}` in `apis/core-api/internal/features/checkout/stripegateway.go` (safe — only the event type and
+PaymentIntent id are read, both version-stable; HMAC still fully verified). **This is a 019 checkout fix
+surfaced by 020's first live run** — the mocks could never have caught it.
+
+⚠ **Carry-forward 2 — several SCs remain unit-proven, not live.** SC-005 (concurrent transition),
+SC-007 (adversarial no-leak on the wire), SC-010 (the *second* shop surface — only one was exercised
+live), SC-011/SC-012 (shortfall flow), and SC-013 (the deployed pickup-stub 404 probe) are asserted in
+tests but not manually walked. The full SC-001…SC-021 table in [quickstart.md](./quickstart.md) §4
+remains to be run.
+
+⚠ **Carry-forward 3 — dev-only helper shipped.** `scripts/stripe-listen.sh` syncs the CLI's webhook
+signing secret into Secrets Manager (`/effy/dev/stripe/webhook_secret`) and records the forward URL in
+SSM (`/effy/dev/stripe/webhook_url`) before forwarding — removing the secret-drift that caused the
+stranded first order. Local dev only.
+
+**Original status: Draft** →
 
 **Input**: User description: "Shop Order Fulfillment — let shops actually receive and work the orders that 019 creates. 019 writes one per-shop fulfilment record per paid order plus an `order.placed` outbox event, and nothing consumes either: from a shop's point of view a paid order vanishes into the database. Deliver the shop audience's order-handling capability at parity on both shop surfaces (shop-web console, shop-mobile tablet-first): see incoming orders in near-real-time, open one to see exactly what to pick, and move it through a lifecycle to the point it leaves the shop. A shop sees ONLY its own items and never the customer's payment details. The shop audience MAY use BOTH backends — the path is chosen by latency/reliability need, not by audience."
 

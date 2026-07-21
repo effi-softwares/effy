@@ -196,6 +196,44 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**020-shop-order-fulfillment** — Shop Order Fulfillment (Receive → Pick → Handoff). ✅ **SIGNED OFF
+(partial by design) 2026-07-21 — 89/93 tasks. The commerce→fulfilment loop is PROVEN LIVE.**
+Gives the 019 fan-out a consumer: 019 wrote one `shop_fulfillment` per (order, shop) and **nothing read
+it** — its status never left `pending`. 020 is that consumer — an order **queue**, a **pick screen**, and
+a **state machine** (`pending → received → picking → ready_for_pickup` + dev-only `collected`), at parity
+on **both** shop surfaces (shop-web + shop-mobile, whose Orders tab was a placeholder).
+- **Path (Principle III)**: shop side → **cold path** `apis/edge-api/shop/fulfillments/` (`/shop/v1/
+  fulfillments…`) — the doctrine's "internal operator console" (research R1 inverted the spec's guess:
+  core-api has no cloud deploy, so a hot-path queue could never go live). The **customer** half (US5,
+  anonymous progress + terminal-gated shortfalls) stays on the **hot path** `core-api/orders` — one
+  capability, two audiences, two paths, exactly the operator's rule.
+- **Data**: one migration `20260720093119_shop_order_fulfillment.sql` — widens `shop_fulfillment.status`
+  to the 5-state machine + `state_changed_at`; new `fulfillment_item` (pick progress + shortfall, kept
+  OFF the receipt line) + append-only `fulfillment_event` (the sole accountability control, since **both**
+  `shop_manager` and `shop_staff` have full access — FR-019a).
+- **PROVEN LIVE (SC-001/SC-002)**: real Stripe test-card checkout → order `EFY-HVX2AE` `paid` → fan-out to
+  2 shops (`shop one` 2/$20.00, `Effy SHOP TWO` 6/$37.80; Σ $57.80 == item subtotal); a shop advanced its
+  portion to `picking` in the app. Code-verified: workspace typecheck + **576 JS/TS tests** + build, Go
+  build/vet/test/gofmt, **152 shop-mobile tests** (Android+iOS), mobile-guard, contract drift guard.
+- ⚠ **Live-only bug found + fixed during sign-off**: `apis/core-api/.../checkout/stripegateway.go` now uses
+  `ConstructEventWithOptions{IgnoreAPIVersionMismatch: true}` — a newer account API version
+  (`2026-05-27.dahlia` vs stripe-go/v82's `2025-08-27.basil`) was 400-ing **every** webhook and stranding
+  every paid order at `pending_payment`. A 019 checkout fix that only 020's first live run could surface.
+- ⚠ **Carry-forwards (NOT done)**: SC-005 (concurrency), SC-007 (adversarial no-leak), SC-010 (the *second*
+  shop surface live), SC-011/012 (shortfall flow), SC-013 (deployed stub 404 probe) are unit-proven not
+  live; the full SC table walk remains (quickstart §4). **`customer-web` 160 KB guest-bundle gate is at
+  167.3 KB — PRE-EXISTING, byte-identical with 020 reverted; needs its own fix.**
+- ⚠ **The dev-only pickup stub has NO route in any environment** (FR-031): `POST .../pickup` returns 404;
+  invoked locally only via `apis/edge-api/shop/scripts/invoke-pickup-stub.mjs`. Removal trigger = the
+  driver slice. **`scripts/stripe-listen.sh`** (new) syncs the CLI webhook secret into Secrets Manager +
+  records the forward URL in SSM before forwarding — kills the secret-drift that stranded the first order.
+- **Next**: **021-delivery-zones-pricing** (planned, decisions locked in
+  [specs/020-shop-order-fulfillment/NEXT-021-delivery-zones.md](specs/020-shop-order-fulfillment/NEXT-021-delivery-zones.md)):
+  postcode-list zones, service levels, per-zone pricing (replaces the flat `DeliveryFeeCents = 500`),
+  serviceability blocked at checkout. 020's delivery promise is already a read-only seam it repoints.
+  Spec/artifacts: [specs/020-shop-order-fulfillment/](specs/020-shop-order-fulfillment/); parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §020.
+
 **019-customer-commerce-flow** — Customer Commerce Flow (Browse → Order). ✅ **SIGNED OFF 2026-07-20 —
 68/77 tasks; verified on all three surfaces. TWO CARRY-FORWARDS (below) are NOT done.**
 - ⚠ **Carry-forward 1 — Android card payment is a PLACEHOLDER.** `AndroidPaymentDriver` returns a

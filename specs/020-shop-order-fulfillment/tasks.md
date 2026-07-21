@@ -25,10 +25,20 @@ this repo and the constitution's Quality Gate (*"ships verified against its spec
 
 ---
 
-> **Implementation status (2026-07-20): 86/93 done. The 7 open tasks are ALL operator-run** (migration
-> apply, deploy, and live verification). Everything code-verifiable is green: workspace typecheck +
-> **576 JS/TS tests** + build, Go build/vet/test + gofmt, **152 shop-mobile tests** on Android + iOS,
-> mobile-guard, and the pickup stub confirmed to have no route in any stage.
+> **✅ SIGNED OFF (partial by design) — 2026-07-21.** The commerce→fulfilment loop is **proven live**:
+> a real Stripe test-card checkout fanned out to 2 shops (SC-001/SC-002 green against the dev DB), and a
+> shop advanced its portion to `picking` in the app (US1/US2/US3 live on that surface). Migration applied
+> (T008), cold path deployed (T088). Everything code-verifiable is green: workspace typecheck + **576
+> JS/TS tests** + build, Go build/vet/test + gofmt, **152 shop-mobile tests** on Android + iOS,
+> mobile-guard, contract drift guard, and the pickup stub confirmed routeless.
+>
+> ⚠ **A live-only Stripe bug was found + fixed during sign-off** — `stripegateway.go` now passes
+> `IgnoreAPIVersionMismatch: true`; without it every webhook 400'd and every order stranded at
+> `pending_payment`. A 019 fix that only 020's first live run could surface.
+>
+> **Carry-forwards (NOT done):** SC-005/SC-007/SC-010(2nd surface)/SC-011/SC-012/SC-013 remain
+> unit-proven not live; the full SC table walk (T092) is outstanding. Remaining open tasks below are the
+> live-verification steps.
 >
 > ⚠ **One pre-existing failure inherited, not caused:** `customer-web`'s 160 KB guest bundle gate is at
 > **167.3 KB**. Measured byte-identical with this slice's changes fully reverted — 020 adds a server
@@ -58,7 +68,7 @@ this repo and the constitution's Quality Gate (*"ships verified against its spec
 ### Data layer
 
 - [X] T007 Author the forward-only migration `db/migrations/<timestamp>_shop_order_fulfillment.sql` per [data-model.md](./data-model.md): drop + re-add `shop_fulfillment_status_check` widened to the five states, add `shop_fulfillment.state_changed_at`, create `public.fulfillment_item` (with the `gathered + unavailable <= ordered` CHECK and the `(shop_fulfillment_id, order_item_id)` UNIQUE), create `public.fulfillment_event` (append-only, `actor_staff_id` nullable `ON DELETE SET NULL`), and both indexes. Scaffold with `make db-new name=shop_order_fulfillment`
-- [ ] T008 🧑‍💻 Commit the migration, then apply it: `make db-up ENV=dev` (the 003 commit-guard blocks an uncommitted migration). Verify with `\d public.fulfillment_item` and the `pg_get_constraintdef` check in [quickstart.md](./quickstart.md) §2
+- [X] T008 🧑‍💻 Commit the migration, then apply it: `make db-up ENV=dev` (the 003 commit-guard blocks an uncommitted migration). Verify with `\d public.fulfillment_item` and the `pg_get_constraintdef` check in [quickstart.md](./quickstart.md) §2
 
 ### Backend domain slice
 
@@ -254,9 +264,9 @@ marking; confirm a non-ready portion is refused; confirm the route does not exis
 - [X] T085 [P] Confirm every new Lambda has `Errors` alarms and the queue-list function has a `Duration` p95 alarm in `apis/edge-api/shop/serverless.yml`
 - [X] T086 [P] Add §020 rows to **both** shop columns (web + mobile) in `docs/audiences/shop-capabilities.md` (FR-022), and confirm the standing mobile-telemetry deferral is still recorded as a deviation
 - [X] T087 Run the full verification sweep from [quickstart.md](./quickstart.md) §1: `pnpm -r typecheck`, `pnpm --filter @effy/edge-shop test`, `pnpm --filter @effy/shop-web test`, `shop-contract:check`, `go build ./... && go vet ./... && go test ./...`, `./gradlew :shared:allTests`, `turbo build`
-- [ ] T088 🧑‍💻 Deploy the cold path: `make edge-deploy SERVICE=shop ENV=dev`
+- [X] T088 🧑‍💻 Deploy the cold path: `make edge-deploy SERVICE=shop ENV=dev`
 - [ ] T089 🧑‍💻 **Prove the pickup stub is ABSENT in dev** per [quickstart.md](./quickstart.md) §3 — expect **404**, not 403 and not 200. A 403 means the route exists in a deployed environment and is a **failure** (SC-013)
-- [ ] T090 🧑‍💻 Run one real two-shop checkout to create live fulfilment data (`make core-run` + `stripe listen` + test-card) — **blocking prerequisite** for SC-001/SC-002; 019's carry-forward means no order has ever existed
+- [X] T090 🧑‍💻 Run one real two-shop checkout to create live fulfilment data (`make core-run` + `stripe listen` + test-card) — **blocking prerequisite** for SC-001/SC-002; 019's carry-forward means no order has ever existed
 - [ ] T091 🧑‍💻 Run the adversarial isolation proof from [quickstart.md](./quickstart.md) §4 — cross-shop read returns 403 not 404, and grep both response bodies for payment/shop/driver leakage (SC-002, SC-007)
 - [ ] T092 🧑‍💻 Walk the full SC-001…SC-021 table in [quickstart.md](./quickstart.md) §4 on **both** surfaces (SC-010); record SC-019 as not-yet-provable by design (needs 021)
 - [ ] T093 🧑‍💻 Commit spec, plan, research, data-model, contracts, quickstart, tasks **alongside** the code (Quality Gates: no feature merges without all three artifacts)
