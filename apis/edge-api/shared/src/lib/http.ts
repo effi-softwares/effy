@@ -16,6 +16,7 @@ export const ProblemType = {
   MethodNotAllowed: "https://effyshopping.com/problems/method-not-allowed",
   VersionRetired: "https://effyshopping.com/problems/version-retired",
   RateLimited: "https://effyshopping.com/problems/rate-limited",
+  Conflict: "https://effyshopping.com/problems/conflict",
   Internal: "https://effyshopping.com/problems/internal",
   Unavailable: "https://effyshopping.com/problems/unavailable",
 } as const;

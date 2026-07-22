@@ -63,6 +63,14 @@ export function AccountMenu({
           Your account
         </Link>
 
+        <Link
+          href="/addresses"
+          data-testid="menu-addresses"
+          className="block rounded-sm px-3 py-2 text-sm hover:bg-accent"
+        >
+          Your addresses
+        </Link>
+
         {/* ⚠ POST, not GET. A GET sign-out is triggerable by any <img src="/sign-out"> anywhere on
             the internet — a CSRF logout. */}
         <form action="/sign-out" method="post">

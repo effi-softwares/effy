@@ -20,6 +20,20 @@ sealed interface AppError {
     /** The wrong password journey was attempted (set on an account with one; change on one without). */
     data object WrongPasswordMode : AppError
 
+    /**
+     * The captured delivery quote is stale (021 FR-011a): the validity window expired, a package became
+     * unavailable, or its same-day lapsed past cutoff. The customer MUST re-quote and see the new amounts
+     * before being charged. Distinct from a generic 409 so the checkout can re-quote silently.
+     */
+    data object RequoteRequired : AppError
+
+    /**
+     * The customer tried to delete their DEFAULT address while other addresses remain (022 FR-016a).
+     * The delete endpoint refuses it server-side (409); the address book surfaces the "set another
+     * default first" prompt. Distinct from the generic 409 so the UI can reassign rather than error.
+     */
+    data object DefaultDeleteBlocked : AppError
+
     /** Throttled. [retryAfterSeconds] is shown; the app explains the wait, never loops (FR-017). */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 

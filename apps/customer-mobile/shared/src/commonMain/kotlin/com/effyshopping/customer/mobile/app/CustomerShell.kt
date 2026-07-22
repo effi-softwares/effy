@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.nav.AppRoute
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
+import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
@@ -210,6 +211,14 @@ private fun AccountTab(container: AppContainer, session: SessionState) {
 
         is AppRoute.SignIn, AppRoute.SignUp, is AppRoute.VerifyOtp, AppRoute.Recovery ->
             AuthRoutes(container, route)
+
+        // 022: the address book is its own feature screen, reached from the account screen.
+        AppRoute.AddressBook ->
+            if (session is SessionState.Authenticated) {
+                AddressBookScreen(container, onBack = { container.navigator.pop() })
+            } else {
+                GuestAccountLanding(container)
+            }
 
         AppRoute.Account, AppRoute.EditName, AppRoute.PasswordSet, AppRoute.PasswordChange ->
             AccountRoutes(container, route, session)

@@ -19,6 +19,7 @@ sealed interface AppRoute {
     data object EditName : AppRoute
     data object PasswordSet : AppRoute
     data object PasswordChange : AppRoute
+    data object AddressBook : AppRoute // 022 — manage saved delivery addresses
 }
 
 /** What an emailed code is for — so the verify screen knows which flow to complete. */
