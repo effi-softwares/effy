@@ -48,7 +48,7 @@
 ### Data layer
 
 - [X] T007 Author the forward-only migration `db/migrations/<ts>_delivery_zones_pricing.sql` per [data-model.md](./data-model.md): `delivery_zone`, `delivery_zone_postcode` (UNIQUE postcode), `delivery_offering` (UNIQUE origin×dest×method + indexes), `ALTER public.shop ADD postcode`, `order_package_delivery` (UNIQUE order×shop), `ALTER public."order" ADD delivery_quote_expires_at`, `ALTER public.shop_fulfillment ADD` the 4 delivery columns. House style: `public` schema, text CHECK enums, index every FK, COMMENT ON everything. Scaffold with `make db-new name=delivery_zones_pricing`
-- [ ] T008 🧑‍💻 Commit the migration, then `make db-up ENV=dev`; verify per [quickstart.md](./quickstart.md) §2
+- [x] T008 🧑‍💻 Commit the migration, then `make db-up ENV=dev`; verify per [quickstart.md](./quickstart.md) §2
 
 ### Hot-path pricing core (pure, DB-free — the heart of the money path)
 
@@ -198,10 +198,10 @@ shop's queue shows its own ready-by; same-day ranks more urgent; no fee shown to
 - [X] T056 [P] Update the parity register `docs/audiences/customer-capabilities.md` §021 (both customer surfaces) and note the enriched shop promise
 - [X] T057 [P] Confirm 021 code stays out of the customer-web guest bundle: `cd apps/customer-web && pnpm size` MUST NOT regress `/` or `/browse` vs the pre-021 167.3 KB baseline (do not raise the limit)
 - [X] T058 Run the full sweep from [quickstart.md](./quickstart.md) §1: `pnpm -r typecheck` + `commerce-contract:check` + edge-admin/customer-web/back-office Vitest + `go build/vet/test` + `./gradlew :shared:allTests` + `pnpm turbo build`
-- [ ] T059 🧑‍💻 Deploy the cold path: `make edge-deploy SERVICE=admin ENV=dev`; seed a first zone/rate config per [quickstart.md](./quickstart.md) §3
-- [ ] T060 🧑‍💻 Run `make core-run` + `./scripts/stripe-listen.sh`; place a real two-shop order and walk SC-001…SC-013 in [quickstart.md](./quickstart.md) §4, incl. the adversarial money proofs (SC-004) and the atomic-finalize kill test (SC-011c)
-- [ ] T061 🧑‍💻 Verify parity on customer-mobile (SC-010) and that the shop surface never shows the delivery fee (FR-021a)
-- [ ] T062 🧑‍💻 Commit spec, plan, research, data-model, contracts, quickstart, tasks **alongside** the code
+- [x] T059 🧑‍💻 Deploy the cold path: `make edge-deploy SERVICE=admin ENV=dev`; seed a first zone/rate config per [quickstart.md](./quickstart.md) §3
+- [x] T060 🧑‍💻 Run `make core-run` + `./scripts/stripe-listen.sh`; place a real two-shop order and walk SC-001…SC-013 in [quickstart.md](./quickstart.md) §4, incl. the adversarial money proofs (SC-004) and the atomic-finalize kill test (SC-011c)
+- [x] T061 🧑‍💻 Verify parity on customer-mobile (SC-010) and that the shop surface never shows the delivery fee (FR-021a)
+- [x] T062 🧑‍💻 Commit spec, plan, research, data-model, contracts, quickstart, tasks **alongside** the code
 
 ---
 

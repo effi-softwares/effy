@@ -90,7 +90,7 @@ export interface OrderShortfallDTO {
  * would imply WHO is fulfilling (FR-018, SC-009).
  */
 export interface OrderFulfillmentDTO {
-  status: "pending" | "received" | "picking" | "ready_for_pickup" | "collected";
+  status: "pending" | "received" | "picking" | "ready_for_pickup" | "collected" | "delivered";
   itemCount: number;
   subtotalAmount: string;
   /** Present ONLY when the portion has reached a terminal state (FR-018b). Absent while picking. */

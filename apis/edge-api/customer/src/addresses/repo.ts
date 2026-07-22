@@ -1,4 +1,4 @@
-import { query } from "@effy/edge-shared";
+import { query, withTransaction } from "@effy/edge-shared";
 
 import { ADDRESS_COLUMNS, type AddressRow } from "./model";
 
@@ -78,47 +78,62 @@ export async function create(customerId: string, input: AddressInput): Promise<A
 /**
  * Patch provided fields (COALESCE keeps omitted ones) and optionally promote to default. Returns
  * null when the id is not the customer's (→ 404).
+ *
+ * Promoting to default is TWO ordered statements in one transaction — clear the prior default
+ * first, then set this row. `customer_address_default_uq` is a NON-deferrable partial unique index,
+ * and a data-modifying CTE cannot see its sibling's row changes (one snapshot), so a single-statement
+ * "clear-then-set" trips the constraint (both the old and new row read as `is_default` at check
+ * time → 23505). Ordering the clear before the set inside a transaction keeps at most one `true` row
+ * visible to the index at any instant.
  */
 export async function update(
   customerId: string,
   id: string,
   input: AddressInput,
 ): Promise<AddressRow | null> {
-  const res = await query<AddressRow>(
-    `WITH cleared AS (
-        UPDATE public.customer_address SET is_default = false
-         WHERE customer_id = $1 AND $2 = true
-     )
-     UPDATE public.customer_address SET
-        label          = COALESCE($3, label),
-        recipient_name = COALESCE($4, recipient_name),
-        phone          = COALESCE($5, phone),
-        line1          = COALESCE($6, line1),
-        line2          = COALESCE($7, line2),
-        city           = COALESCE($8, city),
-        region         = COALESCE($9, region),
-        postal_code    = COALESCE($10, postal_code),
-        country        = COALESCE($11, country),
-        is_default     = CASE WHEN $2 = true THEN true ELSE is_default END,
-        updated_at     = now()
-      WHERE id = $12 AND customer_id = $1
-      RETURNING ${ADDRESS_COLUMNS}`,
-    [
-      customerId,
-      input.makeDefault,
-      input.label,
-      input.recipientName,
-      input.phone,
-      input.line1,
-      input.line2,
-      input.city,
-      input.region,
-      input.postalCode,
-      input.country,
-      id,
-    ],
-  );
-  return res.rows[0] ?? null;
+  return withTransaction(async (client) => {
+    if (input.makeDefault) {
+      // Guard the clear on the target existing AND belonging to this customer — otherwise a 404
+      // patch (target not the customer's) would still wipe the existing default, leaving no default.
+      await client.query(
+        `UPDATE public.customer_address SET is_default = false
+          WHERE customer_id = $1 AND is_default AND id <> $2
+            AND EXISTS (SELECT 1 FROM public.customer_address WHERE id = $2 AND customer_id = $1)`,
+        [customerId, id],
+      );
+    }
+    const res = await client.query<AddressRow>(
+      `UPDATE public.customer_address SET
+          label          = COALESCE($3, label),
+          recipient_name = COALESCE($4, recipient_name),
+          phone          = COALESCE($5, phone),
+          line1          = COALESCE($6, line1),
+          line2          = COALESCE($7, line2),
+          city           = COALESCE($8, city),
+          region         = COALESCE($9, region),
+          postal_code    = COALESCE($10, postal_code),
+          country        = COALESCE($11, country),
+          is_default     = CASE WHEN $2 = true THEN true ELSE is_default END,
+          updated_at     = now()
+        WHERE id = $12 AND customer_id = $1
+        RETURNING ${ADDRESS_COLUMNS}`,
+      [
+        customerId,
+        input.makeDefault,
+        input.label,
+        input.recipientName,
+        input.phone,
+        input.line1,
+        input.line2,
+        input.city,
+        input.region,
+        input.postalCode,
+        input.country,
+        id,
+      ],
+    );
+    return res.rows[0] ?? null;
+  });
 }
 
 export type DeleteOutcome = "deleted" | "not_found" | "default_blocked";

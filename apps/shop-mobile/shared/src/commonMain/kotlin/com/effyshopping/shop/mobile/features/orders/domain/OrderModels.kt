@@ -22,13 +22,14 @@ enum class FulfillmentState(val key: String, val label: String) {
     PICKING("picking", "Picking"),
     READY_FOR_PICKUP("ready_for_pickup", "Ready for pickup"),
     COLLECTED("collected", "Collected"),
+    DELIVERED("delivered", "Delivered"),
     ;
 
     /** Items may only be picked while the portion is being worked (contract: PATCH is legal only in `picking`). */
     val isPickable: Boolean get() = this == PICKING
 
-    /** Once collected, nothing may change (FR-011f). */
-    val isImmutable: Boolean get() = this == COLLECTED
+    /** Once collected/delivered (the driver-stub tail), nothing may change (FR-011f). */
+    val isImmutable: Boolean get() = this == COLLECTED || this == DELIVERED
 }
 
 /** Which slice of the queue to read (FR-016). Completed work leaves the active queue but stays openable. */
@@ -149,7 +150,7 @@ data class FulfillmentDetail(
         get() = when (status) {
             FulfillmentState.PENDING, FulfillmentState.RECEIVED -> FulfillmentTransition.PICKING
             FulfillmentState.PICKING -> FulfillmentTransition.READY_FOR_PICKUP
-            FulfillmentState.READY_FOR_PICKUP, FulfillmentState.COLLECTED -> null
+            FulfillmentState.READY_FOR_PICKUP, FulfillmentState.COLLECTED, FulfillmentState.DELIVERED -> null
         }
 
     /** The ONE permitted reversal (FR-011d) — offered only while the portion has not been collected. */

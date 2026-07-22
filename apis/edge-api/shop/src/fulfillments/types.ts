@@ -9,21 +9,31 @@
 
 import type { FieldIssue } from "../products/types";
 
-/** The five-state machine (FR-011). See specs/020-shop-order-fulfillment/data-model.md §1. */
+/**
+ * The shop working lifecycle (FR-011) + the dev driver stub tail. See
+ * specs/020-shop-order-fulfillment/data-model.md §1. `collected` and `delivered` both belong to the
+ * DEV-ONLY driver stub (no deployed route) — a placeholder for the real driver slice: picked up
+ * (`collected`) → delivered (`delivered`).
+ */
 export type FulfillmentStatus =
   | "pending"
   | "received"
   | "picking"
   | "ready_for_pickup"
-  | "collected";
+  | "collected"
+  | "delivered";
 
-/** States a client may request. `received` is implicit; `collected` belongs to the stub alone. */
+/** States a client may request. `received` is implicit; `collected`/`delivered` belong to the stub. */
 export type RequestableTransition = "picking" | "ready_for_pickup";
 
 export type QueueState = "active" | "completed";
 
 export const ACTIVE_STATUSES: readonly FulfillmentStatus[] = ["pending", "received", "picking"];
-export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = ["ready_for_pickup", "collected"];
+export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = [
+  "ready_for_pickup",
+  "collected",
+  "delivered",
+];
 
 /**
  * The legal edges of the state machine, as data rather than branching.

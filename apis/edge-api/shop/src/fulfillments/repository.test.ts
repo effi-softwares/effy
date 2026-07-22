@@ -8,7 +8,7 @@ vi.mock("@effy/edge-shared", async (importOriginal) => ({
   withTransaction,
 }));
 
-import { collectViaStub, listQueue, readDetail, transition, updateItemProgress } from "./repository";
+import { collectViaStub, deliverViaStub, listQueue, readDetail, transition, updateItemProgress } from "./repository";
 
 /** Collapse whitespace so SQL assertions are formatting-independent. */
 const sql = (call: unknown[] | undefined): string =>
@@ -48,7 +48,7 @@ describe("shop scoping — the isolation guarantee (FR-019, SC-007)", () => {
     query.mockResolvedValue({ rows: [] });
     await listQueue("shop-1", "completed");
 
-    expect(query.mock.calls[0]?.[1]).toEqual(["shop-1", ["ready_for_pickup", "collected"]]);
+    expect(query.mock.calls[0]?.[1]).toEqual(["shop-1", ["ready_for_pickup", "collected", "delivered"]]);
   });
 
   // The load-bearing predicate: order_item.shop_id was denormalized by 019 precisely so a shop's
@@ -200,5 +200,22 @@ describe("pickup stub — ⚠ dev-only (FR-033)", () => {
 
     const event = calls.find(([t]) => t.includes("fulfillment_event"));
     expect(event?.[1]).toContain("collected:placeholder:test-driver-1");
+  });
+});
+
+describe("deliver stub — ⚠ dev-only (the driver-stub tail)", () => {
+  it("only ever moves collected to delivered", async () => {
+    const calls = fakeTx([{ rowCount: 1, rows: [{ id: "f-1" }] }]);
+    await deliverViaStub("f-1", "shop-1", "test-driver-1", "staff-1");
+
+    expect(calls[0]?.[1]).toEqual(["f-1", "shop-1", "collected", "delivered"]);
+  });
+
+  it("records the driver reference marked as placeholder data", async () => {
+    const calls = fakeTx([{ rowCount: 1, rows: [{ id: "f-1" }] }]);
+    await deliverViaStub("f-1", "shop-1", "test-driver-1", "staff-1");
+
+    const event = calls.find(([t]) => t.includes("fulfillment_event"));
+    expect(event?.[1]).toContain("delivered:placeholder:test-driver-1");
   });
 });

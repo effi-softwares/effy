@@ -45,8 +45,18 @@ type Step = "review" | "delivery" | "paying"
 export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDTO[] }) {
   const router = useRouter()
   const guestLines = useCart()
-  const estimate = useMemo(() => computeCartTotals(guestLines), [guestLines])
-  const currency = guestLines[0]?.currency ?? "AUD"
+  // Freeze the cart being checked out. The mount effect below merges these lines into the
+  // authoritative SERVER cart and then CLEARS the local guest cart — so `useCart()` is empty by
+  // design for the rest of the flow. If the estimate and the "has items" gate read the LIVE guest
+  // cart, the price would drop to $0 and Continue would disable the instant the merge resolves.
+  // Snapshot the lines the first time we have them, and never let the post-merge clear reset them
+  // (the server owns the real amount; this snapshot is display + a has-items gate only).
+  const [orderLines, setOrderLines] = useState(guestLines)
+  useEffect(() => {
+    if (guestLines.length > 0 && orderLines.length === 0) setOrderLines(guestLines)
+  }, [guestLines, orderLines])
+  const estimate = useMemo(() => computeCartTotals(orderLines), [orderLines])
+  const currency = orderLines[0]?.currency ?? "AUD"
 
   const [addresses, setAddresses] = useState<AddressDTO[]>(initialAddresses)
   // Pre-select the SHIPPING address (FR-001): the default, else — when none is default — the first of
@@ -124,7 +134,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // Pay is blocked until shipping is set (FR-007) and, when billing diverges, a billing address is
   // chosen (FR-012). Enforced at the review → delivery gate, before any payment.
   const canContinue =
-    !!selectedId && (billingSameAsShipping || !!billingId) && guestLines.length > 0
+    !!selectedId && (billingSameAsShipping || !!billingId) && orderLines.length > 0
 
   /** Quote the address for its per-package options. Returns the fresh quote, or null on failure. */
   async function fetchQuote(addressId: string): Promise<DeliveryQuoteResponse | null> {

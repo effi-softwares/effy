@@ -117,6 +117,33 @@ export async function collectViaStub(
   return getDetail(actor, fulfillmentId);
 }
 
+/**
+ * DEV-ONLY driver stub: mark a picked-up portion delivered (`collected` → `delivered`). The second
+ * half of the placeholder driver lifecycle, mirroring collectViaStub. `collected` is the sole legal
+ * source; the route is structurally absent outside local dev (FR-031), so the state guard is a
+ * second line of defence only. Removed with collectViaStub when the driver slice ships (FR-034).
+ */
+export async function deliverViaStub(
+  actor: Actor,
+  fulfillmentId: string,
+  driverRef: string,
+): Promise<FulfillmentDetail> {
+  if (!driverRef.trim()) {
+    throw new FulfillmentError("validation", "driverRef is required", [
+      { field: "driverRef", message: "must be a non-empty string" },
+    ]);
+  }
+
+  const current = await repo.readStatus(fulfillmentId, actor.shopId);
+  if (current === null) throw notFound();
+  if (current !== "collected") {
+    throw new FulfillmentError("conflict", `only a collected fulfillment can be delivered (is ${current})`);
+  }
+
+  await repo.deliverViaStub(fulfillmentId, actor.shopId, driverRef, actor.staffId);
+  return getDetail(actor, fulfillmentId);
+}
+
 // ── internals ──────────────────────────────────────────────────────────────────────────────────
 
 /**
