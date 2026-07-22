@@ -53,6 +53,10 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 # Android engine = HttpURLConnection (NOT okhttp) — so Ktor doesn't pull okhttp 4.x and clash with
 # Amplify's AWS SDK, which needs okhttp 5.x (okhttp3.ConnectionListener). 013 runtime fix.
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+# CIO (pure Kotlin/coroutines, NO okhttp) — used ONLY for Coil's image loads on Android. The `Android`
+# engine's platform `com.android.okhttp` throws "Unbalanced enter/exit" when Coil cancels an in-flight
+# image job during LazyGrid node reuse on scroll → fatal crash. CIO cancels cleanly (019 scroll-crash fix).
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-auth = { module = "io.ktor:ktor-client-auth", version.ref = "ktor" }

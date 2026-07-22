@@ -16,7 +16,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import coil3.SingletonImageLoader
+import com.effyshopping.customer.mobile.core.image.newImageLoader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +36,10 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun App(container: AppContainer) {
+    // Register the app's Coil ImageLoader (cancellation-safe engine) ONCE, during composition — before
+    // any AsyncImage loads — so scrolling a list of product images can't crash the app (019 scroll fix).
+    remember { SingletonImageLoader.setSafe { ctx -> newImageLoader(ctx) }; true }
+
     EffyTheme {
         val session by container.session.state.collectAsState()
         val scope = rememberCoroutineScope()

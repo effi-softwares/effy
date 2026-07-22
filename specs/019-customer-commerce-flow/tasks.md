@@ -115,6 +115,16 @@ unavailable products are absent; a card opens the product.
 - [X] T029 [US1] `MOB/features/catalog/presentation/HomeScreen.kt` — real Home replacing the placeholder: banner hero, category chips (`LazyRow`), product rails (`LazyRow` of tiles) with badges + struck-through compare-at, empty/error states; wired into `CustomerShell` HOME tab; old `features/home` deleted (no dead code). **Note**: product tiles use a placeholder image box — async images (Coil3) are a deferred one-line `AsyncImage` swap (domain already carries `imageUrl`).
 - [X] T030 [P] [US1] `commonTest/…/catalog/CatalogMappersTest.kt` — card mapping (image/badges/nullables) + home/rail/banner mapping. **Verified: compiles AND runs green on the iOS simulator** (`:shared:iosSimulatorArm64Test` BUILD SUCCESSFUL). Android build (needs the SDK) is operator/device-run per the project's mobile mode.
 
+- [X] T030a [US1] **Post-sign-off live fix (Android scroll crash)** — scrolling Home crashed the app with
+  `CompletionHandlerException` → `IllegalStateException: Unbalanced enter/exit` from `com.android.okhttp`'s
+  `AsyncTimeout`. Root cause: Coil cancels an in-flight image job when a `LazyRow`/`LazyGrid` reuses a node
+  on scroll; the DEFAULT Coil Ktor fetcher used Ktor's `Android` engine (HttpURLConnection → platform
+  okhttp), which throws from inside that cancellation handler — coroutines escalates it to fatal. Fix: a
+  singleton `ImageLoader` (`MOB/core/image/ImageLoading.kt`, registered at `App`) whose Ktor fetcher runs on
+  a **CIO** engine on Android (pure Kotlin, no okhttp — cancels cleanly; also sidesteps the Amplify okhttp
+  clash) and **Darwin** on iOS (unchanged; never crashed). `ktor-client-cio` added to androidMain only.
+  Verified: `compileAndroidMain` + iOS compile + `iosSimulatorArm64Test` green, `mobile-guard` clean.
+
 **Checkpoint**: Home is shoppable on both surfaces; the store is browsable end-to-end (no purchase yet).
 
 ---

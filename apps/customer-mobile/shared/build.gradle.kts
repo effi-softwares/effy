@@ -54,6 +54,9 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.android)
+            // CIO engine — Coil's image loader ONLY (not the data client). Avoids the platform-okhttp
+            // "Unbalanced enter/exit" crash when Coil cancels an image job on LazyGrid scroll reuse.
+            implementation(libs.ktor.client.cio)
             // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
             implementation(libs.amplify.auth.cognito)
             implementation(libs.amplify.core.kotlin)
