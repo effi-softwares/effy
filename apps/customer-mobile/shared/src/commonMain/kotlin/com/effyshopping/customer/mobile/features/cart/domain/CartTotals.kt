@@ -1,13 +1,15 @@
 package com.effyshopping.customer.mobile.features.cart.domain
 
 /**
- * Client-side cart totals for DISPLAY (019 US3), integer-cents math mirroring core-api's money/pricing.
- * The SERVER recomputes the authoritative amount at checkout — this is only the guest-cart estimate.
+ * Client-side cart totals for DISPLAY, integer-cents math mirroring core-api's money/pricing.
+ *
+ * 021: the flat $5 delivery fee is GONE (FR-024). Delivery is now geographic + per-package and is only
+ * known once an address is chosen at the delivery step, from the server quote — so the cart shows the
+ * ITEM SUBTOTAL ONLY. The server recomputes the authoritative grand total (items + summed per-package
+ * fees) at checkout; this is only the guest-cart item estimate.
  */
 
-const val DELIVERY_FEE_CENTS = 500L
-
-data class CartTotals(val itemSubtotal: String, val deliveryFee: String, val grandTotal: String)
+data class CartTotals(val itemSubtotal: String)
 
 fun parseCents(amount: String): Long {
     val negative = amount.startsWith("-")
@@ -30,10 +32,5 @@ fun formatCents(cents: Long): String {
 
 fun computeTotals(lines: List<GuestCartLine>): CartTotals {
     val subtotal = lines.sumOf { parseCents(it.unitPriceAmount) * it.quantity }
-    val delivery = if (subtotal > 0) DELIVERY_FEE_CENTS else 0L
-    return CartTotals(
-        itemSubtotal = formatCents(subtotal),
-        deliveryFee = formatCents(delivery),
-        grandTotal = formatCents(subtotal + delivery),
-    )
+    return CartTotals(itemSubtotal = formatCents(subtotal))
 }

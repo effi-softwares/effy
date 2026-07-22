@@ -96,6 +96,14 @@ data class CartLineDTO (
     val name: String,
 
     /**
+     * OPAQUE package grouping key (021). Items sharing a packageKey ship together as one
+     * anonymous "package" (one per fulfilling shop). It is NOT a shop id, name, or location — a
+     * meaningless-to-the- customer token that lets the cart show the split (021 FR-005a) while
+     * revealing no shop (SC-006).
+     */
+    val packageKey: String,
+
+    /**
      * When the authoritative price differs from what the client last saw, the prior amount (UX
      * only).
      */
@@ -164,13 +172,70 @@ data class CreateAddressRequest (
 )
 
 /**
- * POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent.
+ * POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019,
+ * extended 021).
  */
 @Serializable
 data class CreateCheckoutIntentRequest (
+    /**
+     * The SHIPPING address (required). Serviceability + delivery pricing key off this (021).
+     */
     @SerialName("addressId")
-    val addressID: String
+    val addressID: String,
+
+    /**
+     * 023: the BILLING address, when the customer diverged from shipping. Absent / null / equal
+     * to `addressId` → billing is "same as shipping" (the order stores NULL). Billing never
+     * affects the amount or the quote.
+     */
+    @SerialName("billingAddressId")
+    val billingAddressID: String? = null,
+
+    /**
+     * 021: packages the customer confirmed proceeding WITHOUT (auto-set-aside undeliverable
+     * items). MUST exactly match the server's unserviceable set or the intent is refused
+     * (FR-006b, SC-011a).
+     */
+    val excludedPackageKeys: List<String>? = null,
+
+    /**
+     * 021: the captured quote being placed. Honored while unexpired; else 409 → re-quote.
+     */
+    @SerialName("quoteId")
+    val quoteID: String? = null,
+
+    /**
+     * 021: the customer's per-package method choices (default preference + overrides, resolved).
+     */
+    val selections: List<DeliverySelectionDTO>? = null
 )
+
+/**
+ * The customer's chosen method for one package (021). Carries NO fee — the server prices it
+ * (SC-004).
+ */
+@Serializable
+data class DeliverySelectionDTO (
+    val method: CheckoutDeliveryMethod,
+    val packageKey: String,
+
+    /**
+     * Required only when method='scheduled'.
+     */
+    val scheduledDate: String? = null
+)
+
+/**
+ * The three delivery service levels (021). Availability per package follows from the shop's
+ * origin zone and the customer's destination zone — never from shop identity, which the
+ * customer never sees.
+ */
+@Serializable
+enum class CheckoutDeliveryMethod(val value: String) {
+    @SerialName("same_day") SameDay("same_day"),
+    @SerialName("scheduled") Scheduled("scheduled"),
+    @SerialName("standard") Standard("standard");
+}
 
 @Serializable
 data class CreateCheckoutIntentResponse (
@@ -180,6 +245,12 @@ data class CreateCheckoutIntentResponse (
     val clientSecret: String,
 
     val currency: String,
+
+    /**
+     * 021: the per-package delivery breakdown, for the order summary. Anonymous.
+     */
+    val deliveryBreakdown: List<DeliveryBreakdownLineDTO>? = null,
+
     val grandTotalAmount: String,
 
     @SerialName("orderId")
@@ -187,6 +258,96 @@ data class CreateCheckoutIntentResponse (
 
     val orderNumber: String,
     val publishableKey: String
+)
+
+/**
+ * One line of the per-package delivery breakdown on the intent response (021). Anonymous.
+ */
+@Serializable
+data class DeliveryBreakdownLineDTO (
+    val feeAmount: String,
+    val packageKey: String,
+    val serviceLevel: String,
+    val window: String? = null
+)
+
+/**
+ * One selectable delivery option for a package (021). Server-computed; the client never
+ * sends a fee.
+ */
+@Serializable
+data class DeliveryMethodOptionDTO (
+    val feeAmount: String,
+    val method: CheckoutDeliveryMethod,
+
+    /**
+     * Selectable dates for method='scheduled'; null otherwise.
+     */
+    val scheduleDates: List<String>? = null,
+
+    /**
+     * Customer-facing label, e.g. "Same-day".
+     */
+    val serviceLevel: String,
+
+    /**
+     * Derived window, e.g. "Today by 6pm" / "in 2–3 days"; null for a scheduled method (pick a
+     * date).
+     */
+    val window: String? = null
+)
+
+/**
+ * POST /v1/checkout/quote — per-package delivery options for the cart + address (021 US1).
+ */
+@Serializable
+data class DeliveryQuoteRequest (
+    @SerialName("addressId")
+    val addressID: String
+)
+
+@Serializable
+data class DeliveryQuoteResponse (
+    /**
+     * The captured quote is honored until this instant; after it the customer must re-quote
+     * (021 R7).
+     */
+    val expiresAt: String,
+
+    val packages: List<QuotePackageDTO>,
+
+    @SerialName("quoteId")
+    val quoteID: String
+)
+
+@Serializable
+data class QuotePackageDTO (
+    val items: List<QuotePackageItemDTO>,
+    val methods: List<DeliveryMethodOptionDTO>,
+    val packageKey: String,
+
+    /**
+     * False when this package cannot be delivered to the address (021 US2). methods is then
+     * empty.
+     */
+    val serviceable: Boolean
+)
+
+/**
+ * One ANONYMOUS package in a quote (021) — the items from a single shop, shown without any
+ * shop identity or location (FR-019). `packageKey` is an opaque grouping token.
+ */
+@Serializable
+data class QuotePackageItemDTO (
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
+    val name: String,
+
+    @SerialName("productId")
+    val productID: String,
+
+    val quantity: Double
 )
 
 /**
@@ -289,8 +450,20 @@ data class Line (
  */
 @Serializable
 data class OrderDTO (
+    /**
+     * The BILLING address snapshot (023). `null` means "same as shipping" — the client renders
+     * "Billing: same as shipping" rather than repeating the address. A value is a divergent
+     * billing address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders.
+     */
+    val billingAddress: OrderAddressDTO? = null,
+
     val currency: String,
+
+    /**
+     * The SHIPPING address snapshot (the main one — where the order is delivered).
+     */
     val deliveryAddress: OrderAddressDTO,
+
     val deliveryFeeAmount: String,
     val fulfillments: List<OrderFulfillmentDTO>,
     val grandTotalAmount: String,
@@ -305,6 +478,8 @@ data class OrderDTO (
 
 /**
  * The snapshotted delivery address on the receipt.
+ *
+ * The SHIPPING address snapshot (the main one — where the order is delivered).
  */
 @Serializable
 data class OrderAddressDTO (
@@ -320,19 +495,58 @@ data class OrderAddressDTO (
 
 /**
  * An anonymous per-shop fulfillment portion — NO shop identity (FR-033).
+ *
+ * 020 gave `status` a life: 019 created every portion `pending` and no code path ever
+ * changed it. The values now span the shop's real working lifecycle. Still no shop name,
+ * id, or count that would imply WHO is fulfilling (FR-018, SC-009).
  */
 @Serializable
 data class OrderFulfillmentDTO (
+    val deliveryFeeAmount: String? = null,
+
+    /**
+     * The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The
+     * customer's receipt breakdown shows, per package, what they paid to have it delivered and
+     * when it is promised. Absent on pre-021 orders.
+     */
+    val deliveryServiceLevel: String? = null,
+
+    val deliveryWindow: String? = null,
     val itemCount: Double,
     val status: Status,
-    val subtotalAmount: String
+    val subtotalAmount: String,
+
+    /**
+     * Present ONLY when the portion has reached a terminal state (FR-018b). Absent while
+     * picking.
+     */
+    val unavailableItems: List<OrderShortfallDTO>? = null
 )
 
 @Serializable
 enum class Status(val value: String) {
+    @SerialName("collected") Collected("collected"),
     @SerialName("pending") Pending("pending"),
+    @SerialName("picking") Picking("picking"),
+    @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup"),
     @SerialName("received") Received("received");
 }
+
+/**
+ * An item the customer paid for and will NOT receive (020 FR-018b).
+ *
+ * Disclosed at item level, but ONLY once the portion is terminal — a flag raised and then
+ * undone mid-pick must never reach the customer (SC-017). Naming the customer's own item
+ * discloses nothing about fulfillment structure (FR-018c).
+ *
+ * Carries NO refund promise: no money moves in 020, and the shortfall is left deliberately
+ * visible for a later refunds slice to resolve (FR-010b, FR-018a).
+ */
+@Serializable
+data class OrderShortfallDTO (
+    val productName: String,
+    val quantity: Double
+)
 
 /**
  * A line on the receipt (product snapshot — never a shop).

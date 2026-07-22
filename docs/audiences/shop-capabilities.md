@@ -266,3 +266,10 @@ surely as a shop name would (FR-018, SC-009).
 - **Delivery promise is read-only here** and owned by **021-delivery-zones-pricing**. Until 021 ships
   every order carries the same promise, so promise-ordering collapses to strict FIFO by construction
   (FR-001b, SC-020) — no rework when 021 lands.
+- **⚠ 023 amendment — the shop sees the SHIPPING address only, never billing.** From 023 the order
+  carries two address snapshots: `delivery_address` (shipping — where it's delivered) and
+  `billing_address` (payment/invoice). The shop fulfilment surface exposes **only** the shipping
+  address, exactly as before — billing is a **separate column the shop never selects**, so it is
+  structurally unreachable from every shop query, DTO, and payload (FR-018). Locked by a guard test
+  (`apis/edge-api/shop/src/fulfillments/no-billing.guard.test.ts`) that fails if any shop-side source
+  ever names "billing". No shop data, endpoint, or UI changed — this is an exposure boundary, recorded.

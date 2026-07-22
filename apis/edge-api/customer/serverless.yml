@@ -143,6 +143,52 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
 
+  # ── 022: address book (customer profile management — cold path per 011 FR-028) ────────────────
+
+  customerAddressesV1Get:
+    handler: src/functions/customer-addresses-v1-get.handler
+    description: List the customer's saved delivery addresses, default first (022 US1)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/addresses
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerAddressesV1Post:
+    handler: src/functions/customer-addresses-v1-post.handler
+    description: Add a delivery address; first address auto-defaults (022 US2)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/addresses
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerAddressesV1IdPatch:
+    handler: src/functions/customer-addresses-v1-id-patch.handler
+    description: Edit an address and/or set it as default (022 US3/US5)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /customer/v1/addresses/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerAddressesV1IdDelete:
+    handler: src/functions/customer-addresses-v1-id-delete.handler
+    description: Delete an address; the default-with-others delete is refused 409 (022 US4, FR-016a)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /customer/v1/addresses/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   # ── 012: password & sessions ────────────────────────────────────────────────────────────────
 
   # Sends the STEP-UP CODE that setting a first password costs (012 FR-017).

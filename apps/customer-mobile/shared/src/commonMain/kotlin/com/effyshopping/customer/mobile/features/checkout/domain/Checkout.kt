@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.checkout.domain
 
+import com.effyshopping.customer.mobile.core.error.AppError
+import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.core.payment.PaymentResult
 
@@ -17,27 +19,6 @@ data class CheckoutIntent(
     val currency: String,
 )
 
-data class Address(
-    val id: String,
-    val recipientName: String,
-    val line1: String,
-    val line2: String?,
-    val city: String,
-    val region: String?,
-    val postalCode: String,
-    val country: String,
-    val isDefault: Boolean,
-)
-
-data class NewAddress(
-    val recipientName: String,
-    val line1: String,
-    val line2: String?,
-    val city: String,
-    val region: String?,
-    val postalCode: String,
-)
-
 data class ReceiptItem(
     val productName: String,
     val quantity: Int,
@@ -45,6 +26,12 @@ data class ReceiptItem(
     val lineSubtotalAmount: String,
 )
 
+/**
+ * The receipt (019, extended 023 US5). [recipientName] + [addressLine] are the SHIPPING snapshot (always
+ * shown in full). [billingRecipientName] + [billingAddressLine] are the BILLING snapshot: both null means
+ * "same as shipping" (the client renders that text, not a repeated address); non-null means the customer
+ * diverged and both are shown in full (FR-016).
+ */
 data class Receipt(
     val id: String,
     val orderNumber: String,
@@ -52,14 +39,28 @@ data class Receipt(
     val items: List<ReceiptItem>,
     val recipientName: String,
     val addressLine: String,
+    val billingRecipientName: String?,
+    val billingAddressLine: String?,
     val itemSubtotalAmount: String,
     val deliveryFeeAmount: String,
     val grandTotalAmount: String,
     val currency: String,
-)
+) {
+    /** True when billing == shipping (the common case) → "Billing: same as shipping" (FR-016). */
+    val billingSameAsShipping: Boolean get() = billingAddressLine == null
+}
 
 interface CheckoutRepository {
-    suspend fun createIntent(addressId: String): CheckoutIntent
+    /** Per-package delivery quote for the cart + address (021 US1). */
+    suspend fun quote(addressId: String): DeliveryQuote
+
+    /**
+     * Create/locate the pending order + PaymentIntent from the customer's per-package [PlaceOrder]
+     * (021 US3). Throws [com.effyshopping.customer.mobile.core.error.AppException] with
+     * [com.effyshopping.customer.mobile.core.error.AppError.RequoteRequired] on a 409 (stale quote /
+     * lapsed same-day / withdrawn method) so the caller re-quotes (FR-011a).
+     */
+    suspend fun createIntent(order: PlaceOrder): CheckoutIntent
     suspend fun confirm(orderId: String): Boolean
 }
 
@@ -77,30 +78,31 @@ interface OrdersRepository {
     suspend fun list(): List<OrderSummary>
 }
 
-interface AddressRepository {
-    // Named distinctly from OrdersRepository.list() so one class may implement both (Kotlin forbids
-    // same-name overrides with different return types).
-    suspend fun listAddresses(): List<Address>
-    suspend fun create(input: NewAddress): Address
-}
-
 /** The outcome of the pay flow surfaced to the ViewModel. */
 sealed interface PayOutcome {
     data class Placed(val orderId: String) : PayOutcome
     data object Canceled : PayOutcome
+
+    /** The captured quote went stale (021 FR-011a) — the ViewModel re-quotes and shows the new amounts. */
+    data object Requote : PayOutcome
     data class Failed(val message: String) : PayOutcome
 }
 
 /**
- * PayForOrder (T056) — the checkout orchestration: create the intent, present the native sheet, and on
- * completion best-effort confirm (the webhook is authoritative; confirm covers local-dev lag).
+ * PayForOrder (T056, extended 021 T045) — the checkout orchestration: create the intent from the
+ * per-package [PlaceOrder], present the native sheet, and on completion best-effort confirm (the webhook
+ * is authoritative; confirm covers local-dev lag). A stale quote (409) surfaces as [PayOutcome.Requote].
  */
 class PayForOrder(
     private val checkout: CheckoutRepository,
     private val payments: PaymentDriver,
 ) {
-    suspend operator fun invoke(addressId: String): PayOutcome {
-        val intent = checkout.createIntent(addressId)
+    suspend operator fun invoke(order: PlaceOrder): PayOutcome {
+        val intent = try {
+            checkout.createIntent(order)
+        } catch (e: AppException) {
+            if (e.error is AppError.RequoteRequired) return PayOutcome.Requote else throw e
+        }
         return when (val result = payments.presentPaymentSheet(intent.clientSecret, intent.publishableKey)) {
             PaymentResult.Completed -> {
                 runCatching { checkout.confirm(intent.orderId) }
@@ -118,12 +120,4 @@ class GetReceipt(private val orders: OrdersRepository) {
 
 class ListOrders(private val orders: OrdersRepository) {
     suspend operator fun invoke(): List<OrderSummary> = orders.list()
-}
-
-class ListAddresses(private val repo: AddressRepository) {
-    suspend operator fun invoke(): List<Address> = repo.listAddresses()
-}
-
-class CreateAddress(private val repo: AddressRepository) {
-    suspend operator fun invoke(input: NewAddress): Address = repo.create(input)
 }

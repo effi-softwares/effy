@@ -12,3 +12,5 @@ export * from "./order";
 export * from "./favorite";
 // 020-shop-order-fulfillment
 export * from "./shop-order";
+// 021-delivery-zones-pricing (management DTOs)
+export * from "./delivery";

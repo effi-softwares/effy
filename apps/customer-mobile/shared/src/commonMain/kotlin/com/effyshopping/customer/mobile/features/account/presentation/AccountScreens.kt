@@ -159,6 +159,8 @@ class AccountViewModel(
         is AppError.Validation -> e.message
         AppError.WrongPassword -> "That password isn't right."
         AppError.WrongPasswordMode -> "Please reopen the password screen and try again."
+        AppError.RequoteRequired -> "Prices updated. Please review and try again."
+        AppError.DefaultDeleteBlocked -> "Set another address as your default first."
         AppError.Forbidden -> "This account can't be used."
         is AppError.RateLimited -> "Too many attempts. Please wait a little and try again."
         AppError.Network -> "No connection. Check your network and try again."
@@ -207,6 +209,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
 
         HorizontalDivider()
         Button(onClick = { nav.push(AppRoute.EditName) }, modifier = Modifier.fillMaxWidth()) { Text("Change name") }
+        // 022: manage saved delivery addresses.
+        Button(onClick = { nav.push(AppRoute.AddressBook) }, modifier = Modifier.fillMaxWidth()) { Text("Manage addresses") }
         // FR-024/FR-025: offer EXACTLY the right journey, from the platform-owned hasPassword.
         if (customer.hasPassword) {
             Button(onClick = { nav.push(AppRoute.PasswordChange) }, modifier = Modifier.fillMaxWidth()) { Text("Change password") }

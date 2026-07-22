@@ -35,6 +35,13 @@ import type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
+  DeliveryQuoteRequest,
+  DeliveryQuoteResponse,
+  QuotePackageDTO,
+  QuotePackageItemDTO,
+  DeliveryMethodOptionDTO,
+  DeliverySelectionDTO,
+  DeliveryBreakdownLineDTO,
 } from "./checkout";
 import type {
   OrderStatus,
@@ -70,6 +77,13 @@ export type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
+  DeliveryQuoteRequest,
+  DeliveryQuoteResponse,
+  QuotePackageDTO,
+  QuotePackageItemDTO,
+  DeliveryMethodOptionDTO,
+  DeliverySelectionDTO,
+  DeliveryBreakdownLineDTO,
   OrderStatus,
   PaymentStatus,
   OrderSummaryDTO,
@@ -103,6 +117,13 @@ export interface CustomerCommerceContract {
   createCheckoutIntent: CreateCheckoutIntentRequest;
   createCheckoutIntentResponse: CreateCheckoutIntentResponse;
   confirmCheckout: ConfirmCheckoutRequest;
+  deliveryQuoteRequest: DeliveryQuoteRequest;
+  deliveryQuoteResponse: DeliveryQuoteResponse;
+  quotePackage: QuotePackageDTO;
+  quotePackageItem: QuotePackageItemDTO;
+  deliveryMethodOption: DeliveryMethodOptionDTO;
+  deliverySelection: DeliverySelectionDTO;
+  deliveryBreakdownLine: DeliveryBreakdownLineDTO;
   orderSummary: OrderSummaryDTO;
   order: OrderDTO;
   orderItem: OrderItemDTO;

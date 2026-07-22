@@ -21,6 +21,7 @@ const (
 	TypeMethodNotAllowed = "https://effyshopping.com/problems/method-not-allowed"
 	TypeVersionRetired   = "https://effyshopping.com/problems/version-retired"
 	TypeRateLimited      = "https://effyshopping.com/problems/rate-limited"
+	TypeConflict         = "https://effyshopping.com/problems/conflict"
 	TypeInternal         = "https://effyshopping.com/problems/internal"
 	TypeUnavailable      = "https://effyshopping.com/problems/unavailable"
 )
@@ -95,4 +96,9 @@ func Internal(c *gin.Context) {
 func Unavailable(c *gin.Context) {
 	WriteProblem(c, http.StatusServiceUnavailable, TypeUnavailable,
 		"Service unavailable", "a required dependency is currently unreachable")
+}
+
+// Conflict signals a state clash the client should resolve by re-reading (e.g. a stale delivery quote).
+func Conflict(c *gin.Context, detail string) {
+	WriteProblem(c, http.StatusConflict, TypeConflict, "Conflict", detail)
 }

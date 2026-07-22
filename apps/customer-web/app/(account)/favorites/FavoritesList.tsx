@@ -6,7 +6,7 @@ import { useState } from "react"
 
 import type { FavoriteDTO } from "@effy/shared-types"
 
-import { addToCart } from "@/lib/cart-store"
+import { addToCart, DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
 
 /** Client favourites list (US6): open, add-to-cart, or remove. Remove hits the authenticated proxy. */
@@ -63,6 +63,7 @@ export function FavoritesList({ initial }: { initial: FavoriteDTO[] }) {
                     unitPriceAmount: f.priceAmount,
                     currency: f.currency,
                     quantity: 1,
+                    packageKey: DEFAULT_PACKAGE_KEY,
                   })
                 }
                 className="font-medium text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"

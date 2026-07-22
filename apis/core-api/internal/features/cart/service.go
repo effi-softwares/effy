@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/pricing"
@@ -36,6 +37,8 @@ type Line struct {
 	Quantity           int
 	LineSubtotalAmount string
 	Available          bool
+	// Opaque anonymous grouping token (021) — never a shop id/name.
+	PackageKey string
 }
 
 type Notice struct {
@@ -230,19 +233,18 @@ func (s *Service) build(ctx context.Context, cartID string) (Cart, error) {
 			Quantity:           row.Quantity,
 			LineSubtotalAmount: money.FormatCents(lineCents),
 			Available:          available,
+			PackageKey:         delivery.PackageKey(row.ShopID),
 		})
 	}
 
-	deliveryCents := int64(0)
-	if subtotalCents > 0 {
-		deliveryCents = pricing.DeliveryFeeCents
-	}
-
+	// 021: delivery is priced per package at checkout (needs the address), not in the cart. The cart
+	// shows the item subtotal only; DeliveryFeeAmount is 0 here and the client renders "calculated at
+	// checkout". GrandTotal == item subtotal at cart stage.
 	return Cart{
 		Lines:              lines,
 		ItemSubtotalAmount: money.FormatCents(subtotalCents),
-		DeliveryFeeAmount:  money.FormatCents(deliveryCents),
-		GrandTotalAmount:   money.FormatCents(subtotalCents + deliveryCents),
+		DeliveryFeeAmount:  money.FormatCents(0),
+		GrandTotalAmount:   money.FormatCents(subtotalCents),
 		Currency:           pricing.Currency,
 		Notices:            notices,
 	}, nil

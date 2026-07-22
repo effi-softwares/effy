@@ -21,7 +21,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
-	"github.com/effyshopping/effy/apis/core-api/internal/features/addresses"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/cart"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/checkout"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/customerping"
@@ -58,7 +57,9 @@ type dependencies struct {
 	cognito          *cognitoidentityprovider.Client
 
 	// 019 commerce shared collaborators — constructed once, wired into each feature slice's
-	// Register as the commerce features (storefront/cart/addresses/checkout/orders/favorites) land.
+	// Register as the commerce features (storefront/cart/checkout/orders/favorites) land. Address
+	// management moved to the cold path (edge-api/customer, 022); checkout reads the address table
+	// directly for its order snapshot.
 	pool     *pgxpool.Pool
 	customer *customeridentity.Resolver
 	presign  *media.Resolver
@@ -68,7 +69,6 @@ type dependencies struct {
 	storefront *storefront.Service
 	cart       *cart.Service
 	favorites  *favorites.Service
-	addresses  *addresses.Service
 	checkout   *checkout.Service
 	orders     *orders.Service
 }
@@ -128,7 +128,6 @@ func run() error {
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
 		cart:       cart.NewService(cart.NewRepository(pool), presign),
 		favorites:  favorites.NewService(favorites.NewRepository(pool), presign),
-		addresses:  addresses.NewService(addresses.NewRepository(pool)),
 		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey),
 		orders:     orders.NewService(orders.NewRepository(pool)),
 	}
@@ -216,7 +215,6 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 	storefront.Register(v1, storefront.NewHandler(deps.storefront))
 	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
 	favorites.Register(v1, deps.customerVerifier, deps.customer, favorites.NewHandler(deps.favorites))
-	addresses.Register(v1, deps.customerVerifier, deps.customer, addresses.NewHandler(deps.addresses))
 	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))
 	checkout.Register(v1, deps.customerVerifier, deps.customer, checkout.NewHandler(deps.checkout))
 }

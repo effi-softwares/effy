@@ -5,6 +5,8 @@ import { Suspense } from "react"
 
 import type { OrderDTO } from "@effy/shared-types"
 
+import { DeliveryBreakdown } from "@/components/DeliveryBreakdown"
+import { OrderAddresses } from "@/components/OrderAddresses"
 import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { PROGRESS_LABEL, summarizeFulfillment } from "@/lib/fulfillment-progress"
@@ -42,7 +44,6 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
   }
   if (!dto) notFound()
 
-  const addr = dto.deliveryAddress
   return (
     <div>
       <Link href="/orders" className="text-sm text-muted-foreground hover:text-foreground">
@@ -75,19 +76,11 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         </dl>
       </section>
 
+      <DeliveryBreakdown fulfillments={dto.fulfillments} currency={dto.currency} />
+
       <FulfillmentProgress dto={dto} />
 
-      <section className="mt-6 text-sm">
-        <h2 className="font-medium">Delivering to</h2>
-        <p className="mt-1 text-muted-foreground">
-          {addr.recipientName}
-          <br />
-          {addr.line1}
-          {addr.line2 ? `, ${addr.line2}` : ""}
-          <br />
-          {addr.city} {addr.postalCode}, {addr.country}
-        </p>
-      </section>
+      <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
     </div>
   )
 }

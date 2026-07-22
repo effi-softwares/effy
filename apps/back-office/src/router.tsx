@@ -4,11 +4,16 @@ import { createRouter } from "@tanstack/react-router";
 import { adminRoute, appIndexRoute, appRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogSchemaRoute } from "./routes/catalog-schema";
+import {
+  deliveryRatesRoute,
+  deliveryZoneDetailRoute,
+  deliveryZonesIndexRoute,
+} from "./routes/delivery";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
 
 // Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops',
-// '/catalog'), public auth at '/auth/sign-in'.
+// '/catalog', '/delivery-zones'), public auth at '/auth/sign-in'.
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     appIndexRoute,
@@ -16,6 +21,9 @@ const routeTree = rootRoute.addChildren([
     shopsIndexRoute,
     shopDetailRoute,
     catalogSchemaRoute,
+    deliveryZonesIndexRoute,
+    deliveryRatesRoute,
+    deliveryZoneDetailRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ]);

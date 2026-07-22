@@ -1,21 +1,19 @@
 package com.effyshopping.customer.mobile.features.checkout.data
 
-import com.effyshopping.customer.mobile.commerce.contract.AddressDTO
-import com.effyshopping.customer.mobile.commerce.contract.CreateAddressRequest
-import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentRequest
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteRequest
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteResponse
 import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderSummaryDTO
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
-import com.effyshopping.customer.mobile.features.checkout.domain.Address
-import com.effyshopping.customer.mobile.features.checkout.domain.AddressRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutRepository
-import com.effyshopping.customer.mobile.features.checkout.domain.NewAddress
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderSummary
 import com.effyshopping.customer.mobile.features.checkout.domain.OrdersRepository
+import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -30,12 +28,20 @@ import kotlinx.io.IOException
  * Checkout / orders / addresses over the CORE api (019 US3). All are customer-authorized (the two-token
  * plugin adds the session). Transport failures become AppError.Network (the 013 pattern).
  */
-class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository, OrdersRepository, AddressRepository {
+class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository, OrdersRepository {
 
-    override suspend fun createIntent(addressId: String): CheckoutIntent = request {
-        core.post("v1/checkout/intent") {
-            setBody(CreateCheckoutIntentRequest(addressID = addressId))
-        }.ensureSuccess().body<CreateCheckoutIntentResponse>().toDomain()
+    override suspend fun quote(addressId: String): DeliveryQuote = request {
+        core.post("v1/checkout/quote") {
+            setBody(DeliveryQuoteRequest(addressID = addressId))
+        }.ensureSuccess().body<DeliveryQuoteResponse>().toDomain()
+    }
+
+    override suspend fun createIntent(order: PlaceOrder): CheckoutIntent = request {
+        val response = core.post("v1/checkout/intent") { setBody(order.toRequest()) }
+        // 409 means the captured quote is stale (FR-011a) — re-quote before charging, distinct from the
+        // generic 409 mapping. Every other non-2xx flows through ensureSuccess's normal AppError mapping.
+        if (response.status.value == 409) throw AppException(AppError.RequoteRequired)
+        response.ensureSuccess().body<CreateCheckoutIntentResponse>().toDomain()
     }
 
     override suspend fun confirm(orderId: String): Boolean = request {
@@ -50,26 +56,6 @@ class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository,
 
     override suspend fun list(): List<OrderSummary> = request {
         core.get("v1/orders").ensureSuccess().body<List<OrderSummaryDTO>>().map { it.toDomain() }
-    }
-
-    override suspend fun listAddresses(): List<Address> = request {
-        core.get("v1/addresses").ensureSuccess().body<List<AddressDTO>>().map { it.toDomain() }
-    }
-
-    override suspend fun create(input: NewAddress): Address = request {
-        core.post("v1/addresses") {
-            setBody(
-                CreateAddressRequest(
-                    recipientName = input.recipientName,
-                    line1 = input.line1,
-                    line2 = input.line2,
-                    city = input.city,
-                    region = input.region,
-                    postalCode = input.postalCode,
-                    makeDefault = true,
-                ),
-            )
-        }.ensureSuccess().body<AddressDTO>().toDomain()
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

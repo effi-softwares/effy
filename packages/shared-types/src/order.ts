@@ -95,6 +95,14 @@ export interface OrderFulfillmentDTO {
   subtotalAmount: string;
   /** Present ONLY when the portion has reached a terminal state (FR-018b). Absent while picking. */
   unavailableItems?: OrderShortfallDTO[];
+  /**
+   * The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The customer's
+   * receipt breakdown shows, per package, what they paid to have it delivered and when it is promised.
+   * Absent on pre-021 orders.
+   */
+  deliveryServiceLevel?: string;
+  deliveryFeeAmount?: string;
+  deliveryWindow?: string | null;
 }
 
 /** Full order / receipt (GET /v1/orders/{id}). */
@@ -104,7 +112,14 @@ export interface OrderDTO {
   status: OrderStatus;
   placedAt: string | null;
   items: OrderItemDTO[];
+  /** The SHIPPING address snapshot (the main one — where the order is delivered). */
   deliveryAddress: OrderAddressDTO;
+  /**
+   * The BILLING address snapshot (023). `null` means "same as shipping" — the client renders
+   * "Billing: same as shipping" rather than repeating the address. A value is a divergent billing
+   * address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders.
+   */
+  billingAddress?: OrderAddressDTO | null;
   itemSubtotalAmount: string;
   deliveryFeeAmount: string;
   grandTotalAmount: string;

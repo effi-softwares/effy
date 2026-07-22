@@ -18,6 +18,13 @@ data class ProductCard(
     val compareAtAmount: String?,
     val badges: List<ProductBadge>,
     val available: Boolean,
+    /**
+     * OPAQUE package grouping token (021 FR-005a), carried onto a guest-cart line at add-time so the cart
+     * can show the anonymous per-package split. NOT a shop id/name/location (SC-006). Blank until the
+     * storefront read threads a token through — the customer projection carries no shop, so grouping is
+     * authoritatively resolved server-side at quote time; a blank key degrades to one package.
+     */
+    val packageKey: String = "",
 )
 
 data class Banner(

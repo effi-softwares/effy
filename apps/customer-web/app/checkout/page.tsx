@@ -3,7 +3,7 @@ import { Suspense } from "react"
 
 import type { AddressDTO } from "@effy/shared-types"
 
-import { coreApi, uncached } from "@/lib/api/core"
+import { edgeApi } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { CheckoutFlow } from "./CheckoutFlow"
@@ -36,9 +36,11 @@ async function CheckoutGate() {
 
   const session = await getSession()
   let addresses: AddressDTO[] = []
-  if (session?.accessToken) {
+  if (session?.idToken) {
     try {
-      addresses = await coreApi(session.accessToken).get<AddressDTO[]>("/v1/addresses", uncached())
+      // Address management is on the COLD path (edge-api/customer, 022); checkout READS it to
+      // pre-select a delivery address. cache: "no-store" — per-customer, never cached.
+      addresses = await edgeApi(session).get<AddressDTO[]>("/customer/v1/addresses", { cache: "no-store" })
     } catch {
       // A read failure is non-fatal — the customer can add an address in the flow.
     }

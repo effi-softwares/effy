@@ -78,6 +78,21 @@ export type StorefrontEvent =
   | { name: "order_placed"; props: { orderId: string } }
   | { name: "product_favorited"; props: { productId: string } }
   | { name: "search_performed"; props?: Record<string, never> }
+  // 022 address book. ⚠ NO PII — an address is PII (FR-019, SC-008), so these carry NO address
+  // fields at all, only the subject id already attached by `identifyCustomer`. Props is deliberately
+  // the empty object type so the compiler REFUSES any attempt to attach an address property here.
+  | { name: "address_added"; props?: Record<string, never> }
+  | { name: "address_edited"; props?: Record<string, never> }
+  | { name: "address_deleted"; props?: Record<string, never> }
+  | { name: "address_default_set"; props?: Record<string, never> }
+  | { name: "address_delete_default_blocked"; props?: Record<string, never> }
+  // 023 checkout shipping & billing. Same PII rule as the address book — an address is PII (SC-009),
+  // so these carry NO address fields at all (not an id, not a label), only the subject id already
+  // attached by `identifyCustomer`. The empty-object props type makes the compiler REFUSE any address
+  // property here.
+  | { name: "checkout_address_changed"; props?: Record<string, never> }
+  | { name: "checkout_address_added"; props?: Record<string, never> }
+  | { name: "checkout_billing_diverged"; props?: Record<string, never> }
 
 export function capture(event: StorefrontEvent) {
   if (!started || getConsent() !== "granted") return

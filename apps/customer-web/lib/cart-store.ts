@@ -14,6 +14,14 @@ import { useSyncExternalStore } from "react"
 const KEY = "effy:cart"
 const MAX_QTY = 99
 
+/**
+ * The package a line falls into when the storefront read carries no opaque `packageKey` yet (021). It
+ * puts everything into one anonymous package — a single-package cart, which degrades gracefully
+ * (FR-007/SC-011). It is NOT a shop id; the authoritative per-shop split happens server-side at the
+ * checkout quote.
+ */
+export const DEFAULT_PACKAGE_KEY = "pkg_default"
+
 export interface GuestCartLine {
   productId: string
   name: string
@@ -21,6 +29,21 @@ export interface GuestCartLine {
   unitPriceAmount: string
   currency: string
   quantity: number
+  /**
+   * OPAQUE package-grouping token (021 FR-005a). Lines sharing a packageKey ship together as one
+   * anonymous "package" (one per fulfilling shop). It is captured at add-time and is NOT a shop id,
+   * name, or location — a meaningless-to-the-customer string that lets the cart show the split while
+   * revealing no shop (SC-006). Prices/windows only appear later, at the delivery step (an address is
+   * required to quote). When the storefront read carries no key yet, everything falls into one package
+   * (a single-package cart degrades gracefully — FR-007/SC-011).
+   */
+  packageKey: string
+}
+
+/** An anonymous package section for the cart split — the items, and an opaque key. NEVER a shop. */
+export interface CartPackage {
+  packageKey: string
+  lines: GuestCartLine[]
 }
 
 /* ── Pure core (unit-tested) ─────────────────────────────────────────────────────────────────── */
@@ -62,6 +85,25 @@ export function cartCount(lines: readonly GuestCartLine[]): number {
 /** The merge payload sent to POST /v1/cart/merge on sign-in. */
 export function mergePayload(lines: readonly GuestCartLine[]): { productId: string; quantity: number }[] {
   return lines.map((l) => ({ productId: l.productId, quantity: l.quantity }))
+}
+
+/**
+ * Group cart lines into anonymous packages by `packageKey`, in first-appearance order (021 FR-005a).
+ * The label the UI shows is a positional "Package N" — never the key, and never a shop. A cart whose
+ * lines all share one key returns a single package (single-shop degrades gracefully — FR-007/SC-011).
+ */
+export function groupByPackage(lines: readonly GuestCartLine[]): CartPackage[] {
+  const order: string[] = []
+  const byKey = new Map<string, GuestCartLine[]>()
+  for (const line of lines) {
+    const key = line.packageKey
+    if (!byKey.has(key)) {
+      byKey.set(key, [])
+      order.push(key)
+    }
+    byKey.get(key)!.push(line)
+  }
+  return order.map((packageKey) => ({ packageKey, lines: byKey.get(packageKey)! }))
 }
 
 /* ── Client store (localStorage + useSyncExternalStore) ──────────────────────────────────────── */
