@@ -196,6 +196,30 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**021 + 022 + 023 — delivery zones, address book, checkout shipping/billing.** ✅ **SIGNED OFF
+(live-validated) 2026-07-22.** Built as three stacked slices, merged to `main` together (PR #1), and
+validated live locally end-to-end: a two-shop cart → per-package delivery quote → Stripe test-card
+payment → order finalized. Two live-only bugs were found during testing and fixed (both committed):
+- **021 — the captured quote lost shop identity.** `QuotePackage.ShopID` is `json:"-"` (hidden from the
+  customer, FR-019), but the quote is persisted to `order.delivery_quote` **using that same struct**, so
+  `shop_id` read back empty and the intent inserted `order_package_delivery.shop_id = ""` → 500 (invalid
+  uuid). Checkout intent had **never** completed on the 021 flow. Fix: re-attach each package's shop id at
+  intent time from the **cart lines** (`packageKey` = deterministic hash of the shop id) — shop id stays
+  out of the jsonb and the client response. Regression test added (`checkout/service_test.go`).
+- **customer-web checkout showed $0 + disabled button.** The page displayed/gated on the **live** guest
+  cart, which the mount-time merge clears — so the price dropped to $0 and Continue disabled the instant
+  the merge resolved. Fix: snapshot the cart at entry (`CheckoutFlow.tsx`) and display/gate on that (the
+  server cart is authoritative post-merge).
+- **⚠ Known carry-forward (customer-web):** re-opening/refreshing `/checkout` after the merge shows an
+  empty cart (the guest cart was cleared and the page doesn't read the server cart). Pre-existing design
+  gap; the proper fix is a server-cart read on `page.tsx`. Not yet done.
+- **⚠ Sign-off is "feels-good", not the full SC table.** The happy-path loop is proven live; the operator
+  will continue targeted testing and report bugs. Not yet live-walked: the full serviceability matrix
+  (multi-day + blocked-postcode), the divergent-billing **shop no-leak** proof (SC-007), and the 022
+  delete-default **409** live proof. Deploy/seed runbook + values:
+  [specs/023-checkout-shipping-billing/quickstart.md](specs/023-checkout-shipping-billing/quickstart.md)
+  and the dev delivery seed (zones MEL-METRO/VIC-REGIONAL + rate grid, scratchpad).
+
 **020-shop-order-fulfillment** — Shop Order Fulfillment (Receive → Pick → Handoff). ✅ **SIGNED OFF
 (partial by design) 2026-07-21 — 89/93 tasks. The commerce→fulfilment loop is PROVEN LIVE.**
 Gives the 019 fan-out a consumer: 019 wrote one `shop_fulfillment` per (order, shop) and **nothing read

@@ -183,8 +183,8 @@ and the billing address appears **zero** times (SC-007).
 - [x] T033 [P] Add checkout PostHog events to `apps/customer-web/lib/telemetry.ts`: `checkout_address_changed`, `checkout_address_added`, `checkout_billing_diverged` — **no address fields** (SC-009); document in `docs/telemetry/commerce-events.md`
 - [x] T034 [P] Update the parity register `docs/audiences/customer-capabilities.md` §023 (pre-select / switch / add-new / billing / receipt-both, both surfaces)
 - [x] T035 Full sweep per [quickstart.md](./quickstart.md) §1: `pnpm -r typecheck` + shared-types build (regen) + customer-web Vitest + `pnpm --filter @effy/edge-shop test` (the guard) + `go build/vet/test` + `./gradlew :shared:allTests` + `pnpm turbo build` + contract drift guard
-- [ ] T036 🧑‍💻 Commit the migration (003 commit-guard) + `make db-up ENV=dev`; `make core-run` + the two surfaces; walk SC-001…SC-009 in [quickstart.md](./quickstart.md) §4, incl. the **shop no-leak proof** (SC-007) and the same-as-vs-divergent billing logic
-- [ ] T037 🧑‍💻 Sign off: parity registers (customer §023 + shop 020 amendment) + commit spec/plan/research/data-model/contracts/quickstart/tasks **alongside** the code + migration
+- [x] T036 🧑‍💻 Commit the migration (003 commit-guard) + `make db-up ENV=dev`; `make core-run` + the two surfaces; walk SC-001…SC-009 in [quickstart.md](./quickstart.md) §4, incl. the **shop no-leak proof** (SC-007) and the same-as-vs-divergent billing logic
+- [x] T037 🧑‍💻 Sign off: parity registers (customer §023 + shop 020 amendment) + commit spec/plan/research/data-model/contracts/quickstart/tasks **alongside** the code + migration
 
 ---
 

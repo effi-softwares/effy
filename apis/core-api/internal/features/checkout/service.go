@@ -106,6 +106,21 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		return IntentResult{}, ErrQuoteExpired
 	}
 
+	// The captured quote is persisted to order.delivery_quote WITHOUT shop identity (QuotePackage.ShopID
+	// is `json:"-"` so it never leaks to the customer — FR-019), so it reads back empty. Re-attach each
+	// package's shop id from the cart lines: packageKey is the deterministic hash of the shop id, so the
+	// cart's own lines map every package back to its shop. Without this, order_package_delivery.shop_id
+	// is inserted as "" and the intent 500s (invalid uuid).
+	shopByPackage := make(map[string]string, len(lines))
+	for _, l := range lines {
+		shopByPackage[delivery.PackageKey(l.ShopID)] = l.ShopID
+	}
+	for i := range cq.Packages {
+		if shopID, ok := shopByPackage[cq.Packages[i].PackageKey]; ok {
+			cq.Packages[i].ShopID = shopID
+		}
+	}
+
 	selByKey := map[string]DeliverySelection{}
 	for _, sel := range in.Selections {
 		selByKey[sel.PackageKey] = sel

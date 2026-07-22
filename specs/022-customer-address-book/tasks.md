@@ -166,8 +166,8 @@ field, save → list updated, default unaffected; invalid → field error preser
 - [x] T034 [P] Add PostHog events (`address_added/edited/deleted/default_set/delete_default_blocked`) with **no address fields** (SC-008) in `apps/customer-web/lib/telemetry.ts`; document in `docs/telemetry/`
 - [x] T035 [P] Update the parity register `docs/audiences/customer-capabilities.md` §022 (view/add/edit/set-default/delete on both surfaces)
 - [x] T036 Run the full sweep from [quickstart.md](./quickstart.md) §1: `pnpm -r typecheck` + design-system/customer-web Vitest + `go build/vet/test` + `./gradlew :shared:allTests` + `pnpm turbo build`
-- [ ] T037 🧑‍💻 `make edge-deploy SERVICE=customer ENV=dev` (the cold-path address routes) + the two surfaces; walk SC-001…SC-011 in [quickstart.md](./quickstart.md) §3, incl. the **direct-API delete-default 409 proof** (SC-010, `/customer/v1/addresses/{id}`) and the cross-customer refusal (SC-005)
-- [ ] T038 🧑‍💻 Verify parity on customer-mobile (SC-007) and commit spec, plan, research, data-model, contracts, quickstart, tasks **alongside** the code
+- [x] T037 🧑‍💻 `make edge-deploy SERVICE=customer ENV=dev` (the cold-path address routes) + the two surfaces; walk SC-001…SC-011 in [quickstart.md](./quickstart.md) §3, incl. the **direct-API delete-default 409 proof** (SC-010, `/customer/v1/addresses/{id}`) and the cross-customer refusal (SC-005)
+- [x] T038 🧑‍💻 Verify parity on customer-mobile (SC-007) and commit spec, plan, research, data-model, contracts, quickstart, tasks **alongside** the code
 
 ---
 

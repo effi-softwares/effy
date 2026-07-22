@@ -261,6 +261,38 @@ func TestIntentMalformedBillingIsRefused(t *testing.T) {
 	}
 }
 
+// REGRESSION (021): the captured quote is persisted to order.delivery_quote WITHOUT shop identity
+// (QuotePackage.ShopID is `json:"-"`, hidden from the customer — FR-019), so it reads back EMPTY. The
+// intent must re-attach each package's shop id from the cart (packageKey = hash of the shop id) before
+// writing order_package_delivery — else shop_id is inserted as "" and the intent 500s (invalid uuid).
+func TestIntentReattachesShopIdFromCartWhenQuoteHasNone(t *testing.T) {
+	now := time.Now()
+	const shopID = "aaaaaaaa-0000-0000-0000-000000000001"
+	pkg := delivery.PackageKey(shopID)
+
+	store := newFakeStore()
+	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: shopID, Name: "Milk", UnitCents: 500, Quantity: 2}}
+	// Mirror the jsonb round-trip: the captured package carries its REAL packageKey but an EMPTY ShopID.
+	store.captured = CapturedQuote{ExpiresAt: now.Add(time.Minute), Packages: []QuotePackage{
+		{PackageKey: pkg, ShopID: "", Serviceable: true, Options: []QuoteOption{
+			{Method: "standard", ServiceLevel: "Standard", FeeCents: 500},
+		}},
+	}}
+	store.haveCaptured = true
+	svc := NewService(store, &fakeGateway{}, "pk")
+
+	if _, err := svc.CreateCheckoutIntent(context.Background(), "c",
+		intentInput(DeliverySelection{PackageKey: pkg, Method: "standard"}), now); err != nil {
+		t.Fatalf("intent: %v", err)
+	}
+	if len(store.wroteDeliveries) != 1 {
+		t.Fatalf("want 1 package delivery written, got %d", len(store.wroteDeliveries))
+	}
+	if store.wroteDeliveries[0].ShopID != shopID {
+		t.Errorf("delivery shop_id = %q, want %q (re-attached from the cart)", store.wroteDeliveries[0].ShopID, shopID)
+	}
+}
+
 // SC-002/FR-009: the shown per-package fee == the charge; the order total == item subtotal + Σ fees.
 func TestIntentSumsPerPackageFees(t *testing.T) {
 	now := time.Now()
