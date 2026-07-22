@@ -10,6 +10,7 @@ const line = (unit: string, qty: number): GuestCartLine => ({
   unitPriceAmount: unit,
   currency: "AUD",
   quantity: qty,
+  packageKey: "pkg_a",
 })
 
 describe("cents helpers", () => {
@@ -22,17 +23,15 @@ describe("cents helpers", () => {
 })
 
 describe("computeCartTotals", () => {
-  it("sums lines and adds the flat delivery fee", () => {
+  it("sums the item lines only — 021 drops the flat delivery fee", () => {
     const totals = computeCartTotals([line("5.00", 2), line("3.00", 1)])
     expect(totals.itemSubtotal).toBe("13.00")
-    expect(totals.deliveryFee).toBe("5.00")
-    expect(totals.grandTotal).toBe("18.00")
+    // Delivery is quoted per package at checkout — the cart never carries a fee (FR-024).
+    expect(totals).not.toHaveProperty("deliveryFee")
+    expect(totals).not.toHaveProperty("grandTotal")
   })
 
-  it("charges no delivery fee for an empty cart", () => {
-    const totals = computeCartTotals([])
-    expect(totals.itemSubtotal).toBe("0.00")
-    expect(totals.deliveryFee).toBe("0.00")
-    expect(totals.grandTotal).toBe("0.00")
+  it("is zero for an empty cart", () => {
+    expect(computeCartTotals([]).itemSubtotal).toBe("0.00")
   })
 })

@@ -56,12 +56,15 @@ type Fulfillment struct {
 }
 
 type Order struct {
-	ID                 string
-	OrderNumber        string
-	Status             string
-	PlacedAt           *string
-	Items              []Item
-	DeliveryAddress    json.RawMessage
+	ID              string
+	OrderNumber     string
+	Status          string
+	PlacedAt        *string
+	Items           []Item
+	DeliveryAddress json.RawMessage
+	// BillingAddress is the billing snapshot (023). nil/empty means "same as shipping" — the client
+	// renders "Billing: same as shipping" rather than repeating the address. NEVER from the shop.
+	BillingAddress     json.RawMessage
 	ItemSubtotalAmount string
 	DeliveryFeeAmount  string
 	GrandTotalAmount   string
@@ -115,6 +118,7 @@ type orderRow struct {
 	Status        string  `db:"status"`
 	PlacedAt      *string `db:"placed_at"`
 	Address       []byte  `db:"delivery_address"`
+	Billing       []byte  `db:"billing_address"`
 	ItemSubtotal  string  `db:"item_subtotal_amount"`
 	DeliveryFee   string  `db:"delivery_fee_amount"`
 	GrandTotal    string  `db:"grand_total_amount"`
@@ -126,6 +130,7 @@ func (r *Repository) Get(ctx context.Context, customerID, orderID string) (order
 	rows, err := r.db.Query(ctx, `
 SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.placed_at::text AS placed_at, o.delivery_address AS delivery_address,
+       o.billing_address AS billing_address,
        o.item_subtotal_amount::text AS item_subtotal_amount,
        o.delivery_fee_amount::text AS delivery_fee_amount,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
@@ -314,7 +319,7 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 
 	return Order{
 		ID: row.ID, OrderNumber: row.OrderNumber, Status: row.Status, PlacedAt: row.PlacedAt,
-		Items: domainItems, DeliveryAddress: json.RawMessage(row.Address),
+		Items: domainItems, DeliveryAddress: json.RawMessage(row.Address), BillingAddress: json.RawMessage(row.Billing),
 		ItemSubtotalAmount: row.ItemSubtotal, DeliveryFeeAmount: row.DeliveryFee,
 		GrandTotalAmount: row.GrandTotal, Currency: row.Currency,
 		PaymentStatus: payment, Fulfillments: domainFul,

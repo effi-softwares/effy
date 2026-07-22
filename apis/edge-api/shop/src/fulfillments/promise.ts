@@ -31,12 +31,30 @@ export const DEFAULT_READY_WINDOW_MS = 60 * 60 * 1000; // 1 hour
  */
 export const AT_RISK_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 
-/** Derive the promise for an order placed at `placedAt`. Uniform for every order in this slice. */
+/** Derive the promise for an order placed at `placedAt`. Uniform (the pre-021 fallback). */
 export function promiseFor(placedAt: Date): DeliveryPromise {
   return {
     serviceLevel: DEFAULT_SERVICE_LEVEL,
     readyBy: new Date(placedAt.getTime() + DEFAULT_READY_WINDOW_MS),
   };
+}
+
+/**
+ * The 021 seam (research R11): use the REAL per-portion promise when 021 populated it (a same-day vs
+ * multi-day package now has a genuinely different `readyBy`), falling back to the uniform derivation for
+ * pre-021 portions. This is the whole 020-side change — everything else in the queue/detail already
+ * renders the promise. The delivery FEE is deliberately NOT a parameter here: the shop sees the service
+ * level and ready-by, never the payment amount (FR-021a).
+ */
+export function promiseFrom(
+  placedAt: Date,
+  promisedReadyAt: Date | null,
+  serviceLevel: string | null,
+): DeliveryPromise {
+  if (promisedReadyAt) {
+    return { serviceLevel: serviceLevel ?? DEFAULT_SERVICE_LEVEL, readyBy: promisedReadyAt };
+  }
+  return promiseFor(placedAt);
 }
 
 /**

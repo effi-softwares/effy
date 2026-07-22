@@ -7,11 +7,10 @@ import com.effyshopping.customer.mobile.core.nav.AppNavigator
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.features.cart.data.HttpCartRepository
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
-import com.effyshopping.customer.mobile.features.checkout.domain.CreateAddress
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
-import com.effyshopping.customer.mobile.features.checkout.domain.ListAddresses
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import com.effyshopping.customer.mobile.features.favorites.domain.ListFavorites
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.features.account.data.HttpCustomerRepository
@@ -22,6 +21,13 @@ import com.effyshopping.customer.mobile.features.account.domain.RequestPasswordC
 import com.effyshopping.customer.mobile.features.account.domain.SetPassword
 import com.effyshopping.customer.mobile.features.account.domain.SignOutEverywhere
 import com.effyshopping.customer.mobile.features.account.domain.UpdateName
+import com.effyshopping.customer.mobile.features.addresses.data.HttpAddressRepository
+import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
+import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
+import com.effyshopping.customer.mobile.features.addresses.domain.DeleteAddress
+import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses as ListSavedAddresses
+import com.effyshopping.customer.mobile.features.addresses.domain.SetDefault
+import com.effyshopping.customer.mobile.features.addresses.domain.UpdateAddress
 import com.effyshopping.customer.mobile.features.catalog.data.HttpCatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.GetCategories
@@ -77,6 +83,10 @@ class AppContainer(
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(coreClient) }
     private val favorites: FavoritesRepository by lazy { HttpFavoritesRepository(coreClient) }
     private val checkoutRepo by lazy { HttpCheckoutRepository(coreClient) }
+    // The address book (022) — customer profile management → the COLD path (edge-api/customer,
+    // `/customer/v1/addresses`), per the routing law (011 FR-028). A full-CRUD repo, distinct from
+    // checkout's slim pick-an-address `AddressRepository` (which stays on the hot path).
+    private val addressBookRepo: AddressRepository by lazy { HttpAddressRepository(edgeClient) }
 
     // The device-local guest cart — ONE instance so the badge and cart screen share state (019 US2).
     val guestCart: GuestCartStore = GuestCartStore()
@@ -104,11 +114,19 @@ class AppContainer(
     val listFavorites by lazy { ListFavorites(favorites) }
 
     // Checkout (019 US3) — create intent → native PaymentSheet (paymentDriver) → confirm → receipt.
-    val listAddresses by lazy { ListAddresses(checkoutRepo) }
-    val createAddress by lazy { CreateAddress(checkoutRepo) }
+    // The address picker + add-new reuse the 022 Address Book use cases below (023 US1–US4) — the same
+    // saved addresses the account page manages, on the cold path.
+    val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) }
     val payForOrder by lazy { PayForOrder(checkoutRepo, paymentDriver) }
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
+
+    // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.
+    val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
+    val addSavedAddress by lazy { AddAddress(addressBookRepo) }
+    val updateSavedAddress by lazy { UpdateAddress(addressBookRepo) }
+    val setDefaultAddress by lazy { SetDefault(addressBookRepo) }
+    val deleteSavedAddress by lazy { DeleteAddress(addressBookRepo) }
 
     val getCustomer by lazy { GetCustomer(customers) }
     val updateName by lazy { UpdateName(customers) }

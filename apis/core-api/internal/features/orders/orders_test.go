@@ -46,6 +46,37 @@ func baseRepo() *fakeRepo {
 	}
 }
 
+// 023 US5 / FR-016: a same-as-shipping order carries NO billing snapshot (the column is NULL) — the
+// service returns an empty BillingAddress and the handler omits `billingAddress`, so the client shows
+// "Billing: same as shipping".
+func TestGet_BillingSameAsShippingIsEmpty(t *testing.T) {
+	repo := baseRepo() // order.Billing left nil
+	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.BillingAddress) != 0 {
+		t.Errorf("BillingAddress = %q, want empty (same as shipping)", got.BillingAddress)
+	}
+}
+
+// 023 US5 / FR-008: a divergent-billing order carries its own immutable billing snapshot, distinct
+// from the shipping (delivery) address.
+func TestGet_DivergentBillingIsReturned(t *testing.T) {
+	repo := baseRepo()
+	repo.order.Billing = []byte(`{"city":"Sydney"}`)
+	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if string(got.BillingAddress) != `{"city":"Sydney"}` {
+		t.Errorf("BillingAddress = %q, want the divergent snapshot", got.BillingAddress)
+	}
+	if string(got.DeliveryAddress) == string(got.BillingAddress) {
+		t.Error("shipping and billing must be distinct snapshots here")
+	}
+}
+
 // 020 US5 / FR-017: the customer's view reflects the shop's real working lifecycle. Before this
 // slice every portion was permanently `pending` because nothing could change it.
 func TestGet_ExposesRicherFulfillmentStates(t *testing.T) {

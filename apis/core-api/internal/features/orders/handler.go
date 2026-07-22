@@ -54,6 +54,7 @@ type orderDTO struct {
 	PlacedAt           *string          `json:"placedAt"`
 	Items              []itemDTO        `json:"items"`
 	DeliveryAddress    json.RawMessage  `json:"deliveryAddress"`
+	BillingAddress     json.RawMessage  `json:"billingAddress,omitempty"`
 	ItemSubtotalAmount string           `json:"itemSubtotalAmount"`
 	DeliveryFeeAmount  string           `json:"deliveryFeeAmount"`
 	GrandTotalAmount   string           `json:"grandTotalAmount"`
@@ -123,10 +124,16 @@ func (h *Handler) get(c *gin.Context) {
 	if len(address) == 0 {
 		address = json.RawMessage("{}")
 	}
+	// Billing: nil/empty stays omitted (JSON `billingAddress` absent) → the client renders "same as
+	// shipping" (FR-016). A value is the divergent billing snapshot. Never defaulted to {}.
+	var billing json.RawMessage
+	if len(order.BillingAddress) > 0 {
+		billing = order.BillingAddress
+	}
 
 	c.JSON(http.StatusOK, orderDTO{
 		ID: order.ID, OrderNumber: order.OrderNumber, Status: order.Status, PlacedAt: order.PlacedAt,
-		Items: items, DeliveryAddress: address,
+		Items: items, DeliveryAddress: address, BillingAddress: billing,
 		ItemSubtotalAmount: order.ItemSubtotalAmount, DeliveryFeeAmount: order.DeliveryFeeAmount,
 		GrandTotalAmount: order.GrandTotalAmount, Currency: order.Currency,
 		PaymentStatus: order.PaymentStatus, Fulfillments: ful,

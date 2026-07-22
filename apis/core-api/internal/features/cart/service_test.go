@@ -77,7 +77,9 @@ func seedProduct(f *fakeRepo, id, name, price, status string) {
 	f.nameByID[id] = name
 }
 
-func TestAddComputesTotalsWithFlatDeliveryFee(t *testing.T) {
+// 021: the cart no longer carries a delivery fee — delivery is priced per package at checkout (it needs
+// the address). The cart shows item subtotal only; DeliveryFeeAmount is 0 and GrandTotal == subtotal.
+func TestAddComputesItemTotalsNoCartDeliveryFee(t *testing.T) {
 	f := newFakeRepo()
 	seedProduct(f, pMilk, "Milk", "5.00", "active")
 	svc := NewService(f, noPresign{})
@@ -89,11 +91,18 @@ func TestAddComputesTotalsWithFlatDeliveryFee(t *testing.T) {
 	if cart.ItemSubtotalAmount != "10.00" {
 		t.Errorf("item subtotal = %q, want 10.00", cart.ItemSubtotalAmount)
 	}
-	if cart.DeliveryFeeAmount != "5.00" {
-		t.Errorf("delivery fee = %q, want 5.00", cart.DeliveryFeeAmount)
+	if cart.DeliveryFeeAmount != "0.00" {
+		t.Errorf("delivery fee = %q, want 0.00 (calculated at checkout, 021)", cart.DeliveryFeeAmount)
 	}
-	if cart.GrandTotalAmount != "15.00" {
-		t.Errorf("grand total = %q, want 15.00", cart.GrandTotalAmount)
+	if cart.GrandTotalAmount != "10.00" {
+		t.Errorf("grand total = %q, want 10.00 (no cart delivery fee, 021)", cart.GrandTotalAmount)
+	}
+	// The line carries an opaque, anonymous package key — never a shop id/name.
+	if len(cart.Lines) != 1 || cart.Lines[0].PackageKey == "" {
+		t.Fatalf("line must carry a packageKey, got %+v", cart.Lines)
+	}
+	if len(cart.Lines[0].PackageKey) < 4 || cart.Lines[0].PackageKey[:4] != "pkg_" {
+		t.Errorf("packageKey should be an opaque pkg_ token, got %q", cart.Lines[0].PackageKey)
 	}
 }
 

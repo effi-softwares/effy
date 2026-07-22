@@ -4,15 +4,17 @@ import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
 import com.effyshopping.customer.mobile.features.cart.domain.addLine
 import com.effyshopping.customer.mobile.features.cart.domain.cartCount
+import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
 import com.effyshopping.customer.mobile.features.cart.domain.removeLine
 import com.effyshopping.customer.mobile.features.cart.domain.setLineQty
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class GuestCartTest {
 
-    private fun line(id: String, qty: Int) = GuestCartLine(
-        productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00", currency = "AUD", quantity = qty,
+    private fun line(id: String, qty: Int, pkg: String = "") = GuestCartLine(
+        productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00", currency = "AUD", quantity = qty, packageKey = pkg,
     )
 
     @Test
@@ -56,6 +58,33 @@ class GuestCartTest {
     @Test
     fun countSumsQuantities() {
         assertEquals(5, cartCount(listOf(line("a", 2), line("b", 3))))
+    }
+
+    @Test
+    fun groupsLinesByPackageKeyAnonymously() {
+        val packages = packagesOf(listOf(line("a", 1, "pkg_x"), line("b", 1, "pkg_y"), line("c", 2, "pkg_x")))
+        assertEquals(2, packages.size)
+        // Stable first-appearance order; 1-based ordinals — the ONLY label (never a shop name/location).
+        assertEquals(listOf(1, 2), packages.map { it.index })
+        assertEquals(listOf("pkg_x", "pkg_y"), packages.map { it.packageKey })
+        assertEquals(listOf("a", "c"), packages[0].lines.map { it.productId })
+        assertEquals(listOf("b"), packages[1].lines.map { it.productId })
+    }
+
+    @Test
+    fun blankPackageKeysCollapseToOnePackage() {
+        // No token from the storefront read yet → one anonymous package (graceful single-part, SC-011).
+        val packages = packagesOf(listOf(line("a", 1), line("b", 1)))
+        assertEquals(1, packages.size)
+        assertEquals(1, packages.first().index)
+        assertEquals(2, packages.first().lines.size)
+    }
+
+    @Test
+    fun packagesNeverExposeAnythingBeyondAnOrdinal() {
+        val packages = packagesOf(listOf(line("a", 1, "pkg_secret_shop_42")))
+        // The ordinal is derived, never the key; the key is opaque and never presented as identity.
+        assertTrue(packages.first().index == 1)
     }
 
     @Test

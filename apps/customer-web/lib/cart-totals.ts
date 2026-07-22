@@ -1,12 +1,14 @@
 /**
- * Client-side cart totals for DISPLAY (US3). Integer-cents math (never floats) mirroring core-api's
- * `money`/`pricing` packages. This is a display approximation for the guest cart review — the SERVER
- * recomputes the authoritative amount at checkout (FR-026), and the charge is always the server's.
+ * Client-side cart totals for DISPLAY. Integer-cents math (never floats) mirroring core-api's `money`
+ * package. This is a display approximation for the guest cart review — the SERVER computes the
+ * authoritative amount at checkout, and the charge is always the server's.
+ *
+ * 021: there is NO client-side delivery fee any more. Delivery is per-package, geographic, and needs
+ * a destination address to price — so it is quoted only at the delivery step (FR-024/SC-010: no order
+ * or package ever falls back to a flat/hardcoded fee). The cart shows the item subtotal and says
+ * "Delivery calculated at checkout".
  */
 import type { GuestCartLine } from "./cart-store"
-
-/** Flat per-order delivery fee (mirrors core-api pricing.DeliveryFeeCents = 500). */
-export const DELIVERY_FEE_CENTS = 500
 
 export function parseCents(amount: string): number {
   const [whole, frac = ""] = amount.replace("-", "").split(".")
@@ -21,18 +23,12 @@ export function formatCents(cents: number): string {
 }
 
 export interface CartTotals {
+  /** Σ(unit×qty). The ONLY amount the cart can know before an address is chosen (021). */
   itemSubtotal: string
-  deliveryFee: string
-  grandTotal: string
 }
 
-/** Σ(unit×qty) + a flat delivery fee (only when there is something to buy). */
+/** Σ(unit×qty). Delivery is NOT included — it is quoted per package at checkout (021 FR-024). */
 export function computeCartTotals(lines: readonly GuestCartLine[]): CartTotals {
   const subtotal = lines.reduce((c, l) => c + parseCents(l.unitPriceAmount) * l.quantity, 0)
-  const delivery = subtotal > 0 ? DELIVERY_FEE_CENTS : 0
-  return {
-    itemSubtotal: formatCents(subtotal),
-    deliveryFee: formatCents(delivery),
-    grandTotal: formatCents(subtotal + delivery),
-  }
+  return { itemSubtotal: formatCents(subtotal) }
 }

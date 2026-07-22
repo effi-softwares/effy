@@ -24,5 +24,33 @@ address. The customer is associated by the auth **subject id** alone (`identifyC
 Auth-funnel events (`sign_up_*`, `sign_in_*`, `deferred_sign_in_*`, `account_linked`) are defined in the
 same union and predate this slice.
 
+## Address book (022)
+
+All five carry **no props** — an address is PII, so nothing about it (not a field, not a label, not a
+count) enters a payload. The subject id alone associates the event (`identifyCustomer(sub)`).
+
+| Event | Props | Emitted when |
+|---|---|---|
+| `address_added` | — | A new address is saved |
+| `address_edited` | — | An existing address is updated |
+| `address_deleted` | — | An address is deleted |
+| `address_default_set` | — | An address is promoted to default |
+| `address_delete_default_blocked` | — | A delete of the default was refused (reassign prompt shown) |
+
 > Adding an event means adding it to the `StorefrontEvent` union **first** (typed), never inlining a
 > string at the call site.
+
+## Checkout shipping & billing (023)
+
+All three carry **no props** — an address is PII (SC-009), so nothing about it (not an id, not a label,
+not a count) enters a payload. The subject id alone associates the event. The empty-object props type on
+the union makes the compiler refuse any attempt to attach an address property.
+
+| Event | Props | Emitted when |
+|---|---|---|
+| `checkout_address_changed` | — | The shipping address is switched to another saved address at checkout |
+| `checkout_address_added` | — | A new address is added inline at checkout (shipping or billing) |
+| `checkout_billing_diverged` | — | Billing is set to an address different from shipping (toggle OFF) |
+
+> The shop/fulfilment boundary is a telemetry constraint too: the billing address never appears in any
+> shop-side log, metric, or event (FR-018 / SC-007).

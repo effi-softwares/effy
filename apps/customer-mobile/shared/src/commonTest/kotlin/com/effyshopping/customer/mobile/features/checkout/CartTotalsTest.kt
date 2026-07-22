@@ -21,18 +21,14 @@ class CartTotalsTest {
     }
 
     @Test
-    fun sumsLinesWithFlatDeliveryFee() {
+    fun sumsLinesItemSubtotalOnly() {
+        // 021: the flat delivery fee is gone (FR-024) — the cart shows the item subtotal only.
         val totals = computeTotals(listOf(line("5.00", 2), line("3.00", 1)))
         assertEquals("13.00", totals.itemSubtotal)
-        assertEquals("5.00", totals.deliveryFee)
-        assertEquals("18.00", totals.grandTotal)
     }
 
     @Test
-    fun emptyCartHasNoDeliveryFee() {
-        val totals = computeTotals(emptyList())
-        assertEquals("0.00", totals.itemSubtotal)
-        assertEquals("0.00", totals.deliveryFee)
-        assertEquals("0.00", totals.grandTotal)
+    fun emptyCartHasZeroSubtotal() {
+        assertEquals("0.00", computeTotals(emptyList()).itemSubtotal)
     }
 }

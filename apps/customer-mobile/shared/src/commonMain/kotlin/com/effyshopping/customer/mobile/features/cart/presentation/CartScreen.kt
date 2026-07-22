@@ -22,10 +22,13 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.computeTotals
+import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
 
 /**
- * The cart (019 US3). ONE unified Effy cart — a single list + single total, NO shop identity (FR-016).
- * Reads the device-local guest cart; qty edit/remove; Checkout gates a guest through sign-in in the shell.
+ * The cart (019 US3 / 021 US1). ONE unified Effy cart the customer pays for once — but the items are
+ * grouped into ANONYMOUS packages (021 FR-005a): "Package 1", "Package 2", one per fulfilling shop, shown
+ * with NO shop name, location, price, or window (SC-006). A single package shows no ordinal header
+ * (graceful single-part, SC-011). Prices/windows appear only at the delivery step once an address exists.
  */
 @Composable
 fun CartScreen(container: AppContainer, onCheckout: () -> Unit) {
@@ -49,18 +52,44 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit) {
 
     val totals = computeTotals(lines)
     val currency = lines.first().currency
+    val packages = packagesOf(lines)
+    val multiPackage = packages.size > 1
 
     Column(modifier = Modifier.fillMaxSize()) {
         LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {
-            items(lines, key = { it.productId }) { line ->
-                CartRow(line, container)
-                HorizontalDivider()
+            if (multiPackage) {
+                item(key = "split-note") {
+                    Text(
+                        "Your order arrives in ${packages.size} packages.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+                    )
+                }
+            }
+            packages.forEach { pkg ->
+                if (multiPackage) {
+                    item(key = "hdr-${pkg.packageKey.ifBlank { "p${pkg.index}" }}") {
+                        Text(
+                            "Package ${pkg.index}",
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = 14.dp, bottom = 2.dp),
+                        )
+                    }
+                }
+                items(pkg.lines, key = { it.productId }) { line ->
+                    CartRow(line, container)
+                    HorizontalDivider()
+                }
             }
         }
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            SummaryRow("Items", money(totals.itemSubtotal, currency))
-            SummaryRow("Delivery", money(totals.deliveryFee, currency))
-            SummaryRow("Total", money(totals.grandTotal, currency), bold = true)
+            SummaryRow("Items", money(totals.itemSubtotal, currency), bold = true)
+            Text(
+                "Delivery is calculated at checkout once you choose an address.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Button(onClick = onCheckout, modifier = Modifier.fillMaxWidth()) { Text("Checkout") }
             Text(
                 "You’ll sign in at checkout. Your cart is kept.",

@@ -236,6 +236,129 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── Delivery zones & pricing (021). All back-office authorizer; read = any active staff,
+  #    mutate = admin/manager (contracts/delivery-api.contract.md §C). Every mutation audits. ──
+  deliveryZonesListV1:
+    handler: src/functions/delivery-zones-list-v1-get.handler
+    description: List delivery zones (paginated/filterable/searchable) — 021
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-zones
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZoneCreateV1:
+    handler: src/functions/delivery-zone-create-v1-post.handler
+    description: Create a serviced area — 021
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery-zones
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZoneUpdateV1:
+    handler: src/functions/delivery-zone-update-v1-patch.handler
+    description: Rename / enable / disable a zone — 021
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/delivery-zones/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonePostcodesListV1:
+    handler: src/functions/delivery-zone-postcodes-list-v1-get.handler
+    description: List a zone's postcodes — 021
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-zones/{id}/postcodes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonePostcodesAddV1:
+    handler: src/functions/delivery-zone-postcodes-add-v1-post.handler
+    description: Assign postcode(s) to a zone (already zoned → 409) — 021
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery-zones/{id}/postcodes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonePostcodeDeleteV1:
+    handler: src/functions/delivery-zone-postcode-delete-v1-delete.handler
+    description: Remove a postcode from a zone — 021
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery-zones/{id}/postcodes/{postcode}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZoneAuditV1:
+    handler: src/functions/delivery-zone-audit-v1-get.handler
+    description: A zone's change history — 021
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-zones/{id}/audit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryOfferingsListV1:
+    handler: src/functions/delivery-offerings-list-v1-get.handler
+    description: The rate grid (filter by origin/dest zone) — 021
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-offerings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryOfferingCreateV1:
+    handler: src/functions/delivery-offering-create-v1-post.handler
+    description: Define an (origin→dest, method) rate — 021
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery-offerings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryOfferingUpdateV1:
+    handler: src/functions/delivery-offering-update-v1-patch.handler
+    description: Change a rate's price / window / cutoff / status — 021
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/delivery-offerings/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  shopLocationUpdateV1:
+    handler: src/functions/shop-location-update-v1-patch.handler
+    description: Set a shop's origin postcode — 021
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/shops/{id}/location
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   # ── Catalog schema authority (016). All back-office authorizer; read = any active staff,
   #    mutate = admin/manager (contracts/admin-catalog.contract.md). Every mutation audits. ──
   catalogProductTypesListV1:
@@ -633,6 +756,151 @@ resources:
         Namespace: AWS/Lambda
         MetricName: Errors
         Dimensions: [{ Name: FunctionName, Value: !Ref ShopUserUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # ── Delivery zones & pricing (021) per-function Errors alarms. ──
+    DeliveryZonesListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zones-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZonesListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryZoneCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zone-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZoneCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryZoneUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zone-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZoneUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryZonePostcodesListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zone-postcodes-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZonePostcodesListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryZonePostcodesAddV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zone-postcodes-add-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZonePostcodesAddV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryZonePostcodeDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zone-postcode-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZonePostcodeDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryZoneAuditV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-zone-audit-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryZoneAuditV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryOfferingsListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-offerings-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryOfferingsListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryOfferingCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-offering-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryOfferingCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    DeliveryOfferingUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-delivery-offering-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliveryOfferingUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ShopLocationUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-shop-location-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ShopLocationUpdateV1LambdaFunction }]
         Statistic: Sum
         Period: 300
         EvaluationPeriods: 1

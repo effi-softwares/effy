@@ -109,6 +109,15 @@ private fun ReceiptBody(receipt: Receipt, onDone: () -> Unit) {
     Text(receipt.recipientName, style = MaterialTheme.typography.bodyMedium)
     Text(receipt.addressLine, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
+    // Billing (023 US5): shipping in full always; billing in full when divergent, else "same as shipping".
+    Text("Billing", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+    if (receipt.billingSameAsShipping) {
+        Text("Same as shipping", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    } else {
+        receipt.billingRecipientName?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        receipt.billingAddressLine?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    }
+
     Button(onClick = onDone, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Keep shopping") }
 }
 

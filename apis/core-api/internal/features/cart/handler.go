@@ -25,6 +25,7 @@ type cartLineDTO struct {
 	LineSubtotalAmount string  `json:"lineSubtotalAmount"`
 	Available          bool    `json:"available"`
 	PriceChangedFrom   *string `json:"priceChangedFrom"`
+	PackageKey         string  `json:"packageKey"`
 }
 
 type cartNoticeDTO struct {
@@ -149,6 +150,7 @@ func toCartDTO(cart Cart) cartDTO {
 			Quantity:           l.Quantity,
 			LineSubtotalAmount: l.LineSubtotalAmount,
 			Available:          l.Available,
+			PackageKey:         l.PackageKey,
 		})
 	}
 	notices := make([]cartNoticeDTO, 0, len(cart.Notices))

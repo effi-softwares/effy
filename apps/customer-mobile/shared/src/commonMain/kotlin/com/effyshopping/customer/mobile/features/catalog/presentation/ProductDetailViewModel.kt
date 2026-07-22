@@ -71,6 +71,7 @@ class ProductDetailViewModel(
                 unitPriceAmount = product.card.priceAmount,
                 currency = product.card.currency,
                 quantity = quantity,
+                packageKey = product.card.packageKey,
             ),
         )
         viewModelScope.launch {

@@ -183,6 +183,10 @@
         "name": {
           "type": "string"
         },
+        "packageKey": {
+          "description": "OPAQUE package grouping key (021). Items sharing a packageKey ship together as one anonymous \"package\" (one per fulfilling shop). It is NOT a shop id, name, or location — a meaningless-to-the- customer token that lets the cart show the split (021 FR-005a) while revealing no shop (SC-006).",
+          "type": "string"
+        },
         "priceChangedFrom": {
           "description": "When the authoritative price differs from what the client last saw, the prior amount (UX only).",
           "type": [
@@ -208,7 +212,8 @@
         "unitPriceAmount",
         "quantity",
         "lineSubtotalAmount",
-        "available"
+        "available",
+        "packageKey"
       ],
       "type": "object"
     },
@@ -233,6 +238,15 @@
       "enum": [
         "unavailable",
         "price_changed"
+      ],
+      "type": "string"
+    },
+    "CheckoutDeliveryMethod": {
+      "description": "The three delivery service levels (021). Availability per package follows from the shop's origin zone and the customer's destination zone — never from shop identity, which the customer never sees.",
+      "enum": [
+        "same_day",
+        "scheduled",
+        "standard"
       ],
       "type": "string"
     },
@@ -306,10 +320,36 @@
     },
     "CreateCheckoutIntentRequest": {
       "additionalProperties": false,
-      "description": "POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent.",
+      "description": "POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019, extended 021).",
       "properties": {
         "addressId": {
+          "description": "The SHIPPING address (required). Serviceability + delivery pricing key off this (021).",
           "type": "string"
+        },
+        "billingAddressId": {
+          "description": "023: the BILLING address, when the customer diverged from shipping. Absent / null / equal to `addressId` → billing is \"same as shipping\" (the order stores NULL). Billing never affects the amount or the quote.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "excludedPackageKeys": {
+          "description": "021: packages the customer confirmed proceeding WITHOUT (auto-set-aside undeliverable items). MUST exactly match the server's unserviceable set or the intent is refused (FR-006b, SC-011a).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "quoteId": {
+          "description": "021: the captured quote being placed. Honored while unexpired; else 409 → re-quote.",
+          "type": "string"
+        },
+        "selections": {
+          "description": "021: the customer's per-package method choices (default preference + overrides, resolved).",
+          "items": {
+            "$ref": "#/definitions/DeliverySelectionDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -326,6 +366,13 @@
         },
         "currency": {
           "type": "string"
+        },
+        "deliveryBreakdown": {
+          "description": "021: the per-package delivery breakdown, for the order summary. Anonymous.",
+          "items": {
+            "$ref": "#/definitions/DeliveryBreakdownLineDTO"
+          },
+          "type": "array"
         },
         "grandTotalAmount": {
           "type": "string"
@@ -347,6 +394,140 @@
         "publishableKey",
         "grandTotalAmount",
         "currency"
+      ],
+      "type": "object"
+    },
+    "DeliveryBreakdownLineDTO": {
+      "additionalProperties": false,
+      "description": "One line of the per-package delivery breakdown on the intent response (021). Anonymous.",
+      "properties": {
+        "feeAmount": {
+          "type": "string"
+        },
+        "packageKey": {
+          "type": "string"
+        },
+        "serviceLevel": {
+          "type": "string"
+        },
+        "window": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "packageKey",
+        "serviceLevel",
+        "feeAmount",
+        "window"
+      ],
+      "type": "object"
+    },
+    "DeliveryMethodOptionDTO": {
+      "additionalProperties": false,
+      "description": "One selectable delivery option for a package (021). Server-computed; the client never sends a fee.",
+      "properties": {
+        "feeAmount": {
+          "type": "string"
+        },
+        "method": {
+          "$ref": "#/definitions/CheckoutDeliveryMethod"
+        },
+        "scheduleDates": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Selectable dates for method='scheduled'; null otherwise."
+        },
+        "serviceLevel": {
+          "description": "Customer-facing label, e.g. \"Same-day\".",
+          "type": "string"
+        },
+        "window": {
+          "description": "Derived window, e.g. \"Today by 6pm\" / \"in 2–3 days\"; null for a scheduled method (pick a date).",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "serviceLevel",
+        "feeAmount",
+        "window",
+        "scheduleDates"
+      ],
+      "type": "object"
+    },
+    "DeliveryQuoteRequest": {
+      "additionalProperties": false,
+      "description": "POST /v1/checkout/quote — per-package delivery options for the cart + address (021 US1).",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "addressId"
+      ],
+      "type": "object"
+    },
+    "DeliveryQuoteResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "expiresAt": {
+          "description": "The captured quote is honored until this instant; after it the customer must re-quote (021 R7).",
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/QuotePackageDTO"
+          },
+          "type": "array"
+        },
+        "quoteId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "packages",
+        "quoteId",
+        "expiresAt"
+      ],
+      "type": "object"
+    },
+    "DeliverySelectionDTO": {
+      "additionalProperties": false,
+      "description": "The customer's chosen method for one package (021). Carries NO fee — the server prices it (SC-004).",
+      "properties": {
+        "method": {
+          "$ref": "#/definitions/CheckoutDeliveryMethod"
+        },
+        "packageKey": {
+          "type": "string"
+        },
+        "scheduledDate": {
+          "description": "Required only when method='scheduled'.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "packageKey",
+        "method"
       ],
       "type": "object"
     },
@@ -514,11 +695,23 @@
       "additionalProperties": false,
       "description": "Full order / receipt (GET /v1/orders/{id}).",
       "properties": {
+        "billingAddress": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OrderAddressDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The BILLING address snapshot (023). `null` means \"same as shipping\" — the client renders \"Billing: same as shipping\" rather than repeating the address. A value is a divergent billing address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders."
+        },
         "currency": {
           "type": "string"
         },
         "deliveryAddress": {
-          "$ref": "#/definitions/OrderAddressDTO"
+          "$ref": "#/definitions/OrderAddressDTO",
+          "description": "The SHIPPING address snapshot (the main one — where the order is delivered)."
         },
         "deliveryFeeAmount": {
           "type": "string"
@@ -578,20 +771,43 @@
     },
     "OrderFulfillmentDTO": {
       "additionalProperties": false,
-      "description": "An anonymous per-shop fulfillment portion — NO shop identity (FR-033).",
+      "description": "An anonymous per-shop fulfillment portion — NO shop identity (FR-033).\n\n020 gave `status` a life: 019 created every portion `pending` and no code path ever changed it. The values now span the shop's real working lifecycle. Still no shop name, id, or count that would imply WHO is fulfilling (FR-018, SC-009).",
       "properties": {
+        "deliveryFeeAmount": {
+          "type": "string"
+        },
+        "deliveryServiceLevel": {
+          "description": "The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The customer's receipt breakdown shows, per package, what they paid to have it delivered and when it is promised. Absent on pre-021 orders.",
+          "type": "string"
+        },
+        "deliveryWindow": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "itemCount": {
           "type": "number"
         },
         "status": {
           "enum": [
             "pending",
-            "received"
+            "received",
+            "picking",
+            "ready_for_pickup",
+            "collected"
           ],
           "type": "string"
         },
         "subtotalAmount": {
           "type": "string"
+        },
+        "unavailableItems": {
+          "description": "Present ONLY when the portion has reached a terminal state (FR-018b). Absent while picking.",
+          "items": {
+            "$ref": "#/definitions/OrderShortfallDTO"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -627,6 +843,23 @@
         "unitPriceAmount",
         "quantity",
         "lineSubtotalAmount"
+      ],
+      "type": "object"
+    },
+    "OrderShortfallDTO": {
+      "additionalProperties": false,
+      "description": "An item the customer paid for and will NOT receive (020 FR-018b).\n\nDisclosed at item level, but ONLY once the portion is terminal — a flag raised and then undone mid-pick must never reach the customer (SC-017). Naming the customer's own item discloses nothing about fulfillment structure (FR-018c).\n\nCarries NO refund promise: no money moves in 020, and the shortfall is left deliberately visible for a later refunds slice to resolve (FR-010b, FR-018a).",
+      "properties": {
+        "productName": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "productName",
+        "quantity"
       ],
       "type": "object"
     },
@@ -752,6 +985,65 @@
       "required": [
         "items",
         "nextCursor"
+      ],
+      "type": "object"
+    },
+    "QuotePackageDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/QuotePackageItemDTO"
+          },
+          "type": "array"
+        },
+        "methods": {
+          "items": {
+            "$ref": "#/definitions/DeliveryMethodOptionDTO"
+          },
+          "type": "array"
+        },
+        "packageKey": {
+          "type": "string"
+        },
+        "serviceable": {
+          "description": "False when this package cannot be delivered to the address (021 US2). methods is then empty.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "packageKey",
+        "items",
+        "serviceable",
+        "methods"
+      ],
+      "type": "object"
+    },
+    "QuotePackageItemDTO": {
+      "additionalProperties": false,
+      "description": "One ANONYMOUS package in a quote (021) — the items from a single shop, shown without any shop identity or location (FR-019). `packageKey` is an opaque grouping token.",
+      "properties": {
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "quantity": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "productId",
+        "name",
+        "quantity",
+        "imageUrl"
       ],
       "type": "object"
     },
@@ -1069,6 +1361,21 @@
     "createCheckoutIntentResponse": {
       "$ref": "#/definitions/CreateCheckoutIntentResponse"
     },
+    "deliveryBreakdownLine": {
+      "$ref": "#/definitions/DeliveryBreakdownLineDTO"
+    },
+    "deliveryMethodOption": {
+      "$ref": "#/definitions/DeliveryMethodOptionDTO"
+    },
+    "deliveryQuoteRequest": {
+      "$ref": "#/definitions/DeliveryQuoteRequest"
+    },
+    "deliveryQuoteResponse": {
+      "$ref": "#/definitions/DeliveryQuoteResponse"
+    },
+    "deliverySelection": {
+      "$ref": "#/definitions/DeliverySelectionDTO"
+    },
     "favorite": {
       "$ref": "#/definitions/FavoriteDTO"
     },
@@ -1101,6 +1408,12 @@
     },
     "productDetail": {
       "$ref": "#/definitions/StorefrontProductDetailDTO"
+    },
+    "quotePackage": {
+      "$ref": "#/definitions/QuotePackageDTO"
+    },
+    "quotePackageItem": {
+      "$ref": "#/definitions/QuotePackageItemDTO"
     },
     "rail": {
       "$ref": "#/definitions/StorefrontRailDTO"
@@ -1137,6 +1450,13 @@
     "createCheckoutIntent",
     "createCheckoutIntentResponse",
     "confirmCheckout",
+    "deliveryQuoteRequest",
+    "deliveryQuoteResponse",
+    "quotePackage",
+    "quotePackageItem",
+    "deliveryMethodOption",
+    "deliverySelection",
+    "deliveryBreakdownLine",
     "orderSummary",
     "order",
     "orderItem",

@@ -41,6 +41,10 @@ type Store interface {
 	// UpsertPendingOrder locates/creates the single pending order, sets amounts + address snapshot, and
 	// replaces its order_items (the intent-time snapshot that fixes the charge amount).
 	UpsertPendingOrder(ctx context.Context, customerID string, amounts OrderAmounts, addressJSON []byte, lines []CheckoutLine) (orderID, orderNumber string, err error)
+	// SetOrderBilling sets the order's billing_address snapshot (023). A nil billingJSON writes NULL —
+	// "billing is the same as shipping" (FR-009); a value is a divergent, immutable billing snapshot.
+	// Idempotent: called on every intent, so toggling "same as shipping" back ON clears a prior value.
+	SetOrderBilling(ctx context.Context, orderID string, billingJSON []byte) error
 	// UpsertPayment records/updates the payment (one per order) with the intent id + status.
 	UpsertPayment(ctx context.Context, orderID, intentID string, amountCents int64, status string) error
 	// FindOrderByIntent resolves a PaymentIntent id to its order.
@@ -129,6 +133,20 @@ FROM public.customer_address WHERE id = $1 AND customer_id = $2`, addressID, cus
 		return nil, false, fmt.Errorf("checkout: scan address: %w", err)
 	}
 	return []byte(snap), true, nil
+}
+
+// SetOrderBilling writes the order's billing snapshot; nil → NULL ("same as shipping", 023 FR-009).
+func (s *pgStore) SetOrderBilling(ctx context.Context, orderID string, billingJSON []byte) error {
+	var arg any // nil → NULL::jsonb
+	if billingJSON != nil {
+		arg = string(billingJSON)
+	}
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE public."order" SET billing_address = $2::jsonb, updated_at = now() WHERE id = $1`,
+		orderID, arg); err != nil {
+		return fmt.Errorf("checkout: set order billing: %w", err)
+	}
+	return nil
 }
 
 func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amounts OrderAmounts, addressJSON []byte, lines []CheckoutLine) (string, string, error) {
@@ -259,10 +277,16 @@ func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (bool, 
 
 	// 2. Fan-out — one shop_fulfillment per distinct order_item.shop_id (item_count = Σ quantity).
 	if _, err := tx.Exec(ctx, `
-INSERT INTO public.shop_fulfillment (order_id, shop_id, item_count, subtotal_amount)
-SELECT order_id, shop_id, SUM(quantity)::int, SUM(line_subtotal_amount)
-FROM public.order_item WHERE order_id = $1
-GROUP BY order_id, shop_id
+INSERT INTO public.shop_fulfillment
+    (order_id, shop_id, item_count, subtotal_amount,
+     delivery_service_level, delivery_method, delivery_fee_amount, promised_ready_at)
+SELECT oi.order_id, oi.shop_id, SUM(oi.quantity)::int, SUM(oi.line_subtotal_amount),
+       opd.service_level, opd.method, opd.delivery_fee_amount, opd.promised_ready_at
+FROM public.order_item oi
+JOIN public.order_package_delivery opd
+     ON opd.order_id = oi.order_id AND opd.shop_id = oi.shop_id
+WHERE oi.order_id = $1
+GROUP BY oi.order_id, oi.shop_id, opd.service_level, opd.method, opd.delivery_fee_amount, opd.promised_ready_at
 ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
 		return false, fmt.Errorf("checkout: fan-out: %w", err)
 	}

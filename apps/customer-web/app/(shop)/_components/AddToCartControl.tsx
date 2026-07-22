@@ -3,7 +3,7 @@
 import { Minus, Plus, ShoppingCart } from "lucide-react"
 import { useState } from "react"
 
-import { addToCart } from "@/lib/cart-store"
+import { addToCart, DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { capture } from "@/lib/telemetry"
 
 /** The snapshot an add-to-cart captures (price/name/image frozen at add time — R8). */
@@ -14,6 +14,12 @@ interface AddToCartProduct {
   unitPriceAmount: string
   currency: string
   available: boolean
+  /**
+   * OPAQUE package-grouping token (021 FR-005a) sourced from the product, captured onto the guest line
+   * so the cart can show the anonymous split. NOT a shop id/name/location. Absent until the storefront
+   * read carries it — then everything falls into one package (single-package cart, FR-007/SC-011).
+   */
+  packageKey?: string
 }
 
 /** Quantity stepper + Add to cart (US2). Writes to the device-local guest cart and confirms briefly. */
@@ -37,6 +43,7 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
       unitPriceAmount: product.unitPriceAmount,
       currency: product.currency,
       quantity: qty,
+      packageKey: product.packageKey ?? DEFAULT_PACKAGE_KEY,
     })
     capture({ name: "product_added_to_cart", props: { productId: product.productId, quantity: qty } })
     setAdded(true)

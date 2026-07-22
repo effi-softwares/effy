@@ -21,6 +21,12 @@ export interface CartLineDTO {
   available: boolean;
   /** When the authoritative price differs from what the client last saw, the prior amount (UX only). */
   priceChangedFrom?: string | null;
+  /**
+   * OPAQUE package grouping key (021). Items sharing a packageKey ship together as one anonymous
+   * "package" (one per fulfilling shop). It is NOT a shop id, name, or location — a meaningless-to-the-
+   * customer token that lets the cart show the split (021 FR-005a) while revealing no shop (SC-006).
+   */
+  packageKey: string;
 }
 
 /** A cart-level notice surfaced at read/checkout (an item went away or changed price). */

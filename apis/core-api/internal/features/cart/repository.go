@@ -16,6 +16,7 @@ import (
 type cartLineRow struct {
 	ID              string  `db:"id"`
 	ProductID       string  `db:"product_id"`
+	ShopID          string  `db:"shop_id"`
 	Quantity        int     `db:"quantity"`
 	Name            string  `db:"name"`
 	UnitPriceAmount string  `db:"unit_price_amount"`
@@ -52,6 +53,7 @@ RETURNING id::text`, customerID)
 func (r *Repository) Lines(ctx context.Context, cartID string) ([]cartLineRow, error) {
 	rows, err := r.db.Query(ctx, `
 SELECT ci.id::text          AS id,
+       p.shop_id::text       AS shop_id,
        ci.product_id::text  AS product_id,
        ci.quantity          AS quantity,
        p.name               AS name,
