@@ -795,7 +795,8 @@
             "received",
             "picking",
             "ready_for_pickup",
-            "collected"
+            "collected",
+            "delivered"
           ],
           "type": "string"
         },

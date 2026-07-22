@@ -46,6 +46,7 @@ export const STATUS_LABEL: Record<FulfillmentStatus, string> = {
   picking: "Picking",
   ready_for_pickup: "Ready for pickup",
   collected: "Collected",
+  delivered: "Delivered",
 };
 
 /**

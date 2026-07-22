@@ -526,6 +526,7 @@ data class OrderFulfillmentDTO (
 @Serializable
 enum class Status(val value: String) {
     @SerialName("collected") Collected("collected"),
+    @SerialName("delivered") Delivered("delivered"),
     @SerialName("pending") Pending("pending"),
     @SerialName("picking") Picking("picking"),
     @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup"),

@@ -371,6 +371,34 @@ export async function collectViaStub(
   });
 }
 
+/** DEV-ONLY driver stub: mark a `collected` portion `delivered` (020 driver-stub tail). Mirrors
+ * collectViaStub — guarded transition + audit event; the placeholder driver ref is recorded. */
+export async function deliverViaStub(
+  fulfillmentId: string,
+  shopId: string,
+  driverRef: string,
+  actorStaffId: string | null,
+): Promise<boolean> {
+  return withTransaction(async (client) => {
+    const res = await client.query<{ id: string }>(TRANSITION, [
+      fulfillmentId,
+      shopId,
+      "collected",
+      "delivered",
+    ]);
+    if ((res.rowCount ?? 0) === 0) return false;
+
+    await appendEvent(client, {
+      fulfillmentId,
+      actorStaffId,
+      eventType: "state_changed",
+      fromStatus: "collected",
+      toStatus: `delivered:placeholder:${driverRef}`,
+    });
+    return true;
+  });
+}
+
 // ── Item progress (US2) ────────────────────────────────────────────────────────────────────────
 
 /**

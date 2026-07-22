@@ -14,6 +14,7 @@ const VARIANT: Record<FulfillmentStatus, "success" | "warning" | "muted"> = {
   picking: "warning",
   ready_for_pickup: "success",
   collected: "muted",
+  delivered: "muted",
 };
 
 export function FulfillmentStatusBadge({ status }: { status: FulfillmentStatus }) {

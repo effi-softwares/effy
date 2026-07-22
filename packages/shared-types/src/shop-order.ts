@@ -24,15 +24,16 @@
  *
  * `pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until now —
  * it means a human acknowledged the order, which is what distinguishes untouched work from work in
- * progress. `collected` is reachable ONLY via the dev-only pickup stub (FR-030) and is terminal +
- * immutable (FR-011f).
+ * progress. `collected` (picked up) and `delivered` are reachable ONLY via the dev-only driver stubs
+ * (FR-030) and are terminal + immutable (FR-011f) — a placeholder for the real driver slice.
  */
 export type FulfillmentStatus =
   | "pending"
   | "received"
   | "picking"
   | "ready_for_pickup"
-  | "collected";
+  | "collected"
+  | "delivered";
 
 export const FULFILLMENT_STATUSES: readonly FulfillmentStatus[] = [
   "pending",
@@ -40,6 +41,7 @@ export const FULFILLMENT_STATUSES: readonly FulfillmentStatus[] = [
   "picking",
   "ready_for_pickup",
   "collected",
+  "delivered",
 ];
 
 export function toFulfillmentStatus(v: string | null | undefined): FulfillmentStatus | null {
@@ -53,7 +55,11 @@ export type FulfillmentQueueState = "active" | "completed";
 
 /** States that count as outstanding work vs. finished business. */
 export const ACTIVE_STATUSES: readonly FulfillmentStatus[] = ["pending", "received", "picking"];
-export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = ["ready_for_pickup", "collected"];
+export const COMPLETED_STATUSES: readonly FulfillmentStatus[] = [
+  "ready_for_pickup",
+  "collected",
+  "delivered",
+];
 
 /**
  * What the customer bought and when this shop must be ready — READ-ONLY (FR-009a).

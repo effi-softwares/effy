@@ -33,6 +33,14 @@ describe("summarizeFulfillment", () => {
     )
   })
 
+  it("reports delivered only when EVERY portion is delivered", () => {
+    // A partially-delivered multi-shop order must not claim delivered (keeps the fan-out hidden).
+    expect(summarizeFulfillment([portion("delivered"), portion("collected")])?.stage).toBe("ready")
+    expect(summarizeFulfillment([portion("delivered"), portion("delivered")])?.stage).toBe(
+      "delivered",
+    )
+  })
+
   // US5 scenario 3 / SC-009: a partially-ready multi-shop order must not claim completion. Saying
   // "ready" while a portion is still being picked would be misleading about what is on its way.
   it("does not claim ready while one portion is still outstanding", () => {

@@ -295,12 +295,14 @@ data class FulfillmentItemDTO (
  *
  * `pending` is written by the 019 fan-out. `received` was reserved by 019 and unused until
  * now — it means a human acknowledged the order, which is what distinguishes untouched work
- * from work in progress. `collected` is reachable ONLY via the dev-only pickup stub
- * (FR-030) and is terminal + immutable (FR-011f).
+ * from work in progress. `collected` (picked up) and `delivered` are reachable ONLY via the
+ * dev-only driver stubs (FR-030) and are terminal + immutable (FR-011f) — a placeholder for
+ * the real driver slice.
  */
 @Serializable
 enum class FulfillmentStatus(val value: String) {
     @SerialName("collected") Collected("collected"),
+    @SerialName("delivered") Delivered("delivered"),
     @SerialName("pending") Pending("pending"),
     @SerialName("picking") Picking("picking"),
     @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup"),

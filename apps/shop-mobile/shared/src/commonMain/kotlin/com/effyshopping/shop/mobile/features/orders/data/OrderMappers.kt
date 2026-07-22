@@ -36,6 +36,7 @@ private fun FulfillmentStatus.toDomain(): FulfillmentState = when (this) {
     FulfillmentStatus.Picking -> FulfillmentState.PICKING
     FulfillmentStatus.ReadyForPickup -> FulfillmentState.READY_FOR_PICKUP
     FulfillmentStatus.Collected -> FulfillmentState.COLLECTED
+    FulfillmentStatus.Delivered -> FulfillmentState.DELIVERED
 }
 
 private fun DeliveryPromiseDTO.toDomain(): DeliveryPromise =
