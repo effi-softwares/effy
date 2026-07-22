@@ -22,6 +22,14 @@ object AppConfig {
 
     /** Commerce → the hot path (`core-api`). Nothing to call yet, but the routing law is structural (FR-036). */
     val coreApiBaseUrl: String get() = BuildKonfig.CORE_API_BASE_URL
+
+    /**
+     * The Stripe PUBLISHABLE key (`pk_…`, 019 US3/R3) — a NAME, not a secret: it only tokenizes cards and
+     * ships in the client by design (the `sk_…` secret never leaves core-api). The checkout flow presents
+     * the PaymentSheet with THIS key + the server's per-order `clientSecret`; the client carries its own
+     * rather than depending on the backend echo (which config.go marks a mere convenience).
+     */
+    val stripePublishableKey: String get() = BuildKonfig.STRIPE_PUBLISHABLE_KEY
 }
 
 /**

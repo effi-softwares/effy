@@ -50,7 +50,10 @@ for REL in $APPS; do
     # Pull quoted identifiers from the requiredKeys = listOf( … ) block.
     KEYS="$(awk '/val requiredKeys/{f=1} f{print} /\)/{if(f)f=0}' "$GRADLE" \
             | grep -oE '"[A-Z0-9_]+"' | tr -d '"' || true)"
-    BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' || true)"
+    # STRIPE_PUBLISHABLE_KEY is the ONE allowed `_KEY`-named value: a Stripe publishable key (pk_…) is
+    # designed to ship in clients and authorizes nothing (the sk_… secret stays in core-api — 019 R3).
+    BAD="$(printf '%s\n' "$KEYS" | grep -iE 'SECRET|_KEY$|^KEY|PASSWORD|TOKEN|CREDENTIAL' \
+            | grep -vxE 'STRIPE_PUBLISHABLE_KEY' || true)"
     if [ -n "$BAD" ]; then
       echo "✗ mobile-guard [$REL]: a required build-config key is SECRET-SHAPED (FR-042):"
       printf '%s\n' "$BAD" | sed 's/^/    /'

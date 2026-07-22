@@ -117,7 +117,8 @@ class AppContainer(
     // The address picker + add-new reuse the 022 Address Book use cases below (023 US1–US4) — the same
     // saved addresses the account page manages, on the cold path.
     val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) }
-    val payForOrder by lazy { PayForOrder(checkoutRepo, paymentDriver) }
+    // The client carries its OWN publishable key (019 R3) — not the backend echo on the intent.
+    val payForOrder by lazy { PayForOrder(checkoutRepo, paymentDriver, AppConfig.stripePublishableKey) }
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 

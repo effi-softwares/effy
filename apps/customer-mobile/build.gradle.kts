@@ -33,6 +33,11 @@ val requiredKeys = listOf(
     "COGNITO_REGION",
     "EDGE_API_BASE_URL",      // account / profile → the cold path
     "CORE_API_BASE_URL",      // commerce → the hot path (nothing to call yet, but the law is structural)
+    // Stripe PUBLISHABLE key (pk_…) — NOT a secret. Stripe designs it to ship in clients (it only
+    // tokenizes cards against the account; the sk_… secret never leaves core-api — 019 R3). Each client
+    // carries its own (config.go: the backend echo is "a convenience", not the source). Named …_KEY, so
+    // mobile-guard allowlists exactly this one publishable key (the guard's FR-042 name check).
+    "STRIPE_PUBLISHABLE_KEY",
 )
 
 val secretsFile = rootProject.file("secrets.properties") // git-ignored

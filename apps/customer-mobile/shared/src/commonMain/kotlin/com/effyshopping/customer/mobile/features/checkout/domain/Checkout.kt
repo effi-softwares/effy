@@ -14,6 +14,8 @@ data class CheckoutIntent(
     val orderId: String,
     val orderNumber: String,
     val clientSecret: String,
+    // The backend's publishable-key echo (config.go marks it a convenience). Retained to mirror the wire,
+    // but the pay flow uses the client's OWN key (AppConfig.stripePublishableKey) — see [PayForOrder].
     val publishableKey: String,
     val grandTotalAmount: String,
     val currency: String,
@@ -92,10 +94,15 @@ sealed interface PayOutcome {
  * PayForOrder (T056, extended 021 T045) — the checkout orchestration: create the intent from the
  * per-package [PlaceOrder], present the native sheet, and on completion best-effort confirm (the webhook
  * is authoritative; confirm covers local-dev lag). A stale quote (409) surfaces as [PayOutcome.Requote].
+ *
+ * [publishableKey] is the client's OWN build-time Stripe publishable key (AppConfig.stripePublishableKey),
+ * not the server's echo on the intent — each client carries its own (019 R3; config.go marks the backend
+ * echo a convenience). The `sk_…` secret never reaches the client; this key only presents the sheet.
  */
 class PayForOrder(
     private val checkout: CheckoutRepository,
     private val payments: PaymentDriver,
+    private val publishableKey: String,
 ) {
     suspend operator fun invoke(order: PlaceOrder): PayOutcome {
         val intent = try {
@@ -103,7 +110,7 @@ class PayForOrder(
         } catch (e: AppException) {
             if (e.error is AppError.RequoteRequired) return PayOutcome.Requote else throw e
         }
-        return when (val result = payments.presentPaymentSheet(intent.clientSecret, intent.publishableKey)) {
+        return when (val result = payments.presentPaymentSheet(intent.clientSecret, publishableKey)) {
             PaymentResult.Completed -> {
                 runCatching { checkout.confirm(intent.orderId) }
                 PayOutcome.Placed(intent.orderId)

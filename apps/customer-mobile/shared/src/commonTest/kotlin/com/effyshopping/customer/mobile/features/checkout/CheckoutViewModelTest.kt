@@ -142,7 +142,7 @@ class CheckoutViewModelTest {
             listAddresses = ListAddresses(book),
             addAddress = AddAddress(book),
             quoteDelivery = QuoteDelivery(repo),
-            pay = PayForOrder(repo, payment),
+            pay = PayForOrder(repo, payment, publishableKey = "pk_test_fake"),
         )
 
     private fun twoServiceable() = DeliveryQuote(
