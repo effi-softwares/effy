@@ -199,7 +199,7 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 **021 + 022 + 023 — delivery zones, address book, checkout shipping/billing.** ✅ **SIGNED OFF
 (live-validated) 2026-07-22.** Built as three stacked slices, merged to `main` together (PR #1), and
 validated live locally end-to-end: a two-shop cart → per-package delivery quote → Stripe test-card
-payment → order finalized. Two live-only bugs were found during testing and fixed (both committed):
+payment → order finalized. Live-only bugs found during testing and fixed (see also post-sign-off below):
 - **021 — the captured quote lost shop identity.** `QuotePackage.ShopID` is `json:"-"` (hidden from the
   customer, FR-019), but the quote is persisted to `order.delivery_quote` **using that same struct**, so
   `shop_id` read back empty and the intent inserted `order_package_delivery.shop_id = ""` → 500 (invalid
@@ -210,6 +210,15 @@ payment → order finalized. Two live-only bugs were found during testing and fi
   cart, which the mount-time merge clears — so the price dropped to $0 and Continue disabled the instant
   the merge resolved. Fix: snapshot the cart at entry (`CheckoutFlow.tsx`) and display/gate on that (the
   server cart is authoritative post-merge).
+- **022 — "Set as default" 502'd when a default already existed** (post-sign-off, found 2026-07-22;
+  fix NOT yet committed). `PATCH /customer/v1/addresses/{id}` cleared the prior default and set the new
+  one in a **single data-modifying CTE**, but `customer_address_default_uq` is a NON-deferrable partial
+  unique index and CTE sub-statements share one snapshot (the clear is invisible to the set) — so the
+  constraint saw two `is_default` rows → `23505` → 502 `unavailable`. Promoting a default had **never**
+  worked when the customer already had one. Fix (`apis/edge-api/customer/src/addresses/repo.ts`
+  `update()`): two ordered statements in a `withTransaction` — clear the old default first (guarded on
+  the target existing + owned, so a 404 patch doesn't strip the default), then set the target — so at
+  most one `true` row is ever visible to the index. Repo SQL has no unit-test seam here (verified live).
 - **⚠ Known carry-forward (customer-web):** re-opening/refreshing `/checkout` after the merge shows an
   empty cart (the guest cart was cleared and the page doesn't read the server cart). Pre-existing design
   gap; the proper fix is a server-cart read on `page.tsx`. Not yet done.
