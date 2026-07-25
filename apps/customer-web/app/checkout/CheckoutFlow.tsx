@@ -2,7 +2,7 @@
 
 import { Elements } from "@stripe/react-stripe-js"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import type {
   AddressDTO,
@@ -11,7 +11,7 @@ import type {
   DeliverySelectionDTO,
 } from "@effy/shared-types"
 
-import { clearCart, mergePayload, useCart } from "@/lib/cart-store"
+import { replacePayload, useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
 import { getStripe } from "@/lib/stripe"
@@ -25,8 +25,9 @@ import { PaymentForm } from "./PaymentForm"
 type Step = "review" | "delivery" | "paying"
 
 /**
- * The checkout flow (021, extending 019's US3). On mount it merges the device-local guest cart into the
- * authoritative server cart, then walks three steps:
+ * The checkout flow (021, extending 019's US3). On entry it REPLACES the server cart with the device-local
+ * cart — an idempotent snapshot (R8 amended → Option B: the local cart is the source of truth; the local
+ * cart is NOT cleared here, only on order completion) — then walks three steps:
  *
  *   review (address)  →  delivery (per-package options)  →  paying (Stripe Payment Element)
  *
@@ -45,18 +46,12 @@ type Step = "review" | "delivery" | "paying"
 export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDTO[] }) {
   const router = useRouter()
   const guestLines = useCart()
-  // Freeze the cart being checked out. The mount effect below merges these lines into the
-  // authoritative SERVER cart and then CLEARS the local guest cart — so `useCart()` is empty by
-  // design for the rest of the flow. If the estimate and the "has items" gate read the LIVE guest
-  // cart, the price would drop to $0 and Continue would disable the instant the merge resolves.
-  // Snapshot the lines the first time we have them, and never let the post-merge clear reset them
-  // (the server owns the real amount; this snapshot is display + a has-items gate only).
-  const [orderLines, setOrderLines] = useState(guestLines)
-  useEffect(() => {
-    if (guestLines.length > 0 && orderLines.length === 0) setOrderLines(guestLines)
-  }, [guestLines, orderLines])
-  const estimate = useMemo(() => computeCartTotals(orderLines), [orderLines])
-  const currency = orderLines[0]?.currency ?? "AUD"
+  // The device-local cart is the source of truth (Option B) and is NOT cleared on entry — so it stays
+  // populated for the whole flow. The estimate and the "has items" gate read it LIVE; the server cart is
+  // only an idempotent snapshot (the entry effect below) that quote/intent price against. No freeze
+  // workaround is needed now that entry no longer wipes the local cart.
+  const estimate = useMemo(() => computeCartTotals(guestLines), [guestLines])
+  const currency = guestLines[0]?.currency ?? "AUD"
 
   const [addresses, setAddresses] = useState<AddressDTO[]>(initialAddresses)
   // Pre-select the SHIPPING address (FR-001): the default, else — when none is default — the first of
@@ -75,18 +70,22 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // Merge the guest cart into the server cart exactly once, then clear the local copy.
+  // Snapshot the local cart into the server cart (idempotent REPLACE) so quote/intent price the exact
+  // lines the customer sees. Fired once on entry and NOT cleared here — the local cart is cleared only on
+  // order completion (checkout/complete/ClearCart). Because replace is idempotent, re-entering checkout
+  // re-syncs and never accumulates. The ref stops React Strict Mode's double-invoke from double-posting.
+  const snapshotted = useRef(false)
   useEffect(() => {
-    const lines = mergePayload(guestLines)
+    if (snapshotted.current) return
+    snapshotted.current = true
+    const lines = replacePayload(guestLines)
     if (lines.length === 0) return
-    void fetch("/api/cart/merge", {
-      method: "POST",
+    void fetch("/api/cart", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ lines }),
-    }).then((res) => {
-      if (res.ok) clearCart()
     })
-    // Intentionally run once on mount; the guest lines are a snapshot at entry.
+    // Run once on entry with the cart snapshot; replace is idempotent so any later re-entry re-syncs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -134,7 +133,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // Pay is blocked until shipping is set (FR-007) and, when billing diverges, a billing address is
   // chosen (FR-012). Enforced at the review → delivery gate, before any payment.
   const canContinue =
-    !!selectedId && (billingSameAsShipping || !!billingId) && orderLines.length > 0
+    !!selectedId && (billingSameAsShipping || !!billingId) && guestLines.length > 0
 
   /** Quote the address for its per-package options. Returns the fresh quote, or null on failure. */
   async function fetchQuote(addressId: string): Promise<DeliveryQuoteResponse | null> {

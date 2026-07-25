@@ -55,8 +55,9 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (url: string | URL) => {
       const u = String(url)
-      // Keep the guest cart intact: a failed merge means clearCart never runs.
-      if (u.endsWith("/api/cart/merge")) return jsonRes({}, false, 500)
+      // The idempotent cart snapshot (PUT /api/cart). Its result never gates the flow — the local cart
+      // is the source of truth (Option B) and is never cleared on entry — so even a 500 leaves it intact.
+      if (u.endsWith("/api/cart")) return jsonRes({}, false, 500)
       if (u.endsWith("/api/checkout/quote")) {
         quoteCalls += 1
         return jsonRes({ packages: [quotePackage], quoteId: `q${quoteCalls}`, expiresAt: "2099-01-01T00:00:00Z" })

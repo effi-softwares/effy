@@ -59,7 +59,11 @@ export interface UpdateCartLineRequest {
   quantity: number;
 }
 
-/** POST /v1/cart/merge — merge a device-local guest cart on sign-in (sums qty per product). */
-export interface MergeCartRequest {
+/**
+ * PUT /v1/cart — replace the server cart with EXACTLY the client's device-local cart (the idempotent
+ * checkout snapshot; R8 amended → the local cart is the source of truth). Re-sending the same lines is a
+ * no-op; an empty `lines` clears the server cart. Dropped lines are removed, never left behind.
+ */
+export interface ReplaceCartRequest {
   lines: { productId: string; quantity: number }[];
 }

@@ -13,8 +13,8 @@ import (
 func Register(v1 *gin.RouterGroup, verifier *auth.PoolVerifier, identity *customeridentity.Resolver, h *Handler) {
 	g := v1.Group("/cart", auth.Middleware(verifier), customeridentity.Middleware(identity))
 	g.GET("", h.get)
+	g.PUT("", h.replace) // replace the server cart with the client's local cart (idempotent snapshot)
 	g.POST("/items", h.addItem)
 	g.PATCH("/items/:productId", h.setItem)
 	g.DELETE("/items/:productId", h.removeItem)
-	g.POST("/merge", h.merge)
 }

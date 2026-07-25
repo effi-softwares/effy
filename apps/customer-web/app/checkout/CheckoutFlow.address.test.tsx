@@ -68,7 +68,7 @@ beforeEach(() => {
     vi.fn(async (url: string | URL, init?: RequestInit) => {
       const u = String(url)
       const body = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {}
-      if (u.endsWith("/api/cart/merge")) return jsonRes({}, false, 500)
+      if (u.endsWith("/api/cart")) return jsonRes({}, false, 500)
       if (u.endsWith("/api/addresses")) {
         addressWrites += 1
         return jsonRes(addr({ id: "new1", recipientName: "New Person", isDefault: false }))

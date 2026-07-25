@@ -8,7 +8,7 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressForm
 import com.effyshopping.customer.mobile.features.addresses.presentation.toDraft
 import com.effyshopping.customer.mobile.features.addresses.presentation.validate
-import com.effyshopping.customer.mobile.features.cart.domain.CartMergeRepository
+import com.effyshopping.customer.mobile.features.cart.domain.CartRepository
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
@@ -84,7 +84,7 @@ sealed interface CheckoutUiState {
  */
 class CheckoutViewModel(
     private val guestCart: GuestCartStore,
-    private val cartRepo: CartMergeRepository,
+    private val cartRepo: CartRepository,
     private val listAddresses: ListAddresses,
     private val addAddress: AddAddress,
     private val quoteDelivery: QuoteDelivery,
@@ -100,7 +100,9 @@ class CheckoutViewModel(
 
     private fun start() {
         viewModelScope.launch {
-            runCatching { cartRepo.merge(guestCart.snapshot()) } // best-effort; server is authoritative
+            // Snapshot the local cart to the server (idempotent replace) so the quote/intent price the
+            // exact lines shown. Re-entry re-syncs, never accumulates (Option B). Best-effort.
+            runCatching { cartRepo.replace(guestCart.snapshot()) }
             val addresses = runCatching { listAddresses() }.getOrDefault(emptyList())
             // Pre-select the default; deterministic to the first saved address when none is default (FR-002).
             val selectedId = addresses.firstOrNull { it.isDefault }?.id ?: addresses.firstOrNull()?.id

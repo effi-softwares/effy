@@ -1,32 +1,32 @@
 package com.effyshopping.customer.mobile.features.cart.data
 
 import com.effyshopping.customer.mobile.commerce.contract.Line
-import com.effyshopping.customer.mobile.commerce.contract.MergeCartRequest
+import com.effyshopping.customer.mobile.commerce.contract.ReplaceCartRequest
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
-import com.effyshopping.customer.mobile.features.cart.domain.CartMergeRepository
+import com.effyshopping.customer.mobile.features.cart.domain.CartRepository
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import io.ktor.client.HttpClient
-import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
 /**
- * Server cart over the CORE api (019 US3 — the T041 carry-forward). This slice uses it for the
- * merge-on-sign-in step of checkout: the device-local guest cart is folded into the authoritative
- * server cart, which `checkout/intent` then reads. (Full server-cart read/write UI can follow.)
+ * Server cart over the CORE api (019 US3). Checkout snapshots the device-local guest cart to the server
+ * cart via an idempotent REPLACE (PUT /v1/cart, R8 amended → Option B); `checkout/quote` + `checkout/intent`
+ * then read that server cart. The local cart stays the source of truth.
  */
-class HttpCartRepository(private val core: HttpClient) : CartMergeRepository {
+class HttpCartRepository(private val core: HttpClient) : CartRepository {
 
-    /** Merge the guest cart into the server cart (sums quantities per product). */
-    override suspend fun merge(lines: List<GuestCartLine>) {
+    /** Replace the server cart with EXACTLY these lines (idempotent; empty is skipped, not a wipe here). */
+    override suspend fun replace(lines: List<GuestCartLine>) {
         if (lines.isEmpty()) return
         request {
-            core.post("v1/cart/merge") {
-                setBody(MergeCartRequest(lines = lines.map { Line(productID = it.productId, quantity = it.quantity.toDouble()) }))
+            core.put("v1/cart") {
+                setBody(ReplaceCartRequest(lines = lines.map { Line(productID = it.productId, quantity = it.quantity.toDouble()) }))
             }.ensureSuccess()
             Unit
         }

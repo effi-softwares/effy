@@ -67,6 +67,21 @@ func (f *fakeRepo) RemoveItem(_ context.Context, _, productID string) error {
 	return nil
 }
 
+// ReplaceItems mirrors the SQL: the cart becomes EXACTLY the given lines (delete-not-in-set + set qty).
+func (f *fakeRepo) ReplaceItems(_ context.Context, _ string, productIDs []string, quantities []int32, max int) error {
+	keep := map[string]bool{}
+	for i, id := range productIDs {
+		keep[id] = true
+		f.items[id] = min(int(quantities[i]), max)
+	}
+	for id := range f.items {
+		if !keep[id] {
+			delete(f.items, id)
+		}
+	}
+	return nil
+}
+
 type noPresign struct{}
 
 func (noPresign) PresignGet(_ context.Context, _ string) (string, error) { return "", nil }
@@ -172,20 +187,61 @@ func TestSetQtyZeroRemovesLine(t *testing.T) {
 	}
 }
 
-func TestMergeSumsIntoServerCartSkippingBadItems(t *testing.T) {
+// Replace sets the server cart to EXACTLY the client lines (Option B): skip missing/unavailable, dedupe.
+func TestReplaceSetsServerCartExactlySkippingBadItems(t *testing.T) {
 	f := newFakeRepo()
 	seedProduct(f, pMilk, "Milk", "2.00", "active")
 	svc := NewService(f, noPresign{})
-	_, _ = svc.Add(context.Background(), "c", pMilk, 1)
+	_, _ = svc.Add(context.Background(), "c", pMilk, 5) // a stale server line from a prior attempt
 
-	cart, err := svc.Merge(context.Background(), "c", []MergeLine{
-		{ProductID: pMilk, Quantity: 2}, // sums with existing → 3
+	cart, err := svc.Replace(context.Background(), "c", []ReplaceLine{
+		{ProductID: pMilk, Quantity: 2}, // REPLACES the stale 5 → 2 (not summed to 7)
 		{ProductID: pGone, Quantity: 5}, // missing → skipped
 	})
 	if err != nil {
-		t.Fatalf("Merge: %v", err)
+		t.Fatalf("Replace: %v", err)
 	}
-	if cart.Lines[0].Quantity != 3 {
-		t.Errorf("merged quantity = %d, want 3", cart.Lines[0].Quantity)
+	if len(cart.Lines) != 1 || cart.Lines[0].Quantity != 2 {
+		t.Errorf("replaced cart = %+v, want exactly one line qty 2", cart.Lines)
+	}
+}
+
+// The core guarantee: Replace is IDEMPOTENT — running the same input twice yields the same cart (this
+// is what makes re-entering checkout safe; the old additive merge inflated here).
+func TestReplaceIsIdempotent(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "2.00", "active")
+	svc := NewService(f, noPresign{})
+	in := []ReplaceLine{{ProductID: pMilk, Quantity: 1}}
+
+	if _, err := svc.Replace(context.Background(), "c", in); err != nil {
+		t.Fatalf("Replace #1: %v", err)
+	}
+	cart, err := svc.Replace(context.Background(), "c", in) // second identical replace
+	if err != nil {
+		t.Fatalf("Replace #2: %v", err)
+	}
+	if len(cart.Lines) != 1 || cart.Lines[0].Quantity != 1 {
+		t.Errorf("after two identical replaces = %+v, want qty 1 (no accumulation)", cart.Lines)
+	}
+}
+
+// Replace removes lines dropped from the client cart (a stale line does not linger server-side).
+func TestReplaceRemovesDroppedLines(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "2.00", "active")
+	seedProduct(f, pBread, "Bread", "3.00", "active")
+	svc := NewService(f, noPresign{})
+	_, _ = svc.Replace(context.Background(), "c", []ReplaceLine{
+		{ProductID: pMilk, Quantity: 1},
+		{ProductID: pBread, Quantity: 1},
+	})
+
+	cart, err := svc.Replace(context.Background(), "c", []ReplaceLine{{ProductID: pMilk, Quantity: 1}})
+	if err != nil {
+		t.Fatalf("Replace: %v", err)
+	}
+	if len(cart.Lines) != 1 || cart.Lines[0].ProductID != pMilk {
+		t.Errorf("after dropping bread = %+v, want only milk", cart.Lines)
 	}
 }

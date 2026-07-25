@@ -10,7 +10,7 @@ import com.effyshopping.customer.mobile.features.addresses.domain.AddressReposit
 import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressForm
-import com.effyshopping.customer.mobile.features.cart.domain.CartMergeRepository
+import com.effyshopping.customer.mobile.features.cart.domain.CartRepository
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
@@ -44,9 +44,9 @@ import kotlin.test.assertTrue
 
 // ── Hand-written fakes (no mocking lib) ───────────────────────────────────────────────────────────────
 
-private class FakeCartMerge : CartMergeRepository {
-    var merged = false
-    override suspend fun merge(lines: List<GuestCartLine>) { merged = true }
+private class FakeCartRepo : CartRepository {
+    var replaced = false
+    override suspend fun replace(lines: List<GuestCartLine>) { replaced = true }
 }
 
 private class FakePayment(private val result: PaymentResult = PaymentResult.Completed) : PaymentDriver {
@@ -138,7 +138,7 @@ class CheckoutViewModelTest {
     ): CheckoutViewModel =
         CheckoutViewModel(
             guestCart = GuestCartStore(),
-            cartRepo = FakeCartMerge(),
+            cartRepo = FakeCartRepo(),
             listAddresses = ListAddresses(book),
             addAddress = AddAddress(book),
             quoteDelivery = QuoteDelivery(repo),

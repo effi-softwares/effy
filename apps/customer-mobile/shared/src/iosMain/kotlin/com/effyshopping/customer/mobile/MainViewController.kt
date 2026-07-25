@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile
 
+import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import com.effyshopping.customer.mobile.app.App
 import com.effyshopping.customer.mobile.app.AppContainer
@@ -15,10 +16,14 @@ import com.effyshopping.customer.mobile.core.payment.IosPaymentDriver
  */
 fun MainViewController(authBridge: IosAuthBridge, paymentBridge: IosPaymentBridge) =
     ComposeUIViewController {
-        App(
+        // `remember` the container so a root recomposition does NOT rebuild it — a fresh AppContainer
+        // means a fresh, EMPTY in-memory GuestCartStore, which is why the cart appeared to empty on iOS
+        // when returning from checkout/sign-in. Android already holds one Application-scoped instance.
+        val container = remember {
             AppContainer(
                 authDriver = IosAuthDriver(authBridge),
                 paymentDriver = IosPaymentDriver(paymentBridge),
-            ),
-        )
+            )
+        }
+        App(container)
     }

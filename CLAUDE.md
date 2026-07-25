@@ -219,9 +219,36 @@ payment → order finalized. Live-only bugs found during testing and fixed (see 
   `update()`): two ordered statements in a `withTransaction` — clear the old default first (guarded on
   the target existing + owned, so a 404 patch doesn't strip the default), then set the target — so at
   most one `true` row is ever visible to the index. Repo SQL has no unit-test seam here (verified live).
-- **⚠ Known carry-forward (customer-web):** re-opening/refreshing `/checkout` after the merge shows an
-  empty cart (the guest cart was cleared and the page doesn't read the server cart). Pre-existing design
-  gap; the proper fix is a server-cart read on `page.tsx`. Not yet done.
+- **✅ Cart integrity rewrite (2026-07-23; fix NOT yet committed) — 019 R8 amended to "Option B".** Three
+  live cart bugs on **both** customer surfaces: (a) entering checkout then leaving emptied the cart, (b) a
+  prior abandoned attempt's items reappeared, (c) adding 1 item showed 2–3 in checkout. Root cause: two
+  unreconciled carts (device-local vs server) bridged by an **additive, non-idempotent** `POST /v1/cart/merge`
+  fired on **checkout entry** and never reset except by a *paid* order; the clients read the local cart while
+  checkout read the server cart. **Fix (design now in force):** the **device-local cart is the single source
+  of truth**; the server cart is an **idempotent snapshot** via **`PUT /v1/cart` (replace)** — becomes EXACTLY
+  the local cart, so re-entry re-syncs and never accumulates; the local cart is cleared **only on order
+  completion**. Scope: core-api `cart` (new `Replace`/`ReplaceItems` single-statement CTE, removed additive
+  `Merge` + `/merge` route; 3 new idempotency tests); contract `MergeCartRequest`→`ReplaceCartRequest`
+  (regenerated Kotlin); customer-web (`CheckoutFlow.tsx` replaces + no entry-clear + dropped the snapshot
+  workaround, new `PUT /api/cart` route); customer-mobile (`CartRepository.replace`, `PUT v1/cart`, **iOS
+  `MainViewController` now `remember`s `AppContainer`** so recomposition can't wipe the in-memory cart —
+  mobile's bug (a)). Verified: core-api `go test`/vet/gofmt, **576+ JS/TS tests** (customer-web 127) +
+  customer-web build, mobile iOS compile+tests, `mobile-guard`, contract regen stable. R8 amendment:
+  [specs/019-customer-commerce-flow/research.md](specs/019-customer-commerce-flow/research.md). **Operator:
+  redeploy core-api (`make core-run`) — the `PUT /v1/cart` route + removed `/merge` need the new binary.**
+- **✅ Back-to-back orders reused the first order's PaymentIntent (2026-07-23; customer-web; fix NOT yet
+  committed).** Placing a 2nd order right after a 1st: checkout jumped to Stripe showing the FIRST order's
+  amount / already-completed payment. Root cause: **web never called the `confirm` fallback** (mobile does) —
+  it relied solely on the Stripe webhook to move the order out of `pending_payment`. When the webhook lagged
+  or was misconfigured locally, order 1 stayed `pending_payment`; the checkout backend reuses "the single
+  pending order per customer" (`WHERE status='pending_payment'`), so order 2 **reused order 1's row**, and the
+  **deterministic idempotency key** `hash(orderID, amount)` returned order 1's already-succeeded PaymentIntent
+  (also silently corrupting order 1 — the quote overwrote its items). Fix (web-only, no backend change — the
+  backend already creates a fresh order once order 1 is `paid`): the **completion page finalizes the order
+  server-side via the idempotent `POST /v1/checkout/confirm`** before reading the receipt
+  (`app/checkout/complete/page.tsx`) — moving order 1 out of `pending_payment` the moment the customer lands
+  after paying (covers inline-success AND 3DS-redirect), before another checkout can start. The webhook stays
+  the ultimate authority/backstop. Verified: customer-web typecheck + build + 127 tests.
 - **⚠ Sign-off is "feels-good", not the full SC table.** The happy-path loop is proven live; the operator
   will continue targeted testing and report bugs. Not yet live-walked: the full serviceability matrix
   (multi-day + blocked-postcode), the divergent-billing **shop no-leak** proof (SC-007), and the 022

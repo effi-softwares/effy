@@ -137,6 +137,23 @@ Legend: **Decision** / **Rationale** / **Alternatives rejected**.
   plumbing the clarification ruled out. Pure client cart submitted only at checkout — rejected: the
   clarification chose hybrid (server cart once signed in) for durability + a synced cart badge.
 
+- **⚠ AMENDED 2026-07-23 (Option B — after three live cart-integrity bugs).** The original design here was
+  never fully realized: the storefront (badge, cart page) always read the **device-local** cart, and the
+  server cart was only ever touched by an **additive** `POST /v1/cart/merge` fired on **checkout entry**
+  (not sign-in) and never reset except by a *paid* order. That produced three live bugs — (a) entering
+  checkout emptied the cart (web cleared the local cart on the merge; iOS rebuilt the container), (b) a
+  prior abandoned attempt's items reappeared (the server cart accumulated), (c) adding 1 item showed 2–3
+  in checkout (additive merge fired repeatedly / Strict-Mode-doubled). Root cause: the merge was
+  **additive and non-idempotent**, and two carts were never reconciled. **Resolution (the design now in
+  force):** the **device-local cart is the SINGLE source of truth**; the server cart is an **idempotent
+  checkout snapshot** set via **`PUT /v1/cart` (replace, not merge)** — it becomes EXACTLY the local cart,
+  so re-entering checkout re-syncs and never accumulates, and dropped lines are removed. The local cart is
+  cleared **only on order completion** (never on entry). The old `/v1/cart/merge` endpoint + additive
+  service path are removed. No cross-device guest cart (the industry-standard guest→user *merge* on
+  sign-in was intentionally NOT adopted — this app is guest-first with a deliberately tiny bundle and no
+  storefront session-awareness; a replace-at-checkout is simpler and idempotent by construction). See the
+  021+022+023 note in CLAUDE.md for the fix's file-by-file scope.
+
 ## R9 — Money representation
 
 - **Decision**: Persist and compute money as `numeric(12,2)` AUD end-to-end (matching `product.price_amount`),

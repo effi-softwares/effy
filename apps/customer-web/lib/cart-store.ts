@@ -3,11 +3,12 @@
 /**
  * The guest cart — device-local, dependency-free (this storefront ships a deliberately tiny guest
  * bundle; no TanStack/Zustand here). Lines are SNAPSHOTTED (name/price/image captured at add time) so a
- * later catalog price change never silently mutates what the guest saw (ARCHITECTURE.md / R8). On
- * sign-in the guest cart is merged into the authoritative server cart (see mergePayload / US3).
+ * later catalog price change never silently mutates what the guest saw (ARCHITECTURE.md / R8). This
+ * local cart is the SOURCE OF TRUTH (R8 amended → Option B); at checkout it's snapshotted to the server
+ * cart via an idempotent replace (see replacePayload → PUT /v1/cart), which quote/intent price against.
  *
- * The ordering/merge/total logic is pure (unit-tested); the localStorage + useSyncExternalStore wrapper
- * is a thin client edge.
+ * The ordering/quantity/total logic is pure (unit-tested); the localStorage + useSyncExternalStore
+ * wrapper is a thin client edge.
  */
 import { useSyncExternalStore } from "react"
 
@@ -82,8 +83,8 @@ export function cartCount(lines: readonly GuestCartLine[]): number {
   return lines.reduce((n, l) => n + l.quantity, 0)
 }
 
-/** The merge payload sent to POST /v1/cart/merge on sign-in. */
-export function mergePayload(lines: readonly GuestCartLine[]): { productId: string; quantity: number }[] {
+/** The replace payload sent to PUT /v1/cart — the idempotent checkout snapshot (Option B). */
+export function replacePayload(lines: readonly GuestCartLine[]): { productId: string; quantity: number }[] {
   return lines.map((l) => ({ productId: l.productId, quantity: l.quantity }))
 }
 

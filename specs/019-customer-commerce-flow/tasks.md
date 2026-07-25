@@ -199,6 +199,31 @@ each with only its shop's items; a declined card places no order; a double-submi
 
 **Checkpoint**: The complete purchase flow works end-to-end on both surfaces; multi-shop fan-out verified. **This is the full MVP the user asked for.**
 
+- [X] T057a [US2/US3] **Post-sign-off cart-integrity rewrite (2026-07-23) — R8 amended to "Option B".** Three
+  live bugs on both surfaces: entering checkout emptied the cart; a prior abandoned attempt's items
+  reappeared; adding 1 item showed 2–3 in checkout. Root cause: the device-local cart and the server cart
+  were never reconciled — bridged by an **additive, non-idempotent** `POST /v1/cart/merge` fired on
+  **checkout entry** and reset only by a *paid* order, while the storefront read the local cart and checkout
+  read the server cart. Fix: the **local cart is the single source of truth**; the server cart is an
+  **idempotent snapshot** via **`PUT /v1/cart` (replace)** — set to EXACTLY the local cart, so re-entry
+  re-syncs and never accumulates; local cart cleared **only on completion**. Removed the additive `Merge`
+  service/handler/`/merge` route (core-api) → new `Replace`/`ReplaceItems` (single-statement CTE) + 3
+  idempotency tests; contract `MergeCartRequest`→`ReplaceCartRequest` (regenerated); web `CheckoutFlow`
+  replaces + drops the entry-clear & snapshot workaround (new `PUT /api/cart`); mobile `CartRepository.replace`
+  + **iOS `MainViewController` `remember`s `AppContainer`** (the in-memory cart no longer dies on
+  recomposition — mobile's empty-cart cause). Verified: `go test`/vet/gofmt, workspace JS/TS tests (customer-web
+  127) + build, mobile iOS compile+tests, `mobile-guard`. R8 amendment in research.md. Operator: redeploy core-api.
+- [X] T057b [US3] **Post-sign-off fix (2026-07-23) — back-to-back orders reused the first order's PaymentIntent
+  (customer-web).** A 2nd order right after a 1st jumped to Stripe showing the FIRST order's amount/completed
+  payment. Root cause: web never called the `confirm` fallback (mobile does), relying only on the webhook to
+  leave `pending_payment`; when the webhook lagged, order 1 stayed pending, so the "single pending order per
+  customer" reuse (`status='pending_payment'`) made order 2 reuse order 1's row → the deterministic
+  idempotency key `hash(orderID, amount)` returned order 1's already-succeeded PaymentIntent (and corrupted
+  order 1's items via the quote). Fix (web-only, no backend change): the completion page finalizes server-side
+  via idempotent `POST /v1/checkout/confirm` before reading the receipt (`app/checkout/complete/page.tsx`) —
+  covers inline-success + 3DS-redirect, runs before another checkout can start; webhook stays the backstop.
+  Verified: customer-web typecheck + build + 127 tests.
+
 ---
 
 ## Phase 6: User Story 4 — Search with filters + infinite scroll (Priority: P2)

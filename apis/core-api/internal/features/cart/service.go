@@ -55,8 +55,9 @@ type Cart struct {
 	Notices            []Notice
 }
 
-// MergeLine is one line of a guest cart being merged on sign-in.
-type MergeLine struct {
+// ReplaceLine is one line of the client's local cart being pushed to the server (the idempotent
+// checkout snapshot — R8 amended to Option B: the device-local cart is the source of truth).
+type ReplaceLine struct {
 	ProductID string
 	Quantity  int
 }
@@ -69,6 +70,9 @@ type Repo interface {
 	AddItem(ctx context.Context, cartID, productID string, qty, max int) error
 	SetQty(ctx context.Context, cartID, productID string, qty int) error
 	RemoveItem(ctx context.Context, cartID, productID string) error
+	// ReplaceItems sets the cart to EXACTLY these (deduped) product/quantity pairs in one atomic
+	// statement — the backing of the idempotent Replace. productIDs[i] pairs with quantities[i].
+	ReplaceItems(ctx context.Context, cartID string, productIDs []string, quantities []int32, max int) error
 }
 
 type Service struct {
@@ -152,22 +156,39 @@ func (s *Service) Remove(ctx context.Context, customerID, productID string) (Car
 	return s.build(ctx, cartID)
 }
 
-// Merge folds a guest cart into the server cart (sum quantities); missing/unavailable products are
-// skipped silently (best-effort — a guest may have stale items).
-func (s *Service) Merge(ctx context.Context, customerID string, lines []MergeLine) (Cart, error) {
+// Replace sets the server cart to EXACTLY the client's local cart (R8 amended → Option B: the
+// device-local cart is authoritative; the server cart is an idempotent checkout snapshot). Missing /
+// unavailable products and non-positive quantities are skipped; duplicate product ids are summed then
+// clamped. This is IDEMPOTENT — re-running with the same input is a no-op — so re-entering checkout can
+// never accumulate quantities, and a stale line from an abandoned attempt is overwritten, not added to.
+func (s *Service) Replace(ctx context.Context, customerID string, lines []ReplaceLine) (Cart, error) {
 	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
 	defer cancel()
 	cartID, err := s.repo.GetOrCreateCartID(ctx, customerID)
 	if err != nil {
 		return Cart{}, err
 	}
+	// Dedupe (sum dup product ids) + validate (skip non-purchasable / non-positive). Deduping is
+	// required: ReplaceItems' upsert cannot touch the same row twice in one statement.
+	qtyByProduct := map[string]int{}
+	order := make([]string, 0, len(lines))
 	for _, l := range lines {
 		if l.Quantity <= 0 || s.assertPurchasable(ctx, l.ProductID) != nil {
 			continue
 		}
-		if err := s.repo.AddItem(ctx, cartID, l.ProductID, clampAdd(l.Quantity), maxQuantity); err != nil {
-			return Cart{}, err
+		if _, seen := qtyByProduct[l.ProductID]; !seen {
+			order = append(order, l.ProductID)
 		}
+		qtyByProduct[l.ProductID] += l.Quantity
+	}
+	productIDs := make([]string, 0, len(order))
+	quantities := make([]int32, 0, len(order))
+	for _, pid := range order {
+		productIDs = append(productIDs, pid)
+		quantities = append(quantities, int32(clampAdd(qtyByProduct[pid])))
+	}
+	if err := s.repo.ReplaceItems(ctx, cartID, productIDs, quantities, maxQuantity); err != nil {
+		return Cart{}, err
 	}
 	return s.build(ctx, cartID)
 }

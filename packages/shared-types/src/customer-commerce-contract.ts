@@ -28,7 +28,7 @@ import type {
   CartDTO,
   AddToCartRequest,
   UpdateCartLineRequest,
-  MergeCartRequest,
+  ReplaceCartRequest,
 } from "./cart";
 import type { AddressDTO, CreateAddressRequest, UpdateAddressRequest } from "./address";
 import type {
@@ -70,7 +70,7 @@ export type {
   CartDTO,
   AddToCartRequest,
   UpdateCartLineRequest,
-  MergeCartRequest,
+  ReplaceCartRequest,
   AddressDTO,
   CreateAddressRequest,
   UpdateAddressRequest,
@@ -110,7 +110,7 @@ export interface CustomerCommerceContract {
   cartNotice: CartNoticeDTO;
   addToCart: AddToCartRequest;
   updateCartLine: UpdateCartLineRequest;
-  mergeCart: MergeCartRequest;
+  replaceCart: ReplaceCartRequest;
   address: AddressDTO;
   createAddress: CreateAddressRequest;
   updateAddress: UpdateAddressRequest;

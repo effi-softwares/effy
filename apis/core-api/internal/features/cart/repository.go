@@ -129,3 +129,30 @@ func (r *Repository) RemoveItem(ctx context.Context, cartID, productID string) e
 	}
 	return nil
 }
+
+// ReplaceItems sets the cart's lines to EXACTLY the given (deduped) products/quantities in ONE atomic
+// statement — the backing of the idempotent Replace (Option B). A data-modifying CTE deletes every line
+// NOT in the input, then upserts each input line to its exact quantity (clamped to max). Empty input
+// clears the cart (`NOT IN (∅)` deletes all). Product ids MUST be pre-deduped by the caller: the upsert
+// cannot affect the same conflict row twice in one statement. productIDs[i] pairs with quantities[i].
+func (r *Repository) ReplaceItems(ctx context.Context, cartID string, productIDs []string, quantities []int32, max int) error {
+	_, err := r.db.Exec(ctx, `
+WITH input AS (
+    SELECT product_id, quantity
+      FROM unnest($2::uuid[], $3::int[]) AS t(product_id, quantity)
+),
+del AS (
+    DELETE FROM public.cart_item
+     WHERE cart_id = $1
+       AND product_id NOT IN (SELECT product_id FROM input)
+)
+INSERT INTO public.cart_item (cart_id, product_id, quantity)
+SELECT $1, product_id, LEAST(quantity, $4) FROM input
+ON CONFLICT (cart_id, product_id)
+DO UPDATE SET quantity = LEAST(EXCLUDED.quantity, $4), updated_at = now()`,
+		cartID, productIDs, quantities, max)
+	if err != nil {
+		return fmt.Errorf("cart: replace items: %w", err)
+	}
+	return nil
+}

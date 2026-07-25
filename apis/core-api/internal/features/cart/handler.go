@@ -51,7 +51,7 @@ type updateCartLineRequest struct {
 	Quantity int `json:"quantity"`
 }
 
-type mergeCartRequest struct {
+type replaceCartRequest struct {
 	Lines []struct {
 		ProductID string `json:"productId"`
 		Quantity  int    `json:"quantity"`
@@ -100,18 +100,20 @@ func (h *Handler) removeItem(c *gin.Context) {
 	h.respond(c, cart, err)
 }
 
-func (h *Handler) merge(c *gin.Context) {
-	var req mergeCartRequest
+// replace (PUT /v1/cart) sets the server cart to EXACTLY the client's local cart — the idempotent
+// checkout snapshot (Option B). An absent/empty `lines` is valid: it clears the server cart.
+func (h *Handler) replace(c *gin.Context) {
+	var req replaceCartRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		httpx.ValidationFailed(c, "lines are required")
 		return
 	}
-	lines := make([]MergeLine, 0, len(req.Lines))
+	lines := make([]ReplaceLine, 0, len(req.Lines))
 	for _, l := range req.Lines {
-		lines = append(lines, MergeLine{ProductID: l.ProductID, Quantity: l.Quantity})
+		lines = append(lines, ReplaceLine{ProductID: l.ProductID, Quantity: l.Quantity})
 	}
 	cust, _ := customeridentity.FromContext(c.Request.Context())
-	cart, err := h.svc.Merge(c.Request.Context(), cust.ID, lines)
+	cart, err := h.svc.Replace(c.Request.Context(), cust.ID, lines)
 	h.respond(c, cart, err)
 }
 

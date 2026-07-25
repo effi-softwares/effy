@@ -42,6 +42,18 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
   const session = await getSession()
   let dto: OrderDTO | null = null
   if (session?.accessToken) {
+    // Finalize the order NOW via the idempotent confirm fallback, the moment the customer lands here
+    // after paying. The webhook is authoritative but may lag (or be misconfigured locally) — and a
+    // lingering `pending_payment` order gets REUSED by the customer's NEXT checkout, whose deterministic
+    // idempotency key then returns THIS order's already-succeeded PaymentIntent (the "second order asks
+    // to pay for the first, same amount" bug). Confirming here moves the order out of pending_payment
+    // before another checkout can start, on both the inline-success and 3DS-redirect return paths.
+    // Best-effort: on failure the webhook remains the backstop and the receipt shows "confirming".
+    try {
+      await coreApi(session.accessToken).post(`/v1/checkout/confirm`, { orderId: order }, uncached())
+    } catch {
+      // ignore — webhook backstop
+    }
     try {
       dto = await coreApi(session.accessToken).get<OrderDTO>(`/v1/orders/${order}`, uncached())
     } catch {

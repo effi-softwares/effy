@@ -4,7 +4,7 @@ import {
   addLine,
   cartCount,
   groupByPackage,
-  mergePayload,
+  replacePayload,
   removeLine,
   setLineQty,
   type GuestCartLine,
@@ -61,9 +61,9 @@ describe("cartCount", () => {
   })
 })
 
-describe("mergePayload", () => {
+describe("replacePayload", () => {
   it("projects to productId + quantity", () => {
-    expect(mergePayload([line("a", 2)])).toEqual([{ productId: "a", quantity: 2 }])
+    expect(replacePayload([line("a", 2)])).toEqual([{ productId: "a", quantity: 2 }])
   })
 })
 
