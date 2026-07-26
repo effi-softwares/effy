@@ -274,3 +274,32 @@ address fields (SC-009). Mobile telemetry deferred.
 need the migration applied + `make core-run` + the two surfaces. **Stripe `billing_details` not sent** —
 billing is recorded on the order for the receipt; wiring it into the PaymentIntent is a recorded,
 behaviour-neutral follow-up (R6).
+
+---
+
+## §024 — Brand marks (icons · splash · favicon)
+
+**Parity: ACHIEVED.** Both customer surfaces carry the **Emerald** colourway of one authored mark.
+
+| Capability | customer-web | customer-mobile |
+|---|---|---|
+| Browser tab / bookmark icon | ✅ `app/icon.svg` + `favicon.ico` (16/32/48) | — |
+| Apple touch / home-screen web clip | ✅ `app/apple-icon.png` (180) | — |
+| Installed-PWA icon | ✅ 192/512, **both** `any` and `maskable` purposes | — |
+| Launcher icon | — | ✅ adaptive (vector fg/bg) + legacy mipmaps ×5 |
+| Themed / monochrome icon | — | ✅ `<monochrome>` layer (Android 13+) |
+| iOS light / dark / tinted appearances | — | ✅ all three, **no alpha channel** |
+| Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen` |
+| Light + dark appearance | ✅ | ✅ (`values-night` / `LaunchBackground` dark variant) |
+
+**Source of truth:** `packages/brand/src/logo.svg` → `make brand-gen`. Assets are **generated and
+committed**, never hand-edited; `make brand-check` fails on drift and names the stale surface.
+
+**Corrected here (were latent defects, not new work):** `layout.tsx` imported `next/head`, which is
+**inert in the App Router** — the Apple web-app title never rendered; the manifest carried placeholder
+`#ffffff` theme/background colours; the PWA icons declared **only** `maskable`, which renders visibly
+over-padded where an unmasked icon is expected; and the Android launcher label was the developer
+string `customer-mobile`, now **"Effy"**.
+
+⚠ **Not device-verified yet** — SC-002/003/004/005/007 need physical iOS + Android hardware and a
+side-by-side observer test. Everything machine-checkable is green.

@@ -45,6 +45,10 @@ export const metadata: Metadata = {
     "Shop fresh groceries and everyday essentials from Effy, delivered to your door.",
   openGraph: { type: "website", siteName: "Effy" },
   twitter: { card: "summary_large_image" },
+  // 024: the name iOS shows under a home-screen web clip. This MUST be expressed as metadata —
+  // `next/head` is a Pages Router API and is INERT in the App Router, so a <Head> block here
+  // renders nothing at all and the tag never reaches the document.
+  appleWebApp: { title: "Effy", capable: true, statusBarStyle: "default" },
 }
 
 export default function RootLayout({

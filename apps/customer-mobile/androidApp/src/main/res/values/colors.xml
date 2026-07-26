@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 024 — splash ground. Deliberately the app's OWN background, not a brand accent: the splash
+     hands over to a Compose surface painted this colour, so matching it removes the visible seam
+     FR-011 is about. -->
+<resources>
+    <color name="splash_background">#EFEFF1</color>
+</resources>

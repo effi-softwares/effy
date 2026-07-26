@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">customer-mobile</string>
+    <!-- 024 FR-018 — the launcher label. Was "customer-mobile", a developer string that shipped as
+         the name under the icon on every home screen. -->
+    <string name="app_name">Effy</string>
 </resources>

@@ -1,0 +1,18 @@
+{
+  "name": "@effy/brand",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy brand mark — the SSOT for every app icon, splash screen and favicon across all six client surfaces (specs/024-brand-icons-splash). One authored vector, three colourways (Emerald/Blue/Neutral), one generator, one drift check. Derived assets are GENERATED and COMMITTED — never hand-edited.",
+  "scripts": {
+    "brand:gen": "node scripts/gen-brand-assets.mjs",
+    "brand:check": "node scripts/check-brand-assets.mjs",
+    "lint": "node --test \"test/*.test.js\"",
+    "typecheck": "node --check scripts/gen-brand-assets.mjs",
+    "test": "node --test \"test/*.test.js\" && node scripts/check-brand-assets.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "sharp": "0.34.4"
+  }
+}

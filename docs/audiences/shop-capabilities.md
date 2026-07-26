@@ -273,3 +273,37 @@ surely as a shop name would (FR-018, SC-009).
   structurally unreachable from every shop query, DTO, and payload (FR-018). Locked by a guard test
   (`apis/edge-api/shop/src/fulfillments/no-billing.guard.test.ts`) that fails if any shop-side source
   ever names "billing". No shop data, endpoint, or UI changed — this is an exposure boundary, recorded.
+
+---
+
+## §024 — Brand marks (icons · splash · favicon)
+
+**Parity: ACHIEVED.** Both shop surfaces carry the **Blue** colourway (`#3b82f6` body / `#1e40af`
+fold) of the same authored mark the customer surfaces use in Emerald.
+
+| Capability | shop-web | shop-mobile |
+|---|---|---|
+| Browser tab / bookmark icon | ✅ `public/favicon.ico` + `icon.svg` | — |
+| Apple touch icon | ✅ `public/apple-touch-icon.png` (180) | — |
+| Launcher icon | — | ✅ adaptive (vector fg/bg) + legacy mipmaps ×5 |
+| Themed / monochrome icon | — | ✅ `<monochrome>` layer (Android 13+) |
+| iOS light / dark / tinted appearances | — | ✅ all three, **no alpha channel** |
+| Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen` |
+| Light + dark appearance | ✅ | ✅ |
+
+**Why blue at all (FR-014/FR-015):** shop staff may carry a device with **both** Effy apps installed,
+and the operator app is the one that accepts and picks live orders. Two identical icons is a daily,
+repeated cost. The two marks differ **in hue only** — same silhouette, same navy outline, same
+off-white tag — so they read as one brand in two colourways (SC-003), not two logos.
+
+⚠ **The blue is NOT a design token (FR-014a).** It exists only inside the mark and the assets derived
+from it. `@effy/brand` deliberately does **not depend on** `@effy/design-system`, no token was added,
+and **no Compose theme was regenerated** — verified by `tokens:check` passing unchanged. The shop
+app's and console's UI remain emerald, identical to before. Principle V's single-accent rule is
+untouched, and no constitution amendment was required.
+
+**Also corrected:** the Android launcher label was the developer string `shop-mobile`, now
+**"Effy Shop"**.
+
+⚠ **Not device-verified yet** — SC-002/SC-003 (the side-by-side observer test that motivates the whole
+colourway) needs both apps installed on one physical device.

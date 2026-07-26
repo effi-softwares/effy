@@ -16,6 +16,10 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
 
+    // 024 — branded splash screen. Backports the Android 12+ SplashScreen API to API 21, so the
+    // whole minSdk 24 range gets one mechanism (FR-012).
+    implementation(libs.androidx.core.splashscreen)
+
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
 

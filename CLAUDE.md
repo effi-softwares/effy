@@ -196,6 +196,71 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**024-brand-icons-splash — Brand Marks: App Icons, Splash Screens & Favicons.** ✅ **Code-complete +
+fully machine-verified; device sign-off + commit pending.**
+The platform's first brand-identity slice. Before it, **not one of the six surfaces carried the Effy
+mark** where a person first meets it: two consoles had no favicon at all, all three mobile apps still
+shipped the **stock Android template robot**, and **no mobile app had a splash screen** — a tap opened
+onto a blank white frame.
+- **One authored vector → 57 committed assets** via a new **`packages/brand`** (`@effy/brand`),
+  deliberately shaped like `design-system`'s `tokens:gen`/`tokens:check`: authored source → **committed**
+  derived artifacts → a drift check that fails and **names the stale surface**. `make brand-gen` /
+  `make brand-check`; the gate rides `pnpm test` (`make lint` is Terraform-only and never runs it).
+- **Three colourways, one mark** — **Emerald** `#10b981`/`#065f46` (customer-web + customer-mobile),
+  **Blue** `#3b82f6`/`#1e40af` (shop-web + shop-mobile), **Neutral** (back-office). The navy outline
+  `#0C1D36` and off-white tag `#F4F5F7` are **shared by all three** — that invariant is what makes them
+  read as one brand at two hues (SC-003), and it is unit-tested.
+- **⚠ The supplied artwork was in the RETIRED Jade palette** (`#0FB57E`/`#047857`) — committing it would
+  have failed `scripts/check-no-jade.sh`, which scans `*.svg`. The committed master is recoloured into
+  the live palette, using the **lighter emerald-500 for the bag body** so the mark stays legible at
+  16 px where emerald-800 alone reads near-black. **No constitution amendment, no guard exemption.**
+- **⚠ The shop blue is NOT a design token (FR-014a).** `@effy/brand` does **not depend on**
+  `design-system`; no token added, **no Compose theme regenerated** (proved by `tokens:check` passing
+  unchanged). Shop UI stays emerald — Principle V's single-accent rule untouched.
+- **Composition is vector-space, from a MEASURED bbox** (`x 136.0…379.8, y 71.8…414.8`; the mark fills
+  only 48.8%×68.7% of its authored canvas, off-centre). 11 profiles declared by **occupancy**, so
+  Android's **66/108 dp safe zone** (≤61.1%) is an asserted invariant, not a hope.
+- **Toolchain**: `@resvg/resvg-js` renders, `sharp` strips alpha, a **25-line stdlib ICO writer** (no
+  third image dep). iOS icons are **PNG colour-type 2** — App Store rejects *any* alpha channel, even
+  opaque, and the generator now **cannot emit a rejectable icon**. Android gets **VectorDrawables**
+  (fg/bg/**monochrome** themed layer + splash) via a converter that **fails loudly** on geometry it
+  doesn't understand; legacy raster mipmaps remain for **API 24–25 only**.
+- **Splash**: `androidx.core:core-splashscreen` 1.0.1 (backports to API 21 → one mechanism for the whole
+  `minSdk 24…36` range) + `installSplashScreen()` before `setContent`; iOS a storyboard-free
+  `UILaunchScreen` dict — landed **atomically** with `INFOPLIST_KEY_UILaunchScreen_Generation → NO`,
+  which conflicts with it.
+- **Latent defects fixed** (found, not introduced): `layout.tsx` imported **`next/head`** — a Pages
+  Router API, **inert** in the App Router, so its Apple title never rendered; manifest carried
+  placeholder `#ffffff` brand colours; PWA icons declared **only** `maskable`; both Android launcher
+  labels were developer strings (`customer-mobile`/`shop-mobile` → **"Effy"**/**"Effy Shop"**).
+- **Verified**: 84 new brand tests + **792 JS/TS tests**, `pnpm -r typecheck`, all three web builds,
+  both Android builds + both KMP suites, `mobile-guard`, `check-no-jade`, `tokens:check`. **SC-009
+  proven** (two full regenerations byte-identical) and **SC-008 proven by deliberately breaking it**
+  three ways — stale / orphaned / missing, each exiting non-zero and naming the surface.
+- **⚠ Bundle**: `customer-web` guest budget is **167.4 KB / 160 KB** — measured **byte-identical with
+  this feature stashed**, so the overage is entirely **pre-existing** (recorded under 020) and this
+  slice is byte-neutral. It ships zero client JS.
+- **⚠ LIVE-ONLY BUG found on first device run, FIXED + device-verified (2026-07-26).** Neither the
+  launcher icon nor the splash appeared. Cause: the SVG→VectorDrawable converter's attribute regex was
+  `[a-zA-Z-]+`, which **cannot match `x1`/`y1`/`x2`/`y2`**, so the mark's three `<line>` elements (the
+  tag's diagonal strokes) emitted `android:pathData="M undefined,undefined L undefined,undefined"`.
+  That is **valid XML** — it compiled through aapt2 and packaged into the APK — but Android's
+  `PathParser` throws on it, so the **whole drawable failed to inflate** and both the adaptive icon and
+  the splash silently fell back to system defaults. The only signal was one logcat line:
+  `W ShellStartingWindow: Get attribute fail … drawable/ic_splash_logo`. **The lesson**: the converter
+  claimed to "fail loudly on geometry it doesn't understand" — it understood `<line>` perfectly and
+  then emitted rubbish. Fixed three ways: the regex admits digits; coordinates are validated as finite
+  numbers at conversion; and **`assertRenderable()` now tokenises the emitted pathData the way a path
+  parser does** and refuses to write anything Android could not inflate. 17 regression tests added
+  (**101 brand tests**). Re-verified on an API-36 emulator: splash renders the full mark, launcher icon
+  renders unclipped inside the circular mask. **No raster asset was ever affected** — iOS and web go
+  SVG→resvg and never touch the converter.
+- **⚠ Open (operator)**: physical **iOS + Android** sign-off — SC-004 (no clipping across launcher mask
+  shapes), SC-005 (branded splash on cold launch), SC-007b (dark/tinted/themed variants); the
+  **side-by-side observer test** SC-002/SC-003 with both apps on one device; SC-007a (three web tabs);
+  and the **commit**. **`apps/driver-mobile` is untouched by design (FR-020)** — this slice brands five
+  surfaces, not six. Spec/artifacts: [specs/024-brand-icons-splash/](specs/024-brand-icons-splash/).
+
 **021 + 022 + 023 — delivery zones, address book, checkout shipping/billing.** ✅ **SIGNED OFF
 (live-validated) 2026-07-22.** Built as three stacked slices, merged to `main` together (PR #1), and
 validated live locally end-to-end: a two-shop cart → per-package delivery quote → Stripe test-card
@@ -728,5 +793,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/023-checkout-shipping-billing/plan.md
+at specs/024-brand-icons-splash/plan.md
 <!-- SPECKIT END -->

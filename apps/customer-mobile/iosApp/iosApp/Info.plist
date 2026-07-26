@@ -4,5 +4,18 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- 024 FR-010/FR-013 — the branded launch screen, declared rather than storyboarded.
+	     ⚠ This key CONFLICTS with INFOPLIST_KEY_UILaunchScreen_Generation. That build setting is
+	     set to NO in project.pbxproj in the same change; if it is ever flipped back to YES, the
+	     launch screen behaves differently between clean and incremental builds. -->
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIImageName</key>
+		<string>LaunchLogo</string>
+		<key>UIImageRespectsSafeAreaInsets</key>
+		<true/>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 </dict>
 </plist>

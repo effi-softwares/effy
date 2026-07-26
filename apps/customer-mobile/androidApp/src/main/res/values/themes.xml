@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    024 — the branded launch experience.
+
+    The Android 12+ splash screen is AUTOMATIC and cannot be opted out of. Left unconfigured, the
+    system draws the launcher icon on the theme's windowBackground — which for this app was
+    @android:style/Theme.Material.Light.NoActionBar, i.e. the blank white frame FR-011 forbids.
+
+    These attributes are the AndroidX core-splashscreen ones (no `android:` prefix on purpose). The
+    library maps them to the platform API on 31+ and emulates them below it, so ONE declaration
+    covers the whole minSdk 24 … targetSdk 36 range (FR-012). Do not "modernise" this into
+    values-v31/android:windowSplashScreen* — that would silently drop API 24–30 back to a blank frame.
+
+    postSplashScreenTheme is what prevents the colour flash between the splash and the first Compose
+    frame. Without it the window repaints with the default theme background on the way through.
+-->
+<resources>
+
+    <style name="Theme.Effy" parent="@android:style/Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.Effy.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.Effy</item>
+    </style>
+
+</resources>

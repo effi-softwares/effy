@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">shop-mobile</string>
+    <!-- 024 FR-018 — the launcher label. Was "shop-mobile". "Effy Shop" also reinforces SC-002:
+         a worker glancing at a home screen gets both a blue mark AND a distinct name. -->
+    <string name="app_name">Effy Shop</string>
 </resources>

@@ -34,6 +34,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         shop-verify-isolation shop-verify-gate shop-token-claims \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
+        brand-gen brand-check \
         dev-status dev-stop dev-start check-dev-park
 
 help: ## List targets
@@ -323,6 +324,15 @@ cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts 
 cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
 	@bash scripts/mobile-guard.sh
 cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
+
+# --- brand marks (024). One authored vector -> every icon/splash/favicon on all six surfaces.
+# Same shape as the tokens generator above: an authored source, COMMITTED derived artifacts, and a
+# drift check that fails when they diverge. brand-check also rides `pnpm test` (turbo run test) via
+# @effy/brand's own test script — `make lint` is Terraform-only and never runs it.
+brand-gen: ## brand: regenerate every icon/splash/favicon from packages/brand/src/logo.svg (024)
+	@pnpm --filter @effy/brand brand:gen
+brand-check: ## brand: FAIL if any committed brand asset drifts from the authored mark (024 SC-008)
+	@pnpm --filter @effy/brand brand:check
 
 # --- shop-mobile (014). Same Principle-II codegen + build-failing guard as 013; EMAIL_OTP-only surface.
 # The shop contract (from shop.ts) and the shop-packaged Compose theme are committed + drift-guarded.

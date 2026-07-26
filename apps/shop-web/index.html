@@ -3,6 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 024 — Vite injects NO favicon links of its own; without these tags the files in public/ are
+         never referenced and the tab falls back to the browser's blank-page icon. Blue colourway,
+         shared with shop-mobile so one audience has one mark across both its surfaces (FR-016). -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>Effy Shop</title>
   </head>
   <body>

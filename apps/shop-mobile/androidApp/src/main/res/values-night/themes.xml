@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 024 FR-013 — dark variant. Only the underlying app theme changes; the splash style itself is
+     shared, and its ground follows values-night/colors.xml. -->
+<resources>
+    <style name="Theme.Effy" parent="@android:style/Theme.Material.NoActionBar" />
+</resources>
