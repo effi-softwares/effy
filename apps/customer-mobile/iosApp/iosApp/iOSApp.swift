@@ -6,8 +6,11 @@ import AWSCognitoAuthPlugin
 @main
 struct iOSApp: App {
 
-    /// One bridge for the app's lifetime; the Kotlin side wraps it in the AuthDriver.
+    /// One bridge each for the app's lifetime; the Kotlin side wraps them in the AuthDriver and
+    /// PaymentDriver. Both are held here (not rebuilt per view) so a SwiftUI re-render cannot hand
+    /// Compose a fresh driver mid-session.
     private let authBridge = SwiftAuthBridge()
+    private let paymentBridge = SwiftPaymentBridge()
 
     init() {
         configureAmplify()
@@ -15,7 +18,7 @@ struct iOSApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(authBridge: authBridge)
+            ContentView(authBridge: authBridge, paymentBridge: paymentBridge)
                 .ignoresSafeArea()
         }
     }
