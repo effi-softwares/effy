@@ -2,6 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 024 FR-018 — the home-screen label. Without this iOS falls back to CFBundleName, which is
+	     the Xcode PRODUCT_NAME ("customer-mobile") — a developer string, shown under the icon on every device.
+	     Mirrors the Android fix in res/values/strings.xml. -->
+	<key>CFBundleDisplayName</key>
+	<string>Effy</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<!-- 024 FR-010/FR-013 — the branded launch screen, declared rather than storyboarded.
