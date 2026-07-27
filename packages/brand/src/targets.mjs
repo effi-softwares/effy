@@ -231,13 +231,13 @@ export const TARGETS = [
     path: "apps/customer-web/public/web-app-icon-512.png",
   },
 
-  // ── shop-web (Blue) · back-office (Neutral) ────────────────────────────────────────────────────
-  ...viteWebTargets("shop-web", "shop-web", "blue"),
+  // ── shop-web (Sky) · back-office (Neutral) ─────────────────────────────────────────────────────
+  ...viteWebTargets("shop-web", "shop-web", "sky"),
   ...viteWebTargets("back-office", "back-office", "neutral"),
 
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────
   ...mobileTargets("customer-mobile", "customer-mobile", "emerald"),
-  ...mobileTargets("shop-mobile", "shop-mobile", "blue"),
+  ...mobileTargets("shop-mobile", "shop-mobile", "sky"),
 ]
 
 // ⚠ RULE T4 — collisions mean silent overwrite ordering. Fail at import time, not at write time.

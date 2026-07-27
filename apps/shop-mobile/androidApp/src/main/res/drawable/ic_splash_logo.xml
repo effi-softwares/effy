@@ -25,15 +25,15 @@
         <group android:translateX="10" android:translateY="0">
             <path
                 android:pathData="M 150 150 L 130 340 L 190 380 L 210 395 L 250 408 L 235 110 L 200 165 Z"
-                android:fillColor="#3b82f6"
-                android:strokeColor="#3b82f6"
+                android:fillColor="#0ea5e9"
+                android:strokeColor="#0ea5e9"
                 android:strokeWidth="8"
                 android:strokeLineJoin="round" />
         </group>
         <group android:translateX="10" android:translateY="0">
             <path
                 android:pathData="M 200 165 L 190 380 L 210 395 Z"
-                android:fillColor="#1e40af" />
+                android:fillColor="#075985" />
         </group>
         <group android:translateX="10" android:translateY="0">
             <path

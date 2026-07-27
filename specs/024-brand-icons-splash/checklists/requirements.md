@@ -57,7 +57,7 @@ that would otherwise have been improvised during planning were settled at the sa
 |---|----------|------------|
 | 1 | The supplied mark is in the **retired Jade** palette that constitution v1.10.0 replaced and `scripts/check-no-jade.sh` rejects. | Recolour into the **Emerald family, legibility-tuned** — bag `#10b981`, fold `#065f46`. Stays inside the authored palette, so **no constitution amendment and no guard exemption**. |
 | 2 | How far does the shop blue reach — mark, or the shop UI? | **Mark, splash and favicon only** (FR-014a). No token added, no Compose theme regenerated, shop UI unchanged. Keeps Principle V's single-accent rule intact. |
-| 3 | Which blue? | **Blue-500 `#3b82f6` / blue-800 `#1e40af`** — the same two scale steps as the emerald pair, so the marks differ in hue and nothing else. |
+| 3 | Which blue? | **Sky-500 `#0ea5e9` / sky-800 `#075985`** (amended 2026-07-27 from blue-500 `#3b82f6` / blue-800 `#1e40af`) — the same two scale steps as the emerald pair, so the marks differ in hue and nothing else. Hue gap to emerald: ~38° (was ~57°). |
 | 4 | Supply the platform appearance variants, or let the OS synthesise them? | **Supply all three** — iOS dark, iOS tinted, Android themed (FR-007a). The iOS slots are already declared and empty. |
 | 5 | What mark does back-office carry? | A third **Neutral** colourway (FR-016a), reusing the single-colour composition FR-007a already requires. Closes a gap the original US3 scenarios would have passed over: back-office and the storefront would have shared an identical favicon. |
 

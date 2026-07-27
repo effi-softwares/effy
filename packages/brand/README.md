@@ -13,7 +13,7 @@ overwritten by the next regeneration. That is the point — see
 
 ```
 src/logo.svg          THE authored mark. Emerald colourway is the committed master.
-src/colourways.mjs    Emerald · Blue · Neutral · Mono — colour only, no geometry.
+src/colourways.mjs    Emerald · Sky · Neutral · Mono — colour only, no geometry.
 src/compositions.mjs  Padding / background / alpha per target frame — no colour.
 src/targets.mjs       surface × slot × colourway × composition × output path.
 scripts/              The generator, the drift check, and their libs.
@@ -39,7 +39,7 @@ this repo is **Terraform-only** and does not run it.
 | Colourway | Surfaces | Body | Fold |
 |---|---|---|---|
 | **Emerald** | customer-web · customer-mobile | `#10b981` | `#065f46` |
-| **Blue** | shop-web · shop-mobile | `#3b82f6` | `#1e40af` |
+| **Sky** | shop-web · shop-mobile | `#0ea5e9` | `#075985` |
 | **Neutral** | back-office | `#525252` | `#262626` |
 
 The navy outline `#0C1D36` and off-white tag `#F4F5F7` are **shared by every colourway**. That is what
@@ -47,7 +47,7 @@ keeps the three marks recognisably one mark; a colourway that changes them is in
 
 ## Two rules that are easy to break
 
-**The blue is not a design token.** It exists only inside the mark and the assets derived from it. It
+**The sky blue is not a design token.** It exists only inside the mark and the assets derived from it. It
 must never be imported from, or exported into, `@effy/design-system`, and it must never touch a
 Compose theme or any surface's UI accent. The shop app's interface is emerald, exactly like every
 other surface (constitution Principle V; spec FR-014a).

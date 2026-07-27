@@ -207,14 +207,16 @@ onto a blank white frame.
   derived artifacts → a drift check that fails and **names the stale surface**. `make brand-gen` /
   `make brand-check`; the gate rides `pnpm test` (`make lint` is Terraform-only and never runs it).
 - **Three colourways, one mark** — **Emerald** `#10b981`/`#065f46` (customer-web + customer-mobile),
-  **Blue** `#3b82f6`/`#1e40af` (shop-web + shop-mobile), **Neutral** (back-office). The navy outline
+  **Sky** `#0ea5e9`/`#075985` (shop-web + shop-mobile; amended 2026-07-27 from blue-500 `#3b82f6` /
+  blue-800 `#1e40af` — hue gap to emerald narrows ~57°→~38°, so the SC-002/SC-003 side-by-side
+  observer test is now load-bearing), **Neutral** (back-office). The navy outline
   `#0C1D36` and off-white tag `#F4F5F7` are **shared by all three** — that invariant is what makes them
   read as one brand at two hues (SC-003), and it is unit-tested.
 - **⚠ The supplied artwork was in the RETIRED Jade palette** (`#0FB57E`/`#047857`) — committing it would
   have failed `scripts/check-no-jade.sh`, which scans `*.svg`. The committed master is recoloured into
   the live palette, using the **lighter emerald-500 for the bag body** so the mark stays legible at
   16 px where emerald-800 alone reads near-black. **No constitution amendment, no guard exemption.**
-- **⚠ The shop blue is NOT a design token (FR-014a).** `@effy/brand` does **not depend on**
+- **⚠ The shop sky blue is NOT a design token (FR-014a).** `@effy/brand` does **not depend on**
   `design-system`; no token added, **no Compose theme regenerated** (proved by `tokens:check` passing
   unchanged). Shop UI stays emerald — Principle V's single-accent rule untouched.
 - **Composition is vector-space, from a MEASURED bbox** (`x 136.0…379.8, y 71.8…414.8`; the mark fills

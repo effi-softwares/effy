@@ -31,7 +31,7 @@ submission time, not at build time).
 
 - Q: The supplied mark uses the retired Jade palette that the constitution replaced and the repo's guard rejects — how is the conflict resolved? → A: Recolour into the **live Emerald family, legibility-tuned** — bag `#10b981` (emerald-500, already an authored token), fold `#065f46` (the brand accent). No constitution amendment and no guard exemption; the mark stays legible at favicon/small-icon sizes where emerald-800 alone would read near-black.
 - Q: How far does the shop blue reach — mark only, or the shop surfaces' UI? → A: **Icon, splash and favicon only.** The blue lives exclusively in the shop's brand mark. Shop app and console UI remain emerald and visually unchanged. Principle V's single-accent rule is untouched, no design token is added, and no Compose theme is regenerated.
-- Q: Which blue is the shop colourway? → A: **Blue-500 / blue-800** — bag `#3b82f6`, fold `#1e40af`. The same two scale steps as the emerald pair, so the two marks differ in hue and nothing else; ~57° of hue from emerald, far enough that neither reads as the other at icon size.
+- Q: Which blue is the shop colourway? → A: **Blue-500 / blue-800** — bag `#3b82f6`, fold `#1e40af`. The same two scale steps as the emerald pair, so the two marks differ in hue and nothing else; ~57° of hue from emerald, far enough that neither reads as the other at icon size. **⚠ Amended 2026-07-27 (operator request): the shop colourway is now Sky — bag `#0ea5e9` (sky-500), fold `#075985` (sky-800).** Same two scale steps, same shared outline/tag, so FR-014's "hue only" rule still holds — but the gap to emerald narrows from ~57° to ~38°, which makes the SC-002/SC-003 side-by-side observer test load-bearing rather than a formality.
 - Q: Supply the platform appearance variants, or let the OS synthesise them? → A: **Supply all three** — iOS dark, iOS tinted, and Android monochrome — for both colourways. The iOS appearance slots are already declared and empty, and the mark's navy outline fails against a dark backdrop if left to auto-derivation.
 - Q: Which mark does the back-office console carry? → A: A **neutral / monochrome** colourway — the mark in navy and neutral greys, reusing the single-colour composition FR-007a already requires. This makes all three web surfaces mutually distinguishable in a tab strip, and signals "internal tool" through the absence of brand colour.
 
@@ -242,10 +242,11 @@ repository's own checks fail with a message naming what is stale.
 #### Distinctness
 
 - **FR-014**: The customer apps MUST use the Emerald colourway (FR-004), and the shop apps MUST use
-  the **Blue colourway**: bag `#3b82f6`, fold `#1e40af`, with the navy outline `#0C1D36` and off-white
+  the **Sky colourway**: bag `#0ea5e9`, fold `#075985` (amended 2026-07-27 from blue-500 `#3b82f6` /
+  blue-800 `#1e40af`), with the navy outline `#0C1D36` and off-white
   tag `#F4F5F7` shared with the customer mark. The two colourways MUST differ **in hue only** — the
   same two scale steps applied to a different hue — so they remain recognisably one mark.
-- **FR-014a**: The blue MUST exist **only within the brand mark and the assets derived from it** —
+- **FR-014a**: The sky blue MUST exist **only within the brand mark and the assets derived from it** —
   icons, opening screens and favicons. It MUST NOT be added to the design tokens, MUST NOT alter the
   accent, focus, or any other colour in the shop app's or shop console's interface, and MUST NOT cause
   any Compose theme to be regenerated. The shop surfaces' UI remains visually identical to today.
@@ -334,8 +335,9 @@ plan will act on unless corrected.
 - **Brand colour**: settled — see Clarifications and FR-004. The customer mark is recoloured into the
   Emerald family (bag `#10b981`, fold `#065f46`), which keeps every value inside the authored token
   palette, so no constitution amendment and no guard exemption are needed.
-- **Shop blue**: settled — see Clarifications and FR-014/FR-014a. Blue-500 `#3b82f6` over blue-800
-  `#1e40af`, confined to the mark and its derived assets; no token added, no UI changed.
+- **Shop blue**: settled — see Clarifications and FR-014/FR-014a. Sky-500 `#0ea5e9` over sky-800
+  `#075985` (amended 2026-07-27 from blue-500/blue-800), confined to the mark and its derived assets;
+  no token added, no UI changed.
 - **Vector source**: the supplied `logo.svg` — a compact, hand-authored vector of flat named colours
   — is the authored source (FR-001). No tracing, redrawing or commissioning of new artwork is in
   scope. Its non-square, above-centre composition is treated as an input to per-target composition

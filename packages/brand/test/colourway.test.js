@@ -50,10 +50,10 @@ describe("colourway substitution", () => {
     assert.equal(applyColourway(MARK, COLOURWAYS.emerald), MARK)
   })
 
-  test("blue replaces body and fold, and nothing else", () => {
-    const out = applyColourway(MARK, COLOURWAYS.blue)
-    assert.ok(out.includes("#3b82f6"), "body not applied")
-    assert.ok(out.includes("#1e40af"), "fold not applied")
+  test("sky replaces body and fold, and nothing else", () => {
+    const out = applyColourway(MARK, COLOURWAYS.sky)
+    assert.ok(out.includes("#0ea5e9"), "body not applied")
+    assert.ok(out.includes("#075985"), "fold not applied")
     assert.ok(!out.includes(SLOTS.body), "emerald body leaked through")
     assert.ok(!out.includes(SLOTS.fold), "emerald fold leaked through")
     // Shared slots survive untouched (rule C2).
@@ -74,7 +74,7 @@ describe("colourway substitution", () => {
     const out = applyColourway(MARK, COLOURWAYS.neutral)
     assert.ok(out.includes("#525252"))
     assert.ok(!out.includes("#10b981"))
-    assert.ok(!out.includes("#3b82f6"))
+    assert.ok(!out.includes("#0ea5e9"))
   })
 })
 
@@ -97,13 +97,13 @@ describe("mono derivation", () => {
   })
 })
 
-describe("rule C4 — the blue is not a design token", () => {
+describe("rule C4 — the shop hue is not a design token", () => {
   test("this package does not depend on @effy/design-system", () => {
     const pkg = JSON.parse(readFileSync(resolve(PKG, "package.json"), "utf8"))
     const deps = { ...pkg.dependencies, ...pkg.devDependencies, ...pkg.peerDependencies }
     assert.ok(
       !Object.keys(deps).some((d) => d.includes("design-system")),
-      "FR-014a: the shop blue must be physically unable to reach the token SSOT",
+      "FR-014a: the shop sky must be physically unable to reach the token SSOT",
     )
   })
 

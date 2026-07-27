@@ -52,7 +52,7 @@ A named assignment over the mark's four slots. **Carries no geometry.**
 | Colourway | `body` | `fold` | `outline` | `tag` | Used by |
 |---|---|---|---|---|---|
 | **Emerald** | `#10b981` | `#065f46` | `#0C1D36` | `#F4F5F7` | customer-web, customer-mobile |
-| **Blue** | `#3b82f6` | `#1e40af` | `#0C1D36` | `#F4F5F7` | shop-web, shop-mobile |
+| **Sky** | `#0ea5e9` | `#075985` | `#0C1D36` | `#F4F5F7` | shop-web, shop-mobile |
 | **Neutral** | `#525252` | `#262626` | `#0C1D36` | `#F4F5F7` | back-office |
 | **Mono** | *single colour, full silhouette* | — | — | — | Android themed icon, iOS tinted |
 

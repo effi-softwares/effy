@@ -278,8 +278,8 @@ surely as a shop name would (FR-018, SC-009).
 
 ## §024 — Brand marks (icons · splash · favicon)
 
-**Parity: ACHIEVED.** Both shop surfaces carry the **Blue** colourway (`#3b82f6` body / `#1e40af`
-fold) of the same authored mark the customer surfaces use in Emerald.
+**Parity: ACHIEVED.** Both shop surfaces carry the **Sky** colourway (`#0ea5e9` body / `#075985`
+fold; was blue-500/blue-800 until 2026-07-27) of the same authored mark the customer surfaces use in Emerald.
 
 | Capability | shop-web | shop-mobile |
 |---|---|---|
@@ -291,12 +291,12 @@ fold) of the same authored mark the customer surfaces use in Emerald.
 | Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen` |
 | Light + dark appearance | ✅ | ✅ |
 
-**Why blue at all (FR-014/FR-015):** shop staff may carry a device with **both** Effy apps installed,
+**Why a second hue at all (FR-014/FR-015):** shop staff may carry a device with **both** Effy apps installed,
 and the operator app is the one that accepts and picks live orders. Two identical icons is a daily,
 repeated cost. The two marks differ **in hue only** — same silhouette, same navy outline, same
 off-white tag — so they read as one brand in two colourways (SC-003), not two logos.
 
-⚠ **The blue is NOT a design token (FR-014a).** It exists only inside the mark and the assets derived
+⚠ **The sky blue is NOT a design token (FR-014a).** It exists only inside the mark and the assets derived
 from it. `@effy/brand` deliberately does **not depend on** `@effy/design-system`, no token was added,
 and **no Compose theme was regenerated** — verified by `tokens:check` passing unchanged. The shop
 app's and console's UI remain emerald, identical to before. Principle V's single-accent rule is
