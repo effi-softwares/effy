@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 024 FR-013 — the dark ground (neutral-900), matching the design system's dark surface. -->
+<!-- 024 FR-013, amended 2026-07-27 — the dark ground now MATCHES the light one. The splash ground is
+     a brand colour (see values/colors.xml); a saturated ground does not get a dark variant. This file
+     stays rather than being deleted so the value is declared, not inherited by accident. -->
 <resources>
-    <color name="splash_background">#171717</color>
+    <color name="splash_background">#3b82f6</color>
 </resources>

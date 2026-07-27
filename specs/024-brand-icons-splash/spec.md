@@ -233,11 +233,19 @@ repository's own checks fail with a message naming what is stale.
 - **FR-010**: Both in-scope mobile apps MUST show a **branded opening screen** carrying their own
   variant of the mark on an Effy-branded background while the app starts.
 - **FR-011**: The opening screen MUST hand over to the app's first screen **without an intervening
-  blank, white, or differently-coloured frame**.
+  blank, white, or differently-coloured frame**. **⚠ Amended 2026-07-27 (operator request):** the
+  splash ground is now a **brand colour**, not the app's own surface — `#4ade80` (green-400) for
+  customer-mobile, `#3b82f6` (blue-500) for shop-mobile. The original ground (`#EFEFF1` light /
+  `#171717` dark) existed precisely to make splash→app seamless; that seam is now **accepted by
+  design**. The requirement narrows to what it still governs: no *intervening* frame between the
+  splash and the app's first painted frame. The colour transition at handover is intended.
 - **FR-012**: The opening screen MUST render correctly across the **full range of OS versions each app
   supports**, not only the most recent.
 - **FR-013**: The opening screen MUST respect the platform's light and dark appearance, consistent
-  with the app's existing user-selectable appearance behaviour.
+  with the app's existing user-selectable appearance behaviour. **⚠ Amended 2026-07-27: no longer
+  applies to the splash GROUND.** A saturated brand ground has no appearance variant, so both the
+  iOS colorset entries and both Android `values/` + `values-night/` grounds carry the same value.
+  The requirement still binds every other surface — icons keep their light/dark/tinted variants.
 
 #### Distinctness
 

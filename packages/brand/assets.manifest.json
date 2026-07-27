@@ -154,7 +154,7 @@
       "surface": "customer-mobile",
       "slot": "asset-catalog-sidecar",
       "path": "apps/customer-mobile/iosApp/iosApp/Assets.xcassets/LaunchBackground.colorset/Contents.json",
-      "sha256": "fc977cda22378a96e17046e69b4db745d7ffe8f8023f9c1b4eeb0f33cbcd6058",
+      "sha256": "3d9bb066c9d051efa1ce8550220b6ca49fc4a6194cd1a0c8ccf5ab1d2596e5f3",
       "bytes": 671
     },
     {
@@ -357,7 +357,7 @@
       "surface": "shop-mobile",
       "slot": "asset-catalog-sidecar",
       "path": "apps/shop-mobile/iosApp/iosApp/Assets.xcassets/LaunchBackground.colorset/Contents.json",
-      "sha256": "fc977cda22378a96e17046e69b4db745d7ffe8f8023f9c1b4eeb0f33cbcd6058",
+      "sha256": "7f597371384e912033b80af07a0a9b658df19b7651fc3b3b453feb75a74e71b1",
       "bytes": 671
     },
     {

@@ -21,6 +21,32 @@ export const GROUND = {
 }
 
 /**
+ * SPLASH GROUND — the opening screen's ground, per mobile app (operator request, 2026-07-27).
+ *
+ * ⚠ This deliberately departs from FR-011's original rationale. The splash ground USED to be the
+ * app's own surface (#EFEFF1 light / #171717 dark) precisely so the handover to the first Compose
+ * frame had no visible seam. A saturated ground reintroduces that seam by design: the splash is now
+ * a brand moment, and the app paints its neutral surface immediately after.
+ *
+ * ⚠ It is ONE colour per app, not a light/dark pair — a saturated brand ground does not have an
+ * appearance variant. Both the iOS light and dark colorset entries and both Android `values/` and
+ * `values-night/` grounds carry the same value.
+ *
+ * ⚠ RULE C4 STILL HOLDS: these are asset-local, exactly like the colourways. They are NOT design
+ * tokens, they are not the shop or customer UI accent, and no Compose theme knows they exist.
+ */
+export const SPLASH_GROUND = {
+  "customer-mobile": "#4ade80", // green-400
+  "shop-mobile": "#3b82f6", // blue-500
+}
+
+export function splashGroundFor(app) {
+  const g = SPLASH_GROUND[app]
+  if (!g) throw new Error(`no splash ground declared for app '${app}'`)
+  return g
+}
+
+/**
  * ⚠ RULE P1 — Android's adaptive icon is a 108×108 dp canvas of which only the central 66×66 dp is
  * guaranteed visible under EVERY launcher mask (circle, squircle, rounded square, teardrop).
  * 66/108 = 0.6111. Exceeding this is the single most common adaptive-icon defect and is precisely

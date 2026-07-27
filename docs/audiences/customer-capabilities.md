@@ -289,7 +289,7 @@ behaviour-neutral follow-up (R6).
 | Launcher icon | — | ✅ adaptive (vector fg/bg) + legacy mipmaps ×5 |
 | Themed / monochrome icon | — | ✅ `<monochrome>` layer (Android 13+) |
 | iOS light / dark / tinted appearances | — | ✅ all three, **no alpha channel** |
-| Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen` |
+| Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen`, ground `#4ade80` (green-400) |
 | Light + dark appearance | ✅ | ✅ (`values-night` / `LaunchBackground` dark variant) |
 
 **Source of truth:** `packages/brand/src/logo.svg` → `make brand-gen`. Assets are **generated and

@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 024 — splash ground. Deliberately the app's OWN background, not a brand accent: the splash
-     hands over to a Compose surface painted this colour, so matching it removes the visible seam
-     FR-011 is about. -->
+<!-- 024 — splash ground. AMENDED 2026-07-27 (operator request): the ground is now a BRAND colour,
+     not the app's own surface. The original FR-011 rationale was seam-removal — the splash handed
+     over to a Compose surface painted the same colour, so no flash was visible. A saturated ground
+     trades that away deliberately: the splash is a brand moment, and the neutral app surface paints
+     immediately after it.
+
+     ⚠ Rule C4 still holds — this is asset-local. It is NOT a design token and NOT a UI accent; the
+     app's own theme is untouched and stays emerald.
+
+     ⚠ values-night/ carries the SAME value. A saturated brand ground has no appearance variant. -->
 <resources>
-    <color name="splash_background">#EFEFF1</color>
+    <color name="splash_background">#3b82f6</color>
 </resources>

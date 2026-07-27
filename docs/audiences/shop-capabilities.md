@@ -288,7 +288,7 @@ fold; was blue-500/blue-800 until 2026-07-27) of the same authored mark the cust
 | Launcher icon | — | ✅ adaptive (vector fg/bg) + legacy mipmaps ×5 |
 | Themed / monochrome icon | — | ✅ `<monochrome>` layer (Android 13+) |
 | iOS light / dark / tinted appearances | — | ✅ all three, **no alpha channel** |
-| Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen` |
+| Branded launch screen | n/a | ✅ Android `Theme.Effy.Splash` + iOS `UILaunchScreen`, ground `#3b82f6` (blue-500) |
 | Light + dark appearance | ✅ | ✅ |
 
 **Why a second hue at all (FR-014/FR-015):** shop staff may carry a device with **both** Effy apps installed,

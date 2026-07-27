@@ -231,6 +231,15 @@ onto a blank white frame.
   `minSdk 24…36` range) + `installSplashScreen()` before `setContent`; iOS a storyboard-free
   `UILaunchScreen` dict — landed **atomically** with `INFOPLIST_KEY_UILaunchScreen_Generation → NO`,
   which conflicts with it.
+- **⚠ Splash ground is a BRAND colour (amended 2026-07-27, operator request)** — customer `#4ade80`
+  (green-400), shop `#3b82f6` (blue-500), **one value per app, light AND dark**. It replaces the
+  original `#EFEFF1`/`#171717` app-surface ground, whose entire purpose was a seamless splash→app
+  handover (FR-011); that seam is now **accepted by design**, and **FR-013's light/dark rule no longer
+  applies to the splash ground** (it still binds every icon variant). Declared once in
+  `packages/brand/src/compositions.mjs` `SPLASH_GROUND`; the iOS `LaunchBackground.colorset` is
+  generated from it, the Android `values{,-night}/colors.xml` are hand-maintained to match. **Still
+  asset-local (rule C4)** — no token, no Compose theme, app UI stays emerald. ⚠ Note the shop splash
+  is **blue-500 while the shop mark is sky-500** — a deliberate two-tone, not a drift.
 - **Latent defects fixed** (found, not introduced): `layout.tsx` imported **`next/head`** — a Pages
   Router API, **inert** in the App Router, so its Apple title never rendered; manifest carried
   placeholder `#ffffff` brand colours; PWA icons declared **only** `maskable`; both Android launcher

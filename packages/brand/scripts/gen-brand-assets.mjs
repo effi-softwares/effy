@@ -16,7 +16,7 @@ import { dirname, resolve, relative, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { COLOURWAYS, mono } from "../src/colourways.mjs"
-import { composition } from "../src/compositions.mjs"
+import { composition, splashGroundFor } from "../src/compositions.mjs"
 import { TARGETS, KIND } from "../src/targets.mjs"
 import { composeSvg } from "./lib/compose.mjs"
 import { measureBBox, renderWithAlphaPolicy, renderPng } from "./lib/raster.mjs"
@@ -73,6 +73,18 @@ async function buildTarget(target, mark, bbox) {
 }
 
 /**
+ * `#rrggbb` → the component form an Xcode `.colorset` wants. Xcode accepts several notations; the
+ * uppercase `0xNN` byte form is the one Xcode itself writes, so a hand-edit in Xcode round-trips to
+ * the same bytes the generator produces and `brand:check` stays quiet.
+ */
+function xcodeComponents(hex) {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex)
+  if (!m) throw new Error(`splash ground must be #rrggbb, got '${hex}'`)
+  const byte = (i) => "0x" + m[1].slice(i * 2, i * 2 + 2).toUpperCase()
+  return { alpha: "1.000", blue: byte(2), green: byte(1), red: byte(0) }
+}
+
+/**
  * Asset-catalog sidecars. Xcode will not see an imageset without a Contents.json, so these are part
  * of the delivered asset, not incidental scaffolding — which means they belong in the manifest too
  * (rule M1), or the drift check would treat them as orphans.
@@ -99,6 +111,10 @@ function sidecars() {
         "utf8",
       ),
     })
+    // ⚠ Both appearances carry the SAME value. The splash ground is a brand colour now (024
+    // amendment 2026-07-27), and a saturated ground has no light/dark variant — dropping the dark
+    // entry entirely would let iOS fall back to a system colour, so it is declared explicitly.
+    const ground = xcodeComponents(splashGroundFor(app))
     out.push({
       path: `${base}/LaunchBackground.colorset/Contents.json`,
       bytes: Buffer.from(
@@ -106,18 +122,12 @@ function sidecars() {
           {
             colors: [
               {
-                color: {
-                  "color-space": "srgb",
-                  components: { alpha: "1.000", blue: "0xFF", green: "0xFF", red: "0xFF" },
-                },
+                color: { "color-space": "srgb", components: ground },
                 idiom: "universal",
               },
               {
                 appearances: [{ appearance: "luminosity", value: "dark" }],
-                color: {
-                  "color-space": "srgb",
-                  components: { alpha: "1.000", blue: "0x17", green: "0x17", red: "0x17" },
-                },
+                color: { "color-space": "srgb", components: ground },
                 idiom: "universal",
               },
             ],
