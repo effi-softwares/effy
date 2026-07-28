@@ -4,13 +4,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,14 +17,24 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
+import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
+import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
+import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
+import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
+import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.favorites.domain.FavoriteCard
 import com.effyshopping.customer.mobile.features.favorites.domain.ListFavorites
 import com.effyshopping.customer.mobile.features.favorites.domain.RemoveFavorite
+import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.mobile.kit.ui.EffyPlaceholder
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.mobile.kit.ui.EffyTopBar
+import org.jetbrains.compose.resources.painterResource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,59 +77,123 @@ private class FavoritesViewModel(
     }
 }
 
-/** Favourites list (019 US6). Open/add-to-cart/remove. Signed-in only. */
+/**
+ * Favourites (019 US6, restyled by 025).
+ *
+ * ⚠ This was a TEXT LIST — name, price, and three text buttons, with no image at all — on a screen
+ * whose entire purpose is "the things I liked the look of". The web `/favorites` renders the same
+ * product grid as the rest of the storefront, so this now does too: the shared [EffyProductCard],
+ * the shared grid rhythm, and the per-item actions beneath each tile.
+ */
 @Composable
-fun FavoritesScreen(container: AppContainer, onOpen: (String) -> Unit) {
+fun FavoritesScreen(
+    container: AppContainer,
+    onOpen: (String) -> Unit,
+    /** ⚠ Required: this is a PUSHED screen, and FR-030 gives every pushed screen a standard back. */
+    onBack: () -> Unit,
+) {
     val vm = viewModel { FavoritesViewModel(container.listFavorites, container.removeFavorite) }
     val state by vm.state.collectAsState()
 
-    when (val s = state) {
-        FavoritesUiState.Loading ->
-            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(Modifier.padding(32.dp)) }
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyTopBar(
+            title = "Saved items",
+            onBack = onBack,
+            backIcon = painterResource(Res.drawable.ic_arrow_back),
+        )
 
-        FavoritesUiState.Error ->
-            Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("We couldn’t load your favourites", style = MaterialTheme.typography.bodyMedium)
+        when (val s = state) {
+            FavoritesUiState.Loading -> LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+                verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
+                contentPadding = ProductGridPadding,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = false,
+            ) {
+                items(List(4) { it }) { EffyProductCardSkeleton() }
             }
 
-        is FavoritesUiState.Ready ->
-            if (s.items.isEmpty()) {
-                Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("You haven’t saved anything yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(s.items, key = { it.id }) { fav ->
-                        FavoriteRow(fav, onOpen = onOpen, onAdd = { container.guestCart.add(it) }, onRemove = { vm.remove(fav.id) })
-                        HorizontalDivider()
+            FavoritesUiState.Error -> EffyPlaceholder(
+                title = "We couldn’t load your saved items",
+                description = "Please try again in a moment.",
+            )
+
+            is FavoritesUiState.Ready ->
+                if (s.items.isEmpty()) {
+                    EffyPlaceholder(
+                        title = "You haven’t saved anything yet",
+                        description = "Tap Save on a product and it will be waiting for you here.",
+                    )
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+                        verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
+                        contentPadding = ProductGridPadding,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(s.items, key = { it.id }) { fav ->
+                            FavoriteTile(
+                                fav = fav,
+                                onOpen = onOpen,
+                                onAdd = { container.guestCart.add(it) },
+                                onRemove = { vm.remove(fav.id) },
+                            )
+                        }
                     }
                 }
-            }
+        }
     }
 }
 
+/**
+ * A saved product: the storefront card, plus the two actions this screen exists for.
+ *
+ * ⚠ The card is rendered from a [ProductCard] built out of the [FavoriteCard], rather than by
+ * writing a fourth product tile. The favourites projection carries fewer fields than the catalogue
+ * one — no brand, no compare-at, no badges — so those are absent rather than invented, and the card
+ * degrades to exactly what the data supports.
+ */
 @Composable
-private fun FavoriteRow(
+private fun FavoriteTile(
     fav: FavoriteCard,
     onOpen: (String) -> Unit,
     onAdd: (GuestCartLine) -> Unit,
     onRemove: () -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(fav.name, style = MaterialTheme.typography.bodyMedium)
-        Text(money(fav.priceAmount, fav.currency), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(onClick = { onOpen(fav.id) }) { Text("Open") }
+    Column {
+        EffyProductCard(
+            product = ProductCard(
+                id = fav.id,
+                name = fav.name,
+                brand = null,
+                imageUrl = fav.imageUrl,
+                priceAmount = fav.priceAmount,
+                currency = fav.currency,
+                compareAtAmount = null,
+                badges = emptyList(),
+                available = fav.available,
+            ),
+            onClick = onOpen,
+        )
+
+        Row(
+            modifier = Modifier.padding(top = EffySpacing.s),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+        ) {
             TextButton(
                 onClick = {
                     onAdd(GuestCartLine(fav.id, fav.name, fav.imageUrl, fav.priceAmount, fav.currency, 1))
                 },
                 enabled = fav.available,
-            ) { Text(if (fav.available) "Add to cart" else "Unavailable") }
-            TextButton(onClick = onRemove) { Text("Remove") }
+                contentPadding = PaddingValues(horizontal = EffySpacing.s),
+            ) { Text(if (fav.available) "Add" else "Unavailable") }
+
+            TextButton(
+                onClick = onRemove,
+                contentPadding = PaddingValues(horizontal = EffySpacing.s),
+            ) { Text("Remove") }
         }
     }
 }
-
-private fun money(amount: String, currency: String): String =
-    if (currency == "AUD") "$$amount" else "$currency $amount"

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarDuration
@@ -14,9 +15,15 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyTopBar
@@ -26,6 +33,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -82,15 +90,18 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("Your cart is empty", style = MaterialTheme.typography.titleMedium)
+                EffyDisplay("Your cart is empty", size = DisplaySize.Sub, textAlign = TextAlign.Center)
                 Text(
                     "Browse the store and add something you like.",
+                    modifier = Modifier.padding(top = EffySpacing.s),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
                 Button(
                     onClick = onBrowse,
-                    modifier = Modifier.padding(top = EffySpacing.lg),
+                    shape = CircleShape,
+                    modifier = Modifier.padding(top = EffySpacing.xl).heightIn(min = 52.dp),
                 ) { Text("Start shopping") }
             }
         }
@@ -132,14 +143,22 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
                 }
             }
         }
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Column(
+            modifier = Modifier.padding(EffySpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
+        ) {
             SummaryRow("Items", money(totals.itemSubtotal, currency), bold = true)
             Text(
                 "Delivery is calculated at checkout once you choose an address.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onCheckout, modifier = Modifier.fillMaxWidth()) { Text("Checkout") }
+            Button(
+                onClick = onCheckout,
+                shape = CircleShape,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+            ) { Text("Checkout") }
             Text(
                 "You’ll sign in at checkout. Your cart is kept.",
                 style = MaterialTheme.typography.labelSmall,
@@ -165,15 +184,18 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(EffyRadius.sm))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .size(88.dp)
+                .clip(RoundedCornerShape(EffyRadius.md))
+                .background(EffySurface.tint),
         ) {
             ProductImage(line.imageUrl, line.name, modifier = Modifier.fillMaxSize())
         }
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-            Text(line.name, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                line.name,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            )
             Text(
                 money(line.unitPriceAmount, line.currency) + " each",
                 style = MaterialTheme.typography.labelSmall,
@@ -183,8 +205,8 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
             ) {
-                QuantityStepper(
-                    qty = line.quantity,
+                EffyQuantityStepper(
+                    quantity = line.quantity,
                     onChange = { container.guestCart.setQuantity(line.productId, it) },
                 )
                 TextButton(onClick = {
@@ -196,38 +218,8 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
 
         Text(
             money(lineTotal(line), line.currency),
-            style = MaterialTheme.typography.titleSmall,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
         )
-    }
-}
-
-/** A touch-target-sized stepper (FR-036) — the TextButton pair it replaced was visually weak. */
-@Composable
-private fun QuantityStepper(qty: Int, onChange: (Int) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.border(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant,
-            RoundedCornerShape(EffyRadius.sm),
-        ),
-    ) {
-        IconButton(onClick = { onChange(qty - 1) }, modifier = Modifier.size(40.dp)) {
-            Text("−", style = MaterialTheme.typography.titleMedium)
-        }
-        Text(
-            "$qty",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.widthIn(min = 24.dp),
-            textAlign = TextAlign.Center,
-        )
-        IconButton(
-            onClick = { onChange(qty + 1) },
-            enabled = qty < 99,
-            modifier = Modifier.size(40.dp),
-        ) {
-            Text("+", style = MaterialTheme.typography.titleMedium)
-        }
     }
 }
 
@@ -249,6 +241,3 @@ private fun SummaryRow(label: String, value: String, bold: Boolean = false) {
         Text(value, style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium)
     }
 }
-
-private fun money(amount: String, currency: String): String =
-    if (currency == "AUD") "$$amount" else "$currency $amount"

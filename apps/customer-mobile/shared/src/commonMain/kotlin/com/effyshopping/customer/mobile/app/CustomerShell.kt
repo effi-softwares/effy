@@ -98,6 +98,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     var ordersDetailId by rememberSaveable { mutableStateOf<String?>(null) }
     // The category a Browse tap handed to Search. Saveable so it survives rotation/process death.
     var pendingCategoryKey by rememberSaveable { mutableStateOf<String?>(null) }
+    // The sale refinement a Home "See all" handed to Search (web's `/search?saleOnly=true`).
+    var pendingSaleOnly by rememberSaveable { mutableStateOf(false) }
     var homeStackRaw by rememberSaveable { mutableStateOf("home") }
     val homeStack = homeStackRaw.split('\u0001')
     val homeTop = homeStack.last()
@@ -154,11 +156,35 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     when {
                         homeTop == "home" ->
                             HomeStackHost(container, onCart = { pushHome("cart") }, onFavorites = openFavorites) {
-                                HomeScreen(container, onProductClick = { pushHome("product:$it") })
+                                HomeScreen(
+                                    container = container,
+                                    onProductClick = { pushHome("product:$it") },
+                                    // The hero CTA goes to the category index, matching the web hero's
+                                    // "Shop now" → /browse.
+                                    onBrowse = { currentTabName = CustomerTab.BROWSE.name },
+                                    onSeeAll = { railKey ->
+                                        // The same mapping the web's `railHref()` applies: a category
+                                        // rail opens that category, the on-sale rail opens the sale
+                                        // refinement, and anything else opens unrefined search.
+                                        pendingCategoryKey = railKey.removePrefix("category:")
+                                            .takeIf { railKey.startsWith("category:") }
+                                        pendingSaleOnly = railKey == "on_sale"
+                                        currentTabName = CustomerTab.SEARCH.name
+                                    },
+                                    onCategoryClick = { key ->
+                                        pendingCategoryKey = key
+                                        pendingSaleOnly = false
+                                        currentTabName = CustomerTab.SEARCH.name
+                                    },
+                                )
                             }
 
                         homeTop == "favorites" ->
-                            FavoritesScreen(container, onOpen = { pushHome("product:$it") })
+                            FavoritesScreen(
+                                container,
+                                onOpen = { pushHome("product:$it") },
+                                onBack = { popHome() },
+                            )
 
                         homeTop.startsWith("product:") ->
                             ProductDetailScreen(
@@ -201,13 +227,19 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     // category tile links to /search?category=…. Search owns refinement, so Browse
                     // hands off rather than growing a second results implementation.
                     pendingCategoryKey = key
+                    pendingSaleOnly = false
                     currentTabName = CustomerTab.SEARCH.name
                 })
-                CustomerTab.SEARCH -> SearchScreen(container, categoryKey = pendingCategoryKey, onProductClick = {
-                    // Open the product in the Home tab's stack (shared detail view).
-                    pushHome("product:$it")
-                    currentTabName = CustomerTab.HOME.name
-                })
+                CustomerTab.SEARCH -> SearchScreen(
+                    container,
+                    categoryKey = pendingCategoryKey,
+                    saleOnly = pendingSaleOnly,
+                    onProductClick = {
+                        // Open the product in the Home tab's stack (shared detail view).
+                        pushHome("product:$it")
+                        currentTabName = CustomerTab.HOME.name
+                    },
+                )
                 CustomerTab.ORDERS -> if (signedIn) {
                     val detail = ordersDetailId
                     if (detail != null) {

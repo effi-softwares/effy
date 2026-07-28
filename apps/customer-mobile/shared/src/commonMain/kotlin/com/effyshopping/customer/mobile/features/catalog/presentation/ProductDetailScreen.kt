@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -61,7 +62,14 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import androidx.compose.material3.Icon
 import org.jetbrains.compose.resources.painterResource
+import com.effyshopping.customer.mobile.core.presentation.DiscountChip
+import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.core.presentation.discountPercent
+import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.catalog.domain.AttributeGroup
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
@@ -155,29 +163,56 @@ private fun ProductBody(
 
         ProductGallery(product, card.name)
 
-        card.brand?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        Text(card.name, style = MaterialTheme.typography.headlineSmall)
+        card.brand?.let {
+            Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        EffyDisplay(card.name, size = DisplaySize.Sub)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), verticalAlignment = Alignment.Bottom) {
-            Text(money(card.priceAmount, card.currency), style = MaterialTheme.typography.headlineSmall)
-            card.compareAtAmount?.let {
+        // The price block matches the web product page: the charged price largest, the compare-at
+        // struck through and SMALLER, and the saving stated as a percentage chip rather than left
+        // for the shopper to compute.
+        val percentOff = discountPercent(card.priceAmount, card.compareAtAmount)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                money(card.priceAmount, card.currency),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+            )
+            if (percentOff != null && card.compareAtAmount != null) {
                 Text(
-                    money(it, card.currency),
+                    money(card.compareAtAmount, card.currency),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textDecoration = TextDecoration.LineThrough,
                 )
+                DiscountChip(percentOff)
             }
         }
 
         if (card.available) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                QuantityStepper(qty = qty, onChange = { qty = it })
-                Button(onClick = { onAddToCart(qty) }) { Text(if (justAdded) "Added" else "Add to cart") }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            ) {
+                EffyQuantityStepper(quantity = qty, onChange = { qty = it })
+                Button(
+                    onClick = { onAddToCart(qty) },
+                    shape = CircleShape,
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                ) { Text(if (justAdded) "Added" else "Add to cart") }
             }
         } else {
+            // A tinted notice, matching the web's unavailable panel — not a bare grey sentence that
+            // reads as a caption rather than as the reason the buy button is missing.
             Text(
-                "This item is currently unavailable.",
+                "Currently unavailable. Browse the rest of the store while we restock.",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(EffyRadius.md))
+                    .background(EffySurface.tint)
+                    .padding(EffySpacing.lg),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -185,7 +220,7 @@ private fun ProductBody(
 
         // 025 FR-029: a real icon, not the "♥"/"♡" text glyphs this used to render. The label still
         // carries the state so the meaning survives grayscale and screen readers (FR-047/FR-045).
-        OutlinedButton(onClick = onToggleFavorite) {
+        OutlinedButton(onClick = onToggleFavorite, shape = CircleShape) {
             Icon(
                 painterResource(if (saved) Res.drawable.ic_favorite_selected else Res.drawable.ic_favorite_outlined),
                 contentDescription = null,
@@ -198,14 +233,20 @@ private fun ProductBody(
         }
 
         product.longDescription?.let {
-            HorizontalDivider(modifier = Modifier.padding(vertical = EffySpacing.xs))
-            Text("Description", style = MaterialTheme.typography.titleMedium)
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = EffySpacing.lg),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            EffyDisplay("Description", size = DisplaySize.Sub)
             Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         if (product.attributes.isNotEmpty()) {
-            HorizontalDivider(modifier = Modifier.padding(vertical = EffySpacing.xs))
-            Text("Details", style = MaterialTheme.typography.titleMedium)
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = EffySpacing.lg),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            EffyDisplay("Details", size = DisplaySize.Sub)
             product.attributes.forEach { group -> AttributeSection(group) }
         }
 
@@ -249,7 +290,7 @@ private fun ProductGallery(product: ProductDetail, name: String) {
             Box(
                 modifier = Modifier.fillMaxWidth().aspectRatio(1f)
                     .clip(RoundedCornerShape(EffyRadius.md))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(EffySurface.tint),
             ) {
                 ProductImage(urls[page], name, modifier = Modifier.fillMaxSize())
             }
@@ -267,7 +308,7 @@ private fun ProductGallery(product: ProductDetail, name: String) {
                             .size(if (selected) 8.dp else 6.dp)
                             .clip(CircleShape)
                             .background(
-                                if (selected) MaterialTheme.colorScheme.primary
+                                if (selected) MaterialTheme.colorScheme.onSurface
                                 else MaterialTheme.colorScheme.outlineVariant,
                             ),
                     )
@@ -312,11 +353,16 @@ private fun BuyBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
         ) {
-            Text(priceLabel, style = MaterialTheme.typography.titleMedium)
-            QuantityStepper(qty = qty, onChange = onQtyChange)
-            Button(onClick = onAdd, modifier = Modifier.weight(1f)) {
-                Text(if (justAdded) "Added" else "Add to cart")
-            }
+            Text(
+                priceLabel,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            )
+            EffyQuantityStepper(quantity = qty, onChange = onQtyChange)
+            Button(
+                onClick = onAdd,
+                shape = CircleShape,
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+            ) { Text(if (justAdded) "Added" else "Add to cart") }
         }
     }
 }
@@ -326,28 +372,19 @@ private fun AttributeSection(group: AttributeGroup) {
     Column(modifier = Modifier.padding(top = EffySpacing.s), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
         Text(group.groupLabel, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         group.items.forEach { item ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.s),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
                 Text(item.label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(item.value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }
+            // The web sets each label/value pair on its own ruled row; without the rule a long
+            // specifics table becomes two columns of text with no reading line between them.
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
 }
-
-@Composable
-private fun QuantityStepper(qty: Int, onChange: (Int) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(EffyRadius.sm)),
-    ) {
-        TextButton(onClick = { if (qty > 1) onChange(qty - 1) }, enabled = qty > 1) { Text("−") }
-        Text("$qty", modifier = Modifier.width(28.dp), style = MaterialTheme.typography.titleMedium)
-        TextButton(onClick = { if (qty < 99) onChange(qty + 1) }, enabled = qty < 99) { Text("+") }
-    }
-}
-
-private fun money(amount: String, currency: String): String =
-    if (currency == "AUD") "$$amount" else "$currency $amount"
 
 /**
  * "More like this" (025 FR-026).

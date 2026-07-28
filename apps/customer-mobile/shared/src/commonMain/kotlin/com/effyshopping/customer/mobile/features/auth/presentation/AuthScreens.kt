@@ -15,8 +15,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,8 +27,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AuthError
 import com.effyshopping.customer.mobile.core.auth.AuthStep
@@ -45,6 +45,7 @@ import com.effyshopping.customer.mobile.features.auth.domain.RegisterWithPasswor
 import com.effyshopping.customer.mobile.features.auth.domain.SignInWithEmailOtp
 import com.effyshopping.customer.mobile.features.auth.domain.SignInWithPassword
 import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
+import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -259,9 +260,11 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: A
     AuthScaffold(container, "Sign in", state) {
         EmailField(email) { email = it }
         PasswordField(password, "Password") { password = it }
-        Button(onClick = { vm.signInWithPassword(email, password, returnTo) }, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-            Text("Sign in with password")
-        }
+        EffyPrimaryAction(
+            "Sign in with password",
+            onClick = { vm.signInWithPassword(email, password, returnTo) },
+            loading = state.loading,
+        )
         TextButton(onClick = { vm.signInWithOtp(email, returnTo) }, enabled = !state.loading) {
             Text("Email me a code instead")
         }
@@ -281,14 +284,18 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
         OutlinedTextField(given, { given = it }, label = { Text("First name") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(family, { family = it }, label = { Text("Last name") }, modifier = Modifier.fillMaxWidth())
         EmailField(email) { email = it }
-        Button(onClick = { vm.registerPasswordless(email, given, family) }, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-            Text("Sign up with an emailed code")
-        }
+        EffyPrimaryAction(
+            "Sign up with an emailed code",
+            onClick = { vm.registerPasswordless(email, given, family) },
+            loading = state.loading,
+        )
         Text("Or set a password (optional):", style = MaterialTheme.typography.bodyMedium)
         PasswordField(password, "Password (≥ $PASSWORD_MIN_LENGTH characters)") { password = it }
-        Button(onClick = { vm.registerWithPassword(email, password, given, family) }, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-            Text("Sign up with a password")
-        }
+        EffyPrimaryAction(
+            "Sign up with a password",
+            onClick = { vm.registerWithPassword(email, password, given, family) },
+            loading = state.loading,
+        )
     }
 }
 
@@ -299,9 +306,7 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: A
     AuthScaffold(container, "Enter the code", state) {
         Text("We emailed a code to ${route.email}.", style = MaterialTheme.typography.bodyMedium)
         CodeField(code) { code = it }
-        Button(onClick = { vm.submitOtp(route, code) }, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-            Text("Continue")
-        }
+        EffyPrimaryAction("Continue", onClick = { vm.submitOtp(route, code) }, loading = state.loading)
     }
 }
 
@@ -316,9 +321,11 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
         TextButton(onClick = { vm.sendRecoveryCode(email) }, enabled = !state.loading) { Text("Send me a code") }
         CodeField(code) { code = it }
         PasswordField(newPassword, "New password (≥ $PASSWORD_MIN_LENGTH characters)") { newPassword = it }
-        Button(onClick = { vm.confirmRecovery(email, code, newPassword) }, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
-            Text("Reset password")
-        }
+        EffyPrimaryAction(
+            "Reset password",
+            onClick = { vm.confirmRecovery(email, code, newPassword) },
+            loading = state.loading,
+        )
     }
 }
 

@@ -65,6 +65,20 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
         reload()
     }
 
+    /**
+     * Set the sale refinement to an explicit value.
+     *
+     * ⚠ Distinct from [toggleSale] because the caller is entry navigation, not a tap: the Home
+     * screen's "See all" on the on-sale rail arrives already knowing what it wants. Toggling from
+     * there would clear the filter whenever the shopper came back to a Search tab that already had
+     * it on — the classic bug where a link means the opposite of itself on second use.
+     */
+    fun applySaleOnly(saleOnly: Boolean) {
+        if (_state.value.saleOnly == saleOnly) return
+        _state.value = _state.value.copy(saleOnly = saleOnly)
+        reload()
+    }
+
     fun applyCategory(categoryKey: String?) {
         _state.value = _state.value.copy(categoryKey = categoryKey)
         reload()

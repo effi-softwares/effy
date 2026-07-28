@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.theme.EffyTheme
 import kotlinx.coroutines.launch
@@ -48,7 +49,13 @@ fun App(container: AppContainer) {
 
         Surface(
             modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
-            color = MaterialTheme.colorScheme.background,
+            // ⚠ `EffySurface.page`, NOT `colorScheme.background`.
+            //
+            // The generated scheme maps `background` to #EFEFF1 and `card` to white — the console
+            // arrangement. The customer storefront inverts it (see StorefrontKit): the page is white
+            // and TILES carry the tint. Painting the root `background` here is what put every screen
+            // in this app on grey while the web storefront sat on white.
+            color = EffySurface.page,
         ) {
             when (val s = session) {
                 SessionState.Restoring -> CenteredMessage { CircularProgressIndicator() }

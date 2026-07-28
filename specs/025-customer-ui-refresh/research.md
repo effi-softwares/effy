@@ -493,6 +493,59 @@ which means the mobile half of the events above does not ship in this feature.
 
 ---
 
+## R15 — The template-derived visual language, and how mobile adopts it (added 2026-07-28)
+
+**Why this is a research entry rather than a spec change.** The spec asked for "one visual system
+across both surfaces" (US5) without naming a look, because at the time there was no look to name.
+The look arrived during implementation, from operator-supplied references: a fashion template
+(`x8kGR9X2gR29vaYJrYZJzr`) and a tech-store template (`1PMeeE6CRkCacnUZDmEpOp`), explicitly as a
+**hybrid**. `customer-web` was rebuilt against it; `customer-mobile` had only received 025's
+functional half. Recording the language here is what lets the two surfaces be checked against
+something other than memory.
+
+**The language** (implemented in `apps/customer-web/components/storefront/kit.tsx` and mirrored in
+`apps/customer-mobile/.../core/presentation/StorefrontKit.kt`):
+
+- **A white page with tinted tiles.** Both references put the page on white and tint the panels.
+  Effy's default token mapping is the inverse (`--background` #EFEFF1 with white `--card` on top), so
+  the storefront **inverts the mapping rather than inventing a colour**: page = `card`, tint =
+  `background`, skeleton = `muted`. No token changes value, so `tokens:check` and the WCAG gate are
+  untouched, and dark mode keeps working because both tokens already flip.
+- **Display type** — uppercase, `-0.02em` tracking, tight leading, at four sizes.
+- **Product tiles with no border and no shadow** — the tint alone separates them from the page.
+  Equal height across a row, image cropped to fill, price row pinned to a shared baseline.
+- **Pill actions** (`rounded-full` / `CircleShape`).
+- **A hero band, a promo carousel, hairline-closed rails, and a "shop by category" panel.**
+
+**⚠ What mobile does NOT take from the web.** The operator's rule is that the *content* matches and
+the *chrome* stays native. Specifically excluded: the two-row header, the pipe-separated nav, the
+hamburger drawer, and **the mini-cart dialog — the mobile cart is a pushed full screen and stays
+one**. The bottom navigation bar, tab back stacks and deferred sign-in are unchanged by this work.
+
+**Three deliberate mobile adaptations**, each recorded because each is a visible difference:
+
+1. **The category mosaic becomes an even 2×2.** The web's 1:2 / 2:1 asymmetry needs width to read as
+   a composition; at 390dp it degrades into mismatched tiles. The tinted panel, the centred heading
+   and the tile treatment are kept.
+2. **Rail headings are left-aligned with a trailing "See all"**, where the web centres them. A centred
+   heading detaches from its row on a phone and leaves nowhere for the "See all" the web puts inline.
+   Same face, same weight, same case.
+3. **Display weight is Bold (700), not the web's extrabold (800).** The mobile font set ships
+   Regular/SemiBold/Bold; a fourth weight means another `.ttf` through
+   `packages/design-system/mobile-assets` and regenerating all three Compose themes. Asking Compose
+   for a weight it does not have produces synthetic bolding, which looks worse at display size than
+   real 700 — so this is recorded rather than faked.
+
+**Also folded in, because the same files were open:** the product tile existed three times in three
+screens (Home, Search, Favourites) with three tints and two price treatments; `money()` existed in
+**six** files; the quantity stepper in two. All are now single implementations in `StorefrontKit.kt` /
+`StorefrontFormat.kt`. `discountPercent()` **rounds**, matching the web's `Math.round` — truncating
+would put the two surfaces one point apart on the same product.
+
+**Proof the inversion cost no token:** after the change, `make cm-codegen` regenerates all 8 Compose
+files byte-identically and `git status packages/` is empty. The mobile app was never missing tokens —
+it was reading the console's mapping.
+
 ## R14 — Sequencing
 
 Phase 0 (foundation) lands before any story: the bundle overage fix, the shared-contract change, the

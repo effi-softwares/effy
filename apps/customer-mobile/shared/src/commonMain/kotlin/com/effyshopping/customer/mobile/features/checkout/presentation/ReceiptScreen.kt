@@ -16,15 +16,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
+import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,7 +80,7 @@ fun ReceiptScreen(container: AppContainer, orderId: String, onDone: () -> Unit) 
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Button(onClick = onDone) { Text("Done") }
+                EffyPrimaryAction("Done", onClick = onDone)
             }
             is ReceiptUiState.Ready -> ReceiptBody(s.receipt, onDone)
         }
@@ -118,7 +121,7 @@ private fun ReceiptBody(receipt: Receipt, onDone: () -> Unit) {
         receipt.billingAddressLine?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 
-    Button(onClick = onDone, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) { Text("Keep shopping") }
+    EffyPrimaryAction("Keep shopping", onClick = onDone, modifier = Modifier.padding(top = EffySpacing.md))
 }
 
 @Composable
@@ -129,5 +132,4 @@ private fun SummaryRow(label: String, value: String, bold: Boolean = false) {
     }
 }
 
-private fun money(amount: String, currency: String): String =
-    if (currency == "AUD") "$$amount" else "$currency $amount"
+

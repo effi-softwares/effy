@@ -1,17 +1,19 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,45 +24,68 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
+import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffySectionHeader
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
-import com.effyshopping.customer.mobile.features.catalog.domain.ProductBadge
-import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
+import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 
 /**
- * The customer Home tab (019 US1). A merchandised, scrolling store: a promo banner, category chips, and
- * horizontally scrolling product rails — real catalog data from the hot path. GUEST-FIRST: no session
- * needed. Product tiles are the Principle V card exception (the industry-standard commerce pattern).
+ * The customer Home tab — a merchandised, scrolling store.
  *
- * [onProductClick] is wired to product-detail navigation by US2; here it is provided by the shell.
- * Product images load from the presigned S3 URL via Coil3 ([ProductImage]), falling back to a
- * first-letter placeholder while loading or when a product has no image.
+ * ── 025: recomposed to match the web storefront ─────────────────────────────────────────────────
+ *
+ * The section order is `apps/customer-web/app/(shop)/page.tsx`'s, so a shopper who uses both
+ * surfaces meets the same store in the same order:
+ *
+ *   hero band  →  promo carousel  →  product rails (each closed by a hairline)  →  shop by category
+ *
+ * The delivery location sits above this, in the shell's `HomeStackHost` — the mobile equivalent of
+ * the web header's delivery affordance.
+ *
+ * GUEST-FIRST: no session needed anywhere on this screen.
+ *
+ * ⚠ Every tile is [EffyProductCard], the shared card. Home, Search and Favourites each used to draw
+ * their own, which is how they ended up with three different tints and two different price
+ * treatments for the same product.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(container: AppContainer, onProductClick: (String) -> Unit) {
+fun HomeScreen(
+    container: AppContainer,
+    onProductClick: (String) -> Unit,
+    onBrowse: () -> Unit = {},
+    onSeeAll: (railKey: String) -> Unit = {},
+    onCategoryClick: (String) -> Unit = {},
+) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
 
@@ -78,54 +103,136 @@ fun HomeScreen(container: AppContainer, onProductClick: (String) -> Unit) {
                     onRefresh = vm::load,
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    HomeList(s.home, s.categories, onProductClick)
+                    HomeList(s.home, s.categories, onProductClick, onBrowse, onSeeAll, onCategoryClick)
                 }
             }
     }
 }
 
 @Composable
-private fun HomeList(home: com.effyshopping.customer.mobile.features.catalog.domain.HomeContent, categories: List<Category>, onProductClick: (String) -> Unit) {
+private fun HomeList(
+    home: HomeContent,
+    categories: List<Category>,
+    onProductClick: (String) -> Unit,
+    onBrowse: () -> Unit,
+    onSeeAll: (String) -> Unit,
+    onCategoryClick: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
+        contentPadding = PaddingValues(bottom = EffySpacing.xxxl),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
     ) {
+        item(key = "hero") { HeroBand(onBrowse) }
+
         if (home.banners.isNotEmpty()) {
-            item(key = "banners") { BannerCarousel(home.banners) }
+            item(key = "banners") { PromoCarousel(home.banners) }
         }
-        if (categories.isNotEmpty()) {
-            item { CategoryChipsRow(categories) }
+
+        // The hairline closes each rail EXCEPT the last, where the category panel below already
+        // provides the separation — the same rule the web page follows.
+        home.rails.forEachIndexed { index, rail ->
+            item(key = rail.key) {
+                Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xl)) {
+                    RailSection(rail, onProductClick, onSeeAll)
+                    if (index < home.rails.lastIndex) EffyHairline()
+                }
+            }
         }
-        items(home.rails, key = { it.key }) { rail ->
-            RailRow(rail, onProductClick)
+
+        if (categories.any { it.productCount > 0 }) {
+            item(key = "categories") { CategoryPanel(categories, onCategoryClick) }
         }
     }
 }
 
 /**
- * The promotional carousel (025 FR-019).
+ * The hero (web `Hero.tsx`).
  *
- * ⚠ What this replaced: a single flat block of brand colour with a heading on it — the first thing on
- * the storefront, and it looked like a placeholder because it was one. `Banner` has carried an
- * `imageUrl` since 019; nothing ever read it.
+ * A tinted full-bleed band, an oversized display headline, a short supporting line, one pill CTA,
+ * and a row of statistics.
  *
- * A single promotion is NOT presented as a carousel: no pager semantics, no dots (FR-019).
+ * ⚠ Effy's numbers are REAL or absent. The reference template ships "200+ International Brands /
+ * 2,000+ High-Quality Products / 30,000+ Happy Customers"; on a store with 38 seeded products that
+ * is a lie printed at display size. These three state things that are true of the platform as built.
+ *
+ * ⚠ The web draws hairline dividers between the stats only from `sm` up — on a phone it drops them,
+ * so this does too. Three columns of small type at 390dp do not need vertical rules to separate them.
  */
 @Composable
-private fun BannerCarousel(banners: List<Banner>) {
+private fun HeroBand(onShopNow: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(EffySurface.tint)
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xxxl),
+    ) {
+        EffyDisplay("Everything you need, delivered", size = DisplaySize.Hero)
+
+        Text(
+            "Fresh groceries and everyday essentials from one brand. Browse without an account — " +
+                "we only ask who you are when you place an order.",
+            modifier = Modifier.padding(top = EffySpacing.lg),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Button(
+            onClick = onShopNow,
+            shape = CircleShape,
+            modifier = Modifier
+                .padding(top = EffySpacing.xl)
+                .heightIn(min = 52.dp)
+                .fillMaxWidth(),
+        ) { Text("Shop now") }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xxxl),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        ) {
+            HeroStat("One", "basket, one delivery", Modifier.weight(1f))
+            HeroStat("No account", "needed to browse", Modifier.weight(1f))
+            HeroStat("Same day", "in serviced areas", Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun HeroStat(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            value,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            label,
+            modifier = Modifier.padding(top = 2.dp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The promotional carousel (025 FR-019, restyled to the web's `PromoCarousel`).
+ *
+ * A single promotion is NOT presented as a carousel: no pager gesture, no dots. Dots that never move
+ * are a control that lies about there being more to see.
+ */
+@Composable
+private fun PromoCarousel(banners: List<Banner>) {
     if (banners.isEmpty()) return
     val pagerState = rememberPagerState(pageCount = { banners.size })
 
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
         HorizontalPager(
             state = pagerState,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = EffySpacing.lg),
+            contentPadding = PaddingValues(horizontal = EffySpacing.lg),
             pageSpacing = EffySpacing.md,
             userScrollEnabled = banners.size > 1,
-        ) { page ->
-            BannerSlide(banners[page])
-        }
+        ) { page -> PromoSlide(banners[page]) }
 
         if (banners.size > 1) {
             Row(
@@ -140,8 +247,11 @@ private fun BannerCarousel(banners: List<Banner>) {
                             .size(if (selected) 8.dp else 6.dp)
                             .clip(CircleShape)
                             .background(
-                                if (selected) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.outlineVariant,
+                                if (selected) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.outlineVariant
+                                },
                             ),
                     )
                 }
@@ -151,194 +261,185 @@ private fun BannerCarousel(banners: List<Banner>) {
 }
 
 @Composable
-private fun BannerSlide(banner: Banner) {
+private fun PromoSlide(banner: Banner) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(168.dp)
+            .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(EffyRadius.md))
-            .background(MaterialTheme.colorScheme.primary),
+            .background(EffySurface.tint),
     ) {
         banner.imageUrl?.let {
             ProductImage(it, banner.title, modifier = Modifier.fillMaxSize())
-            // A scrim, so the copy stays legible over ANY photograph rather than only the ones we
-            // happened to test with.
+            // A gradient scrim only where the copy sits, so the copy survives ANY photograph rather
+            // than only the ones we happened to test with — and the top of the image stays visible.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f)),
+                    .background(
+                        Brush.verticalGradient(
+                            0.35f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.65f),
+                        ),
+                    ),
             )
         }
         Column(
             modifier = Modifier.align(Alignment.BottomStart).padding(EffySpacing.xl),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
         ) {
-            Text(
+            val onImage = banner.imageUrl != null
+            EffyDisplay(
                 banner.title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = if (banner.imageUrl != null) Color.White else MaterialTheme.colorScheme.onPrimary,
+                size = DisplaySize.Sub,
+                color = if (onImage) Color.White else MaterialTheme.colorScheme.onSurface,
             )
             banner.subtitle?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (banner.imageUrl != null) Color.White else MaterialTheme.colorScheme.onPrimary,
+                    color = if (onImage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
     }
 }
 
+/** A merchandising rail: header with "See all", a horizontal row of the shared product card. */
 @Composable
-private fun CategoryChipsRow(categories: List<Category>) {
-    LazyRow(
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = EffySpacing.lg),
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-    ) {
-        items(categories, key = { it.key }) { category ->
-            Surface(
-                shape = RoundedCornerShape(50),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                color = MaterialTheme.colorScheme.surface,
-            ) {
-                Text(
-                    category.name,
-                    style = MaterialTheme.typography.labelLarge,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RailRow(rail: Rail, onProductClick: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-        Text(
-            rail.title,
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.padding(horizontal = EffySpacing.lg),
-        )
+private fun RailSection(rail: Rail, onProductClick: (String) -> Unit, onSeeAll: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
+        EffySectionHeader(rail.title, onSeeAll = { onSeeAll(rail.key) })
         LazyRow(
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = EffySpacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            contentPadding = PaddingValues(horizontal = EffySpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
         ) {
             items(rail.products, key = { it.id }) { product ->
-                ProductTile(product, onProductClick)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ProductTile(product: ProductCard, onProductClick: (String) -> Unit) {
-    Column(
-        modifier = Modifier.width(150.dp).clickable { onProductClick(product.id) },
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(RoundedCornerShape(EffyRadius.sm))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(EffyRadius.sm)),
-            contentAlignment = Alignment.Center,
-        ) {
-            ProductImage(product.imageUrl, product.name, modifier = Modifier.fillMaxSize())
-            if (product.badges.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-                ) {
-                    product.badges.forEach { badge ->
-                        Surface(
-                            color = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            shape = RoundedCornerShape(50),
-                        ) {
-                            Text(
-                                badgeLabel(badge),
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = EffySpacing.s, vertical = EffySpacing.xs),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        product.brand?.let {
-            Text(
-                it,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Text(
-            product.name,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-            Text(money(product.priceAmount, product.currency), style = MaterialTheme.typography.titleSmall)
-            product.compareAtAmount?.let {
-                Text(
-                    money(it, product.currency),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                EffyProductCard(product, onProductClick, modifier = Modifier.width(164.dp))
             }
         }
     }
 }
 
 /**
- * A content-shaped first-load placeholder (025 FR-032).
+ * "Shop by category" (web `CategoryMosaic.tsx`).
  *
- * ⚠ This replaced a bare `CircularProgressIndicator` centred on an empty screen. A spinner tells a
- * shopper that something is happening; a skeleton tells them WHAT is coming, which is the difference
- * between waiting and wondering whether the app is broken.
+ * The web's composition is a large tinted ROUNDED PANEL containing the heading and an ASYMMETRIC
+ * mosaic — rows split 1:2 then 2:1. That imbalance is what stops it reading as another uniform grid,
+ * and it is the most recognisable block on the web home page.
+ *
+ * ⚠ The asymmetry does NOT survive a 390dp phone: at half width a "2-span" tile is 340dp and a
+ * "1-span" tile is 160dp, so the mosaic degrades into two mismatched tiles per row rather than a
+ * composition. Mobile keeps the tinted panel, the heading and the tile treatment — and lays them out
+ * as an even 2×2. Same block, adapted; not a different block.
+ *
+ * ⚠ Note the DOUBLE inversion, matching the web: the panel is the tint and the tiles inside it are
+ * the page colour. A tinted tile on a tinted panel would be invisible.
+ */
+@Composable
+private fun CategoryPanel(categories: List<Category>, onCategoryClick: (String) -> Unit) {
+    val featured = categories.filter { it.productCount > 0 }.take(4)
+    if (featured.isEmpty()) return
+
+    Column(
+        modifier = Modifier
+            .padding(horizontal = EffySpacing.lg)
+            .clip(RoundedCornerShape(EffyRadius.md))
+            .background(EffySurface.tint)
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xxxl),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+    ) {
+        EffyDisplay(
+            "Shop by category",
+            size = DisplaySize.Section,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+        )
+
+        // Plain Rows, not a LazyVerticalGrid — a lazy grid inside a LazyColumn has unbounded height
+        // and crashes at measure time. Four tiles never need lazy layout anyway.
+        featured.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+                row.forEach { category ->
+                    CategoryTile(category, onCategoryClick, Modifier.weight(1f))
+                }
+                // Keeps a lone trailing tile at half width instead of stretching it across the row.
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryTile(category: Category, onClick: (String) -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(132.dp)
+            .clip(RoundedCornerShape(EffyRadius.sm))
+            .background(EffySurface.page)
+            .clickable(
+                onClickLabel = "${category.name}, ${category.productCount} " +
+                    if (category.productCount == 1) "item" else "items",
+            ) { onClick(category.key) },
+    ) {
+        ProductImage(category.imageUrl, category.name, modifier = Modifier.fillMaxSize())
+
+        // A scrim only where the label sits, so the label survives any photograph without dimming
+        // the whole tile.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .background(
+                    Brush.verticalGradient(
+                        0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                        1f to Color.Transparent,
+                    ),
+                ),
+        )
+        Text(
+            category.name,
+            modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.md),
+            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/**
+ * A content-shaped first-load placeholder (025 FR-032) — reshaped to the new composition, so the
+ * skeleton predicts the page that replaces it rather than the page this screen used to be.
  */
 @Composable
 private fun HomeSkeleton() {
     Column(
-        modifier = Modifier.fillMaxSize().padding(vertical = EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.lg),
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
     ) {
-        Box(
+        // The hero band.
+        Column(
             modifier = Modifier
-                .padding(horizontal = EffySpacing.lg)
                 .fillMaxWidth()
-                .height(168.dp)
-                .clip(RoundedCornerShape(EffyRadius.md))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        )
+                .background(EffySurface.tint)
+                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xxxl),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        ) {
+            EffySkeletonBlock(Modifier.fillMaxWidth().height(36.dp))
+            EffySkeletonBlock(Modifier.fillMaxWidth(0.8f).height(36.dp))
+            EffySkeletonBlock(Modifier.padding(top = EffySpacing.lg).fillMaxWidth().height(52.dp))
+        }
+
         repeat(2) {
-            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = EffySpacing.lg)
-                        .width(140.dp)
-                        .height(18.dp)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
+                EffySkeletonBlock(
+                    Modifier.padding(horizontal = EffySpacing.lg).width(180.dp).height(26.dp),
                 )
                 Row(
                     modifier = Modifier.padding(horizontal = EffySpacing.lg),
-                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
                 ) {
-                    repeat(3) {
-                        Box(
-                            modifier = Modifier
-                                .width(150.dp)
-                                .height(200.dp)
-                                .clip(RoundedCornerShape(EffyRadius.sm))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                        )
-                    }
+                    repeat(3) { EffyProductCardSkeleton(Modifier.width(164.dp)) }
                 }
             }
         }
@@ -348,8 +449,15 @@ private fun HomeSkeleton() {
 @Composable
 private fun EmptyStore() {
     CenterBox {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-            Text("The shelves are still being stocked", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
+        ) {
+            EffyDisplay(
+                "The shelves are still being stocked",
+                size = DisplaySize.Sub,
+                textAlign = TextAlign.Center,
+            )
             Text(
                 "Our catalogue is on its way. Check back soon.",
                 style = MaterialTheme.typography.bodyMedium,
@@ -363,23 +471,22 @@ private fun EmptyStore() {
 @Composable
 private fun ErrorState(onRetry: () -> Unit) {
     CenterBox {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-            Text("We couldn’t load the store", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
-            Button(onClick = onRetry) { Text("Try again") }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.lg),
+        ) {
+            EffyDisplay("We couldn’t load the store", size = DisplaySize.Sub, textAlign = TextAlign.Center)
+            Button(onClick = onRetry, shape = CircleShape, modifier = Modifier.heightIn(min = 52.dp)) {
+                Text("Try again")
+            }
         }
     }
 }
 
 @Composable
 private fun CenterBox(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) { content() }
-}
-
-/** AUD money — the wire amount is already a 2-dp decimal string (numeric(12,2)::text), so prefix "$". */
-private fun money(amount: String, currency: String): String =
-    if (currency == "AUD") "$$amount" else "$currency $amount"
-
-private fun badgeLabel(badge: ProductBadge): String = when (badge) {
-    ProductBadge.ON_SALE -> "Sale"
-    ProductBadge.NEW -> "New"
+    Box(
+        modifier = Modifier.fillMaxSize().padding(EffySpacing.xxxl),
+        contentAlignment = Alignment.Center,
+    ) { content() }
 }

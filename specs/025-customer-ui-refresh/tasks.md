@@ -270,6 +270,29 @@ increased text size, with a screen reader, and — on web — by keyboard alone.
 
 ---
 
+## Phase 7b: Mobile Adopts the Web Visual Language (added 2026-07-28)
+
+The web half of US5 landed against the operator's template hybrid (research **R15**); the mobile half
+had only 025's functional work, so the two customer surfaces diverged — the exact outcome US5 exists
+to prevent. Content matches the web; chrome stays native (bottom bar, pushed cart, app bars, back
+stacks all unchanged).
+
+- [X] T103 Add `core/presentation/StorefrontFormat.kt` — `money` / `isDiscounted` / `discountPercent`, consolidating **six** copy-pasted `money()` helpers. `discountPercent` **rounds**, matching the web's `Math.round`.
+- [X] T104 Add `core/presentation/StorefrontKit.kt` — `EffySurface` (the page/tint/skeleton inversion), `EffyDisplay` + `DisplaySize`, `EffySectionHeader`, `EffyHairline`, `EffyProductCard` (+ skeleton), the shared grid rhythm, `DiscountChip`, `EffyQuantityStepper`. App-local by design: `mobile-kit` is shared with the signed-off `shop-mobile`.
+- [X] T105 Invert the page surface in `App.kt` — `EffySurface.page`, not `colorScheme.background`. **No token changes**; `cm-codegen` regenerates all 8 Compose files byte-identically.
+- [X] T106 [US1] Recompose Home to the web's section order: hero band → promo carousel → hairline-closed rails with "See all" → "shop by category" panel. Skeleton reshaped to match.
+- [X] T107 [US1] Wire the new Home affordances through `CustomerShell` — hero CTA → Browse; per-rail "See all" → Search, applying the web's `railHref()` mapping. Adds `SearchViewModel.applySaleOnly` (distinct from `toggleSale`: entry navigation must be idempotent, or the link means the opposite of itself on second use).
+- [X] T108 [US1] Browse + Search onto the shared card and grid: borders removed, tint corrected, pill search field, skeletons from the kit.
+- [X] T109 [US2] Product detail to the web layout: display title, price block with `DiscountChip`, tinted unavailable notice, ruled label/value detail rows, pill actions, shared stepper.
+- [X] T110 [US4] Cart lines to the web treatment (larger tinted image, semibold name, shared stepper, hairline above a pill checkout). **Stays a pushed full screen — deliberately NOT the web's mini-cart dialog.**
+- [X] T111 [US4] Rebuild Favourites as a product grid. It was a text list with **no image at all**, on the screen whose whole purpose is "things I liked the look of". Adds the missing back affordance (FR-030).
+- [X] T112 [US5] Convert 14 raw `Button` call sites across account / auth / checkout / receipt to `mobile-kit`'s `EffyPrimaryAction`, which is already pill-shaped and 52dp. Fixes the shape at the call sites rather than overriding `MaterialTheme.shapes`, which would restyle every other surface.
+- [ ] T113 [US5] Ship `nunito_sans_extrabold.ttf` through `packages/design-system/mobile-assets` and extend `effyFontFamily()`, so mobile display type matches the web's 800 weight. **Deferred**: currently Bold (700), recorded in research R15. Additive, but it regenerates all three Compose themes.
+- [ ] T114 [US3] Route the new transitions through `packages/mobile-kit/ui/Motion.kt` (see T073 — built in 025, still not wired up).
+- [ ] T115 **OPERATOR / DEVICE**: Android + iOS side by side against the web storefront on the same catalogue — home, a category, a search, a product, the cart — in light and dark. This is the mobile half of T096 and cannot be automated.
+
+---
+
 ## Phase 8: Polish, Verification & Sign-Off
 
 - [X] T093 [P] Update `docs/audiences/customer-capabilities.md` with every capability from this feature on both surfaces, including the justified `n/a` rows from `contracts/customer-ui.contract.md` §4 (FR-002, SC-014).

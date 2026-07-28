@@ -19,8 +19,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,8 +31,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
@@ -47,6 +47,7 @@ import com.effyshopping.customer.mobile.features.account.domain.SetPassword
 import com.effyshopping.customer.mobile.features.account.domain.SignOutEverywhere
 import com.effyshopping.customer.mobile.features.account.domain.UpdateName
 import com.effyshopping.customer.mobile.features.auth.presentation.PASSWORD_MIN_LENGTH
+import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -208,14 +209,14 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         Text(customer.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
         HorizontalDivider()
-        Button(onClick = { nav.push(AppRoute.EditName) }, modifier = Modifier.fillMaxWidth()) { Text("Change name") }
+        EffyPrimaryAction("Change name", onClick = { nav.push(AppRoute.EditName) })
         // 022: manage saved delivery addresses.
-        Button(onClick = { nav.push(AppRoute.AddressBook) }, modifier = Modifier.fillMaxWidth()) { Text("Manage addresses") }
+        EffyPrimaryAction("Manage addresses", onClick = { nav.push(AppRoute.AddressBook) })
         // FR-024/FR-025: offer EXACTLY the right journey, from the platform-owned hasPassword.
         if (customer.hasPassword) {
-            Button(onClick = { nav.push(AppRoute.PasswordChange) }, modifier = Modifier.fillMaxWidth()) { Text("Change password") }
+            EffyPrimaryAction("Change password", onClick = { nav.push(AppRoute.PasswordChange) })
         } else {
-            Button(onClick = { nav.push(AppRoute.PasswordSet) }, modifier = Modifier.fillMaxWidth()) { Text("Set a password") }
+            EffyPrimaryAction("Set a password", onClick = { nav.push(AppRoute.PasswordSet) })
         }
 
         HorizontalDivider()
@@ -237,7 +238,7 @@ private fun EditNameScreen(container: AppContainer, vm: AccountViewModel, custom
         Text("Your name", style = MaterialTheme.typography.headlineSmall)
         OutlinedTextField(given, { given = it }, label = { Text("First name") }, modifier = Modifier.fillMaxWidth())
         OutlinedTextField(family, { family = it }, label = { Text("Last name") }, modifier = Modifier.fillMaxWidth())
-        Button(onClick = { vm.updateName(given, family) }, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) { Text("Save") }
+        EffyPrimaryAction("Save", onClick = { vm.updateName(given, family) }, loading = state.loading)
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         if (state.loading) CircularProgressIndicator()
         TextButton(onClick = { container.navigator.pop() }) { Text("Back") }

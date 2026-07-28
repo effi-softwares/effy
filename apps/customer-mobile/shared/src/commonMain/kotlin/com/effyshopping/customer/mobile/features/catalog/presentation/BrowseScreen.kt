@@ -1,7 +1,6 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -25,10 +25,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
+import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
+import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.mobile.design.EffyRadius
@@ -86,11 +92,11 @@ fun BrowseScreen(container: AppContainer, onCategoryClick: (String) -> Unit) {
 @Composable
 private fun CategoryGrid(groups: List<CategoryGroup>, onCategoryClick: (String) -> Unit) {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
+        columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(EffySpacing.lg),
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        contentPadding = ProductGridPadding,
+        horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+        verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
     ) {
         groups.forEach { group ->
             // A single ungrouped list (flat taxonomy) needs no section heading.
@@ -98,7 +104,7 @@ private fun CategoryGrid(groups: List<CategoryGroup>, onCategoryClick: (String) 
                 item(span = { GridItemSpan(maxLineSpan) }, key = "hdr-${group.root.key}") {
                     Text(
                         group.root.name,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         modifier = Modifier.padding(top = EffySpacing.s),
                     )
                 }
@@ -116,13 +122,14 @@ private fun CategoryTile(category: Category, onClick: (String) -> Unit) {
         modifier = Modifier.clickable { onClick(category.key) },
         verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
     ) {
+        // ⚠ No border and no shadow — the tint alone separates the tile from the page, matching the
+        // web's `CategoryTile`. The 1.dp outline this used to draw fragmented the grid into boxes.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(4f / 3f)
-                .clip(RoundedCornerShape(EffyRadius.sm))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(EffyRadius.sm)),
+                .clip(RoundedCornerShape(EffyRadius.md))
+                .background(EffySurface.tint),
             contentAlignment = Alignment.Center,
         ) {
             // ProductImage already falls back to a first-letter tile when the URL is null, which is
@@ -131,7 +138,8 @@ private fun CategoryTile(category: Category, onClick: (String) -> Unit) {
         }
         Text(
             category.name,
-            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = EffySpacing.s),
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -152,30 +160,20 @@ private fun CategoryTile(category: Category, onClick: (String) -> Unit) {
 @Composable
 private fun BrowseSkeleton() {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
+        columns = GridCells.Fixed(2),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(EffySpacing.lg),
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        contentPadding = ProductGridPadding,
+        horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+        verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
         userScrollEnabled = false,
     ) {
         items(List(8) { it }) {
-            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(4f / 3f)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
+            Column {
+                EffySkeletonBlock(Modifier.fillMaxWidth().aspectRatio(4f / 3f))
+                EffySkeletonBlock(
+                    Modifier.padding(top = EffySpacing.s).fillMaxWidth(0.7f).height(16.dp),
+                    radius = EffyRadius.sm,
                 )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.7f)
-                        .padding(top = EffySpacing.xs)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .fillMaxWidth(),
-                ) { Text("", style = MaterialTheme.typography.bodyMedium) }
             }
         }
     }

@@ -1,11 +1,9 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
@@ -15,12 +13,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,18 +32,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
-import com.effyshopping.customer.mobile.core.presentation.ProductImage
-import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
+import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
+import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
+import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
+import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
-import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPlaceholder
 import com.effyshopping.mobile.kit.ui.EffyTopBar
@@ -62,14 +62,17 @@ import com.effyshopping.mobile.kit.ui.EffyTopBar
 fun SearchScreen(
     container: AppContainer,
     categoryKey: String? = null,
+    /** Entry refinement — set when Home's on-sale rail hands off via "See all" (web `?saleOnly=true`). */
+    saleOnly: Boolean = false,
     onProductClick: (String) -> Unit,
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts) }
     val state by vm.state.collectAsState()
     val gridState = rememberLazyGridState()
 
-    // Apply (or clear) the category handed over by Browse.
+    // Apply (or clear) the refinements handed over by Browse / Home's "See all".
     LaunchedEffect(categoryKey) { if (state.categoryKey != categoryKey) vm.applyCategory(categoryKey) }
+    LaunchedEffect(saleOnly) { if (saleOnly) vm.applySaleOnly(true) }
 
     val loadMore by remember {
         derivedStateOf {
@@ -83,11 +86,21 @@ fun SearchScreen(
         EffyTopBar(title = "Search")
 
         Column(modifier = Modifier.padding(horizontal = EffySpacing.md)) {
+            // A pill on the tint, matching the web header's search control. `placeholder` rather
+            // than `label`: a floating label inside a pill collides with the rounded edge, and the
+            // field is unambiguous under a screen titled "Search".
             OutlinedTextField(
                 value = state.query,
                 onValueChange = vm::onQueryChange,
-                label = { Text("Search products") },
+                placeholder = { Text("Search groceries, brands and more…") },
                 singleLine = true,
+                shape = CircleShape,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = EffySurface.tint,
+                    unfocusedContainerColor = EffySurface.tint,
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedBorderColor = Color.Transparent,
+                ),
                 modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.s),
             )
 
@@ -160,13 +173,22 @@ fun SearchScreen(
 
             else -> LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 150.dp),
-                horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-                verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(EffySpacing.md),
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+                verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
+                contentPadding = ProductGridPadding,
                 modifier = Modifier.fillMaxSize(),
             ) {
-                items(state.items, key = { it.id }) { product -> SearchTile(product, onProductClick) }
+                items(state.items, key = { it.id }) { product ->
+                    // `fillHeight` pins every price row in a row of results to the same baseline —
+                    // the tallest name in the row sets the height and the prices stay level.
+                    EffyProductCard(
+                        product,
+                        onProductClick,
+                        modifier = Modifier.fillMaxHeight(),
+                        fillHeight = true,
+                    )
+                }
             }
         }
     }
@@ -204,54 +226,13 @@ private fun SortControl(
 @Composable
 private fun SearchSkeleton() {
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(minSize = 150.dp),
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(EffySpacing.md),
+        columns = GridCells.Fixed(2),
+        horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+        verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
+        contentPadding = ProductGridPadding,
         modifier = Modifier.fillMaxSize(),
         userScrollEnabled = false,
     ) {
-        items(List(6) { it }) {
-            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-                Box(
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                )
-                Box(
-                    modifier = Modifier.fillMaxWidth(0.75f).height(14.dp)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                )
-            }
-        }
+        items(List(6) { it }) { EffyProductCardSkeleton() }
     }
 }
-
-@Composable
-private fun SearchTile(product: ProductCard, onClick: (String) -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().clickable { onClick(product.id) }.padding(EffySpacing.xs),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            ProductImage(product.imageUrl, product.name, modifier = Modifier.fillMaxSize())
-        }
-        Text(product.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(money(product.priceAmount, product.currency), style = MaterialTheme.typography.titleSmall)
-    }
-}
-
-@Composable
-private fun CenterFill(content: @Composable () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        content()
-    }
-}
-
-private fun money(amount: String, currency: String): String =
-    if (currency == "AUD") "$$amount" else "$currency $amount"

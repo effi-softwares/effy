@@ -32,6 +32,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
@@ -127,9 +128,11 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         val billingReady = s.billingSameAsShipping || s.billingSelectedId != null
         val payEnabled = !s.paying && quote != null && !s.quoting && s.selectedId != null &&
             !quote.fullyUndeliverable && (!quote.hasSetAside || s.setAsideConfirmed) && billingReady
-        Button(onClick = vm::payNow, enabled = payEnabled, modifier = Modifier.fillMaxWidth()) {
-            Text(if (s.paying) "Processing…" else "Pay now")
-        }
+        EffyPrimaryAction(
+            if (s.paying) "Processing…" else "Pay now",
+            onClick = vm::payNow,
+            enabled = payEnabled,
+        )
     }
 
     // The shared add-address form (022) — raised for shipping OR billing (023 US3).
