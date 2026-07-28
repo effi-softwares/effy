@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { Nunito_Sans } from "next/font/google"
 
 import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeScript } from "@/components/theme/ThemeScript"
 import { cn } from "@/lib/utils"
 import { siteUrl } from "@/lib/config"
 
@@ -63,7 +63,11 @@ export default function RootLayout({
       className={cn("antialiased", nunitoSans.variable, "font-sans")}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        {/* ⚠ FIRST child of <body>, and it must stay first: it applies the stored appearance before
+            the browser paints anything below it. Move it lower and a dark-mode visitor gets a white
+            flash on every navigation to a fresh document. */}
+        <ThemeScript />
+        {children}
       </body>
     </html>
   )

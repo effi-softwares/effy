@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -203,7 +204,10 @@ private fun HeroStat(value: String, label: String, modifier: Modifier = Modifier
         Text(
             value,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            maxLines = 1,
+            // ⚠ Two lines, not one. These are three columns at a third of the screen each; at
+            // maximum text size "No account" on one line ellipsizes to "No acc…", which reads as a
+            // rendering bug rather than as a claim about the store.
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
@@ -374,7 +378,9 @@ private fun CategoryPanel(categories: List<Category>, onCategoryClick: (String) 
 private fun CategoryTile(category: Category, onClick: (String) -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .height(132.dp)
+            // ⚠ `heightIn`, not a fixed height: the category name sits INSIDE this box, so at
+            // maximum text size a two-line name would be clipped by the tile that contains it.
+            .heightIn(min = 132.dp)
             .clip(RoundedCornerShape(EffyRadius.sm))
             .background(EffySurface.page)
             .clickable(
@@ -386,10 +392,12 @@ private fun CategoryTile(category: Category, onClick: (String) -> Unit, modifier
 
         // A scrim only where the label sits, so the label survives any photograph without dimming
         // the whole tile.
+        // The scrim is sized as a FRACTION of the tile rather than a fixed 64dp, so it still sits
+        // behind the label once the label grows.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .fillMaxHeight(0.55f)
                 .background(
                     Brush.verticalGradient(
                         0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),

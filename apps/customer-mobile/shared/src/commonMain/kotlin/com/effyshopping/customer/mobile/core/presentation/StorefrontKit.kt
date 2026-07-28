@@ -1,7 +1,11 @@
 package com.effyshopping.customer.mobile.core.presentation
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +20,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -24,9 +29,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +46,8 @@ import androidx.compose.ui.unit.sp
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.mobile.kit.ui.MotionRole
+import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 
 /**
  * The customer storefront's shared visual vocabulary (025).
@@ -106,8 +116,9 @@ enum class DisplaySize(internal val sp: Int, internal val lineHeightSp: Int) {
 /**
  * A page or section title in the storefront's display type.
  *
- * Matches the web's `Display`: UPPERCASE, tight negative tracking (`-0.02em`), and a line height
- * BELOW the font size so multi-line headings set as a solid block rather than a loose list.
+ * Matches the web's `Display`: UPPERCASE, tight negative tracking (`-0.02em`), and leading tight
+ * enough that multi-line headings set as a solid block rather than a loose list — see [DisplaySize]
+ * for why mobile's leading is a shade looser than the web's.
  *
  * ⚠ Weight is `Bold` (700), where the web uses `font-extrabold` (800). The mobile font set ships
  * Regular/SemiBold/Bold only — adding a fourth weight means shipping another `.ttf` through
@@ -223,10 +234,33 @@ fun EffyProductCard(
 ) {
     val percentOff = discountPercent(product.priceAmount, product.compareAtAmount)
 
+    // ── Press feedback (025 FR-036 / FR-037) ────────────────────────────────────────────────────
+    //
+    // ⚠ A bare `clickable` gives a ripple on Android and NOTHING on iOS, so on an iPhone a tile
+    // could be tapped with no acknowledgement at all until the next screen arrived. The web card
+    // grows slightly on hover; a phone has no hover, so the equivalent is a press.
+    //
+    // The scale comes from the motion system, so a shopper who asked for reduced motion gets the
+    // navigation without the squeeze — the STATE CHANGE survives, only the movement goes (FR-037).
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val spec = rememberMotionSpec(MotionRole.Press)
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && spec.usesScale) 0.97f else 1f,
+        animationSpec = tween(durationMillis = spec.durationMillis),
+        label = "productCardPress",
+    )
+
     Column(
         modifier = modifier
             .then(if (fillHeight) Modifier.fillMaxSize() else Modifier)
-            .clickable { onClick(product.id) },
+            .scale(scale)
+            .clickable(
+                interactionSource = interactions,
+                // Null indication: the scale IS the feedback, and a ripple over a full-bleed
+                // photograph reads as a smudge rather than as a response.
+                indication = null,
+            ) { onClick(product.id) },
     ) {
         Box(
             modifier = Modifier
@@ -366,7 +400,10 @@ fun EffyQuantityStepper(
         StepperButton("−", "Decrease quantity", enabled = quantity > minimum) { onChange(quantity - 1) }
         Text(
             "$quantity",
-            modifier = Modifier.width(40.dp),
+            // ⚠ `widthIn`, not `width`: at maximum text size a two-digit quantity is wider than 40dp,
+            // and a fixed width would clip the second digit — turning 12 into 1 on screen while the
+            // cart charges for 12. A quantity is not a place to truncate.
+            modifier = Modifier.widthIn(min = 40.dp),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.titleSmall,
         )

@@ -205,7 +205,7 @@ recognisable, safe-area correct, and gives feedback.
 - [X] T070 [US3] Add a `SnackbarHostState` to the shell and wire transient feedback for add, save, remove, and failure — **at most one action each** (FR-034).
 - [X] T071 [US3] Add `ProductImage` to cart lines in `apps/customer-mobile/.../features/cart/presentation/CartScreen.kt`, alongside name, unit price, quantity control, and line total.
 - [X] T072 [US3] Replace the `TextButton`-based quantity steppers across the app with proper controls meeting the platform minimum touch target, with press feedback (FR-036).
-- [ ] T073 [US3] Route transitions and feedback through `packages/mobile-kit/ui/Motion.kt` so reduced-motion simplifies movement **without removing the state change** (FR-037).
+- [X] T073 [US3] Route transitions and feedback through `packages/mobile-kit/ui/Motion.kt` so reduced-motion simplifies movement **without removing the state change** (FR-037). Done by T114. ⚠ Scoped to app-initiated motion: the pagers are direct manipulation, which reduce-motion settings do not govern.
 - [X] T074 [US3] Replace literal `dp` values across `apps/customer-mobile/.../features/` with `EffySpacing` from the generated `packages/design-system/compose/EffyTokens.kt` — it has been available since 017 and unused.
 
 **Checkpoint**: SC-006's sweep should now return zero instances.
@@ -262,9 +262,9 @@ increased text size, with a screen reader, and — on web — by keyboard alone.
 - [X] T087 [US5] Sweep every screen changed by this feature for hardcoded colour, type size, spacing, or radius, and replace with design-system values (FR-007, SC-007).
 - [X] T088 [US5] Announce dynamic changes — result count, applied refinements, add confirmations, errors — through live regions on web and their mobile equivalents (FR-045).
 - [X] T089 [US5] Add accessible names to every interactive element introduced by this feature on both surfaces (FR-045).
-- [ ] T090 [P] [US5] Grayscale review of every status, badge, refinement, and availability meaning; fix anything relying on colour alone (FR-047, SC-010).
-- [ ] T091 [P] [US5] Maximum-text-size pass on both surfaces; fix clipped or unreachable controls (FR-048).
-- [ ] T092 [US5] Dark-appearance pass on every new screen, and confirm switching appearance mid-session preserves the shopper's place (FR-008).
+- [X] T090 [P] [US5] Grayscale review — **clean, nothing to fix**. Every colour signal carries its own text: the discount chip reads "-33%", the default-address badge reads "Default", the delivery control reads "Set"/"Change", unavailability reads "Unavailable", and every error is the message itself. Colour is decoration at all of them.
+- [X] T091 [P] [US5] Maximum-text-size pass — **three real clips found and fixed**: (a) the quantity stepper's fixed 40dp value box, which would have shown `1` while the cart charged for `12`; (b) the category tile's fixed 132dp height, with a two-line name inside it; (c) the hero stats at `maxLines = 1`, where "No account" ellipsized to "No acc…". All three now grow instead of clipping.
+- [X] T092 [US5] Dark-appearance pass — **clean**. The only hardcoded colours left are white-on-scrim over a *photograph* (promo slide copy), which is correct in both appearances precisely because it is not over a themed surface. Everything else resolves through the inverted token roles, which flip by construction. ⚠ Mid-session appearance switching is state-preserving by construction (theme change is a recomposition, not a navigation) but is **not device-verified** — it belongs to T115.
 
 **Checkpoint**: SC-007 through SC-011 are walkable.
 
@@ -288,7 +288,7 @@ stacks all unchanged).
 - [X] T111 [US4] Rebuild Favourites as a product grid. It was a text list with **no image at all**, on the screen whose whole purpose is "things I liked the look of". Adds the missing back affordance (FR-030).
 - [X] T112 [US5] Convert 14 raw `Button` call sites across account / auth / checkout / receipt to `mobile-kit`'s `EffyPrimaryAction`, which is already pill-shaped and 52dp. Fixes the shape at the call sites rather than overriding `MaterialTheme.shapes`, which would restyle every other surface.
 - [ ] T113 [US5] Ship `nunito_sans_extrabold.ttf` through `packages/design-system/mobile-assets` and extend `effyFontFamily()`, so mobile display type matches the web's 800 weight. **Deferred**: currently Bold (700), recorded in research R15. Additive, but it regenerates all three Compose themes.
-- [ ] T114 [US3] Route the new transitions through `packages/mobile-kit/ui/Motion.kt` (see T073 — built in 025, still not wired up).
+- [X] T114 [US3] Route feedback through `packages/mobile-kit/ui/Motion.kt` — adds `LocalMotionLevel` (a CompositionLocal, **not** an `expect fun`: mobile-kit is `srcDir`'d into shop-mobile too, so an `expect` would have forced a file into a signed-off surface) plus per-platform readings. Android's "Remove animations" → `None`; iOS's "Reduce Motion" → `Reduced`, because Apple's convention is to substitute a cross-fade, not to delete the transition. Applied to product-card press feedback, which closes an FR-036 gap: a bare `clickable` gave a ripple on Android and **nothing at all on iOS**.
 - [ ] T115 **OPERATOR / DEVICE**: Android + iOS side by side against the web storefront on the same catalogue — home, a category, a search, a product, the cart — in light and dark. This is the mobile half of T096 and cannot be automated.
 
 ---
@@ -304,7 +304,7 @@ stacks all unchanged).
 - [ ] T099 Walk the 14 guest journeys in `quickstart.md` §5 on both surfaces and record results.
 - [ ] T100 **OPERATOR**: schedule and run the moderated testing for SC-002, SC-003, and SC-013. SC-003 needs a catalogue larger than the current dev seed (>100 products in one result set) — note this when scheduling.
 - [ ] T101 Commit spec, plan, research, data-model, contracts, tasks alongside the code (Quality Gates: no feature merges without them).
-- [ ] T102 Replace `next-themes` on the guest path with an inline no-flash script plus a `useSyncExternalStore` store in `apps/customer-web/components/theme/`, saving ~8.3 KB gz on every guest page. **Added during T020**, which measured it. Deferred out of Phase 1 because it changes 017's signed-off appearance switcher and carries FOUC risk that deserves its own focused change rather than a drive-by inside a UI feature. Taking it should let `GUEST_LIMIT` come back down to ~168 KB — verify by re-running `make cw-size` and lowering the constant in the same diff.
+- [X] T102 Replace `next-themes` on the guest path with an inline pre-paint script (`components/theme/ThemeScript.tsx`) plus a `useSyncExternalStore` store (`components/theme/appearance-store.ts`). **⚠ THE ESTIMATE THAT JUSTIFIED THIS TASK WAS WRONG.** It was recorded as "~8.3 KB gz on every guest page", which would have brought `GUEST_LIMIT` to ~168 KB. Measured: `next-themes` `dist/index.mjs` is **1.5 KB gzipped**, the replacement store costs ~0.6 KB, and the actual saving is **0.9 KB** (`/` 171.4 → 170.5). `GUEST_LIMIT` ratcheted 176 → **174 KB** — by what was measured, not what was hoped. Still worth doing (one fewer dependency; the appearance logic is now ours and has 11 unit tests) but it does not buy headroom. The storage key and values are kept as next-themes' defaults (`theme`, `light|dark|system`) so nobody's existing choice is reset, and that is the first assertion in the test file. All four hard parts are reproduced: pre-paint application, live `system` tracking, cross-tab sync, and transition suppression during the swap.
 
 ---
 

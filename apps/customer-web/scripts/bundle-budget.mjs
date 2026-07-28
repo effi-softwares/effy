@@ -76,13 +76,17 @@ const KB = 1024
  * At 176 KB with routes sitting at 160–168, the gate still does its original job — a 30–45 KB SDK
  * cannot hide in that headroom.
  *
- * ⚠ A REAL saving is outstanding and deliberately not taken here: `next-themes` costs ~8.3 KB on
- * every guest page and could be ~1 KB (an inline no-flash script + a useSyncExternalStore
- * store), which is this app's established dependency-free island pattern. It is not being done
- * as a drive-by inside a UI feature because it changes 017's signed-off appearance switcher and
- * carries FOUC risk. Tracked as T102. Taking it should bring this number back to ~168 KB.
+ * ⚠ T102 (`next-themes` → an inline pre-paint script + a `useSyncExternalStore` store) IS NOW DONE,
+ * and the estimate that justified it was WRONG. It was recorded here as "~8.3 KB on every guest
+ * page"; the dependency's own `dist/index.mjs` is **1.5 KB gzipped**, and the replacement store
+ * costs ~0.6 KB of its own, so the measured saving is **0.9 KB** — not the ~8 KB that would have
+ * brought this limit to ~168 KB. The change was still worth making (one fewer dependency, and the
+ * appearance logic is now ours and unit-tested), but it does not buy the headroom that was claimed.
+ *
+ * The number below is ratcheted by what was actually measured, not by what was hoped for. If a
+ * future change needs more room, MEASURE FIRST — this line is the cautionary tale.
  */
-const GUEST_LIMIT = 176 * KB
+const GUEST_LIMIT = 174 * KB
 
 /** The public pages a guest can reach. (auth)/(account) are budgeted separately — the SDK
  *  legitimately lives there.

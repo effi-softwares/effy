@@ -1,7 +1,8 @@
 "use client"
 
-import { useTheme } from "next-themes"
 import * as React from "react"
+
+import { setAppearance, useAppearance } from "./appearance-store"
 
 import { cn } from "@/lib/utils"
 
@@ -30,18 +31,22 @@ const MonitorIcon = ({ className }: IconProps) => (
 /**
  * The visible, labelled appearance switcher (017 US2 / FR-009).
  *
- * next-themes (configured in components/theme-provider.tsx) already owns the hard parts — a
- * pre-paint script that avoids the flash of the wrong theme on an SSR page, `system` tracking, and
- * persistence. This component is only the CONTROL the storefront was missing (the old single-letter
- * hotkey was removed on purpose — see theme-provider.tsx). It calls `setTheme` and nothing else.
+ * The hard parts live elsewhere: `appearance-store.ts` owns persistence, `system` tracking and
+ * cross-tab sync, and `ThemeScript.tsx` runs before paint so there is no flash of the wrong theme.
+ * This component is only the CONTROL. It calls `setAppearance` and nothing else.
  *
- * It is a small client island in the header. It reads no cookies and imports no SDK, so it stays in
+ * ⚠ The old single-letter "press D to toggle" hotkey is NOT coming back. It crashed on
+ * password-manager autofill (`event.key` is `undefined` for those synthetic events), and silencing
+ * that would have been the wrong fix anyway: on a PUBLIC storefront, a bare unmodified letter key
+ * means a shopper who presses `d` while scrolling flips the whole site's appearance under them.
+ *
+ * It is a small client island in the footer. It reads no cookies and imports no SDK, so it stays in
  * the static shell (it does not convert the page to request-time rendering) and never touches the
  * Amplify quarantine.
  *
- * `mounted` gates the active state: on the server we cannot know the resolved theme, so we render a
- * neutral control and light it up after hydration — the standard next-themes pattern that avoids a
- * hydration mismatch.
+ * ⚠ No `mounted` flag. `useSyncExternalStore` renders the server snapshot during hydration and
+ * re-renders with the real value immediately after — which is the same effect the `mounted` dance
+ * achieved, done by React rather than by hand.
  */
 const MODES = [
   { value: "light", label: "Light", Icon: SunIcon },
@@ -50,9 +55,7 @@ const MODES = [
 ] as const
 
 export function AppearanceControl({ className }: { className?: string }) {
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = React.useState(false)
-  React.useEffect(() => setMounted(true), [])
+  const appearance = useAppearance()
 
   return (
     <div
@@ -62,7 +65,7 @@ export function AppearanceControl({ className }: { className?: string }) {
       className={cn("inline-flex items-center rounded-full border p-0.5", className)}
     >
       {MODES.map(({ value, label, Icon }) => {
-        const active = mounted && theme === value
+        const active = appearance === value
         return (
           <button
             key={value}
@@ -72,7 +75,7 @@ export function AppearanceControl({ className }: { className?: string }) {
             aria-label={label}
             title={label}
             data-testid={`appearance-${value}`}
-            onClick={() => setTheme(value)}
+            onClick={() => setAppearance(value)}
             className={cn(
               "flex size-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               active && "bg-primary text-primary-foreground hover:text-primary-foreground",
