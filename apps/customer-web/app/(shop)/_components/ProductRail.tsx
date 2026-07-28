@@ -2,7 +2,7 @@ import type { StorefrontProductCardDTO } from "@effy/shared-types"
 
 import { ActionLink, CenteredHeading } from "@/components/storefront/kit"
 
-import { ProductCard } from "./ProductCard"
+import { ProductCard, productGrid } from "./ProductCard"
 
 /**
  * A merchandising row, from the tech-store reference (025 UI refresh).
@@ -33,10 +33,9 @@ export function ProductRail({
     <section className={`mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 ${className ?? ""}`}>
       <CenteredHeading>{title}</CenteredHeading>
 
-      {/* Wide tiles: 2-up on a phone, 4 across at desktop. The tile is the merchandising unit —
-          at 6-up a grocery photograph is a thumbnail (operator's card spec). `items-stretch`
-          plus `h-full` inside the card is what keeps every price row on one baseline. */}
-      <div className="mt-9 grid grid-cols-2 items-stretch gap-x-4 gap-y-9 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4">
+      {/* Columns and gutters come from `productGrid` so every listing on the storefront shares one
+          rhythm — see the note on that constant. */}
+      <div className={`mt-9 ${productGrid}`}>
         {products.slice(0, 8).map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}

@@ -14,8 +14,8 @@ import { formatMoney, isDiscounted } from "@/lib/money"
  *  1. EQUAL HEIGHT across a row. `h-full` + a fixed-aspect image + `mt-auto` on the price means a
  *     two-line product name never shunts its neighbour's price out of alignment. Ragged price rows
  *     are the single most common reason a product grid looks amateur.
- *  2. WIDE. Four across at desktop rather than six — the tile is the merchandising unit, and a
- *     grocery photograph at 6-up is a thumbnail.
+ *  2. WIDE, not huge. Four across at desktop and five on a wide screen — the tile is the
+ *     merchandising unit, and a grocery photograph at 6-up is a thumbnail. See `productGrid` below.
  *  3. THE IMAGE FILLS ITS AREA. `object-cover`, so the photograph reaches every edge of the tile
  *     instead of floating letterboxed inside it.
  *  4. NO BORDER, NO SHADOW. The tinted tile alone separates the product from the page. Borders on a
@@ -29,6 +29,34 @@ import { formatMoney, isDiscounted } from "@/lib/money"
  * Images are presigned, expiring S3 URLs, so they render `unoptimized` (R7) — the Next optimizer
  * cannot cache a signed URL.
  */
+/**
+ * The grid every product listing uses.
+ *
+ * ⚠ This is a CONSTANT rather than a class string repeated per page for a reason: the column count
+ * and the gutters are a single design decision, and it was previously written out in three separate
+ * files. Tuning it meant finding all three and keeping them in step — which is exactly the kind of
+ * thing that silently drifts, leaving the home page and the search results on different rhythms.
+ *
+ * Column counts are chosen from the CARD WIDTH they produce inside `max-w-7xl` (80rem), not picked
+ * for symmetry: 5-up on a wide screen lands each tile near 14rem, which is the size a product tile
+ * wants to be. Below `lg` it steps down so a tile never becomes a thumbnail.
+ *
+ * The gutters are deliberately ASYMMETRIC — more vertical than horizontal. Rows need visible
+ * separation because a card's own name and price already sit below its image; without extra
+ * vertical air, the row below reads as a continuation of the row above.
+ */
+const gutters = "gap-x-6 gap-y-12 sm:gap-x-10 sm:gap-y-14"
+
+/** Full-bleed listings: the home rails and any page whose grid owns the whole content column. */
+export const productGrid = `grid items-stretch ${gutters} grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5`
+
+/**
+ * Listings that share the row with the filter rail (search). One column narrower at every step —
+ * the rail takes 16rem, so reusing `productGrid` here would squeeze the tiles below the width the
+ * card was designed for.
+ */
+export const productGridNarrow = `grid items-stretch ${gutters} grid-cols-2 sm:grid-cols-3 xl:grid-cols-4`
+
 export function ProductCard({ product }: { product: StorefrontProductCardDTO }) {
   const discounted = isDiscounted(product.priceAmount, product.compareAtAmount)
   const percentOff =
@@ -54,7 +82,11 @@ export function ProductCard({ product }: { product: StorefrontProductCardDTO }) 
             alt={product.name}
             fill
             unoptimized
-            sizes="(min-width: 1024px) 22rem, (min-width: 640px) 45vw, 90vw"
+            // Matches the widths `productGrid` actually produces: ~14rem from `lg` up (4-up at lg
+            // and 5-up at xl land on nearly the same tile width), then 3-up and 2-up below.
+            // ⚠ Inert while `unoptimized` is set — a presigned URL gets no srcset — but wrong values
+            // become a real over-fetch the moment the media pipeline stops signing URLs.
+            sizes="(min-width: 1024px) 14rem, (min-width: 640px) 30vw, 45vw"
             // FILLS the area, edge to edge.
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
@@ -74,24 +106,32 @@ export function ProductCard({ product }: { product: StorefrontProductCardDTO }) 
         )}
       </div>
 
-      <h3 className="mt-4 line-clamp-2 text-lg font-bold leading-tight">{product.name}</h3>
+      {/* The name is `text-base`, NOT the display weight used for headings. It is a label on a tile,
+          not a heading on a page — at `text-lg font-bold` it competed with the section heading above
+          the grid and made a wall of tiles shout. */}
+      <h3 className="mt-3 line-clamp-2 text-base font-semibold leading-snug">{product.name}</h3>
 
       {/* ⚠ The reference's rating row sits here. Nothing to render until reviews exist. */}
 
       {/* `mt-auto` pins every price row in a grid to the same baseline. */}
-      <div className="mt-auto flex flex-wrap items-center gap-2.5 pt-2">
-        <span className="text-2xl font-bold">
+      <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-2">
+        {/* The price stays the largest thing on the tile — it is what the shopper is scanning for —
+            but one step down from the old `text-2xl`, which out-shouted the name it belongs to. */}
+        <span className="text-xl font-bold">
           {formatMoney(product.priceAmount, product.currency)}
         </span>
         {discounted && product.compareAtAmount && (
           <>
-            <span className="text-2xl font-bold text-muted-foreground/70 line-through">
+            {/* The struck-through price is REFERENCE information, so it is smaller than the price
+                that is actually being charged. Rendering both at the same size (as this did) makes a
+                shopper read the discount twice to work out which number they pay. */}
+            <span className="text-base font-semibold text-muted-foreground/70 line-through">
               {formatMoney(product.compareAtAmount, product.currency)}
             </span>
             {percentOff !== null && percentOff > 0 && (
               // The reference's soft red discount chip. `destructive` is Effy's terracotta — the
               // token that already means "negative", so no new colour enters the system.
-              <span className="rounded-full bg-destructive/10 px-3 py-1 text-sm font-medium text-destructive">
+              <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                 -{percentOff}%
               </span>
             )}

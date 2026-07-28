@@ -10,6 +10,7 @@ import { JsonLd, organizationLd } from "@/lib/json-ld"
 import { CategoryMosaic } from "./_components/CategoryMosaic"
 import { Hero } from "./_components/Hero"
 import { DeliveryNotice } from "./_components/DeliveryAffordance"
+import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
 import { PromoCarousel } from "./_components/PromoCarousel"
 import { RecentlyViewedRail } from "./_components/RecentlyViewedRail"
@@ -125,8 +126,8 @@ function HomeSkeleton() {
       {[0, 1].map((row) => (
         <div key={row} className="mb-16 space-y-8">
           <div className="mx-auto h-10 w-64 animate-pulse rounded bg-muted" />
-          <div className="grid grid-cols-2 gap-x-4 gap-y-9 sm:grid-cols-3 sm:gap-x-6 lg:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
+          <div className={productGrid}>
+            {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="space-y-3">
                 <div className="aspect-square w-full animate-pulse rounded-2xl bg-muted" />
                 <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />

@@ -9,7 +9,7 @@ import type { ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } fr
 import { coreApiBaseUrl } from "@/lib/config"
 import { capture } from "@/lib/telemetry"
 
-import { ProductCard } from "./ProductCard"
+import { ProductCard, productGridNarrow } from "./ProductCard"
 
 /**
  * Search and refinement (019 US4, rebuilt by 025 US1).
@@ -308,7 +308,7 @@ export function SearchExperience() {
           }
         />
       ) : (
-        <div className="mt-6 grid grid-cols-2 items-stretch gap-x-4 gap-y-9 sm:grid-cols-3 sm:gap-x-6">
+        <div className={`mt-6 ${productGridNarrow}`}>
           {items.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
