@@ -10,4 +10,7 @@ func Register(v1 *gin.RouterGroup, h *Handler) {
 	g.GET("/categories", h.getCategories)
 	g.GET("/products", h.getProducts)        // ?ids= now; full search/browse form in US4
 	g.GET("/products/:id", h.getProductByID) // product detail (US2)
+	// 025 US1: "do we deliver to you?" answered BEFORE a cart exists. Public and cacheable like the
+	// rest — it discloses nothing about the caller and nothing about where Effy fulfils from.
+	g.GET("/serviceability", h.getServiceability)
 }

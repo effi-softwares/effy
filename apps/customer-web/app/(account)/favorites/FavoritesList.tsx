@@ -26,7 +26,7 @@ export function FavoritesList({ initial }: { initial: FavoriteDTO[] }) {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-12 text-center">
+      <div className="rounded-2xl border border-dashed p-12 text-center">
         <p className="text-muted-foreground">You haven’t saved anything yet.</p>
         <Link href="/" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
           Browse the store
@@ -36,10 +36,10 @@ export function FavoritesList({ initial }: { initial: FavoriteDTO[] }) {
   }
 
   return (
-    <ul className="divide-y rounded-lg border">
+    <ul className="divide-y rounded-2xl border">
       {items.map((f) => (
         <li key={f.id} className="flex gap-4 p-4">
-          <div className="relative size-16 shrink-0 overflow-hidden rounded-md border bg-muted">
+          <div className="relative size-16 shrink-0 overflow-hidden rounded-full border bg-muted">
             {f.imageUrl ? (
               <Image src={f.imageUrl} alt={f.name} fill unoptimized sizes="4rem" className="object-cover" />
             ) : (

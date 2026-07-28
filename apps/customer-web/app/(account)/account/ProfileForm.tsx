@@ -38,7 +38,7 @@ export function ProfileForm({
   const dirty = given !== (givenName ?? "") || family !== (familyName ?? "")
 
   return (
-    <section aria-labelledby="profile-heading" className="rounded-lg border p-6">
+    <section aria-labelledby="profile-heading" className="rounded-2xl border p-6">
       <h2 id="profile-heading" className="text-lg font-medium">
         Your name
       </h2>
@@ -69,7 +69,7 @@ export function ProfileForm({
               maxLength={60}
               autoComplete="given-name"
               data-testid="given-name"
-              className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
           <div className="space-y-2">
@@ -84,7 +84,7 @@ export function ProfileForm({
               maxLength={60}
               autoComplete="family-name"
               data-testid="family-name"
-              className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </div>
@@ -99,7 +99,7 @@ export function ProfileForm({
             disabled={pending || !dirty}
             aria-busy={pending}
             data-testid="save-profile"
-            className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
             {pending ? "Saving…" : "Save"}
           </button>

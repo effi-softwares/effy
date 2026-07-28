@@ -17,10 +17,10 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.effyshopping.shop.mobile.core.ui.EffyIdentityRow
-import com.effyshopping.shop.mobile.core.ui.EffyPage
-import com.effyshopping.shop.mobile.core.ui.EffyPageTitle
-import com.effyshopping.shop.mobile.core.ui.EffySection
+import com.effyshopping.mobile.kit.ui.EffyIdentityRow
+import com.effyshopping.mobile.kit.ui.EffyPage
+import com.effyshopping.mobile.kit.ui.EffyPageTitle
+import com.effyshopping.mobile.kit.ui.EffySection
 import com.effyshopping.shop.mobile.core.theme.AppearanceMode
 import com.effyshopping.shop.mobile.features.shop.domain.Operator
 import com.effyshopping.shop.mobile.features.shop.domain.OperatorStatus

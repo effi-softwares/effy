@@ -39,9 +39,12 @@ export async function UserIsland() {
     // The guest path. Note what does NOT happen here: no API call, no SDK, no client JS.
     // A visitor who never signs in pays nothing for the existence of the account system.
     return (
+      // A bordered OUTLINE button, not a ghost link. Sign-in is the one account action a guest can
+      // take, and next to a cart icon a bare text link reads as a label rather than a control — the
+      // border is what makes it look pressable.
       <Link
         href="/sign-in"
-        className="text-sm font-medium text-foreground hover:text-primary"
+        className="inline-flex h-9 items-center justify-center rounded-md border bg-transparent px-4 text-sm font-medium hover:bg-accent hover:text-accent-foreground"
         data-testid="sign-in-link"
       >
         Sign in
@@ -87,7 +90,7 @@ export async function UserIsland() {
 export function UserIslandSkeleton() {
   return (
     <div
-      className="h-5 w-16 animate-pulse rounded bg-muted"
+      className="h-9 w-[5.5rem] animate-pulse rounded-md bg-muted"
       aria-hidden="true"
       data-testid="user-island-skeleton"
     />

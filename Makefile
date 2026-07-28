@@ -306,17 +306,19 @@ cw-gates: ## customer-web: the two build-failing gates (Amplify quarantine + gue
 	@pnpm --filter @effy/customer-web depcruise
 	@pnpm --filter @effy/customer-web size
 
-cw-size: ## customer-web bundle budget — guest routes MUST stay <= 120 KB First Load JS
+cw-size: ## customer-web bundle budget — every guest route MUST stay <= 176 KB gzipped first-load JS
 	@pnpm --filter @effy/customer-web size
 
 cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)
 	@pnpm --filter @effy/customer-web depcruise
 
 # --- customer-mobile (013). Principle-II codegen (committed + drift-guarded) + the build-failing guard.
-cm-contract-gen: ## customer-mobile: regenerate the Kotlin DTOs from @effy/shared-types (013 D15)
+cm-contract-gen: ## customer-mobile: regenerate the Kotlin DTOs (auth + commerce) from @effy/shared-types (013 D15)
 	@pnpm --filter @effy/shared-types contract:gen
+	@pnpm --filter @effy/shared-types commerce-contract:gen
 cm-contract-check: ## customer-mobile: FAIL if the committed Kotlin DTOs drift from the TS source (Principle II)
 	@pnpm --filter @effy/shared-types contract:check
+	@pnpm --filter @effy/shared-types commerce-contract:check
 cm-tokens-gen: ## customer-mobile: regenerate the Compose theme from tokens.css (013 D16)
 	@pnpm --filter @effy/design-system tokens:gen
 cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts from tokens.css (Principle II)

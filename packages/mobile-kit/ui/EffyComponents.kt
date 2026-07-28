@@ -1,4 +1,13 @@
-package com.effyshopping.shop.mobile.core.ui
+// Shared mobile UI vocabulary (018, generalised by 025).
+//
+// These were built for shop-mobile and lived inside it, so customer-mobile inherited none of them —
+// which is why the customer app still had no safe-area page container, no consistent field, and no
+// standard loading/placeholder treatment. Moving them here rather than copying them is Principle II:
+// one implementation, both surfaces, and a fix lands everywhere at once.
+//
+// Nothing here is audience-specific. Anything that IS audience-specific (routes, session shape,
+// platform drivers) stays in its app.
+package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,7 +49,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import com.effyshopping.shop.mobile.design.EffySpacing
+import com.effyshopping.mobile.design.EffySpacing
 
 @Composable
 fun EffyPage(

@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
+import { Display } from "@/components/storefront/kit"
+
 import type { AddressDTO } from "@effy/shared-types"
 
 import { edgeApi } from "@/lib/api/edge"
@@ -21,8 +23,8 @@ export const metadata: Metadata = {
  */
 export default function CheckoutPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Checkout</h1>
+    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+      <Display as="h1" size="section">Checkout</Display>
       <Suspense fallback={<CheckoutSkeleton />}>
         <CheckoutGate />
       </Suspense>

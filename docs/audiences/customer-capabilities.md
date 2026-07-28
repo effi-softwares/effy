@@ -303,3 +303,59 @@ string `customer-mobile`, now **"Effy"**.
 
 ⚠ **Not device-verified yet** — SC-002/003/004/005/007 need physical iOS + Android hardware and a
 side-by-side observer test. Everything machine-checkable is green.
+
+---
+
+## §025 — Customer Experience Refresh (Web + Mobile)
+
+**Parity: ACHIEVED.** Every capability below exists on both customer surfaces, expressed natively for
+each. Rows marked `n/a` are **not gaps** — the requirement is that the shopper's need is met on each
+surface, and a sticky bar solves a problem that does not exist at desktop widths.
+
+| Capability | customer-web | customer-mobile |
+|---|---|---|
+| Category browse | ✅ `/browse` category index | ✅ Browse destination (5th primary tab) |
+| Persistent search entry | ✅ header, both breakpoints | ✅ Search destination + app bar |
+| Delivery location, set before a cart exists | ✅ header island + `<dialog>` | ✅ Home delivery row + dialog |
+| Up-front serviceability answer | ✅ | ✅ |
+| Sort control | ✅ 4 orderings, server-echoed | ✅ 4 orderings, server-echoed |
+| Result count | ✅ live region | ✅ live region |
+| Removable refinement chips + clear-all | ✅ | ✅ |
+| Promotional carousel with imagery | ✅ CSS scroll-snap, 0 JS | ✅ `HorizontalPager` + dots |
+| Fluid product tiles | ✅ fills grid; rail owns its width | ✅ adaptive grid |
+| Interactive gallery | ✅ radio + scroll-snap, 0 JS | ✅ swipe + position dots |
+| Delivery expectation beside price | ✅ | ✅ |
+| Quantity adjacent to add + line total | ✅ | ✅ (in the buy bar) |
+| Sticky buy affordance | n/a — no scroll problem at desktop widths | ✅ bottom bar |
+| Related products | ✅ own Suspense boundary | ✅ lazy rail |
+| Unavailability at the point of action | ✅ | ✅ |
+| Add-to-cart acknowledgement | ✅ toast + "View cart" | ✅ snackbar |
+| Cart review without navigating | ✅ mini-cart `<dialog>` | ✅ Cart destination |
+| Undo on remove | ✅ toast action | ✅ snackbar action |
+| Sticky order summary | ✅ `lg` two-column grid | n/a — single column |
+| Product images in cart lines | ✅ | ✅ |
+| Content-shaped skeletons | ✅ | ✅ Home / Browse / Search |
+| Pull-to-refresh | n/a — browser reload | ✅ Home / Browse |
+| Real iconography | ✅ lucide | ✅ Material Symbols, drift-checked |
+| Standard app bars + back | n/a — browser chrome | ✅ shared `EffyTopBar` |
+| Platform typeface (Nunito Sans) | ✅ | ✅ **new — generated per app** |
+| Empty states route back to catalogue | ✅ | ✅ |
+
+**Source of truth:** `packages/design-system` (tokens + type scale + mobile assets) and
+`packages/mobile-kit` (shared components). All derived artifacts are **generated and committed**;
+`tokens:check` fails on drift and names the stale surface.
+
+### ⚠ Known partial
+
+**Mobile delivery-context persistence (FR-013).** Web persists across visits via `localStorage`.
+customer-mobile has no key-value persistence and `multiplatform-settings` is not one of its
+dependencies — adding it would breach this feature's no-new-dependency constraint. `DeliveryContextStore`
+ships with an injected `persist` seam (shop-mobile's `AppearancePreferenceStore` pattern), so the
+location holds **within a session** but not across restarts. Wiring durability is a constructor
+argument, not a rewrite.
+
+### ⚠ Not device-verified
+
+SC-005 (the 5-viewport × 2-appearance × 2-surface matrix), SC-002/SC-003/SC-013 (moderated testing),
+and the live guest-journey walk are **operator-run** and outstanding. Everything machine-checkable is
+green.

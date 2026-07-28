@@ -37,7 +37,7 @@ export default function ShopError({
       </p>
       <button
         onClick={reset}
-        className="mt-8 inline-flex h-11 items-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
+        className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
       >
         Try again
       </button>

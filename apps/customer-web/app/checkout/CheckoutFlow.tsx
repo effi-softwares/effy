@@ -266,7 +266,11 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   }
 
   return (
-    <div className="mt-6 space-y-6">
+    // 025 FR-042: two columns above `lg`, with the summary STICKY. The amount payable used to scroll
+    // away from the form it belongs to, so a shopper filling in an address could not see what they
+    // were about to be charged — a well-documented cause of checkout abandonment.
+    <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+    <div className="space-y-6">
       <section>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Delivery address</h2>
         <AddressPicker
@@ -300,10 +304,27 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         type="button"
         onClick={continueToDelivery}
         disabled={busy || !canContinue}
-        className="flex h-12 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        className="flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
       >
         Continue to delivery
       </button>
+    </div>
+
+    {/* `position: sticky` in a grid — no scroll listener, no JavaScript, and it collapses to normal
+        flow below `lg` where there is no second column and nothing to stick to. */}
+    <aside className="lg:sticky lg:top-24">
+      <h2 className="text-sm font-medium text-muted-foreground">Order summary</h2>
+      <dl className="mt-3 space-y-2 rounded-2xl border p-4 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Items</dt>
+          <dd className="font-medium">{formatMoney(estimate.itemSubtotal, currency)}</dd>
+        </div>
+        <div className="flex justify-between">
+          <dt className="text-muted-foreground">Delivery</dt>
+          <dd className="text-muted-foreground">Next step</dd>
+        </div>
+      </dl>
+    </aside>
     </div>
   )
 }

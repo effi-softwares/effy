@@ -12,6 +12,7 @@ import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
 
 import { ClearCart } from "./ClearCart"
+import { Display } from "@/components/storefront/kit"
 
 export const metadata: Metadata = {
   title: "Order confirmation",
@@ -63,7 +64,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
 
   if (!dto) {
     return (
-      <div className="rounded-lg border border-dashed p-12 text-center">
+      <div className="rounded-2xl border border-dashed p-12 text-center">
         <h1 className="text-lg font-medium">We’re confirming your payment</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           This can take a moment. Your order will appear in your order history shortly.
@@ -83,13 +84,13 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
 
       <div className="mb-6 text-center">
         <p className="text-sm font-medium text-primary">{paid ? "Payment received" : "Order received"}</p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Thank you</h1>
+        <Display as="h1" size="section" className="mt-1">Thank you</Display>
         <p className="mt-1 text-sm text-muted-foreground">
           Order <span className="font-medium text-foreground">{dto.orderNumber}</span>
         </p>
       </div>
 
-      <section className="rounded-lg border">
+      <section className="rounded-2xl border">
         <ul className="divide-y">
           {dto.items.map((item) => (
             <li key={item.productId} className="flex justify-between gap-4 p-4 text-sm">
@@ -118,13 +119,13 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
       <div className="mt-8 flex gap-3">
         <Link
           href="/orders"
-          className="inline-flex h-11 items-center rounded-md border px-6 text-sm font-medium hover:bg-accent"
+          className="inline-flex h-11 items-center rounded-full border px-6 text-sm font-medium hover:bg-accent"
         >
           Your orders
         </Link>
         <Link
           href="/"
-          className="inline-flex h-11 items-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
+          className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
         >
           Keep shopping
         </Link>

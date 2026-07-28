@@ -939,7 +939,7 @@
     },
     "ProductSearchResultDTO": {
       "additionalProperties": false,
-      "description": "A page of search results with a keyset cursor for infinite scroll.",
+      "description": "A page of search results with a keyset cursor for infinite scroll.\n\n⚠ `cursor` is OPAQUE and sort-tagged. Do not construct one, and do not carry one across a sort change — the server rejects a cursor issued under a different ordering with 400 `cursor_sort_mismatch`, because honouring it would silently drop and repeat products (FR-016b).",
       "properties": {
         "items": {
           "items": {
@@ -952,13 +952,33 @@
             "string",
             "null"
           ]
+        },
+        "sort": {
+          "$ref": "#/definitions/ProductSort",
+          "description": "The ordering ACTUALLY applied — may differ from the request. Render the sort control from this, not from what was asked for, or the control will misdescribe the list beneath it."
+        },
+        "total": {
+          "description": "Total products matching the refinements, ignoring pagination (025 FR-016a).",
+          "type": "number"
         }
       },
       "required": [
         "items",
-        "nextCursor"
+        "nextCursor",
+        "total",
+        "sort"
       ],
       "type": "object"
+    },
+    "ProductSort": {
+      "description": "The orderings a result set can be presented in (025 FR-016).\n\n`relevance` is only meaningful alongside a text query; without one the server falls back to `newest` and reports what it actually did in `ProductSearchResultDTO.sort`.",
+      "enum": [
+        "newest",
+        "price_asc",
+        "price_desc",
+        "relevance"
+      ],
+      "type": "string"
     },
     "QuotePackageDTO": {
       "additionalProperties": false,
@@ -1048,10 +1068,35 @@
       ],
       "type": "object"
     },
+    "ServiceabilityDTO": {
+      "additionalProperties": false,
+      "description": "Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).\n\n⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart contents, so anything shown here is an estimate checkout would revise), and no zone id or name (FR-006 — zone names are geographic and would disclose where Effy fulfils from).",
+      "properties": {
+        "postcode": {
+          "description": "The normalised postcode the answer applies to.",
+          "type": "string"
+        },
+        "serviced": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "postcode",
+        "serviced"
+      ],
+      "type": "object"
+    },
     "StorefrontCategoryDTO": {
       "additionalProperties": false,
       "description": "A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the admin/shop `CategoryDTO` in catalog.ts — this carries no internal id/status/order.",
       "properties": {
+        "imageUrl": {
+          "description": "Representative image, DERIVED from a product in the category — categories store no imagery, and 025 FR-001 forbids adding a column for it. Null → the client renders a brand tile, never a broken frame. The choice is deterministic so a category does not change its face between page loads.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "key": {
           "type": "string"
         },
@@ -1063,12 +1108,18 @@
             "string",
             "null"
           ]
+        },
+        "productCount": {
+          "description": "Active products in this category (025). Drives \"N items\" and the empty-category case.",
+          "type": "number"
         }
       },
       "required": [
         "key",
         "name",
-        "parentKey"
+        "parentKey",
+        "productCount",
+        "imageUrl"
       ],
       "type": "object"
     },
@@ -1177,6 +1228,10 @@
             "null"
           ]
         },
+        "categoryKey": {
+          "description": "The primary category's key — drives the related-products rail (025 FR-026). `categoryPath` carries display NAMES, which cannot be used to query.",
+          "type": "string"
+        },
         "categoryPath": {
           "items": {
             "type": "string"
@@ -1225,6 +1280,7 @@
         "available",
         "badges",
         "brand",
+        "categoryKey",
         "categoryPath",
         "compareAtAmount",
         "currency",
@@ -1407,6 +1463,9 @@
     "productDetail": {
       "$ref": "#/definitions/StorefrontProductDetailDTO"
     },
+    "productSort": {
+      "$ref": "#/definitions/ProductSort"
+    },
     "quotePackage": {
       "$ref": "#/definitions/QuotePackageDTO"
     },
@@ -1421,6 +1480,9 @@
     },
     "searchResult": {
       "$ref": "#/definitions/ProductSearchResultDTO"
+    },
+    "serviceability": {
+      "$ref": "#/definitions/ServiceabilityDTO"
     },
     "updateAddress": {
       "$ref": "#/definitions/UpdateAddressRequest"
@@ -1439,6 +1501,8 @@
     "attributeGroup",
     "category",
     "searchResult",
+    "productSort",
+    "serviceability",
     "cart",
     "cartLine",
     "cartNotice",

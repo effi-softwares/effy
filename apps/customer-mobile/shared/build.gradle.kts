@@ -93,6 +93,14 @@ kotlin {
     }
 }
 
+// Compose resources package (025). Pinned explicitly rather than left to the default so the
+// GENERATED typography (packages/design-system/compose/EffyTypography.kt) can import the font
+// accessors by a stable name. shop-mobile has had this since 018; customer-mobile did not, which is
+// part of why it never rendered the platform typeface.
+compose.resources {
+    packageOfResClass = "com.effyshopping.customer.mobile.resources"
+}
+
 // ── BuildKonfig — compile-time config from the root project's resolved contract (013 D12/D13/D14) ───
 //
 // The root build.gradle.kts already FAILED THE BUILD if any key was missing (FR-041) and exposed the

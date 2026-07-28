@@ -4,8 +4,8 @@ package storefront
 
 import (
 	"context"
-	"encoding/base64"
-	"strings"
+	"errors"
+	"strconv"
 	"time"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
@@ -53,11 +53,15 @@ type Home struct {
 	Rails   []Rail
 }
 
-// Category is a browse/filter category.
+// Category is a browse/filter category. ProductCount and ImageURL (025) let browse render a real
+// category grid; ImageURL is derived from a product in the category, and is empty when none has media —
+// the client renders a brand tile rather than a broken frame.
 type Category struct {
-	Key       string
-	Name      string
-	ParentKey *string
+	Key          string
+	Name         string
+	ParentKey    *string
+	ProductCount int
+	ImageURL     string
 }
 
 // Media is a product image (presigned) with alt text.
@@ -84,6 +88,9 @@ type ProductDetail struct {
 	Gallery         []Media
 	Attributes      []AttributeGroup
 	CategoryPath    []string
+	// CategoryKey is the primary category's key — it drives the related-products rail (025 FR-026).
+	// CategoryPath carries display NAMES, which cannot be used to query.
+	CategoryKey string
 }
 
 // Reader is the repository seam (fakes implement it in tests).
@@ -98,7 +105,13 @@ type Reader interface {
 	ProductMedia(ctx context.Context, id string) ([]mediaRow, error)
 	ProductAttributes(ctx context.Context, id string) ([]attrRow, error)
 	CategoryPath(ctx context.Context, categoryID string) ([]string, error)
-	SearchCards(ctx context.Context, p SearchParams) ([]cardRow, error)
+	SearchCards(ctx context.Context, p SearchParams) ([]searchRow, error)
+	// CountCards returns the total matching the same filters, ignoring ordering and pagination.
+	CountCards(ctx context.Context, p SearchParams) (int, error)
+	// Serviceable answers whether a (already-normalised) postcode is in a delivery zone. It resolves
+	// through the SAME predicate checkout uses, so the storefront's up-front answer and checkout's
+	// cannot disagree (025 FR-014b).
+	Serviceable(ctx context.Context, postcode string) (bool, error)
 }
 
 type Service struct {
@@ -214,6 +227,7 @@ func (s *Service) ProductDetail(ctx context.Context, id string) (ProductDetail, 
 		Gallery:         gallery,
 		Attributes:      groupAttributes(attrRows),
 		CategoryPath:    path,
+		CategoryKey:     row.CategoryKey,
 	}, true, nil
 }
 
@@ -298,12 +312,30 @@ func (s *Service) Categories(ctx context.Context) ([]Category, error) {
 	}
 	out := make([]Category, 0, len(rows))
 	for _, c := range rows {
-		out = append(out, Category{Key: c.Key, Name: c.Name, ParentKey: c.ParentKey})
+		var imageURL string
+		if c.ImageKey != nil {
+			// A presign failure drops the image rather than failing browse — a missing picture must
+			// never blank the category grid.
+			if url, err := s.presign.PresignGet(ctx, *c.ImageKey); err == nil {
+				imageURL = url
+			}
+		}
+		out = append(out, Category{
+			Key: c.Key, Name: c.Name, ParentKey: c.ParentKey,
+			ProductCount: c.ProductCount, ImageURL: imageURL,
+		})
 	}
 	return out, nil
 }
 
 const searchLimit = 24
+
+// ErrCursorSortMismatch means the caller paged with a cursor minted under a different ordering.
+//
+// It is refused rather than reinterpreted (FR-016b). Honouring it would compare, say, a price against
+// a timestamp: no error, just a result set with products silently dropped and others repeated. The
+// refusal costs the client nothing — changing sort restarts at the first page anyway.
+var ErrCursorSortMismatch = errors.New("storefront: cursor was issued for a different sort")
 
 // SearchQuery is the customer-facing search/browse request (facets are query params — FR-017).
 type SearchQuery struct {
@@ -313,18 +345,26 @@ type SearchQuery struct {
 	MaxPrice    string
 	SaleOnly    bool
 	Attributes  map[string]string
+	Sort        ProductSort
 	Cursor      string
 	Limit       int
 }
 
-// SearchResult is a page of results + the keyset cursor for the next page (nil when exhausted).
+// SearchResult is a page of results, the keyset cursor for the next page (nil when exhausted), the
+// total matching the filters, and the ordering ACTUALLY applied.
 type SearchResult struct {
 	Cards      []ProductCard
 	NextCursor *string
+	Total      int
+	// Sort may differ from the request: `relevance` without a query has no meaning, so the service
+	// falls back to `newest` and reports it. A client that assumed its request was honoured would
+	// render a sort control that lies about the list beneath it.
+	Sort ProductSort
 }
 
-// Search runs the filtered, keyset-paginated product search. It over-reads by one to know whether a
-// next page exists, then mints the cursor from the last returned row (research R12).
+// Search runs the filtered, ordered, keyset-paginated product search. It over-reads by one to know
+// whether a next page exists, then mints the cursor from the last returned row (research R12), and
+// counts the full match set concurrently.
 func (s *Service) Search(ctx context.Context, q SearchQuery) (SearchResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
@@ -333,51 +373,88 @@ func (s *Service) Search(ctx context.Context, q SearchQuery) (SearchResult, erro
 	if limit <= 0 || limit > 50 {
 		limit = searchLimit
 	}
+
+	sort := q.Sort
+	if sort == "" {
+		sort = SortNewest
+	}
+	// Relevance without a query has nothing to rank by. Fall back and report it, rather than
+	// ordering by a similarity score that is uniformly zero and calling it "best match".
+	if sort == SortRelevance && q.Q == "" {
+		sort = SortNewest
+	}
+
 	params := SearchParams{
 		Q: q.Q, CategoryKey: q.CategoryKey, MinPrice: q.MinPrice, MaxPrice: q.MaxPrice,
-		SaleOnly: q.SaleOnly, Attributes: q.Attributes, Limit: limit + 1,
+		SaleOnly: q.SaleOnly, Attributes: q.Attributes, Sort: sort, Limit: limit + 1,
 	}
 	if q.Cursor != "" {
-		if t, id, ok := decodeCursor(q.Cursor); ok {
-			params.HasCursor = true
-			params.CursorTime = t
-			params.CursorID = id
+		cur, ok := DecodeCursor(q.Cursor)
+		if !ok {
+			// An unreadable cursor is treated as "start from the beginning" — it is an ephemeral
+			// page position, and a stale one costs the shopper nothing but a scroll.
+			cur = Cursor{}
+		} else if cur.Sort != sort {
+			return SearchResult{}, ErrCursorSortMismatch
+		} else {
+			params.Cursor = &cur
 		}
 	}
 
+	// The page and the count are independent reads over the same filters, so they run concurrently —
+	// the total must not cost the shopper a second round trip. A plain goroutine rather than
+	// errgroup: golang.org/x/sync is only an indirect dependency here, and this needs six lines.
+	type countResult struct {
+		n   int
+		err error
+	}
+	counted := make(chan countResult, 1)
+	go func() {
+		n, err := s.repo.CountCards(ctx, params)
+		counted <- countResult{n: n, err: err}
+	}()
+
 	rows, err := s.repo.SearchCards(ctx, params)
+	count := <-counted
 	if err != nil {
 		return SearchResult{}, err
 	}
+	if count.err != nil {
+		return SearchResult{}, count.err
+	}
+	total := count.n
 
 	var nextCursor *string
 	if len(rows) > limit {
 		last := rows[limit-1]
 		rows = rows[:limit]
-		c := encodeCursor(last.CreatedAt, last.ID)
+		c := Cursor{Sort: sort, Key: cursorKeyFor(sort, last), ID: last.ID}.Encode()
 		nextCursor = &c
 	}
-	return SearchResult{Cards: s.toCards(ctx, rows), NextCursor: nextCursor}, nil
+
+	cards := make([]cardRow, 0, len(rows))
+	for _, r := range rows {
+		cards = append(cards, r.card())
+	}
+	return SearchResult{
+		Cards:      s.toCards(ctx, cards),
+		NextCursor: nextCursor,
+		Total:      total,
+		Sort:       sort,
+	}, nil
 }
 
-func encodeCursor(t time.Time, id string) string {
-	return base64.RawURLEncoding.EncodeToString([]byte(t.UTC().Format(time.RFC3339Nano) + "|" + id))
-}
-
-func decodeCursor(s string) (time.Time, string, bool) {
-	raw, err := base64.RawURLEncoding.DecodeString(s)
-	if err != nil {
-		return time.Time{}, "", false
+// cursorKeyFor extracts the sort column's value from a row, in the exact text form the next page's
+// keyset predicate will bind. Money stays a string end to end — it must never round-trip a float.
+func cursorKeyFor(sort ProductSort, row searchRow) string {
+	switch sort {
+	case SortPriceAsc, SortPriceDesc:
+		return row.PriceAmount
+	case SortRelevance:
+		return strconv.FormatFloat(float64(row.Score), 'f', -1, 32)
+	default: // SortNewest
+		return row.CreatedAt.UTC().Format(time.RFC3339Nano)
 	}
-	before, after, found := strings.Cut(string(raw), "|")
-	if !found {
-		return time.Time{}, "", false
-	}
-	t, err := time.Parse(time.RFC3339Nano, before)
-	if err != nil {
-		return time.Time{}, "", false
-	}
-	return t, after, true
 }
 
 // CardsByIDs hydrates a set of product ids (recently-viewed), preserving the caller's id order.

@@ -17,7 +17,7 @@
  */
 export function SessionCard() {
   return (
-    <section aria-labelledby="sessions-heading" className="rounded-lg border p-6">
+    <section aria-labelledby="sessions-heading" className="rounded-2xl border p-6">
       <h2 id="sessions-heading" className="text-lg font-medium">
         Sessions
       </h2>
@@ -27,7 +27,7 @@ export function SessionCard() {
           <button
             type="submit"
             data-testid="sign-out"
-            className="h-11 rounded-md border px-6 text-sm font-medium hover:bg-accent"
+            className="h-11 rounded-full border px-6 text-sm font-medium hover:bg-accent"
           >
             Sign out
           </button>
@@ -39,7 +39,7 @@ export function SessionCard() {
           <button
             type="submit"
             data-testid="sign-out-everywhere"
-            className="h-11 rounded-md px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
+            className="h-11 rounded-full px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Sign out on all devices
           </button>

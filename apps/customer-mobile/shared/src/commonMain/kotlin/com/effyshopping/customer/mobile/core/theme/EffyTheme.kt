@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import com.effyshopping.customer.mobile.design.EffyDarkColorScheme
 import com.effyshopping.customer.mobile.design.EffyLightColorScheme
+import com.effyshopping.customer.mobile.design.effyTypography
 
 /**
  * The app's theme (constitution Principle V; 013 FR-004/FR-005).
@@ -30,6 +31,10 @@ fun EffyTheme(
     val darkTheme = mode.resolveDark(isSystemInDarkTheme())
     MaterialTheme(
         colorScheme = if (darkTheme) EffyDarkColorScheme else EffyLightColorScheme,
+        // 025 FR-038: Nunito Sans, the platform typeface. Until now this app fell back to the
+        // platform default while customer-web rendered Nunito Sans — the same brand reading
+        // differently depending on the device (SC-008).
+        typography = effyTypography(),
         content = content,
     )
 }

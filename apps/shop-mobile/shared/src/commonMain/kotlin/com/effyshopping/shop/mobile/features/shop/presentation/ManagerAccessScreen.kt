@@ -7,11 +7,11 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.effyshopping.shop.mobile.core.ui.EffyInlineError
-import com.effyshopping.shop.mobile.core.ui.EffyLoading
-import com.effyshopping.shop.mobile.core.ui.EffyPage
-import com.effyshopping.shop.mobile.core.ui.EffyPageTitle
-import com.effyshopping.shop.mobile.core.ui.EffyTextAction
+import com.effyshopping.mobile.kit.ui.EffyInlineError
+import com.effyshopping.mobile.kit.ui.EffyLoading
+import com.effyshopping.mobile.kit.ui.EffyPage
+import com.effyshopping.mobile.kit.ui.EffyPageTitle
+import com.effyshopping.mobile.kit.ui.EffyTextAction
 import com.effyshopping.shop.mobile.features.shop.domain.CheckManagerAccess
 import com.effyshopping.shop.mobile.features.shop.domain.ManagerAccess
 import kotlinx.coroutines.flow.MutableStateFlow

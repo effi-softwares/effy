@@ -29,6 +29,9 @@ import com.effyshopping.customer.mobile.features.account.presentation.AccountRou
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
+import com.effyshopping.customer.mobile.features.catalog.presentation.BrowseScreen
+import com.effyshopping.customer.mobile.features.delivery.DeliveryBar
+import com.effyshopping.mobile.kit.ui.EffyTopBar
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
@@ -36,13 +39,42 @@ import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutS
 import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptScreen
 import com.effyshopping.customer.mobile.features.favorites.presentation.FavoritesScreen
-import com.effyshopping.mobile.kit.shell.AdaptiveNavShell
-import com.effyshopping.mobile.kit.shell.NavDestination
-import com.effyshopping.mobile.kit.shell.NavGlyph
+import com.effyshopping.mobile.kit.shell.ResponsiveDestination
+import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
 import com.effyshopping.mobile.kit.ui.AdaptiveContent
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_account_outlined
+import com.effyshopping.customer.mobile.resources.ic_account_selected
+import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
+import com.effyshopping.customer.mobile.resources.ic_catalog_selected
+import com.effyshopping.customer.mobile.resources.ic_cart_outlined
+import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
+import com.effyshopping.customer.mobile.resources.ic_home_outlined
+import com.effyshopping.customer.mobile.resources.ic_home_selected
+import com.effyshopping.customer.mobile.resources.ic_orders_outlined
+import com.effyshopping.customer.mobile.resources.ic_orders_selected
+import com.effyshopping.customer.mobile.resources.ic_search_outlined
+import com.effyshopping.customer.mobile.resources.ic_search_selected
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
-/** The customer app's primary tabs (015). Home/Search are PUBLIC; Orders/Account are AUTHENTICATED. */
-enum class CustomerTab(val label: String) { HOME("Home"), SEARCH("Search"), ORDERS("Orders"), ACCOUNT("Account") }
+/**
+ * The customer app's primary tabs (015, extended by 025).
+ *
+ * Home/Browse/Search are PUBLIC; Orders/Account are AUTHENTICATED.
+ *
+ * ⚠ BROWSE was added by 025 FR-010 so category browsing is reachable from primary navigation, at
+ * parity with the web storefront's `/browse`. Five destinations is within the platform norm for a
+ * consumer store, and the alternative — burying categories inside Home — is the arrangement that let
+ * the web's browse entry rot into a placeholder nobody looked at.
+ */
+enum class CustomerTab(val label: String) {
+    HOME("Home"), BROWSE("Browse"), SEARCH("Search"), ORDERS("Orders"), ACCOUNT("Account")
+}
 
 /**
  * The guest-first customer shell (015 US1/US2). The tab graph renders for GUESTS — Home and Search need no
@@ -51,7 +83,7 @@ enum class CustomerTab(val label: String) { HOME("Home"), SEARCH("Search"), ORDE
  *
  * The Account tab hosts the existing auth + account sub-graph, driven by the app's `AppNavigator` (its
  * per-tab back stack) — the substantial 013 auth/account screens are reused unchanged; the shared
- * [AdaptiveNavShell] + top-level session gate are layered around them.
+ * [ResponsiveNavigation] + top-level session gate are layered around them.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -64,6 +96,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     // "checkout" | "receipt:<orderId>".
     // US5: the Orders tab's list↔detail selection.
     var ordersDetailId by rememberSaveable { mutableStateOf<String?>(null) }
+    // The category a Browse tap handed to Search. Saveable so it survives rotation/process death.
+    var pendingCategoryKey by rememberSaveable { mutableStateOf<String?>(null) }
     var homeStackRaw by rememberSaveable { mutableStateOf("home") }
     val homeStack = homeStackRaw.split('\u0001')
     val homeTop = homeStack.last()
@@ -98,11 +132,11 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     }
 
     val destinations = CustomerTab.entries.map { tab ->
-        NavDestination<CustomerTab>(tab = tab, label = tab.label, icon = { sel -> NavGlyph(tab.label, sel) })
+        ResponsiveDestination(tab = tab, label = tab.label, icon = { sel -> CustomerDestinationIcon(tab, sel) })
     }
 
     val stateHolder = rememberSaveableStateHolder()
-    AdaptiveNavShell(
+    ResponsiveNavigation(
         destinations = destinations,
         selectedTab = currentTab,
         onSelectTab = { currentTabName = it.name },
@@ -133,12 +167,21 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                                 session = session,
                                 onRequireSignIn = requireSignIn,
                                 onBack = { popHome() },
+                                // The related-products rail navigates within the Home stack, so Back
+                                // walks the chain of products the shopper actually followed.
+                                onProductClick = { pushHome("product:$it") },
                             )
 
                         homeTop == "cart" ->
-                            CartScreen(container, onCheckout = {
-                                if (signedIn) pushHome("checkout") else requireSignIn()
-                            })
+                            CartScreen(
+                                container = container,
+                                onCheckout = { if (signedIn) pushHome("checkout") else requireSignIn() },
+                                // FR-044: an empty cart routes back into the catalogue.
+                                onBrowse = {
+                                    goHome()
+                                    currentTabName = CustomerTab.BROWSE.name
+                                },
+                            )
 
                         homeTop == "checkout" ->
                             CheckoutScreen(
@@ -153,7 +196,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         else -> HomeScreen(container, onProductClick = { pushHome("product:$it") })
                     }
                 }
-                CustomerTab.SEARCH -> SearchScreen(container, onProductClick = {
+                CustomerTab.BROWSE -> BrowseScreen(container, onCategoryClick = { key ->
+                    // A category IS a refined result set — the same model the web uses, where a
+                    // category tile links to /search?category=…. Search owns refinement, so Browse
+                    // hands off rather than growing a second results implementation.
+                    pendingCategoryKey = key
+                    currentTabName = CustomerTab.SEARCH.name
+                })
+                CustomerTab.SEARCH -> SearchScreen(container, categoryKey = pendingCategoryKey, onProductClick = {
                     // Open the product in the Home tab's stack (shared detail view).
                     pushHome("product:$it")
                     currentTabName = CustomerTab.HOME.name
@@ -178,7 +228,40 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     }
 }
 
-/** Wraps a Home-stack screen with a top cart affordance (the mobile analogue of the web header badge). */
+/**
+ * The primary-navigation icon for a tab, filled when selected.
+ *
+ * ⚠ This replaced the shared kit's letter-placeholder icon, which rendered the FIRST LETTER of each
+ * label — "H", "S", "O", "A". Nothing else in the app signalled "unfinished" as loudly. That component
+ * is now deleted outright so no future app can inherit it. Icons come from the shared Material Symbols
+ * set (packages/design-system/mobile-assets), synced and drift-checked, so both mobile surfaces draw
+ * from one authored source (FR-029).
+ *
+ * contentDescription is null by design: the navigation labels the whole destination, so naming the
+ * icon too would make a screen reader announce every tab twice.
+ */
+@Composable
+private fun CustomerDestinationIcon(tab: CustomerTab, selected: Boolean) {
+    val resource: DrawableResource = when (tab) {
+        CustomerTab.HOME -> if (selected) Res.drawable.ic_home_selected else Res.drawable.ic_home_outlined
+        CustomerTab.BROWSE -> if (selected) Res.drawable.ic_catalog_selected else Res.drawable.ic_catalog_outlined
+        CustomerTab.SEARCH -> if (selected) Res.drawable.ic_search_selected else Res.drawable.ic_search_outlined
+        CustomerTab.ORDERS -> if (selected) Res.drawable.ic_orders_selected else Res.drawable.ic_orders_outlined
+        CustomerTab.ACCOUNT -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined
+    }
+    Icon(painterResource(resource), contentDescription = null)
+}
+
+/**
+ * The Home destination's chrome (025 FR-030/FR-012).
+ *
+ * ⚠ What this replaced: a bare `Row` with two `TextButton`s reading "♥" and "Cart (2)", floating above
+ * the content with no title, no elevation and no standard hit targets.
+ *
+ * It now carries a real app bar with icon actions, and — directly beneath it — the delivery location,
+ * which is the question a new shopper actually has and which this storefront used to answer at
+ * checkout.
+ */
 @Composable
 private fun HomeStackHost(
     container: AppContainer,
@@ -189,10 +272,28 @@ private fun HomeStackHost(
     val lines by container.guestCart.lines.collectAsState()
     val count = lines.sumOf { it.quantity }
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onFavorites) { Text("♥") }
-            TextButton(onClick = onCart) { Text(if (count > 0) "Cart ($count)" else "Cart") }
-        }
+        EffyTopBar(
+            title = "Effy",
+            actions = {
+                // 025 FR-029: icon affordances with spoken labels, replacing the glyph/text buttons.
+                IconButton(onClick = onFavorites) {
+                    Icon(
+                        painterResource(Res.drawable.ic_favorite_outlined),
+                        contentDescription = "Saved items",
+                    )
+                }
+                IconButton(onClick = onCart) {
+                    BadgedBox(badge = { if (count > 0) Badge { Text("$count") } }) {
+                        Icon(
+                            painterResource(Res.drawable.ic_cart_outlined),
+                            // The count is announced, not merely seen (FR-045).
+                            contentDescription = if (count > 0) "Cart, $count items" else "Cart",
+                        )
+                    }
+                }
+            },
+        )
+        DeliveryBar(container)
         Box(modifier = Modifier.weight(1f)) { content() }
     }
 }

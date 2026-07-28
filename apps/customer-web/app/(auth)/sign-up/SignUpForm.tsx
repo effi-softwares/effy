@@ -81,7 +81,7 @@ export function SignUpForm() {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Create your account</h1>
+        <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">Create your account</h1>
         {next !== "/" && (
           <p className="text-sm text-muted-foreground" data-testid="deferred-reason">
             You&apos;ll need an account to place your order. We&apos;ll take you straight back.
@@ -298,7 +298,7 @@ export function SignUpForm() {
                 await startGoogleSignIn(next)
               })
             }
-            className="flex h-11 w-full items-center justify-center rounded-md border text-sm font-medium hover:bg-accent"
+            className="flex h-11 w-full items-center justify-center rounded-full border text-sm font-medium hover:bg-accent"
           >
             Continue with Google
           </button>
@@ -341,7 +341,7 @@ function Field({
         name={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         {...rest}
       />
     </div>
@@ -364,7 +364,7 @@ function Submit({
       type="submit"
       disabled={pending || disabled}
       data-testid={testId}
-      className="h-11 w-full rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+      className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
     >
       {pending ? "Please wait…" : label}
     </button>

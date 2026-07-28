@@ -132,7 +132,12 @@ export function DeliveryOptions({
   return (
     <div className="mt-6 space-y-6">
       {notice && (
-        <p className="rounded-md border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm">
+        // ⚠ Was `border-amber-500/50 bg-amber-500/10` — raw Tailwind palette values, not design
+        // tokens, which FR-007 and the design-system SSOT forbid (they also ignore dark mode and are
+        // invisible to `tokens:check`, which only inspects tokens.css). Effy has no dedicated warning
+        // token, so a checkout NOTICE renders as a neutral emphasised block: it is information the
+        // shopper must read, not an error.
+        <p className="rounded-2xl border bg-background px-4 py-3 text-sm">
           {notice}
         </p>
       )}
@@ -148,7 +153,7 @@ export function DeliveryOptions({
                 role="radio"
                 aria-checked={preference === p}
                 onClick={() => setPreference(p)}
-                className={`h-9 rounded-md border px-4 text-sm font-medium capitalize ${
+                className={`h-9 rounded-full border px-4 text-sm font-medium capitalize ${
                   preference === p ? "border-primary bg-primary/10 text-foreground" : "hover:bg-accent"
                 }`}
               >
@@ -163,7 +168,7 @@ export function DeliveryOptions({
       )}
 
       {resolved.map(({ pkg, option, scheduledDate }, i) => (
-        <section key={pkg.packageKey} className="rounded-lg border p-4">
+        <section key={pkg.packageKey} className="rounded-2xl border p-4">
           {showLabels && <h3 className="mb-2 text-sm font-semibold">Package {i + 1}</h3>}
           <ItemList items={pkg.items} />
 
@@ -213,7 +218,7 @@ export function DeliveryOptions({
       ))}
 
       {unserviceable.length > 0 && (
-        <section className="rounded-lg border border-destructive/40 p-4">
+        <section className="rounded-2xl border border-destructive/40 p-4">
           <h3 className="text-sm font-semibold">We can’t deliver these items to this address</h3>
           <p className="mt-1 text-sm text-muted-foreground">
             {allUndeliverable
@@ -269,7 +274,7 @@ export function DeliveryOptions({
             type="button"
             onClick={confirm}
             disabled={!canConfirm}
-            className="ml-auto flex h-12 items-center justify-center rounded-md bg-primary px-8 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="ml-auto flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
           >
             Continue to payment
           </button>

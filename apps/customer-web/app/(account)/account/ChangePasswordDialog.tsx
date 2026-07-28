@@ -52,7 +52,7 @@ export function ChangePasswordDialog({
       aria-modal="true"
       aria-labelledby="change-password-title"
       data-testid="change-password-dialog"
-      className="mt-4 rounded-lg border bg-card p-6"
+      className="mt-4 rounded-2xl border bg-card p-6"
     >
       <h3 id="change-password-title" className="text-base font-medium">
         Change password
@@ -93,14 +93,14 @@ export function ChangePasswordDialog({
             disabled={pending || !current || !next}
             aria-busy={pending}
             data-testid="submit-change-password"
-            className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
           >
             {pending ? "Changing…" : "Change password"}
           </button>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="h-11 rounded-md px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
+            className="h-11 rounded-full px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
           >
             Cancel
           </button>

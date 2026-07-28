@@ -30,6 +30,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.mobile.kit.ui.EffyTopBar
+import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressFormSheet
 import com.effyshopping.customer.mobile.features.cart.domain.formatCents
@@ -63,7 +67,11 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        TextButton(onClick = onBack, modifier = Modifier.padding(4.dp)) { Text("← Back") }
+        EffyTopBar(
+            title = "Checkout",
+            onBack = onBack,
+            backIcon = painterResource(Res.drawable.ic_arrow_back),
+        )
         Text("Checkout", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 16.dp))
 
         when (val s = state) {

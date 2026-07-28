@@ -36,7 +36,7 @@ interface PingDTO {
 export default function HotPathPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-16 sm:px-6">
-      <h1 className="text-3xl font-semibold tracking-tight">Hot path</h1>
+      <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">Hot path</h1>
       <p className="mt-3 text-muted-foreground">
         Product, search, cart, order and payment are served by the low-latency Go backend. This
         proves the storefront can reach it with your customer credential.
@@ -67,7 +67,7 @@ async function HotPathPing() {
   if (!ping) {
     return (
       <p
-        className="mt-8 rounded-lg border border-dashed p-6 text-sm text-muted-foreground"
+        className="mt-8 rounded-2xl border border-dashed p-6 text-sm text-muted-foreground"
         data-testid="hot-path-degraded"
       >
         {error}
@@ -76,7 +76,7 @@ async function HotPathPing() {
   }
 
   return (
-    <dl className="mt-8 divide-y rounded-lg border" data-testid="hot-path-ok">
+    <dl className="mt-8 divide-y rounded-2xl border" data-testid="hot-path-ok">
       <Row label="Audience" value={ping.audience} />
       <Row label="Verified subject" value={ping.subject} />
       <Row label="Response" value={ping.message} />

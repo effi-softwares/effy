@@ -7,8 +7,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.effyshopping.shop.mobile.design.EffyDarkColorScheme
+import com.effyshopping.shop.mobile.design.effyTypography
 import com.effyshopping.shop.mobile.design.EffyLightColorScheme
-import com.effyshopping.shop.mobile.design.EffyRadius
+import com.effyshopping.mobile.design.EffyRadius
 
 /**
  * The app's theme (constitution Principle V; 013 FR-004/FR-005).

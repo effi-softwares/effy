@@ -20,7 +20,9 @@ import type {
   BannerDTO,
   StorefrontHomeDTO,
   StorefrontCategoryDTO,
+  ProductSort,
   ProductSearchResultDTO,
+  ServiceabilityDTO,
 } from "./storefront";
 import type {
   CartLineDTO,
@@ -64,7 +66,9 @@ export type {
   BannerDTO,
   StorefrontHomeDTO,
   StorefrontCategoryDTO,
+  ProductSort,
   ProductSearchResultDTO,
+  ServiceabilityDTO,
   CartLineDTO,
   CartNoticeDTO,
   CartDTO,
@@ -105,6 +109,8 @@ export interface CustomerCommerceContract {
   attributeGroup: ProductAttributeGroupDTO;
   category: StorefrontCategoryDTO;
   searchResult: ProductSearchResultDTO;
+  productSort: ProductSort;
+  serviceability: ServiceabilityDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;
   cartNotice: CartNoticeDTO;

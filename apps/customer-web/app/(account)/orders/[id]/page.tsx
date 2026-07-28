@@ -54,7 +54,7 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         {dto.paymentStatus === "succeeded" ? "Paid" : "Payment pending"}
       </p>
 
-      <section className="mt-6 rounded-lg border">
+      <section className="mt-6 rounded-2xl border">
         <ul className="divide-y">
           {dto.items.map((item) => (
             <li key={item.productId} className="flex justify-between gap-4 p-4 text-sm">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Display } from "@/components/storefront/kit"
 
 export const metadata: Metadata = {
   title: "Account unavailable",
@@ -25,9 +26,9 @@ export const metadata: Metadata = {
 export default function AccountUnavailablePage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-24 text-center sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
+      <Display as="h1" size="section">
         We can&apos;t open your account right now
-      </h1>
+      </Display>
       <p className="mx-auto mt-3 max-w-md text-muted-foreground">
         Something is stopping us from loading your account. If this keeps happening, get in touch
         and we&apos;ll sort it out.
@@ -35,7 +36,7 @@ export default function AccountUnavailablePage() {
       <div className="mt-8 flex justify-center gap-3">
         <Link
           href="/"
-          className="inline-flex h-11 items-center rounded-md border px-6 text-sm font-medium hover:bg-accent"
+          className="inline-flex h-11 items-center rounded-full border px-6 text-sm font-medium hover:bg-accent"
         >
           Back to the store
         </Link>

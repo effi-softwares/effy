@@ -1,5 +1,26 @@
 package com.effyshopping.customer.mobile.features.cart.presentation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.mobile.design.EffyRadius
+import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.mobile.kit.ui.EffyTopBar
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,21 +52,47 @@ import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
  * (graceful single-part, SC-011). Prices/windows appear only at the delivery step once an address exists.
  */
 @Composable
-fun CartScreen(container: AppContainer, onCheckout: () -> Unit) {
+fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> Unit = {}) {
     val lines by container.guestCart.lines.collectAsState()
+    val snackbarHost = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    /** Remove with UNDO (025 FR-041) — removing the wrong line is a one-tap mistake. */
+    fun onRemoved(line: GuestCartLine) {
+        scope.launch {
+            val result = snackbarHost.showSnackbar(
+                message = "Removed ${line.name}",
+                actionLabel = "Undo", // at most ONE action (FR-034)
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                // The line was snapshotted at add time, so restoring it restores exactly what the
+                // shopper had — including the price they saw.
+                container.guestCart.add(line)
+            }
+        }
+    }
 
     if (lines.isEmpty()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text("Your cart is empty", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Browse the store and add something you like.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        // FR-044: an empty cart offers a route back into the catalogue, not a dead end.
+        Column(modifier = Modifier.fillMaxSize()) {
+            EffyTopBar(title = "Cart")
+            Column(
+                modifier = Modifier.fillMaxSize().padding(EffySpacing.xxxl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("Your cart is empty", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Browse the store and add something you like.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Button(
+                    onClick = onBrowse,
+                    modifier = Modifier.padding(top = EffySpacing.lg),
+                ) { Text("Start shopping") }
+            }
         }
         return
     }
@@ -56,7 +103,9 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit) {
     val multiPackage = packages.size > 1
 
     Column(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp)) {
+        EffyTopBar(title = "Cart")
+        SnackbarHost(hostState = snackbarHost)
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = EffySpacing.lg)) {
             if (multiPackage) {
                 item(key = "split-note") {
                     Text(
@@ -78,7 +127,7 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit) {
                     }
                 }
                 items(pkg.lines, key = { it.productId }) { line ->
-                    CartRow(line, container)
+                    CartRow(line, container, ::onRemoved)
                     HorizontalDivider()
                 }
             }
@@ -100,31 +149,93 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit) {
     }
 }
 
+/**
+ * One cart line (025 FR-035).
+ *
+ * ⚠ The image is the change worth noting: this row used to be text only, so a shopper reviewing their
+ * cart had to read product names to recognise what they had picked. Every comparable store shows the
+ * thing you are buying, and `imageUrl` was already on the line — captured at add time.
+ */
 @Composable
-private fun CartRow(line: GuestCartLine, container: AppContainer) {
+private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (GuestCartLine) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.md),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Box(
+            modifier = Modifier
+                .size(72.dp)
+                .clip(RoundedCornerShape(EffyRadius.sm))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            ProductImage(line.imageUrl, line.name, modifier = Modifier.fillMaxSize())
+        }
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
             Text(line.name, style = MaterialTheme.typography.bodyMedium)
             Text(
                 money(line.unitPriceAmount, line.currency) + " each",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { container.guestCart.setQuantity(line.productId, line.quantity - 1) }) { Text("−") }
-                Text("${line.quantity}", style = MaterialTheme.typography.bodyMedium)
-                TextButton(
-                    onClick = { container.guestCart.setQuantity(line.productId, line.quantity + 1) },
-                    enabled = line.quantity < 99,
-                ) { Text("+") }
-                TextButton(onClick = { container.guestCart.remove(line.productId) }) { Text("Remove") }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+            ) {
+                QuantityStepper(
+                    qty = line.quantity,
+                    onChange = { container.guestCart.setQuantity(line.productId, it) },
+                )
+                TextButton(onClick = {
+                    container.guestCart.remove(line.productId)
+                    onRemoved(line)
+                }) { Text("Remove") }
             }
         }
+
+        Text(
+            money(lineTotal(line), line.currency),
+            style = MaterialTheme.typography.titleSmall,
+        )
     }
+}
+
+/** A touch-target-sized stepper (FR-036) — the TextButton pair it replaced was visually weak. */
+@Composable
+private fun QuantityStepper(qty: Int, onChange: (Int) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.border(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant,
+            RoundedCornerShape(EffyRadius.sm),
+        ),
+    ) {
+        IconButton(onClick = { onChange(qty - 1) }, modifier = Modifier.size(40.dp)) {
+            Text("−", style = MaterialTheme.typography.titleMedium)
+        }
+        Text(
+            "$qty",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.widthIn(min = 24.dp),
+            textAlign = TextAlign.Center,
+        )
+        IconButton(
+            onClick = { onChange(qty + 1) },
+            enabled = qty < 99,
+            modifier = Modifier.size(40.dp),
+        ) {
+            Text("+", style = MaterialTheme.typography.titleMedium)
+        }
+    }
+}
+
+private fun lineTotal(line: GuestCartLine): String {
+    val unit = line.unitPriceAmount.toDoubleOrNull() ?: 0.0
+    val total = unit * line.quantity
+    val cents = kotlin.math.round(total * 100).toLong()
+    return "${cents / 100}.${(cents % 100).toString().padStart(2, '0')}"
 }
 
 @Composable

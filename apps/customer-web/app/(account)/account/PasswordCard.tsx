@@ -36,7 +36,7 @@ export function PasswordCard({
       aria-labelledby="password-heading"
       data-testid="password-card"
       data-has-password={hasPassword}
-      className="rounded-lg border p-6"
+      className="rounded-2xl border p-6"
     >
       <h2 id="password-heading" className="text-lg font-medium">
         Password
@@ -62,7 +62,7 @@ export function PasswordCard({
             type="button"
             onClick={() => setOpen(true)}
             data-testid="change-password"
-            className="mt-4 h-11 rounded-md border px-6 text-sm font-medium hover:bg-accent"
+            className="mt-4 h-11 rounded-full border px-6 text-sm font-medium hover:bg-accent"
           >
             Change password
           </button>
@@ -78,7 +78,7 @@ export function PasswordCard({
             type="button"
             onClick={() => setOpen(true)}
             data-testid="set-password"
-            className="mt-4 h-11 rounded-md border px-6 text-sm font-medium hover:bg-accent"
+            className="mt-4 h-11 rounded-full border px-6 text-sm font-medium hover:bg-accent"
           >
             Set a password
           </button>

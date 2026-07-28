@@ -35,12 +35,12 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.mobile.kit.ui.EffyMotion
 import com.effyshopping.mobile.kit.ui.MotionLevel
 import com.effyshopping.mobile.kit.ui.MotionRole
-import com.effyshopping.shop.mobile.core.ui.EffyInlineError
-import com.effyshopping.shop.mobile.core.ui.EffyPage
-import com.effyshopping.shop.mobile.core.ui.EffyPrimaryAction
-import com.effyshopping.shop.mobile.core.ui.EffyTextAction
-import com.effyshopping.shop.mobile.core.ui.EffyTextField
-import com.effyshopping.shop.mobile.design.EffySpacing
+import com.effyshopping.mobile.kit.ui.EffyInlineError
+import com.effyshopping.mobile.kit.ui.EffyPage
+import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
+import com.effyshopping.mobile.kit.ui.EffyTextAction
+import com.effyshopping.mobile.kit.ui.EffyTextField
+import com.effyshopping.mobile.design.EffySpacing
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable

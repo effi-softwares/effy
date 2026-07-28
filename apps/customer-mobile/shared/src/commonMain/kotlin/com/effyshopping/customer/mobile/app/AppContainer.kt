@@ -30,10 +30,12 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SetDefault
 import com.effyshopping.customer.mobile.features.addresses.domain.UpdateAddress
 import com.effyshopping.customer.mobile.features.catalog.data.HttpCatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
+import com.effyshopping.customer.mobile.features.catalog.domain.CheckServiceability
 import com.effyshopping.customer.mobile.features.catalog.domain.GetCategories
 import com.effyshopping.customer.mobile.features.catalog.domain.GetHome
 import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
+import com.effyshopping.customer.mobile.features.delivery.DeliveryContextStore
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
 import com.effyshopping.customer.mobile.features.favorites.data.HttpFavoritesRepository
 import com.effyshopping.customer.mobile.features.favorites.domain.FavoritesRepository
@@ -90,6 +92,15 @@ class AppContainer(
 
     // The device-local guest cart — ONE instance so the badge and cart screen share state (019 US2).
     val guestCart: GuestCartStore = GuestCartStore()
+
+    /**
+     * Where the shopper wants their order delivered (025 US1).
+     *
+     * ⚠ In-memory for now: this app has no key-value persistence and adding one would breach the
+     * feature's no-new-dependency constraint. The store takes an injected `persist` callback, so
+     * wiring durability later is a constructor argument, not a rewrite. See DeliveryContextStore.
+     */
+    val deliveryContext: DeliveryContextStore = DeliveryContextStore()
     val cartRepository by lazy { HttpCartRepository(coreClient) }
 
     // ── domain (use cases) — the layer the ViewModels and SessionManager depend on ──────────────────
@@ -107,6 +118,7 @@ class AppContainer(
     val getCategories by lazy { GetCategories(catalog) }
     val getProductDetail by lazy { GetProductDetail(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
+    val checkServiceability by lazy { CheckServiceability(catalog) }
 
     // Favorites (019 US2).
     val saveFavorite by lazy { SaveFavorite(favorites) }

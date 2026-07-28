@@ -74,7 +74,7 @@ export function SetPasswordDialog({
       aria-modal="true"
       aria-labelledby="set-password-title"
       data-testid="set-password-dialog"
-      className="mt-4 rounded-lg border bg-card p-6"
+      className="mt-4 rounded-2xl border bg-card p-6"
     >
       <h3 id="set-password-title" className="text-base font-medium">
         Set a password
@@ -94,7 +94,7 @@ export function SetPasswordDialog({
               disabled={pending}
               aria-busy={pending}
               data-testid="send-code"
-              className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
             >
               {pending ? "Sending…" : "Email me a code"}
             </button>
@@ -119,7 +119,7 @@ export function SetPasswordDialog({
               inputMode="numeric"
               autoComplete="one-time-code"
               data-testid="stepup-code"
-              className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
 
@@ -144,7 +144,7 @@ export function SetPasswordDialog({
               disabled={pending || !code || !password}
               aria-busy={pending}
               data-testid="submit-set-password"
-              className="h-11 rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
             >
               {pending ? "Setting…" : "Set password"}
             </button>
@@ -175,7 +175,7 @@ function Cancel({ onCancel }: { onCancel: () => void }) {
     <button
       type="button"
       onClick={onCancel}
-      className="h-11 rounded-md px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
+      className="h-11 rounded-full px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
     >
       Cancel
     </button>

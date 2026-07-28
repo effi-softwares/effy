@@ -55,11 +55,22 @@ func TestProductDetailDTOMatchesContract(t *testing.T) {
 	// storefront.ts StorefrontProductDetailDTO (extends the card + these)
 	assertKeys(t, "StorefrontProductDetailDTO", productDetailDTO{}, []string{
 		"id", "name", "brand", "imageUrl", "priceAmount", "currency", "compareAtAmount", "badges", "available",
-		"longDescription", "gallery", "attributes", "categoryPath",
+		"longDescription", "gallery", "attributes", "categoryPath", "categoryKey",
 	})
 }
 
 func TestCategoryDTOMatchesContract(t *testing.T) {
-	// storefront.ts StorefrontCategoryDTO
-	assertKeys(t, "StorefrontCategoryDTO", categoryDTO{}, []string{"key", "name", "parentKey"})
+	// storefront.ts StorefrontCategoryDTO — productCount/imageUrl added by 025 (browse).
+	assertKeys(t, "StorefrontCategoryDTO", categoryDTO{}, []string{
+		"key", "name", "parentKey", "productCount", "imageUrl",
+	})
+}
+
+func TestServiceabilityDTOMatchesContract(t *testing.T) {
+	// storefront.ts ServiceabilityDTO.
+	//
+	// ⚠ This one is a POLICY guard as much as a drift guard. FR-014a forbids a delivery fee or window
+	// before checkout and FR-006 forbids exposing a zone — so any new key here is a spec breach, not
+	// just a contract change. If this test fails because a field was added, the field is the bug.
+	assertKeys(t, "ServiceabilityDTO", serviceabilityDTO{}, []string{"postcode", "serviced"})
 }

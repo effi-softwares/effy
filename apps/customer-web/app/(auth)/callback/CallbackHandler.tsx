@@ -94,7 +94,7 @@ export function CallbackHandler() {
         </p>
         <a
           href="/sign-in"
-          className="inline-flex h-11 items-center rounded-md bg-primary px-6 text-sm font-medium text-primary-foreground"
+          className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground"
         >
           Back to sign in
         </a>

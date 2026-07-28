@@ -1,9 +1,14 @@
-// Package delivery is the PURE per-package delivery-pricing core (021). No DB, no HTTP — it turns a
+// Package delivery is the PURE per-package delivery-pricing core (021). No HTTP — it turns a
 // package's (origin zone, destination zone) and the offerings for that leg into the customer's
 // selectable options, and prices a chosen method. The checkout feature does the DB reads and hands the
 // results here, so this logic is exhaustively unit-testable without a database (the money path's core).
 //
 // It says NOTHING about who delivers (FR-020) or which shop (FR-019) — it works in zones and money only.
+//
+// ⚠ ONE exception to "no DB", added by 025: zone.go owns the single postcode→zone predicate now shared
+// by checkout and the storefront's up-front serviceability answer. It is here because neither feature
+// owns it and the two must never be able to disagree (FR-014b). Everything else in this package
+// remains pure. See the note at the top of zone.go.
 package delivery
 
 import (

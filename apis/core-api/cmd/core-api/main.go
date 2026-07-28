@@ -64,6 +64,9 @@ type dependencies struct {
 	customer *customeridentity.Resolver
 	presign  *media.Resolver
 	payments *checkout.StripeGateway
+	// 025: the storefront records up-front delivery answers by outcome. Carried on deps rather than
+	// threaded through registerFeatures, so wiring stays one greppable line per feature.
+	metrics *metrics.Metrics
 
 	// Feature services (customer commerce).
 	storefront *storefront.Service
@@ -124,6 +127,7 @@ func run() error {
 		customer: customeridentity.NewResolver(pool),
 		presign:  presign,
 		payments: paymentGateway,
+		metrics:  m,
 
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
 		cart:       cart.NewService(cart.NewRepository(pool), presign),
@@ -212,7 +216,7 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 
 	// 019 customer commerce. Storefront reads are public; customer-scoped features mount behind
 	// auth.Middleware + customeridentity.Middleware (the resolved customer id scopes every query).
-	storefront.Register(v1, storefront.NewHandler(deps.storefront))
+	storefront.Register(v1, storefront.NewHandler(deps.storefront, deps.metrics))
 	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
 	favorites.Register(v1, deps.customerVerifier, deps.customer, favorites.NewHandler(deps.favorites))
 	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))

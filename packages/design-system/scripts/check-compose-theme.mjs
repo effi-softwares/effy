@@ -8,10 +8,21 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
+// ⚠ EVERY file the generator writes must be listed here, or it is unguarded.
+//
+// 025 added the EffyLayoutTokens.kt half (the audience-neutral spacing + radius vocabulary that
+// packages/mobile-kit consumes). A generated file missing from this list can be hand-edited and drift
+// from tokens.css silently, which is precisely the failure the whole generate-and-check pattern
+// exists to make impossible.
 const targets = [
   resolve(here, "../compose/EffyTokens.kt"),
   resolve(here, "../compose-shop/EffyTokens.kt"),
   resolve(here, "../compose-driver/EffyTokens.kt"),
+  resolve(here, "../compose/EffyLayoutTokens.kt"),
+  resolve(here, "../compose-shop/EffyLayoutTokens.kt"),
+  resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
+  resolve(here, "../compose/EffyTypography.kt"),
+  resolve(here, "../compose-shop/EffyTypography.kt"),
 ];
 const before = new Map(
   targets.map((target) => [target, existsSync(target) ? readFileSync(target, "utf8") : null]),
@@ -32,4 +43,4 @@ if (drifted.length > 0) {
   process.exit(1);
 }
 
-console.log("tokens:check: all Compose themes match tokens.css.");
+console.log(`tokens:check: all ${targets.length} generated Compose files match tokens.css.`);

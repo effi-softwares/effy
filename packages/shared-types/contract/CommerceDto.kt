@@ -140,9 +140,23 @@ enum class CartNoticeKind(val value: String) {
  */
 @Serializable
 data class StorefrontCategoryDTO (
+    /**
+     * Representative image, DERIVED from a product in the category — categories store no
+     * imagery, and 025 FR-001 forbids adding a column for it. Null → the client renders a brand
+     * tile, never a broken frame. The choice is deterministic so a category does not change its
+     * face between page loads.
+     */
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
     val key: String,
     val name: String,
-    val parentKey: String? = null
+    val parentKey: String? = null,
+
+    /**
+     * Active products in this category (025). Drives "N items" and the empty-category case.
+     */
+    val productCount: Double
 )
 
 /**
@@ -594,6 +608,13 @@ data class StorefrontProductDetailDTO (
     val available: Boolean,
     val badges: List<ProductBadge>,
     val brand: String? = null,
+
+    /**
+     * The primary category's key — drives the related-products rail (025 FR-026).
+     * `categoryPath` carries display NAMES, which cannot be used to query.
+     */
+    val categoryKey: String,
+
     val categoryPath: List<String>,
     val compareAtAmount: String? = null,
     val currency: String,
@@ -607,6 +628,23 @@ data class StorefrontProductDetailDTO (
     val name: String,
     val priceAmount: String
 )
+
+/**
+ * The orderings a result set can be presented in (025 FR-016).
+ *
+ * `relevance` is only meaningful alongside a text query; without one the server falls back
+ * to `newest` and reports what it actually did in `ProductSearchResultDTO.sort`.
+ *
+ * The ordering ACTUALLY applied — may differ from the request. Render the sort control from
+ * this, not from what was asked for, or the control will misdescribe the list beneath it.
+ */
+@Serializable
+enum class ProductSort(val value: String) {
+    @SerialName("newest") Newest("newest"),
+    @SerialName("price_asc") PriceAsc("price_asc"),
+    @SerialName("price_desc") PriceDesc("price_desc"),
+    @SerialName("relevance") Relevance("relevance");
+}
 
 /**
  * PUT /v1/cart — replace the server cart with EXACTLY the client's device-local cart (the
@@ -629,11 +667,44 @@ data class Line (
 
 /**
  * A page of search results with a keyset cursor for infinite scroll.
+ *
+ * ⚠ `cursor` is OPAQUE and sort-tagged. Do not construct one, and do not carry one across a
+ * sort change — the server rejects a cursor issued under a different ordering with 400
+ * `cursor_sort_mismatch`, because honouring it would silently drop and repeat products
+ * (FR-016b).
  */
 @Serializable
 data class ProductSearchResultDTO (
     val items: List<StorefrontProductCardDTO>,
-    val nextCursor: String? = null
+    val nextCursor: String? = null,
+
+    /**
+     * The ordering ACTUALLY applied — may differ from the request. Render the sort control from
+     * this, not from what was asked for, or the control will misdescribe the list beneath it.
+     */
+    val sort: ProductSort,
+
+    /**
+     * Total products matching the refinements, ignoring pagination (025 FR-016a).
+     */
+    val total: Double
+)
+
+/**
+ * Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).
+ *
+ * ⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart
+ * contents, so anything shown here is an estimate checkout would revise), and no zone id or
+ * name (FR-006 — zone names are geographic and would disclose where Effy fulfils from).
+ */
+@Serializable
+data class ServiceabilityDTO (
+    /**
+     * The normalised postcode the answer applies to.
+     */
+    val postcode: String,
+
+    val serviced: Boolean
 )
 
 /**

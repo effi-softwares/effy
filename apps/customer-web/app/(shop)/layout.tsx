@@ -1,72 +1,145 @@
 import { Suspense } from "react"
 import Link from "next/link"
 
+import { BrandMark } from "@/components/storefront/BrandMark"
+import { pageSurface } from "@/components/storefront/kit"
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
-import { AppearanceControl } from "@/components/theme/AppearanceControl"
 
-import { CartBadge } from "./_components/CartBadge"
+import { DeliveryAffordance } from "./_components/DeliveryAffordance"
+import { HeaderSearch, HeaderSearchFallback } from "./_components/HeaderSearch"
+import { MiniCart } from "./_components/MiniCart"
+import { MobileNav, MobileNavFallback } from "./_components/MobileNav"
+import { PrimaryNav, PrimaryNavFallback } from "./_components/PrimaryNav"
+import { StorefrontFooter } from "./_components/StorefrontFooter"
+import { ToastRegion } from "./_components/ToastRegion"
 
 /**
  * The PUBLIC storefront shell.
  *
- * Everything here except the <Suspense> island is static and prerenders into the shell that
- * gets served from cache. The island is the single request-time hole (research D4).
+ * Everything here except the <Suspense> islands is static and prerenders into the shell that gets
+ * served from cache. The islands are the request-time holes (research D4).
  *
  * ⚠ Do NOT call cookies() or headers() in this file. Do NOT import aws-amplify. Both are
- * machine-guarded, but the guard tells you that you broke a rule — not why it exists:
- * either one silently converts every public page from "served instantly from a cached static
- * shell" to "rendered from scratch on every request", which is the difference between the
- * storefront this is meant to be and a slow one.
+ * machine-guarded, but the guard tells you that you broke a rule — not why it exists: either one
+ * silently converts every public page from "served instantly from a cached static shell" to
+ * "rendered from scratch on every request", which is the difference between the storefront this is
+ * meant to be and a slow one.
+ *
+ * ── The chrome, after the shadcn navbar-03 pattern ─────────────────────────────────────────────
+ *
+ * An information bar, then a header of TWO ROWS divided by a hairline:
+ *
+ *   info    shop-level announcement (dark, scrolls away)
+ *   ═══════════════════════════════════════════════════════════════════════════════════
+ *   row 1   delivery location (left)                ·   search + cart + account (right)
+ *   ───────────────────────────────────────────────────────────────────────────────────
+ *   row 2   logo + wordmark (left)                  ·   primary nav, pipe-separated (right)
+ *
+ * The split is what makes it read as a store rather than an app bar: the top row is *about the shop*
+ * (where it delivers, who you are, what's in your basket) and the bottom row is *about the catalogue*.
+ * Mixing the two into one row is what the previous header did, and it is why the logo, nav, search and
+ * five icons were all competing for the same horizontal space.
+ *
+ * ⚠ NO blur and NO translucency — the header is opaque and shares the page surface.
  */
 export default function ShopLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
-          {/* Static: the brand mark. In the shell. */}
-          <Link href="/" className="flex items-center gap-2" aria-label="Effy home">
-            <span className="inline-block size-6 rounded-md bg-primary" aria-hidden="true" />
-            <span className="text-lg font-semibold tracking-tight">Effy</span>
-          </Link>
+    <div className={`flex min-h-svh flex-col ${pageSurface}`}>
+      {/* ── The information bar ──────────────────────────────────────────────────────────────
+          A slim dark strip above the header, carrying shop-level information. It is the detail that
+          reads "real shop" rather than "landing page", and it costs one row of height.
 
-          {/* Static: primary navigation. In the shell. */}
-          <nav aria-label="Primary" className="hidden gap-4 sm:flex">
-            <Link
-              href="/browse"
-              className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            >
-              Browse
-            </Link>
-          </nav>
+          ⚠ Deliberately NOT sticky. It scrolls away while the header below it pins — an announcement
+          is worth one read, and keeping it on screen forever would spend permanent vertical space on
+          something nobody re-reads.
 
-          <div className="flex-1" />
+          Effy's copy states what is TRUE of the platform: delivery framing and the guest-first
+          promise. No invented phone number, no invented opening hours. */}
+      <div className="bg-foreground text-background">
+        <div className="mx-auto flex h-9 w-full max-w-7xl items-center justify-between gap-4 px-4 text-xs sm:px-6">
+          <span className="truncate">Fresh groceries and everyday essentials, delivered</span>
+          <span className="hidden shrink-0 sm:inline">
+            Browse without an account —{" "}
+            <Link href="/sign-in" className="underline underline-offset-2 hover:no-underline">
+              sign in
+            </Link>{" "}
+            only when you order
+          </span>
+        </div>
+      </div>
 
-          {/* Static client island: appearance switcher (017). No cookies, no SDK — stays in the shell. */}
-          <AppearanceControl className="mr-1" />
+      <header className={`sticky top-0 z-40 border-b ${pageSurface}`}>
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+          {/* ── Row 1: utility + actions ───────────────────────────────────────────────────── */}
+          <div className="flex h-16 items-center gap-4 border-b">
+            {/* FR-012: the delivery location. It lives here rather than beside the cart because
+                "do you deliver to me" is shop information, not a shopping action — the same slot the
+                reference gives to its utility links. */}
+            <DeliveryAffordance />
 
-          {/* Cart indicator (US2) — a client island reading the device-local guest cart count. */}
-          <CartBadge />
+            <div className="flex-1" />
 
-          {/* DYNAMIC HOLE — and the only one. Reads cookies at request time and streams into
-              this reserved slot while the rest of the page is already on screen. */}
-          <Suspense fallback={<UserIslandSkeleton />}>
-            <UserIsland />
-          </Suspense>
+            {/* FR-011: a persistent search entry. Compact here so it does not crowd the row; the
+                full-width field appears under the header on small screens.
+                ⚠ Wrapped in <Suspense> because HeaderSearch reads useSearchParams(), which under
+                cacheComponents is a dynamic read — outside a boundary it makes the whole route
+                blocking, and the build fails rather than letting that happen. The fallback is the
+                same control minus the value, so the shell still ships a usable box. */}
+            <Suspense fallback={<HeaderSearchFallback className="hidden w-64 lg:block" />}>
+              <HeaderSearch className="hidden w-64 lg:block" />
+            </Suspense>
+
+            <div className="flex items-center gap-3">
+              <MiniCart />
+              {/* DYNAMIC HOLE — reads cookies at request time and streams into this reserved slot
+                  while the rest of the page is already on screen.
+                  ⚠ Hidden below `md`: on a phone the account control lives in the drawer instead, so
+                  the header carries only the cart. */}
+              <div className="hidden md:block">
+                <Suspense fallback={<UserIslandSkeleton />}>
+                  <UserIsland />
+                </Suspense>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Row 2: identity + catalogue nav ────────────────────────────────────────────── */}
+          <div className="flex h-16 items-center justify-between gap-4">
+            <BrandMark />
+            <Suspense fallback={<PrimaryNavFallback />}>
+              <PrimaryNav />
+            </Suspense>
+            {/* Below `md` the pipe-separated nav is hidden and this drawer replaces it. */}
+            <Suspense fallback={<MobileNavFallback />}>
+              <MobileNav
+                account={
+                  <Suspense fallback={<UserIslandSkeleton />}>
+                    <UserIsland />
+                  </Suspense>
+                }
+              />
+            </Suspense>
+          </div>
         </div>
       </header>
 
+      {/* The full-width search field, on the viewports where row 1 has no room for it. */}
+      <div className="border-b lg:hidden">
+        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6">
+          <Suspense fallback={<HeaderSearchFallback size="lg" />}>
+            <HeaderSearch size="lg" />
+          </Suspense>
+        </div>
+      </div>
+
       <main className="flex-1">{children}</main>
 
-      {/* No `new Date()` here. Under `cacheComponents` a non-deterministic call during
-          prerender is a dynamic API — a live copyright year would quietly cost this layout its
-          static shell, on every page, to render a number nobody reads. */}
-      <footer className="border-t py-8">
-        <div className="mx-auto w-full max-w-7xl px-4 text-sm text-muted-foreground sm:px-6">
-          © Effy
-        </div>
-      </footer>
+      {/* Transient feedback for adds, removals and failures (025 US4). */}
+      <ToastRegion />
+
+      <StorefrontFooter />
     </div>
   )
 }

@@ -3,6 +3,7 @@
 package storefront
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -50,6 +51,10 @@ type categoryDTO struct {
 	Key       string  `json:"key"`
 	Name      string  `json:"name"`
 	ParentKey *string `json:"parentKey"`
+	// 025: productCount drives "N items" and the empty-category case; imageUrl is derived (null when
+	// no product in the category has media).
+	ProductCount int     `json:"productCount"`
+	ImageURL     *string `json:"imageUrl"`
 }
 
 type mediaDTO struct {
@@ -73,14 +78,24 @@ type productDetailDTO struct {
 	Gallery         []mediaDTO          `json:"gallery"`
 	Attributes      []attributeGroupDTO `json:"attributes"`
 	CategoryPath    []string            `json:"categoryPath"`
+	CategoryKey     string              `json:"categoryKey"`
+}
+
+// ServiceabilityRecorder counts up-front delivery answers by outcome. Declared here as a one-method
+// interface so this feature does not depend on the metrics package's concrete type — and so tests can
+// pass nil.
+type ServiceabilityRecorder interface {
+	RecordServiceability(serviced bool)
 }
 
 type Handler struct {
-	svc *Service
+	svc     *Service
+	metrics ServiceabilityRecorder
 }
 
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+// NewHandler wires the storefront handler. `rec` may be nil (tests, and any caller without metrics).
+func NewHandler(svc *Service, rec ServiceabilityRecorder) *Handler {
+	return &Handler{svc: svc, metrics: rec}
 }
 
 func (h *Handler) getHome(c *gin.Context) {
@@ -110,9 +125,58 @@ func (h *Handler) getCategories(c *gin.Context) {
 	}
 	out := make([]categoryDTO, 0, len(cats))
 	for _, cat := range cats {
-		out = append(out, categoryDTO{Key: cat.Key, Name: cat.Name, ParentKey: cat.ParentKey})
+		var img *string
+		if cat.ImageURL != "" {
+			url := cat.ImageURL
+			img = &url
+		}
+		out = append(out, categoryDTO{
+			Key: cat.Key, Name: cat.Name, ParentKey: cat.ParentKey,
+			ProductCount: cat.ProductCount, ImageURL: img,
+		})
 	}
 	c.JSON(http.StatusOK, out)
+}
+
+// serviceabilityDTO mirrors ServiceabilityDTO in @effy/shared-types. Two fields, deliberately — see
+// ServiceabilityResult in serviceability.go for why nothing else may be added.
+type serviceabilityDTO struct {
+	Postcode string `json:"postcode"`
+	Serviced bool   `json:"serviced"`
+}
+
+// getServiceability answers "do we deliver to you?" before a cart exists (025 FR-014).
+//
+// Three distinct outcomes, and keeping them distinct is the whole job:
+//
+//	200 {serviced:true}   — we deliver there
+//	200 {serviced:false}  — we do not deliver there
+//	400 invalid_postcode  — that was not a postcode
+//	503                   — we could not check right now
+//
+// A malformed postcode MUST NOT come back as serviced:false, and neither must a failed read. Both
+// would tell a prospective customer that Effy refuses to serve them, which in one case is unknown and
+// in the other is simply untrue.
+func (h *Handler) getServiceability(c *gin.Context) {
+	res, err := h.svc.Serviceability(c.Request.Context(), c.Query("postcode"))
+	if errors.Is(err, ErrInvalidPostcode) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_postcode"})
+		return
+	}
+	if err != nil {
+		logger.FromContext(c.Request.Context()).Error("storefront: serviceability read failed", zap.Error(err))
+		httpx.Unavailable(c)
+		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordServiceability(res.Serviced)
+	}
+
+	// Postcode→zone mappings change at the pace of operations policy, not of shopping, and the
+	// response holds nothing shopper-specific.
+	c.Header("Cache-Control", "public, max-age=300")
+	c.JSON(http.StatusOK, serviceabilityDTO{Postcode: res.Postcode, Serviced: res.Serviced})
 }
 
 func (h *Handler) getProductByID(c *gin.Context) {
@@ -148,6 +212,7 @@ func (h *Handler) getProductByID(c *gin.Context) {
 		Gallery:         gallery,
 		Attributes:      groups,
 		CategoryPath:    detail.CategoryPath,
+		CategoryKey:     detail.CategoryKey,
 	})
 }
 
@@ -161,7 +226,14 @@ func (h *Handler) getProducts(c *gin.Context) {
 			httpx.Unavailable(c)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"items": toCardDTOs(cards), "nextCursor": nil})
+		// The by-ids form is a hydration helper, not a search: it has no ordering to speak of and its
+		// total is simply what was asked for.
+		c.JSON(http.StatusOK, gin.H{
+			"items":      toCardDTOs(cards),
+			"nextCursor": nil,
+			"total":      len(cards),
+			"sort":       string(SortNewest),
+		})
 		return
 	}
 
@@ -169,6 +241,16 @@ func (h *Handler) getProducts(c *gin.Context) {
 	if n, err := strconv.Atoi(c.Query("limit")); err == nil {
 		limit = n
 	}
+
+	// An unrecognised sort is refused rather than silently defaulted. A shopper who asked for
+	// "cheapest" and was given "newest" without being told has been misinformed about what they are
+	// looking at, and would have no way to notice.
+	sort, ok := ParseSort(c.Query("sort"))
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_sort"})
+		return
+	}
+
 	res, err := h.svc.Search(c.Request.Context(), SearchQuery{
 		Q:           strings.TrimSpace(c.Query("q")),
 		CategoryKey: c.Query("categoryKey"),
@@ -176,15 +258,27 @@ func (h *Handler) getProducts(c *gin.Context) {
 		MaxPrice:    c.Query("maxPrice"),
 		SaleOnly:    c.Query("saleOnly") == "true",
 		Attributes:  attributeFacets(c),
+		Sort:        sort,
 		Cursor:      c.Query("cursor"),
 		Limit:       limit,
 	})
+	if errors.Is(err, ErrCursorSortMismatch) {
+		// 400, not a silent reinterpretation (FR-016b). See the note on Cursor.
+		c.JSON(http.StatusBadRequest, gin.H{"error": "cursor_sort_mismatch"})
+		return
+	}
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Error("storefront: search failed", zap.Error(err))
 		httpx.Unavailable(c)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": toCardDTOs(res.Cards), "nextCursor": res.NextCursor})
+	c.JSON(http.StatusOK, gin.H{
+		"items":      toCardDTOs(res.Cards),
+		"nextCursor": res.NextCursor,
+		"total":      res.Total,
+		// The sort ACTUALLY applied — may differ from the request (relevance without a query).
+		"sort": string(res.Sort),
+	})
 }
 
 // attributeFacets collects `attr.<key>=<value>` query params (facets are query params, never a path).

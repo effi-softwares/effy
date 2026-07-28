@@ -32,5 +32,103 @@
   }
   html {
     @apply font-sans;
+    /* No elastic overscroll (operator decision).
+     *
+     * macOS and iOS rubber-band the page past its bounds by default. `overscroll-behavior: none`
+     * removes that bounce AND stops scroll chaining, so a horizontal carousel that reaches its end
+     * no longer hands the gesture to the page — which on a trackpad is what triggers an accidental
+     * swipe-back navigation mid-browse.
+     *
+     * ⚠ TRADE-OFF, stated because it is not obvious: this also disables PULL-TO-REFRESH in mobile
+     * browsers, since that gesture is overscroll. On a storefront that is an acceptable loss (the
+     * page has no manual-refresh affordance to replace it), but it is a real behaviour change on a
+     * phone, not just a visual one. */
+    overscroll-behavior: none;
+  }
+}
+
+@layer components {
+  /* ── Native <dialog> transitions ───────────────────────────────────────────────────────────────
+   *
+   * The guest path forbids `radix-ui`, `sonner` and `vaul` (contracts/customer-ui.contract.md §1,
+   * enforced by dependency-cruiser), so every overlay on this surface is a native `<dialog>`. That
+   * buys focus trapping, Escape, an inert background and top-layer stacking for zero kilobytes — but
+   * a `<dialog>` opens and closes with NO motion at all, which on a slide-in drawer reads as broken
+   * rather than as minimal.
+   *
+   * ⚠ Two of the properties involved are DISCRETE, which is why this needs more than a `transition`:
+   *
+   *   - `display` flips none ↔ block with no intermediate value, so on close the element vanishes
+   *     before a transition can run.
+   *   - `overlay` (the top layer) is removed on close the same way, so an exiting dialog would drop
+   *     behind the page mid-animation.
+   *
+   * `transition-behavior: allow-discrete` makes both flip at the END of the transition instead of the
+   * start, which is what lets a close animate at all. And because an element that is entering has no
+   * previous style to interpolate from, the entry values live in `@starting-style` — without it the
+   * dialog would animate out but appear instantly.
+   *
+   * Browsers without either feature simply get today's behaviour (instant open/close). Nothing breaks.
+   */
+  .fx-dialog,
+  .fx-dialog::backdrop {
+    transition-property: opacity, translate, display, overlay;
+    transition-duration: 220ms;
+    /* The same ease vaul uses — decelerating, so the panel arrives rather than stops. */
+    transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+    transition-behavior: allow-discrete;
+  }
+
+  .fx-dialog::backdrop {
+    opacity: 0;
+  }
+  .fx-dialog[open]::backdrop {
+    opacity: 1;
+  }
+  @starting-style {
+    .fx-dialog[open]::backdrop {
+      opacity: 0;
+    }
+  }
+
+  /* A centred modal rises slightly as it fades in — the mini-cart and the delivery dialog. */
+  .fx-dialog-modal {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+  .fx-dialog-modal[open] {
+    opacity: 1;
+    translate: 0 0;
+  }
+  @starting-style {
+    .fx-dialog-modal[open] {
+      opacity: 0;
+      translate: 0 0.5rem;
+    }
+  }
+
+  /* An edge drawer slides, and ONLY slides.
+   * Deliberately no fade on the panel: the movement is the affordance — it is what tells you the
+   * thing came from the edge and can be sent back there. A drawer that fades in place looks like a
+   * dialog that landed in the wrong position. The backdrop above still fades. */
+  .fx-drawer-left {
+    translate: -100% 0;
+  }
+  .fx-drawer-left[open] {
+    translate: 0 0;
+  }
+  @starting-style {
+    .fx-drawer-left[open] {
+      translate: -100% 0;
+    }
+  }
+
+  /* FR-025: motion is decoration, never information. Collapse the duration rather than removing the
+   * transition — `allow-discrete` still has to run for the close to reach `display: none`. */
+  @media (prefers-reduced-motion: reduce) {
+    .fx-dialog,
+    .fx-dialog::backdrop {
+      transition-duration: 1ms;
+    }
   }
 }

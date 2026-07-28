@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { pageSurface } from "@/components/storefront/kit"
 
 /**
  * The account area.
@@ -15,20 +16,28 @@ export default function AccountLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className={`flex min-h-svh flex-col ${pageSurface}`}>
+      {/* The storefront's chrome, minus the shop-only islands (cart, delivery, search) — the account
+          area is not a place to shop, but it must not look like a different product either. That
+          discontinuity is exactly what made the old account pages feel bolted on. */}
       <header className="border-b">
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2" aria-label="Effy home">
-            <span className="inline-block size-6 rounded-md bg-primary" aria-hidden="true" />
-            <span className="text-lg font-semibold tracking-tight">Effy</span>
+            <span className="inline-block size-6 rounded-full bg-primary" aria-hidden="true" />
+            <span className="text-xl font-extrabold uppercase tracking-[-0.02em]">Effy</span>
           </Link>
           <div className="flex-1" />
-          <Link
-            href="/browse"
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            Browse
-          </Link>
+          <nav aria-label="Account" className="flex items-center gap-5">
+            <Link href="/browse" className="text-sm hover:text-foreground/70">
+              Browse
+            </Link>
+            <Link href="/orders" className="text-sm hover:text-foreground/70">
+              Orders
+            </Link>
+            <Link href="/account" className="text-sm hover:text-foreground/70">
+              Account
+            </Link>
+          </nav>
         </div>
       </header>
       <main className="flex-1">{children}</main>

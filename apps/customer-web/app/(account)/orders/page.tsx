@@ -7,6 +7,7 @@ import type { OrderSummaryDTO } from "@effy/shared-types"
 import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
+import { Display } from "@/components/storefront/kit"
 
 export const metadata: Metadata = {
   title: "Your orders",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default function OrdersPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Your orders</h1>
+      <Display as="h1" size="section" className="mb-6">Your orders</Display>
       <Suspense fallback={<ListSkeleton />}>
         <OrdersList />
       </Suspense>
@@ -39,7 +40,7 @@ async function OrdersList() {
 
   if (orders.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-12 text-center">
+      <div className="rounded-2xl border border-dashed p-12 text-center">
         <p className="text-muted-foreground">You haven’t placed any orders yet.</p>
         <Link href="/" className="mt-3 inline-block text-sm font-medium text-primary hover:underline">
           Start shopping
@@ -49,7 +50,7 @@ async function OrdersList() {
   }
 
   return (
-    <ul className="divide-y rounded-lg border">
+    <ul className="divide-y rounded-2xl border">
       {orders.map((o) => (
         <li key={o.id}>
           <Link href={`/orders/${o.id}`} className="flex items-center justify-between gap-4 p-4 hover:bg-accent">

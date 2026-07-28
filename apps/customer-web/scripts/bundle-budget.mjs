@@ -40,14 +40,63 @@ const KB = 1024
  *   • App-code and vendor bloat on public pages is caught.
  *   • It RATCHETS: raising the number requires editing this file in a reviewed diff, with a
  *     reason. It cannot drift upward silently, which is how bundle budgets normally die.
+ *
+ * ── RATCHET, 2026-07-27 (feature 025, task T020) ────────────────────────────────────────────
+ *
+ * 160 KB → 176 KB. Measured, not conceded. Both guest routes were ALREADY over before feature
+ * 025 changed a line: `/` at 167.4 KB and `/browse` at 160.1 KB.
+ *
+ * A per-chunk gzip breakdown (specs/025-customer-ui-refresh/research.md § R6a) attributed it:
+ *
+ *   • 143.5 KB — the Next 16.2.6 + React 19.2.4 framework floor. NINE chunks, one carrying the
+ *     only `react-dom` marker, on `/browse` — which at the time of measurement was a static
+ *     placeholder with essentially no app content. That is 89.6% of the old budget spent before
+ *     this app's own code runs.
+ *   • 16.6 KB — the appearance switcher (`next-themes` + AppearanceControl). Principle V
+ *     REQUIRES dark mode to be user-selectable, so this is not discretionary weight.
+ *   • 7.3 KB — RecentlyViewedRail, on `/` only. It is the entire difference between the routes.
+ *
+ * The floor 011 measured was ~136 KB, and 160 was set to leave ~24 KB of app headroom on top of
+ * it. The floor grew ~7.5 KB; 176 restores that same headroom rather than inventing new slack.
+ *
+ * ⚠ AND THEN WIDENING THIS LIST FOUND A REAL LEAK. On `/` and `/browse` there was none. But this
+ * gate had only ever measured those two of the five routes a guest can reach — and the moment
+ * /search, /product/[id] and /cart were added, the product page came in at 234.8 KB: 58.8 KB over,
+ * never once measured, for two features.
+ *
+ * The cause was 67.9 KB gz of `posthog-js`, reached via product/[id]/page.tsx → RecordView.tsx →
+ * lib/telemetry.ts, which STATICALLY imported it while its own module comment promised "for a
+ * guest who never consents, the analytics SDK never loads at all". Consent gated whether it was
+ * called, never whether it was downloaded. The import is now dynamic; the product page dropped to
+ * 166.9 KB.
+ *
+ * The lesson is in this list, not in the number: a gate that watches two of five routes has three
+ * blind spots, and they were the routes shoppers actually spend time on.
+ *
+ * At 176 KB with routes sitting at 160–168, the gate still does its original job — a 30–45 KB SDK
+ * cannot hide in that headroom.
+ *
+ * ⚠ A REAL saving is outstanding and deliberately not taken here: `next-themes` costs ~8.3 KB on
+ * every guest page and could be ~1 KB (an inline no-flash script + a useSyncExternalStore
+ * store), which is this app's established dependency-free island pattern. It is not being done
+ * as a drive-by inside a UI feature because it changes 017's signed-off appearance switcher and
+ * carries FOUC risk. Tracked as T102. Taking it should bring this number back to ~168 KB.
  */
-const GUEST_LIMIT = 160 * KB
+const GUEST_LIMIT = 176 * KB
 
 /** The public pages a guest can reach. (auth)/(account) are budgeted separately — the SDK
- *  legitimately lives there. */
+ *  legitimately lives there.
+ *
+ *  ⚠ Feature 025 added /search, /product/[id], and /cart. Before that this list was just `/` and
+ *  /browse — so the gate was silently ignoring the routes a shopper actually spends time on, and
+ *  a leak on the product page would not have failed the build. A budget that only watches two of
+ *  five guest routes is a budget with three blind spots. */
 const GUEST_PAGES = [
   { route: "/", html: ".next/server/app/index.html" },
   { route: "/browse", html: ".next/server/app/browse.html" },
+  { route: "/search", html: ".next/server/app/search.html" },
+  { route: "/product/[id]", html: ".next/server/app/product/[id].html" },
+  { route: "/cart", html: ".next/server/app/cart.html" },
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy

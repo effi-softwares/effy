@@ -37,7 +37,7 @@ export function FavoriteButton({ productId }: { productId: string }) {
       disabled={busy}
       aria-pressed={saved}
       aria-label={saved ? "Remove from favourites" : "Save to favourites"}
-      className="inline-flex h-11 items-center gap-2 rounded-md border px-4 text-sm font-medium hover:bg-accent disabled:opacity-50"
+      className="inline-flex h-12 items-center gap-2 rounded-full border px-6 text-sm font-medium hover:bg-accent disabled:opacity-50"
     >
       <Heart className={saved ? "size-4 fill-current text-primary" : "size-4"} />
       {saved ? "Saved" : "Save"}

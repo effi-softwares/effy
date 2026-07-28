@@ -5,8 +5,9 @@
  *
  * This is not a style preference — it is the load-bearing assumption behind the whole bundle
  * budget. `aws-amplify` costs roughly 30–45 KB gzipped (AWS advertises ~32 KB; open issues
- * report far more, which is why we measure rather than trust). The guest budget is 120 KB
- * total. Letting the SDK onto the public path spends a third of the budget on machinery that
+ * report far more, which is why we measure rather than trust). The guest budget is 176 KB
+ * total, of which only ~32 KB is this app's own code — the rest is framework floor. Letting the
+ * SDK onto the public path would spend the app's ENTIRE code allowance on machinery that
  * anonymous shoppers, and crawlers, will never use.
  *
  * The trap this guard exists to catch:
@@ -59,6 +60,54 @@ module.exports = {
         // nobody makes.
         reachable: true,
         path: "aws-amplify|@aws-amplify",
+      },
+    },
+    {
+      /**
+       * THE GUEST-PATH DEPENDENCY QUARANTINE (feature 025, FR-049 / contracts/customer-ui.contract.md §1).
+       *
+       * Same idea as the Amplify rule above, one level less obvious. Amplify is something nobody
+       * would put on a storefront on purpose. These are the opposite: `radix-ui` and `sonner` ARE
+       * the platform's locked UI standard, they are already dependencies of this app, and reaching
+       * for `<Dialog>` or `toast()` on a public page is the natural thing to do. That is exactly why
+       * it needs a machine guard — the mistake here is a good habit applied on the wrong route.
+       *
+       * The public path has a measured budget (176 KB, and 143.5 KB of it is framework floor before
+       * this app writes a line — see scripts/bundle-budget.mjs). Every guest interaction feature 025
+       * adds is achievable without them:
+       *
+       *   carousel + gallery + sticky summary → CSS scroll-snap / position: sticky   (zero JS)
+       *   toast                               → ~30-line useSyncExternalStore store
+       *   delivery picker + mini-cart         → native <dialog>
+       *
+       * These packages remain the standard everywhere they are affordable: app/(auth)/,
+       * app/(account)/, app/checkout/, and both internal consoles, which have no budget at all.
+       * This rule is scoped to the public path, not the app.
+       */
+      name: "no-heavy-ui-deps-on-guest-path",
+      severity: "error",
+      comment:
+        "A guest route can REACH radix-ui / sonner / vaul. These are the platform's UI standard but " +
+        "not on the PUBLIC path, which has a measured byte budget (contracts/customer-ui.contract.md " +
+        "§1). Use CSS scroll-snap for carousels and galleries, position: sticky for sticky summaries, " +
+        "a useSyncExternalStore store for toasts, and a native <dialog> for the delivery picker and " +
+        "mini-cart. Radix and sonner stay the standard in (auth)/(account)/checkout and both consoles.",
+      from: {
+        path: [
+          "^app/layout\\.tsx$",
+          "^app/page\\.tsx$",
+          "^app/\\(shop\\)/",
+          "^app/sitemap\\.ts$",
+          "^app/robots\\.ts$",
+          "^components/header/",
+          "^components/theme/",
+        ],
+      },
+      to: {
+        // ⚠ `reachable: true` is LOAD-BEARING for the same reason it is on the Amplify rule —
+        // nobody imports `sonner` straight into a page; they import a component that does.
+        reachable: true,
+        path: "^(radix-ui|@radix-ui|sonner|vaul)($|/)",
       },
     },
     {

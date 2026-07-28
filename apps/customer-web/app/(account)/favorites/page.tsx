@@ -7,6 +7,7 @@ import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
 
 import { FavoritesList } from "./FavoritesList"
+import { Display } from "@/components/storefront/kit"
 
 export const metadata: Metadata = {
   title: "Your favourites",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default function FavoritesPage() {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
-      <h1 className="mb-6 text-2xl font-semibold tracking-tight">Your favourites</h1>
+      <Display as="h1" size="section" className="mb-6">Your favourites</Display>
       <Suspense fallback={<div className="h-48 w-full animate-pulse rounded-lg bg-muted" />}>
         <Favorites />
       </Suspense>

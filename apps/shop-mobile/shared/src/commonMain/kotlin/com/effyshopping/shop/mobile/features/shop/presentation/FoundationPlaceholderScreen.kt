@@ -3,8 +3,8 @@ package com.effyshopping.shop.mobile.features.shop.presentation
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import com.effyshopping.shop.mobile.core.ui.EffyPage
-import com.effyshopping.shop.mobile.core.ui.EffyPageTitle
+import com.effyshopping.mobile.kit.ui.EffyPage
+import com.effyshopping.mobile.kit.ui.EffyPageTitle
 
 @Composable
 fun FoundationPlaceholderScreen(title: String, description: String) {

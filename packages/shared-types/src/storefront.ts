@@ -54,6 +54,9 @@ export interface StorefrontProductDetailDTO extends StorefrontProductCardDTO {
   gallery: MediaDTO[];
   attributes: ProductAttributeGroupDTO[];
   categoryPath: string[];
+  /** The primary category's key — drives the related-products rail (025 FR-026). `categoryPath`
+   * carries display NAMES, which cannot be used to query. */
+  categoryKey: string;
 }
 
 /** A merchandising rail on Home (Featured / On-sale / a category rail). */
@@ -84,7 +87,19 @@ export interface StorefrontCategoryDTO {
   key: string;
   name: string;
   parentKey: string | null;
+  /** Active products in this category (025). Drives "N items" and the empty-category case. */
+  productCount: number;
+  /** Representative image, DERIVED from a product in the category — categories store no imagery, and
+   * 025 FR-001 forbids adding a column for it. Null → the client renders a brand tile, never a broken
+   * frame. The choice is deterministic so a category does not change its face between page loads. */
+  imageUrl: string | null;
 }
+
+/** The orderings a result set can be presented in (025 FR-016).
+ *
+ * `relevance` is only meaningful alongside a text query; without one the server falls back to
+ * `newest` and reports what it actually did in `ProductSearchResultDTO.sort`. */
+export type ProductSort = "newest" | "price_asc" | "price_desc" | "relevance";
 
 /** Search/browse query params (facets are query params, never path segments — SEO, FR-017). */
 export interface ProductSearchQuery {
@@ -95,12 +110,34 @@ export interface ProductSearchQuery {
   saleOnly?: boolean;
   /** Attribute facets, keyed by attribute key → selected value(s). */
   attributes?: Record<string, string>;
+  /** Defaults to `newest`, which is the pre-025 ordering. */
+  sort?: ProductSort;
   cursor?: string;
   limit?: number;
 }
 
-/** A page of search results with a keyset cursor for infinite scroll. */
+/** A page of search results with a keyset cursor for infinite scroll.
+ *
+ * ⚠ `cursor` is OPAQUE and sort-tagged. Do not construct one, and do not carry one across a sort
+ * change — the server rejects a cursor issued under a different ordering with 400
+ * `cursor_sort_mismatch`, because honouring it would silently drop and repeat products (FR-016b). */
 export interface ProductSearchResultDTO {
   items: StorefrontProductCardDTO[];
   nextCursor: string | null;
+  /** Total products matching the refinements, ignoring pagination (025 FR-016a). */
+  total: number;
+  /** The ordering ACTUALLY applied — may differ from the request. Render the sort control from this,
+   * not from what was asked for, or the control will misdescribe the list beneath it. */
+  sort: ProductSort;
+}
+
+/** Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).
+ *
+ * ⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart contents,
+ * so anything shown here is an estimate checkout would revise), and no zone id or name (FR-006 — zone
+ * names are geographic and would disclose where Effy fulfils from). */
+export interface ServiceabilityDTO {
+  /** The normalised postcode the answer applies to. */
+  postcode: string;
+  serviced: boolean;
 }

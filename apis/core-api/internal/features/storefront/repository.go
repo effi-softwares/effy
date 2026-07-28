@@ -12,12 +12,13 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 )
 
-// cardSelect is the shared product-card projection. The LATERAL join picks one image: primary first,
-// then lowest display_order. Money is cast to text to preserve exactness.
-const cardSelect = `
-SELECT p.id::text                 AS id,
+// The shared product-card projection, split into its column list and its FROM so search can splice a
+// relevance-score column between them (025). The LATERAL join picks one image: primary first, then
+// lowest display_order. Money is cast to text to preserve exactness.
+const cardColumns = `p.id::text                 AS id,
        p.name                     AS name,
        p.brand                    AS brand,
        p.price_amount::text       AS price_amount,
@@ -25,7 +26,9 @@ SELECT p.id::text                 AS id,
        p.compare_at_amount::text  AS compare_at_amount,
        m.storage_key              AS storage_key,
        m.alt_text                 AS alt_text,
-       p.created_at               AS created_at
+       p.created_at               AS created_at`
+
+const cardFrom = `
 FROM public.product p
 LEFT JOIN LATERAL (
     SELECT storage_key, alt_text
@@ -35,6 +38,9 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) m ON true
 `
+
+// cardSelect is the full projection used by every non-search read.
+const cardSelect = "\nSELECT " + cardColumns + cardFrom
 
 // cardRow is the wire shape of cardSelect; it never leaves this file.
 type cardRow struct {
@@ -49,17 +55,45 @@ type cardRow struct {
 	CreatedAt       time.Time `db:"created_at"`
 }
 
+// searchRow is cardRow plus the relevance score. pgx.RowToStructByName requires the struct to match
+// the result set exactly, so search — which always selects a score column — needs its own row type
+// rather than an optional field on cardRow.
+type searchRow struct {
+	ID              string    `db:"id"`
+	Name            string    `db:"name"`
+	Brand           *string   `db:"brand"`
+	PriceAmount     string    `db:"price_amount"`
+	Currency        string    `db:"currency"`
+	CompareAtAmount *string   `db:"compare_at_amount"`
+	StorageKey      *string   `db:"storage_key"`
+	AltText         *string   `db:"alt_text"`
+	CreatedAt       time.Time `db:"created_at"`
+	Score           float32   `db:"score"`
+}
+
+// card projects a search row onto the shared card shape the service already knows how to map.
+func (r searchRow) card() cardRow {
+	return cardRow{
+		ID: r.ID, Name: r.Name, Brand: r.Brand,
+		PriceAmount: r.PriceAmount, Currency: r.Currency, CompareAtAmount: r.CompareAtAmount,
+		StorageKey: r.StorageKey, AltText: r.AltText, CreatedAt: r.CreatedAt,
+	}
+}
+
 // railCandidate is a category that has active products (drives the Home category rails).
 type railCandidate struct {
 	Key  string `db:"key"`
 	Name string `db:"name"`
 }
 
-// categoryRow is the wire shape of the category tree read.
+// categoryRow is the wire shape of the category tree read. ProductCount and ImageKey were added by
+// 025 so browse can show a real, scannable category grid (contracts/storefront-categories.contract.md).
 type categoryRow struct {
-	Key       string  `db:"key"`
-	Name      string  `db:"name"`
-	ParentKey *string `db:"parent_key"`
+	Key          string  `db:"key"`
+	Name         string  `db:"name"`
+	ParentKey    *string `db:"parent_key"`
+	ProductCount int     `db:"product_count"`
+	ImageKey     *string `db:"image_key"`
 }
 
 type Repository struct {
@@ -138,12 +172,33 @@ LIMIT $1`, limit)
 	return out, nil
 }
 
-// Categories returns the active category tree (chips/filters), each with its parent key.
+// Categories returns the active category tree (chips/filters/browse), each with its parent key, its
+// active-product count, and a representative image key.
+//
+// ⚠ The image is DERIVED, not stored — public.category has no image column and 025 FR-001 forbids
+// adding one. The choice is deterministic (oldest active product in the category that has media, then
+// that product's primary image) precisely because an arbitrary pick would make a category change its
+// face between two page loads, which reads as a bug even though nothing is wrong.
 func (r *Repository) Categories(ctx context.Context) ([]categoryRow, error) {
 	rows, err := r.db.Query(ctx, `
 SELECT c.key AS key,
        c.name AS name,
-       (SELECT pc.key FROM public.category pc WHERE pc.id = c.parent_id) AS parent_key
+       (SELECT pc.key FROM public.category pc WHERE pc.id = c.parent_id) AS parent_key,
+       (SELECT count(*)
+          FROM public.product p
+         WHERE p.primary_category_id = c.id AND p.status = 'active') AS product_count,
+       (SELECT m.storage_key
+          FROM public.product p
+          JOIN LATERAL (
+              SELECT storage_key
+              FROM public.product_media
+              WHERE product_id = p.id
+              ORDER BY is_primary DESC, display_order ASC, created_at ASC
+              LIMIT 1
+          ) m ON true
+         WHERE p.primary_category_id = c.id AND p.status = 'active'
+         ORDER BY p.created_at ASC, p.id ASC
+         LIMIT 1) AS image_key
 FROM public.category c
 WHERE c.status = 'active'
 ORDER BY c.display_order ASC, c.name ASC`)
@@ -155,4 +210,15 @@ ORDER BY c.display_order ASC, c.name ASC`)
 		return nil, fmt.Errorf("storefront: scan categories: %w", err)
 	}
 	return out, nil
+}
+
+// Serviceable answers whether a postcode is in any delivery zone (025 FR-014).
+//
+// ⚠ It delegates to delivery.ZoneForPostcode rather than issuing its own SELECT. That is the entire
+// mechanism behind FR-014b: checkout's DestinationZone calls the same function, so the answer a
+// shopper gets in the storefront header and the answer they get at payment come from one
+// implementation and cannot drift apart. Do not inline the SQL back into this file.
+func (r *Repository) Serviceable(ctx context.Context, postcode string) (bool, error) {
+	_, ok, err := delivery.ZoneForPostcode(ctx, r.db, postcode)
+	return ok, err
 }

@@ -26,10 +26,41 @@ const CSS = resolve(here, "../src/tokens.css");
 // ONE generator, ONE brand source — one derived, diff-guarded theme PER KMP app (Principle II/V). Each
 // app has its own package root, so each gets its own committed copy. tokens:check compares them all.
 const TARGETS = [
-  { out: resolve(here, "../compose/EffyTokens.kt"), pkg: "com.effyshopping.customer.mobile.design" },
-  { out: resolve(here, "../compose-shop/EffyTokens.kt"), pkg: "com.effyshopping.shop.mobile.design" },
-  { out: resolve(here, "../compose-driver/EffyTokens.kt"), pkg: "com.effyshopping.driver.mobile.design" },
+  {
+    out: resolve(here, "../compose/EffyTokens.kt"),
+    pkg: "com.effyshopping.customer.mobile.design",
+    sharedOut: resolve(here, "../compose/EffyLayoutTokens.kt"),
+    typographyOut: resolve(here, "../compose/EffyTypography.kt"),
+    resPkg: "com.effyshopping.customer.mobile.resources",
+  },
+  {
+    out: resolve(here, "../compose-shop/EffyTokens.kt"),
+    pkg: "com.effyshopping.shop.mobile.design",
+    sharedOut: resolve(here, "../compose-shop/EffyLayoutTokens.kt"),
+    typographyOut: resolve(here, "../compose-shop/EffyTypography.kt"),
+    resPkg: "com.effyshopping.shop.mobile.resources",
+  },
+  {
+    out: resolve(here, "../compose-driver/EffyTokens.kt"),
+    pkg: "com.effyshopping.driver.mobile.design",
+    sharedOut: resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
+    // ⚠ No typography target: driver-mobile is still the untouched KMP template with no
+    // composeResources, so there are no font accessors to import. It gains one with its shell.
+    typographyOut: null,
+  },
 ];
+
+// The AUDIENCE-NEUTRAL package for the layout vocabulary (spacing + radius).
+//
+// ⚠ Why this is not in the per-app package like the colours: `packages/mobile-kit` holds components
+// shared by every mobile surface, and a shared component cannot import
+// `com.effyshopping.<app>.mobile.design`. Duplicating the scale into the kit would be exactly the
+// copy-paste Principle II prohibits, and the two copies would drift the first time a step changed.
+//
+// Each app still gets its OWN generated copy of this file (they are separate Gradle builds, so the
+// identical package name never collides) — the same authored-source → committed-derived-artifact →
+// drift-check pattern the colours already use.
+const SHARED_PKG = "com.effyshopping.mobile.design";
 
 /** Parse a `:root { … }` or `.dark { … }` block into { cssVarName: "#rrggbb" }. */
 function parseBlock(css, selector) {
@@ -166,7 +197,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 
 /** The raw Effy brand tokens, light and dark. Effy Emerald #065f46 is the primary accent. */
 object EffyColor {
@@ -174,6 +204,20 @@ ${colorObject("Light", light)}
 
 ${colorObject("Dark", dark)}
 }
+
+${colorScheme("lightColorScheme", "EffyLightColorScheme", "Light")}
+
+${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark")}
+`;
+
+  mkdirSync(dirname(target.out), { recursive: true });
+  writeFileSync(target.out, out);
+
+  // The audience-neutral half: spacing + radius, consumable by packages/mobile-kit.
+  const shared = `${banner}
+package ${SHARED_PKG}
+
+import androidx.compose.ui.unit.dp
 
 /** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
 object EffyRadius {
@@ -191,15 +235,77 @@ object EffySpacing {
     val xl = 20.dp
     val xxxl = 40.dp
 }
-
-${colorScheme("lightColorScheme", "EffyLightColorScheme", "Light")}
-
-${colorScheme("darkColorScheme", "EffyDarkColorScheme", "Dark")}
 `;
+  writeFileSync(target.sharedOut, shared);
 
-  mkdirSync(dirname(target.out), { recursive: true });
-  writeFileSync(target.out, out);
-  console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors, radius sm/md/default ${radiusSmDp}/${radiusMdDp}/${radiusDefaultDp}.dp)`);
+  // The Material 3 type scale, bound to Nunito Sans.
+  //
+  // ⚠ Generated PER APP rather than shared, because it is the one part of the theme that genuinely
+  // cannot be: it imports the app's own generated Compose resource accessors (`Res.font.…`), whose
+  // package differs per module. The SCALE itself is identical everywhere — it is data, and it comes
+  // from here so the two surfaces cannot drift into different type hierarchies. 018 authored this by
+  // hand inside shop-mobile, which is exactly why customer-mobile never had it.
+  if (target.typographyOut) {
+    const typography = `${banner}
+package ${target.pkg}
+
+import androidx.compose.material3.Typography
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.Font
+import ${target.resPkg}.Res
+import ${target.resPkg}.nunito_sans_bold
+import ${target.resPkg}.nunito_sans_regular
+import ${target.resPkg}.nunito_sans_semibold
+
+/** Nunito Sans, the platform typeface (constitution Principle V). */
+@Composable
+fun effyFontFamily(): FontFamily = FontFamily(
+    Font(Res.font.nunito_sans_regular, FontWeight.Normal),
+    Font(Res.font.nunito_sans_semibold, FontWeight.SemiBold),
+    Font(Res.font.nunito_sans_bold, FontWeight.Bold),
+)
+
+/** The Effy Material 3 type scale. Identical across every mobile surface by construction. */
+@Composable
+fun effyTypography(): Typography {
+    val family = effyFontFamily()
+    return Typography(
+        displayLarge = effyTextStyle(family, FontWeight.Bold, 48, 56),
+        headlineLarge = effyTextStyle(family, FontWeight.Bold, 34, 40),
+        headlineMedium = effyTextStyle(family, FontWeight.Bold, 30, 36),
+        headlineSmall = effyTextStyle(family, FontWeight.Bold, 26, 32),
+        titleLarge = effyTextStyle(family, FontWeight.Bold, 22, 28),
+        titleMedium = effyTextStyle(family, FontWeight.SemiBold, 18, 24),
+        titleSmall = effyTextStyle(family, FontWeight.SemiBold, 16, 22),
+        bodyLarge = effyTextStyle(family, FontWeight.Normal, 17, 25),
+        bodyMedium = effyTextStyle(family, FontWeight.Normal, 15, 22),
+        bodySmall = effyTextStyle(family, FontWeight.Normal, 13, 18),
+        labelLarge = effyTextStyle(family, FontWeight.SemiBold, 15, 20),
+        labelMedium = effyTextStyle(family, FontWeight.SemiBold, 13, 18),
+        labelSmall = effyTextStyle(family, FontWeight.SemiBold, 11, 16),
+    )
+}
+
+private fun effyTextStyle(
+    family: FontFamily,
+    weight: FontWeight,
+    size: Int,
+    lineHeight: Int,
+) = TextStyle(
+    fontFamily = family,
+    fontWeight = weight,
+    fontSize = size.sp,
+    lineHeight = lineHeight.sp,
+)
+`;
+    writeFileSync(target.typographyOut, typography);
+  }
+
+  console.log(`gen-compose-theme: wrote ${target.out} (${COLOR_TOKENS.length} colors) + ${target.sharedOut} (radius sm/md/default ${radiusSmDp}/${radiusMdDp}/${radiusDefaultDp}.dp)`);
 }
 
 for (const target of TARGETS) generate(target);

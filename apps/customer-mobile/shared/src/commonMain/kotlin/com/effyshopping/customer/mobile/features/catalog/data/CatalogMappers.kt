@@ -47,6 +47,7 @@ internal fun BannerDTO.toDomain(): Banner = Banner(
     key = key,
     title = title,
     subtitle = subtitle,
+    imageUrl = imageURL,
     href = href,
 )
 
@@ -62,6 +63,8 @@ internal fun StorefrontHomeDTO.toDomain(): HomeContent = HomeContent(
 )
 
 internal fun StorefrontCategoryDTO.toDomain(): Category = Category(
+    productCount = productCount.toInt(),
+    imageUrl = imageURL,
     key = key,
     name = name,
     parentKey = parentKey,
@@ -90,4 +93,5 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
     gallery = gallery.map { it.toDomain() },
     attributes = attributes.map { it.toDomain() },
     categoryPath = categoryPath,
+    categoryKey = categoryKey,
 )

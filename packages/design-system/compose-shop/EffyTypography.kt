@@ -1,24 +1,32 @@
-package com.effyshopping.shop.mobile.core.theme
+// GENERATED FROM packages/design-system/src/tokens.css — DO NOT EDIT.
+// Regenerate: pnpm --filter @effy/design-system tokens:gen
+// The brand lives in tokens.css ONCE (constitution Principle V); this file is derived and diff-guarded (013 D16).
+package com.effyshopping.shop.mobile.design
 
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.Font
 import com.effyshopping.shop.mobile.resources.Res
 import com.effyshopping.shop.mobile.resources.nunito_sans_bold
 import com.effyshopping.shop.mobile.resources.nunito_sans_regular
 import com.effyshopping.shop.mobile.resources.nunito_sans_semibold
-import org.jetbrains.compose.resources.Font
 
+/** Nunito Sans, the platform typeface (constitution Principle V). */
 @Composable
-internal fun effyTypography(): Typography {
-    val family = FontFamily(
-        Font(Res.font.nunito_sans_regular, FontWeight.Normal),
-        Font(Res.font.nunito_sans_semibold, FontWeight.SemiBold),
-        Font(Res.font.nunito_sans_bold, FontWeight.Bold),
-    )
+fun effyFontFamily(): FontFamily = FontFamily(
+    Font(Res.font.nunito_sans_regular, FontWeight.Normal),
+    Font(Res.font.nunito_sans_semibold, FontWeight.SemiBold),
+    Font(Res.font.nunito_sans_bold, FontWeight.Bold),
+)
+
+/** The Effy Material 3 type scale. Identical across every mobile surface by construction. */
+@Composable
+fun effyTypography(): Typography {
+    val family = effyFontFamily()
     return Typography(
         displayLarge = effyTextStyle(family, FontWeight.Bold, 48, 56),
         headlineLarge = effyTextStyle(family, FontWeight.Bold, 34, 40),

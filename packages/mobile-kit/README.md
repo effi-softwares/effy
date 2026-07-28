@@ -17,7 +17,8 @@ Material 3** already present (`NavigationBar` / `NavigationRail`) plus `kotlinx.
 | `ui/WindowSize.kt` | `WindowWidth` class + `widthClassFor` + `AdaptiveContent` — adaptive window sizing (promoted from shop; the customer app had none) |
 | `nav/NavKey.kt` | `AppNavKey` route marker + `navKeySerializersModule { }` — the polymorphic route serialization iOS saved-state restore requires (research R6) |
 | `nav/TabBackStacks.kt` | developer-owned **per-tab back stacks** (`rememberTabBackStacks`) — independent history per tab, re-tap-to-root, saveable across config change + process death |
-| `shell/AdaptiveNavShell.kt` | the adaptive chrome: **bottom bar on compact / navigation rail on expanded** from one destination set (`NavDestination`), plus a `NavGlyph` placeholder icon |
+| `shell/ResponsiveNavigation.kt` | the adaptive chrome: **bottom bar on compact / navigation rail on expanded** from one destination set (`ResponsiveDestination`), with real per-destination icons |
+| `ui/EffyComponents.kt` | the shared page/field/action/section vocabulary (safe-area `EffyPage`, `EffyTextField`, `EffyPrimaryAction`, `EffySection`, loading + placeholder states) |
 
 Each app inlines its own top-level session gate as an **exhaustive `when(session)`** over its own sealed
 `SessionState` (more type-safe than a generic gate), and its own return-to-intent (the customer app captures

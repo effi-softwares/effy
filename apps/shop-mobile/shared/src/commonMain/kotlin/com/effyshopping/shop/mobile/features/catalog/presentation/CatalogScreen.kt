@@ -53,7 +53,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.effyshopping.shop.mobile.design.EffySpacing
+import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.shop.mobile.features.catalog.domain.GetProduct
 import com.effyshopping.shop.mobile.features.catalog.domain.ListProducts
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductAttributeValue

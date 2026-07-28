@@ -17,7 +17,17 @@ class GetProductDetail(private val repo: CatalogRepository) {
     suspend operator fun invoke(id: String): ProductDetail = repo.productDetail(id)
 }
 
+/** Up-front delivery serviceability (025 US1). */
+class CheckServiceability(private val repo: CatalogRepository) {
+    suspend operator fun invoke(postcode: String): Serviceability = repo.serviceability(postcode)
+}
+
 class SearchProducts(private val repo: CatalogRepository) {
-    suspend operator fun invoke(query: String, saleOnly: Boolean, cursor: String?): ProductPage =
-        repo.search(query, saleOnly, cursor)
+    suspend operator fun invoke(
+        query: String,
+        saleOnly: Boolean,
+        categoryKey: String? = null,
+        sort: ProductSortOption = ProductSortOption.NEWEST,
+        cursor: String? = null,
+    ): ProductPage = repo.search(query, saleOnly, categoryKey, sort, cursor)
 }

@@ -46,7 +46,7 @@ export function PaymentForm({ orderId, onSuccess }: { orderId: string; onSuccess
       <button
         type="submit"
         disabled={!stripe || busy}
-        className="flex h-12 w-full items-center justify-center rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        className="flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
       >
         {busy ? "Processing…" : "Pay now"}
       </button>

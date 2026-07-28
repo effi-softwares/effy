@@ -23,7 +23,10 @@ type detailRow struct {
 	LongDescription  *string `db:"long_description"`
 	CreatedAt        string  `db:"created_at"`
 	CategoryID       string  `db:"primary_category_id"`
-	IsNew            bool    `db:"is_new"`
+	// 025 FR-026: the key (not the id) so the client can ask for related products through the same
+	// public search the rest of discovery uses — no new endpoint, no recommendation engine.
+	CategoryKey string `db:"primary_category_key"`
+	IsNew       bool   `db:"is_new"`
 }
 
 type mediaRow struct {
@@ -55,6 +58,7 @@ SELECT p.id::text                  AS id,
        p.long_description          AS long_description,
        p.created_at::text          AS created_at,
        p.primary_category_id::text AS primary_category_id,
+       (SELECT c.key FROM public.category c WHERE c.id = p.primary_category_id) AS primary_category_key,
        (p.created_at >= now() - interval '14 days') AS is_new
 FROM public.product p
 WHERE p.id = $1 AND p.status = 'active'`, id)

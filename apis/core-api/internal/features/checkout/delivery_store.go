@@ -31,14 +31,16 @@ func (s *pgStore) DestinationZone(ctx context.Context, customerID, addressID str
 		}
 		return "", "", false, fmt.Errorf("checkout: dest postcode: %w", err)
 	}
-	var zoneID string
-	err = s.pool.QueryRow(ctx,
-		`SELECT zone_id::text FROM public.delivery_zone_postcode WHERE postcode = $1`, postcode).Scan(&zoneID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return postcode, "", false, nil // unserviceable destination
-	}
+	// ⚠ Resolved through the SHARED predicate, not a local copy of the SQL (025 FR-014b). The
+	// storefront now answers "do we deliver to you?" before a cart exists, and that answer and this
+	// one must be incapable of disagreeing — otherwise a shopper is told yes in the header and
+	// refused at payment. See internal/platform/delivery/zone.go.
+	zoneID, ok, err := delivery.ZoneForPostcode(ctx, s.pool, postcode)
 	if err != nil {
 		return "", "", false, fmt.Errorf("checkout: dest zone: %w", err)
+	}
+	if !ok {
+		return postcode, "", false, nil // unserviceable destination
 	}
 	return postcode, zoneID, true, nil
 }

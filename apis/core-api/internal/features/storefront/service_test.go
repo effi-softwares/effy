@@ -19,7 +19,9 @@ type fakeReader struct {
 	media       []mediaRow
 	attrs       []attrRow
 	path        []string
-	search      []cardRow
+	search      []searchRow
+	count       int
+	lastParams  SearchParams
 }
 
 func (f *fakeReader) NewestCards(_ context.Context, _ int) ([]cardRow, error) { return f.newest, nil }
@@ -46,8 +48,22 @@ func (f *fakeReader) ProductAttributes(_ context.Context, _ string) ([]attrRow, 
 func (f *fakeReader) CategoryPath(_ context.Context, _ string) ([]string, error) {
 	return f.path, nil
 }
-func (f *fakeReader) SearchCards(_ context.Context, _ SearchParams) ([]cardRow, error) {
+
+// Serviceable defaults to "not serviced" — tests that care about delivery use serviceabilityReader,
+// which overrides it (see serviceability_test.go).
+func (f *fakeReader) Serviceable(_ context.Context, _ string) (bool, error) { return false, nil }
+
+func (f *fakeReader) SearchCards(_ context.Context, p SearchParams) ([]searchRow, error) {
+	f.lastParams = p
 	return f.search, nil
+}
+
+// CountCards reports whatever the test set, defaulting to the number of rows staged.
+func (f *fakeReader) CountCards(_ context.Context, _ SearchParams) (int, error) {
+	if f.count > 0 {
+		return f.count, nil
+	}
+	return len(f.search), nil
 }
 
 // fakePresign returns a deterministic signed URL and never errors.
@@ -149,9 +165,9 @@ func TestCardsByIDsPreservesOrderAndDropsMissing(t *testing.T) {
 
 func TestSearchPaginatesWithKeysetCursor(t *testing.T) {
 	// 25 rows returned for a page size of 24 (limit+1 lookahead) → a nextCursor is minted.
-	rows := make([]cardRow, 0, 25)
+	rows := make([]searchRow, 0, 25)
 	for i := range 25 {
-		rows = append(rows, card("p"+string(rune('a'+i)), "P", nil, i, nil))
+		rows = append(rows, searchRowOf(card("p"+string(rune('a'+i)), "P", nil, i, nil)))
 	}
 	svc := NewService(&fakeReader{search: rows}, fakePresign{})
 
@@ -165,14 +181,18 @@ func TestSearchPaginatesWithKeysetCursor(t *testing.T) {
 	if res.NextCursor == nil {
 		t.Fatal("want a next cursor when more rows exist")
 	}
-	// The cursor round-trips.
-	if _, _, ok := decodeCursor(*res.NextCursor); !ok {
+	// The cursor round-trips, and carries the ordering it was issued under (025 FR-016b).
+	cur, ok := DecodeCursor(*res.NextCursor)
+	if !ok {
 		t.Errorf("next cursor does not decode: %q", *res.NextCursor)
+	}
+	if cur.Sort != SortNewest {
+		t.Errorf("cursor sort = %q, want the default newest", cur.Sort)
 	}
 }
 
 func TestSearchLastPageHasNoCursor(t *testing.T) {
-	svc := NewService(&fakeReader{search: []cardRow{card("p1", "One", nil, 1, nil)}}, fakePresign{})
+	svc := NewService(&fakeReader{search: []searchRow{searchRowOf(card("p1", "One", nil, 1, nil))}}, fakePresign{})
 	res, err := svc.Search(context.Background(), SearchQuery{})
 	if err != nil {
 		t.Fatalf("Search: %v", err)
@@ -196,4 +216,14 @@ func cardIDs(cards []ProductCard) []string {
 		out[i] = c.ID
 	}
 	return out
+}
+
+// searchRowOf lifts a card row into the search projection (the score column only matters for
+// relevance ordering, which these tests do not exercise).
+func searchRowOf(c cardRow) searchRow {
+	return searchRow{
+		ID: c.ID, Name: c.Name, Brand: c.Brand,
+		PriceAmount: c.PriceAmount, Currency: c.Currency, CompareAtAmount: c.CompareAtAmount,
+		StorageKey: c.StorageKey, AltText: c.AltText, CreatedAt: c.CreatedAt,
+	}
 }

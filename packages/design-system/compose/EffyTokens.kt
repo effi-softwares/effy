@@ -7,7 +7,6 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 
 /** The raw Effy brand tokens, light and dark. Effy Emerald #065f46 is the primary accent. */
 object EffyColor {
@@ -24,7 +23,7 @@ object EffyColor {
         val secondaryForeground = Color(0xFF171717)
         val muted = Color(0xFFD4D4D4)
         val mutedForeground = Color(0xFF525252)
-        val accent = Color(0xFFD4D4D4)
+        val accent = Color(0xFFF5F5F5)
         val accentForeground = Color(0xFF171717)
         val destructive = Color(0xFFBF5540)
         val destructiveForeground = Color(0xFFFFFFFF)
@@ -54,23 +53,6 @@ object EffyColor {
         val input = Color(0xFF404040)
         val ring = Color(0xFF10B981)
     }
-}
-
-/** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
-object EffyRadius {
-    val sm = 8.dp
-    val md = 16.dp
-    val default = 16.dp
-}
-
-/** The Effy spacing scale (dp), mirroring the design tokens (xs 4 · s 8 · md 12 · lg 16 · xl 20 · 4xl 40 → xxxl). */
-object EffySpacing {
-    val xs = 4.dp
-    val s = 8.dp
-    val md = 12.dp
-    val lg = 16.dp
-    val xl = 20.dp
-    val xxxl = 40.dp
 }
 
 val EffyLightColorScheme: ColorScheme = lightColorScheme(

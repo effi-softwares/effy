@@ -11,12 +11,12 @@ export function CartBadge() {
   return (
     <Link
       href="/cart"
-      className="relative inline-flex size-9 items-center justify-center rounded-md hover:bg-accent"
+      className="relative inline-flex size-9 items-center justify-center rounded-full hover:bg-accent"
       aria-label={count > 0 ? `Cart, ${count} item${count === 1 ? "" : "s"}` : "Cart, empty"}
     >
       <ShoppingCart className="size-5" />
       {count > 0 && (
-        <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+        <span className="absolute -right-1 -top-1 flex min-w-4 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
           {count > 99 ? "99+" : count}
         </span>
       )}

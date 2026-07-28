@@ -70,7 +70,7 @@ export function PasswordField({
           aria-describedby={[isNew ? hintId : null, describedBy].filter(Boolean).join(" ") || undefined}
           aria-invalid={tooShort || undefined}
           data-testid={name}
-          className="h-11 w-full rounded-md border bg-background px-3 pr-12 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="h-11 w-full rounded-full border bg-background px-3 pr-12 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
 
         <button
@@ -81,7 +81,7 @@ export function PasswordField({
           aria-label={`${revealed ? "Hide" : "Show"} ${label.toLowerCase()}`}
           aria-pressed={revealed}
           // 44px target — the platform's fat-finger rule, stricter than WCAG 2.2's 24px minimum.
-          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
         >
           {revealed ? (
             <EyeOff className="size-4" aria-hidden="true" />

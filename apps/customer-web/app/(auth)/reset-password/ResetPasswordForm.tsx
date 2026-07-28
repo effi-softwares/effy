@@ -43,7 +43,7 @@ export function ResetPasswordForm() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Reset your password</h1>
+      <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">Reset your password</h1>
 
       {error && (
         <p
@@ -142,7 +142,7 @@ function Field({
         name={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
         {...rest}
       />
     </div>
@@ -154,7 +154,7 @@ function Submit({ pending, label }: { pending: boolean; label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="h-11 w-full rounded-md bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+      className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
     >
       {pending ? "Please wait…" : label}
     </button>

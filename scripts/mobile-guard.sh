@@ -92,7 +92,35 @@ if [ -n "$RETIRED_SHOP_HITS" ]; then
   FAIL=1
 fi
 
+# ── 025 SC-006: the customer app must never regrow its "unfinished app" tells ───────────────────
+#
+# Three of the four SC-006 signals are greppable, so they get a permanent guard rather than a one-off
+# sweep at sign-off. The fourth (spinner-only first loads) is not reliably detectable by pattern and
+# stays a review item.
+#
+#   NavGlyph / AdaptiveNavShell — the lettered "H/S/O/A" navigation icons. The component is DELETED
+#                                 from packages/mobile-kit, so a reference means someone reintroduced it.
+#   "← Back"                    — an improvised text-link back control instead of a real header.
+#   ♥ / ♡ in a Text(...)        — glyph-as-icon buttons.
+CUSTOMER_APP="$ROOT/apps/customer-mobile"
+RETIRED_CUSTOMER_PATTERN='NavGlyph|AdaptiveNavShell|Text\("← Back"\)|Text\("♥|Text\("♡'
+# ⚠ Comment lines are filtered out. The first version of this guard did not, and it failed on the
+# CODE COMMENT that explains why the lettered glyphs were removed — a guard that forbids naming the
+# thing it forbids makes the codebase harder to explain, and trains people to delete the explanation
+# rather than the defect. Matching only non-comment lines keeps it aimed at usage.
+RETIRED_CUSTOMER_HITS="$(grep -rInE "$RETIRED_CUSTOMER_PATTERN" \
+  --include='*.kt' --include='*.swift' \
+  --exclude-dir=build --exclude-dir='.gradle' --exclude-dir=DerivedData \
+  "$CUSTOMER_APP/shared/src" \
+  "$CUSTOMER_APP/androidApp/src" "$CUSTOMER_APP/iosApp" 2>/dev/null \
+  | grep -vE '^[^:]+:[0-9]+: *(//|\*|/\*)' || true)"
+if [ -n "$RETIRED_CUSTOMER_HITS" ]; then
+  echo "✗ mobile-guard [apps/customer-mobile]: retired presentation returned (025 SC-006):"
+  echo "$RETIRED_CUSTOMER_HITS" | sed 's/^/    /'
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
-  echo "✓ mobile-guard: auth/config checks clean; retired shop presentation remains absent."
+  echo "✓ mobile-guard: auth/config checks clean; retired shop + customer presentation remains absent."
 fi
 exit "$FAIL"

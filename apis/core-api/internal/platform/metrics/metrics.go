@@ -18,9 +18,10 @@ import (
 )
 
 type Metrics struct {
-	registry *prometheus.Registry
-	requests *prometheus.CounterVec
-	duration *prometheus.HistogramVec
+	registry       *prometheus.Registry
+	requests       *prometheus.CounterVec
+	duration       *prometheus.HistogramVec
+	serviceability *prometheus.CounterVec
 }
 
 func New() *Metrics {
@@ -35,15 +36,34 @@ func New() *Metrics {
 			Help:    "HTTP request latency, by method, route template and status.",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"method", "route", "status"}),
+		// 025: how often the storefront answers "do we deliver to you?", and how it answered.
+		//
+		// ⚠ `serviced` is the ONLY label, and that is deliberate. `postcode` is the obvious thing to
+		// attach and it would be two mistakes at once: unbounded cardinality (Principle VII requires
+		// low-cardinality labels — one series per postcode would degrade the metrics backend), and
+		// location data about an individual shopper in an operational metric. Two values are enough
+		// to answer the question this metric exists for: what share of interested visitors are
+		// outside a serviced zone?
+		serviceability: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "storefront_serviceability_checks_total",
+			Help: "Up-front delivery serviceability answers, by outcome.",
+		}, []string{"serviced"}),
 	}
 
 	m.registry.MustRegister(
 		m.requests,
 		m.duration,
+		m.serviceability,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 	return m
+}
+
+// RecordServiceability counts one up-front delivery answer. Malformed input is NOT counted — it was
+// never a question about a real place.
+func (m *Metrics) RecordServiceability(serviced bool) {
+	m.serviceability.WithLabelValues(strconv.FormatBool(serviced)).Inc()
 }
 
 // Middleware records the RED pair for every handled request.

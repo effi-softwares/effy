@@ -18,7 +18,9 @@
     "test": "node scripts/check-tokens.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs",
-    "tokens:check": "node scripts/check-compose-theme.mjs"
+    "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs",
+    "mobile-assets:sync": "node scripts/sync-mobile-assets.mjs",
+    "mobile-assets:check": "node scripts/check-mobile-assets.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
