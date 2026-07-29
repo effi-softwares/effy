@@ -128,13 +128,15 @@ class AccountViewModel(
 
     fun signOut() = launch {
         session.signOutLocally()
-        navigator.resetTo(CustomerNavKey.Home)
+        // The Account tab returns to ITS root, which for a guest is the sign-in landing. Resetting to
+        // Home instead left the Account tab permanently rendering Discover.
+        navigator.resetToRoot()
     }
 
     fun signOutEverywhere() = launch {
         runCatching { signOutEverywhereUseCase() }
         session.signOutLocally()
-        navigator.resetTo(CustomerNavKey.Home)
+        navigator.resetToRoot()
     }
 
     /** Reset transient state (error/info/masked destination) so one sub-screen's error doesn't bleed
@@ -146,7 +148,10 @@ class AccountViewModel(
     private suspend fun finishAfterPasswordWrite() {
         // FR-027: the write revoked EVERY session, including this device. Back to sign-in with the news.
         session.signOutLocally()
-        navigator.resetTo(CustomerNavKey.SignIn())
+        // Back to the tab root (the guest landing), then into sign-in — so the arrow has somewhere
+        // to go, rather than stranding the customer on a rootless sign-in screen.
+        navigator.resetToRoot()
+        navigator.push(CustomerNavKey.SignIn())
     }
 
     private fun longEnough(pw: String): Boolean {
@@ -190,8 +195,9 @@ class AccountViewModel(
 fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: SessionState) {
     val customer = (session as? SessionState.Authenticated)?.customer
     if (customer == null) {
-        // Defensive: only a signed-in customer reaches here; if not, go home.
-        container.navigator.resetTo(CustomerNavKey.Home)
+        // Defensive: only a signed-in customer reaches here; if not, fall back to the tab root,
+        // which renders the guest landing.
+        container.navigator.resetToRoot()
         return
     }
     val vm = viewModel {

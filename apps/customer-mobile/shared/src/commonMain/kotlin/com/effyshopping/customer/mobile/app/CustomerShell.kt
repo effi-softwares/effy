@@ -287,7 +287,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         key.orderId,
                         title = "Order confirmed",
                         doneLabel = "Keep shopping",
-                        onDone = { navState.resetTo(CustomerNavKey.Home) },
+                        // ⚠ Order matters. Checkout may have run in any tab (Search → Product →
+                        // Cart → Checkout), so that tab is cleared to its OWN root first; only then
+                        // do we move to Home. Resetting to Home directly would have planted Home as
+                        // the Search tab's root.
+                        onDone = {
+                            navState.resetToRoot()
+                            navState.selectTab(CustomerNavKey.Home)
+                        },
                     )
                 }
 

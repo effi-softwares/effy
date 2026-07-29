@@ -40,6 +40,7 @@ import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AuthError
 import com.effyshopping.customer.mobile.core.auth.AuthStep
 import com.effyshopping.customer.mobile.core.error.AppException
+import com.effyshopping.customer.mobile.core.nav.CUSTOMER_TAB_ROOTS
 import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
 import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.nav.OtpPurpose
@@ -154,7 +155,8 @@ class AuthViewModel(
             try {
                 confirmPasswordResetUseCase(email, code, newPassword)
                 _state.value = AuthUiState(info = "Password updated. Sign in with your new password.")
-                navigator.resetTo(CustomerNavKey.SignIn())
+                navigator.resetToRoot()
+                navigator.push(CustomerNavKey.SignIn())
             } catch (e: AppException) {
                 _state.value = AuthUiState(error = messageForApp(e))
             }
@@ -195,8 +197,11 @@ class AuthViewModel(
     private suspend fun completeSignIn(seedPassword: Boolean) {
         session.onSignedIn(seedPassword)
         val returnTo = pendingReturnTo
-        navigator.resetTo(CustomerNavKey.Home)
-        if (returnTo != null && returnTo != CustomerNavKey.Home) navigator.push(returnTo)
+        // ⚠ resetToRoot(), NOT resetTo(Home). Sign-in runs inside the ACCOUNT tab, so resetting to
+        // Home set the Account tab's stack to [Home] — after which tapping Account showed Discover,
+        // for good. The tab returns to its own root, which is now the signed-in account screen.
+        navigator.resetToRoot()
+        if (returnTo != null && returnTo !in CUSTOMER_TAB_ROOTS) navigator.push(returnTo)
     }
 
     private inline fun launch(crossinline block: suspend () -> Unit) {

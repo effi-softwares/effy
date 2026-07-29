@@ -78,11 +78,43 @@ class CustomerNavState internal constructor(
     }
 
     /**
-     * Replace the ACTIVE TAB's stack — the graph swap (sign-in completing, sign-out returning to
-     * guest). Deliberately scoped to one tab: wiping every tab's history because the customer signed
-     * in would throw away a half-built cart journey in Home for no reason.
+     * Send the active tab back to its OWN root — the graph swap (sign-in completing, sign-out
+     * returning to guest, an order finishing).
+     *
+     * ── ⚠ Use this, not `resetTo(SomeTabRoot)` ──────────────────────────────────────────────────
+     *
+     * This exists because the Nav3 migration got it wrong in a way nothing caught. The old navigator
+     * used `AppRoute.Home` to mean **"the root of whichever sub-graph you are in"** — inside the
+     * Account tab it rendered the account screen. The migration renamed it to `CustomerNavKey.Home`,
+     * which means the **Discover tab**. Same name, opposite meaning.
+     *
+     * So `completeSignIn` ran `resetTo(Home)` while the customer was in the Account tab, and set the
+     * ACCOUNT tab's stack to `[Home]`. From then on, tapping Account showed Discover — permanently,
+     * because nothing ever put `Account` back. Signing in broke the account page.
+     *
+     * Resetting to "the active tab's root" is what every one of those callers actually meant, and it
+     * cannot name the wrong tab because it does not name a tab at all.
+     */
+    fun resetToRoot() {
+        currentStack.clear()
+        currentStack.add(activeTab)
+    }
+
+    /**
+     * Replace the ACTIVE TAB's stack with one destination.
+     *
+     * Deliberately scoped to one tab: wiping every tab's history because the customer signed in would
+     * throw away a half-built cart journey in Home for no reason.
+     *
+     * ⚠ [key] MUST NOT be another tab's root — that is the defect described on [resetToRoot], and it
+     * is a programming error rather than anything a customer can cause, so it fails loudly here
+     * instead of silently rendering the wrong tab forever.
      */
     fun resetTo(key: CustomerNavKey) {
+        require(key !in CUSTOMER_TAB_ROOTS || key == activeTab) {
+            "resetTo($key) would make $key the root of the $activeTab tab — tapping $activeTab would " +
+                "then show $key. Use resetToRoot() to return a tab to its own root."
+        }
         currentStack.clear()
         currentStack.add(key)
     }
@@ -134,6 +166,11 @@ class CustomerNavigator {
 
     fun resetTo(key: CustomerNavKey) {
         state?.resetTo(key)
+    }
+
+    /** Send the active tab back to its own root — see [CustomerNavState.resetToRoot]. */
+    fun resetToRoot() {
+        state?.resetToRoot()
     }
 
 
