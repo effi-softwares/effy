@@ -50,10 +50,14 @@ import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
-import com.effyshopping.customer.mobile.resources.ic_orders_outlined
+import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
+import com.effyshopping.customer.mobile.features.delivery.DeliveryBar
+import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
+import com.effyshopping.customer.mobile.resources.ic_notifications_outlined
 import com.effyshopping.customer.mobile.resources.ic_search_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /**
@@ -93,12 +97,23 @@ fun HomeScreen(
     onProductClick: (String) -> Unit,
     onSearch: () -> Unit = {},
     onNotifications: () -> Unit = {},
+    onCart: () -> Unit = {},
+    onFavorites: () -> Unit = {},
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize().background(EffySurface.page)) {
-        DiscoverHeader(onNotifications = onNotifications)
+        DiscoverHeader(
+            container = container,
+            onNotifications = onNotifications,
+            onCart = onCart,
+            onFavorites = onFavorites,
+        )
+        // 025 US1/FR-012: "do we deliver to you?", asked BEFORE a cart is built rather than at
+        // checkout. It is not decoration — without it the first honest answer arrives after the
+        // shopper has already invested in an order.
+        DeliveryBar(container)
         SearchEntry(onSearch = onSearch)
 
         when (val s = state) {
@@ -134,9 +149,19 @@ fun HomeScreen(
     }
 }
 
-/** The source's header: the screen name, and a bell for notifications. */
+/**
+ * The source's header: the screen name, and a bell for notifications.
+ *
+ * ⚠ The bell used to be `ic_orders_outlined` — the SAME receipt glyph the bottom bar uses for Orders,
+ * so one icon carried two meanings on one screen. The set simply had no bell; there is one now.
+ */
 @Composable
-private fun DiscoverHeader(onNotifications: () -> Unit) {
+private fun DiscoverHeader(
+    container: AppContainer,
+    onNotifications: () -> Unit,
+    onCart: () -> Unit,
+    onFavorites: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,19 +169,35 @@ private fun DiscoverHeader(onNotifications: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         EffyDisplay("Discover", size = DisplaySize.Page, modifier = Modifier.weight(1f))
-        Box(
-            modifier = Modifier
-                .size(EffyMinTouchTarget)
-                .clip(RoundedCornerShape(EffyRadius.sm))
-                .clickable(onClickLabel = "Notifications", onClick = onNotifications),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painterResource(Res.drawable.ic_orders_outlined),
-                contentDescription = "Notifications",
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        HeaderAction(Res.drawable.ic_favorite_outlined, "Saved items", onFavorites)
+        CartAction(container, onCart)
+        HeaderAction(Res.drawable.ic_notifications_outlined, "Notifications", onNotifications)
+    }
+}
+
+/**
+ * One header affordance.
+ *
+ * ⚠ Saved and Cart live HERE because Effy's five tabs are Home · Browse · Search · Orders · Account.
+ * The source kit puts Saved and Cart in its bottom bar, but Effy's bar is already full and its tab set
+ * is a signed-off decision (025 FR-009/FR-010 put category Browse in primary navigation). The header
+ * is where they go instead — and they must go somewhere, because for a while after the Nav3 migration
+ * they went nowhere at all: the cart could be filled and never opened.
+ */
+@Composable
+private fun HeaderAction(icon: DrawableResource, label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(EffyMinTouchTarget)
+            .clip(RoundedCornerShape(EffyRadius.sm))
+            .clickable(onClickLabel = label, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painterResource(icon),
+            contentDescription = label,
+            modifier = Modifier.size(24.dp),
+        )
     }
 }
 

@@ -49,6 +49,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
 import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
 import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
+import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPlaceholder
@@ -70,6 +71,7 @@ fun SearchScreen(
     /** Entry refinement — set when Home's on-sale rail hands off via "See all" (web `?saleOnly=true`). */
     saleOnly: Boolean = false,
     onProductClick: (String) -> Unit,
+    onCart: () -> Unit = {},
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts) }
     val state by vm.state.collectAsState()
@@ -88,7 +90,7 @@ fun SearchScreen(
     LaunchedEffect(loadMore) { if (loadMore) vm.loadMore() }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "Search")
+        EffyAppBar(title = "Search", trailing = { CartAction(container, onCart) })
 
         Column(modifier = Modifier.padding(horizontal = EffySpacing.md)) {
             // A pill on the tint, matching the web header's search control. `placeholder` rather

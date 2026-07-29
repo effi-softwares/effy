@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
 import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.features.notifications.domain.AppNotification
@@ -27,6 +28,7 @@ import com.effyshopping.customer.mobile.features.notifications.domain.Notificati
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_account_outlined
 import com.effyshopping.customer.mobile.resources.ic_cart_outlined
+import com.effyshopping.customer.mobile.resources.ic_notifications_outlined
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
 import com.effyshopping.mobile.design.EffySpacing
 import org.jetbrains.compose.resources.painterResource
@@ -42,7 +44,12 @@ import org.jetbrains.compose.resources.painterResource
 @Composable
 fun NotificationsScreen() {
     val items = NotificationFixtures.current()
-    if (items.isEmpty()) NotificationsEmpty() else NotificationsList(items)
+    // The app bar is not decoration: this screen is pushed, so the tab bar is hidden while it is open
+    // and the arrow is the only way out. It used to render its content bare and strand the shopper.
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(title = "Notifications")
+        if (items.isEmpty()) NotificationsEmpty() else NotificationsList(items)
+    }
 }
 
 @Composable
@@ -115,7 +122,7 @@ private fun NotificationsEmpty() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            painterResource(Res.drawable.ic_orders_outlined),
+            painterResource(Res.drawable.ic_notifications_outlined),
             contentDescription = null,
             modifier = Modifier.size(48.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,

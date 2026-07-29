@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.effyshopping.customer.mobile.core.nav.LocalNavBack
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.design.EffyColor
 import com.effyshopping.customer.mobile.resources.Res
@@ -613,17 +614,49 @@ fun EffyInlineLink(
 }
 
 /**
+ * The back arrow on its own, occupying a full touch target whether or not it draws.
+ *
+ * The source design uses it two ways: inside the app bar on ordinary pushed screens, and **bare above
+ * the headline** on the focused auth screens, which have no bar. Both read [LocalNavBack] by default,
+ * so neither can be shown where it would do nothing — or omitted where it is the only way out.
+ *
+ * The box is reserved even when the arrow is absent, so a title centred beside it does not shift.
+ */
+@Composable
+fun EffyBackArrow(
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = LocalNavBack.current,
+) {
+    Box(modifier = modifier.size(EffyMinTouchTarget), contentAlignment = Alignment.CenterStart) {
+        if (onBack != null) {
+            Icon(
+                painterResource(Res.drawable.ic_arrow_back),
+                contentDescription = "Back",
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onBack),
+            )
+        }
+    }
+}
+
+/**
  * THE APP BAR — back arrow · centred title · optional trailing action.
  *
  * The source design puts this on every pushed screen. It is customer-local rather than in
  * `mobile-kit` for the reason this file's header gives: `EffyTopBar` there is shared with shop-mobile,
  * which this feature does not restyle.
+ *
+ * ⚠ [onBack] DEFAULTS TO THE NAVIGATOR — the arrow appears on a pushed screen and is absent at a tab
+ * root, with nothing passed in. See [LocalNavBack] for why that decision was taken away from screens.
+ * Pass it explicitly only to override: a non-navigational back action, or `null` to suppress it.
  */
 @Composable
 fun EffyAppBar(
     title: String,
     modifier: Modifier = Modifier,
-    onBack: (() -> Unit)? = null,
+    onBack: (() -> Unit)? = LocalNavBack.current,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(
@@ -633,18 +666,7 @@ fun EffyAppBar(
             .padding(horizontal = EffySpacing.lg),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(modifier = Modifier.size(EffyMinTouchTarget), contentAlignment = Alignment.CenterStart) {
-            if (onBack != null) {
-                Icon(
-                    painterResource(Res.drawable.ic_arrow_back),
-                    contentDescription = "Back",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onBack),
-                )
-            }
-        }
+        EffyBackArrow(onBack = onBack)
         Text(
             title,
             modifier = Modifier.weight(1f),

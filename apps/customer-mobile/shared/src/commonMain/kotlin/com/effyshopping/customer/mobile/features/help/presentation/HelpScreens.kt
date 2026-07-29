@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,8 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
-import com.effyshopping.customer.mobile.core.presentation.DisplaySize
-import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
@@ -76,19 +76,30 @@ private val FAQS = listOf(
     ),
 )
 
+/**
+ * A pushed help screen: fixed app bar, scrolling body.
+ *
+ * ⚠ All three of these used to open a large left-aligned heading and nothing else — no app bar, so no
+ * back arrow, and the tab bar hides below a tab root, which left the shopper with no way out but the
+ * system gesture. The title belongs in the bar, and the bar must NOT scroll away with the content.
+ */
+@Composable
+private fun HelpScaffold(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(title = title)
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+            content = content,
+        )
+    }
+}
+
 /** FAQs — an accordion list, the source's pattern. */
 @Composable
-fun FaqsScreen() {
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        EffyDisplay(
-            "FAQs",
-            size = DisplaySize.Page,
-            modifier = Modifier.padding(EffySpacing.lg),
-        )
-        FAQS.forEach { faq ->
-            FaqRow(faq)
-            EffyHairline()
-        }
+fun FaqsScreen() = HelpScaffold("FAQs") {
+    FAQS.forEach { faq ->
+        FaqRow(faq)
+        EffyHairline()
     }
 }
 
@@ -109,10 +120,15 @@ private fun FaqRow(faq: Faq) {
             Text(faq.question, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             // The chevron ROTATES to show state — so "expanded" is conveyed by orientation and by the
             // answer's presence, never by colour (FR-040).
+            //
+            // ⚠ The arrow asset points LEFT at 0°, and rotation is clockwise, so DOWN is 270° and UP
+            // is 90°. It used to be 180°/270° — collapsed pointed RIGHT, which is the "opens another
+            // screen" arrow this very file uses for the Help Centre rows, and expanded pointed DOWN,
+            // which is the universal "tap to expand". Both states said the opposite of the truth.
             Icon(
                 painterResource(Res.drawable.ic_arrow_back),
                 contentDescription = null,
-                modifier = Modifier.size(20.dp).rotate(if (open) 270f else 180f),
+                modifier = Modifier.size(20.dp).rotate(if (open) 90f else 270f),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -129,20 +145,13 @@ private fun FaqRow(faq: Faq) {
 
 /** Help Center — topic rows, the source's pattern. */
 @Composable
-fun HelpCenterScreen(onTopic: (String) -> Unit = {}) {
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        EffyDisplay(
-            "Help Center",
-            size = DisplaySize.Page,
-            modifier = Modifier.padding(EffySpacing.lg),
-        )
-        listOf(
-            "Orders and delivery",
-            "Payments and refunds",
-            "Your account",
-            "Privacy and data",
-        ).forEach { topic -> EffyNavRow(topic, onClick = { onTopic(topic) }) }
-    }
+fun HelpCenterScreen(onTopic: (String) -> Unit = {}) = HelpScaffold("Help Center") {
+    listOf(
+        "Orders and delivery",
+        "Payments and refunds",
+        "Your account",
+        "Privacy and data",
+    ).forEach { topic -> EffyNavRow(topic, onClick = { onTopic(topic) }) }
 }
 
 /**
@@ -152,24 +161,16 @@ fun HelpCenterScreen(onTopic: (String) -> Unit = {}) {
  * offered here: email. Listing a channel nobody is on is worse than listing none.
  */
 @Composable
-fun CustomerServiceScreen(onEmail: () -> Unit = {}) {
-    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        EffyDisplay(
-            "Customer Service",
-            size = DisplaySize.Page,
-            modifier = Modifier.padding(EffySpacing.lg),
-        )
-        Text(
-            "We'll get back to you as quickly as we can.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = EffySpacing.lg),
-        )
-        EffyNavRow(
-            "Email us",
-            supporting = "support@effyshopping.com",
-            onClick = onEmail,
-            modifier = Modifier.padding(top = EffySpacing.lg),
-        )
-    }
+fun CustomerServiceScreen(onEmail: () -> Unit = {}) = HelpScaffold("Customer Service") {
+    Text(
+        "We'll get back to you as quickly as we can.",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+    )
+    EffyNavRow(
+        "Email us",
+        supporting = "support@effyshopping.com",
+        onClick = onEmail,
+    )
 }

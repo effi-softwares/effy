@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.text.style.TextOverflow
+import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.mobile.design.EffyRadius
 import androidx.compose.foundation.background
@@ -91,6 +92,7 @@ fun ProductDetailScreen(
     onRequireSignIn: () -> Unit,
     onBack: () -> Unit,
     onProductClick: (String) -> Unit = {},
+    onCart: () -> Unit = {},
 ) {
     val vm = viewModel(key = productId) {
         ProductDetailViewModel(
@@ -108,7 +110,7 @@ fun ProductDetailScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         // 025 FR-030: a standard header, not a floating text link.
-        EffyAppBar(title = "Details", onBack = onBack)
+        EffyAppBar(title = "Details", onBack = onBack, trailing = { CartAction(container, onCart) })
 
         when (val s = state) {
             ProductDetailUiState.Loading ->

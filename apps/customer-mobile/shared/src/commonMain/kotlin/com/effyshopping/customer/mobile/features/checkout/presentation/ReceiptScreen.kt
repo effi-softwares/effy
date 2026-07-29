@@ -23,6 +23,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
@@ -60,35 +61,61 @@ private class ReceiptViewModel(private val orderId: String, private val getRecei
 /**
  * The receipt (019 US3). Reads the WEBHOOK-AUTHORITATIVE order (R4) — ONE Effy order itemized by
  * product, NO shop identity (FR-029). A read failure/lag shows a "confirming" state.
+ *
+ * ── ⚠ This screen serves TWO destinations, and they are not the same screen ──────────────────────
+ *
+ * As `Receipt` it is the end of checkout: the stack was REPLACED to get here, so there is nothing
+ * behind it, no back arrow, and the only way on is the action at the bottom.
+ *
+ * As `OrderDetail` it is opened from order history: it sits on top of the Orders tab, so it gets a
+ * back arrow (supplied by the navigator — see `LocalNavBack`) and [onDone] is null, because a second
+ * button that does exactly what the arrow does is noise.
+ *
+ * It previously rendered NEITHER an app bar nor a title in either role, so opening a past order gave
+ * a shopper a bare wall of numbers with no heading and — since the tab bar hides above a tab root —
+ * no visible way back at all.
  */
 @Composable
-fun ReceiptScreen(container: AppContainer, orderId: String, onDone: () -> Unit) {
+fun ReceiptScreen(
+    container: AppContainer,
+    orderId: String,
+    title: String,
+    doneLabel: String? = null,
+    onDone: (() -> Unit)? = null,
+) {
     val vm = viewModel(key = orderId) { ReceiptViewModel(orderId, container.getReceipt) }
     val state by vm.state.collectAsState()
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        when (val s = state) {
-            ReceiptUiState.Loading -> CircularProgressIndicator(Modifier.padding(32.dp))
-            ReceiptUiState.Pending -> {
-                Text("We’re confirming your payment", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "Your order will appear in your order history shortly.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                EffyPrimaryAction("Done", onClick = onDone)
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(title = title)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(EffySpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            when (val s = state) {
+                ReceiptUiState.Loading -> CircularProgressIndicator(Modifier.padding(32.dp))
+                ReceiptUiState.Pending -> {
+                    Text("We’re confirming your payment", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Your order will appear in your order history shortly.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (onDone != null) EffyPrimaryAction(doneLabel ?: "Done", onClick = onDone)
+                }
+                is ReceiptUiState.Ready -> ReceiptBody(s.receipt, doneLabel, onDone)
             }
-            is ReceiptUiState.Ready -> ReceiptBody(s.receipt, onDone)
         }
     }
 }
 
 @Composable
-private fun ReceiptBody(receipt: Receipt, onDone: () -> Unit) {
+private fun ReceiptBody(receipt: Receipt, doneLabel: String?, onDone: (() -> Unit)?) {
     Text(if (receipt.paid) "Payment received" else "Order received", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     Text("Thank you", style = MaterialTheme.typography.headlineSmall)
     Text("Order ${receipt.orderNumber}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -121,7 +148,13 @@ private fun ReceiptBody(receipt: Receipt, onDone: () -> Unit) {
         receipt.billingAddressLine?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
 
-    EffyPrimaryAction("Keep shopping", onClick = onDone, modifier = Modifier.padding(top = EffySpacing.md))
+    if (onDone != null) {
+        EffyPrimaryAction(
+            doneLabel ?: "Keep shopping",
+            onClick = onDone,
+            modifier = Modifier.padding(top = EffySpacing.md),
+        )
+    }
 }
 
 @Composable

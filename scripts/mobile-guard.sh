@@ -147,7 +147,51 @@ if [ -n "$EXCLUDED_HITS" ]; then
   FAIL=1
 fi
 
+# ── 026 — every declared destination must be REACHABLE ────────────────────────────────────────────
+#
+# ⚠ THIS EXISTS BECAUSE IT ALREADY HAPPENED. The Navigation 3 migration rewrote the shell and the Home
+# screen together, and in doing so dropped the header that carried the cart and saved-items icons.
+# Both routes still existed, still had entries in the entry provider, and still compiled — and the
+# whole test suite stayed green, because nothing anywhere calls them. The visible symptom was that
+# "Add to cart" worked and the cart could never be opened: the entire checkout journey was
+# unreachable, on the app's primary purpose, and no automated check said a word.
+#
+# A `commonTest` cannot catch this (Native has no filesystem, so it could only assert against a
+# hand-maintained list — the blind spot this file's other checks avoid the same way). Grepping the
+# real tree can: a destination is reachable if something outside the navigation package names it.
+NAV_DIR="$CUSTOMER_APP/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/nav"
+NAV_KEY_FILE="$NAV_DIR/CustomerNavKey.kt"
+UNREACHABLE=""
+if [ -f "$NAV_KEY_FILE" ]; then
+  # Route names are the `data object Foo` / `data class Foo(` declarations inside CustomerNavKey.
+  ROUTES="$(grep -oE '@Serializable *(data )?(object|class) [A-Za-z]+' "$NAV_KEY_FILE" \
+    | awk '{print $NF}' | sort -u)"
+  for route in $ROUTES; do
+    # Reachable = named outside core/nav (a push, a resetTo, a tab list, an entry<> is not enough —
+    # entries are the destination, not the way in — so entry declarations are excluded below).
+    HITS="$(grep -rIn "CustomerNavKey\.$route\b" \
+      --include='*.kt' \
+      --exclude-dir=build --exclude-dir='.gradle' \
+      "$CUSTOMER_APP/shared/src/commonMain" 2>/dev/null \
+      | grep -v "^$NAV_DIR/" \
+      | grep -vE 'entry<CustomerNavKey\.[A-Za-z]+>' \
+      | grep -vE '^[^:]+:[0-9]+: *(//|\*|/\*)' || true)"
+    if [ -z "$HITS" ]; then
+      UNREACHABLE="$UNREACHABLE$route
+"
+    fi
+  done
+fi
+if [ -n "$UNREACHABLE" ]; then
+  echo "✗ mobile-guard [apps/customer-mobile]: destination declared but UNREACHABLE — nothing"
+  echo "  navigates to it, so the screen cannot be opened by any shopper:"
+  echo "$UNREACHABLE" | sed '/^$/d; s/^/    CustomerNavKey./'
+  echo "  Either give it an entry point, or delete the route and its screen."
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
-  echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances both absent."
+  echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances absent;"
+  echo "  every customer destination reachable."
 fi
 exit "$FAIL"

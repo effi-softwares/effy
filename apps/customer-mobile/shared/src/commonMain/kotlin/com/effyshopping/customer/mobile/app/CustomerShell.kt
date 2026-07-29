@@ -28,8 +28,10 @@ import androidx.compose.ui.backhandler.BackHandler
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.effyshopping.customer.mobile.core.nav.CUSTOMER_TAB_ROOTS
+import com.effyshopping.customer.mobile.core.nav.rememberBackAffordanceDecorator
 import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.nav.rememberCustomerNavState
 import com.effyshopping.customer.mobile.core.session.SessionState
@@ -161,6 +163,12 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         NavDisplay(
             backStack = navState.currentStack,
             onBack = { navState.pop() },
+            // ⚠ Adding a decorator REPLACES the default list, so the saveable-state one must be
+            // re-declared here or every screen loses its per-entry remembered state.
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberBackAffordanceDecorator(navState),
+            ),
             transitionSpec = {
                 (slideInHorizontally(slide) { it } + fadeIn(fade)) togetherWith
                     (slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade))
@@ -188,11 +196,18 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                             navState.selectTab(CustomerNavKey.Account)
                             navState.push(CustomerNavKey.Notifications)
                         },
+                        // ⚠ These two are the ONLY way into the cart and saved items on this surface
+                        // — Effy's bottom bar has no Cart or Saved tab. Removing them makes the cart
+                        // fillable and unopenable; that regression shipped once already.
+                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onFavorites = {
+                            if (signedIn) navState.push(CustomerNavKey.Favorites) else requireSignIn()
+                        },
                     )
                 }
 
                 entry<CustomerNavKey.Browse> {
-                    BrowseScreen(container, onCategoryClick = { key ->
+                    BrowseScreen(container, onCart = { navState.push(CustomerNavKey.Cart) }, onCategoryClick = { key ->
                         // A category IS a refined result set; Search owns refinement, so Browse hands
                         // off rather than growing a second results implementation.
                         pendingCategoryKey = key
@@ -207,6 +222,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         categoryKey = pendingCategoryKey,
                         saleOnly = pendingSaleOnly,
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onCart = { navState.push(CustomerNavKey.Cart) },
                     )
                 }
 
@@ -241,6 +257,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // Related products push onto the SAME stack, so Back walks the chain the
                         // shopper actually followed.
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onCart = { navState.push(CustomerNavKey.Cart) },
                     )
                 }
 
@@ -262,14 +279,22 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     )
                 }
 
+                // The end of checkout. `resetTo` means this IS the bottom of the stack, so there is
+                // deliberately no back arrow — the order is placed and there is nothing to return to.
                 entry<CustomerNavKey.Receipt> { key ->
-                    ReceiptScreen(container, key.orderId, onDone = {
-                        navState.resetTo(CustomerNavKey.Home)
-                    })
+                    ReceiptScreen(
+                        container,
+                        key.orderId,
+                        title = "Order confirmed",
+                        doneLabel = "Keep shopping",
+                        onDone = { navState.resetTo(CustomerNavKey.Home) },
+                    )
                 }
 
+                // The same screen opened from order history — pushed, so the back arrow is the way
+                // out and no bottom action is needed.
                 entry<CustomerNavKey.OrderDetail> { key ->
-                    ReceiptScreen(container, key.orderId, onDone = { navState.pop() })
+                    ReceiptScreen(container, key.orderId, title = "Order details")
                 }
 
 

@@ -40,6 +40,7 @@ import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
 import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
 import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
@@ -59,12 +60,16 @@ import com.effyshopping.mobile.kit.ui.EffyTopBar
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BrowseScreen(container: AppContainer, onCategoryClick: (String) -> Unit) {
+fun BrowseScreen(
+    container: AppContainer,
+    onCategoryClick: (String) -> Unit,
+    onCart: () -> Unit = {},
+) {
     val vm = viewModel { BrowseViewModel(container.getCategories) }
     val state by vm.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "Browse")
+        EffyAppBar(title = "Browse", trailing = { CartAction(container, onCart) })
 
         when (val s = state) {
             BrowseUiState.Loading -> BrowseSkeleton()

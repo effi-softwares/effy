@@ -55,6 +55,7 @@ import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
 import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffyBackArrow
 import com.effyshopping.customer.mobile.core.presentation.EffyInlineLink
 import com.effyshopping.customer.mobile.core.presentation.EffyOrDivider
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
@@ -276,6 +277,13 @@ private fun AuthScaffold(
             .padding(EffySpacing.lg),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.lg),
     ) {
+        // ⚠ Effy is GUEST-FIRST, so this is an adaptation of the source and not a copy of it. In the
+        // kit the login screen IS the app's root — nothing precedes it, so it needs no way back. Here
+        // sign-in is pushed over whatever the shopper was doing, and abandoning it must be possible:
+        // without this arrow a guest who tapped Orders was left in the flow with the tab bar hidden.
+        // The kit's own pushed auth screen (Verification Code) shows exactly this — a bare arrow above
+        // the headline, no bar. It draws only when there is somewhere to return to.
+        EffyBackArrow()
         EffyDisplay(title, size = DisplaySize.Page)
         Text(
             subtitle,

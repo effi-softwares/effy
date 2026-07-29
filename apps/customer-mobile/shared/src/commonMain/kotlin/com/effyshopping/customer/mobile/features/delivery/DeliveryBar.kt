@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.resources.Res
-import com.effyshopping.customer.mobile.resources.ic_orders_outlined
+import com.effyshopping.customer.mobile.resources.ic_location_outlined
 import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
@@ -86,7 +86,9 @@ fun DeliveryBar(container: AppContainer) {
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
         Icon(
-            painterResource(Res.drawable.ic_orders_outlined),
+            // A location pin, not the receipt glyph this used to borrow — that same icon means
+            // "Orders" in the bottom bar, so it said the wrong thing twice over.
+            painterResource(Res.drawable.ic_location_outlined),
             contentDescription = null,
             modifier = Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
