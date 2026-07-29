@@ -15,9 +15,10 @@ import { cn } from "@/lib/utils"
  *
  * ── Colour ──────────────────────────────────────────────────────────────────────────────────────
  *
- * The reference is blue-accented. Effy is Emerald `#065f46` (Principle V), and `tokens:check` fails
- * the build on a stray value — so every colour here resolves to a design-system token. The template
- * supplies STRUCTURE; the palette stays Effy's.
+ * The reference is blue-accented. Effy is MONOCHROME — a neutral ramp with no brand hue, whose accent
+ * inverts between appearances (constitution v1.11.0, Principle V) — and `check-tokens` fails the build
+ * on a stray value, so every colour here resolves to a design-system token. The template supplies
+ * STRUCTURE; the palette stays Effy's.
  *
  * ── Why this lives in components/ rather than app/(shop)/_components/ ───────────────────────────
  *

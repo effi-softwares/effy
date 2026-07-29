@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import { Nunito_Sans } from "next/font/google"
 
 import "./globals.css"
 import { ThemeScript } from "@/components/theme/ThemeScript"
@@ -24,15 +23,17 @@ import { siteUrl } from "@/lib/config"
     .dependency-cruiser.cjs (a build failure). They are written out here because a guard tells
     you that you broke a rule, never why the rule exists.                                       */
 
-// next/font self-hosts at build time: no request to fonts.gstatic.com, no third-party origin on
-// the critical path, no preconnect needed, and a metric-matched fallback that eliminates
-// swap-induced layout shift. One family, one variable. Nunito Sans is the brand typeface (constitution
-// Principle V, v1.10.0); the design system's --font-sans token references "Nunito Sans" first.
-const nunitoSans = Nunito_Sans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-})
+// ⚠ THE TYPEFACE IS NO LONGER WIRED HERE. General Sans (constitution Principle V, v1.11.0) is NOT on
+// Google Fonts and has no @fontsource package, so `next/font/google` cannot resolve it. It is
+// self-hosted from WOFF2 committed in @effy/design-system and declared by @font-face in tokens.css,
+// which globals.css imports — so all three web surfaces get it from one place (Principle II) and this
+// file needs no font config at all.
+//
+// ⚠ TRADEOFF, recorded rather than hidden: next/font/google supplied a metric-matched fallback
+// (`size-adjust`) that eliminated swap-induced layout shift. A plain @font-face with `font-display:
+// swap` does not. The faces are small (~23 KB each) and same-origin so the swap window is short, but
+// if CLS regresses on the storefront the fix is `next/font/local` pointing at those same WOFF2 files
+// with `adjustFontFallback` — NOT a second copy of the font.
 
 export const metadata: Metadata = {
   // Every relative canonical/OG url in the app resolves against this.
@@ -60,7 +61,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("antialiased", nunitoSans.variable, "font-sans")}
+      className={cn("antialiased", "font-sans")}
     >
       <body>
         {/* ⚠ FIRST child of <body>, and it must stay first: it applies the stored appearance before

@@ -26,10 +26,12 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Shop fresh groceries and everyday essentials from Effy, delivered to your door.",
     start_url: "/",
     display: "standalone",
-    // Effy Emerald — the live brand accent (constitution Principle V, v1.10.0).
-    theme_color: "#065f46",
-    // Matches the design system's light ground, so the splash does not flash a different white.
-    background_color: "#EFEFF1",
+    // The monochrome accent (constitution Principle V, v1.11.0). There is no brand hue: near-black
+    // is the accent on light appearance, which is what a browser chrome/theme colour should reflect.
+    theme_color: "#1A1A1A",
+    // Matches the design system's light ground (--background), so the PWA splash does not flash a
+    // different white before the app paints.
+    background_color: "#FFFFFF",
     icons: [
       { src: "/web-app-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/web-app-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },

@@ -20,6 +20,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.Modifier
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
 import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
 import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
@@ -30,9 +32,9 @@ import com.effyshopping.customer.mobile.features.favorites.domain.FavoriteCard
 import com.effyshopping.customer.mobile.features.favorites.domain.ListFavorites
 import com.effyshopping.customer.mobile.features.favorites.domain.RemoveFavorite
 import com.effyshopping.mobile.design.EffySpacing
-import com.effyshopping.mobile.kit.ui.EffyPlaceholder
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import org.jetbrains.compose.resources.painterResource
 import kotlinx.coroutines.CancellationException
@@ -58,7 +60,8 @@ private class FavoritesViewModel(
         load()
     }
 
-    private fun load() {
+    /** Public since 026: the error state offers a retry (FR-021 — every error state offers a way out). */
+    fun load() {
         viewModelScope.launch {
             try {
                 _state.value = FavoritesUiState.Ready(listFavorites())
@@ -91,16 +94,14 @@ fun FavoritesScreen(
     onOpen: (String) -> Unit,
     /** ⚠ Required: this is a PUSHED screen, and FR-030 gives every pushed screen a standard back. */
     onBack: () -> Unit,
+    /** FR-044: the empty state must offer a route back into the catalogue, not a dead end. */
+    onBrowse: () -> Unit = onBack,
 ) {
     val vm = viewModel { FavoritesViewModel(container.listFavorites, container.removeFavorite) }
     val state by vm.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(
-            title = "Saved items",
-            onBack = onBack,
-            backIcon = painterResource(Res.drawable.ic_arrow_back),
-        )
+        EffyAppBar(title = "Saved Items", onBack = onBack)
 
         when (val s = state) {
             FavoritesUiState.Loading -> LazyVerticalGrid(
@@ -114,16 +115,23 @@ fun FavoritesScreen(
                 items(List(4) { it }) { EffyProductCardSkeleton() }
             }
 
-            FavoritesUiState.Error -> EffyPlaceholder(
+            FavoritesUiState.Error -> EffyEmptyState(
                 title = "We couldn’t load your saved items",
-                description = "Please try again in a moment.",
+                body = "Please try again in a moment.",
+                icon = Res.drawable.ic_favorite_outlined,
+                actionLabel = "Try again",
+                onAction = vm::load,
             )
 
             is FavoritesUiState.Ready ->
                 if (s.items.isEmpty()) {
-                    EffyPlaceholder(
-                        title = "You haven’t saved anything yet",
-                        description = "Tap Save on a product and it will be waiting for you here.",
+                    // FR-044: an empty favourites list offers a route back into the catalogue.
+                    EffyEmptyState(
+                        title = "No Saved Items!",
+                        body = "You don’t have any saved items yet. Tap the heart on a product and it will be waiting for you here.",
+                        icon = Res.drawable.ic_favorite_outlined,
+                        actionLabel = "Start shopping",
+                        onAction = onBrowse,
                     )
                 } else {
                     LazyVerticalGrid(

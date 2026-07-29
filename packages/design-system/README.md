@@ -4,16 +4,16 @@ The single source of truth for Effy's web brand (constitution Principle V). The 
 dark mode live here **once** — never hardcoded per surface. Internal package: exports TypeScript
 source + CSS token files (each consumer's bundler transpiles).
 
-## Theme: Effy Emerald brand (feature 017, constitution v1.10.0)
+## Theme: the monochrome ramp brand (feature 017, constitution v1.10.0)
 
-- **Brand accent is Effy Emerald `#065f46`** (emerald-800) as `--primary` / `--sidebar-primary`, with a
+- **Brand accent is the monochrome neutral ramp** (emerald-800) as `--primary` / `--sidebar-primary`, with a
   **white** label in both modes (emerald-800 is dark enough for ~7.7:1). The focus `--ring` brightens to
   `#10b981` (emerald-500) on dark so it stays visible on the dark ground. A **terracotta** `#d0735a`
   (AA-tuned to `#bf5540`) is the `--destructive` accent. This **supersedes the retired Jade accent**.
 - **Surfaces are the shadcn `neutral` scale — no brand tint.** Light: `#f5f5f5` ground, white cards,
   neutral-300 borders. Dark: `#171717` (neutral-900) ground, `#262626` (neutral-800) cards, and **subtle
   neutral-800 borders** (close to the ground). No green/black blend anywhere.
-- **Typography is Nunito Sans** (`--font-sans`; apps self-host it — `next/font` Nunito Sans on customer-web,
+- **Typography is General Sans** (`--font-sans`; apps self-host it — `next/font` General Sans on customer-web,
   `@fontsource-variable/nunito-sans` on the Vite consoles, bundled `.ttf` on mobile).
 - **Radii are pinned explicitly** (not shadcn's `calc()` chain): `--radius-sm` = 8px, `--radius-md` = 16px
   (brand default), pill via `rounded-full` — so web px equals mobile `EffyRadius` dp (SC-004).
@@ -36,7 +36,7 @@ displays was removed; surfaces render at their native size at every width.)
 | Import | What |
 |---|---|
 | `@effy/design-system` | `cn(...)` — the Tailwind class-merge util |
-| `@effy/design-system/tokens.css` | Tailwind v4 `@theme` tokens + light/dark CSS variables (Effy Emerald accent, neutral surfaces, Nunito Sans type, radius scale) |
+| `@effy/design-system/tokens.css` | Tailwind v4 `@theme` tokens + light/dark CSS variables (the monochrome ramp accent, neutral surfaces, General Sans type, radius scale) |
 
 Consumers import the tokens in their entry stylesheet **after** Tailwind:
 

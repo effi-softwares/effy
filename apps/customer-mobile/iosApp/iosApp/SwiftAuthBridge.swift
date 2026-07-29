@@ -13,6 +13,21 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Session
 
+    /// ⚠ THIS RECONCILES; it does not merely read.
+    ///
+    /// A session that reports `isSignedIn` but cannot produce a token — an expired refresh token, or a
+    /// Keychain entry that outlived the install that made it, which on iOS happens because **the
+    /// Keychain survives deleting the app** — used to be reported as simply "no session". That left
+    /// Amplify holding a signed-in user while the app showed a guest, and every subsequent `signIn`
+    /// failed with *"There is already a user in signedIn state"*.
+    ///
+    /// So an unusable session is signed OUT before reporting "no session", and the two stores agree.
+    ///
+    /// ⚠ This is NOT the only way they diverge, and probably not the common one. `SessionManager`
+    /// deliberately falls back to Guest when the customer record cannot be read at launch — a backend
+    /// outage should not log anyone out, and its own comment says "the Amplify session survives for a
+    /// relaunch". That path produces the same standoff with a session that is perfectly valid, so this
+    /// method cannot see it. `signInRecoveringFromStaleSession` is what actually covers it.
     func fetchSession(forceRefresh: Bool, onResult: @escaping (BridgeSession?) -> Void) {
         Task {
             do {
@@ -25,8 +40,42 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
                 let sub = try cognito.getUserSub().get()
                 onResult(BridgeSession(sub: sub, idToken: tokens.idToken, accessToken: tokens.accessToken))
             } catch {
+                // Signed in on paper, unusable in practice. Clear it rather than leave the two stores
+                // disagreeing. Sign-out is best-effort: if it fails there is nothing further to try,
+                // and `signInRecoveringFromStaleSession` is the second line of defence.
+                await self.clearStaleSessionIfAny()
                 onResult(nil)
             }
+        }
+    }
+
+    /// Sign out only if Amplify still believes someone is signed in.
+    private func clearStaleSessionIfAny() async {
+        let stillSignedIn = (try? await Amplify.Auth.fetchAuthSession().isSignedIn) ?? false
+        if stillSignedIn { _ = await Amplify.Auth.signOut() }
+    }
+
+    /// Run a sign-in, and if Amplify refuses because a user is already signed in, clear that user and
+    /// try once more.
+    ///
+    /// This is Amplify's own documented recovery ("SignOut the user first before calling signIn"), and
+    /// it is applied at the driver rather than in a use case on purpose: a stale SDK session is an SDK
+    /// concern. The closed `AuthError` set (FR-016) has no member for it and should not grow one — the
+    /// domain has no decision to make here, and the customer certainly does not.
+    ///
+    /// ⚠ Retried EXACTLY once. If the second attempt fails it is reported, so a genuine
+    /// invalid-state bug surfaces instead of spinning.
+    private func signInRecoveringFromStaleSession(
+        _ attempt: @escaping () async throws -> AuthSignInResult
+    ) async -> BridgeAuthResult {
+        do {
+            return mapSignIn(try await attempt())
+        } catch let error as CognitoAuthError {
+            guard case .invalidState = error else { return failure(error) }
+            _ = await Amplify.Auth.signOut()
+            do { return mapSignIn(try await attempt()) } catch { return failure(error) }
+        } catch {
+            return failure(error)
         }
     }
 
@@ -73,24 +122,22 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     func signInWithPassword(email: String, password: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
-            do {
+            onResult(await signInRecoveringFromStaleSession {
                 let plugin = AWSAuthSignInOptions(authFlowType: .userSRP)
                 let options = AuthSignInRequest.Options(pluginOptions: plugin)
-                let result = try await Amplify.Auth.signIn(username: email, password: password, options: options)
-                onResult(mapSignIn(result))
-            } catch { onResult(self.failure(error)) }
+                return try await Amplify.Auth.signIn(username: email, password: password, options: options)
+            })
         }
     }
 
     func signInWithEmailOtp(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
-            do {
+            onResult(await signInRecoveringFromStaleSession {
                 // ALWAYS state the preferred factor — omitting it forces a factor-selection round-trip (D7).
                 let plugin = AWSAuthSignInOptions(authFlowType: .userAuth(preferredFirstFactor: .emailOTP))
                 let options = AuthSignInRequest.Options(pluginOptions: plugin)
-                let result = try await Amplify.Auth.signIn(username: email, options: options)
-                onResult(mapSignIn(result))
-            } catch { onResult(self.failure(error)) }
+                return try await Amplify.Auth.signIn(username: email, options: options)
+            })
         }
     }
 

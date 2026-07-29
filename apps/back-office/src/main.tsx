@@ -10,7 +10,8 @@ import { createQueryClient } from "./lib/query-client";
 import { initTelemetry } from "./lib/telemetry";
 import { applyTheme, uiStore } from "./lib/ui-store";
 import { createAppRouter } from "./router";
-import "@fontsource-variable/nunito-sans"; // self-hosted brand typeface (Nunito Sans) (constitution Principle V, v1.10.0)
+// Typeface: General Sans arrives via @font-face in @effy/design-system tokens.css (Principle II).
+// It is not on Google Fonts and has no @fontsource package, so there is nothing to import here.
 import "./styles.css";
 
 const rootEl = document.getElementById("root");

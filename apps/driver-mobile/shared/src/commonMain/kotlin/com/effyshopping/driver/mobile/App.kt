@@ -17,8 +17,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.effyshopping.driver.mobile.core.theme.EffyTheme
 import org.jetbrains.compose.resources.painterResource
 
-import driver_mobile.shared.generated.resources.Res
-import driver_mobile.shared.generated.resources.compose_multiplatform
+// 026 T025a: the resource package is now PINNED to `com.effyshopping.driver.mobile.resources` in
+// shared/build.gradle.kts, matching customer-mobile and shop-mobile, because the generated
+// EffyTypography.kt imports the font accessors from a package the generator has to know at emit
+// time. That replaced the KMP template's auto-derived `driver_mobile.shared.generated.resources`.
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.compose_multiplatform
 
 @Composable
 @Preview

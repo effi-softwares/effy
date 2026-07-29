@@ -300,7 +300,7 @@ private fun OrderQueueRow(order: FulfillmentSummary, selected: Boolean, onClick:
                         "AT RISK",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
             }

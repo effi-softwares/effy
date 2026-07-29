@@ -11,7 +11,7 @@ with native authentication and system-UI adapters at the platform boundary.
 - Four fixed destinations: Home, Catalog, Orders, Account.
 - Bottom navigation below 600dp usable width and a side rail from 600dp upward, preserving tab state.
 - Record-backed Home/Account content and a backend-authoritative manager gate.
-- Effy-generated Light/Dark/System colors, Nunito Sans type, semantic spacing, and reduced-motion support.
+- Effy-generated Light/Dark/System colors, General Sans type, semantic spacing, and reduced-motion support.
 
 Catalog and Orders currently show intentional foundation placeholders. The former catalog list/detail/edit
 and product-creation sheet were retired by feature 018. Catalog data/domain/use cases and local draft

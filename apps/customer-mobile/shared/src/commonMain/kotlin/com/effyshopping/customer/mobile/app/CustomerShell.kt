@@ -1,37 +1,44 @@
 package com.effyshopping.customer.mobile.app
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.effyshopping.customer.mobile.core.nav.AppRoute
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
+import com.effyshopping.customer.mobile.core.nav.CUSTOMER_TAB_ROOTS
+import com.effyshopping.customer.mobile.core.nav.rememberBackAffordanceDecorator
+import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
+import com.effyshopping.customer.mobile.core.nav.rememberCustomerNavState
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
-import com.effyshopping.customer.mobile.features.catalog.presentation.BrowseScreen
-import com.effyshopping.customer.mobile.features.delivery.DeliveryBar
-import com.effyshopping.mobile.kit.ui.EffyTopBar
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
@@ -39,224 +46,291 @@ import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutS
 import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptScreen
 import com.effyshopping.customer.mobile.features.favorites.presentation.FavoritesScreen
-import com.effyshopping.mobile.kit.shell.ResponsiveDestination
-import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
-import com.effyshopping.mobile.kit.ui.AdaptiveContent
+import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
+import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
+import com.effyshopping.customer.mobile.features.help.presentation.HelpCenterScreen
+import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_account_outlined
 import com.effyshopping.customer.mobile.resources.ic_account_selected
-import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
-import com.effyshopping.customer.mobile.resources.ic_catalog_selected
-import com.effyshopping.customer.mobile.resources.ic_cart_outlined
-import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
 import com.effyshopping.customer.mobile.resources.ic_home_outlined
 import com.effyshopping.customer.mobile.resources.ic_home_selected
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
 import com.effyshopping.customer.mobile.resources.ic_orders_selected
 import com.effyshopping.customer.mobile.resources.ic_search_outlined
 import com.effyshopping.customer.mobile.resources.ic_search_selected
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import com.effyshopping.mobile.kit.shell.ResponsiveDestination
+import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
+import com.effyshopping.mobile.kit.ui.AdaptiveContent
+import com.effyshopping.mobile.kit.ui.MotionRole
+import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-/**
- * The customer app's primary tabs (015, extended by 025).
- *
- * Home/Browse/Search are PUBLIC; Orders/Account are AUTHENTICATED.
- *
- * ⚠ BROWSE was added by 025 FR-010 so category browsing is reachable from primary navigation, at
- * parity with the web storefront's `/browse`. Five destinations is within the platform norm for a
- * consumer store, and the alternative — burying categories inside Home — is the arrangement that let
- * the web's browse entry rot into a placeholder nobody looked at.
- */
-enum class CustomerTab(val label: String) {
-    HOME("Home"), BROWSE("Browse"), SEARCH("Search"), ORDERS("Orders"), ACCOUNT("Account")
+/** The label for each tab root, in bar order. */
+private fun tabLabel(key: CustomerNavKey): String = when (key) {
+    CustomerNavKey.Home -> "Home"
+    CustomerNavKey.Search -> "Search"
+    CustomerNavKey.Orders -> "Orders"
+    CustomerNavKey.Account -> "Account"
+    else -> error("$key is not a tab root")
 }
 
 /**
- * The guest-first customer shell (015 US1/US2). The tab graph renders for GUESTS — Home and Search need no
- * session. Orders/Account are visible but gated: tapping one as a guest raises **deferred sign-in** and,
- * on success, returns to the intended tab (return-to-intent, FR-010/011).
+ * The guest-first customer shell, on **Jetpack Navigation 3** (026).
  *
- * The Account tab hosts the existing auth + account sub-graph, driven by the app's `AppNavigator` (its
- * per-tab back stack) — the substantial 013 auth/account screens are reused unchanged; the shared
- * [ResponsiveNavigation] + top-level session gate are layered around them.
+ * ── What changed, and why ───────────────────────────────────────────────────────────────────────
+ *
+ * 015 hand-rolled this because Nav3 was alpha with an unverified iOS runtime. Nav3 went stable in
+ * Nov 2025 and Compose Multiplatform 1.10 shipped it for iOS; this app is on 1.11.1, so the
+ * deviation's reason expired. The old mechanism was three different notions of "where am I" — a
+ * delimiter-joined String for Home ("homeproduct:42", parsed with startsWith), a nullable id for
+ * Orders, and an AppNavigator for Account. Now every tab has one NavBackStack of typed keys.
+ *
+ * ── ⚠ THE BOTTOM BAR IS NOT ALWAYS SHOWN ────────────────────────────────────────────────────────
+ *
+ * The bar shows only at a tab's ROOT — `navState.showBottomBar` is `currentStack.size == 1`. Going
+ * deeper into any tab hides it, which is what fixes product detail, cart and checkout stacking the
+ * nav bar underneath their own sticky primary action.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CustomerShell(container: AppContainer, session: SessionState) {
-    var currentTabName by rememberSaveable { mutableStateOf(CustomerTab.HOME.name) }
-    var pendingTabName by rememberSaveable { mutableStateOf<String?>(null) }
-    // US2/US3: the Home tab's back stack (Home → Product → Cart → Checkout → Receipt), as a
-    // delimiter-joined saveable String (survives config change / process death). A lightweight stand-in
-    // for the mobile-kit TabBackStacks until that adoption. Routes: "home" | "product:<id>" | "cart" |
-    // "checkout" | "receipt:<orderId>".
-    // US5: the Orders tab's list↔detail selection.
-    var ordersDetailId by rememberSaveable { mutableStateOf<String?>(null) }
-    // The category a Browse tap handed to Search. Saveable so it survives rotation/process death.
-    var pendingCategoryKey by rememberSaveable { mutableStateOf<String?>(null) }
-    // The sale refinement a Home "See all" handed to Search (web's `/search?saleOnly=true`).
-    var pendingSaleOnly by rememberSaveable { mutableStateOf(false) }
-    var homeStackRaw by rememberSaveable { mutableStateOf("home") }
-    val homeStack = homeStackRaw.split('\u0001')
-    val homeTop = homeStack.last()
-    fun pushHome(route: String) { homeStackRaw = "$homeStackRaw\u0001$route" }
-    fun popHome() { if (homeStack.size > 1) homeStackRaw = homeStack.dropLast(1).joinToString("\u0001") }
-    fun resetHome(route: String) { homeStackRaw = "home\u0001$route" }
-    fun goHome() { homeStackRaw = "home" }
-
-    val currentTab = CustomerTab.valueOf(currentTabName)
+    val navState = rememberCustomerNavState()
     val signedIn = session is SessionState.Authenticated
 
-    // Return-to-intent: once a deferred sign-in completes, jump to the tab the guest originally wanted.
+    // Bind the ViewModels' navigation handle to the composable-owned stacks (see CustomerNavigator).
+    LaunchedEffect(navState) { container.navigator.bindTo(navState) }
+
+    // The tab a guest was trying to reach when deferred sign-in interrupted them.
+    var pendingTab by rememberSaveable { mutableStateOf<String?>(null) }
+
     LaunchedEffect(signedIn) {
-        if (signedIn) pendingTabName?.let { currentTabName = it; pendingTabName = null }
-    }
-
-    val stack by container.navigator.stack.collectAsState()
-    val accountCanGoBack = stack.size > 1
-    val homeHasBack = currentTab == CustomerTab.HOME && homeStack.size > 1
-    val ordersHasDetail = currentTab == CustomerTab.ORDERS && ordersDetailId != null
-    BackHandler(
-        enabled = homeHasBack || ordersHasDetail ||
-            (currentTab == CustomerTab.ACCOUNT && accountCanGoBack) ||
-            currentTab != CustomerTab.HOME,
-    ) {
-        when {
-            homeHasBack -> popHome()
-            ordersHasDetail -> ordersDetailId = null
-            currentTab == CustomerTab.ACCOUNT && accountCanGoBack -> container.navigator.pop()
-            else -> currentTabName = CustomerTab.HOME.name
-        }
-    }
-
-    val destinations = CustomerTab.entries.map { tab ->
-        ResponsiveDestination(tab = tab, label = tab.label, icon = { sel -> CustomerDestinationIcon(tab, sel) })
-    }
-
-    val stateHolder = rememberSaveableStateHolder()
-    ResponsiveNavigation(
-        destinations = destinations,
-        selectedTab = currentTab,
-        onSelectTab = { currentTabName = it.name },
-    ) {
-        stateHolder.SaveableStateProvider(currentTabName) {
-            when (currentTab) {
-                CustomerTab.HOME -> {
-                    val requireSignIn = {
-                        // Deferred sign-in: jump to the Account tab's auth graph; the Home stack is kept
-                        // so the customer returns to where they were via Back.
-                        currentTabName = CustomerTab.ACCOUNT.name
-                        container.navigator.push(AppRoute.SignIn())
-                    }
-                    val openFavorites = { if (signedIn) pushHome("favorites") else requireSignIn() }
-                    when {
-                        homeTop == "home" ->
-                            HomeStackHost(container, onCart = { pushHome("cart") }, onFavorites = openFavorites) {
-                                HomeScreen(
-                                    container = container,
-                                    onProductClick = { pushHome("product:$it") },
-                                    // The hero CTA goes to the category index, matching the web hero's
-                                    // "Shop now" → /browse.
-                                    onBrowse = { currentTabName = CustomerTab.BROWSE.name },
-                                    onSeeAll = { railKey ->
-                                        // The same mapping the web's `railHref()` applies: a category
-                                        // rail opens that category, the on-sale rail opens the sale
-                                        // refinement, and anything else opens unrefined search.
-                                        pendingCategoryKey = railKey.removePrefix("category:")
-                                            .takeIf { railKey.startsWith("category:") }
-                                        pendingSaleOnly = railKey == "on_sale"
-                                        currentTabName = CustomerTab.SEARCH.name
-                                    },
-                                    onCategoryClick = { key ->
-                                        pendingCategoryKey = key
-                                        pendingSaleOnly = false
-                                        currentTabName = CustomerTab.SEARCH.name
-                                    },
-                                )
-                            }
-
-                        homeTop == "favorites" ->
-                            FavoritesScreen(
-                                container,
-                                onOpen = { pushHome("product:$it") },
-                                onBack = { popHome() },
-                            )
-
-                        homeTop.startsWith("product:") ->
-                            ProductDetailScreen(
-                                container = container,
-                                productId = homeTop.removePrefix("product:"),
-                                session = session,
-                                onRequireSignIn = requireSignIn,
-                                onBack = { popHome() },
-                                // The related-products rail navigates within the Home stack, so Back
-                                // walks the chain of products the shopper actually followed.
-                                onProductClick = { pushHome("product:$it") },
-                            )
-
-                        homeTop == "cart" ->
-                            CartScreen(
-                                container = container,
-                                onCheckout = { if (signedIn) pushHome("checkout") else requireSignIn() },
-                                // FR-044: an empty cart routes back into the catalogue.
-                                onBrowse = {
-                                    goHome()
-                                    currentTabName = CustomerTab.BROWSE.name
-                                },
-                            )
-
-                        homeTop == "checkout" ->
-                            CheckoutScreen(
-                                container = container,
-                                onPlaced = { orderId -> resetHome("receipt:$orderId") },
-                                onBack = { popHome() },
-                            )
-
-                        homeTop.startsWith("receipt:") ->
-                            ReceiptScreen(container, homeTop.removePrefix("receipt:"), onDone = { goHome() })
-
-                        else -> HomeScreen(container, onProductClick = { pushHome("product:$it") })
-                    }
-                }
-                CustomerTab.BROWSE -> BrowseScreen(container, onCategoryClick = { key ->
-                    // A category IS a refined result set — the same model the web uses, where a
-                    // category tile links to /search?category=…. Search owns refinement, so Browse
-                    // hands off rather than growing a second results implementation.
-                    pendingCategoryKey = key
-                    pendingSaleOnly = false
-                    currentTabName = CustomerTab.SEARCH.name
-                })
-                CustomerTab.SEARCH -> SearchScreen(
-                    container,
-                    categoryKey = pendingCategoryKey,
-                    saleOnly = pendingSaleOnly,
-                    onProductClick = {
-                        // Open the product in the Home tab's stack (shared detail view).
-                        pushHome("product:$it")
-                        currentTabName = CustomerTab.HOME.name
-                    },
-                )
-                CustomerTab.ORDERS -> if (signedIn) {
-                    val detail = ordersDetailId
-                    if (detail != null) {
-                        ReceiptScreen(container, detail, onDone = { ordersDetailId = null })
-                    } else {
-                        OrdersScreen(container, onOpen = { ordersDetailId = it })
-                    }
-                } else {
-                    GatedTab("Orders", "Sign in to see your orders.") {
-                        pendingTabName = CustomerTab.ORDERS.name
-                        currentTabName = CustomerTab.ACCOUNT.name
-                        container.navigator.push(AppRoute.SignIn())
-                    }
-                }
-                CustomerTab.ACCOUNT -> AccountTab(container, session)
+        if (signedIn) {
+            pendingTab?.let { name ->
+                CUSTOMER_TAB_ROOTS.firstOrNull { it::class.simpleName == name }?.let(navState::selectTab)
+                pendingTab = null
             }
         }
+    }
+
+    /** Deferred sign-in: send the guest to the Account tab's auth flow, remembering where they were. */
+    fun requireSignIn() {
+        pendingTab = navState.activeTab::class.simpleName
+        navState.selectTab(CustomerNavKey.Account)
+        navState.push(CustomerNavKey.SignIn())
+    }
+
+    BackHandler(enabled = navState.canGoBack || navState.activeTab != CustomerNavKey.Home) {
+        if (!navState.pop()) navState.selectTab(CustomerNavKey.Home)
+    }
+
+    ResponsiveNavigation(
+        destinations = CUSTOMER_TAB_ROOTS.map { root ->
+            ResponsiveDestination(
+                tab = root,
+                label = tabLabel(root),
+                icon = { selected -> CustomerDestinationIcon(root, selected) },
+            )
+        },
+        selectedTab = navState.activeTab,
+        onSelectTab = navState::selectTab,
+        showNavigation = navState.showBottomBar,
+    ) {
+        // ── iOS-style push/pop, via NavDisplay's OWN transition parameters ──────────────────────
+        //
+        // Nav3's default is a fade. These three parameters are part of the NavDisplay API, so this is
+        // configuration rather than a hand-written animation: the incoming screen slides in from the
+        // trailing edge while the outgoing one drifts a quarter-width the other way (the parallax that
+        // makes a UIKit push read as depth), and pop mirrors it.
+        //
+        // `predictivePopTransitionSpec` matters on Android 14+: without it, the back-gesture preview
+        // uses the forward spec and the screen appears to advance while you are dragging it away.
+        //
+        // Duration comes from the shared motion spec, so a device with reduced-motion enabled gets
+        // 0ms — the navigation still happens, only the movement goes (025 FR-037).
+        val nav = rememberMotionSpec(MotionRole.Forward)
+        val slide = tween<IntOffset>(nav.durationMillis)
+        val fade = tween<Float>(nav.durationMillis)
+
+        NavDisplay(
+            backStack = navState.currentStack,
+            onBack = { navState.pop() },
+            // ⚠ Adding a decorator REPLACES the default list, so the saveable-state one must be
+            // re-declared here or every screen loses its per-entry remembered state.
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberBackAffordanceDecorator(navState),
+            ),
+            transitionSpec = {
+                (slideInHorizontally(slide) { it } + fadeIn(fade)) togetherWith
+                    (slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade))
+            },
+            popTransitionSpec = {
+                (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade)) togetherWith
+                    (slideOutHorizontally(slide) { it } + fadeOut(fade))
+            },
+            predictivePopTransitionSpec = {
+                (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade)) togetherWith
+                    (slideOutHorizontally(slide) { it } + fadeOut(fade))
+            },
+            entryProvider = entryProvider {
+                // ── Tab roots ──────────────────────────────────────────────────────────────────
+                entry<CustomerNavKey.Home> {
+                    HomeScreen(
+                        container = container,
+                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onSearch = { navState.selectTab(CustomerNavKey.Search) },
+                        onNotifications = {
+                            navState.selectTab(CustomerNavKey.Account)
+                            navState.push(CustomerNavKey.Notifications)
+                        },
+                        // ⚠ These two are the ONLY way into the cart and saved items on this surface
+                        // — Effy's bottom bar has no Cart or Saved tab. Removing them makes the cart
+                        // fillable and unopenable; that regression shipped once already.
+                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        onFavorites = {
+                            if (signedIn) navState.push(CustomerNavKey.Favorites) else requireSignIn()
+                        },
+                    )
+                }
+
+                entry<CustomerNavKey.Search> {
+                    SearchScreen(
+                        container,
+                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onCart = { navState.push(CustomerNavKey.Cart) },
+                    )
+                }
+
+                entry<CustomerNavKey.Orders> {
+                    if (signedIn) {
+                        OrdersScreen(
+                            container,
+                            onOpen = { navState.push(CustomerNavKey.OrderDetail(it)) },
+                            onBrowse = {
+                                // Browse was this escape's target; Discover is now the shop window.
+                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
+                                // tab's stack, and selecting Home while already on Home would
+                                // otherwise leave the empty state on screen.
+                                navState.resetToRoot()
+                                navState.selectTab(CustomerNavKey.Home)
+                            },
+                        )
+                    } else {
+                        GatedTab("Orders", "Sign in to see your orders.", ::requireSignIn)
+                    }
+                }
+
+                entry<CustomerNavKey.Account> {
+                    if (signedIn) {
+                        AccountRoutes(container, CustomerNavKey.Account, session)
+                    } else {
+                        GuestAccountLanding(container)
+                    }
+                }
+
+                // ── Commerce (bar hidden — each owns a bottom-anchored action) ─────────────────
+                entry<CustomerNavKey.Product> { key ->
+                    ProductDetailScreen(
+                        container = container,
+                        productId = key.productId,
+                        session = session,
+                        onRequireSignIn = ::requireSignIn,
+                        onBack = { navState.pop() },
+                        // Related products push onto the SAME stack, so Back walks the chain the
+                        // shopper actually followed.
+                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onCart = { navState.push(CustomerNavKey.Cart) },
+                    )
+                }
+
+                entry<CustomerNavKey.Cart> {
+                    CartScreen(
+                        container = container,
+                        onCheckout = {
+                            if (signedIn) navState.push(CustomerNavKey.Checkout) else requireSignIn()
+                        },
+                        onBrowse = {
+                                // Browse was this escape's target; Discover is now the shop window.
+                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
+                                // tab's stack, and selecting Home while already on Home would
+                                // otherwise leave the empty state on screen.
+                                navState.resetToRoot()
+                                navState.selectTab(CustomerNavKey.Home)
+                            },
+                    )
+                }
+
+                entry<CustomerNavKey.Checkout> {
+                    CheckoutScreen(
+                        container = container,
+                        onPlaced = { orderId -> navState.resetTo(CustomerNavKey.Receipt(orderId)) },
+                        onBack = { navState.pop() },
+                    )
+                }
+
+                // The end of checkout. `resetTo` means this IS the bottom of the stack, so there is
+                // deliberately no back arrow — the order is placed and there is nothing to return to.
+                entry<CustomerNavKey.Receipt> { key ->
+                    ReceiptScreen(
+                        container,
+                        key.orderId,
+                        title = "Order confirmed",
+                        doneLabel = "Keep shopping",
+                        // ⚠ Order matters. Checkout may have run in any tab (Search → Product →
+                        // Cart → Checkout), so that tab is cleared to its OWN root first; only then
+                        // do we move to Home. Resetting to Home directly would have planted Home as
+                        // the Search tab's root.
+                        onDone = {
+                            navState.resetToRoot()
+                            navState.selectTab(CustomerNavKey.Home)
+                        },
+                    )
+                }
+
+                // The same screen opened from order history — pushed, so the back arrow is the way
+                // out and no bottom action is needed.
+                entry<CustomerNavKey.OrderDetail> { key ->
+                    ReceiptScreen(container, key.orderId, title = "Order details")
+                }
+
+
+                // ── Auth (bar hidden — a focused flow) ────────────────────────────────────────
+                entry<CustomerNavKey.SignIn> { key -> AuthRoutes(container, key) }
+                entry<CustomerNavKey.SignUp> { AuthRoutes(container, CustomerNavKey.SignUp) }
+                entry<CustomerNavKey.VerifyOtp> { key -> AuthRoutes(container, key) }
+                entry<CustomerNavKey.Recovery> { AuthRoutes(container, CustomerNavKey.Recovery) }
+
+                // ── Account sub-screens (bar KEPT, except the two commit forms) ───────────────
+                entry<CustomerNavKey.Favorites> {
+                    FavoritesScreen(
+                        container,
+                        onOpen = { navState.push(CustomerNavKey.Product(it)) },
+                        onBack = { navState.pop() },
+                        onBrowse = {
+                                // Browse was this escape's target; Discover is now the shop window.
+                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
+                                // tab's stack, and selecting Home while already on Home would
+                                // otherwise leave the empty state on screen.
+                                navState.resetToRoot()
+                                navState.selectTab(CustomerNavKey.Home)
+                            },
+                    )
+                }
+                entry<CustomerNavKey.AddressBook> {
+                    AddressBookScreen(container, onBack = { navState.pop() })
+                }
+                entry<CustomerNavKey.Notifications> { NotificationsScreen() }
+                entry<CustomerNavKey.Faqs> { FaqsScreen() }
+                entry<CustomerNavKey.HelpCenter> { HelpCenterScreen() }
+                entry<CustomerNavKey.CustomerService> { CustomerServiceScreen() }
+                entry<CustomerNavKey.MyDetails> {
+                    AccountRoutes(container, CustomerNavKey.MyDetails, session)
+                }
+                entry<CustomerNavKey.Password> { key -> AccountRoutes(container, key, session) }
+            },
+        )
     }
 }
 
@@ -273,89 +347,15 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
  * icon too would make a screen reader announce every tab twice.
  */
 @Composable
-private fun CustomerDestinationIcon(tab: CustomerTab, selected: Boolean) {
+private fun CustomerDestinationIcon(tab: CustomerNavKey, selected: Boolean) {
     val resource: DrawableResource = when (tab) {
-        CustomerTab.HOME -> if (selected) Res.drawable.ic_home_selected else Res.drawable.ic_home_outlined
-        CustomerTab.BROWSE -> if (selected) Res.drawable.ic_catalog_selected else Res.drawable.ic_catalog_outlined
-        CustomerTab.SEARCH -> if (selected) Res.drawable.ic_search_selected else Res.drawable.ic_search_outlined
-        CustomerTab.ORDERS -> if (selected) Res.drawable.ic_orders_selected else Res.drawable.ic_orders_outlined
-        CustomerTab.ACCOUNT -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined
+        CustomerNavKey.Home -> if (selected) Res.drawable.ic_home_selected else Res.drawable.ic_home_outlined
+        CustomerNavKey.Search -> if (selected) Res.drawable.ic_search_selected else Res.drawable.ic_search_outlined
+        CustomerNavKey.Orders -> if (selected) Res.drawable.ic_orders_selected else Res.drawable.ic_orders_outlined
+        CustomerNavKey.Account -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined
+        else -> error("$tab is not a tab root")
     }
     Icon(painterResource(resource), contentDescription = null)
-}
-
-/**
- * The Home destination's chrome (025 FR-030/FR-012).
- *
- * ⚠ What this replaced: a bare `Row` with two `TextButton`s reading "♥" and "Cart (2)", floating above
- * the content with no title, no elevation and no standard hit targets.
- *
- * It now carries a real app bar with icon actions, and — directly beneath it — the delivery location,
- * which is the question a new shopper actually has and which this storefront used to answer at
- * checkout.
- */
-@Composable
-private fun HomeStackHost(
-    container: AppContainer,
-    onCart: () -> Unit,
-    onFavorites: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val lines by container.guestCart.lines.collectAsState()
-    val count = lines.sumOf { it.quantity }
-    Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(
-            title = "Effy",
-            actions = {
-                // 025 FR-029: icon affordances with spoken labels, replacing the glyph/text buttons.
-                IconButton(onClick = onFavorites) {
-                    Icon(
-                        painterResource(Res.drawable.ic_favorite_outlined),
-                        contentDescription = "Saved items",
-                    )
-                }
-                IconButton(onClick = onCart) {
-                    BadgedBox(badge = { if (count > 0) Badge { Text("$count") } }) {
-                        Icon(
-                            painterResource(Res.drawable.ic_cart_outlined),
-                            // The count is announced, not merely seen (FR-045).
-                            contentDescription = if (count > 0) "Cart, $count items" else "Cart",
-                        )
-                    }
-                }
-            },
-        )
-        DeliveryBar(container)
-        Box(modifier = Modifier.weight(1f)) { content() }
-    }
-}
-
-/** The Account tab: dispatches the auth/account sub-graph off the navigator (its own back stack). */
-@Composable
-private fun AccountTab(container: AppContainer, session: SessionState) {
-    val stack by container.navigator.stack.collectAsState()
-    when (val route = stack.last()) {
-        AppRoute.Home ->
-            if (session is SessionState.Authenticated) {
-                AccountRoutes(container, AppRoute.Account, session) // signed in → the account screen
-            } else {
-                GuestAccountLanding(container) // guest → sign-in / create-account entry
-            }
-
-        is AppRoute.SignIn, AppRoute.SignUp, is AppRoute.VerifyOtp, AppRoute.Recovery ->
-            AuthRoutes(container, route)
-
-        // 022: the address book is its own feature screen, reached from the account screen.
-        AppRoute.AddressBook ->
-            if (session is SessionState.Authenticated) {
-                AddressBookScreen(container, onBack = { container.navigator.pop() })
-            } else {
-                GuestAccountLanding(container)
-            }
-
-        AppRoute.Account, AppRoute.EditName, AppRoute.PasswordSet, AppRoute.PasswordChange ->
-            AccountRoutes(container, route, session)
-    }
 }
 
 /** Guest landing inside the Account tab — the deferred-sign-in entry (no card, DOCTRINE-2). */
@@ -371,10 +371,10 @@ private fun GuestAccountLanding(container: AppContainer) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Button(onClick = { container.navigator.push(AppRoute.SignIn()) }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { container.navigator.push(CustomerNavKey.SignIn()) }, modifier = Modifier.fillMaxWidth()) {
             Text("Sign in")
         }
-        TextButton(onClick = { container.navigator.push(AppRoute.SignUp) }) { Text("Create an account") }
+        TextButton(onClick = { container.navigator.push(CustomerNavKey.SignUp) }) { Text("Create an account") }
     }
 }
 

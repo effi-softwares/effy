@@ -1,8 +1,12 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,8 +40,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
-import com.effyshopping.customer.mobile.core.nav.AppNavigator
-import com.effyshopping.customer.mobile.core.nav.AppRoute
+import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
+import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.domain.ChangePassword
@@ -47,6 +51,17 @@ import com.effyshopping.customer.mobile.features.account.domain.SetPassword
 import com.effyshopping.customer.mobile.features.account.domain.SignOutEverywhere
 import com.effyshopping.customer.mobile.features.account.domain.UpdateName
 import com.effyshopping.customer.mobile.features.auth.presentation.PASSWORD_MIN_LENGTH
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
+import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
+import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
+import com.effyshopping.customer.mobile.features.help.presentation.HelpCenterScreen
+import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
+import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -72,7 +87,7 @@ class AccountViewModel(
     private val changePasswordUseCase: ChangePassword,
     private val signOutEverywhereUseCase: SignOutEverywhere,
     private val session: SessionManager,
-    private val navigator: AppNavigator,
+    private val navigator: CustomerNavigator,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state = _state.asStateFlow()
@@ -113,13 +128,15 @@ class AccountViewModel(
 
     fun signOut() = launch {
         session.signOutLocally()
-        navigator.resetTo(AppRoute.Home)
+        // The Account tab returns to ITS root, which for a guest is the sign-in landing. Resetting to
+        // Home instead left the Account tab permanently rendering Discover.
+        navigator.resetToRoot()
     }
 
     fun signOutEverywhere() = launch {
         runCatching { signOutEverywhereUseCase() }
         session.signOutLocally()
-        navigator.resetTo(AppRoute.Home)
+        navigator.resetToRoot()
     }
 
     /** Reset transient state (error/info/masked destination) so one sub-screen's error doesn't bleed
@@ -131,7 +148,10 @@ class AccountViewModel(
     private suspend fun finishAfterPasswordWrite() {
         // FR-027: the write revoked EVERY session, including this device. Back to sign-in with the news.
         session.signOutLocally()
-        navigator.resetTo(AppRoute.SignIn())
+        // Back to the tab root (the guest landing), then into sign-in — so the arrow has somewhere
+        // to go, rather than stranding the customer on a rootless sign-in screen.
+        navigator.resetToRoot()
+        navigator.push(CustomerNavKey.SignIn())
     }
 
     private fun longEnough(pw: String): Boolean {
@@ -172,11 +192,12 @@ class AccountViewModel(
 }
 
 @Composable
-fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionState) {
+fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: SessionState) {
     val customer = (session as? SessionState.Authenticated)?.customer
     if (customer == null) {
-        // Defensive: only a signed-in customer reaches here; if not, go home.
-        container.navigator.resetTo(AppRoute.Home)
+        // Defensive: only a signed-in customer reaches here; if not, fall back to the tab root,
+        // which renders the guest landing.
+        container.navigator.resetToRoot()
         return
     }
     val vm = viewModel {
@@ -187,10 +208,17 @@ fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionStat
     }
     LaunchedEffect(route) { vm.clearTransient() } // fresh transient state on each sub-screen
     when (route) {
-        AppRoute.Account -> AccountScreen(container, vm, customer)
-        AppRoute.EditName -> EditNameScreen(container, vm, customer)
-        AppRoute.PasswordSet -> PasswordScreen(container, vm, setFirst = true)
-        AppRoute.PasswordChange -> PasswordScreen(container, vm, setFirst = false)
+        CustomerNavKey.Account -> AccountScreen(container, vm, customer)
+        CustomerNavKey.MyDetails -> EditNameScreen(container, vm, customer)
+        // `setFirst` now travels ON the route rather than as two separate routes — a data class the
+        // compiler checks, instead of two objects that had to be kept in step with the screen.
+        is CustomerNavKey.Password -> PasswordScreen(container, vm, setFirst = route.setFirst)
+        // 026 US4 — the new screens. Each is presentational and carries no session requirement of its
+        // own; reaching them via Account is what already gates them.
+        CustomerNavKey.Notifications -> NotificationsScreen()
+        CustomerNavKey.Faqs -> FaqsScreen()
+        CustomerNavKey.HelpCenter -> HelpCenterScreen()
+        CustomerNavKey.CustomerService -> CustomerServiceScreen()
         else -> {}
     }
 }
@@ -199,33 +227,82 @@ fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionStat
 private fun AccountScreen(container: AppContainer, vm: AccountViewModel, customer: Customer) {
     val state by vm.state.collectAsState()
     val nav = container.navigator
+    // ⚠ 026 (T060): this WAS a centred column of full-width FILLED buttons — five of them, each
+    // shouting as loudly as the next, which is the loudest thing in the old app. The source design
+    // (and the constitution's "prefer lists and detail rows") uses quiet chevron rows with hairlines,
+    // reserving a filled treatment for actions that commit something. Identity moves to the top as a
+    // left-aligned header rather than a centred badge, so the screen reads as a settings list.
     Column(
-        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
-        InitialsAvatar(customer.name.initials)
-        Text(customer.name.display.ifBlank { "Your account" }, style = MaterialTheme.typography.titleLarge)
-        Text(customer.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-        HorizontalDivider()
-        EffyPrimaryAction("Change name", onClick = { nav.push(AppRoute.EditName) })
-        // 022: manage saved delivery addresses.
-        EffyPrimaryAction("Manage addresses", onClick = { nav.push(AppRoute.AddressBook) })
-        // FR-024/FR-025: offer EXACTLY the right journey, from the platform-owned hasPassword.
-        if (customer.hasPassword) {
-            EffyPrimaryAction("Change password", onClick = { nav.push(AppRoute.PasswordChange) })
-        } else {
-            EffyPrimaryAction("Set a password", onClick = { nav.push(AppRoute.PasswordSet) })
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(EffySpacing.lg),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
+        ) {
+            InitialsAvatar(customer.name.initials)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    customer.name.display.ifBlank { "Your account" },
+                    style = MaterialTheme.typography.titleLarge,
+                )
+                Text(
+                    customer.email,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
-        HorizontalDivider()
-        TextButton(onClick = { vm.signOut() }) { Text("Sign out") }
-        TextButton(onClick = { vm.signOutEverywhere() }) { Text("Sign out on all devices") }
-        TextButton(onClick = { nav.pop() }) { Text("Back") }
+        EffyNavRow("My details", onClick = { nav.push(CustomerNavKey.MyDetails) })
+        // 022: manage saved delivery addresses.
+        EffyNavRow("Address book", onClick = { nav.push(CustomerNavKey.AddressBook) })
+        // The source kit reaches saved items from a bottom-bar tab; Effy's four tabs carry no Saved
+        // tab, so it is reachable from the Discover header AND from here — this is where a signed-in
+        // shopper looks for their own things, and one entry point for a whole screen is thin.
+        EffyNavRow("Saved items", onClick = { nav.push(CustomerNavKey.Favorites) })
+        // The source kit reaches saved items from a bottom-bar tab; Effy's five tabs are spoken for,
+        // so it is reachable from the Discover header AND from here — this is where a signed-in
+        // shopper looks for their own things, and one entry point for a whole screen is thin.
+        // FR-024/FR-025: offer EXACTLY the right journey, from the platform-owned hasPassword.
+        if (customer.hasPassword) {
+            EffyNavRow("Change password", onClick = { nav.push(CustomerNavKey.Password(setFirst = false)) })
+        } else {
+            EffyNavRow("Set a password", onClick = { nav.push(CustomerNavKey.Password(setFirst = true)) })
+        }
 
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (state.loading) CircularProgressIndicator()
+        Spacer(Modifier.height(EffySpacing.lg))
+
+        // 026 US4 — the screens the source design has and this app did not.
+        EffyNavRow("Notifications", onClick = { nav.push(CustomerNavKey.Notifications) })
+        EffyNavRow("FAQs", onClick = { nav.push(CustomerNavKey.Faqs) })
+        EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
+        EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
+
+        Spacer(Modifier.height(EffySpacing.lg))
+
+        // Destructive, and said so in WORDS as well as colour — the error token alone would be a
+        // lightness difference under the monochrome palette (FR-040).
+        EffyNavRow("Sign out", onClick = { vm.signOut() }, destructive = true, showChevron = false)
+        EffyNavRow(
+            "Sign out on all devices",
+            supporting = "Ends every session, including this one",
+            onClick = { vm.signOutEverywhere() },
+            destructive = true,
+            showChevron = false,
+        )
+
+        state.error?.let {
+            Text(
+                it,
+                modifier = Modifier.padding(horizontal = EffySpacing.lg),
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        if (state.loading) {
+            CircularProgressIndicator(modifier = Modifier.padding(horizontal = EffySpacing.lg))
+        }
     }
 }
 
@@ -234,14 +311,23 @@ private fun EditNameScreen(container: AppContainer, vm: AccountViewModel, custom
     val state by vm.state.collectAsState()
     var given by remember { mutableStateOf(customer.name.given.orEmpty()) }
     var family by remember { mutableStateOf(customer.name.family.orEmpty()) }
-    FormColumn {
-        Text("Your name", style = MaterialTheme.typography.headlineSmall)
-        OutlinedTextField(given, { given = it }, label = { Text("First name") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(family, { family = it }, label = { Text("Last name") }, modifier = Modifier.fillMaxWidth())
-        EffyPrimaryAction("Save", onClick = { vm.updateName(given, family) }, loading = state.loading)
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (state.loading) CircularProgressIndicator()
-        TextButton(onClick = { container.navigator.pop() }) { Text("Back") }
+    // 026: the source's "My Details" — an app bar, labelled fields, one filled action. The email is
+    // shown as a read-only detail row because changing it is not a capability this app has; a
+    // disabled-looking input would imply it might become one.
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(title = "My Details", onBack = { container.navigator.pop() })
+        FormColumn {
+            EffyField("First name", given, { given = it }, placeholder = "Enter your first name")
+            EffyField("Last name", family, { family = it }, placeholder = "Enter your last name")
+            EffyDetailRow("Email", customer.email)
+            EffyPrimaryButton(
+                "Save",
+                onClick = { vm.updateName(given, family) },
+                enabled = !state.loading,
+            )
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (state.loading) CircularProgressIndicator()
+        }
     }
 }
 
@@ -251,30 +337,64 @@ private fun PasswordScreen(container: AppContainer, vm: AccountViewModel, setFir
     var current by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
-    FormColumn {
-        Text(if (setFirst) "Set a password" else "Change your password", style = MaterialTheme.typography.headlineSmall)
-        if (setFirst) {
-            Text(
-                "For your security, we'll email you a code to confirm it's you.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            TextButton(onClick = { vm.sendSetPasswordCode() }, enabled = !state.loading) { Text("Email me a code") }
-            state.maskedDestination?.let {
-                Password(code, "Code from your email", KeyboardType.Number) { code = it }
+    // 026: the source's Reset Password layout — app bar, supporting line, labelled fields, one filled
+    // action. The step-up code request is a SECONDARY button, not a text link: it is a real action
+    // that sends an email, and a text link read as incidental next to the field it fills.
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(
+            title = if (setFirst) "Set a password" else "Change password",
+            onBack = { container.navigator.pop() },
+        )
+        FormColumn {
+            if (setFirst) {
+                Text(
+                    "For your security, we’ll email you a code to confirm it’s you.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                EffySecondaryButton(
+                    "Email me a code",
+                    onClick = { vm.sendSetPasswordCode() },
+                    enabled = !state.loading,
+                )
+                state.maskedDestination?.let {
+                    EffyField(
+                        "Code from your email",
+                        code,
+                        { code = it },
+                        placeholder = "6-digit code",
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                }
+            } else {
+                EffyField(
+                    "Current password",
+                    current,
+                    { current = it },
+                    placeholder = "Enter your current password",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    visualTransformation = PasswordVisualTransformation(),
+                )
             }
-        } else {
-            Password(current, "Current password") { current = it }
+            EffyField(
+                "New password",
+                newPassword,
+                { newPassword = it },
+                placeholder = "At least $PASSWORD_MIN_LENGTH characters",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                visualTransformation = PasswordVisualTransformation(),
+            )
+            EffyPrimaryButton(
+                if (setFirst) "Set password" else "Change password",
+                onClick = {
+                    if (setFirst) vm.setPassword(code, newPassword) else vm.changePassword(current, newPassword)
+                },
+                enabled = !state.loading,
+            )
+            state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            if (state.loading) CircularProgressIndicator()
         }
-        Password(newPassword, "New password (≥ $PASSWORD_MIN_LENGTH characters)") { newPassword = it }
-        Button(
-            onClick = { if (setFirst) vm.setPassword(code, newPassword) else vm.changePassword(current, newPassword) },
-            enabled = !state.loading,
-            modifier = Modifier.fillMaxWidth(),
-        ) { Text(if (setFirst) "Set password" else "Change password") }
-        state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (state.loading) CircularProgressIndicator()
-        TextButton(onClick = { container.navigator.pop() }) { Text("Back") }
     }
 }
 
@@ -290,7 +410,7 @@ private fun InitialsAvatar(initials: String) {
 @Composable
 private fun FormColumn(content: @Composable () -> Unit) = Column(
     modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
-    verticalArrangement = Arrangement.spacedBy(12.dp),
+    verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
 ) { content() }
 
 @Composable

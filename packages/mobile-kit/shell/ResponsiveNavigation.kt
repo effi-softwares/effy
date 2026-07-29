@@ -1,5 +1,9 @@
 package com.effyshopping.mobile.kit.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,9 +40,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.NavigationPresentation
+import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import com.effyshopping.mobile.kit.ui.navigationPresentationFor
 
 data class ResponsiveDestination<T>(
@@ -55,16 +62,47 @@ fun <T> ResponsiveNavigation(
     modifier: Modifier = Modifier,
     railHeader: (@Composable () -> Unit)? = null,
     railFooter: (@Composable () -> Unit)? = null,
+    /**
+     * Whether the bar/rail is shown at all (026).
+     *
+     * ⚠ Defaults to `true`, so shop-mobile — which this feature does not restyle — is unaffected.
+     *
+     * The customer app passes `false` on destinations that own a bottom-anchored primary action
+     * (product detail's sticky "Add to Cart", cart, checkout) or that are focused full-screen flows
+     * (onboarding, auth). Two stacked bottom bars is the one thing Material 3, the iOS HIG, classic
+     * iOS practice and iOS 26 all agree is broken; they disagree about everything else, which is why
+     * this is a per-destination decision the CALLER makes rather than a rule baked in here.
+     */
+    showNavigation: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val barMotion = rememberMotionSpec(MotionRole.Visibility)
     BoxWithConstraints(modifier.fillMaxSize()) {
         when (navigationPresentationFor(maxWidth)) {
             NavigationPresentation.BottomBar -> Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), content = content)
-                Row(
+                // ⚠ ANIMATED, not a bare `if`. Removing the bar from this Column outright made the
+                // content Box grow 72dp in a single frame — a hard layout snap at the start of every
+                // push and the end of every pop, which read as jank far more than any transition did.
+                // Sliding it keeps it in the layout while it leaves, so the content resizes smoothly.
+                // The spec honours the device's reduced-motion setting (025 FR-037): at MotionLevel.None
+                // the duration is 0, so it still appears and disappears — only the movement goes.
+                AnimatedVisibility(
+                    visible = showNavigation,
+                    enter = slideInVertically(tween(barMotion.durationMillis)) { it },
+                    exit = slideOutVertically(tween(barMotion.durationMillis)) { it },
+                ) { Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface)
+                        // ⚠ `background`, NOT `surface`.
+                        //
+                        // In LIGHT the two tokens are the same value, so this looked correct for as
+                        // long as anyone only checked light mode. In DARK they diverge — `surface` is
+                        // #333333 and `background` is #1A1A1A — so the whole navigation strip rendered
+                        // as a distinctly lighter band across the bottom of every screen, and the
+                        // system gesture area below it was a third shade again. The bar is part of the
+                        // page, not a raised sheet on it; the source design draws it that way too.
+                        .background(MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(
                             WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                         )
@@ -82,15 +120,16 @@ fun <T> ResponsiveNavigation(
                                 .weight(1f),
                         )
                     }
-                }
+                } }
             }
 
             NavigationPresentation.SideRail -> Row(Modifier.fillMaxSize()) {
-                Column(
+                if (showNavigation) Column(
                     modifier = Modifier
                         .width(88.dp)
                         .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.surface)
+                        // `background`, matching the bottom bar — see the note there.
+                        .background(MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(
                             WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Start + WindowInsetsSides.Top + WindowInsetsSides.Bottom,
@@ -115,7 +154,7 @@ fun <T> ResponsiveNavigation(
                     Spacer(Modifier.weight(1f))
                     railFooter?.invoke()
                 }
-                Box(
+                if (showNavigation) Box(
                     Modifier
                         .width(1.dp)
                         .fillMaxHeight()
@@ -153,6 +192,25 @@ private fun NavigationButton(
                 contentDescription = label
             },
     ) {
+        // ⚠ 026 / FR-040 — MEANING MUST NOT REST ON COLOUR ALONE, and under the monochrome palette
+        // it was: `primary` vs `onSurfaceVariant` is now a near-black/grey LIGHTNESS difference, not
+        // a hue one, so the selected tab was distinguished only by being slightly darker.
+        //
+        // The source design language solves this with THREE simultaneous signals — a filled icon
+        // (the caller already swaps that via `icon(selected)`), a heavier label, and an underline
+        // bar. The latter two are added here. This changes shop-mobile too, deliberately: it is an
+        // accessibility correction that applies to every audience, not a customer restyle.
+        if (!edgeIndicator && selected) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp)
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
         if (edgeIndicator && selected) {
             Box(
                 Modifier
@@ -173,7 +231,11 @@ private fun NavigationButton(
             CompositionLocalProvider(LocalContentColor provides color) { icon() }
             Text(
                 label,
-                style = MaterialTheme.typography.labelSmall,
+                // The second non-colour signal: the selected label steps up a weight. SemiBold is the
+                // heaviest face the platform typeface ships — asking for Bold would synthesise.
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                ),
                 color = color,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

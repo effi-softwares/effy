@@ -60,6 +60,13 @@ kotlin {
     }
 }
 
+// The generated EffyTypography.kt imports Res + the font accessors from this package, so it must be
+// pinned here exactly as customer-mobile and shop-mobile pin theirs. Without it the accessors are
+// minted under a derived default package and the generated theme will not compile (026 T025a).
+compose.resources {
+    packageOfResClass = "com.effyshopping.driver.mobile.resources"
+}
+
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
 }

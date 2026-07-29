@@ -17,6 +17,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
+import com.effyshopping.mobile.design.EffySpacing
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -46,12 +49,12 @@ fun AddressFormSheet(
             .imePadding()
             .navigationBarsPadding()
             .padding(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
         Text(if (editing) "Edit address" else "Add an address", style = MaterialTheme.typography.headlineSmall)
 
         // Label chips (FR-006a): Home / Work / Other — Other reveals a free-text field.
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
             LabelChipToggle("Home", form.labelChip == LabelChip.HOME) { onChange(form.copy(labelChip = LabelChip.HOME)) }
             LabelChipToggle("Work", form.labelChip == LabelChip.WORK) { onChange(form.copy(labelChip = LabelChip.WORK)) }
             LabelChipToggle("Other", form.labelChip == LabelChip.OTHER) { onChange(form.copy(labelChip = LabelChip.OTHER)) }
@@ -68,9 +71,9 @@ fun AddressFormSheet(
         Field("State / region (optional)", form.region, onChange = { onChange(form.copy(region = it)) })
         Field("Postcode", form.postalCode, error = fieldErrors["postalCode"], keyboard = KeyboardType.Number, onChange = { onChange(form.copy(postalCode = it)) })
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
             TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            Button(onClick = onSubmit, enabled = !saving, modifier = Modifier.weight(1f)) {
+            Button(onClick = onSubmit, enabled = !saving, shape = EffyButtonShape, modifier = Modifier.weight(1f)) {
                 Text(if (editing) "Save" else "Add")
             }
         }
@@ -91,16 +94,13 @@ private fun Field(
     error: String? = null,
     keyboard: KeyboardType = KeyboardType.Text,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onChange,
-            label = { Text(label) },
-            singleLine = true,
-            isError = error != null,
-            keyboardOptions = KeyboardOptions(keyboardType = keyboard),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        error?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error) }
-    }
+    // 026: the shared [EffyField] — a label ABOVE a plain bordered box, and the error rendered as
+    // helper text beneath rather than only as a red outline (colour is never the only signal, FR-040).
+    EffyField(
+        label = label,
+        value = value,
+        onValueChange = onChange,
+        error = error,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboard),
+    )
 }

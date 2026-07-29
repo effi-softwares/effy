@@ -19,11 +19,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
+import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
 import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.core.presentation.money
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_cart_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyTopBar
@@ -83,27 +91,17 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
 
     if (lines.isEmpty()) {
         // FR-044: an empty cart offers a route back into the catalogue, not a dead end.
+        // 026: the source's own empty-cart screen — app bar, centred icon, headline, explanation,
+        // one action — via the shared [EffyEmptyState] so cart, favourites and orders cannot drift.
         Column(modifier = Modifier.fillMaxSize()) {
-            EffyTopBar(title = "Cart")
-            Column(
-                modifier = Modifier.fillMaxSize().padding(EffySpacing.xxxl),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                EffyDisplay("Your cart is empty", size = DisplaySize.Sub, textAlign = TextAlign.Center)
-                Text(
-                    "Browse the store and add something you like.",
-                    modifier = Modifier.padding(top = EffySpacing.s),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-                Button(
-                    onClick = onBrowse,
-                    shape = CircleShape,
-                    modifier = Modifier.padding(top = EffySpacing.xl).heightIn(min = 52.dp),
-                ) { Text("Start shopping") }
-            }
+            EffyAppBar(title = "My Cart")
+            EffyEmptyState(
+                title = "Your Cart Is Empty!",
+                body = "When you add products, they’ll appear here.",
+                icon = Res.drawable.ic_cart_outlined,
+                actionLabel = "Start shopping",
+                onAction = onBrowse,
+            )
         }
         return
     }
@@ -114,7 +112,7 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     val multiPackage = packages.size > 1
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(title = "Cart")
+        EffyAppBar(title = "My Cart")
         SnackbarHost(hostState = snackbarHost)
         LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = EffySpacing.lg)) {
             if (multiPackage) {
@@ -148,17 +146,16 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
             modifier = Modifier.padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
         ) {
-            SummaryRow("Items", money(totals.itemSubtotal, currency), bold = true)
+            // The source's order summary: label/value rows with the total emphasised.
+            EffyDetailRow("Sub-total", money(totals.itemSubtotal, currency))
             Text(
                 "Delivery is calculated at checkout once you choose an address.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(
-                onClick = onCheckout,
-                shape = CircleShape,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-            ) { Text("Checkout") }
+            EffyHairline(modifier = Modifier.padding(vertical = EffySpacing.s))
+            EffyDetailRow("Total", money(totals.itemSubtotal, currency), emphasised = true)
+            EffyPrimaryButton("Go To Checkout", onClick = onCheckout)
             Text(
                 "You’ll sign in at checkout. Your cart is kept.",
                 style = MaterialTheme.typography.labelSmall,
@@ -218,7 +215,7 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
 
         Text(
             money(lineTotal(line), line.currency),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         )
     }
 }

@@ -162,7 +162,13 @@ A shopper who uses the web storefront on a laptop and the app on a phone experie
 ### Discovery
 
 - **FR-009**: The web storefront MUST replace its placeholder browse page with a working category experience showing the store's real category structure, and no placeholder page MUST remain reachable from primary navigation while the catalogue has products.
-- **FR-010**: The mobile app MUST provide an equivalent category browse experience reachable from its primary navigation.
+- **FR-010**: ~~The mobile app MUST provide an equivalent category browse experience reachable from its primary navigation.~~
+  **⚠ SUPERSEDED 2026-07-30 (operator instruction, during 026).** The Browse destination was removed
+  from customer-mobile along with `BrowseScreen.kt`/`BrowseViewModel.kt` and its route; the tab set is
+  now **Home · Search · Orders · Account**. Mobile's remaining category affordance is the Discover rail
+  chips, which group the home read client-side — narrower than a category index. **FR-009 (web) still
+  stands**; `/browse` on customer-web is untouched, so this is a deliberate, recorded parity gap rather
+  than a platform-wide reversal. See `docs/audiences/customer-capabilities.md` § Category browse.
 - **FR-011**: A search entry MUST be persistently available from the storefront chrome on both surfaces, without requiring the shopper to first navigate to a dedicated search destination.
 - **FR-012**: Both surfaces MUST provide a persistent delivery-location affordance in the storefront chrome that lets a shopper set, see, and change the location their delivery information is framed around.
 - **FR-013**: The delivery location MUST persist across the session and across visits on the same device, MUST be available to guests without an account, and MUST reuse a signed-in shopper's existing default address where one exists.

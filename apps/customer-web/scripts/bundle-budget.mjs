@@ -76,6 +76,10 @@ const KB = 1024
  * At 176 KB with routes sitting at 160–168, the gate still does its original job — a 30–45 KB SDK
  * cannot hide in that headroom.
  *
+ * ⚠ THE NUMBER THAT LANDED IS 174, NOT 176. The 176 above is the ratchet as PROPOSED; the T102 note
+ * below then measured a 0.9 KB saving and the constant was set to 174. Everything above this line
+ * that says "176" is describing the proposal, not `GUEST_LIMIT`. Read the constant, not the prose.
+ *
  * ⚠ T102 (`next-themes` → an inline pre-paint script + a `useSyncExternalStore` store) IS NOW DONE,
  * and the estimate that justified it was WRONG. It was recorded here as "~8.3 KB on every guest
  * page"; the dependency's own `dist/index.mjs` is **1.5 KB gzipped**, and the replacement store
@@ -85,6 +89,18 @@ const KB = 1024
  *
  * The number below is ratcheted by what was actually measured, not by what was hoped for. If a
  * future change needs more room, MEASURE FIRST — this line is the cautionary tale.
+ *
+ * ── MEASURED, 2026-07-29 (feature 026, task T001) ───────────────────────────────────────────
+ *
+ * Baseline before the monochrome identity change, all five guest routes:
+ *
+ *   /              170.5 KB      /browse        168.5 KB      /search        171.9 KB
+ *   /product/[id]  170.7 KB      /cart          170.9 KB
+ *
+ * ⚠ HEADROOM IS 2.1–5.5 KB, NOT the ~24 KB the ratchet rationale above assumes. `/search` has
+ * ~2 KB of slack. The "a 30–45 KB SDK cannot hide in that headroom" claim is still true, but the
+ * margin for ordinary growth is now thin enough that any dependency change must be measured
+ * immediately rather than at the end of a feature.
  */
 const GUEST_LIMIT = 174 * KB
 

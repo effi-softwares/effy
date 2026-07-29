@@ -4,6 +4,7 @@ import com.amplifyframework.auth.AuthFactorType
 import com.amplifyframework.auth.AuthUserAttribute
 import com.amplifyframework.auth.AuthUserAttributeKey
 import com.amplifyframework.auth.cognito.AWSCognitoAuthSession
+import com.amplifyframework.auth.cognito.exceptions.invalidstate.SignedInException
 import com.amplifyframework.auth.cognito.options.AWSCognitoAuthSignInOptions
 import com.amplifyframework.auth.cognito.options.AuthFlowType
 import com.amplifyframework.auth.options.AuthFetchSessionOptions
@@ -49,6 +50,25 @@ class AmplifyAuthDriver : AuthDriver {
         }
     }
 
+    /**
+     * ⚠ THIS RECONCILES; it does not merely read. Kept identical to the iOS bridge's `fetchSession`.
+     *
+     * A session that reports `isSignedIn` but cannot produce a token — an expired refresh token, or on
+     * iOS a Keychain entry that outlived the install that made it — used to be reported as simply "no
+     * session". That left Amplify holding a signed-in user while the app showed a guest, and every
+     * subsequent `signIn` failed with *"There is already a user in signedIn state"*.
+     *
+     * ⚠ This is NOT the only way the two stores diverge, and probably not the common one.
+     * `SessionManager` deliberately falls back to Guest when the customer record cannot be read at
+     * launch — a backend outage should not log anyone out, and its own comment says "the Amplify
+     * session survives for a relaunch". That path produces the same standoff with a session that is
+     * perfectly VALID, so this method cannot see it; [signInRecoveringFromStaleSession] is what
+     * actually covers it.
+     *
+     * ⚠ Reported on **iOS**, fixed on both. Android's credential store goes with the app data, which
+     * hides the reinstall half of the problem rather than fixing it — but the SessionManager half is
+     * platform-neutral and bites here identically.
+     */
     override suspend fun currentSession(forceRefresh: Boolean): Session? = try {
         val options = AuthFetchSessionOptions.builder().forceRefresh(forceRefresh).build()
         val session = Amplify.Auth.fetchAuthSession(options) as AWSCognitoAuthSession
@@ -61,9 +81,13 @@ class AmplifyAuthDriver : AuthDriver {
                 accessToken = tokens.accessToken.orEmpty(),
             )
         } else {
+            // Signed in on paper, unusable in practice — clear it rather than leave the two stores
+            // disagreeing. Best-effort: if the purge fails there is nothing further to try here.
+            if (session.isSignedIn) runCatching { Amplify.Auth.signOut() }
             null
         }
     } catch (e: Throwable) {
+        clearStaleSessionIfAny()
         null
     }
 
@@ -87,7 +111,7 @@ class AmplifyAuthDriver : AuthDriver {
 
     override suspend fun signInWithPassword(email: String, password: String): AuthStep = step {
         val options = AWSCognitoAuthSignInOptions.builder().authFlowType(AuthFlowType.USER_SRP_AUTH).build()
-        mapSignIn(Amplify.Auth.signIn(email, password, options))
+        mapSignIn(signInRecoveringFromStaleSession { Amplify.Auth.signIn(email, password, options) })
     }
 
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
@@ -96,7 +120,7 @@ class AmplifyAuthDriver : AuthDriver {
             .authFlowType(AuthFlowType.USER_AUTH)
             .preferredFirstFactor(AuthFactorType.EMAIL_OTP)
             .build()
-        mapSignIn(Amplify.Auth.signIn(email, null, options))
+        mapSignIn(signInRecoveringFromStaleSession { Amplify.Auth.signIn(email, null, options) })
     }
 
     override suspend fun confirmOtp(code: String): AuthStep = step {
@@ -114,6 +138,35 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────────────
+
+    /** Sign out only if Amplify still believes someone is signed in. */
+    private suspend fun clearStaleSessionIfAny() {
+        val stillSignedIn = runCatching { Amplify.Auth.fetchAuthSession().isSignedIn }.getOrDefault(false)
+        if (stillSignedIn) runCatching { Amplify.Auth.signOut() }
+    }
+
+    /**
+     * Run a sign-in, and if Amplify refuses because a user is already signed in, clear that user and
+     * try once more.
+     *
+     * This is Amplify's own documented recovery ("SignOut the user first before calling signIn"), and
+     * it belongs at the driver rather than in a use case: a stale SDK session is an SDK concern. The
+     * closed [AuthError] set (FR-016) has no member for it and should not grow one — the domain has no
+     * decision to make here, and the customer certainly does not.
+     *
+     * ⚠ Retried EXACTLY once. A second failure is reported, so a genuine invalid-state bug surfaces
+     * instead of spinning. `SignedInException` is matched by TYPE, never by message text — and it is the
+     * precise subtype, not its `InvalidStateException` parent, so unrelated invalid states are not
+     * retried on the strength of sharing a base class.
+     */
+    private suspend fun signInRecoveringFromStaleSession(
+        attempt: suspend () -> AuthSignInResult,
+    ): AuthSignInResult = try {
+        attempt()
+    } catch (e: SignedInException) {
+        runCatching { Amplify.Auth.signOut() }
+        attempt()
+    }
 
     private fun signUpOptions(email: String, given: String, family: String): AuthSignUpOptions =
         AuthSignUpOptions.builder()

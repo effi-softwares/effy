@@ -10,7 +10,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
 import { resolve, join, relative } from "node:path"
 
 import { buildAll, buildManifest, REPO, PKG, MANIFEST, sha256 } from "./gen-brand-assets.mjs"
-import { MANAGED_DIRS } from "../src/targets.mjs"
+import { MANAGED_DIRS, MANAGED_DIR_EXEMPT } from "../src/targets.mjs"
 
 function walk(dir) {
   const out = []
@@ -45,7 +45,8 @@ async function main() {
   for (const dir of MANAGED_DIRS) {
     for (const abs of walk(resolve(REPO, dir))) {
       const rel = relative(REPO, abs).split("\\").join("/")
-      if (!declared.has(rel) && !rel.endsWith(".gitkeep")) orphans.push(rel)
+      const base = rel.split("/").pop()
+      if (!declared.has(rel) && !MANAGED_DIR_EXEMPT.includes(base)) orphans.push(rel)
     }
   }
 

@@ -6,6 +6,8 @@
 //
 // ⚠ RULE T4 — no two targets may write the same path. Enforced below.
 
+import { COLOURWAYS } from "./colourways.mjs"
+
 /** kind: how the asset is produced. */
 export const KIND = {
   PNG: "png", // rasterised at each declared size
@@ -45,7 +47,9 @@ function mobileTargets(app, surface, colourway) {
     colourway,
     composition: "android-fg",
     kind: KIND.VD_SOLID,
-    solid: "#ffffff",
+    // 026: the adaptive BACKGROUND layer is the tile the mark sits on, so it carries the polarity.
+    // It was a hardcoded white; a white tile under shop's light mark would erase the mark entirely.
+    solid: COLOURWAYS[colourway].ground,
     sizeDp: 108,
     path: `${res}/drawable/ic_launcher_background.xml`,
   })
@@ -54,7 +58,9 @@ function mobileTargets(app, surface, colourway) {
     slot: "android-adaptive-monochrome",
     colourway,
     composition: "android-mono",
-    mono: "#0C1D36",
+    // Android re-tints this layer itself, so the authored colour only has to be opaque and let the
+    // silhouette read. It is the outline slot's value, not the retired navy.
+    mono: "#0A0A0A",
     kind: KIND.VD,
     sizeDp: 108,
     path: `${res}/drawable/ic_launcher_monochrome.xml`,
@@ -164,11 +170,11 @@ function viteWebTargets(app, surface, colourway) {
 }
 
 export const TARGETS = [
-  // ── customer-web — Next.js App Router file conventions (Emerald) ───────────────────────────────
+  // ── customer-web — Next.js App Router file conventions (Light polarity) ───────────────────────
   {
     surface: "customer-web",
     slot: "favicon-svg",
-    colourway: "emerald",
+    colourway: "light",
     composition: "web-icon",
     kind: KIND.SVG,
     path: "apps/customer-web/app/icon.svg",
@@ -176,7 +182,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "favicon-ico",
-    colourway: "emerald",
+    colourway: "light",
     composition: "favicon",
     kind: KIND.ICO,
     sizes: [16, 32, 48],
@@ -185,7 +191,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "apple-touch-icon",
-    colourway: "emerald",
+    colourway: "light",
     composition: "apple-touch",
     kind: KIND.PNG,
     sizes: [180],
@@ -194,7 +200,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-192",
-    colourway: "emerald",
+    colourway: "light",
     composition: "maskable",
     kind: KIND.PNG,
     sizes: [192],
@@ -203,7 +209,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-512",
-    colourway: "emerald",
+    colourway: "light",
     composition: "maskable",
     kind: KIND.PNG,
     sizes: [512],
@@ -215,7 +221,7 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-any-192",
-    colourway: "emerald",
+    colourway: "light",
     composition: "web-icon",
     kind: KIND.PNG,
     sizes: [192],
@@ -224,20 +230,20 @@ export const TARGETS = [
   {
     surface: "customer-web",
     slot: "pwa-any-512",
-    colourway: "emerald",
+    colourway: "light",
     composition: "web-icon",
     kind: KIND.PNG,
     sizes: [512],
     path: "apps/customer-web/public/web-app-icon-512.png",
   },
 
-  // ── shop-web (Sky) · back-office (Neutral) ─────────────────────────────────────────────────────
-  ...viteWebTargets("shop-web", "shop-web", "sky"),
-  ...viteWebTargets("back-office", "back-office", "neutral"),
+  // ── shop-web (Dark polarity) · back-office (Mid) ──────────────────────────────────────────────
+  ...viteWebTargets("shop-web", "shop-web", "dark"),
+  ...viteWebTargets("back-office", "back-office", "mid"),
 
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────
-  ...mobileTargets("customer-mobile", "customer-mobile", "emerald"),
-  ...mobileTargets("shop-mobile", "shop-mobile", "sky"),
+  ...mobileTargets("customer-mobile", "customer-mobile", "light"),
+  ...mobileTargets("shop-mobile", "shop-mobile", "dark"),
 ]
 
 // ⚠ RULE T4 — collisions mean silent overwrite ordering. Fail at import time, not at write time.
@@ -250,6 +256,21 @@ export const TARGETS = [
 }
 
 /** Directories the drift check treats as managed — an undeclared file here is an orphan. */
+/**
+ * Directories the generator OWNS. Anything inside one of these that no target declares is an ORPHAN
+ * — a left-behind asset that still ships and that nobody maintains.
+ *
+ * ⚠ Only ASSET-ONLY directories may be listed. A directory that mixes generated assets with
+ * hand-written source (notably `apps/customer-web/app/`, where the Next.js App Router file
+ * conventions put icon.svg / favicon.ico / apple-icon.png alongside every route file) cannot go here:
+ * walking it would report every page.tsx as an orphan. That gap is real and recorded in
+ * `orphanCoverage()` below rather than left implicit.
+ *
+ * ⚠ 026 widened this list. The mipmap and AppIcon directories were NOT watched, so a stale legacy
+ * mipmap or a leftover app icon could survive a colourway change indefinitely — which is exactly the
+ * failure mode 024 wrote this check for. Found by deliberately planting an orphan and watching the
+ * check pass.
+ */
 export const MANAGED_DIRS = [
   "apps/customer-web/public",
   "apps/shop-web/public",
@@ -258,4 +279,24 @@ export const MANAGED_DIRS = [
   "apps/shop-mobile/androidApp/src/main/res/drawable",
   "apps/customer-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
   "apps/shop-mobile/iosApp/iosApp/Assets.xcassets/LaunchLogo.imageset",
+  ...["customer-mobile", "shop-mobile"].flatMap((app) => [
+    ...ANDROID_MIPMAP.map(([density]) => `apps/${app}/androidApp/src/main/res/mipmap-${density}`),
+    `apps/${app}/iosApp/iosApp/Assets.xcassets/AppIcon.appiconset`,
+  ]),
 ]
+
+/**
+ * Files inside a managed directory that the generator does NOT write but that legitimately live
+ * there: platform sidecars the toolchain owns. Listing them is narrower — and far more honest — than
+ * silently not watching their directory.
+ */
+export const MANAGED_DIR_EXEMPT = ["Contents.json", ".gitkeep"]
+
+/** Asset locations this check knowingly does NOT cover, so the limitation is greppable. */
+export function orphanCoverage() {
+  return {
+    unwatched: ["apps/customer-web/app"],
+    reason:
+      "mixes generated App Router icons with route source; walking it would flag every page as an orphan",
+  }
+}

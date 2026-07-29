@@ -38,12 +38,18 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_search_outlined
+import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
 import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
 import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
+import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyPlaceholder
@@ -55,24 +61,25 @@ import com.effyshopping.mobile.kit.ui.EffyTopBar
  * Query input, refinement chips, a SORT control and a RESULT COUNT; results in a grid with keyset
  * infinite scroll. Only available products (server-enforced).
  *
- * [categoryKey] arrives when the shopper taps a category in Browse — a category is a refined result
- * set, so Browse hands off here rather than growing its own results implementation.
+ * ⚠ THIS SCREEN NO LONGER TAKES AN ENTRY REFINEMENT. It used to accept `categoryKey` and `saleOnly`,
+ * handed over when the shopper tapped a category in the Browse tab. Browse was removed at the
+ * operator's instruction, and with it the only caller that ever passed either — so the parameters and
+ * the effects that applied them went too, rather than lingering as arguments nobody can supply.
+ *
+ * ⚠ CONSEQUENCE, recorded rather than hidden: `SearchViewModel` still supports category refinement and
+ * the backend still honours it, but nothing in the UI can now SET a category — the chip below only
+ * CLEARS one. Sale-only is unaffected; it has its own chip. If category refinement should return,
+ * the natural entry is the Discover chips handing off here, which is what Browse used to do.
  */
 @Composable
 fun SearchScreen(
     container: AppContainer,
-    categoryKey: String? = null,
-    /** Entry refinement — set when Home's on-sale rail hands off via "See all" (web `?saleOnly=true`). */
-    saleOnly: Boolean = false,
     onProductClick: (String) -> Unit,
+    onCart: () -> Unit = {},
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts) }
     val state by vm.state.collectAsState()
     val gridState = rememberLazyGridState()
-
-    // Apply (or clear) the refinements handed over by Browse / Home's "See all".
-    LaunchedEffect(categoryKey) { if (state.categoryKey != categoryKey) vm.applyCategory(categoryKey) }
-    LaunchedEffect(saleOnly) { if (saleOnly) vm.applySaleOnly(true) }
 
     val loadMore by remember {
         derivedStateOf {
@@ -83,7 +90,7 @@ fun SearchScreen(
     LaunchedEffect(loadMore) { if (loadMore) vm.loadMore() }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(title = "Search")
+        EffyAppBar(title = "Search", trailing = { CartAction(container, onCart) })
 
         Column(modifier = Modifier.padding(horizontal = EffySpacing.md)) {
             // A pill on the tint, matching the web header's search control. `placeholder` rather
@@ -94,7 +101,7 @@ fun SearchScreen(
                 onValueChange = vm::onQueryChange,
                 placeholder = { Text("Search groceries, brands and more…") },
                 singleLine = true,
-                shape = CircleShape,
+                shape = EffyButtonShape,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = EffySurface.tint,
                     unfocusedContainerColor = EffySurface.tint,
@@ -156,15 +163,16 @@ fun SearchScreen(
             state.items.isEmpty() && state.loading -> SearchSkeleton()
 
             state.failed ->
-                EffyPlaceholder(
+                EffyEmptyState(
                     title = "We couldn’t load results",
-                    description = "Please try again in a moment.",
+                    body = "Please try again in a moment.",
+                    icon = Res.drawable.ic_search_outlined,
                 )
 
             state.items.isEmpty() ->
-                EffyPlaceholder(
+                EffyEmptyState(
                     title = if (state.query.isBlank()) "Start typing to search" else "No results for “${state.query}”",
-                    description = if (state.saleOnly || state.categoryKey != null) {
+                    body = if (state.saleOnly || state.categoryKey != null) {
                         "Your filters may be too narrow — try removing one."
                     } else {
                         "Try a different search, or browse the store by category."

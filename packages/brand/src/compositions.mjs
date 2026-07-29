@@ -36,8 +36,10 @@ export const GROUND = {
  * tokens, they are not the shop or customer UI accent, and no Compose theme knows they exist.
  */
 export const SPLASH_GROUND = {
-  "customer-mobile": "#4ade80", // green-400
-  "shop-mobile": "#3b82f6", // blue-500
+  // 026: restated from the retired brand colours (green-400 / blue-500) to the monochrome ramp,
+  // following the SAME POLARITY as each app's mark so the splash and the launcher icon agree.
+  "customer-mobile": "#F5F5F5", // light tile, dark mark
+  "shop-mobile": "#1A1A1A", // dark tile, light mark
 }
 
 export function splashGroundFor(app) {
@@ -54,6 +56,14 @@ export function splashGroundFor(app) {
  */
 export const ANDROID_SAFE_OCCUPANCY = 66 / 108
 
+// ⚠ `groundFromColourway` (026): the composition still decides WHETHER a target has an opaque ground
+// and what the alpha policy is; when this flag is set, the COLOURWAY decides which ground it is. That
+// is what makes polarity possible — customer renders on a light tile, shop on a dark one, from the
+// same composition.
+//
+// The two iOS appearance variants deliberately do NOT take it: `ios-dark` is the DARK-APPEARANCE
+// icon and must stay dark for every surface, and `ios-tinted` needs black for iOS's luminance-derived
+// tinting. Letting the colourway override those would turn customer's dark-appearance icon light.
 export const COMPOSITIONS = {
   // ── Web ────────────────────────────────────────────────────────────────────────────────────────
   // Tiny renders need maximum ink; at 16px every pixel of padding is a pixel of lost silhouette.
@@ -61,13 +71,13 @@ export const COMPOSITIONS = {
   "web-icon": { occupancy: 0.89, background: null, alpha: "preserve" },
   // PWA maskable: the guaranteed-safe region is a circle of 80% diameter. A portrait mark inscribed
   // in that circle needs materially more room than 80% suggests.
-  maskable: { occupancy: 0.62, background: GROUND.light, alpha: "preserve" },
-  "apple-touch": { occupancy: 0.75, background: GROUND.light, alpha: "strip" },
+  maskable: { occupancy: 0.62, background: GROUND.light, groundFromColourway: true, alpha: "preserve" },
+  "apple-touch": { occupancy: 0.75, background: GROUND.light, groundFromColourway: true, alpha: "strip" },
 
   // ── iOS ────────────────────────────────────────────────────────────────────────────────────────
   // ⚠ RULE P2 — every ios-* profile bakes an OPAQUE ground and strips alpha. App Store Connect
   // rejects an icon that CONTAINS an alpha channel, even a fully opaque one (research R3).
-  "ios-app": { occupancy: 0.68, background: GROUND.light, alpha: "strip" },
+  "ios-app": { occupancy: 0.68, background: GROUND.light, groundFromColourway: true, alpha: "strip" },
   "ios-dark": { occupancy: 0.68, background: GROUND.dark, alpha: "strip" },
   // Tinted: iOS derives a tint from luminance, so the source is a mono mark on black.
   "ios-tinted": { occupancy: 0.68, background: GROUND.black, alpha: "strip" },
@@ -78,7 +88,7 @@ export const COMPOSITIONS = {
   "android-fg": { occupancy: 0.595, background: null, alpha: "preserve" },
   "android-mono": { occupancy: 0.595, background: null, alpha: "preserve" },
   // Legacy raster mipmaps for API 24–25 only, which predate adaptive icons and are not masked.
-  "android-legacy": { occupancy: 0.8, background: GROUND.light, alpha: "preserve" },
+  "android-legacy": { occupancy: 0.8, background: GROUND.light, groundFromColourway: true, alpha: "preserve" },
 
   // ── Splash ─────────────────────────────────────────────────────────────────────────────────────
   // The Android 12+ splash icon without an icon background is a 288 dp canvas with a 192 dp visible

@@ -23,6 +23,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.mobile.design.EffySpacing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,34 +61,26 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("Your addresses", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 4.dp))
-                TextButton(onClick = onBack) { Text("Back") }
-            }
+            // 026: the source's app bar — a real back affordance instead of a "Back" text button
+            // floating opposite the title (025 FR-030 banned improvised text-link navigation, and
+            // this screen was the last place one survived).
+            EffyAppBar(title = "Address Book", onBack = onBack)
             when {
                 state.loading ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
-                state.addresses.isEmpty() ->
-                    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No saved addresses yet", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Add a delivery address and it’ll be ready at checkout.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Button(onClick = { vm.openAdd() }, modifier = Modifier.padding(top = 16.dp)) { Text("Add an address") }
-                    }
+                state.addresses.isEmpty() -> EffyEmptyState(
+                    title = "No Saved Addresses!",
+                    body = "Add a delivery address and it’ll be ready at checkout.",
+                    actionLabel = "Add an address",
+                    onAction = { vm.openAdd() },
+                )
 
                 else ->
                     LazyColumn(Modifier.fillMaxSize()) {
                         state.error?.let { err ->
                             item {
-                                Text(err, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+                                Text(err, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(EffySpacing.lg))
                             }
                         }
                         items(state.addresses, key = { it.id }) { address ->
@@ -153,7 +148,7 @@ private fun AddressRow(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
                 address.label?.takeIf { it.isNotBlank() }?.let {
                     Text(it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }

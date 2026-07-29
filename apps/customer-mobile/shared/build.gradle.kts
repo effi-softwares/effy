@@ -72,6 +72,17 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            // 026 — Jetpack Navigation 3 (stable since Nov 2025; Compose Multiplatform 1.10+ ships it
+            // for iOS/desktop/web, and this app is on 1.11.1). This supersedes 015's hand-rolled back
+            // stack, whose stated reason for existing — "Nav3 is alpha with an unverified iOS runtime"
+            // — has expired.
+            //
+            // ⚠ `material3-adaptive-navigation3` (the Scenes / multi-pane artifact) is deliberately NOT
+            // added: it is beta-only (1.3.0-beta02), and 013 D19 forbids a beta under a stable Compose
+            // runtime. The adaptive requirement is already met by mobile-kit's ResponsiveNavigation
+            // (bottom bar ↔ navigation rail), so nothing is lost by waiting for a stable release.
+            implementation(libs.navigation3.ui)
+            implementation(libs.lifecycle.viewmodel.navigation3)
             // 013 — networking (one client per base URL), serialization, async, nav, prefs
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.contentNegotiation)

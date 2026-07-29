@@ -6,6 +6,7 @@ import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AmplifyAuthDriver
 import com.effyshopping.customer.mobile.core.auth.AmplifyBootstrap
 import com.effyshopping.customer.mobile.core.payment.AndroidPaymentDriver
+import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
 
 /**
  * The Android application. Configures Amplify ONCE (from the in-code config string — no
@@ -20,6 +21,9 @@ class EffyApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 026: the device-local preference store needs an application Context once. It must be set
+        // BEFORE any composition runs, because the very first screen (onboarding) reads it.
+        initDevicePreferences(applicationContext)
         try {
             AmplifyBootstrap.configure(applicationContext)
         } catch (e: Exception) {
