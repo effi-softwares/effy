@@ -87,8 +87,8 @@ import org.jetbrains.compose.resources.painterResource
  *
  * ⚠ NO NEW SERVER CAPABILITY (FR-002). The chips filter the products the home read ALREADY returns,
  * client-side. Reaching for a per-category endpoint would have been the easy call and the wrong one:
- * "Browse" already hands a category to Search, which owns real refinement and paging. This screen
- * shows what is on the home rails, grouped — it is a shop window, not a search results page.
+ * Search owns real refinement and paging. This screen shows what is on the home rails, grouped — it
+ * is a shop window, not a search results page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,11 +178,10 @@ private fun DiscoverHeader(
 /**
  * One header affordance.
  *
- * ⚠ Saved and Cart live HERE because Effy's five tabs are Home · Browse · Search · Orders · Account.
- * The source kit puts Saved and Cart in its bottom bar, but Effy's bar is already full and its tab set
- * is a signed-off decision (025 FR-009/FR-010 put category Browse in primary navigation). The header
- * is where they go instead — and they must go somewhere, because for a while after the Nav3 migration
- * they went nowhere at all: the cart could be filled and never opened.
+ * ⚠ Saved and Cart live HERE because Effy's four tabs are Home · Search · Orders · Account. The source
+ * kit puts Saved and Cart in its bottom bar; Effy's bar carries neither, so the header is where they go
+ * instead — and they must go somewhere, because for a while after the Nav3 migration they went nowhere
+ * at all: the cart could be filled and never opened.
  */
 @Composable
 private fun HeaderAction(icon: DrawableResource, label: String, onClick: () -> Unit) {
@@ -315,7 +314,9 @@ private fun DiscoverGrid(
  * already returns WITH its products, so a rail chip can filter the grid on the spot. A category chip
  * could not: a `ProductCard` carries no category key, so selecting one would need a fetch, and this
  * screen is deliberately a shop window rather than a second search implementation (see the header).
- * Browsing the real category tree is the Browse tab's job, which hands off to Search.
+ * ⚠ These chips are the app's ONLY category affordance now. The Browse tab that walked the real
+ * category tree was removed at the operator's instruction, so what remains is this client-side
+ * grouping of the home rails — narrower than a category index, and deliberately so.
  */
 @Composable
 private fun CategoryChips(

@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -17,9 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import coil3.compose.AsyncImage
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.mobile.design.EffySpacing
 
@@ -80,22 +84,54 @@ fun OnboardingScreen(onDone: () -> Unit) {
                 ),
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(EffySpacing.lg),
-        ) {
-            EffyDisplay("Everything you need, delivered.", size = DisplaySize.Hero)
+        Column(modifier = Modifier.fillMaxSize()) {
+            // The headline clears the status bar; the photograph behind it does not.
+            EffyDisplay(
+                "Everything you need, delivered.",
+                size = DisplaySize.Hero,
+                modifier = Modifier
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+                    )
+                    .padding(EffySpacing.lg),
+            )
 
             Box(modifier = Modifier.weight(1f))
 
-            EffyPrimaryButton("Get Started", onClick = onDone)
-            TextButton(
-                onClick = onDone,
-                modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
+            // ── The action band ──────────────────────────────────────────────────────────────────
+            //
+            // ⚠ A SOLID band, not buttons floating on the photograph — this is what the source design
+            // does, and here it is also the only way the actions can be legible. "Skip" is a text
+            // action drawn in `primary`; over the photo it was near-black on dark vegetables and
+            // effectively invisible. The file header already committed to contrast "against a known
+            // surface rather than against whatever the photograph happens to contain" — the top scrim
+            // delivered that for the headline and nothing delivered it down here.
+            //
+            // The background is applied BEFORE the bottom inset padding, so the band's colour runs to
+            // the physical bottom edge instead of stopping above the gesture area.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal),
+                    ),
             ) {
-                Text("Skip", style = MaterialTheme.typography.bodyMedium)
+                EffyHairline()
+                Column(modifier = Modifier.padding(EffySpacing.lg)) {
+                    EffyPrimaryButton("Get Started", onClick = onDone)
+                    TextButton(
+                        onClick = onDone,
+                        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
+                    ) {
+                        // SemiBold so it reads as an action rather than a caption — it is subordinate
+                        // to Get Started, not decorative.
+                        Text(
+                            "Skip",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        )
+                    }
+                }
             }
         }
     }

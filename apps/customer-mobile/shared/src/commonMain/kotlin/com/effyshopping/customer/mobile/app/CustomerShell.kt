@@ -39,7 +39,6 @@ import com.effyshopping.customer.mobile.features.account.presentation.AccountRou
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
-import com.effyshopping.customer.mobile.features.catalog.presentation.BrowseScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
@@ -54,8 +53,6 @@ import com.effyshopping.customer.mobile.features.notifications.presentation.Noti
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_account_outlined
 import com.effyshopping.customer.mobile.resources.ic_account_selected
-import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
-import com.effyshopping.customer.mobile.resources.ic_catalog_selected
 import com.effyshopping.customer.mobile.resources.ic_home_outlined
 import com.effyshopping.customer.mobile.resources.ic_home_selected
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
@@ -73,7 +70,6 @@ import org.jetbrains.compose.resources.painterResource
 /** The label for each tab root, in bar order. */
 private fun tabLabel(key: CustomerNavKey): String = when (key) {
     CustomerNavKey.Home -> "Home"
-    CustomerNavKey.Browse -> "Browse"
     CustomerNavKey.Search -> "Search"
     CustomerNavKey.Orders -> "Orders"
     CustomerNavKey.Account -> "Account"
@@ -108,9 +104,6 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
     // The tab a guest was trying to reach when deferred sign-in interrupted them.
     var pendingTab by rememberSaveable { mutableStateOf<String?>(null) }
-    // Refinements handed from Browse/Home to the Search tab.
-    var pendingCategoryKey by rememberSaveable { mutableStateOf<String?>(null) }
-    var pendingSaleOnly by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(signedIn) {
         if (signedIn) {
@@ -187,11 +180,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     HomeScreen(
                         container = container,
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
-                        onSearch = {
-                            pendingCategoryKey = null
-                            pendingSaleOnly = false
-                            navState.selectTab(CustomerNavKey.Search)
-                        },
+                        onSearch = { navState.selectTab(CustomerNavKey.Search) },
                         onNotifications = {
                             navState.selectTab(CustomerNavKey.Account)
                             navState.push(CustomerNavKey.Notifications)
@@ -206,21 +195,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     )
                 }
 
-                entry<CustomerNavKey.Browse> {
-                    BrowseScreen(container, onCart = { navState.push(CustomerNavKey.Cart) }, onCategoryClick = { key ->
-                        // A category IS a refined result set; Search owns refinement, so Browse hands
-                        // off rather than growing a second results implementation.
-                        pendingCategoryKey = key
-                        pendingSaleOnly = false
-                        navState.selectTab(CustomerNavKey.Search)
-                    })
-                }
-
                 entry<CustomerNavKey.Search> {
                     SearchScreen(
                         container,
-                        categoryKey = pendingCategoryKey,
-                        saleOnly = pendingSaleOnly,
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         onCart = { navState.push(CustomerNavKey.Cart) },
                     )
@@ -231,7 +208,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         OrdersScreen(
                             container,
                             onOpen = { navState.push(CustomerNavKey.OrderDetail(it)) },
-                            onBrowse = { navState.selectTab(CustomerNavKey.Browse) },
+                            onBrowse = {
+                                // Browse was this escape's target; Discover is now the shop window.
+                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
+                                // tab's stack, and selecting Home while already on Home would
+                                // otherwise leave the empty state on screen.
+                                navState.resetToRoot()
+                                navState.selectTab(CustomerNavKey.Home)
+                            },
                         )
                     } else {
                         GatedTab("Orders", "Sign in to see your orders.", ::requireSignIn)
@@ -267,7 +251,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         onCheckout = {
                             if (signedIn) navState.push(CustomerNavKey.Checkout) else requireSignIn()
                         },
-                        onBrowse = { navState.selectTab(CustomerNavKey.Browse) },
+                        onBrowse = {
+                                // Browse was this escape's target; Discover is now the shop window.
+                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
+                                // tab's stack, and selecting Home while already on Home would
+                                // otherwise leave the empty state on screen.
+                                navState.resetToRoot()
+                                navState.selectTab(CustomerNavKey.Home)
+                            },
                     )
                 }
 
@@ -317,7 +308,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         container,
                         onOpen = { navState.push(CustomerNavKey.Product(it)) },
                         onBack = { navState.pop() },
-                        onBrowse = { navState.selectTab(CustomerNavKey.Browse) },
+                        onBrowse = {
+                                // Browse was this escape's target; Discover is now the shop window.
+                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
+                                // tab's stack, and selecting Home while already on Home would
+                                // otherwise leave the empty state on screen.
+                                navState.resetToRoot()
+                                navState.selectTab(CustomerNavKey.Home)
+                            },
                     )
                 }
                 entry<CustomerNavKey.AddressBook> {
@@ -352,7 +350,6 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 private fun CustomerDestinationIcon(tab: CustomerNavKey, selected: Boolean) {
     val resource: DrawableResource = when (tab) {
         CustomerNavKey.Home -> if (selected) Res.drawable.ic_home_selected else Res.drawable.ic_home_outlined
-        CustomerNavKey.Browse -> if (selected) Res.drawable.ic_catalog_selected else Res.drawable.ic_catalog_outlined
         CustomerNavKey.Search -> if (selected) Res.drawable.ic_search_selected else Res.drawable.ic_search_outlined
         CustomerNavKey.Orders -> if (selected) Res.drawable.ic_orders_selected else Res.drawable.ic_orders_outlined
         CustomerNavKey.Account -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined

@@ -94,7 +94,15 @@ fun <T> ResponsiveNavigation(
                 ) { Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(MaterialTheme.colorScheme.surface)
+                        // ⚠ `background`, NOT `surface`.
+                        //
+                        // In LIGHT the two tokens are the same value, so this looked correct for as
+                        // long as anyone only checked light mode. In DARK they diverge — `surface` is
+                        // #333333 and `background` is #1A1A1A — so the whole navigation strip rendered
+                        // as a distinctly lighter band across the bottom of every screen, and the
+                        // system gesture area below it was a third shade again. The bar is part of the
+                        // page, not a raised sheet on it; the source design draws it that way too.
+                        .background(MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(
                             WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
                         )
@@ -120,7 +128,8 @@ fun <T> ResponsiveNavigation(
                     modifier = Modifier
                         .width(88.dp)
                         .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.surface)
+                        // `background`, matching the bottom bar — see the note there.
+                        .background(MaterialTheme.colorScheme.background)
                         .windowInsetsPadding(
                             WindowInsets.safeDrawing.only(
                                 WindowInsetsSides.Start + WindowInsetsSides.Top + WindowInsetsSides.Bottom,

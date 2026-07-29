@@ -102,11 +102,19 @@ identity, or the number of fulfilment locations. Multi-package orders use **posi
 **Enforced by**: an adversarial test asserting no shop identifier appears in any tracking render,
 across single- and multi-package orders (FR-037, SC-012).
 
-## S9 — Navigation is preserved
+## S9 — Navigation
 
-The five destinations — **Home · Browse · Search · Orders · Account** — are **kept** and restyled
-(research R7). Adopting the source's set would drop Browse, which 025 FR-009/FR-010 made a signed-off
-requirement precisely because that entry used to be a dead-end placeholder.
+**⚠ AMENDED 2026-07-30 (operator instruction).** The destination set is now **FOUR** — **Home ·
+Search · Orders · Account**. Browse was removed, along with `BrowseScreen.kt`, `BrowseViewModel.kt`,
+`CategoryGroup` and `BrowseGroupingTest`, and its route deleted from `CustomerNavKey`.
+
+This **supersedes 025 FR-010** for mobile (FR-009 for web is untouched, so `/browse` still exists on
+customer-web — a recorded parity gap, in `docs/audiences/customer-capabilities.md`). It also reverses
+research R7, which had kept Browse *precisely* because that entry used to be a dead-end placeholder;
+mobile once again has no category index, only the Discover rail chips.
+
+**Enforced by**: `ScreenInventoryTest` pins the four-tab list, and `CustomerNavKeySerializationTest`
+pins the route count at 21.
 
 Active state is signalled by the source's three non-colour means: **filled icon + bold label +
 underline indicator** — which is also how FR-040 is satisfied here.

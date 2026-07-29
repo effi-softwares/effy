@@ -1,8 +1,8 @@
 {
   "$comment": [
     "Machine-readable source-screen inventory for feature 026 (T043).",
-    "The prose table in figma-source-findings.md §4 aggregates variants ('Sign Up (+Error, +Success)',",
-    "'New Card ×3') and CANNOT be counted automatically — that was analyze finding U3. This file is the",
+    "The prose table in figma-source-findings.md \u00a74 aggregates variants ('Sign Up (+Error, +Success)',",
+    "'New Card \u00d73') and CANNOT be counted automatically \u2014 that was analyze finding U3. This file is the",
     "countable authority; the prose table remains the human-readable authority and the two must agree.",
     "",
     "Derived from the operator's export directory, excluding 'Group 16.jpg' which is a 5120x190 banner",
@@ -12,67 +12,279 @@
     "target: for 'restyled', the Kotlin file; for 'new', the Effy screen it maps to; for 'excluded', why."
   ],
   "sourceTotal": 48,
-  "expected": { "restyled": 33, "new": 9, "excluded": 6 },
+  "expected": {
+    "restyled": 33,
+    "new": 9,
+    "excluded": 6
+  },
   "notInSourceTotal": {
     "inventedScreens": [
-      { "name": "Category browse", "target": "features/catalog/presentation/BrowseScreen.kt", "why": "FR-027 — no source counterpart; designed in the source's idiom" },
-      { "name": "Delivery location & serviceability", "target": "features/delivery/", "why": "FR-028 — no source counterpart; designed in the source's idiom" }
+      {
+        "name": "Delivery location & serviceability",
+        "target": "features/delivery/",
+        "why": "FR-028 \u2014 no source counterpart; designed in the source's idiom"
+      }
     ],
     "excludedAffordances": [
-      { "name": "Apparel size selection", "why": "FR-007 — the store is grocery" },
-      { "name": "Facebook sign-in", "why": "FR-030a — not an Effy credential route" }
+      {
+        "name": "Apparel size selection",
+        "why": "FR-007 \u2014 the store is grocery"
+      },
+      {
+        "name": "Facebook sign-in",
+        "why": "FR-030a \u2014 not an Effy credential route"
+      }
+    ],
+    "removedScreens": [
+      {
+        "name": "Category browse",
+        "target": "features/catalog/presentation/BrowseScreen.kt",
+        "why": "FR-027 \u2014 no source counterpart; designed in the source's idiom",
+        "removed": "2026-07-30",
+        "why_removed": "Operator instruction: the Browse tab was removed from customer-mobile. Supersedes 025 FR-010 for mobile; FR-009 (web /browse) still stands."
+      }
     ]
   },
   "screens": [
-    { "source": "Splash", "disposition": "restyled", "target": "024 splash assets" },
-    { "source": "Sign Up", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Sign Up - Error", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Sign Up - Success", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Login", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Login - Error", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Login - Success", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Forgot Password", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Verification Code", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Reset Password", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Reset Password - Success", "disposition": "restyled", "target": "features/auth/presentation/AuthScreens.kt" },
-    { "source": "Homepage", "disposition": "restyled", "target": "features/catalog/presentation/HomeScreen.kt" },
-    { "source": "Search", "disposition": "restyled", "target": "features/catalog/presentation/SearchScreen.kt" },
-    { "source": "Search - Active", "disposition": "restyled", "target": "features/catalog/presentation/SearchScreen.kt" },
-    { "source": "Search - Empty", "disposition": "restyled", "target": "features/catalog/presentation/SearchScreen.kt" },
-    { "source": "Filters", "disposition": "restyled", "target": "features/catalog/presentation/SearchScreen.kt" },
-    { "source": "Product Details", "disposition": "restyled", "target": "features/catalog/presentation/ProductDetailScreen.kt" },
-    { "source": "My Cart", "disposition": "restyled", "target": "features/cart/presentation/CartScreen.kt" },
-    { "source": "My Cart - Empty", "disposition": "restyled", "target": "features/cart/presentation/CartScreen.kt" },
-    { "source": "Checkout", "disposition": "restyled", "target": "features/checkout/presentation/CheckoutScreen.kt" },
-    { "source": "Checkout - Success", "disposition": "restyled", "target": "features/checkout/presentation/ReceiptScreen.kt" },
-    { "source": "Address", "disposition": "restyled", "target": "features/addresses/presentation/AddressBookScreen.kt" },
-    { "source": "New Address", "disposition": "restyled", "target": "features/addresses/presentation/AddressFormSheet.kt" },
-    { "source": "New Address - Filled", "disposition": "restyled", "target": "features/addresses/presentation/AddressFormSheet.kt" },
-    { "source": "New Address - Success", "disposition": "restyled", "target": "features/addresses/presentation/AddressFormSheet.kt" },
-    { "source": "My Orders - Ongoing", "disposition": "restyled", "target": "features/checkout/presentation/OrdersScreen.kt" },
-    { "source": "My Orders - Completed", "disposition": "restyled", "target": "features/checkout/presentation/OrdersScreen.kt" },
-    { "source": "My Orders - Ongoing -  Empty", "disposition": "restyled", "target": "features/checkout/presentation/OrdersScreen.kt" },
-    { "source": "Saved Items", "disposition": "restyled", "target": "features/favorites/presentation/FavoritesScreen.kt" },
-    { "source": "Saved Items- Empty", "disposition": "restyled", "target": "features/favorites/presentation/FavoritesScreen.kt" },
-    { "source": "Account", "disposition": "restyled", "target": "features/account/presentation/AccountScreens.kt" },
-    { "source": "My Details", "disposition": "restyled", "target": "features/account/presentation/AccountScreens.kt" },
-    { "source": "Logout", "disposition": "restyled", "target": "features/account/presentation/AccountScreens.kt" },
-
-    { "source": "Onboarding", "disposition": "new", "target": "features/onboarding/" },
-    { "source": "Notifications", "disposition": "new", "target": "features/notifications/" },
-    { "source": "Notifications-1", "disposition": "new", "target": "features/notifications/" },
-    { "source": "Notifications-2", "disposition": "new", "target": "features/notifications/" },
-    { "source": "Notifications - Empty", "disposition": "new", "target": "features/notifications/" },
-    { "source": "My Orders - Ongoing - Track Order", "disposition": "new", "target": "features/tracking/" },
-    { "source": "FAQs", "disposition": "new", "target": "features/help/" },
-    { "source": "Help Center", "disposition": "new", "target": "features/help/" },
-    { "source": "Customer Service", "disposition": "new", "target": "features/help/" },
-
-    { "source": "Reviews", "disposition": "excluded", "target": "FR-029 — no ratings/reviews capability" },
-    { "source": "My Orders - Completed - Review", "disposition": "excluded", "target": "FR-029 — no ratings/reviews capability" },
-    { "source": "Payment Method", "disposition": "excluded", "target": "FR-030 — Stripe PaymentSheet renders this" },
-    { "source": "New Card", "disposition": "excluded", "target": "FR-030 — Stripe PaymentSheet renders this" },
-    { "source": "New Card - Filled", "disposition": "excluded", "target": "FR-030 — Stripe PaymentSheet renders this" },
-    { "source": "New Card - Success", "disposition": "excluded", "target": "FR-030 — Stripe PaymentSheet renders this" }
+    {
+      "source": "Splash",
+      "disposition": "restyled",
+      "target": "024 splash assets"
+    },
+    {
+      "source": "Sign Up",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Sign Up - Error",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Sign Up - Success",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Login",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Login - Error",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Login - Success",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Forgot Password",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Verification Code",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Reset Password",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Reset Password - Success",
+      "disposition": "restyled",
+      "target": "features/auth/presentation/AuthScreens.kt"
+    },
+    {
+      "source": "Homepage",
+      "disposition": "restyled",
+      "target": "features/catalog/presentation/HomeScreen.kt"
+    },
+    {
+      "source": "Search",
+      "disposition": "restyled",
+      "target": "features/catalog/presentation/SearchScreen.kt"
+    },
+    {
+      "source": "Search - Active",
+      "disposition": "restyled",
+      "target": "features/catalog/presentation/SearchScreen.kt"
+    },
+    {
+      "source": "Search - Empty",
+      "disposition": "restyled",
+      "target": "features/catalog/presentation/SearchScreen.kt"
+    },
+    {
+      "source": "Filters",
+      "disposition": "restyled",
+      "target": "features/catalog/presentation/SearchScreen.kt"
+    },
+    {
+      "source": "Product Details",
+      "disposition": "restyled",
+      "target": "features/catalog/presentation/ProductDetailScreen.kt"
+    },
+    {
+      "source": "My Cart",
+      "disposition": "restyled",
+      "target": "features/cart/presentation/CartScreen.kt"
+    },
+    {
+      "source": "My Cart - Empty",
+      "disposition": "restyled",
+      "target": "features/cart/presentation/CartScreen.kt"
+    },
+    {
+      "source": "Checkout",
+      "disposition": "restyled",
+      "target": "features/checkout/presentation/CheckoutScreen.kt"
+    },
+    {
+      "source": "Checkout - Success",
+      "disposition": "restyled",
+      "target": "features/checkout/presentation/ReceiptScreen.kt"
+    },
+    {
+      "source": "Address",
+      "disposition": "restyled",
+      "target": "features/addresses/presentation/AddressBookScreen.kt"
+    },
+    {
+      "source": "New Address",
+      "disposition": "restyled",
+      "target": "features/addresses/presentation/AddressFormSheet.kt"
+    },
+    {
+      "source": "New Address - Filled",
+      "disposition": "restyled",
+      "target": "features/addresses/presentation/AddressFormSheet.kt"
+    },
+    {
+      "source": "New Address - Success",
+      "disposition": "restyled",
+      "target": "features/addresses/presentation/AddressFormSheet.kt"
+    },
+    {
+      "source": "My Orders - Ongoing",
+      "disposition": "restyled",
+      "target": "features/checkout/presentation/OrdersScreen.kt"
+    },
+    {
+      "source": "My Orders - Completed",
+      "disposition": "restyled",
+      "target": "features/checkout/presentation/OrdersScreen.kt"
+    },
+    {
+      "source": "My Orders - Ongoing -  Empty",
+      "disposition": "restyled",
+      "target": "features/checkout/presentation/OrdersScreen.kt"
+    },
+    {
+      "source": "Saved Items",
+      "disposition": "restyled",
+      "target": "features/favorites/presentation/FavoritesScreen.kt"
+    },
+    {
+      "source": "Saved Items- Empty",
+      "disposition": "restyled",
+      "target": "features/favorites/presentation/FavoritesScreen.kt"
+    },
+    {
+      "source": "Account",
+      "disposition": "restyled",
+      "target": "features/account/presentation/AccountScreens.kt"
+    },
+    {
+      "source": "My Details",
+      "disposition": "restyled",
+      "target": "features/account/presentation/AccountScreens.kt"
+    },
+    {
+      "source": "Logout",
+      "disposition": "restyled",
+      "target": "features/account/presentation/AccountScreens.kt"
+    },
+    {
+      "source": "Onboarding",
+      "disposition": "new",
+      "target": "features/onboarding/"
+    },
+    {
+      "source": "Notifications",
+      "disposition": "new",
+      "target": "features/notifications/"
+    },
+    {
+      "source": "Notifications-1",
+      "disposition": "new",
+      "target": "features/notifications/"
+    },
+    {
+      "source": "Notifications-2",
+      "disposition": "new",
+      "target": "features/notifications/"
+    },
+    {
+      "source": "Notifications - Empty",
+      "disposition": "new",
+      "target": "features/notifications/"
+    },
+    {
+      "source": "My Orders - Ongoing - Track Order",
+      "disposition": "new",
+      "target": "features/tracking/"
+    },
+    {
+      "source": "FAQs",
+      "disposition": "new",
+      "target": "features/help/"
+    },
+    {
+      "source": "Help Center",
+      "disposition": "new",
+      "target": "features/help/"
+    },
+    {
+      "source": "Customer Service",
+      "disposition": "new",
+      "target": "features/help/"
+    },
+    {
+      "source": "Reviews",
+      "disposition": "excluded",
+      "target": "FR-029 \u2014 no ratings/reviews capability"
+    },
+    {
+      "source": "My Orders - Completed - Review",
+      "disposition": "excluded",
+      "target": "FR-029 \u2014 no ratings/reviews capability"
+    },
+    {
+      "source": "Payment Method",
+      "disposition": "excluded",
+      "target": "FR-030 \u2014 Stripe PaymentSheet renders this"
+    },
+    {
+      "source": "New Card",
+      "disposition": "excluded",
+      "target": "FR-030 \u2014 Stripe PaymentSheet renders this"
+    },
+    {
+      "source": "New Card - Filled",
+      "disposition": "excluded",
+      "target": "FR-030 \u2014 Stripe PaymentSheet renders this"
+    },
+    {
+      "source": "New Card - Success",
+      "disposition": "excluded",
+      "target": "FR-030 \u2014 Stripe PaymentSheet renders this"
+    }
   ]
 }

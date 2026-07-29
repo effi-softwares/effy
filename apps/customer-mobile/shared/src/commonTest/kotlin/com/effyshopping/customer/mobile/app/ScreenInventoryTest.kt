@@ -10,33 +10,26 @@ import kotlin.test.assertTrue
 /**
  * 026 T045 — the primary navigation destination set (contracts S9 / research R7).
  *
- * The source design's five tabs are Home/Search/Saved/Cart/Account. Effy keeps its OWN five, because
- * adopting the source's would drop Browse — and Browse in primary navigation is a signed-off
- * requirement of 025 (FR-009/FR-010), written precisely because that entry used to be a dead-end
- * placeholder. This is what stops a later "match the mockup" edit from quietly regressing it.
+ * ⚠ FOUR tabs, not five. Browse was removed at the operator's instruction, which **supersedes 025
+ * FR-010** ("an equivalent category browse experience reachable from its primary navigation"). That
+ * requirement is no longer in force for mobile; category filtering now lives in the Discover chips.
+ * Recorded here rather than only in the spec, because this test is what a later reader will hit first.
+ *
+ * The set is still pinned: changing it is a navigation change, not a restyle.
  */
 class ScreenInventoryTest {
 
     @Test
-    fun `the five primary destinations are stable`() {
+    fun `the four primary destinations are stable`() {
         assertEquals(
             listOf(
                 CustomerNavKey.Home,
-                CustomerNavKey.Browse,
                 CustomerNavKey.Search,
                 CustomerNavKey.Orders,
                 CustomerNavKey.Account,
             ),
             CUSTOMER_TAB_ROOTS,
             "Changing the tab set is a navigation change, not a restyle (FR-031a).",
-        )
-    }
-
-    @Test
-    fun `browse is reachable from primary navigation`() {
-        assertTrue(
-            CustomerNavKey.Browse in CUSTOMER_TAB_ROOTS,
-            "025 FR-010: category browse must be reachable from primary navigation.",
         )
     }
 }
@@ -55,7 +48,7 @@ class CustomerNavKeySerializationTest {
         // ALL_CUSTOMER_ROUTES is what the serializers module is kept in step with. If a route is
         // added to CustomerNavKey and forgotten here, this count drifts and the failure is loud.
         assertEquals(
-            22,
+            21,
             ALL_CUSTOMER_ROUTES.size,
             "A route was added or removed — update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
         )

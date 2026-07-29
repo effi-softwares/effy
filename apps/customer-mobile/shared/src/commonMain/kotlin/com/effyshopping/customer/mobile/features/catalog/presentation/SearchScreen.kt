@@ -61,25 +61,25 @@ import com.effyshopping.mobile.kit.ui.EffyTopBar
  * Query input, refinement chips, a SORT control and a RESULT COUNT; results in a grid with keyset
  * infinite scroll. Only available products (server-enforced).
  *
- * [categoryKey] arrives when the shopper taps a category in Browse — a category is a refined result
- * set, so Browse hands off here rather than growing its own results implementation.
+ * ⚠ THIS SCREEN NO LONGER TAKES AN ENTRY REFINEMENT. It used to accept `categoryKey` and `saleOnly`,
+ * handed over when the shopper tapped a category in the Browse tab. Browse was removed at the
+ * operator's instruction, and with it the only caller that ever passed either — so the parameters and
+ * the effects that applied them went too, rather than lingering as arguments nobody can supply.
+ *
+ * ⚠ CONSEQUENCE, recorded rather than hidden: `SearchViewModel` still supports category refinement and
+ * the backend still honours it, but nothing in the UI can now SET a category — the chip below only
+ * CLEARS one. Sale-only is unaffected; it has its own chip. If category refinement should return,
+ * the natural entry is the Discover chips handing off here, which is what Browse used to do.
  */
 @Composable
 fun SearchScreen(
     container: AppContainer,
-    categoryKey: String? = null,
-    /** Entry refinement — set when Home's on-sale rail hands off via "See all" (web `?saleOnly=true`). */
-    saleOnly: Boolean = false,
     onProductClick: (String) -> Unit,
     onCart: () -> Unit = {},
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts) }
     val state by vm.state.collectAsState()
     val gridState = rememberLazyGridState()
-
-    // Apply (or clear) the refinements handed over by Browse / Home's "See all".
-    LaunchedEffect(categoryKey) { if (state.categoryKey != categoryKey) vm.applyCategory(categoryKey) }
-    LaunchedEffect(saleOnly) { if (saleOnly) vm.applySaleOnly(true) }
 
     val loadMore by remember {
         derivedStateOf {

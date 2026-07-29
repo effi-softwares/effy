@@ -28,11 +28,10 @@ import org.jetbrains.compose.resources.painterResource
  * ── ⚠ Why every catalogue screen carries one ────────────────────────────────────────────────────
  *
  * The source design puts Cart in its bottom bar, so it is one tap from anywhere. Effy's bottom bar
- * cannot: its five tabs are Home · Browse · Search · Orders · Account, and Browse being among them is
- * a signed-off requirement (025 FR-009/FR-010), not a preference to trade away.
+ * does not: its four tabs are Home · Search · Orders · Account, and none of them is the cart.
  *
  * So the cart travels in the app bar of the screens where a shopper is choosing things — Discover,
- * Browse, Search, and the product page itself. Anything less leaves a dead end: after the Nav3
+ * Search, and the product page itself. Anything less leaves a dead end: after the Nav3
  * migration the cart briefly had no entry point at all, and "Add to cart" led nowhere.
  *
  * The count is read from the DEVICE-LOCAL cart, which 019 R8 made the single source of truth, so the

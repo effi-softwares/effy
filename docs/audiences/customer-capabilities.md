@@ -314,7 +314,7 @@ surface, and a sticky bar solves a problem that does not exist at desktop widths
 
 | Capability | customer-web | customer-mobile |
 |---|---|---|
-| Category browse | ✅ `/browse` category index | ✅ Browse destination (5th primary tab) |
+| Category browse | ✅ `/browse` category index | ⚠️ **PARITY GAP (deliberate, 2026-07-30)** — the Browse destination was REMOVED at the operator's instruction, superseding 025 FR-010 for mobile. Mobile now has only the Discover rail chips, which group the home read client-side; there is no category index and no way to set a category refinement in Search. |
 | Persistent search entry | ✅ header, both breakpoints | ✅ Search destination + app bar |
 | Delivery location, set before a cart exists | ✅ header island + `<dialog>` | ✅ Home delivery row + dialog |
 | Up-front serviceability answer | ✅ | ✅ |
@@ -334,8 +334,8 @@ surface, and a sticky bar solves a problem that does not exist at desktop widths
 | Undo on remove | ✅ toast action | ✅ snackbar action |
 | Sticky order summary | ✅ `lg` two-column grid | n/a — single column |
 | Product images in cart lines | ✅ | ✅ |
-| Content-shaped skeletons | ✅ | ✅ Home / Browse / Search |
-| Pull-to-refresh | n/a — browser reload | ✅ Home / Browse |
+| Content-shaped skeletons | ✅ | ✅ Home / Search |
+| Pull-to-refresh | n/a — browser reload | ✅ Home |
 | Real iconography | ✅ lucide | ✅ Material Symbols, drift-checked |
 | Standard app bars + back | n/a — browser chrome | ✅ shared `EffyTopBar` |
 | Platform typeface (Nunito Sans) | ✅ | ✅ **new — generated per app** |
@@ -379,7 +379,7 @@ screens were **rebuilt** (not restyled — spec FR-025a) against the chosen desi
 
 ### Customer mobile — screens rebuilt
 
-Onboarding · Login · Sign-up · Verify code · Reset password · Home · Search + filters · Browse ·
+Onboarding · Login · Sign-up · Verify code · Reset password · Home · Search + filters ·
 Product detail · Cart (+ empty) · Checkout · Receipt · Orders (+ Ongoing/Completed) · Saved items
 (+ empty) · Address book (+ empty) · Address form · Account · My details · Password screens ·
 Notifications (+ empty) · Order tracking · FAQs · Help Center · Customer Service.

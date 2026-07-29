@@ -33,10 +33,9 @@ import kotlinx.serialization.modules.subclass
 sealed interface CustomerNavKey : NavKey {
 
 
-    // ── Tab roots — the five primary destinations. Always show the bar. ─────────────────────────
+    // ── Tab roots — the four primary destinations. Always show the bar. ─────────────────────────
 
     @Serializable data object Home : CustomerNavKey
-    @Serializable data object Browse : CustomerNavKey
     @Serializable data object Search : CustomerNavKey
     @Serializable data object Orders : CustomerNavKey
     @Serializable data object Account : CustomerNavKey
@@ -92,10 +91,9 @@ sealed interface CustomerNavKey : NavKey {
 @Serializable
 enum class OtpPurpose { SIGN_IN, SIGN_UP, RECOVERY }
 
-/** The five tab roots, in bar order. The single source for what a "tab" is. */
+/** The four tab roots, in bar order. The single source for what a "tab" is. */
 val CUSTOMER_TAB_ROOTS: List<CustomerNavKey> = listOf(
     CustomerNavKey.Home,
-    CustomerNavKey.Browse,
     CustomerNavKey.Search,
     CustomerNavKey.Orders,
     CustomerNavKey.Account,
@@ -113,7 +111,6 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {
             subclass(CustomerNavKey.Home::class, CustomerNavKey.Home.serializer())
-            subclass(CustomerNavKey.Browse::class, CustomerNavKey.Browse.serializer())
             subclass(CustomerNavKey.Search::class, CustomerNavKey.Search.serializer())
             subclass(CustomerNavKey.Orders::class, CustomerNavKey.Orders.serializer())
             subclass(CustomerNavKey.Account::class, CustomerNavKey.Account.serializer())
@@ -141,7 +138,6 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
 /** Every route, for the serialization round-trip test. Keep in step with the module above. */
 val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Home,
-    CustomerNavKey.Browse,
     CustomerNavKey.Search,
     CustomerNavKey.Orders,
     CustomerNavKey.Account,

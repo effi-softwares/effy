@@ -240,8 +240,16 @@ screens. Confirm by measuring a B2 string before committing.
 
 ## R7 — Navigation: keep Effy's five tabs (FR-031a decision)
 
-**Decision**: **keep the existing destination set** — Home · Browse · Search · Orders · Account — and
-restyle it in the source's idiom (filled icon + bold label + underline indicator).
+> **⚠ AMENDED 2026-07-30 — the tab set is now FOUR: Home · Search · Orders · Account.**
+> The operator instructed that Browse be removed, which reverses the decision recorded below and
+> supersedes 025 FR-010 for mobile (FR-009 for web still stands). The reasoning below is kept as the
+> record of what was weighed and why the reversal is a real trade, not a tidy-up: the browse entry was
+> a dead-end placeholder before 025 fixed it, and mobile now has no category index again — only the
+> Discover rail chips. `BrowseScreen.kt`, `BrowseViewModel.kt`, `CategoryGroup` and `BrowseGroupingTest`
+> are deleted.
+
+**Decision (superseded)**: **keep the existing destination set** — Home · Browse · Search · Orders ·
+Account — and restyle it in the source's idiom (filled icon + bold label + underline indicator).
 
 **Rationale.** The spec asked for this to be an explicit decision rather than an absorbed restyle.
 Both sets are five tabs, so the choice is purely *which five*:

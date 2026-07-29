@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.app
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -67,20 +68,31 @@ fun App(container: AppContainer) {
 
         LaunchedEffect(Unit) { container.session.bootstrap() }
 
+        // ⚠ THE COLOUR IS PAINTED EDGE-TO-EDGE; THE PADDING IS APPLIED INSIDE IT.
+        //
+        // These used to be the same modifier chain — `fillMaxSize().windowInsetsPadding(safeDrawing)`
+        // on the `Surface` itself — and that is a different thing entirely: a Surface paints only the
+        // area left after its own padding, so the status-bar strip and the gesture-bar strip were
+        // never painted by the app at all. They fell through to the window background: Android's
+        // `Theme.Material.NoActionBar` default (a mid grey) and, on iOS, the black UIWindow behind the
+        // Compose layer. In light mode that reads as a barely-there seam; in dark mode it is a plainly
+        // wrong-coloured band above and below the app.
+        //
+        // Splitting them keeps the layout identical — content is still inset by exactly `safeDrawing` —
+        // while the ground extends under the system bars, which is the whole point of going
+        // edge-to-edge in `MainActivity`.
         Surface(
-            modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing),
-            // ⚠ `EffySurface.page`, NOT `colorScheme.background`.
-            //
-            // The generated scheme maps `background` to #EFEFF1 and `card` to white — the console
-            // arrangement. The customer storefront inverts it (see StorefrontKit): the page is white
-            // and TILES carry the tint. Painting the root `background` here is what put every screen
-            // in this app on grey while the web storefront sat on white.
+            modifier = Modifier.fillMaxSize(),
+            // ⚠ `EffySurface.page`, NOT `colorScheme.background`. The customer storefront's page is the
+            // lightest ground and TILES carry the tint (see StorefrontKit), which is the inverse of the
+            // console arrangement. Today both resolve to the same value, so this is about intent: if the
+            // tokens diverge again, the storefront must follow `page`.
             color = EffySurface.page,
         ) {
             when (val s = session) {
-                SessionState.Restoring -> CenteredMessage { CircularProgressIndicator() }
+                SessionState.Restoring -> Inset { CenteredMessage { CircularProgressIndicator() } }
 
-                SessionState.Barred -> CenteredMessage {
+                SessionState.Barred -> Inset { CenteredMessage {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("This account can't be used", style = MaterialTheme.typography.titleLarge)
                         Text(
@@ -94,7 +106,7 @@ fun App(container: AppContainer) {
                             modifier = Modifier.padding(top = 16.dp),
                         ) { Text("Sign out") }
                     }
-                }
+                } }
 
                 // Guest AND Authenticated both render the tab shell — the customer app is guest-first;
                 // only gated tabs/actions defer to sign-in.
@@ -105,8 +117,12 @@ fun App(container: AppContainer) {
                 // who skipped it never sees it again. The flag is device-local and never syncs.
                 is SessionState.Authenticated, SessionState.Guest ->
                     if (onboardingSeen) {
-                        CustomerShell(container, s)
+                        Inset { CustomerShell(container, s) }
                     } else {
+                        // ⚠ DELIBERATELY NOT [Inset]. The introduction is a full-bleed photograph, and
+                        // insetting it here stopped the image at the safe area — leaving a bar of page
+                        // colour across the bottom that read as a rendering fault. It owns its insets
+                        // instead, applying them to its text and actions and to nothing else.
                         OnboardingScreen(onDone = {
                             prefs.putBoolean(PreferenceKeys.ONBOARDING_SEEN, true)
                             onboardingSeen = true
@@ -116,6 +132,18 @@ fun App(container: AppContainer) {
         }
     }
     }
+}
+
+/**
+ * Hold content clear of the system bars.
+ *
+ * ⚠ Applied per BRANCH, not once around the whole tree, because one branch must not have it: a
+ * full-bleed screen has to reach the physical edges, and the root `Surface` deliberately paints
+ * beyond this padding so the bars carry the app's own ground either way.
+ */
+@Composable
+private fun Inset(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) { content() }
 }
 
 @Composable

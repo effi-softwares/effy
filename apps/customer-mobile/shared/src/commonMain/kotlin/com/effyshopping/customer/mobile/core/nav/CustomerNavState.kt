@@ -43,7 +43,7 @@ class CustomerNavState internal constructor(
     /**
      * The bottom bar shows only at a tab's ROOT.
      *
-     * That is the whole rule: the bar exists to move between the five tabs, and once you have gone
+     * That is the whole rule: the bar exists to move between the four tabs, and once you have gone
      * deeper into one, Back and the app bar are what you need. It falls straight out of the per-tab
      * stack — no per-destination flag to keep in step, and a new screen gets the right behaviour by
      * existing rather than by remembering to declare something.

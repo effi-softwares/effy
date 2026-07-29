@@ -258,8 +258,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         EffyNavRow("My details", onClick = { nav.push(CustomerNavKey.MyDetails) })
         // 022: manage saved delivery addresses.
         EffyNavRow("Address book", onClick = { nav.push(CustomerNavKey.AddressBook) })
-        // The source kit reaches saved items from a bottom-bar tab; Effy's five tabs are spoken for,
-        // so it is reachable from the Discover header AND from here — this is where a signed-in
+        // The source kit reaches saved items from a bottom-bar tab; Effy's four tabs carry no Saved
+        // tab, so it is reachable from the Discover header AND from here — this is where a signed-in
         // shopper looks for their own things, and one entry point for a whole screen is thin.
         EffyNavRow("Saved items", onClick = { nav.push(CustomerNavKey.Favorites) })
         // The source kit reaches saved items from a bottom-bar tab; Effy's five tabs are spoken for,
