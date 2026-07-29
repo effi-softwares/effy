@@ -1,5 +1,11 @@
 package com.effyshopping.customer.mobile.app
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
@@ -56,6 +63,8 @@ import com.effyshopping.customer.mobile.resources.ic_search_selected
 import com.effyshopping.mobile.kit.shell.ResponsiveDestination
 import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
 import com.effyshopping.mobile.kit.ui.AdaptiveContent
+import com.effyshopping.mobile.kit.ui.MotionRole
+import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -133,9 +142,37 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         onSelectTab = navState::selectTab,
         showNavigation = navState.showBottomBar,
     ) {
+        // ── iOS-style push/pop, via NavDisplay's OWN transition parameters ──────────────────────
+        //
+        // Nav3's default is a fade. These three parameters are part of the NavDisplay API, so this is
+        // configuration rather than a hand-written animation: the incoming screen slides in from the
+        // trailing edge while the outgoing one drifts a quarter-width the other way (the parallax that
+        // makes a UIKit push read as depth), and pop mirrors it.
+        //
+        // `predictivePopTransitionSpec` matters on Android 14+: without it, the back-gesture preview
+        // uses the forward spec and the screen appears to advance while you are dragging it away.
+        //
+        // Duration comes from the shared motion spec, so a device with reduced-motion enabled gets
+        // 0ms — the navigation still happens, only the movement goes (025 FR-037).
+        val nav = rememberMotionSpec(MotionRole.Forward)
+        val slide = tween<IntOffset>(nav.durationMillis)
+        val fade = tween<Float>(nav.durationMillis)
+
         NavDisplay(
             backStack = navState.currentStack,
             onBack = { navState.pop() },
+            transitionSpec = {
+                (slideInHorizontally(slide) { it } + fadeIn(fade)) togetherWith
+                    (slideOutHorizontally(slide) { -it / 4 } + fadeOut(fade))
+            },
+            popTransitionSpec = {
+                (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade)) togetherWith
+                    (slideOutHorizontally(slide) { it } + fadeOut(fade))
+            },
+            predictivePopTransitionSpec = {
+                (slideInHorizontally(slide) { -it / 4 } + fadeIn(fade)) togetherWith
+                    (slideOutHorizontally(slide) { it } + fadeOut(fade))
+            },
             entryProvider = entryProvider {
                 // ── Tab roots ──────────────────────────────────────────────────────────────────
                 entry<CustomerNavKey.Home> {

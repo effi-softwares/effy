@@ -1,5 +1,9 @@
 package com.effyshopping.mobile.kit.shell
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +43,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.NavigationPresentation
+import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import com.effyshopping.mobile.kit.ui.navigationPresentationFor
 
 data class ResponsiveDestination<T>(
@@ -70,11 +76,22 @@ fun <T> ResponsiveNavigation(
     showNavigation: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val barMotion = rememberMotionSpec(MotionRole.Visibility)
     BoxWithConstraints(modifier.fillMaxSize()) {
         when (navigationPresentationFor(maxWidth)) {
             NavigationPresentation.BottomBar -> Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), content = content)
-                if (showNavigation) Row(
+                // ⚠ ANIMATED, not a bare `if`. Removing the bar from this Column outright made the
+                // content Box grow 72dp in a single frame — a hard layout snap at the start of every
+                // push and the end of every pop, which read as jank far more than any transition did.
+                // Sliding it keeps it in the layout while it leaves, so the content resizes smoothly.
+                // The spec honours the device's reduced-motion setting (025 FR-037): at MotionLevel.None
+                // the duration is 0, so it still appears and disappears — only the movement goes.
+                AnimatedVisibility(
+                    visible = showNavigation,
+                    enter = slideInVertically(tween(barMotion.durationMillis)) { it },
+                    exit = slideOutVertically(tween(barMotion.durationMillis)) { it },
+                ) { Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)
@@ -95,7 +112,7 @@ fun <T> ResponsiveNavigation(
                                 .weight(1f),
                         )
                     }
-                }
+                } }
             }
 
             NavigationPresentation.SideRail -> Row(Modifier.fillMaxSize()) {

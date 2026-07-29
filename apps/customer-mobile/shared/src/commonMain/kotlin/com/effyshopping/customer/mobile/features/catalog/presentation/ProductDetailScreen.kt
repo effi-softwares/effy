@@ -191,19 +191,11 @@ private fun ProductBody(
             }
         }
 
-        if (card.available) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-            ) {
-                EffyQuantityStepper(quantity = qty, onChange = { qty = it })
-                Button(
-                    onClick = { onAddToCart(qty) },
-                    shape = EffyButtonShape,
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-                ) { Text(if (justAdded) "Added" else "Add to cart") }
-            }
-        } else {
+        // ⚠ There is exactly ONE add-to-cart affordance, and it is the sticky [BuyBar] below. An
+        // inline stepper + button used to sit here as well, so an available product rendered two
+        // quantity steppers and two add buttons a few dp apart — two controls over one piece of
+        // state, which is a bug however consistent they stay.
+        if (!card.available) {
             // A tinted notice, matching the web's unavailable panel — not a bare grey sentence that
             // reads as a caption rather than as the reason the buy button is missing.
             Text(
