@@ -30,6 +30,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
 import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
@@ -60,21 +64,25 @@ fun BrowseScreen(container: AppContainer, onCategoryClick: (String) -> Unit) {
     val state by vm.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(title = "Browse")
+        EffyAppBar(title = "Browse")
 
         when (val s = state) {
             BrowseUiState.Loading -> BrowseSkeleton()
 
-            BrowseUiState.Error -> EffyPlaceholder(
+            BrowseUiState.Error -> EffyEmptyState(
                 title = "We couldn’t load the categories",
-                description = "Please try again in a moment — or search for what you need.",
+                body = "Please try again in a moment — or search for what you need.",
+                icon = Res.drawable.ic_catalog_outlined,
+                actionLabel = "Try again",
+                onAction = vm::load,
             )
 
             is BrowseUiState.Ready ->
                 if (s.groups.isEmpty()) {
-                    EffyPlaceholder(
-                        title = "The shelves are still being stocked",
-                        description = "Our catalogue is on its way. Check back soon.",
+                    EffyEmptyState(
+                        title = "Nothing here yet",
+                        body = "Our catalogue is on its way. Check back soon.",
+                        icon = Res.drawable.ic_catalog_outlined,
                     )
                 } else {
                     PullToRefreshBox(
@@ -104,7 +112,7 @@ private fun CategoryGrid(groups: List<CategoryGroup>, onCategoryClick: (String) 
                 item(span = { GridItemSpan(maxLineSpan) }, key = "hdr-${group.root.key}") {
                     Text(
                         group.root.name,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
                         modifier = Modifier.padding(top = EffySpacing.s),
                     )
                 }

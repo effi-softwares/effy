@@ -359,3 +359,56 @@ argument, not a rewrite.
 SC-005 (the 5-viewport × 2-appearance × 2-surface matrix), SC-002/SC-003/SC-013 (moderated testing),
 and the live guest-journey walk are **operator-run** and outstanding. Everything machine-checkable is
 green.
+
+---
+
+## §026 — Monochrome Design Language & Customer Mobile Rebuild
+
+The platform's visual identity was replaced on **all six surfaces**, and the customer mobile app's
+screens were **rebuilt** (not restyled — spec FR-025a) against the chosen design language.
+
+### Platform-wide (all six surfaces)
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Monochrome neutral ramp, no brand hue | ✅ | ✅ | Constitution v1.11.0. Also shop-web, back-office, shop-mobile, driver-mobile. |
+| Accent inverts by appearance | ✅ | ✅ | near-black on light, near-white on dark — a neutral accent cannot hold one value |
+| Two bounded semantic hues | ✅ | ✅ | error + success; success is non-text only |
+| General Sans typeface | ✅ | ✅ | self-hosted; all six surfaces |
+| Brand marks on polarity axis | ✅ | ✅ | customer light tile · shop dark tile · back-office mid |
+
+### Customer mobile — screens rebuilt
+
+Onboarding · Login · Sign-up · Verify code · Reset password · Home · Search + filters · Browse ·
+Product detail · Cart (+ empty) · Checkout · Receipt · Orders (+ Ongoing/Completed) · Saved items
+(+ empty) · Address book (+ empty) · Address form · Account · My details · Password screens ·
+Notifications (+ empty) · Order tracking · FAQs · Help Center · Customer Service.
+
+### ⚠ MOBILE-ONLY BY DESIGN — not a parity gap
+
+| Capability | customer-web | customer-mobile |
+|---|---|---|
+| Onboarding introduction | ➖ n/a | ✅ first-launch, device-local |
+| Notifications screen | ➖ n/a | ✅ **fixture-backed** — no notifications capability exists |
+| Order tracking timeline | ➖ | ✅ real 020 state; no map, address or courier (FR-037) |
+| FAQs · Help Center · Customer Service | ➖ | ✅ static content |
+| Device preference store | ➖ n/a | ✅ new — `DevicePreferences` (Android/iOS) |
+
+**customer-web received the identity change only.** Its screen-level rebuild was explicitly out of
+scope (FR-032); 025 had already addressed its presentation. The two surfaces are held together by
+palette and typeface, which come from the one token SSOT.
+
+### ⚠ Deliberately NOT built, with reasons
+
+- **Payment methods / add-card screens** — the payment provider's own sheet renders these; a
+  look-alike is forbidden (FR-030).
+- **Ratings and reviews** — no such capability, and excluded by 025 as well (FR-029).
+- **Facebook sign-in** — not an Effy credential route (FR-030a).
+- **Apparel size selection** — the store is grocery (FR-007).
+
+### ⚠ Not device-verified
+
+The visual matrix, grayscale review, screen-reader traversal, the customer/shop side-by-side observer
+test (SC-021) and a full live purchase are **operator-run and outstanding**. Everything
+machine-checkable is green. The onboarding photograph is **placeholder** (Unsplash) and wants
+licensed brand photography before public release.

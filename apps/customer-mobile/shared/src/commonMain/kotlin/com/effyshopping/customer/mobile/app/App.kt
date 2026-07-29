@@ -17,7 +17,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import coil3.SingletonImageLoader
 import com.effyshopping.customer.mobile.core.image.newImageLoader
@@ -28,7 +30,10 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.platformMotionLevel
 import com.effyshopping.customer.mobile.core.session.SessionState
+import com.effyshopping.customer.mobile.core.storage.PreferenceKeys
+import com.effyshopping.customer.mobile.core.storage.devicePreferences
 import com.effyshopping.customer.mobile.core.theme.EffyTheme
+import com.effyshopping.customer.mobile.features.onboarding.presentation.OnboardingScreen
 import com.effyshopping.mobile.kit.ui.LocalMotionLevel
 import kotlinx.coroutines.launch
 
@@ -51,6 +56,14 @@ fun App(container: AppContainer) {
     EffyTheme {
         val session by container.session.state.collectAsState()
         val scope = rememberCoroutineScope()
+
+        // FR-033. `remember` so the store is read once per process, not on every recomposition, and
+        // `mutableStateOf` so dismissing the introduction re-renders into the shell immediately
+        // rather than only on the next launch.
+        val prefs = remember { devicePreferences() }
+        var onboardingSeen by remember {
+            mutableStateOf(prefs.getBoolean(PreferenceKeys.ONBOARDING_SEEN))
+        }
 
         LaunchedEffect(Unit) { container.session.bootstrap() }
 
@@ -85,7 +98,20 @@ fun App(container: AppContainer) {
 
                 // Guest AND Authenticated both render the tab shell — the customer app is guest-first;
                 // only gated tabs/actions defer to sign-in.
-                is SessionState.Authenticated, SessionState.Guest -> CustomerShell(container, s)
+                //
+                // ⚠ 026 FR-033: the first-launch introduction sits IN FRONT of the shell, not inside a
+                // tab, and only until it has been seen once. It is deliberately NOT gated on session —
+                // a returning signed-in customer on a fresh install still gets introduced, and a guest
+                // who skipped it never sees it again. The flag is device-local and never syncs.
+                is SessionState.Authenticated, SessionState.Guest ->
+                    if (onboardingSeen) {
+                        CustomerShell(container, s)
+                    } else {
+                        OnboardingScreen(onDone = {
+                            prefs.putBoolean(PreferenceKeys.ONBOARDING_SEEN, true)
+                            onboardingSeen = true
+                        })
+                    }
             }
         }
     }

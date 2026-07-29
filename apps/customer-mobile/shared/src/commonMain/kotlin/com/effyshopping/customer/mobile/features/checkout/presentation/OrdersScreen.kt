@@ -16,6 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -23,6 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffySegmentedToggle
+import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.OrderSummary
 import kotlinx.coroutines.CancellationException
@@ -42,6 +49,12 @@ private class OrdersViewModel(private val listOrders: ListOrders) : ViewModel() 
     val state: StateFlow<OrdersUiState> = _state.asStateFlow()
 
     init {
+        load()
+    }
+
+    /** 026: extracted from `init` so the error state can offer a retry (FR-021). */
+    fun load() {
+        _state.value = OrdersUiState.Loading
         viewModelScope.launch {
             try {
                 _state.value = OrdersUiState.Ready(listOrders())
@@ -56,39 +69,85 @@ private class OrdersViewModel(private val listOrders: ListOrders) : ViewModel() 
 
 /** Order history (019 US5). Most-recent-first; tap a row to open its receipt. Signed-in only. */
 @Composable
-fun OrdersScreen(container: AppContainer, onOpen: (String) -> Unit) {
+fun OrdersScreen(
+    container: AppContainer,
+    onOpen: (String) -> Unit,
+    /** FR-044: an empty order list offers a route back into the catalogue. */
+    onBrowse: () -> Unit = {},
+) {
     val vm = viewModel { OrdersViewModel(container.listOrders) }
     val state by vm.state.collectAsState()
 
-    when (val s = state) {
-        OrdersUiState.Loading ->
-            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(Modifier.padding(32.dp)) }
+    // 026: the source design's Ongoing / Completed segmented toggle. "Ongoing" is everything that has
+    // not reached a terminal state; "Completed" is what has. The split is derived from the order's own
+    // status, so no new server capability is needed (FR-002).
+    var tab by remember { mutableStateOf(OrdersTab.Ongoing) }
 
-        OrdersUiState.Error ->
-            Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("We couldn’t load your orders", style = MaterialTheme.typography.bodyMedium)
-            }
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(title = "My Orders")
+        EffySegmentedToggle(
+            options = OrdersTab.entries,
+            selected = tab,
+            label = { it.label },
+            onSelect = { tab = it },
+            modifier = Modifier.padding(horizontal = EffySpacing.lg),
+        )
 
-        is OrdersUiState.Ready ->
-            if (s.orders.isEmpty()) {
-                Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("You haven’t placed any orders yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        when (val s = state) {
+            OrdersUiState.Loading ->
+                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(Modifier.padding(32.dp))
                 }
-            } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(s.orders, key = { it.id }) { order ->
-                        OrderRow(order, onOpen)
-                        HorizontalDivider()
+
+            OrdersUiState.Error -> EffyEmptyState(
+                title = "We couldn’t load your orders",
+                body = "Please try again in a moment.",
+                actionLabel = "Try again",
+                onAction = vm::load,
+            )
+
+            is OrdersUiState.Ready -> {
+                val shown = s.orders.filter { isOngoing(it.status) == (tab == OrdersTab.Ongoing) }
+                if (shown.isEmpty()) {
+                    // FR-044: an empty order list offers a route back into the catalogue.
+                    EffyEmptyState(
+                        title = if (tab == OrdersTab.Ongoing) "No Ongoing Orders!" else "No Completed Orders!",
+                        body = if (tab == OrdersTab.Ongoing) {
+                            "You don’t have any orders in progress right now."
+                        } else {
+                            "Orders you’ve received will appear here."
+                        },
+                        actionLabel = "Start shopping",
+                        onAction = onBrowse,
+                    )
+                } else {
+                    LazyColumn(Modifier.fillMaxSize()) {
+                        items(shown, key = { it.id }) { order ->
+                            OrderRow(order, onOpen)
+                            HorizontalDivider()
+                        }
                     }
                 }
             }
+        }
     }
 }
+
+/** The source's two order tabs. */
+private enum class OrdersTab(val label: String) { Ongoing("Ongoing"), Completed("Completed") }
+
+/**
+ * Is this order still in progress from the CUSTOMER's point of view?
+ *
+ * ⚠ Deliberately conservative: anything not known to be finished counts as ongoing, so a status this
+ * app has not seen before shows up under "Ongoing" rather than silently vanishing from both tabs.
+ */
+private fun isOngoing(status: String): Boolean = status !in setOf("delivered", "cancelled", "refunded")
 
 @Composable
 private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().clickable { onOpen(order.id) }.padding(16.dp),
+        modifier = Modifier.fillMaxWidth().clickable { onOpen(order.id) }.padding(EffySpacing.lg),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Column {

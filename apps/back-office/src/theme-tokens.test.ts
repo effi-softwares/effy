@@ -38,13 +38,27 @@ describe("design-system tokens — Effy Forest brand (017)", () => {
     }
   });
 
-  it("uses Effy Emerald #065f46 as the single brand accent (both modes; ring brightens to #10b981 on dark)", () => {
-    expect(tokensCss).toContain("#065f46");
-    expect(tokensCss).toContain("#10b981");
+  // 026: the brand is monochrome. The accent INVERTS between appearances — that is the invariant
+  // most likely to be "simplified" away by someone who assumes one accent value, so assert it.
+  it("uses the monochrome neutral ramp as the accent, inverting by appearance", () => {
+    expect(tokensCss).toMatch(/--primary:\s*#1a1a1a/); // light: near-black
+    expect(tokensCss).toMatch(/--primary:\s*#f5f5f5/); // dark: near-white
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#ffffff/);
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#1a1a1a/);
+    // the focus ring is the accent itself, and inverts with it
+    expect(tokensCss).toMatch(/--ring:\s*#1a1a1a/);
+    expect(tokensCss).toMatch(/--ring:\s*#ffffff/);
   });
 
-  it("has fully retired the Jade brand values", () => {
-    expect(tokensCss).not.toContain("#0fb57e");
-    expect(tokensCss).not.toContain("#047857");
+  it("carries exactly two semantic hues, and success has no foreground pair", () => {
+    expect(tokensCss).toContain("#e01010"); // error, light
+    expect(tokensCss).toContain("#0c9409"); // success, light — non-text indicator only
+    expect(tokensCss).not.toContain("--success-foreground");
+  });
+
+  it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {
+    for (const hex of ["#0fb57e", "#047857", "#065f46", "#d0735a", "#bf5540", "#dd8368", "#69b08b"]) {
+      expect(tokensCss, `retired brand value ${hex} is still present`).not.toContain(hex);
+    }
   });
 });

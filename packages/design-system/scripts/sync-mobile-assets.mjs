@@ -28,21 +28,29 @@ const SOURCE = resolve(here, "../mobile-assets");
 /**
  * The apps that consume the shared assets.
  *
- * ⚠ driver-mobile is deliberately absent. It is still the untouched KMP template with no
- * composeResources directory and no navigation to put icons in; syncing into it would create files
- * nothing references and a drift surface nobody maintains. It joins this list when it gets its shell.
+ * ⚠ driver-mobile takes FONTS ONLY (026 T025a). It is still the untouched KMP template with no
+ * navigation, so syncing the nav icons would create files nothing references and a drift surface
+ * nobody maintains — but the TYPEFACE is different: constitution Principle V requires it on every
+ * surface, and its generated EffyTypography.kt imports the font accessors, so the files must be
+ * there for the theme to compile. It gains `drawable` when it gets its shell.
  */
-const APPS = [
-  { name: "customer-mobile", root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
-  { name: "shop-mobile", root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
+export const APPS = [
+  { name: "customer-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
+  { name: "shop-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
+  { name: "driver-mobile", kinds: ["font"], root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
 ];
 
 const KINDS = ["drawable", "font"];
 
-/** Every (kind, file) pair the source declares. */
-export function sourceFiles() {
+/** The kinds a given app consumes. Apps without an explicit list take everything. */
+export function kindsFor(app) {
+  return app.kinds ?? KINDS;
+}
+
+/** Every (kind, file) pair the source declares, optionally narrowed to one app's kinds. */
+export function sourceFiles(app) {
   const out = [];
-  for (const kind of KINDS) {
+  for (const kind of app ? kindsFor(app) : KINDS) {
     const dir = join(SOURCE, kind);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir).sort()) {
@@ -56,7 +64,7 @@ export function sourceFiles() {
 export function orphansFor(app, declared) {
   const known = new Set(declared.map((f) => `${f.kind}/${f.name}`));
   const out = [];
-  for (const kind of KINDS) {
+  for (const kind of kindsFor(app)) {
     const dir = join(app.root, kind);
     if (!existsSync(dir)) continue;
     for (const name of readdirSync(dir)) {
@@ -77,15 +85,17 @@ export function isStale(app, file) {
 }
 
 function sync() {
-  const files = sourceFiles();
-  if (files.length === 0) {
+  if (sourceFiles().length === 0) {
     console.error("sync-mobile-assets: no source assets found under packages/design-system/mobile-assets");
     process.exit(1);
   }
 
   let written = 0;
+  let total = 0;
   for (const app of APPS) {
-    for (const kind of KINDS) mkdirSync(join(app.root, kind), { recursive: true });
+    const files = sourceFiles(app);
+    total += files.length;
+    for (const kind of kindsFor(app)) mkdirSync(join(app.root, kind), { recursive: true });
     for (const file of files) {
       if (!isStale(app, file)) continue;
       copyFileSync(join(SOURCE, file.kind, file.name), join(app.root, file.kind, file.name));
@@ -93,7 +103,7 @@ function sync() {
     }
   }
   console.log(
-    `sync-mobile-assets: ${files.length} shared assets → ${APPS.length} apps (${written} file(s) updated)`,
+    `sync-mobile-assets: ${total} asset copies across ${APPS.length} apps (${written} file(s) updated)`,
   );
 }
 

@@ -38,6 +38,11 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_search_outlined
+import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
@@ -83,7 +88,7 @@ fun SearchScreen(
     LaunchedEffect(loadMore) { if (loadMore) vm.loadMore() }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(title = "Search")
+        EffyAppBar(title = "Search")
 
         Column(modifier = Modifier.padding(horizontal = EffySpacing.md)) {
             // A pill on the tint, matching the web header's search control. `placeholder` rather
@@ -94,7 +99,7 @@ fun SearchScreen(
                 onValueChange = vm::onQueryChange,
                 placeholder = { Text("Search groceries, brands and more…") },
                 singleLine = true,
-                shape = CircleShape,
+                shape = EffyButtonShape,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = EffySurface.tint,
                     unfocusedContainerColor = EffySurface.tint,
@@ -156,15 +161,16 @@ fun SearchScreen(
             state.items.isEmpty() && state.loading -> SearchSkeleton()
 
             state.failed ->
-                EffyPlaceholder(
+                EffyEmptyState(
                     title = "We couldn’t load results",
-                    description = "Please try again in a moment.",
+                    body = "Please try again in a moment.",
+                    icon = Res.drawable.ic_search_outlined,
                 )
 
             state.items.isEmpty() ->
-                EffyPlaceholder(
+                EffyEmptyState(
                     title = if (state.query.isBlank()) "Start typing to search" else "No results for “${state.query}”",
-                    description = if (state.saleOnly || state.categoryKey != null) {
+                    body = if (state.saleOnly || state.categoryKey != null) {
                         "Your filters may be too narrow — try removing one."
                     } else {
                         "Try a different search, or browse the store by category."

@@ -35,9 +35,18 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(appCssCode).not.toMatch(/font-size\s*:\s*clamp\(/);
   });
 
-  it("resolves Effy Emerald #065f46 as the single brand accent (Jade retired), from the shared source", () => {
-    expect(tokensCss).toContain("#065f46");
-    expect(tokensCss).not.toContain("#0fb57e");
-    expect(tokensCss).not.toContain("#047857");
+  // 026: the brand is monochrome. The accent INVERTS between appearances — that is the invariant
+  // most likely to be "simplified" away by someone who assumes one accent value, so assert it.
+  it("resolves the monochrome accent from the shared source, inverting by appearance", () => {
+    expect(tokensCss).toMatch(/--primary:\s*#1a1a1a/); // light: near-black
+    expect(tokensCss).toMatch(/--primary:\s*#f5f5f5/); // dark: near-white
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#ffffff/);
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#1a1a1a/);
+  });
+
+  it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {
+    for (const hex of ["#0fb57e", "#047857", "#065f46", "#d0735a", "#bf5540", "#dd8368"]) {
+      expect(tokensCss, `retired brand value ${hex} is still present`).not.toContain(hex);
+    }
   });
 });

@@ -54,8 +54,12 @@ export function composeSvg(markSvg, bbox, cw, comp) {
   const coloured = applyColourway(markSvg, cw)
   const body = innerMarkup(coloured)
 
-  const bg = comp.background
-    ? `<rect x="${r(ox)}" y="${r(oy)}" width="${r(side)}" height="${r(side)}" fill="${comp.background}"/>`
+  // 026 polarity: the composition decides WHETHER there is a ground; when it opts in via
+  // `groundFromColourway`, the colourway decides WHICH. `mono()` carries no ground, so mono targets
+  // fall back to the composition's own value — which is what `ios-tinted`'s black relies on.
+  const ground = comp.groundFromColourway && cw.ground ? cw.ground : comp.background
+  const bg = ground
+    ? `<rect x="${r(ox)}" y="${r(oy)}" width="${r(side)}" height="${r(side)}" fill="${ground}"/>`
     : ""
 
   return (

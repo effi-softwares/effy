@@ -21,6 +21,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.mobile.design.EffySpacing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,12 +73,9 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyTopBar(
-            title = "Checkout",
-            onBack = onBack,
-            backIcon = painterResource(Res.drawable.ic_arrow_back),
-        )
-        Text("Checkout", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 16.dp))
+        // 026: the app bar already names the screen — the duplicate H3 beneath it was the screen
+        // saying "Checkout" twice, which the source never does.
+        EffyAppBar(title = "Checkout", onBack = onBack)
 
         when (val s = state) {
             CheckoutUiState.Loading, is CheckoutUiState.Placed ->
@@ -88,8 +90,8 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
 @Composable
 private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
         Text("Delivery address", style = MaterialTheme.typography.titleMedium)
         if (s.addresses.isEmpty()) {
@@ -105,14 +107,14 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                 AddressPickRow(addr, selected = addr.id == s.selectedId, onSelect = { vm.select(addr.id) })
             }
         }
-        TextButton(onClick = { vm.openAddAddress(AddressTarget.SHIPPING) }) { Text("+ Add a new address") }
+        EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
 
         s.requoteNotice?.let {
             Text(it, color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodyMedium)
         }
 
         when {
-            s.quoting -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            s.quoting -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
                 CircularProgressIndicator(Modifier.padding(4.dp))
                 Text("Working out delivery…", style = MaterialTheme.typography.bodyMedium)
             }
@@ -176,7 +178,7 @@ private fun BillingSection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                 AddressPickRow(addr, selected = addr.id == s.billingSelectedId, onSelect = { vm.selectBilling(addr.id) })
             }
         }
-        TextButton(onClick = { vm.openAddAddress(AddressTarget.BILLING) }) { Text("+ Add a billing address") }
+        EffySecondaryButton("Add a billing address", onClick = { vm.openAddAddress(AddressTarget.BILLING) })
     }
 }
 
@@ -194,7 +196,7 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         val available = serviceable.flatMap { it.options.map { o -> o.method } }.toSet()
         if (available.size > 1 && serviceable.size > 1) {
             Text("Apply to all packages", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
                 available.sortedBy { it.ordinal }.forEach { method ->
                     TextButton(onClick = { vm.setDefaultPreference(method) }) {
                         Text(labelFor(method) + if (s.defaultPreference == method) " ✓" else "")
@@ -240,11 +242,8 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     val deliveryCents = serviceable.sumOf { pkg ->
         s.selections[pkg.packageKey]?.let { sel -> pkg.optionFor(sel.method)?.feeAmount?.let(::parseCents) } ?: 0L
     }
-    HorizontalDivider()
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text("Delivery", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("$" + formatCents(deliveryCents), style = MaterialTheme.typography.bodyMedium)
-    }
+    EffyHairline()
+    EffyDetailRow("Delivery", "$" + formatCents(deliveryCents))
 }
 
 @Composable

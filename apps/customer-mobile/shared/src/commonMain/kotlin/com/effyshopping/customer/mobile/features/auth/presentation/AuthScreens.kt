@@ -1,6 +1,13 @@
 package com.effyshopping.customer.mobile.features.auth.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -25,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -45,7 +52,15 @@ import com.effyshopping.customer.mobile.features.auth.domain.RegisterWithPasswor
 import com.effyshopping.customer.mobile.features.auth.domain.SignInWithEmailOtp
 import com.effyshopping.customer.mobile.features.auth.domain.SignInWithPassword
 import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
-import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
+import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyField
+import com.effyshopping.customer.mobile.core.presentation.EffyInlineLink
+import com.effyshopping.customer.mobile.core.presentation.EffyOrDivider
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -232,23 +247,49 @@ fun AuthRoutes(container: AppContainer, route: AppRoute) {
     }
 }
 
+/**
+ * The source design's auth layout (026 T061, FR-025a — REPLACED, not restyled).
+ *
+ * Its shape, top to bottom: an H2 title, a grey supporting line, the fields, the primary action,
+ * an "Or" separator, the federated route, and a bottom-anchored link to the opposite journey.
+ *
+ * ⚠ The old scaffold ended in a stack of four `TextButton`s — "Email me a code instead", "Create an
+ * account", "Forgot password?", "Back" — which gave four identical-weight actions and no hierarchy.
+ * The source distinguishes them: one filled CTA, one bordered alternative, inline underlined links
+ * for the rest, and the opposite journey pinned to the bottom.
+ */
 @Composable
 private fun AuthScaffold(
     container: AppContainer,
     title: String,
+    subtitle: String,
     state: AuthUiState,
-    content: @Composable () -> Unit,
+    footer: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(EffySurface.page)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+            .verticalScroll(rememberScrollState())
+            .padding(EffySpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.lg),
     ) {
-        Text(title, style = MaterialTheme.typography.headlineSmall)
+        EffyDisplay(title, size = DisplaySize.Page)
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         content()
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (state.loading) CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
-        TextButton(onClick = { container.navigator.pop() }) { Text("Back") }
+        if (state.loading) CircularProgressIndicator()
+        if (footer != null) {
+            Spacer(Modifier.height(EffySpacing.xl))
+            footer()
+        }
     }
 }
 
@@ -257,19 +298,57 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: A
     val state by vm.state.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    AuthScaffold(container, "Sign in", state) {
-        EmailField(email) { email = it }
-        PasswordField(password, "Password") { password = it }
-        EffyPrimaryAction(
-            "Sign in with password",
-            onClick = { vm.signInWithPassword(email, password, returnTo) },
-            loading = state.loading,
+    var reveal by remember { mutableStateOf(false) }
+
+    AuthScaffold(
+        container,
+        title = "Login to your account",
+        subtitle = "It’s great to see you again.",
+        state = state,
+        footer = {
+            EffyInlineLink("Don’t have an account?", "Join", onClick = {
+                container.navigator.push(AppRoute.SignUp)
+            })
+        },
+    ) {
+        EffyField(
+            "Email",
+            email,
+            { email = it },
+            placeholder = "Enter your email address",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         )
-        TextButton(onClick = { vm.signInWithOtp(email, returnTo) }, enabled = !state.loading) {
-            Text("Email me a code instead")
-        }
-        TextButton(onClick = { container.navigator.push(AppRoute.SignUp) }) { Text("Create an account") }
-        TextButton(onClick = { container.navigator.push(AppRoute.Recovery) }) { Text("Forgot password?") }
+        EffyField(
+            "Password",
+            password,
+            { password = it },
+            placeholder = "Enter your password",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
+            trailing = {
+                // The source's eye toggle. A label is supplied so the control is announced.
+                TextButton(onClick = { reveal = !reveal }) {
+                    Text(if (reveal) "Hide" else "Show", style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+        )
+        EffyInlineLink("Forgot your password?", "Reset your password", onClick = {
+            container.navigator.push(AppRoute.Recovery)
+        })
+        EffyPrimaryButton(
+            "Login",
+            onClick = { vm.signInWithPassword(email, password, returnTo) },
+            enabled = !state.loading && email.isNotBlank() && password.isNotBlank(),
+        )
+        EffyOrDivider()
+        // ⚠ The source offers Google AND Facebook here. Facebook is DROPPED (FR-030a): it is not an
+        // Effy credential route, and rendering a sign-in button that cannot sign anyone in is worse
+        // than omitting it. Email OTP takes its place — a route Effy does have and the source lacks.
+        EffySecondaryButton(
+            "Email me a code instead",
+            onClick = { vm.signInWithOtp(email, returnTo) },
+            enabled = !state.loading && email.isNotBlank(),
+        )
     }
 }
 
@@ -280,21 +359,53 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
     var family by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    AuthScaffold(container, "Create your account", state) {
-        OutlinedTextField(given, { given = it }, label = { Text("First name") }, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(family, { family = it }, label = { Text("Last name") }, modifier = Modifier.fillMaxWidth())
-        EmailField(email) { email = it }
-        EffyPrimaryAction(
+    var reveal by remember { mutableStateOf(false) }
+    AuthScaffold(
+        container,
+        title = "Create your account",
+        subtitle = "A few details and you’re shopping.",
+        state = state,
+        footer = {
+            EffyInlineLink("Already have an account?", "Login", onClick = {
+                container.navigator.push(AppRoute.SignIn())
+            })
+        },
+    ) {
+        EffyField("First name", given, { given = it }, placeholder = "Enter your first name")
+        EffyField("Last name", family, { family = it }, placeholder = "Enter your last name")
+        EffyField(
+            "Email",
+            email,
+            { email = it },
+            placeholder = "Enter your email address",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        )
+        // ⚠ A password is OPTIONAL on this platform — the customer audience may register passwordless
+        // (constitution Principle IV). The source has only a password form, so the passwordless route
+        // is offered as the SECONDARY action rather than dropped.
+        EffyField(
+            "Password",
+            password,
+            { password = it },
+            placeholder = "At least $PASSWORD_MIN_LENGTH characters — optional",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
+            trailing = {
+                TextButton(onClick = { reveal = !reveal }) {
+                    Text(if (reveal) "Hide" else "Show", style = MaterialTheme.typography.bodyMedium)
+                }
+            },
+        )
+        EffyPrimaryButton(
+            "Create account",
+            onClick = { vm.registerWithPassword(email, password, given, family) },
+            enabled = !state.loading && email.isNotBlank() && password.isNotBlank(),
+        )
+        EffyOrDivider()
+        EffySecondaryButton(
             "Sign up with an emailed code",
             onClick = { vm.registerPasswordless(email, given, family) },
-            loading = state.loading,
-        )
-        Text("Or set a password (optional):", style = MaterialTheme.typography.bodyMedium)
-        PasswordField(password, "Password (≥ $PASSWORD_MIN_LENGTH characters)") { password = it }
-        EffyPrimaryAction(
-            "Sign up with a password",
-            onClick = { vm.registerWithPassword(email, password, given, family) },
-            loading = state.loading,
+            enabled = !state.loading && email.isNotBlank(),
         )
     }
 }
@@ -303,10 +414,19 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
 private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: AppRoute.VerifyOtp) {
     val state by vm.state.collectAsState()
     var code by remember { mutableStateOf("") }
-    AuthScaffold(container, "Enter the code", state) {
-        Text("We emailed a code to ${route.email}.", style = MaterialTheme.typography.bodyMedium)
-        CodeField(code) { code = it }
-        EffyPrimaryAction("Continue", onClick = { vm.submitOtp(route, code) }, loading = state.loading)
+    AuthScaffold(container, "Enter the code", "Check your inbox — the code expires shortly.", state) {
+        EffyField(
+            "Code",
+            code,
+            { code = it },
+            placeholder = "6-digit code",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        EffyPrimaryButton(
+            "Continue",
+            onClick = { vm.submitOtp(route, code) },
+            enabled = !state.loading && code.isNotBlank(),
+        )
     }
 }
 
@@ -316,40 +436,39 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
     var email by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
-    AuthScaffold(container, "Reset your password", state) {
-        EmailField(email) { email = it }
-        TextButton(onClick = { vm.sendRecoveryCode(email) }, enabled = !state.loading) { Text("Send me a code") }
-        CodeField(code) { code = it }
-        PasswordField(newPassword, "New password (≥ $PASSWORD_MIN_LENGTH characters)") { newPassword = it }
-        EffyPrimaryAction(
+    AuthScaffold(container, "Reset your password", "We’ll email you a code to set a new one.", state) {
+        EffyField(
+            "Email",
+            email,
+            { email = it },
+            placeholder = "Enter your email address",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+        )
+        EffySecondaryButton(
+            "Send me a code",
+            onClick = { vm.sendRecoveryCode(email) },
+            enabled = !state.loading && email.isNotBlank(),
+        )
+        EffyField(
+            "Code",
+            code,
+            { code = it },
+            placeholder = "6-digit code",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        EffyField(
+            "New password",
+            newPassword,
+            { newPassword = it },
+            placeholder = "At least $PASSWORD_MIN_LENGTH characters",
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            visualTransformation = PasswordVisualTransformation(),
+        )
+        EffyPrimaryButton(
             "Reset password",
             onClick = { vm.confirmRecovery(email, code, newPassword) },
-            loading = state.loading,
+            enabled = !state.loading,
         )
     }
 }
 
-// ── shared field composables ───────────────────────────────────────────────────────────────────
-
-@Composable
-private fun EmailField(value: String, onChange: (String) -> Unit) = OutlinedTextField(
-    value, onChange, label = { Text("Email") }, singleLine = true,
-    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-    modifier = Modifier.fillMaxWidth(),
-)
-
-/** No re-type-to-confirm, and paste is allowed by default (FR-023). */
-@Composable
-private fun PasswordField(value: String, label: String, onChange: (String) -> Unit) = OutlinedTextField(
-    value, onChange, label = { Text(label) }, singleLine = true,
-    visualTransformation = PasswordVisualTransformation(),
-    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-    modifier = Modifier.fillMaxWidth(),
-)
-
-@Composable
-private fun CodeField(value: String, onChange: (String) -> Unit) = OutlinedTextField(
-    value, onChange, label = { Text("Code") }, singleLine = true,
-    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-    modifier = Modifier.fillMaxWidth(),
-)

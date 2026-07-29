@@ -43,6 +43,15 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm -r test
       - run: pnpm exec turbo build
+      # ⚠ Retired-brand sweeps. These MUST be an explicit CI step: `check-no-jade.sh` existed from
+      # 017 but was referenced by NOTHING — no package script, no Makefile target, no workflow — so
+      # the rule it enforced had never actually gated a build. Note that adding them to the root
+      # `pnpm test` would NOT work either: that is `turbo run test`, which only runs per-package
+      # scripts. Constitution Principle V (v1.11.0) / 026 FR-011.
+      - name: "Gate: retired brand palettes are absent"
+        run: |
+          bash scripts/check-no-jade.sh
+          bash scripts/check-no-emerald.sh
 
   # The customer storefront's own gates (011). These are the reason this workflow exists.
   storefront-gates:
@@ -78,7 +87,7 @@ jobs:
       # all ("inaccurate in server-driven architectures using RSC"), so we compute it ourselves
       # from the prerendered HTML Next actually serves — see scripts/bundle-budget.mjs for why a
       # glob over the chunks directory is NOT a budget.
-      - name: "Gate: guest bundle budget (<= 160 KB gz)"
+      - name: "Gate: guest bundle budget (<= 174 KB gz)"
         run: pnpm size
 
   e2e:

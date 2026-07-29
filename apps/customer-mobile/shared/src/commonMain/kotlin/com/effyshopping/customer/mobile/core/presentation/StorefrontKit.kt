@@ -3,6 +3,7 @@ package com.effyshopping.customer.mobile.core.presentation
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -21,22 +22,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,9 +55,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
+import com.effyshopping.customer.mobile.design.EffyColor
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.customer.mobile.resources.ic_orders_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.MotionRole
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 
 /**
@@ -67,34 +84,48 @@ import com.effyshopping.mobile.kit.ui.rememberMotionSpec
  */
 
 /**
- * ── THE PAGE SURFACE IS WHITE ───────────────────────────────────────────────────────────────────
+ * Is the RESOLVED theme dark?
  *
- * Compose's default mapping (generated, do not edit) is `background` = `#EFEFF1` with a white `card`
- * raised on top — the console arrangement. The web storefront INVERTS that: the page is `card`
- * (white in light, `#262626` in dark) and tinted tiles use `background`. See `kit.tsx` `pageSurface`.
+ * ⚠ NOT `isSystemInDarkTheme()`. `EffyTheme` takes an explicit `AppearanceMode` (Light / Dark /
+ * Follow-System, 017), so a shopper who forces Light on a dark device would get every value below
+ * picked for dark while the rest of the screen rendered light. Reading the luminance of the resolved
+ * `background` asks the theme what it actually is, which is true under all three modes.
+ */
+@Composable
+@ReadOnlyComposable
+private fun isDarkAppearance(): Boolean = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+/**
+ * ── SURFACE ROLES ───────────────────────────────────────────────────────────────────────────────
  *
- * ⚠ Mobile never applied the inversion, which is the whole of the "mobile looks dull" gap:
- *   - `App.kt` painted the page `background`, so every screen sat on grey rather than white.
- *   - every tile painted `surfaceVariant` — `#D4D4D4`, THREE steps darker than the web's `#EFEFF1`
- *     tile — and drew a 1.dp border the web has nowhere.
+ * ⚠ 026 REVERSED 025's SURFACE INVERSION, because the tokens it was built on no longer exist.
  *
- * Naming the three roles here fixes it without touching a single token: `EffyTokens.kt` is generated
- * from `tokens.css` and diff-guarded, so no colour moves, `tokens:check` passes unchanged, and the
- * WCAG gate is not involved. Dark mode keeps working because the inversion is expressed in tokens
- * that already flip (`card` #FFFFFF→#262626, `background` #EFEFF1→#171717).
+ * 025 set `page = surface(card)` and `tint = background`, which worked when `background` was a grey
+ * `#EFEFF1` and `card` was white: the inversion made the page white and tiles grey.
+ *
+ * Under the monochrome palette `background` and `card` are BOTH `#ffffff` in light. Keeping the
+ * inversion would have made every product-image plate, hero and category tile **pure white on a pure
+ * white page — invisible** — and in dark it would have painted the page `#333333` instead of the
+ * `#1a1a1a` ground. The inversion was a fix for a specific token arrangement, not a principle.
+ *
+ * Roles are now chosen per appearance from the ramp so that **skeleton is always one step stronger
+ * than tint in BOTH appearances**, which a single M3 slot pair cannot deliver (the ramp runs in
+ * opposite directions either side of the ground).
  */
 object EffySurface {
-    /** The page. White in light, `#262626` in dark. */
+    /** The page ground. `#ffffff` light, `#1a1a1a` dark. */
     val page: Color
-        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surface
+        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.background
 
     /** A tinted tile, band or panel raised on the page — product images, hero, category tiles. */
     val tint: Color
-        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.background
+        @Composable @ReadOnlyComposable get() =
+            if (isDarkAppearance()) EffyColor.Dark.secondary else EffyColor.Light.accent
 
     /** Loading placeholders. Deliberately stronger than [tint] so a skeleton reads as "not content". */
     val skeleton: Color
-        @Composable @ReadOnlyComposable get() = MaterialTheme.colorScheme.surfaceVariant
+        @Composable @ReadOnlyComposable get() =
+            if (isDarkAppearance()) EffyColor.Dark.accent else EffyColor.Light.muted
 }
 
 /**
@@ -106,25 +137,35 @@ object EffySurface {
  * screenshot of a short title never produces. The type still reads as a tight display block; it just
  * cannot lose the top of a capital.
  */
-enum class DisplaySize(internal val sp: Int, internal val lineHeightSp: Int) {
-    Hero(40, 42),
-    Page(32, 34),
-    Section(26, 28),
-    Sub(20, 22),
+enum class DisplaySize(internal val sp: Int, internal val lineHeightSp: Int, internal val trackingEm: Float) {
+    /**
+     * H1 — 64sp. ⚠ The source specifies a 0.8× line height (51sp) and its own Onboarding screen wraps
+     * to FOUR lines at that setting without clipping, because a browser simply lets line boxes
+     * OVERLAP. Compose does not: it clips any glyph that overflows its line box, so 51sp would shear
+     * the descenders off every "y" and "g" — and only on a device, never in a short-title screenshot.
+     * 64sp (1.0×) is the tightest leading that cannot clip General Sans at this size.
+     */
+    Hero(64, 64, -0.05f),
+    /** H2 — 32, the screen title ("Discover", "My Cart"). */
+    Page(32, 34, -0.05f),
+    /** H3 — 24, a section heading. Tracking returns to 0 below H2, as in the source. */
+    Section(24, 29, 0f),
+    /** H4 — 20. */
+    Sub(20, 24, 0f),
 }
 
 /**
  * A page or section title in the storefront's display type.
  *
- * Matches the web's `Display`: UPPERCASE, tight negative tracking (`-0.02em`), and leading tight
- * enough that multi-line headings set as a solid block rather than a loose list — see [DisplaySize]
- * for why mobile's leading is a shade looser than the web's.
+ * ⚠ 026 CHANGED THREE THINGS HERE, all to match the source design language:
  *
- * ⚠ Weight is `Bold` (700), where the web uses `font-extrabold` (800). The mobile font set ships
- * Regular/SemiBold/Bold only — adding a fourth weight means shipping another `.ttf` through
- * `packages/design-system/mobile-assets` and regenerating all three Compose themes. Recorded rather
- * than faked: asking Compose for `ExtraBold` without the file produces SYNTHETIC bolding, which
- * looks worse at display size than the real 700 does.
+ *  1. NO LONGER UPPERCASED. The source sets its titles in sentence case — "Discover", "My Cart",
+ *     "Details". Uppercasing them destroys the tight-tracking effect the type is built around, and
+ *     also breaks screen readers, which spell out all-caps strings letter by letter.
+ *  2. WEIGHT IS SEMIBOLD (600), NOT BOLD (700). General Sans ships Regular/Medium/SemiBold in this
+ *     app — there is NO Bold face. Asking Compose for `FontWeight.Bold` now produces SYNTHETIC
+ *     bolding, which smears the glyphs at display size. The source never uses 700 either.
+ *  3. TRACKING IS PER-SIZE. −5% on H1/H2 (the source's signature), 0 below that — see [DisplaySize].
  */
 @Composable
 fun EffyDisplay(
@@ -135,15 +176,15 @@ fun EffyDisplay(
     textAlign: TextAlign? = null,
 ) {
     Text(
-        text.uppercase(),
+        text,
         modifier = modifier,
         color = color,
         textAlign = textAlign,
         style = MaterialTheme.typography.headlineLarge.copy(
             fontSize = size.sp.sp,
             lineHeight = size.lineHeightSp.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.02).em,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = size.trackingEm.em,
         ),
     )
 }
@@ -172,6 +213,580 @@ fun EffySectionHeader(
         if (onSeeAll != null) {
             TextButton(onClick = onSeeAll) { Text("See all") }
         }
+    }
+}
+
+// ── Controls (026) ──────────────────────────────────────────────────────────────────────────────
+//
+// ⚠ WHY THESE ARE HERE AND NOT IN packages/mobile-kit. `mobile-kit` already exports
+// `EffyPrimaryAction`, but it is a PILL (CircleShape) and it is shared with shop-mobile, which this
+// feature restyles NOT AT ALL (screen-inventory contract: a structural diff there is a scope error).
+// The source design's button is a rounded RECTANGLE. Changing the shared one would silently restyle
+// an operator console nobody asked to change — the same reasoning this file's header already gives
+// for the surface inversion.
+
+/** Minimum touch target. Principle V makes fat-finger-friendly targets a REQUIREMENT, not polish. */
+val EffyMinTouchTarget = 48.dp
+
+/**
+ * The button shape — a small-radius ROUNDED RECTANGLE, not a pill.
+ *
+ * ⚠ Every button in this app was `CircleShape`. The source design language uses a rounded rectangle
+ * throughout, and the difference is not cosmetic at this scale: a full pill on a 54dp-tall
+ * full-width CTA reads as a chip, which is why the old buttons looked lightweight next to the source.
+ * Defined once here so "what shape is a button" cannot drift back to per-screen answers.
+ *
+ * Circles are still correct for genuinely circular things — the account avatar, the quantity
+ * stepper's ± targets — and those keep `CircleShape` deliberately.
+ */
+val EffyButtonShape: RoundedCornerShape @Composable get() = RoundedCornerShape(EffyRadius.sm)
+
+/** The source's primary CTA: full-width, solid accent, ~54dp tall, small radius, optional leading icon. */
+@Composable
+fun EffyPrimaryButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    leading: (@Composable () -> Unit)? = null,
+) {
+    val interactions = remember { MutableInteractionSource() }
+    val pressed by interactions.collectIsPressedAsState()
+    val spec = rememberMotionSpec(MotionRole.Press)
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && spec.usesScale) 0.98f else 1f,
+        animationSpec = tween(durationMillis = spec.durationMillis),
+        label = "primaryButtonPress",
+    )
+
+    // ⚠ Disabled is NOT the source's white-on-#CCCCCC, which measures 1.61:1 and is unreadable in
+    // sunlight. It is the tuned `--disabled` pair (3.16:1). Contrast wins over fidelity (FR-015a).
+    val bg = if (enabled) MaterialTheme.colorScheme.primary else EffyDisabled.fill
+    val fg = if (enabled) MaterialTheme.colorScheme.onPrimary else EffyDisabled.label
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 54.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(EffyRadius.sm))
+            .background(bg)
+            .clickable(enabled = enabled, interactionSource = interactions, indication = null, onClick = onClick)
+            .padding(horizontal = EffySpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leading != null) leading()
+        Text(label, style = MaterialTheme.typography.titleSmall, color = fg)
+    }
+}
+
+/** The source's secondary button: the page surface inside a hairline border. */
+@Composable
+fun EffySecondaryButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 54.dp)
+            .clip(RoundedCornerShape(EffyRadius.sm))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(EffyRadius.sm))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleSmall,
+            color = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label,
+        )
+    }
+}
+
+/**
+ * The disabled pair, read from the generated tokens.
+ *
+ * ⚠ Material 3's `ColorScheme` has no disabled slot, so `EffyColor` carries `disabled` /
+ * `disabledForeground` as raw tokens. Reading them here keeps FR-004 true — no screen writes a hex.
+ */
+object EffyDisabled {
+    val fill: Color
+        @Composable @ReadOnlyComposable get() =
+            if (isDarkAppearance()) EffyColor.Dark.disabled else EffyColor.Light.disabled
+    val label: Color
+        @Composable @ReadOnlyComposable get() =
+            if (isDarkAppearance()) EffyColor.Dark.disabledForeground else EffyColor.Light.disabledForeground
+}
+
+/**
+ * A pill chip — the source's category row and sort control.
+ *
+ * Selected is a SOLID accent fill, which is the source's own treatment and also means the state is
+ * carried by fill + label colour together, never by colour alone (FR-040).
+ */
+@Composable
+fun EffyChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = EffyMinTouchTarget)
+            .clip(CircleShape)
+            .then(
+                if (selected) Modifier.background(MaterialTheme.colorScheme.primary)
+                else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = EffySpacing.lg),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/**
+ * THE BORDERLESS LIST ROW (026 T047) — image · name · meta · price, with a trailing slot.
+ *
+ * ⚠ This is the source design's OWN third card variant, and adopting it is what satisfies the
+ * constitution's no-card rule from INSIDE the design language rather than as a deviation from it.
+ * The source lays cart lines out as bordered containers; Principle V forbids cards outside product
+ * tiles, and this variant is the source's own answer. No exception is claimed and none is needed.
+ */
+@Composable
+fun EffyListRow(
+    name: String,
+    modifier: Modifier = Modifier,
+    imageUrl: String? = null,
+    meta: String? = null,
+    price: String? = null,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .heightIn(min = EffyMinTouchTarget)
+            .padding(vertical = EffySpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+    ) {
+        if (imageUrl != null) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(EffyRadius.sm))
+                    .background(EffySurface.tint),
+            ) {
+                ProductImage(imageUrl, name, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                name,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (meta != null) {
+                Text(
+                    meta,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (price != null) {
+                Text(
+                    price,
+                    modifier = Modifier.padding(top = EffySpacing.xs),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+            }
+        }
+        if (trailing != null) trailing()
+    }
+}
+
+/**
+ * A NAVIGATION ROW — leading icon, label, trailing chevron, hairline beneath.
+ *
+ * ⚠ This is the source design's Account pattern, and it replaces a column of full-width FILLED
+ * buttons. Ten primary-coloured buttons stacked down a settings screen is the single loudest thing
+ * in the old app: every destination shouted equally, so none read as more important than another.
+ * The source (and every production settings screen) uses quiet rows and reserves the filled
+ * treatment for the one action that commits something.
+ *
+ * It is also the constitution's preferred layout — "prefer tables, lists, sectioned pages, tabs and
+ * detail rows" — so this moves the screen toward Principle V rather than away from it.
+ *
+ * [destructive] tints the label and icon with the error token AND is expected to carry a word that
+ * says so ("Sign out"), because meaning may never rest on colour alone (FR-040).
+ */
+@Composable
+fun EffyNavRow(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leading: (@Composable () -> Unit)? = null,
+    supporting: String? = null,
+    destructive: Boolean = false,
+    showChevron: Boolean = true,
+) {
+    val tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .heightIn(min = 56.dp)
+                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        ) {
+            if (leading != null) {
+                CompositionLocalProvider(LocalContentColor provides tint) { leading() }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.bodyLarge, color = tint)
+                if (supporting != null) {
+                    Text(
+                        supporting,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (showChevron) {
+                // ⚠ The shared icon set has no chevron, so this is `ic_arrow_back` rotated 180°.
+                // A real production glyph turned around, NOT a "›" text character — 025 FR-029
+                // banned text glyphs standing in for icons, and a rotated arrow keeps that true.
+                Icon(
+                    painterResource(Res.drawable.ic_arrow_back),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp).rotate(180f),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        EffyHairline()
+    }
+}
+
+/**
+ * A LABELLED FIELD — the source's form control: a label ABOVE a bordered box, not Material's
+ * floating label.
+ *
+ * ⚠ The difference is not decorative. Material's `OutlinedTextField` animates its label into a notch
+ * cut in the border, which is a Material signature — it makes every Effy form read as a stock Android
+ * form regardless of palette. The source puts a plain, always-visible label above a plain box, which
+ * is also better for accessibility: the label never becomes a placeholder and never disappears once
+ * the field has content.
+ *
+ * [error] paints the border AND shows helper text beneath — colour is never the only signal (FR-040).
+ */
+@Composable
+fun EffyField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    error: String? = null,
+    singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    val focus = remember { MutableInteractionSource() }
+    val focused by focus.collectIsFocusedAsState()
+    val borderColor = when {
+        error != null -> MaterialTheme.colorScheme.error
+        focused -> MaterialTheme.colorScheme.onSurface
+        else -> MaterialTheme.colorScheme.outlineVariant
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.padding(bottom = EffySpacing.s),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .clip(RoundedCornerShape(EffyRadius.sm))
+                .border(1.dp, borderColor, RoundedCornerShape(EffyRadius.sm))
+                .padding(horizontal = EffySpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (value.isEmpty() && placeholder != null) {
+                    Text(
+                        placeholder,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = singleLine,
+                    keyboardOptions = keyboardOptions,
+                    visualTransformation = visualTransformation,
+                    interactionSource = focus,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.onSurface),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            if (trailing != null) trailing()
+        }
+        if (error != null) {
+            Text(
+                error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = EffySpacing.xs),
+            )
+        }
+    }
+}
+
+/** The source's "Or" separator: hairline — word — hairline. */
+@Composable
+fun EffyOrDivider(label: String = "Or", modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+    ) {
+        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+/**
+ * The source's inline link line — "Don't have an account? **Join**".
+ *
+ * The action half is UNDERLINED, not merely coloured, because under a monochrome palette a coloured
+ * link is only a lightness difference from body text (FR-040).
+ */
+@Composable
+fun EffyInlineLink(
+    prompt: String,
+    action: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(prompt, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            action,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                textDecoration = TextDecoration.Underline,
+            ),
+            modifier = Modifier
+                .heightIn(min = EffyMinTouchTarget)
+                .clickable(onClick = onClick)
+                .padding(vertical = EffySpacing.md),
+        )
+    }
+}
+
+/**
+ * THE APP BAR — back arrow · centred title · optional trailing action.
+ *
+ * The source design puts this on every pushed screen. It is customer-local rather than in
+ * `mobile-kit` for the reason this file's header gives: `EffyTopBar` there is shared with shop-mobile,
+ * which this feature does not restyle.
+ */
+@Composable
+fun EffyAppBar(
+    title: String,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(horizontal = EffySpacing.lg),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(modifier = Modifier.size(EffyMinTouchTarget), contentAlignment = Alignment.CenterStart) {
+            if (onBack != null) {
+                Icon(
+                    painterResource(Res.drawable.ic_arrow_back),
+                    contentDescription = "Back",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onBack),
+                )
+            }
+        }
+        Text(
+            title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.titleLarge,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Box(modifier = Modifier.size(EffyMinTouchTarget), contentAlignment = Alignment.CenterEnd) {
+            if (trailing != null) trailing()
+        }
+    }
+}
+
+/**
+ * The source's segmented toggle — an active white pill sliding inside a tinted track.
+ *
+ * Used for Ongoing / Completed on orders. The active segment is carried by FILL and WEIGHT together,
+ * so the selection survives grayscale (FR-040).
+ */
+@Composable
+fun <T> EffySegmentedToggle(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(EffyRadius.sm))
+            .background(EffySurface.tint)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        options.forEach { option ->
+            val active = option == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(EffyRadius.sm))
+                    .then(if (active) Modifier.background(EffySurface.page) else Modifier)
+                    .clickable { onSelect(option) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label(option),
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium,
+                    ),
+                    color = if (active) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        }
+    }
+}
+
+/**
+ * The source's empty state: a centred outline icon, a headline, an explanation, and one way out.
+ *
+ * FR-044 requires empty cart, favourites and order history each to offer a route back into the
+ * catalogue — so [actionLabel]/[onAction] are the point of this component, not decoration.
+ */
+@Composable
+fun EffyEmptyState(
+    title: String,
+    body: String,
+    modifier: Modifier = Modifier,
+    icon: DrawableResource = Res.drawable.ic_orders_outlined,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Column(
+        modifier = modifier.fillMaxSize().padding(EffySpacing.xxxl),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            painterResource(icon),
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        EffyDisplay(
+            title,
+            size = DisplaySize.Sub,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = EffySpacing.lg),
+        )
+        Text(
+            body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = EffySpacing.s),
+        )
+        if (actionLabel != null && onAction != null) {
+            EffyPrimaryButton(
+                actionLabel,
+                onClick = onAction,
+                modifier = Modifier.padding(top = EffySpacing.xl),
+            )
+        }
+    }
+}
+
+/** A label/value detail row — the source's order-summary and specifics pattern. */
+@Composable
+fun EffyDetailRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    emphasised: Boolean = false,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(vertical = EffySpacing.s),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (emphasised) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+        Text(
+            value,
+            style = if (emphasised) {
+                MaterialTheme.typography.titleSmall
+            } else {
+                MaterialTheme.typography.bodyLarge
+            },
+        )
     }
 }
 
@@ -308,7 +923,7 @@ fun EffyProductCard(
             // The price stays the largest thing on the tile — it is what the shopper is scanning for.
             Text(
                 money(product.priceAmount, product.currency),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
             )
 
             if (percentOff != null && product.compareAtAmount != null) {

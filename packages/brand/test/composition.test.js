@@ -45,7 +45,7 @@ describe("rule P1 — Android adaptive-icon safe zone", () => {
 
 describe("rule P4 — composition happens in vector space", () => {
   test("recentres the viewBox on the content bbox, not the authored canvas", () => {
-    const svg = composeSvg(MARK, BBOX, COLOURWAYS.emerald, COMPOSITIONS["ios-app"])
+    const svg = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["ios-app"])
     const vb = svg.match(/viewBox="([-\d.\s]+)"/)[1].split(/\s+/).map(Number)
     const [ox, oy, side] = vb
 
@@ -62,10 +62,28 @@ describe("rule P4 — composition happens in vector space", () => {
   })
 
   test("bakes a background only where the composition declares one", () => {
-    const withBg = composeSvg(MARK, BBOX, COLOURWAYS.emerald, COMPOSITIONS["ios-app"])
-    const noBg = composeSvg(MARK, BBOX, COLOURWAYS.emerald, COMPOSITIONS["android-fg"])
-    assert.match(withBg, /<rect[^>]+fill="#ffffff"/)
+    const withBg = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["ios-app"])
+    const noBg = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["android-fg"])
+    assert.match(withBg, /<rect[^>]+fill="/)
     assert.doesNotMatch(noBg, /<rect/)
+  })
+
+  // 026: the composition decides WHETHER there is a ground; a `groundFromColourway` composition lets
+  // the COLOURWAY decide which. That is the whole polarity mechanism, so assert it directly.
+  test("a groundFromColourway composition takes the colourway's ground", () => {
+    const light = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS["ios-app"])
+    const dark = composeSvg(MARK, BBOX, COLOURWAYS.dark, COMPOSITIONS["ios-app"])
+    assert.match(light, new RegExp(`<rect[^>]+fill="${COLOURWAYS.light.ground}"`))
+    assert.match(dark, new RegExp(`<rect[^>]+fill="${COLOURWAYS.dark.ground}"`))
+  })
+
+  // ...but the two iOS appearance variants must NOT, or customer's dark-appearance icon turns light
+  // and the tinted source loses the black it needs for luminance-derived tinting.
+  test("ios-dark and ios-tinted keep their own ground regardless of colourway", () => {
+    for (const name of ["ios-dark", "ios-tinted"]) {
+      const out = composeSvg(MARK, BBOX, COLOURWAYS.light, COMPOSITIONS[name])
+      assert.match(out, new RegExp(`<rect[^>]+fill="${COMPOSITIONS[name].background}"`))
+    }
   })
 })
 

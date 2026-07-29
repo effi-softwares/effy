@@ -12,24 +12,24 @@
 // The third is the sneaky one: an orphan breaks nothing and shows up in no build log.
 
 import { existsSync } from "node:fs";
-import { isStale, orphansFor, sourceFiles } from "./sync-mobile-assets.mjs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { APPS, isStale, orphansFor, sourceFiles } from "./sync-mobile-assets.mjs";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const APPS = [
-  { name: "customer-mobile", root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
-  { name: "shop-mobile", root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
-];
+// ⚠ APPS is IMPORTED, not redeclared. This file used to keep its own copy of the list, which meant
+// the drift checker could itself drift: adding an app to the sync and forgetting it here would leave
+// that surface silently unchecked — the exact class of bug this script exists to catch.
 
-const files = sourceFiles();
-if (files.length === 0) {
+if (sourceFiles().length === 0) {
   console.error("mobile-assets:check: no source assets under packages/design-system/mobile-assets");
   process.exit(1);
 }
 
 const problems = [];
+let checked = 0;
 for (const app of APPS) {
+  // Each app declares which KINDS it consumes: driver-mobile takes fonts but not nav icons, because
+  // it has no navigation yet. Checking it against the full set would report false MISSINGs.
+  const files = sourceFiles(app);
+  checked += files.length;
   for (const file of files) {
     const target = `${app.root}/${file.kind}/${file.name}`;
     if (!existsSync(target)) {
@@ -51,4 +51,4 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(`mobile-assets:check: ${files.length} assets match across ${APPS.length} apps.`);
+console.log(`mobile-assets:check: ${checked} asset copies match across ${APPS.length} apps.`);

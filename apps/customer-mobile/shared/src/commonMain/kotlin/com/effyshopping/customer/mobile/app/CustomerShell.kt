@@ -156,25 +156,21 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     when {
                         homeTop == "home" ->
                             HomeStackHost(container, onCart = { pushHome("cart") }, onFavorites = openFavorites) {
+                                // 026: Home is the source design's Discover screen — a chip-filtered
+                                // product grid. Its search entry and filter button open the Search
+                                // tab, which owns the real query, refinements and paging; the bell
+                                // opens Notifications in the Account stack.
                                 HomeScreen(
                                     container = container,
                                     onProductClick = { pushHome("product:$it") },
-                                    // The hero CTA goes to the category index, matching the web hero's
-                                    // "Shop now" → /browse.
-                                    onBrowse = { currentTabName = CustomerTab.BROWSE.name },
-                                    onSeeAll = { railKey ->
-                                        // The same mapping the web's `railHref()` applies: a category
-                                        // rail opens that category, the on-sale rail opens the sale
-                                        // refinement, and anything else opens unrefined search.
-                                        pendingCategoryKey = railKey.removePrefix("category:")
-                                            .takeIf { railKey.startsWith("category:") }
-                                        pendingSaleOnly = railKey == "on_sale"
-                                        currentTabName = CustomerTab.SEARCH.name
-                                    },
-                                    onCategoryClick = { key ->
-                                        pendingCategoryKey = key
+                                    onSearch = {
+                                        pendingCategoryKey = null
                                         pendingSaleOnly = false
                                         currentTabName = CustomerTab.SEARCH.name
+                                    },
+                                    onNotifications = {
+                                        container.navigator.push(AppRoute.Notifications)
+                                        currentTabName = CustomerTab.ACCOUNT.name
                                     },
                                 )
                             }
@@ -184,6 +180,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                                 container,
                                 onOpen = { pushHome("product:$it") },
                                 onBack = { popHome() },
+                                // FR-044: the empty state routes back into the catalogue, not just back.
+                                onBrowse = { goHome(); currentTabName = CustomerTab.BROWSE.name },
                             )
 
                         homeTop.startsWith("product:") ->
@@ -245,7 +243,12 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     if (detail != null) {
                         ReceiptScreen(container, detail, onDone = { ordersDetailId = null })
                     } else {
-                        OrdersScreen(container, onOpen = { ordersDetailId = it })
+                        OrdersScreen(
+                            container,
+                            onOpen = { ordersDetailId = it },
+                            // FR-044: an empty order list routes back into the catalogue.
+                            onBrowse = { currentTabName = CustomerTab.BROWSE.name },
+                        )
                     }
                 } else {
                     GatedTab("Orders", "Sign in to see your orders.") {
@@ -354,6 +357,12 @@ private fun AccountTab(container: AppContainer, session: SessionState) {
             }
 
         AppRoute.Account, AppRoute.EditName, AppRoute.PasswordSet, AppRoute.PasswordChange ->
+            AccountRoutes(container, route, session)
+
+        // 026 US4 — the new screens. `AccountRoutes` renders them, and the exhaustive `when` here is
+        // what caught them being unreachable: adding a route without a branch is a compile error in
+        // this app, not a silently blank screen. That is why the `when` has no `else`.
+        AppRoute.Notifications, AppRoute.Faqs, AppRoute.HelpCenter, AppRoute.CustomerService ->
             AccountRoutes(container, route, session)
     }
 }

@@ -1,6 +1,45 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.10.0 → 1.11.0
+Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
+                The single accent changes from Effy Emerald #065f46 (+ terracotta #d0735a) to a
+                MONOCHROME ten-step neutral ramp (#1A1A1A … #FFFFFF) in which there is NO brand hue,
+                and the typeface changes from Nunito Sans to General Sans.
+                Two rules are stated that the previous brand never needed:
+                (1) the accent INVERTS between appearances — near-black on light, near-white on dark.
+                    A hue reads against both grounds; a neutral one does not, so a single accent value
+                    would be invisible in one mode.
+                (2) the palette is BOUNDED at exactly two semantic colours (error #e01010, success
+                    #0C9409). Without a bound, "monochrome" erodes one status colour at a time.
+                Not MAJOR: no principle is added or removed; every surface still consumes the one
+                design-system package and only the brand VALUES change. Prior surfaces are rebranded by
+                feature 026, not left non-compliant.
+                Operator decision (2026-07-29), feature 026-monochrome-design-language: a deliberately
+                chosen monochrome commerce design language, applied identically to all six surfaces.
+
+Modified in this amendment (operator-directed, feature 026-monochrome-design-language):
+  - Principle V (Native-Feel, Consistent Design) → the brand-color bullet: Effy Emerald #065f46 +
+    terracotta #d0735a replaced by the neutral ramp with an inverting accent; two bounded semantic
+    colours named; Nunito Sans → General Sans; Effy Emerald recorded as RETIRED alongside Jade.
+
+Dependent updates in THIS change:
+  ⏳ packages/design-system/src/tokens.css + package.json — feature 026 tasks T014/T014a/T015/T017.
+  ⏳ packages/brand — colourway axis becomes POLARITY, not hue (026 T033–T035); the 024 marks
+     separated customer from shop by hue, which collapses under a hueless identity.
+  ⏳ CLAUDE.md § Design system — still states Effy Emerald + Nunito Sans.
+  ✅ scripts/check-no-emerald.sh — written and proved (026 T006–T009); sweeps the retired values,
+     including the .mjs and .xml files check-no-jade.sh cannot see.
+  ⏳ Historical notes in CLAUDE.md (features 005 / 017 / 024) are retained as history, not rewritten.
+
+Unchanged: Principles I, II, III, IV, VI, VII (bodies + rationale); Governance; Technology Standards;
+           Quality Gates; the rest of Principle V (design-system single-source, dark mode REQUIRED and
+           user-selectable, native feel, TOUCH TARGETS, micro-animations, reference-platform + no-card
+           doctrines) — all still binding and unedited.
+
+Follow-up TODOs: none.
+
+--- prior amendment (retained for history) ---
 Version change: 1.9.0 → 1.10.0
 Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
                 The single accent changes from Jade #0FB57E (fill #047857) to Effy Emerald —
@@ -274,11 +313,23 @@ cripple the storefront or needlessly widen the attack surface on the internal co
 
 One design-system package drives every surface.
 
-- Brand color is Effy Emerald — accent `#065f46` (emerald-800) with a white label in both modes, over
-  neutral-scale surfaces (no brand tint), with a terracotta accent `#d0735a`. The full token set —
-  this palette (light + dark), the Nunito Sans typeface, and the spacing + radius scales — comes from the
-  design-system package (the SSOT), never hardcoded per surface. (Superseded Jade `#0FB57E` / fill
-  `#047857` as of v1.10.0.)
+- The brand is **MONOCHROME**: a ten-step neutral ramp from `#1A1A1A` to `#FFFFFF` in which the ramp
+  itself carries every accent role — primary action fill, selected state, active navigation, focus
+  indication, emphasis — and there is **NO brand hue**.
+- The accent **INVERTS between appearances**: near-black `#1A1A1A` on light, near-white `#F5F5F5` on
+  dark, each taking the other as its label. A hue reads against both grounds; a neutral one does not,
+  so a single accent value would be invisible in one mode.
+- Exactly **TWO semantic colours** exist alongside the ramp: error/destructive `#e01010` and success
+  `#0C9409`. Neither may be used decoratively or as an accent, and **success is a NON-TEXT indicator
+  only** (4.00:1 on white — above the 3:1 bar for UI components, below the 4.5:1 bar for text). No
+  third hue may be introduced. The single exception is a third-party sign-in mark whose provider's
+  brand guidelines require its own colours; that is an asset, not a token.
+- The full token set — this ramp (light + dark), the two semantic colours, the **General Sans**
+  typeface, and the spacing + radius scales — comes from the design-system package (the SSOT), never
+  hardcoded per surface.
+- **RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a` (as of v1.11.0), and Jade `#0FB57E` /
+  fill `#047857` (as of v1.10.0). Both are swept out of live source by `scripts/check-no-emerald.sh`
+  and `scripts/check-no-jade.sh`.
 - Dark mode is REQUIRED on every surface, and MUST be user-selectable (Light / Dark / Follow-System).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
@@ -403,4 +454,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.10.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-17
+**Version**: 1.11.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-29

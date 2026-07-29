@@ -13,8 +13,10 @@
 //  - Every Material role used by the mobile foundation maps to an existing semantic token. Container,
 //    inverse, fixed and tertiary roles intentionally reuse the nearest authored Effy role; no library
 //    default is allowed to leak a second palette into navigation, controls or feedback.
-//  - The brand is Effy Emerald: `#065f46` is the accent in both modes; `#d0735a` is the authored
-//    terracotta reference, contrast-tuned per mode in tokens.css. Retired Jade values are gone.
+//  - The brand is MONOCHROME (constitution v1.11.0): a neutral ramp with NO brand hue. The accent
+//    INVERTS between appearances — near-black on light, near-white on dark — so `primary` is NOT the
+//    same value in both schemes, unlike the retired emerald. Two bounded semantic hues (error,
+//    success) come along; retired Jade and Emerald values are gone.
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -44,9 +46,11 @@ const TARGETS = [
     out: resolve(here, "../compose-driver/EffyTokens.kt"),
     pkg: "com.effyshopping.driver.mobile.design",
     sharedOut: resolve(here, "../compose-driver/EffyLayoutTokens.kt"),
-    // ⚠ No typography target: driver-mobile is still the untouched KMP template with no
-    // composeResources, so there are no font accessors to import. It gains one with its shell.
-    typographyOut: null,
+    // 026 T025a: driver-mobile now gets typography too. It was skipped while it had no
+    // composeResources/font, but FR-012 requires the typeface on ALL SIX surfaces — leaving it out
+    // would have meant syncing font files into a directory nothing consumed.
+    typographyOut: resolve(here, "../compose-driver/EffyTypography.kt"),
+    resPkg: "com.effyshopping.driver.mobile.resources",
   },
 ];
 
@@ -98,6 +102,13 @@ const COLOR_TOKENS = [
   ["accentForeground", "accent-foreground"],
   ["destructive", "destructive"],
   ["destructiveForeground", "destructive-foreground"],
+  // 026: no Material 3 slot maps to these, so they are raw EffyColors only — which is what the
+  // presentation layer consumes. `success` deliberately has no Foreground sibling: it is a non-text
+  // indicator (a field border, a ✓ glyph) and check-tokens.mjs fails the build if one is added.
+  ["success", "success"],
+  ["disabled", "disabled"],
+  ["disabledForeground", "disabled-foreground"],
+  ["placeholder", "placeholder"],
   ["border", "border"],
   ["input", "input"],
   ["ring", "ring"],
@@ -198,7 +209,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-/** The raw Effy brand tokens, light and dark. Effy Emerald #065f46 is the primary accent. */
+/** The raw Effy brand tokens, light and dark. The accent is the neutral ramp and INVERTS by appearance. */
 object EffyColor {
 ${colorObject("Light", light)}
 
@@ -257,36 +268,53 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.Font
 import ${target.resPkg}.Res
-import ${target.resPkg}.nunito_sans_bold
-import ${target.resPkg}.nunito_sans_regular
-import ${target.resPkg}.nunito_sans_semibold
+import ${target.resPkg}.general_sans_medium
+import ${target.resPkg}.general_sans_regular
+import ${target.resPkg}.general_sans_semibold
 
-/** Nunito Sans, the platform typeface (constitution Principle V). */
+/**
+ * General Sans, the platform typeface (constitution Principle V, v1.11.0).
+ *
+ * ⚠ There is NO Bold 700. The design language tops out at SemiBold 600, so the scale below is
+ * SemiBold-led — Medium 500 replaces the weight slot Nunito Sans filled with Bold. Requesting
+ * FontWeight.Bold resolves to the nearest available face rather than a real bold.
+ */
 @Composable
 fun effyFontFamily(): FontFamily = FontFamily(
-    Font(Res.font.nunito_sans_regular, FontWeight.Normal),
-    Font(Res.font.nunito_sans_semibold, FontWeight.SemiBold),
-    Font(Res.font.nunito_sans_bold, FontWeight.Bold),
+    Font(Res.font.general_sans_regular, FontWeight.Normal),
+    Font(Res.font.general_sans_medium, FontWeight.Medium),
+    Font(Res.font.general_sans_semibold, FontWeight.SemiBold),
 )
 
-/** The Effy Material 3 type scale. Identical across every mobile surface by construction. */
+/**
+ * The Effy Material 3 type scale. Identical across every mobile surface by construction.
+ *
+ * Sizes come from the source design language's 14 styles (026 data-model §3): H1 64 / H2 32 / H3 24 /
+ * H4 20, and B1 16 / B2 14 / B3 12 in Regular, Medium and SemiBold. Material 3 has more slots than the
+ * design has steps, so some slots deliberately share a step.
+ *
+ * ⚠ TRACKING. H1 and H2 carry the design's signature -5% letter-spacing; everything else is 0.
+ * ⚠ H1's line height is 0.8 x its size (64 -> 51sp), which sits BELOW the cap height. That is
+ *   intentional for one- or two-word display strings and WILL clip descenders on longer text — use
+ *   displayLarge only where the source does (the onboarding screen).
+ */
 @Composable
 fun effyTypography(): Typography {
     val family = effyFontFamily()
     return Typography(
-        displayLarge = effyTextStyle(family, FontWeight.Bold, 48, 56),
-        headlineLarge = effyTextStyle(family, FontWeight.Bold, 34, 40),
-        headlineMedium = effyTextStyle(family, FontWeight.Bold, 30, 36),
-        headlineSmall = effyTextStyle(family, FontWeight.Bold, 26, 32),
-        titleLarge = effyTextStyle(family, FontWeight.Bold, 22, 28),
-        titleMedium = effyTextStyle(family, FontWeight.SemiBold, 18, 24),
+        displayLarge = effyTextStyle(family, FontWeight.SemiBold, 64, 51, -0.05f),
+        headlineLarge = effyTextStyle(family, FontWeight.SemiBold, 32, 32, -0.05f),
+        headlineMedium = effyTextStyle(family, FontWeight.SemiBold, 24, 29),
+        headlineSmall = effyTextStyle(family, FontWeight.SemiBold, 20, 24),
+        titleLarge = effyTextStyle(family, FontWeight.SemiBold, 20, 24),
+        titleMedium = effyTextStyle(family, FontWeight.Medium, 20, 24),
         titleSmall = effyTextStyle(family, FontWeight.SemiBold, 16, 22),
-        bodyLarge = effyTextStyle(family, FontWeight.Normal, 17, 25),
-        bodyMedium = effyTextStyle(family, FontWeight.Normal, 15, 22),
-        bodySmall = effyTextStyle(family, FontWeight.Normal, 13, 18),
-        labelLarge = effyTextStyle(family, FontWeight.SemiBold, 15, 20),
-        labelMedium = effyTextStyle(family, FontWeight.SemiBold, 13, 18),
-        labelSmall = effyTextStyle(family, FontWeight.SemiBold, 11, 16),
+        bodyLarge = effyTextStyle(family, FontWeight.Normal, 16, 22),
+        bodyMedium = effyTextStyle(family, FontWeight.Normal, 14, 20),
+        bodySmall = effyTextStyle(family, FontWeight.Normal, 12, 17),
+        labelLarge = effyTextStyle(family, FontWeight.Medium, 16, 22),
+        labelMedium = effyTextStyle(family, FontWeight.Medium, 14, 20),
+        labelSmall = effyTextStyle(family, FontWeight.Medium, 12, 17),
     )
 }
 
@@ -295,11 +323,14 @@ private fun effyTextStyle(
     weight: FontWeight,
     size: Int,
     lineHeight: Int,
+    /** Tracking as a FRACTION OF THE FONT SIZE (em), matching the source design's percentage units. */
+    letterSpacingEm: Float = 0f,
 ) = TextStyle(
     fontFamily = family,
     fontWeight = weight,
     fontSize = size.sp,
     lineHeight = lineHeight.sp,
+    letterSpacing = (size * letterSpacingEm).sp,
 )
 `;
     writeFileSync(target.typographyOut, typography);

@@ -336,6 +336,10 @@ brand-gen: ## brand: regenerate every icon/splash/favicon from packages/brand/sr
 brand-check: ## brand: FAIL if any committed brand asset drifts from the authored mark (024 SC-008)
 	@pnpm --filter @effy/brand brand:check
 
+brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) survives in live source
+	@bash scripts/check-no-jade.sh
+	@bash scripts/check-no-emerald.sh
+
 # --- shop-mobile (014). Same Principle-II codegen + build-failing guard as 013; EMAIL_OTP-only surface.
 # The shop contract (from shop.ts) and the shop-packaged Compose theme are committed + drift-guarded.
 sm-contract-gen: ## shop-mobile: regenerate the Kotlin shop DTOs from @effy/shared-types (014 D4s)

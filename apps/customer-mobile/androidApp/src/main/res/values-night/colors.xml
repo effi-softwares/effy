@@ -3,5 +3,5 @@
      a brand colour (see values/colors.xml); a saturated ground does not get a dark variant. This file
      stays rather than being deleted so the value is declared, not inherited by accident. -->
 <resources>
-    <color name="splash_background">#4ade80</color>
+    <color name="splash_background">#F4F5F7</color>
 </resources>

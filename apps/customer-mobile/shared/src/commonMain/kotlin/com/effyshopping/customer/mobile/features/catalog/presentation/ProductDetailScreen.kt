@@ -62,8 +62,12 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import androidx.compose.material3.Icon
 import org.jetbrains.compose.resources.painterResource
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.DiscountChip
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
 import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
@@ -104,11 +108,7 @@ fun ProductDetailScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         // 025 FR-030: a standard header, not a floating text link.
-        EffyTopBar(
-            title = "Product",
-            onBack = onBack,
-            backIcon = painterResource(Res.drawable.ic_arrow_back),
-        )
+        EffyAppBar(title = "Details", onBack = onBack)
 
         when (val s = state) {
             ProductDetailUiState.Loading ->
@@ -178,7 +178,7 @@ private fun ProductBody(
         ) {
             Text(
                 money(card.priceAmount, card.currency),
-                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
             )
             if (percentOff != null && card.compareAtAmount != null) {
                 Text(
@@ -199,7 +199,7 @@ private fun ProductBody(
                 EffyQuantityStepper(quantity = qty, onChange = { qty = it })
                 Button(
                     onClick = { onAddToCart(qty) },
-                    shape = CircleShape,
+                    shape = EffyButtonShape,
                     modifier = Modifier.weight(1f).heightIn(min = 52.dp),
                 ) { Text(if (justAdded) "Added" else "Add to cart") }
             }
@@ -220,7 +220,7 @@ private fun ProductBody(
 
         // 025 FR-029: a real icon, not the "♥"/"♡" text glyphs this used to render. The label still
         // carries the state so the meaning survives grayscale and screen readers (FR-047/FR-045).
-        OutlinedButton(onClick = onToggleFavorite, shape = CircleShape) {
+        OutlinedButton(onClick = onToggleFavorite, shape = EffyButtonShape) {
             Icon(
                 painterResource(if (saved) Res.drawable.ic_favorite_selected else Res.drawable.ic_favorite_outlined),
                 contentDescription = null,
@@ -344,25 +344,34 @@ private fun BuyBar(
     justAdded: Boolean,
     onAdd: () -> Unit,
 ) {
-    Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
+    // 026: the source's sticky buy bar — a hairline above, a labelled "Price" stack on the left, and
+    // the primary action on the right. The old bar crowded price + stepper + button onto one line, so
+    // on a narrow phone the button shrank to fit and stopped reading as the primary action.
+    Column {
+        EffyHairline(modifier = Modifier.padding(horizontal = 0.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(EffySurface.page)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
         ) {
-            Text(
-                priceLabel,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            )
+            Column {
+                Text(
+                    "Price",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(priceLabel, style = MaterialTheme.typography.titleLarge)
+            }
             EffyQuantityStepper(quantity = qty, onChange = onQtyChange)
-            Button(
+            EffyPrimaryButton(
+                if (justAdded) "Added" else "Add to Cart",
                 onClick = onAdd,
-                shape = CircleShape,
-                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-            ) { Text(if (justAdded) "Added" else "Add to cart") }
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

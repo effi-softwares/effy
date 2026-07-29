@@ -20,6 +20,13 @@ sealed interface AppRoute {
     data object PasswordSet : AppRoute
     data object PasswordChange : AppRoute
     data object AddressBook : AppRoute // 022 — manage saved delivery addresses
+
+    // 026 US4 — screens the source design has that this app did not. All are reachable from Account
+    // (FR-039), and none introduces a sign-in gate that was not already there (FR-003).
+    data object Notifications : AppRoute
+    data object Faqs : AppRoute
+    data object HelpCenter : AppRoute
+    data object CustomerService : AppRoute
 }
 
 /** What an emailed code is for — so the verify screen knows which flow to complete. */

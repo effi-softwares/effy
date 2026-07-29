@@ -120,7 +120,34 @@ if [ -n "$RETIRED_CUSTOMER_HITS" ]; then
   FAIL=1
 fi
 
+# ── 026 (T044 / contracts S4) — affordances the SOURCE DESIGN has that Effy must NOT ──────────────
+#
+# The customer app was rebuilt against a fashion-catalogue UI kit. Four of that kit's affordances are
+# forbidden here, and each is something a well-meaning "match the mockup" edit would plausibly add
+# back. This lives in the guard rather than in a Kotlin test on purpose: `commonTest` has no
+# filesystem access on Native, so a multiplatform test could only assert against a hand-maintained
+# list of sources — which is a blind spot pretending to be a check. Grepping the real tree catches a
+# reintroduction in a screen nobody remembered to add to a list.
+#
+#   size pickers      — FR-007: the kit is apparel, Effy is groceries.
+#   ratings/reviews   — FR-029: no such capability; invented stars would be a lie on every tile.
+#   Facebook sign-in  — FR-030a: not an Effy credential route.
+#   card-entry fields — FR-030: the payment provider's sheet owns these, and card data must never
+#                       land in this app.
+EXCLUDED_PATTERN='Choose size|Select size|Text\("Size |out of 5|Write a review|Facebook|Card number|CVV|Cardholder'
+EXCLUDED_HITS="$(grep -rInE "$EXCLUDED_PATTERN" \
+  --include='*.kt' --include='*.swift' \
+  --exclude-dir=build --exclude-dir='.gradle' --exclude-dir=DerivedData \
+  "$CUSTOMER_APP/shared/src" \
+  "$CUSTOMER_APP/androidApp/src" "$CUSTOMER_APP/iosApp" 2>/dev/null \
+  | grep -vE '^[^:]+:[0-9]+: *(//|\*|/\*)' || true)"
+if [ -n "$EXCLUDED_HITS" ]; then
+  echo "✗ mobile-guard [apps/customer-mobile]: an EXCLUDED source-design affordance returned (026 S4):"
+  echo "$EXCLUDED_HITS" | sed 's/^/    /'
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
-  echo "✓ mobile-guard: auth/config checks clean; retired shop + customer presentation remains absent."
+  echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances both absent."
 fi
 exit "$FAIL"

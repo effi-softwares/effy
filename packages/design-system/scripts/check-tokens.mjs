@@ -58,10 +58,24 @@ const ratio = (a, b) => {
 };
 
 // [foreground var, background var, minRatio]. All text pairs (incl. button/badge/nav LABELS on a
-// fill) hold to WCAG AA normal-text 4.5:1 — the emerald-800 accent clears it, so no lenient
+// fill) hold to WCAG AA normal-text 4.5:1 — the near-black accent clears it easily, so no lenient
 // exception is needed. The focus ring is a non-text UI indicator (WCAG 1.4.11 → 3:1); it also
 // clears 4.5 here, so we hold it to the same bar for simplicity.
+//
+// UI (3:1) is WCAG 1.4.11 for non-text UI components. Three pairs sit here deliberately (026 C3):
+//   - disabled-foreground/disabled — WCAG EXEMPTS disabled controls entirely. We hold 3:1 anyway,
+//     because the source design's own disabled style (white on #CCCCCC) measures 1.61:1 and is
+//     unreadable in sunlight. Exceeding the standard is a choice, recorded so nobody "restores
+//     fidelity" and silently reintroduces it.
+//   - placeholder/background — the source's #999999 measures 2.85:1 on white and FAILS; #808080 is
+//     the adopted value at 3.95:1.
+//   - success/background — #0C9409 measures 4.00:1: above the 3:1 UI bar, BELOW the 4.5:1 text bar.
+//     That is exactly why success is a NON-TEXT indicator only (constitution v1.11.0, Principle V).
+//
+// Borders are deliberately NOT tested. A divider is decorative, exempt under 1.4.11, and a 3:1
+// border would be a heavy slab on every surface.
 const TEXT = 4.5;
+const UI = 3;
 const PAIRS = [
   ["foreground", "background", TEXT],
   ["card-foreground", "card", TEXT],
@@ -75,7 +89,16 @@ const PAIRS = [
   ["sidebar-primary-foreground", "sidebar-primary", TEXT],
   ["sidebar-accent-foreground", "sidebar-accent", TEXT],
   ["ring", "background", TEXT],
+  ["disabled-foreground", "disabled", UI],
+  ["placeholder", "background", UI],
+  ["success", "background", UI],
 ];
+
+// 026 FR-009a / constitution v1.11.0: success is a NON-TEXT indicator — a field border and a ✓ glyph,
+// never a fill with a label on it. The structural guarantee is that it has NO paired foreground
+// token: without `--success-foreground` there is nothing to put text on it with. Adding one is the
+// exact regression this forbids, and it would need its own 4.5:1 pair (which #0C9409 fails at 4.00:1).
+const SEMANTIC_NON_TEXT = ["success"];
 
 for (const [appName, set] of [
   ["light", light],
@@ -90,6 +113,16 @@ for (const [appName, set] of [
     if (r < min) {
       errors.push(`[${appName}] --${fg} on --${bg} = ${r.toFixed(2)}:1 (needs ${min}:1)`);
     }
+  }
+}
+
+// 4) non-text semantic colours must not acquire a foreground pair (see SEMANTIC_NON_TEXT above)
+for (const name of SEMANTIC_NON_TEXT) {
+  if (`${name}-foreground` in light || `${name}-foreground` in dark) {
+    errors.push(
+      `--${name}-foreground exists: --${name} is a NON-TEXT indicator only (constitution v1.11.0). ` +
+        `If text must sit on it, re-tune --${name} to clear 4.5:1 first and add the pair to PAIRS.`,
+    );
   }
 }
 

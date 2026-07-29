@@ -7,494 +7,306 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyChip
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
-import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
-import com.effyshopping.customer.mobile.core.presentation.EffySectionHeader
-import com.effyshopping.customer.mobile.core.presentation.EffySkeletonBlock
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
-import com.effyshopping.customer.mobile.core.presentation.ProductImage
-import com.effyshopping.customer.mobile.features.catalog.domain.Banner
-import com.effyshopping.customer.mobile.features.catalog.domain.Category
+import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
+import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
+import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
-import com.effyshopping.customer.mobile.features.catalog.domain.Rail
+import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
+import com.effyshopping.customer.mobile.resources.ic_orders_outlined
+import com.effyshopping.customer.mobile.resources.ic_search_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
+import org.jetbrains.compose.resources.painterResource
 
 /**
- * The customer Home tab — a merchandised, scrolling store.
+ * The customer Home tab — the source design's **Discover** screen (026 T049, FR-025a).
  *
- * ── 025: recomposed to match the web storefront ─────────────────────────────────────────────────
+ * ── ⚠ THIS WAS REBUILT, NOT RESTYLED ────────────────────────────────────────────────────────────
  *
- * The section order is `apps/customer-web/app/(shop)/page.tsx`'s, so a shopper who uses both
- * surfaces meets the same store in the same order:
+ * What stood here was the WEB storefront's page, ported to mobile by 025: a tinted hero band with a
+ * headline and statistics, a promo carousel, horizontally-scrolling product rails each closed by a
+ * hairline, and a category panel at the bottom. That is a good desktop merchandising page and it is
+ * not what the source design does on a phone.
  *
- *   hero band  →  promo carousel  →  product rails (each closed by a hairline)  →  shop by category
+ * The source's Discover screen is four things, in this order:
  *
- * The delivery location sits above this, in the shell's `HomeStackHost` — the mobile equivalent of
- * the web header's delivery affordance.
+ *   1. a plain "Discover" title with a notifications bell
+ *   2. a persistent search entry with a filter affordance beside it
+ *   3. a horizontally-scrolling row of category chips, "All" first
+ *   4. a two-column product grid, filling the rest of the screen
  *
- * GUEST-FIRST: no session needed anywhere on this screen.
+ * The whole screen is a browsable grid. There is no hero, no carousel, and no rails — merchandising
+ * happens through the chips, which is why the grid can start above the fold instead of below three
+ * screens of chrome.
  *
- * ⚠ Every tile is [EffyProductCard], the shared card. Home, Search and Favourites each used to draw
- * their own, which is how they ended up with three different tints and two different price
- * treatments for the same product.
+ * ⚠ WHAT IS DELIBERATELY KEPT FROM 025 (FR-025b): pull-to-refresh, content-shaped skeletons, the
+ * shared product tile with its press feedback and reduced-motion path, and the shared grid rhythm.
+ * Those are platform requirements, not the old layout.
+ *
+ * ⚠ NO NEW SERVER CAPABILITY (FR-002). The chips filter the products the home read ALREADY returns,
+ * client-side. Reaching for a per-category endpoint would have been the easy call and the wrong one:
+ * "Browse" already hands a category to Search, which owns real refinement and paging. This screen
+ * shows what is on the home rails, grouped — it is a shop window, not a search results page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     container: AppContainer,
     onProductClick: (String) -> Unit,
-    onBrowse: () -> Unit = {},
-    onSeeAll: (railKey: String) -> Unit = {},
-    onCategoryClick: (String) -> Unit = {},
+    onSearch: () -> Unit = {},
+    onNotifications: () -> Unit = {},
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
 
-    when (val s = state) {
-        HomeUiState.Loading -> HomeSkeleton()
-        HomeUiState.Error -> ErrorState(onRetry = vm::load)
-        is HomeUiState.Ready ->
-            if (s.home.rails.isEmpty()) {
-                EmptyStore()
-            } else {
-                // 025 FR-033: pull-to-refresh. A store whose stock and prices move needs a way to say
-                // "show me that again" that is not "kill the app".
-                PullToRefreshBox(
-                    isRefreshing = false,
-                    onRefresh = vm::load,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    HomeList(s.home, s.categories, onProductClick, onBrowse, onSeeAll, onCategoryClick)
-                }
-            }
-    }
-}
+    Column(modifier = Modifier.fillMaxSize().background(EffySurface.page)) {
+        DiscoverHeader(onNotifications = onNotifications)
+        SearchEntry(onSearch = onSearch)
 
-@Composable
-private fun HomeList(
-    home: HomeContent,
-    categories: List<Category>,
-    onProductClick: (String) -> Unit,
-    onBrowse: () -> Unit,
-    onSeeAll: (String) -> Unit,
-    onCategoryClick: (String) -> Unit,
-) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = EffySpacing.xxxl),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
-    ) {
-        item(key = "hero") { HeroBand(onBrowse) }
+        when (val s = state) {
+            HomeUiState.Loading -> DiscoverSkeleton()
 
-        if (home.banners.isNotEmpty()) {
-            item(key = "banners") { PromoCarousel(home.banners) }
-        }
+            HomeUiState.Error -> EffyEmptyState(
+                title = "We couldn’t load the store",
+                body = "Please try again in a moment.",
+                icon = Res.drawable.ic_catalog_outlined,
+                actionLabel = "Try again",
+                onAction = vm::load,
+            )
 
-        // The hairline closes each rail EXCEPT the last, where the category panel below already
-        // provides the separation — the same rule the web page follows.
-        home.rails.forEachIndexed { index, rail ->
-            item(key = rail.key) {
-                Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xl)) {
-                    RailSection(rail, onProductClick, onSeeAll)
-                    if (index < home.rails.lastIndex) EffyHairline()
-                }
-            }
-        }
-
-        if (categories.any { it.productCount > 0 }) {
-            item(key = "categories") { CategoryPanel(categories, onCategoryClick) }
-        }
-    }
-}
-
-/**
- * The hero (web `Hero.tsx`).
- *
- * A tinted full-bleed band, an oversized display headline, a short supporting line, one pill CTA,
- * and a row of statistics.
- *
- * ⚠ Effy's numbers are REAL or absent. The reference template ships "200+ International Brands /
- * 2,000+ High-Quality Products / 30,000+ Happy Customers"; on a store with 38 seeded products that
- * is a lie printed at display size. These three state things that are true of the platform as built.
- *
- * ⚠ The web draws hairline dividers between the stats only from `sm` up — on a phone it drops them,
- * so this does too. Three columns of small type at 390dp do not need vertical rules to separate them.
- */
-@Composable
-private fun HeroBand(onShopNow: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(EffySurface.tint)
-            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xxxl),
-    ) {
-        EffyDisplay("Everything you need, delivered", size = DisplaySize.Hero)
-
-        Text(
-            "Fresh groceries and everyday essentials from one brand. Browse without an account — " +
-                "we only ask who you are when you place an order.",
-            modifier = Modifier.padding(top = EffySpacing.lg),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Button(
-            onClick = onShopNow,
-            shape = CircleShape,
-            modifier = Modifier
-                .padding(top = EffySpacing.xl)
-                .heightIn(min = 52.dp)
-                .fillMaxWidth(),
-        ) { Text("Shop now") }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xxxl),
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-        ) {
-            HeroStat("One", "basket, one delivery", Modifier.weight(1f))
-            HeroStat("No account", "needed to browse", Modifier.weight(1f))
-            HeroStat("Same day", "in serviced areas", Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun HeroStat(value: String, label: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(
-            value,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            // ⚠ Two lines, not one. These are three columns at a third of the screen each; at
-            // maximum text size "No account" on one line ellipsizes to "No acc…", which reads as a
-            // rendering bug rather than as a claim about the store.
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            label,
-            modifier = Modifier.padding(top = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-/**
- * The promotional carousel (025 FR-019, restyled to the web's `PromoCarousel`).
- *
- * A single promotion is NOT presented as a carousel: no pager gesture, no dots. Dots that never move
- * are a control that lies about there being more to see.
- */
-@Composable
-private fun PromoCarousel(banners: List<Banner>) {
-    if (banners.isEmpty()) return
-    val pagerState = rememberPagerState(pageCount = { banners.size })
-
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-        HorizontalPager(
-            state = pagerState,
-            contentPadding = PaddingValues(horizontal = EffySpacing.lg),
-            pageSpacing = EffySpacing.md,
-            userScrollEnabled = banners.size > 1,
-        ) { page -> PromoSlide(banners[page]) }
-
-        if (banners.size > 1) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-            ) {
-                repeat(banners.size) { index ->
-                    val selected = pagerState.currentPage == index
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = EffySpacing.xs)
-                            .size(if (selected) 8.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (selected) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.outlineVariant
-                                },
-                            ),
+            is HomeUiState.Ready ->
+                if (s.home.rails.isEmpty()) {
+                    EffyEmptyState(
+                        title = "Nothing here yet",
+                        body = "Our catalogue is on its way. Check back soon.",
+                        icon = Res.drawable.ic_catalog_outlined,
                     )
+                } else {
+                    // 025 FR-033: pull-to-refresh survives the rebuild — a store whose stock and
+                    // prices move needs a way to say "show me that again" that is not "kill the app".
+                    PullToRefreshBox(
+                        isRefreshing = false,
+                        onRefresh = vm::load,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        DiscoverGrid(s.home, onProductClick)
+                    }
                 }
-            }
         }
     }
 }
 
+/** The source's header: the screen name, and a bell for notifications. */
 @Composable
-private fun PromoSlide(banner: Banner) {
-    Box(
+private fun DiscoverHeader(onNotifications: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(EffyRadius.md))
-            .background(EffySurface.tint),
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        banner.imageUrl?.let {
-            ProductImage(it, banner.title, modifier = Modifier.fillMaxSize())
-            // A gradient scrim only where the copy sits, so the copy survives ANY photograph rather
-            // than only the ones we happened to test with — and the top of the image stays visible.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0.35f to Color.Transparent,
-                            1f to Color.Black.copy(alpha = 0.65f),
-                        ),
-                    ),
-            )
-        }
-        Column(
-            modifier = Modifier.align(Alignment.BottomStart).padding(EffySpacing.xl),
-            verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
-        ) {
-            val onImage = banner.imageUrl != null
-            EffyDisplay(
-                banner.title,
-                size = DisplaySize.Sub,
-                color = if (onImage) Color.White else MaterialTheme.colorScheme.onSurface,
-            )
-            banner.subtitle?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (onImage) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-/** A merchandising rail: header with "See all", a horizontal row of the shared product card. */
-@Composable
-private fun RailSection(rail: Rail, onProductClick: (String) -> Unit, onSeeAll: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
-        EffySectionHeader(rail.title, onSeeAll = { onSeeAll(rail.key) })
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = EffySpacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
-        ) {
-            items(rail.products, key = { it.id }) { product ->
-                EffyProductCard(product, onProductClick, modifier = Modifier.width(164.dp))
-            }
-        }
-    }
-}
-
-/**
- * "Shop by category" (web `CategoryMosaic.tsx`).
- *
- * The web's composition is a large tinted ROUNDED PANEL containing the heading and an ASYMMETRIC
- * mosaic — rows split 1:2 then 2:1. That imbalance is what stops it reading as another uniform grid,
- * and it is the most recognisable block on the web home page.
- *
- * ⚠ The asymmetry does NOT survive a 390dp phone: at half width a "2-span" tile is 340dp and a
- * "1-span" tile is 160dp, so the mosaic degrades into two mismatched tiles per row rather than a
- * composition. Mobile keeps the tinted panel, the heading and the tile treatment — and lays them out
- * as an even 2×2. Same block, adapted; not a different block.
- *
- * ⚠ Note the DOUBLE inversion, matching the web: the panel is the tint and the tiles inside it are
- * the page colour. A tinted tile on a tinted panel would be invisible.
- */
-@Composable
-private fun CategoryPanel(categories: List<Category>, onCategoryClick: (String) -> Unit) {
-    val featured = categories.filter { it.productCount > 0 }.take(4)
-    if (featured.isEmpty()) return
-
-    Column(
-        modifier = Modifier
-            .padding(horizontal = EffySpacing.lg)
-            .clip(RoundedCornerShape(EffyRadius.md))
-            .background(EffySurface.tint)
-            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xxxl),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
-    ) {
-        EffyDisplay(
-            "Shop by category",
-            size = DisplaySize.Section,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-        )
-
-        // Plain Rows, not a LazyVerticalGrid — a lazy grid inside a LazyColumn has unbounded height
-        // and crashes at measure time. Four tiles never need lazy layout anyway.
-        featured.chunked(2).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-                row.forEach { category ->
-                    CategoryTile(category, onCategoryClick, Modifier.weight(1f))
-                }
-                // Keeps a lone trailing tile at half width instead of stretching it across the row.
-                if (row.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun CategoryTile(category: Category, onClick: (String) -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            // ⚠ `heightIn`, not a fixed height: the category name sits INSIDE this box, so at
-            // maximum text size a two-line name would be clipped by the tile that contains it.
-            .heightIn(min = 132.dp)
-            .clip(RoundedCornerShape(EffyRadius.sm))
-            .background(EffySurface.page)
-            .clickable(
-                onClickLabel = "${category.name}, ${category.productCount} " +
-                    if (category.productCount == 1) "item" else "items",
-            ) { onClick(category.key) },
-    ) {
-        ProductImage(category.imageUrl, category.name, modifier = Modifier.fillMaxSize())
-
-        // A scrim only where the label sits, so the label survives any photograph without dimming
-        // the whole tile.
-        // The scrim is sized as a FRACTION of the tile rather than a fixed 64dp, so it still sits
-        // behind the label once the label grows.
+        EffyDisplay("Discover", size = DisplaySize.Page, modifier = Modifier.weight(1f))
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.55f)
-                .background(
-                    Brush.verticalGradient(
-                        0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                        1f to Color.Transparent,
-                    ),
-                ),
-        )
-        Text(
-            category.name,
-            modifier = Modifier.align(Alignment.TopStart).padding(EffySpacing.md),
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+                .size(EffyMinTouchTarget)
+                .clip(RoundedCornerShape(EffyRadius.sm))
+                .clickable(onClickLabel = "Notifications", onClick = onNotifications),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painterResource(Res.drawable.ic_orders_outlined),
+                contentDescription = "Notifications",
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
 /**
- * A content-shaped first-load placeholder (025 FR-032) — reshaped to the new composition, so the
- * skeleton predicts the page that replaces it rather than the page this screen used to be.
+ * The source's search row: a wide search field with a filter button beside it.
+ *
+ * ⚠ Both are AFFORDANCES, not inputs. Tapping either opens the Search tab, which owns the real query
+ * field, the refinements and the paging. Putting a second live search input here would mean two
+ * places that both half-search, and the one on Home would be the one without filters or paging.
  */
 @Composable
-private fun HomeSkeleton() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.xl),
+private fun SearchEntry(onSearch: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = EffySpacing.lg)
+            .padding(bottom = EffySpacing.md),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The hero band.
-        Column(
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .weight(1f)
+                .heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(EffyRadius.sm))
                 .background(EffySurface.tint)
-                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xxxl),
-            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                .clickable(onClickLabel = "Search products", onClick = onSearch)
+                .padding(horizontal = EffySpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
         ) {
-            EffySkeletonBlock(Modifier.fillMaxWidth().height(36.dp))
-            EffySkeletonBlock(Modifier.fillMaxWidth(0.8f).height(36.dp))
-            EffySkeletonBlock(Modifier.padding(top = EffySpacing.lg).fillMaxWidth().height(52.dp))
-        }
-
-        repeat(2) {
-            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
-                EffySkeletonBlock(
-                    Modifier.padding(horizontal = EffySpacing.lg).width(180.dp).height(26.dp),
-                )
-                Row(
-                    modifier = Modifier.padding(horizontal = EffySpacing.lg),
-                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
-                ) {
-                    repeat(3) { EffyProductCardSkeleton(Modifier.width(164.dp)) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmptyStore() {
-    CenterBox {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
-        ) {
-            EffyDisplay(
-                "The shelves are still being stocked",
-                size = DisplaySize.Sub,
-                textAlign = TextAlign.Center,
+            Icon(
+                painterResource(Res.drawable.ic_search_outlined),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "Our catalogue is on its way. Check back soon.",
-                style = MaterialTheme.typography.bodyMedium,
+                "Search the store…",
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
+            )
+        }
+        // The source's dark filter button. Refinement lives in Search, so this opens it there.
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(EffyRadius.sm))
+                .background(MaterialTheme.colorScheme.primary)
+                .clickable(onClickLabel = "Filter products", onClick = onSearch),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painterResource(Res.drawable.ic_catalog_outlined),
+                contentDescription = "Filters",
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onPrimary,
             )
         }
     }
 }
 
+/**
+ * The chip row + the two-column grid.
+ *
+ * The chips filter [HomeContent]'s products client-side. A product appears on more than one rail in
+ * principle, so the grid is de-duplicated by id — without that, "All" would show the same product
+ * twice whenever two rails overlap, which reads as a data bug rather than as merchandising.
+ */
 @Composable
-private fun ErrorState(onRetry: () -> Unit) {
-    CenterBox {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(EffySpacing.lg),
-        ) {
-            EffyDisplay("We couldn’t load the store", size = DisplaySize.Sub, textAlign = TextAlign.Center)
-            Button(onClick = onRetry, shape = CircleShape, modifier = Modifier.heightIn(min = 52.dp)) {
-                Text("Try again")
-            }
+private fun DiscoverGrid(
+    home: HomeContent,
+    onProductClick: (String) -> Unit,
+) {
+    var selected by remember { mutableStateOf<String?>(null) }
+
+    val allProducts: List<ProductCard> = remember(home) {
+        home.rails.flatMap { it.products }.distinctBy { it.id }
+    }
+
+    // ⚠ A rail product carries no category key, so filtering has to go through the rail whose title
+    // matches the chip. That is the honest limit of doing this client-side; a chip with no matching
+    // rail falls back to showing everything rather than an empty grid.
+    val shown: List<ProductCard> = remember(selected, home, allProducts) {
+        val key = selected ?: return@remember allProducts
+        val rail = home.rails.firstOrNull { it.key == key || it.title.equals(key, ignoreCase = true) }
+        rail?.products?.distinctBy { it.id } ?: allProducts
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+        verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
+        contentPadding = ProductGridPadding,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+            CategoryChips(
+                rails = home.rails.map { it.key to it.title },
+                selected = selected,
+                onSelect = { selected = it },
+            )
+        }
+
+        items(shown, key = { it.id }) { product ->
+            EffyProductCard(product, onClick = onProductClick, fillHeight = true)
         }
     }
 }
 
+/**
+ * The source's chip row — "All" first, then the store's own groupings.
+ *
+ * ⚠ The chips are the RAILS, not the category tree. A rail is a merchandising grouping the home read
+ * already returns WITH its products, so a rail chip can filter the grid on the spot. A category chip
+ * could not: a `ProductCard` carries no category key, so selecting one would need a fetch, and this
+ * screen is deliberately a shop window rather than a second search implementation (see the header).
+ * Browsing the real category tree is the Browse tab's job, which hands off to Search.
+ */
 @Composable
-private fun CenterBox(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize().padding(EffySpacing.xxxl),
-        contentAlignment = Alignment.Center,
-    ) { content() }
+private fun CategoryChips(
+    rails: List<Pair<String, String>>,
+    selected: String?,
+    onSelect: (String?) -> Unit,
+) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(bottom = EffySpacing.s),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+        contentPadding = PaddingValues(horizontal = 0.dp),
+    ) {
+        item(key = "all") {
+            EffyChip("All", selected = selected == null, onClick = { onSelect(null) })
+        }
+        items(rails, key = { it.first }) { (key, title) ->
+            EffyChip(title, selected = selected == key, onClick = { onSelect(key) })
+        }
+    }
+}
+
+/** A content-shaped first load (025 FR-032), matching the grid that replaces it. */
+@Composable
+private fun DiscoverSkeleton() {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
+        verticalArrangement = Arrangement.spacedBy(ProductGridRowGap),
+        contentPadding = ProductGridPadding,
+        modifier = Modifier.fillMaxSize(),
+        userScrollEnabled = false,
+    ) {
+        items(List(6) { it }) { EffyProductCardSkeleton() }
+    }
 }

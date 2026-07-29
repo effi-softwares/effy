@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.mobile.kit.ui.NavigationPresentation
@@ -153,6 +154,25 @@ private fun NavigationButton(
                 contentDescription = label
             },
     ) {
+        // ⚠ 026 / FR-040 — MEANING MUST NOT REST ON COLOUR ALONE, and under the monochrome palette
+        // it was: `primary` vs `onSurfaceVariant` is now a near-black/grey LIGHTNESS difference, not
+        // a hue one, so the selected tab was distinguished only by being slightly darker.
+        //
+        // The source design language solves this with THREE simultaneous signals — a filled icon
+        // (the caller already swaps that via `icon(selected)`), a heavier label, and an underline
+        // bar. The latter two are added here. This changes shop-mobile too, deliberately: it is an
+        // accessibility correction that applies to every audience, not a customer restyle.
+        if (!edgeIndicator && selected) {
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 12.dp)
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
         if (edgeIndicator && selected) {
             Box(
                 Modifier
@@ -173,7 +193,11 @@ private fun NavigationButton(
             CompositionLocalProvider(LocalContentColor provides color) { icon() }
             Text(
                 label,
-                style = MaterialTheme.typography.labelSmall,
+                // The second non-colour signal: the selected label steps up a weight. SemiBold is the
+                // heaviest face the platform typeface ships — asking for Bold would synthesise.
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                ),
                 color = color,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

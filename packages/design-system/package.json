@@ -4,7 +4,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web design system — the brand SSOT (Effy Emerald #065f46 accent + terracotta #d0735a over neutral surfaces, Nunito Sans type, spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
+  "description": "Effy web design system \u2014 the brand SSOT (MONOCHROME: a ten-step neutral ramp with NO brand hue, whose accent INVERTS by appearance \u2014 near-black on light, near-white on dark \u2014 plus exactly two bounded semantic colours; General Sans type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V, v1.11.0). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",

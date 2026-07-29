@@ -67,8 +67,8 @@ fun ReceiptScreen(container: AppContainer, orderId: String, onDone: () -> Unit) 
     val state by vm.state.collectAsState()
 
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         when (val s = state) {

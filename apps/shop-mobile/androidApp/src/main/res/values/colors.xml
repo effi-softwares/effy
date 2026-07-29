@@ -10,5 +10,5 @@
 
      ⚠ values-night/ carries the SAME value. A saturated brand ground has no appearance variant. -->
 <resources>
-    <color name="splash_background">#3b82f6</color>
+    <color name="splash_background">#1A1A1A</color>
 </resources>
