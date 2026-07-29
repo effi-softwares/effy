@@ -56,13 +56,25 @@ fun <T> ResponsiveNavigation(
     modifier: Modifier = Modifier,
     railHeader: (@Composable () -> Unit)? = null,
     railFooter: (@Composable () -> Unit)? = null,
+    /**
+     * Whether the bar/rail is shown at all (026).
+     *
+     * ⚠ Defaults to `true`, so shop-mobile — which this feature does not restyle — is unaffected.
+     *
+     * The customer app passes `false` on destinations that own a bottom-anchored primary action
+     * (product detail's sticky "Add to Cart", cart, checkout) or that are focused full-screen flows
+     * (onboarding, auth). Two stacked bottom bars is the one thing Material 3, the iOS HIG, classic
+     * iOS practice and iOS 26 all agree is broken; they disagree about everything else, which is why
+     * this is a per-destination decision the CALLER makes rather than a rule baked in here.
+     */
+    showNavigation: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         when (navigationPresentationFor(maxWidth)) {
             NavigationPresentation.BottomBar -> Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), content = content)
-                Row(
+                if (showNavigation) Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(MaterialTheme.colorScheme.surface)
@@ -87,7 +99,7 @@ fun <T> ResponsiveNavigation(
             }
 
             NavigationPresentation.SideRail -> Row(Modifier.fillMaxSize()) {
-                Column(
+                if (showNavigation) Column(
                     modifier = Modifier
                         .width(88.dp)
                         .fillMaxHeight()
@@ -116,7 +128,7 @@ fun <T> ResponsiveNavigation(
                     Spacer(Modifier.weight(1f))
                     railFooter?.invoke()
                 }
-                Box(
+                if (showNavigation) Box(
                     Modifier
                         .width(1.dp)
                         .fillMaxHeight()

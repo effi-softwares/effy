@@ -40,8 +40,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
-import com.effyshopping.customer.mobile.core.nav.AppNavigator
-import com.effyshopping.customer.mobile.core.nav.AppRoute
+import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
+import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.domain.ChangePassword
@@ -87,7 +87,7 @@ class AccountViewModel(
     private val changePasswordUseCase: ChangePassword,
     private val signOutEverywhereUseCase: SignOutEverywhere,
     private val session: SessionManager,
-    private val navigator: AppNavigator,
+    private val navigator: CustomerNavigator,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state = _state.asStateFlow()
@@ -128,13 +128,13 @@ class AccountViewModel(
 
     fun signOut() = launch {
         session.signOutLocally()
-        navigator.resetTo(AppRoute.Home)
+        navigator.resetTo(CustomerNavKey.Home)
     }
 
     fun signOutEverywhere() = launch {
         runCatching { signOutEverywhereUseCase() }
         session.signOutLocally()
-        navigator.resetTo(AppRoute.Home)
+        navigator.resetTo(CustomerNavKey.Home)
     }
 
     /** Reset transient state (error/info/masked destination) so one sub-screen's error doesn't bleed
@@ -146,7 +146,7 @@ class AccountViewModel(
     private suspend fun finishAfterPasswordWrite() {
         // FR-027: the write revoked EVERY session, including this device. Back to sign-in with the news.
         session.signOutLocally()
-        navigator.resetTo(AppRoute.SignIn())
+        navigator.resetTo(CustomerNavKey.SignIn())
     }
 
     private fun longEnough(pw: String): Boolean {
@@ -187,11 +187,11 @@ class AccountViewModel(
 }
 
 @Composable
-fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionState) {
+fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: SessionState) {
     val customer = (session as? SessionState.Authenticated)?.customer
     if (customer == null) {
         // Defensive: only a signed-in customer reaches here; if not, go home.
-        container.navigator.resetTo(AppRoute.Home)
+        container.navigator.resetTo(CustomerNavKey.Home)
         return
     }
     val vm = viewModel {
@@ -202,16 +202,17 @@ fun AccountRoutes(container: AppContainer, route: AppRoute, session: SessionStat
     }
     LaunchedEffect(route) { vm.clearTransient() } // fresh transient state on each sub-screen
     when (route) {
-        AppRoute.Account -> AccountScreen(container, vm, customer)
-        AppRoute.EditName -> EditNameScreen(container, vm, customer)
-        AppRoute.PasswordSet -> PasswordScreen(container, vm, setFirst = true)
-        AppRoute.PasswordChange -> PasswordScreen(container, vm, setFirst = false)
+        CustomerNavKey.Account -> AccountScreen(container, vm, customer)
+        CustomerNavKey.MyDetails -> EditNameScreen(container, vm, customer)
+        // `setFirst` now travels ON the route rather than as two separate routes — a data class the
+        // compiler checks, instead of two objects that had to be kept in step with the screen.
+        is CustomerNavKey.Password -> PasswordScreen(container, vm, setFirst = route.setFirst)
         // 026 US4 — the new screens. Each is presentational and carries no session requirement of its
         // own; reaching them via Account is what already gates them.
-        AppRoute.Notifications -> NotificationsScreen()
-        AppRoute.Faqs -> FaqsScreen()
-        AppRoute.HelpCenter -> HelpCenterScreen()
-        AppRoute.CustomerService -> CustomerServiceScreen()
+        CustomerNavKey.Notifications -> NotificationsScreen()
+        CustomerNavKey.Faqs -> FaqsScreen()
+        CustomerNavKey.HelpCenter -> HelpCenterScreen()
+        CustomerNavKey.CustomerService -> CustomerServiceScreen()
         else -> {}
     }
 }
@@ -248,23 +249,23 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
             }
         }
 
-        EffyNavRow("My details", onClick = { nav.push(AppRoute.EditName) })
+        EffyNavRow("My details", onClick = { nav.push(CustomerNavKey.MyDetails) })
         // 022: manage saved delivery addresses.
-        EffyNavRow("Address book", onClick = { nav.push(AppRoute.AddressBook) })
+        EffyNavRow("Address book", onClick = { nav.push(CustomerNavKey.AddressBook) })
         // FR-024/FR-025: offer EXACTLY the right journey, from the platform-owned hasPassword.
         if (customer.hasPassword) {
-            EffyNavRow("Change password", onClick = { nav.push(AppRoute.PasswordChange) })
+            EffyNavRow("Change password", onClick = { nav.push(CustomerNavKey.Password(setFirst = false)) })
         } else {
-            EffyNavRow("Set a password", onClick = { nav.push(AppRoute.PasswordSet) })
+            EffyNavRow("Set a password", onClick = { nav.push(CustomerNavKey.Password(setFirst = true)) })
         }
 
         Spacer(Modifier.height(EffySpacing.lg))
 
         // 026 US4 — the screens the source design has and this app did not.
-        EffyNavRow("Notifications", onClick = { nav.push(AppRoute.Notifications) })
-        EffyNavRow("FAQs", onClick = { nav.push(AppRoute.Faqs) })
-        EffyNavRow("Help Center", onClick = { nav.push(AppRoute.HelpCenter) })
-        EffyNavRow("Customer Service", onClick = { nav.push(AppRoute.CustomerService) })
+        EffyNavRow("Notifications", onClick = { nav.push(CustomerNavKey.Notifications) })
+        EffyNavRow("FAQs", onClick = { nav.push(CustomerNavKey.Faqs) })
+        EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
+        EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
 
         Spacer(Modifier.height(EffySpacing.lg))
 

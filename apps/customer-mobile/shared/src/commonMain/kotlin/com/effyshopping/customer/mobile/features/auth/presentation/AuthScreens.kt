@@ -40,8 +40,8 @@ import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AuthError
 import com.effyshopping.customer.mobile.core.auth.AuthStep
 import com.effyshopping.customer.mobile.core.error.AppException
-import com.effyshopping.customer.mobile.core.nav.AppNavigator
-import com.effyshopping.customer.mobile.core.nav.AppRoute
+import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
+import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.nav.OtpPurpose
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmOtp
@@ -91,7 +91,7 @@ class AuthViewModel(
     private val startPasswordResetUseCase: StartPasswordReset,
     private val confirmPasswordResetUseCase: ConfirmPasswordReset,
     private val session: SessionManager,
-    private val navigator: AppNavigator,
+    private val navigator: CustomerNavigator,
 ) : ViewModel() {
     private val _state = MutableStateFlow(AuthUiState())
     val state = _state.asStateFlow()
@@ -117,17 +117,17 @@ class AuthViewModel(
         }
     }
 
-    fun signInWithPassword(email: String, password: String, returnTo: AppRoute?) {
+    fun signInWithPassword(email: String, password: String, returnTo: CustomerNavKey?) {
         pendingEmail = email.trim(); pendingReturnTo = returnTo
         drive(seedPassword = false) { signInWithPasswordUseCase(email, password) }
     }
 
-    fun signInWithOtp(email: String, returnTo: AppRoute?) {
+    fun signInWithOtp(email: String, returnTo: CustomerNavKey?) {
         pendingEmail = email.trim(); pendingReturnTo = returnTo
         drive(seedPassword = false) { signInWithEmailOtpUseCase(email) }
     }
 
-    fun submitOtp(route: AppRoute.VerifyOtp, code: String) {
+    fun submitOtp(route: CustomerNavKey.VerifyOtp, code: String) {
         pendingReturnTo = route.returnTo
         when (route.purpose) {
             OtpPurpose.SIGN_IN -> drive(seedPassword = false) { confirmOtpUseCase(code) }
@@ -153,7 +153,7 @@ class AuthViewModel(
             try {
                 confirmPasswordResetUseCase(email, code, newPassword)
                 _state.value = AuthUiState(info = "Password updated. Sign in with your new password.")
-                navigator.resetTo(AppRoute.SignIn())
+                navigator.resetTo(CustomerNavKey.SignIn())
             } catch (e: AppException) {
                 _state.value = AuthUiState(error = messageForApp(e))
             }
@@ -164,7 +164,7 @@ class AuthViewModel(
 
     private var pendingEmail: String = ""
     private var pendingSeedPassword: Boolean = false
-    private var pendingReturnTo: AppRoute? = null
+    private var pendingReturnTo: CustomerNavKey? = null
 
     private fun passwordLongEnough(pw: String): Boolean {
         if (pw.length < PASSWORD_MIN_LENGTH) {
@@ -180,11 +180,11 @@ class AuthViewModel(
                 is AuthStep.Done -> completeSignIn(seedPassword)
                 is AuthStep.NeedsOtp -> {
                     _state.value = AuthUiState()
-                    navigator.push(AppRoute.VerifyOtp(pendingEmail, OtpPurpose.SIGN_IN, pendingReturnTo))
+                    navigator.push(CustomerNavKey.VerifyOtp(pendingEmail, OtpPurpose.SIGN_IN, pendingReturnTo))
                 }
                 is AuthStep.NeedsSignUpConfirmation -> {
                     _state.value = AuthUiState()
-                    navigator.push(AppRoute.VerifyOtp(step.email, OtpPurpose.SIGN_UP, pendingReturnTo))
+                    navigator.push(CustomerNavKey.VerifyOtp(step.email, OtpPurpose.SIGN_UP, pendingReturnTo))
                 }
                 is AuthStep.Failed -> _state.value = AuthUiState(error = message(step.error))
             }
@@ -194,8 +194,8 @@ class AuthViewModel(
     private suspend fun completeSignIn(seedPassword: Boolean) {
         session.onSignedIn(seedPassword)
         val returnTo = pendingReturnTo
-        navigator.resetTo(AppRoute.Home)
-        if (returnTo != null && returnTo != AppRoute.Home) navigator.push(returnTo)
+        navigator.resetTo(CustomerNavKey.Home)
+        if (returnTo != null && returnTo != CustomerNavKey.Home) navigator.push(returnTo)
     }
 
     private inline fun launch(crossinline block: suspend () -> Unit) {
@@ -229,7 +229,7 @@ class AuthViewModel(
 // ── Screens ──────────────────────────────────────────────────────────────────────────────────────
 
 @Composable
-fun AuthRoutes(container: AppContainer, route: AppRoute) {
+fun AuthRoutes(container: AppContainer, route: CustomerNavKey) {
     val vm = viewModel {
         AuthViewModel(
             container.registerWithPassword, container.registerPasswordless, container.confirmSignUp,
@@ -239,10 +239,10 @@ fun AuthRoutes(container: AppContainer, route: AppRoute) {
     }
     LaunchedEffect(route) { vm.clearTransient() }
     when (route) {
-        is AppRoute.SignIn -> SignInScreen(container, vm, route.returnTo)
-        AppRoute.SignUp -> SignUpScreen(container, vm)
-        is AppRoute.VerifyOtp -> VerifyOtpScreen(container, vm, route)
-        AppRoute.Recovery -> RecoveryScreen(container, vm)
+        is CustomerNavKey.SignIn -> SignInScreen(container, vm, route.returnTo)
+        CustomerNavKey.SignUp -> SignUpScreen(container, vm)
+        is CustomerNavKey.VerifyOtp -> VerifyOtpScreen(container, vm, route)
+        CustomerNavKey.Recovery -> RecoveryScreen(container, vm)
         else -> {}
     }
 }
@@ -294,7 +294,7 @@ private fun AuthScaffold(
 }
 
 @Composable
-private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: AppRoute?) {
+private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: CustomerNavKey?) {
     val state by vm.state.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -307,7 +307,7 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: A
         state = state,
         footer = {
             EffyInlineLink("Don’t have an account?", "Join", onClick = {
-                container.navigator.push(AppRoute.SignUp)
+                container.navigator.push(CustomerNavKey.SignUp)
             })
         },
     ) {
@@ -333,7 +333,7 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: A
             },
         )
         EffyInlineLink("Forgot your password?", "Reset your password", onClick = {
-            container.navigator.push(AppRoute.Recovery)
+            container.navigator.push(CustomerNavKey.Recovery)
         })
         EffyPrimaryButton(
             "Login",
@@ -367,7 +367,7 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
         state = state,
         footer = {
             EffyInlineLink("Already have an account?", "Login", onClick = {
-                container.navigator.push(AppRoute.SignIn())
+                container.navigator.push(CustomerNavKey.SignIn())
             })
         },
     ) {
@@ -411,7 +411,7 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
 }
 
 @Composable
-private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: AppRoute.VerifyOtp) {
+private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: CustomerNavKey.VerifyOtp) {
     val state by vm.state.collectAsState()
     var code by remember { mutableStateOf("") }
     AuthScaffold(container, "Enter the code", "Check your inbox — the code expires shortly.", state) {

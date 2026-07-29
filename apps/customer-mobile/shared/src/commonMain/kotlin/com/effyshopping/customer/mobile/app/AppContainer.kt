@@ -3,7 +3,7 @@ package com.effyshopping.customer.mobile.app
 import com.effyshopping.customer.mobile.core.auth.AuthDriver
 import com.effyshopping.customer.mobile.core.config.AppConfig
 import com.effyshopping.customer.mobile.core.http.createHttpClient
-import com.effyshopping.customer.mobile.core.nav.AppNavigator
+import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.features.cart.data.HttpCartRepository
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
@@ -151,5 +151,5 @@ class AppContainer(
     // ── app services / presentation wiring ──────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getCustomer, appScope) }
 
-    val navigator: AppNavigator = AppNavigator()
+    val navigator: CustomerNavigator = CustomerNavigator()
 }
