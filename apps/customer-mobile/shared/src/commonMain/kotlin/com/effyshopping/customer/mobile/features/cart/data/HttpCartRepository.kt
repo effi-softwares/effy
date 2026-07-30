@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.features.cart.data
 
 import com.effyshopping.customer.mobile.commerce.contract.AddToCartRequest
+import com.effyshopping.customer.mobile.commerce.contract.ApplyPromoRequest
 import com.effyshopping.customer.mobile.commerce.contract.CartBlockedReason
 import com.effyshopping.customer.mobile.commerce.contract.CartDTO
 import com.effyshopping.customer.mobile.commerce.contract.CartLineDTO
@@ -116,6 +117,15 @@ class HttpCartRepository(private val core: HttpClient) : CartRepository {
     override suspend fun deleteSaved(productId: String, changeId: String): CartSnapshot = request {
         core.delete("v1/cart/saved/$productId") { parameter("changeId", changeId) }
             .ensureSuccess().body<CartDTO>().toDomain()
+    }
+
+    override suspend fun applyPromo(code: String): CartSnapshot = request {
+        core.post("v1/cart/promo") { setBody(ApplyPromoRequest(code = code)) }
+            .ensureSuccess().body<CartDTO>().toDomain()
+    }
+
+    override suspend fun removePromo(): CartSnapshot = request {
+        core.delete("v1/cart/promo").ensureSuccess().body<CartDTO>().toDomain()
     }
 
     override suspend fun preview(lines: List<PendingLine>): CartSnapshot = request {

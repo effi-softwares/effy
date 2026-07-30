@@ -5,9 +5,12 @@ import type { CartDTO } from "@effy/shared-types"
 import {
   addItem,
   clearAll,
+  deleteSavedItem,
   flushPendingCartSends,
   mergeCartAfterSignIn,
   removeItem,
+  restoreSavedItem,
+  setAsideItem,
   setItemQuantity,
 } from "./cart-actions"
 import { addToCart as seedGuestLine, readCart, resetCart, type GuestCartLine } from "./cart-store"
@@ -285,5 +288,73 @@ describe("the quantity stepper is debounced (SC-005)", () => {
 
     expect(calls).toHaveLength(1)
     expect(calls[0].body).toMatchObject({ quantity: 6 })
+  })
+})
+
+describe("set aside and clear (US6)", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    resetCart()
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it("moves a line out of the payable cart and into the saved list", async () => {
+    const calls = stubFetch(
+      200,
+      dto({
+        revision: 3,
+        lines: [dtoLine("keep", 1)],
+        savedLines: [dtoLine("aside", 1)],
+        itemSubtotalAmount: "5.00",
+      }),
+    )
+
+    expect(await setAsideItem("aside")).toBe(true)
+
+    expect(calls[0].path).toContain("/api/cart/items/aside/set-aside")
+    expect(calls[0].method).toBe("POST")
+    expect(readCart().lines.map((l) => l.productId)).toEqual(["keep"])
+    expect(readCart().savedLines.map((l) => l.productId)).toEqual(["aside"])
+  })
+
+  it("brings a saved line back", async () => {
+    const calls = stubFetch(200, dto({ revision: 4, lines: [dtoLine("back", 2)], savedLines: [] }))
+
+    expect(await restoreSavedItem("back")).toBe(true)
+
+    expect(calls[0].path).toContain("/api/cart/saved/back/restore")
+    expect(readCart().lines[0].productId).toBe("back")
+    expect(readCart().savedLines).toHaveLength(0)
+  })
+
+  it("discards a saved line", async () => {
+    const calls = stubFetch(200, dto({ revision: 5, savedLines: [] }))
+
+    expect(await deleteSavedItem("gone")).toBe(true)
+    expect(calls[0].method).toBe("DELETE")
+    expect(calls[0].path).toContain("/api/cart/saved/gone")
+  })
+
+  // ⚠ The property a `saved` boolean column would have put one forgotten WHERE clause away.
+  it("clearing the cart leaves the saved list alone", async () => {
+    stubFetch(200, dto({ revision: 6, lines: [], savedLines: [dtoLine("kept", 1)] }))
+    seedGuestLine(line("a", 1))
+
+    clearAll()
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(readCart().lines).toHaveLength(0)
+    expect(readCart().savedLines.map((l) => l.productId)).toEqual(["kept"])
+  })
+
+  // A guest has no saved list at all — the call 401s and nothing pretends otherwise.
+  it("is a no-op for a guest", async () => {
+    stubFetch(401, { error: "authentication required" })
+    seedGuestLine(line("mine", 1))
+
+    expect(await setAsideItem("mine")).toBe(false)
+    expect(readCart().lines.map((l) => l.productId)).toEqual(["mine"])
   })
 })

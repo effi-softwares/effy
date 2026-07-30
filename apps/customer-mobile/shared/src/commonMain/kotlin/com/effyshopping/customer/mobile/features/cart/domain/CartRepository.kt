@@ -57,6 +57,12 @@ interface CartRepository {
 
     suspend fun deleteSaved(productId: String, changeId: String): CartSnapshot
 
+    /** Apply a promotional code. The platform decides validity and worth — never this client (FR-042). */
+    suspend fun applyPromo(code: String): CartSnapshot
+
+    /** Remove the applied code. */
+    suspend fun removePromo(): CartSnapshot
+
     /**
      * Re-price a set of lines WITHOUT writing anything — the guest path. A guest has no account cart, but
      * still deserves current prices and honest availability when their cart is restored (FR-004).

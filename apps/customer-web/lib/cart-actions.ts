@@ -20,6 +20,8 @@
  * ⚠ Each mutation mints ONE `changeId` per shopper action. A retry would reuse it, so a request that
  * arrived without its response reaching us cannot apply twice (FR-018).
  */
+import type { ReorderResultDTO } from "@effy/shared-types"
+
 import { CartApiError, cartApi, newChangeId } from "./cart-api"
 import {
   addToCart as applyAdd,
@@ -125,6 +127,75 @@ export function removeItem(productId: string): void {
 export function clearAll(): void {
   applyClear()
   void send(() => cartApi.clear(newChangeId()))
+}
+
+/**
+ * Move a line out of the payable cart, keeping it (FR-028).
+ *
+ * ⚠ Unlike the other actions there is NO local half. The mirror cannot move a line between the two lists
+ * on its own without inventing what the saved list looks like, so this waits for the platform's answer and
+ * adopts it. A guest (401) has no saved list at all — a half-working local imitation would be worse than
+ * the button not being there, which is why the UI hides it for them.
+ */
+export async function setAsideItem(productId: string): Promise<boolean> {
+  return applyRemote(() => cartApi.setAside(productId, newChangeId()))
+}
+
+/** Move a set-aside line back into the cart, at its CURRENT price (FR-029). */
+export async function restoreSavedItem(productId: string): Promise<boolean> {
+  return applyRemote(() => cartApi.restoreSaved(productId, newChangeId()))
+}
+
+/** Discard a set-aside line. */
+export async function deleteSavedItem(productId: string): Promise<boolean> {
+  return applyRemote(() => cartApi.deleteSaved(productId, newChangeId()))
+}
+
+/**
+ * Put a past order back in the cart (FR-034), returning what could not come back (FR-035).
+ *
+ * ⚠ Server-side in ONE call, not a loop over the order's items here. A loop would be N round trips, would
+ * leave a half-reordered cart on a dropped connection, and could not produce the report at all: whether an
+ * item is unavailable or gone for good is only knowable where the catalogue is.
+ */
+export async function reorderPastOrder(orderId: string): Promise<ReorderResultDTO | null> {
+  try {
+    const result = await cartApi.reorder(orderId, newChangeId())
+    adopt(result.cart)
+    return result
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Apply a promotional code (FR-041).
+ *
+ * ⚠ Returns the REFUSAL MESSAGE on failure rather than a bare false, because the reasons are different
+ * answers for the shopper: expired, already used, below the minimum (FR-043). The message comes from the
+ * platform; this client never judges a code (FR-042).
+ */
+export async function applyPromo(code: string): Promise<string | null> {
+  try {
+    adopt(await cartApi.applyPromo(code))
+    return null
+  } catch (err) {
+    if (err instanceof CartApiError && err.status === 401) return "Sign in to use a promotional code."
+    return err instanceof CartApiError ? err.message : "We couldn’t apply that code."
+  }
+}
+
+/** Remove the applied code; the total returns to the undiscounted amount. */
+export async function removePromo(): Promise<boolean> {
+  return applyRemote(() => cartApi.removePromo())
+}
+
+async function applyRemote(call: () => Promise<Awaited<ReturnType<typeof cartApi.get>>>): Promise<boolean> {
+  try {
+    return adopt(await call())
+  } catch {
+    return false
+  }
 }
 
 /**

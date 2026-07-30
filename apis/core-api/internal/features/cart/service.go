@@ -189,6 +189,11 @@ type Repo interface {
 	DeleteAllItems(ctx context.Context, cartID, changeID string) (bool, error)
 	DeleteLines(ctx context.Context, cartID string, productIDs []string) error
 	MergeItems(ctx context.Context, cartID, changeID string, productIDs []string, quantities []int32, max int) (bool, error)
+	PromoByCode(ctx context.Context, code string) (PromoCode, bool, error)
+	PromoByID(ctx context.Context, id string) (PromoCode, bool, error)
+	PromoUsageFor(ctx context.Context, promoCodeID, customerID string) (PromoUsage, error)
+	SetCartPromo(ctx context.Context, cartID string, promoCodeID *string, changeID string) (bool, error)
+
 	SetAside(ctx context.Context, cartID, productID, changeID string) (bool, error)
 	RestoreSaved(ctx context.Context, cartID, productID, changeID string, max int) (bool, error)
 	DeleteSaved(ctx context.Context, cartID, productID, changeID string) (bool, error)
@@ -503,6 +508,198 @@ func (s *Service) DeleteSaved(ctx context.Context, customerID, productID, change
 	return s.build(ctx, cartID, nil)
 }
 
+// Reorder puts a past order's items back in the cart (FR-034), and reports exactly what could not come
+// back (FR-035).
+//
+// ⚠ Union with MAXIMUM against the current cart, not an addition — so a double tap cannot double
+// quantities (SC-011), which is the same property merge relies on. The ceiling is applied to the BATCH as
+// a whole rather than item by item, which is what makes "3 added, 2 could not be" an honest sentence
+// rather than an arbitrary prefix of the order.
+//
+// The report names no shop, ever (FR-062): it carries the product's own name and a reason, nothing else.
+func (s *Service) Reorder(ctx context.Context, customerID, orderID, changeID string) (ReorderResult, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+
+	if !validUUID(orderID) {
+		return ReorderResult{}, ErrOrderNotFound
+	}
+	policy, err := s.policy.Policy(ctx)
+	if err != nil {
+		return ReorderResult{}, err
+	}
+	candidates, found, err := s.repo.OrderItemsForReorder(ctx, customerID, orderID)
+	if err != nil {
+		return ReorderResult{}, err
+	}
+	// No rows means either "no such order" or "not this customer's". Both are a 404, deliberately: whether
+	// an order exists is not disclosed to someone who does not own it.
+	if !found {
+		return ReorderResult{}, ErrOrderNotFound
+	}
+
+	cartID, err := s.repo.GetOrCreateCartID(ctx, customerID)
+	if err != nil {
+		return ReorderResult{}, err
+	}
+	existing, err := s.repo.Lines(ctx, cartID)
+	if err != nil {
+		return ReorderResult{}, err
+	}
+	present := map[string]bool{}
+	for _, row := range existing {
+		present[row.ProductID] = true
+	}
+	room := policy.MaxDistinctItems - len(existing)
+
+	skipped := make([]Skipped, 0)
+	ids := make([]string, 0, len(candidates))
+	quantities := make([]int32, 0, len(candidates))
+
+	for _, c := range candidates {
+		switch {
+		case c.Status == nil || *c.Status == statusArchived:
+			// The product is gone for good. Reported, never silently omitted.
+			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipRemoved})
+			continue
+		case *c.Status != statusActive:
+			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipUnavailable})
+			continue
+		}
+		if !present[c.ProductID] {
+			if room <= 0 {
+				skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipCartFull})
+				continue
+			}
+			room--
+		}
+		qty := c.Quantity
+		if qty > policy.MaxLineQuantity {
+			qty = policy.MaxLineQuantity
+			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipClamped})
+		}
+		ids = append(ids, c.ProductID)
+		quantities = append(quantities, int32(qty))
+	}
+
+	if len(ids) > 0 {
+		if _, err := s.repo.MergeItems(ctx, cartID, changeID, ids, quantities, policy.MaxLineQuantity); err != nil {
+			return ReorderResult{}, err
+		}
+	}
+	cart, err := s.buildWith(ctx, cartID, policy, nil)
+	if err != nil {
+		return ReorderResult{}, err
+	}
+	return ReorderResult{Cart: cart, Skipped: skipped}, nil
+}
+
+// ApplyPromo puts a code on the cart (FR-041).
+//
+// ⚠ Validated entirely here (FR-042). The client sends a string; it never decides whether a code is good
+// or what it is worth. The code is stored on the cart; the AMOUNT is not, because it has to be recomputed
+// against whatever the cart looks like when it is next read.
+func (s *Service) ApplyPromo(ctx context.Context, customerID, rawCode string, now time.Time) (Cart, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+
+	policy, err := s.policy.Policy(ctx)
+	if err != nil {
+		return Cart{}, err
+	}
+	code, found, err := s.repo.PromoByCode(ctx, NormalisePromoCode(rawCode))
+	if err != nil {
+		return Cart{}, err
+	}
+	if !found {
+		return Cart{}, ErrPromoUnknown
+	}
+	cartID, err := s.repo.GetOrCreateCartID(ctx, customerID)
+	if err != nil {
+		return Cart{}, err
+	}
+	usage, err := s.repo.PromoUsageFor(ctx, code.ID, customerID)
+	if err != nil {
+		return Cart{}, err
+	}
+
+	// Evaluate against the CURRENT payable subtotal — the same figure the shopper is looking at.
+	lines, _, _, err := s.repo.AllLines(ctx, cartID)
+	if err != nil {
+		return Cart{}, err
+	}
+	payable := payableCents(lines)
+	if _, err := EvaluatePromo(code, usage, payable, now); err != nil {
+		return Cart{}, err
+	}
+
+	if _, err := s.repo.SetCartPromo(ctx, cartID, &code.ID, ""); err != nil {
+		return Cart{}, err
+	}
+	return s.buildWith(ctx, cartID, policy, nil)
+}
+
+// RemovePromo takes the code off. Idempotent — removing nothing is not an error.
+func (s *Service) RemovePromo(ctx context.Context, customerID string) (Cart, error) {
+	ctx, cancel := context.WithTimeout(ctx, writeTimeout)
+	defer cancel()
+	cartID, err := s.repo.GetOrCreateCartID(ctx, customerID)
+	if err != nil {
+		return Cart{}, err
+	}
+	if _, err := s.repo.SetCartPromo(ctx, cartID, nil, ""); err != nil {
+		return Cart{}, err
+	}
+	return s.build(ctx, cartID, nil)
+}
+
+// DiscountForCustomer re-computes the cart's discount at the moment money is decided (027 FR-027).
+//
+// ⚠ This is checkout's `PromoSource`. It exists so the amount charged is recomputed from the code and the
+// payable subtotal at intent time — never carried from a cart response the client saw, and never taken
+// from the request. The caps are re-checked HERE too: a code the shopper has since exhausted on another
+// order must not still discount this one.
+func (s *Service) DiscountForCustomer(ctx context.Context, customerID string, payableCents int64, now time.Time) (int64, string, string, error) {
+	cartID, err := s.repo.GetOrCreateCartID(ctx, customerID)
+	if err != nil {
+		return 0, "", "", err
+	}
+	meta, err := s.repo.Meta(ctx, cartID)
+	if err != nil || meta.PromoCodeID == "" {
+		return 0, "", "", err
+	}
+	code, found, err := s.repo.PromoByID(ctx, meta.PromoCodeID)
+	if err != nil || !found {
+		return 0, "", "", err
+	}
+	usage, err := s.repo.PromoUsageFor(ctx, code.ID, customerID)
+	if err != nil {
+		return 0, "", "", err
+	}
+	amount, evalErr := EvaluatePromo(code, usage, payableCents, now)
+	if evalErr != nil {
+		// A code that no longer qualifies simply does not discount. It is NOT an error: refusing the whole
+		// checkout because a promotion lapsed would be a worse outcome than charging the honest full price,
+		// and the cart already told the shopper it stopped applying.
+		return 0, "", "", nil
+	}
+	return amount, code.ID, code.Code, nil
+}
+
+// payableCents sums the lines the shopper can actually buy.
+func payableCents(rows []cartLineRow) int64 {
+	var total int64
+	for _, row := range rows {
+		if row.Status != statusActive {
+			continue
+		}
+		if cents, err := money.ParseCents(row.UnitPriceAmount); err == nil {
+			total += cents * int64(row.Quantity)
+		}
+	}
+	return total
+}
+
 // ── Assembly ────────────────────────────────────────────────────────────────────────────────────
 
 func (s *Service) build(ctx context.Context, cartID string, extra []Notice) (Cart, error) {
@@ -520,24 +717,76 @@ func (s *Service) buildWith(ctx context.Context, cartID string, policy cartpolic
 		return Cart{}, err
 	}
 	return s.assemble(ctx, assembleInput{
-		cartID:    cartID,
-		lineRows:  lineRows,
-		savedRows: savedRows,
-		revision:  revision,
-		policy:    policy,
-		extra:     extra,
-		sweep:     true,
+		cartID:       cartID,
+		lineRows:     lineRows,
+		savedRows:    savedRows,
+		revision:     revision,
+		policy:       policy,
+		extra:        extra,
+		sweep:        true,
+		withDiscount: true,
 	})
 }
 
+// discountFor re-evaluates the cart's applied code against what the cart looks like NOW.
+//
+// ⚠ Re-evaluated on EVERY read, never stored. A shopper who applies a $10-off-$50 code and then removes
+// half their basket must stop getting $10 off — and must be TOLD, not silently charged more than the total
+// they were last shown (FR-047). A stored amount could not do either.
+//
+// Returns the discount, a notice when the code has stopped applying, and whether it should be cleared.
+func (s *Service) discountFor(ctx context.Context, cartID string, payable int64, now time.Time) (*Discount, int64, []Notice) {
+	meta, err := s.repo.Meta(ctx, cartID)
+	if err != nil || meta.PromoCodeID == "" {
+		return nil, 0, nil
+	}
+	code, found, err := s.repo.PromoByID(ctx, meta.PromoCodeID)
+	if err != nil || !found {
+		return nil, 0, nil
+	}
+	// Usage is not re-counted here: the caps were checked when the code was applied, and a read is not the
+	// moment to spend a query proving a cap the shopper cannot have moved by looking at their cart. The
+	// authoritative check happens again at checkout, where it matters.
+	amount, evalErr := EvaluatePromo(code, PromoUsage{}, payable, now)
+	if evalErr != nil {
+		return nil, 0, []Notice{{
+			Kind:   NoticePromoNoLongerApplies,
+			Detail: promoReason(evalErr, code),
+		}}
+	}
+	return &Discount{
+		Code:   code.Code,
+		Kind:   code.Kind,
+		Amount: money.FormatCents(amount),
+		Label:  PromoLabel(code),
+	}, amount, nil
+}
+
+// promoReason is the shopper-facing explanation for a code that stopped applying. Never names a shop.
+func promoReason(err error, code PromoCode) string {
+	switch {
+	case errors.Is(err, ErrPromoBelowMinimum):
+		return "Your cart is now below the " + money.FormatCents(code.MinimumSubtotalCents) + " minimum for this code."
+	case errors.Is(err, ErrPromoExpired):
+		return "That code has expired."
+	case errors.Is(err, ErrPromoNotStarted):
+		return "That code is not active yet."
+	case errors.Is(err, ErrPromoDisabled):
+		return "That code is no longer available."
+	default:
+		return "That code no longer applies to your cart."
+	}
+}
+
 type assembleInput struct {
-	cartID    string
-	lineRows  []cartLineRow
-	savedRows []cartLineRow
-	revision  int64
-	policy    cartpolicy.Policy
-	extra     []Notice
-	sweep     bool
+	cartID       string
+	lineRows     []cartLineRow
+	savedRows    []cartLineRow
+	revision     int64
+	policy       cartpolicy.Policy
+	extra        []Notice
+	sweep        bool
+	withDiscount bool
 }
 
 // assemble turns rows into the cart the client sees: presigned images, honest availability and price
@@ -587,7 +836,13 @@ func (s *Service) assemble(ctx context.Context, in assembleInput) (Cart, error) 
 
 	// 021: delivery is priced per package at checkout (it needs an address), not in the cart. The cart
 	// shows the item subtotal only, and the client renders "calculated at checkout".
+	var discount *Discount
 	discountCents := int64(0)
+	if in.withDiscount && in.cartID != "" {
+		d, cents, promoNotices := s.discountFor(ctx, in.cartID, subtotalCents, time.Now())
+		discount, discountCents = d, cents
+		notices = append(notices, promoNotices...)
+	}
 	grandCents := subtotalCents - discountCents
 
 	return Cart{
@@ -600,7 +855,7 @@ func (s *Service) assemble(ctx context.Context, in assembleInput) (Cart, error) 
 		GrandTotalAmount:   money.FormatCents(grandCents),
 		Currency:           pricing.Currency,
 		Notices:            notices,
-		Discount:           nil,
+		Discount:           discount,
 		Checkout:           checkoutState(len(lines), payableCount(lines), grandCents, in.policy),
 		Limits:             Limits{MaxLineQuantity: in.policy.MaxLineQuantity, MaxDistinctItems: in.policy.MaxDistinctItems},
 	}, nil

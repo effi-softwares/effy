@@ -223,12 +223,12 @@ and down → current price charged, previous shown both ways.
 **Independent Test**: set aside → survives a restart and appears on another device → restore at current
 price. Separately, clear a full cart and confirm the confirmation step and that saved items remain.
 
-- [ ] T078 [US6] Add `SetAside`, `RestoreSaved`, `DeleteSaved` and `Clear` to `apis/core-api/internal/features/cart/service.go`, refusing a restore of an unavailable product (FR-031) and never touching `cart_saved_item` on a clear
-- [ ] T079 [P] [US6] Extend `apis/core-api/internal/features/cart/service_test.go`: a product is never in both tables, saved items are absent from every total, a clear leaves them, restoring an unavailable item is refused, restore prices at current
-- [ ] T080 [P] [US6] Add `SetAside`, `RestoreSaved`, `DeleteSaved`, `ClearCart` use cases under `MOBILE/features/cart/domain/usecase/`
-- [ ] T081 [US6] Add the saved section and the clear-cart action with a confirmation to `MOBILE/features/cart/presentation/CartScreen.kt` — a sectioned list, not a card (Principle V), reusing `EffyDetailRow`/`EffyHairline` and the existing undo snackbar pattern
-- [ ] T082 [P] [US6] Add the same to `apps/customer-web/app/(shop)/cart/page.tsx` with a confirmation dialog from `@effy/design-system/ui`
-- [ ] T083 [P] [US6] Add web tests in `apps/customer-web/app/(shop)/cart/` covering set-aside exclusion from totals and clear-preserves-saved
+- [X] T078 [US6] Add `SetAside`, `RestoreSaved`, `DeleteSaved` and `Clear` to `apis/core-api/internal/features/cart/service.go`, refusing a restore of an unavailable product (FR-031) and never touching `cart_saved_item` on a clear
+- [X] T079 [P] [US6] Extend `apis/core-api/internal/features/cart/service_test.go`: a product is never in both tables, saved items are absent from every total, a clear leaves them, restoring an unavailable item is refused, restore prices at current
+- [X] T080 [P] [US6] Add `SetAside`, `RestoreSaved`, `DeleteSaved`, `ClearCart` use cases under `MOBILE/features/cart/domain/usecase/`
+- [X] T081 [US6] Add the saved section and the clear-cart action with a confirmation to `MOBILE/features/cart/presentation/CartScreen.kt` — a sectioned list, not a card (Principle V), reusing `EffyDetailRow`/`EffyHairline` and the existing undo snackbar pattern
+- [X] T082 [P] [US6] Add the same to `apps/customer-web/app/(shop)/cart/page.tsx` with a confirmation dialog from `@effy/design-system/ui`
+- [X] T083 [P] [US6] Add web tests in `apps/customer-web/app/(shop)/cart/` covering set-aside exclusion from totals and clear-preserves-saved
 - [ ] T084 **⚠ operator** [US6] Run quickstart §3 scenarios 13–14 on both surfaces (SC-009, SC-010)
 
 **Checkpoint**: "I'm not sure" and "start again" both have a non-destructive answer.
@@ -242,12 +242,12 @@ price. Separately, clear a full cart and confirm the confirmation step and that 
 **Independent Test**: reorder a 5-item order with 2 unavailable → 3 added, 2 reported, no shop named;
 reorder twice → no doubling.
 
-- [ ] T085 [US7] Add `OrderItemsForReorder(customerID, orderID)` to `apis/core-api/internal/features/cart/repository.go` — ownership-checked, returning product id, name, quantity and current status
-- [ ] T086 [US7] Add `Reorder(customerID, orderID, changeID)` to `apis/core-api/internal/features/cart/service.go`: union-with-max against the current cart, skipping unavailable and deleted products, applying the distinct-item ceiling to the batch as a whole, returning the cart plus a `skipped[]` with a reason per item
-- [ ] T087 [US7] Add the `POST /v1/cart/reorder` handler and `ReorderResultDTO` mapping in `apis/core-api/internal/features/cart/handler.go`, returning 404 (never 403) for another customer's order
-- [ ] T088 [P] [US7] Extend `apis/core-api/internal/features/cart/service_test.go`: 3-of-5 added with 2 reported, a second call does not double, a full cart reports `cart_full`, an all-unavailable order changes nothing, another customer's order is 404
-- [ ] T089 [P] [US7] Add a `ReorderPastOrder` use case under `MOBILE/features/cart/domain/usecase/` and a reorder action in `MOBILE/features/orders/presentation/`, reporting the skipped count with no shop reference
-- [ ] T090 [P] [US7] Add the same to `apps/customer-web/app/(shop)/orders/`
+- [X] T085 [US7] Add `OrderItemsForReorder(customerID, orderID)` to `apis/core-api/internal/features/cart/repository.go` — ownership-checked, returning product id, name, quantity and current status
+- [X] T086 [US7] Add `Reorder(customerID, orderID, changeID)` to `apis/core-api/internal/features/cart/service.go`: union-with-max against the current cart, skipping unavailable and deleted products, applying the distinct-item ceiling to the batch as a whole, returning the cart plus a `skipped[]` with a reason per item
+- [X] T087 [US7] Add the `POST /v1/cart/reorder` handler and `ReorderResultDTO` mapping in `apis/core-api/internal/features/cart/handler.go`, returning 404 (never 403) for another customer's order
+- [X] T088 [P] [US7] Extend `apis/core-api/internal/features/cart/service_test.go`: 3-of-5 added with 2 reported, a second call does not double, a full cart reports `cart_full`, an all-unavailable order changes nothing, another customer's order is 404
+- [X] T089 [P] [US7] Add a `ReorderPastOrder` use case under `MOBILE/features/cart/domain/usecase/` and a reorder action in `MOBILE/features/orders/presentation/`, reporting the skipped count with no shop reference
+- [X] T090 [P] [US7] Add the same to `apps/customer-web/app/(shop)/orders/`
 - [ ] T091 **⚠ operator** [US7] Run quickstart §3 scenarios 15–16 on both surfaces (SC-011)
 
 **Checkpoint**: a weekly grocery order is one tap, not fifteen searches.
@@ -262,18 +262,18 @@ console. Sequenced **before** US8 because every promotional test needs codes an 
 **Independent Test**: create a code in the console, watch a shopper redeem it, watch the usage count rise,
 disable it, confirm the next shopper is refused — with no database access at any point.
 
-- [ ] T092 [P] [US10] Create `apis/edge-api/admin/src/promotions/types.ts` and `authz.ts` — the 009 gates: read = any active staff incl. `csa`, mutate = `admin`/`manager`, uniform 403
-- [ ] T093 [US10] Create `apis/edge-api/admin/src/promotions/repository.ts`: list with `q`/`status`/keyset paging and a `redemptionCount` **counted from `promo_redemption`** (never a stored counter), detail, create, update, status, delete, and the `order_policy` read/write
-- [ ] T094 [US10] Create `apis/edge-api/admin/src/promotions/service.ts`: every validation refusal in [contracts/promotions-admin-api.contract.md](contracts/promotions-admin-api.contract.md) §5, the `promo_immutable_once_used` rule (§4), delete-only-when-unused, and an `admin.audit_log` write per mutation
-- [ ] T095 [P] [US10] Create `apis/edge-api/admin/src/promotions/handler-support.ts` following the `delivery/` slice's shape
-- [ ] T096 [US10] Add the nine `apis/edge-api/admin/src/functions/` handlers (`promotions-list-v1-get`, `promotions-create-v1-post`, `promotions-detail-v1-get`, `promotions-update-v1-patch`, `promotions-status-v1-post`, `promotions-delete-v1-delete`, `promotions-audit-v1-get`, `order-policy-v1-get`, `order-policy-v1-put`) and register them in `apis/edge-api/admin/serverless.yml`
-- [ ] T097 [P] [US10] Add `apis/edge-api/admin/src/promotions/*.test.ts`: each authz gate, each validation refusal creating nothing, the used-code immutability rule, delete-refused-when-used, and that `redemptionCount` is derived
-- [ ] T098 [P] [US10] Create `apps/back-office/src/features/promotions/{model,repo,queries,access,errorText}.ts` mirroring `features/delivery/`
-- [ ] T099 [US10] Create `apps/back-office/src/features/promotions/PromotionsListScreen.tsx` using `DataTable` from `@effy/web-kit/console`: code, kind, value, window, usage against caps, status; filter by status, search by code — **no cards, no metric tiles**
-- [ ] T100 [US10] Create `apps/back-office/src/features/promotions/PromotionDetailScreen.tsx`: sectioned detail rows (definition · limits · usage · attribution · audit trail), enable/disable, and a delete offered only when unused
-- [ ] T101 [P] [US10] Create `apps/back-office/src/features/promotions/OrderRulesScreen.tsx` for the single `order_policy` row: minimum spend, per-line ceiling, distinct-item ceiling
-- [ ] T102 [US10] Add the routes and the nav entry in `apps/back-office/src/routes/` and `apps/back-office/src/components/layout/nav.ts`, role-gated so a `csa` sees the list but not the mutations
-- [ ] T103 [P] [US10] Add `apps/back-office/src/features/promotions/*.test.tsx`: the role gate, the validation error text, and the used-code disabled-edit state
+- [X] T092 [P] [US10] Create `apis/edge-api/admin/src/promotions/types.ts` and `authz.ts` — the 009 gates: read = any active staff incl. `csa`, mutate = `admin`/`manager`, uniform 403
+- [X] T093 [US10] Create `apis/edge-api/admin/src/promotions/repository.ts`: list with `q`/`status`/keyset paging and a `redemptionCount` **counted from `promo_redemption`** (never a stored counter), detail, create, update, status, delete, and the `order_policy` read/write
+- [X] T094 [US10] Create `apis/edge-api/admin/src/promotions/service.ts`: every validation refusal in [contracts/promotions-admin-api.contract.md](contracts/promotions-admin-api.contract.md) §5, the `promo_immutable_once_used` rule (§4), delete-only-when-unused, and an `admin.audit_log` write per mutation
+- [X] T095 [P] [US10] Create `apis/edge-api/admin/src/promotions/handler-support.ts` following the `delivery/` slice's shape
+- [X] T096 [US10] Add the nine `apis/edge-api/admin/src/functions/` handlers (`promotions-list-v1-get`, `promotions-create-v1-post`, `promotions-detail-v1-get`, `promotions-update-v1-patch`, `promotions-status-v1-post`, `promotions-delete-v1-delete`, `promotions-audit-v1-get`, `order-policy-v1-get`, `order-policy-v1-put`) and register them in `apis/edge-api/admin/serverless.yml`
+- [X] T097 [P] [US10] Add `apis/edge-api/admin/src/promotions/*.test.ts`: each authz gate, each validation refusal creating nothing, the used-code immutability rule, delete-refused-when-used, and that `redemptionCount` is derived
+- [X] T098 [P] [US10] Create `apps/back-office/src/features/promotions/{model,repo,queries,access,errorText}.ts` mirroring `features/delivery/`
+- [X] T099 [US10] Create `apps/back-office/src/features/promotions/PromotionsListScreen.tsx` using `DataTable` from `@effy/web-kit/console`: code, kind, value, window, usage against caps, status; filter by status, search by code — **no cards, no metric tiles**
+- [X] T100 [US10] Create `apps/back-office/src/features/promotions/PromotionDetailScreen.tsx`: sectioned detail rows (definition · limits · usage · attribution · audit trail), enable/disable, and a delete offered only when unused
+- [X] T101 [P] [US10] Create `apps/back-office/src/features/promotions/OrderRulesScreen.tsx` for the single `order_policy` row: minimum spend, per-line ceiling, distinct-item ceiling
+- [X] T102 [US10] Add the routes and the nav entry in `apps/back-office/src/routes/` and `apps/back-office/src/components/layout/nav.ts`, role-gated so a `csa` sees the list but not the mutations
+- [X] T103 [P] [US10] Add `apps/back-office/src/features/promotions/*.test.tsx`: the role gate, the validation error text, and the used-code disabled-edit state
 - [ ] T104 **⚠ operator** [US10] `make edge-deploy SERVICE=admin ENV=dev`, then create the eight quickstart §2 fixture codes **through the console** and run quickstart §4 scenarios 26–30 (SC-020, SC-021)
 
 **Checkpoint**: promotions are a product capability, not an engineering one.
@@ -289,18 +289,18 @@ discount that reaches Stripe is the platform's own — counted once per paid ord
 a test card and confirm the charge matches the displayed total to the cent; re-deliver the webhook and
 confirm the redemption count stays at 1.
 
-- [ ] T105 [P] [US8] Create `apis/core-api/internal/features/cart/promo.go`: pure validation (unknown, not started, expired, disabled, exhausted, already used, below minimum, not applicable) and the discount computation, with the fixed-amount cap so the payable total never goes below zero
-- [ ] T106 [P] [US8] Add `apis/core-api/internal/features/cart/promo_test.go` covering all eight refusals plus percentage rounding and the fixed-amount cap
-- [ ] T107 [US8] Add promo reads to `apis/core-api/internal/features/cart/repository.go`: lookup by `upper(code)`, the overall redemption count, and this customer's count
-- [ ] T108 [US8] Add `ApplyPromo` / `RemovePromo` to `apis/core-api/internal/features/cart/service.go`, set `cart.promo_code_id`, recompute the discount on **every** cart build, and emit `promo_no_longer_applies` with a reason when a cart change disqualifies the code (FR-047)
-- [ ] T109 [US8] Add the `POST`/`DELETE /v1/cart/promo` handlers and the 422 refusal mapping (the eight `promo_*` codes) in `apis/core-api/internal/features/cart/handler.go`
-- [ ] T110 [US8] Apply the discount to the charged amount in `apis/core-api/internal/features/checkout/service.go` — recomputed from the cart's applied code at intent time, never taken from the request — and persist `discount_amount`, `promo_code_id`, `promo_code` on the order
-- [ ] T111 [US8] Insert the `promo_redemption` row inside the existing `FinalizeSucceeded` transaction in `apis/core-api/internal/features/checkout/store.go`, after the status-guarded paid transition, relying on `order_id UNIQUE` for exactly-once
-- [ ] T112 [P] [US8] Extend `apis/core-api/internal/features/checkout/service_test.go`: the intent amount equals payable + delivery − discount, a replayed webhook inserts no second redemption, and a disabled-after-apply code does not discount the charge
-- [ ] T113 [P] [US8] Add `discountAmount` and `promoCode` to the receipt and history responses in `apis/core-api/internal/features/orders/`
-- [ ] T114 [P] [US8] Add a promo field, the discount row and the refusal reasons to `MOBILE/features/cart/presentation/CartScreen.kt`, with `ApplyPromoCode`/`RemovePromoCode` use cases under `MOBILE/features/cart/domain/usecase/`; show a sign-in affordance instead of the field for guests (research R10)
-- [ ] T115 [P] [US8] Add the same to `apps/customer-web/app/(shop)/cart/page.tsx`
-- [ ] T116 [P] [US8] Show the discount on the receipt and in order history on both surfaces (`MOBILE/features/orders/presentation/`, `apps/customer-web/app/(shop)/orders/`, `app/checkout/complete/`)
+- [X] T105 [P] [US8] Create `apis/core-api/internal/features/cart/promo.go`: pure validation (unknown, not started, expired, disabled, exhausted, already used, below minimum, not applicable) and the discount computation, with the fixed-amount cap so the payable total never goes below zero
+- [X] T106 [P] [US8] Add `apis/core-api/internal/features/cart/promo_test.go` covering all eight refusals plus percentage rounding and the fixed-amount cap
+- [X] T107 [US8] Add promo reads to `apis/core-api/internal/features/cart/repository.go`: lookup by `upper(code)`, the overall redemption count, and this customer's count
+- [X] T108 [US8] Add `ApplyPromo` / `RemovePromo` to `apis/core-api/internal/features/cart/service.go`, set `cart.promo_code_id`, recompute the discount on **every** cart build, and emit `promo_no_longer_applies` with a reason when a cart change disqualifies the code (FR-047)
+- [X] T109 [US8] Add the `POST`/`DELETE /v1/cart/promo` handlers and the 422 refusal mapping (the eight `promo_*` codes) in `apis/core-api/internal/features/cart/handler.go`
+- [X] T110 [US8] Apply the discount to the charged amount in `apis/core-api/internal/features/checkout/service.go` — recomputed from the cart's applied code at intent time, never taken from the request — and persist `discount_amount`, `promo_code_id`, `promo_code` on the order
+- [X] T111 [US8] Insert the `promo_redemption` row inside the existing `FinalizeSucceeded` transaction in `apis/core-api/internal/features/checkout/store.go`, after the status-guarded paid transition, relying on `order_id UNIQUE` for exactly-once
+- [X] T112 [P] [US8] Extend `apis/core-api/internal/features/checkout/service_test.go`: the intent amount equals payable + delivery − discount, a replayed webhook inserts no second redemption, and a disabled-after-apply code does not discount the charge
+- [X] T113 [P] [US8] Add `discountAmount` and `promoCode` to the receipt and history responses in `apis/core-api/internal/features/orders/`
+- [X] T114 [P] [US8] Add a promo field, the discount row and the refusal reasons to `MOBILE/features/cart/presentation/CartScreen.kt`, with `ApplyPromoCode`/`RemovePromoCode` use cases under `MOBILE/features/cart/domain/usecase/`; show a sign-in affordance instead of the field for guests (research R10)
+- [X] T115 [P] [US8] Add the same to `apps/customer-web/app/(shop)/cart/page.tsx`
+- [X] T116 [P] [US8] Show the discount on the receipt and in order history on both surfaces (`MOBILE/features/orders/presentation/`, `apps/customer-web/app/(shop)/orders/`, `app/checkout/complete/`)
 - [ ] T117 **⚠ operator** [US8] Run quickstart §3 scenarios 17–19 including the Stripe webhook re-delivery (SC-012, SC-013)
 
 **Checkpoint**: a discount is real money and the platform is the only thing that decides it.
@@ -316,11 +316,11 @@ bypassed by a client that ignores it.
 checkout; `curl` the intent directly and get `422 order_below_minimum`; add to cross the threshold and
 watch it unlock without a reload.
 
-- [~] T118 [US9] **Cart-side branch LANDED EARLY with T022** (`checkoutState` already returns `below_minimum` with both amounts; inert while the seeded minimum is 0.00). Still open in this task: the checkout-intent refusal, the tests, and the UI. Add the `below_minimum` branch to the `checkout` state in `apis/core-api/internal/features/cart/service.go` — payable items only, with `minimumSubtotalAmount` and `remainingAmount`, and nothing shown when the minimum is `0.00` (FR-057)
-- [ ] T119 [US9] Refuse `POST /v1/checkout/intent` below the minimum in `apis/core-api/internal/features/checkout/service.go` with `422 order_below_minimum` carrying both amounts (FR-056)
-- [ ] T120 [P] [US9] Extend the cart and checkout Go tests: unavailable items excluded from the minimum, exactly-at-minimum allowed, no message at zero, and the direct-intent refusal
-- [ ] T121 [P] [US9] Show the minimum and the shortfall and gate the checkout button in `MOBILE/features/cart/presentation/CartScreen.kt`, reading `checkout` from the mirror (guests read `GET /v1/cart/policy`)
-- [ ] T122 [P] [US9] Add the same to `apps/customer-web/app/(shop)/cart/page.tsx`
+- [X] T118 [US9] **Cart-side branch LANDED EARLY with T022** (`checkoutState` already returns `below_minimum` with both amounts; inert while the seeded minimum is 0.00). Still open in this task: the checkout-intent refusal, the tests, and the UI. Add the `below_minimum` branch to the `checkout` state in `apis/core-api/internal/features/cart/service.go` — payable items only, with `minimumSubtotalAmount` and `remainingAmount`, and nothing shown when the minimum is `0.00` (FR-057)
+- [X] T119 [US9] Refuse `POST /v1/checkout/intent` below the minimum in `apis/core-api/internal/features/checkout/service.go` with `422 order_below_minimum` carrying both amounts (FR-056)
+- [X] T120 [P] [US9] Extend the cart and checkout Go tests: unavailable items excluded from the minimum, exactly-at-minimum allowed, no message at zero, and the direct-intent refusal
+- [X] T121 [P] [US9] Show the minimum and the shortfall and gate the checkout button in `MOBILE/features/cart/presentation/CartScreen.kt`, reading `checkout` from the mirror (guests read `GET /v1/cart/policy`)
+- [X] T122 [P] [US9] Add the same to `apps/customer-web/app/(shop)/cart/page.tsx`
 - [ ] T123 **⚠ operator** [US9] Run quickstart §3 scenarios 20–22 including the `curl` bypass attempts (SC-014, SC-015)
 
 **Checkpoint**: every capability in the spec is implemented on both customer surfaces.
@@ -334,22 +334,22 @@ leave the record honest.
 
 ### Delete the old model (not optional — two sources of truth is the 2026-07-23 bug family)
 
-- [ ] T124 Remove the checkout-entry cart snapshot from `MOBILE/features/checkout/presentation/CheckoutViewModel.kt` (the `cartRepo.replace` call at the former `:105`) and take the cart from the mirror
-- [ ] T125 Remove the snapshot-and-gate workaround from `apps/customer-web/app/checkout/CheckoutFlow.tsx` so checkout reads the server cart, and confirm the 2026-07-23 back-to-back-order fix in `app/checkout/complete/page.tsx` still holds
-- [ ] T126 [P] Grep the repo for `ReplaceCartRequest`, `replace(`, `/v1/cart` `PUT` and `GuestCartStore` and confirm nothing remains in `apis/`, `apps/` or `packages/`
+- [X] T124 Remove the checkout-entry cart snapshot from `MOBILE/features/checkout/presentation/CheckoutViewModel.kt` (the `cartRepo.replace` call at the former `:105`) and take the cart from the mirror
+- [X] T125 Remove the snapshot-and-gate workaround from `apps/customer-web/app/checkout/CheckoutFlow.tsx` so checkout reads the server cart, and confirm the 2026-07-23 back-to-back-order fix in `app/checkout/complete/page.tsx` still holds
+- [X] T126 [P] Grep the repo for `ReplaceCartRequest`, `replace(`, `/v1/cart` `PUT` and `GuestCartStore` and confirm nothing remains in `apis/`, `apps/` or `packages/`
 
 ### Prove the claims
 
-- [ ] T127 Run the adversarial no-leak review per quickstart §5 on both surfaces — every notice, refusal, reorder report, promo label and minimum message — and read the rendered two-shop below-minimum cart on a device, because grep finds identifiers and only reading finds phrasing (SC-017)
-- [ ] T128 Measure the `customer-web` bundle **delta** per quickstart §6 (stash / unstash) and record both numbers; do not attempt to fix the pre-existing ≈167 KB overage here
-- [ ] T129 [P] Add Playwright coverage in `apps/customer-web/e2e/` for the cart journey: persistence across a reload, the guest→sign-in merge, a promo refusal, and the below-minimum gate
-- [ ] T130 Run the full machine gate sweep from quickstart §1 and fix everything red: `pnpm -r typecheck`, `pnpm -r test`, `pnpm build`, `commerce-contract:check`, Go build/vet/test/gofmt, both mobile suites + `assembleDebug` + the iOS compile, `make mobile-guard`, `node scripts/check-tokens.mjs` (must be **unchanged** — this slice adds no token), `depcruise`
-- [ ] T131 [P] Confirm PostHog events fire on web for add / remove / promo-applied / promo-refused, and record in the sign-off that **mobile analytics remains deferred** platform-wide rather than claiming parity
+- [X] T127 Run the adversarial no-leak review per quickstart §5 on both surfaces — every notice, refusal, reorder report, promo label and minimum message — and read the rendered two-shop below-minimum cart on a device, because grep finds identifiers and only reading finds phrasing (SC-017)
+- [X] T128 Measure the `customer-web` bundle **delta** per quickstart §6 (stash / unstash) and record both numbers; do not attempt to fix the pre-existing ≈167 KB overage here
+- [X] T129 [P] Add Playwright coverage in `apps/customer-web/e2e/` for the cart journey: persistence across a reload, the guest→sign-in merge, a promo refusal, and the below-minimum gate
+- [X] T130 Run the full machine gate sweep from quickstart §1 and fix everything red: `pnpm -r typecheck`, `pnpm -r test`, `pnpm build`, `commerce-contract:check`, Go build/vet/test/gofmt, both mobile suites + `assembleDebug` + the iOS compile, `make mobile-guard`, `node scripts/check-tokens.mjs` (must be **unchanged** — this slice adds no token), `depcruise`
+- [X] T131 [P] Confirm PostHog events fire on web for add / remove / promo-applied / promo-refused, and record in the sign-off that **mobile analytics remains deferred** platform-wide rather than claiming parity
 
 ### Leave the record honest
 
-- [ ] T132 [P] Add a §027 row set to `docs/audiences/customer-capabilities.md` covering every capability against both customer surfaces (SC-018)
-- [ ] T133 [P] Update the **Active feature** section of `CLAUDE.md` for 027: what was built, the R8 reversal, the three surfaces, and every open operator item
+- [X] T132 [P] Add a §027 row set to `docs/audiences/customer-capabilities.md` covering every capability against both customer surfaces (SC-018)
+- [X] T133 [P] Update the **Active feature** section of `CLAUDE.md` for 027: what was built, the R8 reversal, the three surfaces, and every open operator item
 - [ ] T134 **⚠ operator** Walk the full quickstart §3/§4 tables and sign off SC-001…SC-021, recording anything not walked rather than marking it done
 - [ ] T135 **⚠ operator** Commit and open the PR
 

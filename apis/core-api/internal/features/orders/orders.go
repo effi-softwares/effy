@@ -67,10 +67,14 @@ type Order struct {
 	BillingAddress     json.RawMessage
 	ItemSubtotalAmount string
 	DeliveryFeeAmount  string
-	GrandTotalAmount   string
-	Currency           string
-	PaymentStatus      string
-	Fulfillments       []Fulfillment
+	// 027: what the promotional code took off, and the code itself. From the ORDER — a receipt explains
+	// itself years later without re-deriving anything from a promotion that may since have changed.
+	DiscountAmount   string
+	PromoCode        *string
+	GrandTotalAmount string
+	Currency         string
+	PaymentStatus    string
+	Fulfillments     []Fulfillment
 }
 
 // ── Repository ──────────────────────────────────────────────────────────────────────────────────
@@ -113,14 +117,18 @@ ORDER BY o.created_at DESC`, customerID)
 }
 
 type orderRow struct {
-	ID            string  `db:"id"`
-	OrderNumber   string  `db:"order_number"`
-	Status        string  `db:"status"`
-	PlacedAt      *string `db:"placed_at"`
-	Address       []byte  `db:"delivery_address"`
-	Billing       []byte  `db:"billing_address"`
-	ItemSubtotal  string  `db:"item_subtotal_amount"`
-	DeliveryFee   string  `db:"delivery_fee_amount"`
+	ID           string  `db:"id"`
+	OrderNumber  string  `db:"order_number"`
+	Status       string  `db:"status"`
+	PlacedAt     *string `db:"placed_at"`
+	Address      []byte  `db:"delivery_address"`
+	Billing      []byte  `db:"billing_address"`
+	ItemSubtotal string  `db:"item_subtotal_amount"`
+	DeliveryFee  string  `db:"delivery_fee_amount"`
+	// 027: the discount as computed at payment, and the code that justifies it. Read from the ORDER, not
+	// re-derived from the promotion — a receipt must stay explainable even after the code changes.
+	Discount      string  `db:"discount_amount"`
+	PromoCode     *string `db:"promo_code"`
 	GrandTotal    string  `db:"grand_total_amount"`
 	Currency      string  `db:"currency"`
 	PaymentStatus *string `db:"payment_status"`
@@ -133,6 +141,7 @@ SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.billing_address AS billing_address,
        o.item_subtotal_amount::text AS item_subtotal_amount,
        o.delivery_fee_amount::text AS delivery_fee_amount,
+       o.discount_amount::text AS discount_amount, o.promo_code AS promo_code,
        o.grand_total_amount::text AS grand_total_amount, o.currency AS currency,
        (SELECT status FROM public.payment WHERE order_id = o.id) AS payment_status
 FROM public."order" o
@@ -321,6 +330,7 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		ID: row.ID, OrderNumber: row.OrderNumber, Status: row.Status, PlacedAt: row.PlacedAt,
 		Items: domainItems, DeliveryAddress: json.RawMessage(row.Address), BillingAddress: json.RawMessage(row.Billing),
 		ItemSubtotalAmount: row.ItemSubtotal, DeliveryFeeAmount: row.DeliveryFee,
+		DiscountAmount: row.Discount, PromoCode: row.PromoCode,
 		GrandTotalAmount: row.GrandTotal, Currency: row.Currency,
 		PaymentStatus: payment, Fulfillments: domainFul,
 	}, nil

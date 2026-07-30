@@ -95,6 +95,11 @@ export const cartApi = {
   deleteSaved: (productId: string, changeId: string) =>
     call<CartDTO>(`/api/cart/saved/${seg(productId)}${q(changeId)}`, { method: "DELETE" }),
 
+  /** Apply a promotional code. The platform decides validity and worth — never this client (FR-042). */
+  applyPromo: (code: string) => call<CartDTO>("/api/cart/promo", { method: "POST", body: JSON.stringify({ code }) }),
+
+  removePromo: () => call<CartDTO>("/api/cart/promo", { method: "DELETE" }),
+
   /** GUEST path: re-price device lines with zero writes (FR-004 applies to guests too). */
   preview: (lines: CartLineInputJson[]) =>
     call<CartDTO>("/api/cart/preview", { method: "POST", body: JSON.stringify({ lines }) }),

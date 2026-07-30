@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/pricing"
 )
@@ -50,7 +51,41 @@ type Service struct {
 	qstore         QuoteStore
 	gateway        PaymentGateway
 	publishableKey string
+	// The order rules (027). Nil-able so existing constructions keep working and the minimum is simply not
+	// enforced — a missing policy must never block a shopper from checking out.
+	policy cartpolicy.Reader
+	// The cart's applied promotional code (027). Nil-able for the same reason: no promotions wired means
+	// no discount, never a crash.
+	promos PromoSource
 }
+
+// PromoSource re-computes the discount for a customer's cart at the moment of payment. An interface so
+// checkout does not depend on the cart package's internals, and so a test can state the amount directly.
+type PromoSource interface {
+	DiscountForCustomer(ctx context.Context, customerID string, payableCents int64, now time.Time) (cents int64, promoCodeID, code string, err error)
+}
+
+// WithPromotions enables the promotional discount at intent.
+func (s *Service) WithPromotions(p PromoSource) *Service {
+	s.promos = p
+	return s
+}
+
+// WithOrderPolicy enables the minimum-spend refusal (FR-056). Separate from the constructor so the wiring
+// change is one greppable line at the composition root rather than a signature every caller must follow.
+func (s *Service) WithOrderPolicy(r cartpolicy.Reader) *Service {
+	s.policy = r
+	return s
+}
+
+// BelowMinimumError refuses an order under the platform's minimum spend (027 FR-056). It carries both
+// amounts so the client can say how much more is needed rather than only that something is wrong.
+type BelowMinimumError struct {
+	MinimumCents   int64
+	RemainingCents int64
+}
+
+func (e *BelowMinimumError) Error() string { return "checkout: order below the minimum" }
 
 func NewService(store Store, gateway PaymentGateway, publishableKey string) *Service {
 	svc := &Service{store: store, gateway: gateway, publishableKey: publishableKey}
@@ -137,9 +172,39 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 
 	// Item subtotal excludes any items in an unserviceable (excluded) package — they are not charged.
 	itemSubtotalCents := payableSubtotal(lines, cq, excluded)
-	grandTotalCents := itemSubtotalCents + deliveryFeeCents
 
-	if err := s.qstore.WritePackageDeliveries(ctx, orderID, deliveries, itemSubtotalCents, deliveryFeeCents, cq.ExpiresAt); err != nil {
+	// ⚠ FR-056: the minimum is re-decided HERE, not trusted from the cart's `checkout.allowed`. A client
+	// that ignores the cart's own gate — an outdated build, a hand-rolled request — must still be refused,
+	// which is the whole reason the rule lives on the server as well as in the UI.
+	if s.policy != nil {
+		policy, perr := s.policy.Policy(ctx)
+		if perr != nil {
+			return IntentResult{}, perr
+		}
+		if !policy.Meets(itemSubtotalCents) {
+			return IntentResult{}, &BelowMinimumError{
+				MinimumCents:   policy.MinimumSubtotalCents,
+				RemainingCents: policy.Remaining(itemSubtotalCents),
+			}
+		}
+	}
+
+	// 027 FR-027/FR-042: the discount is RECOMPUTED here from the cart's applied code, never carried from
+	// the cart response and never taken from the request. What the shopper was shown is a display of the
+	// platform's own arithmetic; this is that arithmetic, run again at the moment money is decided.
+	discountCents, promoCodeID, promoCode := int64(0), "", ""
+	if s.promos != nil {
+		d, id, code, derr := s.promos.DiscountForCustomer(ctx, customerID, itemSubtotalCents, now)
+		if derr != nil {
+			return IntentResult{}, derr
+		}
+		discountCents, promoCodeID, promoCode = d, id, code
+	}
+
+	grandTotalCents := itemSubtotalCents + deliveryFeeCents - discountCents
+
+	discount := OrderDiscount{Cents: discountCents, PromoCodeID: promoCodeID, Code: promoCode}
+	if err := s.qstore.WritePackageDeliveries(ctx, orderID, deliveries, itemSubtotalCents, deliveryFeeCents, discount, cq.ExpiresAt); err != nil {
 		return IntentResult{}, err
 	}
 

@@ -13,6 +13,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -63,7 +64,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.session.SessionState
+import androidx.compose.material3.OutlinedTextField
 import com.effyshopping.customer.mobile.features.cart.domain.CartBlockedReason
+import com.effyshopping.customer.mobile.features.cart.domain.CartDiscount
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
 
@@ -77,6 +81,8 @@ import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
 fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> Unit = {}) {
     val cart by container.cart.state.collectAsState()
     val lines = cart.lines
+    val session by container.session.state.collectAsState()
+    val signedIn = session is SessionState.Authenticated
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -109,15 +115,22 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
         //
         // ⚠ The EMPTY cart is pull-to-refreshable too, and deliberately so: "empty" is precisely the state a
         // shopper doubts when they have just added something on another device. Refusing them the gesture
-        // here would deny it exactly where they most want it. The empty state is given a scroll modifier
-        // because the gesture needs something scrollable to hang off.
+        // here would deny it exactly where they most want it.
+        //
+        // ⚠ The gesture needs something scrollable to hang off, and a plain `verticalScroll` Column TOP-ALIGNS
+        // its content — which silently un-centred this screen when the gesture was added. `fillMaxSize` on the
+        // inner content plus `Arrangement.Center` restores the 026 centred composition: the scroll modifier
+        // buys the gesture, the height + arrangement keep the layout.
         Column(modifier = Modifier.fillMaxSize()) {
             EffyAppBar(title = "My Cart")
             EffyPullToRefresh(
                 onRefresh = { container.syncCart() },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
-                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.Center,
+                ) {
                     EffyEmptyState(
                         title = "Your Cart Is Empty!",
                         body = "When you add products, they’ll appear here.",
@@ -137,6 +150,23 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     val currency = cart.currency.ifBlank { lines.first().currency }
     val packages = packagesOf(lines)
     val multiPackage = packages.size > 1
+
+    // FR-032: emptying the cart is not recoverable, so it is confirmed. One dialog, one destructive verb.
+    var confirmingClear by remember { mutableStateOf(false) }
+    if (confirmingClear) {
+        AlertDialog(
+            onDismissRequest = { confirmingClear = false },
+            title = { Text("Empty your cart?") },
+            text = { Text("This removes everything you are about to buy. Items you saved for later are kept.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingClear = false
+                    container.clearCart()
+                }) { Text("Empty cart") }
+            },
+            dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text("Keep it") } },
+        )
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = "My Cart")
@@ -167,7 +197,7 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
                         }
                     }
                     items(pkg.lines, key = { it.productId }) { line ->
-                        CartRow(line, container, ::onRemoved)
+                        CartRow(line, container, scope, ::onRemoved)
                         HorizontalDivider()
                     }
                 }
@@ -198,8 +228,27 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
             modifier = Modifier.padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
         ) {
+            // ── Promotional code (027 US8) ────────────────────────────────────────────────────────
+            //
+            // ⚠ Signed-in only, and the guest sees WHY rather than a dead field: a per-shopper cap cannot be
+            // enforced without an identity, and a discount shown then withdrawn is worse than one not yet
+            // offered (research R10).
+            if (signedIn) {
+                PromoField(
+                    applied = cart.discount,
+                    currency = currency,
+                    onApply = { code -> container.applyPromoCode(code) },
+                    onRemove = { container.removePromoCode() },
+                )
+            }
+
             // The source's order summary: label/value rows with the total emphasised.
             EffyDetailRow("Sub-total", money(cart.itemSubtotalAmount, currency))
+            cart.discount?.let { d ->
+                // FR-045: shown as its OWN entry. A shopper must be able to see what they are getting, not
+                // only that the total moved.
+                EffyDetailRow("${d.label} (${d.code})", "−" + money(d.amount, currency))
+            }
             Text(
                 "Delivery is calculated at checkout once you choose an address.",
                 style = MaterialTheme.typography.labelSmall,
@@ -239,6 +288,122 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
 }
 
 /**
+ * The promotional-code field (027 FR-041/FR-043).
+ *
+ * ⚠ The refusal it shows is the PLATFORM's, verbatim and specific — "expired", "already used", "below the
+ * minimum" each call for a different response from the shopper, and a single "that code doesn't work"
+ * would leave them guessing which. Nothing here judges a code (FR-042); it only carries the answer.
+ */
+@Composable
+private fun PromoField(
+    applied: CartDiscount?,
+    currency: String,
+    onApply: suspend (String) -> String?,
+    onRemove: suspend () -> Boolean,
+) {
+    val scope = rememberCoroutineScope()
+    var code by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+
+    if (applied != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("${applied.code} applied", style = MaterialTheme.typography.labelLarge)
+            TextButton(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    scope.launch {
+                        onRemove()
+                        busy = false
+                    }
+                },
+            ) { Text("Remove") }
+        }
+        return
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+    ) {
+        OutlinedTextField(
+            value = code,
+            onValueChange = {
+                code = it
+                error = null
+            },
+            singleLine = true,
+            label = { Text("Promotional code") },
+            isError = error != null,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(
+            enabled = !busy && code.isNotBlank(),
+            onClick = {
+                busy = true
+                scope.launch {
+                    error = onApply(code.trim())
+                    if (error == null) code = ""
+                    busy = false
+                }
+            },
+        ) { Text("Apply") }
+    }
+    error?.let {
+        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+    }
+}
+
+/**
+ * One SET-ASIDE line (027 FR-028..FR-031).
+ *
+ * Shows the same honesty as a payable line — current price, and whether it can be bought — because a
+ * shopper deciding whether to bring something back needs to know it is still there and what it costs now.
+ * An unavailable saved item cannot be restored (FR-031): putting a line back that cannot be bought is not a
+ * restore, it is a trap.
+ */
+@Composable
+private fun SavedRow(line: GuestCartLine, container: AppContainer, scope: kotlinx.coroutines.CoroutineScope) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.s),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+    ) {
+        ProductImage(
+            url = line.imageUrl,
+            name = line.name,
+            modifier = Modifier.size(56.dp).clip(RoundedCornerShape(EffyRadius.sm)),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(line.name, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                money(line.unitPriceAmount, line.currency),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (!line.available) {
+                Text(
+                    "Unavailable",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        TextButton(
+            enabled = line.available,
+            onClick = { scope.launch { container.restoreSaved(line.productId) } },
+        ) { Text("Move to cart") }
+        TextButton(onClick = { scope.launch { container.deleteSaved(line.productId) } }) { Text("Remove") }
+    }
+}
+
+/**
  * One cart line (025 FR-035).
  *
  * ⚠ The image is the change worth noting: this row used to be text only, so a shopper reviewing their
@@ -246,7 +411,12 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
  * thing you are buying, and `imageUrl` was already on the line — captured at add time.
  */
 @Composable
-private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (GuestCartLine) -> Unit) {
+private fun CartRow(
+    line: GuestCartLine,
+    container: AppContainer,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onRemoved: (GuestCartLine) -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.md),
         verticalAlignment = Alignment.Top,
@@ -304,6 +474,11 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
                     container.removeFromCart(line.productId)
                     onRemoved(line)
                 }) { Text("Remove") }
+                // FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this"
+                // has only one answer — delete — and shoppers avoid that by abandoning the whole cart.
+                TextButton(onClick = { scope.launch { container.setAside(line.productId) } }) {
+                    Text("Save for later")
+                }
             }
         }
 

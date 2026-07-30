@@ -150,6 +150,15 @@ export type StorefrontEvent =
   | { name: "search_sorted"; props: { sort: ProductSort } }
   | { name: "product_gallery_viewed"; props: { productId: string } }
   | { name: "related_product_opened"; props: { productId: string } }
+  // 027 cart sync & promotions. Product ids only, as with the rest of the commerce funnel.
+  //
+  // ⚠ `promo_code_refused` carries the REASON, and the reason is the whole point of the event: eight
+  // refusals mean eight different things a shopper could do next (FR-043), and only the distribution
+  // says which of them the platform is actually inflicting on people. `promo_code_applied` carries the
+  // code because an operator-created code is not personal data — it is the campaign being measured.
+  | { name: "product_removed_from_cart"; props: { productId: string } }
+  | { name: "promo_code_applied"; props: { code: string } }
+  | { name: "promo_code_refused"; props: { reason: string } }
 
 export function capture(event: StorefrontEvent) {
   if (!started || !ph || getConsent() !== "granted") return

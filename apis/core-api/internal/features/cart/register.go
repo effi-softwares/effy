@@ -36,6 +36,7 @@ func Register(v1 *gin.RouterGroup, verifier *auth.PoolVerifier, identity *custom
 	g.POST("/items", h.addItem)                 // the only non-idempotent write — requires changeId
 	g.PATCH("/items/:productId", h.setItem)     // ABSOLUTE quantity; 0 removes
 	g.DELETE("/items/:productId", h.removeItem) //
+	g.POST("/reorder", h.reorder)               // a past order, back in the cart (union-with-max, so a double tap is safe)
 	g.POST("/items/:productId/set-aside", h.setAside)
 	g.POST("/saved/:productId/restore", h.restoreSaved)
 	g.DELETE("/saved/:productId", h.deleteSaved)

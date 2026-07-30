@@ -98,7 +98,7 @@ type QuoteStore interface {
 	ReadCapturedQuote(ctx context.Context, customerID string) (cq CapturedQuote, orderID, orderNumber string, found bool, err error)
 	// WritePackageDeliveries replaces order_package_delivery for the order and sets order totals +
 	// quote expiry. The per-package rows are consumed into shop_fulfillment at finalize.
-	WritePackageDeliveries(ctx context.Context, orderID string, rows []PackageDelivery, itemSubtotalCents, deliveryFeeCents int64, expiresAt time.Time) error
+	WritePackageDeliveries(ctx context.Context, orderID string, rows []PackageDelivery, itemSubtotalCents, deliveryFeeCents int64, discount OrderDiscount, expiresAt time.Time) error
 }
 
 // PackageDelivery is one captured per-package selection, ready to persist.

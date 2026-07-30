@@ -26,6 +26,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 // cartLineRow is the wire shape of a cart read (cart_item ⋈ product ⋈ primary media). The same shape
@@ -320,6 +322,123 @@ type ReorderCandidate struct {
 	Quantity  int     `db:"quantity"`
 	Name      string  `db:"name"`
 	Status    *string `db:"status"` // NULL when the product row is gone
+}
+
+// ── Promotional codes (027 US8) ─────────────────────────────────────────────────────────────────
+
+type promoRow struct {
+	ID                    string     `db:"id"`
+	Code                  string     `db:"code"`
+	Kind                  string     `db:"kind"`
+	PercentOff            *int       `db:"percent_off"`
+	AmountOff             *string    `db:"amount_off"`
+	MinimumSubtotalAmount string     `db:"minimum_subtotal_amount"`
+	StartsAt              *time.Time `db:"starts_at"`
+	EndsAt                *time.Time `db:"ends_at"`
+	MaxRedemptions        *int       `db:"max_redemptions"`
+	MaxPerCustomer        *int       `db:"max_per_customer"`
+	Status                string     `db:"status"`
+}
+
+const promoProjection = `
+SELECT id::text                        AS id,
+       code                            AS code,
+       kind                            AS kind,
+       percent_off                     AS percent_off,
+       amount_off::text                AS amount_off,
+       minimum_subtotal_amount::text   AS minimum_subtotal_amount,
+       starts_at                       AS starts_at,
+       ends_at                         AS ends_at,
+       max_redemptions                 AS max_redemptions,
+       max_per_customer                AS max_per_customer,
+       status                          AS status
+FROM public.promo_code`
+
+// PromoByCode looks a code up as a shopper typed it. ⚠ Matched on `upper(code)` because that is what the
+// unique index is on — a shopper types `spring20`, an operator created `SPRING20`, and they are one code.
+func (r *Repository) PromoByCode(ctx context.Context, code string) (PromoCode, bool, error) {
+	return r.promoBy(ctx, promoProjection+` WHERE upper(code) = upper($1)`, code)
+}
+
+// PromoByID reads the code currently applied to a cart, to re-evaluate it on every read.
+func (r *Repository) PromoByID(ctx context.Context, id string) (PromoCode, bool, error) {
+	return r.promoBy(ctx, promoProjection+` WHERE id = $1`, id)
+}
+
+func (r *Repository) promoBy(ctx context.Context, sql, arg string) (PromoCode, bool, error) {
+	rows, err := r.pool.Query(ctx, sql, arg)
+	if err != nil {
+		return PromoCode{}, false, fmt.Errorf("cart: query promo: %w", err)
+	}
+	row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[promoRow])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return PromoCode{}, false, nil
+		}
+		return PromoCode{}, false, fmt.Errorf("cart: scan promo: %w", err)
+	}
+
+	out := PromoCode{
+		ID: row.ID, Code: row.Code, Kind: row.Kind, Status: row.Status,
+		StartsAt: row.StartsAt, EndsAt: row.EndsAt,
+		MaxRedemptions: row.MaxRedemptions, MaxPerCustomer: row.MaxPerCustomer,
+	}
+	if row.PercentOff != nil {
+		out.PercentOff = *row.PercentOff
+	}
+	if row.AmountOff != nil {
+		cents, perr := money.ParseCents(*row.AmountOff)
+		if perr != nil {
+			return PromoCode{}, false, perr
+		}
+		out.AmountOffCents = cents
+	}
+	minCents, err := money.ParseCents(row.MinimumSubtotalAmount)
+	if err != nil {
+		return PromoCode{}, false, err
+	}
+	out.MinimumSubtotalCents = minCents
+	return out, true, nil
+}
+
+type promoUsageRow struct {
+	Total         int `db:"total"`
+	ByThisShopper int `db:"by_this_shopper"`
+}
+
+// PromoUsageFor counts redemptions — overall and by this shopper — in ONE query.
+//
+// ⚠ COUNTED, never read from a counter column. A stored counter and the redemption rows can disagree, and
+// when they do nobody can tell which is true; the rows are the money, so the rows are the count.
+func (r *Repository) PromoUsageFor(ctx context.Context, promoCodeID, customerID string) (PromoUsage, error) {
+	rows, err := r.pool.Query(ctx, `
+SELECT count(*)::int                                              AS total,
+       count(*) FILTER (WHERE customer_id = $2)::int              AS by_this_shopper
+FROM public.promo_redemption WHERE promo_code_id = $1`, promoCodeID, customerID)
+	if err != nil {
+		return PromoUsage{}, fmt.Errorf("cart: query promo usage: %w", err)
+	}
+	row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[promoUsageRow])
+	if err != nil {
+		return PromoUsage{}, fmt.Errorf("cart: scan promo usage: %w", err)
+	}
+	return PromoUsage{Total: row.Total, ByThisShopper: row.ByThisShopper}, nil
+}
+
+// SetCartPromo applies or clears the cart's code. The DISCOUNT is never stored — it is recomputed on every
+// read from the definition and the current payable subtotal, because a stored amount is a stale amount.
+func (r *Repository) SetCartPromo(ctx context.Context, cartID string, promoCodeID *string, changeID string) (bool, error) {
+	return r.inTx(ctx, cartID, changeID, func(tx pgx.Tx) error {
+		_, err := tx.Exec(ctx, `
+UPDATE public.cart
+   SET promo_code_id = $2::uuid,
+       promo_applied_at = CASE WHEN $2::uuid IS NULL THEN NULL ELSE now() END
+ WHERE id = $1`, cartID, promoCodeID)
+		if err != nil {
+			return fmt.Errorf("cart: set promo: %w", err)
+		}
+		return nil
+	})
 }
 
 // ── Mutations ───────────────────────────────────────────────────────────────────────────────────

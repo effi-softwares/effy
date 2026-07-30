@@ -6,9 +6,19 @@ import Link from "next/link"
 import { useEffect } from "react"
 
 import type { GuestCartLine } from "@/lib/cart-store"
-import { addItem, removeItem, setItemQuantity } from "@/lib/cart-actions"
+import {
+  addItem,
+  clearAll,
+  deleteSavedItem,
+  removeItem,
+  restoreSavedItem,
+  setAsideItem,
+  setItemQuantity,
+} from "@/lib/cart-actions"
 import { groupByPackage, useCartMirror } from "@/lib/cart-store"
 import { refreshCart } from "@/lib/cart-sync"
+
+import { PromoField } from "./PromoField"
 import { toast } from "@/lib/toast-store"
 import { formatMoney } from "@/lib/money"
 
@@ -99,6 +109,58 @@ export default function CartPage() {
 
         </div>
 
+        {/* FR-028..FR-031: set aside for later, BELOW the payable items and visually separate — the one
+            thing a shopper must never wonder is whether these are being bought. */}
+        {cart.savedLines.length > 0 ? (
+          <section className="mt-8 border-t pt-6">
+            <h2 className="text-lg font-bold">Saved for later ({cart.savedLines.length})</h2>
+            <p className="text-xs text-muted-foreground">Not included in your total.</p>
+            <ul className="mt-4 divide-y">
+              {cart.savedLines.map((line) => (
+                <li key={line.productId} className="flex items-center gap-4 py-4">
+                  <div className="flex-1">
+                    <span className="text-sm font-medium">{line.name}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {formatMoney(line.unitPriceAmount, line.currency)}
+                    </span>
+                    {line.available === false ? (
+                      <span className="block text-xs font-medium text-destructive">Unavailable</span>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={line.available === false}
+                    onClick={() => void restoreSavedItem(line.productId)}
+                    className="text-sm font-medium hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+                  >
+                    Move to cart
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteSavedItem(line.productId)}
+                    className="text-sm text-muted-foreground hover:underline"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* FR-032: emptying the cart is not recoverable, so it is confirmed. */}
+        {lines.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Empty your cart? Items you saved for later are kept.")) clearAll()
+            }}
+            className="mt-6 text-sm text-muted-foreground hover:underline"
+          >
+            Empty cart
+          </button>
+        ) : null}
+
         {/* Order summary — the reference's bordered panel, made sticky so the amount payable stays
             beside the list instead of scrolling away from it. */}
         <aside className="rounded-2xl border p-6 lg:sticky lg:top-24">
@@ -108,6 +170,18 @@ export default function CartPage() {
               <dt className="text-muted-foreground">Items</dt>
               <dd className="font-bold">{formatMoney(cart.itemSubtotalAmount, currency)}</dd>
             </div>
+            {cart.discount ? (
+              /* FR-045: shown as its OWN entry. A shopper must see what they are getting, not only that
+                 the total moved. */
+              <div className="flex items-center justify-between">
+                <dt className="text-muted-foreground">
+                  {cart.discount.label} ({cart.discount.code})
+                </dt>
+                <dd className="font-bold text-primary">
+                  −{formatMoney(cart.discount.amount, currency)}
+                </dd>
+              </div>
+            ) : null}
             <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Delivery</dt>
               <dd className="text-sm text-muted-foreground">Calculated at checkout</dd>
@@ -124,6 +198,10 @@ export default function CartPage() {
               </div>
             </div>
           </dl>
+
+          <div className="mt-4">
+            <PromoField applied={cart.discount} />
+          </div>
 
           {/* FR-026/FR-054: checkout is offered only when the PLATFORM says so, and the reason is stated
               when it is not. The client never decides this itself — it is re-decided at intent (FR-056). */}
@@ -222,10 +300,24 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
               <Plus className="size-3.5" />
             </button>
           </div>
+          {/* FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this" has
+              only one answer — delete — and shoppers avoid that by abandoning the whole cart. */}
+          <button
+            type="button"
+            onClick={() => void setAsideItem(line.productId)}
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            Save for later
+          </button>
           <button
             type="button"
             onClick={() => {
               removeItem(line.productId)
+              // Dynamic for the same measured reason as PromoField's: a static telemetry import from a
+              // cart client component costs +1.0 KB on four GUEST routes and breaks the budget.
+              void import("@/lib/telemetry").then(({ capture }) =>
+                capture({ name: "product_removed_from_cart", props: { productId: line.productId } }),
+              )
               // 025 FR-041: reversible from its own acknowledgement. Removing the wrong line is a
               // one-tap mistake, and without undo the recovery is "find it again and re-add it".
               toast(`Removed ${line.name}`, {

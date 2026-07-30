@@ -2,6 +2,7 @@ package checkout
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/customeridentity"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 const maxWebhookBody = 1 << 20 // 1 MiB — Stripe events are small; cap the raw read.
@@ -85,6 +87,14 @@ func (h *Handler) createIntent(c *gin.Context) {
 		case errors.Is(err, ErrQuoteExpired), errors.Is(err, ErrSelectionInvalid), errors.Is(err, ErrExclusionMismatch):
 			// The customer must re-quote — 409 tells the client to re-open the delivery step (021 FR-011a).
 			httpx.Conflict(c, "your delivery options changed — please review them again")
+		case belowMinimum(err) != nil:
+			// FR-056: refused here as well as in the cart, so a client that ignores its own gate cannot
+			// bypass it. The message carries how much more is needed — never a shop (FR-062).
+			e := belowMinimum(err)
+			httpx.ValidationFailed(c, fmt.Sprintf(
+				"add %s more to reach the %s minimum order",
+				money.FormatCents(e.RemainingCents), money.FormatCents(e.MinimumCents),
+			))
 		default:
 			logger.FromContext(c.Request.Context()).Error("checkout: intent failed", zap.Error(err))
 			httpx.Internal(c)
@@ -199,6 +209,15 @@ type quoteResponseDTO struct {
 	Packages  []quotePackageDTO `json:"packages"`
 	QuoteID   string            `json:"quoteId"`
 	ExpiresAt string            `json:"expiresAt"`
+}
+
+// belowMinimum unwraps the minimum-spend refusal, or nil.
+func belowMinimum(err error) *BelowMinimumError {
+	var e *BelowMinimumError
+	if errors.As(err, &e) {
+		return e
+	}
+	return nil
 }
 
 func toQuoteResponse(r QuoteResult) quoteResponseDTO {

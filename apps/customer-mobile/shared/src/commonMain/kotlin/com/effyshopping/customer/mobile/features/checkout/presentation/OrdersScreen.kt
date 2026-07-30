@@ -17,7 +17,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -96,6 +101,31 @@ fun OrdersScreen(
 ) {
     val vm = viewModel { OrdersViewModel(container.listOrders) }
     val state by vm.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHost = remember { SnackbarHostState() }
+
+    /**
+     * Put a past order back in the cart, and TELL the shopper what could not come (FR-035).
+     *
+     * ⚠ The report is the point. Silently adding a subset is the one outcome they cannot detect for
+     * themselves — they would go to the cart believing they had reordered. It names no shop, only counts.
+     */
+    fun reorder(orderId: String) {
+        scope.launch {
+            val outcome = container.reorderPastOrder(orderId)
+            val message = when {
+                outcome == null -> "We couldn’t reorder that just now."
+                outcome.cart.lines.isEmpty() && outcome.skipped.isNotEmpty() ->
+                    "Nothing from that order is available right now."
+                outcome.skipped.isEmpty() -> "Added to your cart."
+                else -> {
+                    val n = outcome.skipped.size
+                    "Added to your cart. $n item${if (n == 1) "" else "s"} couldn’t be added."
+                }
+            }
+            snackbarHost.showSnackbar(message)
+        }
+    }
 
     // 026: the source design's Ongoing / Completed segmented toggle. "Ongoing" is everything that has
     // not reached a terminal state; "Completed" is what has. The split is derived from the order's own
@@ -104,6 +134,8 @@ fun OrdersScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = "My Orders")
+        // The reorder outcome is announced here — an addition the shopper cannot otherwise verify.
+        SnackbarHost(hostState = snackbarHost)
         EffySegmentedToggle(
             options = OrdersTab.entries,
             selected = tab,
@@ -143,7 +175,7 @@ fun OrdersScreen(
                     EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.fillMaxSize()) {
                         LazyColumn(Modifier.fillMaxSize()) {
                             items(shown, key = { it.id }) { order ->
-                                OrderRow(order, onOpen)
+                                OrderRow(order, onOpen, ::reorder)
                                 HorizontalDivider()
                             }
                         }
@@ -166,7 +198,7 @@ private enum class OrdersTab(val label: String) { Ongoing("Ongoing"), Completed(
 private fun isOngoing(status: String): Boolean = status !in setOf("delivered", "cancelled", "refunded")
 
 @Composable
-private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit) {
+private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (String) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onOpen(order.id) }.padding(EffySpacing.lg),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -180,6 +212,9 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit) {
             )
         }
         Text(orderMoney(order.grandTotalAmount, order.currency), style = MaterialTheme.typography.bodyMedium)
+        // FR-034: "buy again". Effy's shoppers buy the same groceries repeatedly, and re-finding fifteen
+        // items is work nobody does — they just do not reorder.
+        TextButton(onClick = { onReorder(order.id) }) { Text("Buy again") }
     }
 }
 

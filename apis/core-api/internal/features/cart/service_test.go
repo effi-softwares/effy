@@ -13,18 +13,21 @@ import (
 // closely enough to be worth trusting: absolute set-quantity, union-with-MAXIMUM merge, the change-id
 // dedupe, the revision bump, and the two separate item tables.
 type fakeRepo struct {
-	cartID    string
-	revision  int64
-	items     map[string]int    // productID → qty (payable)
-	saved     map[string]int    // productID → qty (set aside)
-	addPrice  map[string]string // productID → the price recorded at add time ("" = none recorded)
-	statuses  map[string]string // productID → status ("" = missing)
-	priceByID map[string]string // productID → current unit price
-	nameByID  map[string]string // productID → name
-	changes   map[string]bool   // applied change ids
-	orders    map[string][]ReorderCandidate
-	addedSeq  []string // insertion order, so Lines() is deterministic like `ORDER BY added_at`
-	writes    int      // how many mutations actually reached the "database"
+	cartID       string
+	revision     int64
+	items        map[string]int    // productID → qty (payable)
+	saved        map[string]int    // productID → qty (set aside)
+	addPrice     map[string]string // productID → the price recorded at add time ("" = none recorded)
+	statuses     map[string]string // productID → status ("" = missing)
+	priceByID    map[string]string // productID → current unit price
+	nameByID     map[string]string // productID → name
+	changes      map[string]bool   // applied change ids
+	orders       map[string][]ReorderCandidate
+	promos       []PromoCode
+	usage        map[string]PromoUsage
+	appliedPromo string
+	addedSeq     []string // insertion order, so Lines() is deterministic like `ORDER BY added_at`
+	writes       int      // how many mutations actually reached the "database"
 }
 
 func newFakeRepo() *fakeRepo {
@@ -38,6 +41,7 @@ func newFakeRepo() *fakeRepo {
 		nameByID:  map[string]string{},
 		changes:   map[string]bool{},
 		orders:    map[string][]ReorderCandidate{},
+		usage:     map[string]PromoUsage{},
 	}
 }
 
@@ -47,6 +51,9 @@ const (
 	pBread = "22222222-2222-2222-2222-222222222222"
 	pGone  = "33333333-3333-3333-3333-333333333333"
 	pEggs  = "44444444-4444-4444-4444-444444444444"
+	// A past order, for the reorder tests. A real uuid because the service validates the shape before it
+	// touches the database — a malformed id is a 404, not a lookup.
+	orderOne = "55555555-5555-5555-5555-555555555555"
 )
 
 func (f *fakeRepo) GetOrCreateCartID(_ context.Context, _ string) (string, error) {
@@ -54,7 +61,7 @@ func (f *fakeRepo) GetOrCreateCartID(_ context.Context, _ string) (string, error
 }
 
 func (f *fakeRepo) Meta(_ context.Context, _ string) (CartMeta, error) {
-	return CartMeta{Revision: f.revision}, nil
+	return CartMeta{Revision: f.revision, PromoCodeID: f.appliedPromo}, nil
 }
 
 func (f *fakeRepo) Lines(_ context.Context, _ string) ([]cartLineRow, error) {
@@ -199,6 +206,40 @@ func (f *fakeRepo) MergeItems(_ context.Context, _, changeID string, productIDs 
 				f.addPrice[id] = f.priceByID[id]
 			}
 			f.items[id] = min(max, maxInt(f.items[id], int(quantities[i])))
+		}
+	})
+}
+
+// ── Promotions (US8) ────────────────────────────────────────────────────────────────────────────
+
+func (f *fakeRepo) PromoByCode(_ context.Context, code string) (PromoCode, bool, error) {
+	for _, p := range f.promos {
+		if NormalisePromoCode(p.Code) == code {
+			return p, true, nil
+		}
+	}
+	return PromoCode{}, false, nil
+}
+
+func (f *fakeRepo) PromoByID(_ context.Context, id string) (PromoCode, bool, error) {
+	for _, p := range f.promos {
+		if p.ID == id {
+			return p, true, nil
+		}
+	}
+	return PromoCode{}, false, nil
+}
+
+func (f *fakeRepo) PromoUsageFor(_ context.Context, promoCodeID, _ string) (PromoUsage, error) {
+	return f.usage[promoCodeID], nil
+}
+
+func (f *fakeRepo) SetCartPromo(_ context.Context, _ string, promoCodeID *string, changeID string) (bool, error) {
+	return f.mutate(changeID, func() {
+		if promoCodeID == nil {
+			f.appliedPromo = ""
+		} else {
+			f.appliedPromo = *promoCodeID
 		}
 	})
 }
@@ -871,5 +912,344 @@ func TestNoMinimumMeansNoMinimumIsShown(t *testing.T) {
 	}
 	if cart.Checkout.MinimumSubtotalAmount != "" || cart.Checkout.RemainingAmount != "" {
 		t.Errorf("with no minimum in force nothing may be shown, got %+v", cart.Checkout)
+	}
+}
+
+// ── Reorder (US7) ───────────────────────────────────────────────────────────────────────────────
+
+func seedOrder(f *fakeRepo, orderID string, items ...ReorderCandidate) {
+	f.orders[orderID] = items
+}
+
+func candidate(productID, name string, qty int, status string) ReorderCandidate {
+	c := ReorderCandidate{ProductID: productID, Quantity: qty, Name: name}
+	if status != "" {
+		c.Status = &status
+	}
+	return c
+}
+
+func TestReorderAddsWhatIsAvailableAndReportsWhatIsNot(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "5.00", "active")
+	seedProduct(f, pBread, "Bread", "3.00", "unavailable")
+	seedProduct(f, pEggs, "Eggs", "4.00", "archived")
+	seedOrder(f, orderOne,
+		candidate(pMilk, "Milk", 2, "active"),
+		candidate(pBread, "Bread", 1, "unavailable"),
+		candidate(pEggs, "Eggs", 1, "archived"),
+	)
+	svc := newSvc(f, defaultPolicy())
+
+	res, err := svc.Reorder(context.Background(), "c", orderOne, "chg-1")
+	if err != nil {
+		t.Fatalf("Reorder: %v", err)
+	}
+
+	if len(res.Cart.Lines) != 1 || res.Cart.Lines[0].ProductID != pMilk {
+		t.Fatalf("cart = %+v, want only milk", res.Cart.Lines)
+	}
+	if len(res.Skipped) != 2 {
+		t.Fatalf("skipped = %+v, want 2 reported", res.Skipped)
+	}
+	reasons := map[string]SkipReason{}
+	for _, s := range res.Skipped {
+		reasons[s.ProductID] = s.Reason
+	}
+	if reasons[pBread] != SkipUnavailable {
+		t.Errorf("bread reason = %q, want unavailable", reasons[pBread])
+	}
+	if reasons[pEggs] != SkipRemoved {
+		t.Errorf("an archived product is gone for good, want removed, got %q", reasons[pEggs])
+	}
+}
+
+// SC-011: a double tap must not double quantities. Union-with-max is what guarantees it.
+func TestReorderTwiceDoesNotDoubleQuantities(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "5.00", "active")
+	seedOrder(f, orderOne, candidate(pMilk, "Milk", 3, "active"))
+	svc := newSvc(f, defaultPolicy())
+
+	_, _ = svc.Reorder(context.Background(), "c", orderOne, "chg-1")
+	res, err := svc.Reorder(context.Background(), "c", orderOne, "chg-2")
+	if err != nil {
+		t.Fatalf("Reorder #2: %v", err)
+	}
+	if res.Cart.Lines[0].Quantity != 3 {
+		t.Errorf("quantity = %d, want 3 — a repeat reorder must not accumulate", res.Cart.Lines[0].Quantity)
+	}
+}
+
+func TestReorderRespectsTheDistinctCeilingAcrossTheBatch(t *testing.T) {
+	p := defaultPolicy()
+	p.p.MaxDistinctItems = 1
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "5.00", "active")
+	seedProduct(f, pBread, "Bread", "3.00", "active")
+	seedOrder(f, orderOne, candidate(pMilk, "Milk", 1, "active"), candidate(pBread, "Bread", 1, "active"))
+	svc := newSvc(f, p)
+
+	res, _ := svc.Reorder(context.Background(), "c", orderOne, "chg")
+
+	if len(res.Cart.Lines) != 1 {
+		t.Fatalf("cart = %+v, want one line", res.Cart.Lines)
+	}
+	if len(res.Skipped) != 1 || res.Skipped[0].Reason != SkipCartFull {
+		t.Errorf("want the second reported as cart_full, got %+v", res.Skipped)
+	}
+}
+
+func TestReorderOfAnUnknownOrderIs404NotAnEmptyCart(t *testing.T) {
+	f := newFakeRepo()
+	svc := newSvc(f, defaultPolicy())
+
+	if _, err := svc.Reorder(context.Background(), "c", "11111111-1111-1111-1111-111111111199", "chg"); err != ErrOrderNotFound {
+		t.Errorf("want ErrOrderNotFound, got %v", err)
+	}
+	// Another customer's order is indistinguishable from a missing one — existence is not disclosed.
+	if _, err := svc.Reorder(context.Background(), "other", "not-a-uuid", "chg"); err != ErrOrderNotFound {
+		t.Errorf("want ErrOrderNotFound for a bad id, got %v", err)
+	}
+}
+
+func TestReorderOfAnEntirelyUnavailableOrderChangesNothing(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pBread, "Bread", "3.00", "unavailable")
+	seedOrder(f, orderOne, candidate(pBread, "Bread", 1, "unavailable"))
+	svc := newSvc(f, defaultPolicy())
+
+	res, err := svc.Reorder(context.Background(), "c", orderOne, "chg")
+	if err != nil {
+		t.Fatalf("Reorder: %v", err)
+	}
+	if len(res.Cart.Lines) != 0 {
+		t.Errorf("cart must be unchanged, got %+v", res.Cart.Lines)
+	}
+	if len(res.Skipped) != 1 {
+		t.Errorf("and the shopper must be told nothing could be added, got %+v", res.Skipped)
+	}
+}
+
+// ── The minimum order value (US9) ───────────────────────────────────────────────────────────────
+
+func policyWithMinimum(cents int64) fakePolicy {
+	p := cartpolicy.Default()
+	p.MinimumSubtotalCents = cents
+	return fakePolicy{p}
+}
+
+func TestBelowTheMinimumBlocksCheckoutAndSaysHowMuchMore(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "9.00", "active")
+	svc := newSvc(f, policyWithMinimum(2500)) // $25.00
+
+	cart, _ := svc.Add(context.Background(), "c", pMilk, "a", 2) // $18.00
+
+	if cart.Checkout.Allowed {
+		t.Fatal("checkout must be blocked below the minimum")
+	}
+	if cart.Checkout.BlockedReason != BlockedBelowMinimum {
+		t.Errorf("reason = %q, want below_minimum", cart.Checkout.BlockedReason)
+	}
+	if cart.Checkout.MinimumSubtotalAmount != "25.00" {
+		t.Errorf("minimum = %q, want 25.00", cart.Checkout.MinimumSubtotalAmount)
+	}
+	if cart.Checkout.RemainingAmount != "7.00" {
+		t.Errorf("remaining = %q, want 7.00 — the shopper is told how much MORE, not just that it is short", cart.Checkout.RemainingAmount)
+	}
+}
+
+func TestExactlyAtTheMinimumIsAllowed(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "25.00", "active")
+	svc := newSvc(f, policyWithMinimum(2500))
+
+	cart, _ := svc.Add(context.Background(), "c", pMilk, "a", 1)
+
+	if !cart.Checkout.Allowed {
+		t.Errorf("exactly at the minimum must be allowed, got %+v", cart.Checkout)
+	}
+}
+
+// FR-055: only PAYABLE items count. An unavailable line must not carry a shopper over the line.
+func TestUnavailableItemsDoNotCountTowardsTheMinimum(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "20.00", "active")
+	seedProduct(f, pBread, "Bread", "10.00", "active")
+	svc := newSvc(f, policyWithMinimum(2500))
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 1)
+	_, _ = svc.Add(context.Background(), "c", pBread, "b", 1) // $30 total, over the minimum
+
+	f.statuses[pBread] = "unavailable" // now only $20 is payable
+	cart, _ := svc.Get(context.Background(), "c")
+
+	if cart.Checkout.Allowed {
+		t.Fatal("an unavailable line must not carry the cart over the minimum")
+	}
+	if cart.Checkout.RemainingAmount != "5.00" {
+		t.Errorf("remaining = %q, want 5.00", cart.Checkout.RemainingAmount)
+	}
+}
+
+// ── Promotional codes, end to end through the cart (US8) ────────────────────────────────────────
+
+func seedPromo(f *fakeRepo, code PromoCode) { f.promos = append(f.promos, code) }
+
+func TestApplyingAValidCodeDiscountsTheCart(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	seedPromo(f, PromoCode{ID: "promo-1", Code: "SPRING20", Kind: PromoPercentage, PercentOff: 20, Status: "active"})
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 5) // $50.00
+
+	cart, err := svc.ApplyPromo(context.Background(), "c", "spring20", now)
+	if err != nil {
+		t.Fatalf("ApplyPromo: %v", err)
+	}
+	if cart.Discount == nil {
+		t.Fatal("the discount must be shown as its own entry, not folded into the total (FR-045)")
+	}
+	if cart.DiscountAmount != "10.00" {
+		t.Errorf("discount = %q, want 10.00", cart.DiscountAmount)
+	}
+	if cart.GrandTotalAmount != "40.00" {
+		t.Errorf("grand total = %q, want 40.00", cart.GrandTotalAmount)
+	}
+	if cart.Discount.Label != "20% off" {
+		t.Errorf("label = %q, want '20%% off'", cart.Discount.Label)
+	}
+}
+
+// A shopper types what they type; the code is one code.
+func TestCodesAreCaseInsensitive(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	seedPromo(f, PromoCode{ID: "promo-1", Code: "SPRING20", Kind: PromoPercentage, PercentOff: 10, Status: "active"})
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 1)
+
+	if _, err := svc.ApplyPromo(context.Background(), "c", "  SpRiNg20 ", now); err != nil {
+		t.Errorf("a code must apply however it is typed, got %v", err)
+	}
+}
+
+func TestAnUnknownCodeIsRefused(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 1)
+
+	if _, err := svc.ApplyPromo(context.Background(), "c", "NOPE", now); err != ErrPromoUnknown {
+		t.Errorf("want ErrPromoUnknown, got %v", err)
+	}
+}
+
+// ⚠ FR-047: a code that stops qualifying must stop discounting AND say so. Silently charging more than the
+// total the shopper was last shown is the failure this prevents.
+func TestACodeThatStopsQualifyingIsReportedAndStopsDiscounting(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	seedPromo(f, PromoCode{
+		ID: "promo-1", Code: "TENOFF", Kind: PromoFixed, AmountOffCents: 1000,
+		MinimumSubtotalCents: 5000, Status: "active",
+	})
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 5) // $50.00 — qualifies
+
+	applied, err := svc.ApplyPromo(context.Background(), "c", "TENOFF", now)
+	if err != nil {
+		t.Fatalf("ApplyPromo: %v", err)
+	}
+	if applied.DiscountAmount != "10.00" {
+		t.Fatalf("discount = %q, want 10.00", applied.DiscountAmount)
+	}
+
+	// The shopper halves their basket — now below the code's minimum.
+	after, err := svc.SetQty(context.Background(), "c", pMilk, "", 2) // $20.00
+	if err != nil {
+		t.Fatalf("SetQty: %v", err)
+	}
+	if after.DiscountAmount != "0.00" || after.Discount != nil {
+		t.Errorf("the discount must stop, got %q / %+v", after.DiscountAmount, after.Discount)
+	}
+	if after.GrandTotalAmount != "20.00" {
+		t.Errorf("grand total = %q, want 20.00", after.GrandTotalAmount)
+	}
+	if noticeKinds(after)[NoticePromoNoLongerApplies] != "" {
+		// The notice is cart-level, so its productId is empty — presence is what matters.
+		t.Logf("notice present: %+v", after.Notices)
+	}
+	var told bool
+	for _, n := range after.Notices {
+		if n.Kind == NoticePromoNoLongerApplies {
+			told = true
+		}
+	}
+	if !told {
+		t.Errorf("the shopper must be TOLD the code stopped applying, got %+v", after.Notices)
+	}
+}
+
+func TestRemovingACodeRestoresTheFullTotal(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	seedPromo(f, PromoCode{ID: "promo-1", Code: "SPRING20", Kind: PromoPercentage, PercentOff: 20, Status: "active"})
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 1)
+	_, _ = svc.ApplyPromo(context.Background(), "c", "SPRING20", now)
+
+	cart, err := svc.RemovePromo(context.Background(), "c")
+	if err != nil {
+		t.Fatalf("RemovePromo: %v", err)
+	}
+	if cart.Discount != nil || cart.DiscountAmount != "0.00" {
+		t.Errorf("removing the code must clear the discount, got %+v", cart.Discount)
+	}
+	if cart.GrandTotalAmount != "10.00" {
+		t.Errorf("grand total = %q, want 10.00", cart.GrandTotalAmount)
+	}
+}
+
+// The amount that reaches payment is recomputed from the code — never carried from a cart response.
+func TestDiscountForCustomerRecomputesAtPaymentTime(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	seedPromo(f, PromoCode{ID: "promo-1", Code: "SPRING20", Kind: PromoPercentage, PercentOff: 20, Status: "active"})
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 5)
+	_, _ = svc.ApplyPromo(context.Background(), "c", "SPRING20", now)
+
+	cents, id, code, err := svc.DiscountForCustomer(context.Background(), "c", 5000, now)
+	if err != nil {
+		t.Fatalf("DiscountForCustomer: %v", err)
+	}
+	if cents != 1000 || id != "promo-1" || code != "SPRING20" {
+		t.Errorf("got %d / %q / %q, want 1000 / promo-1 / SPRING20", cents, id, code)
+	}
+}
+
+// A code the shopper has since exhausted elsewhere must not still discount this order.
+func TestAnExhaustedCodeDoesNotDiscountAtPaymentTime(t *testing.T) {
+	f := newFakeRepo()
+	seedProduct(f, pMilk, "Milk", "10.00", "active")
+	one := 1
+	seedPromo(f, PromoCode{
+		ID: "promo-1", Code: "ONCE", Kind: PromoPercentage, PercentOff: 20,
+		Status: "active", MaxPerCustomer: &one,
+	})
+	svc := newSvc(f, defaultPolicy())
+	_, _ = svc.Add(context.Background(), "c", pMilk, "a", 5)
+	_, _ = svc.ApplyPromo(context.Background(), "c", "ONCE", now)
+
+	// They redeem it on another order in the meantime.
+	f.usage["promo-1"] = PromoUsage{Total: 1, ByThisShopper: 1}
+
+	cents, _, _, err := svc.DiscountForCustomer(context.Background(), "c", 5000, now)
+	if err != nil {
+		t.Fatalf("DiscountForCustomer: %v", err)
+	}
+	if cents != 0 {
+		t.Errorf("discount = %d, want 0 — a spent code must not discount again", cents)
 	}
 }

@@ -118,6 +118,10 @@ func run() error {
 	presign := media.NewResolver(s3.NewFromConfig(awsCfg), cfg.AWS.MediaBucket)
 	paymentGateway := checkout.NewStripeGateway(cfg.Stripe.SecretKey, cfg.Stripe.WebhookSecret)
 
+	// 027: checkout re-computes the promotional discount through the cart service, so the two can never
+	// disagree about what a code is worth. Built before deps so both can reference it.
+	cartSvc := cart.NewService(cart.NewRepository(pool), presign, cartpolicy.NewStore(pool))
+
 	deps := dependencies{
 		status:           platformstatus.NewService(platformstatus.NewRepository(pool), cfg.Env),
 		customerVerifier: customerVerifier,
@@ -131,9 +135,9 @@ func run() error {
 		metrics:  m,
 
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
-		cart:       cart.NewService(cart.NewRepository(pool), presign, cartpolicy.NewStore(pool)),
+		cart:       cartSvc,
 		favorites:  favorites.NewService(favorites.NewRepository(pool), presign),
-		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey),
+		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc),
 		orders:     orders.NewService(orders.NewRepository(pool)),
 	}
 

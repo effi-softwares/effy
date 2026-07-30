@@ -106,6 +106,22 @@ type cartPreviewRequest struct {
 	Lines []cartLineInput `json:"lines"`
 }
 
+type reorderRequest struct {
+	OrderID  string `json:"orderId"`
+	ChangeID string `json:"changeId"`
+}
+
+type reorderSkippedDTO struct {
+	ProductID string  `json:"productId"`
+	Name      *string `json:"name"`
+	Reason    string  `json:"reason"`
+}
+
+type reorderResultDTO struct {
+	Cart    cartDTO             `json:"cart"`
+	Skipped []reorderSkippedDTO `json:"skipped"`
+}
+
 type Handler struct {
 	svc *Service
 }
@@ -193,6 +209,31 @@ func (h *Handler) deleteSaved(c *gin.Context) {
 	cust, _ := customeridentity.FromContext(c.Request.Context())
 	cart, err := h.svc.DeleteSaved(c.Request.Context(), cust.ID, c.Param("productId"), c.Query("changeId"))
 	h.respond(c, cart, err)
+}
+
+// reorder puts a past order back in the cart. Returns the cart PLUS what could not come back, because
+// silently adding a subset is the one outcome the shopper cannot detect for themselves (FR-035).
+func (h *Handler) reorder(c *gin.Context) {
+	var req reorderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.ValidationFailed(c, "orderId is required")
+		return
+	}
+	cust, _ := customeridentity.FromContext(c.Request.Context())
+	result, err := h.svc.Reorder(c.Request.Context(), cust.ID, req.OrderID, req.ChangeID)
+	if err != nil {
+		h.respond(c, Cart{}, err)
+		return
+	}
+	skipped := make([]reorderSkippedDTO, 0, len(result.Skipped))
+	for _, sk := range result.Skipped {
+		skipped = append(skipped, reorderSkippedDTO{
+			ProductID: sk.ProductID,
+			Name:      optional(sk.Name),
+			Reason:    string(sk.Reason),
+		})
+	}
+	c.JSON(http.StatusOK, reorderResultDTO{Cart: toCartDTO(result.Cart), Skipped: skipped})
 }
 
 // ── Public routes ───────────────────────────────────────────────────────────────────────────────

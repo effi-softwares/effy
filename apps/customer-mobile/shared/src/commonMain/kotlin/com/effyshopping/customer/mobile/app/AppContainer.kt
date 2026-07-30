@@ -41,8 +41,14 @@ import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
 import com.effyshopping.customer.mobile.features.delivery.DeliveryContextStore
 import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
 import com.effyshopping.customer.mobile.features.cart.domain.AddToCart
+import com.effyshopping.customer.mobile.features.cart.domain.ApplyPromoCode
+import com.effyshopping.customer.mobile.features.cart.domain.RemovePromoCode
 import com.effyshopping.customer.mobile.features.cart.domain.CartRepository
 import com.effyshopping.customer.mobile.features.cart.domain.ClearCart
+import com.effyshopping.customer.mobile.features.cart.domain.DeleteSaved
+import com.effyshopping.customer.mobile.features.cart.domain.ReorderPastOrder
+import com.effyshopping.customer.mobile.features.cart.domain.RestoreSaved
+import com.effyshopping.customer.mobile.features.cart.domain.SetAside
 import com.effyshopping.customer.mobile.features.cart.domain.MergeCartOnSignIn
 import com.effyshopping.customer.mobile.features.cart.domain.RemoveFromCart
 import com.effyshopping.customer.mobile.features.cart.domain.SetCartQuantity
@@ -168,6 +174,13 @@ class AppContainer(
     val setCartQuantity by lazy { SetCartQuantity(cart, cartSync) }
     val removeFromCart by lazy { RemoveFromCart(cart, cartSync) }
     val clearCart by lazy { ClearCart(cart, cartSync) }
+    private val signedIn: () -> Boolean = { session.state.value is SessionState.Authenticated }
+    val setAside by lazy { SetAside(cart, cartRepository, signedIn) }
+    val restoreSaved by lazy { RestoreSaved(cart, cartRepository, signedIn) }
+    val deleteSaved by lazy { DeleteSaved(cart, cartRepository, signedIn) }
+    val reorderPastOrder by lazy { ReorderPastOrder(cart, cartRepository, signedIn) }
+    val applyPromoCode by lazy { ApplyPromoCode(cart, cartRepository, signedIn) }
+    val removePromoCode by lazy { RemovePromoCode(cart, cartRepository, signedIn) }
     val syncCart by lazy { SyncCart(cartSync) }
     private val mergeCartOnSignIn by lazy { MergeCartOnSignIn(cart, cartRepository) }
 

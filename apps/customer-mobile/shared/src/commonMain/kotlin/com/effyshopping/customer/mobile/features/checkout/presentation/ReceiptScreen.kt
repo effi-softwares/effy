@@ -152,6 +152,14 @@ private fun ReceiptBody(receipt: Receipt, doneLabel: String?, onDone: (() -> Uni
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
     SummaryRow("Items", money(receipt.itemSubtotalAmount, receipt.currency))
     SummaryRow("Delivery", money(receipt.deliveryFeeAmount, receipt.currency))
+    // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order — so the receipt
+    // explains itself even after the code has since changed or been disabled.
+    if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {
+        SummaryRow(
+            receipt.promoCode?.let { "Discount ($it)" } ?: "Discount",
+            "−" + money(receipt.discountAmount, receipt.currency),
+        )
+    }
     SummaryRow("Total paid", money(receipt.grandTotalAmount, receipt.currency), bold = true)
 
     HorizontalDivider(Modifier.padding(vertical = 8.dp))

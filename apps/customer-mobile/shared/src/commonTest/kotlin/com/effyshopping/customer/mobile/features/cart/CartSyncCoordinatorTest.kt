@@ -73,6 +73,8 @@ class CartSyncCoordinatorTest {
         override suspend fun setAside(productId: String, changeId: String) = answer("setAside:$productId")
         override suspend fun restoreSaved(productId: String, changeId: String) = answer("restore:$productId")
         override suspend fun deleteSaved(productId: String, changeId: String) = answer("deleteSaved:$productId")
+        override suspend fun applyPromo(code: String) = answer("applyPromo:$code")
+        override suspend fun removePromo() = answer("removePromo")
         override suspend fun preview(lines: List<PendingLine>) = answer("preview:${lines.size}")
         override suspend fun policy() = CartPolicy("0.00", "AUD", 99, 100)
     }

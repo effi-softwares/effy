@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.cart.domain
 
+import com.effyshopping.customer.mobile.core.error.AppError
+import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.util.newUuid
 
 /**
@@ -83,6 +85,112 @@ class ClearCart(
     operator fun invoke() {
         store.clear()
         sync.submit(PendingChange(changeId = newUuid(), kind = PendingChangeKind.Clear))
+    }
+}
+
+/**
+ * Move a line out of the payable cart, keeping it (FR-028).
+ *
+ * ⚠ Set-aside is the ONE cart operation with no local shortcut. The mirror cannot move a line between the
+ * two lists on its own without inventing what the saved list looks like — quantities, prices and
+ * availability all come from the platform — so this waits for the answer and adopts it. A guest has no
+ * server cart and therefore no saved list at all, which is why it is a no-op for them rather than a
+ * half-working local imitation.
+ */
+class SetAside(
+    private val store: CartStore,
+    private val repo: CartRepository,
+    private val isSignedIn: () -> Boolean,
+) {
+    suspend operator fun invoke(productId: String): Boolean {
+        if (!isSignedIn()) return false
+        return runCatching { store.adopt(repo.setAside(productId, newUuid())) }.getOrDefault(false)
+    }
+}
+
+/** Move a set-aside line back into the cart, at its CURRENT price (FR-029). */
+class RestoreSaved(
+    private val store: CartStore,
+    private val repo: CartRepository,
+    private val isSignedIn: () -> Boolean,
+) {
+    suspend operator fun invoke(productId: String): Boolean {
+        if (!isSignedIn()) return false
+        return runCatching { store.adopt(repo.restoreSaved(productId, newUuid())) }.getOrDefault(false)
+    }
+}
+
+/** Discard a set-aside line. */
+class DeleteSaved(
+    private val store: CartStore,
+    private val repo: CartRepository,
+    private val isSignedIn: () -> Boolean,
+) {
+    suspend operator fun invoke(productId: String): Boolean {
+        if (!isSignedIn()) return false
+        return runCatching { store.adopt(repo.deleteSaved(productId, newUuid())) }.getOrDefault(false)
+    }
+}
+
+/**
+ * Put a past order back in the cart (FR-034), and say what could not come back (FR-035).
+ *
+ * ⚠ Server-side in ONE call, not a client loop over the order's items. A loop would be N round trips, would
+ * leave a half-reordered cart on a dropped connection, and — decisively — could not produce the report:
+ * whether an item is unavailable or gone for good is only knowable where the catalogue is.
+ *
+ * Union-with-max, so a shopper who taps twice does not get double.
+ */
+class ReorderPastOrder(
+    private val store: CartStore,
+    private val repo: CartRepository,
+    private val isSignedIn: () -> Boolean,
+) {
+    suspend operator fun invoke(orderId: String): ReorderOutcome? {
+        if (!isSignedIn()) return null
+        return runCatching {
+            val outcome = repo.reorder(orderId, newUuid())
+            store.adopt(outcome.cart)
+            outcome
+        }.getOrNull()
+    }
+}
+
+/**
+ * Apply a promotional code (FR-041).
+ *
+ * ⚠ Returns the REFUSAL REASON on failure rather than a bare false. "That code doesn't work" tells a
+ * shopper nothing about whether to wait, spend more, or give up — and those are different answers
+ * (FR-043). The reason comes from the platform; this client never judges a code itself (FR-042).
+ *
+ * Signed-in only: a per-shopper cap is unenforceable without an identity, so a guest is shown a sign-in
+ * affordance where the field would be rather than a discount that might be withdrawn.
+ */
+class ApplyPromoCode(
+    private val store: CartStore,
+    private val repo: CartRepository,
+    private val isSignedIn: () -> Boolean,
+) {
+    suspend operator fun invoke(code: String): String? {
+        if (!isSignedIn()) return "Sign in to use a promotional code."
+        return try {
+            store.adopt(repo.applyPromo(code))
+            null
+        } catch (e: AppException) {
+            (e.error as? AppError.Validation)?.message ?: "We couldn’t apply that code."
+        }
+    }
+}
+
+/** Remove the applied code; the total returns to the undiscounted amount (FR-041). */
+class RemovePromoCode(
+    private val store: CartStore,
+    private val repo: CartRepository,
+    private val isSignedIn: () -> Boolean,
+) {
+    suspend operator fun invoke(): Boolean {
+        if (!isSignedIn()) return false
+        return runCatching { store.adopt(repo.removePromo()) }.getOrDefault(false)
     }
 }
 
