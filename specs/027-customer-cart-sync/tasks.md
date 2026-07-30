@@ -350,7 +350,7 @@ leave the record honest.
 
 - [X] T132 [P] Add a §027 row set to `docs/audiences/customer-capabilities.md` covering every capability against both customer surfaces (SC-018)
 - [X] T133 [P] Update the **Active feature** section of `CLAUDE.md` for 027: what was built, the R8 reversal, the three surfaces, and every open operator item
-- [ ] T134 **⚠ operator** Walk the full quickstart §3/§4 tables and sign off SC-001…SC-021, recording anything not walked rather than marking it done
+- [ ] T134 **⚠ operator** Walk the full quickstart §3/§4 tables and sign off SC-001…SC-021, recording anything not walked rather than marking it done — **[SIGNOFF.md](SIGNOFF.md) written 2026-07-30: code-complete + machine-verified + live-DB verified; 1 SC met, 2 partial, 18 NOT WALKED. This task closes when the 18 are walked.**
 - [ ] T135 **⚠ operator** Commit and open the PR
 
 ---
