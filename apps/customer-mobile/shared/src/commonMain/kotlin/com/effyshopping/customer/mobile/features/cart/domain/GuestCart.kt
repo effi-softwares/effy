@@ -1,13 +1,23 @@
 package com.effyshopping.customer.mobile.features.cart.domain
 
+import kotlinx.serialization.Serializable
+
 /**
- * The device-local guest cart (019 US2). Lines are SNAPSHOTTED (name/price/image at add time) so a
- * later catalog price change never silently mutates what the guest saw (R8). On sign-in the guest cart
- * is merged into the authoritative server cart (US3). The ops below are pure + unit-tested.
+ * The cart's line shape and the pure operations over it.
+ *
+ * ⚠ NAME (027): `GuestCartLine` is now a misnomer kept deliberately for one slice. Since 027 the PLATFORM
+ * is authoritative for a signed-in shopper's cart and this type is the line shape of BOTH the guest cart
+ * and the mirror of the account cart. The rename belongs with the presentation rewrite (Phase 5), not
+ * scattered through a contract change.
+ *
+ * Lines still carry name/price/image captured at add time, but their meaning has changed: they are a
+ * MIRROR to render instantly, reconciled against the platform on read — never the authority on what a
+ * shopper pays (027 FR-006/FR-027). The ops below are pure + unit-tested.
  */
 
 const val MAX_CART_QTY = 99
 
+@Serializable
 data class GuestCartLine(
     val productId: String,
     val name: String,
@@ -22,6 +32,17 @@ data class GuestCartLine(
      * when the storefront read carries no token yet — those lines degrade to a single anonymous package.
      */
     val packageKey: String = "",
+    /**
+     * 027 — whether the platform still considers this purchasable. An unavailable line stays visible and
+     * flagged (a temporary state may be waited out) but contributes to NO total and cannot be paid for
+     * (FR-022). Defaults true so a line built locally before the platform has spoken renders normally.
+     */
+    val available: Boolean = true,
+    /**
+     * 027 — the price this line was added at, when the platform reports it differs from the current one
+     * (FR-023). Null means there is no change to report. The shopper always pays [unitPriceAmount].
+     */
+    val priceChangedFrom: String? = null,
 )
 
 /**

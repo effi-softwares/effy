@@ -145,7 +145,7 @@ fun FavoritesScreen(
                             FavoriteTile(
                                 fav = fav,
                                 onOpen = onOpen,
-                                onAdd = { container.guestCart.add(it) },
+                                onAdd = { container.addToCart(it) },
                                 onRemove = { vm.remove(fav.id) },
                             )
                         }

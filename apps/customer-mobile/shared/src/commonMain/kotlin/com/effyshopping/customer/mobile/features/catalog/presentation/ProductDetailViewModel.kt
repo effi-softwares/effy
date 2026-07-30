@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
-import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
+import com.effyshopping.customer.mobile.features.cart.domain.AddToCart
 import com.effyshopping.customer.mobile.features.favorites.domain.RemoveFavorite
 import com.effyshopping.customer.mobile.features.favorites.domain.SaveFavorite
 import kotlinx.coroutines.CancellationException
@@ -29,7 +29,7 @@ sealed interface ProductDetailUiState {
 class ProductDetailViewModel(
     private val productId: String,
     private val getProductDetail: GetProductDetail,
-    private val guestCart: GuestCartStore,
+    private val addToCart: AddToCart,
     private val saveFavorite: SaveFavorite,
     private val removeFavorite: RemoveFavorite,
 ) : ViewModel() {
@@ -63,7 +63,7 @@ class ProductDetailViewModel(
     fun addToCart(quantity: Int) {
         val product = (_state.value as? ProductDetailUiState.Ready)?.product ?: return
         if (!product.card.available) return
-        guestCart.add(
+        addToCart(
             GuestCartLine(
                 productId = product.card.id,
                 name = product.card.name,

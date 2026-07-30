@@ -8,8 +8,7 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressForm
 import com.effyshopping.customer.mobile.features.addresses.presentation.toDraft
 import com.effyshopping.customer.mobile.features.addresses.presentation.validate
-import com.effyshopping.customer.mobile.features.cart.domain.CartRepository
-import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
+import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliverySelection
@@ -73,8 +72,11 @@ sealed interface CheckoutUiState {
 }
 
 /**
- * The checkout ViewModel (019 US3, extended 021 delivery + 023 shipping/billing addresses). On entry it
- * merges the device-local guest cart into the server cart (the customer has just signed in) and loads the
+ * The checkout ViewModel (019 US3, extended 021 delivery + 023 shipping/billing addresses; reworked 027).
+ *
+ * ⚠ 027: entry no longer pushes the device cart anywhere. The platform is authoritative for a signed-in
+ * shopper's cart, so checkout quotes and prices the SAME cart every other surface reads — the sign-in
+ * merge happens once, in `SessionManager`, not on every checkout entry. On entry this now only loads the
  * saved addresses from the 022 Address Book — the SAME list the account page manages (023 US1). The
  * default is pre-selected as the shipping address and its quote fetched; the customer may switch to
  * another saved address or add a new one inline (023 US2/US3), and may give a divergent billing address
@@ -83,8 +85,7 @@ sealed interface CheckoutUiState {
  * MVVM: immutable [CheckoutUiState] over a `MutableStateFlow`; the View calls functions, never mutates.
  */
 class CheckoutViewModel(
-    private val guestCart: GuestCartStore,
-    private val cartRepo: CartRepository,
+    private val cart: CartStore,
     private val listAddresses: ListAddresses,
     private val addAddress: AddAddress,
     private val quoteDelivery: QuoteDelivery,
@@ -100,9 +101,11 @@ class CheckoutViewModel(
 
     private fun start() {
         viewModelScope.launch {
-            // Snapshot the local cart to the server (idempotent replace) so the quote/intent price the
-            // exact lines shown. Re-entry re-syncs, never accumulates (Option B). Best-effort.
-            runCatching { cartRepo.replace(guestCart.snapshot()) }
+            // ⚠ 027: the checkout-entry cart snapshot is GONE. Under 019's Option B the device cart was
+            // the source of truth, so checkout had to push it to the server before quoting. The platform
+            // is authoritative now (research R0), which means checkout reads the SAME cart every other
+            // surface reads — and keeping a snapshot here would give checkout a second source of truth,
+            // which is precisely the 2026-07-23 bug family under a new name.
             val addresses = runCatching { listAddresses() }.getOrDefault(emptyList())
             // Pre-select the default; deterministic to the first saved address when none is default (FR-002).
             val selectedId = addresses.firstOrNull { it.isDefault }?.id ?: addresses.firstOrNull()?.id
@@ -289,7 +292,7 @@ class CheckoutViewModel(
             }
             when (outcome) {
                 is PayOutcome.Placed -> {
-                    guestCart.clear()
+                    cart.clear()
                     _state.value = CheckoutUiState.Placed(outcome.orderId)
                 }
                 PayOutcome.Canceled -> _state.value = (ready() ?: return@launch).copy(paying = false)

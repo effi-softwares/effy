@@ -29,6 +29,7 @@ import (
 	"github.com/effyshopping/effy/apis/core-api/internal/features/platformstatus"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/storefront"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/config"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/customeridentity"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
@@ -105,7 +106,7 @@ func run() error {
 	// Fail-closed: an unreachable/misconfigured pool aborts boot rather than mounting
 	// its routes unauthenticated (Principle IV).
 	customerVerifier, err := auth.NewPoolVerifier(ctx, auth.AudienceCustomer,
-		cfg.AWS.Region, cfg.Auth.Customer.PoolID, cfg.Auth.Customer.ClientID)
+		cfg.AWS.Region, cfg.Auth.Customer.PoolID, cfg.Auth.Customer.ClientIDs...)
 	if err != nil {
 		return err
 	}
@@ -130,7 +131,7 @@ func run() error {
 		metrics:  m,
 
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
-		cart:       cart.NewService(cart.NewRepository(pool), presign),
+		cart:       cart.NewService(cart.NewRepository(pool), presign, cartpolicy.NewStore(pool)),
 		favorites:  favorites.NewService(favorites.NewRepository(pool), presign),
 		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey),
 		orders:     orders.NewService(orders.NewRepository(pool)),

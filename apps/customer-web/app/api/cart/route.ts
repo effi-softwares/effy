@@ -1,11 +1,24 @@
 import { proxyToCore } from "@/lib/api/proxy"
 
 /**
- * Replace the server cart with EXACTLY the client's device-local cart — the idempotent checkout
- * snapshot (R8 amended → Option B: the local cart is the source of truth). Safe to call repeatedly;
- * re-entering checkout overwrites, never accumulates. The local cart is cleared only on order completion.
+ * The account cart, re-priced (027).
+ *
+ * Every route under `app/api/cart/` proxies to the CORE api with the SERVER session, so no client module
+ * ever reaches `aws-amplify` and the storefront's quarantine guard stays green (011 FR-006 / D11).
  */
-export async function PUT(req: Request) {
-  const body = await req.json().catch(() => ({ lines: [] }))
-  return proxyToCore((c) => c.put("/v1/cart", body))
+export async function GET() {
+  return proxyToCore((c) => c.get("/v1/cart"))
+}
+
+/**
+ * Empty the payable cart (FR-032). Set-aside items deliberately survive it (FR-030).
+ *
+ * ⚠ The `PUT` that used to live here is GONE. It was 019 Option B's whole-cart replace, fired once at
+ * checkout entry, and it is the one operation that lets a client delete a line it has never heard of. The
+ * platform is authoritative now, and the absence of that operation is what makes a stale device
+ * structurally harmless (specs/027-customer-cart-sync/research.md R0/R1).
+ */
+export async function DELETE(req: Request) {
+  const changeId = new URL(req.url).searchParams.get("changeId") ?? ""
+  return proxyToCore((c) => c.delete(`/v1/cart?changeId=${encodeURIComponent(changeId)}`))
 }

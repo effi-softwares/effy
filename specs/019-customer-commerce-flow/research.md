@@ -154,6 +154,28 @@ Legend: **Decision** / **Rationale** / **Alternatives rejected**.
   storefront session-awareness; a replace-at-checkout is simpler and idempotent by construction). See the
   021+022+023 note in CLAUDE.md for the fix's file-by-file scope.
 
+- **⚠⚠ SUPERSEDED 2026-07-30 by 027-customer-cart-sync (research R0).** Option B is **no longer the design
+  in force.** For a signed-in shopper the **platform is authoritative** again; the client keeps a durable
+  *non-authoritative mirror* for immediacy, and the device-local cart is the whole truth **only while the
+  shopper is a guest**. `PUT /v1/cart` (the replace) is **deleted from the API**, and `POST /v1/cart/merge`
+  returns with **different semantics**: union with **MAXIMUM** quantity per line, which is idempotent —
+  not the additive sum that caused the three bugs above.
+  - **Why Option B had to go**: it was the right fix in the wrong layer. Four of 027's P1 requirements are
+    *unimplementable* under a device-local truth, not merely harder — an account-level cart (no account),
+    two-device convergence (nothing to converge *on*; last push wins the whole cart, which is bug (b)/(c)
+    relocated from checkout entry to device switching), a lossless guest→account merge (replace *cannot*
+    merge — that is what replace means), and a server-computed charge once a discount exists.
+  - **What is KEPT from Option B**, because it was the real insight: *stop sending non-idempotent bulk
+    mutations.* 027 generalises it — **every** cart write is idempotent by construction (absolute
+    quantities instead of deltas; union-with-max instead of additive merge), and the single genuinely
+    non-idempotent operation (`add`, which must increment) carries a client-generated `changeId` deduped
+    inside the mutation's own transaction.
+  - **What deleting `PUT /v1/cart` buys**: a device that has been offline for a week holds no operation
+    capable of removing a line it has never heard of. Stale-device safety becomes structural rather than a
+    discipline.
+  - Full reasoning, the alternatives weighed (conditional writes, CRDTs) and the mechanism:
+    [specs/027-customer-cart-sync/research.md](../027-customer-cart-sync/research.md) R0 and R1.
+
 ## R9 — Money representation
 
 - **Decision**: Persist and compute money as `numeric(12,2)` AUD end-to-end (matching `product.price_amount`),

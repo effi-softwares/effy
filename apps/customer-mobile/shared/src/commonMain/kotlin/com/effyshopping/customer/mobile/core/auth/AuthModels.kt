@@ -2,8 +2,12 @@ package com.effyshopping.customer.mobile.core.auth
 
 /**
  * A signed-in session. Carries BOTH tokens because every account route needs both (the two-token
- * protocol, 013 D2): the ID token is the gateway bearer (`Authorization`), the access token is relayed
- * to Cognito (`X-Effy-Access-Token`).
+ * protocol, 013 D2): for the EDGE api the ID token is the gateway bearer (`Authorization`) and the access
+ * token is relayed to Cognito (`X-Effy-Access-Token`).
+ *
+ * ⚠ The CORE api is different, and getting it wrong 401s every request: the hot path verifies the token
+ * itself and requires an **ACCESS** token (`token_use == "access"` + `client_id`). Which token goes where
+ * is decided in ONE place — `core/http/EffyHttpClient.kt`'s `authHeadersFor` — and is unit-tested there.
  *
  * No expiry is carried: Amplify owns refresh (D21), and the app reads a fresh session per request rather
  * than tracking expiry itself. These tokens live in the SDK's secure store (Keychain / Keystore-backed) —

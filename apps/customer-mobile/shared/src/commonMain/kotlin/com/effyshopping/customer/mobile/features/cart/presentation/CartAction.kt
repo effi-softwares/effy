@@ -34,13 +34,13 @@ import org.jetbrains.compose.resources.painterResource
  * Search, and the product page itself. Anything less leaves a dead end: after the Nav3
  * migration the cart briefly had no entry point at all, and "Add to cart" led nowhere.
  *
- * The count is read from the DEVICE-LOCAL cart, which 019 R8 made the single source of truth, so the
- * badge is correct for a guest and does not wait on a network round trip.
+ * The count is read from the cart MIRROR (027), so it is right for a guest, right the instant a tap
+ * lands, and never waits on a network round trip (FR-015).
  */
 @Composable
 fun CartAction(container: AppContainer, onCart: () -> Unit, modifier: Modifier = Modifier) {
-    val lines by container.guestCart.lines.collectAsState()
-    val count = lines.sumOf { it.quantity }
+    val cart by container.cart.state.collectAsState()
+    val count = cart.itemCount
     // The count is ANNOUNCED, not merely seen (025 FR-045) — a badge is invisible to a screen reader.
     val label = if (count > 0) "Cart, $count items" else "Cart"
 

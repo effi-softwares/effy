@@ -6,6 +6,7 @@ import Link from "next/link"
 
 import { googleEnabled } from "@/lib/auth-routes"
 import { safeNextTarget } from "@/lib/next-target"
+import { mergeCartAfterSignIn } from "@/lib/cart-actions"
 import { capture } from "@/lib/telemetry"
 import {
   authErrorMessage,
@@ -55,6 +56,10 @@ export function SignInForm() {
 
   const done = (route: "password" | "otp") => {
     capture({ name: "sign_in_completed", props: { route } })
+    // 027 FR-011: fold this browser's cart into the account cart — union with MAXIMUM quantity, so nothing
+    // is lost from either side and a repeated sign-in changes nothing. Fired before navigating, and NOT
+    // awaited: the shopper should not wait on it, and the cart page reconciles again on open either way.
+    void mergeCartAfterSignIn()
     if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
     // `replace`, not `push`: the sign-in page must not sit in the back-button history where a
     // signed-in customer can land on it again.

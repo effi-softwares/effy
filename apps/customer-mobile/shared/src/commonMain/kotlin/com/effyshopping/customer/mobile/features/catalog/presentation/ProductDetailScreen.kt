@@ -98,7 +98,7 @@ fun ProductDetailScreen(
         ProductDetailViewModel(
             productId = productId,
             getProductDetail = container.getProductDetail,
-            guestCart = container.guestCart,
+            addToCart = container.addToCart,
             saveFavorite = container.saveFavorite,
             removeFavorite = container.removeFavorite,
         )

@@ -10,9 +10,10 @@ import com.effyshopping.customer.mobile.features.addresses.domain.AddressReposit
 import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressForm
-import com.effyshopping.customer.mobile.features.cart.domain.CartRepository
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
-import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
+import com.effyshopping.customer.mobile.core.storage.InMemoryDevicePreferences
+import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
+import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
@@ -26,6 +27,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.QuotePackageIte
 import com.effyshopping.customer.mobile.features.checkout.presentation.AddressTarget
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutUiState
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutViewModel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -43,11 +45,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 // ── Hand-written fakes (no mocking lib) ───────────────────────────────────────────────────────────────
-
-private class FakeCartRepo : CartRepository {
-    var replaced = false
-    override suspend fun replace(lines: List<GuestCartLine>) { replaced = true }
-}
 
 private class FakePayment(private val result: PaymentResult = PaymentResult.Completed) : PaymentDriver {
     var presented = 0
@@ -137,8 +134,7 @@ class CheckoutViewModelTest {
         payment: FakePayment = FakePayment(),
     ): CheckoutViewModel =
         CheckoutViewModel(
-            guestCart = GuestCartStore(),
-            cartRepo = FakeCartRepo(),
+            cart = CartStore(CartLocalStore(InMemoryDevicePreferences()), CoroutineScope(Dispatchers.Main)),
             listAddresses = ListAddresses(book),
             addAddress = AddAddress(book),
             quoteDelivery = QuoteDelivery(repo),

@@ -24,6 +24,18 @@ class SessionManager(
     private val authDriver: AuthDriver,
     private val getCustomer: GetCustomer,
     scope: CoroutineScope,
+    /**
+     * Fired once per Guest/Restoring → Authenticated transition (027). The cart uses it to merge the
+     * device's lines into the account cart — which is what makes a cart built on one phone appear on
+     * another. Deliberately a lambda rather than a cart dependency: the session manager has no business
+     * knowing what a cart is, and a later feature can hang its own sign-in work here the same way.
+     *
+     * ⚠ It is NOT fired on `refreshRecord()` (a name change, say). The merge is idempotent so a spurious
+     * call would be harmless, but it would cost a request on every profile edit for nothing.
+     */
+    private val onAuthenticated: suspend () -> Unit = {},
+    /** Fired on local sign-out. The cart uses it to drop the account's mirror from this device. */
+    private val onSignedOut: () -> Unit = {},
 ) {
     private val _state = MutableStateFlow<SessionState>(SessionState.Restoring)
     val state: StateFlow<SessionState> = _state.asStateFlow()
@@ -67,13 +79,23 @@ class SessionManager(
     suspend fun signOutLocally() {
         runCatching { authDriver.signOut() }
         _state.value = SessionState.Guest
+        // 027: the account's cart must not stay on the device. The account cart itself is untouched.
+        runCatching { onSignedOut() }
     }
 
     private suspend fun loadRecord(seedPassword: Boolean) {
         var attempt = 0
         while (true) {
             try {
+                val wasAuthenticated = _state.value is SessionState.Authenticated
                 setAuthenticated(getCustomer(seedPassword))
+                // 027: a genuine SIGN-IN (not a record refresh) — hand off to whoever needs to react. The
+                // cart merges the device's lines into the account cart here. A failure must not undo the
+                // sign-in: the shopper is authenticated either way, and the merge retries on the next
+                // cart open.
+                if (!wasAuthenticated && _state.value is SessionState.Authenticated) {
+                    runCatching { onAuthenticated() }
+                }
                 return
             } catch (e: AppException) {
                 val error = e.error

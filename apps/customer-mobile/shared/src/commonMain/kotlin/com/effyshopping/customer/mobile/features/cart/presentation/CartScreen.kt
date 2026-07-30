@@ -51,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -58,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
-import com.effyshopping.customer.mobile.features.cart.domain.computeTotals
 import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
 
 /**
@@ -69,9 +69,16 @@ import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
  */
 @Composable
 fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> Unit = {}) {
-    val lines by container.guestCart.lines.collectAsState()
+    val cart by container.cart.state.collectAsState()
+    val lines = cart.lines
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    // Re-price on open (027 FR-004). A cart restored from disk after a force-quit must show TODAY's prices
+    // and availability, not the ones it was built from — for a guest (priced by `/v1/cart/preview`) exactly
+    // as for a signed-in shopper (whose account cart is the truth). A failure here changes nothing: the
+    // mirror stays, because "we could not check" must never read as "you have nothing".
+    LaunchedEffect(Unit) { container.syncCart() }
 
     /** Remove with UNDO (025 FR-041) — removing the wrong line is a one-tap mistake. */
     fun onRemoved(line: GuestCartLine) {
@@ -82,9 +89,9 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) {
-                // The line was snapshotted at add time, so restoring it restores exactly what the
-                // shopper had — including the price they saw.
-                container.guestCart.add(line)
+                // Restores the line the shopper had. 027: the PRICE it comes back at is whatever the
+                // platform says on the next re-price — an undo restores a decision, not a price.
+                container.addToCart(line)
             }
         }
     }
@@ -106,8 +113,10 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
         return
     }
 
-    val totals = computeTotals(lines)
-    val currency = lines.first().currency
+    // 027: the totals come from the MIRROR, which carries the platform's own figures — so an unavailable
+    // line is already excluded (FR-022) rather than being silently added up here. Before this the screen
+    // recomputed from the raw lines and would have charged the shopper's eye for something they cannot buy.
+    val currency = cart.currency.ifBlank { lines.first().currency }
     val packages = packagesOf(lines)
     val multiPackage = packages.size > 1
 
@@ -147,14 +156,14 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
             verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
         ) {
             // The source's order summary: label/value rows with the total emphasised.
-            EffyDetailRow("Sub-total", money(totals.itemSubtotal, currency))
+            EffyDetailRow("Sub-total", money(cart.itemSubtotalAmount, currency))
             Text(
                 "Delivery is calculated at checkout once you choose an address.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             EffyHairline(modifier = Modifier.padding(vertical = EffySpacing.s))
-            EffyDetailRow("Total", money(totals.itemSubtotal, currency), emphasised = true)
+            EffyDetailRow("Total", money(cart.grandTotalAmount, currency), emphasised = true)
             EffyPrimaryButton("Go To Checkout", onClick = onCheckout)
             Text(
                 "You’ll sign in at checkout. Your cart is kept.",
@@ -204,10 +213,10 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
             ) {
                 EffyQuantityStepper(
                     quantity = line.quantity,
-                    onChange = { container.guestCart.setQuantity(line.productId, it) },
+                    onChange = { container.setCartQuantity(line.productId, it) },
                 )
                 TextButton(onClick = {
-                    container.guestCart.remove(line.productId)
+                    container.removeFromCart(line.productId)
                     onRemoved(line)
                 }) { Text("Remove") }
             }

@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { Hub } from "aws-amplify/utils"
 
 import { safeNextTarget } from "@/lib/next-target"
+import { mergeCartAfterSignIn } from "@/lib/cart-actions"
 import { capture } from "@/lib/telemetry"
 import { startGoogleSignIn, takePendingNext } from "../_lib/auth-actions"
 
@@ -49,6 +50,8 @@ export function CallbackHandler() {
         sessionStorage.removeItem(RETRY_FLAG)
         capture({ name: "sign_in_completed", props: { route: "google" } })
         capture({ name: "account_linked", props: { provider: "google" } })
+        // 027 FR-011 — the federated route needs the same merge as the native ones.
+        void mergeCartAfterSignIn()
 
         const next = safeNextTarget(takePendingNext())
         if (next !== "/") {

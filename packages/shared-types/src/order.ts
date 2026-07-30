@@ -44,6 +44,8 @@ export interface OrderSummaryDTO {
   itemCount: number;
   grandTotalAmount: string;
   currency: string;
+  /** 027 — set when a promotional code was used, so history can mark a discounted order. */
+  promoCode?: string | null;
 }
 
 /** A line on the receipt (product snapshot — never a shop). */
@@ -122,6 +124,18 @@ export interface OrderDTO {
   billingAddress?: OrderAddressDTO | null;
   itemSubtotalAmount: string;
   deliveryFeeAmount: string;
+  /**
+   * The promotional discount applied at payment (027 FR-049). The platform's own computation at that
+   * moment, stored on the order — so a receipt stays explainable years later even if the code has since
+   * been changed or disabled. "0.00" (or absent, on a pre-027 order) when no code was used.
+   * Invariant: grandTotal = itemSubtotal + deliveryFee − discount.
+   */
+  discountAmount?: string;
+  /**
+   * The literal code used, denormalised beside the discount so the receipt can still say "SPRING20"
+   * independently of the promotion record. Null/absent when no code was used.
+   */
+  promoCode?: string | null;
   grandTotalAmount: string;
   currency: string;
   paymentStatus: PaymentStatus;

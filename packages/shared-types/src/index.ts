@@ -14,3 +14,5 @@ export * from "./favorite";
 export * from "./shop-order";
 // 021-delivery-zones-pricing (management DTOs)
 export * from "./delivery";
+// 027-customer-cart-sync (promotions + order-rules management DTOs)
+export * from "./promotion";

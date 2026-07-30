@@ -3,11 +3,13 @@
 import { ArrowRight, Minus, Plus, Trash2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { useEffect } from "react"
 
 import type { GuestCartLine } from "@/lib/cart-store"
-import { addToCart, groupByPackage, removeFromCart, setCartQty, useCart } from "@/lib/cart-store"
+import { addItem, removeItem, setItemQuantity } from "@/lib/cart-actions"
+import { groupByPackage, useCartMirror } from "@/lib/cart-store"
+import { refreshCart } from "@/lib/cart-sync"
 import { toast } from "@/lib/toast-store"
-import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
 
 import { Display } from "../_components/Display"
@@ -20,9 +22,32 @@ import { Display } from "../_components/Display"
  * A single-package cart shows no artificial "Package 1 of 1" framing (FR-007/SC-011).
  */
 export default function CartPage() {
-  const lines = useCart()
-  const totals = computeCartTotals(lines)
-  const currency = lines[0]?.currency ?? "AUD"
+  const cart = useCartMirror()
+  const lines = cart.lines
+
+  // Re-price on open (027 FR-004). A cart restored from this browser's storage must show TODAY's prices
+  // and availability, not the ones it was built from — for a guest (priced by `/api/cart/preview`) exactly
+  // as for a signed-in shopper (whose account cart is the truth). A failure changes nothing: the mirror
+  // stays, because "we could not check" must never read as "you have nothing".
+  useEffect(() => {
+    void refreshCart()
+    // Reconcile again when the shopper comes back to this tab (FR-008) — the cart may have moved on
+    // another device while they were away, and a stale tab showing a stale cart is the failure this whole
+    // slice is about.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refreshCart()
+    }
+    document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("focus", onVisible)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("focus", onVisible)
+    }
+  }, [])
+
+  // 027: the totals come from the MIRROR, which carries the platform's own figures — so an unavailable
+  // line is already excluded (FR-022) rather than being silently added up here.
+  const currency = cart.currency || lines[0]?.currency || "AUD"
   const packages = groupByPackage(lines)
   const split = packages.length > 1
 
@@ -81,7 +106,7 @@ export default function CartPage() {
           <dl className="mt-5 space-y-4">
             <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Items</dt>
-              <dd className="font-bold">{formatMoney(totals.itemSubtotal, currency)}</dd>
+              <dd className="font-bold">{formatMoney(cart.itemSubtotalAmount, currency)}</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Delivery</dt>
@@ -91,7 +116,7 @@ export default function CartPage() {
               <div className="flex items-center justify-between">
                 <dt className="text-lg">Total</dt>
                 <dd className="text-2xl font-bold">
-                  {formatMoney(totals.itemSubtotal, currency)}
+                  {formatMoney(cart.grandTotalAmount, currency)}
                   <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">
                     + delivery
                   </span>
@@ -142,7 +167,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
           <div className="flex items-center rounded-full border">
             <button
               type="button"
-              onClick={() => setCartQty(line.productId, line.quantity - 1)}
+              onClick={() => setItemQuantity(line.productId, line.quantity - 1)}
               className="flex size-8 items-center justify-center hover:bg-accent"
               aria-label="Decrease quantity"
             >
@@ -153,7 +178,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
             </span>
             <button
               type="button"
-              onClick={() => setCartQty(line.productId, line.quantity + 1)}
+              onClick={() => setItemQuantity(line.productId, line.quantity + 1)}
               className="flex size-8 items-center justify-center hover:bg-accent disabled:opacity-40"
               disabled={line.quantity >= 99}
               aria-label="Increase quantity"
@@ -164,14 +189,14 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
           <button
             type="button"
             onClick={() => {
-              removeFromCart(line.productId)
+              removeItem(line.productId)
               // 025 FR-041: reversible from its own acknowledgement. Removing the wrong line is a
               // one-tap mistake, and without undo the recovery is "find it again and re-add it".
               toast(`Removed ${line.name}`, {
                 action: {
                   label: "Undo",
                   run: () =>
-                    addToCart({
+                    addItem({
                       productId: line.productId,
                       name: line.name,
                       imageUrl: line.imageUrl,

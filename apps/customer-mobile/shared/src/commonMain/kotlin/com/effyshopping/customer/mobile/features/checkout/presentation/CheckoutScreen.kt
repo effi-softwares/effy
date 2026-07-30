@@ -58,8 +58,7 @@ import com.effyshopping.customer.mobile.features.checkout.domain.QuotePackage
 fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: () -> Unit) {
     val vm = viewModel {
         CheckoutViewModel(
-            guestCart = container.guestCart,
-            cartRepo = container.cartRepository,
+            cart = container.cart,
             listAddresses = container.listSavedAddresses,
             addAddress = container.addSavedAddress,
             quoteDelivery = container.quoteDelivery,

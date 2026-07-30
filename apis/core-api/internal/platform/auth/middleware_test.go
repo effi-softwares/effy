@@ -202,3 +202,54 @@ func TestRequireGroups(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// ── One pool, many app clients (027) ────────────────────────────────────────────────────────────
+//
+// This was a single-value check until 027, and the bug it caused was total and silent: the customer pool
+// has a web client AND a mobile client (013), so every customer-mobile call to core-api answered 401 the
+// instant it arrived. Nothing caught it, because the only authenticated mobile call 019 made was a
+// best-effort cart snapshot whose failure was swallowed. These tests exist so it cannot come back.
+
+func TestVerifierAcceptsAnyConfiguredAppClient(t *testing.T) {
+	const webClient = "web-client-id"
+	const mobileClient = "mobile-client-id"
+
+	p := newTestPool(t, "kid-multi", webClient)
+	v, err := newPoolVerifierWithJWKS(
+		context.Background(), AudienceCustomer, p.issuer, p.jwks.URL, webClient, mobileClient,
+	)
+	require.NoError(t, err)
+
+	for _, client := range []string{webClient, mobileClient} {
+		t.Run(client, func(t *testing.T) {
+			token := p.token(t, func(c *CognitoAccessClaims) { c.ClientID = client })
+			claims, err := v.Verify(token)
+			require.NoError(t, err, "a token from any configured app client on this pool must verify")
+			require.Equal(t, client, claims.ClientID)
+		})
+	}
+}
+
+func TestVerifierStillRejectsAnUnconfiguredAppClient(t *testing.T) {
+	p := newTestPool(t, "kid-reject", "web-client-id")
+	v, err := newPoolVerifierWithJWKS(
+		context.Background(), AudienceCustomer, p.issuer, p.jwks.URL, "web-client-id", "mobile-client-id",
+	)
+	require.NoError(t, err)
+
+	token := p.token(t, func(c *CognitoAccessClaims) { c.ClientID = "some-other-app" })
+	_, err = v.Verify(token)
+	require.Error(t, err, "widening to a set must not widen to ANY client")
+}
+
+// An empty set would accept nothing and 401 every request forever. Failing at startup is the honest
+// behaviour — the same fail-closed rule the JWKS fetch already follows.
+func TestVerifierRefusesToStartWithNoAppClients(t *testing.T) {
+	p := newTestPool(t, "kid-empty", "unused")
+
+	_, err := newPoolVerifierWithJWKS(context.Background(), AudienceCustomer, p.issuer, p.jwks.URL)
+	require.Error(t, err)
+
+	_, err = newPoolVerifierWithJWKS(context.Background(), AudienceCustomer, p.issuer, p.jwks.URL, "  ")
+	require.Error(t, err, "whitespace is not an app client id")
+}

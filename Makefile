@@ -188,10 +188,11 @@ core-run: ## Run core-api locally in Docker with live reload (DSN + pool ids + S
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/user_pool_id)" || { echo "core-run: cannot read customer pool id from SSM (001 contract)"; exit 1; }; \
 	CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/app_client_id)" || exit 1; \
+	MOBILE_CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/customer/mobile_app_client_id)" || { echo "core-run: cannot read customer MOBILE app client id from SSM (013 contract — /effy/$(ENV)/auth/customer/mobile_app_client_id)"; exit 1; }; \
 	MEDIA_BUCKET="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/media/bucket)" || { echo "core-run: cannot read media bucket from SSM (016 T006 /effy/$(ENV)/media/bucket)"; exit 1; }; \
 	STRIPE_SECRET="$$($(SECRET_CMD) /effy/$(ENV)/stripe/secret_key)" || { echo "core-run: cannot read Stripe secret key from Secrets Manager (019 — /effy/$(ENV)/stripe/secret_key)"; exit 1; }; \
 	STRIPE_WEBHOOK="$$($(SECRET_CMD) /effy/$(ENV)/stripe/webhook_secret)" || { echo "core-run: cannot read Stripe webhook secret from Secrets Manager (019 — /effy/$(ENV)/stripe/webhook_secret)"; exit 1; }; \
-	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AUTH_CUSTOMER_POOL_ID="$$POOL_ID" AUTH_CUSTOMER_CLIENT_ID="$$CLIENT_ID" \
+	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AUTH_CUSTOMER_POOL_ID="$$POOL_ID" AUTH_CUSTOMER_CLIENT_ID="$$CLIENT_ID,$$MOBILE_CLIENT_ID" \
 	AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) AWS_MEDIA_BUCKET="$$MEDIA_BUCKET" \
 	STRIPE_SECRET_KEY="$$STRIPE_SECRET" STRIPE_WEBHOOK_SECRET="$$STRIPE_WEBHOOK" \
 		docker compose -f $(CORE_DIR)/docker-compose.yml up --build

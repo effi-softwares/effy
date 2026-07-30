@@ -6,7 +6,8 @@ import { useState } from "react"
 
 import type { FavoriteDTO } from "@effy/shared-types"
 
-import { addToCart, DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
+import { addItem } from "@/lib/cart-actions"
+import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
 
 /** Client favourites list (US6): open, add-to-cart, or remove. Remove hits the authenticated proxy. */
@@ -56,7 +57,7 @@ export function FavoritesList({ initial }: { initial: FavoriteDTO[] }) {
                 type="button"
                 disabled={!f.available}
                 onClick={() =>
-                  addToCart({
+                  addItem({
                     productId: f.id,
                     name: f.name,
                     imageUrl: f.imageUrl,
