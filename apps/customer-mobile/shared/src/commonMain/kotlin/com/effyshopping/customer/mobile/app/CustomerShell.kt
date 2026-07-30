@@ -18,10 +18,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
@@ -102,22 +98,17 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     // Bind the ViewModels' navigation handle to the composable-owned stacks (see CustomerNavigator).
     LaunchedEffect(navState) { container.navigator.bindTo(navState) }
 
-    // The tab a guest was trying to reach when deferred sign-in interrupted them.
-    var pendingTab by rememberSaveable { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(signedIn) {
-        if (signedIn) {
-            pendingTab?.let { name ->
-                CUSTOMER_TAB_ROOTS.firstOrNull { it::class.simpleName == name }?.let(navState::selectTab)
-                pendingTab = null
-            }
-        }
-    }
-
-    /** Deferred sign-in: send the guest to the Account tab's auth flow, remembering where they were. */
+    /**
+     * Deferred sign-in — pushed onto the tab the shopper is ALREADY in.
+     *
+     * ⚠ It used to `selectTab(Account)` first and remember the original tab in a `pendingTab` string,
+     * restoring it once sign-in succeeded. That threw the shopper into a different tab to ask the
+     * question, so **Back went to the account page instead of where they came from** — and the
+     * restore only ran on success, never on cancel. Pushing here means Back returns to the gate or
+     * the product they were looking at, and `completeSignIn`'s `resetToRoot()` already lands them on
+     * the right tab's root afterwards, so nothing needs remembering.
+     */
     fun requireSignIn() {
-        pendingTab = navState.activeTab::class.simpleName
-        navState.selectTab(CustomerNavKey.Account)
         navState.push(CustomerNavKey.SignIn())
     }
 
@@ -181,10 +172,11 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         container = container,
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         onSearch = { navState.selectTab(CustomerNavKey.Search) },
-                        onNotifications = {
-                            navState.selectTab(CustomerNavKey.Account)
-                            navState.push(CustomerNavKey.Notifications)
-                        },
+                        // ⚠ Pushed onto the CURRENT tab, not routed via Account. The bell is on this
+                        // screen, so Back belongs here. It used to `selectTab(Account)` first — because
+                        // Notifications is also an Account list row — which meant opening it from
+                        // Discover and pressing Back landed on the account page.
+                        onNotifications = { navState.push(CustomerNavKey.Notifications) },
                         // ⚠ These two are the ONLY way into the cart and saved items on this surface
                         // — Effy's bottom bar has no Cart or Saved tab. Removing them makes the cart
                         // fillable and unopenable; that regression shipped once already.
