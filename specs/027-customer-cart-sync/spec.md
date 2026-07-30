@@ -555,6 +555,11 @@ the database directly.
 - **FR-065**: The mobile cart's existing visual design is accepted as-is; presentation changes MUST be
   limited to what the new capabilities require (new controls, notices, and states) and MUST use the
   established design language.
+- **FR-065a** (added 2026-07-30, operator request): A shopper MUST be able to ask for the cart to be
+  brought up to date by pulling it down, and MUST see that the request is in progress. The gesture MUST be
+  available on an EMPTY cart too — "empty" is precisely the state a shopper doubts after adding something
+  on another device, so refusing the gesture there would deny it exactly where it is most wanted. A
+  refresh that fails MUST leave the cart exactly as it was.
 
 #### Promotional code administration (internal)
 

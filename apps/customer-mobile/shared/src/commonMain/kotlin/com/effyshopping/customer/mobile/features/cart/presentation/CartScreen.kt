@@ -3,6 +3,8 @@ package com.effyshopping.customer.mobile.features.cart.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -12,6 +14,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
@@ -54,6 +57,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -80,6 +85,33 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     // mirror stays, because "we could not check" must never read as "you have nothing".
     LaunchedEffect(Unit) { container.syncCart() }
 
+    /**
+     * Pull to refresh.
+     *
+     * ⚠ Why this is worth having, beyond being a familiar gesture: the cart is the one screen whose truth
+     * lives somewhere else. It reconciles on open and on a session change, but a shopper who is ALREADY
+     * looking at it when they add something on another device has no way to ask again — and asking again is
+     * exactly the instinct a pull-down expresses. It also gives them a deliberate retry after a refresh that
+     * failed silently, which is otherwise invisible by design.
+     *
+     * `isRefreshing` is only ever true while the request is in flight. A failed refresh stops the spinner
+     * and changes nothing else: the mirror is still the best answer we have, and emptying the screen because
+     * a network call failed would be the very defect this slice was opened to fix.
+     */
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    fun refresh() {
+        if (isRefreshing) return // a second pull mid-flight is the same request, not a new one
+        isRefreshing = true
+        scope.launch {
+            try {
+                container.syncCart()
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
+
     /** Remove with UNDO (025 FR-041) — removing the wrong line is a one-tap mistake. */
     fun onRemoved(line: GuestCartLine) {
         scope.launch {
@@ -100,15 +132,28 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
         // FR-044: an empty cart offers a route back into the catalogue, not a dead end.
         // 026: the source's own empty-cart screen — app bar, centred icon, headline, explanation,
         // one action — via the shared [EffyEmptyState] so cart, favourites and orders cannot drift.
+        //
+        // ⚠ The EMPTY cart is pull-to-refreshable too, and deliberately so: "empty" is precisely the state a
+        // shopper doubts when they have just added something on another device. Refusing them the gesture
+        // here would deny it exactly where they most want it. The empty state is given a scroll modifier
+        // because the gesture needs something scrollable to hang off.
         Column(modifier = Modifier.fillMaxSize()) {
             EffyAppBar(title = "My Cart")
-            EffyEmptyState(
-                title = "Your Cart Is Empty!",
-                body = "When you add products, they’ll appear here.",
-                icon = Res.drawable.ic_cart_outlined,
-                actionLabel = "Start shopping",
-                onAction = onBrowse,
-            )
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = ::refresh,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    EffyEmptyState(
+                        title = "Your Cart Is Empty!",
+                        body = "When you add products, they’ll appear here.",
+                        icon = Res.drawable.ic_cart_outlined,
+                        actionLabel = "Start shopping",
+                        onAction = onBrowse,
+                    )
+                }
+            }
         }
         return
     }
@@ -123,32 +168,38 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = "My Cart")
         SnackbarHost(hostState = snackbarHost)
-        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = EffySpacing.lg)) {
-            if (multiPackage) {
-                item(key = "split-note") {
-                    Text(
-                        "Your order arrives in ${packages.size} packages.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-                    )
-                }
-            }
-            packages.forEach { pkg ->
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = ::refresh,
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = EffySpacing.lg)) {
                 if (multiPackage) {
-                    item(key = "hdr-${pkg.packageKey.ifBlank { "p${pkg.index}" }}") {
+                    item(key = "split-note") {
                         Text(
-                            "Package ${pkg.index}",
-                            style = MaterialTheme.typography.titleSmall,
-                            modifier = Modifier.padding(top = 14.dp, bottom = 2.dp),
+                            "Your order arrives in ${packages.size} packages.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
                         )
                     }
                 }
-                items(pkg.lines, key = { it.productId }) { line ->
-                    CartRow(line, container, ::onRemoved)
-                    HorizontalDivider()
+                packages.forEach { pkg ->
+                    if (multiPackage) {
+                        item(key = "hdr-${pkg.packageKey.ifBlank { "p${pkg.index}" }}") {
+                            Text(
+                                "Package ${pkg.index}",
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 14.dp, bottom = 2.dp),
+                            )
+                        }
+                    }
+                    items(pkg.lines, key = { it.productId }) { line ->
+                        CartRow(line, container, ::onRemoved)
+                        HorizontalDivider()
+                    }
                 }
-            }
+        }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Column(

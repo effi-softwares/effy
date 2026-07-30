@@ -144,6 +144,9 @@ quantity on each in turn and confirm both settle on the same cart.
 - [X] T053 [US2] Make `apps/customer-web/app/(shop)/_components/{CartBadge,MiniCart,AddToCartControl}.tsx` and `app/(shop)/cart/page.tsx` read the mirror only, and remove any direct cart fetch left in a component
 - [ ] T054 **⚠ operator** [US2] Run quickstart §3 scenarios 3, 6, 7 with two real clients against one local `core-api` (SC-002, SC-004)
 
+- [X] T054a [US2] Pull to refresh on the cart (FR-065a, operator request 2026-07-30) — `PullToRefreshBox` in `MOBILE/features/cart/presentation/CartScreen.kt` around BOTH the populated list and the empty state, calling `container.syncCart()`; a second pull mid-flight is ignored rather than queued, and a failure stops the spinner and changes nothing else
+- [X] T054b **⚠ operator-verified BY CLAUDE** [US2] Live-tested on the Android emulator: the pull renders the spinner and issues `GET /v1/cart` → 200 (1.02s), with the cart intact
+
 **Checkpoint**: the cart is one thing the shopper owns, not one per device.
 
 ---
