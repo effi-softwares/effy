@@ -59,7 +59,7 @@ authoritative. Everything in this phase blocks everything after it.
 
 - [X] T009 Author the `-- +goose Up` half of `db/migrations/<ts>_cart_sync_promotions.sql`: create `public.promo_code`, `public.promo_redemption`, `public.order_policy`, `public.cart_saved_item`, `public.cart_change_log` exactly as specified in [data-model.md](data-model.md) §4–§8, in that order, with every `CHECK`, every FK index, and `COMMENT ON` on every table and non-obvious column
 - [X] T010 Add the three `ALTER TABLE`s (`cart` + `revision`/`promo_code_id`/`promo_applied_at`, `cart_item` + `unit_price_at_add`, `public."order"` + `discount_amount`/`promo_code_id`/`promo_code`), the `order_policy` seed row, and the `-- +goose Down` half (reverse order, dev single-stepping only) in the same file
-- [ ] T011 **⚠ operator** Commit the migration file (003 commit-guard), then run `make db-up ENV=dev` and `make db-status ENV=dev` to confirm it applied
+- [X] T011 **⚠ operator** Commit the migration file (003 commit-guard), then run `make db-up ENV=dev` and `make db-status ENV=dev` to confirm it applied
 
 ### Hot path — the read side
 
@@ -274,7 +274,7 @@ disable it, confirm the next shopper is refused — with no database access at a
 - [X] T101 [P] [US10] Create `apps/back-office/src/features/promotions/OrderRulesScreen.tsx` for the single `order_policy` row: minimum spend, per-line ceiling, distinct-item ceiling
 - [X] T102 [US10] Add the routes and the nav entry in `apps/back-office/src/routes/` and `apps/back-office/src/components/layout/nav.ts`, role-gated so a `csa` sees the list but not the mutations
 - [X] T103 [P] [US10] Add `apps/back-office/src/features/promotions/*.test.tsx`: the role gate, the validation error text, and the used-code disabled-edit state
-- [ ] T104 **⚠ operator** [US10] `make edge-deploy SERVICE=admin ENV=dev`, then create the eight quickstart §2 fixture codes **through the console** and run quickstart §4 scenarios 26–30 (SC-020, SC-021)
+- [ ] T104 **⚠ operator** [US10] ~~`make edge-deploy SERVICE=admin ENV=dev`~~ (DONE 2026-07-30), then create the eight quickstart §2 fixture codes **through the console** and run quickstart §4 scenarios 26–30 (SC-020, SC-021)
 
 **Checkpoint**: promotions are a product capability, not an engineering one.
 

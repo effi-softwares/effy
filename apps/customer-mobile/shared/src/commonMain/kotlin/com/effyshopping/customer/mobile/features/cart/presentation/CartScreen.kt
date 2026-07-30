@@ -2,56 +2,34 @@ package com.effyshopping.customer.mobile.features.cart.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import com.effyshopping.customer.mobile.core.presentation.DisplaySize
-import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
-import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
-import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
-import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
-import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
-import com.effyshopping.customer.mobile.core.presentation.EffyHairline
-import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
-import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
-import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
-import com.effyshopping.customer.mobile.core.presentation.EffySurface
-import com.effyshopping.customer.mobile.core.presentation.ProductImage
-import com.effyshopping.customer.mobile.core.presentation.money
-import com.effyshopping.customer.mobile.resources.Res
-import com.effyshopping.customer.mobile.resources.ic_cart_outlined
-import com.effyshopping.mobile.design.EffyRadius
-import com.effyshopping.mobile.design.EffySpacing
-import com.effyshopping.mobile.kit.ui.EffyTopBar
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,17 +37,44 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.core.presentation.DisplaySize
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
+import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
+import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
+import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
+import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.core.presentation.ProductImage
+import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.core.session.SessionState
-import androidx.compose.material3.OutlinedTextField
 import com.effyshopping.customer.mobile.features.cart.domain.CartBlockedReason
 import com.effyshopping.customer.mobile.features.cart.domain.CartDiscount
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_bookmark_outlined
+import com.effyshopping.customer.mobile.resources.ic_cart_outlined
+import com.effyshopping.customer.mobile.resources.ic_delete_outlined
+import com.effyshopping.mobile.design.EffyRadius
+import com.effyshopping.mobile.design.EffySpacing
+import com.effyshopping.mobile.kit.ui.EffyTopBar
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
 
 /**
  * The cart (019 US3 / 021 US1). ONE unified Effy cart the customer pays for once — but the items are
@@ -381,7 +386,14 @@ private fun SavedRow(line: GuestCartLine, container: AppContainer, scope: kotlin
             modifier = Modifier.size(56.dp).clip(RoundedCornerShape(EffyRadius.sm)),
         )
         Column(modifier = Modifier.weight(1f)) {
-            Text(line.name, style = MaterialTheme.typography.bodyMedium)
+            // Clamped for the same reason as the cart row's: an unclamped grocery name is three lines of a
+            // phone's width and squeezes the controls beside it into wrapped nonsense.
+            Text(
+                line.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(
                 money(line.unitPriceAmount, line.currency),
                 style = MaterialTheme.typography.labelSmall,
@@ -399,7 +411,15 @@ private fun SavedRow(line: GuestCartLine, container: AppContainer, scope: kotlin
             enabled = line.available,
             onClick = { scope.launch { container.restoreSaved(line.productId) } },
         ) { Text("Move to cart") }
-        TextButton(onClick = { scope.launch { container.deleteSaved(line.productId) } }) { Text("Remove") }
+        // Discarding a saved item is destructive and gets the same red icon as the cart row's remove —
+        // one visual language for "this throws the thing away", both places it can happen.
+        IconButton(onClick = { scope.launch { container.deleteSaved(line.productId) } }) {
+            Icon(
+                painterResource(Res.drawable.ic_delete_outlined),
+                contentDescription = "Discard ${line.name}",
+                tint = MaterialTheme.colorScheme.error,
+            )
+        }
     }
 }
 
@@ -417,75 +437,108 @@ private fun CartRow(
     scope: kotlinx.coroutines.CoroutineScope,
     onRemoved: (GuestCartLine) -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.md),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .clip(RoundedCornerShape(EffyRadius.md))
-                .background(EffySurface.tint),
+    // ⚠ TWO stacked rows, not one.
+    //
+    // The controls used to sit INSIDE the middle column, beside the name — a stepper plus two text
+    // buttons in whatever width was left after an 88.dp thumbnail and the line total. On a phone that
+    // leaves ~180.dp for ~300.dp of controls, so Compose squeezed them: "Remove" broke to "Rem/ove",
+    // "Save for later" was pushed off-screen entirely, and the wrapped text made the row enormous.
+    // Controls get their own full-width row underneath, where their width is not somebody else's
+    // leftovers.
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = EffySpacing.md)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
         ) {
-            ProductImage(line.imageUrl, line.name, modifier = Modifier.fillMaxSize())
-        }
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(EffyRadius.md))
+                    .background(EffySurface.tint),
+            ) {
+                ProductImage(line.imageUrl, line.name, modifier = Modifier.fillMaxSize())
+            }
 
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
-            Text(
-                line.name,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            )
-            Text(
-                money(line.unitPriceAmount, line.currency) + " each",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            // ⚠ FR-023/FR-024: a price that moved is SAID, with what it was. The shopper pays the current
-            // price either way — the point is that they find out here rather than at payment, which is the
-            // most expensive possible moment to discover it.
-            line.priceChangedFrom?.let { was ->
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
                 Text(
-                    "Was ${money(was, line.currency)}",
+                    line.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    // A long grocery name is three lines of a phone's width and pushes everything below it
+                    // down. Two lines then an ellipsis; the full name is on the product page.
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    money(line.unitPriceAmount, line.currency) + " each",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
 
-            // FR-022: an unavailable line stays visible and flagged — a temporary state may be waited out —
-            // but it is excluded from every total and cannot be paid for.
-            if (!line.available) {
-                Text(
-                    "Unavailable — not included in your total",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
-            ) {
-                EffyQuantityStepper(
-                    quantity = line.quantity,
-                    onChange = { container.setCartQuantity(line.productId, it) },
-                )
-                TextButton(onClick = {
-                    container.removeFromCart(line.productId)
-                    onRemoved(line)
-                }) { Text("Remove") }
-                // FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this"
-                // has only one answer — delete — and shoppers avoid that by abandoning the whole cart.
-                TextButton(onClick = { scope.launch { container.setAside(line.productId) } }) {
-                    Text("Save for later")
+                // ⚠ FR-023/FR-024: a price that moved is SAID, with what it was. The shopper pays the current
+                // price either way — the point is that they find out here rather than at payment, which is the
+                // most expensive possible moment to discover it.
+                line.priceChangedFrom?.let { was ->
+                    Text(
+                        "Was ${money(was, line.currency)}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
+                // FR-022: an unavailable line stays visible and flagged — a temporary state may be waited out —
+                // but it is excluded from every total and cannot be paid for.
+                if (!line.available) {
+                    Text(
+                        "Unavailable — not included in your total",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
+
+            Text(
+                money(lineTotal(line), line.currency),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            )
         }
 
-        Text(
-            money(lineTotal(line), line.currency),
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            EffyQuantityStepper(
+                quantity = line.quantity,
+                onChange = { container.setCartQuantity(line.productId, it) },
+            )
+            Spacer(Modifier.weight(1f))
+            // FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this"
+            // has only one answer — delete — and shoppers avoid that by abandoning the whole cart.
+            //
+            // ⚠ A bookmark, deliberately NOT a heart: the heart is Favourites, a different capability with
+            // its own screen, and reusing it here would tell a shopper the two lists are the same one.
+            IconButton(onClick = { scope.launch { container.setAside(line.productId) } }) {
+                Icon(
+                    painterResource(Res.drawable.ic_bookmark_outlined),
+                    contentDescription = "Save ${line.name} for later",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // ⚠ The only destructive-coloured thing on the screen. As a text button it read with exactly
+            // the same weight as "Save for later" — two equal-looking words, one of which throws the item
+            // away. Colour now says which is which before either is read; the two icons are also
+            // neutral-vs-error rather than two identical grey glyphs.
+            IconButton(onClick = {
+                container.removeFromCart(line.productId)
+                onRemoved(line)
+            }) {
+                Icon(
+                    painterResource(Res.drawable.ic_delete_outlined),
+                    contentDescription = "Remove ${line.name}",
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
     }
 }
 
