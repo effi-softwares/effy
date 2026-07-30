@@ -47,6 +47,21 @@ class ProductDetailViewModel(
         load()
     }
 
+    /**
+     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs. [load] replaces the content with
+     * a spinner, which is right on first open and wrong when the shopper is looking at this and asking for
+     * a newer version of it. A failure keeps what is on screen.
+     */
+    suspend fun refresh() {
+        try {
+            _state.value = ProductDetailUiState.Ready(getProductDetail(productId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // Keep what is on screen.
+        }
+    }
+
     fun load() {
         viewModelScope.launch {
             _state.value = ProductDetailUiState.Loading

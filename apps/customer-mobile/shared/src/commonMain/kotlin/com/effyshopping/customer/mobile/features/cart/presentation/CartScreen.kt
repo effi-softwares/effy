@@ -14,7 +14,6 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
@@ -26,6 +25,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
 import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
@@ -85,33 +85,6 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     // mirror stays, because "we could not check" must never read as "you have nothing".
     LaunchedEffect(Unit) { container.syncCart() }
 
-    /**
-     * Pull to refresh.
-     *
-     * ⚠ Why this is worth having, beyond being a familiar gesture: the cart is the one screen whose truth
-     * lives somewhere else. It reconciles on open and on a session change, but a shopper who is ALREADY
-     * looking at it when they add something on another device has no way to ask again — and asking again is
-     * exactly the instinct a pull-down expresses. It also gives them a deliberate retry after a refresh that
-     * failed silently, which is otherwise invisible by design.
-     *
-     * `isRefreshing` is only ever true while the request is in flight. A failed refresh stops the spinner
-     * and changes nothing else: the mirror is still the best answer we have, and emptying the screen because
-     * a network call failed would be the very defect this slice was opened to fix.
-     */
-    var isRefreshing by remember { mutableStateOf(false) }
-
-    fun refresh() {
-        if (isRefreshing) return // a second pull mid-flight is the same request, not a new one
-        isRefreshing = true
-        scope.launch {
-            try {
-                container.syncCart()
-            } finally {
-                isRefreshing = false
-            }
-        }
-    }
-
     /** Remove with UNDO (025 FR-041) — removing the wrong line is a one-tap mistake. */
     fun onRemoved(line: GuestCartLine) {
         scope.launch {
@@ -139,9 +112,8 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
         // because the gesture needs something scrollable to hang off.
         Column(modifier = Modifier.fillMaxSize()) {
             EffyAppBar(title = "My Cart")
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = ::refresh,
+            EffyPullToRefresh(
+                onRefresh = { container.syncCart() },
                 modifier = Modifier.weight(1f).fillMaxWidth(),
             ) {
                 Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -168,9 +140,8 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = "My Cart")
         SnackbarHost(hostState = snackbarHost)
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = ::refresh,
+        EffyPullToRefresh(
+            onRefresh = { container.syncCart() },
             modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
             LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = EffySpacing.lg)) {

@@ -70,6 +70,7 @@ import com.effyshopping.customer.mobile.core.presentation.DiscountChip
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
 import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
@@ -130,6 +131,7 @@ fun ProductDetailScreen(
                 saved = saved,
                 justAdded = justAdded,
                 onAddToCart = vm::addToCart,
+                onRefresh = vm::refresh,
                 onToggleFavorite = { if (signedIn) vm.toggleFavorite() else onRequireSignIn() },
                 onProductClick = onProductClick,
             )
@@ -146,13 +148,15 @@ private fun ProductBody(
     onAddToCart: (Int) -> Unit,
     onToggleFavorite: () -> Unit,
     onProductClick: (String) -> Unit,
+    onRefresh: suspend () -> Unit,
 ) {
     var qty by remember { mutableStateOf(1) }
     val card = product.card
 
     Column(modifier = Modifier.fillMaxSize()) {
+    EffyPullToRefresh(onRefresh = onRefresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
     Column(
-        modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
         if (product.categoryPath.isNotEmpty()) {
@@ -247,6 +251,7 @@ private fun ProductBody(
         // FR-026: more like this, from the product's own category. Omitted entirely when the category
         // yields nothing else — an empty rail is worse than no rail.
         RelatedProductsRail(container, product.categoryKey, card.id, onProductClick)
+    }
     }
 
     // ⚠ FR-025: the price and the add action stay reachable however far the shopper scrolls. On a

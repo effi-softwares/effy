@@ -24,6 +24,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
@@ -54,6 +55,23 @@ private class ReceiptViewModel(private val orderId: String, private val getRecei
             } catch (_: Throwable) {
                 _state.value = ReceiptUiState.Pending
             }
+        }
+    }
+
+    /**
+     * Re-read the receipt WITHOUT clearing the screen.
+     *
+     * ⚠ Worth having on this screen in particular: a receipt carries the order's fulfilment progress, which
+     * changes while the shopper is looking at it — a shop receives it, picks it, marks it ready. It is also
+     * the natural place to retry from when the receipt was still `Pending` (the webhook had not landed yet).
+     */
+    suspend fun refresh() {
+        try {
+            _state.value = ReceiptUiState.Ready(getReceipt(orderId))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // Keep what is on screen — including a Pending state, which is itself informative.
         }
     }
 }
@@ -88,10 +106,11 @@ fun ReceiptScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = title)
+        EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.weight(1f).fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
@@ -110,6 +129,7 @@ fun ReceiptScreen(
                 }
                 is ReceiptUiState.Ready -> ReceiptBody(s.receipt, doneLabel, onDone)
             }
+        }
         }
     }
 }

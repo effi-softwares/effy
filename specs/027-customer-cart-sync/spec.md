@@ -560,6 +560,14 @@ the database directly.
   available on an EMPTY cart too — "empty" is precisely the state a shopper doubts after adding something
   on another device, so refusing the gesture there would deny it exactly where it is most wanted. A
   refresh that fails MUST leave the cart exactly as it was.
+- **FR-065b** (added 2026-07-30, operator request): The same gesture MUST be offered on every screen whose
+  content can change on the platform while the shopper is looking at it — the order list and a receipt
+  (fulfilment progress moves as a shop receives and picks), the catalogue and a product page (price and
+  availability move), and saved items. It MUST NOT be offered where a refresh would be meaningless or
+  disruptive: a search result follows a query the shopper controls, and checkout is a flow mid-commitment.
+- **FR-065c**: A refresh MUST NOT replace the content with a loading state. The shopper is looking at
+  something and asking for a newer version of it, not asking for it to disappear; and a failure MUST leave
+  what is on screen exactly as it was.
 
 #### Promotional code administration (internal)
 

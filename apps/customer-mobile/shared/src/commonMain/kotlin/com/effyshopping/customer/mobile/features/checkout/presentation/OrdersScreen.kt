@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffySegmentedToggle
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
@@ -53,6 +54,24 @@ private class OrdersViewModel(private val listOrders: ListOrders) : ViewModel() 
     }
 
     /** 026: extracted from `init` so the error state can offer a retry (FR-021). */
+    /**
+     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs.
+     *
+     * ⚠ [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
+     * right on first open and wrong on a refresh: the shopper is LOOKING at this content and asking for a
+     * newer version of it, not asking for it to disappear. A failure here keeps what is on screen for the
+     * same reason — "we could not check" must never read as "there is nothing here".
+     */
+    suspend fun refresh() {
+        try {
+            _state.value = OrdersUiState.Ready(listOrders())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // Keep what is on screen.
+        }
+    }
+
     fun load() {
         _state.value = OrdersUiState.Loading
         viewModelScope.launch {
@@ -121,10 +140,12 @@ fun OrdersScreen(
                         onAction = onBrowse,
                     )
                 } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(shown, key = { it.id }) { order ->
-                            OrderRow(order, onOpen)
-                            HorizontalDivider()
+                    EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(shown, key = { it.id }) { order ->
+                                OrderRow(order, onOpen)
+                                HorizontalDivider()
+                            }
                         }
                     }
                 }

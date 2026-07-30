@@ -147,6 +147,11 @@ quantity on each in turn and confirm both settle on the same cart.
 - [X] T054a [US2] Pull to refresh on the cart (FR-065a, operator request 2026-07-30) — `PullToRefreshBox` in `MOBILE/features/cart/presentation/CartScreen.kt` around BOTH the populated list and the empty state, calling `container.syncCart()`; a second pull mid-flight is ignored rather than queued, and a failure stops the spinner and changes nothing else
 - [X] T054b **⚠ operator-verified BY CLAUDE** [US2] Live-tested on the Android emulator: the pull renders the spinner and issues `GET /v1/cart` → 200 (1.02s), with the cart intact
 
+- [X] T054c [US2] Extract the gesture into ONE shared `EffyPullToRefresh` in `MOBILE/core/presentation/` (FR-065b/c) — owns the in-flight flag so the indicator cannot lie, ignores a second pull mid-flight, and carries the elastic content-follow in a single `graphicsLayer` line driven by `distanceFraction` (Material's own resistance curve; no animation code of our own)
+- [X] T054d [US2] Add a non-destructive `suspend fun refresh()` to `HomeViewModel`, `OrdersViewModel`, `FavoritesViewModel`, `ProductDetailViewModel` and `ReceiptViewModel` — the existing `load()` flips to a full-screen spinner, which is right on first open and wrong on a pull; a failure keeps what is on screen
+- [X] T054e [US2] Adopt it on Discover, Orders, Favourites, the product page and the receipt; **fix HomeScreen's pre-existing broken one** (025 FR-033 hard-coded `isRefreshing = false`, so the indicator never appeared, and called `load()`, which blanked the grid). Deliberately NOT on search (query-driven) or checkout (mid-flow)
+- [X] T054f **⚠ operator-verified BY CLAUDE** [US2] Live on the Android emulator: Discover pull → `GET /v1/storefront/home` + `/categories` 200 with the grid visibly following the finger and NOT blanking; Orders pull → `GET /v1/orders` 200
+
 **Checkpoint**: the cart is one thing the shopper owns, not one per device.
 
 ---

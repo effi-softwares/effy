@@ -22,6 +22,7 @@ import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
 import com.effyshopping.customer.mobile.core.presentation.ProductGridGutter
 import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
@@ -61,6 +62,21 @@ private class FavoritesViewModel(
     }
 
     /** Public since 026: the error state offers a retry (FR-021 — every error state offers a way out). */
+    /**
+     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs. [load] replaces the content with
+     * a spinner, which is right on first open and wrong when the shopper is looking at this and asking for
+     * a newer version of it. A failure keeps what is on screen.
+     */
+    suspend fun refresh() {
+        try {
+            _state.value = FavoritesUiState.Ready(listFavorites())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // Keep what is on screen.
+        }
+    }
+
     fun load() {
         viewModelScope.launch {
             try {
@@ -134,6 +150,7 @@ fun FavoritesScreen(
                         onAction = onBrowse,
                     )
                 } else {
+                    EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.fillMaxSize()) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         horizontalArrangement = Arrangement.spacedBy(ProductGridGutter),
@@ -149,6 +166,7 @@ fun FavoritesScreen(
                                 onRemove = { vm.remove(fav.id) },
                             )
                         }
+                    }
                     }
                 }
         }
