@@ -128,6 +128,8 @@ internal fun OrderDTO.toReceipt(): Receipt {
         addressLine = addr.formatLine(),
         billingRecipientName = billing?.recipientName,
         billingAddressLine = billing?.formatLine(),
+        discountAmount = discountAmount,
+        promoCode = promoCode,
         itemSubtotalAmount = itemSubtotalAmount,
         deliveryFeeAmount = deliveryFeeAmount,
         grandTotalAmount = grandTotalAmount,

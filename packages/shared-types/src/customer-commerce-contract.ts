@@ -27,10 +27,25 @@ import type {
 import type {
   CartLineDTO,
   CartNoticeDTO,
+  CartNoticeKind,
+  CartDiscountDTO,
+  CartDiscountKind,
+  CartBlockedReason,
+  CartCheckoutStateDTO,
+  CartLimitsDTO,
   CartDTO,
+  CartLineInput,
   AddToCartRequest,
   UpdateCartLineRequest,
-  ReplaceCartRequest,
+  MergeCartRequest,
+  ReorderRequest,
+  ReorderSkipReason,
+  ReorderSkippedDTO,
+  ReorderResultDTO,
+  ApplyPromoRequest,
+  CartPreviewRequest,
+  CartPolicyDTO,
+  WireInt,
 } from "./cart";
 import type { AddressDTO, CreateAddressRequest, UpdateAddressRequest } from "./address";
 import type {
@@ -71,10 +86,25 @@ export type {
   ServiceabilityDTO,
   CartLineDTO,
   CartNoticeDTO,
+  CartNoticeKind,
+  CartDiscountDTO,
+  CartDiscountKind,
+  CartBlockedReason,
+  CartCheckoutStateDTO,
+  CartLimitsDTO,
   CartDTO,
+  CartLineInput,
   AddToCartRequest,
   UpdateCartLineRequest,
-  ReplaceCartRequest,
+  MergeCartRequest,
+  ReorderRequest,
+  ReorderSkipReason,
+  ReorderSkippedDTO,
+  ReorderResultDTO,
+  ApplyPromoRequest,
+  CartPreviewRequest,
+  CartPolicyDTO,
+  WireInt,
   AddressDTO,
   CreateAddressRequest,
   UpdateAddressRequest,
@@ -114,9 +144,23 @@ export interface CustomerCommerceContract {
   cart: CartDTO;
   cartLine: CartLineDTO;
   cartNotice: CartNoticeDTO;
+  cartNoticeKind: CartNoticeKind;
+  cartDiscount: CartDiscountDTO;
+  cartDiscountKind: CartDiscountKind;
+  cartBlockedReason: CartBlockedReason;
+  cartCheckoutState: CartCheckoutStateDTO;
+  cartLimits: CartLimitsDTO;
+  cartLineInput: CartLineInput;
   addToCart: AddToCartRequest;
   updateCartLine: UpdateCartLineRequest;
-  replaceCart: ReplaceCartRequest;
+  mergeCart: MergeCartRequest;
+  reorderRequest: ReorderRequest;
+  reorderSkipReason: ReorderSkipReason;
+  reorderSkipped: ReorderSkippedDTO;
+  reorderResult: ReorderResultDTO;
+  applyPromo: ApplyPromoRequest;
+  cartPreview: CartPreviewRequest;
+  cartPolicy: CartPolicyDTO;
   address: AddressDTO;
   createAddress: CreateAddressRequest;
   updateAddress: UpdateAddressRequest;

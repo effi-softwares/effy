@@ -9,11 +9,16 @@ import {
   deliveryZoneDetailRoute,
   deliveryZonesIndexRoute,
 } from "./routes/delivery";
+import {
+  orderRulesRoute,
+  promotionDetailRoute,
+  promotionsIndexRoute,
+} from "./routes/promotions";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
 
 // Code-based route tree (research A5). Protected app shell at '/' (+ '/admin', '/shops',
-// '/catalog', '/delivery-zones'), public auth at '/auth/sign-in'.
+// '/catalog', '/delivery-zones', '/promotions'), public auth at '/auth/sign-in'.
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     appIndexRoute,
@@ -24,6 +29,9 @@ const routeTree = rootRoute.addChildren([
     deliveryZonesIndexRoute,
     deliveryRatesRoute,
     deliveryZoneDetailRoute,
+    promotionsIndexRoute,
+    orderRulesRoute,
+    promotionDetailRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ]);

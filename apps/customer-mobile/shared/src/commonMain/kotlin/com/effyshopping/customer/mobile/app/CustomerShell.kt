@@ -99,6 +99,20 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     LaunchedEffect(navState) { container.navigator.bindTo(navState) }
 
     /**
+     * Reconcile the cart whenever the session changes (027 FR-008).
+     *
+     * Keyed on `signedIn`, so it fires on launch AND on every sign-in / sign-out — which is exactly when
+     * the mirror is most likely to disagree with the platform. On sign-in the merge has already run in
+     * `SessionManager`; this picks up anything that merge could not, and sends any change still queued.
+     *
+     * ⚠ This is NOT a true app-foreground hook. A shopper who backgrounds the app for an hour and returns
+     * without the session changing will re-price when they next open the cart (`CartScreen` does its own
+     * refresh), not the instant they return. A proper foreground signal needs a platform lifecycle
+     * observer, which is US4's territory; this covers the transitions that matter most.
+     */
+    LaunchedEffect(signedIn) { container.syncCart() }
+
+    /**
      * Deferred sign-in — pushed onto the tab the shopper is ALREADY in.
      *
      * ⚠ It used to `selectTab(Account)` first and remember the original tab in a `pendingTab` string,

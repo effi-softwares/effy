@@ -10,14 +10,22 @@ import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 
 /**
- * POST /v1/cart/items — add or increment a line.
+ * POST /v1/cart/items — add or INCREMENT a line.
+ *
+ * ⚠ The only non-idempotent cart write, because "Add to cart" twice must mean two.
+ * `changeId` is therefore REQUIRED: a client-generated UUIDv4 minted once per shopper
+ * action and reused by every retry of it, so a request that arrived without its response
+ * reaching the client cannot apply twice (FR-018).
  */
 @Serializable
 data class AddToCartRequest (
+    @SerialName("changeId")
+    val changeID: String,
+
     @SerialName("productId")
     val productID: String,
 
-    val quantity: Double
+    val quantity: Long
 )
 
 /**
@@ -36,6 +44,15 @@ data class AddressDTO (
     val postalCode: String,
     val recipientName: String,
     val region: String? = null
+)
+
+/**
+ * POST /v1/cart/promo — apply a promotional code. Signed-in only (a per-shopper cap needs
+ * identity).
+ */
+@Serializable
+data class ApplyPromoRequest (
+    val code: String
 )
 
 /**
@@ -69,20 +86,131 @@ data class BannerDTO (
 )
 
 /**
- * The full cart (GET /v1/cart and every mutating response).
+ * The full cart — returned by GET /v1/cart AND by every mutating response, so a client
+ * never has to guess the outcome of a change or issue a follow-up read (FR-007).
  */
 @Serializable
 data class CartDTO (
+    val checkout: CartCheckoutStateDTO,
     val currency: String,
+
+    /**
+     * Always "0.00" here: delivery is priced at the delivery step, once a destination exists
+     * (FR-063).
+     */
     val deliveryFeeAmount: String,
+
+    val discount: CartDiscountDTO? = null,
+
+    /**
+     * "0.00" when no code applies.
+     */
+    val discountAmount: String,
+
+    /**
+     * itemSubtotal − discount.
+     */
     val grandTotalAmount: String,
+
+    /**
+     * Payable, available lines only — unavailable items are never charged for (FR-022).
+     */
     val itemSubtotalAmount: String,
+
+    val limits: CartLimitsDTO,
     val lines: List<CartLineDTO>,
-    val notices: List<CartNoticeDTO>
+    val notices: List<CartNoticeDTO>,
+
+    /**
+     * Monotonic, bumped by every mutation. The client mirror adopts a response only when this
+     * exceeds what it holds, which is how an out-of-order reply cannot overwrite a newer cart
+     * (FR-009).
+     */
+    val revision: Long,
+
+    /**
+     * Set aside for later: kept, shown honestly, and counted in NO total (FR-028…FR-031).
+     */
+    val savedLines: List<CartLineDTO>
 )
 
 /**
- * A cart line (re-priced against the catalog on every read).
+ * Whether the shopper may proceed, and if not, why — so the cart can say it up front
+ * instead of letting them walk into a refusal at payment (FR-054). Also enforced
+ * server-side at intent (FR-056).
+ */
+@Serializable
+data class CartCheckoutStateDTO (
+    val allowed: Boolean,
+    val blockedReason: CartBlockedReason? = null,
+
+    /**
+     * Null when no minimum is in force; then nothing is shown at all (FR-057).
+     */
+    val minimumSubtotalAmount: String? = null,
+
+    /**
+     * How much more is needed to reach the minimum. Null unless `blockedReason` is
+     * "below_minimum".
+     */
+    val remainingAmount: String? = null
+)
+
+/**
+ * Why checkout is unavailable, when it is.
+ */
+@Serializable
+enum class CartBlockedReason(val value: String) {
+    @SerialName("below_minimum") BelowMinimum("below_minimum"),
+    @SerialName("empty") Empty("empty"),
+    @SerialName("no_payable_items") NoPayableItems("no_payable_items");
+}
+
+/**
+ * The discount currently applying, recomputed on every read — never a stored or client-sent
+ * amount.
+ */
+@Serializable
+data class CartDiscountDTO (
+    /**
+     * The computed reduction, capped so the payable total can never fall below zero.
+     */
+    val amount: String,
+
+    val code: String,
+    val kind: CartDiscountKind,
+
+    /**
+     * e.g. "20% off" — display only, and shop-free.
+     */
+    val label: String
+)
+
+/**
+ * What a discount takes off. A NAMED type on purpose: an inline `"percentage" | "fixed"`
+ * union makes the Kotlin generator emit a class called `Kind`, which is the same
+ * generic-name trap that produced 019's bare `Line` class. Named here, it generates
+ * `CartDiscountKind`.
+ */
+@Serializable
+enum class CartDiscountKind(val value: String) {
+    @SerialName("fixed") Fixed("fixed"),
+    @SerialName("percentage") Percentage("percentage");
+}
+
+/**
+ * The platform's ceilings, sent so the client can explain them rather than guess them
+ * (FR-037/038).
+ */
+@Serializable
+data class CartLimitsDTO (
+    val maxDistinctItems: Long,
+    val maxLineQuantity: Long
+)
+
+/**
+ * A cart line, or a set-aside line — the same shape; re-priced against the catalog on every
+ * read.
  */
 @Serializable
 data class CartLineDTO (
@@ -104,34 +232,82 @@ data class CartLineDTO (
     val packageKey: String,
 
     /**
-     * When the authoritative price differs from what the client last saw, the prior amount (UX
-     * only).
+     * The price this line was added at, when it differs from `unitPriceAmount` — so the shopper
+     * is told what it *was* rather than being surprised at payment (FR-023). Null when
+     * unchanged, and null for a line added before the platform recorded add-time prices (a
+     * pre-migration row must not fabricate a change). The shopper always pays
+     * `unitPriceAmount`, in both directions.
      */
     val priceChangedFrom: String? = null,
 
     @SerialName("productId")
     val productID: String,
 
-    val quantity: Double,
+    val quantity: Long,
     val unitPriceAmount: String
 )
 
 @Serializable
 data class CartNoticeDTO (
+    /**
+     * Human-readable specifics where the kind alone is not enough. NEVER names or implies a
+     * shop.
+     */
+    val detail: String? = null,
+
     val kind: CartNoticeKind,
 
     @SerialName("productId")
-    val productID: String
+    val productID: String? = null
 )
 
 /**
- * A cart-level notice surfaced at read/checkout (an item went away or changed price).
+ * A notice the cart surfaces before checkout. `productId` is null for a cart-level notice
+ * (a promotional code that stopped applying) — a widening of 019's shape, inert for
+ * existing readers, which match on `kind` and `productId` together.
  */
 @Serializable
 enum class CartNoticeKind(val value: String) {
+    @SerialName("cart_full") CartFull("cart_full"),
     @SerialName("price_changed") PriceChanged("price_changed"),
+    @SerialName("promo_no_longer_applies") PromoNoLongerApplies("promo_no_longer_applies"),
+    @SerialName("quantity_clamped") QuantityClamped("quantity_clamped"),
+    @SerialName("removed") Removed("removed"),
     @SerialName("unavailable") Unavailable("unavailable");
 }
+
+/**
+ * One line of a client-supplied set (merge, preview).
+ */
+@Serializable
+data class CartLineInput (
+    @SerialName("productId")
+    val productID: String,
+
+    val quantity: Long
+)
+
+/**
+ * GET /v1/cart/policy — PUBLIC. The minimum and the ceilings, so a guest cart can gate and
+ * explain honestly without a server cart to read them from.
+ */
+@Serializable
+data class CartPolicyDTO (
+    val currency: String,
+    val maxDistinctItems: Long,
+    val maxLineQuantity: Long,
+    val minimumSubtotalAmount: String
+)
+
+/**
+ * POST /v1/cart/preview — PUBLIC. Re-price a guest's device cart with full notices and
+ * write nothing, so a restored guest cart shows current prices and availability too (FR-004
+ * applies to guests).
+ */
+@Serializable
+data class CartPreviewRequest (
+    val lines: List<CartLineInput>
+)
 
 /**
  * A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct
@@ -444,6 +620,23 @@ data class MediaDTO (
 )
 
 /**
+ * POST /v1/cart/merge — fold a device cart into the account cart at sign-in.
+ *
+ * ⚠ UNION WITH MAXIMUM QUANTITY per product. This is NOT 019's original `/v1/cart/merge`,
+ * which SUMMED quantities and was removed on 2026-07-23 after it tripled carts. Taking the
+ * maximum makes the operation idempotent AND commutative: signing in twice, or retrying an
+ * interrupted merge, leaves exactly the same cart (FR-011, FR-012). Nothing from either
+ * side is dropped.
+ */
+@Serializable
+data class MergeCartRequest (
+    @SerialName("changeId")
+    val changeID: String? = null,
+
+    val lines: List<CartLineInput>
+)
+
+/**
  * Full order / receipt (GET /v1/orders/{id}).
  */
 @Serializable
@@ -463,6 +656,15 @@ data class OrderDTO (
     val deliveryAddress: OrderAddressDTO,
 
     val deliveryFeeAmount: String,
+
+    /**
+     * The promotional discount applied at payment (027 FR-049). The platform's own computation
+     * at that moment, stored on the order — so a receipt stays explainable years later even if
+     * the code has since been changed or disabled. "0.00" (or absent, on a pre-027 order) when
+     * no code was used. Invariant: grandTotal = itemSubtotal + deliveryFee − discount.
+     */
+    val discountAmount: String? = null,
+
     val fulfillments: List<OrderFulfillmentDTO>,
     val grandTotalAmount: String,
     val id: String,
@@ -471,6 +673,13 @@ data class OrderDTO (
     val orderNumber: String,
     val paymentStatus: PaymentStatus,
     val placedAt: String? = null,
+
+    /**
+     * The literal code used, denormalised beside the discount so the receipt can still say
+     * "SPRING20" independently of the promotion record. Null/absent when no code was used.
+     */
+    val promoCode: String? = null,
+
     val status: OrderStatus
 )
 
@@ -596,6 +805,12 @@ data class OrderSummaryDTO (
     val itemCount: Double,
     val orderNumber: String,
     val placedAt: String? = null,
+
+    /**
+     * 027 — set when a promotional code was used, so history can mark a discounted order.
+     */
+    val promoCode: String? = null,
+
     val status: OrderStatus
 )
 
@@ -647,23 +862,48 @@ enum class ProductSort(val value: String) {
 }
 
 /**
- * PUT /v1/cart — replace the server cart with EXACTLY the client's device-local cart (the
- * idempotent checkout snapshot; R8 amended → the local cart is the source of truth).
- * Re-sending the same lines is a no-op; an empty `lines` clears the server cart. Dropped
- * lines are removed, never left behind.
+ * POST /v1/cart/reorder — put a past order's items back in the cart (FR-034).
+ * Union-with-maximum against the current cart, so a double tap cannot double quantities.
  */
 @Serializable
-data class ReplaceCartRequest (
-    val lines: List<Line>
+data class ReorderRequest (
+    @SerialName("changeId")
+    val changeID: String? = null,
+
+    @SerialName("orderId")
+    val orderID: String
+)
+
+/**
+ * The reorder outcome: the resulting cart plus exactly what could not come back, so the
+ * shopper is told rather than left to notice (FR-035). The report names no shop.
+ */
+@Serializable
+data class ReorderResultDTO (
+    val cart: CartDTO,
+    val skipped: List<ReorderSkippedDTO>
 )
 
 @Serializable
-data class Line (
+data class ReorderSkippedDTO (
+    val name: String? = null,
+
     @SerialName("productId")
     val productID: String,
 
-    val quantity: Double
+    val reason: ReorderSkipReason
 )
+
+/**
+ * Why an item from a past order could not be added back.
+ */
+@Serializable
+enum class ReorderSkipReason(val value: String) {
+    @SerialName("cart_full") CartFull("cart_full"),
+    @SerialName("clamped") Clamped("clamped"),
+    @SerialName("removed") Removed("removed"),
+    @SerialName("unavailable") Unavailable("unavailable");
+}
 
 /**
  * A page of search results with a keyset cursor for infinite scroll.
@@ -725,9 +965,16 @@ data class UpdateAddressRequest (
 )
 
 /**
- * PATCH /v1/cart/items/{productId} — set a line quantity (0 removes).
+ * PATCH /v1/cart/items/{productId} — set an ABSOLUTE line quantity; 0 removes.
+ *
+ * Absolute, not a delta, which is what lets the client debounce ten taps into one request
+ * and drop the intermediate values safely (FR-016). Idempotent, so `changeId` is optional;
+ * clients send it anyway so the queue has no special cases.
  */
 @Serializable
 data class UpdateCartLineRequest (
-    val quantity: Double
+    @SerialName("changeId")
+    val changeID: String? = null,
+
+    val quantity: Long
 )

@@ -2,7 +2,7 @@
 
 import { Elements } from "@stripe/react-stripe-js"
 import { useRouter } from "next/navigation"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import type {
   AddressDTO,
@@ -11,7 +11,7 @@ import type {
   DeliverySelectionDTO,
 } from "@effy/shared-types"
 
-import { replacePayload, useCart } from "@/lib/cart-store"
+import { useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
 import { getStripe } from "@/lib/stripe"
@@ -25,9 +25,7 @@ import { PaymentForm } from "./PaymentForm"
 type Step = "review" | "delivery" | "paying"
 
 /**
- * The checkout flow (021, extending 019's US3). On entry it REPLACES the server cart with the device-local
- * cart — an idempotent snapshot (R8 amended → Option B: the local cart is the source of truth; the local
- * cart is NOT cleared here, only on order completion) — then walks three steps:
+ * The checkout flow (021, extending 019's US3; reworked 027). It walks three steps:
  *
  *   review (address)  →  delivery (per-package options)  →  paying (Stripe Payment Element)
  *
@@ -46,10 +44,9 @@ type Step = "review" | "delivery" | "paying"
 export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDTO[] }) {
   const router = useRouter()
   const guestLines = useCart()
-  // The device-local cart is the source of truth (Option B) and is NOT cleared on entry — so it stays
-  // populated for the whole flow. The estimate and the "has items" gate read it LIVE; the server cart is
-  // only an idempotent snapshot (the entry effect below) that quote/intent price against. No freeze
-  // workaround is needed now that entry no longer wipes the local cart.
+  // 027: the mirror is what the UI reads, and nothing here empties it — the cart is cleared only when an
+  // order is actually paid for (FR-058). The estimate and the "has items" gate read it live; the AMOUNT is
+  // never taken from it, because the platform computes every figure that is charged (FR-027).
   const estimate = useMemo(() => computeCartTotals(guestLines), [guestLines])
   const currency = guestLines[0]?.currency ?? "AUD"
 
@@ -70,24 +67,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  // Snapshot the local cart into the server cart (idempotent REPLACE) so quote/intent price the exact
-  // lines the customer sees. Fired once on entry and NOT cleared here — the local cart is cleared only on
-  // order completion (checkout/complete/ClearCart). Because replace is idempotent, re-entering checkout
-  // re-syncs and never accumulates. The ref stops React Strict Mode's double-invoke from double-posting.
-  const snapshotted = useRef(false)
-  useEffect(() => {
-    if (snapshotted.current) return
-    snapshotted.current = true
-    const lines = replacePayload(guestLines)
-    if (lines.length === 0) return
-    void fetch("/api/cart", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lines }),
-    })
-    // Run once on entry with the cart snapshot; replace is idempotent so any later re-entry re-syncs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  // ⚠ 027: the checkout-entry cart snapshot is GONE, and its route with it.
+  //
+  // Under 019's Option B the device cart was the source of truth, so checkout had to PUT it to the server
+  // before quoting. The platform is authoritative now (research R0), which means checkout quotes and
+  // prices the SAME cart every other surface reads. Keeping a snapshot here would hand checkout a second
+  // source of truth — which is exactly the 2026-07-23 bug family (a cart emptied by entering checkout, a
+  // prior attempt's items reappearing) under a new name. The device cart is folded into the account cart
+  // ONCE, at sign-in, via `POST /api/cart/merge`.
 
   /** Reflect a newly created address into the shared saved-address list (dedup on id). */
   function appendAddress(created: AddressDTO) {

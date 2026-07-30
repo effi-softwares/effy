@@ -5,7 +5,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRef } from "react"
 
-import { removeFromCart, setCartQty, useCart } from "@/lib/cart-store"
+import { removeItem, setItemQuantity } from "@/lib/cart-actions"
+import { useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
 
@@ -106,7 +107,7 @@ export function MiniCart() {
                     <div className="mt-1 flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setCartQty(line.productId, line.quantity - 1)}
+                        onClick={() => setItemQuantity(line.productId, line.quantity - 1)}
                         aria-label={`Decrease quantity of ${line.name}`}
                         className="flex size-7 items-center justify-center rounded border hover:bg-accent"
                       >
@@ -115,7 +116,7 @@ export function MiniCart() {
                       <span className="w-6 text-center text-sm">{line.quantity}</span>
                       <button
                         type="button"
-                        onClick={() => setCartQty(line.productId, line.quantity + 1)}
+                        onClick={() => setItemQuantity(line.productId, line.quantity + 1)}
                         aria-label={`Increase quantity of ${line.name}`}
                         className="flex size-7 items-center justify-center rounded border hover:bg-accent"
                       >
@@ -123,7 +124,7 @@ export function MiniCart() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => removeFromCart(line.productId)}
+                        onClick={() => removeItem(line.productId)}
                         className="ml-1 text-xs text-muted-foreground hover:text-foreground"
                       >
                         Remove

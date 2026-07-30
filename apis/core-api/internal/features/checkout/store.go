@@ -60,12 +60,26 @@ type Store interface {
 	FinalizeFailed(ctx context.Context, orderID string) error
 }
 
+// OrderDiscount is the platform's own discount computation at the moment of payment (027 FR-049). Carried
+// as a value rather than three loose parameters so a caller cannot pass an amount without the code that
+// justifies it — an unexplainable discount on a receipt is worse than none.
+type OrderDiscount struct {
+	Cents       int64
+	PromoCodeID string // "" when no code was used
+	Code        string // the literal text, denormalised so the receipt can still name it
+}
+
 // OrderAmounts carries the server-computed totals (cents).
 type OrderAmounts struct {
 	ItemSubtotalCents int64
 	DeliveryFeeCents  int64
-	GrandTotalCents   int64
-	Currency          string
+	// 027: the platform's own discount computation at the moment of payment. Stored on the order so a
+	// receipt stays explainable years later, even if the code has since been changed or disabled (FR-049).
+	DiscountCents   int64
+	PromoCodeID     string // "" when no code was used
+	PromoCode       string // the literal text, denormalised so the receipt can still name it
+	GrandTotalCents int64
+	Currency        string
 }
 
 // pgStore is the Postgres Store.
@@ -164,12 +178,15 @@ func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amo
 		orderNumber = genOrderNumber()
 		if err := tx.QueryRow(ctx, `
 INSERT INTO public."order"
-    (customer_id, order_number, status, currency, item_subtotal_amount, delivery_fee_amount, grand_total_amount, delivery_address)
-VALUES ($1, $2, 'pending_payment', $3, $4::numeric, $5::numeric, $6::numeric, $7::jsonb)
+    (customer_id, order_number, status, currency, item_subtotal_amount, delivery_fee_amount,
+     discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address)
+VALUES ($1, $2, 'pending_payment', $3, $4::numeric, $5::numeric,
+        $8::numeric, NULLIF($9, '')::uuid, NULLIF($10, ''), $6::numeric, $7::jsonb)
 RETURNING id::text`,
 			customerID, orderNumber, amounts.Currency,
 			money.FormatCents(amounts.ItemSubtotalCents), money.FormatCents(amounts.DeliveryFeeCents),
-			money.FormatCents(amounts.GrandTotalCents), string(addressJSON)).Scan(&orderID); err != nil {
+			money.FormatCents(amounts.GrandTotalCents), string(addressJSON),
+			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode).Scan(&orderID); err != nil {
 			return "", "", fmt.Errorf("checkout: insert order: %w", err)
 		}
 	case err != nil:
@@ -177,9 +194,12 @@ RETURNING id::text`,
 	default:
 		if _, err := tx.Exec(ctx, `
 UPDATE public."order" SET item_subtotal_amount=$2::numeric, delivery_fee_amount=$3::numeric,
-    grand_total_amount=$4::numeric, delivery_address=$5::jsonb, updated_at=now() WHERE id=$1`,
+    grand_total_amount=$4::numeric, delivery_address=$5::jsonb,
+    discount_amount=$6::numeric, promo_code_id=NULLIF($7, '')::uuid, promo_code=NULLIF($8, ''),
+    updated_at=now() WHERE id=$1`,
 			orderID, money.FormatCents(amounts.ItemSubtotalCents), money.FormatCents(amounts.DeliveryFeeCents),
-			money.FormatCents(amounts.GrandTotalCents), string(addressJSON)); err != nil {
+			money.FormatCents(amounts.GrandTotalCents), string(addressJSON),
+			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode); err != nil {
 			return "", "", fmt.Errorf("checkout: update order: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM public.order_item WHERE order_id = $1`, orderID); err != nil {
@@ -318,7 +338,22 @@ ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
 		return false, fmt.Errorf("checkout: payment succeeded: %w", err)
 	}
 
-	// 5. Empty the customer's cart.
+	// 5. Record the promotional redemption (027 FR-048).
+	//
+	// ⚠ Inside THIS transaction, which is reached only when the status-guarded `pending_payment → paid`
+	// update above affected a row — so it runs exactly once per order even under duplicated Stripe
+	// webhooks. `promo_redemption.order_id` is UNIQUE as a second, independent guarantee: the database
+	// refuses a double count even if this code were ever called twice.
+	if _, err := tx.Exec(ctx, `
+INSERT INTO public.promo_redemption (promo_code_id, customer_id, order_id, amount)
+SELECT o.promo_code_id, o.customer_id, o.id, o.discount_amount
+FROM public."order" o
+WHERE o.id = $1 AND o.promo_code_id IS NOT NULL
+ON CONFLICT (order_id) DO NOTHING`, orderID); err != nil {
+		return false, fmt.Errorf("checkout: record promo redemption: %w", err)
+	}
+
+	// 6. Empty the customer's cart.
 	if _, err := tx.Exec(ctx, `
 DELETE FROM public.cart_item WHERE cart_id = (
     SELECT c.id FROM public.cart c JOIN public."order" o ON o.customer_id = c.customer_id WHERE o.id = $1

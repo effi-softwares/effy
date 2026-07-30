@@ -1,7 +1,6 @@
 package com.effyshopping.customer.mobile.features.cart
 
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
-import com.effyshopping.customer.mobile.features.cart.domain.GuestCartStore
 import com.effyshopping.customer.mobile.features.cart.domain.addLine
 import com.effyshopping.customer.mobile.features.cart.domain.cartCount
 import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
@@ -87,16 +86,18 @@ class GuestCartTest {
         assertTrue(packages.first().index == 1)
     }
 
+    // ⚠ 027: `GuestCartStore` is gone — the mirror that replaced it (`CartStore`) has its own suite,
+    // including the persistence and forward-only-adoption rules this one could not reach. What is left
+    // here is what this file was always really about: the PURE list operations.
     @Test
-    fun storeReflectsMutations() {
-        val store = GuestCartStore()
-        store.add(line("a", 2))
-        store.add(line("a", 1)) // merges → 3
-        store.add(line("b", 1))
-        assertEquals(4, cartCount(store.snapshot()))
-        store.setQuantity("a", 0) // removes a
-        assertEquals(1, cartCount(store.snapshot()))
-        store.clear()
-        assertEquals(0, store.snapshot().size)
+    fun pureOpsComposeTheWayTheStoreUsedThem() {
+        var lines = addLine(emptyList(), line("a", 2))
+        lines = addLine(lines, line("a", 1)) // merges → 3
+        lines = addLine(lines, line("b", 1))
+        assertEquals(4, cartCount(lines))
+        lines = setLineQty(lines, "a", 0) // removes a
+        assertEquals(1, cartCount(lines))
+        lines = emptyList()
+        assertEquals(0, lines.size)
     }
 }

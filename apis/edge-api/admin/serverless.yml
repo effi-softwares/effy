@@ -359,6 +359,109 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── Promotional codes & order rules (027 US10). Back-office authorizer; read = any active staff
+  #    (support answers "is this code live?"), mutate = admin/manager. Every mutation audits.
+  #    ⚠ The codes themselves are DECIDED on the hot path (core-api) at apply and at intent time —
+  #    this surface only defines them. Two paths, one capability, exactly Principle III. ──
+  promotionsListV1:
+    handler: src/functions/promotions-list-v1-get.handler
+    description: List promotional codes (paged, filter by status, search by code) — 027
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsCreateV1:
+    handler: src/functions/promotions-create-v1-post.handler
+    description: Create a promotional code — 027 FR-050
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsDetailV1:
+    handler: src/functions/promotions-detail-v1-get.handler
+    description: A code's definition, usage against its caps, and attribution — 027 FR-067
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsUpdateV1:
+    handler: src/functions/promotions-update-v1-patch.handler
+    description: Edit window/caps always; value only while unredeemed — 027 FR-068
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsStatusV1:
+    handler: src/functions/promotions-status-v1-post.handler
+    description: Enable or disable a code — 027 FR-069
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsDeleteV1:
+    handler: src/functions/promotions-delete-v1-delete.handler
+    description: Delete a never-redeemed code (used codes disable, never delete) — 027 FR-070
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsAuditV1:
+    handler: src/functions/promotions-audit-v1-get.handler
+    description: A code's change history — 027 FR-071
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/promotions/{id}/audit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  orderPolicyReadV1:
+    handler: src/functions/order-policy-v1-get.handler
+    description: The minimum spend and the two cart ceilings — 027 FR-053
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/order-policy
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  orderPolicyWriteV1:
+    handler: src/functions/order-policy-v1-put.handler
+    description: Set the minimum spend and the cart ceilings — 027 FR-053
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/order-policy
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   # ── Catalog schema authority (016). All back-office authorizer; read = any active staff,
   #    mutate = admin/manager (contracts/admin-catalog.contract.md). Every mutation audits. ──
   catalogProductTypesListV1:
@@ -1167,5 +1270,124 @@ resources:
         Period: 300
         EvaluationPeriods: 3
         Threshold: 5000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # ── Promotional codes & order rules (027 US10) per-function Errors alarms. ──
+    PromotionsListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PromotionsCreateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-create-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsCreateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PromotionsDetailV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-detail-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsDetailV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PromotionsUpdateV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-update-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsUpdateV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PromotionsStatusV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-status-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsStatusV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PromotionsDeleteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-delete-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsDeleteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    PromotionsAuditV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-promotions-audit-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref PromotionsAuditV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    OrderPolicyReadV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-order-policy-read-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref OrderPolicyReadV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    OrderPolicyWriteV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-order-policy-write-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref OrderPolicyWriteV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching

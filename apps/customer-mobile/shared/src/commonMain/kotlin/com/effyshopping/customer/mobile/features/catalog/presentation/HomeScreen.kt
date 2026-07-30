@@ -22,7 +22,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,6 +38,7 @@ import com.effyshopping.customer.mobile.core.presentation.DisplaySize
 import com.effyshopping.customer.mobile.core.presentation.EffyChip
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCardSkeleton
@@ -135,11 +135,16 @@ fun HomeScreen(
                         icon = Res.drawable.ic_catalog_outlined,
                     )
                 } else {
-                    // 025 FR-033: pull-to-refresh survives the rebuild — a store whose stock and
-                    // prices move needs a way to say "show me that again" that is not "kill the app".
-                    PullToRefreshBox(
-                        isRefreshing = false,
-                        onRefresh = vm::load,
+                    // 025 FR-033: pull-to-refresh — a store whose stock and prices move needs a way to
+                    // say "show me that again" that is not "kill the app".
+                    //
+                    // ⚠ 027 fixed two things here. `isRefreshing` was hard-coded `false`, so the indicator
+                    // NEVER appeared — the gesture worked and looked like nothing had happened. And it
+                    // called `load()`, which blanks the grid to a full-screen spinner: the shopper asked for
+                    // a newer version of what they were looking at and got it taken away instead. The shared
+                    // wrapper owns the flag, and `refresh()` leaves the content in place.
+                    EffyPullToRefresh(
+                        onRefresh = vm::refresh,
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         DiscoverGrid(s.home, onProductClick)

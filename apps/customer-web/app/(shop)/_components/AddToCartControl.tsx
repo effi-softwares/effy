@@ -4,7 +4,8 @@ import { Minus, Plus, ShoppingCart } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
-import { addToCart, DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
+import { addItem } from "@/lib/cart-actions"
+import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
 import { capture } from "@/lib/telemetry"
 import { toast } from "@/lib/toast-store"
@@ -40,7 +41,7 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
   }
 
   function add() {
-    addToCart({
+    addItem({
       productId: product.productId,
       name: product.name,
       imageUrl: product.imageUrl,

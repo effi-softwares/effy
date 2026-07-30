@@ -24,6 +24,12 @@ export class ApiClient {
     return this.request<T>("POST", path, body);
   }
 
+  /** Replace a resource wholesale. Distinct from PATCH on purpose: 027's order-rules row is a
+   *  singleton whose write is idempotent — a PUT says so, and a retry cannot mean something else. */
+  put<T>(path: string, body?: unknown): Promise<T> {
+    return this.request<T>("PUT", path, body);
+  }
+
   patch<T>(path: string, body?: unknown): Promise<T> {
     return this.request<T>("PATCH", path, body);
   }

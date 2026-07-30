@@ -5,6 +5,7 @@ package httpx
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -84,6 +85,15 @@ func MethodNotAllowed(c *gin.Context) {
 func ValidationFailed(c *gin.Context, detail string, fieldErrors ...FieldError) {
 	WriteProblem(c, http.StatusBadRequest, TypeValidationFailed,
 		"Request validation failed", detail, fieldErrors...)
+}
+
+// ValidationFailedAs is a refusal the CLIENT must be able to tell apart from other refusals — the
+// promotional-code reasons (027 FR-043), where "expired", "already used" and "below the minimum" each call
+// for a different response from the shopper. `reason` becomes the problem's own type URI, which is exactly
+// what RFC 9457's `type` is for; the human `detail` stays alongside it.
+func ValidationFailedAs(c *gin.Context, reason, detail string) {
+	WriteProblem(c, http.StatusBadRequest, "https://effyshopping.com/problems/"+strings.ReplaceAll(reason, "_", "-"),
+		"Request validation failed", detail)
 }
 
 // Internal never explains itself to the caller; the cause is in the log record that

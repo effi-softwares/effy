@@ -9,6 +9,8 @@ import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
 import { Display } from "@/components/storefront/kit"
 
+import { ReorderButton } from "./ReorderButton"
+
 export const metadata: Metadata = {
   title: "Your orders",
   robots: { index: false, follow: false },
@@ -52,8 +54,8 @@ async function OrdersList() {
   return (
     <ul className="divide-y rounded-2xl border">
       {orders.map((o) => (
-        <li key={o.id}>
-          <Link href={`/orders/${o.id}`} className="flex items-center justify-between gap-4 p-4 hover:bg-accent">
+        <li key={o.id} className="flex items-center justify-between gap-4 p-4">
+          <Link href={`/orders/${o.id}`} className="flex flex-1 items-center justify-between gap-4 hover:underline">
             <div>
               <div className="font-medium">{o.orderNumber}</div>
               <div className="text-sm text-muted-foreground">
@@ -62,6 +64,7 @@ async function OrdersList() {
             </div>
             <div className="text-sm font-medium">{formatMoney(o.grandTotalAmount, o.currency)}</div>
           </Link>
+          <ReorderButton orderId={o.id} />
         </li>
       ))}
     </ul>

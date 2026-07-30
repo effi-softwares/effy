@@ -197,7 +197,7 @@ FROM public."order" WHERE customer_id = $1 AND status = 'pending_payment' LIMIT 
 
 // WritePackageDeliveries replaces the order's per-package deliveries (delete+reinsert) and sets the
 // order's summed delivery fee + grand total + quote expiry. Consumed by FinalizeSucceeded.
-func (s *pgStore) WritePackageDeliveries(ctx context.Context, orderID string, rows []PackageDelivery, itemSubtotalCents, deliveryFeeCents int64, expiresAt time.Time) error {
+func (s *pgStore) WritePackageDeliveries(ctx context.Context, orderID string, rows []PackageDelivery, itemSubtotalCents, deliveryFeeCents int64, discount OrderDiscount, expiresAt time.Time) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("checkout: begin deliveries: %w", err)
@@ -220,11 +220,16 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7)`,
 			return fmt.Errorf("checkout: insert delivery: %w", err)
 		}
 	}
+	// 027: the discount is written with the totals, and the grand total carries it. The invariant the whole
+	// receipt rests on is `grand_total = item_subtotal + delivery_fee - discount` — computed in one place,
+	// here, so no caller can arrive at a different answer.
 	if _, err := tx.Exec(ctx, `
 UPDATE public."order" SET item_subtotal_amount=$2::numeric, delivery_fee_amount=$3::numeric,
+    discount_amount=$6::numeric, promo_code_id=NULLIF($7, '')::uuid, promo_code=NULLIF($8, ''),
     grand_total_amount=$4::numeric, delivery_quote_expires_at=$5, updated_at=now() WHERE id=$1`,
 		orderID, money.FormatCents(itemSubtotalCents), money.FormatCents(deliveryFeeCents),
-		money.FormatCents(itemSubtotalCents+deliveryFeeCents), expiresAt); err != nil {
+		money.FormatCents(itemSubtotalCents+deliveryFeeCents-discount.Cents), expiresAt,
+		money.FormatCents(discount.Cents), discount.PromoCodeID, discount.Code); err != nil {
 		return fmt.Errorf("checkout: update order totals: %w", err)
 	}
 	// Any order_item for an excluded shop must not be charged/placed: remove lines whose shop has no

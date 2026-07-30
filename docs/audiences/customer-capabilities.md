@@ -412,3 +412,61 @@ The visual matrix, grayscale review, screen-reader traversal, the customer/shop 
 test (SC-021) and a full live purchase are **operator-run and outstanding**. Everything
 machine-checkable is green. The onboarding photograph is **placeholder** (Unsplash) and wants
 licensed brand photography before public release.
+
+## §027 — Customer cart synchronisation, promotions & order rules
+
+Makes the cart an **account-level thing**. Before this the customer-mobile cart had never once written
+to the backend: three stacked defects (the wrong token to the hot path, one app client per pool, and a
+Kotlin `Double` quantity Go's `encoding/json` refuses into an `int`) each masked the one in front, so a
+cart lived and died on one device. 027 rebuilds the cart as a **server-authoritative** resource with an
+**optimistic local mirror** on each surface, and adds the platform's first commercial levers —
+**promotional codes** and a **minimum order value** — with an operator console to run them.
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Cart persists to the account | ✅ | ✅ | `core-api` (hot path, FR-028) — a cart is a latency-sensitive customer transaction |
+| Cart survives force-quit / device restart | ✅ | ✅ | mirror in `localStorage` / `DevicePreferences`, adopted forward-only on `revision` |
+| Cart follows the shopper across devices | ✅ | ✅ | SC-002 — the whole reason the slice exists |
+| Guest cart merges in at sign-in | ✅ | ✅ | union with **MAXIMUM** quantity → idempotent, so it is safe on every sign-in |
+| Re-prices on open (today's prices + availability) | ✅ | ✅ | a failed re-price changes nothing — "we could not check" must not read as "you have nothing" |
+| Optimistic UI (the tap lands before the network) | ✅ | ✅ | mirror first, send second — always in that order |
+| Debounced quantity sends | ✅ | ✅ | ten taps → one request; safe **only** because quantities are absolute (SC-005) |
+| Idempotent changes (`changeId` per shopper action) | ✅ | ✅ | minted per action, never per attempt — a retry cannot apply twice (FR-018) |
+| Out-of-order response rejection | ✅ | ✅ | monotonic `cart.revision`; a slow response can never overwrite a newer cart |
+| Offline queue with backoff | ➖ by design | ✅ | mobile persists a queue; a browser tab is shorter-lived, and the next cart open repairs it |
+| Save for later (set aside / restore / discard) | ✅ | ✅ | signed-in only — a guest has no saved list, and a local imitation would be worse than the absence |
+| Reorder a past order (with a shortfall report) | ✅ | ✅ | server-side in ONE call: only the catalogue knows what is unavailable vs gone (FR-034/FR-035) |
+| Promotional code (apply / remove) | ✅ | ✅ | signed-in only — a per-shopper cap is unenforceable without an identity |
+| Specific refusal reasons (8 of them) | ✅ | ✅ | expired ≠ exhausted ≠ below-minimum: they are different answers for the shopper (FR-043) |
+| Minimum order value, stated with the shortfall | ✅ | ✅ | "add $x more" — the platform decides, and re-decides at intent (FR-054/FR-056) |
+| Cart ceilings (per line, distinct items) | ✅ | ✅ | operator-configured; clamps carry a notice rather than failing silently |
+| Pull-to-refresh on the cart | ➖ n/a | ✅ | plus Home, Search, Orders, Favourites — with an elastic follow |
+
+**Path (Principle III):** the cart is commerce → the **hot path** (`core-api`), per the routing law
+(011 FR-028). The **operator** half — defining codes and the order rules — is back-office CRUD → the
+**cold path** (`edge-api/admin`, `/admin/v1/promotions` + `/admin/v1/order-policy`). One capability,
+two audiences, two paths.
+
+**No shop identity leaks (SC-017).** Verified by reading every string the cart mints: lines group by an
+opaque `packageKey` (a truncated SHA-256 of the shop id) and render as a positional **"Package N"**;
+notices carry the PRODUCT name; the reorder shortfall counts items; the promo label is shop-free. No
+customer-facing cart, order or checkout DTO carries a shop field at all. ⚠ The **rendered** two-shop
+below-minimum cart still wants an operator's eye — grep finds identifiers, only reading finds phrasing.
+
+**Telemetry (Principle VII):** `product_removed_from_cart` / `promo_code_applied` /
+`promo_code_refused` join the existing `product_added_to_cart` / `cart_viewed`. The refusal carries the
+REASON, because the distribution of reasons is the only thing that says which stop the platform keeps
+inflicting. ⚠ Both fire through a **dynamic** `import("@/lib/telemetry")`: a static import from a cart
+client component measured **+1.0 KB on four guest routes** and put `/search` and `/cart` over the
+174 KB budget. **Mobile analytics remains deferred platform-wide** (013/014/015/020/021/022 pattern) —
+this is not parity, and is not claimed as parity.
+
+**Bundle:** measured stash/unstash. Baseline (HEAD) `/` 171.9 · `/browse` 169.8 · `/search` 173.2 ·
+`/product/[id]` 172.1 · `/cart` 172.7 KB. With 027: 172.1 · 170.1 · 173.5 · 172.3 · **173.8** KB — a
+**+0.2 to +1.1 KB** delta, all inside the pre-existing 174 KB gate. ⚠ `/search` sits 0.5 KB from the
+limit; the next client dependency added to it will break the gate.
+
+⚠ **Not live-verified yet.** The migration (`20260730102329_cart_sync_promotions.sql`) needs
+`make db-up ENV=dev`; the promotions console needs `make edge-deploy SERVICE=admin ENV=dev`; and the
+quickstart §3/§4 walks (cross-device sync, the merge, the eight refusals, the Stripe webhook
+re-delivery, the `curl` bypass attempts) are operator-run. Everything machine-checkable is green.

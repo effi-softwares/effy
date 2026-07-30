@@ -196,6 +196,83 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**027-customer-cart-sync — Customer Cart Synchronisation, Promotions & Order Rules.** ✅ **118/142 tasks
+— every feature phase BUILT + fully machine-verified. Live sign-off + commit pending.**
+
+The slice that makes the cart an **account-level thing**. It started from a one-word answer: does the
+customer-mobile cart save to the backend? No — and it never had. **Three stacked defects, all
+pre-existing from 019, each masked by the one in front:**
+- **R12a (the real cause)** — one auth plugin sent the **ID token** to both backends. `core-api` requires
+  `token_use == "access"`, so every mobile cart write was rejected. Fixed with a `BearerToken` enum and a
+  pure, testable `authHeadersFor(bearer, session)` in `EffyHttpClient.kt` — Edge takes id+access, Core
+  takes access. **Necessary but not sufficient.**
+- **R12b** — `auth.PoolVerifier` accepted exactly ONE app client per pool (`claims.ClientID != v.clientID`),
+  so the mobile client was refused even with the right token. Now a `clientIDs []string` set; the Makefile
+  passes `web,mobile` from SSM.
+- **R13 (the one that survived both fixes)** — Kotlin serialised quantities as `Double`, so the wire
+  carried `1.0`; Go's `encoding/json` refuses `1.0` into an `int`. Found by querying the DB directly
+  (revision 1, zero items) rather than by any test. Fixed **at the contract** — a `WireInt` alias carrying
+  `@asType integer` in `packages/shared-types/src/cart.ts`, so the generated Kotlin cannot regress.
+- **⚠ The lesson**: every unit test passed throughout, because the fakes spoke Kotlin at both ends and
+  never crossed the wire. **A generated-Kotlin-vs-real-Go contract test would have caught R13 on day one**
+  and is the strongest carry-forward from this slice.
+
+**The design (research R0 — it supersedes 019's R8 "Option B").** The **platform is authoritative**; each
+surface keeps an **optimistic local mirror**. Every mutation is *mirror first, send second*, always in
+that order. Correctness comes from three properties rather than from locking:
+- **Absolute quantities** — which is what lets ten stepper taps debounce into ONE request without
+  corrupting the total (SC-005). With increments it would be unsafe.
+- **`changeId` per shopper ACTION, not per attempt** — a retry reuses it, so a request that arrived
+  without its response reaching us cannot apply twice (FR-018).
+- **A monotonic `cart.revision`** — a slow response can never overwrite a newer cart. The merge is
+  **union with MAXIMUM quantity**, so the guest→account fold is idempotent and safe on every sign-in.
+
+**Built (all three surfaces + the operator console):**
+- **`core-api/cart`** — the full resource (add · set · remove · clear · merge · preview · reorder ·
+  set-aside/restore/discard · apply/remove promo), a combined `AllLines` read, and `checkoutState` (the
+  minimum-order gate, re-decided at intent time — the client never decides it). New
+  `platform/cartpolicy` reads the order rules. Promo evaluation is a **pure** file (`promo.go`) with
+  **eight distinguishable refusals**, because "that code doesn't work" tells a shopper nothing about
+  whether to wait, spend more, or give up.
+- **`customer-mobile`** — `CartStore` (forward-only adopt), `CartSyncCoordinator` (debounce · drain ·
+  backoff · a persisted offline queue), use cases, `HttpCartRepository`. Plus **`EffyPullToRefresh`** — a
+  shared gesture with an elastic follow — on Cart, Home, Search, Orders and Favourites.
+- **`customer-web`** — `cart-store` (versioned key + legacy migration) · `cart-api` · `cart-actions` ·
+  `cart-sync`, a `PromoField`, and the below-minimum gate.
+- **`back-office` promotions console (US10)** — `edge-api/admin/src/promotions/` (9 routes) +
+  `features/promotions/` (register · detail · order rules). **`redemptionCount` is COUNTED from
+  `promo_redemption` on every read, never stored** — a counter and the rows can disagree, and then nobody
+  knows which is true. That is also what makes **FR-068** enforceable: a redeemed code's window, caps and
+  status can change; **its value cannot**, because a paid order's discount was computed from the
+  definition as it stood. The rule is enforced **inside the writing transaction** under `FOR UPDATE`, not
+  in the service — a code can be redeemed between a check and a write.
+- **Data**: one migration `20260730102329_cart_sync_promotions.sql` — 5 new tables (`promo_code`,
+  `promo_redemption`, `order_policy`, `cart_saved_item`, `cart_change_log`), 3 altered.
+- **⚠ Latency fix**: the first working write timed out — ~14 round trips to Sydney RDS inside a 4 s
+  budget. Pruning left the write path, a combined read replaced N queries, timeout → 12 s.
+- **⚠ Regression found by the operator on device and fixed**: adding pull-to-refresh wrapped the empty
+  cart in a `verticalScroll` Column, which **top-aligns** — silently un-centring the 026 empty state.
+  `fillMaxSize()` *before* `verticalScroll` plus `Arrangement.Center` restores it.
+- **⚠ Bundle**: a static `import { capture } from "@/lib/telemetry"` in one cart client component cost
+  **+1.0 KB on four GUEST routes** and put `/search` and `/cart` over the 174 KB gate. Both promo events
+  and the removal event now fire through a **dynamic** import — byte-neutral. Measured delta vs HEAD:
+  **+0.2…+1.1 KB**, all inside budget. ⚠ `/search` sits **0.5 KB** from the limit.
+- **Verified**: `pnpm -r typecheck`, **847 JS/TS tests**, `turbo build` (3 web surfaces), Go
+  build/vet/test/gofmt, both mobile suites + `assembleDebug` + the iOS compile, `cm-guard`/`sm-guard`,
+  `cm-contract-check` (no drift), `tokens:check` **unchanged** (this slice adds no token), `depcruise`
+  clean, bundle budget green. Also **fixed three pre-existing red gates** the sweep surfaced: two
+  orphaned mobile drawables (`ic_notifications_outlined`, `ic_location_outlined` — used but never
+  promoted to the `mobile-assets/` SSOT) and the unused KMP-template `compose-multiplatform.xml`.
+- **⚠ Open (operator)** — the 12 remaining tasks are all live walks: **T011** `make db-up ENV=dev` (the
+  migration; 003 commit-guard), **T104** `make edge-deploy SERVICE=admin ENV=dev` + create the eight
+  fixture codes **through the console**, `make core-run`, then quickstart §3/§4 — cross-device sync,
+  force-quit survival, the guest→sign-in merge, the debounce request counts, the eight promo refusals,
+  the Stripe webhook re-delivery, the `curl` bypass attempts, the **rendered** two-shop below-minimum
+  cart (SC-017's phrasing half), and the Playwright cart spec (`e2e/cart.spec.ts`, 18 tests — it needs a
+  live `core-api` and a seeded catalogue). Then **T134** sign-off + **T135** commit.
+  Spec/artifacts: [specs/027-customer-cart-sync/](specs/027-customer-cart-sync/); parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §027.
+
 **024-brand-icons-splash — Brand Marks: App Icons, Splash Screens & Favicons.** ✅ **Code-complete +
 fully machine-verified; device sign-off + commit pending.**
 The platform's first brand-identity slice. Before it, **not one of the six surfaces carried the Effy
@@ -804,5 +881,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/026-monochrome-design-language/plan.md
+at specs/027-customer-cart-sync/plan.md
 <!-- SPECKIT END -->

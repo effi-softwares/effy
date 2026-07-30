@@ -60,8 +60,15 @@ type Auth struct {
 }
 
 type Pool struct {
-	PoolID   string `env:"POOL_ID,required,notEmpty"`
-	ClientID string `env:"CLIENT_ID,required,notEmpty"`
+	PoolID string `env:"POOL_ID,required,notEmpty"`
+	/**
+	 * Every app client on this pool whose tokens this service accepts, comma-separated.
+	 *
+	 * ⚠ A pool has MORE THAN ONE client: the customer pool has a web client and a mobile client (013), and
+	 * their tokens are equally valid. This was a single value until 027, which made every customer-mobile
+	 * call to core-api answer 401. The env var name is unchanged so a single-value deployment keeps working.
+	 */
+	ClientIDs []string `env:"CLIENT_ID,required,notEmpty" envSeparator:","`
 }
 
 type CORS struct {

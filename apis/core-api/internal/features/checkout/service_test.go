@@ -134,7 +134,7 @@ func (f *fakeStore) CaptureQuote(_ context.Context, _ string, _ []byte, _ []Chec
 func (f *fakeStore) ReadCapturedQuote(_ context.Context, _ string) (CapturedQuote, string, string, bool, error) {
 	return f.captured, f.orderID, f.orderNumber, f.haveCaptured, nil
 }
-func (f *fakeStore) WritePackageDeliveries(_ context.Context, _ string, rows []PackageDelivery, itemSub, deliveryFee int64, _ time.Time) error {
+func (f *fakeStore) WritePackageDeliveries(_ context.Context, _ string, rows []PackageDelivery, itemSub, deliveryFee int64, discount OrderDiscount, _ time.Time) error {
 	f.wroteDeliveries = rows
 	f.wroteItemSub = itemSub
 	f.wroteDeliveryFee = deliveryFee

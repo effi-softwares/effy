@@ -17,7 +17,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffySegmentedToggle
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
@@ -53,6 +59,24 @@ private class OrdersViewModel(private val listOrders: ListOrders) : ViewModel() 
     }
 
     /** 026: extracted from `init` so the error state can offer a retry (FR-021). */
+    /**
+     * Reload WITHOUT clearing the screen — what a pull-to-refresh needs.
+     *
+     * ⚠ [load] flips the state to Loading first, which replaces the whole screen with a spinner. That is
+     * right on first open and wrong on a refresh: the shopper is LOOKING at this content and asking for a
+     * newer version of it, not asking for it to disappear. A failure here keeps what is on screen for the
+     * same reason — "we could not check" must never read as "there is nothing here".
+     */
+    suspend fun refresh() {
+        try {
+            _state.value = OrdersUiState.Ready(listOrders())
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // Keep what is on screen.
+        }
+    }
+
     fun load() {
         _state.value = OrdersUiState.Loading
         viewModelScope.launch {
@@ -77,6 +101,31 @@ fun OrdersScreen(
 ) {
     val vm = viewModel { OrdersViewModel(container.listOrders) }
     val state by vm.state.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHost = remember { SnackbarHostState() }
+
+    /**
+     * Put a past order back in the cart, and TELL the shopper what could not come (FR-035).
+     *
+     * ⚠ The report is the point. Silently adding a subset is the one outcome they cannot detect for
+     * themselves — they would go to the cart believing they had reordered. It names no shop, only counts.
+     */
+    fun reorder(orderId: String) {
+        scope.launch {
+            val outcome = container.reorderPastOrder(orderId)
+            val message = when {
+                outcome == null -> "We couldn’t reorder that just now."
+                outcome.cart.lines.isEmpty() && outcome.skipped.isNotEmpty() ->
+                    "Nothing from that order is available right now."
+                outcome.skipped.isEmpty() -> "Added to your cart."
+                else -> {
+                    val n = outcome.skipped.size
+                    "Added to your cart. $n item${if (n == 1) "" else "s"} couldn’t be added."
+                }
+            }
+            snackbarHost.showSnackbar(message)
+        }
+    }
 
     // 026: the source design's Ongoing / Completed segmented toggle. "Ongoing" is everything that has
     // not reached a terminal state; "Completed" is what has. The split is derived from the order's own
@@ -85,6 +134,8 @@ fun OrdersScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = "My Orders")
+        // The reorder outcome is announced here — an addition the shopper cannot otherwise verify.
+        SnackbarHost(hostState = snackbarHost)
         EffySegmentedToggle(
             options = OrdersTab.entries,
             selected = tab,
@@ -121,10 +172,12 @@ fun OrdersScreen(
                         onAction = onBrowse,
                     )
                 } else {
-                    LazyColumn(Modifier.fillMaxSize()) {
-                        items(shown, key = { it.id }) { order ->
-                            OrderRow(order, onOpen)
-                            HorizontalDivider()
+                    EffyPullToRefresh(onRefresh = vm::refresh, modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(Modifier.fillMaxSize()) {
+                            items(shown, key = { it.id }) { order ->
+                                OrderRow(order, onOpen, ::reorder)
+                                HorizontalDivider()
+                            }
                         }
                     }
                 }
@@ -145,7 +198,7 @@ private enum class OrdersTab(val label: String) { Ongoing("Ongoing"), Completed(
 private fun isOngoing(status: String): Boolean = status !in setOf("delivered", "cancelled", "refunded")
 
 @Composable
-private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit) {
+private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit, onReorder: (String) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clickable { onOpen(order.id) }.padding(EffySpacing.lg),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -159,6 +212,9 @@ private fun OrderRow(order: OrderSummary, onOpen: (String) -> Unit) {
             )
         }
         Text(orderMoney(order.grandTotalAmount, order.currency), style = MaterialTheme.typography.bodyMedium)
+        // FR-034: "buy again". Effy's shoppers buy the same groceries repeatedly, and re-finding fifteen
+        // items is work nobody does — they just do not reorder.
+        TextButton(onClick = { onReorder(order.id) }) { Text("Buy again") }
     }
 }
 

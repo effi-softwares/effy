@@ -8,7 +8,16 @@
  * or package ever falls back to a flat/hardcoded fee). The cart shows the item subtotal and says
  * "Delivery calculated at checkout".
  */
-import type { GuestCartLine } from "./cart-store"
+/**
+ * ⚠ Takes a STRUCTURAL shape rather than importing `GuestCartLine`. 027 made the cart store depend on this
+ * module (a local edit recomputes the subtotal), and a type-only import back would still be a cycle as far
+ * as the dependency guard — correctly, because a cycle is a cycle. Asking only for what the arithmetic
+ * needs breaks it at the right end and makes this module reusable by anything with priced lines.
+ */
+export interface PricedLine {
+  unitPriceAmount: string
+  quantity: number
+}
 
 export function parseCents(amount: string): number {
   const [whole, frac = ""] = amount.replace("-", "").split(".")
@@ -28,7 +37,7 @@ export interface CartTotals {
 }
 
 /** Σ(unit×qty). Delivery is NOT included — it is quoted per package at checkout (021 FR-024). */
-export function computeCartTotals(lines: readonly GuestCartLine[]): CartTotals {
+export function computeCartTotals(lines: readonly PricedLine[]): CartTotals {
   const subtotal = lines.reduce((c, l) => c + parseCents(l.unitPriceAmount) * l.quantity, 0)
   return { itemSubtotal: formatCents(subtotal) }
 }

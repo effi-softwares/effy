@@ -57,6 +57,8 @@ type orderDTO struct {
 	BillingAddress     json.RawMessage  `json:"billingAddress,omitempty"`
 	ItemSubtotalAmount string           `json:"itemSubtotalAmount"`
 	DeliveryFeeAmount  string           `json:"deliveryFeeAmount"`
+	DiscountAmount     string           `json:"discountAmount"`
+	PromoCode          *string          `json:"promoCode"`
 	GrandTotalAmount   string           `json:"grandTotalAmount"`
 	Currency           string           `json:"currency"`
 	PaymentStatus      string           `json:"paymentStatus"`
@@ -135,6 +137,7 @@ func (h *Handler) get(c *gin.Context) {
 		ID: order.ID, OrderNumber: order.OrderNumber, Status: order.Status, PlacedAt: order.PlacedAt,
 		Items: items, DeliveryAddress: address, BillingAddress: billing,
 		ItemSubtotalAmount: order.ItemSubtotalAmount, DeliveryFeeAmount: order.DeliveryFeeAmount,
+		DiscountAmount: order.DiscountAmount, PromoCode: order.PromoCode,
 		GrandTotalAmount: order.GrandTotalAmount, Currency: order.Currency,
 		PaymentStatus: order.PaymentStatus, Fulfillments: ful,
 	})

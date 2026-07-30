@@ -45,6 +45,13 @@ data class Receipt(
     val billingAddressLine: String?,
     val itemSubtotalAmount: String,
     val deliveryFeeAmount: String,
+    /**
+     * 027 — what a promotional code took off, as computed at PAYMENT, and the code itself. Read from the
+     * ORDER rather than re-derived, so a receipt explains itself years later even if the code has since
+     * changed or been disabled (FR-049). Null/"0.00" when none was used.
+     */
+    val discountAmount: String? = null,
+    val promoCode: String? = null,
     val grandTotalAmount: String,
     val currency: String,
 ) {

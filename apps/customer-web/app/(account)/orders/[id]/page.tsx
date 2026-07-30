@@ -69,6 +69,14 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         <dl className="space-y-1 border-t p-4 text-sm">
           <Row label="Items" value={formatMoney(dto.itemSubtotalAmount, dto.currency)} />
           <Row label="Delivery" value={formatMoney(dto.deliveryFeeAmount, dto.currency)} />
+          {dto.discountAmount && dto.discountAmount !== "0.00" ? (
+            /* 027 FR-049: the discount as computed at PAYMENT, from the order — so the receipt explains
+               itself even after the code has since changed or been disabled. */
+            <Row
+              label={dto.promoCode ? `Discount (${dto.promoCode})` : "Discount"}
+              value={`−${formatMoney(dto.discountAmount, dto.currency)}`}
+            />
+          ) : null}
           <div className="flex justify-between border-t pt-2 text-base font-semibold">
             <dt>Total</dt>
             <dd>{formatMoney(dto.grandTotalAmount, dto.currency)}</dd>
