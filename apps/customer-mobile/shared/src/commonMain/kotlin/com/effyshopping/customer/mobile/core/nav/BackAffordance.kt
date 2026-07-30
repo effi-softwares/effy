@@ -56,8 +56,11 @@ fun rememberBackAffordanceDecorator(navState: CustomerNavState): NavEntryDecorat
             // `CustomerNavKeyContentKeyTest` pins that every route stays distinguishable under it.
             val rootContentKey = navState.currentStack.firstOrNull()?.toString()
             val isStackRoot = entry.contentKey == rootContentKey
+            // `pop()`'s Boolean says whether it had anywhere to go; a back arrow that exists only
+            // because we are ABOVE the root always does, so the result is deliberately discarded.
+            val back: (() -> Unit)? = if (isStackRoot) null else ({ navState.pop() })
             CompositionLocalProvider(
-                LocalNavBack provides if (isStackRoot) null else ({ navState.pop(); Unit }),
+                LocalNavBack provides back,
             ) {
                 entry.Content()
             }
