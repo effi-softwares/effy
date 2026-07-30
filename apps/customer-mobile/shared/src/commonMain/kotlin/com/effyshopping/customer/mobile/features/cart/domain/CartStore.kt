@@ -47,6 +47,12 @@ class CartStore(
 
     private val _queue = MutableStateFlow(loaded?.queue ?: emptyList())
 
+    init {
+        // A queue restored from disk has to show up in the snapshot immediately, or a change that survived
+        // a force-quit would look saved until it was next touched.
+        syncPendingIntoState()
+    }
+
     /** Changes not yet accepted by the platform. Drained by the sync coordinator (US2/US4). */
     val queue: StateFlow<List<PendingChange>> = _queue.asStateFlow()
 
@@ -110,16 +116,39 @@ class CartStore(
 
     fun enqueue(change: PendingChange) {
         _queue.value = _queue.value + change
+        syncPendingIntoState()
+        persistSoon()
+    }
+
+    /**
+     * Queue a change, REPLACING any queued change of the same kind for the same product.
+     *
+     * ⚠ This is what makes ten taps on a quantity stepper cost one request instead of ten (FR-016). It is
+     * only safe because the payload is ABSOLUTE: dropping the intermediate values loses nothing, because
+     * the last one already says everything. With increments it would corrupt the total, which is exactly
+     * why 027 made quantities absolute in the first place.
+     *
+     * A change already in flight is left alone — it is being sent, and cancelling it mid-request is how you
+     * end up not knowing whether it applied.
+     */
+    fun enqueueConflating(change: PendingChange) {
+        val superseded = _queue.value.filterNot {
+            it.status == PendingStatus.Queued && it.kind == change.kind && it.productId == change.productId
+        }
+        _queue.value = superseded + change
+        syncPendingIntoState()
         persistSoon()
     }
 
     fun replaceQueue(changes: List<PendingChange>) {
         _queue.value = changes
+        syncPendingIntoState()
         persistSoon()
     }
 
     fun dequeue(changeId: String) {
         _queue.value = _queue.value.filterNot { it.changeId == changeId }
+        syncPendingIntoState()
         persistSoon()
     }
 
@@ -132,13 +161,29 @@ class CartStore(
         _queue.value = _queue.value.map {
             if (it.changeId == changeId) it.copy(status = PendingStatus.Failed, failure = reason) else it
         }
+        syncPendingIntoState()
         persistSoon()
     }
 
     /** The shopper has been told. Drop the dead changes. */
     fun acknowledgeFailures() {
         _queue.value = _queue.value.filterNot { it.isDead }
+        syncPendingIntoState()
         persistSoon()
+    }
+
+    /**
+     * Project the queue onto the snapshot the UI reads.
+     *
+     * The UI must have ONE source. Making the screen collect both the cart and the queue and combine them
+     * would put that join in the presentation layer, where two screens would do it two different ways.
+     */
+    private fun syncPendingIntoState() {
+        val q = _queue.value
+        _state.value = _state.value.copy(
+            pending = q.count { !it.isDead },
+            failure = q.firstOrNull { it.isDead }?.failure,
+        )
     }
 
     // ── Internals ───────────────────────────────────────────────────────────────────────────────

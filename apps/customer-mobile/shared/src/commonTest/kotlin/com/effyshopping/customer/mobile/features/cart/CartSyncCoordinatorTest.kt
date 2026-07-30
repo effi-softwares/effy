@@ -12,6 +12,8 @@ import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.cart.domain.CartSyncCoordinator
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.MergeCartOnSignIn
+import com.effyshopping.customer.mobile.features.cart.domain.PendingChange
+import com.effyshopping.customer.mobile.features.cart.domain.PendingChangeKind
 import com.effyshopping.customer.mobile.features.cart.domain.PendingLine
 import com.effyshopping.customer.mobile.features.cart.domain.ReorderOutcome
 import com.effyshopping.customer.mobile.features.cart.domain.SetCartQuantity
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -45,7 +48,7 @@ class CartSyncCoordinatorTest {
     )
 
     /** A repository that records what it was asked to do and answers with whatever the test sets. */
-    private class FakeRepo : CartRepository {
+    class FakeRepo : CartRepository {
         val calls = mutableListOf<String>()
         var next: CartSnapshot = CartSnapshot(revision = 1)
         var failWith: AppError? = null
@@ -314,5 +317,105 @@ class CartSyncCoordinatorTest {
 
         assertEquals(1, store.state.value.lines.size)
         assertEquals(2, store.state.value.lines[0].quantity)
+    }
+}
+
+// ── US4: debounce, backoff, and the queue that survives a force-quit ────────────────────────────
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class CartDebounceTest {
+
+    private fun line(id: String, qty: Int = 1) = GuestCartLine(
+        productId = id, name = id, imageUrl = null, unitPriceAmount = "5.00",
+        currency = "AUD", quantity = qty, packageKey = "pkg_a",
+    )
+
+    // SC-005: ten taps in quick succession must cost ONE request, not ten.
+    @Test
+    fun ten_rapid_quantity_taps_send_one_request() = runTest {
+        val repo = CartSyncCoordinatorTest.FakeRepo()
+        val store = CartStore(CartLocalStore(InMemoryDevicePreferences()), this)
+        val sync = CartSyncCoordinator(repo, store, isSignedIn = { true }, scope = this)
+        val setQty = SetCartQuantity(store, sync)
+        repo.next = CartSnapshot(revision = 1, lines = listOf(line("p1", 10)))
+
+        for (q in 1..10) setQty("p1", q)
+        advanceUntilIdle()
+
+        assertEquals(1, repo.calls.count { it.startsWith("set:") }, "ten taps must coalesce into one request")
+        assertEquals("set:p1:10", repo.calls.last(), "and it must carry the value the shopper settled on")
+        assertEquals(10, store.state.value.lines[0].quantity, "every tap was visible immediately")
+    }
+
+    // A pause longer than the debounce is a second intention, and gets its own request.
+    @Test
+    fun a_pause_between_bursts_produces_a_second_request() = runTest {
+        val repo = CartSyncCoordinatorTest.FakeRepo()
+        val store = CartStore(CartLocalStore(InMemoryDevicePreferences()), this)
+        val sync = CartSyncCoordinator(repo, store, isSignedIn = { true }, scope = this)
+        val setQty = SetCartQuantity(store, sync)
+        repo.next = CartSnapshot(revision = 1, lines = listOf(line("p1", 3)))
+
+        setQty("p1", 2)
+        advanceUntilIdle()
+        setQty("p1", 3)
+        advanceUntilIdle()
+
+        assertEquals(2, repo.calls.count { it.startsWith("set:") })
+    }
+
+    // Debouncing one line must never hold up another.
+    @Test
+    fun two_products_debounce_independently() = runTest {
+        val repo = CartSyncCoordinatorTest.FakeRepo()
+        val store = CartStore(CartLocalStore(InMemoryDevicePreferences()), this)
+        val sync = CartSyncCoordinator(repo, store, isSignedIn = { true }, scope = this)
+        val setQty = SetCartQuantity(store, sync)
+        repo.next = CartSnapshot(revision = 1)
+
+        setQty("p1", 4)
+        setQty("p2", 7)
+        advanceUntilIdle()
+
+        assertTrue(repo.calls.any { it == "set:p1:4" }, "got ${repo.calls}")
+        assertTrue(repo.calls.any { it == "set:p2:7" }, "got ${repo.calls}")
+    }
+
+    // FR-017: a change made before the process died is on disk, and must go out on the next launch —
+    // without the shopper having to touch the cart again.
+    @Test
+    fun a_queue_left_by_a_dead_process_drains_on_the_next_launch() = runTest {
+        val prefs = InMemoryDevicePreferences()
+        val first = CartStore(CartLocalStore(prefs), this)
+        first.add(line("p1", 2))
+        first.enqueue(PendingChange(changeId = "c1", kind = PendingChangeKind.Add, productId = "p1", quantity = 2))
+        advanceUntilIdle()
+
+        // A fresh process over the same storage.
+        val repo = CartSyncCoordinatorTest.FakeRepo()
+        repo.next = CartSnapshot(revision = 5, lines = listOf(line("p1", 2)))
+        val reborn = CartStore(CartLocalStore(prefs), this)
+        assertEquals(1, reborn.state.value.unsavedCount, "the restored queue must show as unsaved")
+
+        CartSyncCoordinator(repo, reborn, isSignedIn = { true }, scope = this)
+        advanceUntilIdle()
+
+        assertEquals(listOf("add:p1:2"), repo.calls)
+        assertEquals(0, reborn.state.value.unsavedCount)
+    }
+
+    @Test
+    fun a_definitive_refusal_is_surfaced_on_the_snapshot() = runTest {
+        val repo = CartSyncCoordinatorTest.FakeRepo()
+        val store = CartStore(CartLocalStore(InMemoryDevicePreferences()), this)
+        val sync = CartSyncCoordinator(repo, store, isSignedIn = { true }, scope = this)
+        repo.failWith = AppError.Validation("that product is currently unavailable")
+
+        AddToCart(store, sync)(line("p1", 1))
+        advanceUntilIdle()
+
+        assertEquals("that product is currently unavailable", store.state.value.failureMessage)
+        store.acknowledgeFailures()
+        assertNull(store.state.value.failureMessage)
     }
 }

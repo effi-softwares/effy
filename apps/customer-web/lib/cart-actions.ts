@@ -38,8 +38,10 @@ import {
  * Swallows failures on purpose, and the two cases are different:
  *   - **401** — a guest. Nothing to do; the mirror is already correct for them.
  *   - **anything else** — offline, or the platform refused. The mirror keeps what the shopper did, and the
- *     next `refreshCart()` reconciles. US4 adds the queue that makes this survive a closed tab, and the
- *     visible "not saved yet" state; today an offline change is kept in the mirror but is not retried.
+ *     next `refreshCart()` reconciles it against the platform. The change itself is not retried on web:
+ *     unlike mobile there is no persisted queue here, deliberately — a browser tab is a shorter-lived thing
+ *     than an app, and a queue in `localStorage` would cost this storefront bundle bytes for a case the
+ *     next cart open already repairs.
  */
 async function send(call: () => Promise<Awaited<ReturnType<typeof cartApi.get>>>): Promise<void> {
   try {
@@ -56,13 +58,61 @@ export function addItem(line: GuestCartLine): void {
   void send(() => cartApi.add(line.productId, line.quantity, newChangeId()))
 }
 
-/** Set a line's ABSOLUTE quantity; 0 removes it. */
+/**
+ * Set a line's ABSOLUTE quantity; 0 removes it.
+ *
+ * ⚠ DEBOUNCED per product, unlike add. A stepper is clicked repeatedly and only the value the shopper
+ * settles on matters, so ten clicks cost ONE request (FR-016, SC-005). Safe only because the payload is
+ * absolute: dropping the intermediate values loses nothing, because the last one already says everything.
+ * With increments it would corrupt the total — which is why 027 made quantities absolute.
+ *
+ * The mirror has already moved by the time the timer starts, so the debounce is invisible: the shopper
+ * sees every click immediately and the network sees only the answer.
+ */
+const SEND_DEBOUNCE_MS = 400
+
+interface PendingSend {
+  timer: ReturnType<typeof setTimeout>
+  fire: () => void
+}
+
+const pendingSends = new Map<string, PendingSend>()
+
 export function setItemQuantity(productId: string, quantity: number): void {
   applySetQty(productId, quantity)
-  const changeId = newChangeId()
-  void send(() =>
-    quantity <= 0 ? cartApi.remove(productId, changeId) : cartApi.setQuantity(productId, quantity, changeId),
-  )
+
+  pendingSends.get(productId)?.timer && clearTimeout(pendingSends.get(productId)!.timer)
+
+  const fire = () => {
+    pendingSends.delete(productId)
+    // Minted HERE, not per click: one shopper action, one id — a retry of it must reuse the id (FR-018).
+    const changeId = newChangeId()
+    // ⚠ The value sent is the one the shopper CLICKED, captured above — not re-read from the mirror at fire
+    // time. Re-reading looks equivalent and is not: a platform response adopted between the click and the
+    // timer would rewrite what gets sent, and an adopted cart that no longer holds this line would turn
+    // "set it to 4" into a delete the shopper never asked for. This matches mobile, where the queued change
+    // carries its own quantity.
+    void send(() =>
+      quantity <= 0 ? cartApi.remove(productId, changeId) : cartApi.setQuantity(productId, quantity, changeId),
+    )
+  }
+
+  pendingSends.set(productId, { timer: setTimeout(fire, SEND_DEBOUNCE_MS), fire })
+}
+
+/**
+ * Send every debounced change NOW rather than waiting out its timer.
+ *
+ * ⚠ It fires them; it does not cancel them. Called when the shopper leaves the cart — a change they made a
+ * quarter of a second before navigating away must not be dropped because a timer never got to run.
+ */
+export function flushPendingCartSends(): void {
+  const inFlight = [...pendingSends.values()]
+  pendingSends.clear()
+  for (const p of inFlight) {
+    clearTimeout(p.timer)
+    p.fire()
+  }
 }
 
 /** Remove a line. */

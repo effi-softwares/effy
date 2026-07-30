@@ -125,13 +125,33 @@ export default function CartPage() {
             </div>
           </dl>
 
-          <Link
-            href="/checkout"
-            className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            Go to checkout
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </Link>
+          {/* FR-026/FR-054: checkout is offered only when the PLATFORM says so, and the reason is stated
+              when it is not. The client never decides this itself — it is re-decided at intent (FR-056). */}
+          {cart.checkout.allowed ? (
+            <Link
+              href="/checkout"
+              className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Go to checkout
+              <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          ) : (
+            <>
+              <span
+                aria-disabled="true"
+                className="mt-6 flex h-14 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-muted text-sm font-medium text-muted-foreground"
+              >
+                Go to checkout
+              </span>
+              <p className="mt-2 text-center text-xs font-medium text-destructive">
+                {cart.checkout.blockedReason === "no_payable_items"
+                  ? "Nothing in your cart is available right now."
+                  : cart.checkout.blockedReason === "below_minimum"
+                    ? `Add ${formatMoney(cart.checkout.remainingAmount ?? "0.00", currency)} more to reach the ${formatMoney(cart.checkout.minimumSubtotalAmount ?? "0.00", currency)} minimum.`
+                    : "Your cart is empty."}
+              </p>
+            </>
+          )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
             You’ll sign in at checkout. Your cart is kept.
           </p>
@@ -162,6 +182,22 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
         <span className="text-sm text-muted-foreground">
           {formatMoney(line.unitPriceAmount, line.currency)} each
         </span>
+
+        {/* FR-023/FR-024: a price that moved is SAID, with what it was. The shopper pays the current price
+            either way — the point is that they find out here, not at payment. */}
+        {line.priceChangedFrom ? (
+          <span className="text-xs text-muted-foreground">
+            Was {formatMoney(line.priceChangedFrom, line.currency)}
+          </span>
+        ) : null}
+
+        {/* FR-022: an unavailable line stays visible and flagged — a temporary state may be waited out —
+            but it is excluded from every total and cannot be paid for. */}
+        {line.available === false ? (
+          <span className="text-xs font-medium text-destructive">
+            Unavailable — not included in your total
+          </span>
+        ) : null}
 
         <div className="mt-2 flex items-center gap-3">
           <div className="flex items-center rounded-full border">

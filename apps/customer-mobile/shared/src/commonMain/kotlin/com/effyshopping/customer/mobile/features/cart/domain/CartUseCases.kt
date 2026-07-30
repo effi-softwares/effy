@@ -49,7 +49,9 @@ class SetCartQuantity(
 ) {
     operator fun invoke(productId: String, quantity: Int) {
         store.setQuantity(productId, quantity)
-        sync.submit(
+        // ⚠ DEBOUNCED, unlike add: a stepper is tapped repeatedly and only the value the shopper settles on
+        // matters. Safe only because the payload is absolute (FR-016/SC-005).
+        sync.submitDebounced(
             PendingChange(
                 changeId = newUuid(),
                 kind = if (quantity <= 0) PendingChangeKind.Remove else PendingChangeKind.SetQuantity,

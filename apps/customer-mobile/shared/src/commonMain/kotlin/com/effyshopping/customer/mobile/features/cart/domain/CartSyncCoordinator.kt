@@ -3,6 +3,8 @@ package com.effyshopping.customer.mobile.features.cart.domain
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -47,6 +49,19 @@ class CartSyncCoordinator(
     private val scope: CoroutineScope,
 ) {
     private val drainLock = Mutex()
+
+    /** One pending send-timer per product, so debouncing one line never delays another. */
+    private val debounced = mutableMapOf<String, Job>()
+
+    /** Consecutive transient failures, for the backoff. Reset by any success. */
+    private var failures = 0
+
+    init {
+        // ⚠ A change made before a force-quit is on disk, not in memory. Without this it would sit there
+        // until the shopper happened to touch the cart again — so an edit made in a tunnel, followed by the
+        // app being killed, would silently never reach the platform (FR-017).
+        scope.launch { drain() }
+    }
 
     // ── Reading ─────────────────────────────────────────────────────────────────────────────────
 
@@ -95,6 +110,26 @@ class CartSyncCoordinator(
     }
 
     /**
+     * Record a repeated change — a quantity stepper — and send only what the shopper settles on.
+     *
+     * Ten taps in two seconds produce ONE request (FR-016, SC-005): each tap replaces the queued value and
+     * restarts a short timer, and only the last one is ever sent. Per product, so adjusting one line never
+     * holds up another.
+     *
+     * The mirror has already moved by the time this is called, so the debounce is invisible — the shopper
+     * sees every tap immediately and the network sees only the answer.
+     */
+    fun submitDebounced(change: PendingChange) {
+        if (!isSignedIn()) return
+        store.enqueueConflating(change)
+        debounced[change.productId]?.cancel()
+        debounced[change.productId] = scope.launch {
+            delay(SEND_DEBOUNCE_MS)
+            drain()
+        }
+    }
+
+    /**
      * Send every queued change, oldest first, stopping at the first one that could not be sent.
      *
      * Stopping matters: the queue is ordered, and skipping past a change that failed would apply later
@@ -116,11 +151,18 @@ class CartSyncCoordinator(
         try {
             store.adopt(apply(change))
             store.dequeue(change.changeId)
+            failures = 0
             true
         } catch (e: AppException) {
             when {
-                // Transient: keep it queued for the next trigger. US4 adds backoff.
-                isTransient(e.error) -> false
+                // Transient: wait, then let the next trigger try again. The wait GROWS with consecutive
+                // failures so a device with no signal is not hammering the radio flat (FR-020); it is
+                // capped, because a shopper who regains signal should not wait minutes for their cart.
+                isTransient(e.error) -> {
+                    failures++
+                    delay(backoffMillis())
+                    false
+                }
                 else -> {
                     // A definitive refusal. Retrying only repeats it, so mark it dead, tell the shopper,
                     // and reconcile to what the platform actually holds (FR-019).
@@ -130,6 +172,12 @@ class CartSyncCoordinator(
                 }
             }
         }
+
+    /** Exponential, capped. 1s, 2s, 4s, 8s, then every 15s. */
+    private fun backoffMillis(): Long {
+        val step = RETRY_BASE_MS shl (failures - 1).coerceIn(0, 3)
+        return step.coerceAtMost(RETRY_MAX_MS)
+    }
 
     private suspend fun apply(change: PendingChange): CartSnapshot = when (change.kind) {
         PendingChangeKind.Add -> repo.add(change.productId, change.quantity, change.changeId)
@@ -158,6 +206,13 @@ class CartSyncCoordinator(
             error == AppError.Unavailable ||
             error == AppError.Unauthenticated ||
             error is AppError.RateLimited
+
+    private companion object {
+        /** Long enough that a deliberate second tap lands inside it; short enough to feel instant. */
+        const val SEND_DEBOUNCE_MS = 400L
+        const val RETRY_BASE_MS = 1_000L
+        const val RETRY_MAX_MS = 15_000L
+    }
 
     /** Shopper-facing wording for a change that will not be retried. Never mentions a shop. */
     private fun describe(error: AppError): String = when (error) {

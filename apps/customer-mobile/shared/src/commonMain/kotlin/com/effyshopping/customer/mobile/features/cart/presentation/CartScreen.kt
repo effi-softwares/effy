@@ -63,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.features.cart.domain.CartBlockedReason
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.packagesOf
 
@@ -173,6 +174,26 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
         }
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+        // ⚠ FR-017/FR-019: the shopper is told when a change has not reached the platform yet, and when one
+        // was definitively refused. Without this the design is silent by construction — every failure is
+        // swallowed so the cart never breaks, which is right for the cart and wrong for the shopper.
+        if (cart.failureMessage != null) {
+            Text(
+                cart.failureMessage!!,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg, vertical = 4.dp),
+            )
+        } else if (cart.unsavedCount > 0) {
+            Text(
+                "Saving your changes…",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg, vertical = 4.dp),
+            )
+        }
+
         Column(
             modifier = Modifier.padding(EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
@@ -186,7 +207,28 @@ fun CartScreen(container: AppContainer, onCheckout: () -> Unit, onBrowse: () -> 
             )
             EffyHairline(modifier = Modifier.padding(vertical = EffySpacing.s))
             EffyDetailRow("Total", money(cart.grandTotalAmount, currency), emphasised = true)
-            EffyPrimaryButton("Go To Checkout", onClick = onCheckout)
+            // FR-026/FR-054: checkout is offered only when the PLATFORM says so, and the reason is stated
+            // when it does not. The client never decides this for itself — it is re-decided at intent.
+            EffyPrimaryButton(
+                "Go To Checkout",
+                onClick = onCheckout,
+                enabled = cart.checkout.allowed,
+            )
+            when (cart.checkout.blockedReason) {
+                CartBlockedReason.NoPayableItems -> Text(
+                    "Nothing in your cart is available right now.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                CartBlockedReason.BelowMinimum -> Text(
+                    cart.checkout.remainingAmount?.let {
+                        "Add ${money(it, currency)} more to reach the ${money(cart.checkout.minimumSubtotalAmount ?: "0.00", currency)} minimum."
+                    } ?: "This order is below the minimum.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                else -> Unit
+            }
             Text(
                 "You’ll sign in at checkout. Your cart is kept.",
                 style = MaterialTheme.typography.labelSmall,
@@ -229,6 +271,27 @@ private fun CartRow(line: GuestCartLine, container: AppContainer, onRemoved: (Gu
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            // ⚠ FR-023/FR-024: a price that moved is SAID, with what it was. The shopper pays the current
+            // price either way — the point is that they find out here rather than at payment, which is the
+            // most expensive possible moment to discover it.
+            line.priceChangedFrom?.let { was ->
+                Text(
+                    "Was ${money(was, line.currency)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
+            // FR-022: an unavailable line stays visible and flagged — a temporary state may be waited out —
+            // but it is excluded from every total and cannot be paid for.
+            if (!line.available) {
+                Text(
+                    "Unavailable — not included in your total",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),

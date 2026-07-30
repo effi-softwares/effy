@@ -2,7 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import type { CartDTO } from "@effy/shared-types"
 
-import { addItem, clearAll, mergeCartAfterSignIn, removeItem, setItemQuantity } from "./cart-actions"
+import {
+  addItem,
+  clearAll,
+  flushPendingCartSends,
+  mergeCartAfterSignIn,
+  removeItem,
+  setItemQuantity,
+} from "./cart-actions"
 import { addToCart as seedGuestLine, readCart, resetCart, type GuestCartLine } from "./cart-store"
 
 const line = (productId: string, quantity = 1, unitPriceAmount = "5.00"): GuestCartLine => ({
@@ -104,6 +111,7 @@ describe("cart actions — the mutation reaches the platform", () => {
     const calls = stubFetch(200, dto({ revision: 2, lines: [dtoLine("p1", 7)] }))
 
     setItemQuantity("p1", 7)
+    flushPendingCartSends() // the stepper is debounced; a test asserting the WIRE must not wait it out
     await flush()
 
     expect(calls[0].method).toBe("PATCH")
@@ -115,6 +123,7 @@ describe("cart actions — the mutation reaches the platform", () => {
     const calls = stubFetch(200, dto({ revision: 3 }))
 
     setItemQuantity("p1", 0)
+    flushPendingCartSends()
     await flush()
 
     expect(calls[0].method).toBe("DELETE")
@@ -211,5 +220,70 @@ describe("mergeCartAfterSignIn", () => {
 
     expect(await mergeCartAfterSignIn()).toBe(false)
     expect(readCart().lines[0].quantity).toBe(2)
+  })
+})
+
+describe("the quantity stepper is debounced (SC-005)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    window.localStorage.clear()
+    resetCart()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  it("sends ONE request for ten rapid clicks, carrying the settled value", async () => {
+    const calls = stubFetch(200, dto({ revision: 2, lines: [dtoLine("p1", 10)] }))
+    seedGuestLine(line("p1", 1))
+
+    for (let q = 1; q <= 10; q++) setItemQuantity("p1", q)
+    expect(calls).toHaveLength(0) // nothing has gone out yet — the mirror moved, the network did not
+
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].method).toBe("PATCH")
+    expect(calls[0].body).toMatchObject({ quantity: 10 })
+  })
+
+  it("treats a pause as a second intention", async () => {
+    const calls = stubFetch(200, dto({ revision: 2 }))
+    seedGuestLine(line("p1", 1))
+
+    setItemQuantity("p1", 2)
+    await vi.advanceTimersByTimeAsync(500)
+    setItemQuantity("p1", 5)
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(calls).toHaveLength(2)
+  })
+
+  it("debounces each product independently", async () => {
+    const calls = stubFetch(200, dto({ revision: 2 }))
+    seedGuestLine(line("p1", 1))
+    seedGuestLine(line("p2", 1))
+
+    setItemQuantity("p1", 3)
+    setItemQuantity("p2", 4)
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(calls.map((c) => c.path).sort()).toEqual(["/api/cart/items/p1", "/api/cart/items/p2"])
+  })
+
+  // A change made a quarter-second before navigating away must not die with the timer.
+  it("flush sends a pending change immediately instead of dropping it", async () => {
+    const calls = stubFetch(200, dto({ revision: 2 }))
+    seedGuestLine(line("p1", 1))
+
+    setItemQuantity("p1", 6)
+    expect(calls).toHaveLength(0)
+
+    flushPendingCartSends()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(calls).toHaveLength(1)
+    expect(calls[0].body).toMatchObject({ quantity: 6 })
   })
 })

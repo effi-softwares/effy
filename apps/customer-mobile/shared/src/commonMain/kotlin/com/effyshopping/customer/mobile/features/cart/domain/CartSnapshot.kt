@@ -29,9 +29,20 @@ data class CartSnapshot(
     val discount: CartDiscount? = null,
     val checkout: CartCheckout = CartCheckout(),
     val limits: CartLimits = CartLimits(),
+    /** How many changes are still on their way to the platform. Not persisted — derived from the queue. */
+    val pending: Int = 0,
+    /** Set when a change was definitively refused and the shopper has not been told yet. */
+    val failure: String? = null,
 ) {
     /** The badge count — the sum of payable quantities, read locally so it never waits on a network. */
     val itemCount: Int get() = lines.sumOf { it.quantity }
+
+    /**
+     * Changes the platform has not accepted yet (FR-017), and the message for any it definitively refused
+     * (FR-019). Held on the snapshot so the UI has ONE thing to read; the queue itself is the coordinator's.
+     */
+    val unsavedCount: Int get() = pending
+    val failureMessage: String? get() = failure
 
     val isEmpty: Boolean get() = lines.isEmpty()
 }

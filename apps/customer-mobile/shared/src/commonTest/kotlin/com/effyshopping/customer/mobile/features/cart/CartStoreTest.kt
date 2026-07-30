@@ -260,3 +260,65 @@ class CartStoreTest {
         assertEquals(listOf("b"), s.queue.value.map { it.changeId })
     }
 }
+
+// ── US5: the cart never lies (FR-022/FR-023) ────────────────────────────────────────────────────
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class CartHonestyTest {
+
+    private fun dtoLine(id: String, qty: Int, price: String, available: Boolean = true, was: String? = null) =
+        GuestCartLine(
+            productId = id, name = id, imageUrl = null, unitPriceAmount = price,
+            currency = "AUD", quantity = qty, packageKey = "pkg_a",
+            available = available, priceChangedFrom = was,
+        )
+
+    @Test
+    fun a_price_change_survives_into_the_snapshot_the_UI_reads() = runTest {
+        val s = CartStore(CartLocalStore(InMemoryDevicePreferences()), this)
+        s.adopt(
+            CartSnapshot(
+                revision = 1,
+                lines = listOf(dtoLine("p1", 1, "7.50", was = "5.00")),
+                itemSubtotalAmount = "7.50",
+            ),
+        )
+
+        assertEquals("5.00", s.state.value.lines[0].priceChangedFrom, "the UI cannot say 'was £5' without this")
+        assertEquals("7.50", s.state.value.lines[0].unitPriceAmount, "and the shopper pays the current price")
+    }
+
+    @Test
+    fun an_unavailable_line_is_visible_but_contributes_nothing() = runTest {
+        val s = CartStore(CartLocalStore(InMemoryDevicePreferences()), this)
+        s.adopt(
+            CartSnapshot(
+                revision = 1,
+                lines = listOf(dtoLine("ok", 1, "5.00"), dtoLine("gone", 1, "3.00", available = false)),
+                itemSubtotalAmount = "5.00",
+            ),
+        )
+
+        assertEquals(2, s.state.value.lines.size, "the line stays — a temporary state may be waited out")
+        assertEquals("5.00", s.state.value.itemSubtotalAmount)
+    }
+
+    // A restored cart must carry these across a process death, or the honesty vanishes on relaunch.
+    @Test
+    fun availability_and_price_change_survive_a_restart() = runTest {
+        val prefs = InMemoryDevicePreferences()
+        val first = CartStore(CartLocalStore(prefs), this)
+        first.adopt(
+            CartSnapshot(
+                revision = 3,
+                lines = listOf(dtoLine("p1", 2, "6.00", available = false, was = "4.00")),
+                itemSubtotalAmount = "0.00",
+            ),
+        )
+        advanceUntilIdle()
+
+        val reborn = CartStore(CartLocalStore(prefs), this)
+        assertFalse(reborn.state.value.lines[0].available)
+        assertEquals("4.00", reborn.state.value.lines[0].priceChangedFrom)
+    }
+}

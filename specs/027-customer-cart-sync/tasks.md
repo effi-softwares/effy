@@ -181,15 +181,15 @@ five times and confirm quantities never move.
 **Independent Test**: ten rapid taps track every tap and produce ≤2 requests; changes made in airplane
 mode apply exactly once when connectivity returns, including across a force-quit.
 
-- [ ] T061 [US4] Add per-`productId` debounce (400 ms, a named constant), single-flight-per-line and newer-value conflation to `MOBILE/features/cart/domain/CartSyncCoordinator.kt`
-- [ ] T062 [US4] Add exponential backoff with a retry ceiling, and **stop retrying on a definitive refusal** (4xx that is not a timeout), in `MOBILE/features/cart/domain/CartSyncCoordinator.kt` — FR-020
-- [ ] T063 [US4] Drain the persisted queue on construction so a change made before a force-quit is applied on the next launch, in `MOBILE/features/cart/domain/CartSyncCoordinator.kt`
-- [ ] T064 [US4] Expose a per-line and cart-level unsaved/failed state in `CartStore`'s `CartState`, and reconcile to the platform's actual contents after a definitive failure (FR-019)
-- [ ] T065 [US4] Surface it in `MOBILE/features/cart/presentation/CartScreen.kt` — an unsaved marker and a single failure message, using the 026 monochrome primitives already in the file; no layout change
-- [ ] T066 [P] [US4] Add `CartSyncCoordinatorDebounceTest.kt`: ten sequential quantity changes produce **one** request; a pause longer than the debounce produces two; a definitive refusal stops retrying; a queue persisted across a cold start applies exactly once
-- [ ] T067 [P] [US4] Implement the same in `apps/customer-web/lib/cart-sync.ts` with `setTimeout` debouncing and `online`/`offline` listeners, no new dependency
-- [ ] T068 [P] [US4] Show the unsaved/failed state in `apps/customer-web/app/(shop)/cart/page.tsx`
-- [ ] T069 [P] [US4] Extend `apps/customer-web/lib/cart-sync.test.ts` with the debounce count, backoff, definitive-refusal and cold-start-drain cases
+- [X] T061 [US4] Add per-`productId` debounce (400 ms, a named constant), single-flight-per-line and newer-value conflation to `MOBILE/features/cart/domain/CartSyncCoordinator.kt`
+- [X] T062 [US4] Add exponential backoff with a retry ceiling, and **stop retrying on a definitive refusal** (4xx that is not a timeout), in `MOBILE/features/cart/domain/CartSyncCoordinator.kt` — FR-020
+- [X] T063 [US4] Drain the persisted queue on construction so a change made before a force-quit is applied on the next launch, in `MOBILE/features/cart/domain/CartSyncCoordinator.kt`
+- [X] T064 [US4] Expose a per-line and cart-level unsaved/failed state in `CartStore`'s `CartState`, and reconcile to the platform's actual contents after a definitive failure (FR-019)
+- [X] T065 [US4] Surface it in `MOBILE/features/cart/presentation/CartScreen.kt` — an unsaved marker and a single failure message, using the 026 monochrome primitives already in the file; no layout change
+- [X] T066 [P] [US4] Add `CartSyncCoordinatorDebounceTest.kt`: ten sequential quantity changes produce **one** request; a pause longer than the debounce produces two; a definitive refusal stops retrying; a queue persisted across a cold start applies exactly once
+- [X] T067 [P] [US4] Implement the same in `apps/customer-web/lib/cart-sync.ts` with `setTimeout` debouncing and `online`/`offline` listeners, no new dependency
+- [X] T068 [P] [US4] Show the unsaved/failed state in `apps/customer-web/app/(shop)/cart/page.tsx`
+- [X] T069 [P] [US4] Extend `apps/customer-web/lib/cart-sync.test.ts` with the debounce count, backoff, definitive-refusal and cold-start-drain cases
 - [ ] T070 **⚠ operator** [US4] Run quickstart §3 scenarios 8–10 on both surfaces, counting requests (SC-005, SC-006)
 
 **Checkpoint**: the cart feels native and tolerates a bad network.
@@ -204,12 +204,12 @@ nothing unavailable ever charged for.
 **Independent Test**: mark a cart product unavailable → flagged, excluded, unpayable; change a price up
 and down → current price charged, previous shown both ways.
 
-- [ ] T071 [US5] Record `unit_price_at_add` on every insert path in `apis/core-api/internal/features/cart/repository.go` (add, merge, reorder, restore-from-saved) so the comparison in T022 has something to compare against
-- [ ] T072 [US5] Populate `priceChangedFrom` and emit the `price_changed` notice in `apis/core-api/internal/features/cart/service.go`, leaving both empty when `unit_price_at_add` is null (a pre-migration row must not fabricate a change)
-- [ ] T073 [P] [US5] Extend `apis/core-api/internal/features/cart/service_test.go`: price rise, price fall, null add-price, unavailable excluded from the subtotal, an all-unavailable cart yields `no_payable_items`
-- [ ] T074 [P] [US5] Render unavailable lines, the price-change line and the cart-level notices in `MOBILE/features/cart/presentation/CartScreen.kt`, and gate the checkout button on `checkout.allowed`
-- [ ] T075 [P] [US5] Render the same in `apps/customer-web/app/(shop)/cart/page.tsx`
-- [ ] T076 [P] [US5] Add a `MOBILE` ViewModel/state test asserting an unavailable line contributes nothing to the displayed total
+- [X] T071 [US5] Record `unit_price_at_add` on every insert path in `apis/core-api/internal/features/cart/repository.go` (add, merge, reorder, restore-from-saved) so the comparison in T022 has something to compare against
+- [X] T072 [US5] Populate `priceChangedFrom` and emit the `price_changed` notice in `apis/core-api/internal/features/cart/service.go`, leaving both empty when `unit_price_at_add` is null (a pre-migration row must not fabricate a change)
+- [X] T073 [P] [US5] Extend `apis/core-api/internal/features/cart/service_test.go`: price rise, price fall, null add-price, unavailable excluded from the subtotal, an all-unavailable cart yields `no_payable_items`
+- [X] T074 [P] [US5] Render unavailable lines, the price-change line and the cart-level notices in `MOBILE/features/cart/presentation/CartScreen.kt`, and gate the checkout button on `checkout.allowed`
+- [X] T075 [P] [US5] Render the same in `apps/customer-web/app/(shop)/cart/page.tsx`
+- [X] T076 [P] [US5] Add a `MOBILE` ViewModel/state test asserting an unavailable line contributes nothing to the displayed total
 - [ ] T077 **⚠ operator** [US5] Run quickstart §3 scenarios 11–12 on both surfaces (SC-007, SC-008)
 
 **Checkpoint**: no shopper learns about a price change at the payment step.
