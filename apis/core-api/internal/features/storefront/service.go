@@ -8,12 +8,26 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 const (
-	readTimeout      = 3 * time.Second
+	// ⚠ RAISED 3s → 8s (2026-07-31), and the reason is topology, not slow code.
+	//
+	// The 3s budget assumed core-api and the database sit in the same region — true in the target
+	// deployment, false today: core-api is local-Docker-only by decision, so every query crosses the
+	// public internet to Sydney RDS. A MEASURED round trip on a bare `SELECT 1` is ~135ms, which no
+	// amount of query tuning can reduce.
+	//
+	// Home was intermittently 503-ing at exactly 3.007s because of that. The real fix is below —
+	// issuing the independent reads concurrently — but a budget only ~2× the happy path leaves no
+	// room for a cold pool (a TLS handshake to RDS is several more round trips) or for a slow moment
+	// on a t4g.micro. This is headroom for the dev topology, NOT cover for a slow path: if Home ever
+	// approaches this number again, something is wrong and should be found, not absorbed.
+	readTimeout      = 8 * time.Second
 	railProductLimit = 12
 	categoryRailMax  = 4
 	newWithinDays    = 14
@@ -149,46 +163,80 @@ func NewService(repo Reader, presign media.Presigner) *Service {
 }
 
 // Home composes the merchandised Home: a Featured rail (newest), an On-sale rail, and up to
-// categoryRailMax category rails that actually have products, plus a minimal welcome banner.
+// categoryRailMax category rails that actually have products, plus the advertised promotions.
+//
+// ── ⚠ WHY THESE READS ARE ISSUED CONCURRENTLY ───────────────────────────────────────────────────
+//
+// This function used to run its queries one after another, and it intermittently 503-ed the whole
+// storefront with `scan cards: timeout` at exactly the 3s budget. Nothing was slow; there were
+// simply too many round trips:
+//
+//	NewestCards · OnSaleCards · RailCandidates · CategoryCards ×4 · advertised promotions  =  8
+//
+// A round trip to Sydney RDS measures ~135ms from a local core-api, so those 8 cost ~1.08s of pure
+// network latency before a single row is read — MEASURED at ~1.37s warm against a 3s budget, i.e.
+// nearly half the budget spent waiting. Any variance (a cold pool paying TLS handshakes, a slow
+// moment on a t4g.micro) tipped it over, which is exactly why it failed on first load and only
+// "sometimes".
+//
+// ⚠ This is 027's latency defect recurring on the READ path. That slice recorded it precisely —
+// "~14 round trips to Sydney RDS inside a 4s budget … a combined read replaced N queries" — fixed
+// the cart write path, and left this one, which has the identical shape, untouched.
+//
+// The reads are mutually independent, so the depth is a property of the CODE, not of the data. Two
+// waves is the true dependency depth: everything that can be asked at once is, and the category
+// rails form a second wave only because wave 1 is what names them.
+//
+// ⚠ Ordering is NOT left to the goroutines. Results land in fixed slots and the rails are assembled
+// sequentially afterwards, because the server owns section order (research R8) and a Home whose
+// sections shuffled between loads would read as a bug even though nothing was wrong.
 func (s *Service) Home(ctx context.Context) (Home, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	var home Home
+	var (
+		featured   []cardRow
+		onSale     []cardRow
+		candidates []railCandidate
+		banners    []Banner
+	)
 
-	featured, err := s.repo.NewestCards(ctx, railProductLimit)
-	if err != nil {
+	// Wave 1 — everything that depends on nothing.
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) { featured, err = s.repo.NewestCards(gctx, railProductLimit); return })
+	g.Go(func() (err error) { onSale, err = s.repo.OnSaleCards(gctx, railProductLimit); return })
+	g.Go(func() (err error) { candidates, err = s.repo.RailCandidates(gctx, categoryRailMax); return })
+	g.Go(func() (err error) { banners, err = s.banners(gctx); return })
+	if err := g.Wait(); err != nil {
 		return Home{}, err
 	}
+
+	// Wave 2 — the category rails, which could not be asked for until wave 1 named them.
+	categoryRows := make([][]cardRow, len(candidates))
+	g2, g2ctx := errgroup.WithContext(ctx)
+	for i, cat := range candidates {
+		g2.Go(func() (err error) {
+			categoryRows[i], err = s.repo.CategoryCards(g2ctx, cat.Key, railProductLimit)
+			return
+		})
+	}
+	if err := g2.Wait(); err != nil {
+		return Home{}, err
+	}
+
+	// ⚠ Assembly uses `ctx`, never `gctx` — errgroup cancels its derived context once Wait returns,
+	// so presigning against it would fail on a context that is already dead.
+	var home Home
 	if cards := s.toCards(ctx, featured); len(cards) > 0 {
 		home.Rails = append(home.Rails, Rail{Key: "featured", Title: "Featured", Products: cards})
-	}
-
-	onSale, err := s.repo.OnSaleCards(ctx, railProductLimit)
-	if err != nil {
-		return Home{}, err
 	}
 	if cards := s.toCards(ctx, onSale); len(cards) > 0 {
 		home.Rails = append(home.Rails, Rail{Key: "on_sale", Title: "On sale", Products: cards})
 	}
-
-	candidates, err := s.repo.RailCandidates(ctx, categoryRailMax)
-	if err != nil {
-		return Home{}, err
-	}
-	for _, cat := range candidates {
-		rows, err := s.repo.CategoryCards(ctx, cat.Key, railProductLimit)
-		if err != nil {
-			return Home{}, err
-		}
-		if cards := s.toCards(ctx, rows); len(cards) > 0 {
+	for i, cat := range candidates {
+		if cards := s.toCards(ctx, categoryRows[i]); len(cards) > 0 {
 			home.Rails = append(home.Rails, Rail{Key: "category:" + cat.Key, Title: cat.Name, Products: cards})
 		}
-	}
-
-	banners, err := s.banners(ctx)
-	if err != nil {
-		return Home{}, err
 	}
 	home.Banners = banners
 	return home, nil
