@@ -179,7 +179,7 @@ deferred a second time (research R12).
 - [ ] T058 Verify tablet and landscape — bounded and centred, **not** stretched (FR-015)
 - [X] T059 Run the full machine gate set in [quickstart.md](./quickstart.md) §1. ⚠ **`cm-tokens-check` output CHANGES in this slice** — regenerate and commit deliberately; a red guard here is *the change*, not drift, and reverting it is the wrong instinct
 - [X] T060 Run both mobile suites plus `assembleDebug` and the iOS Kotlin/Native compile
-- [ ] T061 [P] Update the parity register at [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) with a §029 entry — including that `customer-web` still does not read `placement`, `code`, `terms` or `target`
+- [X] T061 [P] Update the parity register at [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) with a §029 entry — including that `customer-web` still does not read `placement`, `code`, `terms` or `target`
 - [ ] T062 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §3 on **both Android and iOS**. ⚠ 028's SC-013 was never done because only iOS was ever looked at — do not repeat that.
 - [ ] T063 **⚠ OPERATOR** Record the §5 measurements, and **answer 028's research R9**: does a hueless banner draw the eye? (⚠ *028's* R9 — 029's R9 is the carousel bound, a different thing) It has been unanswerable since 028 because no banner ever rendered. ⚠ If it reads too quietly the fix is contrast **within the neutral ramp** and the scrim gradient — **never a new colour**, which would fail `check-no-emerald.sh` and violate Principle V.
 - [ ] T064 Sign-off: write `SIGNOFF.md`, update [CLAUDE.md](../../CLAUDE.md)'s Active Feature section, and commit

@@ -529,3 +529,52 @@ the pager, target navigation, the terms sentence, the artwork upload and the aut
 banner draw the eye?) unanswerable. ⚠ **Android was never looked at**, so SC-013's side-by-side is not
 done. No measurements were taken (SC-005/SC-006/SC-008). Full record:
 [specs/028-mobile-home-merchandising/SIGNOFF.md](../../specs/028-mobile-home-merchandising/SIGNOFF.md).
+
+---
+
+## §029 — Promotional Banner Templates & Home Carousel
+
+| Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- |
+| Canonical banner shape | ➖ unconstrained | ✅ 1200×600, 2:1 | one definition, generated to Compose and imported by the console |
+| Operator can produce a conformant banner | ✅ back-office | ✅ back-office | canvas + downloadable template + validation; **not** an image compositor |
+| Artwork conformance enforced | ✅ server-side | ✅ server-side | one guarantee, both surfaces |
+| Never stretched / never cropped | ➖ | ✅ | satisfied **by construction** — see below |
+| Dedicated offers carousel | ❌ | ✅ | web still renders banners at the top only |
+| Exclusive placement per promotion | ✅ back-office | ✅ | carousel **or** between sections, never both |
+| Banner code + terms shown | ❌ | ✅ | web still ignores `code`/`terms`/`target`/`placement` |
+
+**Path (Principle III):** unchanged from 028 — the Home read is a latency-sensitive customer read on the
+**hot path**; authoring is operator CRUD on the **cold path**. No boundary moved.
+
+**The insight the slice turns on.** FR-013 ("fill without stretching, crop only outside the safe area")
+reads like it needs crop arithmetic. It does not: if stored artwork is 2:1 **and** the render box is
+2:1, the scale is uniform and **nothing is ever cropped**. That converted a rendering problem into a
+*validation* problem — which is why the server-side conformance check carries more weight here than any
+drawing code. It also means **SC-004 is satisfied by construction**: there are no crop boundaries to
+inspect.
+
+**⚠ The console is not the guard.** Artwork reaches S3 through a presigned PUT that Lambda never
+observes, so client-side normalisation is a convenience. The admin service verifies dimensions on save
+by reading image **headers** over a ranged GET — no `sharp`, no native binary in a Lambda. ⚠ WebP is a
+different container from PNG/JPEG (RIFF, three sub-formats, **two of them 1-based**); getting that
+wrong yields dimensions one pixel short, which looks right and fails an exact-size check.
+
+**⚠ The message stays LIVE TEXT over the artwork** (FR-031), upholding 028's FR-033 rather than
+reversing it. The cost is real and is carried by the platform, not the operator: a **gradient scrim**
+guarantees contrast over artwork nobody has seen, and the console tells the operator which region their
+design must leave quiet.
+
+**⚠ A deliberate narrowing, recorded.** The request was "a fixed-size template for generating the
+banner". What shipped is a template to design *from* — the canvas, a downloadable file, a preview and
+validation — not an image compositor. It solves the problem operators actually had (nobody told them
+the dimensions) without building an editor, and forecloses nothing.
+
+**Telemetry (Principle VII):** three events specified, **none emitted** — the ninth consecutive slice to
+defer mobile analytics. ⚠ This is the feature that most needs it: SC-012 and "does a hueless banner draw
+the eye" are behavioural questions no code review answers.
+
+⚠ **Live status.** Migration applied; admin service deployed (presign route answers 401, not 404);
+`core-api` rebuilt locally — ⚠ it has **no cloud deploy**, so the banner read works only against a local
+instance. The operator walk (quickstart §2, §2a, §4) and the device checks are outstanding; until §4
+runs, **no promotional banner has yet rendered on this platform**.

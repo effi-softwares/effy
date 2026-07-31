@@ -1163,6 +1163,15 @@ fun bannerRenderWidth(available: Dp): Dp =
     if (available <= EffyBanner.maxRenderWidth) available else EffyBanner.maxRenderWidth
 
 /**
+ * The scrim laid over banner artwork so the message stays legible.
+ *
+ * ⚠ FIXED in both appearances, and it is the ramp's darkest step — not a new colour, and not
+ * `colorScheme.surface`, which inverts. A photograph does not change between light and dark mode, so
+ * neither can the thing that makes type readable over it. Full reasoning on [EffyPromoBanner].
+ */
+private val BannerScrim = EffyColor.Dark.background
+
+/**
  * A promotional banner (028 T041; shape and legibility rebuilt by 029).
  *
  * ── ⚠ THE RECORDED NO-CARD EXCEPTION ────────────────────────────────────────────────────────────
@@ -1189,6 +1198,23 @@ fun bannerRenderWidth(available: Dp): Dp =
  * out the entire photograph. This is a GRADIENT — opaque where the type is, clear where it is not —
  * so the artwork survives and the type stays readable.
  *
+ * ── ⚠ WHY THE SCRIM DOES NOT FOLLOW THE APPEARANCE ──────────────────────────────────────────────
+ *
+ * It used to. The scrim was `colorScheme.surface`, so in light mode it was a WHITE wash — and that
+ * was wrong twice over. It washed the photograph pale, and it left dark type sitting on a
+ * semi-transparent white film over a busy image, which is the worst contrast case there is: the
+ * effective background under each glyph is whatever the photo happens to be doing there.
+ *
+ * The artwork is the SAME PICTURE in light and dark mode. So the treatment that makes type legible
+ * over it cannot be the one thing on the screen that inverts. Over artwork the scrim is therefore
+ * **fixed dark with fixed light type, in both appearances** — the standard for text over
+ * photography, and the only version whose contrast can be reasoned about at all, because the darkest
+ * step of the ramp at 92% is a known quantity and a stranger's photograph is not.
+ *
+ * ⚠ Both fixed values are ramp steps ([EffyColor.Dark]), not new colours — this stays inside the
+ * monochrome palette. With NO artwork there is nothing to be legible over, so the panel keeps the
+ * theme's own colours and does follow the appearance.
+ *
  * ⚠ There is no hue to separate text from picture. If a banner reads badly on device the fix is more
  * contrast within the neutral ramp, **never a colour** — that would fail `check-no-emerald.sh` and
  * violate Principle V.
@@ -1203,7 +1229,14 @@ fun EffyPromoBanner(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val scrimBase = MaterialTheme.colorScheme.surface
+    // Over artwork the treatment is fixed; with no artwork it follows the theme. See the note above.
+    val overArtwork = imageUrl != null
+    val titleColor =
+        if (overArtwork) EffyColor.Dark.foreground else MaterialTheme.colorScheme.onSurface
+    val supportColor =
+        if (overArtwork) EffyColor.Dark.mutedForeground else MaterialTheme.colorScheme.onSurfaceVariant
+    val chipOutline =
+        if (overArtwork) EffyColor.Dark.mutedForeground else MaterialTheme.colorScheme.outline
 
     BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         val width = bannerRenderWidth(maxWidth)
@@ -1231,18 +1264,28 @@ fun EffyPromoBanner(
                 // text, and describing the picture too would make a screen reader say it twice.
                 ProductImage(imageUrl, title, modifier = Modifier.matchParentSize())
 
-                // The gradient: opaque at the lower-left where the copy sits, clear at the upper
-                // right where the artwork should be visible.
+                // ⚠ VERTICAL, not diagonal — and that is a fix, not a preference.
+                //
+                // The scrim was a bottom-left→top-right diagonal, which put its WEAKEST point exactly
+                // where the type needs it most. The text column is bottom-anchored and stacks title
+                // FIRST, so the title is its topmost line: with a subtitle, a terms line and a code
+                // chip below it, the largest and most important text sits ~50% up the banner, where
+                // the diagonal had already faded to near nothing.
+                //
+                // A vertical ramp matches the shape of what it is protecting — the text zone is a
+                // full-width band across the bottom (`banner-canvas.json` marks it 50% tall, inset 6%
+                // from the bottom), so the scrim covers that band uniformly and leaves the top third
+                // of the photograph untouched.
                 Box(
                     modifier = Modifier.matchParentSize().background(
-                        Brush.linearGradient(
+                        Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0.0f to scrimBase.copy(alpha = 0.92f),
-                                0.45f to scrimBase.copy(alpha = 0.60f),
-                                1.0f to scrimBase.copy(alpha = 0.0f),
+                                0.00f to BannerScrim.copy(alpha = 0.00f),
+                                0.28f to BannerScrim.copy(alpha = 0.20f),
+                                0.50f to BannerScrim.copy(alpha = 0.62f),
+                                0.75f to BannerScrim.copy(alpha = 0.85f),
+                                1.00f to BannerScrim.copy(alpha = 0.92f),
                             ),
-                            start = Offset(0f, Float.POSITIVE_INFINITY),
-                            end = Offset(Float.POSITIVE_INFINITY, 0f),
                         ),
                     ),
                 )
@@ -1264,6 +1307,7 @@ fun EffyPromoBanner(
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = titleColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1272,7 +1316,7 @@ fun EffyPromoBanner(
                         subtitle,
                         modifier = Modifier.padding(top = EffySpacing.xs),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = supportColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1283,7 +1327,7 @@ fun EffyPromoBanner(
                         terms,
                         modifier = Modifier.padding(top = EffySpacing.xs),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = supportColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -1293,7 +1337,7 @@ fun EffyPromoBanner(
                         modifier = Modifier
                             .padding(top = EffySpacing.s)
                             .clip(RoundedCornerShape(EffyRadius.sm))
-                            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(EffyRadius.sm))
+                            .border(1.dp, chipOutline, RoundedCornerShape(EffyRadius.sm))
                             .padding(horizontal = EffySpacing.s, vertical = 2.dp),
                     ) {
                         Text(
@@ -1302,6 +1346,7 @@ fun EffyPromoBanner(
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.08.em,
                             ),
+                            color = titleColor,
                             maxLines = 1,
                         )
                     }
