@@ -519,8 +519,13 @@ services. Shop's 164 tests pass **unmodified**, which is the proof the extractio
 mobile analytics remains deferred platform-wide (013/014/015/020/021/022/027 pattern). Not parity, and
 not claimed as parity.
 
-⚠ **Not live-verified yet.** The migration (`20260731072813_promo_advertising.sql`) needs
-`make db-up ENV=dev`; the presign route and advertising fields need
-`make edge-deploy SERVICE=admin ENV=dev`; the banner read needs a rebuilt `make core-run`. The
-quickstart §3/§4 device walks — SC-002, SC-004, SC-005, SC-006, the screen-reader traversal, and the
-not-advertised proof (SC-015) — are operator-run. Everything machine-checkable is green.
+**Live status (signed off partial, 2026-07-31).** ✅ Migration applied; admin service deployed (the
+presign route answers **401, not 404**); `core-api` confirmed running the new binary; the sectioned
+Home, rails, skeleton and spacing verified on the **iOS simulator**.
+
+⚠ **The banner has never rendered.** No promotion was ever marked advertisable, so `EffyPromoBanner`,
+the pager, target navigation, the terms sentence, the artwork upload and the automatic take-downs are
+**machine-verified only** — SC-014 and SC-015 unproven, and research R9's design risk (does a hueless
+banner draw the eye?) unanswerable. ⚠ **Android was never looked at**, so SC-013's side-by-side is not
+done. No measurements were taken (SC-005/SC-006/SC-008). Full record:
+[specs/028-mobile-home-merchandising/SIGNOFF.md](../../specs/028-mobile-home-merchandising/SIGNOFF.md).

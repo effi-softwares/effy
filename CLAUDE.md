@@ -203,6 +203,58 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**028-mobile-home-merchandising — Customer Mobile Home: Sectioned Merchandising & Search Entry.**
+✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 74/77 tasks.** Sign-off record:
+[specs/028-mobile-home-merchandising/SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md).
+
+Replaces the customer mobile Home tab's flat "Discover" grid with a merchandised, sectioned storefront:
+a one-tap search handoff (keyboard already up), named horizontally-scrolling rails with "see all",
+a category shortcut row with 13 authored vectors, and promotional banners driven by real back-office
+promotions. **⚠ It REVERSES 026's FR-025a for the Home tab**, on operator direction (FR-003) — every
+other 026 screen is untouched, and the virtue 026 was protecting is retained as SC-002/SC-006.
+
+- **Data**: one migration `20260731072813_promo_advertising.sql` — an **advertising facet** on
+  `promo_code` (5 columns + a CHECK making an advertised-but-untitled promotion **unrepresentable** +
+  a partial index). No new table. **Advertising is opt-in and defaults to false** — private promotions
+  (a goodwill credit for one customer, a partner code) are ordinary, and the default is the only thing
+  between them and the public storefront. Exhaustion is **counted from `promo_redemption`, never
+  stored** (027's rule), which is what makes an exhausted promotion stop advertising itself.
+- **Paths**: Home read → **hot path** (`core-api/storefront`); advertising a promotion → **cold path**
+  (`edge-api/admin/promotions`). Exactly the split `promo_code` already had.
+- **Principle II**: the S3 presign helper was **promoted** from `shop/products/media.ts` into
+  `@effy/edge-shared` and consumed by both services — **shop's 164 tests pass unmodified**, which is
+  the proof the extraction changed no behaviour.
+- **⚠ 027's biggest carry-forward is CLOSED.** That post-mortem named a Go↔Kotlin contract test as
+  "the strongest carry-forward" and did not build it. `wire_contract_test.go` +
+  `BannerWireContractTest.kt` now share one **byte-identical JSON literal**, duplicated by hand.
+  Proved by breaking it two ways: `int`→`float64` fails at compile time; a silent `json:"terms"`
+  rename compiles fine and is caught by the byte comparison.
+- **⚠ FIVE defects found, four with the same signature** — a test passed because the FIXTURE agreed
+  with the code rather than with the world (027's lesson, recurring):
+  (1) the **category row rendered nothing** — every product's primary category is a leaf,
+  `productCount` does not roll up, so all three top-level categories reported 0; and category
+  filtering is exact-match everywhere, so a top-level shortcut would have opened an empty screen.
+  **FR-024/SC-004 were amended in the spec**, not patched in code alone (Principle I).
+  (2) **rail tiles ignored their width** — `BoxWithConstraints` inside a `LazyRow`, whose main axis is
+  **unbounded**. (3) **images had no loading state** — the placeholder only ran when the URL was null.
+  (4) **the skeleton could not match the content** — a `Row` allocates width sequentially and coerces
+  `Modifier.width()` into what is left; fixed by building it from the **same primitives** (`LazyRow`).
+  (5) **"See all" was a 40dp touch target** with five identical labels.
+- **⚠ Also corrected**: six verification tasks marked complete on reasoning rather than checking.
+  Re-opened and audited; three of the defects above fell out of that audit.
+- **⚠ OPEN (operator)** — 3 tasks, all in [SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md):
+  **T068** the advertised-promotion walk — **no promotion was ever marked advertisable, so the banner
+  has never rendered**; the whole operator half is machine-verified only, and research **R9's headline
+  design risk (does a hueless banner draw the eye?) is unanswerable** until it is. **T003/T069** no
+  measurements taken (SC-005/SC-006/SC-008 unmeasured). Also unwalked: SC-009 (5/5 testers), SC-010
+  (screen reader), SC-011 (dark/large-text/tablet), SC-012 (empty store), and **SC-013 — only iOS was
+  ever looked at; nobody has seen Android**.
+- **Carry-forwards**: a **category rollup** (recursive CTE) is what would make top-level shortcuts
+  possible; `customer-web` still ignores `code`/`terms`/`target`/`position`, so a promotion with a
+  minimum shows there **without its terms**; mobile telemetry remains deferred (7 more events
+  specified, none emitted). Parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §028.
+
 **027-customer-cart-sync — Customer Cart Synchronisation, Promotions & Order Rules.** ✅ **118/142 tasks
 — every feature phase BUILT + fully machine-verified. Live sign-off + commit pending.**
 

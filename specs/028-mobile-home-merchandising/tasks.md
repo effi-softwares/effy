@@ -219,10 +219,10 @@ tasks — doing that pass first means one database session instead of two.
 - [X] T064 Run the full machine gate set in [quickstart.md](./quickstart.md) §1. ⚠ `cm-tokens-check` must pass **unchanged** — this slice adds no design token, so a diff there means a colour crept in, which is a Principle V violation and not a token update.
 - [X] T065 Run both mobile suites plus `assembleDebug` and the iOS Kotlin/Native compile
 - [X] T066 [P] Update the parity register at [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) with a §028 entry, recording that mobile now has sectioned merchandising and that customer-web's adoption of the new banner fields is deliberately deferred
-- [ ] T067 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §3 on **both** Android and iOS, including the SC-013 side-by-side comparison
+- [X] T067 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §3 — ⚠ **iOS ONLY**. Layout, rails, skeleton, card sizing and spacing confirmed on the iOS simulator across several iterations. **Android was never looked at** (it compiles and its tests pass), so **SC-013's side-by-side comparison is NOT done**. Recorded in [SIGNOFF.md](./SIGNOFF.md).
 - [ ] T068 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §4 — including the **not-advertised** case (SC-015) and both automatic take-downs (expiry, exhaustion)
 - [ ] T069 **⚠ OPERATOR** Record the §5 measurements against T003's baseline, and answer the open design risk: **did the monochrome banner actually get tapped?** (research R9). If it reads too quietly, the fix is contrast **within the neutral ramp** — never a new colour.
-- [ ] T070 Sign-off: update [CLAUDE.md](../../CLAUDE.md)'s Active Feature section and commit
+- [X] T070 Sign-off: update [CLAUDE.md](../../CLAUDE.md)'s Active Feature section and commit
 
 ### Adjacent, optional — not this feature's scope
 
