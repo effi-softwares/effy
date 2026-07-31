@@ -19,6 +19,11 @@ const BASE: PromoCode = {
   createdBy: "actor",
   updatedBy: null,
   createdAt: "2026-07-01T00:00:00Z",
+  isAdvertised: false,
+  bannerTitle: null,
+  bannerSubtitle: null,
+  bannerImageKey: null,
+  bannerPosition: 0,
   updatedAt: "2026-07-01T00:00:00Z",
 };
 

@@ -40,7 +40,50 @@ data class Banner(
      */
     val imageUrl: String?,
     val href: String?,
+    /**
+     * Where this banner sits in Home's section sequence (028 FR-030): `0` = above the first section,
+     * `n` = after the nth section.
+     *
+     * ⚠ Defaulted, because the wire does not carry it yet — 028 US4 adds `position` to `BannerDTO`.
+     * It lives here from the foundational phase because `composeHome` has nothing to interleave
+     * without it, and an interleaving rule with no positions is a rule that cannot be tested.
+     * Out-of-range values are CLAMPED, never dropped: a mistyped position must not make a live
+     * promotion invisible.
+     */
+    val position: Int = 0,
+    /** The code a shopper types in the cart. Shown so the banner is actionable, not decorative. */
+    val code: String? = null,
+    /**
+     * The condition sentence ("On orders over $30"), composed SERVER-SIDE so both customer surfaces
+     * phrase one promotion identically. Null when the promotion has no conditions (028 FR-037d).
+     */
+    val terms: String? = null,
+    /** Where the banner leads. Null — including for an unrecognised wire value — means NOT TAPPABLE. */
+    val target: BannerTarget? = null,
 )
+
+/**
+ * Where a promotional banner leads (028, research R7).
+ *
+ * A **sealed** interface, so the render site's `when` is exhaustive and a new destination is a
+ * compile error rather than a silent no-op.
+ *
+ * ⚠ The wire's `href` is a WEB PATH and mobile has no URL router. An unrecognised wire `kind` maps to
+ * `null` here rather than to some "unknown" case — the wire shape never leaks past `data`
+ * (Principle VI), and a banner with no target renders non-tappable. A tap that does nothing is worse
+ * than no tap.
+ */
+sealed interface BannerTarget {
+    /** The store, unfiltered. */
+    data object Search : BannerTarget
+
+    /** On-sale results. */
+    data object Sale : BannerTarget
+
+    data class Category(val categoryKey: String) : BannerTarget
+
+    data class Product(val productId: String) : BannerTarget
+}
 
 data class Rail(
     val key: String,

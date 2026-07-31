@@ -13,6 +13,11 @@
  * Data design: see specs/019-customer-commerce-flow/data-model.md §3.
  */
 
+// ⚠ IMPORTED, not redeclared. `WireInt` carries the `@asType integer` annotation that makes the
+// generated Kotlin emit an Int rather than a Double — a second copy of the alias would be a second
+// thing that can drift, which defeats the entire point of having it (027's `1.0` into a Go `int`).
+import type { WireInt } from "./cart";
+
 /** A badge shown on a product card. Derived server-side (on_sale = has compare-at; new = newest). */
 export type ProductBadge = "on_sale" | "new";
 export const PRODUCT_BADGES: readonly ProductBadge[] = ["on_sale", "new"];
@@ -66,13 +71,60 @@ export interface StorefrontRailDTO {
   products: StorefrontProductCardDTO[];
 }
 
-/** A promotional hero banner. Minimal/derived in this slice (no CMS). */
+/**
+ * Where a promotional banner leads (028).
+ *
+ * ⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL router —
+ * inventing one to serve a banner would be the tail wagging the dog. A closed set the server promises
+ * and each client maps exhaustively means a new target shows up as a gap in a `when`/`switch` at
+ * compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does
+ * nothing is worse than no tap.
+ *
+ * Every target is reachable elsewhere in the app (FR-034) — which is why no "promotion landing page"
+ * exists. A destination only a banner can reach is unreachable for the majority who never see it.
+ */
+export type BannerTarget =
+  | { kind: "search" }
+  | { kind: "sale" }
+  | { kind: "category"; categoryKey: string }
+  | { kind: "product"; productId: string };
+
+/**
+ * A promotional banner on Home — the shopper-facing face of an advertised promotion (028).
+ *
+ * ⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps typechecking
+ * without an edit. What is NOT backward compatible is the LIST: this used to always contain one
+ * derived "welcome" stub and is now empty whenever no promotion is advertised. Any layout that
+ * assumed at least one banner has to handle `[]`.
+ */
 export interface BannerDTO {
+  /** The promotion id. Stable across reads — clients use it as a list key. */
   key: string;
   title: string;
   subtitle: string | null;
   imageUrl: string | null;
+  /** Retained for `customer-web`. Mobile ignores it in favour of `target`. */
   href: string | null;
+  /** The code a shopper types in the cart. Shown so the banner is actionable, not just decorative. */
+  code?: string | null;
+  /**
+   * The condition sentence, e.g. `"On orders over $30"` — COMPOSED SERVER-SIDE from the promotion's
+   * minimum, so both surfaces phrase one promotion identically. Null when it has no conditions.
+   *
+   * FR-037d: a shopper must learn of a condition from the banner or from where it leads — never
+   * first at payment.
+   */
+  terms?: string | null;
+  target?: BannerTarget | null;
+  /**
+   * Where this banner sits in Home's section sequence: 0 above the first section, n after the nth.
+   *
+   * ⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`, the wire
+   * carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while every unit test
+   * passed, because the fakes spoke Kotlin at both ends and never crossed the wire. The fix was made
+   * at the contract so the generated Kotlin cannot regress; this field takes the same treatment.
+   */
+  position?: WireInt;
 }
 
 /** The composed Home payload (GET /v1/storefront/home). */

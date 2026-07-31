@@ -1,0 +1,102 @@
+package com.effyshopping.customer.mobile.features.catalog.presentation
+
+import com.effyshopping.customer.mobile.features.catalog.domain.Banner
+import com.effyshopping.customer.mobile.features.catalog.domain.Category
+import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
+import com.effyshopping.customer.mobile.features.catalog.domain.Rail
+
+/**
+ * Home's vertical sequence, resolved BEFORE anything is laid out (028 T004/T005).
+ *
+ * ── Why this is a list rather than three fields on the screen ────────────────────────────────────
+ *
+ * Home interleaves three kinds of thing: a category shortcut row, merchandising sections, and
+ * promotional banners that sit BETWEEN sections rather than only at the top (FR-030). Expressed as
+ * branching inside a `LazyColumn`, that interleaving is a handful of `if`s tangled with layout and
+ * testable only on a device.
+ *
+ * Expressed as [composeHome] — one pure function from data to an ordered list of [HomeBlock] — every
+ * rule that can actually be got wrong becomes a unit test:
+ *
+ *   · the out-of-range clamp (a mistyped position must never hide a live promotion)
+ *   · the empty-section skip (FR-020 — never a heading above nothing)
+ *   · the omit-when-empty rules (FR-029 categories, FR-035 banners)
+ *   · the order itself (categories above the deeper merchandising, FR-024)
+ *
+ * None of those need Compose to verify, so none of them should be trapped inside a composable.
+ */
+sealed interface HomeBlock {
+    /** The category shortcut row (FR-024). Present only when there is something to show. */
+    data class Categories(val items: List<CategoryShortcut>) : HomeBlock
+
+    /** One merchandising section — a titled, horizontally scrolling rail (FR-013/FR-014). */
+    data class Section(val rail: Rail) : HomeBlock
+
+    /**
+     * One or more promotions at the same point in the sequence.
+     *
+     * More than one renders as a pager with a position indicator (FR-031) and **never**
+     * auto-advances (FR-032) — mobile has no hover, so a shopper cannot pause a rotating carousel
+     * and may be navigated somewhere they did not intend.
+     */
+    data class Promo(val banners: List<Banner>) : HomeBlock
+}
+
+/**
+ * One category shortcut.
+ *
+ * ⚠ Deliberately carries NO icon. `data-model.md` §5 sketched `icon: DrawableResource`, but that
+ * would drag a Compose resource type into the pure layer and make this whole function untestable in
+ * `commonTest` — for a value the render site can resolve from [key] in one call. The icon is looked
+ * up at render time by `categoryIcon(key)` (028 US3), which is itself pure and separately tested.
+ */
+data class CategoryShortcut(val key: String, val label: String)
+
+/**
+ * Resolve [HomeContent] and the category list into Home's ordered blocks.
+ *
+ * Pure: no Compose, no clock, no I/O. Given the same inputs it returns the same list, which is what
+ * makes the rules below assertions rather than hopes.
+ *
+ * **Order** — category shortcuts first (FR-024 puts them above the deeper merchandising, and the
+ * research is that shoppers attend to category navigation over carousels), then the sections in the
+ * order the SERVER returned them, with promotions interleaved at their declared positions.
+ *
+ * **The server owns section order** (research R8). This function never sorts, renames or reorders a
+ * rail, which is what makes FR-040 true: a new grouping appears without an app release because
+ * nothing here enumerates the ones that exist.
+ */
+fun composeHome(home: HomeContent, categories: List<Category>): List<HomeBlock> {
+    // FR-020: a section with nothing in it is omitted entirely, never rendered as a heading above
+    // nothing. The server already drops empty rails; this is the belt to that pair of braces.
+    val sections = home.rails.filter { it.products.isNotEmpty() }
+
+    // FR-024/FR-029: top-level categories that actually have something to sell. A category with no
+    // products is a promise the store cannot keep.
+    val shortcuts = categories
+        .filter { it.parentKey == null && it.productCount > 0 }
+        .map { CategoryShortcut(key = it.key, label = it.name) }
+
+    // ⚠ CLAMPED, not filtered. `coerceIn` moves an out-of-range position to the nearest legal slot;
+    // dropping it instead would mean a mistyped number silently unpublishes a live promotion, and
+    // the operator would see a saved, advertised promotion that simply never appears (research R8).
+    //
+    // Grouping by the clamped slot is also what handles "several promotions live at once" — they
+    // land in one Promo block and render as a pager, rather than stacking three panels in a row.
+    val promosAt: Map<Int, List<Banner>> = home.banners
+        .sortedBy { it.position }
+        .groupBy { it.position.coerceIn(0, sections.size) }
+
+    return buildList {
+        if (shortcuts.isNotEmpty()) add(HomeBlock.Categories(shortcuts))
+
+        // Position 0 sits above the first section.
+        promosAt[0]?.let { add(HomeBlock.Promo(it)) }
+
+        sections.forEachIndexed { index, rail ->
+            add(HomeBlock.Section(rail))
+            // Position n+1 sits after the (n+1)th section — this is what "between sections" means.
+            promosAt[index + 1]?.let { add(HomeBlock.Promo(it)) }
+        }
+    }
+}

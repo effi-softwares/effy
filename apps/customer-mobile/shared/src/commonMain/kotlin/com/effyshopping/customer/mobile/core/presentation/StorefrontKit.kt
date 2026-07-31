@@ -6,9 +6,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,11 +24,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -55,17 +56,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.effyshopping.customer.mobile.core.nav.LocalNavBack
-import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.design.EffyColor
+import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.MotionRole
+import com.effyshopping.mobile.kit.ui.WindowWidth
+import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 
 /**
  * The customer storefront's shared visual vocabulary (025).
@@ -994,6 +996,259 @@ fun DiscountChip(percentOff: Int, modifier: Modifier = Modifier) {
 @Composable
 fun EffySkeletonBlock(modifier: Modifier = Modifier, radius: androidx.compose.ui.unit.Dp = EffyRadius.md) {
     Box(modifier = modifier.clip(RoundedCornerShape(radius)).background(EffySurface.skeleton))
+}
+
+// ── Home rails (028) ────────────────────────────────────────────────────────────────────────────
+
+/** Vertical gap between Home's blocks. ONE value, applied by the LazyColumn — so SC-007's "identical
+ *  gap everywhere" is true by construction rather than by inspection of each call site. */
+val HomeSectionGap = EffySpacing.xl
+
+/** Horizontal gap between tiles inside a rail. */
+val RailItemGap = EffySpacing.md
+
+/**
+ * How much of the window ONE rail tile occupies (028 T016, research R4).
+ *
+ * ⚠ The peek is the whole point. A rail whose last visible tile ends flush at the screen edge reads
+ * as a complete set, and a shopper never drags it. At 0.42 a compact window shows two tiles plus a
+ * clear sliver of the third, which is the affordance FR-015 asks for.
+ *
+ * On wider windows the fraction SHRINKS rather than the tile growing. A tablet showing two
+ * half-screen-wide products would be a phone layout stretched, which is exactly what FR-046 forbids
+ * — more tiles fit instead.
+ *
+ * Pure, so the sizing rule is unit-testable without a device.
+ */
+// ⚠ NONE of these may divide into 1.0 evenly. An even divisor fits a whole number of tiles across
+// the window, so the row ends FLUSH at the edge with no sliver — and a flush row reads as a complete
+// set that nobody drags. `0.20` was the first value here and it is exactly `1/5`; the sizing test
+// caught it before any device did.
+fun railTileWidthFraction(width: WindowWidth): Float = when (width) {
+    WindowWidth.COMPACT -> 0.42f
+    WindowWidth.MEDIUM -> 0.28f
+    WindowWidth.EXPANDED -> 0.22f
+}
+
+/**
+ * A product tile sized for a horizontally scrolling rail (028 T018).
+ *
+ * Reuses [EffyProductCard] wholesale — same imagery treatment, name, price, sale indication,
+ * availability and press feedback (FR-022). The rail does not get its own product presentation; a
+ * second product tile is how two screens start disagreeing about what a sale looks like.
+ *
+ * ⚠ `fillHeight = false`. In a rail each tile sizes to its own content, and the row's height is set
+ * by the tallest — which is what keeps a section under FR-017's half-viewport ceiling. `fillHeight`
+ * is a grid concern (stretching items to a uniform row height) and would fight the ceiling here.
+ */
+@Composable
+fun EffyRailTile(
+    product: ProductCard,
+    onClick: (String) -> Unit,
+    widthFraction: Float,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier) {
+        // The fraction is of the WINDOW, resolved here so the caller passes intent rather than dp.
+        EffyProductCard(product, onClick, modifier = Modifier.width(maxWidth * widthFraction))
+    }
+}
+
+/**
+ * A promotional banner (028 T041).
+ *
+ * ── ⚠ THE RECORDED NO-CARD EXCEPTION ────────────────────────────────────────────────────────────
+ *
+ * Principle V says do not lay content out in card-style containers. This IS one, and the plan's
+ * Complexity Tracking carries the justification: a promotion is a discrete, self-contained, tappable
+ * offer that has to be separable from the merchandising around it, and constitution v1.11.0 removed
+ * every hue from the palette — so **colour is not available as the separator**. A bounded panel is
+ * what remains.
+ *
+ * ── ⚠ AND THIS IS THE HARD PART OF THE WHOLE FEATURE ────────────────────────────────────────────
+ *
+ * A promotional banner conventionally works by being the loudest thing on the page. That instrument
+ * is gone. What is left is **scale, weight and negative space**, which is why this is wide and short
+ * with generous padding rather than tall and busy.
+ *
+ * If it reads too quietly on a device, the fix is more contrast WITHIN the neutral ramp — never a new
+ * colour. A colour here would fail `check-no-emerald.sh` and violate Principle V; it is a
+ * constitution violation, not a design choice.
+ *
+ * Text is REAL TEXT, never baked into [imageUrl] (FR-033) — image-baked copy is illegible at small
+ * sizes and invisible to a screen reader. Artwork sits behind a scrim that guarantees contrast.
+ */
+@Composable
+fun EffyPromoBanner(
+    title: String,
+    subtitle: String?,
+    terms: String?,
+    code: String?,
+    imageUrl: String?,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(EffyRadius.md))
+            .background(EffySurface.tint)
+            // ⚠ Null onClick = NOT TAPPABLE. That is the designed response to an unrecognised target
+            // (research R7): a tap that does nothing is worse than no tap.
+            .then(if (onClick != null) Modifier.clickable(onClickLabel = title, onClick = onClick) else Modifier),
+    ) {
+        if (imageUrl != null) {
+            // The TITLE is the accessible name, not the artwork — the banner's meaning is its text
+            // (FR-033), and describing the picture as well would make a screen reader say it twice.
+            ProductImage(imageUrl, title, modifier = Modifier.matchParentSize())
+            // The scrim is what lets real text sit over arbitrary artwork and stay legible. Without
+            // it a light photograph and light text produce an unreadable banner, and nobody notices
+            // until an operator uploads one.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)),
+            )
+        }
+
+        Column(modifier = Modifier.padding(EffySpacing.lg)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    modifier = Modifier.padding(top = EffySpacing.xs),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (!terms.isNullOrBlank()) {
+                // FR-037d: a condition must reach the shopper here, not first at payment.
+                Text(
+                    terms,
+                    modifier = Modifier.padding(top = EffySpacing.xs),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (!code.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = EffySpacing.md)
+                        .clip(RoundedCornerShape(EffyRadius.sm))
+                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(EffyRadius.sm))
+                        .padding(horizontal = EffySpacing.md, vertical = EffySpacing.xs),
+                ) {
+                    Text(
+                        code,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.08.em,
+                        ),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * One category shortcut: an icon above a label (028 T030).
+ *
+ * ── ⚠ NO CONTAINER, NO BORDER, NO FILL ──────────────────────────────────────────────────────────
+ *
+ * This is Principle V's "no card layouts" doctrine being FOLLOWED, not excepted. The obvious thing
+ * to build here is a tile — a bordered box with an icon in it — and the doctrine exists precisely to
+ * stop that reflex. A labelled glyph in a row is not a card, and it does not need to become one to
+ * be tappable.
+ *
+ * The whole target is [EffyMinTouchTarget] tall at minimum, so the tap area is the shortcut rather
+ * than the 24dp glyph inside it.
+ */
+@Composable
+fun EffyCategoryShortcut(
+    label: String,
+    icon: DrawableResource,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .widthIn(min = 64.dp, max = 88.dp)
+            .clip(RoundedCornerShape(EffyRadius.sm))
+            .clickable(onClickLabel = label, onClick = onClick)
+            .padding(vertical = EffySpacing.s, horizontal = EffySpacing.xs),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        // The tint disc is a SHAPE the glyph sits on, not a container around content — it gives the
+        // icon a consistent optical weight when one glyph is dense and the next is sparse.
+        Box(
+            modifier = Modifier.size(52.dp).clip(CircleShape).background(EffySurface.tint),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(26.dp))
+        }
+        Text(
+            label,
+            modifier = Modifier.padding(top = EffySpacing.s),
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/** A rail-shaped skeleton — the section that is coming, not a bare spinner (FR-041). */
+@Composable
+fun EffyHomeSkeleton(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(HomeSectionGap),
+    ) {
+        // The category row.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
+        ) {
+            repeat(4) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    EffySkeletonBlock(Modifier.size(56.dp), radius = EffyRadius.md)
+                    EffySkeletonBlock(
+                        Modifier.padding(top = EffySpacing.s).width(44.dp).height(12.dp),
+                        radius = EffyRadius.sm,
+                    )
+                }
+            }
+        }
+
+        // Two sections' worth of header + rail.
+        repeat(2) {
+            Column {
+                EffySkeletonBlock(
+                    Modifier.padding(horizontal = EffySpacing.lg).width(140.dp).height(22.dp),
+                    radius = EffyRadius.sm,
+                )
+                Row(
+                    modifier = Modifier
+                        .padding(top = EffySpacing.md)
+                        .padding(horizontal = EffySpacing.lg)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(RailItemGap),
+                ) {
+                    repeat(2) {
+                        EffyProductCardSkeleton(Modifier.fillMaxWidth(0.42f))
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** A product-tile-shaped skeleton, so a loading grid has the proportions of the grid that replaces it. */

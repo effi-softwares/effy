@@ -42,12 +42,24 @@ provider:
     # Shop-pool provisioning (009): the pool id the shops slice creates users in. Resolved from
     # the auth contract at deploy time — never hard-coded (R3).
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
+    # Promotional banner artwork (028). The SAME bucket product media uses — banners live under a
+    # `promotions/` prefix rather than in a bucket of their own, so one bucket policy and one
+    # lifecycle rule cover all operator-uploaded imagery.
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Banner artwork (028): scoped to the media bucket's OBJECT ARN — never a wildcard. Presigned
+        # URLs inherit this identity's authority, so a broader grant here would be a broader grant
+        # handed to whoever holds the url. Mirrors the shop service's product-media statement.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
         # Shop-management provisioning (009): admin Cognito actions, scoped to the SHOP pool ARN
         # ONLY (least privilege). An authorized server-side provisioning write, not token brokering
         # — the routes stay behind the back-office authorizer (Constitution Check, research R3).
@@ -425,6 +437,17 @@ functions:
       - httpApi:
           method: DELETE
           path: /admin/v1/promotions/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  promotionsBannerImageV1:
+    handler: src/functions/promotions-banner-image-v1-post.handler
+    description: Presign a PUT for promotional banner artwork — 028 FR-037b
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/promotions/{id}/banner-image/presign
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

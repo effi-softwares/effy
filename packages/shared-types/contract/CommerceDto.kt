@@ -71,19 +71,78 @@ data class Item (
 )
 
 /**
- * A promotional hero banner. Minimal/derived in this slice (no CMS).
+ * A promotional banner on Home — the shopper-facing face of an advertised promotion (028).
+ *
+ * ⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps
+ * typechecking without an edit. What is NOT backward compatible is the LIST: this used to
+ * always contain one derived "welcome" stub and is now empty whenever no promotion is
+ * advertised. Any layout that assumed at least one banner has to handle `[]`.
  */
 @Serializable
 data class BannerDTO (
+    /**
+     * The code a shopper types in the cart. Shown so the banner is actionable, not just
+     * decorative.
+     */
+    val code: String? = null,
+
+    /**
+     * Retained for `customer-web`. Mobile ignores it in favour of `target`.
+     */
     val href: String? = null,
 
     @SerialName("imageUrl")
     val imageURL: String? = null,
 
+    /**
+     * The promotion id. Stable across reads — clients use it as a list key.
+     */
     val key: String,
+
+    /**
+     * Where this banner sits in Home's section sequence: 0 above the first section, n after the
+     * nth.
+     *
+     * ⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`,
+     * the wire carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while
+     * every unit test passed, because the fakes spoke Kotlin at both ends and never crossed the
+     * wire. The fix was made at the contract so the generated Kotlin cannot regress; this field
+     * takes the same treatment.
+     */
+    val position: Long? = null,
+
     val subtitle: String? = null,
+    val target: BannerTarget? = null,
+
+    /**
+     * The condition sentence, e.g. `"On orders over $30"` — COMPOSED SERVER-SIDE from the
+     * promotion's minimum, so both surfaces phrase one promotion identically. Null when it has
+     * no conditions.
+     *
+     * FR-037d: a shopper must learn of a condition from the banner or from where it leads —
+     * never first at payment.
+     */
+    val terms: String? = null,
+
     val title: String
 )
+
+@Serializable
+data class BannerTarget (
+    val kind: Kind,
+    val categoryKey: String? = null,
+
+    @SerialName("productId")
+    val productID: String? = null
+)
+
+@Serializable
+enum class Kind(val value: String) {
+    @SerialName("category") Category("category"),
+    @SerialName("product") Product("product"),
+    @SerialName("sale") Sale("sale"),
+    @SerialName("search") Search("search");
+}
 
 /**
  * The full cart — returned by GET /v1/cart AND by every mutating response, so a client

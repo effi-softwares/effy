@@ -80,6 +80,13 @@ export function toPromoDTO(p: PromoCode): PromoCodeDTO {
     updatedBy: p.updatedBy,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
+    isAdvertised: p.isAdvertised,
+    bannerTitle: p.bannerTitle,
+    bannerSubtitle: p.bannerSubtitle,
+    // ⚠ The KEY, not a presigned URL. The console needs it to send back on save, and a signed URL
+    // would expire in the operator's form. Rendering a preview is a separate presigned read.
+    bannerImageKey: p.bannerImageKey,
+    bannerPosition: p.bannerPosition,
   };
 }
 

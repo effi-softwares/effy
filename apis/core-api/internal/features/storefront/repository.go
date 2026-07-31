@@ -96,6 +96,18 @@ type categoryRow struct {
 	ImageKey     *string `db:"image_key"`
 }
 
+// advertisedPromoRow is one promotion cleared for public display on Home (028).
+type advertisedPromoRow struct {
+	ID              string  `db:"id"`
+	Code            string  `db:"code"`
+	Title           string  `db:"banner_title"`
+	Subtitle        *string `db:"banner_subtitle"`
+	ImageKey        *string `db:"banner_image_key"`
+	Position        int     `db:"banner_position"`
+	MinimumSubtotal string  `db:"minimum_subtotal_amount"`
+	Currency        string  `db:"currency"`
+}
+
 type Repository struct {
 	db db.DBTX
 }
@@ -114,6 +126,50 @@ func (r *Repository) collectCards(ctx context.Context, sql string, args ...any) 
 		return nil, fmt.Errorf("storefront: scan cards: %w", err)
 	}
 	return cards, nil
+}
+
+// AdvertisedPromotions returns the promotions cleared to appear as banners on Home (028 FR-036/037c).
+//
+// ⚠ ONE query, and the visibility predicate lives ONLY here. Five terms decide it, and four of them
+// are ordinary promotion semantics the cart already honours — the fifth (is_advertised) is what 028
+// adds. Keeping them in one statement is what stops the banner read and the redemption path drifting
+// into disagreeing about whether a promotion is live.
+//
+// ⚠ Exhaustion is COUNTED from promo_redemption, never read from a stored counter. That is 027's rule
+// and its reason holds exactly here: a counter and the rows can disagree, and then nobody knows which
+// is true. It is also what makes "an exhausted promotion stops being advertised" automatic rather than
+// something an operator has to remember to do.
+//
+// The ORDER BY is served by promo_code_advertised_idx (partial, on the same columns), so this adds a
+// single indexed read to a Home composition that already issues up to seven.
+func (r *Repository) AdvertisedPromotions(ctx context.Context) ([]advertisedPromoRow, error) {
+	const sql = `
+SELECT p.id,
+       p.code,
+       p.banner_title,
+       p.banner_subtitle,
+       p.banner_image_key,
+       p.banner_position,
+       p.minimum_subtotal_amount,
+       p.currency
+FROM public.promo_code p
+WHERE p.is_advertised
+  AND p.status = 'active'
+  AND (p.starts_at IS NULL OR p.starts_at <= now())
+  AND (p.ends_at   IS NULL OR p.ends_at   >  now())
+  AND (p.max_redemptions IS NULL
+       OR (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) < p.max_redemptions)
+ORDER BY p.banner_position, p.created_at`
+
+	rows, err := r.db.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("storefront: query advertised promotions: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[advertisedPromoRow])
+	if err != nil {
+		return nil, fmt.Errorf("storefront: scan advertised promotions: %w", err)
+	}
+	return out, nil
 }
 
 // NewestCards backs the "Featured" rail — newest active products.

@@ -162,3 +162,78 @@ describe("writeOrderPolicy", () => {
     expect(repo.writeOrderPolicy).not.toHaveBeenCalled();
   });
 });
+
+// ── The advertising facet (028 T049) ────────────────────────────────────────────────────────────
+//
+// ⚠ These prove the SERVICE's half only. The guarantee that an advertised promotion always has a
+// headline is `promo_code_banner_copy_chk` in the database, which no unit test can exercise — the
+// service check exists so an operator gets a field-level message instead of a 500, not instead of the
+// constraint.
+
+describe("advertising a promotion", () => {
+  it("defaults to NOT advertised", async () => {
+    repo.createPromo.mockResolvedValue({});
+    await createPromo({ ...VALID_PERCENT }, "actor");
+
+    const [input] = repo.createPromo.mock.calls.at(-1)!;
+    // The default IS the safety control. Private promotions are ordinary — a goodwill credit for one
+    // customer, a partner code — and a default of `true` would put every one on the storefront.
+    expect(input.isAdvertised).toBe(false);
+  });
+
+  it("refuses to advertise a promotion with no headline", async () => {
+    expect(await codeOf(createPromo({ ...VALID_PERCENT, isAdvertised: true }, "actor"))).toBe(
+      "promo_definition_invalid",
+    );
+  });
+
+  it("refuses a headline that is only whitespace", async () => {
+    expect(
+      await codeOf(createPromo({ ...VALID_PERCENT, isAdvertised: true, bannerTitle: "   " }, "actor")),
+    ).toBe("promo_definition_invalid");
+  });
+
+  it("names the offending field so the operator knows which box is empty", async () => {
+    try {
+      await createPromo({ ...VALID_PERCENT, isAdvertised: true }, "actor");
+      throw new Error("expected a refusal");
+    } catch (e) {
+      expect(isPromoError(e) && e.fields.map((f) => f.field)).toContain("bannerTitle");
+    }
+  });
+
+  it("accepts an advertised promotion that has a headline", async () => {
+    repo.createPromo.mockResolvedValue({});
+    await createPromo(
+      { ...VALID_PERCENT, isAdvertised: true, bannerTitle: "20% off your first order" },
+      "actor",
+    );
+
+    const [input] = repo.createPromo.mock.calls.at(-1)!;
+    expect(input.isAdvertised).toBe(true);
+    expect(input.bannerTitle).toBe("20% off your first order");
+  });
+
+  it("refuses a negative or fractional position", async () => {
+    expect(await codeOf(createPromo({ ...VALID_PERCENT, bannerPosition: -1 }, "actor"))).toBe(
+      "promo_definition_invalid",
+    );
+    expect(await codeOf(createPromo({ ...VALID_PERCENT, bannerPosition: 1.5 }, "actor"))).toBe(
+      "promo_definition_invalid",
+    );
+  });
+
+  it("lets a headline be edited on a promotion that is already being used", async () => {
+    // ⚠ The point of FR-068 is that a redeemed code's VALUE cannot change, because a paid order's
+    // discount was computed from the definition as it stood. A headline is not value — an operator
+    // must be able to fix a typo on a promotion people are already redeeming.
+    repo.updatePromo.mockResolvedValue({});
+    await updatePromo("p1", { bannerTitle: "Corrected headline" }, "actor");
+
+    expect(repo.updatePromo).toHaveBeenCalledWith(
+      "p1",
+      expect.objectContaining({ bannerTitle: "Corrected headline" }),
+      "actor",
+    );
+  });
+});

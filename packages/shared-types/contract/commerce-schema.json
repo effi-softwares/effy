@@ -103,9 +103,17 @@
     },
     "BannerDTO": {
       "additionalProperties": false,
-      "description": "A promotional hero banner. Minimal/derived in this slice (no CMS).",
+      "description": "A promotional banner on Home — the shopper-facing face of an advertised promotion (028).\n\n⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps typechecking without an edit. What is NOT backward compatible is the LIST: this used to always contain one derived \"welcome\" stub and is now empty whenever no promotion is advertised. Any layout that assumed at least one banner has to handle `[]`.",
       "properties": {
+        "code": {
+          "description": "The code a shopper types in the cart. Shown so the banner is actionable, not just decorative.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "href": {
+          "description": "Retained for `customer-web`. Mobile ignores it in favour of `target`.",
           "type": [
             "string",
             "null"
@@ -118,9 +126,31 @@
           ]
         },
         "key": {
+          "description": "The promotion id. Stable across reads — clients use it as a list key.",
           "type": "string"
         },
+        "position": {
+          "$ref": "#/definitions/WireInt",
+          "description": "Where this banner sits in Home's section sequence: 0 above the first section, n after the nth.\n\n⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`, the wire carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while every unit test passed, because the fakes spoke Kotlin at both ends and never crossed the wire. The fix was made at the contract so the generated Kotlin cannot regress; this field takes the same treatment."
+        },
         "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BannerTarget"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "terms": {
+          "description": "The condition sentence, e.g. `\"On orders over $30\"` — COMPOSED SERVER-SIDE from the promotion's minimum, so both surfaces phrase one promotion identically. Null when it has no conditions.\n\nFR-037d: a shopper must learn of a condition from the banner or from where it leads — never first at payment.",
           "type": [
             "string",
             "null"
@@ -138,6 +168,71 @@
         "href"
       ],
       "type": "object"
+    },
+    "BannerTarget": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "search",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "sale",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "categoryKey": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "category",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "categoryKey"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "product",
+              "type": "string"
+            },
+            "productId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "productId"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "Where a promotional banner leads (028).\n\n⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL router — inventing one to serve a banner would be the tail wagging the dog. A closed set the server promises and each client maps exhaustively means a new target shows up as a gap in a `when`/`switch` at compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does nothing is worse than no tap.\n\nEvery target is reachable elsewhere in the app (FR-034) — which is why no \"promotion landing page\" exists. A destination only a banner can reach is unreachable for the majority who never see it."
     },
     "CartBlockedReason": {
       "description": "Why checkout is unavailable, when it is.",

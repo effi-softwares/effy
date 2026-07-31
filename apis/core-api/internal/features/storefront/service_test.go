@@ -22,6 +22,8 @@ type fakeReader struct {
 	search      []searchRow
 	count       int
 	lastParams  SearchParams
+	promos      []advertisedPromoRow
+	promoErr    error
 }
 
 func (f *fakeReader) NewestCards(_ context.Context, _ int) ([]cardRow, error) { return f.newest, nil }
@@ -36,6 +38,12 @@ func (f *fakeReader) RailCandidates(_ context.Context, _ int) ([]railCandidate, 
 	return f.candidates, nil
 }
 func (f *fakeReader) Categories(_ context.Context) ([]categoryRow, error) { return f.cats, nil }
+
+// AdvertisedPromotions defaults to none — the ordinary state of a store with no live promotion, and
+// the state every pre-028 test was implicitly written against.
+func (f *fakeReader) AdvertisedPromotions(_ context.Context) ([]advertisedPromoRow, error) {
+	return f.promos, f.promoErr
+}
 func (f *fakeReader) ProductDetail(_ context.Context, _ string) (detailRow, bool, error) {
 	return f.detail, f.detailFound, nil
 }
@@ -114,9 +122,11 @@ func TestHomeComposesNonEmptyRails(t *testing.T) {
 	if home.Rails[0].Key != "featured" || home.Rails[1].Key != "on_sale" || home.Rails[2].Key != "category:dairy" {
 		t.Fatalf("unexpected rail order/keys: %v", railKeys(home.Rails))
 	}
-	// A welcome banner is present when there is anything to show.
-	if len(home.Banners) != 1 || home.Banners[0].Key != "welcome" {
-		t.Fatalf("want one welcome banner, got %+v", home.Banners)
+	// ⚠ CHANGED BY 028. This used to assert a hard-coded "welcome" banner that was always present
+	// and advertised nothing. Banners are now real advertised promotions, so a store with none shows
+	// none — an empty list, never a placeholder (FR-035).
+	if len(home.Banners) != 0 {
+		t.Fatalf("a store with no advertised promotion must show no banner, got %+v", home.Banners)
 	}
 	// The featured card's image was presigned.
 	if got := home.Rails[0].Products[0].ImageURL; got != "https://signed/k1" {

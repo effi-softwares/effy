@@ -4,6 +4,8 @@
 // ⚠ Every refusal here has a DATABASE CHECK behind it (data-model §6, §8). That is deliberate: the
 // service's answer and the schema's answer cannot drift, and a bug in this file cannot write a promotion
 // the platform could not honour.
+import { isMediaValidationError, presignUpload } from "@effy/edge-shared";
+
 import * as repo from "./repository";
 import {
   type FieldIssue,
@@ -149,10 +151,15 @@ export async function createPromo(
     endsAt?: string | null;
     maxRedemptions?: number | null;
     maxPerCustomer?: number | null;
+    isAdvertised?: boolean;
+    bannerTitle?: string | null;
+    bannerSubtitle?: string | null;
+    bannerImageKey?: string | null;
+    bannerPosition?: number;
   },
   actorSub: string,
 ): Promise<PromoCode> {
-  const fields = validateDefinition(input, { requireAll: true });
+  const fields = [...validateDefinition(input, { requireAll: true }), ...validateAdvertising(input)];
   if (fields.length > 0) refuse(fields);
 
   return repo.createPromo(
@@ -166,9 +173,47 @@ export async function createPromo(
       endsAt: input.endsAt ?? null,
       maxRedemptions: input.maxRedemptions ?? null,
       maxPerCustomer: input.maxPerCustomer ?? null,
+      // ⚠ Advertising defaults to OFF. This default is the safety control: private promotions are
+      // ordinary (a goodwill credit for one customer, a partner code), and a promotion that became
+      // public because nobody said otherwise would hand every shopper a discount meant for one.
+      isAdvertised: input.isAdvertised ?? false,
+      bannerTitle: input.bannerTitle?.trim() || null,
+      bannerSubtitle: input.bannerSubtitle?.trim() || null,
+      bannerImageKey: input.bannerImageKey ?? null,
+      bannerPosition: input.bannerPosition ?? 0,
     },
     actorSub,
   );
+}
+
+/**
+ * The advertising facet's own rules (028 FR-037a/b).
+ *
+ * ⚠ This DUPLICATES the database's `promo_code_banner_copy_chk`, deliberately and for a different
+ * job. The constraint is the GUARANTEE — it cannot be bypassed by a backfill, a second writer or a
+ * future route. This exists so an operator gets a field-level message pointing at the empty box,
+ * instead of a 500 from a constraint violation. Neither one replaces the other.
+ */
+function validateAdvertising(input: {
+  isAdvertised?: boolean;
+  bannerTitle?: string | null;
+  bannerPosition?: number;
+}): { field: string; message: string }[] {
+  const fields: { field: string; message: string }[] = [];
+
+  if (input.isAdvertised === true && !input.bannerTitle?.trim()) {
+    fields.push({
+      field: "bannerTitle",
+      message: "is required to advertise a promotion — the code is not a sentence a shopper can read",
+    });
+  }
+  if (
+    input.bannerPosition !== undefined &&
+    (!Number.isInteger(input.bannerPosition) || input.bannerPosition < 0)
+  ) {
+    fields.push({ field: "bannerPosition", message: "must be a whole number of 0 or more" });
+  }
+  return fields;
 }
 
 /**
@@ -178,9 +223,45 @@ export async function createPromo(
  */
 export async function updatePromo(id: string, input: Record<string, unknown>, actorSub: string): Promise<PromoCode> {
   const typed = input as Parameters<typeof validateDefinition>[0];
-  const fields = validateDefinition(typed, { requireAll: false });
+  const advertising = input as Parameters<typeof validateAdvertising>[0];
+
+  // ⚠ On UPDATE the advertising check runs against the MERGED state, not the patch. A request that
+  // sets `isAdvertised: true` without a title is refused here; one that only moves the position is
+  // not — but a promotion already advertised whose title is being CLEARED must also be refused, and
+  // that case only the database constraint can see, because this service does not read the row.
+  // Belt and braces, each catching what the other cannot.
+  const fields = [...validateDefinition(typed, { requireAll: false }), ...validateAdvertising(advertising)];
   if (fields.length > 0) refuse(fields);
   return repo.updatePromo(id, typed, actorSub);
+}
+
+/**
+ * Mint a presigned PUT url for banner artwork (028 T048b).
+ *
+ * Two steps, matching what `shop` already does for product media: the operator PUTs the bytes
+ * directly to S3, then saves the returned key as `bannerImageKey` through the ordinary update route.
+ * **Bytes never pass through Lambda.**
+ *
+ * The validation rules (allowed types, size ceiling, TTL) are the SHARED helper's, not new numbers —
+ * two services inventing their own image limits is how they end up disagreeing.
+ */
+export async function presignBannerImage(
+  id: string,
+  contentType: unknown,
+  fileSize: unknown,
+): Promise<{ uploadUrl: string; storageKey: string }> {
+  // 404 before minting anything: a presigned url for a promotion that does not exist is a writable
+  // key with no owner.
+  await repo.readPromo(id);
+
+  try {
+    return await presignUpload("promotions", id, contentType, fileSize);
+  } catch (e) {
+    if (isMediaValidationError(e)) {
+      throw new PromoError(422, "promo_banner_image_invalid", e.message, e.fields);
+    }
+    throw e;
+  }
 }
 
 export async function setStatus(id: string, status: unknown, actorSub: string): Promise<PromoCode> {

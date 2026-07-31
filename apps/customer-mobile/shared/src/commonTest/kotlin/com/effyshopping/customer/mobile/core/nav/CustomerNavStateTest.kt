@@ -92,4 +92,38 @@ class CustomerNavStateTest {
         assertFalse(nav.pop(), "the caller decides what back means at a root; it must not empty the stack")
         assertEquals(1, nav.currentStack.size)
     }
+
+    // ── The search-focus one-shot (028 T011) ────────────────────────────────────────────────────
+
+    @Test
+    fun `no focus is pending until it is asked for`() {
+        val nav = state()
+        assertFalse(
+            nav.consumeSearchFocus(),
+            "reaching the Search tab from the bottom bar must not throw the keyboard over the results",
+        )
+    }
+
+    @Test
+    fun `a requested focus is delivered exactly once`() {
+        val nav = state()
+        nav.requestSearchFocus()
+
+        assertTrue(nav.consumeSearchFocus(), "the tap on Home's search entry must reach a live keyboard")
+        assertFalse(
+            nav.consumeSearchFocus(),
+            "one-shot: without this the keyboard reappears on every recomposition and on every later " +
+                "visit to the Search tab, whether or not the shopper asked",
+        )
+    }
+
+    @Test
+    fun `repeated requests still deliver only one focus each time`() {
+        val nav = state()
+        nav.requestSearchFocus()
+        nav.requestSearchFocus()
+
+        assertTrue(nav.consumeSearchFocus())
+        assertFalse(nav.consumeSearchFocus(), "two taps before a consume are still one pending request")
+    }
 }

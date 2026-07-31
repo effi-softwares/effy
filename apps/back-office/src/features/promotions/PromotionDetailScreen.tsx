@@ -28,6 +28,7 @@ import { ErrorState } from "@effy/web-kit/console";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManagePromotions } from "./access";
+import { AdvertisingSection } from "./components/AdvertisingSection";
 import { PromoCodeDialog } from "./components/PromoCodeDialog";
 import { DELETE_BLOCKED_CONFLICT, promotionMutationError } from "./errorText";
 import { isValueEditable, promoValueLabel, redemptionLabel } from "./model";
@@ -141,6 +142,8 @@ export function PromotionDetailScreen({ promoId }: { promoId: string }) {
           <Field label="Last updated" value={formatTime(promo.updatedAt)} />
         </dl>
       </section>
+
+      <AdvertisingSection promo={promo} canManage={canManage} />
 
       <HistorySection promoId={promoId} />
 

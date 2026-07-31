@@ -1,6 +1,7 @@
 import type {
   AuditEntryDTO,
   CreatePromoCodeRequest,
+  PresignBannerImageResponse,
   OrderPolicyDTO,
   PagedDTO,
   PromoCodeDTO,
@@ -51,6 +52,37 @@ export async function setPromoStatus(id: string, body: SetPromoStatusRequest): P
 
 export async function deletePromo(id: string): Promise<void> {
   await api.delete<void>(`/admin/v1/promotions/${id}`);
+}
+
+/**
+ * Two-step banner artwork upload (028).
+ *
+ * ⚠ The bytes go DIRECTLY to S3, never through the API. This mints a short-lived presigned PUT and
+ * returns the object key; the caller uploads, then saves the key as `bannerImageKey` through the
+ * ordinary update route. Sending the file through Lambda would mean base64 in a request body and a
+ * 6 MB payload ceiling on an image the bucket would happily take at 10 MB.
+ */
+export async function presignBannerImage(
+  id: string,
+  contentType: string,
+  fileSize: number,
+): Promise<PresignBannerImageResponse> {
+  return api.post<PresignBannerImageResponse>(`/admin/v1/promotions/${id}/banner-image/presign`, {
+    contentType,
+    fileSize,
+  });
+}
+
+/** PUT the file straight at S3 using the presigned url. No auth header — the signature IS the auth. */
+export async function uploadBannerImage(uploadUrl: string, file: File): Promise<void> {
+  const res = await fetch(uploadUrl, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  if (!res.ok) {
+    throw new Error(`Upload failed (${res.status}). The link may have expired — try again.`);
+  }
 }
 
 export async function getPromoHistory(id: string): Promise<AuditEntry[]> {
