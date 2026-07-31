@@ -574,7 +574,20 @@ the dimensions) without building an editor, and forecloses nothing.
 defer mobile analytics. ⚠ This is the feature that most needs it: SC-012 and "does a hueless banner draw
 the eye" are behavioural questions no code review answers.
 
-⚠ **Live status.** Migration applied; admin service deployed (presign route answers 401, not 404);
-`core-api` rebuilt locally — ⚠ it has **no cloud deploy**, so the banner read works only against a local
-instance. The operator walk (quickstart §2, §2a, §4) and the device checks are outstanding; until §4
-runs, **no promotional banner has yet rendered on this platform**.
+⚠ **Live status (updated 2026-07-31, at sign-off).** Migration applied; `core-api` rebuilt locally —
+⚠ it has **no cloud deploy**, so the banner read works only against a local instance. **Promotional
+banners now render on a device — the first this platform has ever produced.** The wire contract holds
+against real data: `placement` as a string, `position` as an integer, `terms` correctly `null` for
+zero-minimum promotions. **SC-011 is proven at the read level** — an unadvertised promotion and an
+expired one are live *simultaneously* with six visible ones and appear nowhere.
+
+⚠ **But the operator half is still unwalked, and that is not a formality.** Every banner that exists
+was **seeded straight into the database**, which is *precisely* the bypass path quickstart §2a exists to
+prove is refused. It demonstrates rendering and says nothing about enforcement. Until §2a runs,
+**FR-004 is decorative** and SC-002 rests on the seeder's own arithmetic. §2 (console walk, SC-001
+unmeasured), the exhaustion take-down, dark/large-text, screen reader, tablet, and **Android — never
+once looked at** — all remain outstanding.
+
+**Parity gap with `customer-web`, unchanged from 028**: the storefront still ignores `code`, `terms`,
+`target` and `placement`, so a promotion with a minimum spend shows there **without its terms**, and the
+offers carousel is mobile-only.

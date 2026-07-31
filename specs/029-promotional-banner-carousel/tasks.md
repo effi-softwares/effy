@@ -158,13 +158,13 @@ nowhere else.
 029 makes about banners rests on it working. It is a first-class story precisely so it cannot be
 deferred a second time (research R12).
 
-- [ ] T047 [US5] **⚠ OPERATOR** Commit the migration (003 commit-guard), then `make db-up ENV=dev`
+- [X] T047 [US5] **⚠ OPERATOR** Commit the migration (003 commit-guard), then `make db-up ENV=dev`
 - [ ] T048 [US5] **⚠ OPERATOR** `make edge-deploy SERVICE=admin ENV=dev`
-- [ ] T049 [US5] **⚠ OPERATOR** `make core-run` with the rebuilt binary, for the placement read
+- [X] T049 [US5] **⚠ OPERATOR** `make core-run` with the rebuilt binary, for the placement read
 - [ ] T050 [US5] **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §2 — produce a banner from the template, and confirm a wrong-shaped upload is refused with guidance
 - [ ] T051 [US5] **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §2a — **bypass the console**: presign, PUT a deliberately wrong-shaped image straight to S3, then save the key. ⚠ The save **must** be refused. If it succeeds, FR-004 is decorative and T012 is not doing its job.
 - [ ] T052 [US5] **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §4 — advertise, **see the banner on a real device**, end the promotion, watch it disappear (SC-010)
-- [ ] T053 [US5] **⚠ OPERATOR** Prove the **not-advertised** case (SC-011) with advertised and unadvertised promotions live simultaneously — the private-credit case that turns one customer's goodwill into a storewide discount if it leaks
+- [X] T053 [US5] **⚠ OPERATOR** Prove the **not-advertised** case (SC-011) with advertised and unadvertised promotions live simultaneously — the private-credit case that turns one customer's goodwill into a storewide discount if it leaks
 - [ ] T054 [US5] **⚠ OPERATOR** Prove the **exhaustion** take-down — fill `max_redemptions` and confirm the banner goes, because the redemption count says so rather than because anyone flipped a flag
 
 **Checkpoint**: the loop 028 never ran is proven.
@@ -182,7 +182,7 @@ deferred a second time (research R12).
 - [X] T061 [P] Update the parity register at [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) with a §029 entry — including that `customer-web` still does not read `placement`, `code`, `terms` or `target`
 - [ ] T062 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §3 on **both Android and iOS**. ⚠ 028's SC-013 was never done because only iOS was ever looked at — do not repeat that.
 - [ ] T063 **⚠ OPERATOR** Record the §5 measurements, and **answer 028's research R9**: does a hueless banner draw the eye? (⚠ *028's* R9 — 029's R9 is the carousel bound, a different thing) It has been unanswerable since 028 because no banner ever rendered. ⚠ If it reads too quietly the fix is contrast **within the neutral ramp** and the scrim gradient — **never a new colour**, which would fail `check-no-emerald.sh` and violate Principle V.
-- [ ] T064 Sign-off: write `SIGNOFF.md`, update [CLAUDE.md](../../CLAUDE.md)'s Active Feature section, and commit
+- [X] T064 Sign-off: write `SIGNOFF.md`, update [CLAUDE.md](../../CLAUDE.md)'s Active Feature section, and commit
 
 ---
 
