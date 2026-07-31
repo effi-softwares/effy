@@ -126,7 +126,7 @@ fun HomeScreen(
         SearchEntry(onSearch = onSearch)
 
         when (val s = state) {
-            HomeUiState.Loading -> EffyHomeSkeleton(Modifier.padding(top = EffySpacing.s))
+            HomeUiState.Loading -> EffyHomeSkeleton(Modifier.padding(top = EffySpacing.md))
 
             HomeUiState.Error -> EffyEmptyState(
                 title = "We couldn’t load the store",
@@ -194,7 +194,7 @@ private fun HomeBlockList(
             state = rememberLazyListState(),
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(HomeSectionGap),
-            contentPadding = PaddingValues(top = EffySpacing.s, bottom = EffySpacing.xxxl),
+            contentPadding = PaddingValues(top = EffySpacing.md, bottom = EffySpacing.xxxl),
         ) {
             items(blocks, key = { it.blockKey() }) { block ->
                 when (block) {
@@ -438,7 +438,7 @@ private fun SearchEntry(onSearch: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = EffySpacing.lg)
-            .padding(bottom = EffySpacing.md)
+            .padding(bottom = EffySpacing.lg)
             .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(EffyRadius.sm))
             .background(EffySurface.tint)

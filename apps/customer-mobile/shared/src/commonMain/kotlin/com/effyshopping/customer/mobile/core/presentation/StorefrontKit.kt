@@ -1080,9 +1080,16 @@ fun Modifier.effyShimmer(): Modifier {
 
 // ── Home rails (028) ────────────────────────────────────────────────────────────────────────────
 
-/** Vertical gap between Home's blocks. ONE value, applied by the LazyColumn — so SC-007's "identical
- *  gap everywhere" is true by construction rather than by inspection of each call site. */
-val HomeSectionGap = EffySpacing.xl
+/**
+ * Vertical gap between Home's blocks. ONE value, applied by the LazyColumn — so SC-007's "identical
+ * gap everywhere" is true by construction rather than by inspection of each call site.
+ *
+ * ⚠ COMPOSED from two scale steps rather than hardcoded, because the spacing scale jumps 20 → 40 and
+ * 24 is the value this screen wants. `xl + xs` keeps every number on this screen traceable to the
+ * design-system SSOT; a literal `24.dp` would be the first off-scale spacing value in the app, and
+ * the second one would be easy.
+ */
+val HomeSectionGap = EffySpacing.xl + EffySpacing.xs
 
 /** Horizontal gap between tiles inside a rail. */
 val RailItemGap = EffySpacing.md

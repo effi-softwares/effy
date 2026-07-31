@@ -81,7 +81,7 @@ fun DeliveryBar(container: AppContainer) {
                 error = null
                 editing = true
             }
-            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
