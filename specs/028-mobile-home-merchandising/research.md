@@ -265,6 +265,30 @@ different kinds of product, because that is the impression a shopper forms. Serv
 if the store's own order groups similar categories first, that is a merchandising fix in the store,
 not a client workaround.
 
+### ⚠ AMENDED 2026-07-31, after the first live run — "top-level" was wrong
+
+R11 assumed the row would carry *top-level* categories. Against the real catalogue it carried **none**:
+
+- Every product's `primary_category_id` is a **leaf** (pantry, cleaning, meals…).
+- `productCount` counts exact primary-category membership and **does not roll up**, so `food`,
+  `grocery` and `household` all report `0` and were filtered out.
+- And it is not merely a display problem: `CategoryCards`, `SearchCards` and the category rails all
+  filter on `p.primary_category_id = (SELECT id FROM category WHERE key = $1)` — exact match, no
+  descendants. A top-level shortcut would open a results screen with **zero products** in it.
+
+The row now carries **categories that hold products**. Live, that is nine — Pantry · Chilled · Frozen ·
+Beverages · Bakery · Snacks · Meals · Cleaning · Paper Goods — every one tappable and every one with
+real artwork rather than the fallback. FR-024 and SC-004 were amended to match (Principle I: fix the
+earliest affected artifact, not the code alone).
+
+**⚠ The lesson, and it is 027's lesson again.** Every unit test passed, because the fixtures gave
+top-level categories a product count the real ones do not have — the fake agreed with the code instead
+of with the world. `composeHomeWithRealisticTaxonomy` now pins the actual taxonomy shape and fails
+against the old filter.
+
+**The follow-up**: a recursive-CTE rollup so a category's count and filter include its descendants.
+That is what would make top-level shortcuts work, and it is a server capability, not a client fix.
+
 ---
 
 ## R12 — Contract and codegen path

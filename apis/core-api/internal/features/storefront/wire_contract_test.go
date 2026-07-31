@@ -1,0 +1,101 @@
+package storefront
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+// ── THE CROSS-LANGUAGE WIRE CONTRACT (028, closing 027's carry-forward) ─────────────────────────
+//
+// 027's post-mortem named this exact test as the strongest thing it could hand forward and did not
+// build it:
+//
+//     Kotlin serialised quantities as Double, so the wire carried `1.0`; Go's encoding/json refuses
+//     `1.0` into an int. EVERY UNIT TEST PASSED throughout, because the fakes spoke Kotlin at both
+//     ends and never crossed the wire. It was found by querying the database directly.
+//
+// 028 adds `position`, an integer, to the banner payload — the same shape of field, on a path with
+// the same shape of fake. So this pins the ACTUAL BYTES.
+//
+// The literal in BANNER_WIRE_JSON is duplicated, verbatim and deliberately, in the Kotlin test
+// `BannerWireContractTest`. Neither side generates it. That is the point: if Go starts emitting a
+// float, or the generated Kotlin starts expecting one, exactly one of these two tests goes red and
+// says so before a device does.
+
+// BANNER_WIRE_JSON is the exact payload a populated banner produces.
+// ⚠ KEEP IN SYNC with BannerWireContractTest.kt in customer-mobile.
+const BANNER_WIRE_JSON = `{"key":"3f2a","title":"20% off your first order","subtitle":"Stock up",` +
+	`"imageUrl":null,"href":"/search","code":"FIRST20","terms":"On orders over $30.00","position":2,` +
+	`"target":{"kind":"sale"}}`
+
+func TestBannerSerialisesPositionAsAnInteger(t *testing.T) {
+	subtitle := "Stock up"
+	href := "/search"
+	code := "FIRST20"
+	terms := "On orders over $30.00"
+
+	got, err := json.Marshal(bannerDTO{
+		Key:      "3f2a",
+		Title:    "20% off your first order",
+		Subtitle: &subtitle,
+		ImageURL: nil,
+		Href:     &href,
+		Code:     &code,
+		Terms:    &terms,
+		Position: 2,
+		Target:   &bannerTargetDTO{Kind: "sale"},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	if string(got) != BANNER_WIRE_JSON {
+		t.Fatalf("wire payload drifted.\n got: %s\nwant: %s", got, BANNER_WIRE_JSON)
+	}
+
+	// The specific thing that killed 027: a float on the wire where an int belongs.
+	if strings.Contains(string(got), `"position":2.0`) {
+		t.Fatal(`position serialised as a float — Go's encoding/json will refuse it on the way back in`)
+	}
+}
+
+func TestGoRefusesAFloatPosition(t *testing.T) {
+	// This is not hypothetical: it is precisely what a Kotlin client sent in 027, and precisely what
+	// `WireInt` / `@asType integer` exists to prevent on the generated side. Proving Go's refusal here
+	// is what makes that annotation load-bearing rather than decorative.
+	var dto bannerDTO
+	err := json.Unmarshal([]byte(`{"key":"k","title":"t","position":2.0}`), &dto)
+	if err == nil {
+		t.Fatal("expected Go to refuse a float into an int field — if this ever passes, the contract " +
+			"annotation on WireInt has stopped mattering and 027's defect can return silently")
+	}
+}
+
+func TestBannerRoundTripsThroughTheWire(t *testing.T) {
+	var dto bannerDTO
+	if err := json.Unmarshal([]byte(BANNER_WIRE_JSON), &dto); err != nil {
+		t.Fatalf("Go cannot read its own payload: %v", err)
+	}
+	if dto.Position != 2 {
+		t.Errorf("position = %d, want 2", dto.Position)
+	}
+	if dto.Target == nil || dto.Target.Kind != "sale" {
+		t.Errorf("target did not survive the round trip: %+v", dto.Target)
+	}
+	if dto.Code == nil || *dto.Code != "FIRST20" {
+		t.Error("code did not survive the round trip")
+	}
+}
+
+func TestEmptyBannerListSerialisesAsAnArrayNotNull(t *testing.T) {
+	// FR-035 / the contract's empty case. A nil slice marshals to `null`, which a client reading
+	// `banners.map(...)` would crash on — the empty store must produce `[]`.
+	got, err := json.Marshal(homeDTO{Banners: make([]bannerDTO, 0), Rails: make([]railDTO, 0)})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(got), `"banners":[]`) {
+		t.Fatalf("empty banners must serialise as [] and not null: %s", got)
+	}
+}

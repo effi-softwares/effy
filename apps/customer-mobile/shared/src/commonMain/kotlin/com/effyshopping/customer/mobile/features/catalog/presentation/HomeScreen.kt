@@ -33,7 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
@@ -183,7 +185,10 @@ private fun HomeBlockList(
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val widthClass = widthClassFor(maxWidth)
-        val tileFraction = railTileWidthFraction(widthClass)
+        // ⚠ Resolved to a concrete Dp HERE, where the constraints are real. A LazyRow measures its
+        // children with an unbounded main axis, so a fraction computed inside a rail item multiplies
+        // infinity and bounds nothing (see EffyRailTile).
+        val tileWidth = maxWidth * railTileWidthFraction(widthClass)
 
         LazyColumn(
             state = rememberLazyListState(),
@@ -197,7 +202,7 @@ private fun HomeBlockList(
                     is HomeBlock.Promo -> PromoBlock(block.banners, onBannerClick)
                     is HomeBlock.Section -> SectionBlock(
                         rail = block.rail,
-                        tileFraction = tileFraction,
+                        tileWidth = tileWidth,
                         onProductClick = onProductClick,
                         onSeeAll = { onSeeAll(block.rail) },
                     )
@@ -242,6 +247,7 @@ private fun PromoBlock(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
                 .fillMaxWidth()
                 .padding(top = EffySpacing.s)
                 .semantics {
+                    isTraversalGroup = true
                     contentDescription = "Promotion ${pagerState.currentPage + 1} of ${banners.size}"
                 },
             horizontalArrangement = Arrangement.Center,
@@ -300,9 +306,12 @@ private fun CategoryRow(items: List<CategoryShortcut>, onCategoryClick: (Categor
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            // FR-044: one bounded, named group, so a screen-reader user can step past the row
-            // instead of being walked through every category in it.
-            .semantics { contentDescription = "Categories, ${items.size} available" },
+            // FR-044: one bounded, named group — see SectionBlock for why isTraversalGroup is the
+            // load-bearing half of this.
+            .semantics {
+                isTraversalGroup = true
+                contentDescription = "Categories, ${items.size} available"
+            },
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
         contentPadding = PaddingValues(horizontal = EffySpacing.md),
     ) {
@@ -337,15 +346,21 @@ private fun HomeBlock.blockKey(): String = when (this) {
 @Composable
 private fun SectionBlock(
     rail: Rail,
-    tileFraction: Float,
+    tileWidth: Dp,
     onProductClick: (String) -> Unit,
     onSeeAll: () -> Unit,
 ) {
     Column(
-        // FR-044 / SC-010: announced to assistive technology as ONE bounded, named group, so a
-        // screen-reader user can move PAST the row rather than being walked through every product
-        // in an unbounded sideways list.
-        modifier = Modifier.semantics { contentDescription = "${rail.title}, ${rail.products.size} products" },
+        // FR-044 / SC-010: a bounded, NAMED group a screen-reader user can step past, rather than
+        // being walked through every product in an unbounded sideways list.
+        //
+        // ⚠ `isTraversalGroup` is the part that does the work. A `contentDescription` alone on a
+        // container that does not merge its descendants just adds one more node to walk through —
+        // it names the row without bounding it, which is the half of FR-044 that actually matters.
+        modifier = Modifier.semantics {
+            isTraversalGroup = true
+            contentDescription = "${rail.title}, ${rail.products.size} products"
+        },
     ) {
         EffySectionHeader(rail.title, onSeeAll = onSeeAll)
 
@@ -355,7 +370,7 @@ private fun SectionBlock(
             contentPadding = PaddingValues(horizontal = EffySpacing.lg),
         ) {
             items(rail.products, key = { it.id }) { product ->
-                EffyRailTile(product, onProductClick, widthFraction = tileFraction)
+                EffyRailTile(product, onProductClick, width = tileWidth)
             }
         }
     }

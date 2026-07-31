@@ -197,9 +197,9 @@ tasks — doing that pass first means one database session instead of two.
 
 ### ⚠ OPERATOR
 
-- [ ] T055 **⚠ OPERATOR** Commit the migration (003 commit-guard requires it committed first), then run `make db-up ENV=dev`
-- [ ] T056 **⚠ OPERATOR** Run `make edge-deploy SERVICE=admin ENV=dev`
-- [ ] T057 **⚠ OPERATOR** Run `make core-run` with the new binary so the storefront banner read is live
+- [X] T055 **⚠ OPERATOR** Commit the migration (003 commit-guard requires it committed first), then run `make db-up ENV=dev`
+- [X] T056 **⚠ OPERATOR** Run `make edge-deploy SERVICE=admin ENV=dev`
+- [X] T057 **⚠ OPERATOR** Run `make core-run` with the new binary so the storefront banner read is live
 
 **Checkpoint**: the full operator → shopper loop works end to end.
 
@@ -226,7 +226,7 @@ tasks — doing that pass first means one database session instead of two.
 
 ### Adjacent, optional — not this feature's scope
 
-- [ ] T071 [P] *(optional)* Correct `CLAUDE.md`'s "Design system" section, which still describes **Effy Emerald + Nunito Sans** — retired by constitution v1.11.0 in favour of the monochrome ramp and General Sans. Unrelated to this feature, but it is the document every future session reads first, and it currently teaches the wrong palette.
+- [X] T071 [P] *(optional)* Correct `CLAUDE.md`'s "Design system" section, which still describes **Effy Emerald + Nunito Sans** — retired by constitution v1.11.0 in favour of the monochrome ramp and General Sans. Unrelated to this feature, but it is the document every future session reads first, and it currently teaches the wrong palette.
 
 ---
 

@@ -1,6 +1,10 @@
 package com.effyshopping.customer.mobile.core.presentation
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +28,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -42,16 +48,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -66,6 +79,7 @@ import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.WindowWidth
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
+import com.effyshopping.mobile.kit.ui.widthClassFor
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -214,7 +228,21 @@ fun EffySectionHeader(
     ) {
         EffyDisplay(title, size = DisplaySize.Section, modifier = Modifier.weight(1f, fill = false))
         if (onSeeAll != null) {
-            TextButton(onClick = onSeeAll) { Text("See all") }
+            // ⚠ heightIn is NOT decoration. Material 3's TextButton defaults to a 40dp min height,
+            // below Principle V's 48dp minimum — and 028 turned this from an affordance with no
+            // callers at all (026 deleted the rails that used it) into the primary way into a scoped
+            // result set, repeated on every section down the screen. A 40dp target missed by a thumb
+            // three times in a row is how a shopper concludes the store is broken.
+            TextButton(
+                onClick = onSeeAll,
+                modifier = Modifier
+                    .heightIn(min = EffyMinTouchTarget)
+                    // ⚠ "See all" is enough to READ, beside a heading a sighted shopper takes in at
+                    // the same glance. It is not enough to HEAR: 028 puts three to six of these down
+                    // one screen, and a screen reader would announce the identical label every time
+                    // with nothing to say which one leads where.
+                    .semantics { contentDescription = "See all $title" },
+            ) { Text("See all") }
         }
     }
 }
@@ -836,8 +864,12 @@ val ProductGridGutter = EffySpacing.lg
  * Vertical gutter between rows — deliberately LARGER than the horizontal one, as on the web.
  * A tile already stacks its own name and price under its image; without extra vertical air the next
  * row reads as a continuation of the row above rather than as a new row.
+ *
+ * ⚠ Tightened 20dp from 28dp alongside the 028 type reduction. The old value was set against a
+ * `bodyLarge` name and a `titleLarge` price; with both a step smaller, 28dp read as a hole between
+ * rows rather than as separation.
  */
-val ProductGridRowGap = 28.dp
+val ProductGridRowGap = EffySpacing.xl
 
 /** Page padding around a product grid. */
 val ProductGridPadding = PaddingValues(EffySpacing.lg)
@@ -928,8 +960,8 @@ fun EffyProductCard(
         // tiles reads as a wall of shouting.
         Text(
             product.name,
-            modifier = Modifier.padding(top = EffySpacing.md),
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.padding(top = EffySpacing.s),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -940,14 +972,14 @@ fun EffyProductCard(
         if (fillHeight) Spacer(Modifier.weight(1f))
 
         Row(
-            modifier = Modifier.padding(top = EffySpacing.s),
+            modifier = Modifier.padding(top = EffySpacing.xs),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
         ) {
             // The price stays the largest thing on the tile — it is what the shopper is scanning for.
             Text(
                 money(product.priceAmount, product.currency),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
             )
 
             if (percentOff != null && product.compareAtAmount != null) {
@@ -955,7 +987,7 @@ fun EffyProductCard(
                 // both at the same size makes a shopper read twice to work out which number they pay.
                 Text(
                     money(product.compareAtAmount, product.currency),
-                    style = MaterialTheme.typography.bodyMedium.copy(
+                    style = MaterialTheme.typography.bodySmall.copy(
                         fontWeight = FontWeight.SemiBold,
                         textDecoration = TextDecoration.LineThrough,
                     ),
@@ -995,7 +1027,55 @@ fun DiscountChip(percentOff: Int, modifier: Modifier = Modifier) {
  */
 @Composable
 fun EffySkeletonBlock(modifier: Modifier = Modifier, radius: androidx.compose.ui.unit.Dp = EffyRadius.md) {
-    Box(modifier = modifier.clip(RoundedCornerShape(radius)).background(EffySurface.skeleton))
+    // ⚠ SHIMMERS. This used to be a flat `.background(skeleton)` — a static grey box, which under a
+    // monochrome palette is indistinguishable from a piece of UI that has simply rendered grey and
+    // finished. The movement is the entire difference between "loading" and "broken", because there
+    // is no hue available to carry that meaning instead.
+    Box(modifier = modifier.clip(RoundedCornerShape(radius)).effyShimmer())
+}
+
+/**
+ * The shimmer treatment, as a Modifier so every placeholder in the app shares one implementation.
+ *
+ * A band of slightly lighter neutral travelling across the skeleton colour. ⚠ Reduced motion is
+ * honoured (FR-045): when a shopper has asked for less movement the sweep is dropped and a **static**
+ * plate remains — the space is still reserved and still reads as "not content", only the animation
+ * goes.
+ */
+@Composable
+fun Modifier.effyShimmer(): Modifier {
+    val spec = rememberMotionSpec(MotionRole.Press)
+    val base = EffySurface.skeleton
+    val highlight = EffySurface.tint
+
+    if (!spec.usesScale) return this.background(base)
+
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "shimmerSweep",
+    )
+
+    return this.drawWithCache {
+        // The band travels from off the leading edge to past the trailing one, so it never appears
+        // to pop into existence at either end.
+        val width = size.width
+        val start = (progress * 2f - 0.5f) * width
+        val brush = Brush.linearGradient(
+            colors = listOf(base, highlight, base),
+            start = Offset(start, 0f),
+            end = Offset(start + width * 0.6f, size.height),
+        )
+        onDrawBehind {
+            drawRect(base)
+            drawRect(brush)
+        }
+    }
 }
 
 // ── Home rails (028) ────────────────────────────────────────────────────────────────────────────
@@ -1045,13 +1125,22 @@ fun railTileWidthFraction(width: WindowWidth): Float = when (width) {
 fun EffyRailTile(
     product: ProductCard,
     onClick: (String) -> Unit,
-    widthFraction: Float,
+    width: Dp,
     modifier: Modifier = Modifier,
 ) {
-    BoxWithConstraints(modifier = modifier) {
-        // The fraction is of the WINDOW, resolved here so the caller passes intent rather than dp.
-        EffyProductCard(product, onClick, modifier = Modifier.width(maxWidth * widthFraction))
-    }
+    // ⚠ TAKES A RESOLVED Dp, NOT A FRACTION — and this is a bug fix, not a preference.
+    //
+    // This used to wrap the tile in `BoxWithConstraints` and compute `maxWidth * fraction` here. A
+    // LazyRow measures its children with an **unbounded main axis**, so inside a rail item `maxWidth`
+    // is effectively infinite: the multiplication stayed infinite, `Modifier.width(...)` bounded
+    // nothing, every tile sized to its own text, and the square image plate expanded into a void the
+    // height of the screen. On device it looked like the images had failed and the names had lost
+    // their wrapping — which is exactly what it was.
+    //
+    // ⚠ `railTileWidthFraction`'s unit test passed throughout, because it tests the FUNCTION and never
+    // that the fraction is applied to a bounded width. The caller resolves the width where constraints
+    // are real (the LazyColumn's BoxWithConstraints) and hands a concrete Dp down.
+    EffyProductCard(product, onClick, modifier = modifier.width(width))
 }
 
 /**
@@ -1205,51 +1294,125 @@ fun EffyCategoryShortcut(
     }
 }
 
-/** A rail-shaped skeleton — the section that is coming, not a bare spinner (FR-041). */
+/**
+ * Home's loading state — the SHAPE of the screen that is coming (FR-041).
+ *
+ * ── ⚠ WHAT WAS WRONG ────────────────────────────────────────────────────────────────────────────
+ *
+ * The first version laid its rail tiles out with `fillMaxWidth(0.42f)` inside a `Row`. Fractions in a
+ * Row COMPOUND: the first child took 42% of the row, and the second took 42% of what was left. So the
+ * placeholder showed one large tile beside one small one — a shape no real rail has ever had — and
+ * stopped well short of the trailing edge, leaving dead white where the content would be.
+ *
+ * A skeleton whose proportions do not match the content is worse than no skeleton. The shopper reads
+ * it as the layout, and then the layout changes under them.
+ *
+ * This now mirrors [EffyRailTile] and the real section header exactly: the same tile width, the same
+ * gaps, the same "See all" on the right, and enough tiles to run off the trailing edge so the peek is
+ * there before the products are.
+ */
 @Composable
 fun EffyHomeSkeleton(modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(HomeSectionGap),
-    ) {
-        // The category row.
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
-        ) {
-            repeat(4) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    EffySkeletonBlock(Modifier.size(56.dp), radius = EffyRadius.md)
-                    EffySkeletonBlock(
-                        Modifier.padding(top = EffySpacing.s).width(44.dp).height(12.dp),
-                        radius = EffyRadius.sm,
-                    )
-                }
-            }
-        }
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        // ⚠ Resolved from the REAL constraints, exactly as HomeBlockList does. The placeholder and
+        // the content must agree about tile width or the screen jumps when the data lands.
+        val tileWidth = maxWidth * railTileWidthFraction(widthClassFor(maxWidth))
 
-        // Two sections' worth of header + rail.
-        repeat(2) {
-            Column {
-                EffySkeletonBlock(
-                    Modifier.padding(horizontal = EffySpacing.lg).width(140.dp).height(22.dp),
-                    radius = EffyRadius.sm,
-                )
-                Row(
-                    modifier = Modifier
-                        .padding(top = EffySpacing.md)
-                        .padding(horizontal = EffySpacing.lg)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(RailItemGap),
-                ) {
-                    repeat(2) {
-                        EffyProductCardSkeleton(Modifier.fillMaxWidth(0.42f))
-                    }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(HomeSectionGap),
+        ) {
+            CategoryRowSkeleton()
+
+            // THREE sections, not two — two left a band of empty page below the fold on a tall
+            // phone, which is the "lots of white space" a skeleton exists to prevent.
+            repeat(3) {
+                Column {
+                    SectionHeaderSkeleton()
+                    RailSkeleton(tileWidth)
                 }
             }
         }
     }
 }
+
+/**
+ * Matches [EffyCategoryShortcut]: a 52dp disc with a label beneath.
+ *
+ * ⚠ A **LazyRow**, like the real category row — not a plain Row. See [RailSkeleton] for why that
+ * distinction is load-bearing rather than stylistic.
+ */
+@Composable
+private fun CategoryRowSkeleton() {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+        contentPadding = PaddingValues(horizontal = EffySpacing.md),
+        userScrollEnabled = false,
+    ) {
+        items(6) {
+            Column(
+                modifier = Modifier.width(72.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                EffySkeletonBlock(Modifier.size(52.dp), radius = EffyRadius.default)
+                EffySkeletonBlock(
+                    Modifier.padding(top = EffySpacing.s).width(44.dp).height(11.dp),
+                    radius = EffyRadius.sm,
+                )
+            }
+        }
+    }
+}
+
+/** Matches [EffySectionHeader] — a title on the left AND a "See all" on the right. */
+@Composable
+private fun SectionHeaderSkeleton() {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        EffySkeletonBlock(Modifier.width(132.dp).height(24.dp), radius = EffyRadius.sm)
+        EffySkeletonBlock(Modifier.width(56.dp).height(16.dp), radius = EffyRadius.sm)
+    }
+}
+
+/**
+ * Matches a real rail: tiles at the resolved width, the real gap, and one running off the edge.
+ *
+ * ── ⚠ WHY THIS IS A LazyRow AND NOT A Row ───────────────────────────────────────────────────────
+ *
+ * A `Row` allocates its width SEQUENTIALLY: each child is measured with `maxWidth = whatever is
+ * left`, and `Modifier.width(164.dp)` is **coerced into that remaining space** rather than honoured.
+ * So the first tile got its full width, the second got the remainder, the third got scraps — and
+ * `aspectRatio(1f)` then resolved those wrong widths into wrong heights. Two attempts at this file
+ * fought that with fractions and then with `clipToBounds()`; neither could work, because the tiles
+ * were already mis-measured before anything was clipped.
+ *
+ * A `LazyRow` measures children with an **unbounded main axis**, so `width(tileWidth)` is exact —
+ * and it clips at the viewport by itself, which is what produces the peek.
+ *
+ * The deeper rule: **a skeleton should use the same layout primitives as the content it stands in
+ * for.** Then it cannot diverge from the thing it is imitating, which is the only job it has.
+ */
+@Composable
+private fun RailSkeleton(tileWidth: Dp) {
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
+        horizontalArrangement = Arrangement.spacedBy(RailItemGap),
+        contentPadding = PaddingValues(horizontal = EffySpacing.lg),
+        // Not scrollable: it is a placeholder, and a shopper dragging it would be interacting with
+        // nothing. It still lays out and clips exactly as the real rail does.
+        userScrollEnabled = false,
+    ) {
+        items(4) {
+            EffyProductCardSkeleton(Modifier.width(tileWidth))
+        }
+    }
+}
+
+/** A product-tile-shaped skeleton, so a loading grid has the proportions of the grid that replaces it. */
 
 /** A product-tile-shaped skeleton, so a loading grid has the proportions of the grid that replaces it. */
 @Composable

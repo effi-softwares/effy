@@ -71,10 +71,32 @@ fun composeHome(home: HomeContent, categories: List<Category>): List<HomeBlock> 
     // nothing. The server already drops empty rails; this is the belt to that pair of braces.
     val sections = home.rails.filter { it.products.isNotEmpty() }
 
-    // FR-024/FR-029: top-level categories that actually have something to sell. A category with no
-    // products is a promise the store cannot keep.
+    // FR-024/FR-029: categories that actually have something to sell. A category with no products is
+    // a promise the store cannot keep.
+    //
+    // ── ⚠ NOT `parentKey == null`, AND THAT IS A DELIBERATE DEVIATION FROM FR-024 ────────────────
+    //
+    // This filter was written as "top-level categories with products" and it rendered NOTHING against
+    // the real catalogue. Every product's primary category is a LEAF (pantry, cleaning, meals…), and
+    // `productCount` counts exact primary-category membership — it does not roll up. So all three
+    // top-level categories report 0 and the whole row disappeared.
+    //
+    // It is not only a visibility problem. `CategoryCards`, `SearchCards` and the category rails all
+    // filter on `p.primary_category_id = (SELECT id FROM category WHERE key = $1)` — exact match, no
+    // descendants. So a "Grocery" shortcut, even if shown, would open a results screen with ZERO
+    // products in it. Showing it would be worse than omitting it.
+    //
+    // Until the server can answer "products in this category OR any descendant", the categories that
+    // can honestly be tapped are the ones that directly hold products. The row still spans the
+    // catalogue's breadth — Pantry · Chilled · Frozen · Beverages · Bakery · Snacks · Meals ·
+    // Cleaning · Paper Goods — and arguably describes the store better than Food / Grocery /
+    // Household would.
+    //
+    // ⚠ The unit tests did not catch this: their fixtures gave top-level categories a product count,
+    // so the fake agreed with the code rather than with the world. `composeHomeWithRealisticTaxonomy`
+    // in HomeBlocksTest now pins the real shape.
     val shortcuts = categories
-        .filter { it.parentKey == null && it.productCount > 0 }
+        .filter { it.productCount > 0 }
         .map { CategoryShortcut(key = it.key, label = it.name) }
 
     // ⚠ CLAMPED, not filtered. `coerceIn` moves an out-of-range position to the nearest legal slot;

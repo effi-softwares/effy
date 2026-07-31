@@ -271,8 +271,19 @@ appears on Home; end it, confirm it disappears on the next load — without touc
 
 #### Category shortcuts (US3)
 
-- **FR-024**: Home MUST present a **horizontally scrollable row of category shortcuts**, each with an icon and
-  a short label, placed above the deeper merchandising sections.
+- **FR-024** *(amended 2026-07-31, after live verification)*: Home MUST present a **horizontally scrollable
+  row of category shortcuts**, each with an icon and a short label, placed above the deeper merchandising
+  sections. The row MUST carry **the categories that actually hold products** — not a fixed level of the
+  taxonomy.
+  - ⚠ **Why this changed.** It originally said "top-level categories". Against the real catalogue that
+    rendered **nothing at all**: every product's primary category is a leaf, and a category's product count
+    does not roll up to its ancestors, so all three top-level categories report zero. Worse, category
+    filtering everywhere is an exact primary-category match, so a top-level shortcut — even if shown —
+    would open a results screen with **zero products**. A shortcut that leads nowhere is worse than no
+    shortcut.
+  - A **rollup** (a category's products including all descendants') would make top-level shortcuts
+    possible and is the better long-term answer. It is a server capability this feature does not add;
+    recorded as the follow-up.
 - **FR-025**: The icons MUST be **vector artwork that renders crisply at any density and adapts to light and
   dark appearance**, and MUST be legible at the size they are shown.
 - **FR-026**: Every category shown MUST have either an assigned icon or a **neutral fallback glyph**; a blank
@@ -369,10 +380,14 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   scrolling** — the sectioned layout must not push merchandise below the fold.
 - **SC-003**: Home presents **at least three distinct named sections** when the store has enough content to
   fill them, and **zero empty sections** in every state.
-- **SC-004**: The category row surfaces **at least 30–40% of the store's top-level categories**, chosen to
-  span genuinely different kinds of product, so a first-time shopper can correctly describe what the store
-  sells after looking only at Home. The row scrolls, so carrying **all** of them exceeds this floor rather
-  than failing it — what the floor guards against is representing too narrow a slice of the catalogue.
+- **SC-004** *(amended 2026-07-31 alongside FR-024)*: The category row surfaces **at least 30–40% of the
+  categories the store can actually sell from**, spanning genuinely different kinds of product, so a
+  first-time shopper can correctly describe what the store sells after looking only at Home. The row
+  scrolls, so carrying **all** of them exceeds this floor rather than failing it — what the floor guards
+  against is representing too narrow a slice of the catalogue.
+  - ⚠ Measured against **sellable** categories, not top-level ones. See FR-024: top-level categories hold
+    no products directly and cannot be filtered on, so a metric counting them would have scored 0% for a
+    row that in fact shows nine working shortcuts spanning food, grocery and household.
 - **SC-005**: No section occupies more than **50% of the vertical viewport** at rest.
 - **SC-006**: Reaching the last section on Home takes **no more than four vertical swipes** on a standard phone,
   so the added structure does not turn browsing into a long scroll.

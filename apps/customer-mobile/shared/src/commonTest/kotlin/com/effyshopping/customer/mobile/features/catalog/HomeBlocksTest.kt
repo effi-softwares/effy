@@ -77,7 +77,7 @@ class HomeBlocksTest {
     // ── FR-029: the category row omits rather than lies ─────────────────────────────────────────
 
     @Test
-    fun `only top-level categories that have products become shortcuts`() {
+    fun `only categories that have products become shortcuts`() {
         val blocks = composeHome(
             HomeContent(banners = emptyList(), rails = listOf(rail("featured"))),
             listOf(
@@ -89,9 +89,56 @@ class HomeBlocksTest {
 
         val shortcuts = blocks.filterIsInstance<HomeBlock.Categories>().single().items
         assertEquals(
-            listOf("grocery"),
+            listOf("grocery", "milk"),
             shortcuts.map { it.key },
-            "a child category is not a top-level shortcut, and a category with no products promises what the store cannot deliver",
+            "depth is NOT the filter — products are. A leaf category holding stock is exactly what a " +
+                "shopper can usefully tap; the empty one is what must be omitted.",
+        )
+    }
+
+    @Test
+    fun `composeHomeWithRealisticTaxonomy surfaces the categories that actually hold products`() {
+        // ⚠ THIS IS THE SHAPE OF THE REAL CATALOGUE, and the test that should have existed first.
+        //
+        // Every product's primary category is a LEAF. The three top-level categories report
+        // productCount = 0 because the count does not roll up to descendants. The original filter
+        // ("top-level with products") therefore rendered an EMPTY category row against live data —
+        // 13 authored icons showing nothing — and every unit test passed, because the fixtures gave
+        // top-level categories a product count the real ones do not have.
+        val blocks = composeHome(
+            HomeContent(banners = emptyList(), rails = listOf(rail("featured"))),
+            listOf(
+                category("food", productCount = 0),
+                category("grocery", productCount = 0),
+                category("household", productCount = 0),
+                category("pantry", productCount = 10, parentKey = "grocery"),
+                category("beverages", productCount = 6, parentKey = "grocery"),
+                category("cleaning", productCount = 7, parentKey = "household"),
+                category("meals", productCount = 5, parentKey = "food"),
+            ),
+        )
+
+        val shortcuts = blocks.filterIsInstance<HomeBlock.Categories>().singleOrNull()?.items
+        assertEquals(
+            listOf("pantry", "beverages", "cleaning", "meals"),
+            shortcuts?.map { it.key },
+            "the row must carry the categories a shopper can actually tap into. A top-level shortcut " +
+                "would open a results screen with zero products, because category filtering is an " +
+                "exact primary-category match server-side with no rollup.",
+        )
+    }
+
+    @Test
+    fun `a category with no products is never offered`() {
+        // The other half: honesty. Tapping a shortcut must never land on an empty screen.
+        val blocks = composeHome(
+            HomeContent(banners = emptyList(), rails = listOf(rail("featured"))),
+            listOf(category("pantry", productCount = 4), category("frozen", productCount = 0)),
+        )
+
+        assertEquals(
+            listOf("pantry"),
+            blocks.filterIsInstance<HomeBlock.Categories>().single().items.map { it.key },
         )
     }
 

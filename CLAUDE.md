@@ -114,8 +114,8 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 ## Order of operations
 1. The **Brief** (platform-brief.md) captures the product.
 2. **/constitution** encodes the technical law (dual-path, monorepo, no-ORM, native-feel mobile,
-   Effy Emerald brand #065f46 + terracotta #d0735a (was Jade #0FB57E, v1.10.0), 4-pool auth isolation
-   with passwordless EMAIL_OTP).
+   a MONOCHROME neutral ramp with no brand hue (v1.11.0; retired Effy Emerald #065f46 + terracotta
+   #d0735a, and Jade #0FB57E before it), 4-pool auth isolation with passwordless EMAIL_OTP).
 3. First slice: **Auth + customer onboarding** end-to-end (proves 4-pool auth + dual-path +
    monorepo, and unblocks everything else). Catalog browse is the recommended second slice.
 4. Do NOT pre-build the monorepo scaffold ahead of the specs — let each feature's plan drive what
@@ -141,11 +141,18 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
-Effy Emerald brand — accent **#065f46** (emerald-800, white label in both modes) + terracotta
-**#d0735a**, over **neutral-scale** surfaces (no brand tint), plus the **Nunito Sans** typeface and
-spacing/radius scales — shared across all surfaces via one design-system package (constitution
-v1.10.0; superseded Jade **#0FB57E** / fill **#047857**). **Dark mode required, and user-selectable
-(Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
+**MONOCHROME — there is NO brand hue** (constitution v1.10.0 → **v1.11.0**, feature 026). A ten-step
+neutral ramp `#1A1A1A` … `#FFFFFF` carries every accent role, and the accent **INVERTS between
+appearances**: near-black `#1A1A1A` on light, near-white `#F5F5F5` on dark, each taking the other as
+its label. A hue reads against both grounds; a neutral one does not, so a single accent value would be
+invisible in one mode. Exactly **TWO** semantic colours exist alongside the ramp — error `#e01010` and
+success `#0C9409` (success is a **non-text indicator only**, 4.00:1). **No third hue may be
+introduced**; the sole exception is a third-party sign-in mark whose provider requires its own
+colours, which is an asset, not a token. Typeface **General Sans**, plus spacing/radius scales —
+shared across all surfaces via one design-system package.
+**RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0) and Jade `#0FB57E` / fill
+`#047857` (v1.10.0). Both are swept out of live source by `scripts/check-no-emerald.sh` and
+`scripts/check-no-jade.sh`. **Dark mode required, and user-selectable (Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
 targets + micro-animations are requirements, not optional polish. Design refs: Uber / Bolt /
 foodpanda / eBay.
 
