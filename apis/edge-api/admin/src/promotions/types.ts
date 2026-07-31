@@ -40,7 +40,12 @@ export interface PromoCode {
   bannerSubtitle: string | null;
   bannerImageKey: string | null;
   bannerPosition: number;
+  /** Where an advertised promotion appears (029 FR-027). Exclusive — never both placements. */
+  bannerPlacement: BannerPlacement;
 }
+
+export type BannerPlacement = "carousel" | "inline";
+export const BANNER_PLACEMENTS: readonly BannerPlacement[] = ["carousel", "inline"];
 
 export interface OrderPolicy {
   minimumSubtotalAmount: string;

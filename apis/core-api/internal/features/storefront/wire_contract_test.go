@@ -27,7 +27,7 @@ import (
 // ⚠ KEEP IN SYNC with BannerWireContractTest.kt in customer-mobile.
 const BANNER_WIRE_JSON = `{"key":"3f2a","title":"20% off your first order","subtitle":"Stock up",` +
 	`"imageUrl":null,"href":"/search","code":"FIRST20","terms":"On orders over $30.00","position":2,` +
-	`"target":{"kind":"sale"}}`
+	`"target":{"kind":"sale"},"placement":"carousel"}`
 
 func TestBannerSerialisesPositionAsAnInteger(t *testing.T) {
 	subtitle := "Stock up"
@@ -36,15 +36,16 @@ func TestBannerSerialisesPositionAsAnInteger(t *testing.T) {
 	terms := "On orders over $30.00"
 
 	got, err := json.Marshal(bannerDTO{
-		Key:      "3f2a",
-		Title:    "20% off your first order",
-		Subtitle: &subtitle,
-		ImageURL: nil,
-		Href:     &href,
-		Code:     &code,
-		Terms:    &terms,
-		Position: 2,
-		Target:   &bannerTargetDTO{Kind: "sale"},
+		Key:       "3f2a",
+		Title:     "20% off your first order",
+		Subtitle:  &subtitle,
+		ImageURL:  nil,
+		Href:      &href,
+		Code:      &code,
+		Terms:     &terms,
+		Position:  2,
+		Target:    &bannerTargetDTO{Kind: "sale"},
+		Placement: "carousel",
 	})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -79,6 +80,9 @@ func TestBannerRoundTripsThroughTheWire(t *testing.T) {
 	}
 	if dto.Position != 2 {
 		t.Errorf("position = %d, want 2", dto.Position)
+	}
+	if dto.Placement != "carousel" {
+		t.Errorf("placement = %q, want carousel — it must survive as a STRING, not become a number or vanish", dto.Placement)
 	}
 	if dto.Target == nil || dto.Target.Kind != "sale" {
 		t.Errorf("target did not survive the round trip: %+v", dto.Target)

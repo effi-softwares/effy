@@ -34,6 +34,7 @@ const BASE: PromoCode = {
   bannerSubtitle: null,
   bannerImageKey: null,
   bannerPosition: 0,
+  bannerPlacement: "carousel",
   updatedAt: "2026-07-31T00:00:00.000Z",
 };
 
@@ -68,7 +69,7 @@ describe("AdvertisingSection", () => {
   it("disables the banner copy while advertising is off", () => {
     renderSection();
     expect(screen.getByLabelText("Headline")).toBeDisabled();
-    expect(screen.getByLabelText("Position")).toBeDisabled();
+    expect(screen.getByLabelText("Order")).toBeDisabled();
   });
 
   it("enables the banner copy once advertising is on", () => {
@@ -99,5 +100,57 @@ describe("AdvertisingSection", () => {
   it("hides the save action from an operator who cannot manage promotions", () => {
     renderSection({}, false);
     expect(screen.queryByRole("button", { name: /save storefront settings/i })).not.toBeInTheDocument();
+  });
+});
+
+// ── The banner tool and placement (029 T021/T046) ───────────────────────────────────────────────
+
+describe("BannerCanvas within AdvertisingSection", () => {
+  it("states the canonical size rather than leaving the operator to ask", () => {
+    // The whole reason no banner existed: an operator was asked for an image and told no dimensions.
+    renderSection({ isAdvertised: true, bannerTitle: "20% off" });
+    expect(screen.getByText(/1200 × 600/)).toBeInTheDocument();
+  });
+
+  it("offers the template file, not just the numbers", () => {
+    // FR-011a — a number in help text is a thing to mistype; a file is not.
+    renderSection({ isAdvertised: true, bannerTitle: "20% off" });
+    expect(screen.getByRole("link", { name: /download template/i })).toBeInTheDocument();
+  });
+
+  it("warns that the lower-left will carry the message", () => {
+    // FR-031b. The text is drawn OVER the artwork, so that region is the operator's constraint —
+    // and an operator who puts their own headline there gets it printed twice.
+    renderSection({ isAdvertised: true, bannerTitle: "20% off" });
+    expect(screen.getByText(/keep that part of your design quiet/i)).toBeInTheDocument();
+  });
+
+  it("says a banner without artwork is still a banner", () => {
+    renderSection({ isAdvertised: true, bannerTitle: "20% off" });
+    expect(screen.getByText(/perfectly good banner/i)).toBeInTheDocument();
+  });
+});
+
+describe("placement", () => {
+  it("defaults to the offers carousel", () => {
+    renderSection({ isAdvertised: true, bannerTitle: "20% off" });
+    expect(screen.getByLabelText("Placement")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Placement" })).toBeInTheDocument();
+  });
+
+  it("says the placement is exclusive", () => {
+    // FR-027 — the alternative (both placements) needs no setting and floods Home.
+    renderSection({ isAdvertised: true, bannerTitle: "20% off" });
+    expect(screen.getByText(/one place, never both/i)).toBeInTheDocument();
+  });
+
+  it("explains Order in terms of the CURRENT placement", () => {
+    // ⚠ 028's `bannerPosition` now means two different things depending on the control above it. A
+    // field whose meaning silently depends on another is how an operator gets a surprise.
+    renderSection({ isAdvertised: true, bannerTitle: "20% off", bannerPlacement: "carousel" });
+    expect(screen.getByText(/swipe order within the offers carousel/i)).toBeInTheDocument();
+
+    renderSection({ isAdvertised: true, bannerTitle: "20% off", bannerPlacement: "inline" });
+    expect(screen.getByText(/which section it follows/i)).toBeInTheDocument();
   });
 });

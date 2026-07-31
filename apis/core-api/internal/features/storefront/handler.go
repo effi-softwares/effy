@@ -46,8 +46,9 @@ type bannerDTO struct {
 	// sending `1.0` where Go wanted an int, with every unit test passing because the fakes spoke
 	// Kotlin at both ends. The TS contract pins it via `WireInt` (`@asType integer`) so the generated
 	// Kotlin emits Long; this is the other end of that agreement.
-	Position int              `json:"position"`
-	Target   *bannerTargetDTO `json:"target"`
+	Position  int              `json:"position"`
+	Target    *bannerTargetDTO `json:"target"`
+	Placement string           `json:"placement"`
 }
 
 // bannerTargetDTO is the closed destination vocabulary (research R7). A client that meets an
@@ -134,6 +135,7 @@ func (h *Handler) getHome(c *gin.Context) {
 		banners = append(banners, bannerDTO{
 			Key: b.Key, Title: b.Title, Subtitle: b.Subtitle, ImageURL: b.ImageURL, Href: b.Href,
 			Code: b.Code, Terms: b.Terms, Position: b.Position, Target: target,
+			Placement: b.Placement,
 		})
 	}
 	c.JSON(http.StatusOK, homeDTO{Banners: banners, Rails: rails})

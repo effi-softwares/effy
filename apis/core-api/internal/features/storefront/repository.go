@@ -106,6 +106,7 @@ type advertisedPromoRow struct {
 	Position        int     `db:"banner_position"`
 	MinimumSubtotal string  `db:"minimum_subtotal_amount"`
 	Currency        string  `db:"currency"`
+	Placement       string  `db:"banner_placement"`
 }
 
 type Repository struct {
@@ -151,7 +152,8 @@ SELECT p.id,
        p.banner_image_key,
        p.banner_position,
        p.minimum_subtotal_amount,
-       p.currency
+       p.currency,
+       p.banner_placement
 FROM public.promo_code p
 WHERE p.is_advertised
   AND p.status = 'active'
@@ -159,7 +161,7 @@ WHERE p.is_advertised
   AND (p.ends_at   IS NULL OR p.ends_at   >  now())
   AND (p.max_redemptions IS NULL
        OR (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) < p.max_redemptions)
-ORDER BY p.banner_position, p.created_at`
+ORDER BY p.banner_placement, p.banner_position, p.created_at`
 
 	rows, err := r.db.Query(ctx, sql)
 	if err != nil {

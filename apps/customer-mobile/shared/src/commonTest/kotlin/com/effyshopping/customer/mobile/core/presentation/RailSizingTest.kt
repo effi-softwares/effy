@@ -1,7 +1,10 @@
 package com.effyshopping.customer.mobile.core.presentation
 
+import androidx.compose.ui.unit.dp
+import com.effyshopping.mobile.design.EffyBanner
 import com.effyshopping.mobile.kit.ui.WindowWidth
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
@@ -64,5 +67,53 @@ class RailSizingTest {
             val fraction = railTileWidthFraction(width)
             assertTrue(fraction > 0f && fraction <= 0.5f, "$width produced an unusable tile width: $fraction")
         }
+    }
+}
+
+/**
+ * 029 T026 — the banner's render width.
+ *
+ * ⚠ Testing the PURE function, not the composable. 028 twice had layout maths pass a function test
+ * and fail on a device, so this proves the rule and the device walk proves the layout. What it can
+ * genuinely catch is the bound being absent, inverted, or applied on a phone.
+ */
+class BannerSizingTest {
+
+    @Test
+    fun `a phone gets the full available width`() {
+        // The bound must not clamp on the devices it was never meant to affect.
+        assertEquals(360.dp, bannerRenderWidth(360.dp))
+        assertEquals(402.dp, bannerRenderWidth(402.dp))
+    }
+
+    @Test
+    fun `a wide window is bounded rather than stretched`() {
+        // ⚠ FR-015. Without this a tablet in landscape renders a banner as tall as half the screen —
+        // at 2:1, a 1000dp-wide window would produce a 500dp slab.
+        assertEquals(EffyBanner.maxRenderWidth, bannerRenderWidth(1000.dp))
+        assertEquals(EffyBanner.maxRenderWidth, bannerRenderWidth(2000.dp))
+    }
+
+    @Test
+    fun `the bound is never smaller than a large phone`() {
+        // A bound below phone width would clamp the case it exists to leave alone.
+        assertTrue(
+            EffyBanner.maxRenderWidth >= 420.dp,
+            "maxRenderWidth ${EffyBanner.maxRenderWidth} would apply on phones, which is not what it is for",
+        )
+    }
+
+    @Test
+    fun `the banner is never taller than half a typical viewport`() {
+        // 028's FR-017 caps a Home section at 50% of the viewport, and the banner is a section. At
+        // 2:1 on a 402dp-wide phone that is ~201dp against an ~874dp screen — but the assertion is
+        // what stops a future ratio change quietly breaking it.
+        val phoneWidth = 402.dp
+        val phoneHeight = 874.dp
+        val bannerHeight = bannerRenderWidth(phoneWidth) / EffyBanner.ratio
+        assertTrue(
+            bannerHeight < phoneHeight / 2,
+            "a $bannerHeight banner on a $phoneHeight screen breaks FR-017's half-viewport cap",
+        )
     }
 }

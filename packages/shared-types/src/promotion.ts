@@ -14,6 +14,8 @@
  * API: specs/027-customer-cart-sync/contracts/promotions-admin-api.contract.md
  * Data: specs/027-customer-cart-sync/data-model.md §6–§8
  */
+import type { BannerPlacement } from "./banner";
+
 import type { PagedDTO } from "./shop";
 
 /** What a code takes off: a percentage of the payable items, or a fixed amount. */
@@ -73,7 +75,16 @@ export interface PromoCodeDTO {
   bannerImageKey: string | null;
   /** Position in Home's section sequence. 0 = above the first section. */
   bannerPosition: number;
+  /**
+   * Where an advertised promotion appears (029). **Exclusive** — never both placements.
+   *
+   * `"carousel"` is the default, and deliberately: an operator who advertises without choosing gets
+   * the offers section, where a shopper looks for offers. Defaulting to `"inline"` would scatter
+   * unconsidered promotions through the merchandising, where they interrupt rather than answer.
+   */
+  bannerPlacement: BannerPlacement;
 }
+
 
 export type PromoCodeListDTO = PagedDTO<PromoCodeDTO>;
 
@@ -93,6 +104,7 @@ export interface CreatePromoCodeRequest {
   bannerSubtitle?: string | null;
   bannerImageKey?: string | null;
   bannerPosition?: number;
+  bannerPlacement?: BannerPlacement;
 }
 
 /**
@@ -127,6 +139,7 @@ export interface UpdatePromoCodeRequest {
   bannerSubtitle?: string | null;
   bannerImageKey?: string | null;
   bannerPosition?: number;
+  bannerPlacement?: BannerPlacement;
 }
 
 /** POST /admin/v1/promotions/{id}/banner-image/presign (028). */

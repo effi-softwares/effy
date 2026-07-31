@@ -87,6 +87,7 @@ export function toPromoDTO(p: PromoCode): PromoCodeDTO {
     // would expire in the operator's form. Rendering a preview is a separate presigned read.
     bannerImageKey: p.bannerImageKey,
     bannerPosition: p.bannerPosition,
+    bannerPlacement: p.bannerPlacement,
   };
 }
 

@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.features.catalog.presentation
 
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
@@ -40,7 +41,26 @@ sealed interface HomeBlock {
      * and may be navigated somewhere they did not intend.
      */
     data class Promo(val banners: List<Banner>) : HomeBlock
+
+    /**
+     * The dedicated offers carousel (029 US3) — one block, at a fixed point in the sequence.
+     *
+     * Distinct from [Promo], which is 028's between-sections placement. A promotion appears in one
+     * or the other, **never both** (FR-027): showing every advertised promotion in both needs no
+     * setting at all and is wrong at the only scale that matters — with three or four live, a shopper
+     * meets the same offer twice on one screen.
+     */
+    data class Offers(val banners: List<Banner>) : HomeBlock
 }
+
+/**
+ * How many banners the offers carousel will carry (029 FR-026, research R9).
+ *
+ * ⚠ A bound, because a swipeable set stops being explorable somewhere around here — and Baymard's
+ * carousel research is blunt that most shoppers never reach the last slide. An unbounded set mostly
+ * stores promotions nobody will look at.
+ */
+const val MAX_OFFERS = 6
 
 /**
  * One category shortcut.
@@ -99,18 +119,30 @@ fun composeHome(home: HomeContent, categories: List<Category>): List<HomeBlock> 
         .filter { it.productCount > 0 }
         .map { CategoryShortcut(key = it.key, label = it.name) }
 
+    // ⚠ EXCLUSIVE placement (FR-027): a banner is in the carousel OR between sections, never both.
+    val carousel = home.banners
+        .filter { it.placement == BannerPlacement.CAROUSEL }
+        .sortedBy { it.position }
+        .take(MAX_OFFERS)
+    val inline = home.banners.filter { it.placement == BannerPlacement.INLINE }
+
     // ⚠ CLAMPED, not filtered. `coerceIn` moves an out-of-range position to the nearest legal slot;
     // dropping it instead would mean a mistyped number silently unpublishes a live promotion, and
     // the operator would see a saved, advertised promotion that simply never appears (research R8).
     //
     // Grouping by the clamped slot is also what handles "several promotions live at once" — they
     // land in one Promo block and render as a pager, rather than stacking three panels in a row.
-    val promosAt: Map<Int, List<Banner>> = home.banners
+    val promosAt: Map<Int, List<Banner>> = inline
         .sortedBy { it.position }
         .groupBy { it.position.coerceIn(0, sections.size) }
 
     return buildList {
         if (shortcuts.isNotEmpty()) add(HomeBlock.Categories(shortcuts))
+
+        // The offers carousel sits after the category shortcuts and BEFORE the first merchandising
+        // section — the placement the reference platforms use, and the one that answers "what is on
+        // offer?" before a shopper has to go looking (SC-012). Absent entirely when empty (FR-024).
+        if (carousel.isNotEmpty()) add(HomeBlock.Offers(carousel))
 
         // Position 0 sits above the first section.
         promosAt[0]?.let { add(HomeBlock.Promo(it)) }

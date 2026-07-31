@@ -940,5 +940,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/028-mobile-home-merchandising/plan.md
+at specs/029-promotional-banner-carousel/plan.md
 <!-- SPECKIT END -->

@@ -1,0 +1,42 @@
+{
+  "$comment": [
+    "THE canonical promotional banner canvas (029). One definition; three consumers — the back-office",
+    "tool, the generated template SVG, and the Compose theme.",
+    "",
+    "⚠ WHY JSON. `scripts/gen-compose-theme.mjs` is plain Node ESM and cannot import a TypeScript",
+    "module; the console needs these as numbers and cannot read a CSS custom property. JSON is the one",
+    "format both ends consume without build-tool coupling (research R4).",
+    "",
+    "⚠ WHY NOT tokens.css. That file is the BRAND source of truth — colours, spacing, radii, typeface.",
+    "A 1200px image canvas is an asset constraint, not a style token, and putting it there would be a",
+    "category error that the next person copies.",
+    "",
+    "⚠ NOTHING may hardcode these numbers. If a value appears in a component, a script or a test",
+    "without coming from here, the drift this file exists to prevent has already happened."
+  ],
+
+  "width": 1200,
+  "height": 600,
+  "aspectRatio": 2,
+
+  "maxBytes": 153600,
+
+  "maxRenderWidthDp": 600,
+
+  "textZone": {
+    "$comment": [
+      "Where the platform draws the promotion's LIVE message over the artwork (FR-031b).",
+      "",
+      "⚠ This is NOT a 'trim-safe' region. Because conformant artwork and the render box share one",
+      "aspect ratio, the scale is uniform and nothing is ever cropped — a trim-safe zone would be the",
+      "whole canvas and would tell an operator nothing (research R2).",
+      "",
+      "What an operator actually needs to know is which part of their picture the platform is going to",
+      "print text on, so they can leave it quiet. That is this."
+    ],
+    "insetLeftPct": 6,
+    "insetBottomPct": 6,
+    "widthPct": 58,
+    "heightPct": 50
+  }
+}

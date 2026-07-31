@@ -59,6 +59,8 @@ type Banner struct {
 	Target *BannerTarget
 	// Position places the banner in Home's section sequence; the client clamps out-of-range values.
 	Position int
+	// Placement is which of Home's two banner slots this occupies (029). Exclusive — never both.
+	Placement string
 }
 
 // BannerTarget is where a banner leads — a CLOSED vocabulary (research R7). An unrecognised value
@@ -569,12 +571,13 @@ func (s *Service) banners(ctx context.Context) ([]Banner, error) {
 	for _, p := range rows {
 		code := p.Code
 		banner := Banner{
-			Key:      p.ID,
-			Title:    p.Title,
-			Subtitle: p.Subtitle,
-			Code:     &code,
-			Terms:    promoTerms(p.MinimumSubtotal, p.Currency),
-			Position: p.Position,
+			Key:       p.ID,
+			Title:     p.Title,
+			Subtitle:  p.Subtitle,
+			Code:      &code,
+			Terms:     promoTerms(p.MinimumSubtotal, p.Currency),
+			Position:  p.Position,
+			Placement: p.Placement,
 			// Every target must be reachable elsewhere in the app (FR-034), so a promotion leads to
 			// the store rather than to a bespoke landing page only the banner can reach.
 			Target: &BannerTarget{Kind: "search"},

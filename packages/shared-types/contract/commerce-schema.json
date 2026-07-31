@@ -129,6 +129,10 @@
           "description": "The promotion id. Stable across reads — clients use it as a list key.",
           "type": "string"
         },
+        "placement": {
+          "$ref": "#/definitions/BannerPlacement",
+          "description": "Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never both.\n\n⚠ Optional, and absent means `\"carousel\"` — matching the column default, so a client reading a server that has not been redeployed degrades to the safe case rather than losing the banner."
+        },
         "position": {
           "$ref": "#/definitions/WireInt",
           "description": "Where this banner sits in Home's section sequence: 0 above the first section, n after the nth.\n\n⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`, the wire carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while every unit test passed, because the fakes spoke Kotlin at both ends and never crossed the wire. The fix was made at the contract so the generated Kotlin cannot regress; this field takes the same treatment."
@@ -168,6 +172,14 @@
         "href"
       ],
       "type": "object"
+    },
+    "BannerPlacement": {
+      "description": "Where an advertised promotion appears on Home (029 FR-027). **Exclusive** — never both.\n\n⚠ Declared ONCE, here, and imported by both `storefront.ts` (the shopper-facing banner) and `promotion.ts` (the operator-facing promotion). It was briefly declared in both, which typechecked in each file alone and collided the moment the package re-exported them — the same union in two places is precisely the drift Principle II exists to prevent.",
+      "enum": [
+        "carousel",
+        "inline"
+      ],
+      "type": "string"
     },
     "BannerTarget": {
       "anyOf": [

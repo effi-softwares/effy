@@ -17,6 +17,7 @@
 // generated Kotlin emit an Int rather than a Double — a second copy of the alias would be a second
 // thing that can drift, which defeats the entire point of having it (027's `1.0` into a Go `int`).
 import type { WireInt } from "./cart";
+import type { BannerPlacement } from "./banner";
 
 /** A badge shown on a product card. Derived server-side (on_sale = has compare-at; new = newest). */
 export type ProductBadge = "on_sale" | "new";
@@ -125,6 +126,13 @@ export interface BannerDTO {
    * at the contract so the generated Kotlin cannot regress; this field takes the same treatment.
    */
   position?: WireInt;
+  /**
+   * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never both.
+   *
+   * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client reading a
+   * server that has not been redeployed degrades to the safe case rather than losing the banner.
+   */
+  placement?: BannerPlacement;
 }
 
 /** The composed Home payload (GET /v1/storefront/home). */

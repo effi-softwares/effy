@@ -100,6 +100,16 @@ data class BannerDTO (
     val key: String,
 
     /**
+     * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never
+     * both.
+     *
+     * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client
+     * reading a server that has not been redeployed degrades to the safe case rather than
+     * losing the banner.
+     */
+    val placement: BannerPlacement? = null,
+
+    /**
      * Where this banner sits in Home's section sequence: 0 above the first section, n after the
      * nth.
      *
@@ -126,6 +136,27 @@ data class BannerDTO (
 
     val title: String
 )
+
+/**
+ * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never
+ * both.
+ *
+ * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client
+ * reading a server that has not been redeployed degrades to the safe case rather than
+ * losing the banner.
+ *
+ * Where an advertised promotion appears on Home (029 FR-027). **Exclusive** — never both.
+ *
+ * ⚠ Declared ONCE, here, and imported by both `storefront.ts` (the shopper-facing banner)
+ * and `promotion.ts` (the operator-facing promotion). It was briefly declared in both,
+ * which typechecked in each file alone and collided the moment the package re-exported them
+ * — the same union in two places is precisely the drift Principle II exists to prevent.
+ */
+@Serializable
+enum class BannerPlacement(val value: String) {
+    @SerialName("carousel") Carousel("carousel"),
+    @SerialName("inline") Inline("inline");
+}
 
 @Serializable
 data class BannerTarget (

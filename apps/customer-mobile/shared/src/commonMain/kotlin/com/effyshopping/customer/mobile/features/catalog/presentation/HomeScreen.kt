@@ -200,6 +200,7 @@ private fun HomeBlockList(
                 when (block) {
                     is HomeBlock.Categories -> CategoryRow(block.items, onCategoryClick)
                     is HomeBlock.Promo -> PromoBlock(block.banners, onBannerClick)
+                    is HomeBlock.Offers -> OffersSection(block.banners, onBannerClick)
                     is HomeBlock.Section -> SectionBlock(
                         rail = block.rail,
                         tileWidth = tileWidth,
@@ -208,6 +209,36 @@ private fun HomeBlockList(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * The dedicated offers section (029 US3) — the store's current deals, in one place.
+ *
+ * ⚠ Titled, unlike 028's inline banners. The heading is what makes it findable: SC-012 asks that a
+ * first-time shopper can say what the current offer is without being prompted to look for it, and an
+ * untitled band of artwork between two product rails does not achieve that.
+ *
+ * One banner renders plain with **no position indicator** — a single-item carousel is a control that
+ * lies about having somewhere to go. Several render in a pager that **never auto-advances** (FR-022).
+ */
+@Composable
+private fun OffersSection(banners: List<Banner>, onBannerClick: (Banner) -> Unit) {
+    if (banners.isEmpty()) return
+
+    Column(
+        // FR-025: a bounded, NAMED group, so a screen-reader user can step past the offers rather
+        // than being walked through each one. `isTraversalGroup` is the half that does the bounding —
+        // 028 learned that a contentDescription alone names without bounding.
+        modifier = Modifier.semantics {
+            isTraversalGroup = true
+            contentDescription = "Offers, ${banners.size} available"
+        },
+    ) {
+        EffySectionHeader("Offers")
+        Box(modifier = Modifier.padding(top = EffySpacing.md)) {
+            PromoBlock(banners, onBannerClick)
         }
     }
 }
@@ -330,6 +361,7 @@ private fun HomeBlock.blockKey(): String = when (this) {
     is HomeBlock.Categories -> "categories"
     is HomeBlock.Section -> "section:${rail.key}"
     is HomeBlock.Promo -> "promo:${banners.joinToString(",") { it.key }}"
+    is HomeBlock.Offers -> "offers:${banners.joinToString(",") { it.key }}"
 }
 
 /**

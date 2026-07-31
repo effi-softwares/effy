@@ -13,6 +13,26 @@ const repo = vi.hoisted(() => ({
 }));
 vi.mock("./repository", () => repo);
 
+// 029: the artwork verifier reaches S3 and parses headers. Both are mocked at the module boundary,
+// matching how ./repository is handled.
+const media = vi.hoisted(() => ({ readObjectPrefix: vi.fn(), presignUpload: vi.fn(), isMediaValidationError: () => false }));
+const imageDimensions = vi.hoisted(() => {
+  class DimensionsBeyondBufferError extends Error {}
+  class UnsupportedImageError extends Error {}
+  return {
+    readImageDimensions: vi.fn(),
+    DimensionsBeyondBufferError,
+    UnsupportedImageError,
+    isDimensionsBeyondBuffer: (e: unknown) => e instanceof DimensionsBeyondBufferError,
+    isUnsupportedImage: (e: unknown) => e instanceof UnsupportedImageError,
+  };
+});
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  ...media,
+  ...imageDimensions,
+}));
+
 import { createPromo, listPromos, readPromo, setStatus, updatePromo, writeOrderPolicy } from "./service";
 import { isPromoError } from "./types";
 
@@ -233,6 +253,109 @@ describe("advertising a promotion", () => {
     expect(repo.updatePromo).toHaveBeenCalledWith(
       "p1",
       expect.objectContaining({ bannerTitle: "Corrected headline" }),
+      "actor",
+    );
+  });
+});
+
+// ── Banner artwork conformance + placement (029 T014/T039) ──────────────────────────────────────
+//
+// ⚠ These prove the SERVICE half. The guarantee that reaches production is this code running against
+// a real S3 object; the bypass walk in quickstart §2a — presigning, PUTting a wrong-shaped image
+// directly, then saving — is what proves the console is not the guard. No unit test can prove that,
+// because the whole point is that the upload never passes through here.
+
+describe("banner artwork conformance", () => {
+  it("verifies artwork when a key is saved", async () => {
+    repo.updatePromo.mockResolvedValue({});
+    media.readObjectPrefix.mockResolvedValue(Buffer.alloc(1));
+    imageDimensions.readImageDimensions.mockReturnValue({ width: 1200, height: 600, format: "png" });
+
+    await updatePromo("p1", { bannerImageKey: "promotions/p1/a.png" }, "actor");
+    expect(media.readObjectPrefix).toHaveBeenCalledWith("promotions/p1/a.png", expect.any(Number));
+  });
+
+  it("refuses artwork that is the wrong size, and says what shape is required", async () => {
+    media.readObjectPrefix.mockResolvedValue(Buffer.alloc(1));
+    imageDimensions.readImageDimensions.mockReturnValue({ width: 800, height: 800, format: "png" });
+
+    expect(await codeOf(updatePromo("p1", { bannerImageKey: "promotions/p1/sq.png" }, "actor"))).toBe(
+      "promo_banner_image_wrong_size",
+    );
+  });
+
+  it("uses a DISTINCT code from the presign-time refusal", async () => {
+    // 028 already emits `promo_banner_image_invalid` for content-type and size refusals at presign.
+    // One code for two failure modes leaves the console unable to tell an operator which happened.
+    media.readObjectPrefix.mockResolvedValue(Buffer.alloc(1));
+    imageDimensions.readImageDimensions.mockReturnValue({ width: 800, height: 800, format: "png" });
+
+    expect(await codeOf(updatePromo("p1", { bannerImageKey: "k" }, "actor"))).not.toBe(
+      "promo_banner_image_invalid",
+    );
+  });
+
+  it("does NOT resize — a wrong-shaped image is refused, never transformed", async () => {
+    media.readObjectPrefix.mockResolvedValue(Buffer.alloc(1));
+    imageDimensions.readImageDimensions.mockReturnValue({ width: 800, height: 800, format: "png" });
+
+    await codeOf(updatePromo("p1", { bannerImageKey: "k" }, "actor"));
+    // ⚠ Silently altering an operator's artwork is precisely the silent crop FR-008 forbids. The
+    // proof is negative: the write never happens.
+    expect(repo.updatePromo).not.toHaveBeenCalled();
+  });
+
+  it("widens the range once when the dimensions sit beyond the first read", async () => {
+    // A photo with a large EXIF block is an ORDINARY file, not a broken one. Refusing it would blame
+    // an operator for artwork that is fine.
+    media.readObjectPrefix
+      .mockResolvedValueOnce(Buffer.alloc(1))
+      .mockResolvedValueOnce(Buffer.alloc(2));
+    imageDimensions.readImageDimensions
+      .mockImplementationOnce(() => {
+        throw new imageDimensions.DimensionsBeyondBufferError("beyond");
+      })
+      .mockReturnValueOnce({ width: 1200, height: 600, format: "jpeg" });
+    repo.updatePromo.mockResolvedValue({});
+
+    await updatePromo("p1", { bannerImageKey: "k" }, "actor");
+    expect(media.readObjectPrefix).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips verification entirely when no artwork is being saved", async () => {
+    // Artwork is optional (FR-009). A promotion with none must still save.
+    repo.updatePromo.mockResolvedValue({});
+    await updatePromo("p1", { bannerTitle: "Just copy" }, "actor");
+    expect(media.readObjectPrefix).not.toHaveBeenCalled();
+  });
+});
+
+describe("placement", () => {
+  it("defaults to the offers carousel", async () => {
+    repo.createPromo.mockResolvedValue({});
+    await createPromo({ ...VALID_PERCENT }, "actor");
+
+    const [input] = repo.createPromo.mock.calls.at(-1)!;
+    // FR-027a: advertising without choosing must land where shoppers look for offers, not scattered
+    // through the merchandising.
+    expect(input.bannerPlacement).toBe("carousel");
+  });
+
+  it("refuses a placement outside the two", async () => {
+    expect(
+      await codeOf(createPromo({ ...VALID_PERCENT, bannerPlacement: "sidebar" }, "actor")),
+    ).toBe("promo_definition_invalid");
+  });
+
+  it("can be changed on a promotion that is already being redeemed", async () => {
+    // ⚠ Placement is PRESENTATION. FR-068 freezes a redeemed code's VALUE, because a paid order's
+    // discount was computed from it — moving a banner between sections rewrites nothing.
+    repo.updatePromo.mockResolvedValue({});
+    await updatePromo("p1", { bannerPlacement: "inline" }, "actor");
+
+    expect(repo.updatePromo).toHaveBeenCalledWith(
+      "p1",
+      expect.objectContaining({ bannerPlacement: "inline" }),
       "actor",
     );
   });
