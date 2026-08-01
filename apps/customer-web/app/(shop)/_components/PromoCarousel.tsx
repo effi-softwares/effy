@@ -35,10 +35,22 @@ export function PromoCarousel({ banners }: { banners: BannerDTO[] }) {
   // to have been defensive enough to absorb without an edit. The filter and the early return still
   // do exactly the right thing; only the reason has changed.
   //
-  // ⚠ Web deliberately does NOT yet read 028's new fields (`code`, `terms`, `target`, `position`) —
-  // they are optional on the wire and adopting them is customer-web's own slice. Until then a
-  // promotion with a minimum spend will show its headline here WITHOUT its terms, which is why the
+  // ⚠ Web deliberately does NOT yet read 028's new fields (`code`, `terms`, `position`) — they are
+  // optional on the wire and adopting them on the banner FACE is customer-web's own slice. So a
+  // promotion with a minimum spend still shows its headline here WITHOUT its terms, which is why the
   // artwork filter matters: an untermed banner that also has no image would be a bare claim.
+  //
+  // ── UPDATED 2026-08-01 ────────────────────────────────────────────────────────────────────────
+  //
+  // The tap is no longer part of that gap. `href` used to be `/search` for EVERY promotion, so a tap
+  // opened the unfiltered store and the shopper lost the offer on the way there. It now points at
+  // `/promotions/<id>`, which states the promotion in full — code, conditions and how long is left.
+  // That satisfies FR-037d's "from the banner OR from where it leads", so the missing terms on the
+  // face above are a presentation gap rather than a shopper never learning of a condition.
+  //
+  // ⚠ Web reads `href`, not `target`: the closed target vocabulary exists because mobile has no URL
+  // router. Here a URL is the native idiom. The server keeps the two pointed at one destination and
+  // a Go test pins that they agree.
   const slides = banners.filter((b) => Boolean(b.imageUrl))
   if (slides.length === 0) return null
 

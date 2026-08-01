@@ -6,6 +6,7 @@ import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as Ban
 import com.effyshopping.customer.mobile.commerce.contract.Kind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
+import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductBadge as ProductBadgeDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontCategoryDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
@@ -23,6 +24,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.Media
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductBadge
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
+import com.effyshopping.customer.mobile.features.catalog.domain.Promotion
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
 
 /**
@@ -85,7 +87,18 @@ internal fun BannerTargetDTO.toDomain(): BannerTarget? = when (kind) {
     Kind.Sale -> BannerTarget.Sale
     Kind.Category -> categoryKey?.let { BannerTarget.Category(it) }
     Kind.Product -> productID?.let { BannerTarget.Product(it) }
+    Kind.Promotion -> promotionID?.let { BannerTarget.Promotion(it) }
 }
+
+internal fun PromotionDTO.toDomain(): Promotion = Promotion(
+    id = id,
+    title = title,
+    subtitle = subtitle,
+    imageUrl = imageURL,
+    code = code,
+    terms = terms,
+    validity = validity,
+)
 
 internal fun StorefrontRailDTO.toDomain(): Rail = Rail(
     key = key,

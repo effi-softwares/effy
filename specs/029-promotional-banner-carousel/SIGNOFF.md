@@ -147,6 +147,45 @@ owns section order. **Measured live: 1.37 s → 0.39–0.62 s.**
 artwork showed neither preview nor Remove; and `shared-types` shipping `test: echo "no tests" &&
 exit 0`, honest while it held only types and dishonest the moment `banner.ts` added logic.
 
+**⚠ POST-SIGN-OFF (2026-08-01) — the banner tap went nowhere useful.** Reported by the operator on
+device, in the plainest possible terms: *"when user tap the banner it goes to the search page like
+page. why!!!!"* They were right, and the answer is worse than a wrong destination.
+
+`banners()` set `Target: &BannerTarget{Kind: "search"}` for **every** promotion. One hard-coded
+destination, so a tap opened the unfiltered store — the Search tab by another name — and the
+destination carried **none of the promotion's facts**: not the code, not the terms. The shopper lost
+the offer on the way to it.
+
+The reason no better destination existed is **in the data model, not the navigation**: `promo_code`
+has no product or category scoping. A promotion is a whole-cart discount with an optional minimum, so
+there is no set of qualifying products a results list could be filtered to. **A cart-level code is a
+message, not a place**, and the destination for a message is the message itself, stated in full.
+
+Fixed by adding a `promotion` target and a promotion detail screen, served by a new public hot-path
+read `GET /v1/storefront/promotions/:id` that **re-applies the same visibility predicate Home used**
+(shared as a SQL const, so the two reads cannot drift) — a promotion that expired or was exhausted
+while Home sat on screen is answered 404 → **"this offer has ended"**, with no retry affordance,
+rather than terms that are void. 028 gains **FR-034a/FR-034b**, which narrow FR-034 rather than
+contradict it: that rule protects *content* a shopper could miss, and a promotion detail restates the
+banner, so nobody who never sees the banner loses anything.
+
+**⚠ THE TEST THAT SHOULD HAVE CAUGHT THIS ASSERTED THE DEFECT.** `banner_test.go` read:
+
+```go
+if b.Target == nil || b.Target.Kind != "search" {
+    t.Errorf("every banner needs a target reachable elsewhere in the app (FR-034)")
+}
+```
+
+It passed for every banner ever rendered, because it encoded the same misreading of FR-034 that the
+implementation did. So did the cross-language wire contract, whose literal pinned
+`"target":{"kind":"sale"}` — **a shape no banner ever emitted**. A contract test is only worth its
+hand-duplication if it pins the payload that actually crosses the wire; both now do.
+
+**Also found and fixed on the way:** a **404 was mapping to `AppError.Unexpected`** on mobile, so
+"that isn't there" reached the shopper as "something broke, try again" — an invitation to retry
+something that can never succeed. `AppError.NotFound` now exists and 404 maps to it.
+
 **⚠ Two lessons worth carrying, both about tests that agree with the wrong thing:**
 
 1. `pnpm -r test` was green while `pnpm -r typecheck` failed — **vitest does not run `tsc`**. It was
@@ -162,9 +201,21 @@ exit 0`, honest while it held only types and dishonest the moment `banner.ts` ad
 
 - **⚠ T051, the bypass test, is the one that should be walked first.** Everything else is polish;
   that one decides whether the feature's central guarantee exists.
-- **`customer-web` is not at parity.** It still ignores `code` / `terms` / `target` / `placement`,
-  so a promotion with a minimum shows there **without its terms** and the carousel placement is
-  mobile-only. Inherited unchanged from 028.
+- **`customer-web` is closer to parity, not at it.** The **banner tap is fixed on both surfaces**
+  (2026-08-01) — web gained `/promotions/[id]`, routing on `href` where mobile routes on `target`,
+  both set from one promotion id by one server, with a Go test pinning that they agree. What remains:
+  the banner **face** on web still ignores `code` / `terms` / `placement`, so a promotion with a
+  minimum shows its headline there without its terms and the carousel placement is mobile-only.
+  ⚠ FR-037d is nevertheless satisfied — it asks that a condition reach the shopper *"from the banner
+  **or from where it leads**"*, and where it leads now states it. The face is a presentation gap, no
+  longer a shopper meeting a minimum at checkout.
+- **⚠ The promotion detail has not been walked live on EITHER surface.** Its refusal path in
+  particular — tap a banner for a promotion that has since expired or been exhausted, and confirm
+  "this offer has ended" (mobile) / a 404 page (web) rather than live terms — is unit-proven only, and
+  needs a live `core-api` plus a promotion taken down between the Home read and the tap (quickstart
+  §4's exhaustion take-down, T054, covers the set-up). Clipboard copy is unverified on all three
+  platforms; on web it additionally needs a **secure origin** to work at all, which `localhost`
+  satisfies but a plain-HTTP LAN address does not.
 - **A category rollup** (recursive CTE) remains what would make top-level category shortcuts
   possible; `productCount` still does not roll up and category filtering is still exact-match.
 - **Mobile telemetry** stays deferred — **ten consecutive slices** now. Nine events are specified

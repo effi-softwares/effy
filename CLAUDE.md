@@ -241,6 +241,31 @@ banners this platform has ever rendered** now appear on a device.
   0.39–0.62 s.**
 - **⚠ Also**: `pnpm -r test` was green while `typecheck` FAILED — **vitest does not run `tsc`**; caught
   only because the "Done" count fell 12→11, so counting reporting packages is now part of the sweep.
+- **⚠ POST-SIGN-OFF DEFECT, FIXED 2026-08-01 — the banner tap went nowhere useful.** Found by the
+  operator on device. `banners()` set `Target: {Kind: "search"}` for **every** promotion, so a tap
+  opened the **unfiltered store** — the Search tab by another name — carrying **none of the
+  promotion's facts** (no code, no terms). The real cause is in the **data model, not the
+  navigation**: `promo_code` has **no product or category scoping**, so a whole-cart discount has no
+  set of qualifying products to filter to. **A cart-level code is a message, not a place.** Fixed with
+  a `promotion` target + a **promotion detail screen**, served by a new public hot-path read
+  `GET /v1/storefront/promotions/:id` that **re-applies the same visibility predicate Home used**
+  (shared as a SQL const so they cannot drift) — a promotion that expired or was exhausted between the
+  Home read and the tap answers **404 → "this offer has ended", with no retry affordance**, never void
+  terms. 028 gains **FR-034a/FR-034b**, which *narrow* FR-034 rather than contradict it: that rule
+  protects **content** a shopper could miss, and a promotion detail restates the banner.
+  **⚠ The test that should have caught it asserted the defect** — `banner_test.go` demanded
+  `Kind == "search"`, encoding the same misreading as the code; and the cross-language wire contract
+  pinned `{"kind":"sale"}`, **a shape no banner ever emitted**. Both now pin the real payload.
+  **⚠ Also fixed**: mobile mapped **404 → `AppError.Unexpected`**, so "that isn't there" reached the
+  shopper as "something broke, try again". `AppError.NotFound` now exists.
+  **✅ FIXED ON BOTH SURFACES** — `customer-web` gained **`/promotions/[id]`** (`◐ PPR`, **noindex**,
+  **uncached** alone among the public reads, since "still available" is a live claim other shoppers
+  can falsify; one client component, the copy button; **171.0 KB / 174 KB**, added to the bundle
+  gate's route list in the same change). Web routes on **`href`**, mobile on **`target`** — the closed
+  vocabulary exists because mobile has no URL router — so the server sets **both from one promotion
+  id** and a Go test pins that they agree. ⚠ **Half a carry-forward remains**: web's banner **face**
+  still ignores `code`/`terms`/`placement`; FR-037d holds anyway ("from the banner **or from where it
+  leads**"). ⚠ **Neither surface has been walked live**, the refusal path least of all.
 - **⚠ Outstanding request**: `FREEZER12` was to be unadvertised (Home should carry **two** banner
   placements, not three). The seed file records it; the database still has it advertised.
 - **Carry-forwards**: `customer-web` still ignores `code`/`terms`/`target`/`placement` (a promotion with

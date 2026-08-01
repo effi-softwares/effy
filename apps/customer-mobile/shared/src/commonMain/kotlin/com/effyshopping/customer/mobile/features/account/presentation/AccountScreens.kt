@@ -185,6 +185,7 @@ class AccountViewModel(
         AppError.Forbidden -> "This account can't be used."
         is AppError.RateLimited -> "Too many attempts. Please wait a little and try again."
         AppError.Network -> "No connection. Check your network and try again."
+        AppError.NotFound -> "We couldn't find that."
         AppError.Unavailable -> "We're having trouble right now. Try again shortly."
         AppError.Unauthenticated -> "Please sign in again."
         AppError.Unexpected -> "Something went wrong. Try again."

@@ -164,13 +164,17 @@ data class BannerTarget (
     val categoryKey: String? = null,
 
     @SerialName("productId")
-    val productID: String? = null
+    val productID: String? = null,
+
+    @SerialName("promotionId")
+    val promotionID: String? = null
 )
 
 @Serializable
 enum class Kind(val value: String) {
     @SerialName("category") Category("category"),
     @SerialName("product") Product("product"),
+    @SerialName("promotion") Promotion("promotion"),
     @SerialName("sale") Sale("sale"),
     @SerialName("search") Search("search");
 }
@@ -950,6 +954,54 @@ enum class ProductSort(val value: String) {
     @SerialName("price_desc") PriceDesc("price_desc"),
     @SerialName("relevance") Relevance("relevance");
 }
+
+/**
+ * One advertised promotion in full — the destination of a banner tap (`GET
+ * /v1/storefront/promotions/:id`).
+ *
+ * ⚠ WHY A PROMOTION HAS NO OTHER DESTINATION. `promo_code` carries no product or category
+ * scoping: a promotion is a whole-cart discount with an optional minimum. There is no set
+ * of qualifying products to filter a results list to, so a banner pointed at one was always
+ * pointing at nothing in particular. A cart-level code is a message, and the destination
+ * for a message is the message itself.
+ *
+ * ⚠ Served through the SAME visibility predicate Home used, so a promotion that expired,
+ * was exhausted or was withdrawn between Home loading and the tap is **404, not stale
+ * terms** (028 FR-036). This is also why the response is uncached.
+ */
+@Serializable
+data class PromotionDTO (
+    /**
+     * NON-nullable, unlike `BannerDTO.code` — a screen whose purpose is to hand over a code
+     * must have one.
+     */
+    val code: String,
+
+    val id: String,
+
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
+    val subtitle: String? = null,
+
+    /**
+     * The same sentence `BannerDTO.terms` carries, from the same server-side composer.
+     */
+    val terms: String? = null,
+
+    val title: String,
+
+    /**
+     * How long is left — `"Ends in 3 days"`, `"Ends tomorrow"`. Null when the promotion never
+     * ends.
+     *
+     * ⚠ RELATIVE, not a calendar date, and composed server-side. A date means nothing without a
+     * timezone and the platform has no timezone concept; a duration reads the same from
+     * anywhere. Mobile additionally has no date formatting of any kind, so a raw timestamp
+     * could not be rendered there.
+     */
+    val validity: String? = null
+)
 
 /**
  * POST /v1/cart/reorder — put a past order's items back in the cart (FR-034).

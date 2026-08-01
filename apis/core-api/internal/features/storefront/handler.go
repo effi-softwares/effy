@@ -57,6 +57,23 @@ type bannerTargetDTO struct {
 	Kind        string  `json:"kind"`
 	CategoryKey *string `json:"categoryKey,omitempty"`
 	ProductID   *string `json:"productId,omitempty"`
+	PromotionID *string `json:"promotionId,omitempty"`
+}
+
+// promotionDTO is one advertised promotion in full — what a banner tap opens
+// (GET /v1/storefront/promotions/:id).
+//
+// `code` is NOT optional here, unlike on the banner. A promotion detail screen whose entire purpose is
+// to hand the shopper a code cannot be missing the code; making it non-nullable puts that in the type
+// rather than in a comment nobody reads.
+type promotionDTO struct {
+	ID       string  `json:"id"`
+	Title    string  `json:"title"`
+	Subtitle *string `json:"subtitle"`
+	ImageURL *string `json:"imageUrl"`
+	Code     string  `json:"code"`
+	Terms    *string `json:"terms"`
+	Validity *string `json:"validity"`
 }
 
 type homeDTO struct {
@@ -130,7 +147,10 @@ func (h *Handler) getHome(c *gin.Context) {
 	for _, b := range home.Banners {
 		var target *bannerTargetDTO
 		if b.Target != nil {
-			target = &bannerTargetDTO{Kind: b.Target.Kind, CategoryKey: b.Target.CategoryKey, ProductID: b.Target.ProductID}
+			target = &bannerTargetDTO{
+				Kind: b.Target.Kind, CategoryKey: b.Target.CategoryKey,
+				ProductID: b.Target.ProductID, PromotionID: b.Target.PromotionID,
+			}
 		}
 		banners = append(banners, bannerDTO{
 			Key: b.Key, Title: b.Title, Subtitle: b.Subtitle, ImageURL: b.ImageURL, Href: b.Href,
@@ -202,6 +222,29 @@ func (h *Handler) getServiceability(c *gin.Context) {
 	// response holds nothing shopper-specific.
 	c.Header("Cache-Control", "public, max-age=300")
 	c.JSON(http.StatusOK, serviceabilityDTO{Postcode: res.Postcode, Serviced: res.Serviced})
+}
+
+// getPromotion serves the detail behind a banner tap.
+//
+// ⚠ NOT cached. Every other read here sets a Cache-Control, and this one deliberately does not: the
+// response is a live claim about a promotion that can be exhausted by other shoppers at any moment,
+// and a cached "still available" is the one wrong answer that costs a shopper a wasted trip to the
+// cart. The read is a single indexed row.
+func (h *Handler) getPromotion(c *gin.Context) {
+	promo, found, err := h.svc.Promotion(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		logger.FromContext(c.Request.Context()).Error("storefront: promotion read failed", zap.Error(err))
+		httpx.Unavailable(c)
+		return
+	}
+	if !found {
+		httpx.NotFound(c)
+		return
+	}
+	c.JSON(http.StatusOK, promotionDTO{
+		ID: promo.ID, Title: promo.Title, Subtitle: promo.Subtitle, ImageURL: promo.ImageURL,
+		Code: promo.Code, Terms: promo.Terms, Validity: promo.Validity,
+	})
 }
 
 func (h *Handler) getProductByID(c *gin.Context) {

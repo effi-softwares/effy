@@ -543,6 +543,8 @@ done. No measurements were taken (SC-005/SC-006/SC-008). Full record:
 | Dedicated offers carousel | ❌ | ✅ | web still renders banners at the top only |
 | Exclusive placement per promotion | ✅ back-office | ✅ | carousel **or** between sections, never both |
 | Banner code + terms shown | ❌ | ✅ | web still ignores `code`/`terms`/`target`/`placement` |
+| Banner tap opens the promotion | ✅ | ✅ | added 2026-08-01 — **at parity**; web routes on `href`, mobile on `target`, one server decides both |
+| Promotion detail (code · terms · expiry) | ✅ `/promotions/[id]` | ✅ `PromotionScreen` | one hot-path read serves both |
 
 **Path (Principle III):** unchanged from 028 — the Home read is a latency-sensitive customer read on the
 **hot path**; authoring is operator CRUD on the **cold path**. No boundary moved.
@@ -580,6 +582,45 @@ banners now render on a device — the first this platform has ever produced.** 
 against real data: `placement` as a string, `position` as an integer, `terms` correctly `null` for
 zero-minimum promotions. **SC-011 is proven at the read level** — an unadvertised promotion and an
 expired one are live *simultaneously* with six visible ones and appear nowhere.
+
+⚠ **Banner tap — defect found on device by the operator, fixed 2026-08-01.** Tapping a banner opened
+the **unfiltered store**: the Search tab by another name, carrying **none of the promotion's facts** —
+not the code, not the terms. The server hard-coded `{kind: "search"}` for *every* promotion, so the
+destination was the same regardless of what was advertised, and the shopper lost the offer on the way
+to it.
+
+The honest reason no better destination existed is in the **data model**, not the navigation:
+`promo_code` has **no product or category scoping**. A promotion is a whole-cart discount with an
+optional minimum, so there is no set of qualifying products to filter a list to. A cart-level code is a
+message, not a place — and the destination for a message is the message itself.
+
+A banner now targets `{kind: "promotion", promotionId}` and opens a **promotion detail screen**
+(artwork at the same locked 2:1, headline, subtitle, the code with copy-to-clipboard, the conditions
+sentence, how long is left, how to use it, and the ordinary store one tap further on). It is served by
+a new public hot-path read `GET /v1/storefront/promotions/:id` which **re-applies the same visibility
+predicate Home used** — so a promotion that expired, was exhausted or was withdrawn while Home sat on
+screen is answered **404 → "this offer has ended"**, with no retry affordance, rather than with terms
+that are no longer true. 028 **FR-034a/FR-034b** record the amendment and why it does not conflict with
+FR-034.
+
+**Both surfaces, from one decision.** `customer-web` gained `/promotions/[id]` in the same change.
+Web routes on `href` and mobile on `target` — the closed target vocabulary exists because mobile has
+no URL router, while a URL is the web's native idiom — so the server sets **both** from the same
+promotion id, and a Go test pins that they agree. Two fields naming one destination is precisely the
+shape that drifts: one gets updated and the other quietly keeps sending a whole surface elsewhere,
+which is what `/search` was.
+
+⚠ **This closes half of 028's web carry-forward, not all of it.** The banner **face** on web still
+does not render `code` or `terms`. But FR-037d requires a shopper to learn of a condition *"from the
+banner **or from where it leads**, never first at payment"* — and where it leads now states them. The
+face remains outstanding as a presentation gap, no longer as a shopper meeting a minimum at checkout.
+
+⚠ **The web page is `noindex`** (follow, not index): a promotion is temporary, and a search result
+promising an expired discount is worse than not being found. ⚠ It is also **uncached**, alone among the
+public storefront reads — its content is a live claim that other shoppers can falsify by redeeming,
+and a cached "still available" sends someone to the cart with a code that will be refused. Its **only**
+client component is the copy-code button (`navigator.clipboard`, no library); the route measures
+**171.0 KB / 174 KB** and was added to the bundle gate's route list in the same change that created it.
 
 ⚠ **But the operator half is still unwalked, and that is not a formality.** Every banner that exists
 was **seeded straight into the database**, which is *precisely* the bypass path quickstart §2a exists to

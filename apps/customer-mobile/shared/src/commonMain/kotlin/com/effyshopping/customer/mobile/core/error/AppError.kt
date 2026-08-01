@@ -37,6 +37,16 @@ sealed interface AppError {
     /** Throttled. [retryAfterSeconds] is shown; the app explains the wait, never loops (FR-017). */
     data class RateLimited(val retryAfterSeconds: Long? = null) : AppError
 
+    /**
+     * The thing asked for is not there — 404.
+     *
+     * ⚠ Added because 404 was landing in [Unexpected], which reads to the shopper as "something broke"
+     * and invites a retry that can never succeed. A promotion that expired or was fully claimed while
+     * Home sat on screen is a NORMAL outcome with a true thing to say ("this offer has ended"), and it
+     * is only distinguishable from a real fault if the error set distinguishes it.
+     */
+    data object NotFound : AppError
+
     /** No network / backend unreachable — recoverable; lose nothing the customer typed (FR-008). */
     data object Network : AppError
 

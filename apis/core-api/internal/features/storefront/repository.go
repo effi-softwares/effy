@@ -98,15 +98,16 @@ type categoryRow struct {
 
 // advertisedPromoRow is one promotion cleared for public display on Home (028).
 type advertisedPromoRow struct {
-	ID              string  `db:"id"`
-	Code            string  `db:"code"`
-	Title           string  `db:"banner_title"`
-	Subtitle        *string `db:"banner_subtitle"`
-	ImageKey        *string `db:"banner_image_key"`
-	Position        int     `db:"banner_position"`
-	MinimumSubtotal string  `db:"minimum_subtotal_amount"`
-	Currency        string  `db:"currency"`
-	Placement       string  `db:"banner_placement"`
+	ID              string     `db:"id"`
+	Code            string     `db:"code"`
+	Title           string     `db:"banner_title"`
+	Subtitle        *string    `db:"banner_subtitle"`
+	ImageKey        *string    `db:"banner_image_key"`
+	Position        int        `db:"banner_position"`
+	MinimumSubtotal string     `db:"minimum_subtotal_amount"`
+	Currency        string     `db:"currency"`
+	Placement       string     `db:"banner_placement"`
+	EndsAt          *time.Time `db:"ends_at"`
 }
 
 type Repository struct {
@@ -129,6 +130,36 @@ func (r *Repository) collectCards(ctx context.Context, sql string, args ...any) 
 	return cards, nil
 }
 
+// advertisedPromoSelect and advertisedPromoPredicate are shared by the Home banner read and the
+// single-promotion read behind a banner tap. They are consts rather than two hand-copied statements
+// because the predicate IS the visibility rule — two copies would eventually disagree about whether a
+// promotion is live, and a shopper would meet a detail screen for a promotion Home had already
+// stopped showing.
+//
+// ⚠ `p.id::text = $1` in the by-id read, NOT `p.id = $1`. A malformed id (a truncated paste, a stale
+// deep link) sent at a uuid column raises `invalid input syntax for type uuid`, which surfaces as a
+// 503 — the platform claiming it is broken when the truth is simply that no such promotion exists.
+// The cast cannot error on any input, so a bad id gets the honest answer: 404.
+const advertisedPromoSelect = `
+SELECT p.id,
+       p.code,
+       p.banner_title,
+       p.banner_subtitle,
+       p.banner_image_key,
+       p.banner_position,
+       p.minimum_subtotal_amount,
+       p.currency,
+       p.banner_placement,
+       p.ends_at
+FROM public.promo_code p`
+
+const advertisedPromoPredicate = `p.is_advertised
+  AND p.status = 'active'
+  AND (p.starts_at IS NULL OR p.starts_at <= now())
+  AND (p.ends_at   IS NULL OR p.ends_at   >  now())
+  AND (p.max_redemptions IS NULL
+       OR (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) < p.max_redemptions)`
+
 // AdvertisedPromotions returns the promotions cleared to appear as banners on Home (028 FR-036/037c).
 //
 // ⚠ ONE query, and the visibility predicate lives ONLY here. Five terms decide it, and four of them
@@ -144,23 +175,8 @@ func (r *Repository) collectCards(ctx context.Context, sql string, args ...any) 
 // The ORDER BY is served by promo_code_advertised_idx (partial, on the same columns), so this adds a
 // single indexed read to a Home composition that already issues up to seven.
 func (r *Repository) AdvertisedPromotions(ctx context.Context) ([]advertisedPromoRow, error) {
-	const sql = `
-SELECT p.id,
-       p.code,
-       p.banner_title,
-       p.banner_subtitle,
-       p.banner_image_key,
-       p.banner_position,
-       p.minimum_subtotal_amount,
-       p.currency,
-       p.banner_placement
-FROM public.promo_code p
-WHERE p.is_advertised
-  AND p.status = 'active'
-  AND (p.starts_at IS NULL OR p.starts_at <= now())
-  AND (p.ends_at   IS NULL OR p.ends_at   >  now())
-  AND (p.max_redemptions IS NULL
-       OR (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) < p.max_redemptions)
+	const sql = advertisedPromoSelect + `
+WHERE ` + advertisedPromoPredicate + `
 ORDER BY p.banner_placement, p.banner_position, p.created_at`
 
 	rows, err := r.db.Query(ctx, sql)
@@ -172,6 +188,39 @@ ORDER BY p.banner_placement, p.banner_position, p.created_at`
 		return nil, fmt.Errorf("storefront: scan advertised promotions: %w", err)
 	}
 	return out, nil
+}
+
+// AdvertisedPromotionByID returns ONE promotion cleared for public display, backing the promotion
+// detail screen a banner tap opens.
+//
+// ⚠ It re-applies [advertisedPromoPredicate] rather than reading the row by id alone, and that is the
+// whole point of the endpoint. A shopper's Home payload is a snapshot: between composing it and
+// tapping a banner, the promotion can expire, be exhausted by other shoppers, be disabled, or be
+// un-advertised. Serving the detail from the row-by-id would present terms for a promotion that is no
+// longer live — the exact failure FR-036 ("true at the moment it is shown") forbids. Sharing the
+// predicate as a const, rather than restating it, is what keeps the two reads from drifting into
+// disagreeing about whether a promotion is live.
+//
+// A promotion that is not advertised is reported NOT FOUND, never "forbidden": whether a private
+// promotion exists is not a shopper's business, and a distinguishable refusal would let anyone
+// enumerate the operator's unadvertised codes by id.
+func (r *Repository) AdvertisedPromotionByID(ctx context.Context, id string) (advertisedPromoRow, bool, error) {
+	const sql = advertisedPromoSelect + `
+WHERE p.id::text = $1
+  AND ` + advertisedPromoPredicate
+
+	rows, err := r.db.Query(ctx, sql, id)
+	if err != nil {
+		return advertisedPromoRow{}, false, fmt.Errorf("storefront: query advertised promotion: %w", err)
+	}
+	row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[advertisedPromoRow])
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return advertisedPromoRow{}, false, nil
+		}
+		return advertisedPromoRow{}, false, fmt.Errorf("storefront: scan advertised promotion: %w", err)
+	}
+	return row, true, nil
 }
 
 // NewestCards backs the "Featured" rail — newest active products.

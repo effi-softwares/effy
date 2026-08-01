@@ -44,6 +44,21 @@ func (f *fakeReader) Categories(_ context.Context) ([]categoryRow, error) { retu
 func (f *fakeReader) AdvertisedPromotions(_ context.Context) ([]advertisedPromoRow, error) {
 	return f.promos, f.promoErr
 }
+
+// AdvertisedPromotionByID resolves against the SAME staged rows, so a test cannot accidentally set up
+// a promotion that Home shows and the detail read does not — which is exactly the drift the shared SQL
+// predicate exists to prevent.
+func (f *fakeReader) AdvertisedPromotionByID(_ context.Context, id string) (advertisedPromoRow, bool, error) {
+	if f.promoErr != nil {
+		return advertisedPromoRow{}, false, f.promoErr
+	}
+	for _, p := range f.promos {
+		if p.ID == id {
+			return p, true, nil
+		}
+	}
+	return advertisedPromoRow{}, false, nil
+}
 func (f *fakeReader) ProductDetail(_ context.Context, _ string) (detailRow, bool, error) {
 	return f.detail, f.detailFound, nil
 }

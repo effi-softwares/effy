@@ -23,6 +23,7 @@ import type {
   ProductSort,
   ProductSearchResultDTO,
   ServiceabilityDTO,
+  PromotionDTO,
 } from "./storefront";
 import type {
   CartLineDTO,
@@ -84,6 +85,7 @@ export type {
   ProductSort,
   ProductSearchResultDTO,
   ServiceabilityDTO,
+  PromotionDTO,
   CartLineDTO,
   CartNoticeDTO,
   CartNoticeKind,
@@ -141,6 +143,7 @@ export interface CustomerCommerceContract {
   searchResult: ProductSearchResultDTO;
   productSort: ProductSort;
   serviceability: ServiceabilityDTO;
+  promotion: PromotionDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;
   cartNotice: CartNoticeDTO;

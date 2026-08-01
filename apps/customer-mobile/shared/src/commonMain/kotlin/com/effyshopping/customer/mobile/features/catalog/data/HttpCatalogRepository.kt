@@ -1,6 +1,7 @@
 package com.effyshopping.customer.mobile.features.catalog.data
 
 import com.effyshopping.customer.mobile.commerce.contract.ProductSearchResultDTO
+import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontCategoryDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
 import com.effyshopping.customer.mobile.commerce.contract.ServiceabilityDTO
@@ -14,6 +15,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductPage
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
+import com.effyshopping.customer.mobile.features.catalog.domain.Promotion
 import com.effyshopping.customer.mobile.features.catalog.domain.Serviceability
 import io.ktor.client.request.parameter
 import io.ktor.client.HttpClient
@@ -41,6 +43,17 @@ class HttpCatalogRepository(private val core: HttpClient) : CatalogRepository {
 
     override suspend fun productDetail(id: String): ProductDetail = request {
         core.get("v1/storefront/products/$id").ensureSuccess().body<StorefrontProductDetailDTO>().toDomain()
+    }
+
+    /**
+     * ⚠ Re-read at tap time rather than carried over from the banner already on screen. Home is a
+     * snapshot: a promotion can expire, be exhausted by other shoppers, or be withdrawn while a
+     * shopper scrolls. The server applies the same visibility predicate it used for Home, so a
+     * promotion that is no longer live comes back 404 — and `ensureSuccess` turns that into the
+     * not-found error the screen shows, instead of terms that stopped being true.
+     */
+    override suspend fun promotion(id: String): Promotion = request {
+        core.get("v1/storefront/promotions/$id").ensureSuccess().body<PromotionDTO>().toDomain()
     }
 
     override suspend fun search(

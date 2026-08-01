@@ -22,6 +22,9 @@ suspend fun HttpResponse.toAppException(): AppException {
         401 -> if (title.contains("password", ignoreCase = true)) AppError.WrongPassword
         else AppError.Unauthenticated
         403 -> AppError.Forbidden
+        // ⚠ Was falling through to Unexpected, which told the shopper the app had broken when the
+        // honest answer was "that isn't there". See AppError.NotFound.
+        404 -> AppError.NotFound
         409 -> AppError.WrongPasswordMode
         429 -> AppError.RateLimited()
         in 500..599 -> AppError.Unavailable
