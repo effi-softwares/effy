@@ -9,6 +9,10 @@ import type {
   DeliveryOfferingDTO,
   DeliveryZoneDTO,
   DeliveryZonePostcodeDTO,
+  DeclarationDecisionDTO,
+  DeclarationReviewDTO,
+  DeliveryPricingRuleDTO,
+  DeliveryPricingRuleInput,
   LocalityDTO,
   PagedDTO,
   PostcodeCoverageDTO,
@@ -178,4 +182,46 @@ export async function markAreaNotServed(
     `/admin/v1/delivery-zones/${zoneId}/areas/${postcode}/not-served`,
     body,
   );
+}
+
+// ── 032-delivery-pricing ───────────────────────────────────────────────────────────────────────
+
+/**
+ * Every delivery pricing rule with its bands.
+ *
+ * ⚠ Read-only from the shop's point of view: there is no shop-side counterpart to this endpoint at
+ * any verb (FR-008). The guarantee is the route topology, not this file.
+ */
+export async function listPricingRules(): Promise<DeliveryPricingRuleDTO[]> {
+  const res = await api.get<{ rules: DeliveryPricingRuleDTO[] }>("/admin/v1/delivery-pricing");
+  return res.rules;
+}
+
+/** Replace one method's rule AND its whole band set — bands are only meaningful as a set. */
+export async function replacePricingRule(
+  method: string,
+  body: DeliveryPricingRuleInput,
+): Promise<DeliveryPricingRuleDTO> {
+  return api.put<DeliveryPricingRuleDTO>(`/admin/v1/delivery-pricing/${method}`, body);
+}
+
+// ── 032: same-day approvals ────────────────────────────────────────────────────────────────────
+
+export async function listDeclarations(status = "pending"): Promise<DeclarationReviewDTO[]> {
+  const res = await api.get<{ declarations: DeclarationReviewDTO[] }>(
+    `/admin/v1/delivery-declarations?status=${encodeURIComponent(status)}`,
+  );
+  return res.declarations;
+}
+
+export async function getDeclaration(id: string): Promise<DeclarationReviewDTO> {
+  return api.get<DeclarationReviewDTO>(`/admin/v1/delivery-declarations/${id}`);
+}
+
+export async function decideDeclaration(
+  id: string,
+  action: "approve" | "decline" | "revoke",
+  body: DeclarationDecisionDTO,
+): Promise<DeclarationReviewDTO> {
+  return api.post<DeclarationReviewDTO>(`/admin/v1/delivery-declarations/${id}/${action}`, body);
 }

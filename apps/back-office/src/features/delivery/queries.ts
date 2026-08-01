@@ -2,6 +2,8 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 import type {
   AddPostcodesRequest,
+  DeclarationDecisionDTO,
+  DeliveryPricingRuleInput,
   MarkAreaNotServedRequest,
   CreateOfferingRequest,
   CreateZoneRequest,
@@ -20,11 +22,16 @@ import {
   getZoneHistory,
   getZonePostcodes,
   listOfferings,
+  decideDeclaration,
+  getDeclaration,
+  listDeclarations,
+  listPricingRules,
   listShopOptions,
   listZones,
   postcodeCoverage,
   searchLocalities,
   removePostcode,
+  replacePricingRule,
   setShopLocation,
   updateOffering,
   updateZone,
@@ -188,5 +195,44 @@ export function useMarkAreaNotServed(zoneId: string, postcode: string) {
       // AND the health panel, not just this screen.
       void qc.invalidateQueries({ queryKey: ["delivery"] });
     },
+  });
+}
+
+// ── 032-delivery-pricing ───────────────────────────────────────────────────────────────────────
+
+export const pricingRulesQuery = () =>
+  queryOptions({
+    queryKey: [...DELIVERY_ROOT, "pricing"] as const,
+    queryFn: () => listPricingRules(),
+  });
+
+export function useReplacePricingRule(method: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DeliveryPricingRuleInput) => replacePricingRule(method, body),
+    onSuccess: () => invalidateDelivery(queryClient),
+  });
+}
+
+// ── 032: same-day approvals ────────────────────────────────────────────────────────────────────
+
+export const declarationQueueQuery = (status = "pending") =>
+  queryOptions({
+    queryKey: [...DELIVERY_ROOT, "declarations", status] as const,
+    queryFn: () => listDeclarations(status),
+  });
+
+export const declarationQuery = (id: string) =>
+  queryOptions({
+    queryKey: [...DELIVERY_ROOT, "declaration", id] as const,
+    queryFn: () => getDeclaration(id),
+  });
+
+export function useDecideDeclaration(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { action: "approve" | "decline" | "revoke"; body: DeclarationDecisionDTO }) =>
+      decideDeclaration(id, v.action, v.body),
+    onSuccess: () => invalidateDelivery(queryClient),
   });
 }

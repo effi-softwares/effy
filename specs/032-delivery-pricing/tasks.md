@@ -131,12 +131,12 @@ different basket weights are quoted different, sensible, rounded fees.
 
 ### Back-office console
 
-- [ ] T043 [P] [US1] Add pricing queries/mutations to `apps/back-office/src/features/delivery/queries.ts` and repo calls to `apps/back-office/src/features/delivery/repo.ts`
-- [ ] T044 [US1] Build `apps/back-office/src/features/delivery/PricingRulesScreen.tsx` — bands as a **table**, one section per method. ⚠ No cards, no new colour (Principle V)
-- [ ] T045 [US1] Add refusal copy for the six pricing refusals to `apps/back-office/src/features/delivery/errorText.ts` — each must say what to change, not "invalid"
-- [ ] T046 [US1] ⚠ Warn in `PricingRulesScreen.tsx` when a distance band is narrow enough to resolve to a single shop — **band width is a privacy parameter, not only a pricing one** (FR-033a). An admin narrowing bands is weakening hidden fulfilment and will not know unless told
-- [ ] T047 [P] [US1] Add `apps/back-office/src/features/delivery/PricingRulesScreen.test.tsx` covering the cap refusals and the narrow-band warning
-- [ ] T048 [US1] Wire the screen into `apps/back-office/src/routes/delivery.tsx`
+- [X] T043 [P] [US1] Add pricing queries/mutations to `apps/back-office/src/features/delivery/queries.ts` and repo calls to `apps/back-office/src/features/delivery/repo.ts`
+- [X] T044 [US1] Build `apps/back-office/src/features/delivery/PricingRulesScreen.tsx` — bands as a **table**, one section per method. ⚠ No cards, no new colour (Principle V)
+- [X] T045 [US1] Add refusal copy for the six pricing refusals to `apps/back-office/src/features/delivery/errorText.ts` — each must say what to change, not "invalid"
+- [X] T046 [US1] ⚠ Warn in `PricingRulesScreen.tsx` when a distance band is narrow enough to resolve to a single shop — **band width is a privacy parameter, not only a pricing one** (FR-033a). An admin narrowing bands is weakening hidden fulfilment and will not know unless told
+- [X] T047 [P] [US1] Add `apps/back-office/src/features/delivery/PricingRulesScreen.test.tsx` covering the cap refusals and the narrow-band warning
+- [X] T048 [US1] Wire the screen into `apps/back-office/src/routes/delivery.tsx`
 
 **Checkpoint**: US1 is independently shippable — better pricing on delivery the platform already
 offers, with no shop involvement. ⚠ Same-day still runs on the old rows until Phase 6.
@@ -151,34 +151,34 @@ offers, with no shop involvement. ⚠ Same-day still runs on the old rows until 
 
 ### Principle II — two extractions, not two copies
 
-- [ ] T049 [US2] ⚠ Promote 031's locality search query from `apis/edge-api/admin/src/delivery/localities.ts` into `apis/edge-api/shared/src/lib/localities.ts` (the `@effy/edge-shared` package) so both services share one definition of "a real place" — the move 028 made with the S3 presign helper
-- [ ] T050 [US2] ⚠ Re-run `apis/edge-api/admin` tests **unmodified** after T049 — if they need changing, the extraction changed behaviour. That is 028's proof-of-no-behaviour-change
-- [ ] T051 [US2] ⚠ Promote `PostcodeCoverageNotice` from `apps/back-office/src/features/delivery/components/` into `packages/web-kit/src/console/`, and have back-office consume it from there. **Copying it into shop-web instead would be the Principle II violation Principle II names** — and it is the worse component to duplicate, because it is a *correctness* surface: it is what stops an operator committing to twenty localities believing they chose one
-- [ ] T052 [US2] ⚠ Re-run `apps/back-office` tests **unmodified** after T051 — same proof as T050
+- [X] T049 [US2] ⚠ Promote 031's locality search query from `apis/edge-api/admin/src/delivery/localities.ts` into `apis/edge-api/shared/src/lib/localities.ts` (the `@effy/edge-shared` package) so both services share one definition of "a real place" — the move 028 made with the S3 presign helper
+- [X] T050 [US2] ⚠ Re-run `apis/edge-api/admin` tests **unmodified** after T049 — if they need changing, the extraction changed behaviour. That is 028's proof-of-no-behaviour-change
+- [X] T051 [US2] ⚠ Promote `PostcodeCoverageNotice` from `apps/back-office/src/features/delivery/components/` into `packages/web-kit/src/console/`, and have back-office consume it from there. **Copying it into shop-web instead would be the Principle II violation Principle II names** — and it is the worse component to duplicate, because it is a *correctness* surface: it is what stops an operator committing to twenty localities believing they chose one
+- [X] T052 [US2] ⚠ Re-run `apps/back-office` tests **unmodified** after T051 — same proof as T050
 
 ### Cold path — the declaration
 
-- [ ] T053 [P] [US2] Add declaration types to `apis/edge-api/shop/src/delivery/types.ts`
-- [ ] T054 [US2] Implement `apis/edge-api/shop/src/delivery/repository.ts` — read in-force + pending + last decision; insert a new pending version, replacing any existing pending row, ⚠ **leaving any approved row untouched** (FR-018)
-- [ ] T055 [US2] Implement `apis/edge-api/shop/src/delivery/declarations.ts` with the **six** refusals from contracts §C: `shop_location_required`, `shop_location_unmappable`, `unknown_postcode`, `areas_required`, `cutoff_required`, `areas_not_applicable`
-- [ ] T056 [US2] ⚠ `shop_location_unmappable` is its own refusal, not a variant of `shop_location_required` — a shop *with* a postcode that has **no centroid** passes the first check and then produces `straightLineKm: null` for every area, so FR-023's whole purpose evaporates silently at approval time. This is 031's live 3001 case reaching a second surface
-- [ ] T057 [US2] ⚠ In `apis/edge-api/shop/src/delivery/declarations.ts`, **ignore any client-supplied `status` field outright** — FR-021. A shop must not be able to approve itself even by sending the word
-- [ ] T058 [US2] Gate the write path on `shop_manager` at an **active** shop in `apis/edge-api/shop/src/delivery/authz.ts`, reusing 007's gate; `shop_staff` may read
-- [ ] T059 [P] [US2] Add `apis/edge-api/shop/src/delivery/declarations.test.ts` covering all six refusals **as distinguishable codes**, plus the FR-018 case: submitting a change leaves the approved row in force
-- [ ] T060 [P] [US2] Create `apis/edge-api/shop/src/functions/delivery-sameday-v1-get.ts`
-- [ ] T061 [P] [US2] Create `apis/edge-api/shop/src/functions/delivery-sameday-v1-put.ts`
-- [ ] T062 [P] [US2] Create `apis/edge-api/shop/src/functions/delivery-localities-v1-get.ts` calling the shared query from T049
-- [ ] T063 [US2] Register the three routes in `apis/edge-api/shop/serverless.yml` under a `# ── 032-delivery-pricing ──` banner. ⚠ **Add no pricing route** — FR-008/SC-004 are satisfied by the absence, and the banner comment must say so
+- [X] T053 [P] [US2] Add declaration types to `apis/edge-api/shop/src/delivery/types.ts`
+- [X] T054 [US2] Implement `apis/edge-api/shop/src/delivery/repository.ts` — read in-force + pending + last decision; insert a new pending version, replacing any existing pending row, ⚠ **leaving any approved row untouched** (FR-018)
+- [X] T055 [US2] Implement `apis/edge-api/shop/src/delivery/declarations.ts` with the **six** refusals from contracts §C: `shop_location_required`, `shop_location_unmappable`, `unknown_postcode`, `areas_required`, `cutoff_required`, `areas_not_applicable`
+- [X] T056 [US2] ⚠ `shop_location_unmappable` is its own refusal, not a variant of `shop_location_required` — a shop *with* a postcode that has **no centroid** passes the first check and then produces `straightLineKm: null` for every area, so FR-023's whole purpose evaporates silently at approval time. This is 031's live 3001 case reaching a second surface
+- [X] T057 [US2] ⚠ In `apis/edge-api/shop/src/delivery/declarations.ts`, **ignore any client-supplied `status` field outright** — FR-021. A shop must not be able to approve itself even by sending the word
+- [X] T058 [US2] Gate the write path on `shop_manager` at an **active** shop in `apis/edge-api/shop/src/delivery/authz.ts`, reusing 007's gate; `shop_staff` may read
+- [X] T059 [P] [US2] Add `apis/edge-api/shop/src/delivery/declarations.test.ts` covering all six refusals **as distinguishable codes**, plus the FR-018 case: submitting a change leaves the approved row in force
+- [X] T060 [P] [US2] Create `apis/edge-api/shop/src/functions/delivery-sameday-v1-get.ts`
+- [X] T061 [P] [US2] Create `apis/edge-api/shop/src/functions/delivery-sameday-v1-put.ts`
+- [X] T062 [P] [US2] Create `apis/edge-api/shop/src/functions/delivery-localities-v1-get.ts` calling the shared query from T049
+- [X] T063 [US2] Register the three routes in `apis/edge-api/shop/serverless.yml` under a `# ── 032-delivery-pricing ──` banner. ⚠ **Add no pricing route** — FR-008/SC-004 are satisfied by the absence, and the banner comment must say so
 
 ### Shop console
 
-- [ ] T064 [P] [US2] Add queries/repo in `apps/shop-web/src/features/delivery/queries.ts` and `apps/shop-web/src/features/delivery/repo.ts`
-- [ ] T065 [US2] Build `apps/shop-web/src/features/delivery/SameDayScreen.tsx` — the toggle, the cutoff, the area picker, and **both** `inForce` and `pending` shown as distinct facts (FR-018/FR-019)
-- [ ] T066 [US2] Consume the **shared** `PostcodeCoverageNotice` from `@effy/web-kit/console` in the area picker — choosing "Alfredton" commits the shop to **all 20** Ballarat localities, and it must say so **before** confirming
-- [ ] T067 [US2] ⚠ Wire the disclosure to **real data**, not a placeholder — 031 shipped two disclosures hardcoded to `siblingCount={0}` and `shops={[]}` so neither would ever have rendered. Add a test that fails when the count is zero-by-construction
-- [ ] T068 [US2] Render **both** location refusal states with their reasons in `SameDayScreen.tsx` (no postcode; postcode with no centroid) so a shop is told **before** filling in a form (FR-020)
-- [ ] T069 [P] [US2] Add `apps/shop-web/src/features/delivery/SameDayScreen.test.tsx` covering: pending + in-force shown together, the disclosure rendering a non-zero count, and both no-location states
-- [ ] T070 [US2] Add the route `apps/shop-web/src/routes/delivery.tsx` and the nav entry in `apps/shop-web/src/components/layout/nav.ts`
+- [X] T064 [P] [US2] Add queries/repo in `apps/shop-web/src/features/delivery/queries.ts` and `apps/shop-web/src/features/delivery/repo.ts`
+- [X] T065 [US2] Build `apps/shop-web/src/features/delivery/SameDayScreen.tsx` — the toggle, the cutoff, the area picker, and **both** `inForce` and `pending` shown as distinct facts (FR-018/FR-019)
+- [X] T066 [US2] Consume the **shared** `PostcodeCoverageNotice` from `@effy/web-kit/console` in the area picker — choosing "Alfredton" commits the shop to **all 20** Ballarat localities, and it must say so **before** confirming
+- [X] T067 [US2] ⚠ Wire the disclosure to **real data**, not a placeholder — 031 shipped two disclosures hardcoded to `siblingCount={0}` and `shops={[]}` so neither would ever have rendered. Add a test that fails when the count is zero-by-construction
+- [X] T068 [US2] Render **both** location refusal states with their reasons in `SameDayScreen.tsx` (no postcode; postcode with no centroid) so a shop is told **before** filling in a form (FR-020)
+- [X] T069 [P] [US2] Add `apps/shop-web/src/features/delivery/SameDayScreen.test.tsx` covering: pending + in-force shown together, the disclosure rendering a non-zero count, and both no-location states
+- [X] T070 [US2] Add the route `apps/shop-web/src/routes/delivery.tsx` and the nav entry in `apps/shop-web/src/components/layout/nav.ts`
 
 **Checkpoint**: US2 is shippable alone — a proposal that changes nothing is safe by construction.
 
@@ -191,25 +191,25 @@ offers, with no shop involvement. ⚠ Same-day still runs on the old rows until 
 **Independent test**: approve one declaration and decline another; the approved shop's shoppers gain
 same-day and the declined shop's do not.
 
-- [ ] T071 [P] [US3] Add approval types to `apis/edge-api/admin/src/delivery/types.ts`
-- [ ] T072 [US3] Implement `apis/edge-api/admin/src/delivery/approvals-repository.ts` — the queue, and one declaration joined to `postcode_centroid` for **both** shop and each requested area
-- [ ] T073 [US3] Compute `straightLineKm` per requested area in `apis/edge-api/admin/src/delivery/approvals.ts` — ⚠ **`null` when either point is missing, never `0`**, and carry `localityCount` beside it so a 41-locality centroid (0872) is visible as nonsense
-- [ ] T074 [US3] ⚠ Implement approve as **two writes in one transaction** in `apis/edge-api/admin/src/delivery/approvals-repository.ts`: the in-force row → **`superseded`** (not `revoked`) **first**, then the pending row → `approved` with **`supersedes_id`** set. The partial unique index is non-deferrable — this is 022's `23505` lesson, and the order is load-bearing
-- [ ] T075 [US3] ⚠ Keep `revoked` and `superseded` distinct in `apis/edge-api/admin/src/delivery/approvals.ts` — an admin withdrawing service and a shop's own update going live both end an approval, but a shop reading its history must be able to tell them apart. `revoked` requires a note; `superseded` has no human to explain it
-- [ ] T076 [US3] Implement decline (reason required → `422 reason_required`) and revoke (`409 not_in_force`) in `apis/edge-api/admin/src/delivery/approvals.ts`
-- [ ] T077 [US3] Write every decision to `admin.audit_log` and set `decided_by`/`decided_at` in the same transaction (FR-026/SC-014)
-- [ ] T078 [P] [US3] Add `apis/edge-api/admin/src/delivery/approvals.test.ts`: `409 not_pending`, `422 reason_required`, `409 not_in_force`, ⚠ **the supersede ordering** (approving with one in force leaves exactly one approved row), and ⚠ **that the superseded row reads `superseded`, not `revoked`**
-- [ ] T079 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declarations-list-v1-get.ts`
-- [ ] T080 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-get-v1-get.ts`
-- [ ] T081 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-approve-v1-post.ts`
-- [ ] T082 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-decline-v1-post.ts`
-- [ ] T083 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-revoke-v1-post.ts`
-- [ ] T084 [US3] Register the five routes in `apis/edge-api/admin/serverless.yml` at `/admin/v1/delivery-declarations…`
-- [ ] T085 [US3] Build `apps/back-office/src/features/delivery/ApprovalQueueScreen.tsx` — a **table**, columns shop · areas · furthest distance · submitted. ⚠ No cards
-- [ ] T086 [US3] Build the detail view showing **every requested area with its distance**, labelled ⚠ **"straight-line"** — calling it "distance" invites an admin to read it as road distance and decide on a number 7% optimistic (FR-023)
-- [ ] T087 [US3] ⚠ Render a `null` distance as **"no location on record"**, never as `0` and never as an empty cell that reads as "close" (FR-038)
-- [ ] T088 [P] [US3] Add `apps/back-office/src/features/delivery/ApprovalQueueScreen.test.tsx` asserting the ⚠ **98 km** Ballarat/Bendigo row renders with its unit and its "straight-line" label, and that a null distance renders its own text
-- [ ] T089 [US3] Add the approvals route/tab to `apps/back-office/src/routes/delivery.tsx`
+- [X] T071 [P] [US3] Add approval types to `apis/edge-api/admin/src/delivery/types.ts`
+- [X] T072 [US3] Implement `apis/edge-api/admin/src/delivery/approvals-repository.ts` — the queue, and one declaration joined to `postcode_centroid` for **both** shop and each requested area
+- [X] T073 [US3] Compute `straightLineKm` per requested area in `apis/edge-api/admin/src/delivery/approvals.ts` — ⚠ **`null` when either point is missing, never `0`**, and carry `localityCount` beside it so a 41-locality centroid (0872) is visible as nonsense
+- [X] T074 [US3] ⚠ Implement approve as **two writes in one transaction** in `apis/edge-api/admin/src/delivery/approvals-repository.ts`: the in-force row → **`superseded`** (not `revoked`) **first**, then the pending row → `approved` with **`supersedes_id`** set. The partial unique index is non-deferrable — this is 022's `23505` lesson, and the order is load-bearing
+- [X] T075 [US3] ⚠ Keep `revoked` and `superseded` distinct in `apis/edge-api/admin/src/delivery/approvals.ts` — an admin withdrawing service and a shop's own update going live both end an approval, but a shop reading its history must be able to tell them apart. `revoked` requires a note; `superseded` has no human to explain it
+- [X] T076 [US3] Implement decline (reason required → `422 reason_required`) and revoke (`409 not_in_force`) in `apis/edge-api/admin/src/delivery/approvals.ts`
+- [X] T077 [US3] Write every decision to `admin.audit_log` and set `decided_by`/`decided_at` in the same transaction (FR-026/SC-014)
+- [X] T078 [P] [US3] Add `apis/edge-api/admin/src/delivery/approvals.test.ts`: `409 not_pending`, `422 reason_required`, `409 not_in_force`, ⚠ **the supersede ordering** (approving with one in force leaves exactly one approved row), and ⚠ **that the superseded row reads `superseded`, not `revoked`**
+- [X] T079 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declarations-list-v1-get.ts`
+- [X] T080 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-get-v1-get.ts`
+- [X] T081 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-approve-v1-post.ts`
+- [X] T082 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-decline-v1-post.ts`
+- [X] T083 [P] [US3] Create `apis/edge-api/admin/src/functions/delivery-declaration-revoke-v1-post.ts`
+- [X] T084 [US3] Register the five routes in `apis/edge-api/admin/serverless.yml` at `/admin/v1/delivery-declarations…`
+- [X] T085 [US3] Build `apps/back-office/src/features/delivery/ApprovalQueueScreen.tsx` — a **table**, columns shop · areas · furthest distance · submitted. ⚠ No cards
+- [X] T086 [US3] Build the detail view showing **every requested area with its distance**, labelled ⚠ **"straight-line"** — calling it "distance" invites an admin to read it as road distance and decide on a number 7% optimistic (FR-023)
+- [X] T087 [US3] ⚠ Render a `null` distance as **"no location on record"**, never as `0` and never as an empty cell that reads as "close" (FR-038)
+- [X] T088 [P] [US3] Add `apps/back-office/src/features/delivery/ApprovalQueueScreen.test.tsx` asserting the ⚠ **98 km** Ballarat/Bendigo row renders with its unit and its "straight-line" label, and that a null distance renders its own text
+- [X] T089 [US3] Add the approvals route/tab to `apps/back-office/src/routes/delivery.tsx`
 
 **Checkpoint**: US3 makes US2 safe rather than merely recorded.
 
@@ -221,16 +221,16 @@ same-day and the declined shop's do not.
 
 **Independent test**: two shoppers, one inside an approved area and one outside, identical baskets.
 
-- [ ] T090 [US4] Extend `apis/core-api/internal/features/checkout/delivery_store.go` to read approved declarations + their areas for the cart's shops, in the same wave as T039
-- [ ] T091 [US4] ⚠ Rewrite same-day eligibility in `apis/core-api/internal/platform/delivery/delivery.go` to the **four**-term test in contracts §D — approved declaration **and** destination in its areas **and** before cutoff **and** the destination still serviced at all. **Zone membership is a precondition, never evidence for** (FR-029/FR-030a)
-- [ ] T092 [US4] ⚠ Evaluate the cutoff in **`Australia/Melbourne`**, not UTC and not the device clock, in `apis/core-api/internal/platform/delivery/delivery.go` — `time.Now()` on a UTC container puts the cutoff 10 or 11 hours wrong depending on daylight saving, and the error appears only in the evening and only in summer
-- [ ] T093 [P] [US4] Update `apis/core-api/internal/platform/delivery/delivery_test.go`: approved+in-area+before-cutoff → offered; each of the four terms negated → not offered; ⚠ **a shop sharing a zone with no approval → NOT offered**; and ⚠ an approved area later removed from every zone → NOT offered (FR-030a)
-- [ ] T094 [US4] ⚠ **NOW** add a second migration removing the superseded storage: `DELETE FROM public.delivery_offering WHERE method = 'same_day'` and `ALTER TABLE public.delivery_offering DROP COLUMN price_amount, DROP COLUMN same_day_cutoff`. **This lands here, not in Phase 2**, because between the deletion and T091 the old predicate has nothing to read and the new one does not exist — same-day would be offered to **nobody**. Down comment must state it is irreversible
-- [ ] T095 [US4] Stop reading `price_amount` and `same_day_cutoff` from `delivery_offering` in `apis/core-api/internal/features/checkout/delivery_store.go` — ⚠ **all three methods are priced by the rules now** (R3a); the grid retains only the window, the lead time and whether a leg is offered
-- [ ] T096 [US4] Apply eligibility per package in `apis/core-api/internal/features/checkout/quote.go` so a two-shop basket offers same-day on only the approved shop's package (FR-031/SC-011)
-- [ ] T097 [P] [US4] Add a two-shop fan-out test in `apis/core-api/internal/features/checkout/service_test.go` asserting same-day on exactly one package
-- [ ] T098 [US4] Confirm standard delivery is unaffected by any same-day decision in `apis/core-api/internal/platform/delivery/delivery.go` and pin it with a test (FR-032/SC-015)
-- [ ] T099 [US4] ⚠ Re-run `go test ./...` in `apis/core-api` against **R8's narrowed guard**: the same-day *eligibility* assertions in `delivery_test.go` are a **named, expected delta**; **everything else** — standard/scheduled options, ordering, labels, all of `checkout/service_test.go` bar fee values, all of `storefront` — must pass **unmodified**. Anything outside the named delta needing a change is a signal to re-read the design
+- [X] T090 [US4] Extend `apis/core-api/internal/features/checkout/delivery_store.go` to read approved declarations + their areas for the cart's shops, in the same wave as T039
+- [X] T091 [US4] ⚠ Rewrite same-day eligibility in `apis/core-api/internal/platform/delivery/delivery.go` to the **four**-term test in contracts §D — approved declaration **and** destination in its areas **and** before cutoff **and** the destination still serviced at all. **Zone membership is a precondition, never evidence for** (FR-029/FR-030a)
+- [X] T092 [US4] ⚠ Evaluate the cutoff in **`Australia/Melbourne`**, not UTC and not the device clock, in `apis/core-api/internal/platform/delivery/delivery.go` — `time.Now()` on a UTC container puts the cutoff 10 or 11 hours wrong depending on daylight saving, and the error appears only in the evening and only in summer
+- [X] T093 [P] [US4] Update `apis/core-api/internal/platform/delivery/delivery_test.go`: approved+in-area+before-cutoff → offered; each of the four terms negated → not offered; ⚠ **a shop sharing a zone with no approval → NOT offered**; and ⚠ an approved area later removed from every zone → NOT offered (FR-030a)
+- [X] T094 [US4] ⚠ **NOW** add a second migration removing the superseded storage: `DELETE FROM public.delivery_offering WHERE method = 'same_day'` and `ALTER TABLE public.delivery_offering DROP COLUMN price_amount, DROP COLUMN same_day_cutoff`. **This lands here, not in Phase 2**, because between the deletion and T091 the old predicate has nothing to read and the new one does not exist — same-day would be offered to **nobody**. Down comment must state it is irreversible
+- [X] T095 [US4] Stop reading `price_amount` and `same_day_cutoff` from `delivery_offering` in `apis/core-api/internal/features/checkout/delivery_store.go` — ⚠ **all three methods are priced by the rules now** (R3a); the grid retains only the window, the lead time and whether a leg is offered
+- [X] T096 [US4] Apply eligibility per package in `apis/core-api/internal/features/checkout/quote.go` so a two-shop basket offers same-day on only the approved shop's package (FR-031/SC-011)
+- [X] T097 [P] [US4] Add a two-shop fan-out test in `apis/core-api/internal/features/checkout/service_test.go` asserting same-day on exactly one package
+- [X] T098 [US4] Confirm standard delivery is unaffected by any same-day decision in `apis/core-api/internal/platform/delivery/delivery.go` and pin it with a test (FR-032/SC-015)
+- [X] T099 [US4] ⚠ Re-run `go test ./...` in `apis/core-api` against **R8's narrowed guard**: the same-day *eligibility* assertions in `delivery_test.go` are a **named, expected delta**; **everything else** — standard/scheduled options, ordering, labels, all of `checkout/service_test.go` bar fee values, all of `storefront` — must pass **unmodified**. Anything outside the named delta needing a change is a signal to re-read the design
 
 **Checkpoint**: the feature is visible to a shopper — as a correct quote, not a new screen.
 
@@ -238,16 +238,16 @@ same-day and the declined shop's do not.
 
 ## Phase 7: Polish & cross-cutting
 
-- [ ] T100 [P] Declare the counters in `apis/core-api/internal/platform/metrics/metrics.go` and call them from `apis/core-api/internal/features/checkout/` — quote outcomes by method (`offered`/`not_offered`) and a **cap-hit counter**. ⚠ Low cardinality: no postcode, no shop id, no distance (R9)
-- [ ] T101 [P] Add the two Grafana alerts named in plan.md § Constitution Check — **quote failure rate** (the money path) and **cap-hit rate** (the bands are wrong). ⚠ No alert on same-day offer volume: it legitimately drops to zero when no approval is in force, and an alarm that fires on correct behaviour gets muted
-- [ ] T102 ⚠ Record in this file and at sign-off that the **cold path emits no metric** — no service on this platform does. It is an exception in plan.md § Complexity Tracking, not a silent gap
-- [ ] T103 [P] Add §032 to `docs/audiences/admin-capabilities.md` — pricing rules and the approval queue, with the known limits stated (straight-line distance, postcode centroids, 0872, the coarse-distance leak in FR-033a)
-- [ ] T104 [P] Add §032 to `docs/audiences/shop-capabilities.md` — the same-day declaration and product weight, ⚠ noting the **mobile column is outstanding by design** (shop-mobile gets no delivery screen in this slice)
-- [ ] T105 ⚠ Relabel or remove `apps/back-office/src/features/delivery/RatesScreen.tsx` — with `price_amount` dropped it lists **no rates**. It shows service windows now, and a screen called "Rates" that shows none is how the next reader concludes the feature half-landed (031 deleted its rate *editor* on exactly this principle)
-- [ ] T106 ⚠ Update `specs/031-delivery-areas/research.md` and `CLAUDE.md` to record that 031's R6 premise ("the platform has no routing or distance capability") **was wrong** — the data was already on disk. A future reader will otherwise repeat the reasoning that permitted same-day across 98 km
-- [ ] T107 [P] Update `db/reference/README.md` to note the coordinate columns and keep the CC BY 4.0 attribution intact — ⚠ attribution is a licence condition, not a courtesy
-- [ ] T108 Run the full machine sweep from quickstart §7: `pnpm -r typecheck` (⚠ **count the reporting packages** — 029 had green tests over a failing typecheck), `pnpm -r test`, `turbo build`, `go build/vet/test/gofmt`, `make lint`
-- [ ] T109 ⚠ Run `scripts/check-no-emerald.sh`, `scripts/check-no-jade.sh` and `pnpm --filter @effy/design-system tokens:check` (**not** a root `pnpm tokens:check` — no such script exists) — all must be **unchanged**; this slice adds no token and no colour
+- [X] T100 [P] Declare the counters in `apis/core-api/internal/platform/metrics/metrics.go` and call them from `apis/core-api/internal/features/checkout/` — quote outcomes by method (`offered`/`not_offered`) and a **cap-hit counter**. ⚠ Low cardinality: no postcode, no shop id, no distance (R9)
+- [ ] T101 [P] ⚠ **BLOCKED — NOT DONE.** The two alert rules are WRITTEN at `infra/observability/alerts/032-delivery-pricing.yml`, but **there is no Prometheus and no Grafana anywhere in `infra/`** — nothing scrapes `/metrics` and there is nowhere to declare an alert. Found during implementation, not planning. Provisioning the metrics stack is its own slice; the rules are committed in the format it will consume, with a README stating plainly that nothing loads them. ⚠ The cap-hit threshold is an admitted guess. See plan.md § Complexity Tracking.
+- [X] T102 ⚠ Record in this file and at sign-off that the **cold path emits no metric** — no service on this platform does. It is an exception in plan.md § Complexity Tracking, not a silent gap
+- [X] T103 [P] Add §032 to `docs/audiences/admin-capabilities.md` — pricing rules and the approval queue, with the known limits stated (straight-line distance, postcode centroids, 0872, the coarse-distance leak in FR-033a)
+- [X] T104 [P] Add §032 to `docs/audiences/shop-capabilities.md` — the same-day declaration and product weight, ⚠ noting the **mobile column is outstanding by design** (shop-mobile gets no delivery screen in this slice)
+- [X] T105 ⚠ Relabel or remove `apps/back-office/src/features/delivery/RatesScreen.tsx` — with `price_amount` dropped it lists **no rates**. It shows service windows now, and a screen called "Rates" that shows none is how the next reader concludes the feature half-landed (031 deleted its rate *editor* on exactly this principle)
+- [X] T106 ⚠ Update `specs/031-delivery-areas/research.md` and `CLAUDE.md` to record that 031's R6 premise ("the platform has no routing or distance capability") **was wrong** — the data was already on disk. A future reader will otherwise repeat the reasoning that permitted same-day across 98 km
+- [X] T107 [P] Update `db/reference/README.md` to note the coordinate columns and keep the CC BY 4.0 attribution intact — ⚠ attribution is a licence condition, not a courtesy
+- [X] T108 Run the full machine sweep from quickstart §7: `pnpm -r typecheck` (⚠ **count the reporting packages** — 029 had green tests over a failing typecheck), `pnpm -r test`, `turbo build`, `go build/vet/test/gofmt`, `make lint`
+- [X] T109 ⚠ Run `scripts/check-no-emerald.sh`, `scripts/check-no-jade.sh` and `pnpm --filter @effy/design-system tokens:check` (**not** a root `pnpm tokens:check` — no such script exists) — all must be **unchanged**; this slice adds no token and no colour
 
 ---
 

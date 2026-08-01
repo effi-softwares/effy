@@ -25,14 +25,13 @@ import type { PostcodeCoverageDTO } from "@effy/shared-types";
  * ⚠ SC-003 is an observer test with admins, because "technically displayed" and "actually understood"
  * are different things and only the second prevents the defect.
  */
-export function PostcodeCoverageNotice({
-  coverage,
-  mode = "add",
-}: {
+export interface PostcodeCoverageNoticeProps {
   coverage: PostcodeCoverageDTO | undefined;
   /** `remove` flips the sentence to what STOPS being served — the more dangerous direction (FR-007). */
   mode?: "add" | "remove";
-}) {
+}
+
+export function PostcodeCoverageNotice({ coverage, mode = "add" }: PostcodeCoverageNoticeProps) {
   if (!coverage) return null;
 
   const { postcode, count, places } = coverage;

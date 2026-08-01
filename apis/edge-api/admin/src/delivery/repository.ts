@@ -5,7 +5,12 @@
 // as the change it records (FR-018). Mirrors the 009 shops/repository.ts structure.
 import type { PoolClient } from "pg";
 
-import { query, withTransaction } from "@effy/edge-shared";
+import {
+  localitiesForPostcode as sharedLocalitiesForPostcode,
+  query,
+  searchLocalitiesByName,
+  withTransaction,
+} from "@effy/edge-shared";
 
 import {
   type AreaDecision,
@@ -48,10 +53,10 @@ interface OfferingRow {
   destination_zone_id: string;
   destination_zone_name: string;
   method: DeliveryMethod;
-  price_amount: string; // pg numeric → string
+  // ⚠ price_amount and same_day_cutoff are DROPPED by the 032 cutover — the pricing rules are the
+  // single source of a delivery fee, and the same-day cutoff lives on the shop's declaration.
   lead_days_min: number;
   lead_days_max: number;
-  same_day_cutoff: string | null; // pg time → 'HH:MM:SS'
   status: DeliveryStatus;
   created_at: Date;
   updated_at: Date;
@@ -98,11 +103,13 @@ function mapOffering(row: OfferingRow): Offering {
     destinationZoneId: row.destination_zone_id,
     destinationZoneName: row.destination_zone_name,
     method: row.method,
-    priceAmount: row.price_amount,
+    // ⚠ The grid no longer prices anything (032). Reported as "—" so an operator reading an old
+    // screenshot is not left wondering where the number went.
+    priceAmount: "—",
     leadDaysMin: row.lead_days_min,
     leadDaysMax: row.lead_days_max,
     // Normalise pg 'HH:MM:SS' → the DTO's 'HH:mm'; NULL stays null.
-    sameDayCutoff: row.same_day_cutoff ? row.same_day_cutoff.slice(0, 5) : null,
+    sameDayCutoff: null,
     status: row.status,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -349,8 +356,8 @@ export async function listOfferings(params: {
   const res = await query<OfferingRow>(
     `SELECT o.id, o.origin_zone_id, oz.name AS origin_zone_name,
             o.destination_zone_id, dz.name AS destination_zone_name,
-            o.method, o.price_amount, o.lead_days_min, o.lead_days_max,
-            o.same_day_cutoff, o.status, o.created_at, o.updated_at,
+            o.method, o.lead_days_min, o.lead_days_max,
+            o.status, o.created_at, o.updated_at,
             count(*) OVER() AS total
        FROM public.delivery_offering o
        JOIN public.delivery_zone oz ON oz.id = o.origin_zone_id
@@ -369,8 +376,8 @@ async function readOffering(offeringId: string): Promise<Offering | null> {
   const res = await query<OfferingRow>(
     `SELECT o.id, o.origin_zone_id, oz.name AS origin_zone_name,
             o.destination_zone_id, dz.name AS destination_zone_name,
-            o.method, o.price_amount, o.lead_days_min, o.lead_days_max,
-            o.same_day_cutoff, o.status, o.created_at, o.updated_at,
+            o.method, o.lead_days_min, o.lead_days_max,
+            o.status, o.created_at, o.updated_at,
             0 AS total
        FROM public.delivery_offering o
        JOIN public.delivery_zone oz ON oz.id = o.origin_zone_id
@@ -414,19 +421,19 @@ export async function createOffering(
     let id: string;
     try {
       const ins = await client.query<{ id: string }>(
+        // ⚠ NO price_amount AND NO same_day_cutoff (032 cutover drops both columns). Writing either
+        // would 500 every offering save the moment that migration lands — the grid now records only
+        // WHICH methods are offered on a leg and how long they take.
         `INSERT INTO public.delivery_offering
-              (origin_zone_id, destination_zone_id, method, price_amount,
-               lead_days_min, lead_days_max, same_day_cutoff)
-              VALUES ($1, $2, $3, $4, $5, $6, $7)
+              (origin_zone_id, destination_zone_id, method, lead_days_min, lead_days_max)
+              VALUES ($1, $2, $3, $4, $5)
            RETURNING id`,
         [
           input.originZoneId,
           input.destinationZoneId,
           input.method,
-          input.priceAmount,
           input.leadDaysMin,
           input.leadDaysMax,
-          input.sameDayCutoff,
         ],
       );
       id = ins.rows[0]!.id;
@@ -464,17 +471,9 @@ export async function updateOffering(
   await withTransaction(async (client) => {
     const res = await client.query<{ id: string }>(
       `UPDATE public.delivery_offering
-          SET price_amount = $2, lead_days_min = $3, lead_days_max = $4,
-              same_day_cutoff = $5, status = $6, updated_at = now()
+          SET lead_days_min = $2, lead_days_max = $3, status = $4, updated_at = now()
         WHERE id = $1 RETURNING id`,
-      [
-        offeringId,
-        values.priceAmount,
-        values.leadDaysMin,
-        values.leadDaysMax,
-        values.sameDayCutoff,
-        values.status,
-      ],
+      [offeringId, values.leadDaysMin, values.leadDaysMax, values.status],
     );
     if (!res.rows[0]) throw new DeliveryErr("not_found", "offering not found");
     await insertAudit(client, actorSub, "delivery_offering.update", "delivery_offering", offeringId, {
@@ -517,19 +516,14 @@ export async function setShopLocation(
  */
 
 /** Find places an operator could mean. Prefix match, served by 030's `locality_name_prefix_idx`. */
+// ⚠ DELEGATED TO @effy/edge-shared (032) — the shop console runs the same query, and two copies
+// would be two definitions of "a real place", free to drift. Kept as a function here because this
+// module is the admin service's data-access seam and what its tests mock.
 export async function searchLocalities(
   q: string,
   limit: number,
 ): Promise<{ name: string; state: string; postcode: string }[]> {
-  const res = await query<{ name: string; state: string; postcode: string }>(
-    `SELECT name, state, postcode
-       FROM public.locality
-      WHERE lower(name) LIKE lower($1) || '%'
-      ORDER BY name, state, postcode
-      LIMIT $2`,
-    [q, limit],
-  );
-  return res.rows;
+  return searchLocalitiesByName(q, limit);
 }
 
 /**
@@ -541,11 +535,7 @@ export async function searchLocalities(
 export async function localitiesForPostcode(
   postcode: string,
 ): Promise<{ name: string; state: string; postcode: string }[]> {
-  const res = await query<{ name: string; state: string; postcode: string }>(
-    `SELECT name, state, postcode FROM public.locality WHERE postcode = $1 ORDER BY name`,
-    [postcode],
-  );
-  return res.rows;
+  return sharedLocalitiesForPostcode(postcode);
 }
 
 export async function getAreaDecision(
@@ -656,10 +646,10 @@ export async function areaServiceLevels(
   }>(
     `SELECT method,
             bool_or(status = 'active')            AS enabled,
-            array_agg(DISTINCT price_amount::text) AS fees,
+            '{}'::text[]                           AS fees,
             min(lead_days_min)                     AS lead_days_min,
             max(lead_days_max)                     AS lead_days_max,
-            min(same_day_cutoff)::text             AS same_day_cutoff
+            NULL::text                             AS same_day_cutoff
        FROM public.delivery_offering
       WHERE destination_zone_id = $1
       GROUP BY method`,

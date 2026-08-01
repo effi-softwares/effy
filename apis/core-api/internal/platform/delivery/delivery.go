@@ -25,14 +25,21 @@ const (
 	MethodStandard  Method = "standard"
 )
 
-// Offering is one row of the rate table for a leg (a (origin zone -> destination zone) pair): a method,
-// its price, its window, and — for same-day — the daily cutoff after which it is withdrawn.
+// Offering is one row of the rate table for a leg (a (origin zone -> destination zone) pair): which
+// method is offered, and its promised window.
+//
+// ⚠ NARROWED BY 032. It no longer carries a PRICE (the platform's pricing rules are the single source
+// of a delivery fee — see pricing.go) and no longer carries a same-day CUTOFF (that describes a
+// shop's working day and lives on its declaration — see sameday.go). Both columns are dropped by the
+// cutover migration, so there is nothing left to read them from.
+//
+// PriceCents survives only as the type's zero value on rows the store builds; nothing reads it. ⚠ Do
+// not repopulate it — a second source for a delivery fee is precisely what 032 removed.
 type Offering struct {
-	Method        Method
-	PriceCents    int64
-	LeadDaysMin   int
-	LeadDaysMax   int
-	SameDayCutoff *time.Time // wall-clock time-of-day (only the H:M:S matter); nil = no cutoff
+	Method      Method
+	PriceCents  int64
+	LeadDaysMin int
+	LeadDaysMax int
 }
 
 // Option is a selectable delivery option presented to the customer for one package.
@@ -67,8 +74,15 @@ func serviceLevelLabel(m Method) string {
 func Options(offerings []Offering, now time.Time, scheduleHorizonDays int) []Option {
 	out := make([]Option, 0, len(offerings))
 	for _, o := range offerings {
-		if o.Method == MethodSameDay && pastCutoff(o.SameDayCutoff, now) {
-			continue // same-day no longer offerable today
+		// ⚠ SAME-DAY IS NO LONGER DECIDED HERE (032, FR-029).
+		//
+		// Until this feature, a same_day row in the rate grid MEANT same-day was offered — so zone
+		// REGIONAL, holding both Ballarat and Bendigo, let a shop 98 km away serve Ballarat "because
+		// it was nearby". Eligibility is now a statement a shop made and an admin approved; see
+		// SamedayOffered in sameday.go. The grid's same_day rows are deleted by the 032 cutover
+		// migration, so this branch is defence in depth against a stale row, not a live path.
+		if o.Method == MethodSameDay {
+			continue
 		}
 		opt := Option{
 			Method:       o.Method,
@@ -98,16 +112,6 @@ func methodRank(m Method) int {
 	default:
 		return 3
 	}
-}
-
-// pastCutoff reports whether now's time-of-day is at/after the cutoff's time-of-day (same-day withdrawn).
-func pastCutoff(cutoff *time.Time, now time.Time) bool {
-	if cutoff == nil {
-		return false
-	}
-	nowMins := now.Hour()*60 + now.Minute()
-	cutMins := cutoff.Hour()*60 + cutoff.Minute()
-	return nowMins >= cutMins
 }
 
 // window renders a human window from the lead days. 0/0 => same-day language; else "in N-M days".

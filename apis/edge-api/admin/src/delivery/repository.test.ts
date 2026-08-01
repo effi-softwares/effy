@@ -75,7 +75,13 @@ describe("delivery repository reads", () => {
     expect((query.mock.calls[0]![0] as string)).toContain("GROUP BY z.id");
   });
 
-  it("listOfferings joins both zones for names and normalises the cutoff time to HH:mm", async () => {
+  // ⚠ AMENDED BY THE 032 CUTOVER — an expected delta, not a regression.
+  //
+  // This asserted that the grid carried a PRICE and a same-day CUTOFF. Both columns are dropped:
+  // delivery fees come from the pricing rules (the single source), and the cutoff describes a shop's
+  // working day and lives on its declaration. What the grid still decides — which methods are offered
+  // on a leg, and how long they take — is asserted below, unchanged.
+  it("listOfferings joins both zones for names", async () => {
     query.mockResolvedValue({
       rows: [
         {
@@ -100,8 +106,10 @@ describe("delivery repository reads", () => {
     expect(page.items[0]).toMatchObject({
       originZoneName: "Melbourne Metro",
       destinationZoneName: "Geelong",
-      priceAmount: "7.00",
-      sameDayCutoff: "14:00",
+      method: "same_day",
+      // ⚠ The grid no longer prices anything; "—" is what an operator sees where a number used to be.
+      priceAmount: "—",
+      sameDayCutoff: null,
     });
   });
 });

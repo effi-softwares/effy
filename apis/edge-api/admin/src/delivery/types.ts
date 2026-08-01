@@ -85,6 +85,7 @@ export type DeliveryErrorKind =
  * six rules they broke — the same reasoning behind 027's eight distinguishable promo refusals.
  */
 export type DeliveryRefusalCode =
+  | "reason_required"
   | "bands_required"
   | "duplicate_band"
   | "invalid_rounding"
@@ -241,4 +242,56 @@ export interface PricingRuleInput {
   status: DeliveryStatus;
   distanceBands: PriceBand[];
   weightBands: PriceBand[];
+}
+
+/* ── 032: same-day declarations & approvals ────────────────────────────────────────────────────
+ *
+ * ⚠ ELIGIBILITY IS PER SHOP; PRICE IS NOT. 031 collapsed the origin dimension, arguing a shopper
+ * cannot perceive which shop serves them. That is true for PRICE and false for ELIGIBILITY —
+ * whether same-day is physically possible depends entirely on which shop holds the goods.
+ */
+
+/**
+ * ⚠ `revoked` and `superseded` are DIFFERENT FACTS and must not share a value.
+ *
+ * An admin withdrawing a shop's same-day service and a shop's own newer declaration being approved
+ * both end an approval, but a shop reading its history has to tell "they took this away from us"
+ * from "our update went live". `superseded` is set by the platform and carries no note; `revoked` is
+ * set by a person and requires one.
+ */
+export type DeclarationStatus = "pending" | "approved" | "declined" | "revoked" | "superseded";
+
+/** One requested area as an admin sees it at approval time. */
+export interface DeclarationAreaReview {
+  postcode: string;
+  places: string[];
+  localityCount: number;
+  /**
+   * ⚠ NAMED FOR WHAT IT IS. Calling this `distanceKm` would let an admin read it as road distance and
+   * decide on a figure ~7% optimistic. FR-023 exists because the check this replaces reported "a shop
+   * is nearby" while meaning 98 km — swapping one misleading signal for another would be worse than
+   * leaving it alone.
+   *
+   * ⚠ NULL means NO KNOWN LOCATION and must render as such — never as 0, never as a blank cell that
+   * reads as "close".
+   */
+  straightLineKm: number | null;
+}
+
+export interface DeclarationReview {
+  id: string;
+  shopId: string;
+  shopName: string;
+  shopPostcode: string | null;
+  offersSameday: boolean;
+  cutoffTime: string | null;
+  status: DeclarationStatus;
+  submittedBy: string;
+  submittedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  areas: DeclarationAreaReview[];
+  /** For the queue table. Null when no requested area has a known location. */
+  furthestKm: number | null;
 }

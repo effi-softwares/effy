@@ -369,6 +369,65 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── 032: same-day APPROVALS ───────────────────────────────────────────────────────────────────
+  # ⚠ An admin decides here, shown how far each requested area actually is from that shop (FR-023).
+  # The check this replaces asked only "is any shop in this area's zone?" — which let same-day to
+  # Ballarat be enabled by a shop in Bendigo, 98 km away, essentially as far as Melbourne.
+  deliveryDeclarationsListV1:
+    handler: src/functions/delivery-declarations-list-v1-get.handler
+    description: The same-day approval queue — what is awaiting a decision — 032
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-declarations
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDeclarationGetV1:
+    handler: src/functions/delivery-declaration-get-v1-get.handler
+    description: One declaration WITH the straight-line distance to every requested area — 032
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-declarations/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDeclarationApproveV1:
+    handler: src/functions/delivery-declaration-approve-v1-post.handler
+    description: Approve a same-day declaration (retires the previous one as superseded) — 032
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery-declarations/{id}/approve
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDeclarationDeclineV1:
+    handler: src/functions/delivery-declaration-decline-v1-post.handler
+    description: Decline a same-day declaration — a reason is REQUIRED — 032
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery-declarations/{id}/decline
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryDeclarationRevokeV1:
+    handler: src/functions/delivery-declaration-revoke-v1-post.handler
+    description: Withdraw an approval already in force — a reason is REQUIRED — 032
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery-declarations/{id}/revoke
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   deliveryZonePostcodesListV1:
     handler: src/functions/delivery-zone-postcodes-list-v1-get.handler
     description: List a zone's postcodes — 021

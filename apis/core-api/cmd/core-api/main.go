@@ -137,7 +137,7 @@ func run() error {
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
 		cart:       cartSvc,
 		favorites:  favorites.NewService(favorites.NewRepository(pool), presign),
-		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc),
+		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithMetrics(m),
 		orders:     orders.NewService(orders.NewRepository(pool)),
 	}
 

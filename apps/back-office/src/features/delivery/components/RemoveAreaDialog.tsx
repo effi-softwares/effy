@@ -1,3 +1,4 @@
+import { PostcodeCoverageNotice } from "@effy/web-kit/console";
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -11,7 +12,7 @@ import {
 } from "@effy/design-system/ui";
 
 import { postcodeCoverageQuery } from "../queries";
-import { PostcodeCoverageNotice } from "./PostcodeCoverageNotice";
+
 
 /**
  * Confirm removing a delivery area (031 FR-007).

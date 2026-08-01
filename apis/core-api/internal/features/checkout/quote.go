@@ -100,6 +100,9 @@ type QuoteStore interface {
 	PostcodePoint(ctx context.Context, postcode string) (*delivery.Point, error)
 	// PricingRules reads every pricing rule with its bands, keyed by method (032).
 	PricingRules(ctx context.Context) (map[delivery.Method]delivery.PricingRule, error)
+	// SamedayApprovals reads approved same-day coverage per shop (032). ⚠ A shop absent from the
+	// result has no approval in force — no approval, no same-day.
+	SamedayApprovals(ctx context.Context, shopIDs []string) (map[string]*delivery.SamedayApproval, error)
 	// CaptureQuote upserts the pending order (address + item snapshot) and stores the captured quote +
 	// expiry, returning the order id/number. Mirrors UpsertPendingOrder's pending-order reuse.
 	CaptureQuote(ctx context.Context, customerID string, addressJSON []byte, lines []CheckoutLine, cq CapturedQuote) (orderID, orderNumber string, err error)
@@ -171,12 +174,14 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 		legs      = map[string]Leg{}
 		destPoint *delivery.Point
 		rules     = map[delivery.Method]delivery.PricingRule{}
+		approvals = map[string]*delivery.SamedayApproval{}
 		wg        sync.WaitGroup
 		legErr    error
 		pointErr  error
 		rulesErr  error
+		apprErr   error
 	)
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		if !destOK {
@@ -192,8 +197,12 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 		defer wg.Done()
 		rules, rulesErr = s.qstore.PricingRules(ctx)
 	}()
+	go func() {
+		defer wg.Done()
+		approvals, apprErr = s.qstore.SamedayApprovals(ctx, shopIDs)
+	}()
 	wg.Wait()
-	for _, e := range []error{legErr, pointErr, rulesErr} {
+	for _, e := range []error{legErr, pointErr, rulesErr, apprErr} {
 		if e != nil {
 			return QuoteResult{}, e
 		}
@@ -208,7 +217,14 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 			packages = append(packages, *p)
 			continue
 		}
+		// ⚠ Options no longer produces same-day (FR-029). It is decided per SHOP, from an approval an
+		// admin granted — not from a rate-grid row that only ever said "these two postcodes share a
+		// zone", which is how a shop in Bendigo came to serve Ballarat 98 km away.
 		opts := delivery.Options(leg.Offerings, now, scheduleHorizonDays)
+		if delivery.SamedayOffered(approvals[shopID], destPostcode, destOK, now) {
+			// Fastest first — Options already orders the rest, and same-day precedes all of them.
+			opts = append([]delivery.Option{delivery.SamedayOption()}, opts...)
+		}
 		if len(opts) == 0 {
 			p.Serviceable = false
 			packages = append(packages, *p)
@@ -227,18 +243,30 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 		weightKg := packageWeightKg(lines, shopID)
 
 		for _, o := range opts {
-			fee := o.FeeCents
-			// ⚠ TRANSITIONAL FALLBACK, REMOVED BY T095. While delivery_offering.price_amount still
-			// exists, a method with no configured rule keeps its old grid price. Without this,
-			// deploying US1 before an admin has configured anything would make every delivery FREE —
-			// which is the exact defect class this feature exists to remove, caused by the feature
-			// removing it. Once the rules are the only source, this branch and the column both go.
-			if rule, ok := rules[o.Method]; ok {
-				priced, offered := delivery.Price(rule, km, known, weightKg)
-				if !offered {
-					continue // a disabled rule withdraws the method entirely (FR-007)
-				}
-				fee = priced
+			// ⚠ THE RULES ARE NOW THE ONLY SOURCE OF A DELIVERY FEE (research R3a). The transitional
+			// fallback to delivery_offering.price_amount is gone, because the column is gone — and
+			// falling back to the struct's zero value would mean FREE DELIVERY, which is the exact
+			// defect class this feature exists to remove.
+			//
+			// ⚠ A method with no configured rule is therefore NOT OFFERED, rather than offered at
+			// nothing. An unpriced method cannot be sold, and refusing to show it is recoverable in a
+			// way that charging nothing for it is not.
+			rule, configured := rules[o.Method]
+			if !configured {
+				s.recordOption(string(o.Method), false)
+				continue
+			}
+			fee, offered := delivery.Price(rule, km, known, weightKg)
+			if !offered {
+				s.recordOption(string(o.Method), false) // a disabled rule withdraws the method (FR-007)
+				continue
+			}
+			s.recordOption(string(o.Method), true)
+			// ⚠ The cap binding is the signal that the BANDS are wrong, not that one order was
+			// unusual — and every capped order after that point is under-charged with nothing else
+			// reporting it. Read as a rate.
+			if s.metrics != nil && fee == rule.MaxCents {
+				s.metrics.RecordFeeCapHit()
 			}
 			p.Options = append(p.Options, QuoteOption{
 				Method: string(o.Method), ServiceLevel: o.ServiceLevel, FeeCents: fee,
@@ -370,4 +398,11 @@ func packageWeightKg(lines []CheckoutLine, shopID string) float64 {
 		}
 	}
 	return float64(grams) / 1000
+}
+
+// recordOption is nil-safe: metrics must never be a reason a shopper cannot check out.
+func (s *Service) recordOption(method string, offered bool) {
+	if s.metrics != nil {
+		s.metrics.RecordQuoteOption(method, offered)
+	}
 }

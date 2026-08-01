@@ -44,10 +44,19 @@ export interface DeliveryOfferingDTO {
   destinationZoneId: string;
   destinationZoneName: string;
   method: DeliveryMethod;
+  /**
+   * ⚠ NARROWED BY 032. The rate grid no longer decides what anything COSTS —
+   * `delivery_pricing_rule` is the single source of a delivery fee, and `price_amount` is dropped
+   * from the table. The server reports "—" here; the field survives only so an old client does not
+   * crash on its absence, and it must not be rendered as a price.
+   */
   priceAmount: string;
   leadDaysMin: number;
   leadDaysMax: number;
-  /** HH:mm, only meaningful for method='same_day'; null otherwise. */
+  /**
+   * ⚠ ALWAYS NULL AFTER 032. A same-day cutoff describes a shop's working day and lives on its
+   * declaration (`shop_sameday_declaration.cutoff_time`), not on a zone pair.
+   */
   sameDayCutoff: string | null;
   status: DeliveryStatus;
   createdAt: string;
@@ -79,21 +88,22 @@ export interface AddPostcodesRequest {
   postcodes: string[];
 }
 
+/**
+ * ⚠ NO priceAmount AND NO sameDayCutoff (032). Both columns are dropped from `delivery_offering`;
+ * sending either would fail the write. An offering now records only WHICH method is offered on a leg
+ * and how long it takes.
+ */
 export interface CreateOfferingRequest {
   originZoneId: string;
   destinationZoneId: string;
   method: DeliveryMethod;
-  priceAmount: string;
   leadDaysMin: number;
   leadDaysMax: number;
-  sameDayCutoff?: string | null;
 }
 
 export interface UpdateOfferingRequest {
-  priceAmount?: string;
   leadDaysMin?: number;
   leadDaysMax?: number;
-  sameDayCutoff?: string | null;
   status?: DeliveryStatus;
 }
 

@@ -109,3 +109,30 @@ schema — it is the fact this whole feature is shaped around: **a locality can 
 and a postcode can cover several localities.** Neither identifies a place on its own, which is why
 `public.locality`'s natural key is the triple and why a shopper is never offered a bare suburb name to
 select (FR-008).
+
+---
+
+## Coordinates (added by 032)
+
+`au-localities.csv` now carries **`latitude,longitude`** alongside `locality,state,postcode`, derived
+from G-NAF's `{ST}_LOCALITY_POINT_psv.psv` — the same download, the same licence.
+
+⚠ **030 discarded these columns**, and 031 then reasoned from "the platform has no distance
+capability" — a premise that was false when it was written, and which let same-day delivery be enabled
+across 98 km. If you are regenerating this file, the coordinates are not optional extras: without them
+every postcode prices at the furthest delivery band and no same-day approval can show a distance.
+
+- **Empty means unknown, never `0,0`.** G-NAF has no point for a few localities. A zero is a place in
+  the Gulf of Guinea; an empty cell is an honest absence, and the loader and the pricing core both
+  handle it explicitly.
+- A postcode's location is the **mean of its localities' points**, computed at load time into
+  `public.postcode_centroid`.
+- The derivation refuses to write a file where fewer than 90% of rows have a coordinate — a silent
+  join failure would otherwise produce a well-formed CSV that breaks delivery pricing nationwide.
+
+Unit tests: `make reference-test` (no download required).
+
+## ⚠ Attribution is a licence condition, not a courtesy
+
+G-NAF is published under **CC BY 4.0**, which **requires** attribution. The statement above must not
+be removed, and it must survive any regeneration of this file.

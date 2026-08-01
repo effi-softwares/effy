@@ -1,3 +1,4 @@
+import { PostcodeCoverageNotice } from "@effy/web-kit/console";
 import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
@@ -17,7 +18,7 @@ import {
 
 import { deliveryMutationError } from "../errorText";
 import { localitySearchQuery, postcodeCoverageQuery, useAddPostcodes } from "../queries";
-import { PostcodeCoverageNotice } from "./PostcodeCoverageNotice";
+
 
 /**
  * Add delivery areas by choosing REAL PLACES (031 US1 / FR-001).

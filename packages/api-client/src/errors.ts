@@ -1,4 +1,4 @@
-import type { ProblemJSON } from "@effy/shared-types";
+import type { ProblemFieldIssue, ProblemJSON } from "@effy/shared-types";
 
 export type DomainErrorKind =
   | "unauthenticated"
@@ -15,6 +15,14 @@ export interface DomainError {
   status: number;
   title: string;
   detail?: string;
+  /**
+   * Field issues, or (032) stable refusal codes, carried through from the problem document.
+   *
+   * ⚠ Surfacing these is NOT the same as showing raw `detail`, which FR-008 forbids. `detail` is
+   * free-form server prose that can leak internals; a `field` is a value the API contract defines on
+   * purpose, and the console maps it to its OWN copy. Never render `message` verbatim.
+   */
+  fields?: ProblemFieldIssue[];
 }
 
 export function toDomainError(status: number, problem?: Partial<ProblemJSON>): DomainError {
@@ -24,6 +32,7 @@ export function toDomainError(status: number, problem?: Partial<ProblemJSON>): D
     status,
     title: problem?.title ?? defaultTitle(kind),
     detail: problem?.detail,
+    fields: Array.isArray(problem?.fields) ? problem.fields : undefined,
   };
 }
 

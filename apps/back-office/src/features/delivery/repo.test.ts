@@ -78,13 +78,16 @@ describe("delivery repo — offerings", () => {
     );
   });
 
+  // ⚠ AMENDED BY THE 032 CUTOVER — an expected delta. An offering no longer carries a price: fees
+  // come from the pricing RULES, and delivery_offering.price_amount is dropped. What it still records
+  // — which method is offered on a leg, and how long it takes — is what these now assert.
   it("creates / patches an offering", async () => {
-    const body = { originZoneId: "z1", destinationZoneId: "z2", method: "standard" as const, priceAmount: "5.00", leadDaysMin: 2, leadDaysMax: 3 };
+    const body = { originZoneId: "z1", destinationZoneId: "z2", method: "standard" as const, leadDaysMin: 2, leadDaysMax: 3 };
     await createOffering(body);
     expect(post).toHaveBeenCalledWith("/admin/v1/delivery-offerings", body);
 
-    await updateOffering("o1", { priceAmount: "6.00" });
-    expect(patch).toHaveBeenCalledWith("/admin/v1/delivery-offerings/o1", { priceAmount: "6.00" });
+    await updateOffering("o1", { leadDaysMax: 4 });
+    expect(patch).toHaveBeenCalledWith("/admin/v1/delivery-offerings/o1", { leadDaysMax: 4 });
   });
 });
 

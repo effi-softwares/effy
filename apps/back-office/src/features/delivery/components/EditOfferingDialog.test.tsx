@@ -37,33 +37,44 @@ const OFFERING: Offering = {
 
 afterEach(() => vi.clearAllMocks());
 
+// ⚠ AMENDED BY THE 032 CUTOVER — an expected delta, and the reason this dialog changed shape.
+//
+// These tests asserted that the dialog EDITED A PRICE. It no longer can: delivery fees are set as
+// rules (Delivery → Pricing) and `delivery_offering.price_amount` is dropped, so sending one would
+// fail the write. What the dialog still edits — the promised window and whether a leg is offered —
+// is what these now assert, along with the price field's ABSENCE, which is the part a future change
+// could quietly undo.
 describe("EditOfferingDialog — edit mode", () => {
-  it("prefills the rate and locks the immutable (origin → destination, method) key", () => {
+  it("locks the immutable (origin → destination, method) key", () => {
     render(<EditOfferingDialog open onOpenChange={() => {}} zones={ZONES} offering={OFFERING} />);
     expect(screen.getByRole("heading", { name: /edit rate/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/price/i)).toHaveValue("5.00");
     // The zone/method selects are disabled in edit mode (the UNIQUE key cannot change).
     expect(screen.getByLabelText(/origin zone/i)).toBeDisabled();
     expect(screen.getByLabelText(/destination zone/i)).toBeDisabled();
   });
 
-  it("submits a PATCH with the edited price, preserving the window + status", async () => {
+  // ⚠ THE IMPORTANT ONE. A price field here would be a second place to set a delivery fee, which is
+  // how configuration drifts — and after the cutover it would also 500 on save.
+  it("offers NO price field and NO same-day cutoff field", () => {
+    render(<EditOfferingDialog open onOpenChange={() => {}} zones={ZONES} offering={OFFERING} />);
+    expect(screen.queryByLabelText(/price/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/cutoff/i)).not.toBeInTheDocument();
+  });
+
+  it("submits a PATCH with the edited window, preserving status", async () => {
     const user = userEvent.setup();
     render(<EditOfferingDialog open onOpenChange={() => {}} zones={ZONES} offering={OFFERING} />);
 
-    const price = screen.getByLabelText(/price/i);
-    await user.clear(price);
-    await user.type(price, "6.50");
+    const leadMax = screen.getByLabelText(/lead days max/i);
+    await user.clear(leadMax);
+    await user.type(leadMax, "5");
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => expect(updateMutateAsync).toHaveBeenCalledTimes(1));
     expect(updateMutateAsync).toHaveBeenCalledWith({
-      priceAmount: "6.50",
       leadDaysMin: 2,
-      leadDaysMax: 3,
-      sameDayCutoff: null,
+      leadDaysMax: 5,
       status: "active",
     });
-    expect(createMutateAsync).not.toHaveBeenCalled();
   });
 });

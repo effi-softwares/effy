@@ -90,14 +90,28 @@ export function DeliveryZonesScreen() {
         <div className="space-y-1">
           <h1 className="text-xl font-semibold">Delivery zones</h1>
           <p className="text-muted-foreground">
-            Serviced areas, shop locations, and the (origin → destination) rate grid.
+            Serviced areas, shop locations, delivery pricing rules, and same-day approvals.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* 032: what delivery COSTS now lives here, as rules. /delivery-zones/rates keeps the
+              windows, the lead times and shop locations. */}
+          <Button variant="outline" asChild>
+            <Link to="/delivery-zones/approvals">
+              <Truck />
+              Same-day approvals
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link to="/delivery-zones/pricing">
+              <Truck />
+              Pricing
+            </Link>
+          </Button>
           <Button variant="outline" asChild>
             <Link to="/delivery-zones/rates">
               <Truck />
-              Rates &amp; locations
+              Windows &amp; locations
             </Link>
           </Button>
           {canManage ? (

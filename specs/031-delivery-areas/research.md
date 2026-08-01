@@ -160,6 +160,32 @@ it is not lost behind a feature that is weeks away.
 
 ## R6 — Same-day feasibility: shown, never computed
 
+> ⚠ **SUPERSEDED AND FACTUALLY WRONG — CORRECTED BY 032 (2026-08-01).**
+>
+> The premise below — *"the platform has no routing or distance capability"* — **was false when it was
+> written.** G-NAF ships `{ST}_LOCALITY_POINT_psv.psv` with a latitude and longitude for **every
+> Australian locality**, in the same 1.7 GB download 030 used, under the same CC BY 4.0 licence 030
+> accepted. 030's derivation read three columns and discarded the rest. **The data was on disk the
+> whole time.**
+>
+> ⚠ **What that error cost.** Believing distance was unavailable, this research settled for a zone
+> proxy — "is any shop in this area's zone?" Zone `REGIONAL` holds both Ballarat and Bendigo, so the
+> guard permitted same-day to **Ballarat** from a shop in **Bendigo, 98 km away** — essentially as far
+> as Melbourne (~102 km). The check reported *"a shop is nearby"* and **carried no information at
+> all**. It is the defect feature 032 exists to remove.
+>
+> ⚠ **The lesson worth keeping is not "check the dataset".** It is that *"we cannot compute X"* is a
+> claim about the world, and this document asserted it without testing it — then built a proxy on top
+> and reasoned carefully about the proxy. The care spent downstream made the unchecked premise harder
+> to see, not easier.
+>
+> What survives: **"invented precision on a promise is worse than an honest human judgement"** is
+> right, and 032 honours it — distance is shown to an **admin** at approval, labelled *straight-line*,
+> and **never** shown to a shopper. What is replaced is the conclusion that no honest number existed.
+>
+> See [specs/032-delivery-pricing/research.md](../032-delivery-pricing/research.md) R1.
+
+
 **Decision**: when enabling same-day for an area, the console **lists the shops and where they are**, and
 requires an explicit acknowledgement when none is nearby. It does **not** compute a radius.
 

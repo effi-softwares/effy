@@ -9,6 +9,8 @@ import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edg
 import type {
   AuditEntryDTO,
   DeliveryOfferingDTO,
+  DeclarationAreaReviewDTO,
+  DeclarationReviewDTO,
   DeliveryPriceBandDTO,
   DeliveryPricingRuleDTO,
   DeliveryZoneDTO,
@@ -21,6 +23,8 @@ import { canManageDelivery, isActiveStaff } from "./authz";
 import { isDeliveryError } from "./types";
 import type {
   AuditEntry,
+  DeclarationAreaReview,
+  DeclarationReview,
   DeliveryZone,
   Offering,
   Paged,
@@ -181,4 +185,38 @@ export function toPricingRuleListDTO(rules: PricingRule[]): { rules: DeliveryPri
   // ⚠ Wrapped in an object rather than returned as a bare array: there are exactly three rules, so
   // this is not paged, but a top-level JSON array is the shape that cannot gain a field later.
   return { rules: rules.map(toPricingRuleDTO) };
+}
+
+export function toDeclarationReviewDTO(d: DeclarationReview): DeclarationReviewDTO {
+  return {
+    id: d.id,
+    shopId: d.shopId,
+    shopName: d.shopName,
+    shopPostcode: d.shopPostcode,
+    offersSameday: d.offersSameday,
+    cutoffTime: d.cutoffTime,
+    status: d.status,
+    submittedBy: d.submittedBy,
+    submittedAt: d.submittedAt,
+    decidedBy: d.decidedBy,
+    decidedAt: d.decidedAt,
+    decisionNote: d.decisionNote,
+    areas: d.areas.map(toAreaReviewDTO),
+    furthestKm: d.furthestKm,
+  };
+}
+
+function toAreaReviewDTO(a: DeclarationAreaReview): DeclarationAreaReviewDTO {
+  return {
+    postcode: a.postcode,
+    places: a.places,
+    localityCount: a.localityCount,
+    // ⚠ null passes through as null. Coercing it to 0 here would put the area next door to the shop
+    // on the one screen whose purpose is to show how far away it is.
+    straightLineKm: a.straightLineKm,
+  };
+}
+
+export function toDeclarationReviewListDTO(rows: DeclarationReview[]): { declarations: DeclarationReviewDTO[] } {
+  return { declarations: rows.map(toDeclarationReviewDTO) };
 }

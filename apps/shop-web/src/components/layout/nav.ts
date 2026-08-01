@@ -1,4 +1,4 @@
-import { ClipboardList, LayoutDashboard, Package, Shield } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Package, Shield, Truck } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -19,5 +19,9 @@ export const NAV: NavItem<ShopRole>[] = [
   // access, and the staff standing at the shelves are its primary users. Gating it would hide the
   // work from the people who do it — and the backend admits both roles anyway.
   { label: "Orders", to: "/orders", icon: ClipboardList },
+  // Delivery is UNGATED for reading (032): any member may see what the shop has committed to
+  // same-day, and the pickers need to. Only SUBMITTING a declaration is manager-only, enforced by the
+  // backend — nav visibility reflects the authoritative gate, it is never a second source of truth.
+  { label: "Delivery", to: "/delivery", icon: Truck },
   { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
 ];

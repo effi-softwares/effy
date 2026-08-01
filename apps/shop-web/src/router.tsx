@@ -5,6 +5,7 @@ import { appIndexRoute, appRoute, managerRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
 import { catalogProductRoute } from "./routes/catalog.$productId";
+import { deliveryRoute } from "./routes/delivery";
 import { ordersRoute } from "./routes/orders";
 import { ordersDetailRoute } from "./routes/orders.$fulfillmentId";
 import { rootRoute } from "./routes/__root";
@@ -17,6 +18,7 @@ const routeTree = rootRoute.addChildren([
     managerRoute,
     catalogRoute,
     catalogProductRoute,
+    deliveryRoute,
     ordersRoute,
     ordersDetailRoute,
   ]),

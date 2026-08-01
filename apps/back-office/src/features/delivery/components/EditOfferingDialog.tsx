@@ -53,24 +53,20 @@ export function EditOfferingDialog({ open, onOpenChange, zones, offering }: Edit
       originZoneId: offering?.originZoneId ?? "",
       destinationZoneId: offering?.destinationZoneId ?? "",
       method: (offering?.method ?? "standard") as DeliveryMethod,
-      priceAmount: offering?.priceAmount ?? "",
       leadDaysMin: String(offering?.leadDaysMin ?? 0),
       leadDaysMax: String(offering?.leadDaysMax ?? 0),
-      sameDayCutoff: offering?.sameDayCutoff ?? "",
       status: (offering?.status ?? "active") as DeliveryStatus,
     },
     onSubmit: async ({ value }) => {
+      // ⚠ NEITHER A PRICE NOR A CUTOFF IS SENT (032). Both columns are dropped: delivery fees come
+      // from the pricing rules (Delivery → Pricing) and the same-day cutoff belongs to a shop's
+      // declaration. Sending either would 500 the save.
       setFormError(null);
-      const cutoff = value.method === "same_day" && value.sameDayCutoff.trim()
-        ? value.sameDayCutoff.trim()
-        : null;
       try {
         if (isEdit) {
           await updateOffering.mutateAsync({
-            priceAmount: value.priceAmount.trim(),
             leadDaysMin: Number(value.leadDaysMin),
             leadDaysMax: Number(value.leadDaysMax),
-            sameDayCutoff: cutoff,
             status: value.status,
           });
         } else {
@@ -82,10 +78,8 @@ export function EditOfferingDialog({ open, onOpenChange, zones, offering }: Edit
             originZoneId: value.originZoneId,
             destinationZoneId: value.destinationZoneId,
             method: value.method,
-            priceAmount: value.priceAmount.trim(),
             leadDaysMin: Number(value.leadDaysMin),
             leadDaysMax: Number(value.leadDaysMax),
-            sameDayCutoff: cutoff,
           });
         }
         form.reset();
@@ -189,22 +183,10 @@ export function EditOfferingDialog({ open, onOpenChange, zones, offering }: Edit
           </form.Field>
 
           <div className="grid grid-cols-3 gap-3">
-            <form.Field name="priceAmount">
-              {(field) => (
-                <div className="space-y-2">
-                  <Label htmlFor="rate-price">Price (AUD)</Label>
-                  <Input
-                    id="rate-price"
-                    required
-                    inputMode="decimal"
-                    placeholder="5.00"
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                    onBlur={field.handleBlur}
-                  />
-                </div>
-              )}
-            </form.Field>
+            {/* ⚠ NO PRICE FIELD (032). Delivery fees are set as RULES under Delivery → Pricing —
+                base + distance band + weight band — and delivery_offering.price_amount is dropped.
+                Two management surfaces for one concept is how configuration drifts, which is why 031
+                deleted its own rate editor for the same reason. */}
             <form.Field name="leadDaysMin">
               {(field) => (
                 <div className="space-y-2">
@@ -237,26 +219,9 @@ export function EditOfferingDialog({ open, onOpenChange, zones, offering }: Edit
             </form.Field>
           </div>
 
-          <form.Subscribe selector={(s) => s.values.method}>
-            {(method) =>
-              method === "same_day" ? (
-                <form.Field name="sameDayCutoff">
-                  {(field) => (
-                    <div className="space-y-2">
-                      <Label htmlFor="rate-cutoff">Same-day cutoff (HH:mm)</Label>
-                      <Input
-                        id="rate-cutoff"
-                        placeholder="14:00"
-                        value={field.state.value}
-                        onChange={(e) => field.handleChange(e.target.value)}
-                        onBlur={field.handleBlur}
-                      />
-                    </div>
-                  )}
-                </form.Field>
-              ) : null
-            }
-          </form.Subscribe>
+          {/* ⚠ NO CUTOFF FIELD (032). A same-day cutoff describes a SHOP's working day and lives on
+              its declaration, approved by an admin — not on a zone pair. See Delivery → Same-day
+              approvals. */}
 
           {isEdit ? (
             <form.Field name="status">

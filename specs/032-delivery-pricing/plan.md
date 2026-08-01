@@ -79,6 +79,7 @@ because this is the money path.
 - ⚠ **A quoted order keeps its fee (FR-010)** — already true via `order_package_delivery.delivery_fee_amount`; must be **proved**, not assumed (R8).
 - **No new hue, no new token** — the consoles use existing primitives (Principle V).
 - Cold path has no metrics emission (R9, 031 carry-forward).
+- ⚠ **No Prometheus/Grafana is provisioned at all**, so hot-path counters are emitted and unread. Found in build; see § Complexity Tracking.
 
 **Scale/Scope**: ~15,414 localities → ~2,600 distinct postcodes with centroids; 38 products; 2 shops;
 3 delivery methods. Small data — the design is for correctness, not throughput.
@@ -97,9 +98,14 @@ because this is the money path.
 | **IV. Auth Isolation** | ✅ | Shop routes on the shop pool + `shop_manager` gate; admin routes on the admin pool + `admin`/`manager`. ⚠ **FR-021 (no self-approval) is structural** — the approve route exists only on the admin service, so a shop token cannot reach it. |
 | **V. Design** | ✅ | Sectioned pages, tables, detail rows. ⚠ **No cards** — the approval queue is a **table**, not a stack of cards, and that is the shape it wants anyway. |
 | **VI. Layered** | ✅ | Pure `platform/delivery` for arithmetic; service → repo in both cold services; no DI framework. |
-| **VII. Observability** | ⚠ **exception** | Hot-path metrics + alerts yes. ⚠ **Cold path emits none** — an inherited platform gap. **Recorded in § Complexity Tracking**, because an undocumented deviation is a defect by the Quality Gates. |
+| **VII. Observability** | ⚠ **two exceptions** | Hot-path counters ARE emitted (quote outcomes, cap hits). ⚠ **The cold path emits none**, and ⚠ **no metrics stack exists to scrape or alert on any of it** — the second was found during implementation, not planning. Both **recorded in § Complexity Tracking**, because an undocumented deviation is a defect by the Quality Gates. |
 
-**Alerts** (Principle VII requires a plan adding a user-facing flow to name them, not only metrics):
+**Alerts** — ⚠ **NAMED AND WRITTEN, BUT NOT LOADED BY ANYTHING.** Discovered during implementation:
+there is **no Prometheus and no Grafana** anywhere in `infra/`. The hot path genuinely exposes
+`/metrics`, but nothing scrapes it, and `core-api` has no cloud deploy either. The rules are committed
+at `infra/observability/alerts/032-delivery-pricing.yml` as reviewable specifications so that standing
+the stack up is a wiring task rather than archaeology. **A rule in that file is documentation, not
+coverage.** See § Complexity Tracking.
 
 - **Quote failure rate** on `core-api` — ⚠ this is the money path; a pricing bug that refuses to quote
   is indistinguishable from an outage to a shopper mid-checkout.
@@ -109,7 +115,7 @@ because this is the money path.
 - **No alert on same-day offer volume.** It legitimately drops to zero when no approval is in force,
   which is the feature working, and an alarm that fires on correct behaviour gets muted.
 
-**One exception, recorded below.**
+**Two exceptions, recorded below.**
 
 ---
 
@@ -272,6 +278,7 @@ Re-evaluated against the constitution once `data-model.md` and `contracts/` exis
 | Violation | Why needed | Simpler alternative rejected because |
 |---|---|---|
 | **Principle VII — the cold-path halves of this feature (pricing CRUD, declarations, approvals) emit no metrics** | ⚠ **No cold-path service on this platform emits one.** There is no Lambda→Prometheus path, no CloudWatch→Grafana wiring for these functions, and no existing counter to add to. Building that path is infrastructure work of its own size, and doing it inside a pricing slice would mean an unrelated, unreviewed change to how every one of 59 Lambda functions reports. | **"Just add a counter"** — there is nothing to add it *to*. **"Log and scrape"** — that is the missing path, built badly and per-feature. The gap is **inherited from 031 and re-recorded here rather than quietly dropped**; the compensating control is that both cold-path halves are admin/operator surfaces where the reads themselves answer "what is configured", and every decision is in `admin.audit_log`. ⚠ It is a **carry-forward with an owner**, not an accepted permanent state. |
+| ⚠ **Principle VII — NO ALERT THIS FEATURE DECLARES CAN FIRE, because the metrics stack does not exist.** Found during implementation, not at planning. | `ARCHITECTURE.md` describes Prometheus + Grafana self-hosted on ECS. **Neither is provisioned** — `infra/` contains no Prometheus module, no Grafana module and no scrape config. The hot path's `/metrics` endpoint is real and correct, and nothing reads it. `core-api` additionally has no cloud deployment, so today it is laptop-only. Provisioning an observability stack is a slice of its own and cannot be smuggled into a pricing feature. | **"Use CloudWatch instead"** — that is a different design from the one the architecture commits to, chosen under schedule pressure inside an unrelated feature. **"Skip the alerts"** — then nobody writes them, ever. The middle course taken: the rules are **committed in the format the eventual stack consumes** (`infra/observability/alerts/`), with a README stating in as many words that nothing loads them. ⚠ **The cap-hit threshold in that file is an admitted guess** and must be set from the first week of real quotes. **This is the largest observability gap on the platform and it is now written down in one place.** |
 
 ⚠ **This table was empty in an earlier draft while the Constitution Check said "⚠ partial"** — which is
 itself the defect the Quality Gates describe: *"an undocumented deviation is a defect."* A principle is

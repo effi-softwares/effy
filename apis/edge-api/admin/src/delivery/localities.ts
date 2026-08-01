@@ -8,22 +8,23 @@
 // Same table, two services, two paths — the split `promo_code` already has (Home read → hot path;
 // advertising a promotion → cold path, feature 028). Principle III is satisfied without an exception,
 // and Principle II is satisfied because the *contract* is shared: `LocalityDTO` is reused unchanged.
-import { DeliveryError } from "./types";
+import type { LocalityRow, PostcodeCoverageResult } from "@effy/edge-shared";
+import { isPostcodeQuery, LOCALITY_LIMIT, MIN_LOCALITY_QUERY as MIN_QUERY, POSTCODE_RE } from "@effy/edge-shared";
+
 import * as repo from "./repository";
+import { DeliveryError } from "./types";
 
-/** Bounded so an operator's list stays scannable. Higher than the shopper's 8 — a console has room. */
-const LOCALITY_LIMIT = 20;
-
-/** Below this there is nothing worth asking the database. */
-const MIN_QUERY = 2;
-
-const POSTCODE_RE = /^[0-9]{4}$/;
-
-export interface LocalityResult {
-  name: string;
-  state: string;
-  postcode: string;
-}
+// ⚠ THE SQL MOVED TO @effy/edge-shared (032), but the REPOSITORY IS STILL THE SEAM.
+//
+// The shop console needs the same picker — a shop declaring same-day areas chooses real places by
+// name exactly as an admin composing a zone does — and two copies would be two definitions of what
+// counts as a real place, free to drift. So the query is shared; `./repository` now delegates to it.
+//
+// ⚠ This service deliberately keeps calling `repo.*` rather than the shared function directly. The
+// repository is this service's data-access boundary and is what its tests mock; reaching past it
+// would have forced every existing test to change its mock target — which would have destroyed the
+// only evidence that the extraction changed no behaviour.
+export type LocalityResult = LocalityRow;
 
 /**
  * Find places an operator could mean.
@@ -38,15 +39,11 @@ export async function searchLocalities(q: unknown): Promise<LocalityResult[]> {
       { field: "q", message: `must be at least ${MIN_QUERY} characters` },
     ]);
   }
-  if (POSTCODE_RE.test(raw)) return repo.localitiesForPostcode(raw);
+  if (isPostcodeQuery(raw)) return repo.localitiesForPostcode(raw);
   return repo.searchLocalities(raw, LOCALITY_LIMIT);
 }
 
-export interface PostcodeCoverage {
-  postcode: string;
-  places: LocalityResult[];
-  count: number;
-}
+export type PostcodeCoverage = PostcodeCoverageResult;
 
 /**
  * What a postcode actually covers — ⚠ THE DATA BEHIND FR-006, and the reason this feature is not just

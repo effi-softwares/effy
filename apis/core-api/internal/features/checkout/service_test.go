@@ -50,6 +50,9 @@ type fakeStore struct {
 	// 032 pricing state (nil/empty by default — see PostcodePoint/PricingRules below)
 	destPoint    *delivery.Point
 	pricingRules map[delivery.Method]delivery.PricingRule
+	// ⚠ Nil by default: no approval in force means no same-day, which is the safe state and what
+	// every pre-032 test in this file assumes.
+	samedayApprovals map[string]*delivery.SamedayApproval
 
 	// 021 QuoteStore state
 	destOK           bool
@@ -70,6 +73,21 @@ func newFakeStore() *fakeStore {
 	return &fakeStore{
 		orderID: "order-1", orderNumber: "EFY-TEST", addressFound: true, finalizeApplied: true,
 		seen: map[string]bool{}, intentToOrder: map[string]string{}, orderIntent: map[string]string{},
+		// ⚠ A STANDARD PRICING RULE IS NOW PART OF THE BASELINE FIXTURE (032 cutover).
+		//
+		// delivery_offering.price_amount is dropped: the rules are the only source of a delivery fee,
+		// so a method with NO rule is not offered at all. That is deliberate — an unpriced method
+		// cannot be sold, and refusing to show it is recoverable where charging nothing for it is not.
+		// Every test that expects a package to be serviceable therefore needs a rule, exactly as
+		// production does.
+		pricingRules: map[delivery.Method]delivery.PricingRule{
+			delivery.MethodStandard: {
+				Method: delivery.MethodStandard, BaseCents: 500, RoundingStepCts: 50, MaxCents: 4500,
+				DistanceBands: []delivery.Band{{UpperBound: 50}},
+				WeightBands:   []delivery.Band{{UpperBound: 25}},
+				Active:        true,
+			},
+		},
 	}
 }
 
@@ -150,6 +168,9 @@ func (f *fakeStore) PostcodePoint(_ context.Context, _ string) (*delivery.Point,
 }
 func (f *fakeStore) PricingRules(_ context.Context) (map[delivery.Method]delivery.PricingRule, error) {
 	return f.pricingRules, nil
+}
+func (f *fakeStore) SamedayApprovals(_ context.Context, _ []string) (map[string]*delivery.SamedayApproval, error) {
+	return f.samedayApprovals, nil
 }
 func (f *fakeStore) CaptureQuote(_ context.Context, _ string, _ []byte, _ []CheckoutLine, cq CapturedQuote) (string, string, error) {
 	f.captured = cq
@@ -784,4 +805,141 @@ func TestQuote_DisabledRuleWithdrawsTheMethod(t *testing.T) {
 	if res.Packages[0].Serviceable {
 		t.Error("a package whose only method has a disabled rule must not be serviceable")
 	}
+}
+
+// ── US4: what a shopper is actually offered (032) ─────────────────────────────────────────────
+
+func samedayApproval(cutoffHour int, postcodes ...string) *delivery.SamedayApproval {
+	set := map[string]bool{}
+	for _, p := range postcodes {
+		set[p] = true
+	}
+	cut := time.Date(2026, 7, 21, cutoffHour, 0, 0, 0, delivery.Melbourne)
+	return &delivery.SamedayApproval{Postcodes: set, Cutoff: &cut}
+}
+
+// The fake's DestinationZone always answers postcode "3000", so approvals are keyed on that.
+func quoteWithApprovals(t *testing.T, lines []CheckoutLine, approvals map[string]*delivery.SamedayApproval) QuoteResult {
+	t.Helper()
+	store := newFakeStore()
+	store.destOK = true
+	store.lines = lines
+	store.destPoint = &nearbyPt
+	store.pricingRules = map[delivery.Method]delivery.PricingRule{
+		delivery.MethodStandard: stdRule()[delivery.MethodStandard],
+		delivery.MethodSameDay: {
+			Method: delivery.MethodSameDay, BaseCents: 1200, RoundingStepCts: 50, MaxCents: 4500,
+			DistanceBands: []delivery.Band{{UpperBound: 50, AddCents: 0}},
+			WeightBands:   []delivery.Band{{UpperBound: 10, AddCents: 0}},
+			Active:        true,
+		},
+	}
+	store.samedayApprovals = approvals
+	legs := map[string]Leg{}
+	for _, l := range lines {
+		legs[l.ShopID] = Leg{ShopID: l.ShopID, OriginOK: true, OriginPoint: &melbournePt, Offerings: []delivery.Offering{
+			{Method: delivery.MethodStandard, PriceCents: 500, LeadDaysMin: 2, LeadDaysMax: 3},
+		}}
+	}
+	store.legs = legs
+	now := time.Date(2026, 7, 21, 10, 0, 0, 0, delivery.Melbourne) // before a 14:00 cutoff
+	res, err := NewService(store, &fakeGateway{}, "pk").Quote(context.Background(), "cust-1", validAddr, now)
+	if err != nil {
+		t.Fatalf("quote: %v", err)
+	}
+	return res
+}
+
+func methodsOf(p QuotePackage) []string {
+	out := []string{}
+	for _, o := range p.Options {
+		out = append(out, o.Method)
+	}
+	return out
+}
+
+// ⚠ SC-011 / FR-031 — THE TWO-SHOP CASE. Only the approved shop's package may carry same-day. A
+// basket-level decision would either promise same-day on goods nobody can move today, or withhold it
+// from a shop that genuinely can.
+func TestQuote_SamedayOnlyOnTheApprovedShopsPackage(t *testing.T) {
+	lines := []CheckoutLine{
+		{ProductID: "p1", ShopID: "approved-shop", UnitCents: 500, Quantity: 1, WeightGrams: 1000},
+		{ProductID: "p2", ShopID: "other-shop", UnitCents: 500, Quantity: 1, WeightGrams: 1000},
+	}
+	res := quoteWithApprovals(t, lines, map[string]*delivery.SamedayApproval{
+		"approved-shop": samedayApproval(14, "3000"),
+	})
+
+	byKey := map[string]QuotePackage{}
+	for _, p := range res.Packages {
+		byKey[p.PackageKey] = p
+	}
+	approved := byKey[delivery.PackageKey("approved-shop")]
+	other := byKey[delivery.PackageKey("other-shop")]
+
+	if !contains(methodsOf(approved), "same_day") {
+		t.Errorf("the approved shop's package must offer same-day, got %v", methodsOf(approved))
+	}
+	if contains(methodsOf(other), "same_day") {
+		t.Errorf("⚠ same-day offered on an UNAPPROVED shop's package: %v", methodsOf(other))
+	}
+	// SC-015 — the unapproved package is not left with nothing.
+	if !contains(methodsOf(other), "standard") {
+		t.Errorf("standard must remain on the unapproved package, got %v", methodsOf(other))
+	}
+}
+
+// ⚠ SC-007 — zero same-day offers for a (shop, area) pair with no approval in force.
+func TestQuote_NoApprovalMeansNoSameday(t *testing.T) {
+	lines := []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	res := quoteWithApprovals(t, lines, nil)
+	if contains(methodsOf(res.Packages[0]), "same_day") {
+		t.Error("⚠ same-day offered with no approval in force")
+	}
+}
+
+// ⚠ SC-015 / FR-032 — standard is available wherever the platform serves, independently of any
+// same-day decision. Losing an approval must not cost a shopper their delivery entirely.
+func TestQuote_StandardSurvivesEverySamedayDecision(t *testing.T) {
+	lines := []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	for name, approvals := range map[string]map[string]*delivery.SamedayApproval{
+		"no approval":        nil,
+		"approved":           {"s1": samedayApproval(14, "3000")},
+		"approved elsewhere": {"s1": samedayApproval(14, "3999")},
+	} {
+		res := quoteWithApprovals(t, lines, approvals)
+		if !contains(methodsOf(res.Packages[0]), "standard") {
+			t.Errorf("%s: standard must always remain, got %v", name, methodsOf(res.Packages[0]))
+		}
+	}
+}
+
+// ⚠ FR-030 — past the cutoff, in MELBOURNE, same-day is withdrawn for that order.
+func TestQuote_SamedayWithdrawnPastTheCutoff(t *testing.T) {
+	store := newFakeStore()
+	store.destOK = true
+	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	store.destPoint = &nearbyPt
+	store.pricingRules = stdRule()
+	store.samedayApprovals = map[string]*delivery.SamedayApproval{"s1": samedayApproval(14, "3000")}
+	store.legs = map[string]Leg{"s1": {ShopID: "s1", OriginOK: true, OriginPoint: &melbournePt,
+		Offerings: []delivery.Offering{{Method: delivery.MethodStandard, PriceCents: 500, LeadDaysMin: 2, LeadDaysMax: 3}}}}
+
+	past := time.Date(2026, 7, 21, 15, 0, 0, 0, delivery.Melbourne)
+	res, err := NewService(store, &fakeGateway{}, "pk").Quote(context.Background(), "cust-1", validAddr, past)
+	if err != nil {
+		t.Fatalf("quote: %v", err)
+	}
+	if contains(methodsOf(res.Packages[0]), "same_day") {
+		t.Error("same-day must be withdrawn past the cutoff")
+	}
+}
+
+func contains(xs []string, want string) bool {
+	for _, x := range xs {
+		if x == want {
+			return true
+		}
+	}
+	return false
 }

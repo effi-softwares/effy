@@ -45,16 +45,17 @@ func (s *pgStore) DestinationZone(ctx context.Context, customerID, addressID str
 	return postcode, zoneID, true, nil
 }
 
+// ⚠ NO price_amount AND NO same_day_cutoff (032 cutover). Both columns are DROPPED: all three
+// methods are priced by public.delivery_pricing_rule, and the same-day cutoff lives on the shop's
+// declaration. The grid now carries only the window and whether a leg is offered at all.
 type legRow struct {
-	ShopID      string   `db:"shop_id"`
-	OriginZone  *string  `db:"origin_zone_id"`
-	OriginLat   *float64 `db:"origin_lat"`
-	OriginLon   *float64 `db:"origin_lon"`
-	Method      *string  `db:"method"`
-	PriceAmount *string  `db:"price_amount"`
-	LeadMin     *int     `db:"lead_days_min"`
-	LeadMax     *int     `db:"lead_days_max"`
-	Cutoff      *string  `db:"same_day_cutoff"`
+	ShopID     string   `db:"shop_id"`
+	OriginZone *string  `db:"origin_zone_id"`
+	OriginLat  *float64 `db:"origin_lat"`
+	OriginLon  *float64 `db:"origin_lon"`
+	Method     *string  `db:"method"`
+	LeadMin    *int     `db:"lead_days_min"`
+	LeadMax    *int     `db:"lead_days_max"`
 }
 
 // Legs resolves each shop's origin zone (from its postcode) and the active offerings for
@@ -66,9 +67,8 @@ SELECT sh.id::text AS shop_id,
        oz.zone_id::text AS origin_zone_id,
        oc.latitude::float8  AS origin_lat,
        oc.longitude::float8 AS origin_lon,
-       o.method, o.price_amount::text AS price_amount,
-       o.lead_days_min, o.lead_days_max,
-       to_char(o.same_day_cutoff, 'HH24:MI') AS same_day_cutoff
+       o.method,
+       o.lead_days_min, o.lead_days_max
 FROM public.shop sh
 LEFT JOIN public.delivery_zone_postcode oz ON oz.postcode = sh.postcode
 -- ⚠ LEFT JOIN, not INNER (032). A shop whose postcode has no centroid must still be able to deliver;
@@ -99,23 +99,15 @@ WHERE sh.id = ANY($1::uuid[])`, shopIDs, destZoneID)
 		if r.OriginLat != nil && r.OriginLon != nil {
 			leg.OriginPoint = &delivery.Point{Lat: *r.OriginLat, Lon: *r.OriginLon}
 		}
-		if r.Method != nil && r.PriceAmount != nil {
-			cents, perr := money.ParseCents(*r.PriceAmount)
-			if perr != nil {
-				return nil, fmt.Errorf("checkout: offering price: %w", perr)
-			}
-			off := delivery.Offering{
+		if r.Method != nil {
+			// ⚠ PriceCents is deliberately left at zero: the grid no longer prices anything, and every
+			// option's fee is set from the pricing rules in quote.go. A non-zero value here would be a
+			// second source for a delivery fee, which is exactly what the cutover removed.
+			leg.Offerings = append(leg.Offerings, delivery.Offering{
 				Method:      delivery.Method(*r.Method),
-				PriceCents:  cents,
 				LeadDaysMin: derefInt(r.LeadMin),
 				LeadDaysMax: derefInt(r.LeadMax),
-			}
-			if r.Cutoff != nil {
-				if t, terr := time.Parse("15:04", *r.Cutoff); terr == nil {
-					off.SameDayCutoff = &t
-				}
-			}
-			leg.Offerings = append(leg.Offerings, off)
+			})
 		}
 		out[r.ShopID] = leg
 	}
@@ -365,6 +357,51 @@ SELECT rule_id::text, dimension, upper_bound::float8, add_amount::text
 			}
 		}
 		out[rule.Method] = rule
+	}
+	return out, nil
+}
+
+// SamedayApprovals reads the approved same-day coverage for the cart's shops (032).
+//
+// ⚠ A shop absent from the result has NO approval in force, which is the safe default: no approval,
+// no same-day, ever. That is FR-017 and FR-028 made structural — an empty table offers nothing rather
+// than everything.
+func (s *pgStore) SamedayApprovals(ctx context.Context, shopIDs []string) (map[string]*delivery.SamedayApproval, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT d.shop_id::text AS shop_id,
+       to_char(d.cutoff_time, 'HH24:MI') AS cutoff,
+       a.postcode
+  FROM public.shop_sameday_declaration d
+  JOIN public.shop_sameday_area a ON a.declaration_id = d.id
+ WHERE d.shop_id = ANY($1::uuid[])
+   AND d.status = 'approved'
+   AND d.offers_sameday = true`, shopIDs)
+	if err != nil {
+		return nil, fmt.Errorf("checkout: sameday approvals: %w", err)
+	}
+	type row struct {
+		ShopID   string  `db:"shop_id"`
+		Cutoff   *string `db:"cutoff"`
+		Postcode string  `db:"postcode"`
+	}
+	collected, err := pgx.CollectRows(rows, pgx.RowToStructByName[row])
+	if err != nil {
+		return nil, fmt.Errorf("checkout: scan sameday approvals: %w", err)
+	}
+
+	out := map[string]*delivery.SamedayApproval{}
+	for _, r := range collected {
+		a := out[r.ShopID]
+		if a == nil {
+			a = &delivery.SamedayApproval{Postcodes: map[string]bool{}}
+			if r.Cutoff != nil {
+				if t, terr := time.Parse("15:04", *r.Cutoff); terr == nil {
+					a.Cutoff = &t
+				}
+			}
+			out[r.ShopID] = a
+		}
+		a.Postcodes[r.Postcode] = true
 	}
 	return out, nil
 }

@@ -79,11 +79,10 @@ export function RatesScreen() {
         header: "Method",
         cell: ({ row }) => METHOD_LABELS[row.original.method],
       },
-      {
-        accessorKey: "priceAmount",
-        header: "Price",
-        cell: ({ row }) => <span className="tabular-nums">${row.original.priceAmount}</span>,
-      },
+      // ⚠ NO PRICE COLUMN (032). delivery_offering.price_amount is DROPPED — delivery fees come from
+      // the pricing rules now (back-office → Delivery → Pricing), and this grid decides only the
+      // promised window and whether a leg is offered at all. Two management surfaces for one concept
+      // is how configuration drifts, which is exactly why 031 deleted its own rate editor.
       { id: "window", header: "Window", cell: ({ row }) => windowLabel(row.original) },
       {
         accessorKey: "status",
@@ -120,9 +119,12 @@ export function RatesScreen() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Rates &amp; shop locations</h1>
+          <h1 className="text-xl font-semibold">Delivery windows &amp; shop locations</h1>
           <p className="text-muted-foreground">
-            The per-(origin → destination, method) rate grid, and each shop's origin postcode.
+            Which methods are offered on each (origin → destination) leg and how long they take, plus
+            each shop's origin postcode.{" "}
+            <strong>What delivery costs is set under Pricing</strong> — these rows no longer carry a
+            price.
           </p>
         </div>
         {canManage ? (

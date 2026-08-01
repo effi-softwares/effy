@@ -57,6 +57,25 @@ type Service struct {
 	// The cart's applied promotional code (027). Nil-able for the same reason: no promotions wired means
 	// no discount, never a crash.
 	promos PromoSource
+	// Quote instrumentation (032). Nil-able — metrics must never be a reason a shopper cannot check out.
+	metrics QuoteRecorder
+}
+
+// QuoteRecorder counts what a quote offered, and when a fee hit its ceiling (032).
+//
+// ⚠ Declared here as a narrow interface so this feature does not depend on the metrics package's
+// concrete type, and so tests can pass nil. ⚠ Neither method takes a postcode, a shop id or a
+// distance: the first two are location and fulfilment disclosure (FR-033), and all three are
+// unbounded as label values (Principle VII).
+type QuoteRecorder interface {
+	RecordQuoteOption(method string, offered bool)
+	RecordFeeCapHit()
+}
+
+// WithMetrics attaches quote instrumentation. Optional, like the order policy and promotions above.
+func (s *Service) WithMetrics(rec QuoteRecorder) *Service {
+	s.metrics = rec
+	return s
 }
 
 // PromoSource re-computes the discount for a customer's cart at the moment of payment. An interface so

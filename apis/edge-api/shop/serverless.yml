@@ -146,6 +146,50 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── 032-delivery-pricing: the shop's SAME-DAY DECLARATION ─────────────────────────────────────
+  #
+  # ⚠ THERE IS NO PRICING ROUTE HERE, AT ANY VERB, AND THAT ABSENCE IS THE FEATURE.
+  # FR-008 says no shop may see, set or influence a delivery fee. That is enforced by route topology
+  # rather than by a check somebody could forget to write or later relax: there is no path on this
+  # service a shop token could use to reach a price. SC-004 is verified by calling the ADMIN pricing
+  # route with a real shop token and confirming the 401 — not by observing that the console has no
+  # button. Do not add one here.
+  #
+  # ⚠ Submitting is manager-only (enforced in src/delivery/authz.ts); reading is any active member.
+  # A same-day declaration is a standing commitment about what the shop can physically do.
+  deliverySamedayGetV1:
+    handler: src/functions/delivery-sameday-v1-get.handler
+    description: This shop's same-day declaration — in force, pending, and the last decision — 032
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/delivery-sameday
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  deliverySamedayPutV1:
+    handler: src/functions/delivery-sameday-v1-put.handler
+    description: Submit a same-day declaration (a PROPOSAL — changes nothing until approved) — 032
+    events:
+      - httpApi:
+          method: PUT
+          path: /shop/v1/delivery-sameday
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  deliveryLocalitiesGetV1:
+    handler: src/functions/delivery-localities-v1-get.handler
+    description: Find real places by name, and what a postcode covers (the disclosure data) — 032
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/delivery-localities
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   # ── Product catalog (016). Shop authorizer; any active shop member; every query shop-scoped. ──
   catalogSchemaV1:
     handler: src/functions/catalog-schema-v1-get.handler
