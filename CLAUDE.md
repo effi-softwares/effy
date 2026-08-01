@@ -204,8 +204,12 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 ## Active feature
 
 **029-promotional-banner-carousel — Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
-✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 62/73 tasks.** Sign-off record:
+✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-01 — 78/89 tasks** (62/73 at sign-off + Phase 9's 16/16
+post-sign-off fix). Sign-off record:
 [specs/029-promotional-banner-carousel/SIGNOFF.md](specs/029-promotional-banner-carousel/SIGNOFF.md).
+⚠ **"Concluded" closes the slice; it does not make the 11 open tasks true.** All eleven are operator
+walks — **T051 (the bypass test) is still the most important open item on the platform**, and
+**Android has still never been looked at** across 028 *and* 029.
 
 Gives 028's advertising facet a canonical shape and a second placement. **The first real promotional
 banners this platform has ever rendered** now appear on a device.

@@ -186,6 +186,42 @@ deferred a second time (research R12).
 
 ---
 
+## Phase 9: Post-sign-off — where a banner leads (added 2026-08-01)
+
+Added **after** sign-off, from an operator report on device: *"when user tap the banner it goes to the
+search page like page. why!!!!"* They were right. `banners()` set `target: {kind:"search"}` and
+`href: "/search"` for **every** promotion, so a tap opened the unfiltered store carrying none of the
+promotion's facts — not the code, not the terms.
+
+⚠ **The cause is in the data model, not the navigation.** `promo_code` has no product or category
+scoping, so a whole-cart discount has no set of qualifying products to filter a list to. **A
+cart-level code is a message, not a place** — and the destination for a message is the message itself.
+Recorded in the spec as **028 FR-034a/FR-034b**, which *narrow* FR-034 rather than contradict it.
+
+- [X] T065 Amend [028's spec](../028-mobile-home-merchandising/spec.md) with **FR-034a/FR-034b** and the rationale, rather than patching code against a rule the code appeared to satisfy (Principle I)
+- [X] T066 `core-api`: share the advertised-promotion visibility predicate as a SQL const and add `AdvertisedPromotionByID`, so the banner read and the detail read cannot drift about whether a promotion is live
+- [X] T067 `core-api`: `Service.Promotion` + `promoValidity` (⚠ **relative** — "Ends in 3 days" — because a calendar date needs a timezone the platform does not have, and mobile has no date formatting at all)
+- [X] T068 `core-api`: `GET /v1/storefront/promotions/:id`, public and **uncached** — availability is a live claim other shoppers can falsify by redeeming
+- [X] T069 `core-api`: retarget the banner to `{kind:"promotion", promotionId}` **and** `href` to `/promotions/<id>` together, with a test pinning that the two agree
+- [X] T070 Contract: `BannerTarget` gains `promotion`; add `PromotionDTO`; regenerate + verify the Kotlin is byte-stable across two runs
+- [X] T071 `customer-mobile`: domain `Promotion` + `GetPromotion` + repository + mapper; `CustomerNavKey.Promotion` registered in the saved-state module (⚠ iOS-only failure if forgotten)
+- [X] T072 `customer-mobile`: `PromotionViewModel` + `PromotionScreen` — ⚠ **`Unavailable` and `Failed` are separate states**: an ended promotion must not offer a retry that can never succeed
+- [X] T073 `customer-mobile`: add **`AppError.NotFound`** and map 404 to it — 404 was landing in `Unexpected`, so "that isn't there" reached the shopper as "something broke, try again"
+- [X] T074 `customer-web`: `/promotions/[id]` (`◐ PPR`, **noindex** — a temporary offer must not rank — **uncached**, `notFound()` on 404) + the copy-code client component
+- [X] T075 `customer-web`: add the route to the **bundle gate's list in the same change that created it** (171.0 KB / 174 KB). ⚠ The last guest route added unmeasured was 58.8 KB over for two features
+- [X] T076 ⚠ **Fix the tests that asserted the defect**: `banner_test.go` demanded `Kind == "search"`, and the cross-language wire literal pinned `{"kind":"sale"}` — **a shape no banner ever emitted**. Both now pin the real payload, on both sides
+- [X] T077 Tests: promotion refusal/retry behaviour (mobile), `PromoCarousel` destination + `CopyCodeButton` clipboard-refused (web), `promoValidity` boundaries (Go)
+- [X] T078 Full gate sweep — Go build/vet/gofmt/tests · `pnpm -r typecheck` **12/12** · 902 JS tests · 216 mobile tests · `assembleDebug` · iOS compile · bundle budget on **all six** routes · `depcruise` · `cm-guard`
+- [X] T079 **⚠ OPERATOR** Confirm the banner tap on a device — **done 2026-08-01, reported working**
+- [X] T080 Update `SIGNOFF.md`, the parity register and [CLAUDE.md](../../CLAUDE.md); commit
+
+⚠ **What Phase 9 did NOT do**: it did not touch T050/T051/T054 (the operator half), and it did not put
+Android in front of anyone. The refusal path — tapping a banner whose promotion has since been
+exhausted — is **unit-proven only on both surfaces**; nobody has taken a promotion down between a Home
+read and a tap.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies
