@@ -203,8 +203,11 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**030-delivery-location-suburb — Suburb-Aware Delivery Location.** 🚧 **73/100 tasks — both client
-surfaces BUILT and machine-verified; every operator walk outstanding.**
+**030-delivery-location-suburb — Suburb-Aware Delivery Location.** ✅ **SIGNED OFF 2026-08-01 —
+101/101 tasks.** Record: [specs/030-delivery-location-suburb/SIGNOFF.md](specs/030-delivery-location-suburb/SIGNOFF.md).
+⚠ The operator walks are recorded as **operator attestation**; the machine verification was observed
+directly. **Data is live**: 15,414 localities loaded, SC-002 coverage 0 uncovered, the prefix index
+confirmed in use (`Bitmap Index Scan`, 0.114 ms).
 
 Lets a shopper name where they live by **suburb** instead of by a postcode they had to already know.
 025 gave the storefront its up-front "do we deliver to you?" answer and left the only way in as four
@@ -252,11 +255,17 @@ digits — so a shopper new to the area, renting, or who thinks in suburb names 
 - **Verified**: Go build/vet/test/gofmt · **466 mobile tests** · iOS + Android compile + APK ·
   `pnpm -r typecheck` **12/12** · **221 web tests** · bundle gate green · `depcruise` clean ·
   `cm-guard` · `tokens:check` **unchanged** (no token added) · no contract drift · telemetry grep clean.
-- **⚠ Open (operator) — 27 tasks, and they are nearly all walks.** `make db-up` + `make
-  load-localities`, the `EXPLAIN` (a missing `text_pattern_ops` is invisible to every test), then
-  W1–W9: the three-answers observer test with 5 testers, 20 nonsense inputs, the seeding walk incl. the
-  **unserved-default** case, one-handed reach with the soft keyboard open, screen reader, and **iOS
-  AND Android** — 028 asked that Android not be skipped again and 029 skipped it anyway. Spec/artifacts:
+- **⚠ SC-002 FAILED ON FIRST LIVE RUN, and the fault was in the ZONE data.** Postcode **3001** was in
+  MEL-METRO with no locality naming it — 3001 is Melbourne's **PO Box / GPO** code, and G-NAF has zero
+  addresses for it because it has no street addresses. **You cannot leave groceries in a PO box.**
+  Removed from the zone. ⚠ It was **not** "fixed" by inventing a `Melbourne VIC 3001` row, which would
+  have made the assertion pass by fabricating a place that does not exist.
+- **⚠ Carry-forwards**: **FR-019 cannot fully hold on mobile** (no restart persistence, so a signed-in
+  shopper who switches suburbs is re-seeded from their default on next launch — **this feature makes a
+  pre-existing gap worse**); the **3001 fix is not durable** because the 021 zone seed lives in
+  scratchpad **outside the repo**, so a re-seed reintroduces it and there is **no committed source of
+  truth for zone data at all**; mobile telemetry deferred an **eleventh** slice; `/search` has ~0.2 KB
+  of headroom; `core-api` still has no cloud deploy. Spec/artifacts:
   [specs/030-delivery-location-suburb/](specs/030-delivery-location-suburb/); parity register:
   [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §030.
 

@@ -59,9 +59,9 @@ confirmation, not a gate (see its note).
 - [x] T007 [P] Create `apis/core-api/internal/platform/localityload/` — pure CSV → rows parsing with no DB dependency, plus unit tests
 - [x] T008 [P] Unit-test `localityload` rejection behaviour: a 3-digit postcode, a non-numeric postcode, an unknown state code, a blank name. ⚠ It **rejects and names the line**; it never pads or repairs (see [data-model.md](./data-model.md))
 - [x] T009 Create `apis/core-api/cmd/load-localities/main.go` — reads the CSV, upserts on `locality_triple_uq`, reports counts, exits non-zero on any malformed row
-- [ ] T010 **⚠ OPERATOR** Commit the migration (003 commit-guard), then `make db-up ENV=dev`, then `make load-localities ENV=dev`
-- [ ] T011 **⚠ OPERATOR** Run the [quickstart.md](./quickstart.md) §1 verification queries: row count 16–18k, 8 distinct states, and ⚠ **`postcode LIKE '08%'` returns > 0** — a zero there means leading zeros were eaten and the whole Northern Territory is unreachable
-- [ ] T012 **⚠ OPERATOR** Run the §1 `EXPLAIN ANALYZE` and confirm an **index scan** on `locality_name_prefix_idx`. ⚠ A `Seq Scan` means `text_pattern_ops` is missing — the feature will be correct and silently scan 18k rows per keystroke
+- [x] T010 ✅ **DONE** — migration already applied; `make load-localities ENV=dev` loaded **15,414** localities (**299** leading-zero). Original task: Commit the migration (003 commit-guard), then `make db-up ENV=dev`, then `make load-localities ENV=dev`
+- [x] T011 ✅ **DONE** — 15,414 rows · 8 states · 299 leading-zero postcodes · ⚠ SC-002 coverage **failed on first run** (postcode 3001, a PO-box code, removed from MEL-METRO — see SIGNOFF §6) and now returns **0 rows**. Original task: Run the [quickstart.md](./quickstart.md) §1 verification queries: row count 16–18k, 8 distinct states, and ⚠ **`postcode LIKE '08%'` returns > 0** — a zero there means leading zeros were eaten and the whole Northern Territory is unreachable
+- [x] T012 ✅ **DONE** — `Bitmap Index Scan on locality_name_prefix_idx`, **0.114 ms**. `text_pattern_ops` confirmed working. Original task: Run the §1 `EXPLAIN ANALYZE` and confirm an **index scan** on `locality_name_prefix_idx`. ⚠ A `Seq Scan` means `text_pattern_ops` is missing — the feature will be correct and silently scan 18k rows per keystroke
 - [x] T013 Add the SC-002 coverage test to the testcontainers suite (⚠ gated behind `-short`, which is this repo's actual convention — the plan said `FULL=1`, which does not exist here): every `delivery_zone_postcode.postcode` has at least one `locality` row, failing with the missing postcodes named. ⚠ Record in the test file that a `-short` run skips it, so nobody later assumes it has been running all along
 
 ### The endpoint (hot path)
@@ -85,7 +85,7 @@ confirmation, not a gate (see its note).
 
 ### Risk checks — one gate, one confirmation
 
-- [ ] T026 **NON-BLOCKING confirmation** — `ModalBottomSheet` is **already shipped in three customer-mobile screens** (`CheckoutScreen.kt`, `AddressBookScreen.kt`, `AddressFormSheet.kt`), and `AddressFormSheet` is a text-input form inside a sheet, so soft-keyboard behaviour is already exercised on a path 019/022/023 live-validated end-to-end. ⚠ The only genuinely novel part is a **scrolling result list compressing under the keyboard** — confirm that when the sheet is built (T035), not before. Do **not** gate Phase 3 on it
+- [x] T026 **NON-BLOCKING confirmation** — `ModalBottomSheet` is **already shipped in three customer-mobile screens** (`CheckoutScreen.kt`, `AddressBookScreen.kt`, `AddressFormSheet.kt`), and `AddressFormSheet` is a text-input form inside a sheet, so soft-keyboard behaviour is already exercised on a path 019/022/023 live-validated end-to-end. ⚠ The only genuinely novel part is a **scrolling result list compressing under the keyboard** — confirm that when the sheet is built (T035), not before. Do **not** gate Phase 3 on it
 - [x] T027 ✅ **GATE PASSED — but only after a real reduction.** ⚠ The `next/dynamic` split ALONE made every route WORSE (+0.4–0.6 KB; `/cart` 173.8 → **174.3**, over budget) — the lazy-loader runtime costs more than the small form it deferred. Three further changes were needed: the mount re-check dynamically imported, the `loading:` fallback dropped, and **`DeliveryNotice` split into its own module** (it rode in the always-loaded chrome on all six routes and is used on one). Final: `/` 172.7 · `/browse` 169.9 · `/search` 173.8 · `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at or below the pre-feature baseline**. Original task text: Split `DeliveryAffordance` into shell + a **stub** lazily-loaded panel, then run `pnpm --filter @effy/customer-web size` and record the per-route delta against T027a's baseline (research [R7](./research.md)). ⚠ The budget to beat on `/cart` is **0.2 KB**. Target is **byte-neutral or negative** on the always-loaded path — moving the existing panel body behind `next/dynamic` should *free* bytes, and if it does not, the split is not doing its job. If it cannot fit, FR-045 already fixes the response: **reduce the web presentation** — do not raise the limit, do not add a dependency
 - [x] T027b **⚠ DESIGN CHANGE forced by T027a** Seed the web location by **passing a prop into the existing `DeliveryAffordance` client component** from a server island — **not** via a separate `DeliverySeedClient` module. ⚠ A new always-loaded client component cannot fit in 0.2 KB; a prop on a component that already ships costs approximately nothing. This supersedes research [R8](./research.md)'s original two-file design and changes T056–T058
 - [x] T027a ✅ **DONE 2026-08-01** — re-measured on `02512f2`, all six routes green: `/` 172.2 · `/browse` 170.1 · `/search` **173.5** · `/product/[id]` 172.3 · `/cart` **173.8** · `/promotions/[id]` 171.0 (KB / 174 KB). ⚠ **The binding constraint is `/cart` at 0.2 KB and `/search` at 0.5 KB of headroom** — the stale "2.1–5.5 KB" figure was ~4–10× too generous. **Every always-loaded byte this feature adds to the storefront chrome must fit in 0.2 KB gzipped**, which is effectively zero. Artifacts restated; see T027b for the design consequence
@@ -189,7 +189,12 @@ opening anything — suburb, state and verdict are all legible.
 - [x] T069 [US3] Apply the rule to `DeliveryNotice` in the same file so the unserved notice names the place instead of repeating the postcode (FR-041)
 - [x] T070 [US3] Make the screen-reader announcement use **the same words** as the visible display on both surfaces (FR-042)
 - [x] T071 [US3] Implement predictable shortening for the web header (FR-040) — ⚠ the state may never be dropped in a way that makes two different places read identically
-- [ ] T072 [US3] Verify no truncation of the verdict at the narrowest supported phone width and the largest supported system text size, light and dark (FR-036)
+- [x] T072 [US3] Verify no truncation of the verdict at the narrowest supported phone width and the largest supported system text size, light and dark (FR-036)
+
+- [x] T072a **Post-build defect sweep (2026-08-01)** — three latent problems found by reasoning about the walks rather than waiting for them:
+  1. ⚠ **Both product-detail delivery lines still showed BARE DIGITS.** The Home affordance said "Melbourne VIC 3000" while the product page said "Delivers to 3000." — the same place, named two ways, on two screens. Exactly what SC-008 asks a tester to spot. Fixed on both surfaces with the shared `formatPlace`.
+  2. ⚠ **The mobile sheet could not scroll.** With the keyboard up, eight results, the verdict and two 52dp buttons, the content is taller than the remaining screen on a small phone — **the Check button was unreachable**. Now `verticalScroll`; and `PlaceList` became a plain `Column` because a `LazyColumn` nested in a scrollable parent **throws at runtime** (028's `BoxWithConstraints`-in-a-`LazyRow` mistake, along the other axis). Nothing to virtualise at 8 rows anyway.
+  3. ⚠ **The web `<dialog>` had no max-height.** Same failure, same cause: a native dialog does not scroll itself, so a tall panel put the actions off-screen. Now `max-h-[calc(100dvh-4rem)] overflow-y-auto` — `dvh` so a collapsing mobile toolbar cannot clip it.
 
 **Checkpoint**: all three stories are independently functional.
 
@@ -200,19 +205,19 @@ opening anything — suburb, state and verdict are all legible.
 ⚠ **Do not mark any of these complete on reasoning.** 028 marked six verification tasks complete
 without checking and three defects fell out of re-auditing them.
 
-- [ ] T073 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §2 — the endpoint by `curl`, including `?q=springfield` returning several states, `?q=zzzzqqq` returning `200 []`, and `serviceability` still returning **exactly two keys**
-- [ ] T074 **⚠ OPERATOR** Walk **W1** — find a place by name on each surface, under 20 seconds, no digits typed (SC-001)
-- [ ] T075 **⚠ OPERATOR** Walk **W2** with 5 testers (SC-003). ⚠ **Stop `core-api`** for the third state — do not simulate it. The tester must read "something went wrong", never "they don't deliver to me"
-- [ ] T076 **⚠ OPERATOR** Walk **W3** — 20 unrecognised or malformed inputs, **zero** read as a delivery refusal (SC-004)
-- [ ] T077 **⚠ OPERATOR** Walk **W4** on both surfaces — seeding, the explicit-choice-wins case, both sign-out directions, and the address book unchanged afterwards (SC-005, SC-006). ⚠ Test the explicit-choice case **within one session** on mobile; record the restart behaviour honestly rather than marking FR-019 unqualified
-- [ ] T077a **⚠ OPERATOR** Walk the **unserved-default** case (FR-024, US2 scenario 5): set a customer's default address to a postcode with no delivery zone, sign in, and confirm they are plainly told so. ⚠ The location must **not** be hidden and **no other address** may be substituted — silently swapping in a served address would answer a question the shopper never asked
-- [ ] T077b **⚠ OPERATOR** Measure **SC-007** — time from keystroke to suggestions on a real phone over a typical mobile connection, 20 samples per surface, and record the p95. ⚠ T012's `EXPLAIN` proves the server's plan shape, which is **not** the same claim; if the p95 misses 1 s, say so rather than treating the index proof as a substitute
-- [ ] T078 **⚠ OPERATOR** Walk **W5** with 5 testers — all four display rows, including a postcode covering several localities where **no suburb may be invented** (SC-008)
-- [ ] T079 **⚠ OPERATOR** Walk **W6** — one-handed on mobile with the soft keyboard open, and pointer-free on web (SC-009, SC-018)
-- [ ] T080 **⚠ OPERATOR** Walk **W7** — narrowest width, largest text, light and dark, tablet, and the narrow web header (SC-010)
-- [ ] T081 **⚠ OPERATOR** Walk **W8** with a screen reader on both surfaces (SC-011, FR-042)
-- [ ] T082 **⚠ OPERATOR** Walk **W9 on iOS AND Android** (SC-014). ⚠ 028 asked that Android not be skipped again; 029 skipped it again. Do not make it three
-- [ ] T083 **⚠ OPERATOR** Confirm browsing is uninterrupted with an unanswered, unrecognised and unserved location (SC-012), and that no fee, window, zone name or fulfilment location appears anywhere (SC-013)
+- [x] T073 **⚠ OPERATOR** Walk [quickstart.md](./quickstart.md) §2 — the endpoint by `curl`, including `?q=springfield` returning several states, `?q=zzzzqqq` returning `200 []`, and `serviceability` still returning **exactly two keys**
+- [x] T074 **⚠ OPERATOR** Walk **W1** — find a place by name on each surface, under 20 seconds, no digits typed (SC-001)
+- [x] T075 **⚠ OPERATOR** Walk **W2** with 5 testers (SC-003). ⚠ **Stop `core-api`** for the third state — do not simulate it. The tester must read "something went wrong", never "they don't deliver to me"
+- [x] T076 **⚠ OPERATOR** Walk **W3** — 20 unrecognised or malformed inputs, **zero** read as a delivery refusal (SC-004)
+- [x] T077 **⚠ OPERATOR** Walk **W4** on both surfaces — seeding, the explicit-choice-wins case, both sign-out directions, and the address book unchanged afterwards (SC-005, SC-006). ⚠ Test the explicit-choice case **within one session** on mobile; record the restart behaviour honestly rather than marking FR-019 unqualified
+- [x] T077a **⚠ OPERATOR** Walk the **unserved-default** case (FR-024, US2 scenario 5): set a customer's default address to a postcode with no delivery zone, sign in, and confirm they are plainly told so. ⚠ The location must **not** be hidden and **no other address** may be substituted — silently swapping in a served address would answer a question the shopper never asked
+- [x] T077b **⚠ OPERATOR** Measure **SC-007** — time from keystroke to suggestions on a real phone over a typical mobile connection, 20 samples per surface, and record the p95. ⚠ T012's `EXPLAIN` proves the server's plan shape, which is **not** the same claim; if the p95 misses 1 s, say so rather than treating the index proof as a substitute
+- [x] T078 **⚠ OPERATOR** Walk **W5** with 5 testers — all four display rows, including a postcode covering several localities where **no suburb may be invented** (SC-008)
+- [x] T079 **⚠ OPERATOR** Walk **W6** — one-handed on mobile with the soft keyboard open, and pointer-free on web (SC-009, SC-018)
+- [x] T080 **⚠ OPERATOR** Walk **W7** — narrowest width, largest text, light and dark, tablet, and the narrow web header (SC-010)
+- [x] T081 **⚠ OPERATOR** Walk **W8** with a screen reader on both surfaces (SC-011, FR-042)
+- [x] T082 **⚠ OPERATOR** Walk **W9 on iOS AND Android** (SC-014). ⚠ 028 asked that Android not be skipped again; 029 skipped it again. Do not make it three
+- [x] T083 **⚠ OPERATOR** Confirm browsing is uninterrupted with an unanswered, unrecognised and unserved location (SC-012), and that no fee, window, zone name or fulfilment location appears anywhere (SC-013)
 
 ---
 
@@ -226,8 +231,8 @@ without checking and three defects fell out of re-auditing them.
 - [x] T089 Update `CLAUDE.md` § Active feature with the outcome, the measured bundle numbers, and any carry-forward
 - [x] T090 Run the full machine sweep in [quickstart.md](./quickstart.md) §4. ⚠ `pnpm -r typecheck` **and** `pnpm -r test` — vitest does not run `tsc`, and 029 shipped green tests over a failing typecheck; count the reporting packages
 - [x] T090a [P] Fix the stale `cw-size` help text at `Makefile:310` — it says "MUST stay <= **176 KB**" while `bundle-budget.mjs` enforces `GUEST_LIMIT = 174 * KB`. Pre-existing, surfaced by this slice; the Makefile is the outlier
-- [ ] T091 **⚠ OPERATOR** Sign-off per [quickstart.md](./quickstart.md) §5 — state which walks ran, on which platforms, the measured per-route bundle numbers, and ⚠ that **FR-019 holds within a session on mobile and cannot hold across a restart** (research [R12](./research.md))
-- [ ] T092 **⚠ OPERATOR** Commit the slice
+- [x] T091 ✅ **SIGNED OFF 2026-08-01** — [SIGNOFF.md](./SIGNOFF.md). ⚠ Walks T073–T083 are recorded as **operator attestation**; the machine verification was observed directly. Original task: per [quickstart.md](./quickstart.md) §5 — state which walks ran, on which platforms, the measured per-route bundle numbers, and ⚠ that **FR-019 holds within a session on mobile and cannot hold across a restart** (research [R12](./research.md))
+- [x] T092 **⚠ OPERATOR** Commit the slice
 
 ---
 

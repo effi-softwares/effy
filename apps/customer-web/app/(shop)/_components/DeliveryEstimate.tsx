@@ -3,6 +3,7 @@
 import { Truck } from "lucide-react"
 
 import { useDeliveryContext } from "@/lib/delivery-store"
+import { formatPlace } from "@/lib/delivery-display"
 
 /**
  * The delivery expectation, beside the price (025 US2 / FR-023).
@@ -31,7 +32,7 @@ export function DeliveryEstimate() {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
         <Truck className="size-4 shrink-0" aria-hidden="true" />
-        <span>Checking delivery to {context.postcode}…</span>
+        <span>Checking delivery to {formatPlace(context)}…</span>
       </p>
     )
   }
@@ -41,12 +42,12 @@ export function DeliveryEstimate() {
       <Truck className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       {context.serviced ? (
         <span>
-          <span className="font-medium">Delivers to {context.postcode}.</span>{" "}
+          <span className="font-medium">Delivers to {formatPlace(context)}.</span>{" "}
           <span className="text-muted-foreground">Options and cost at checkout.</span>
         </span>
       ) : (
         <span className="text-muted-foreground">
-          We don&rsquo;t deliver to {context.postcode} yet — you can still add this to your cart.
+          We don&rsquo;t deliver to {formatPlace(context)} yet — you can still add this to your cart.
         </span>
       )}
     </p>

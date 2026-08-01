@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.delivery
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,8 +10,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -101,6 +101,11 @@ fun DeliverySheet(
                 // app has a scrolling list inside it, so this is the genuinely new part (research R9).
                 .imePadding()
                 .navigationBarsPadding()
+                // ⚠ SCROLLABLE, and this is not defensive padding — it is the difference between the
+                // Check button being reachable and not. With the soft keyboard up, eight result rows,
+                // the verdict and two 52dp buttons, the content is taller than what is left of the
+                // screen on a small phone. Without this the shopper simply cannot reach the actions.
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = EffySpacing.lg)
                 .padding(top = EffySpacing.s, bottom = EffySpacing.xxxl),
             // ⚠ SPACING CARRIES THE GROUPING, so it is not uniform. This is the gap BETWEEN groups;
@@ -234,9 +239,14 @@ fun DeliverySheet(
 
 @Composable
 private fun PlaceList(places: List<Locality>, onPick: (Locality) -> Unit) {
-    // Bounded so the list stays scannable above the keyboard (FR-010); the server already caps at 8.
-    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp)) {
-        items(places, key = { "${it.name}|${it.state}|${it.postcode}" }) { place ->
+    // ⚠ A PLAIN Column, deliberately NOT a LazyColumn. The sheet body scrolls, and a lazy list nested
+    // inside a `verticalScroll` parent throws at runtime — it is measured with an infinite maximum
+    // height. There is also nothing to virtualise: the server caps this list at 8 (FR-010).
+    //
+    // This is 028's mistake in the other direction — that slice put a `BoxWithConstraints` inside a
+    // `LazyRow` whose main axis was unbounded. Nesting scrollables along the same axis is the trap.
+    Column(modifier = Modifier.fillMaxWidth()) {
+        places.forEach { place ->
             TextButton(
                 onClick = { onPick(place) },
                 // ⚠ 48dp: a suggestion is a touch target, not a line of text (FR-032, Principle V).

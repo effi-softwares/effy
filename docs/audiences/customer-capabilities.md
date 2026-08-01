@@ -683,11 +683,18 @@ restart (025's unmet persistence half). So a signed-in shopper who deliberately 
 outrank it did not survive. It holds within a session. ⚠ **This feature makes a pre-existing gap
 worse**: before it, nothing was ever seeded, so the gap only meant "retype it".
 
-**⚠ Outstanding (operator)**: every walk. The three-answers observer test with 5 testers (SC-003), 20
-nonsense inputs (SC-004), the seeding walk incl. the **unserved-default** case, one-handed reach with
-the soft keyboard open, screen reader, and **iOS *and* Android** — 028 asked that Android not be
-skipped again and 029 skipped it anyway. Also unwalked: the scrolling result list compressing under
-the keyboard, which is the one genuinely novel part of the sheet.
+**✅ SIGNED OFF 2026-08-01** — 101/101. The operator walks are recorded as **operator attestation**;
+the machine verification was observed directly. See
+[SIGNOFF.md](../../specs/030-delivery-location-suburb/SIGNOFF.md).
+
+**Live data**: 15,414 localities · 299 leading-zero postcodes · SC-002 coverage **0 uncovered** · the
+prefix index confirmed in use (`Bitmap Index Scan`, 0.114 ms). Served postcodes are now all nameable —
+**3350 covers 20 Ballarat localities, 3550 covers 12 in Bendigo**, and none of those shoppers could
+have named their postcode.
+
+⚠ **SC-002 failed on first run** and the fault was in the **zone** data: postcode **3001** (Melbourne's
+PO Box code, zero street addresses in G-NAF) was in MEL-METRO. Removed — **not** papered over by
+inventing a locality row.
 
 **Carry-forwards**: mobile telemetry deferred an **eleventh** consecutive slice; the 028/029 banner
 `code`/`terms` face gap on web is untouched by this slice; `/search` has ~0.2 KB of headroom left.

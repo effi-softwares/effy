@@ -126,7 +126,11 @@ export function DeliveryAffordance({
 
       <dialog
         ref={dialogRef}
-        className="fx-dialog fx-dialog-modal m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border bg-background p-0 text-foreground backdrop:bg-black/40"
+        // ⚠ `max-h` + `overflow-y-auto`: with eight suggestions, the verdict and the actions, the panel is
+        // taller than a small viewport and a native <dialog> does not scroll on its own — the Check
+        // button simply ends up off-screen. `dvh` rather than `vh` so a mobile browser's collapsing
+        // toolbar does not clip it.
+        className="fx-dialog fx-dialog-modal m-auto max-h-[calc(100dvh-4rem)] w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-xl border bg-background p-0 text-foreground backdrop:bg-black/40"
         aria-labelledby="delivery-dialog-title"
         // Light dismiss. A native <dialog> closes on Escape and NOTHING else — which on a phone,
         // where there is no Escape key, leaves the close button as the only way out. A click whose
