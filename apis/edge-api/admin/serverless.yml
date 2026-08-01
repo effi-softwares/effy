@@ -283,6 +283,42 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── 031-delivery-areas ────────────────────────────────────────────────────────────────────────
+  # ⚠ These read public.locality (030) from the ADMIN service, NOT via core-api's storefront endpoint:
+  # core-api has no cloud deployment, so a Lambda calling it would work locally and fail in dev.
+  deliveryLocalitiesListV1:
+    handler: src/functions/delivery-localities-list-v1-get.handler
+    description: Find places an operator could mean (locality search) — 031
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-localities
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryLocalitiesCoverageV1:
+    handler: src/functions/delivery-localities-coverage-v1-get.handler
+    description: What else a postcode covers — the FR-006 disclosure data — 031
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-localities/coverage
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryHealthV1:
+    handler: src/functions/delivery-health-v1-get.handler
+    description: Delivery configuration health — unknown place / unconfigured / empty zone — 031
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-health
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   deliveryZonePostcodesListV1:
     handler: src/functions/delivery-zone-postcodes-list-v1-get.handler
     description: List a zone's postcodes — 021

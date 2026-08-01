@@ -135,9 +135,27 @@ export async function updateZone(
   return repo.updateZone(zoneId, { name, status }, actorSub);
 }
 
+/**
+ * Assign postcodes to a zone.
+ *
+ * ── ⚠ 031: THE UNKNOWN-POSTCODE WARNING (FR-005) ────────────────────────────────────────────────
+ *
+ * Until 031 this validated the SHAPE of a postcode and nothing else. That is how postcode **3001**
+ * entered Melbourne Metro: it is Melbourne's PO-box code, has no street addresses, and groceries
+ * cannot be delivered to a post-office box. It sat there undetected until a coverage query found it,
+ * and the only symptom would ever have been deliveries that silently never happened. A typo of `3122`
+ * for `3121` would have been equally invisible.
+ *
+ * Now that `public.locality` exists (030), a postcode no locality names can be caught at entry.
+ *
+ * ⚠ IT WARNS, IT DOES NOT BLOCK. `confirmUnknown: true` accepts it deliberately. A hard refusal would
+ * be safer against 3001 and would also stall a legitimate operations change whenever the reference
+ * record lags a newly created postcode. Admins are trusted operators; this control prevents mistakes,
+ * not misuse.
+ */
 export async function addZonePostcodes(
   zoneId: string,
-  input: { postcodes?: unknown },
+  input: { postcodes?: unknown; confirmUnknown?: unknown },
   actorSub: string,
 ): Promise<ZonePostcode[]> {
   const raw = input.postcodes;
@@ -161,6 +179,29 @@ export async function addZonePostcodes(
     }
   }
   if (fields.length > 0) throw new DeliveryError("validation", "invalid postcodes", fields);
+
+  // ⚠ The 3001 guard. Unless the admin has explicitly confirmed, a postcode that no locality names is
+  // refused with a message naming each one — so the refusal is actionable rather than a bare "no".
+  if (input.confirmUnknown !== true) {
+    const unknown: string[] = [];
+    for (const postcode of cleaned) {
+      const places = await repo.localitiesForPostcode(postcode);
+      if (places.length === 0) unknown.push(postcode);
+    }
+    if (unknown.length > 0) {
+      throw new DeliveryError(
+        "validation",
+        "unrecognised postcode",
+        unknown.map((postcode) => ({
+          field: "postcodes",
+          message:
+            `${postcode} is not a recognised delivery destination — no Australian locality uses it. ` +
+            `It may be a PO-box or non-residential postcode. Confirm to add it anyway.`,
+        })),
+      );
+    }
+  }
+
   return repo.addZonePostcodes(zoneId, cleaned, actorSub);
 }
 

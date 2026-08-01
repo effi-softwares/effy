@@ -8,6 +8,7 @@ const repo = vi.hoisted(() => ({
   createZone: vi.fn(),
   updateZone: vi.fn(),
   addZonePostcodes: vi.fn(),
+  localitiesForPostcode: vi.fn(),
   removeZonePostcode: vi.fn(),
   listOfferings: vi.fn(),
   offeringFields: vi.fn(),
@@ -86,8 +87,65 @@ describe("addZonePostcodes validation", () => {
 
   it("dedupes and forwards valid postcodes", async () => {
     repo.addZonePostcodes.mockResolvedValue([]);
-    await addZonePostcodes("z1", { postcodes: ["3000", "3000", "3001"] }, "actor");
-    expect(repo.addZonePostcodes).toHaveBeenCalledWith("z1", ["3000", "3001"], "actor");
+    // ⚠ Both must be postcodes a locality actually names, or 031's guard refuses them. The original
+    // version of this test used "3001" — Melbourne's PO-box code — as an ordinary example, which is a
+    // small illustration of how that postcode came to be in a delivery zone in the first place.
+    repo.localitiesForPostcode.mockResolvedValue([{ name: "Melbourne", state: "VIC", postcode: "3000" }]);
+    await addZonePostcodes("z1", { postcodes: ["3000", "3000", "3141"] }, "actor");
+    expect(repo.addZonePostcodes).toHaveBeenCalledWith("z1", ["3000", "3141"], "actor");
+  });
+});
+
+/* ── 031: the unknown-postcode guard (FR-005) ─────────────────────────────────────────────────── */
+
+describe("addZonePostcodes — the 3001 guard", () => {
+  /**
+   * ⚠ THE DEFECT THAT MOTIVATED FEATURE 031.
+   *
+   * 3001 is Melbourne's PO-box code: no street addresses, and groceries cannot be delivered to a post
+   * office box. It entered Melbourne Metro through this very function, which validated the shape of a
+   * postcode and nothing else. The only symptom would ever have been deliveries that never happened.
+   */
+  it("REFUSES a postcode no locality names, and says which one", async () => {
+    repo.localitiesForPostcode.mockResolvedValue([]); // 3001 → no places
+    const err = await addZonePostcodes("z1", { postcodes: ["3001"] }, "actor").catch((e) => e);
+
+    expect(err).toBeDefined();
+    expect(err.kind).toBe("validation");
+    expect(JSON.stringify(err.fields)).toContain("3001");
+    expect(repo.addZonePostcodes).not.toHaveBeenCalled();
+  });
+
+  /**
+   * ⚠ It WARNS, it does not BLOCK. A hard refusal would be safer against 3001 and would also stall a
+   * legitimate operations change whenever the reference record lags a newly created postcode.
+   */
+  it("accepts the same postcode when the admin confirms deliberately", async () => {
+    repo.localitiesForPostcode.mockResolvedValue([]);
+    repo.addZonePostcodes.mockResolvedValue([]);
+
+    await addZonePostcodes("z1", { postcodes: ["3001"], confirmUnknown: true }, "actor");
+    expect(repo.addZonePostcodes).toHaveBeenCalledWith("z1", ["3001"], "actor");
+  });
+
+  it("lets a recognised postcode through without any confirmation", async () => {
+    repo.localitiesForPostcode.mockResolvedValue([
+      { name: "Alfredton", state: "VIC", postcode: "3350" },
+    ]);
+    repo.addZonePostcodes.mockResolvedValue([]);
+
+    await addZonePostcodes("z1", { postcodes: ["3350"] }, "actor");
+    expect(repo.addZonePostcodes).toHaveBeenCalledWith("z1", ["3350"], "actor");
+  });
+
+  /** A batch is refused as a batch, naming every offender — not one at a time. */
+  it("names every unrecognised postcode in one refusal", async () => {
+    repo.localitiesForPostcode.mockResolvedValue([]);
+    const err = await addZonePostcodes("z1", { postcodes: ["3001", "9999"] }, "actor").catch((e) => e);
+
+    const asText = JSON.stringify(err.fields);
+    expect(asText).toContain("3001");
+    expect(asText).toContain("9999");
   });
 });
 

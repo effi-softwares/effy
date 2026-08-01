@@ -89,3 +89,72 @@ export class DeliveryError extends Error {
 export function isDeliveryError(err: unknown): err is DeliveryError {
   return err instanceof DeliveryError;
 }
+
+/* ── 031-delivery-areas ────────────────────────────────────────────────────────────────────────
+ *
+ * ⚠ AN AREA IS A POSTCODE. It is CHOSEN by locality name in the console, but serviceability is
+ * decided by postcode everywhere — delivery.ZoneForPostcode is shared by the storefront's answer and
+ * checkout's DestinationZone (025 FR-014b). That gap between how an area is picked and what it means
+ * is why the interface must disclose every other place a postcode covers (FR-006).
+ */
+
+/** The three states an area can be in. ⚠ `unconfigured` is the ABSENCE of a decision, never a stored value. */
+export type AreaState = "configured" | "not_served" | "unconfigured";
+
+export type AreaDecisionValue = "served" | "not_served";
+
+export interface AreaDecision {
+  decision: AreaDecisionValue;
+  note: string | null;
+  /** ⚠ The deciding admin's Cognito `sub`, not an email or display name. Joined to admin.staff for display. */
+  decidedBy: string;
+  decidedAt: string;
+}
+
+/** One method's configuration for an area. */
+export interface AreaServiceLevel {
+  method: DeliveryMethod;
+  enabled: boolean;
+  feeAmount: string | null;
+  leadDaysMin: number | null;
+  leadDaysMax: number | null;
+  sameDayCutoff: string | null;
+}
+
+/** Everything one area gets, in one shape — FR-022 answers this in a single request. */
+export interface Area {
+  zoneId: string;
+  zoneCode: string;
+  postcode: string;
+  /** The places this postcode covers, by name. Empty = no locality knows it (the 3001 case). */
+  places: { name: string; state: string }[];
+  state: AreaState;
+  decision: AreaDecision | null;
+  serviceLevels: AreaServiceLevel[];
+}
+
+/**
+ * A shop that could serve an area, for the same-day judgement (FR-017).
+ *
+ * ⚠ `inZone` is stated as exactly what it is — "this shop's postcode resolves to the area's zone" —
+ * and NOT dressed up as a distance. The platform has no routing capability, and invented precision on
+ * a promise is worse than an honest human judgement (research R6).
+ * ⚠ `postcode` is nullable on public.shop (021): a shop with no location set resolves to no zone and
+ * is surfaced separately, never silently hidden.
+ */
+export interface AreaShopFeasibility {
+  shopId: string;
+  shopCode: string;
+  shopName: string;
+  postcode: string | null;
+  inZone: boolean;
+}
+
+/** The three configuration defects, each a list rather than a count so an admin can act on them. */
+export interface AreaHealth {
+  /** ⚠ The 3001 class: an area no locality names. */
+  unknownPlace: { zoneCode: string; postcode: string }[];
+  /** ⚠ The REGIONAL class: nobody decided, and nothing is offered. */
+  unconfigured: { zoneCode: string; postcode: string }[];
+  emptyZones: { zoneCode: string }[];
+}

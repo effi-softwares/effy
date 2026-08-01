@@ -23,6 +23,7 @@ import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageDelivery } from "./access";
 import { CreateZoneDialog } from "./components/CreateZoneDialog";
+import { DeliveryHealthPanel } from "./DeliveryHealthPanel";
 import type { DeliveryZone } from "./model";
 import { zoneListQuery } from "./queries";
 
@@ -107,6 +108,10 @@ export function DeliveryZonesScreen() {
           ) : null}
         </div>
       </div>
+
+      {/* 031 US4: configuration problems, one screen from where an admin already looks (SC-008).
+          ⚠ Renders NOTHING when the configuration is sound — an always-lit indicator says nothing. */}
+      <DeliveryHealthPanel />
 
       <div className="flex flex-wrap items-center gap-3">
         <Input

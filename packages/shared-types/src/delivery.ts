@@ -101,3 +101,89 @@ export interface SetShopLocationRequest {
   /** The shop's origin postcode. Null clears it (→ the shop's packages become undeliverable). */
   postcode: string | null;
 }
+
+/* ── 031-delivery-areas: per-area configuration ────────────────────────────────────────────────
+ *
+ * ⚠ `LocalityDTO` is REUSED UNCHANGED from `./storefront` — the operator's place search returns the
+ * same shape the shopper's does. One table, one contract, two audiences (Principle II). Do NOT
+ * declare a second locality type here.
+ */
+
+/** ⚠ `unconfigured` is the ABSENCE of a decision, never a stored value — see the 031 migration. */
+export type AreaState = "configured" | "not_served" | "unconfigured";
+
+export type AreaDecisionValue = "served" | "not_served";
+
+export interface AreaDecisionDTO {
+  decision: AreaDecisionValue;
+  note: string | null;
+  /** The deciding admin's Cognito `sub`. The console resolves the display name from admin.staff. */
+  decidedBy: string;
+  decidedAt: string;
+}
+
+export interface AreaServiceLevelDTO {
+  method: DeliveryMethod;
+  enabled: boolean;
+  feeAmount: string | null;
+  leadDaysMin: number | null;
+  leadDaysMax: number | null;
+  sameDayCutoff: string | null;
+}
+
+export interface AreaDTO {
+  zoneId: string;
+  zoneCode: string;
+  postcode: string;
+  /** The places this postcode covers. ⚠ Empty means no locality names it — the 3001 case. */
+  places: { name: string; state: string }[];
+  state: AreaState;
+  decision: AreaDecisionDTO | null;
+  serviceLevels: AreaServiceLevelDTO[];
+}
+
+/** What a postcode actually covers — ⚠ the data behind the FR-006 disclosure. */
+export interface PostcodeCoverageDTO {
+  postcode: string;
+  places: { name: string; state: string; postcode: string }[];
+  /**
+   * ⚠ REQUIRED even though the client could take `places.length`.
+   *
+   * The disclosure sentence is built from this. A client measuring the list it was handed can render
+   * "1 other place" when there are twenty, because the list was truncated. The rendered sentence uses
+   * `count - 1` ("19 other places" from a count of 20) — the derivation is stated so the client is not
+   * left inventing it.
+   */
+  count: number;
+}
+
+/** A shop that might serve an area. ⚠ `inZone` is zone membership, NOT a distance (031 research R6). */
+export interface AreaShopFeasibilityDTO {
+  shopId: string;
+  shopCode: string;
+  shopName: string;
+  postcode: string | null;
+  inZone: boolean;
+}
+
+export interface AreaHealthDTO {
+  unknownPlace: { zoneCode: string; postcode: string }[];
+  unconfigured: { zoneCode: string; postcode: string }[];
+  emptyZones: { zoneCode: string }[];
+}
+
+export interface ConfigureAreaRequest {
+  serviceLevels: (Omit<AreaServiceLevelDTO, "feeAmount"> & {
+    feeAmount?: string | null;
+    /**
+     * ⚠ REQUIRED when enabling same_day and no shop shares the area's zone. Records that a human was
+     * shown the problem and chose anyway (FR-018). Absent → the request is refused with 422, because a
+     * fee is a business choice the platform can absorb and same-day is a physical claim about time.
+     */
+    noNearbyShopAcknowledged?: boolean;
+  })[];
+}
+
+export interface MarkAreaNotServedRequest {
+  note?: string | null;
+}

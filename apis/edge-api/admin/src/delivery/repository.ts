@@ -8,6 +8,8 @@ import type { PoolClient } from "pg";
 import { query, withTransaction } from "@effy/edge-shared";
 
 import {
+  type AreaDecision,
+  type AreaDecisionValue,
   type AuditEntry,
   type DeliveryError,
   DeliveryError as DeliveryErr,
@@ -503,4 +505,163 @@ export async function setShopLocation(
     return res.rows[0];
   });
   return { shopId: row.id, shopCode: row.code, shopName: row.name, postcode: row.postcode };
+}
+
+/* ── 031-delivery-areas ────────────────────────────────────────────────────────────────────────
+ *
+ * Reads over public.locality (030, read-only here) and the new decision record.
+ *
+ * ⚠ These are COLD-PATH reads in the admin service, deliberately NOT calls to core-api's storefront
+ * endpoint: core-api has no cloud deployment, so a Lambda calling it would work locally and fail in
+ * dev. Same table, two services, two paths — the split promo_code already has (research R1).
+ */
+
+/** Find places an operator could mean. Prefix match, served by 030's `locality_name_prefix_idx`. */
+export async function searchLocalities(
+  q: string,
+  limit: number,
+): Promise<{ name: string; state: string; postcode: string }[]> {
+  const res = await query<{ name: string; state: string; postcode: string }>(
+    `SELECT name, state, postcode
+       FROM public.locality
+      WHERE lower(name) LIKE lower($1) || '%'
+      ORDER BY name, state, postcode
+      LIMIT $2`,
+    [q, limit],
+  );
+  return res.rows;
+}
+
+/**
+ * Everything a postcode covers — ⚠ THE DATA BEHIND FR-006.
+ *
+ * 3350 returns 20 rows (Ballarat); 3550 returns 12 (Bendigo). An admin choosing "Alfredton" is
+ * choosing all twenty, and this is what lets the interface say so before they confirm.
+ */
+export async function localitiesForPostcode(
+  postcode: string,
+): Promise<{ name: string; state: string; postcode: string }[]> {
+  const res = await query<{ name: string; state: string; postcode: string }>(
+    `SELECT name, state, postcode FROM public.locality WHERE postcode = $1 ORDER BY name`,
+    [postcode],
+  );
+  return res.rows;
+}
+
+export async function getAreaDecision(
+  zoneId: string,
+  postcode: string,
+): Promise<AreaDecision | null> {
+  const res = await query<{
+    decision: AreaDecisionValue;
+    note: string | null;
+    decided_by: string;
+    decided_at: Date;
+  }>(
+    `SELECT decision, note, decided_by, decided_at
+       FROM public.delivery_area_decision
+      WHERE zone_id = $1 AND postcode = $2`,
+    [zoneId, postcode],
+  );
+  const row = res.rows[0];
+  if (!row) return null;
+  return {
+    decision: row.decision,
+    note: row.note,
+    decidedBy: row.decided_by,
+    decidedAt: row.decided_at.toISOString(),
+  };
+}
+
+/**
+ * Record a decision, and — when it is `not_served` — ⚠ WITHDRAW THE AREA IN THE SAME TRANSACTION.
+ *
+ * Recording alone changes nothing: serviceability is decided by zone membership, so a decision written
+ * BESIDE that membership would leave the storefront still answering "we deliver here" for an area an
+ * admin explicitly marked unserved. That is the REGIONAL defect inverted, introduced by the feature
+ * meant to prevent it (FR-011a).
+ *
+ * The decision row SURVIVES the withdrawal — there is no FK to delivery_zone_postcode, by design — so
+ * the console can still say who decided it and why (FR-011b), and re-adding surfaces it (FR-011c).
+ */
+export async function recordAreaDecision(
+  zoneId: string,
+  postcode: string,
+  decision: AreaDecisionValue,
+  note: string | null,
+  actorSub: string,
+): Promise<void> {
+  await withTransaction(async (tx: PoolClient) => {
+    await tx.query(
+      `INSERT INTO public.delivery_area_decision (zone_id, postcode, decision, note, decided_by)
+            VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT ON CONSTRAINT delivery_area_decision_uq
+       DO UPDATE SET decision = EXCLUDED.decision, note = EXCLUDED.note,
+                     decided_by = EXCLUDED.decided_by, decided_at = now(), updated_at = now()`,
+      [zoneId, postcode, decision, note, actorSub],
+    );
+    if (decision === "not_served") {
+      // ⚠ The half that makes the decision real. Without it the record is decoration.
+      await tx.query(
+        `DELETE FROM public.delivery_zone_postcode WHERE zone_id = $1 AND postcode = $2`,
+        [zoneId, postcode],
+      );
+    }
+  });
+}
+
+/* ── Health: the three configuration defects (FR-024 … FR-026) ─────────────────────────────── */
+
+/** ⚠ The 3001 class — an area no locality names. */
+export async function areasWithUnknownPlace(): Promise<{ zoneCode: string; postcode: string }[]> {
+  const res = await query<{ zone_code: string; postcode: string }>(
+    `SELECT z.code AS zone_code, p.postcode
+       FROM public.delivery_zone_postcode p
+       JOIN public.delivery_zone z ON z.id = p.zone_id
+       LEFT JOIN public.locality l ON l.postcode = p.postcode
+      WHERE l.id IS NULL
+      ORDER BY z.code, p.postcode`,
+  );
+  return res.rows.map((r) => ({ zoneCode: r.zone_code, postcode: r.postcode }));
+}
+
+/**
+ * ⚠ THE REGIONAL CLASS, and the assertion behind SC-014.
+ *
+ * An area nobody decided about AND for which nothing is offered — so the storefront says "we deliver
+ * here" and checkout can quote nothing. Run against the data as it stood when this feature began, it
+ * returns 3350 and 3550.
+ *
+ * ⚠ KNOWN GRANULARITY GAP (data-model.md §consequence 3): the offering check is ZONE-granular while
+ * the decision is AREA-granular, so one active offering un-flags every area in its zone. That is the
+ * same postcode-vs-zone seam the projection has, one layer down; it is recorded rather than papered
+ * over, and a test covers two areas in one zone with divergent decisions.
+ */
+export async function unconfiguredAreas(): Promise<{ zoneCode: string; postcode: string }[]> {
+  const res = await query<{ zone_code: string; postcode: string }>(
+    `SELECT z.code AS zone_code, p.postcode
+       FROM public.delivery_zone_postcode p
+       JOIN public.delivery_zone z ON z.id = p.zone_id
+       LEFT JOIN public.delivery_area_decision d
+              ON d.zone_id = p.zone_id AND d.postcode = p.postcode
+      WHERE d.id IS NULL
+        AND NOT EXISTS (
+              SELECT 1 FROM public.delivery_offering o
+               WHERE o.destination_zone_id = p.zone_id AND o.status = 'active')
+      ORDER BY z.code, p.postcode`,
+  );
+  return res.rows.map((r) => ({ zoneCode: r.zone_code, postcode: r.postcode }));
+}
+
+/** A zone serving nobody. */
+export async function emptyZones(): Promise<{ zoneCode: string }[]> {
+  const res = await query<{ zone_code: string }>(
+    `SELECT z.code AS zone_code
+       FROM public.delivery_zone z
+       LEFT JOIN public.delivery_zone_postcode p ON p.zone_id = z.id
+      GROUP BY z.id, z.code
+     HAVING count(p.id) = 0
+      ORDER BY z.code`,
+  );
+  return res.rows.map((r) => ({ zoneCode: r.zone_code }));
 }

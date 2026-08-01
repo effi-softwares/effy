@@ -1079,5 +1079,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/030-delivery-location-suburb/plan.md
+at specs/031-delivery-areas/plan.md
 <!-- SPECKIT END -->

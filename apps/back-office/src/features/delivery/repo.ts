@@ -1,12 +1,15 @@
 import type {
   AddPostcodesRequest,
+  AreaHealthDTO,
   AuditEntryDTO,
   CreateOfferingRequest,
   CreateZoneRequest,
   DeliveryOfferingDTO,
   DeliveryZoneDTO,
   DeliveryZonePostcodeDTO,
+  LocalityDTO,
   PagedDTO,
+  PostcodeCoverageDTO,
   SetShopLocationRequest,
   ShopListItemDTO,
   ShopLocationDTO,
@@ -131,4 +134,28 @@ export async function setShopLocation(
 export async function listShopOptions(): Promise<ShopOption[]> {
   const page = await api.get<PagedDTO<ShopListItemDTO>>("/admin/v1/shops?page=1&pageSize=100");
   return page.items;
+}
+
+/* ── 031-delivery-areas ────────────────────────────────────────────────────────────────────── */
+
+/** Find places an operator could mean. Returns the same shape the shopper's search does (030). */
+export async function searchLocalities(q: string): Promise<LocalityDTO[]> {
+  return api.get<LocalityDTO[]>(`/admin/v1/delivery-localities?q=${encodeURIComponent(q)}`);
+}
+
+/**
+ * What a postcode actually covers — ⚠ THE DATA BEHIND THE FR-006 DISCLOSURE.
+ *
+ * Serviceability is decided by postcode, so choosing "Alfredton" makes all twenty Ballarat localities
+ * serviceable. This is what lets the interface say so before an admin confirms.
+ */
+export async function postcodeCoverage(postcode: string): Promise<PostcodeCoverageDTO> {
+  return api.get<PostcodeCoverageDTO>(
+    `/admin/v1/delivery-localities/coverage?postcode=${encodeURIComponent(postcode)}`,
+  );
+}
+
+/** The three ways a delivery configuration goes quietly wrong (031 US4). */
+export async function deliveryHealth(): Promise<AreaHealthDTO> {
+  return api.get<AreaHealthDTO>("/admin/v1/delivery-health");
 }

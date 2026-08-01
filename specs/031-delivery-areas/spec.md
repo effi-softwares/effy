@@ -210,12 +210,23 @@ its own because a correctly built configuration has nothing to show.
 - **FR-010**: For any area an admin MUST be able to configure each available delivery method
   independently: enabled or not, with its fee and its timing.
 - **FR-011**: An admin MUST be able to record that an area is **deliberately not served**.
+- **FR-011a**: ⚠ **Marking an area not served MUST actually stop serving it**, not merely annotate it.
+  The area is withdrawn from its zone in the same action that records the decision.
+
+  *Why this needs saying*: serviceability is decided by whether a postcode belongs to a zone. A
+  decision recorded **beside** that membership changes nothing — the storefront would still answer
+  "we deliver here" for an area an admin had explicitly marked unserved. That is the REGIONAL defect
+  inverted, introduced by the very feature meant to prevent it.
+- **FR-011b**: The recorded decision MUST **survive** the withdrawal, so an area that is not served
+  still shows *who* decided it, *when*, and *why*. A decision that vanishes with the thing it decided
+  about leaves the next admin with the same unanswerable question this feature exists to remove.
+- **FR-011c**: Re-adding a previously withdrawn area MUST surface the earlier decision and its note,
+  so an admin re-enabling somewhere learns why it was switched off.
 - **FR-012**: ⚠ **"Deliberately not served" and "not yet configured" MUST be distinguishable.** Today
   an unserved destination is expressed by the *absence* of a row, which cannot tell a decision from an
   oversight — the same ambiguity that let 3001 survive.
 - **FR-013**: An area's fee MUST apply regardless of which shop fulfils the order.
 - **FR-014**: A quoted order MUST keep the fee it was quoted at, even if the area's fee later changes.
-- **FR-015**: Configuration MUST NOT change what a shopper is charged for an order already placed.
 - **FR-016**: Every service-level and fee change MUST be attributable — who changed it and when.
 
 #### Same-day, which is a promise rather than a price
@@ -245,7 +256,9 @@ its own because a correctly built configuration has nothing to show.
 
 - **FR-028**: The shopper's experience of delivery MUST NOT change: the up-front serviceability answer,
   the checkout quote, and the address book behave exactly as they do today.
-- **FR-029**: No new delivery method MUST be introduced.
+- **FR-029**: No new delivery method MUST be introduced. The set an admin can configure MUST equal the
+  set the platform already supports, exactly — ⚠ verified rather than asserted, since this feature is
+  the first interface to expose all three together.
 - **FR-030**: A shopper MUST NOT be able to learn which shop fulfils their order from anything this
   feature adds.
 - **FR-031**: Existing orders, quotes and their captured prices MUST be unaffected.
@@ -280,6 +293,8 @@ its own because a correctly built configuration has nothing to show.
   than one screen.
 - **SC-005**: **100%** of areas in the system resolve to one of exactly three states: configured,
   deliberately not served, or unconfigured. No area is ambiguous.
+- **SC-005a**: An area marked **not served** is reported as **not serviceable** by the storefront —
+  verified end to end, because a decision that does not change the answer is decoration.
 - **SC-006**: 5 of 5 admins, shown an unconfigured area and a deliberately-unserved area, correctly
   tell them apart.
 - **SC-007**: **Zero** same-day activations occur without the admin having seen which shops can serve
@@ -293,6 +308,9 @@ its own because a correctly built configuration has nothing to show.
   across at least two shops.
 - **SC-012**: An order quoted before a fee change is fulfilled at the quoted fee.
 - **SC-013**: Every composition and service-level change is attributable to a named admin.
+- **SC-014**: **Zero** areas exist that the storefront reports as serviceable but for which checkout
+  can offer no delivery option — verified against the live `REGIONAL` case that motivated this feature.
+  The up-front answer and checkout agree for every area, or the disagreement is visible to an admin.
 
 ---
 
@@ -344,12 +362,47 @@ Named because each was considered and excluded; none may be smuggled in.
 
 ---
 
-## Open Questions
+## Resolved Scope Decisions
 
-- **[NEEDS CLARIFICATION: existing per-origin rates]** Some areas may today be priced differently
-  depending on which shop delivers. Moving to one fee per area has to resolve those into a single
-  number. What should happen to a rate that currently differs by origin?
+- **Existing per-origin rates → the admin reconciles (settled 2026-08-01, from live data).** There is
+  a real conflict: delivering to Melbourne Metro is priced **$5.00** from a Melbourne shop and
+  **$8.00** from a Regional one. Collapsing to one fee per area therefore cannot be automatic without
+  silently changing a price. The console will show both existing rates for an area and require the
+  admin to choose. ⚠ The specific $5-vs-$8 decision is an **operator task at implementation**, not a
+  spec decision — this document only requires that no price changes without someone choosing it.
 
-- **[NEEDS CLARIFICATION: scheduled delivery]** The platform has three delivery methods — same-day,
-  scheduled (the shopper picks a date), and standard. The request named two. Does per-area
-  configuration cover all three, or does scheduled stay in the existing grid?
+- **Scheduled delivery is included (settled 2026-08-01).** All three methods are configured per area.
+  ⚠ Worth knowing: **scheduled is currently configured nowhere** — dev has `same_day` and `standard`
+  offerings only. Retiring it was rejected because 021 built the date-picking flow through checkout and
+  removing a shipped capability to simplify a console is the wrong trade; leaving it in the old grid
+  was rejected because two management surfaces for one concept is how configuration drifts.
+
+---
+
+## ⚠ The defect this feature already has to answer for
+
+**Found in live dev data, 2026-08-01, while resolving the questions above.**
+
+The `REGIONAL` zone contains **3350 (Ballarat)** and **3550 (Bendigo)**. It has **zero** active
+offerings as a destination.
+
+The consequence is the exact failure the up-front delivery answer exists to prevent:
+
+- The storefront resolves 3350 to a zone, so a shopper in Ballarat is told **"We deliver here."**
+- Checkout finds no offering for that destination, so **no delivery option can be quoted** and the
+  order cannot complete.
+
+The shopper is invited in and then stopped at payment — 025's FR-014b ("serviceability MUST be decided
+by the same rules that decide it at checkout, so the two answers can never disagree") violated in
+production data rather than in code.
+
+⚠ **Feature 030 widened the blast radius.** Before it, a Ballarat shopper had to know the digits
+"3350". Now they can type "Alfredton" and be told yes. Making the store easier to find made this
+easier to hit.
+
+**Why it is in this spec rather than fixed as a one-line data change**: nobody can currently tell
+whether `REGIONAL` was *deliberately unpriced* or simply *never finished* — which is precisely the
+ambiguity FR-012 exists to remove. Fixing the row without fixing the ambiguity guarantees a recurrence.
+FR-021 and FR-025/FR-026 are the requirements that make this state visible instead of silent.
+
+**This is the motivating example for the feature**, and SC-014 below measures it directly.

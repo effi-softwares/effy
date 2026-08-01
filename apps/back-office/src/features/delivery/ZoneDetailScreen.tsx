@@ -21,7 +21,10 @@ import { DataTable, ErrorState } from "@effy/web-kit/console";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageDelivery } from "./access";
+import { AddAreasDialog } from "./components/AddAreasDialog";
 import { AddPostcodesDialog } from "./components/AddPostcodesDialog";
+import { RemoveAreaDialog } from "./components/RemoveAreaDialog";
+import { postcodeCoverageQuery } from "./queries";
 import { CreateZoneDialog } from "./components/CreateZoneDialog";
 import type { DeliveryZone, ZonePostcode } from "./model";
 import {
@@ -54,6 +57,8 @@ export function ZoneDetailScreen({ zoneId }: { zoneId: string }) {
 
   const [editOpen, setEditOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  // The escape hatch (FR-004) — a postcode the locality record does not know yet.
+  const [rawOpen, setRawOpen] = useState(false);
   const updateZone = useUpdateZone(zoneId);
 
   if (isError) return <ErrorState error={error} onRetry={() => void refetch()} />;
@@ -105,14 +110,23 @@ export function ZoneDetailScreen({ zoneId }: { zoneId: string }) {
         </dl>
       </section>
 
-      <PostcodesSection zoneId={zoneId} canManage={canManage} onAdd={() => setAddOpen(true)} />
+      <PostcodesSection
+        zoneId={zoneId}
+        canManage={canManage}
+        onAdd={() => setAddOpen(true)}
+        onAddRaw={() => setRawOpen(true)}
+      />
 
       <HistorySection zoneId={zoneId} />
 
       {canManage ? (
         <>
           <CreateZoneDialog open={editOpen} onOpenChange={setEditOpen} zone={zone} />
-          <AddPostcodesDialog zoneId={zoneId} open={addOpen} onOpenChange={setAddOpen} />
+          {/* 031: composing from real places is the primary path. ⚠ AddPostcodesDialog is RETAINED as
+              the escape hatch (FR-004) for a place the reference record does not know yet — demoted,
+              not deleted, because that record can lag reality. */}
+          <AddAreasDialog zoneId={zoneId} open={addOpen} onOpenChange={setAddOpen} />
+          <AddPostcodesDialog zoneId={zoneId} open={rawOpen} onOpenChange={setRawOpen} />
         </>
       ) : null}
     </div>
@@ -123,21 +137,29 @@ function PostcodesSection({
   zoneId,
   canManage,
   onAdd,
+  onAddRaw,
 }: {
   zoneId: string;
   canManage: boolean;
   onAdd: () => void;
+  onAddRaw: () => void;
 }) {
   const { data, error, isPending, isError, refetch } = useQuery(
     zonePostcodesQuery(zoneId, 1, POSTCODE_PAGE_SIZE),
   );
   const removePostcode = useRemovePostcode(zoneId);
+  // ⚠ Removal goes through a confirmation that states what stops being served (FR-007) — it used to
+  // fire immediately, which silently stopped serving every place sharing the postcode.
+  const [removing, setRemoving] = useState<string | null>(null);
 
   const columns = useMemo<ColumnDef<ZonePostcode>[]>(() => {
     const base: ColumnDef<ZonePostcode>[] = [
       { accessorKey: "postcode", header: "Postcode", cell: ({ row }) => (
           <span className="font-mono tabular-nums">{row.original.postcode}</span>
         ) },
+      // 031 FR-023: a zone's areas by NAME, not only by postcode. A list of four-digit numbers tells
+      // an operator nothing about whether they have covered Ballarat or half of it.
+      { id: "places", header: "Places", cell: ({ row }) => <PlacesCell postcode={row.original.postcode} /> },
     ];
     if (canManage) {
       base.push({
@@ -149,7 +171,7 @@ function PostcodesSection({
               variant="ghost"
               size="sm"
               disabled={removePostcode.isPending}
-              onClick={() => removePostcode.mutate(row.original.postcode)}
+              onClick={() => setRemoving(row.original.postcode)}
             >
               <Trash2 />
               Remove
@@ -166,10 +188,16 @@ function PostcodesSection({
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold">Postcodes</h2>
         {canManage ? (
-          <Button variant="outline" size="sm" onClick={onAdd}>
-            <Plus />
-            Add postcodes
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* ⚠ The escape hatch is deliberately secondary — typing raw postcodes is how 3001 got in. */}
+            <Button variant="ghost" size="sm" onClick={onAddRaw}>
+              Add postcodes
+            </Button>
+            <Button variant="outline" size="sm" onClick={onAdd}>
+              <Plus />
+              Add areas
+            </Button>
+          </div>
         ) : null}
       </div>
       {isError ? (
@@ -177,8 +205,18 @@ function PostcodesSection({
       ) : isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <DataTable columns={columns} data={data.items} emptyMessage="No postcodes assigned yet." />
+        <DataTable columns={columns} data={data.items} emptyMessage="No areas assigned yet." />
       )}
+
+      <RemoveAreaDialog
+        postcode={removing}
+        pending={removePostcode.isPending}
+        onOpenChange={(open) => !open && setRemoving(null)}
+        onConfirm={(postcode) => {
+          removePostcode.mutate(postcode);
+          setRemoving(null);
+        }}
+      />
     </section>
   );
 }
@@ -271,4 +309,37 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
+}
+
+/**
+ * The places one area covers, by name (031 FR-023).
+ *
+ * ⚠ A zone shown as a list of four-digit numbers tells an operator nothing about whether they have
+ * covered Ballarat or half of it. This is also where the postcode-vs-place gap becomes visible in
+ * ordinary use: 3350 shows twenty names.
+ *
+ * ⚠ One query per row. The table is paged, so N is bounded — but if a zone ever holds hundreds of
+ * areas this should move into the zone-postcodes read rather than fanning out here.
+ */
+function PlacesCell({ postcode }: { postcode: string }) {
+  const { data } = useQuery(postcodeCoverageQuery(postcode));
+  if (!data) return <span className="text-muted-foreground">…</span>;
+
+  if (data.count === 0) {
+    // ⚠ The 3001 class, surfaced where an operator actually looks rather than only in the health panel.
+    return (
+      <span className="text-destructive" data-testid="places-unknown">
+        No known place — check this postcode
+      </span>
+    );
+  }
+
+  const shown = data.places.slice(0, 3).map((p) => p.name).join(", ");
+  const rest = data.count - Math.min(3, data.places.length);
+  return (
+    <span className="text-muted-foreground">
+      {shown}
+      {rest > 0 ? ` +${rest} more` : ""}
+    </span>
+  );
 }

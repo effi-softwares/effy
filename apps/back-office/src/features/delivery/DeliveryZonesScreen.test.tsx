@@ -21,7 +21,14 @@ vi.mock("@/features/auth/queries", () => ({
 }));
 
 const listZones = vi.hoisted(() => vi.fn());
-vi.mock("./repo", () => ({ listZones }));
+// ⚠ 031 added DeliveryHealthPanel to this screen, which reads `deliveryHealth`. Defaulted to a CLEAN
+// configuration so these tests keep asserting the register itself — the panel's own behaviour is
+// covered in DeliveryHealthPanel.test.tsx. ⚠ vi.hoisted, because vi.mock's factory is hoisted above
+// ordinary consts.
+const { deliveryHealth } = vi.hoisted(() => ({
+  deliveryHealth: vi.fn(async () => ({ unknownPlace: [], unconfigured: [], emptyZones: [] })),
+}));
+vi.mock("./repo", () => ({ listZones, deliveryHealth }));
 
 import { DeliveryZonesScreen } from "./DeliveryZonesScreen";
 

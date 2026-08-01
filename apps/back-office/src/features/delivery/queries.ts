@@ -13,11 +13,14 @@ import {
   addPostcodes,
   createOffering,
   createZone,
+  deliveryHealth,
   getZoneHistory,
   getZonePostcodes,
   listOfferings,
   listShopOptions,
   listZones,
+  postcodeCoverage,
+  searchLocalities,
   removePostcode,
   setShopLocation,
   updateOffering,
@@ -121,5 +124,44 @@ export function useSetShopLocation() {
     mutationFn: ({ shopId, body }: { shopId: string; body: SetShopLocationRequest }) =>
       setShopLocation(shopId, body),
     onSuccess: () => invalidateDelivery(queryClient),
+  });
+}
+
+/* ── 031-delivery-areas ────────────────────────────────────────────────────────────────────── */
+
+/** Place search for composing an area. Disabled below 2 characters — the server refuses those anyway. */
+export function localitySearchQuery(q: string) {
+  return queryOptions({
+    queryKey: ["delivery", "localities", q],
+    queryFn: () => searchLocalities(q),
+    enabled: q.trim().length >= 2,
+    staleTime: 5 * 60_000, // Locality data changes at the pace of postal administration.
+  });
+}
+
+/**
+ * ⚠ The FR-006 disclosure data. Fetched as soon as a place is highlighted, so the count is on screen
+ * at the moment of confirming rather than after it.
+ */
+export function postcodeCoverageQuery(postcode: string | null) {
+  return queryOptions({
+    queryKey: ["delivery", "coverage", postcode],
+    queryFn: () => postcodeCoverage(postcode!),
+    enabled: !!postcode,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Delivery configuration health (031 US4).
+ *
+ * ⚠ Short staleTime: an admin who just fixed something should see it clear without a reload, and this
+ * is the panel they look at to confirm the fix landed.
+ */
+export function deliveryHealthQuery() {
+  return queryOptions({
+    queryKey: ["delivery", "health"],
+    queryFn: deliveryHealth,
+    staleTime: 30_000,
   });
 }
