@@ -601,13 +601,198 @@ export async function recordAreaDecision(
       [zoneId, postcode, decision, note, actorSub],
     );
     if (decision === "not_served") {
-      // ⚠ The half that makes the decision real. Without it the record is decoration.
+      // ⚠ THE HALF THAT MAKES THE DECISION REAL. Without it the record is decoration: serviceability
+      // is decided by zone membership, so an area marked "not served" would still answer
+      // {"serviced":true} to the storefront. That is the REGIONAL defect inverted.
       await tx.query(
         `DELETE FROM public.delivery_zone_postcode WHERE zone_id = $1 AND postcode = $2`,
         [zoneId, postcode],
       );
     }
+    await insertAudit(tx, actorSub, `delivery_area.${decision}`, "delivery_zone", zoneId, {
+      postcode,
+      decision,
+      note,
+    });
   });
+}
+
+/**
+ * Write one area's service levels across EVERY origin zone — the projection (031 R3).
+ *
+ * ⚠ WHAT THIS IS. The console edits an AREA; `delivery_offering` is keyed on (origin zone,
+ * destination zone, method). So one edit fans out to one row per origin. The grid stays the storage
+ * and the quoting mechanism — `checkout/quote.go` reads it unchanged, and NOTHING in core-api moves.
+ *
+ * ⚠ THE COLLAPSE IS DELIBERATE AND IT LOSES SOMETHING. Every origin gets the same fee. Live data had
+ * Melbourne Metro standard at $5.00 from a Melbourne shop and $8.00 from a Regional one; after this,
+ * one number. Justified because the shopper cannot perceive which shop serves them (hidden fulfilment,
+ * 021 FR-019) and the difference becomes internal margin — but it is a real loss, not a no-op.
+ *
+ * ⚠ DISABLING SETS status='disabled', IT DOES NOT DELETE. A disabled row records that a human
+ * switched it off; deletion destroys exactly that information and returns the area to the ambiguity
+ * this feature exists to remove.
+ *
+ * ⚠ A CAPTURED QUOTE IS UNTOUCHED. `order_package_delivery` holds its own copy of the chosen option,
+ * so an in-flight order keeps the price it was quoted (FR-014/FR-031). This writes the catalogue,
+ * never an order.
+ */
+export async function projectAreaServiceLevels(
+  zoneId: string,
+  postcode: string,
+  levels: {
+    method: DeliveryMethod;
+    enabled: boolean;
+    feeAmount: string | null;
+    leadDaysMin: number | null;
+    leadDaysMax: number | null;
+    sameDayCutoff: string | null;
+  }[],
+  actorSub: string,
+): Promise<void> {
+  await withTransaction(async (tx: PoolClient) => {
+    const origins = await tx.query<{ id: string }>(`SELECT id FROM public.delivery_zone`);
+
+    for (const level of levels) {
+      for (const origin of origins.rows) {
+        if (level.enabled) {
+          await tx.query(
+            `INSERT INTO public.delivery_offering
+                  (origin_zone_id, destination_zone_id, method, price_amount,
+                   lead_days_min, lead_days_max, same_day_cutoff, status)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
+             ON CONFLICT (origin_zone_id, destination_zone_id, method)
+             DO UPDATE SET price_amount = EXCLUDED.price_amount,
+                           lead_days_min = EXCLUDED.lead_days_min,
+                           lead_days_max = EXCLUDED.lead_days_max,
+                           same_day_cutoff = EXCLUDED.same_day_cutoff,
+                           status = 'active', updated_at = now()`,
+            [
+              origin.id,
+              zoneId,
+              level.method,
+              level.feeAmount,
+              level.leadDaysMin ?? 0,
+              level.leadDaysMax ?? 0,
+              level.sameDayCutoff,
+            ],
+          );
+        } else {
+          // ⚠ Disable, never delete. Only touches a row that already exists — enabling was never
+          // implied by configuring the area, so a method nobody turned on stays absent.
+          await tx.query(
+            `UPDATE public.delivery_offering SET status = 'disabled', updated_at = now()
+              WHERE origin_zone_id = $1 AND destination_zone_id = $2 AND method = $3`,
+            [origin.id, zoneId, level.method],
+          );
+        }
+      }
+    }
+
+    // The area is now decided about, which is what moves it out of "unconfigured".
+    await tx.query(
+      `INSERT INTO public.delivery_area_decision (zone_id, postcode, decision, decided_by)
+            VALUES ($1, $2, 'served', $3)
+       ON CONFLICT ON CONSTRAINT delivery_area_decision_uq
+       DO UPDATE SET decision = 'served', decided_by = EXCLUDED.decided_by,
+                     decided_at = now(), updated_at = now()`,
+      [zoneId, postcode, actorSub],
+    );
+
+    await insertAudit(tx, actorSub, "delivery_area.configure", "delivery_zone", zoneId, {
+      postcode,
+      levels: levels.map((l) => ({ method: l.method, enabled: l.enabled, fee: l.feeAmount })),
+    });
+  });
+}
+
+/** Every postcode in a zone — what else a per-area change affects (031 FR-006, one level up). */
+export async function zonePostcodes(zoneId: string): Promise<string[]> {
+  const res = await query<{ postcode: string }>(
+    `SELECT postcode FROM public.delivery_zone_postcode WHERE zone_id = $1 ORDER BY postcode`,
+    [zoneId],
+  );
+  return res.rows.map((r) => r.postcode);
+}
+
+/** One area's current service levels, read from the grid the projection writes. */
+export async function areaServiceLevels(
+  zoneId: string,
+): Promise<
+  {
+    method: DeliveryMethod;
+    enabled: boolean;
+    feeAmount: string | null;
+    leadDaysMin: number | null;
+    leadDaysMax: number | null;
+    sameDayCutoff: string | null;
+    /** ⚠ Distinct fees across origins — the reconciliation prompt (R3b) exists for this. */
+    distinctFees: string[];
+  }[]
+> {
+  const res = await query<{
+    method: DeliveryMethod;
+    enabled: boolean;
+    fees: string[];
+    lead_days_min: number;
+    lead_days_max: number;
+    same_day_cutoff: string | null;
+  }>(
+    `SELECT method,
+            bool_or(status = 'active')            AS enabled,
+            array_agg(DISTINCT price_amount::text) AS fees,
+            min(lead_days_min)                     AS lead_days_min,
+            max(lead_days_max)                     AS lead_days_max,
+            min(same_day_cutoff)::text             AS same_day_cutoff
+       FROM public.delivery_offering
+      WHERE destination_zone_id = $1
+      GROUP BY method`,
+    [zoneId],
+  );
+  return res.rows.map((r) => ({
+    method: r.method,
+    enabled: r.enabled,
+    feeAmount: r.fees[0] ?? null,
+    leadDaysMin: r.lead_days_min,
+    leadDaysMax: r.lead_days_max,
+    sameDayCutoff: r.same_day_cutoff,
+    distinctFees: r.fees ?? [],
+  }));
+}
+
+/**
+ * Shops that could serve an area (031 FR-017).
+ *
+ * ⚠ `inZone` is stated as exactly what it is — this shop's postcode resolves to the area's zone — and
+ * NOT dressed up as a distance. The platform has no routing capability, and invented precision on a
+ * promise is worse than an honest human judgement (research R6).
+ * ⚠ `shop.postcode` is NULLABLE: a shop with no location resolves to no zone and is surfaced with
+ * `inZone: false` and a null postcode, never silently hidden — that is a data gap an admin should see.
+ */
+export async function shopsForArea(
+  zoneId: string,
+): Promise<{ shopId: string; shopCode: string; shopName: string; postcode: string | null; inZone: boolean }[]> {
+  const res = await query<{
+    id: string;
+    code: string;
+    name: string;
+    postcode: string | null;
+    in_zone: boolean;
+  }>(
+    `SELECT s.id, s.code, s.name, s.postcode,
+            COALESCE(zp.zone_id = $1, false) AS in_zone
+       FROM public.shop s
+       LEFT JOIN public.delivery_zone_postcode zp ON zp.postcode = s.postcode
+      ORDER BY s.name`,
+    [zoneId],
+  );
+  return res.rows.map((r) => ({
+    shopId: r.id,
+    shopCode: r.code,
+    shopName: r.name,
+    postcode: r.postcode,
+    inZone: r.in_zone,
+  }));
 }
 
 /* ── Health: the three configuration defects (FR-024 … FR-026) ─────────────────────────────── */

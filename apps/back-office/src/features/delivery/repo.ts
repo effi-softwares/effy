@@ -1,6 +1,9 @@
 import type {
   AddPostcodesRequest,
+  AreaDTO,
   AreaHealthDTO,
+  ConfigureAreaRequest,
+  MarkAreaNotServedRequest,
   AuditEntryDTO,
   CreateOfferingRequest,
   CreateZoneRequest,
@@ -158,4 +161,30 @@ export async function postcodeCoverage(postcode: string): Promise<PostcodeCovera
 /** The three ways a delivery configuration goes quietly wrong (031 US4). */
 export async function deliveryHealth(): Promise<AreaHealthDTO> {
   return api.get<AreaHealthDTO>("/admin/v1/delivery-health");
+}
+
+/** Everything one area gets, in one request (031 FR-022). */
+export async function getArea(zoneId: string, postcode: string): Promise<AreaDTO> {
+  return api.get<AreaDTO>(`/admin/v1/delivery-zones/${zoneId}/areas/${postcode}`);
+}
+
+/** Configure an area's service levels. ⚠ A REPLACE — an omitted method is turned off. */
+export async function configureArea(
+  zoneId: string,
+  postcode: string,
+  body: ConfigureAreaRequest,
+): Promise<AreaDTO> {
+  return api.put<AreaDTO>(`/admin/v1/delivery-zones/${zoneId}/areas/${postcode}`, body);
+}
+
+/** ⚠ Records the decision AND withdraws the area — recording alone would change nothing. */
+export async function markAreaNotServed(
+  zoneId: string,
+  postcode: string,
+  body: MarkAreaNotServedRequest,
+): Promise<void> {
+  await api.post<void>(
+    `/admin/v1/delivery-zones/${zoneId}/areas/${postcode}/not-served`,
+    body,
+  );
 }

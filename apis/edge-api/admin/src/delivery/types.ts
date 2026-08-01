@@ -131,6 +131,14 @@ export interface Area {
   state: AreaState;
   decision: AreaDecision | null;
   serviceLevels: AreaServiceLevel[];
+  /**
+   * ⚠ Other areas in the same zone. `delivery_offering` is keyed on ZONE, so configuring this area
+   * configures them too — FR-006's problem one level up. Without this the editor cannot disclose it,
+   * and an admin changes Bendigo believing they changed Ballarat.
+   */
+  siblingPostcodes: string[];
+  /** ⚠ The input to the same-day judgement (FR-017) — shown, never computed into a radius. */
+  shops: AreaShopFeasibility[];
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
 
@@ -155,7 +155,14 @@ function PostcodesSection({
   const columns = useMemo<ColumnDef<ZonePostcode>[]>(() => {
     const base: ColumnDef<ZonePostcode>[] = [
       { accessorKey: "postcode", header: "Postcode", cell: ({ row }) => (
-          <span className="font-mono tabular-nums">{row.original.postcode}</span>
+          // 031: the postcode is the way into the area's own configuration screen (FR-022).
+          <Link
+            to="/delivery-zones/$zoneId/areas/$postcode"
+            params={{ zoneId, postcode: row.original.postcode }}
+            className="font-mono tabular-nums underline underline-offset-2"
+          >
+            {row.original.postcode}
+          </Link>
         ) },
       // 031 FR-023: a zone's areas by NAME, not only by postcode. A list of four-digit numbers tells
       // an operator nothing about whether they have covered Ballarat or half of it.

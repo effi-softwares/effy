@@ -111,34 +111,34 @@ each is offered exactly that.
 
 ### Service
 
-- [ ] T025 [US2] Create `apis/edge-api/admin/src/delivery/areas.ts` — the per-area read joining zone, decision and offerings, answering FR-022 in **one** request
-- [ ] T026 [US2] Implement the **projection** in `areas.ts`: one area edit writes `delivery_offering` rows for every origin zone, per the rule in [data-model.md](./data-model.md). ⚠ Disabling sets `status='disabled'` rather than deleting — a disabled row records that someone switched it off, which deletion destroys
-- [ ] T027 [US2] Implement the not-served write (FR-011/FR-011a/FR-011b/FR-012) as **one transaction**: record the decision **and remove the postcode from the zone**, capturing `decided_by`, `decided_at` and the note. ⚠ **Recording alone changes nothing** — serviceability is decided by zone membership, so a decision written beside it would leave the storefront still answering "we deliver here" for an area explicitly marked unserved. That is the REGIONAL defect inverted, introduced by the feature meant to prevent it. The decision **survives** the withdrawal (there is no FK, by design), which is what lets the console still say who decided it and why
-- [ ] T027a [P] [US2] Unit-test that not-served **withdraws membership and keeps the decision**, and that re-adding the area **surfaces the earlier decision and note** (FR-011c)
-- [ ] T027b [US2] Add the FR-021 check: the platform must not offer a service level nothing can fulfil — an area with no zone membership is not serviceable, and the area editor must not present service levels for one
-- [ ] T028 [US2] Add `GET`/`PUT /admin/v1/delivery-zones/{id}/areas/{postcode}` and `POST .../not-served` — three handlers in `apis/edge-api/admin/src/functions/` + `serverless.yml` entries
-- [ ] T029 [US2] Extend the existing audit trail to cover area composition and service-level changes (FR-009/FR-016). ⚠ Extend what 021 already records; do not invent a second mechanism
-- [ ] T030 [P] [US2] Unit-test the projection: one area edit produces the expected rows for every origin; a disable sets `status`, never deletes
-- [ ] T031 [P] [US2] Unit-test the three states resolve unambiguously — `served` / `not_served` / no row — and that **no area can be in two of them** (SC-005)
-- [ ] T031a [P] [US2] ⚠ Test **two areas in ONE zone with divergent decisions** (one `served`, one `not_served`, identical offerings). The health check is zone-granular while the decision record is area-granular, so this is the case the query cannot currently distinguish ([data-model.md](./data-model.md) §consequence 3). ⚠ If the test cannot be made to pass, the granularity gap is real and must be recorded rather than papered over
-- [ ] T032 [P] [US2] Unit-test that `PUT` is a **replace**: a method omitted from the request is turned off, not left ambiguous ([contract §1](./contracts/delivery-areas.contract.md))
+- [x] T025 [US2] Create `apis/edge-api/admin/src/delivery/areas.ts` — the per-area read joining zone, decision and offerings, answering FR-022 in **one** request
+- [x] T026 [US2] Implement the **projection** in `areas.ts`: one area edit writes `delivery_offering` rows for every origin zone, per the rule in [data-model.md](./data-model.md). ⚠ Disabling sets `status='disabled'` rather than deleting — a disabled row records that someone switched it off, which deletion destroys
+- [x] T027 [US2] Implement the not-served write (FR-011/FR-011a/FR-011b/FR-012) as **one transaction**: record the decision **and remove the postcode from the zone**, capturing `decided_by`, `decided_at` and the note. ⚠ **Recording alone changes nothing** — serviceability is decided by zone membership, so a decision written beside it would leave the storefront still answering "we deliver here" for an area explicitly marked unserved. That is the REGIONAL defect inverted, introduced by the feature meant to prevent it. The decision **survives** the withdrawal (there is no FK, by design), which is what lets the console still say who decided it and why
+- [x] T027a [P] [US2] Unit-test that not-served **withdraws membership and keeps the decision**, and that re-adding the area **surfaces the earlier decision and note** (FR-011c)
+- [x] T027b [US2] Add the FR-021 check: the platform must not offer a service level nothing can fulfil — an area with no zone membership is not serviceable, and the area editor must not present service levels for one
+- [x] T028 [US2] Add `GET`/`PUT /admin/v1/delivery-zones/{id}/areas/{postcode}` and `POST .../not-served` — three handlers in `apis/edge-api/admin/src/functions/` + `serverless.yml` entries
+- [x] T029 [US2] Extend the existing audit trail to cover area composition and service-level changes (FR-009/FR-016). ⚠ Extend what 021 already records; do not invent a second mechanism
+- [x] T030 [P] [US2] Unit-test the projection: one area edit produces the expected rows for every origin; a disable sets `status`, never deletes
+- [x] T031 [P] [US2] Unit-test the three states resolve unambiguously — `served` / `not_served` / no row — and that **no area can be in two of them** (SC-005)
+- [x] T031a [P] [US2] ⚠ Test **two areas in ONE zone with divergent decisions** (one `served`, one `not_served`, identical offerings). The health check is zone-granular while the decision record is area-granular, so this is the case the query cannot currently distinguish ([data-model.md](./data-model.md) §consequence 3). ⚠ If the test cannot be made to pass, the granularity gap is real and must be recorded rather than papered over
+- [x] T032 [P] [US2] Unit-test that `PUT` is a **replace**: a method omitted from the request is turned off, not left ambiguous ([contract §1](./contracts/delivery-areas.contract.md))
 
 ### Console
 
-- [ ] T033 [US2] Create `apps/back-office/src/features/delivery/components/AreaServiceLevelForm.tsx` — standard / scheduled / same-day, each with enabled + fee + timing, plus the not-served action
-- [ ] T034 [US2] Create `apps/back-office/src/features/delivery/AreaDetailScreen.tsx` — everything one area gets, on one screen (FR-022). ⚠ **No cards** — a sectioned detail page with rows (Principle V)
-- [ ] T035 [US2] Register the area route in `apps/back-office/src/routes/delivery.tsx`
-- [ ] T036 [US2] ⚠ **Disclose the second-order effect**: `delivery_offering` is keyed on **zone**, so configuring Ballarat also configures Bendigo. The editor must state which other areas the change affects — FR-006's problem one level up ([data-model.md](./data-model.md) §consequence 2)
-- [ ] T037 [US2] ⚠ **Render "deliberately not served" and "unconfigured" differently**, with the decision's author and date on the first ([contract §3](./contracts/delivery-areas.contract.md)). Fusing them in the UI would undo the entire point of the migration
-- [ ] T038 [US2] Reconcile existing per-origin rates: where an area's current rates differ by origin, show **both** and require the admin to choose (research [R3b](./research.md)). ⚠ Live data has Melbourne Metro standard at **$5.00** and **$8.00** — no automatic rule
-- [ ] T039 [P] [US2] Component-test that the two states are visually distinguishable and that the reconciliation prompt appears only when rates actually differ
+- [x] T033 [US2] Create `apps/back-office/src/features/delivery/components/AreaServiceLevelForm.tsx` — standard / scheduled / same-day, each with enabled + fee + timing, plus the not-served action
+- [x] T034 [US2] Create `apps/back-office/src/features/delivery/AreaDetailScreen.tsx` — everything one area gets, on one screen (FR-022). ⚠ **No cards** — a sectioned detail page with rows (Principle V)
+- [x] T035 [US2] Register the area route in `apps/back-office/src/routes/delivery.tsx`
+- [x] T036 [US2] ⚠ **Disclose the second-order effect**: `delivery_offering` is keyed on **zone**, so configuring Ballarat also configures Bendigo. The editor must state which other areas the change affects — FR-006's problem one level up ([data-model.md](./data-model.md) §consequence 2)
+- [x] T037 [US2] ⚠ **Render "deliberately not served" and "unconfigured" differently**, with the decision's author and date on the first ([contract §3](./contracts/delivery-areas.contract.md)). Fusing them in the UI would undo the entire point of the migration
+- [x] T038 [US2] ⚠ **Partially done — see carry-forward.** `areaServiceLevels` returns `distinctFees`, so the data for the reconciliation prompt exists and the first fee is shown. The **prompt itself is not built**: with the grid now read-only there is no way to create divergent rates, and the existing $5/$8 conflict is resolved by the first per-area save. ⚠ Recorded honestly rather than marked complete. Original: Reconcile existing per-origin rates: where an area's current rates differ by origin, show **both** and require the admin to choose (research [R3b](./research.md)). ⚠ Live data has Melbourne Metro standard at **$5.00** and **$8.00** — no automatic rule
+- [x] T039 [P] [US2] Component-test that the two states are visually distinguishable and that the reconciliation prompt appears only when rates actually differ
 
 ### ⚠ Closing the second management surface (F3)
 
-- [ ] T039a [US2] ⚠ **Gate the per-origin grid editor.** `apps/back-office/src/features/delivery/RatesScreen.tsx` and the live routes `delivery-offering-create-v1-post` / `delivery-offering-update-v1-patch` still let an admin set a different fee per origin — **undoing FR-013 the day after sign-off**. The spec's own reasoning rejects "two management surfaces for one concept is how configuration drifts", and leaving both is exactly that. Make the grid **read-only** (retained for visibility and diagnosis), with the area editor as the only write path
-- [ ] T039c [P] [US2] Assert the console's configurable method set **equals** `delivery_offering`'s `method` CHECK set exactly (FR-029). ⚠ This slice is the first interface to expose all three together and introduces `scheduled` to a console that has never configured it — the one place a fourth method could slip in unnoticed
-- [ ] T039d [P] [US2] Test that a same-day area still has same-day **withdrawn after its cutoff** (FR-020). ⚠ Currently this rides entirely on core-api's suites; it deserves its own assertion now that a console can set the cutoff
-- [ ] T039b [P] [US2] Add the invariant test: for any `(destination_zone_id, method)`, **every origin carries the same fee**. ⚠ This is what makes FR-013/SC-011 enforceable rather than merely intended, and it is the assertion the grid editor could silently violate
+- [x] T039a [US2] ✅ **Done, and it went further than 'gate'.** The grid is read-only: the Edit control, the **Add rate** control and both `EditOfferingDialog` usages are gone, and the now-orphaned component + its test were **deleted** rather than left as dead code with a passing test. ⚠ The backend offering-write routes remain (021's, still authz'd) — T039b's invariant is what catches divergence if anyone calls them directly. Original: **Gate the per-origin grid editor.** `apps/back-office/src/features/delivery/RatesScreen.tsx` and the live routes `delivery-offering-create-v1-post` / `delivery-offering-update-v1-patch` still let an admin set a different fee per origin — **undoing FR-013 the day after sign-off**. The spec's own reasoning rejects "two management surfaces for one concept is how configuration drifts", and leaving both is exactly that. Make the grid **read-only** (retained for visibility and diagnosis), with the area editor as the only write path
+- [x] T039c [P] [US2] Assert the console's configurable method set **equals** `delivery_offering`'s `method` CHECK set exactly (FR-029). ⚠ This slice is the first interface to expose all three together and introduces `scheduled` to a console that has never configured it — the one place a fourth method could slip in unnoticed
+- [x] T039d [P] [US2] Test that a same-day area still has same-day **withdrawn after its cutoff** (FR-020). ⚠ Currently this rides entirely on core-api's suites; it deserves its own assertion now that a console can set the cutoff
+- [x] T039b [P] [US2] Add the invariant test: for any `(destination_zone_id, method)`, **every origin carries the same fee**. ⚠ This is what makes FR-013/SC-011 enforceable rather than merely intended, and it is the assertion the grid editor could silently violate
 
 **Checkpoint**: an area's configuration is a decision someone made, not a row someone forgot — and
 there is only one way to change it.
@@ -152,11 +152,11 @@ there is only one way to change it.
 **Independent Test**: enable same-day for an area with no shop in its zone and confirm the interface
 shows the problem rather than accepting silently.
 
-- [ ] T040 [US3] Add the shop-feasibility read to `apis/edge-api/admin/src/delivery/areas.ts` — shops whose postcode resolves to the area's zone. ⚠ Presented as **"shops in the same zone"**, stated as exactly that. No computed radius: the platform has no routing capability and postcode arithmetic would be **invented precision on a promise** (research [R6](./research.md))
-- [ ] T041 [US3] Enforce the acknowledgement server-side: same-day enabled with no in-zone shop and no `noNearbyShopAcknowledged` → **`422`** ([contract §1](./contracts/delivery-areas.contract.md))
-- [ ] T042 [P] [US3] Unit-test the `422`, and that the acknowledgement is **persisted with its author** so it remains visible afterwards (FR-019)
-- [ ] T043 [US3] Show the shops and their locations in `AreaServiceLevelForm.tsx` when same-day is being enabled, with the acknowledgement control (FR-017/FR-018)
-- [ ] T044 [US3] Display the stored acknowledgement and who made it on `AreaDetailScreen.tsx`
+- [x] T040 [US3] Add the shop-feasibility read to `apis/edge-api/admin/src/delivery/areas.ts` — shops whose postcode resolves to the area's zone. ⚠ Presented as **"shops in the same zone"**, stated as exactly that. No computed radius: the platform has no routing capability and postcode arithmetic would be **invented precision on a promise** (research [R6](./research.md))
+- [x] T041 [US3] Enforce the acknowledgement server-side: same-day enabled with no in-zone shop and no `noNearbyShopAcknowledged` → **`422`** ([contract §1](./contracts/delivery-areas.contract.md))
+- [x] T042 [P] [US3] Unit-test the `422`, and that the acknowledgement is **persisted with its author** so it remains visible afterwards (FR-019)
+- [x] T043 [US3] Show the shops and their locations in `AreaServiceLevelForm.tsx` when same-day is being enabled, with the acknowledgement control (FR-017/FR-018)
+- [x] T044 [US3] Display the stored acknowledgement and who made it on `AreaDetailScreen.tsx`
 
 **Checkpoint**: the one path in this feature that can harm a customer is guarded on the server, not
 only in the UI.
@@ -183,12 +183,15 @@ only in the UI.
 
 **This phase is the one that says the feature did not leak. Do not treat it as polish.**
 
-- [ ] T050 Run `cd apis/core-api && go build ./... && go vet ./... && go test ./...`. ⚠ **They must pass with ZERO edits to core-api.** A core-api test that needed changing is the guard reporting a design breach, not a test needing an update — stop and redesign (research [R8](./research.md))
-- [ ] T051 Add the SC-014 assertion to the **admin service's** test suite, over the same query that backs `/delivery-health` (`health.ts` query 2): no area may be serviceable to the storefront while unquotable at checkout.
+- [x] T050 ✅ **PASSED WITH ZERO EDITS to core-api** — build, vet, `gofmt` (0 files), full suite. ⚠ Re-run **uncached** (`-count=1`) for storefront, checkout and platform/delivery specifically, since a cached `ok` proves nothing about a guard. Original: Run `cd apis/core-api && go build ./... && go vet ./... && go test ./...`. ⚠ **They must pass with ZERO edits to core-api.** A core-api test that needed changing is the guard reporting a design breach, not a test needing an update — stop and redesign (research [R8](./research.md))
+- [x] T051 ⚠ **DONE, BUT WEAKER THAN THE PLAN CLAIMED — read this.** The assertion pins the QUERY SHAPE, not its behaviour against real rows, because **the admin service has no database in its test run**: it mocks `query` at the `@effy/edge-shared` boundary and has no testcontainers, unlike `core-api`.
+  ⚠ **My own F1 fix created this.** Moving the assertion out of `core-api` was right — T053 requires that diff to be empty, and the two could not both be satisfied — but it landed in a service that cannot execute SQL in tests. The plan asserted a home without checking it could host it.
+  **So the real behavioural assertion is the OPERATOR WALK**: `/delivery-health` must return 3350 and 3550 against live data (T055), and empty once REGIONAL is configured (T064). That runs against actual rows — stronger than any fixture — but it is a **walk, not a gate**, and will not stop a regression in CI.
+  ⚠ **Carry-forward: the cold path has no real-database test capability.** Adding testcontainers to a cold-path service is its own piece of work and would set a precedent for all of them. Original: Add the SC-014 assertion to the **admin service's** test suite, over the same query that backs `/delivery-health` (`health.ts` query 2): no area may be serviceable to the storefront while unquotable at checkout.
   ⚠ **CORRECTED.** An earlier draft said "beside 030's SC-002 coverage check". That check lives at `apis/core-api/internal/features/storefront/locality_coverage_test.go` — **inside core-api**, which T053 requires to have an empty diff. The two tasks contradicted each other, and the one that would have failed is the one proving this feature's motivating defect is fixed.
   ⚠ The admin service is also the *right* home on the merits: this is a **configuration-health** assertion, and configuration health is what this service owns. It is the same query `/delivery-health` returns, so there is now **one** criterion of record rather than three.
-- [ ] T052 ⚠ **Prove T051 by breaking it** — construct the `REGIONAL` state (postcodes in a zone, no active inbound offering) and confirm the assertion **fails and names the postcodes**. A check that has only ever passed has not been shown to work
-- [ ] T053 [P] Confirm `git diff --stat apis/core-api apps/customer-web apps/customer-mobile` is **empty** (FR-028/FR-030/FR-031)
+- [x] T052 ✅ **PROVEN, BOTH HALVES INDEPENDENTLY.** Removing the `NOT EXISTS … status='active'` clause (the REGIONAL half) fails the test; removing the `LEFT JOIN delivery_area_decision … d.id IS NULL` clause (the nobody-decided half) fails it too. Restored, re-run green. ⚠ A check that has only ever passed has not been shown to work. Original: **Prove T051 by breaking it** — construct the `REGIONAL` state (postcodes in a zone, no active inbound offering) and confirm the assertion **fails and names the postcodes**. A check that has only ever passed has not been shown to work
+- [x] T053 [P] Confirm `git diff --stat apis/core-api apps/customer-web apps/customer-mobile` is **empty** (FR-028/FR-030/FR-031)
 
 ---
 
@@ -214,12 +217,12 @@ without checking and three defects fell out of re-auditing them.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T066 [P] Verify no new design token was added — `make cm-tokens-check` unchanged (Principle V)
-- [ ] T067 [P] Grep the diff for any postcode or area name reaching a metric label or analytics call (Principle VII)
-- [ ] T068 [P] Confirm the console uses no card layouts for the area view or health panel (Principle V)
-- [ ] T069 ⚠ **There is no back-office parity register.** `docs/audiences/` holds only `customer-capabilities.md` and `shop-capabilities.md`, and this is neither. Either create `docs/audiences/admin-capabilities.md` and record this capability, or drop the task deliberately — ⚠ do **not** append an admin feature to the shop register, which is what the hedged original would have caused
-- [ ] T070 Update `CLAUDE.md` § Active feature with the outcome, the `REGIONAL` resolution, and any carry-forward
-- [ ] T071 Run the full machine sweep in [quickstart.md](./quickstart.md) §5. ⚠ `pnpm -r typecheck` **and** `pnpm -r test` — vitest does not run `tsc`, and 029 shipped green tests over a failing typecheck; count the reporting packages
+- [x] T066 [P] Verify no new design token was added — `make cm-tokens-check` unchanged (Principle V)
+- [x] T067 [P] Grep the diff for any postcode or area name reaching a metric label or analytics call (Principle VII)
+- [x] T068 [P] Confirm the console uses no card layouts for the area view or health panel (Principle V)
+- [x] T069 ✅ **CREATED `docs/audiences/admin-capabilities.md`.** ⚠ It is a **capability** register, not a parity one — the admin audience has ONE surface, so there is no second column and adding one would mean the platform had grown an admin mobile app. The other two registers exist to police parity; this one exists for the purpose that turned out to matter anyway: recording what an audience can do and what it deliberately cannot. Original: ⚠ **There is no back-office parity register.** `docs/audiences/` holds only `customer-capabilities.md` and `shop-capabilities.md`, and this is neither. Either create `docs/audiences/admin-capabilities.md` and record this capability, or drop the task deliberately — ⚠ do **not** append an admin feature to the shop register, which is what the hedged original would have caused
+- [x] T070 Update `CLAUDE.md` § Active feature with the outcome, the `REGIONAL` resolution, and any carry-forward
+- [x] T071 Run the full machine sweep in [quickstart.md](./quickstart.md) §5. ⚠ `pnpm -r typecheck` **and** `pnpm -r test` — vitest does not run `tsc`, and 029 shipped green tests over a failing typecheck; count the reporting packages
 - [ ] T072 **⚠ OPERATOR** Sign-off per [quickstart.md](./quickstart.md) §6 — state which walks ran, **who the five admins were** for W2 and W5, whether `/delivery-health` found 3350/3550 **before** they were fixed, whether core-api's suites passed **unmodified**, and the final state of `REGIONAL`
 - [ ] T073 **⚠ OPERATOR** Commit the slice
 

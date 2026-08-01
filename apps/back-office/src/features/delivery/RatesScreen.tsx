@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowLeft, MapPin, Plus } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 
 import type { DeliveryMethod, DeliveryStatus } from "@effy/shared-types";
 import {
@@ -20,7 +20,6 @@ import { DataTable, ErrorState } from "@effy/web-kit/console";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canManageDelivery } from "./access";
-import { EditOfferingDialog } from "./components/EditOfferingDialog";
 import { SetShopLocationDialog } from "./components/SetShopLocationDialog";
 import type { Offering } from "./model";
 import { offeringListQuery, zoneListQuery } from "./queries";
@@ -51,9 +50,7 @@ export function RatesScreen() {
 
   const [origin, setOrigin] = useState<string>(ALL_ZONES);
   const [destination, setDestination] = useState<string>(ALL_ZONES);
-  const [addOpen, setAddOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
-  const [editing, setEditing] = useState<Offering | null>(null);
 
   const zonesQuery = useQuery(zoneListQuery({ page: 1, pageSize: 100 }));
   const zones = zonesQuery.data?.items ?? [];
@@ -91,21 +88,14 @@ export function RatesScreen() {
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
     ];
-    if (canManage) {
-      base.push({
-        id: "actions",
-        header: () => <span className="sr-only">Actions</span>,
-        cell: ({ row }) => (
-          <div className="text-right">
-            <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
-              Edit
-            </Button>
-          </div>
-        ),
-      });
-    }
+    // ⚠ 031 T039a: NO edit control. This grid is now READ-ONLY.
+    //
+    // It remains for visibility and diagnosis — it is still the truth about what the platform will
+    // quote — but writing happens on the AREA screen. Leaving both editable would mean two management
+    // surfaces for one concept, which is what the spec's own reasoning rejects: a per-origin edit here
+    // would silently undo the one-fee-per-area rule (FR-013/SC-011) the day after sign-off.
     return base;
-  }, [canManage]);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -123,6 +113,10 @@ export function RatesScreen() {
           <h1 className="text-xl font-semibold">Rates &amp; shop locations</h1>
           <p className="text-muted-foreground">
             The per-(origin → destination, method) rate grid, and each shop's origin postcode.
+            <span className="mt-1 block">
+              ⚠ Read-only. Fees and service levels are set per <strong>area</strong> — open a zone and
+              choose an area to change them.
+            </span>
           </p>
         </div>
         {canManage ? (
@@ -130,10 +124,6 @@ export function RatesScreen() {
             <Button variant="outline" onClick={() => setLocationOpen(true)}>
               <MapPin />
               Set shop location
-            </Button>
-            <Button onClick={() => setAddOpen(true)} disabled={zones.length === 0}>
-              <Plus />
-              Add rate
             </Button>
           </div>
         ) : null}
@@ -154,13 +144,10 @@ export function RatesScreen() {
 
       {canManage ? (
         <>
-          <EditOfferingDialog open={addOpen} onOpenChange={setAddOpen} zones={zones} />
-          <EditOfferingDialog
-            open={editing !== null}
-            onOpenChange={(o) => !o && setEditing(null)}
-            zones={zones}
-            offering={editing ?? undefined}
-          />
+          {/* ⚠ The offering dialogs are GONE (031 T039a). Rates are written per AREA, and two
+              management surfaces for one concept is how configuration drifts — a per-origin edit here
+              would silently undo the one-fee-per-area rule (FR-013/SC-011). This screen remains the
+              truth about what the platform will quote; it is simply no longer where you change it. */}
           <SetShopLocationDialog open={locationOpen} onOpenChange={setLocationOpen} />
         </>
       ) : null}

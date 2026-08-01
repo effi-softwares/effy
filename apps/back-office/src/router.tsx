@@ -6,6 +6,7 @@ import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogSchemaRoute } from "./routes/catalog-schema";
 import {
   deliveryRatesRoute,
+  deliveryAreaDetailRoute,
   deliveryZoneDetailRoute,
   deliveryZonesIndexRoute,
 } from "./routes/delivery";
@@ -29,6 +30,7 @@ const routeTree = rootRoute.addChildren([
     deliveryZonesIndexRoute,
     deliveryRatesRoute,
     deliveryZoneDetailRoute,
+    deliveryAreaDetailRoute,
     promotionsIndexRoute,
     orderRulesRoute,
     promotionDetailRoute,

@@ -16,6 +16,7 @@ import {
   listZones,
   removeZonePostcode,
   setShopLocation,
+  unconfiguredAreas,
 } from "./repository";
 import { isDeliveryError } from "./types";
 
@@ -226,5 +227,69 @@ describe("delivery repository writes audit inside the transaction", () => {
     const client = { query: vi.fn().mockResolvedValue({ rows: [] }) };
     withTransaction.mockImplementation((fn: (c: unknown) => Promise<unknown>) => fn(client));
     expect(await kindOf(setShopLocation("nope", "3000", "actor"))).toBe("not_found");
+  });
+});
+
+/* ── ⚠ SC-014: no area may be serviceable to the storefront yet unquotable at checkout ─────────── */
+
+describe("unconfiguredAreas — the SC-014 query", () => {
+  /**
+   * ⚠ READ THIS BEFORE TRUSTING THIS TEST.
+   *
+   * This asserts the SHAPE of the query, not its behaviour against real rows — because the admin
+   * service has no database in its test run. It mocks `query` at the `@effy/edge-shared` boundary and
+   * has no testcontainers, unlike `core-api`.
+   *
+   * That is a genuine limitation of where this assertion ended up. It was moved here from
+   * `core-api`'s testcontainers suite because the FR-028 guard requires `apis/core-api` to have an
+   * EMPTY diff — the two could not both be satisfied. The move was right; it simply lands in a service
+   * that cannot execute SQL in tests.
+   *
+   * ⚠ SO THE REAL ASSERTION IS THE OPERATOR WALK. `/delivery-health` must return **3350 and 3550**
+   * against live data (T055), and must return empty once REGIONAL is configured (T064). That runs
+   * against actual rows, which is stronger than any fixture — but it is a WALK, not a gate, and it
+   * will not stop a regression in CI.
+   *
+   * What this test does catch: someone silently rewriting the predicate so it stops looking for the
+   * thing it exists to find.
+   */
+  it("looks for areas with NO decision and NO active offering", async () => {
+    query.mockResolvedValue({ rows: [] });
+    await unconfiguredAreas();
+
+    const sql = query.mock.calls[0]![0] as string;
+
+    // The decision record must be LEFT JOINed and required absent — an area someone decided about is
+    // not unconfigured, whichever way they decided.
+    expect(sql).toMatch(/LEFT JOIN\s+public\.delivery_area_decision/i);
+    expect(sql).toMatch(/d\.id IS NULL/i);
+
+    // ⚠ And nothing may be actively offered TO it. This is the REGIONAL half: a zone with postcodes
+    // and no inbound offering is exactly the state where the storefront says yes and checkout cannot.
+    expect(sql).toMatch(/NOT EXISTS/i);
+    expect(sql).toMatch(/destination_zone_id/i);
+    expect(sql).toMatch(/status = 'active'/i);
+  });
+
+  /** It must start from the ZONE's postcodes — the areas a shopper can actually be in. */
+  it("starts from the postcodes assigned to zones", async () => {
+    query.mockResolvedValue({ rows: [] });
+    await unconfiguredAreas();
+
+    expect(query.mock.calls[0]![0]).toMatch(/FROM\s+public\.delivery_zone_postcode/i);
+  });
+
+  it("returns the zone and postcode so an admin can act on it", async () => {
+    query.mockResolvedValue({
+      rows: [
+        { zone_code: "REGIONAL", postcode: "3350" },
+        { zone_code: "REGIONAL", postcode: "3550" },
+      ],
+    });
+
+    expect(await unconfiguredAreas()).toEqual([
+      { zoneCode: "REGIONAL", postcode: "3350" },
+      { zoneCode: "REGIONAL", postcode: "3550" },
+    ]);
   });
 });

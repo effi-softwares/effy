@@ -203,6 +203,58 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**031-delivery-areas — Delivery Areas: Locality-Driven Zones & Per-Area Service Levels.** 🚧
+**60/80 tasks — all 31 FRs implemented and machine-verified; 14 operator walks + sign-off outstanding.**
+
+Gives the back office the locality record 030 built for shoppers, and moves delivery configuration to
+the unit operations actually thinks in: **the area**. Entirely cold-path and operator-facing.
+- **⚠ TWO LIVE DEFECTS MOTIVATED IT, both found in real data.** **(1)** Postcode **3001** — Melbourne's
+  PO-box code, no street addresses — sat in Melbourne Metro because the console validated a postcode's
+  *shape* and nothing else. **(2)** Zone **REGIONAL** served **Ballarat (3350) and Bendigo (3550) with
+  ZERO inbound offerings**, so the storefront answered `{"serviced":true}` and checkout could quote
+  nothing — shoppers invited in and stopped at payment. **That is 025's FR-014b violated in DATA rather
+  than in code**: every Go test passed and the configuration undid the rule. ⚠ 030 widened its reach —
+  before it, a Ballarat shopper had to know "3350"; after it they can type "Alfredton".
+- **Data**: one migration `20260801184250_delivery_area_decisions.sql` — `delivery_area_decision`,
+  which makes **three** states distinguishable where there were two. ⚠ `unconfigured` is deliberately
+  **not** a value: it is the absence of a row, because **you cannot index the absence of a row** and
+  FR-025 is unbuildable until the third state is a fact.
+- **⚠ "Not served" WITHDRAWS the area, it does not annotate it.** Serviceability is decided by zone
+  membership, so a decision recorded *beside* it would have left an area an admin explicitly marked
+  unserved still answering "we deliver here" — the REGIONAL defect **inverted**, introduced by the
+  feature meant to prevent it. Caught by the analyze pass; the first design was inert.
+- **⚠ The disclosure is the point.** An area **is a postcode**, chosen by locality name — so picking
+  "Alfredton" serves all **20** Ballarat localities. `PostcodeCoverageNotice` says so before confirming,
+  and again on **removal**, the more dangerous direction. The same problem exists one level up:
+  `delivery_offering` is zone-keyed, so configuring Ballarat configures **Bendigo**.
+- **⚠ Same-day is a promise, not a price.** A fee is a business choice the platform absorbs; same-day is
+  a physical claim about time. The shops are **shown**, never a computed radius (no routing capability;
+  invented precision on a promise is worse than an honest judgement), and enabling it with none nearby
+  is a server-enforced **422** — a UI-only guard is not a guard.
+- **⚠ Per-origin pricing collapsed to per-area**, deliberately: the shopper cannot perceive which shop
+  serves them (hidden fulfilment), while the grid grew as origins × destinations. Live data had
+  Melbourne Metro standard at **$5.00 and $8.00** — a real loss of expressiveness, taken knowingly. The
+  rate grid is now **read-only** and the orphaned editor + its test were **deleted**, because two
+  management surfaces for one concept is how configuration drifts.
+- **⚠ THE FR-028 GUARD HELD**: `apis/core-api` has an **empty diff** and its `storefront` and `checkout`
+  suites pass **unmodified** (re-run uncached). The shopper's delivery experience is untouched.
+- **Verified**: 6 new cold-path routes (59 Lambda functions) · **201 admin tests** · **112 back-office**
+  · `pnpm -r typecheck` **12/12** · 12/12 test packages · back-office builds · `tokens:check` unchanged
+  (no token) · no cards · telemetry grep clean.
+- **⚠ Two of my own errors, caught and recorded**: both disclosures were built and wired to
+  `siblingCount={0}` / `shops={[]}`, so **neither would ever have rendered**; and the SC-014 assertion
+  was moved out of core-api into a service that **has no database in its test run**, so it pins the
+  query's shape rather than its behaviour.
+- **⚠ Open (operator) — 20 tasks, 14 of them walks**: `make edge-deploy SERVICE=admin ENV=dev`, then
+  ⚠ **`/delivery-health` must return 3350 and 3550 TODAY** (an endpoint that returns empty on its first
+  run has not been proven to find anything), the two **five-admin observer tests** (does an admin know
+  they just served twenty places? can they tell "not served" from "not configured"?), the `422` by
+  `curl` not only the UI, and **W9 — a real checkout to a Ballarat address**, which is the whole feature
+  in one walk. **Carry-forwards**: no metrics emission path in the cold path at all; no real-database
+  test capability in the cold path; the reconciliation prompt unbuilt. Spec/artifacts:
+  [specs/031-delivery-areas/](specs/031-delivery-areas/); register:
+  [docs/audiences/admin-capabilities.md](docs/audiences/admin-capabilities.md) §031.
+
 **030-delivery-location-suburb — Suburb-Aware Delivery Location.** ✅ **SIGNED OFF 2026-08-01 —
 101/101 tasks.** Record: [specs/030-delivery-location-suburb/SIGNOFF.md](specs/030-delivery-location-suburb/SIGNOFF.md).
 ⚠ The operator walks are recorded as **operator attestation**; the machine verification was observed

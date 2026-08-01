@@ -2,6 +2,8 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 import type {
   AddPostcodesRequest,
+  ConfigureAreaRequest,
+  MarkAreaNotServedRequest,
   CreateOfferingRequest,
   CreateZoneRequest,
   SetShopLocationRequest,
@@ -13,7 +15,10 @@ import {
   addPostcodes,
   createOffering,
   createZone,
+  configureArea,
   deliveryHealth,
+  getArea,
+  markAreaNotServed,
   getZoneHistory,
   getZonePostcodes,
   listOfferings,
@@ -163,5 +168,36 @@ export function deliveryHealthQuery() {
     queryKey: ["delivery", "health"],
     queryFn: deliveryHealth,
     staleTime: 30_000,
+  });
+}
+
+/* ── 031 US2/US3: per-area configuration ──────────────────────────────────────────────────────── */
+
+export function areaQuery(zoneId: string, postcode: string) {
+  return queryOptions({
+    queryKey: ["delivery", "area", zoneId, postcode],
+    queryFn: () => getArea(zoneId, postcode),
+  });
+}
+
+export function useConfigureArea(zoneId: string, postcode: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ConfigureAreaRequest) => configureArea(zoneId, postcode, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["delivery"] });
+    },
+  });
+}
+
+export function useMarkAreaNotServed(zoneId: string, postcode: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: MarkAreaNotServedRequest) => markAreaNotServed(zoneId, postcode, body),
+    onSuccess: () => {
+      // ⚠ Invalidates the whole delivery tree: withdrawing an area changes the zone's postcode list
+      // AND the health panel, not just this screen.
+      void qc.invalidateQueries({ queryKey: ["delivery"] });
+    },
   });
 }

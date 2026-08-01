@@ -140,6 +140,10 @@ export interface AreaDTO {
   state: AreaState;
   decision: AreaDecisionDTO | null;
   serviceLevels: AreaServiceLevelDTO[];
+  /** ⚠ Other areas in this zone — configuring one configures them all (offerings are zone-keyed). */
+  siblingPostcodes: string[];
+  /** ⚠ Shops that might serve this area. `inZone` is zone membership, NOT a distance. */
+  shops: AreaShopFeasibilityDTO[];
 }
 
 /** What a postcode actually covers — ⚠ the data behind the FR-006 disclosure. */
