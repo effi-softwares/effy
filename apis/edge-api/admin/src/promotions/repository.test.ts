@@ -81,7 +81,7 @@ describe("createPromo", () => {
     query.mockResolvedValue({ rows: [PROMO_ROW] });
 
     await createPromo(
-      { code: "SPRING20", kind: "percentage", percentOff: 20, amountOff: null, minimumSubtotalAmount: "0.00", startsAt: null, endsAt: null, maxRedemptions: null, maxPerCustomer: null, isAdvertised: false, bannerTitle: null, bannerSubtitle: null, bannerImageKey: null, bannerPosition: 0 },
+      { code: "SPRING20", kind: "percentage", percentOff: 20, amountOff: null, minimumSubtotalAmount: "0.00", startsAt: null, endsAt: null, maxRedemptions: null, maxPerCustomer: null, isAdvertised: false, bannerTitle: null, bannerSubtitle: null, bannerImageKey: null, bannerPosition: 0, bannerPlacement: "carousel" },
       "actor",
     );
 
@@ -97,7 +97,7 @@ describe("createPromo", () => {
     expect(
       await codeOf(
         createPromo(
-          { code: "SPRING20", kind: "percentage", percentOff: 20, amountOff: null, minimumSubtotalAmount: "0.00", startsAt: null, endsAt: null, maxRedemptions: null, maxPerCustomer: null, isAdvertised: false, bannerTitle: null, bannerSubtitle: null, bannerImageKey: null, bannerPosition: 0 },
+          { code: "SPRING20", kind: "percentage", percentOff: 20, amountOff: null, minimumSubtotalAmount: "0.00", startsAt: null, endsAt: null, maxRedemptions: null, maxPerCustomer: null, isAdvertised: false, bannerTitle: null, bannerSubtitle: null, bannerImageKey: null, bannerPosition: 0, bannerPlacement: "carousel" },
           "actor",
         ),
       ),

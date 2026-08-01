@@ -117,6 +117,12 @@ const GUEST_PAGES = [
   { route: "/search", html: ".next/server/app/search.html" },
   { route: "/product/[id]", html: ".next/server/app/product/[id].html" },
   { route: "/cart", html: ".next/server/app/cart.html" },
+  // ⚠ Added 2026-08-01 with the route itself, not afterwards. A guest reaches this page by tapping a
+  // promotional banner on the home page — the most prominent link on the storefront. The note above
+  // records what happened the last time a guest-reachable route went unmeasured: /product/[id] was
+  // 58.8 KB over budget for two features before anyone looked. A new public route joins this list in
+  // the same commit that creates it, or the gate is measuring a storefront that no longer exists.
+  { route: "/promotions/[id]", html: ".next/server/app/promotions/[id].html" },
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy

@@ -1,11 +1,13 @@
 package com.effyshopping.customer.mobile.features.catalog
 
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeBlock
+import com.effyshopping.customer.mobile.features.catalog.presentation.MAX_OFFERS
 import com.effyshopping.customer.mobile.features.catalog.presentation.composeHome
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -35,8 +37,18 @@ class HomeBlocksTest {
     private fun rail(key: String, size: Int = 2) =
         Rail(key = key, title = key.replaceFirstChar { it.uppercase() }, products = List(size) { product("$key-$it") })
 
+    /** An INLINE banner — 028's between-sections placement, which these interleaving tests are about. */
     private fun banner(key: String, position: Int) =
-        Banner(key = key, title = "Banner $key", subtitle = null, imageUrl = null, href = null, position = position)
+        Banner(
+            key = key, title = "Banner $key", subtitle = null, imageUrl = null, href = null,
+            position = position, placement = BannerPlacement.INLINE,
+        )
+
+    private fun offer(key: String, position: Int = 0) =
+        Banner(
+            key = key, title = "Offer $key", subtitle = null, imageUrl = null, href = null,
+            position = position, placement = BannerPlacement.CAROUSEL,
+        )
 
     private fun category(key: String, productCount: Int = 3, parentKey: String? = null) =
         Category(key = key, name = key.replaceFirstChar { it.uppercase() }, parentKey = parentKey, productCount = productCount, imageUrl = null)
@@ -185,6 +197,7 @@ class HomeBlocksTest {
                     is HomeBlock.Section -> "Section:${it.rail.key}"
                     is HomeBlock.Promo -> "Promo:${it.banners.joinToString { b -> b.key }}"
                     is HomeBlock.Categories -> "Categories"
+                    is HomeBlock.Offers -> "Offers"
                 }
             },
             "position n means 'after the nth section' — that is what makes FR-030's 'between sections' real",
@@ -261,5 +274,74 @@ class HomeBlocksTest {
             blocks.isEmpty(),
             "the screen renders exactly one empty state from this; a stack of empty headings would be the defect (SC-012)",
         )
+    }
+
+    // ── The offers carousel and exclusive placement (029 T031) ──────────────────────────────────
+
+    @Test
+    fun `carousel and inline banners land in DIFFERENT blocks`() {
+        val blocks = composeHome(
+            HomeContent(banners = listOf(offer("o1"), banner("i1", position = 1)), rails = listOf(rail("featured"), rail("on_sale"))),
+            emptyList(),
+        )
+
+        assertEquals(1, blocks.filterIsInstance<HomeBlock.Offers>().size)
+        assertEquals(1, blocks.filterIsInstance<HomeBlock.Promo>().size)
+        // ⚠ FR-027: exclusive. A banner in both would mean a shopper meets one offer twice on a screen.
+        assertEquals(listOf("o1"), blocks.filterIsInstance<HomeBlock.Offers>().single().banners.map { it.key })
+        assertEquals(listOf("i1"), blocks.filterIsInstance<HomeBlock.Promo>().single().banners.map { it.key })
+    }
+
+    @Test
+    fun `the offers section sits after the categories and before the first rail`() {
+        val blocks = composeHome(
+            HomeContent(banners = listOf(offer("o1")), rails = listOf(rail("featured"))),
+            listOf(category("pantry")),
+        )
+
+        // SC-012: a shopper should be able to say what the current offer is without going looking.
+        assertTrue(blocks[0] is HomeBlock.Categories)
+        assertTrue(blocks[1] is HomeBlock.Offers)
+        assertTrue(blocks[2] is HomeBlock.Section)
+    }
+
+    @Test
+    fun `no carousel banners produces no offers block at all`() {
+        val blocks = composeHome(
+            HomeContent(banners = listOf(banner("i1", position = 0)), rails = listOf(rail("featured"))),
+            emptyList(),
+        )
+
+        // FR-024: absent entirely — no heading, no empty frame.
+        assertTrue(blocks.none { it is HomeBlock.Offers })
+    }
+
+    @Test
+    fun `the offers carousel is bounded and keeps the earliest order`() {
+        val many = (1..MAX_OFFERS + 3).map { offer("o$it", position = it) }
+        val blocks = composeHome(
+            HomeContent(banners = many, rails = listOf(rail("featured"))),
+            emptyList(),
+        )
+
+        val shown = blocks.filterIsInstance<HomeBlock.Offers>().single().banners
+        // FR-026: a swipeable set stops being explorable somewhere, and most shoppers never reach the
+        // last slide anyway. ⚠ The DROP must be logged at the render site — a silent cap reads to an
+        // operator as "my promotion did not save".
+        assertEquals(MAX_OFFERS, shown.size)
+        assertEquals(listOf("o1", "o2", "o3", "o4", "o5", "o6"), shown.map { it.key })
+    }
+
+    @Test
+    fun `a banner with no explicit placement goes to the carousel`() {
+        // The domain default, and the tolerant-reader landing spot for an unknown wire value. A live
+        // offer in the wrong section beats a live offer nowhere.
+        val defaulted = Banner(key = "d", title = "D", subtitle = null, imageUrl = null, href = null)
+        val blocks = composeHome(
+            HomeContent(banners = listOf(defaulted), rails = listOf(rail("featured"))),
+            emptyList(),
+        )
+
+        assertEquals(listOf("d"), blocks.filterIsInstance<HomeBlock.Offers>().single().banners.map { it.key })
     }
 }

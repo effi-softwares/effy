@@ -74,6 +74,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
+import com.effyshopping.mobile.design.EffyBanner
 import com.effyshopping.mobile.design.EffyRadius
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.MotionRole
@@ -1151,28 +1152,72 @@ fun EffyRailTile(
 }
 
 /**
- * A promotional banner (028 T041).
+ * The width a banner renders at, given the space available (029 T025).
+ *
+ * ⚠ PURE, so the bound is testable without a device. On a phone the banner takes the full available
+ * width; beyond [EffyBanner.maxRenderWidth] it stops growing and is centred instead — otherwise a
+ * tablet in landscape gets a promotional slab several hundred dp tall, which is not a banner but a
+ * billboard.
+ */
+fun bannerRenderWidth(available: Dp): Dp =
+    if (available <= EffyBanner.maxRenderWidth) available else EffyBanner.maxRenderWidth
+
+/**
+ * The scrim laid over banner artwork so the message stays legible.
+ *
+ * ⚠ FIXED in both appearances, and it is the ramp's darkest step — not a new colour, and not
+ * `colorScheme.surface`, which inverts. A photograph does not change between light and dark mode, so
+ * neither can the thing that makes type readable over it. Full reasoning on [EffyPromoBanner].
+ */
+private val BannerScrim = EffyColor.Dark.background
+
+/**
+ * A promotional banner (028 T041; shape and legibility rebuilt by 029).
  *
  * ── ⚠ THE RECORDED NO-CARD EXCEPTION ────────────────────────────────────────────────────────────
  *
  * Principle V says do not lay content out in card-style containers. This IS one, and the plan's
  * Complexity Tracking carries the justification: a promotion is a discrete, self-contained, tappable
- * offer that has to be separable from the merchandising around it, and constitution v1.11.0 removed
+ * offer that must be separable from the merchandising around it, and constitution v1.11.0 removed
  * every hue from the palette — so **colour is not available as the separator**. A bounded panel is
- * what remains.
+ * what remains. 029 does not widen that exception; it CONSTRAINS it, by fixing the shape.
  *
- * ── ⚠ AND THIS IS THE HARD PART OF THE WHOLE FEATURE ────────────────────────────────────────────
+ * ── ⚠ WHY NOTHING IS EVER CROPPED ───────────────────────────────────────────────────────────────
  *
- * A promotional banner conventionally works by being the loudest thing on the page. That instrument
- * is gone. What is left is **scale, weight and negative space**, which is why this is wide and short
- * with generous padding rather than tall and busy.
+ * The box is locked to [EffyBanner.ratio] and conformant artwork shares it, so the scale is uniform
+ * and **no cropping occurs at all**. FR-013's "fill without stretching, crop only outside the safe
+ * area" sounds like it needs crop arithmetic; locking both ends removes the case entirely. That is
+ * also why the server-side conformance check matters more than anything in this function — if
+ * non-conformant artwork ever reached here, this is where it would show.
  *
- * If it reads too quietly on a device, the fix is more contrast WITHIN the neutral ramp — never a new
- * colour. A colour here would fail `check-no-emerald.sh` and violate Principle V; it is a
- * constitution violation, not a design choice.
+ * ── ⚠ THE SCRIM IS DOING ALL THE WORK ───────────────────────────────────────────────────────────
  *
- * Text is REAL TEXT, never baked into [imageUrl] (FR-033) — image-baked copy is illegible at small
- * sizes and invisible to a screen reader. Artwork sits behind a scrim that guarantees contrast.
+ * The message is LIVE TEXT over the artwork (FR-031), which keeps it legible at any text size and
+ * readable by a screen reader — but it also means the platform is responsible for contrast over an
+ * image it has never seen. 028 used a flat 72% fill across the whole banner: that works, and washes
+ * out the entire photograph. This is a GRADIENT — opaque where the type is, clear where it is not —
+ * so the artwork survives and the type stays readable.
+ *
+ * ── ⚠ WHY THE SCRIM DOES NOT FOLLOW THE APPEARANCE ──────────────────────────────────────────────
+ *
+ * It used to. The scrim was `colorScheme.surface`, so in light mode it was a WHITE wash — and that
+ * was wrong twice over. It washed the photograph pale, and it left dark type sitting on a
+ * semi-transparent white film over a busy image, which is the worst contrast case there is: the
+ * effective background under each glyph is whatever the photo happens to be doing there.
+ *
+ * The artwork is the SAME PICTURE in light and dark mode. So the treatment that makes type legible
+ * over it cannot be the one thing on the screen that inverts. Over artwork the scrim is therefore
+ * **fixed dark with fixed light type, in both appearances** — the standard for text over
+ * photography, and the only version whose contrast can be reasoned about at all, because the darkest
+ * step of the ramp at 92% is a known quantity and a stranger's photograph is not.
+ *
+ * ⚠ Both fixed values are ramp steps ([EffyColor.Dark]), not new colours — this stays inside the
+ * monochrome palette. With NO artwork there is nothing to be legible over, so the panel keeps the
+ * theme's own colours and does follow the appearance.
+ *
+ * ⚠ There is no hue to separate text from picture. If a banner reads badly on device the fix is more
+ * contrast within the neutral ramp, **never a colour** — that would fail `check-no-emerald.sh` and
+ * violate Principle V.
  */
 @Composable
 fun EffyPromoBanner(
@@ -1184,70 +1229,127 @@ fun EffyPromoBanner(
     onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(EffyRadius.md))
-            .background(EffySurface.tint)
-            // ⚠ Null onClick = NOT TAPPABLE. That is the designed response to an unrecognised target
-            // (research R7): a tap that does nothing is worse than no tap.
-            .then(if (onClick != null) Modifier.clickable(onClickLabel = title, onClick = onClick) else Modifier),
-    ) {
-        if (imageUrl != null) {
-            // The TITLE is the accessible name, not the artwork — the banner's meaning is its text
-            // (FR-033), and describing the picture as well would make a screen reader say it twice.
-            ProductImage(imageUrl, title, modifier = Modifier.matchParentSize())
-            // The scrim is what lets real text sit over arbitrary artwork and stay legible. Without
-            // it a light photograph and light text produce an unreadable banner, and nobody notices
-            // until an operator uploads one.
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f)),
-            )
-        }
+    // Over artwork the treatment is fixed; with no artwork it follows the theme. See the note above.
+    val overArtwork = imageUrl != null
+    val titleColor =
+        if (overArtwork) EffyColor.Dark.foreground else MaterialTheme.colorScheme.onSurface
+    val supportColor =
+        if (overArtwork) EffyColor.Dark.mutedForeground else MaterialTheme.colorScheme.onSurfaceVariant
+    val chipOutline =
+        if (overArtwork) EffyColor.Dark.mutedForeground else MaterialTheme.colorScheme.outline
 
-        Column(modifier = Modifier.padding(EffySpacing.lg)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (!subtitle.isNullOrBlank()) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        val width = bannerRenderWidth(maxWidth)
+
+        Box(
+            modifier = Modifier
+                .width(width)
+                // ⚠ The ratio is applied BEFORE anything is drawn, so the box has its final height
+                // from the first frame — nothing below shifts when the artwork lands (FR-016/SC-005).
+                .aspectRatio(EffyBanner.ratio)
+                .clip(RoundedCornerShape(EffyRadius.md))
+                .background(EffySurface.tint)
+                // ⚠ Null onClick = NOT TAPPABLE — the designed response to a target the app does not
+                // understand. A tap that does nothing is worse than no tap.
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(onClickLabel = title, onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            if (imageUrl != null) {
+                // The TITLE is the accessible name, not the artwork — the banner's meaning is its
+                // text, and describing the picture too would make a screen reader say it twice.
+                ProductImage(imageUrl, title, modifier = Modifier.matchParentSize())
+
+                // ⚠ VERTICAL, not diagonal — and that is a fix, not a preference.
+                //
+                // The scrim was a bottom-left→top-right diagonal, which put its WEAKEST point exactly
+                // where the type needs it most. The text column is bottom-anchored and stacks title
+                // FIRST, so the title is its topmost line: with a subtitle, a terms line and a code
+                // chip below it, the largest and most important text sits ~50% up the banner, where
+                // the diagonal had already faded to near nothing.
+                //
+                // A vertical ramp matches the shape of what it is protecting — the text zone is a
+                // full-width band across the bottom (`banner-canvas.json` marks it 50% tall, inset 6%
+                // from the bottom), so the scrim covers that band uniformly and leaves the top third
+                // of the photograph untouched.
+                Box(
+                    modifier = Modifier.matchParentSize().background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to BannerScrim.copy(alpha = 0.00f),
+                                0.28f to BannerScrim.copy(alpha = 0.20f),
+                                0.50f to BannerScrim.copy(alpha = 0.62f),
+                                0.75f to BannerScrim.copy(alpha = 0.85f),
+                                1.00f to BannerScrim.copy(alpha = 0.92f),
+                            ),
+                        ),
+                    ),
+                )
+            }
+
+            // The text zone, positioned from the SAME constants the operator's template marks — so
+            // the region they were told to keep quiet is exactly the region covered here.
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth(EffyBanner.textWidth)
+                    .padding(
+                        start = width * EffyBanner.textInsetLeft,
+                        bottom = width / EffyBanner.ratio * EffyBanner.textInsetBottom,
+                        end = EffySpacing.s,
+                    ),
+                verticalArrangement = Arrangement.Bottom,
+            ) {
                 Text(
-                    subtitle,
-                    modifier = Modifier.padding(top = EffySpacing.xs),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = titleColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-            }
-            if (!terms.isNullOrBlank()) {
-                // FR-037d: a condition must reach the shopper here, not first at payment.
-                Text(
-                    terms,
-                    modifier = Modifier.padding(top = EffySpacing.xs),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            if (!code.isNullOrBlank()) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = EffySpacing.md)
-                        .clip(RoundedCornerShape(EffyRadius.sm))
-                        .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(EffyRadius.sm))
-                        .padding(horizontal = EffySpacing.md, vertical = EffySpacing.xs),
-                ) {
+                if (!subtitle.isNullOrBlank()) {
                     Text(
-                        code,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.08.em,
-                        ),
+                        subtitle,
+                        modifier = Modifier.padding(top = EffySpacing.xs),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = supportColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
+                }
+                if (!terms.isNullOrBlank()) {
+                    // FR-037d: a condition reaches the shopper here, not first at payment.
+                    Text(
+                        terms,
+                        modifier = Modifier.padding(top = EffySpacing.xs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = supportColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (!code.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = EffySpacing.s)
+                            .clip(RoundedCornerShape(EffyRadius.sm))
+                            .border(1.dp, chipOutline, RoundedCornerShape(EffyRadius.sm))
+                            .padding(horizontal = EffySpacing.s, vertical = 2.dp),
+                    ) {
+                        Text(
+                            code,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.08.em,
+                            ),
+                            color = titleColor,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }

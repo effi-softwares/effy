@@ -129,6 +129,10 @@
           "description": "The promotion id. Stable across reads — clients use it as a list key.",
           "type": "string"
         },
+        "placement": {
+          "$ref": "#/definitions/BannerPlacement",
+          "description": "Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never both.\n\n⚠ Optional, and absent means `\"carousel\"` — matching the column default, so a client reading a server that has not been redeployed degrades to the safe case rather than losing the banner."
+        },
         "position": {
           "$ref": "#/definitions/WireInt",
           "description": "Where this banner sits in Home's section sequence: 0 above the first section, n after the nth.\n\n⚠ `WireInt`, NOT `number`. 027 lost days to Kotlin serialising a quantity as `Double`, the wire carrying `1.0`, and Go's `encoding/json` refusing `1.0` into an `int` — while every unit test passed, because the fakes spoke Kotlin at both ends and never crossed the wire. The fix was made at the contract so the generated Kotlin cannot regress; this field takes the same treatment."
@@ -168,6 +172,14 @@
         "href"
       ],
       "type": "object"
+    },
+    "BannerPlacement": {
+      "description": "Where an advertised promotion appears on Home (029 FR-027). **Exclusive** — never both.\n\n⚠ Declared ONCE, here, and imported by both `storefront.ts` (the shopper-facing banner) and `promotion.ts` (the operator-facing promotion). It was briefly declared in both, which typechecked in each file alone and collided the moment the package re-exported them — the same union in two places is precisely the drift Principle II exists to prevent.",
+      "enum": [
+        "carousel",
+        "inline"
+      ],
+      "type": "string"
     },
     "BannerTarget": {
       "anyOf": [
@@ -230,9 +242,26 @@
             "productId"
           ],
           "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "promotion",
+              "type": "string"
+            },
+            "promotionId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "promotionId"
+          ],
+          "type": "object"
         }
       ],
-      "description": "Where a promotional banner leads (028).\n\n⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL router — inventing one to serve a banner would be the tail wagging the dog. A closed set the server promises and each client maps exhaustively means a new target shows up as a gap in a `when`/`switch` at compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does nothing is worse than no tap.\n\nEvery target is reachable elsewhere in the app (FR-034) — which is why no \"promotion landing page\" exists. A destination only a banner can reach is unreachable for the majority who never see it."
+      "description": "Where a promotional banner leads (028).\n\n⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL router — inventing one to serve a banner would be the tail wagging the dog. A closed set the server promises and each client maps exhaustively means a new target shows up as a gap in a `when`/`switch` at compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does nothing is worse than no tap.\n\n⚠ `promotion` was ADDED after every banner shipped targeting `search`, which sent every tap to the unfiltered store — the Search tab by another name, carrying none of the promotion's facts. FR-034 (no banner-only destinations) was read as forbidding a promotion screen; it does not. That rule protects shoppers from CONTENT reachable only via a carousel slide, and a promotion detail contains nothing the banner face does not already announce — it is the banner's own message, stated in full. See `PromotionDTO`."
     },
     "CartBlockedReason": {
       "description": "Why checkout is unavailable, when it is.",
@@ -1343,6 +1372,58 @@
       ],
       "type": "string"
     },
+    "PromotionDTO": {
+      "additionalProperties": false,
+      "description": "One advertised promotion in full — the destination of a banner tap (`GET /v1/storefront/promotions/:id`).\n\n⚠ WHY A PROMOTION HAS NO OTHER DESTINATION. `promo_code` carries no product or category scoping: a promotion is a whole-cart discount with an optional minimum. There is no set of qualifying products to filter a results list to, so a banner pointed at one was always pointing at nothing in particular. A cart-level code is a message, and the destination for a message is the message itself.\n\n⚠ Served through the SAME visibility predicate Home used, so a promotion that expired, was exhausted or was withdrawn between Home loading and the tap is **404, not stale terms** (028 FR-036). This is also why the response is uncached.",
+      "properties": {
+        "code": {
+          "description": "NON-nullable, unlike `BannerDTO.code` — a screen whose purpose is to hand over a code must have one.",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "terms": {
+          "description": "The same sentence `BannerDTO.terms` carries, from the same server-side composer.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "validity": {
+          "description": "How long is left — `\"Ends in 3 days\"`, `\"Ends tomorrow\"`. Null when the promotion never ends.\n\n⚠ RELATIVE, not a calendar date, and composed server-side. A date means nothing without a timezone and the platform has no timezone concept; a duration reads the same from anywhere. Mobile additionally has no date formatting of any kind, so a raw timestamp could not be rendered there.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "subtitle",
+        "imageUrl",
+        "code",
+        "terms",
+        "validity"
+      ],
+      "type": "object"
+    },
     "QuotePackageDTO": {
       "additionalProperties": false,
       "properties": {
@@ -1909,6 +1990,9 @@
     "productSort": {
       "$ref": "#/definitions/ProductSort"
     },
+    "promotion": {
+      "$ref": "#/definitions/PromotionDTO"
+    },
     "quotePackage": {
       "$ref": "#/definitions/QuotePackageDTO"
     },
@@ -1955,6 +2039,7 @@
     "searchResult",
     "productSort",
     "serviceability",
+    "promotion",
     "cart",
     "cartLine",
     "cartNotice",

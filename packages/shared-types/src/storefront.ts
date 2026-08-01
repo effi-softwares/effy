@@ -17,6 +17,7 @@
 // generated Kotlin emit an Int rather than a Double — a second copy of the alias would be a second
 // thing that can drift, which defeats the entire point of having it (027's `1.0` into a Go `int`).
 import type { WireInt } from "./cart";
+import type { BannerPlacement } from "./banner";
 
 /** A badge shown on a product card. Derived server-side (on_sale = has compare-at; new = newest). */
 export type ProductBadge = "on_sale" | "new";
@@ -80,14 +81,19 @@ export interface StorefrontRailDTO {
  * compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does
  * nothing is worse than no tap.
  *
- * Every target is reachable elsewhere in the app (FR-034) — which is why no "promotion landing page"
- * exists. A destination only a banner can reach is unreachable for the majority who never see it.
+ * ⚠ `promotion` was ADDED after every banner shipped targeting `search`, which sent every tap to the
+ * unfiltered store — the Search tab by another name, carrying none of the promotion's facts. FR-034
+ * (no banner-only destinations) was read as forbidding a promotion screen; it does not. That rule
+ * protects shoppers from CONTENT reachable only via a carousel slide, and a promotion detail contains
+ * nothing the banner face does not already announce — it is the banner's own message, stated in full.
+ * See `PromotionDTO`.
  */
 export type BannerTarget =
   | { kind: "search" }
   | { kind: "sale" }
   | { kind: "category"; categoryKey: string }
-  | { kind: "product"; productId: string };
+  | { kind: "product"; productId: string }
+  | { kind: "promotion"; promotionId: string };
 
 /**
  * A promotional banner on Home — the shopper-facing face of an advertised promotion (028).
@@ -125,6 +131,45 @@ export interface BannerDTO {
    * at the contract so the generated Kotlin cannot regress; this field takes the same treatment.
    */
   position?: WireInt;
+  /**
+   * Which of Home's two placements this banner occupies (029 FR-027). **Exclusive** — never both.
+   *
+   * ⚠ Optional, and absent means `"carousel"` — matching the column default, so a client reading a
+   * server that has not been redeployed degrades to the safe case rather than losing the banner.
+   */
+  placement?: BannerPlacement;
+}
+
+/**
+ * One advertised promotion in full — the destination of a banner tap
+ * (`GET /v1/storefront/promotions/:id`).
+ *
+ * ⚠ WHY A PROMOTION HAS NO OTHER DESTINATION. `promo_code` carries no product or category scoping: a
+ * promotion is a whole-cart discount with an optional minimum. There is no set of qualifying products
+ * to filter a results list to, so a banner pointed at one was always pointing at nothing in
+ * particular. A cart-level code is a message, and the destination for a message is the message itself.
+ *
+ * ⚠ Served through the SAME visibility predicate Home used, so a promotion that expired, was exhausted
+ * or was withdrawn between Home loading and the tap is **404, not stale terms** (028 FR-036). This is
+ * also why the response is uncached.
+ */
+export interface PromotionDTO {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  imageUrl: string | null;
+  /** NON-nullable, unlike `BannerDTO.code` — a screen whose purpose is to hand over a code must have one. */
+  code: string;
+  /** The same sentence `BannerDTO.terms` carries, from the same server-side composer. */
+  terms: string | null;
+  /**
+   * How long is left — `"Ends in 3 days"`, `"Ends tomorrow"`. Null when the promotion never ends.
+   *
+   * ⚠ RELATIVE, not a calendar date, and composed server-side. A date means nothing without a
+   * timezone and the platform has no timezone concept; a duration reads the same from anywhere. Mobile
+   * additionally has no date formatting of any kind, so a raw timestamp could not be rendered there.
+   */
+  validity: string | null;
 }
 
 /** The composed Home payload (GET /v1/storefront/home). */

@@ -529,3 +529,106 @@ the pager, target navigation, the terms sentence, the artwork upload and the aut
 banner draw the eye?) unanswerable. ⚠ **Android was never looked at**, so SC-013's side-by-side is not
 done. No measurements were taken (SC-005/SC-006/SC-008). Full record:
 [specs/028-mobile-home-merchandising/SIGNOFF.md](../../specs/028-mobile-home-merchandising/SIGNOFF.md).
+
+---
+
+## §029 — Promotional Banner Templates & Home Carousel
+
+| Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- |
+| Canonical banner shape | ➖ unconstrained | ✅ 1200×600, 2:1 | one definition, generated to Compose and imported by the console |
+| Operator can produce a conformant banner | ✅ back-office | ✅ back-office | canvas + downloadable template + validation; **not** an image compositor |
+| Artwork conformance enforced | ✅ server-side | ✅ server-side | one guarantee, both surfaces |
+| Never stretched / never cropped | ➖ | ✅ | satisfied **by construction** — see below |
+| Dedicated offers carousel | ❌ | ✅ | web still renders banners at the top only |
+| Exclusive placement per promotion | ✅ back-office | ✅ | carousel **or** between sections, never both |
+| Banner code + terms shown | ❌ | ✅ | web still ignores `code`/`terms`/`target`/`placement` |
+| Banner tap opens the promotion | ✅ | ✅ | added 2026-08-01 — **at parity**; web routes on `href`, mobile on `target`, one server decides both |
+| Promotion detail (code · terms · expiry) | ✅ `/promotions/[id]` | ✅ `PromotionScreen` | one hot-path read serves both |
+
+**Path (Principle III):** unchanged from 028 — the Home read is a latency-sensitive customer read on the
+**hot path**; authoring is operator CRUD on the **cold path**. No boundary moved.
+
+**The insight the slice turns on.** FR-013 ("fill without stretching, crop only outside the safe area")
+reads like it needs crop arithmetic. It does not: if stored artwork is 2:1 **and** the render box is
+2:1, the scale is uniform and **nothing is ever cropped**. That converted a rendering problem into a
+*validation* problem — which is why the server-side conformance check carries more weight here than any
+drawing code. It also means **SC-004 is satisfied by construction**: there are no crop boundaries to
+inspect.
+
+**⚠ The console is not the guard.** Artwork reaches S3 through a presigned PUT that Lambda never
+observes, so client-side normalisation is a convenience. The admin service verifies dimensions on save
+by reading image **headers** over a ranged GET — no `sharp`, no native binary in a Lambda. ⚠ WebP is a
+different container from PNG/JPEG (RIFF, three sub-formats, **two of them 1-based**); getting that
+wrong yields dimensions one pixel short, which looks right and fails an exact-size check.
+
+**⚠ The message stays LIVE TEXT over the artwork** (FR-031), upholding 028's FR-033 rather than
+reversing it. The cost is real and is carried by the platform, not the operator: a **gradient scrim**
+guarantees contrast over artwork nobody has seen, and the console tells the operator which region their
+design must leave quiet.
+
+**⚠ A deliberate narrowing, recorded.** The request was "a fixed-size template for generating the
+banner". What shipped is a template to design *from* — the canvas, a downloadable file, a preview and
+validation — not an image compositor. It solves the problem operators actually had (nobody told them
+the dimensions) without building an editor, and forecloses nothing.
+
+**Telemetry (Principle VII):** three events specified, **none emitted** — the ninth consecutive slice to
+defer mobile analytics. ⚠ This is the feature that most needs it: SC-012 and "does a hueless banner draw
+the eye" are behavioural questions no code review answers.
+
+⚠ **Live status (updated 2026-07-31, at sign-off).** Migration applied; `core-api` rebuilt locally —
+⚠ it has **no cloud deploy**, so the banner read works only against a local instance. **Promotional
+banners now render on a device — the first this platform has ever produced.** The wire contract holds
+against real data: `placement` as a string, `position` as an integer, `terms` correctly `null` for
+zero-minimum promotions. **SC-011 is proven at the read level** — an unadvertised promotion and an
+expired one are live *simultaneously* with six visible ones and appear nowhere.
+
+⚠ **Banner tap — defect found on device by the operator, fixed 2026-08-01.** Tapping a banner opened
+the **unfiltered store**: the Search tab by another name, carrying **none of the promotion's facts** —
+not the code, not the terms. The server hard-coded `{kind: "search"}` for *every* promotion, so the
+destination was the same regardless of what was advertised, and the shopper lost the offer on the way
+to it.
+
+The honest reason no better destination existed is in the **data model**, not the navigation:
+`promo_code` has **no product or category scoping**. A promotion is a whole-cart discount with an
+optional minimum, so there is no set of qualifying products to filter a list to. A cart-level code is a
+message, not a place — and the destination for a message is the message itself.
+
+A banner now targets `{kind: "promotion", promotionId}` and opens a **promotion detail screen**
+(artwork at the same locked 2:1, headline, subtitle, the code with copy-to-clipboard, the conditions
+sentence, how long is left, how to use it, and the ordinary store one tap further on). It is served by
+a new public hot-path read `GET /v1/storefront/promotions/:id` which **re-applies the same visibility
+predicate Home used** — so a promotion that expired, was exhausted or was withdrawn while Home sat on
+screen is answered **404 → "this offer has ended"**, with no retry affordance, rather than with terms
+that are no longer true. 028 **FR-034a/FR-034b** record the amendment and why it does not conflict with
+FR-034.
+
+**Both surfaces, from one decision.** `customer-web` gained `/promotions/[id]` in the same change.
+Web routes on `href` and mobile on `target` — the closed target vocabulary exists because mobile has
+no URL router, while a URL is the web's native idiom — so the server sets **both** from the same
+promotion id, and a Go test pins that they agree. Two fields naming one destination is precisely the
+shape that drifts: one gets updated and the other quietly keeps sending a whole surface elsewhere,
+which is what `/search` was.
+
+⚠ **This closes half of 028's web carry-forward, not all of it.** The banner **face** on web still
+does not render `code` or `terms`. But FR-037d requires a shopper to learn of a condition *"from the
+banner **or from where it leads**, never first at payment"* — and where it leads now states them. The
+face remains outstanding as a presentation gap, no longer as a shopper meeting a minimum at checkout.
+
+⚠ **The web page is `noindex`** (follow, not index): a promotion is temporary, and a search result
+promising an expired discount is worse than not being found. ⚠ It is also **uncached**, alone among the
+public storefront reads — its content is a live claim that other shoppers can falsify by redeeming,
+and a cached "still available" sends someone to the cart with a code that will be refused. Its **only**
+client component is the copy-code button (`navigator.clipboard`, no library); the route measures
+**171.0 KB / 174 KB** and was added to the bundle gate's route list in the same change that created it.
+
+⚠ **But the operator half is still unwalked, and that is not a formality.** Every banner that exists
+was **seeded straight into the database**, which is *precisely* the bypass path quickstart §2a exists to
+prove is refused. It demonstrates rendering and says nothing about enforcement. Until §2a runs,
+**FR-004 is decorative** and SC-002 rests on the seeder's own arithmetic. §2 (console walk, SC-001
+unmeasured), the exhaustion take-down, dark/large-text, screen reader, tablet, and **Android — never
+once looked at** — all remain outstanding.
+
+**Parity gap with `customer-web`, unchanged from 028**: the storefront still ignores `code`, `terms`,
+`target` and `placement`, so a promotion with a minimum spend shows there **without its terms**, and the
+offers carousel is mobile-only.

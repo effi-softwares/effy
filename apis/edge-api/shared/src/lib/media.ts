@@ -114,6 +114,22 @@ export async function presignUpload(
   return { uploadUrl, storageKey };
 }
 
+/**
+ * Fetch the leading bytes of a stored object, so a header can be read without downloading the file.
+ *
+ * ⚠ This exists because artwork reaches S3 through a **presigned PUT that Lambda never observes**. A
+ * client-side size check is therefore a convention a determined caller skips; reading the stored
+ * object is the only way a service can actually know what was uploaded.
+ */
+export async function readObjectPrefix(storageKey: string, bytes: number): Promise<Buffer> {
+  const res = await client().send(
+    new GetObjectCommand({ Bucket: bucket(), Key: storageKey, Range: `bytes=0-${bytes - 1}` }),
+  );
+  const body = await res.Body?.transformToByteArray();
+  if (!body) throw new Error(`media: could not read ${storageKey}`);
+  return Buffer.from(body);
+}
+
 /** A short-lived presigned GET url for reading a stored object (list/detail responses). */
 export async function presignRead(storageKey: string): Promise<string> {
   return getSignedUrl(client(), new GetObjectCommand({ Bucket: bucket(), Key: storageKey }), {

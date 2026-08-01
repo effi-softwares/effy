@@ -16,3 +16,4 @@ export * from "./shop-order";
 export * from "./delivery";
 // 027-customer-cart-sync (promotions + order-rules management DTOs)
 export * from "./promotion";
+export * from "./banner";

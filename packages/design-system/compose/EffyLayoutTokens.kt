@@ -21,3 +21,37 @@ object EffySpacing {
     val xl = 20.dp
     val xxxl = 40.dp
 }
+
+/**
+ * The canonical promotional banner canvas (029), from packages/shared-types/src/banner-canvas.json.
+ *
+ * ⚠ EMITTED INTO THIS FILE ON PURPOSE, not into a new EffyBannerTokens.kt. `check-compose-theme.mjs`
+ * carries a hardcoded list of the files it guards, and its own comment warns that anything the
+ * generator writes which is missing from that list is UNGUARDED. A new file would have been generated
+ * and silently undefended — the exact failure the generate-and-check pattern exists to prevent.
+ *
+ * ⚠ [ratio] is what makes cropping a non-problem: the render box uses it, and conformant artwork
+ * shares it, so the scale is uniform and nothing is ever cropped (029 research R2).
+ */
+object EffyBanner {
+    /** The authored canvas, in pixels. Artwork conforms to exactly this. */
+    const val widthPx = 1200
+    const val heightPx = 600
+
+    /** Width ÷ height. The render box is locked to this at every window size. */
+    const val ratio = 2f
+
+    /** Above this the banner is centred rather than grown — a tablet gets no promotional slab. */
+    val maxRenderWidth = 600.dp
+
+    /**
+     * Where the live message is drawn over the artwork, as fractions of the canvas.
+     *
+     * ⚠ NOT a trim-safe region — nothing is ever trimmed. This is the part of an operator's picture
+     * the platform prints text on, which is what they need to leave quiet.
+     */
+    const val textInsetLeft = 0.06f
+    const val textInsetBottom = 0.06f
+    const val textWidth = 0.58f
+    const val textHeight = 0.5f
+}

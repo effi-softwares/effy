@@ -67,6 +67,17 @@ sealed interface CustomerNavKey : NavKey {
         val saleOnly: Boolean = false,
     ) : CustomerNavKey
 
+    /**
+     * One advertised promotion in full — where a banner tap leads.
+     *
+     * ⚠ Carries the ID ONLY, never the promotion's copy. The screen re-reads it, so a promotion that
+     * expired or was fully claimed while Home sat on screen is met with "this offer has ended" rather
+     * than with restored terms that are no longer true. A serialised copy of the banner would also
+     * restore a presigned image URL that had since expired.
+     */
+    @Serializable
+    data class Promotion(val promotionId: String) : CustomerNavKey
+
     @Serializable data object Cart : CustomerNavKey
 
     @Serializable data object Checkout : CustomerNavKey
@@ -138,6 +149,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Account::class, CustomerNavKey.Account.serializer())
             subclass(CustomerNavKey.Product::class, CustomerNavKey.Product.serializer())
             subclass(CustomerNavKey.Results::class, CustomerNavKey.Results.serializer())
+            subclass(CustomerNavKey.Promotion::class, CustomerNavKey.Promotion.serializer())
             subclass(CustomerNavKey.Cart::class, CustomerNavKey.Cart.serializer())
             subclass(CustomerNavKey.Checkout::class, CustomerNavKey.Checkout.serializer())
             subclass(CustomerNavKey.Receipt::class, CustomerNavKey.Receipt.serializer())
@@ -166,6 +178,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Account,
     CustomerNavKey.Product("p1"),
     CustomerNavKey.Results(title = "On sale", categoryKey = null, saleOnly = true),
+    CustomerNavKey.Promotion("promo1"),
     CustomerNavKey.Cart,
     CustomerNavKey.Checkout,
     CustomerNavKey.Receipt("o1"),

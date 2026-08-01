@@ -17,6 +17,11 @@ class GetProductDetail(private val repo: CatalogRepository) {
     suspend operator fun invoke(id: String): ProductDetail = repo.productDetail(id)
 }
 
+/** The promotion behind a banner tap, re-read so its terms are true at the moment they are shown. */
+class GetPromotion(private val repo: CatalogRepository) {
+    suspend operator fun invoke(id: String): Promotion = repo.promotion(id)
+}
+
 /** Up-front delivery serviceability (025 US1). */
 class CheckServiceability(private val repo: CatalogRepository) {
     suspend operator fun invoke(postcode: String): Serviceability = repo.serviceability(postcode)

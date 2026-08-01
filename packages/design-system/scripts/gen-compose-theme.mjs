@@ -25,6 +25,11 @@ import { dirname, resolve } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const CSS = resolve(here, "../src/tokens.css");
 
+// ⚠ The banner canvas is NOT in tokens.css, and deliberately so: tokens.css is the BRAND source of
+// truth, and a 1200px image canvas is an asset constraint rather than a style token (029 research R4).
+// It is read here so the Compose side and the console consume one definition.
+const BANNER_CANVAS = JSON.parse(readFileSync(resolve(here, "../../shared-types/src/banner-canvas.json"), "utf8"));
+
 // ONE generator, ONE brand source — one derived, diff-guarded theme PER KMP app (Principle II/V). Each
 // app has its own package root, so each gets its own committed copy. tokens:check compares them all.
 const TARGETS = [
@@ -245,6 +250,40 @@ object EffySpacing {
     val lg = 16.dp
     val xl = 20.dp
     val xxxl = 40.dp
+}
+
+/**
+ * The canonical promotional banner canvas (029), from packages/shared-types/src/banner-canvas.json.
+ *
+ * ⚠ EMITTED INTO THIS FILE ON PURPOSE, not into a new EffyBannerTokens.kt. \`check-compose-theme.mjs\`
+ * carries a hardcoded list of the files it guards, and its own comment warns that anything the
+ * generator writes which is missing from that list is UNGUARDED. A new file would have been generated
+ * and silently undefended — the exact failure the generate-and-check pattern exists to prevent.
+ *
+ * ⚠ [ratio] is what makes cropping a non-problem: the render box uses it, and conformant artwork
+ * shares it, so the scale is uniform and nothing is ever cropped (029 research R2).
+ */
+object EffyBanner {
+    /** The authored canvas, in pixels. Artwork conforms to exactly this. */
+    const val widthPx = ${BANNER_CANVAS.width}
+    const val heightPx = ${BANNER_CANVAS.height}
+
+    /** Width ÷ height. The render box is locked to this at every window size. */
+    const val ratio = ${BANNER_CANVAS.aspectRatio}f
+
+    /** Above this the banner is centred rather than grown — a tablet gets no promotional slab. */
+    val maxRenderWidth = ${BANNER_CANVAS.maxRenderWidthDp}.dp
+
+    /**
+     * Where the live message is drawn over the artwork, as fractions of the canvas.
+     *
+     * ⚠ NOT a trim-safe region — nothing is ever trimmed. This is the part of an operator's picture
+     * the platform prints text on, which is what they need to leave quiet.
+     */
+    const val textInsetLeft = ${BANNER_CANVAS.textZone.insetLeftPct / 100}f
+    const val textInsetBottom = ${BANNER_CANVAS.textZone.insetBottomPct / 100}f
+    const val textWidth = ${BANNER_CANVAS.textZone.widthPct / 100}f
+    const val textHeight = ${BANNER_CANVAS.textZone.heightPct / 100}f
 }
 `;
   writeFileSync(target.sharedOut, shared);

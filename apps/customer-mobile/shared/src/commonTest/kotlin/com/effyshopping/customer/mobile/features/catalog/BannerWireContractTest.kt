@@ -1,8 +1,10 @@
 package com.effyshopping.customer.mobile.features.catalog
 
 import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
+import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as BannerPlacementDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
 import com.effyshopping.customer.mobile.features.catalog.data.toDomain
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
@@ -28,8 +30,8 @@ import kotlin.test.assertTrue
  */
 private const val BANNER_WIRE_JSON =
     """{"key":"3f2a","title":"20% off your first order","subtitle":"Stock up",""" +
-        """"imageUrl":null,"href":"/search","code":"FIRST20","terms":"On orders over ${'$'}30.00","position":2,""" +
-        """"target":{"kind":"sale"}}"""
+        """"imageUrl":null,"href":"/promotions/3f2a","code":"FIRST20","terms":"On orders over ${'$'}30.00","position":2,""" +
+        """"target":{"kind":"promotion","promotionId":"3f2a"},"placement":"carousel"}"""
 
 class BannerWireContractTest {
 
@@ -46,6 +48,12 @@ class BannerWireContractTest {
         assertEquals("FIRST20", dto.code)
         assertEquals("On orders over \$30.00", dto.terms)
         assertEquals(2L, dto.position, "position must decode as an integer, not a Double")
+        assertEquals(
+            BannerPlacementDTO.Carousel,
+            dto.placement,
+            "placement must decode from the SAME bytes Go emits — 029 added it, and adding a field " +
+                "without touching this literal is exactly the regression class this file exists to catch",
+        )
     }
 
     @Test
@@ -72,7 +80,10 @@ class BannerWireContractTest {
 
         assertEquals(2, banner.position)
         assertEquals("FIRST20", banner.code)
-        assertEquals(BannerTarget.Sale, banner.target)
+        // ⚠ Was `BannerTarget.Sale` — a shape no banner ever carried. The literal now pins what the
+        // server ACTUALLY emits, so the id every banner tap resolves the detail by is under contract.
+        assertEquals(BannerTarget.Promotion("3f2a"), banner.target)
+        assertEquals(BannerPlacement.CAROUSEL, banner.placement)
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductPage
+import com.effyshopping.customer.mobile.features.catalog.domain.Promotion
 import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchViewModel
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +53,8 @@ private class FakeCatalog : CatalogRepository {
 
     override suspend fun serviceability(postcode: String) =
         Serviceability(postcode = postcode, serviced = true)
+
+    override suspend fun promotion(id: String): Promotion = throw NotImplementedError()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

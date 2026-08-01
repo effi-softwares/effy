@@ -36,6 +36,7 @@ interface PromoRow {
   banner_subtitle: string | null;
   banner_image_key: string | null;
   banner_position: number;
+  banner_placement: string;
   total?: string;
 }
 
@@ -63,6 +64,7 @@ function mapPromo(row: PromoRow): PromoCode {
     bannerSubtitle: row.banner_subtitle,
     bannerImageKey: row.banner_image_key,
     bannerPosition: row.banner_position,
+    bannerPlacement: row.banner_placement as PromoCode["bannerPlacement"],
   };
 }
 
@@ -72,6 +74,7 @@ const PROMO_SELECT = `
          p.starts_at, p.ends_at, p.max_redemptions, p.max_per_customer, p.status,
          p.created_by, p.updated_by, p.created_at, p.updated_at,
          p.is_advertised, p.banner_title, p.banner_subtitle, p.banner_image_key, p.banner_position,
+         p.banner_placement,
          (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) AS redemption_count`;
 
 async function insertAudit(
@@ -169,6 +172,7 @@ export interface CreateInput {
   bannerSubtitle: string | null;
   bannerImageKey: string | null;
   bannerPosition: number;
+  bannerPlacement: string;
 }
 
 export async function createPromo(input: CreateInput, actorSub: string): Promise<PromoCode> {
@@ -179,14 +183,15 @@ export async function createPromo(input: CreateInput, actorSub: string): Promise
         `INSERT INTO public.promo_code
            (code, kind, percent_off, amount_off, minimum_subtotal_amount,
             starts_at, ends_at, max_redemptions, max_per_customer, created_by,
-            is_advertised, banner_title, banner_subtitle, banner_image_key, banner_position)
-         VALUES ($1, $2, $3, $4::numeric, $5::numeric, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            is_advertised, banner_title, banner_subtitle, banner_image_key, banner_position,
+            banner_placement)
+         VALUES ($1, $2, $3, $4::numeric, $5::numeric, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          RETURNING id`,
         [
           input.code, input.kind, input.percentOff, input.amountOff, input.minimumSubtotalAmount,
           input.startsAt, input.endsAt, input.maxRedemptions, input.maxPerCustomer, actorSub,
           input.isAdvertised, input.bannerTitle, input.bannerSubtitle, input.bannerImageKey,
-          input.bannerPosition,
+          input.bannerPosition, input.bannerPlacement,
         ],
       );
       newId = ins.rows[0]!.id;
@@ -217,6 +222,7 @@ export interface UpdateInput {
   bannerSubtitle?: string | null;
   bannerImageKey?: string | null;
   bannerPosition?: number;
+  bannerPlacement?: string;
 }
 
 /**
@@ -275,6 +281,7 @@ export async function updatePromo(id: string, input: UpdateInput, actorSub: stri
            banner_subtitle         = CASE WHEN $25 THEN $26           ELSE banner_subtitle END,
            banner_image_key        = CASE WHEN $27 THEN $28           ELSE banner_image_key END,
            banner_position         = CASE WHEN $29 THEN $30           ELSE banner_position END,
+           banner_placement        = CASE WHEN $31 THEN $32           ELSE banner_placement END,
            updated_by = $20, updated_at = now()
          WHERE id = $1`,
         [
@@ -294,6 +301,7 @@ export async function updatePromo(id: string, input: UpdateInput, actorSub: stri
           input.bannerSubtitle !== undefined, input.bannerSubtitle ?? null,
           input.bannerImageKey !== undefined, input.bannerImageKey ?? null,
           input.bannerPosition !== undefined, input.bannerPosition ?? null,
+          input.bannerPlacement !== undefined, input.bannerPlacement ?? null,
         ],
       );
     } catch (err) {

@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 
-import { Button, Input, Label, Switch, Textarea } from "@effy/design-system/ui";
+import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Switch, Textarea } from "@effy/design-system/ui";
 
 import type { PromoCode } from "../model";
 import { useUpdatePromo } from "../queries";
+import { BannerCanvas } from "./BannerCanvas";
 import { presignBannerImage, uploadBannerImage } from "../repo";
 
 /**
@@ -32,7 +33,10 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
   const [title, setTitle] = useState(promo.bannerTitle ?? "");
   const [subtitle, setSubtitle] = useState(promo.bannerSubtitle ?? "");
   const [position, setPosition] = useState(String(promo.bannerPosition));
+  const [placement, setPlacement] = useState(promo.bannerPlacement);
   const [imageKey, setImageKey] = useState(promo.bannerImageKey);
+  // A local object URL so the preview is immediate; the stored key is what actually persists.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,16 +45,21 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
   // service check AND the database constraint — the button simply refuses to send a doomed request.
   const canSave = !isAdvertised || title.trim().length > 0;
 
-  async function handleUpload(file: File) {
+  async function handleUpload(file: Blob) {
     setError(null);
     setUploading(true);
     try {
+      // ⚠ The blob arriving here has ALREADY been scaled to the canonical canvas by BannerCanvas, and
+      // will be verified again server-side on save. Neither check makes the other redundant: the
+      // client one gives an immediate answer, the server one is the guarantee — artwork reaches S3
+      // through a presigned PUT the service never observes.
       const { uploadUrl, storageKey } = await presignBannerImage(promo.id, file.type, file.size);
-      await uploadBannerImage(uploadUrl, file);
+      await uploadBannerImage(uploadUrl, file as File);
       // ⚠ Saved immediately rather than held in local state. A key that exists in the bucket but not
       // on the promotion is an orphaned object nobody can find or clean up.
       await update.mutateAsync({ bannerImageKey: storageKey });
       setImageKey(storageKey);
+      setPreviewUrl(URL.createObjectURL(file));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not upload the image.");
     } finally {
@@ -67,6 +76,7 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
         bannerTitle: title.trim() || null,
         bannerSubtitle: subtitle.trim() || null,
         bannerPosition: Number(position) || 0,
+        bannerPlacement: placement,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");
@@ -123,7 +133,31 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
         </div>
 
         <div className="space-y-1">
-          <Label htmlFor="bannerPosition">Position</Label>
+          <Label htmlFor="bannerPlacement">Placement</Label>
+          <Select
+            value={placement}
+            onValueChange={(v) => setPlacement(v as typeof placement)}
+            disabled={disabled || !isAdvertised}
+          >
+            <SelectTrigger id="bannerPlacement">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="carousel">Offers carousel</SelectItem>
+              <SelectItem value="inline">Between sections</SelectItem>
+            </SelectContent>
+          </Select>
+          {/* ⚠ EXCLUSIVE (FR-027). Showing every promotion in both places needs no setting at all and
+              is wrong at the only scale that matters: with three or four live, a shopper meets the
+              same offer twice on one screen. */}
+          <p className="text-xs text-muted-foreground">
+            A promotion appears in one place, never both. The offers carousel is where shoppers look
+            for deals; between sections interrupts their browsing, so use it sparingly.
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="bannerPosition">Order</Label>
           <Input
             id="bannerPosition"
             type="number"
@@ -132,55 +166,38 @@ export function AdvertisingSection({ promo, canManage }: { promo: PromoCode; can
             onChange={(e) => setPosition(e.target.value)}
             disabled={disabled || !isAdvertised}
           />
+          {/* ⚠ This field's MEANING now depends on the control above it, and a control whose meaning
+              silently changes under another is how an operator gets a result they did not ask for.
+              So it says which it is, rather than leaving them to find out. */}
           <p className="text-xs text-muted-foreground">
-            0 places it above the first section; 1 after the first, and so on. A number past the last
-            section moves it to the end rather than hiding it.
+            {placement === "carousel"
+              ? "Swipe order within the offers carousel — 0 shows first."
+              : "Which section it follows — 0 places it above the first section, 1 after the first, and so on. A number past the last section moves it to the end rather than hiding it."}
           </p>
         </div>
 
-        <div className="space-y-1">
-          <Label>Artwork (optional)</Label>
-          <div className="flex items-center gap-2">
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUpload(file);
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={disabled || !isAdvertised}
-              onClick={() => fileInput.current?.click()}
-            >
-              {uploading ? "Uploading…" : imageKey ? "Replace" : "Upload"}
-            </Button>
-            {imageKey ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={disabled || !isAdvertised}
-                // Clearing must be as easy as setting: artwork is optional, so a banner that cannot
-                // lose its image is a banner an operator cannot fix.
-                onClick={() => {
-                  setImageKey(null);
-                  void update.mutateAsync({ bannerImageKey: null });
-                }}
-              >
-                Remove
-              </Button>
-            ) : null}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {imageKey ? "An image is attached." : "No image — the banner shows text only."} JPEG, PNG
-            or WebP, up to 10 MB.
-          </p>
+        <div className="space-y-1 sm:col-span-2">
+          {/* ⚠ The canvas tool replaced a bare "Upload" button. That button asked for an image and
+              named no size, which is why no banner has ever existed: an operator had nothing to
+              design against and no way to find out what would happen to what they made. */}
+          <BannerCanvas
+            imageUrl={previewUrl}
+            hasArtwork={Boolean(imageKey)}
+            title={title}
+            code={promo.code}
+            terms={
+              Number(promo.minimumSubtotalAmount) > 0
+                ? `On orders over $${promo.minimumSubtotalAmount}`
+                : null
+            }
+            disabled={disabled || !isAdvertised}
+            onFile={handleUpload}
+            onClear={() => {
+              setImageKey(null);
+              setPreviewUrl(null);
+              void update.mutateAsync({ bannerImageKey: null });
+            }}
+          />
         </div>
       </div>
 

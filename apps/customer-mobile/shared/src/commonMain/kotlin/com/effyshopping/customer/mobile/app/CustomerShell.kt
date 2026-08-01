@@ -39,6 +39,7 @@ import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
+import com.effyshopping.customer.mobile.features.catalog.presentation.PromotionScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
@@ -234,9 +235,18 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                                 ),
                             )
                         },
-                        // 028 FR-034: every banner destination is reachable elsewhere in the app, so
-                        // a promotion leads into the ordinary store rather than to a landing page
-                        // only the banner can reach — most shoppers never see the banner at all.
+                        // Where a banner leads.
+                        //
+                        // ⚠ EVERY banner used to arrive here as [BannerTarget.Search], because the
+                        // server hard-coded that one destination — so a tap opened the unfiltered
+                        // store, which is the Search tab by another name and carries none of the
+                        // promotion's own facts. A promotion now leads to itself
+                        // ([CustomerNavKey.Promotion]); see `PromotionScreen` for why that is the only
+                        // destination a whole-cart discount actually has, and why it does not conflict
+                        // with FR-034.
+                        //
+                        // The other branches are kept, not dead: they are the vocabulary the server
+                        // may start using the day a promotion can be scoped to products.
                         //
                         // ⚠ The `when` is EXHAUSTIVE over a sealed interface, so a new destination is
                         // a compile error rather than a silent no-op. A banner whose target the app
@@ -244,6 +254,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         onBannerClick = { banner ->
                             when (val target = banner.target) {
                                 null -> Unit
+                                is BannerTarget.Promotion ->
+                                    navState.push(CustomerNavKey.Promotion(target.promotionId))
                                 BannerTarget.Search ->
                                     navState.push(CustomerNavKey.Results(title = banner.title))
                                 BannerTarget.Sale ->
@@ -274,6 +286,19 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         entryCategoryKey = key.categoryKey,
                         entrySaleOnly = key.saleOnly,
                         title = key.title,
+                    )
+                }
+
+                // The promotion behind a banner tap. "Browse products" leads into the ordinary store —
+                // the destination the banner used to jump straight to, now reached deliberately and
+                // after the shopper has the code.
+                entry<CustomerNavKey.Promotion> { key ->
+                    PromotionScreen(
+                        container = container,
+                        promotionId = key.promotionId,
+                        onBack = { navState.pop() },
+                        onBrowse = { navState.push(CustomerNavKey.Results(title = "All products")) },
+                        onCart = { navState.push(CustomerNavKey.Cart) },
                     )
                 }
 

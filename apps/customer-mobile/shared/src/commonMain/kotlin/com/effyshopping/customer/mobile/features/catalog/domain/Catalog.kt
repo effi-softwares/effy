@@ -60,7 +60,29 @@ data class Banner(
     val terms: String? = null,
     /** Where the banner leads. Null — including for an unrecognised wire value — means NOT TAPPABLE. */
     val target: BannerTarget? = null,
+    /** Which of Home's two banner placements this promotion occupies (029 FR-027). Exclusive. */
+    val placement: BannerPlacement = BannerPlacement.CAROUSEL,
 )
+
+/**
+ * Where an advertised promotion appears on Home (029 FR-027). **Exclusive** — never both.
+ *
+ * ⚠ Defaults to [CAROUSEL] everywhere, and that is a safety choice rather than a coin toss. An
+ * operator who marks a promotion advertisable without thinking about placement gets it in the offers
+ * section, which is where a shopper looks for offers; defaulting to [INLINE] would scatter
+ * unconsidered promotions through the merchandising, where they interrupt rather than answer.
+ *
+ * ⚠ The same default absorbs an **unknown wire value** (tolerant reader). A promotion must never
+ * vanish from the storefront because a new placement was added server-side before the app knew about
+ * it — a shopper losing a live offer is a worse failure than a banner sitting in the wrong section.
+ */
+enum class BannerPlacement {
+    /** The dedicated offers section — one bounded, swipeable block. */
+    CAROUSEL,
+
+    /** Between merchandising sections, at `position` (028's behaviour). */
+    INLINE,
+}
 
 /**
  * Where a promotional banner leads (028, research R7).
@@ -83,7 +105,38 @@ sealed interface BannerTarget {
     data class Category(val categoryKey: String) : BannerTarget
 
     data class Product(val productId: String) : BannerTarget
+
+    /**
+     * The promotion itself, in full.
+     *
+     * ⚠ THIS IS WHAT EVERY BANNER NOW CARRIES, and it replaces a server that sent [Search] for all of
+     * them — so a tap landed on the unfiltered store, indistinguishable from tapping the Search tab
+     * and carrying none of the promotion's own facts. The reason no better destination existed is in
+     * the data model: a promotion has no product or category scoping, so there is no filtered list to
+     * open. A whole-cart discount is a message, not a place.
+     */
+    data class Promotion(val promotionId: String) : BannerTarget
 }
+
+/**
+ * One advertised promotion in full — what a banner tap opens.
+ *
+ * Deliberately NOT built from the [Banner] already in hand. The promotion is re-read at tap time so a
+ * promotion that expired, was exhausted by other shoppers, or was withdrawn while Home sat on screen
+ * is met with "no longer available" rather than with terms that are no longer true.
+ */
+data class Promotion(
+    val id: String,
+    val title: String,
+    val subtitle: String?,
+    val imageUrl: String?,
+    /** What the shopper types in the cart. Non-null — the screen exists to hand this over. */
+    val code: String,
+    /** The condition sentence, composed server-side so it matches the banner word for word. */
+    val terms: String?,
+    /** How long is left — "Ends in 3 days". Null when the promotion has no end date. */
+    val validity: String?,
+)
 
 data class Rail(
     val key: String,
@@ -169,4 +222,7 @@ interface CatalogRepository {
 
     /** Up-front delivery serviceability (025). Shares checkout's predicate server-side (FR-014b). */
     suspend fun serviceability(postcode: String): Serviceability
+
+    /** One advertised promotion in full — the destination of a banner tap. */
+    suspend fun promotion(id: String): Promotion
 }

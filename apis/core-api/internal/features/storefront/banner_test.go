@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 )
 
 // 028 T037/T037a — what Home says about promotions, and what it promises about rails.
@@ -51,8 +52,92 @@ func TestBannersComposeFromAdvertisedPromotions(t *testing.T) {
 	if b.Position != 1 {
 		t.Errorf("position = %d, want 1", b.Position)
 	}
-	if b.Target == nil || b.Target.Kind != "search" {
-		t.Errorf("every banner needs a target reachable elsewhere in the app (FR-034)")
+	// ⚠ THIS ASSERTION USED TO DEMAND `kind == "search"`, and it passed for every banner ever rendered
+	// — which is how a real defect stayed green. Every promotion shared one hard-coded destination, so
+	// a tap landed on the unfiltered store: the Search tab by another name, carrying none of the
+	// promotion's own facts. A banner must lead to the promotion it advertises.
+	if b.Target == nil || b.Target.Kind != "promotion" {
+		t.Fatalf("a banner must lead to its own promotion, got %+v", b.Target)
+	}
+	if b.Target.PromotionID == nil || *b.Target.PromotionID != b.Key {
+		t.Errorf("the target must carry the promotion id the detail read resolves, got %v", b.Target.PromotionID)
+	}
+	// ⚠ `href` is the WEB path for the SAME destination that `target` names for a native client. Two
+	// fields describing one destination is exactly the shape that drifts — one gets updated and the
+	// other quietly keeps sending a whole surface somewhere else, which is what `/search` was.
+	if b.Href == nil || *b.Href != "/promotions/"+b.Key {
+		t.Errorf("href must lead to the same promotion the target names, got %v", b.Href)
+	}
+}
+
+func TestPromotionDetailIsTheBannersFactsInFull(t *testing.T) {
+	repo := &fakeReader{promos: []advertisedPromoRow{advertised("a", "20% off your first order", 1, "30.00")}}
+	svc := NewService(repo, fakePresign{})
+
+	promo, found, err := svc.Promotion(context.Background(), "a")
+	if err != nil || !found {
+		t.Fatalf("Promotion: found=%v err=%v", found, err)
+	}
+	if promo.Code != "CODEa" {
+		t.Errorf("the code is the whole point of the screen, got %q", promo.Code)
+	}
+	// The banner and the detail must phrase one promotion identically — a shopper who reads a
+	// condition on the banner and a different one here cannot tell which binds.
+	home, err := svc.Home(context.Background())
+	if err != nil {
+		t.Fatalf("Home: %v", err)
+	}
+	if promo.Terms == nil || home.Banners[0].Terms == nil || *promo.Terms != *home.Banners[0].Terms {
+		t.Errorf("banner terms %v and detail terms %v must be the same sentence",
+			home.Banners[0].Terms, promo.Terms)
+	}
+}
+
+// A promotion can expire, be exhausted or be withdrawn between Home being composed and its banner
+// being tapped. The detail read applies the same visibility predicate, so the answer is "no such
+// promotion" rather than terms for something no longer live (FR-036).
+func TestPromotionDetailRefusesAPromotionThatIsNoLongerAdvertised(t *testing.T) {
+	repo := &fakeReader{promos: []advertisedPromoRow{advertised("a", "20% off", 1, "0.00")}}
+	svc := NewService(repo, fakePresign{})
+
+	if _, found, err := svc.Promotion(context.Background(), "gone"); found || err != nil {
+		t.Errorf("want not-found with no error, got found=%v err=%v", found, err)
+	}
+}
+
+func TestPromoValidityIsRelativeSoItNeedsNoTimezone(t *testing.T) {
+	now := time.Date(2026, 8, 1, 12, 0, 0, 0, time.UTC)
+	at := func(d time.Duration) *time.Time { t := now.Add(d); return &t }
+
+	cases := []struct {
+		name  string
+		ends  *time.Time
+		want  string
+		empty bool
+	}{
+		{name: "no end date states nothing", ends: nil, empty: true},
+		{name: "under an hour", ends: at(30 * time.Minute), want: "Ends within the hour"},
+		{name: "hours, singular", ends: at(90 * time.Minute), want: "Ends in 1 hour"},
+		{name: "hours, plural", ends: at(5 * time.Hour), want: "Ends in 5 hours"},
+		{name: "tomorrow is named, not counted", ends: at(30 * time.Hour), want: "Ends tomorrow"},
+		{name: "days", ends: at(72 * time.Hour), want: "Ends in 3 days"},
+		// Unreachable through the service (the SQL predicate excludes it), but a dead promotion must
+		// never be described as "ends in 0 days".
+		{name: "already over", ends: at(-time.Minute), want: "Ended"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := promoValidity(tc.ends, now)
+			if tc.empty {
+				if got != nil {
+					t.Fatalf("want no validity line, got %q", *got)
+				}
+				return
+			}
+			if got == nil || *got != tc.want {
+				t.Fatalf("got %v, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

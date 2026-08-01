@@ -305,6 +305,27 @@ appears on Home; end it, confirm it disappears on the next load — without touc
   size and is available to a screen reader.
 - **FR-034**: Anything a banner links to MUST be **reachable elsewhere in the app without the banner**. No
   destination may exist only behind a banner.
+- **FR-034a** *(amended 2026-08-01, after the operator reported the tap behaviour as a bug)*: A banner MUST
+  lead to **the promotion it advertises**, presented in full — its wording, its code, its conditions and how
+  long is left — with the ordinary store reachable from there. It MUST NOT lead to an unscoped product list.
+
+  **Why this is an amendment and not a contradiction of FR-034.** As built, every banner targeted the
+  unfiltered store, so a tap opened the Search tab by another name and carried **none of the promotion's
+  facts** — not the code, not the terms. The shopper lost the offer on the way to it. That was read as
+  compliance with FR-034; it was compliance with its letter and a failure of its purpose.
+
+  FR-034 exists to stop **content** being reachable only through a carousel slide most shoppers never see
+  (Baymard). A promotion's own detail is not such content: it states nothing the banner face does not already
+  announce. It is the banner's message expanded, so no shopper who never sees the banner loses anything.
+
+  **The deeper reason there was no better destination**: a promotion carries **no product or category
+  scoping** — it is a whole-cart discount with an optional minimum, so no set of qualifying products exists to
+  filter a list to. A cart-level code is a message, not a place. Should promotions ever gain scope, a banner
+  leading to the qualifying products becomes the better answer and this requirement should be revisited.
+- **FR-034b**: The destination MUST be **re-read at tap time** through the same visibility rule that put the
+  banner on Home (FR-037c). A promotion that expired, was exhausted or was withdrawn while Home sat on screen
+  MUST be reported as **ended** — never presented with terms that are no longer true (FR-036), and never with
+  a retry affordance, which would invite a shopper to keep trying for a discount that is not coming.
 - **FR-035**: When no promotion is live, **no banner and no placeholder** MUST be shown, and the surrounding
   sections MUST close up without leaving a gap.
 - **FR-036**: A banner MUST advertise something **true at the moment it is shown**. (The lifecycle that
@@ -445,7 +466,11 @@ above were drawn from — not as implementation guidance.
 - **FR-033 (real text, not baked into images)** — same source: image-baked text is illegible at small sizes and
   invisible to assistive technology.
 - **FR-034 (no banner-only destinations)** — same source: most shoppers never see every slide, so nothing may
-  be reachable only from a banner.
+  be reachable only from a banner. ⚠ **FR-034a narrows what this covers**: the rule is about *content* a
+  shopper could miss, and a promotion's own detail is not content anyone can miss — it restates the banner.
+  Reading FR-034 as forbidding a promotion screen is what produced the defect it now corrects, where every
+  banner pointed at the unfiltered store. Uber Eats and eBay both answer an offer tap with the offer's own
+  terms plus a way to act on it, never with an unscoped product list.
 - **General carousel scepticism** — carousel use among top e-commerce sites has fallen from 52% to 28% as their
   usability costs became clear, and testing consistently shows shoppers attend to category navigation and
   search rather than carousels. This is the direct justification for the priority order in this spec: search

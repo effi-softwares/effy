@@ -12,7 +12,7 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests\" && exit 0",
+    "test": "vitest run",
     "contract:gen": "node scripts/gen-kotlin-contract.mjs",
     "contract:check": "node scripts/gen-kotlin-contract.mjs && git diff --exit-code contract/Dto.kt contract/schema.json",
     "shop-contract:gen": "node scripts/gen-kotlin-shop-contract.mjs",
@@ -21,6 +21,7 @@
     "commerce-contract:check": "node scripts/gen-kotlin-commerce-contract.mjs && git diff --exit-code contract/CommerceDto.kt contract/commerce-schema.json"
   },
   "devDependencies": {
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
   }
 }

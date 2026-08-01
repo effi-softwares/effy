@@ -2,9 +2,11 @@ package com.effyshopping.customer.mobile.features.catalog.data
 
 import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as BannerTargetDTO
+import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as BannerPlacementDTO
 import com.effyshopping.customer.mobile.commerce.contract.Kind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
+import com.effyshopping.customer.mobile.commerce.contract.PromotionDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductBadge as ProductBadgeDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontCategoryDTO
 import com.effyshopping.customer.mobile.commerce.contract.StorefrontHomeDTO
@@ -14,6 +16,7 @@ import com.effyshopping.customer.mobile.commerce.contract.StorefrontRailDTO
 import com.effyshopping.customer.mobile.features.catalog.domain.AttributeGroup
 import com.effyshopping.customer.mobile.features.catalog.domain.AttributeItem
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
@@ -21,6 +24,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.Media
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductBadge
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
+import com.effyshopping.customer.mobile.features.catalog.domain.Promotion
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
 
 /**
@@ -58,6 +62,14 @@ internal fun BannerDTO.toDomain(): Banner = Banner(
     code = code,
     terms = terms,
     target = target?.toDomain(),
+    // ⚠ TOLERANT. An absent or unrecognised placement becomes CAROUSEL rather than a failure — a
+    // promotion must never disappear from the storefront because the server learned a new placement
+    // before the app did. A live offer in the wrong section beats a live offer nowhere.
+    placement = when (placement) {
+        BannerPlacementDTO.Inline -> BannerPlacement.INLINE
+        BannerPlacementDTO.Carousel -> BannerPlacement.CAROUSEL
+        null -> BannerPlacement.CAROUSEL
+    },
 )
 
 /**
@@ -75,7 +87,18 @@ internal fun BannerTargetDTO.toDomain(): BannerTarget? = when (kind) {
     Kind.Sale -> BannerTarget.Sale
     Kind.Category -> categoryKey?.let { BannerTarget.Category(it) }
     Kind.Product -> productID?.let { BannerTarget.Product(it) }
+    Kind.Promotion -> promotionID?.let { BannerTarget.Promotion(it) }
 }
+
+internal fun PromotionDTO.toDomain(): Promotion = Promotion(
+    id = id,
+    title = title,
+    subtitle = subtitle,
+    imageUrl = imageURL,
+    code = code,
+    terms = terms,
+    validity = validity,
+)
 
 internal fun StorefrontRailDTO.toDomain(): Rail = Rail(
     key = key,

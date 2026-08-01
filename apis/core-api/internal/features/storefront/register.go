@@ -10,6 +10,10 @@ func Register(v1 *gin.RouterGroup, h *Handler) {
 	g.GET("/categories", h.getCategories)
 	g.GET("/products", h.getProducts)        // ?ids= now; full search/browse form in US4
 	g.GET("/products/:id", h.getProductByID) // product detail (US2)
+	// The detail behind a promotional banner tap. Public like the rest — an advertised promotion is by
+	// definition public, and requiring a session to read one would hide it from exactly the guests the
+	// storefront exists to convert.
+	g.GET("/promotions/:id", h.getPromotion)
 	// 025 US1: "do we deliver to you?" answered BEFORE a cart exists. Public and cacheable like the
 	// rest — it discloses nothing about the caller and nothing about where Effy fulfils from.
 	g.GET("/serviceability", h.getServiceability)

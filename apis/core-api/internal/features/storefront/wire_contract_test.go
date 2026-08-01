@@ -25,26 +25,33 @@ import (
 
 // BANNER_WIRE_JSON is the exact payload a populated banner produces.
 // ⚠ KEEP IN SYNC with BannerWireContractTest.kt in customer-mobile.
+// ⚠ The target here is the one banners ACTUALLY carry — `promotion`, with the id the detail read
+// resolves. It was `{"kind":"sale"}`, a shape no banner ever emitted, which meant the contract test
+// pinned bytes nothing sent. A cross-language test is only worth its duplication if it pins the real
+// payload; `promotionId` is now the second string field on this path and drift in it would strand
+// every banner tap on a 404.
 const BANNER_WIRE_JSON = `{"key":"3f2a","title":"20% off your first order","subtitle":"Stock up",` +
-	`"imageUrl":null,"href":"/search","code":"FIRST20","terms":"On orders over $30.00","position":2,` +
-	`"target":{"kind":"sale"}}`
+	`"imageUrl":null,"href":"/promotions/3f2a","code":"FIRST20","terms":"On orders over $30.00","position":2,` +
+	`"target":{"kind":"promotion","promotionId":"3f2a"},"placement":"carousel"}`
 
 func TestBannerSerialisesPositionAsAnInteger(t *testing.T) {
 	subtitle := "Stock up"
-	href := "/search"
+	href := "/promotions/3f2a"
 	code := "FIRST20"
 	terms := "On orders over $30.00"
+	promotionID := "3f2a"
 
 	got, err := json.Marshal(bannerDTO{
-		Key:      "3f2a",
-		Title:    "20% off your first order",
-		Subtitle: &subtitle,
-		ImageURL: nil,
-		Href:     &href,
-		Code:     &code,
-		Terms:    &terms,
-		Position: 2,
-		Target:   &bannerTargetDTO{Kind: "sale"},
+		Key:       "3f2a",
+		Title:     "20% off your first order",
+		Subtitle:  &subtitle,
+		ImageURL:  nil,
+		Href:      &href,
+		Code:      &code,
+		Terms:     &terms,
+		Position:  2,
+		Target:    &bannerTargetDTO{Kind: "promotion", PromotionID: &promotionID},
+		Placement: "carousel",
 	})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -80,8 +87,15 @@ func TestBannerRoundTripsThroughTheWire(t *testing.T) {
 	if dto.Position != 2 {
 		t.Errorf("position = %d, want 2", dto.Position)
 	}
-	if dto.Target == nil || dto.Target.Kind != "sale" {
+	if dto.Placement != "carousel" {
+		t.Errorf("placement = %q, want carousel — it must survive as a STRING, not become a number or vanish", dto.Placement)
+	}
+	if dto.Target == nil || dto.Target.Kind != "promotion" {
 		t.Errorf("target did not survive the round trip: %+v", dto.Target)
+	}
+	if dto.Target.PromotionID == nil || *dto.Target.PromotionID != "3f2a" {
+		t.Errorf("promotionId did not survive the round trip — every banner tap resolves the detail " +
+			"by this id, so losing it is a 404 on every promotion")
 	}
 	if dto.Code == nil || *dto.Code != "FIRST20" {
 		t.Error("code did not survive the round trip")

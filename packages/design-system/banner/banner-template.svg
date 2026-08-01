@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600">
+  <title>Effy promotional banner template — 1200 × 600</title>
+  <desc>Design your artwork on this canvas. The dashed area carries the promotion's text; keep it visually quiet.</desc>
+  <rect x="0" y="0" width="1200" height="600" fill="#f2f2f2"/>
+  <rect x="0.5" y="0.5" width="1199" height="599" fill="none" stroke="#c8c8c8" stroke-width="1"/>
+  <rect x="72" y="264" width="696" height="300" fill="#ffffff" fill-opacity="0.55" stroke="#8a8a8a" stroke-width="2" stroke-dasharray="12 8"/>
+  <text x="88" y="298" font-family="system-ui, sans-serif" font-size="26" fill="#4a4a4a">Text is drawn here — keep this area quiet</text>
+  <text x="88" y="334" font-family="system-ui, sans-serif" font-size="20" fill="#6a6a6a">Canvas 1200 × 600 · artwork must be exactly this size</text>
+</svg>

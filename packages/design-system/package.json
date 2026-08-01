@@ -4,23 +4,27 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web design system \u2014 the brand SSOT (MONOCHROME: a ten-step neutral ramp with NO brand hue, whose accent INVERTS by appearance \u2014 near-black on light, near-white on dark \u2014 plus exactly two bounded semantic colours; General Sans type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V, v1.11.0). Internal package: exports TS source + CSS.",
+  "description": "Effy web design system — the brand SSOT (MONOCHROME: a ten-step neutral ramp with NO brand hue, whose accent INVERTS by appearance — near-black on light, near-white on dark — plus exactly two bounded semantic colours; General Sans type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V, v1.11.0). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
-    "./tokens.css": "./src/tokens.css"
+    "./tokens.css": "./src/tokens.css",
+    "./banner-template.svg": "./banner/banner-template.svg"
   },
   "types": "./src/index.ts",
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-tokens.mjs",
+    "test": "node scripts/check-tokens.mjs && node scripts/check-banner-canvas.mjs && node scripts/check-banner-template.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs",
-    "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs",
+    "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs && node scripts/check-banner-template.mjs",
     "mobile-assets:sync": "node scripts/sync-mobile-assets.mjs",
-    "mobile-assets:check": "node scripts/check-mobile-assets.mjs"
+    "mobile-assets:check": "node scripts/check-mobile-assets.mjs",
+    "banner-template:gen": "node scripts/gen-banner-template.mjs",
+    "banner-template:check": "node scripts/check-banner-template.mjs",
+    "banner-canvas:check": "node scripts/check-banner-canvas.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

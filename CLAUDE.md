@@ -203,6 +203,75 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**029-promotional-banner-carousel — Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
+✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 62/73 tasks.** Sign-off record:
+[specs/029-promotional-banner-carousel/SIGNOFF.md](specs/029-promotional-banner-carousel/SIGNOFF.md).
+
+Gives 028's advertising facet a canonical shape and a second placement. **The first real promotional
+banners this platform has ever rendered** now appear on a device.
+- **One canvas definition** — `packages/shared-types/src/banner-canvas.json` (1200×600, 2:1, 150 KB,
+  marked text zone). In `shared-types`, **not** `design-system`: an admin Lambda importing a UI package
+  to learn two numbers is wrong. Consumed by the seeder, the admin service, the console and the mobile
+  renderer — **no literal `1200` appears in any of them** (Principle II).
+- **⚠ Nothing is ever cropped, by construction.** FR-013 read like it needed crop arithmetic; locking
+  the ratio at **both** ends (artwork 2:1 AND render box 2:1) removes the case entirely. That is
+  exactly why the **server-side conformance check** — a ranged GET reading real dimensions from header
+  bytes, which **refuses rather than resizes** — matters more than any rendering code here.
+- **A dedicated offers carousel** (`HomeBlock.Offers`) distinct from 028's between-sections placement,
+  via a new `banner_placement` column. A promotion is in one or the other, **never both** (FR-027).
+- **Data**: one migration `20260731104629_promo_banner_placement.sql`.
+- **⚠ THE OPERATOR HALF HAS STILL NEVER BEEN WALKED.** Every banner that exists was seeded straight
+  into the database — which is **precisely the bypass path quickstart §2a exists to prove is refused**.
+  So **T051 is the most important open item on the platform**: until someone presigns a URL, PUTs a
+  wrong-shaped image and confirms the save is **REFUSED**, **FR-004 is decorative** and SC-002 rests on
+  the seeder's arithmetic, not on enforcement. **T050** (console walk, SC-001 unmeasured) and **T054**
+  (exhaustion take-down) are likewise unwalked. **⚠ Android has still never been looked at** — 028
+  recorded that exact gap and asked it not be repeated; it was repeated.
+- **⚠ Two live defects found and fixed, both structural.** (1) **The scrim was white** — it was
+  `colorScheme.surface`, so light mode bleached the photo and put dark type on a white film over a busy
+  image. The real error: **the artwork is the same picture in both appearances**, so the thing making
+  type legible over it cannot be the thing that inverts. Now fixed dark + fixed light type, both ramp
+  steps, no new colour. Its gradient was also bottom-left→top-right — **weakest exactly where the
+  bottom-anchored title sits** — now vertical. (2) **⚠ `GET /v1/storefront/home` was intermittently
+  503-ing the whole storefront** at exactly 3.007 s: `Home()` issued **8 strictly serial queries** and a
+  Sydney RDS round trip **measures 135 ms** from local `core-api` → ~1.08 s of pure latency, **46% of a
+  3 s budget**, so a cold pool tipped it over. **This is 027's defect recurring on the READ path** —
+  027 recorded it, fixed the cart *write* path, and left this one untouched. Now two waves (ordering
+  held outside the goroutines; the server owns section order), `-race` clean. **Measured 1.37 s →
+  0.39–0.62 s.**
+- **⚠ Also**: `pnpm -r test` was green while `typecheck` FAILED — **vitest does not run `tsc`**; caught
+  only because the "Done" count fell 12→11, so counting reporting packages is now part of the sweep.
+- **⚠ POST-SIGN-OFF DEFECT, FIXED 2026-08-01 — the banner tap went nowhere useful.** Found by the
+  operator on device. `banners()` set `Target: {Kind: "search"}` for **every** promotion, so a tap
+  opened the **unfiltered store** — the Search tab by another name — carrying **none of the
+  promotion's facts** (no code, no terms). The real cause is in the **data model, not the
+  navigation**: `promo_code` has **no product or category scoping**, so a whole-cart discount has no
+  set of qualifying products to filter to. **A cart-level code is a message, not a place.** Fixed with
+  a `promotion` target + a **promotion detail screen**, served by a new public hot-path read
+  `GET /v1/storefront/promotions/:id` that **re-applies the same visibility predicate Home used**
+  (shared as a SQL const so they cannot drift) — a promotion that expired or was exhausted between the
+  Home read and the tap answers **404 → "this offer has ended", with no retry affordance**, never void
+  terms. 028 gains **FR-034a/FR-034b**, which *narrow* FR-034 rather than contradict it: that rule
+  protects **content** a shopper could miss, and a promotion detail restates the banner.
+  **⚠ The test that should have caught it asserted the defect** — `banner_test.go` demanded
+  `Kind == "search"`, encoding the same misreading as the code; and the cross-language wire contract
+  pinned `{"kind":"sale"}`, **a shape no banner ever emitted**. Both now pin the real payload.
+  **⚠ Also fixed**: mobile mapped **404 → `AppError.Unexpected`**, so "that isn't there" reached the
+  shopper as "something broke, try again". `AppError.NotFound` now exists.
+  **✅ FIXED ON BOTH SURFACES** — `customer-web` gained **`/promotions/[id]`** (`◐ PPR`, **noindex**,
+  **uncached** alone among the public reads, since "still available" is a live claim other shoppers
+  can falsify; one client component, the copy button; **171.0 KB / 174 KB**, added to the bundle
+  gate's route list in the same change). Web routes on **`href`**, mobile on **`target`** — the closed
+  vocabulary exists because mobile has no URL router — so the server sets **both from one promotion
+  id** and a Go test pins that they agree. ⚠ **Half a carry-forward remains**: web's banner **face**
+  still ignores `code`/`terms`/`placement`; FR-037d holds anyway ("from the banner **or from where it
+  leads**"). ⚠ **Neither surface has been walked live**, the refusal path least of all.
+- **⚠ Outstanding request**: `FREEZER12` was to be unadvertised (Home should carry **two** banner
+  placements, not three). The seed file records it; the database still has it advertised.
+- **Carry-forwards**: `customer-web` still ignores `code`/`terms`/`target`/`placement` (a promotion with
+  a minimum shows there **without its terms**); the category rollup; mobile telemetry now **ten**
+  consecutive slices deferred; `/search` and `/cart` sit **0.5 KB and 0.2 KB** from the 174 KB gate.
+
 **028-mobile-home-merchandising — Customer Mobile Home: Sectioned Merchandising & Search Entry.**
 ✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 74/77 tasks.** Sign-off record:
 [specs/028-mobile-home-merchandising/SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md).
@@ -940,5 +1009,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/028-mobile-home-merchandising/plan.md
+at specs/029-promotional-banner-carousel/plan.md
 <!-- SPECKIT END -->

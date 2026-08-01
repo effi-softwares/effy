@@ -37,6 +37,7 @@ import com.effyshopping.customer.mobile.features.catalog.domain.CheckServiceabil
 import com.effyshopping.customer.mobile.features.catalog.domain.GetCategories
 import com.effyshopping.customer.mobile.features.catalog.domain.GetHome
 import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
+import com.effyshopping.customer.mobile.features.catalog.domain.GetPromotion
 import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
 import com.effyshopping.customer.mobile.features.delivery.DeliveryContextStore
 import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
@@ -165,6 +166,7 @@ class AppContainer(
     val getHome by lazy { GetHome(catalog) }
     val getCategories by lazy { GetCategories(catalog) }
     val getProductDetail by lazy { GetProductDetail(catalog) }
+    val getPromotion by lazy { GetPromotion(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
     val checkServiceability by lazy { CheckServiceability(catalog) }
 

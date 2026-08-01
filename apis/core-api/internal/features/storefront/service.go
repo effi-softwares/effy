@@ -8,12 +8,26 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 const (
-	readTimeout      = 3 * time.Second
+	// ⚠ RAISED 3s → 8s (2026-07-31), and the reason is topology, not slow code.
+	//
+	// The 3s budget assumed core-api and the database sit in the same region — true in the target
+	// deployment, false today: core-api is local-Docker-only by decision, so every query crosses the
+	// public internet to Sydney RDS. A MEASURED round trip on a bare `SELECT 1` is ~135ms, which no
+	// amount of query tuning can reduce.
+	//
+	// Home was intermittently 503-ing at exactly 3.007s because of that. The real fix is below —
+	// issuing the independent reads concurrently — but a budget only ~2× the happy path leaves no
+	// room for a cold pool (a TLS handshake to RDS is several more round trips) or for a slow moment
+	// on a t4g.micro. This is headroom for the dev topology, NOT cover for a slow path: if Home ever
+	// approaches this number again, something is wrong and should be found, not absorbed.
+	readTimeout      = 8 * time.Second
 	railProductLimit = 12
 	categoryRailMax  = 4
 	newWithinDays    = 14
@@ -59,6 +73,8 @@ type Banner struct {
 	Target *BannerTarget
 	// Position places the banner in Home's section sequence; the client clamps out-of-range values.
 	Position int
+	// Placement is which of Home's two banner slots this occupies (029). Exclusive — never both.
+	Placement string
 }
 
 // BannerTarget is where a banner leads — a CLOSED vocabulary (research R7). An unrecognised value
@@ -67,6 +83,31 @@ type BannerTarget struct {
 	Kind        string
 	CategoryKey *string
 	ProductID   *string
+	PromotionID *string
+}
+
+// Promotion is the full detail of ONE advertised promotion — what a banner tap opens.
+//
+// ⚠ WHY THIS EXISTS. Every banner used to target `{kind: "search"}`, so a tap landed on the unfiltered
+// store: the same screen the Search tab already shows, carrying none of the promotion's own facts —
+// not the code, not the terms. It read as a bug because it behaved like one.
+//
+// The honest reason no better destination existed is in the data model: `promo_code` has no product or
+// category scoping. A promotion is a whole-cart discount, so there is no set of qualifying products to
+// filter to. A cart-level code is a message, not a place — and the right destination for a message is
+// the message itself, stated in full, with the ordinary store one tap further on.
+type Promotion struct {
+	ID       string
+	Title    string
+	Subtitle *string
+	ImageURL *string
+	// Code is what the shopper types in the cart; the detail screen is where they copy it from.
+	Code string
+	// Terms is the SAME sentence the banner shows, composed by the same function — a shopper who reads
+	// a condition on the banner and a differently-worded one here would not know which binds.
+	Terms *string
+	// Validity is how long is left, or nil when the promotion has no end date.
+	Validity *string
 }
 
 // Home is the composed Home payload.
@@ -123,6 +164,7 @@ type Reader interface {
 	CardsByIDs(ctx context.Context, ids []string) ([]cardRow, error)
 	RailCandidates(ctx context.Context, limit int) ([]railCandidate, error)
 	AdvertisedPromotions(ctx context.Context) ([]advertisedPromoRow, error)
+	AdvertisedPromotionByID(ctx context.Context, id string) (advertisedPromoRow, bool, error)
 	Categories(ctx context.Context) ([]categoryRow, error)
 	ProductDetail(ctx context.Context, id string) (detailRow, bool, error)
 	ProductMedia(ctx context.Context, id string) ([]mediaRow, error)
@@ -147,46 +189,80 @@ func NewService(repo Reader, presign media.Presigner) *Service {
 }
 
 // Home composes the merchandised Home: a Featured rail (newest), an On-sale rail, and up to
-// categoryRailMax category rails that actually have products, plus a minimal welcome banner.
+// categoryRailMax category rails that actually have products, plus the advertised promotions.
+//
+// ── ⚠ WHY THESE READS ARE ISSUED CONCURRENTLY ───────────────────────────────────────────────────
+//
+// This function used to run its queries one after another, and it intermittently 503-ed the whole
+// storefront with `scan cards: timeout` at exactly the 3s budget. Nothing was slow; there were
+// simply too many round trips:
+//
+//	NewestCards · OnSaleCards · RailCandidates · CategoryCards ×4 · advertised promotions  =  8
+//
+// A round trip to Sydney RDS measures ~135ms from a local core-api, so those 8 cost ~1.08s of pure
+// network latency before a single row is read — MEASURED at ~1.37s warm against a 3s budget, i.e.
+// nearly half the budget spent waiting. Any variance (a cold pool paying TLS handshakes, a slow
+// moment on a t4g.micro) tipped it over, which is exactly why it failed on first load and only
+// "sometimes".
+//
+// ⚠ This is 027's latency defect recurring on the READ path. That slice recorded it precisely —
+// "~14 round trips to Sydney RDS inside a 4s budget … a combined read replaced N queries" — fixed
+// the cart write path, and left this one, which has the identical shape, untouched.
+//
+// The reads are mutually independent, so the depth is a property of the CODE, not of the data. Two
+// waves is the true dependency depth: everything that can be asked at once is, and the category
+// rails form a second wave only because wave 1 is what names them.
+//
+// ⚠ Ordering is NOT left to the goroutines. Results land in fixed slots and the rails are assembled
+// sequentially afterwards, because the server owns section order (research R8) and a Home whose
+// sections shuffled between loads would read as a bug even though nothing was wrong.
 func (s *Service) Home(ctx context.Context) (Home, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
-	var home Home
+	var (
+		featured   []cardRow
+		onSale     []cardRow
+		candidates []railCandidate
+		banners    []Banner
+	)
 
-	featured, err := s.repo.NewestCards(ctx, railProductLimit)
-	if err != nil {
+	// Wave 1 — everything that depends on nothing.
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() (err error) { featured, err = s.repo.NewestCards(gctx, railProductLimit); return })
+	g.Go(func() (err error) { onSale, err = s.repo.OnSaleCards(gctx, railProductLimit); return })
+	g.Go(func() (err error) { candidates, err = s.repo.RailCandidates(gctx, categoryRailMax); return })
+	g.Go(func() (err error) { banners, err = s.banners(gctx); return })
+	if err := g.Wait(); err != nil {
 		return Home{}, err
 	}
+
+	// Wave 2 — the category rails, which could not be asked for until wave 1 named them.
+	categoryRows := make([][]cardRow, len(candidates))
+	g2, g2ctx := errgroup.WithContext(ctx)
+	for i, cat := range candidates {
+		g2.Go(func() (err error) {
+			categoryRows[i], err = s.repo.CategoryCards(g2ctx, cat.Key, railProductLimit)
+			return
+		})
+	}
+	if err := g2.Wait(); err != nil {
+		return Home{}, err
+	}
+
+	// ⚠ Assembly uses `ctx`, never `gctx` — errgroup cancels its derived context once Wait returns,
+	// so presigning against it would fail on a context that is already dead.
+	var home Home
 	if cards := s.toCards(ctx, featured); len(cards) > 0 {
 		home.Rails = append(home.Rails, Rail{Key: "featured", Title: "Featured", Products: cards})
-	}
-
-	onSale, err := s.repo.OnSaleCards(ctx, railProductLimit)
-	if err != nil {
-		return Home{}, err
 	}
 	if cards := s.toCards(ctx, onSale); len(cards) > 0 {
 		home.Rails = append(home.Rails, Rail{Key: "on_sale", Title: "On sale", Products: cards})
 	}
-
-	candidates, err := s.repo.RailCandidates(ctx, categoryRailMax)
-	if err != nil {
-		return Home{}, err
-	}
-	for _, cat := range candidates {
-		rows, err := s.repo.CategoryCards(ctx, cat.Key, railProductLimit)
-		if err != nil {
-			return Home{}, err
-		}
-		if cards := s.toCards(ctx, rows); len(cards) > 0 {
+	for i, cat := range candidates {
+		if cards := s.toCards(ctx, categoryRows[i]); len(cards) > 0 {
 			home.Rails = append(home.Rails, Rail{Key: "category:" + cat.Key, Title: cat.Name, Products: cards})
 		}
-	}
-
-	banners, err := s.banners(ctx)
-	if err != nil {
-		return Home{}, err
 	}
 	home.Banners = banners
 	return home, nil
@@ -568,17 +644,27 @@ func (s *Service) banners(ctx context.Context) ([]Banner, error) {
 	out := make([]Banner, 0, len(rows))
 	for _, p := range rows {
 		code := p.Code
+		id := p.ID
 		banner := Banner{
-			Key:      p.ID,
-			Title:    p.Title,
-			Subtitle: p.Subtitle,
-			Code:     &code,
-			Terms:    promoTerms(p.MinimumSubtotal, p.Currency),
-			Position: p.Position,
-			// Every target must be reachable elsewhere in the app (FR-034), so a promotion leads to
-			// the store rather than to a bespoke landing page only the banner can reach.
-			Target: &BannerTarget{Kind: "search"},
-			Href:   ptr("/search"),
+			Key:       p.ID,
+			Title:     p.Title,
+			Subtitle:  p.Subtitle,
+			Code:      &code,
+			Terms:     promoTerms(p.MinimumSubtotal, p.Currency),
+			Position:  p.Position,
+			Placement: p.Placement,
+			// ⚠ THIS WAS `{kind: "search"}` FOR EVERY BANNER — one hard-coded destination, so a tap
+			// landed on the unfiltered store and the shopper lost the promotion on the way there.
+			// A promotion now leads to itself, stated in full. See [Promotion] for why that is the
+			// only destination a whole-cart discount actually has.
+			Target: &BannerTarget{Kind: "promotion", PromotionID: &id},
+			// `href` is the WEB path for the same destination — customer-web routes on it, having no
+			// use for the closed target vocabulary a native client needs.
+			//
+			// ⚠ IT WAS `/search`, for the same reason `target` was `{kind:"search"}`: one hard-coded
+			// destination for every promotion. It moves in lockstep with the target, so the two
+			// surfaces cannot disagree about where one promotion leads.
+			Href: ptr("/promotions/" + p.ID),
 		}
 		if p.ImageKey != nil && *p.ImageKey != "" {
 			if url, perr := s.presign.PresignGet(ctx, *p.ImageKey); perr == nil {
@@ -610,6 +696,78 @@ func promoTerms(minimumSubtotal, currency string) *string {
 		terms = "On orders over " + amount + " " + currency
 	}
 	return &terms
+}
+
+// Promotion returns one advertised promotion in full — the destination of a banner tap.
+//
+// ⚠ It re-reads through the SAME visibility predicate Home used, so a promotion that expired, was
+// exhausted, was disabled or was un-advertised between composing Home and tapping its banner is
+// reported NOT FOUND rather than served (FR-036 — a banner advertises something true at the moment it
+// is shown, and so must the screen behind it).
+func (s *Service) Promotion(ctx context.Context, id string) (Promotion, bool, error) {
+	row, found, err := s.repo.AdvertisedPromotionByID(ctx, id)
+	if err != nil || !found {
+		return Promotion{}, false, err
+	}
+
+	out := Promotion{
+		ID:       row.ID,
+		Title:    row.Title,
+		Subtitle: row.Subtitle,
+		Code:     row.Code,
+		Terms:    promoTerms(row.MinimumSubtotal, row.Currency),
+		Validity: promoValidity(row.EndsAt, time.Now()),
+	}
+	// A presign failure drops the ARTWORK, never the screen — the code and terms are what a shopper
+	// came for, and they do not stop being true because an image could not be signed. Same rule as
+	// the banner read.
+	if row.ImageKey != nil && *row.ImageKey != "" {
+		if url, perr := s.presign.PresignGet(ctx, *row.ImageKey); perr == nil {
+			out.ImageURL = &url
+		}
+	}
+	return out, true, nil
+}
+
+// promoValidity renders how long is left as a sentence, or nil when the promotion never ends.
+//
+// ⚠ DELIBERATELY RELATIVE ("Ends in 3 days"), not a calendar date. A date is only meaningful in a
+// timezone, and this platform has no timezone concept — introducing one (tzdata in the container, a
+// location constant, a rule for which zone a shopper in another state sees) is a decision that
+// deserves its own slice, not a side effect of a banner fix. Rendering the DURATION sidesteps the
+// question entirely: "in 3 days" means the same thing from anywhere, and urgency is what a shopper
+// actually reads an expiry for.
+//
+// Composed server-side for the same reason [promoTerms] is: mobile has no date formatting of any kind,
+// and two surfaces must not phrase one promotion two ways.
+func promoValidity(endsAt *time.Time, now time.Time) *string {
+	if endsAt == nil {
+		return nil
+	}
+	left := endsAt.Sub(now)
+	var s string
+	switch {
+	case left <= 0:
+		// Unreachable through [Service.Promotion] — the SQL predicate has already excluded it. Handled
+		// anyway: a caller that ever gets here must not be told a dead promotion "ends in 0 days".
+		s = "Ended"
+	case left < time.Hour:
+		s = "Ends within the hour"
+	case left < 24*time.Hour:
+		s = "Ends in " + plural(int(left/time.Hour), "hour")
+	case left < 48*time.Hour:
+		s = "Ends tomorrow"
+	default:
+		s = "Ends in " + plural(int(left/(24*time.Hour)), "day")
+	}
+	return &s
+}
+
+func plural(n int, unit string) string {
+	if n == 1 {
+		return "1 " + unit
+	}
+	return strconv.Itoa(n) + " " + unit + "s"
 }
 
 func ptr(s string) *string { return &s }

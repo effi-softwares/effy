@@ -24,6 +24,7 @@ const BASE: PromoCode = {
   bannerSubtitle: null,
   bannerImageKey: null,
   bannerPosition: 0,
+  bannerPlacement: "carousel",
   updatedAt: "2026-07-01T00:00:00Z",
 };
 

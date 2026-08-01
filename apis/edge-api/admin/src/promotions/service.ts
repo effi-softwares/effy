@@ -4,10 +4,21 @@
 // ⚠ Every refusal here has a DATABASE CHECK behind it (data-model §6, §8). That is deliberate: the
 // service's answer and the schema's answer cannot drift, and a bug in this file cannot write a promotion
 // the platform could not honour.
-import { isMediaValidationError, presignUpload } from "@effy/edge-shared";
+import {
+  isDimensionsBeyondBuffer,
+  isMediaValidationError,
+  isUnsupportedImage,
+  presignUpload,
+  readImageDimensions,
+  readObjectPrefix,
+} from "@effy/edge-shared";
+
 
 import * as repo from "./repository";
+import { BANNER_CANVAS } from "@effy/shared-types";
+
 import {
+  BANNER_PLACEMENTS,
   type FieldIssue,
   type OrderPolicy,
   type Paged,
@@ -156,6 +167,7 @@ export async function createPromo(
     bannerSubtitle?: string | null;
     bannerImageKey?: string | null;
     bannerPosition?: number;
+    bannerPlacement?: string;
   },
   actorSub: string,
 ): Promise<PromoCode> {
@@ -181,6 +193,9 @@ export async function createPromo(
       bannerSubtitle: input.bannerSubtitle?.trim() || null,
       bannerImageKey: input.bannerImageKey ?? null,
       bannerPosition: input.bannerPosition ?? 0,
+      // ⚠ Defaults to the offers carousel (FR-027a) — an operator who advertises without choosing a
+      // placement lands where shoppers look for offers, not scattered through the merchandising.
+      bannerPlacement: input.bannerPlacement ?? "carousel",
     },
     actorSub,
   );
@@ -198,6 +213,7 @@ function validateAdvertising(input: {
   isAdvertised?: boolean;
   bannerTitle?: string | null;
   bannerPosition?: number;
+  bannerPlacement?: string;
 }): { field: string; message: string }[] {
   const fields: { field: string; message: string }[] = [];
 
@@ -213,6 +229,15 @@ function validateAdvertising(input: {
   ) {
     fields.push({ field: "bannerPosition", message: "must be a whole number of 0 or more" });
   }
+  if (
+    input.bannerPlacement !== undefined &&
+    !(BANNER_PLACEMENTS as readonly string[]).includes(input.bannerPlacement)
+  ) {
+    fields.push({
+      field: "bannerPlacement",
+      message: `must be one of: ${BANNER_PLACEMENTS.join(", ")}`,
+    });
+  }
   return fields;
 }
 
@@ -221,6 +246,77 @@ function validateAdvertising(input: {
  * counts redemptions — checking it here would leave a window in which a code is redeemed between the check
  * and the write.
  */
+/** How much of the object to read before giving up on finding a header. */
+const HEADER_PREFIX_BYTES = 64 * 1024;
+const HEADER_PREFIX_RETRY_BYTES = 1024 * 1024;
+
+/**
+ * Verify that stored banner artwork is exactly the canonical canvas (029 FR-004).
+ *
+ * ── ⚠ WHY THIS RUNS SERVER-SIDE AT ALL ──────────────────────────────────────────────────────────
+ *
+ * The console normalises before upload, and that is a convenience, not a guarantee: artwork reaches
+ * S3 through a **presigned PUT that Lambda never sees**, so anyone holding the signed url can put
+ * anything at it. FR-004 says stored artwork *must* conform, and a "must" that holds only when the
+ * client cooperates is not one. This is the enforcement.
+ *
+ * ⚠ **It refuses; it never resizes.** Silently altering an operator's artwork is precisely the silent
+ * crop FR-008 forbids — and an operator who uploaded the wrong thing needs to know, not to have it
+ * quietly changed underneath them.
+ *
+ * ⚠ **A valid image can hide its dimensions past the first read.** A photo carrying a large EXIF
+ * block or an embedded thumbnail can push its JPEG SOF marker past 64 KB. That is an ordinary file,
+ * not a broken one, so the range is widened once before giving up — and the refusal then says the
+ * file could not be READ, never that its dimensions are wrong, which would blame the operator for
+ * artwork that is fine.
+ */
+async function verifyBannerArtwork(storageKey: string): Promise<void> {
+  let buffer: Buffer;
+  try {
+    buffer = await readObjectPrefix(storageKey, HEADER_PREFIX_BYTES);
+  } catch {
+    throw new PromoError(422, "promo_banner_image_unreadable", "the uploaded image could not be read", [
+      { field: "bannerImageKey", message: "the uploaded file could not be read — try uploading it again" },
+    ]);
+  }
+
+  let dimensions;
+  try {
+    dimensions = readImageDimensions(buffer);
+  } catch (e) {
+    if (isDimensionsBeyondBuffer(e)) {
+      // Widen once. Still a legitimate file — just a front-loaded one.
+      try {
+        dimensions = readImageDimensions(await readObjectPrefix(storageKey, HEADER_PREFIX_RETRY_BYTES));
+      } catch {
+        throw new PromoError(422, "promo_banner_image_unreadable", "the image header could not be read", [
+          { field: "bannerImageKey", message: "the image could not be read — try re-exporting it" },
+        ]);
+      }
+    } else if (isUnsupportedImage(e)) {
+      throw new PromoError(422, "promo_banner_image_unreadable", "not a supported image", [
+        { field: "bannerImageKey", message: "must be a JPEG, PNG or WebP image" },
+      ]);
+    } else {
+      throw e;
+    }
+  }
+
+  if (dimensions.width !== BANNER_CANVAS.width || dimensions.height !== BANNER_CANVAS.height) {
+    // ⚠ A DISTINCT code from 028's `promo_banner_image_invalid`, which the presign route already uses
+    // for content-type and size refusals. One code for two failure modes leaves the console unable to
+    // tell an operator which of them happened.
+    throw new PromoError(422, "promo_banner_image_wrong_size", "banner artwork is the wrong size", [
+      {
+        field: "bannerImageKey",
+        message:
+          `must be exactly ${BANNER_CANVAS.width} × ${BANNER_CANVAS.height} — ` +
+          `this image is ${dimensions.width} × ${dimensions.height}. Download the template to start from the right canvas.`,
+      },
+    ]);
+  }
+}
+
 export async function updatePromo(id: string, input: Record<string, unknown>, actorSub: string): Promise<PromoCode> {
   const typed = input as Parameters<typeof validateDefinition>[0];
   const advertising = input as Parameters<typeof validateAdvertising>[0];
@@ -232,6 +328,11 @@ export async function updatePromo(id: string, input: Record<string, unknown>, ac
   // Belt and braces, each catching what the other cannot.
   const fields = [...validateDefinition(typed, { requireAll: false }), ...validateAdvertising(advertising)];
   if (fields.length > 0) refuse(fields);
+
+  // ⚠ Verified on SAVE, not on upload — the upload never passes through here (see verifyBannerArtwork).
+  const key = (input as { bannerImageKey?: string | null }).bannerImageKey;
+  if (typeof key === "string" && key.length > 0) await verifyBannerArtwork(key);
+
   return repo.updatePromo(id, typed, actorSub);
 }
 
