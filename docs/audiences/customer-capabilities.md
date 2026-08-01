@@ -470,3 +470,62 @@ limit; the next client dependency added to it will break the gate.
 `make db-up ENV=dev`; the promotions console needs `make edge-deploy SERVICE=admin ENV=dev`; and the
 quickstart §3/§4 walks (cross-device sync, the merge, the eight refusals, the Stripe webhook
 re-delivery, the `curl` bypass attempts) are operator-run. Everything machine-checkable is green.
+
+---
+
+## §028 — Customer Mobile Home: Sectioned Merchandising & Search Entry
+
+| Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- |
+| Merchandised, sectioned Home | ✅ | ✅ | mobile **reaches parity here** — 026 had reduced it to one flat grid |
+| Horizontally scrolling product rails | ✅ | ✅ | mobile tile width is window-derived so a tablet fits more, not bigger |
+| "See all" per section | ✅ | ✅ | mobile pushes a scoped `Results` route; Back returns to Home |
+| Category shortcuts with icons | ➖ photo tiles | ✅ | 13 authored vectors + a fallback glyph; web still uses derived photos |
+| Promotional banners between sections | ⚠ top only | ✅ | web renders the carousel at the top; mobile interleaves by `position` |
+| Banner code + terms shown | ❌ | ✅ | web does not yet read `code` / `terms` / `target` — see below |
+| One-tap search with keyboard raised | ➖ n/a | ✅ | a web address bar has no equivalent |
+| Operator-controlled banners | ✅ back-office | ✅ back-office | one control, both surfaces (`/admin/v1/promotions`) |
+
+**Path (Principle III):** the Home read is a latency-sensitive customer read → **hot path**
+(`core-api/storefront`); marking a promotion advertisable is operator CRUD → **cold path**
+(`edge-api/admin/promotions`). Exactly the split `promo_code` was built with in 027 — written cold,
+read and redeemed hot. No boundary moved.
+
+**⚠ This reverses 026's FR-025a for the Home tab**, on operator direction, recorded in the spec's
+Context and bound by FR-003. Every other screen 026 composed is untouched. The virtue 026 was
+protecting is retained as acceptance criteria the new layout must meet: **SC-002** (a real product
+visible without scrolling) and **SC-006** (the last section within four swipes).
+
+**⚠ A deliberate, temporary web gap.** `BannerDTO` gained `code`, `terms`, `target` and `position`,
+all **optional**, so `customer-web` keeps typechecking untouched — but it does not read them. Until it
+does, a promotion with a minimum spend shows its headline on web **without its terms**. Mobile shows
+both (FR-037d). This is web's own slice, and it is a gap, not parity.
+
+**⚠ One behavioural change that is NOT backward compatible.** `banners` used to always contain a
+derived `"welcome"` stub; it is now **empty whenever no promotion is advertised**. `PromoCarousel`
+already filtered to banners with artwork and returned `null` — so web absorbed the change without an
+edit, but the guarantee it was relying on is gone.
+
+**Advertising is opt-in and defaults to off.** Private promotions are ordinary — a goodwill credit
+issued to one customer, a partner code — and a default of `true` would have put every one of them on
+the public storefront. The default is the safety control; the console says in plain words what turning
+it on does.
+
+**Banner artwork** rides the **shared** presign helper, promoted from
+`apis/edge-api/shop/src/products/media.ts` into `@effy/edge-shared` (Principle II) and consumed by both
+services. Shop's 164 tests pass **unmodified**, which is the proof the extraction changed no behaviour.
+
+**Telemetry (Principle VII):** seven Home events are **specified** (research R13) and **not emitted** —
+mobile analytics remains deferred platform-wide (013/014/015/020/021/022/027 pattern). Not parity, and
+not claimed as parity.
+
+**Live status (signed off partial, 2026-07-31).** ✅ Migration applied; admin service deployed (the
+presign route answers **401, not 404**); `core-api` confirmed running the new binary; the sectioned
+Home, rails, skeleton and spacing verified on the **iOS simulator**.
+
+⚠ **The banner has never rendered.** No promotion was ever marked advertisable, so `EffyPromoBanner`,
+the pager, target navigation, the terms sentence, the artwork upload and the automatic take-downs are
+**machine-verified only** — SC-014 and SC-015 unproven, and research R9's design risk (does a hueless
+banner draw the eye?) unanswerable. ⚠ **Android was never looked at**, so SC-013's side-by-side is not
+done. No measurements were taken (SC-005/SC-006/SC-008). Full record:
+[specs/028-mobile-home-merchandising/SIGNOFF.md](../../specs/028-mobile-home-merchandising/SIGNOFF.md).

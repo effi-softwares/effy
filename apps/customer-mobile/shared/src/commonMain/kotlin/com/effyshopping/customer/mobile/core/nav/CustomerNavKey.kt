@@ -45,6 +45,28 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable
     data class Product(val productId: String) : CustomerNavKey
 
+    /**
+     * A SCOPED result set — Home's "see all" on a section, and a category shortcut (028 US2/US3).
+     *
+     * Renders the ordinary Search screen with an entry refinement applied, so there is exactly one
+     * results implementation in the app (FR-009). `SearchViewModel` already supports both
+     * refinements; 025 built that seam and 026 removed its only caller.
+     *
+     * ⚠ PUSHED onto the current tab, never `selectTab(Search)`. A shopper who taps "see all" on Home
+     * came from Home, and Back has to take them there — switching tabs would strand them at the
+     * Search tab's root instead.
+     *
+     * [title] is what the destination shows so the shopper can see the scope they are now in
+     * (FR-018/FR-027) — a filtered list that does not say what it is filtered to is a list that
+     * looks broken.
+     */
+    @Serializable
+    data class Results(
+        val title: String,
+        val categoryKey: String? = null,
+        val saleOnly: Boolean = false,
+    ) : CustomerNavKey
+
     @Serializable data object Cart : CustomerNavKey
 
     @Serializable data object Checkout : CustomerNavKey
@@ -115,6 +137,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Orders::class, CustomerNavKey.Orders.serializer())
             subclass(CustomerNavKey.Account::class, CustomerNavKey.Account.serializer())
             subclass(CustomerNavKey.Product::class, CustomerNavKey.Product.serializer())
+            subclass(CustomerNavKey.Results::class, CustomerNavKey.Results.serializer())
             subclass(CustomerNavKey.Cart::class, CustomerNavKey.Cart.serializer())
             subclass(CustomerNavKey.Checkout::class, CustomerNavKey.Checkout.serializer())
             subclass(CustomerNavKey.Receipt::class, CustomerNavKey.Receipt.serializer())
@@ -142,6 +165,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Orders,
     CustomerNavKey.Account,
     CustomerNavKey.Product("p1"),
+    CustomerNavKey.Results(title = "On sale", categoryKey = null, saleOnly = true),
     CustomerNavKey.Cart,
     CustomerNavKey.Checkout,
     CustomerNavKey.Receipt("o1"),

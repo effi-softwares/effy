@@ -31,6 +31,11 @@ interface PromoRow {
   updated_by: string | null;
   created_at: Date;
   updated_at: Date;
+  is_advertised: boolean;
+  banner_title: string | null;
+  banner_subtitle: string | null;
+  banner_image_key: string | null;
+  banner_position: number;
   total?: string;
 }
 
@@ -53,6 +58,11 @@ function mapPromo(row: PromoRow): PromoCode {
     updatedBy: row.updated_by,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
+    isAdvertised: row.is_advertised,
+    bannerTitle: row.banner_title,
+    bannerSubtitle: row.banner_subtitle,
+    bannerImageKey: row.banner_image_key,
+    bannerPosition: row.banner_position,
   };
 }
 
@@ -61,6 +71,7 @@ const PROMO_SELECT = `
          p.minimum_subtotal_amount::text AS minimum_subtotal_amount,
          p.starts_at, p.ends_at, p.max_redemptions, p.max_per_customer, p.status,
          p.created_by, p.updated_by, p.created_at, p.updated_at,
+         p.is_advertised, p.banner_title, p.banner_subtitle, p.banner_image_key, p.banner_position,
          (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) AS redemption_count`;
 
 async function insertAudit(
@@ -153,6 +164,11 @@ export interface CreateInput {
   endsAt: string | null;
   maxRedemptions: number | null;
   maxPerCustomer: number | null;
+  isAdvertised: boolean;
+  bannerTitle: string | null;
+  bannerSubtitle: string | null;
+  bannerImageKey: string | null;
+  bannerPosition: number;
 }
 
 export async function createPromo(input: CreateInput, actorSub: string): Promise<PromoCode> {
@@ -162,12 +178,15 @@ export async function createPromo(input: CreateInput, actorSub: string): Promise
       const ins = await client.query<{ id: string }>(
         `INSERT INTO public.promo_code
            (code, kind, percent_off, amount_off, minimum_subtotal_amount,
-            starts_at, ends_at, max_redemptions, max_per_customer, created_by)
-         VALUES ($1, $2, $3, $4::numeric, $5::numeric, $6, $7, $8, $9, $10)
+            starts_at, ends_at, max_redemptions, max_per_customer, created_by,
+            is_advertised, banner_title, banner_subtitle, banner_image_key, banner_position)
+         VALUES ($1, $2, $3, $4::numeric, $5::numeric, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
          RETURNING id`,
         [
           input.code, input.kind, input.percentOff, input.amountOff, input.minimumSubtotalAmount,
           input.startsAt, input.endsAt, input.maxRedemptions, input.maxPerCustomer, actorSub,
+          input.isAdvertised, input.bannerTitle, input.bannerSubtitle, input.bannerImageKey,
+          input.bannerPosition,
         ],
       );
       newId = ins.rows[0]!.id;
@@ -192,6 +211,12 @@ export interface UpdateInput {
   endsAt?: string | null;
   maxRedemptions?: number | null;
   maxPerCustomer?: number | null;
+  // 028 — presentation, not value. Editable at any time, including on a redeemed code.
+  isAdvertised?: boolean;
+  bannerTitle?: string | null;
+  bannerSubtitle?: string | null;
+  bannerImageKey?: string | null;
+  bannerPosition?: number;
 }
 
 /**
@@ -242,6 +267,14 @@ export async function updatePromo(id: string, input: UpdateInput, actorSub: stri
            ends_at                 = CASE WHEN $14 THEN $15           ELSE ends_at END,
            max_redemptions         = CASE WHEN $16 THEN $17           ELSE max_redemptions END,
            max_per_customer        = CASE WHEN $18 THEN $19           ELSE max_per_customer END,
+           -- ⚠ 028: PRESENTATION ONLY. These sit alongside the value fields above but are NOT subject
+           -- to the redeemed-code guard — a headline typo must be correctable on a promotion people
+           -- are already using, because changing a headline changes nothing about a paid order.
+           is_advertised           = CASE WHEN $21 THEN $22           ELSE is_advertised END,
+           banner_title            = CASE WHEN $23 THEN $24           ELSE banner_title END,
+           banner_subtitle         = CASE WHEN $25 THEN $26           ELSE banner_subtitle END,
+           banner_image_key        = CASE WHEN $27 THEN $28           ELSE banner_image_key END,
+           banner_position         = CASE WHEN $29 THEN $30           ELSE banner_position END,
            updated_by = $20, updated_at = now()
          WHERE id = $1`,
         [
@@ -256,6 +289,11 @@ export async function updatePromo(id: string, input: UpdateInput, actorSub: stri
           input.maxRedemptions !== undefined, input.maxRedemptions ?? null,
           input.maxPerCustomer !== undefined, input.maxPerCustomer ?? null,
           actorSub,
+          input.isAdvertised !== undefined, input.isAdvertised ?? null,
+          input.bannerTitle !== undefined, input.bannerTitle ?? null,
+          input.bannerSubtitle !== undefined, input.bannerSubtitle ?? null,
+          input.bannerImageKey !== undefined, input.bannerImageKey ?? null,
+          input.bannerPosition !== undefined, input.bannerPosition ?? null,
         ],
       );
     } catch (err) {

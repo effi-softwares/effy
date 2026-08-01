@@ -1,6 +1,8 @@
 package com.effyshopping.customer.mobile.features.catalog.data
 
 import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
+import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as BannerTargetDTO
+import com.effyshopping.customer.mobile.commerce.contract.Kind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductBadge as ProductBadgeDTO
@@ -12,6 +14,7 @@ import com.effyshopping.customer.mobile.commerce.contract.StorefrontRailDTO
 import com.effyshopping.customer.mobile.features.catalog.domain.AttributeGroup
 import com.effyshopping.customer.mobile.features.catalog.domain.AttributeItem
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.Media
@@ -49,7 +52,30 @@ internal fun BannerDTO.toDomain(): Banner = Banner(
     subtitle = subtitle,
     imageUrl = imageURL,
     href = href,
+    // The wire carries an integer (`WireInt` → Long). Absent means "above the first section", which
+    // is the sensible place for a banner whose position nobody set.
+    position = position?.toInt() ?: 0,
+    code = code,
+    terms = terms,
+    target = target?.toDomain(),
 )
+
+/**
+ * Map the wire's flattened target onto the domain's sealed one.
+ *
+ * ⚠ A TOLERANT READER (versioning-policy rule 4). The generator flattens the TS discriminated union
+ * into a `kind` enum plus optional fields, so a `category` with no `categoryKey` is representable on
+ * the wire and meaningless here — it maps to `null`, and the banner renders non-tappable.
+ *
+ * Returning `null` rather than throwing is deliberate: a malformed target must cost the shopper one
+ * tap, not the whole storefront.
+ */
+internal fun BannerTargetDTO.toDomain(): BannerTarget? = when (kind) {
+    Kind.Search -> BannerTarget.Search
+    Kind.Sale -> BannerTarget.Sale
+    Kind.Category -> categoryKey?.let { BannerTarget.Category(it) }
+    Kind.Product -> productID?.let { BannerTarget.Product(it) }
+}
 
 internal fun StorefrontRailDTO.toDomain(): Rail = Rail(
     key = key,

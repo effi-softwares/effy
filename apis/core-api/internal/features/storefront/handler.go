@@ -40,6 +40,22 @@ type bannerDTO struct {
 	Subtitle *string `json:"subtitle"`
 	ImageURL *string `json:"imageUrl"`
 	Href     *string `json:"href"`
+	Code     *string `json:"code"`
+	Terms    *string `json:"terms"`
+	// ⚠ `position` is an INT on the wire, and it must stay one. 027 lost days to a Kotlin client
+	// sending `1.0` where Go wanted an int, with every unit test passing because the fakes spoke
+	// Kotlin at both ends. The TS contract pins it via `WireInt` (`@asType integer`) so the generated
+	// Kotlin emits Long; this is the other end of that agreement.
+	Position int              `json:"position"`
+	Target   *bannerTargetDTO `json:"target"`
+}
+
+// bannerTargetDTO is the closed destination vocabulary (research R7). A client that meets an
+// unrecognised `kind` must render the banner NON-TAPPABLE rather than dead-tapping.
+type bannerTargetDTO struct {
+	Kind        string  `json:"kind"`
+	CategoryKey *string `json:"categoryKey,omitempty"`
+	ProductID   *string `json:"productId,omitempty"`
 }
 
 type homeDTO struct {
@@ -111,7 +127,14 @@ func (h *Handler) getHome(c *gin.Context) {
 	}
 	banners := make([]bannerDTO, 0, len(home.Banners))
 	for _, b := range home.Banners {
-		banners = append(banners, bannerDTO{Key: b.Key, Title: b.Title, Subtitle: b.Subtitle, ImageURL: b.ImageURL, Href: b.Href})
+		var target *bannerTargetDTO
+		if b.Target != nil {
+			target = &bannerTargetDTO{Kind: b.Target.Kind, CategoryKey: b.Target.CategoryKey, ProductID: b.Target.ProductID}
+		}
+		banners = append(banners, bannerDTO{
+			Key: b.Key, Title: b.Title, Subtitle: b.Subtitle, ImageURL: b.ImageURL, Href: b.Href,
+			Code: b.Code, Terms: b.Terms, Position: b.Position, Target: target,
+		})
 	}
 	c.JSON(http.StatusOK, homeDTO{Banners: banners, Rails: rails})
 }

@@ -1,10 +1,13 @@
 package com.effyshopping.customer.mobile.app
 
+import androidx.navigation3.runtime.NavKey
 import com.effyshopping.customer.mobile.core.nav.ALL_CUSTOMER_ROUTES
 import com.effyshopping.customer.mobile.core.nav.CUSTOMER_TAB_ROOTS
 import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
+import com.effyshopping.customer.mobile.core.nav.customerNavSavedState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -12,8 +15,12 @@ import kotlin.test.assertTrue
  *
  * ⚠ FOUR tabs, not five. Browse was removed at the operator's instruction, which **supersedes 025
  * FR-010** ("an equivalent category browse experience reachable from its primary navigation"). That
- * requirement is no longer in force for mobile; category filtering now lives in the Discover chips.
- * Recorded here rather than only in the spec, because this test is what a later reader will hit first.
+ * requirement is no longer in force for mobile.
+ *
+ * ⚠ UPDATED BY 028: category filtering no longer lives in "the Discover chips" — those went with the
+ * grid. It now lives in Home's **category shortcut row**, which pushes a scoped `Results` route.
+ * Still not a tab, so the set below is unchanged; but a reader hitting this test first should not be
+ * sent looking for chips that no longer exist.
  *
  * The set is still pinned: changing it is a navigation change, not a restyle.
  */
@@ -48,10 +55,31 @@ class CustomerNavKeySerializationTest {
         // ALL_CUSTOMER_ROUTES is what the serializers module is kept in step with. If a route is
         // added to CustomerNavKey and forgotten here, this count drifts and the failure is loud.
         assertEquals(
-            21,
+            22,
             ALL_CUSTOMER_ROUTES.size,
             "A route was added or removed — update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
         )
+    }
+
+    /**
+     * 028 T021 — the counts above are necessary and not sufficient.
+     *
+     * ⚠ A route can be present in `ALL_CUSTOMER_ROUTES` and MISSING from the polymorphic module, and
+     * every count test still passes. The failure then shows up only on iOS, only after process
+     * death, only when that route is on the stack. This actually serialises each route through the
+     * configured module, which is the only thing that proves the registration exists.
+     */
+    @Test
+    fun `every declared route round-trips through the saved-state module`() {
+        val module = customerNavSavedState.serializersModule
+        ALL_CUSTOMER_ROUTES.forEach { route ->
+            val serializer = module.getPolymorphic(NavKey::class, route)
+            assertNotNull(
+                serializer,
+                "$route is not registered in customerNavSavedState — it will restore on Android and " +
+                    "THROW on iOS, and no Android test will ever tell you.",
+            )
+        }
     }
 
     @Test

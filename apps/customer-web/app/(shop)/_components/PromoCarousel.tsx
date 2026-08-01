@@ -25,14 +25,20 @@ import type { BannerDTO } from "@effy/shared-types"
 export function PromoCarousel({ banners }: { banners: BannerDTO[] }) {
   // ⚠ A promotional slot with no promotional ARTWORK is not a promotion — it is a coloured rectangle.
   //
-  // `core-api` derives a minimal welcome banner when no CMS content exists (storefront service,
-  // `banners()`), and that derived banner has no image. Rendering it fell back to a solid brand fill:
-  // a large green block sitting directly under a hero that already says the same thing. Two slogans
-  // stacked, one of them in a box, is worse than one slogan.
+  // ── UPDATED BY 028 ────────────────────────────────────────────────────────────────────────────
   //
-  // So the carousel shows only banners that actually carry artwork, and renders nothing at all when
-  // none do. This also means the slot stays correct once real campaign imagery exists — no code
-  // change needed, the banners simply start appearing.
+  // This guard was written against a `core-api` that ALWAYS derived a minimal "welcome" banner with
+  // no image, which rendered as a solid brand fill under a hero already saying the same thing.
+  //
+  // 028 removed that stub. `banners` now carries real advertised promotions and is **empty whenever
+  // none is advertised** — a change that is not backward compatible, and that this component happens
+  // to have been defensive enough to absorb without an edit. The filter and the early return still
+  // do exactly the right thing; only the reason has changed.
+  //
+  // ⚠ Web deliberately does NOT yet read 028's new fields (`code`, `terms`, `target`, `position`) —
+  // they are optional on the wire and adopting them is customer-web's own slice. Until then a
+  // promotion with a minimum spend will show its headline here WITHOUT its terms, which is why the
+  // artwork filter matters: an untermed banner that also has no image would be a bare claim.
   const slides = banners.filter((b) => Boolean(b.imageUrl))
   if (slides.length === 0) return null
 

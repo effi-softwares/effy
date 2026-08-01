@@ -56,6 +56,23 @@ export interface PromoCodeDTO {
   updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
+
+  // ── The advertising facet (028) ─────────────────────────────────────────────────────────────
+  //
+  // Presentation metadata ONLY. None of it participates in what a promotion is WORTH, and none of it
+  // may be routed through the value-immutability guard: a redeemed code's window, caps and status can
+  // change; its value cannot, because a paid order's discount was computed from the definition as it
+  // stood. Changing a headline changes nothing about history.
+
+  /** Whether this promotion may appear as a banner on the customer storefront Home. Opt-in, always. */
+  isAdvertised: boolean;
+  /** The shopper-facing headline. Required whenever `isAdvertised` — the `code` is not a sentence. */
+  bannerTitle: string | null;
+  bannerSubtitle: string | null;
+  /** S3 object key for optional artwork. Never a URL: a stored URL expires. */
+  bannerImageKey: string | null;
+  /** Position in Home's section sequence. 0 = above the first section. */
+  bannerPosition: number;
 }
 
 export type PromoCodeListDTO = PagedDTO<PromoCodeDTO>;
@@ -71,6 +88,11 @@ export interface CreatePromoCodeRequest {
   endsAt?: string | null;
   maxRedemptions?: number | null;
   maxPerCustomer?: number | null;
+  isAdvertised?: boolean;
+  bannerTitle?: string | null;
+  bannerSubtitle?: string | null;
+  bannerImageKey?: string | null;
+  bannerPosition?: number;
 }
 
 /**
@@ -94,6 +116,29 @@ export interface UpdatePromoCodeRequest {
   percentOff?: number;
   amountOff?: string;
   minimumSubtotalAmount?: string;
+
+  /**
+   * The advertising facet (028). Accepted at ANY time, including on a redeemed code — it is
+   * presentation, not value. An operator must be able to correct a typo in a headline on a promotion
+   * people are already using.
+   */
+  isAdvertised?: boolean;
+  bannerTitle?: string | null;
+  bannerSubtitle?: string | null;
+  bannerImageKey?: string | null;
+  bannerPosition?: number;
+}
+
+/** POST /admin/v1/promotions/{id}/banner-image/presign (028). */
+export interface PresignBannerImageRequest {
+  contentType: string;
+  fileSize: number;
+}
+
+/** The two-step upload: PUT the bytes to `uploadUrl`, then save `storageKey` as `bannerImageKey`. */
+export interface PresignBannerImageResponse {
+  uploadUrl: string;
+  storageKey: string;
 }
 
 /** POST /admin/v1/promotions/{id}/status. */

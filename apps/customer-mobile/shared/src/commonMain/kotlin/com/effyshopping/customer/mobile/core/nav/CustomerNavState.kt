@@ -61,6 +61,44 @@ class CustomerNavState internal constructor(
         activeTab = tab
     }
 
+    // ── The search-focus one-shot (028 US1, research R1) ────────────────────────────────────────
+
+    private var searchFocusRequested = false
+
+    /**
+     * Ask the Search screen to open with its field focused and the keyboard up.
+     *
+     * Set by Home's search entry immediately before `selectTab(Search)`, so one tap reaches a live
+     * keyboard (FR-008).
+     *
+     * ── ⚠ Why a flag and not a parameter on the route ───────────────────────────────────────────
+     *
+     * The obvious move is `data class Search(val focus: Boolean)`. It is a trap: tab roots are used
+     * as MAP KEYS in [stacks], so the tab's identity IS the key. `Search(focus = true)` is a
+     * different key from `Search(focus = false)`, and `stacks.getValue(activeTab)` throws the moment
+     * the flag is set. Re-keying the map on a separate tab identity is churn in the one file whose
+     * own header documents a permanent wrong-tab bug — not worth it for a transient signal.
+     *
+     * ⚠ Deliberately NOT saved across process death. A restored app should show the shopper their
+     * results, not reopen the keyboard on top of them.
+     */
+    fun requestSearchFocus() {
+        searchFocusRequested = true
+    }
+
+    /**
+     * Take the pending focus request, if any. Returns `true` at most ONCE per [requestSearchFocus].
+     *
+     * The one-shot is what stops the keyboard reappearing every time Search recomposes — and, more
+     * visibly, every time the shopper returns to the Search tab from the bottom bar having never
+     * asked for it.
+     */
+    fun consumeSearchFocus(): Boolean {
+        val requested = searchFocusRequested
+        searchFocusRequested = false
+        return requested
+    }
+
     fun push(key: CustomerNavKey) {
         currentStack.add(key)
     }
@@ -176,6 +214,11 @@ class CustomerNavigator {
 
     fun selectTab(tab: CustomerNavKey) {
         state?.selectTab(tab)
+    }
+
+    /** Ask Search to open focused — see [CustomerNavState.requestSearchFocus]. */
+    fun requestSearchFocus() {
+        state?.requestSearchFocus()
     }
 
 }

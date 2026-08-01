@@ -8,4 +8,5 @@ export * from "./lib/health";
 export * from "./lib/claims";
 export * from "./lib/rds-ca";
 export * from "./lib/password";
+export * from "./lib/media";
 export * from "./validate";

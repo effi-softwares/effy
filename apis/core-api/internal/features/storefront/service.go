@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 const (
@@ -38,13 +39,34 @@ type Rail struct {
 	Products []ProductCard
 }
 
-// Banner is a promotional hero (minimal/derived in this slice).
+// Banner is the shopper-facing face of an ADVERTISED promotion (028).
+//
+// ⚠ It is no longer derived from the catalog. Until 028 this was a hard-coded "welcome" stub that was
+// always present; it is now zero or more real promotions, and the list is EMPTY when none is
+// advertised. Any client that assumed at least one banner has to handle that.
 type Banner struct {
 	Key      string
 	Title    string
 	Subtitle *string
 	ImageURL *string
 	Href     *string
+	// Code is what a shopper types in the cart — shown so the banner is actionable, not decorative.
+	Code *string
+	// Terms is the condition sentence, composed HERE from the promotion's minimum so that web and
+	// mobile cannot phrase one promotion two ways (FR-037d).
+	Terms *string
+	// Target is the closed-vocabulary destination each client maps exhaustively.
+	Target *BannerTarget
+	// Position places the banner in Home's section sequence; the client clamps out-of-range values.
+	Position int
+}
+
+// BannerTarget is where a banner leads — a CLOSED vocabulary (research R7). An unrecognised value
+// must render the banner non-tappable on the client rather than dead-tapping.
+type BannerTarget struct {
+	Kind        string
+	CategoryKey *string
+	ProductID   *string
 }
 
 // Home is the composed Home payload.
@@ -100,6 +122,7 @@ type Reader interface {
 	CategoryCards(ctx context.Context, categoryKey string, limit int) ([]cardRow, error)
 	CardsByIDs(ctx context.Context, ids []string) ([]cardRow, error)
 	RailCandidates(ctx context.Context, limit int) ([]railCandidate, error)
+	AdvertisedPromotions(ctx context.Context) ([]advertisedPromoRow, error)
 	Categories(ctx context.Context) ([]categoryRow, error)
 	ProductDetail(ctx context.Context, id string) (detailRow, bool, error)
 	ProductMedia(ctx context.Context, id string) ([]mediaRow, error)
@@ -161,7 +184,11 @@ func (s *Service) Home(ctx context.Context) (Home, error) {
 		}
 	}
 
-	home.Banners = s.banners(home.Rails)
+	banners, err := s.banners(ctx)
+	if err != nil {
+		return Home{}, err
+	}
+	home.Banners = banners
 	return home, nil
 }
 
@@ -520,18 +547,69 @@ func deriveBadges(row cardRow) []string {
 	return badges
 }
 
-// banners returns a single minimal welcome banner when the store has anything to show (no CMS in this
-// slice — Home merchandising is catalog-derived per the assumptions).
-func (s *Service) banners(rails []Rail) []Banner {
-	if len(rails) == 0 {
-		return []Banner{}
+// banners returns the promotions cleared for public display, in the order an operator declared.
+//
+// ⚠ WHAT THIS REPLACED: a hard-coded "welcome" banner, always present, advertising nothing. It was
+// honest about being a placeholder ("no CMS in this slice") and it meant the banner slot on both
+// customer surfaces showed a brand slogan forever.
+//
+// A promotion is advertised only when an operator explicitly marked it so, and it stops being
+// advertised the moment it expires, is exhausted, is disabled or is un-marked — WITHOUT anyone acting
+// (FR-037c). The whole predicate lives in the repository, in one statement.
+//
+// A presign failure drops the artwork rather than the banner: a promotion a shopper could have used
+// must not disappear because an image could not be signed.
+func (s *Service) banners(ctx context.Context) ([]Banner, error) {
+	rows, err := s.repo.AdvertisedPromotions(ctx)
+	if err != nil {
+		return nil, err
 	}
-	subtitle := "Fresh groceries and everyday essentials, delivered."
-	href := "/search"
-	return []Banner{{
-		Key:      "welcome",
-		Title:    "Shop Effy",
-		Subtitle: &subtitle,
-		Href:     &href,
-	}}
+
+	out := make([]Banner, 0, len(rows))
+	for _, p := range rows {
+		code := p.Code
+		banner := Banner{
+			Key:      p.ID,
+			Title:    p.Title,
+			Subtitle: p.Subtitle,
+			Code:     &code,
+			Terms:    promoTerms(p.MinimumSubtotal, p.Currency),
+			Position: p.Position,
+			// Every target must be reachable elsewhere in the app (FR-034), so a promotion leads to
+			// the store rather than to a bespoke landing page only the banner can reach.
+			Target: &BannerTarget{Kind: "search"},
+			Href:   ptr("/search"),
+		}
+		if p.ImageKey != nil && *p.ImageKey != "" {
+			if url, perr := s.presign.PresignGet(ctx, *p.ImageKey); perr == nil {
+				banner.ImageURL = &url
+			}
+		}
+		out = append(out, banner)
+	}
+	return out, nil
 }
+
+// promoTerms renders a promotion's condition as a sentence a shopper can act on, or nil when it has
+// none. Composed HERE, once, so both customer surfaces say the same thing about the same promotion —
+// and so a shopper learns of a minimum from the banner rather than at payment (FR-037d).
+func promoTerms(minimumSubtotal, currency string) *string {
+	cents, err := money.ParseCents(minimumSubtotal)
+	if err != nil || cents <= 0 {
+		// No minimum is not a condition worth a sentence — an empty terms line reads as a rule the
+		// shopper has failed to understand rather than as the absence of one.
+		return nil
+	}
+	amount := money.FormatCents(cents)
+	// AUD is the platform's only currency today. A symbol is what a shopper reads; the code is the
+	// honest fallback if that ever stops being true, rather than silently mislabelling the money.
+	var terms string
+	if currency == "AUD" {
+		terms = "On orders over $" + amount
+	} else {
+		terms = "On orders over " + amount + " " + currency
+	}
+	return &terms
+}
+
+func ptr(s string) *string { return &s }

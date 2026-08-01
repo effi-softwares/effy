@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
@@ -35,6 +36,7 @@ import com.effyshopping.customer.mobile.features.account.presentation.AccountRou
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
+import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
@@ -185,7 +187,14 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     HomeScreen(
                         container = container,
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
-                        onSearch = { navState.selectTab(CustomerNavKey.Search) },
+                        // 028 FR-008: ONE tap reaches a live keyboard. The focus request is set
+                        // before the tab switch, so Search consumes it as it composes. Home itself
+                        // deliberately accepts no text — a second search field here would be the one
+                        // without filters, sort or paging, and the one a shopper meets first.
+                        onSearch = {
+                            navState.requestSearchFocus()
+                            navState.selectTab(CustomerNavKey.Search)
+                        },
                         // ⚠ Pushed onto the CURRENT tab, not routed via Account. The bell is on this
                         // screen, so Back belongs here. It used to `selectTab(Account)` first — because
                         // Notifications is also an Account list row — which meant opening it from
@@ -198,14 +207,86 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         onFavorites = {
                             if (signedIn) navState.push(CustomerNavKey.Favorites) else requireSignIn()
                         },
+                        // 028 FR-018: "See all" on a section. PUSHED onto the Home tab, so Back
+                        // returns to Home rather than stranding the shopper at the Search tab's
+                        // root. The rail's own key decides the refinement — the on-sale rail carries
+                        // the sale filter, a category rail carries its category, and Featured is
+                        // simply everything.
+                        onSeeAll = { rail ->
+                            navState.push(
+                                CustomerNavKey.Results(
+                                    title = rail.title,
+                                    categoryKey = rail.key.removePrefix("category:").takeIf {
+                                        rail.key.startsWith("category:")
+                                    },
+                                    saleOnly = rail.key == "on_sale",
+                                ),
+                            )
+                        },
+                        // 028 FR-027: a category shortcut opens that category's products, and the
+                        // destination STATES the scope — a filtered list that does not say what it
+                        // is filtered to looks like a broken search.
+                        onCategoryClick = { shortcut ->
+                            navState.push(
+                                CustomerNavKey.Results(
+                                    title = shortcut.label,
+                                    categoryKey = shortcut.key,
+                                ),
+                            )
+                        },
+                        // 028 FR-034: every banner destination is reachable elsewhere in the app, so
+                        // a promotion leads into the ordinary store rather than to a landing page
+                        // only the banner can reach — most shoppers never see the banner at all.
+                        //
+                        // ⚠ The `when` is EXHAUSTIVE over a sealed interface, so a new destination is
+                        // a compile error rather than a silent no-op. A banner whose target the app
+                        // does not understand never reaches here: it renders non-tappable.
+                        onBannerClick = { banner ->
+                            when (val target = banner.target) {
+                                null -> Unit
+                                BannerTarget.Search ->
+                                    navState.push(CustomerNavKey.Results(title = banner.title))
+                                BannerTarget.Sale ->
+                                    navState.push(
+                                        CustomerNavKey.Results(title = banner.title, saleOnly = true),
+                                    )
+                                is BannerTarget.Category ->
+                                    navState.push(
+                                        CustomerNavKey.Results(
+                                            title = banner.title,
+                                            categoryKey = target.categoryKey,
+                                        ),
+                                    )
+                                is BannerTarget.Product ->
+                                    navState.push(CustomerNavKey.Product(target.productId))
+                            }
+                        },
                     )
                 }
 
-                entry<CustomerNavKey.Search> {
+                // A scoped result set — the ordinary Search screen with an entry refinement. One
+                // results implementation in the app, not two (FR-009).
+                entry<CustomerNavKey.Results> { key ->
                     SearchScreen(
                         container,
                         onProductClick = { navState.push(CustomerNavKey.Product(it)) },
                         onCart = { navState.push(CustomerNavKey.Cart) },
+                        entryCategoryKey = key.categoryKey,
+                        entrySaleOnly = key.saleOnly,
+                        title = key.title,
+                    )
+                }
+
+                entry<CustomerNavKey.Search> {
+                    // ⚠ Consumed HERE, once per composition of the tab root, rather than inside
+                    // SearchScreen — the screen must not decide for itself whether the shopper asked
+                    // for a keyboard.
+                    val autoFocus = remember { navState.consumeSearchFocus() }
+                    SearchScreen(
+                        container,
+                        onProductClick = { navState.push(CustomerNavKey.Product(it)) },
+                        onCart = { navState.push(CustomerNavKey.Cart) },
+                        autoFocus = autoFocus,
                     )
                 }
 

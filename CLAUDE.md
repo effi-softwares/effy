@@ -114,8 +114,8 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 ## Order of operations
 1. The **Brief** (platform-brief.md) captures the product.
 2. **/constitution** encodes the technical law (dual-path, monorepo, no-ORM, native-feel mobile,
-   Effy Emerald brand #065f46 + terracotta #d0735a (was Jade #0FB57E, v1.10.0), 4-pool auth isolation
-   with passwordless EMAIL_OTP).
+   a MONOCHROME neutral ramp with no brand hue (v1.11.0; retired Effy Emerald #065f46 + terracotta
+   #d0735a, and Jade #0FB57E before it), 4-pool auth isolation with passwordless EMAIL_OTP).
 3. First slice: **Auth + customer onboarding** end-to-end (proves 4-pool auth + dual-path +
    monorepo, and unblocks everything else). Catalog browse is the recommended second slice.
 4. Do NOT pre-build the monorepo scaffold ahead of the specs — let each feature's plan drive what
@@ -141,11 +141,18 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
-Effy Emerald brand — accent **#065f46** (emerald-800, white label in both modes) + terracotta
-**#d0735a**, over **neutral-scale** surfaces (no brand tint), plus the **Nunito Sans** typeface and
-spacing/radius scales — shared across all surfaces via one design-system package (constitution
-v1.10.0; superseded Jade **#0FB57E** / fill **#047857**). **Dark mode required, and user-selectable
-(Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
+**MONOCHROME — there is NO brand hue** (constitution v1.10.0 → **v1.11.0**, feature 026). A ten-step
+neutral ramp `#1A1A1A` … `#FFFFFF` carries every accent role, and the accent **INVERTS between
+appearances**: near-black `#1A1A1A` on light, near-white `#F5F5F5` on dark, each taking the other as
+its label. A hue reads against both grounds; a neutral one does not, so a single accent value would be
+invisible in one mode. Exactly **TWO** semantic colours exist alongside the ramp — error `#e01010` and
+success `#0C9409` (success is a **non-text indicator only**, 4.00:1). **No third hue may be
+introduced**; the sole exception is a third-party sign-in mark whose provider requires its own
+colours, which is an asset, not a token. Typeface **General Sans**, plus spacing/radius scales —
+shared across all surfaces via one design-system package.
+**RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0) and Jade `#0FB57E` / fill
+`#047857` (v1.10.0). Both are swept out of live source by `scripts/check-no-emerald.sh` and
+`scripts/check-no-jade.sh`. **Dark mode required, and user-selectable (Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
 targets + micro-animations are requirements, not optional polish. Design refs: Uber / Bolt /
 foodpanda / eBay.
 
@@ -195,6 +202,58 @@ Everything gets built **slice by slice**, each driven by its own spec → plan �
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**028-mobile-home-merchandising — Customer Mobile Home: Sectioned Merchandising & Search Entry.**
+✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 74/77 tasks.** Sign-off record:
+[specs/028-mobile-home-merchandising/SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md).
+
+Replaces the customer mobile Home tab's flat "Discover" grid with a merchandised, sectioned storefront:
+a one-tap search handoff (keyboard already up), named horizontally-scrolling rails with "see all",
+a category shortcut row with 13 authored vectors, and promotional banners driven by real back-office
+promotions. **⚠ It REVERSES 026's FR-025a for the Home tab**, on operator direction (FR-003) — every
+other 026 screen is untouched, and the virtue 026 was protecting is retained as SC-002/SC-006.
+
+- **Data**: one migration `20260731072813_promo_advertising.sql` — an **advertising facet** on
+  `promo_code` (5 columns + a CHECK making an advertised-but-untitled promotion **unrepresentable** +
+  a partial index). No new table. **Advertising is opt-in and defaults to false** — private promotions
+  (a goodwill credit for one customer, a partner code) are ordinary, and the default is the only thing
+  between them and the public storefront. Exhaustion is **counted from `promo_redemption`, never
+  stored** (027's rule), which is what makes an exhausted promotion stop advertising itself.
+- **Paths**: Home read → **hot path** (`core-api/storefront`); advertising a promotion → **cold path**
+  (`edge-api/admin/promotions`). Exactly the split `promo_code` already had.
+- **Principle II**: the S3 presign helper was **promoted** from `shop/products/media.ts` into
+  `@effy/edge-shared` and consumed by both services — **shop's 164 tests pass unmodified**, which is
+  the proof the extraction changed no behaviour.
+- **⚠ 027's biggest carry-forward is CLOSED.** That post-mortem named a Go↔Kotlin contract test as
+  "the strongest carry-forward" and did not build it. `wire_contract_test.go` +
+  `BannerWireContractTest.kt` now share one **byte-identical JSON literal**, duplicated by hand.
+  Proved by breaking it two ways: `int`→`float64` fails at compile time; a silent `json:"terms"`
+  rename compiles fine and is caught by the byte comparison.
+- **⚠ FIVE defects found, four with the same signature** — a test passed because the FIXTURE agreed
+  with the code rather than with the world (027's lesson, recurring):
+  (1) the **category row rendered nothing** — every product's primary category is a leaf,
+  `productCount` does not roll up, so all three top-level categories reported 0; and category
+  filtering is exact-match everywhere, so a top-level shortcut would have opened an empty screen.
+  **FR-024/SC-004 were amended in the spec**, not patched in code alone (Principle I).
+  (2) **rail tiles ignored their width** — `BoxWithConstraints` inside a `LazyRow`, whose main axis is
+  **unbounded**. (3) **images had no loading state** — the placeholder only ran when the URL was null.
+  (4) **the skeleton could not match the content** — a `Row` allocates width sequentially and coerces
+  `Modifier.width()` into what is left; fixed by building it from the **same primitives** (`LazyRow`).
+  (5) **"See all" was a 40dp touch target** with five identical labels.
+- **⚠ Also corrected**: six verification tasks marked complete on reasoning rather than checking.
+  Re-opened and audited; three of the defects above fell out of that audit.
+- **⚠ OPEN (operator)** — 3 tasks, all in [SIGNOFF.md](specs/028-mobile-home-merchandising/SIGNOFF.md):
+  **T068** the advertised-promotion walk — **no promotion was ever marked advertisable, so the banner
+  has never rendered**; the whole operator half is machine-verified only, and research **R9's headline
+  design risk (does a hueless banner draw the eye?) is unanswerable** until it is. **T003/T069** no
+  measurements taken (SC-005/SC-006/SC-008 unmeasured). Also unwalked: SC-009 (5/5 testers), SC-010
+  (screen reader), SC-011 (dark/large-text/tablet), SC-012 (empty store), and **SC-013 — only iOS was
+  ever looked at; nobody has seen Android**.
+- **Carry-forwards**: a **category rollup** (recursive CTE) is what would make top-level shortcuts
+  possible; `customer-web` still ignores `code`/`terms`/`target`/`position`, so a promotion with a
+  minimum shows there **without its terms**; mobile telemetry remains deferred (7 more events
+  specified, none emitted). Parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §028.
 
 **027-customer-cart-sync — Customer Cart Synchronisation, Promotions & Order Rules.** ✅ **118/142 tasks
 — every feature phase BUILT + fully machine-verified. Live sign-off + commit pending.**
@@ -881,5 +940,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/027-customer-cart-sync/plan.md
+at specs/028-mobile-home-merchandising/plan.md
 <!-- SPECKIT END -->

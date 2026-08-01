@@ -29,6 +29,17 @@ export interface PromoCode {
   updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
+
+  // ── The advertising facet (028) ─────────────────────────────────────────────────────────────
+  //
+  // ⚠ PRESENTATION ONLY. None of this participates in what a promotion is worth, so none of it is
+  // subject to the redeemed-code immutability guard (FR-068). A headline typo must be correctable on
+  // a promotion people are already using; a discount percentage must not.
+  isAdvertised: boolean;
+  bannerTitle: string | null;
+  bannerSubtitle: string | null;
+  bannerImageKey: string | null;
+  bannerPosition: number;
 }
 
 export interface OrderPolicy {
