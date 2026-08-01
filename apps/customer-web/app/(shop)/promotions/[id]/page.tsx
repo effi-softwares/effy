@@ -107,7 +107,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
         // The same 2:1 the artwork is authored and validated at, so the picture an operator approved
         // is the picture that renders — nothing is cropped, at either end. No scrim: nothing is drawn
         // over it here, so there is nothing to protect the type from.
-        <div className="relative mb-6 aspect-[2/1] w-full overflow-hidden rounded-xl">
+        <div className="relative mb-6 aspect-2/1 w-full overflow-hidden rounded-xl">
           <Image
             src={promotion.imageUrl}
             // The heading below is this promotion's accessible name; labelling the artwork too would
@@ -173,7 +173,7 @@ function PromotionSkeleton() {
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6" aria-hidden="true">
       <div className="mb-6 h-5 w-32 rounded bg-muted" />
-      <div className="mb-6 aspect-[2/1] w-full rounded-xl bg-muted" />
+      <div className="mb-6 aspect-2/1 w-full rounded-xl bg-muted" />
       <div className="h-8 w-2/3 rounded bg-muted" />
       <div className="mt-3 h-5 w-1/2 rounded bg-muted" />
       <div className="mt-8 h-12 w-44 rounded bg-muted" />
