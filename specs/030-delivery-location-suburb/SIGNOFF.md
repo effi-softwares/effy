@@ -120,11 +120,20 @@ and browsing never blocked. The operator states these were completed.
    ⚠ **This feature makes a pre-existing gap worse**: before it, nothing was ever seeded, so the gap
    only meant "retype it". Closing it needs key-value persistence `customer-mobile` does not have.
 
-2. **⚠ The 3001 fix is not durable.** It was a direct `DELETE` against dev, not a migration, because
-   zone membership is operational data rather than schema history. **The 021 seed that introduced it
-   lives in scratchpad, outside the repo** — so a re-seed reintroduces it and a fresh environment gets
-   it back. There is no committed source of truth for zone data at all. That is the real finding, and
-   it is larger than one postcode.
+2. **⚠ The 3001 fix is not durable, and the real cause is an unguarded input.** It was a direct
+   `DELETE` against dev, not a migration, because zone membership is operational data rather than
+   schema history.
+
+   ⚠ **CORRECTION (2026-08-01, same day).** An earlier draft of this line said there is "no committed
+   source of truth for zone data at all". **That is wrong.** 021 shipped a full back-office delivery
+   console — `apps/back-office/src/features/delivery/` over `apis/edge-api/admin/src/delivery/` — with
+   zone CRUD, postcode assignment and the rate grid. Only the *dev seed* is in scratchpad.
+
+   The actual finding is worse than a missing seed file: `AddPostcodesDialog` accepts a **free-text
+   list of 4-digit postcodes** and validates only the shape and that the postcode is not already
+   zoned. **Nothing checks the postcode exists.** That is how 3001 — a PO-box code with no street
+   addresses — entered MEL-METRO, and a typo of `3122` for `3121` would be equally silent. Now that
+   `public.locality` exists, that input can be validated. Carried into **031**.
 
 3. **Mobile telemetry remains deferred — an eleventh consecutive slice.** Declared, not skipped
    silently.
