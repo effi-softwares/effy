@@ -40,6 +40,10 @@ import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.GetPromotion
 import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
 import com.effyshopping.customer.mobile.features.delivery.DeliveryContextStore
+import com.effyshopping.customer.mobile.features.delivery.DeliverySeedCoordinator
+import com.effyshopping.customer.mobile.features.localities.data.HttpLocalityRepository
+import com.effyshopping.customer.mobile.features.localities.domain.LocalityRepository
+import com.effyshopping.customer.mobile.features.localities.domain.SearchLocalities
 import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
 import com.effyshopping.customer.mobile.features.cart.domain.AddToCart
 import com.effyshopping.customer.mobile.features.cart.domain.ApplyPromoCode
@@ -170,6 +174,11 @@ class AppContainer(
     val searchProducts by lazy { SearchProducts(catalog) }
     val checkServiceability by lazy { CheckServiceability(catalog) }
 
+    // Locality lookup (030 US1) — "which places could you mean?", the other half of the same
+    // interaction as checkServiceability, which is why they sit together.
+    private val localities: LocalityRepository by lazy { HttpLocalityRepository(coreClient) }
+    val searchLocalities by lazy { SearchLocalities(localities) }
+
     // Cart (027). Every mutation is: apply to the mirror, then submit to the coordinator — in that order,
     // so a tap never waits on the network.
     val addToCart by lazy { AddToCart(cart, cartSync) }
@@ -202,6 +211,19 @@ class AppContainer(
 
     // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.
     val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
+
+    /**
+     * Seeds the delivery location from the account's default address, and drops it on sign-out
+     * (030 US2). ⚠ Started explicitly by [start] rather than on first access — a `by lazy` that
+     * subscribes to the session would never run until something happened to touch it.
+     */
+    val deliverySeed: DeliverySeedCoordinator by lazy {
+        DeliverySeedCoordinator(
+            store = deliveryContext,
+            listAddresses = { listSavedAddresses() },
+            scope = appScope,
+        )
+    }
     val addSavedAddress by lazy { AddAddress(addressBookRepo) }
     val updateSavedAddress by lazy { UpdateAddress(addressBookRepo) }
     val setDefaultAddress by lazy { SetDefault(addressBookRepo) }

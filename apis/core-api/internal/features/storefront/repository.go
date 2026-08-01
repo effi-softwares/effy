@@ -329,3 +329,41 @@ func (r *Repository) Serviceable(ctx context.Context, postcode string) (bool, er
 	_, ok, err := delivery.ZoneForPostcode(ctx, r.db, postcode)
 	return ok, err
 }
+
+// SearchLocalities finds up to limit places matching q (030 FR-005 / FR-008).
+//
+// Two predicates, chosen by the service (see localities.go), never by the caller:
+//
+//	byPostcode  postcode = $1              — the shopper typed digits
+//	byPrefix    lower(name) LIKE $1 || '%' — the shopper typed a name
+//
+// ⚠ The prefix form is served by `locality_name_prefix_idx`, a B-tree on `lower(name)` with
+// `text_pattern_ops`. WITHOUT that operator class the index does not apply under a non-C collation and
+// this becomes a sequential scan over ~18k rows on every keystroke — correct, tested, and slow in a way
+// nothing reports. See specs/030-delivery-location-suburb/research.md R5.
+//
+// ⚠ Ordering is alphabetical and is NEVER influenced by serviceability (FR-011). Ordering served
+// places first would both pre-empt the verdict the shopper has not asked for yet and turn this
+// endpoint into a delivery-coverage enumerator.
+func (r *Repository) SearchLocalities(ctx context.Context, q string, byPostcode bool, limit int) ([]Locality, error) {
+	const (
+		byPostcodeSQL = `SELECT name, state, postcode FROM public.locality WHERE postcode = $1
+		                 ORDER BY name, state, postcode LIMIT $2`
+		byPrefixSQL = `SELECT name, state, postcode FROM public.locality WHERE lower(name) LIKE lower($1) || '%'
+		               ORDER BY name, state, postcode LIMIT $2`
+	)
+	sql := byPrefixSQL
+	if byPostcode {
+		sql = byPostcodeSQL
+	}
+
+	rows, err := r.db.Query(ctx, sql, q, limit)
+	if err != nil {
+		return nil, fmt.Errorf("storefront: query localities: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[Locality])
+	if err != nil {
+		return nil, fmt.Errorf("storefront: scan localities: %w", err)
+	}
+	return out, nil
+}

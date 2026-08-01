@@ -25,7 +25,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
     await page.goto("/")
     await page.getByRole("button", { name: /delivery location/i }).click()
 
-    const postcode = page.getByLabel("Postcode")
+    const postcode = page.getByLabel("Suburb or postcode")
     await expect(postcode).toBeFocused({ timeout: 2000 }).catch(async () => {
       // A native <dialog> focuses its first focusable child; if the browser chose the close button
       // instead, focus must still be INSIDE the dialog.
@@ -34,7 +34,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
     })
 
     await page.keyboard.press("Escape")
-    await expect(page.getByLabel("Postcode")).toBeHidden()
+    await expect(page.getByLabel("Suburb or postcode")).toBeHidden()
   })
 
   test("the mini-cart opens from the chrome without navigating away", async ({ page }) => {

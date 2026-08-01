@@ -45,7 +45,34 @@ class DeliveryContextStore internal constructor(
      */
     fun setPostcode(raw: String, source: DeliverySource = DeliverySource.GUEST): String? {
         val postcode = normalizePostcode(raw) ?: return null
+        // locality/state are cleared alongside `serviced`, for the same reason: showing the PREVIOUS
+        // place's name beside a new postcode asserts, confidently, that we are answering about
+        // somewhere the shopper has moved away from (030 FR-034).
         mutableState.value = DeliveryContext(postcode = postcode, serviced = null, source = source)
+        persist(postcode)
+        return postcode
+    }
+
+    /**
+     * Set the location from a place the shopper CHOSE from the list (030 FR-005).
+     *
+     * Distinct from [setPostcode] because the name is theirs, not a guess — FR-033 says the display
+     * should use it.
+     */
+    fun setPlace(
+        locality: String,
+        state: String,
+        rawPostcode: String,
+        source: DeliverySource = DeliverySource.GUEST,
+    ): String? {
+        val postcode = normalizePostcode(rawPostcode) ?: return null
+        mutableState.value = DeliveryContext(
+            postcode = postcode,
+            locality = locality,
+            state = state,
+            serviced = null,
+            source = source,
+        )
         persist(postcode)
         return postcode
     }
@@ -72,9 +99,28 @@ class DeliveryContextStore internal constructor(
      *
      * An explicit choice on this device outranks a saved default.
      */
-    fun seedFromAccount(postcode: String) {
+    fun seedFromAccount(postcode: String, locality: String? = null, state: String? = null) {
         if (mutableState.value != null) return
-        setPostcode(postcode, DeliverySource.ACCOUNT)
+        val normalised = normalizePostcode(postcode) ?: return
+        mutableState.value = DeliveryContext(
+            postcode = normalised,
+            locality = locality,
+            state = state,
+            serviced = null,
+            source = DeliverySource.ACCOUNT,
+        )
+        persist(normalised)
+    }
+
+    /**
+     * Drop an ACCOUNT-derived location on sign-out; keep one the shopper set themselves (030 FR-023).
+     *
+     * ⚠ [DeliverySource] was display provenance in 025. This is what makes it load-bearing: a place
+     * taken from someone's account must not outlive the session that produced it, because the device
+     * may not be theirs alone. A place they typed here is their own preference and survives.
+     */
+    fun clearAccountContext() {
+        if (mutableState.value?.source == DeliverySource.ACCOUNT) clear()
     }
 }
 
@@ -83,6 +129,16 @@ enum class DeliverySource { GUEST, ACCOUNT }
 
 data class DeliveryContext(
     val postcode: String,
+    /**
+     * The locality the shopper picked, e.g. "Richmond" (030 FR-033).
+     *
+     * ⚠ NULL IS MEANINGFUL: the shopper typed a bare postcode, or the lookup resolved nothing. The
+     * display then shows the postcode WITHOUT inventing a suburb — a postcode covering several
+     * localities has no single right answer, and picking one asserts a choice nobody made (FR-034).
+     */
+    val locality: String? = null,
+    /** The state/territory, e.g. "VIC". Absent for the same reasons as [locality]. */
+    val state: String? = null,
     /**
      * Whether Effy delivers to [postcode].
      *

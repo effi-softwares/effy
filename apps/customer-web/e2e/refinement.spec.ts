@@ -28,12 +28,12 @@ test.describe("refinement is shareable and restorable (FR-017/FR-018)", () => {
   test("an unrecognised postcode is refused as invalid, NOT as unserviced", async ({ page }) => {
     await page.goto("/")
     await page.getByRole("button", { name: /delivery location/i }).click()
-    await page.getByLabel("Postcode").fill("nonsense")
+    await page.getByLabel("Suburb or postcode").fill("nonsense")
     await page.getByRole("button", { name: "Check" }).click()
 
     // "That isn't a postcode" and "we don't deliver there" are different answers. Showing the second
     // to someone who typoed tells a prospective customer to leave, and is not even true.
-    await expect(page.getByText("Enter a 4-digit postcode.")).toBeVisible()
+    await expect(page.getByText("Enter a suburb or a 4-digit postcode.")).toBeVisible()
     await expect(page.getByText(/don.t deliver to/i)).toHaveCount(0)
   })
 

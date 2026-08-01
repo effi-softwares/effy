@@ -203,9 +203,79 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**030-delivery-location-suburb — Suburb-Aware Delivery Location.** ✅ **SIGNED OFF 2026-08-01 —
+101/101 tasks.** Record: [specs/030-delivery-location-suburb/SIGNOFF.md](specs/030-delivery-location-suburb/SIGNOFF.md).
+⚠ The operator walks are recorded as **operator attestation**; the machine verification was observed
+directly. **Data is live**: 15,414 localities loaded, SC-002 coverage 0 uncovered, the prefix index
+confirmed in use (`Bitmap Index Scan`, 0.114 ms).
+
+Lets a shopper name where they live by **suburb** instead of by a postcode they had to already know.
+025 gave the storefront its up-front "do we deliver to you?" answer and left the only way in as four
+digits — so a shopper new to the area, renting, or who thinks in suburb names could not answer at all.
+- **Data**: `public.locality` (migration `20260801122324_locality.sql`, schema only) +
+  `db/reference/au-localities.csv` — **15,414 triples** derived from **16.9M** G-NAF address records by
+  `make derive-localities`, loaded by `make load-localities` (idempotent). **CC BY 4.0 — attribution in
+  `db/reference/README.md` is required, not optional.**
+- **⚠ THE ASSUMED DATASET HAD NO LICENCE.** Research R1 named a community postcode dataset as
+  "permissively licensed"; the GitHub API reports `"license": null` and there is no LICENSE file. **No
+  licence means all rights reserved, not permissive.** The blocking licence task is the only reason it
+  was not committed. G-NAF replaced it by operator decision.
+- **⚠ Two derivation defects found ONLY by running against the real 1.7 GB download**, neither of which
+  a synthetic fixture could surface: the file pattern `_LOCALITY_psv.psv$` **also matches
+  `{ST}_STREET_LOCALITY_psv.psv`** — it would have loaded **street names as suburbs**; and the STATE
+  table is per-state in `Standard/`, not in `Authority Code/`. Also handled: `OT` (Other Territories) is
+  a **ninth** pseudo-state the `locality.state` CHECK forbids.
+- **Endpoint**: `GET /v1/storefront/localities?q=` on the **hot path**, beside `/serviceability`.
+  ⚠ **`ServiceabilityDTO` was NOT touched** — its two-field freeze and both reflection tests stand,
+  because the design turned out not to need the echo (research R4).
+- **⚠ Principle II nearly failed silently.** `LocalityDTO` in `storefront.ts` alone generated to Kotlin
+  **zero times** — the schema generator walks the `CustomerCommerceContract` aggregator, so an
+  unreferenced type is never generated and `cm-contract-check` would have passed **trivially** while the
+  Kotlin client carried a hand-written type. Caught by the analyze pass, fixed by T022a.
+- **⚠ THE BYTE GATE FOUND A REAL PROBLEM.** `next/dynamic` **alone made every web route worse**
+  (+0.4–0.6 KB; `/cart` 173.8 → **174.3**, over budget) — the lazy loader costs more than the small form
+  it defers. Getting under also required dynamically importing the mount re-check, dropping the
+  `loading:` fallback, and **splitting `DeliveryNotice` into its own module** (it rode in the
+  always-loaded chrome on all six routes and is used on one). The planned `DeliverySeedClient` became a
+  **prop on a component that already ships**. Final: `/` 172.7 · `/browse` 169.9 · `/search` 173.8 ·
+  `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at or below the
+  pre-feature baseline**. ⚠ The **Amplify quarantine also fired** on the seed island (`lib/dal` →
+  `aws-amplify`); fixed with the cookie-decoding `readServerSession`.
+- **Mobile**: the entry surface is now a **bottom sheet** (`DeliverySheet.kt`, operator direction),
+  carrying the input, the results list **and** the verdict. ⚠ The keyboard is **no longer numeric** —
+  025's field was postcode-only; a number pad would make this unusable for exactly the shopper it
+  exists for. `LocalityResult` is a **sealed interface**, not `List<Locality>?`, so the compiler forces
+  "lookup failed" and "no matches" apart.
+- **⚠ 025's FR-013 account half is finally wired** — `seedFromAccount` existed on **both** surfaces and
+  was called by **neither**, for three features.
+- **⚠ FR-019 cannot fully hold on mobile**: the location still does not survive an app restart, so a
+  signed-in shopper who deliberately switches suburbs is **re-seeded from their account default on next
+  launch**. It holds within a session. **This feature makes a pre-existing gap worse** — before it,
+  nothing was ever seeded.
+- **Verified**: Go build/vet/test/gofmt · **466 mobile tests** · iOS + Android compile + APK ·
+  `pnpm -r typecheck` **12/12** · **221 web tests** · bundle gate green · `depcruise` clean ·
+  `cm-guard` · `tokens:check` **unchanged** (no token added) · no contract drift · telemetry grep clean.
+- **⚠ SC-002 FAILED ON FIRST LIVE RUN, and the fault was in the ZONE data.** Postcode **3001** was in
+  MEL-METRO with no locality naming it — 3001 is Melbourne's **PO Box / GPO** code, and G-NAF has zero
+  addresses for it because it has no street addresses. **You cannot leave groceries in a PO box.**
+  Removed from the zone. ⚠ It was **not** "fixed" by inventing a `Melbourne VIC 3001` row, which would
+  have made the assertion pass by fabricating a place that does not exist.
+- **⚠ Carry-forwards**: **FR-019 cannot fully hold on mobile** (no restart persistence, so a signed-in
+  shopper who switches suburbs is re-seeded from their default on next launch — **this feature makes a
+  pre-existing gap worse**); the **3001 fix is not durable** because the 021 zone seed lives in
+  scratchpad **outside the repo**, so a re-seed reintroduces it and there is **no committed source of
+  truth for zone data at all**; mobile telemetry deferred an **eleventh** slice; `/search` has ~0.2 KB
+  of headroom; `core-api` still has no cloud deploy. Spec/artifacts:
+  [specs/030-delivery-location-suburb/](specs/030-delivery-location-suburb/); parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §030.
+
 **029-promotional-banner-carousel — Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
-✅ **SIGNED OFF (PARTIAL BY DESIGN) 2026-07-31 — 62/73 tasks.** Sign-off record:
+✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-01 — 78/89 tasks** (62/73 at sign-off + Phase 9's 16/16
+post-sign-off fix). Sign-off record:
 [specs/029-promotional-banner-carousel/SIGNOFF.md](specs/029-promotional-banner-carousel/SIGNOFF.md).
+⚠ **"Concluded" closes the slice; it does not make the 11 open tasks true.** All eleven are operator
+walks — **T051 (the bypass test) is still the most important open item on the platform**, and
+**Android has still never been looked at** across 028 *and* 029.
 
 Gives 028's advertising facet a canonical shape and a second placement. **The first real promotional
 banners this platform has ever rendered** now appear on a device.
@@ -1009,5 +1079,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/029-promotional-banner-carousel/plan.md
+at specs/030-delivery-location-suburb/plan.md
 <!-- SPECKIT END -->

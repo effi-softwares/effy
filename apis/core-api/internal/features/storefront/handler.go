@@ -115,11 +115,16 @@ type productDetailDTO struct {
 	CategoryKey     string              `json:"categoryKey"`
 }
 
-// ServiceabilityRecorder counts up-front delivery answers by outcome. Declared here as a one-method
+// ServiceabilityRecorder counts up-front delivery answers by outcome. Declared here as a two-method
 // interface so this feature does not depend on the metrics package's concrete type — and so tests can
 // pass nil.
+//
+// ⚠ Neither method takes the shopper's input. A postcode and a partial suburb name are both location
+// data about an individual, and both are unbounded as label values (FR-047, Principle VII).
 type ServiceabilityRecorder interface {
 	RecordServiceability(serviced bool)
+	// RecordLocalityLookup counts one suggestion lookup by whether it matched (030).
+	RecordLocalityLookup(found bool)
 }
 
 type Handler struct {
@@ -222,6 +227,57 @@ func (h *Handler) getServiceability(c *gin.Context) {
 	// response holds nothing shopper-specific.
 	c.Header("Cache-Control", "public, max-age=300")
 	c.JSON(http.StatusOK, serviceabilityDTO{Postcode: res.Postcode, Serviced: res.Serviced})
+}
+
+// localityDTO mirrors LocalityDTO in @effy/shared-types.
+//
+// ⚠ All three fields are required and none may be dropped. A place is identified by the TRIPLE — a
+// name recurs across states, a locality spans postcodes, a postcode covers localities — so a
+// two-field response is an ambiguous place the client cannot resolve (030 FR-008).
+type localityDTO struct {
+	Name     string `json:"name"`
+	State    string `json:"state"`
+	Postcode string `json:"postcode"`
+}
+
+// getLocalities answers "which places could you mean?" (030 FR-005).
+//
+// Three distinct outcomes, and keeping them distinct is the whole job — the same discipline as
+// getServiceability above:
+//
+//	200 [ ... ]         — the lookup ran; 0 to 8 places
+//	400 invalid_query   — fewer than 2 usable characters; the client says "keep typing"
+//	503                 — we could not look that up right now
+//
+// ⚠ AN EMPTY LIST IS A SUCCESSFUL LOOKUP, NOT A 404 AND NOT A REFUSAL. "We have never heard of that
+// place" and "we do not deliver there" are different answers to different questions, and collapsing
+// them is the single failure this whole capability exists to prevent. A 404 here would invite exactly
+// that collapse on the client.
+func (h *Handler) getLocalities(c *gin.Context) {
+	out, err := h.svc.Localities(c.Request.Context(), c.Query("q"))
+	if errors.Is(err, ErrInvalidQuery) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_query"})
+		return
+	}
+	if err != nil {
+		logger.FromContext(c.Request.Context()).Error("storefront: locality lookup failed", zap.Error(err))
+		httpx.Unavailable(c)
+		return
+	}
+
+	if h.metrics != nil {
+		h.metrics.RecordLocalityLookup(len(out) > 0)
+	}
+
+	// Locality data changes at the pace of postal administration, not of shopping, and the response
+	// holds nothing about the caller. A day is conservative.
+	c.Header("Cache-Control", "public, max-age=86400")
+
+	dto := make([]localityDTO, 0, len(out))
+	for _, l := range out {
+		dto = append(dto, localityDTO{Name: l.Name, State: l.State, Postcode: l.Postcode})
+	}
+	c.JSON(http.StatusOK, dto)
 }
 
 // getPromotion serves the detail behind a banner tap.

@@ -1,7 +1,13 @@
 # Sign-off: 029-promotional-banner-carousel
 
-**Date**: 2026-07-31 · **Branch**: `027-customer-cart-sync` · **Status**: ✅ **SIGNED OFF — PARTIAL
-BY DESIGN** — 62/73 tasks
+**Date**: 2026-07-31, amended **2026-08-01** · **Branch**: `029-promotional-banner-carousel` ·
+**Status**: ✅ **CONCLUDED — PARTIAL BY DESIGN** — 78/89 tasks (62/73 at sign-off, plus Phase 9's
+16/16 post-sign-off tasks)
+
+⚠ **"Concluded" means the slice is closed, not that everything in it was proven.** Eleven tasks
+remain open and every one is an operator walk — they are listed under *Carry-forwards* and are not
+made true by this document. **T051, the bypass test, is still the single most important open item on
+the platform.**
 
 Partial in the same sense as 007, 020 and 028. The shopper-facing half is built, machine-verified,
 and **for the first time on this platform, seen rendering real promotional banners on a device**.
@@ -185,6 +191,18 @@ hand-duplication if it pins the payload that actually crosses the wire; both now
 **Also found and fixed on the way:** a **404 was mapping to `AppError.Unexpected`** on mobile, so
 "that isn't there" reached the shopper as "something broke, try again" — an invitation to retry
 something that can never succeed. `AppError.NotFound` now exists and 404 maps to it.
+
+**Fixed on BOTH surfaces, from one server decision.** `customer-web` gained `/promotions/[id]` in the
+same change. Web routes on `href`, mobile on `target` — the closed vocabulary exists because mobile
+has no URL router, while a URL is the web's native idiom — so the server sets both from the same
+promotion id, and a Go test pins that they agree. Two fields naming one destination is exactly the
+shape that drifts: one gets updated and the other quietly keeps sending a whole surface elsewhere,
+which is precisely what `/search` was.
+
+**✅ Confirmed working on a device by the operator, 2026-08-01** — the tap opens the promotion.
+⚠ That is the **happy path only**. The refusal path (tap a banner whose promotion has since been
+exhausted → "this offer has ended" on mobile, a 404 page on web) is **unit-proven on both surfaces and
+walked on neither**: it needs a promotion taken down between a Home read and a tap.
 
 **⚠ Two lessons worth carrying, both about tests that agree with the wrong thing:**
 

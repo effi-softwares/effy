@@ -140,3 +140,104 @@ class DeliveryContextStoreTest {
         assertTrue(written.size == 2, "persist must be called for both a set and a clear")
     }
 }
+
+/* ── 030: the place a shopper CHOSE, seeding, and the sign-out provenance rule ─────────────────── */
+
+class DeliveryContextStore030Test {
+
+    @Test
+    fun setPlaceStoresTheLocalityAndStateAlongsideThePostcode() {
+        val store = DeliveryContextStore()
+        store.setPlace("Richmond", "VIC", "3121")
+        val c = store.state.value!!
+        assertEquals("Richmond", c.locality)
+        assertEquals("VIC", c.state)
+        assertEquals("3121", c.postcode)
+        assertNull(c.serviced)
+    }
+
+    /**
+     * ⚠ Showing the PREVIOUS place's name beside a new postcode is worse than showing no name: it
+     * asserts, confidently, that we are answering about somewhere the shopper has moved away from.
+     */
+    @Test
+    fun switchingToABarePostcodeClearsTheStaleLocality() {
+        val store = DeliveryContextStore()
+        store.setPlace("Richmond", "VIC", "3121")
+        store.setPostcode("3000")
+        assertEquals("3000", store.state.value!!.postcode)
+        assertNull(store.state.value!!.locality)
+    }
+
+    @Test
+    fun setPlaceRejectsSomethingThatIsNotAPostcode() {
+        val store = DeliveryContextStore()
+        assertNull(store.setPlace("Nowhere", "VIC", "abc"))
+        assertNull(store.state.value)
+    }
+
+    // ── Seeding (FR-018/FR-019) ────────────────────────────────────────────────────────────────
+
+    @Test
+    fun seedingCarriesThePlaceNotJustTheDigits() {
+        val store = DeliveryContextStore()
+        store.seedFromAccount("3121", locality = "Richmond", state = "VIC")
+        val c = store.state.value!!
+        assertEquals("Richmond", c.locality)
+        assertEquals("VIC", c.state)
+        assertEquals(DeliverySource.ACCOUNT, c.source)
+    }
+
+    /** ⚠ `region` is nullable on existing addresses — seeding must tolerate a missing state. */
+    @Test
+    fun seedingToleratesAnAddressWithNoStateRecorded() {
+        val store = DeliveryContextStore()
+        store.seedFromAccount("3121")
+        assertEquals("3121", store.state.value!!.postcode)
+        assertNull(store.state.value!!.state)
+    }
+
+    /** FR-019: an explicit choice on this device outranks the account default. */
+    @Test
+    fun seedingNeverOverwritesAChoiceTheShopperMade() {
+        val store = DeliveryContextStore()
+        store.setPlace("Richmond", "VIC", "3121")
+        store.seedFromAccount("3000", locality = "Melbourne", state = "VIC")
+        assertEquals("3121", store.state.value!!.postcode)
+        assertEquals(DeliverySource.GUEST, store.state.value!!.source)
+    }
+
+    @Test
+    fun seedingIgnoresAnAddressWhosePostcodeIsNotAPostcode() {
+        val store = DeliveryContextStore()
+        store.seedFromAccount("not-a-postcode")
+        assertNull(store.state.value)
+    }
+
+    // ── Sign-out provenance (FR-023) ───────────────────────────────────────────────────────────
+
+    /** A place taken from someone's account must not outlive the session — the device may be shared. */
+    @Test
+    fun signOutClearsAnAccountDerivedLocation() {
+        val store = DeliveryContextStore()
+        store.seedFromAccount("3000", locality = "Melbourne", state = "VIC")
+        store.clearAccountContext()
+        assertNull(store.state.value)
+    }
+
+    /** ...but a place the shopper typed here is their own preference and survives. */
+    @Test
+    fun signOutKeepsALocationTheShopperSetThemselves() {
+        val store = DeliveryContextStore()
+        store.setPlace("Richmond", "VIC", "3121")
+        store.clearAccountContext()
+        assertEquals("3121", store.state.value!!.postcode)
+    }
+
+    @Test
+    fun signOutWithNoLocationSetDoesNothing() {
+        val store = DeliveryContextStore()
+        store.clearAccountContext()
+        assertNull(store.state.value)
+    }
+}

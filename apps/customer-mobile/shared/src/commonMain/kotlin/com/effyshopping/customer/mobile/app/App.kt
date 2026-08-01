@@ -66,7 +66,14 @@ fun App(container: AppContainer) {
             mutableStateOf(prefs.getBoolean(PreferenceKeys.ONBOARDING_SEEN))
         }
 
-        LaunchedEffect(Unit) { container.session.bootstrap() }
+        LaunchedEffect(Unit) {
+            container.session.bootstrap()
+            // 030 US2: seed the delivery location from the account's default address on sign-in, and
+            // drop an account-derived one on sign-out. ⚠ Started here rather than from a screen — in a
+            // screen it would never run if the shopper's first stop is another tab, and would re-run
+            // on every recomposition.
+            container.deliverySeed.start(container.session.state)
+        }
 
         // ⚠ THE COLOUR IS PAINTED EDGE-TO-EDGE; THE PADDING IS APPLIED INSIDE IT.
         //

@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
+import com.effyshopping.customer.mobile.features.delivery.formatPlace
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
 import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
@@ -321,11 +322,16 @@ private fun ProductGallery(product: ProductDetail, name: String) {
 @Composable
 private fun DeliveryExpectation(container: AppContainer) {
     val context by container.deliveryContext.state.collectAsState()
-    val message = when {
-        context == null -> "Set your delivery location to see delivery options."
-        context!!.serviced == null -> "Checking delivery to ${context!!.postcode}…"
-        context!!.serviced == true -> "Delivers to ${context!!.postcode}. Options and cost at checkout."
-        else -> "We don’t deliver to ${context!!.postcode} yet — you can still add this to your cart."
+    // ⚠ `formatPlace`, not the bare postcode — the SAME rule the Home affordance and the sheet use
+    // (030 FR-033). A shopper who sees "Melbourne VIC 3000" in the header and "3000" here has to work
+    // out for themselves that those are the same place, and that is exactly what SC-008 asks a tester.
+    val message = when (val ctx = context) {
+        null -> "Set your delivery location to see delivery options."
+        else -> when (ctx.serviced) {
+            null -> "Checking delivery to ${formatPlace(ctx)}…"
+            true -> "Delivers to ${formatPlace(ctx)}. Options and cost at checkout."
+            false -> "We don’t deliver to ${formatPlace(ctx)} yet — you can still add this to your cart."
+        }
     }
     Text(
         message,

@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it } from "vitest"
 
 import {
   applyAnswer,
+  clearAccountDeliveryContext,
   clearDeliveryContext,
   normalizePostcode,
   recordServiceability,
   seedFromAccount,
+  setDeliveryPlace,
   setDeliveryPostcode,
   type DeliveryContext,
 } from "./delivery-store"
@@ -107,7 +109,7 @@ describe("the delivery store", () => {
 
   describe("seeding from the account", () => {
     it("seeds when the device has no location", () => {
-      seedFromAccount("3000")
+      seedFromAccount({ postcode: "3000" })
       const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
       expect(stored.postcode).toBe("3000")
       expect(stored.source).toBe("account")
@@ -116,10 +118,121 @@ describe("the delivery store", () => {
     /** An explicit choice on this device outranks a saved default. */
     it("does NOT overwrite a location the shopper set themselves", () => {
       setDeliveryPostcode("3001")
-      seedFromAccount("3000")
+      seedFromAccount({ postcode: "3000" })
       const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
       expect(stored.postcode).toBe("3001")
       expect(stored.source).toBe("guest")
     })
+  })
+})
+
+/* ── 030: the place a shopper CHOSE, and the sign-out provenance rule ─────────────────────────── */
+
+describe("setDeliveryPlace (030)", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    clearDeliveryContext()
+  })
+
+
+  it("stores the locality and state alongside the postcode", () => {
+    setDeliveryPlace({ locality: "Richmond", state: "VIC", postcode: "3121" })
+    const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
+    expect(stored).toMatchObject({ postcode: "3121", locality: "Richmond", state: "VIC" })
+    expect(stored.serviced).toBeNull()
+  })
+
+  /**
+   * ⚠ Showing the PREVIOUS place's name beside a new postcode is worse than showing no name: it
+   * asserts, confidently, that we are answering about somewhere the shopper has moved away from.
+   */
+  it("clears the locality when the shopper switches to a bare postcode", () => {
+    setDeliveryPlace({ locality: "Richmond", state: "VIC", postcode: "3121" })
+    setDeliveryPostcode("3000")
+    const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
+    expect(stored.postcode).toBe("3000")
+    expect(stored.locality ?? null).toBeNull()
+  })
+
+  it("preserves a leading-zero postcode", () => {
+    setDeliveryPlace({ locality: "Darwin", state: "NT", postcode: "0800" })
+    expect(JSON.parse(window.localStorage.getItem("effy:delivery")!).postcode).toBe("0800")
+  })
+})
+
+describe("sign-out provenance (030 FR-023)", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    clearDeliveryContext()
+  })
+
+
+  /** A place taken from someone's account must not outlive the session — the device may be shared. */
+  it("clears a location that came from the account", () => {
+    seedFromAccount({ postcode: "3000", locality: "Melbourne", state: "VIC" })
+    clearAccountDeliveryContext()
+    expect(window.localStorage.getItem("effy:delivery")).toBe("null")
+  })
+
+  /** ...but a place the shopper typed on this device is their own preference and survives. */
+  it("KEEPS a location the shopper set themselves", () => {
+    setDeliveryPlace({ locality: "Richmond", state: "VIC", postcode: "3121" })
+    clearAccountDeliveryContext()
+    const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
+    expect(stored.postcode).toBe("3121")
+  })
+
+  it("does nothing when no location is set", () => {
+    clearAccountDeliveryContext()
+    expect(window.localStorage.getItem("effy:delivery")).toBe("null")
+  })
+})
+
+describe("seeding carries the place, not just the digits (030)", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    clearDeliveryContext()
+  })
+
+
+  it("seeds locality and state from the account address", () => {
+    seedFromAccount({ postcode: "3121", locality: "Richmond", state: "VIC" })
+    const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
+    expect(stored).toMatchObject({ locality: "Richmond", state: "VIC", source: "account" })
+  })
+
+  /** ⚠ `region` is nullable on existing addresses — seeding must tolerate a missing state. */
+  it("tolerates an account address with no state recorded", () => {
+    seedFromAccount({ postcode: "3121" })
+    const stored = JSON.parse(window.localStorage.getItem("effy:delivery")!)
+    expect(stored.postcode).toBe("3121")
+    expect(stored.state ?? null).toBeNull()
+  })
+
+  it("ignores an account address whose postcode is not a postcode", () => {
+    seedFromAccount({ postcode: "not-a-postcode" })
+    expect(window.localStorage.getItem("effy:delivery")).toBe("null")
+  })
+})
+
+/**
+ * ⚠ A stored value written BEFORE this feature has no `locality`/`state`. It must still read cleanly
+ * and simply display as a bare postcode — otherwise every returning shopper silently loses their
+ * delivery location on deploy day.
+ */
+describe("backward compatibility with a pre-030 stored value", () => {
+  beforeEach(() => {
+    window.localStorage.clear()
+    clearDeliveryContext()
+  })
+
+
+  it("reads a stored context that predates locality/state", () => {
+    window.localStorage.setItem(
+      "effy:delivery",
+      JSON.stringify({ postcode: "3121", serviced: true, checkedAt: 1, source: "guest" }),
+    )
+    setDeliveryPostcode("3121")
+    expect(JSON.parse(window.localStorage.getItem("effy:delivery")!).postcode).toBe("3121")
   })
 })
