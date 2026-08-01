@@ -2,7 +2,6 @@ import { queryOptions, useMutation, useQueryClient } from "@tanstack/react-query
 
 import type {
   AddPostcodesRequest,
-  ConfigureAreaRequest,
   MarkAreaNotServedRequest,
   CreateOfferingRequest,
   CreateZoneRequest,
@@ -15,7 +14,6 @@ import {
   addPostcodes,
   createOffering,
   createZone,
-  configureArea,
   deliveryHealth,
   getArea,
   markAreaNotServed,
@@ -180,15 +178,6 @@ export function areaQuery(zoneId: string, postcode: string) {
   });
 }
 
-export function useConfigureArea(zoneId: string, postcode: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: ConfigureAreaRequest) => configureArea(zoneId, postcode, body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["delivery"] });
-    },
-  });
-}
 
 export function useMarkAreaNotServed(zoneId: string, postcode: string) {
   const qc = useQueryClient();

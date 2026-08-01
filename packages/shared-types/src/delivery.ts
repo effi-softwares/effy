@@ -176,17 +176,6 @@ export interface AreaHealthDTO {
   emptyZones: { zoneCode: string }[];
 }
 
-export interface ConfigureAreaRequest {
-  serviceLevels: (Omit<AreaServiceLevelDTO, "feeAmount"> & {
-    feeAmount?: string | null;
-    /**
-     * ⚠ REQUIRED when enabling same_day and no shop shares the area's zone. Records that a human was
-     * shown the problem and chose anyway (FR-018). Absent → the request is refused with 422, because a
-     * fee is a business choice the platform can absorb and same-day is a physical claim about time.
-     */
-    noNearbyShopAcknowledged?: boolean;
-  })[];
-}
 
 export interface MarkAreaNotServedRequest {
   note?: string | null;

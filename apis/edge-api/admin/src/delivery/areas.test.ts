@@ -12,7 +12,7 @@ const repo = vi.hoisted(() => ({
 }));
 vi.mock("./repository", () => repo);
 
-import { configureArea, getArea, markAreaNotServed } from "./areas";
+import { getArea, markAreaNotServed } from "./areas";
 import { isDeliveryError } from "./types";
 
 const ZONE = { id: "z1", code: "REGIONAL", name: "Regional", status: "active" };
@@ -88,121 +88,6 @@ describe("getArea — the three states", () => {
       "scheduled",
       "standard",
     ]);
-  });
-});
-
-/* ── The projection (FR-010/FR-013) ───────────────────────────────────────────────────────────── */
-
-describe("configureArea", () => {
-  const standardOn = {
-    serviceLevels: [
-      { method: "standard", enabled: true, feeAmount: "5.00", leadDaysMin: 2, leadDaysMax: 3 },
-    ],
-  };
-
-  it("projects the configuration onto the offering grid", async () => {
-    await configureArea("z1", "3350", standardOn, "sub-abc");
-
-    expect(repo.projectAreaServiceLevels).toHaveBeenCalledWith(
-      "z1",
-      "3350",
-      expect.arrayContaining([expect.objectContaining({ method: "standard", enabled: true, feeAmount: "5.00" })]),
-      "sub-abc",
-    );
-  });
-
-  /**
-   * ⚠ A REPLACE, NOT A PATCH. A method omitted is a method turned OFF — ambiguity about what is
-   * offered is exactly what this feature removes.
-   */
-  it("treats an omitted method as disabled, not as unchanged", async () => {
-    await configureArea("z1", "3350", standardOn, "sub-abc");
-
-    const levels = repo.projectAreaServiceLevels.mock.calls[0]![2] as { method: string }[];
-    // Only `standard` was sent, so only `standard` is written — nothing claims same_day is on.
-    expect(levels.map((l) => l.method)).toEqual(["standard"]);
-  });
-
-  it("refuses an enabled method with no valid fee", async () => {
-    expect(
-      await kindOf(
-        configureArea("z1", "3350", { serviceLevels: [{ method: "standard", enabled: true }] }, "s"),
-      ),
-    ).toBe("validation");
-    expect(repo.projectAreaServiceLevels).not.toHaveBeenCalled();
-  });
-
-  /** ⚠ FR-029: the configurable set is EXACTLY the platform's set — a fourth cannot slip in. */
-  it("refuses a delivery method the platform does not have", async () => {
-    expect(
-      await kindOf(
-        configureArea("z1", "3350", { serviceLevels: [{ method: "drone", enabled: true, feeAmount: "5.00" }] }, "s"),
-      ),
-    ).toBe("validation");
-  });
-});
-
-/* ── Same-day: a promise, not a price (FR-018) ────────────────────────────────────────────────── */
-
-describe("configureArea — the same-day guard", () => {
-  const sameDayOn = (ack?: boolean) => ({
-    serviceLevels: [
-      {
-        method: "same_day",
-        enabled: true,
-        feeAmount: "7.00",
-        sameDayCutoff: "14:00",
-        ...(ack === undefined ? {} : { noNearbyShopAcknowledged: ack }),
-      },
-    ],
-  });
-
-  /**
-   * ⚠ THE ONE PATH IN THIS FEATURE THAT CAN HARM A CUSTOMER.
-   *
-   * A fee is a business choice the platform can absorb. Same-day is a physical claim about time: it is
-   * only true if a shop holding the goods can reach that area today. Offering it otherwise breaks the
-   * promise at the moment the shopper is most committed.
-   */
-  it("REFUSES same-day when no shop is in the area's zone", async () => {
-    repo.shopsForArea.mockResolvedValue([
-      { shopId: "s1", shopCode: "S1", shopName: "Melbourne", postcode: "3000", inZone: false },
-    ]);
-
-    expect(await kindOf(configureArea("z1", "3350", sameDayOn(), "sub"))).toBe("conflict");
-    expect(repo.projectAreaServiceLevels).not.toHaveBeenCalled();
-  });
-
-  /** ⚠ It is an informed decision, not a block. The admin was shown the problem and chose anyway. */
-  it("allows it when the admin acknowledges deliberately", async () => {
-    repo.shopsForArea.mockResolvedValue([
-      { shopId: "s1", shopCode: "S1", shopName: "Melbourne", postcode: "3000", inZone: false },
-    ]);
-
-    await configureArea("z1", "3350", sameDayOn(true), "sub");
-    expect(repo.projectAreaServiceLevels).toHaveBeenCalled();
-  });
-
-  it("needs no acknowledgement when a shop IS in the zone", async () => {
-    repo.shopsForArea.mockResolvedValue([
-      { shopId: "s1", shopCode: "S1", shopName: "Ballarat", postcode: "3350", inZone: true },
-    ]);
-
-    await configureArea("z1", "3350", sameDayOn(), "sub");
-    expect(repo.projectAreaServiceLevels).toHaveBeenCalled();
-  });
-
-  /** The guard is specific to same-day — standard delivery is not a timing promise. */
-  it("does not gate standard delivery on shop proximity", async () => {
-    repo.shopsForArea.mockResolvedValue([]);
-
-    await configureArea(
-      "z1",
-      "3350",
-      { serviceLevels: [{ method: "standard", enabled: true, feeAmount: "5.00" }] },
-      "sub",
-    );
-    expect(repo.projectAreaServiceLevels).toHaveBeenCalled();
   });
 });
 
@@ -315,59 +200,8 @@ describe("two areas in ONE zone with divergent decisions", () => {
   });
 });
 
-/* ── ⚠ The one-fee-per-area invariant (FR-013 / SC-011) ───────────────────────────────────────── */
-
-describe("the projection writes ONE fee per (destination, method)", () => {
-  /**
-   * ⚠ THIS IS WHAT MAKES FR-013 ENFORCEABLE RATHER THAN MERELY INTENDED.
-   *
-   * A shopper is charged the same fee for an area regardless of which shop fulfils, because they can
-   * never learn which shop it was (hidden fulfilment, 021 FR-019). The projection achieves that by
-   * writing ONE price across every origin — and the per-origin grid editor was removed in the same
-   * change, because a single edit there would silently undo it.
-   *
-   * The service hands the repository exactly one fee per method; the repository fans it out. This
-   * asserts the first half — the half a future refactor could break without noticing.
-   */
-  it("hands the repository a single fee per method, never one per origin", async () => {
-    await configureArea(
-      "z1",
-      "3350",
-      {
-        serviceLevels: [
-          { method: "standard", enabled: true, feeAmount: "5.00", leadDaysMin: 2, leadDaysMax: 3 },
-        ],
-      },
-      "sub",
-    );
-
-    const levels = repo.projectAreaServiceLevels.mock.calls[0]![2] as {
-      method: string;
-      feeAmount: string | null;
-    }[];
-
-    // One entry per method — no origin dimension survives into the write.
-    expect(levels).toHaveLength(1);
-    expect(levels[0]!.feeAmount).toBe("5.00");
-    expect(JSON.stringify(levels)).not.toContain("origin");
-  });
-
-  /** A malformed fee never reaches the grid — the projection writes money, so it validates money. */
-  it("refuses a fee that is not money", async () => {
-    for (const bad of ["five dollars", "5.000", "-5.00", ""]) {
-      vi.clearAllMocks();
-      repo.shopsForArea.mockResolvedValue([]);
-      expect(
-        await kindOf(
-          configureArea(
-            "z1",
-            "3350",
-            { serviceLevels: [{ method: "standard", enabled: true, feeAmount: bad }] },
-            "sub",
-          ),
-        ),
-      ).toBe("validation");
-      expect(repo.projectAreaServiceLevels).not.toHaveBeenCalled();
-    }
-  });
-});
+/* ⚠ The projection, same-day guard and one-fee invariant tests were REMOVED with the code they
+ * covered (2026-08-01). See the note at the top of areas.ts: the per-area pricing collapse is
+ * contradicted by shop-declared same-day eligibility, and the zone-membership heuristic the guard
+ * relied on was disproven at 98 km. Their replacements belong to the next slice, over real distance.
+ */

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -82,6 +83,10 @@ type Leg struct {
 	ShopID    string
 	OriginOK  bool // the shop has a resolvable origin zone
 	Offerings []delivery.Offering
+	// OriginPoint is the shop postcode's centroid (032). ⚠ NIL means "we do not know where this shop
+	// is", which is NOT the same as the origin at 0,0 — the pricing core prices an unknown distance at
+	// the furthest band, never the nearest.
+	OriginPoint *delivery.Point
 }
 
 // QuoteStore is the delivery-specific read/write surface (implemented by pgStore).
@@ -91,6 +96,10 @@ type QuoteStore interface {
 	// Legs resolves, per distinct shop in the lines, that shop's origin zone and the offerings for
 	// (origin -> destZone). A shop with no origin zone yields OriginOK=false (undeliverable).
 	Legs(ctx context.Context, shopIDs []string, destZoneID string) (map[string]Leg, error)
+	// PostcodePoint reads a postcode's centroid (032). ⚠ (nil, nil) = unknown location, never 0,0.
+	PostcodePoint(ctx context.Context, postcode string) (*delivery.Point, error)
+	// PricingRules reads every pricing rule with its bands, keyed by method (032).
+	PricingRules(ctx context.Context) (map[delivery.Method]delivery.PricingRule, error)
 	// CaptureQuote upserts the pending order (address + item snapshot) and stores the captured quote +
 	// expiry, returning the order id/number. Mirrors UpsertPendingOrder's pending-order reuse.
 	CaptureQuote(ctx context.Context, customerID string, addressJSON []byte, lines []CheckoutLine, cq CapturedQuote) (orderID, orderNumber string, err error)
@@ -132,7 +141,7 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 		return QuoteResult{}, ErrAddressNotFound
 	}
 
-	_, destZoneID, destOK, err := s.qstore.DestinationZone(ctx, customerID, addressID)
+	destPostcode, destZoneID, destOK, err := s.qstore.DestinationZone(ctx, customerID, addressID)
 	if err != nil {
 		return QuoteResult{}, err
 	}
@@ -150,12 +159,43 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 		p.Items = append(p.Items, QuotePackageItem{ProductID: l.ProductID, Name: l.Name, Quantity: l.Quantity})
 	}
 
+	// ── The reads, in ONE WAVE (032) ────────────────────────────────────────────────────────────
+	//
+	// ⚠ CONCURRENT, NOT SERIAL. A Sydney RDS round trip measures ~135ms from core-api; 029 shipped a
+	// storefront read that issued 8 strictly serial queries, spent 1.08s of pure latency, and 503'd
+	// the whole storefront when the pool was cold. Adding three more serial reads to the MONEY path
+	// would be the same defect somewhere worse. Errors are collected rather than returned from inside
+	// the goroutines so a failure in one does not leave the others unread.
 	shopIDs := append([]string(nil), order...)
-	legs := map[string]Leg{}
-	if destOK {
-		legs, err = s.qstore.Legs(ctx, shopIDs, destZoneID)
-		if err != nil {
-			return QuoteResult{}, err
+	var (
+		legs      = map[string]Leg{}
+		destPoint *delivery.Point
+		rules     = map[delivery.Method]delivery.PricingRule{}
+		wg        sync.WaitGroup
+		legErr    error
+		pointErr  error
+		rulesErr  error
+	)
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		if !destOK {
+			return
+		}
+		legs, legErr = s.qstore.Legs(ctx, shopIDs, destZoneID)
+	}()
+	go func() {
+		defer wg.Done()
+		destPoint, pointErr = s.qstore.PostcodePoint(ctx, destPostcode)
+	}()
+	go func() {
+		defer wg.Done()
+		rules, rulesErr = s.qstore.PricingRules(ctx)
+	}()
+	wg.Wait()
+	for _, e := range []error{legErr, pointErr, rulesErr} {
+		if e != nil {
+			return QuoteResult{}, e
 		}
 	}
 
@@ -175,11 +215,39 @@ func (s *Service) Quote(ctx context.Context, customerID, addressID string, now t
 			continue
 		}
 		p.Serviceable = true
+
+		// ── Price this package on ITS OWN distance and ITS OWN weight (032, FR-009) ──────────
+		//
+		// ⚠ Per PACKAGE, not per order. A two-shop basket has two origins and two weights, and
+		// pricing the order as a whole would charge the near, light package for the far, heavy one.
+		//
+		// ⚠ `known` is false when EITHER end has no centroid, and the pricing core then applies the
+		// FURTHEST band. It is never treated as zero distance — see delivery.Price.
+		km, known := delivery.Distance(leg.OriginPoint, destPoint)
+		weightKg := packageWeightKg(lines, shopID)
+
 		for _, o := range opts {
+			fee := o.FeeCents
+			// ⚠ TRANSITIONAL FALLBACK, REMOVED BY T095. While delivery_offering.price_amount still
+			// exists, a method with no configured rule keeps its old grid price. Without this,
+			// deploying US1 before an admin has configured anything would make every delivery FREE —
+			// which is the exact defect class this feature exists to remove, caused by the feature
+			// removing it. Once the rules are the only source, this branch and the column both go.
+			if rule, ok := rules[o.Method]; ok {
+				priced, offered := delivery.Price(rule, km, known, weightKg)
+				if !offered {
+					continue // a disabled rule withdraws the method entirely (FR-007)
+				}
+				fee = priced
+			}
 			p.Options = append(p.Options, QuoteOption{
-				Method: string(o.Method), ServiceLevel: o.ServiceLevel, FeeCents: o.FeeCents,
+				Method: string(o.Method), ServiceLevel: o.ServiceLevel, FeeCents: fee,
 				Window: o.Window, ScheduleDates: o.ScheduleDates,
 			})
+		}
+		// A rule set that disabled every method leaves nothing selectable.
+		if len(p.Options) == 0 {
+			p.Serviceable = false
 		}
 		packages = append(packages, *p)
 	}
@@ -287,3 +355,19 @@ func unmarshalQuote(b []byte) (CapturedQuote, error) {
 
 // moneyStr renders cents at the wire edge.
 func moneyStr(cents int64) string { return money.FormatCents(cents) }
+
+// packageWeightKg sums one shop's lines into kilograms.
+//
+// ⚠ Every line has a weight: public.product.weight_grams is NOT NULL with a CHECK > 0, and where
+// nobody has measured a product the platform's stated assumption stands (FR-037). There is no
+// "unknown weight" branch here because a weightless line would price delivery as though the goods
+// were not in the van.
+func packageWeightKg(lines []CheckoutLine, shopID string) float64 {
+	var grams int
+	for _, l := range lines {
+		if l.ShopID == shopID {
+			grams += l.WeightGrams * l.Quantity
+		}
+	}
+	return float64(grams) / 1000
+}

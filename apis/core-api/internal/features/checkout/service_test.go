@@ -2,6 +2,8 @@ package checkout
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -44,6 +46,10 @@ type fakeStore struct {
 	succeeded       []string
 	failed          []string
 	finalizeApplied bool
+
+	// 032 pricing state (nil/empty by default — see PostcodePoint/PricingRules below)
+	destPoint    *delivery.Point
+	pricingRules map[delivery.Method]delivery.PricingRule
 
 	// 021 QuoteStore state
 	destOK           bool
@@ -125,6 +131,25 @@ func (f *fakeStore) DestinationZone(_ context.Context, _, _ string) (string, str
 }
 func (f *fakeStore) Legs(_ context.Context, _ []string, _ string) (map[string]Leg, error) {
 	return f.legs, nil
+}
+
+// ── 032 pricing ──
+//
+// ⚠ THE FAKE RETURNING NO RULES IS DELIBERATE, AND IT IS WHAT KEEPS EVERY 021/023 FEE ASSERTION IN
+// THIS FILE TRUE WITHOUT EDITING ONE. With no rule configured, Quote falls back to the offering's
+// grid price — exactly what the platform does in production between deploying 032 and an admin
+// configuring anything. The rule-driven behaviour is proven in platform/delivery's own tests, where
+// it needs no database at all.
+//
+// ⚠ A WARNING FOR WHOEVER ADDS THE NEXT QuoteStore METHOD. NewService resolves qstore by TYPE
+// ASSERTION (`store.(QuoteStore)`), so a fake that stops satisfying the interface does not fail to
+// compile — it silently becomes nil and every test nil-panics somewhere unrelated. That is how this
+// pair of methods announced itself.
+func (f *fakeStore) PostcodePoint(_ context.Context, _ string) (*delivery.Point, error) {
+	return f.destPoint, nil
+}
+func (f *fakeStore) PricingRules(_ context.Context) (map[delivery.Method]delivery.PricingRule, error) {
+	return f.pricingRules, nil
 }
 func (f *fakeStore) CaptureQuote(_ context.Context, _ string, _ []byte, _ []CheckoutLine, cq CapturedQuote) (string, string, error) {
 	f.captured = cq
@@ -575,5 +600,188 @@ func TestConfirmFinalizesWhenIntentSucceeded(t *testing.T) {
 	}
 	if !res.Paid || len(store.succeeded) != 1 {
 		t.Errorf("confirm should finalize a succeeded intent: paid=%v succeeded=%v", res.Paid, store.succeeded)
+	}
+}
+
+// ── 032-delivery-pricing ──────────────────────────────────────────────────────────────────────
+
+// stdRule is the fixture from quickstart §3: base 6.00, step 0.50, cap 45.00,
+// distance ≤5 +0 / ≤15 +3 / ≤50 +9, weight ≤2 +0 / ≤10 +2.50.
+func stdRule() map[delivery.Method]delivery.PricingRule {
+	return map[delivery.Method]delivery.PricingRule{
+		delivery.MethodStandard: {
+			Method: delivery.MethodStandard, BaseCents: 600, RoundingStepCts: 50, MaxCents: 4500,
+			DistanceBands: []delivery.Band{{UpperBound: 5}, {UpperBound: 15, AddCents: 300}, {UpperBound: 50, AddCents: 900}},
+			WeightBands:   []delivery.Band{{UpperBound: 2}, {UpperBound: 10, AddCents: 250}},
+			Active:        true,
+		},
+	}
+}
+
+var (
+	melbournePt = delivery.Point{Lat: -37.8142, Lon: 144.9632}
+	nearbyPt    = delivery.Point{Lat: -37.8000, Lon: 144.9800} // ~2km
+	geelongPt   = delivery.Point{Lat: -38.1499, Lon: 144.3617} // ~64km
+)
+
+func quoteWith(t *testing.T, lines []CheckoutLine, origin *delivery.Point, dest *delivery.Point) QuoteResult {
+	t.Helper()
+	store := newFakeStore()
+	store.destOK = true
+	store.lines = lines
+	store.destPoint = dest
+	store.pricingRules = stdRule()
+	legs := map[string]Leg{}
+	for _, l := range lines {
+		legs[l.ShopID] = Leg{ShopID: l.ShopID, OriginOK: true, OriginPoint: origin, Offerings: []delivery.Offering{
+			{Method: delivery.MethodStandard, PriceCents: 999, LeadDaysMin: 2, LeadDaysMax: 3},
+		}}
+	}
+	store.legs = legs
+	res, err := NewService(store, &fakeGateway{}, "pk").Quote(context.Background(), "cust-1", validAddr, time.Now())
+	if err != nil {
+		t.Fatalf("quote: %v", err)
+	}
+	return res
+}
+
+// SC-001 — the further shopper pays more, for the same basket.
+func TestQuote_FurtherCostsMore(t *testing.T) {
+	line := []CheckoutLine{{ProductID: "p1", ShopID: "s1", Name: "Milk", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	near := quoteWith(t, line, &melbournePt, &nearbyPt).Packages[0].Options[0].FeeCents
+	far := quoteWith(t, line, &melbournePt, &geelongPt).Packages[0].Options[0].FeeCents
+	if far <= near {
+		t.Errorf("further must cost more: near=%d far=%d", near, far)
+	}
+	// ⚠ Neither may be the grid's 999 — that would mean the rule was not consulted at all.
+	if near == 999 || far == 999 {
+		t.Errorf("the offering's grid price leaked through: near=%d far=%d", near, far)
+	}
+}
+
+// SC-002 — the heavier basket costs more, at the same distance.
+func TestQuote_HeavierCostsMore(t *testing.T) {
+	light := quoteWith(t, []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 500}}, &melbournePt, &nearbyPt)
+	heavy := quoteWith(t, []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 8000}}, &melbournePt, &nearbyPt)
+	if heavy.Packages[0].Options[0].FeeCents <= light.Packages[0].Options[0].FeeCents {
+		t.Errorf("heavier must cost more: light=%d heavy=%d",
+			light.Packages[0].Options[0].FeeCents, heavy.Packages[0].Options[0].FeeCents)
+	}
+}
+
+// FR-009 — each package is priced on ITS OWN weight, not the order's total.
+func TestQuote_PricesEachPackageOnItsOwnWeight(t *testing.T) {
+	lines := []CheckoutLine{
+		{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 200},
+		{ProductID: "p2", ShopID: "s2", UnitCents: 500, Quantity: 1, WeightGrams: 9000},
+	}
+	res := quoteWith(t, lines, &melbournePt, &nearbyPt)
+	byKey := map[string]QuotePackage{}
+	for _, p := range res.Packages {
+		byKey[p.PackageKey] = p
+	}
+	lightFee := byKey[delivery.PackageKey("s1")].Options[0].FeeCents
+	heavyFee := byKey[delivery.PackageKey("s2")].Options[0].FeeCents
+	if lightFee >= heavyFee {
+		t.Errorf("⚠ packages priced on the ORDER's weight, not their own: light=%d heavy=%d", lightFee, heavyFee)
+	}
+}
+
+// SC-003 — every quoted fee is a multiple of the configured rounding step.
+func TestQuote_FeesAreRounded(t *testing.T) {
+	res := quoteWith(t, []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 3, WeightGrams: 1300}}, &melbournePt, &geelongPt)
+	for _, o := range res.Packages[0].Options {
+		if o.FeeCents%50 != 0 {
+			t.Errorf("fee %d is not a multiple of the 50c step", o.FeeCents)
+		}
+	}
+}
+
+// ⚠ FR-038 — a destination with no centroid prices at the FURTHEST band, never the nearest. If an
+// unknown location fell through as zero distance, the most remote postcode in the country would be
+// the cheapest to deliver to and nothing would report it.
+func TestQuote_UnknownDestinationPricesAsFurthest(t *testing.T) {
+	line := []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	unknown := quoteWith(t, line, &melbournePt, nil).Packages[0].Options[0].FeeCents
+	nearest := quoteWith(t, line, &melbournePt, &nearbyPt).Packages[0].Options[0].FeeCents
+	furthest := quoteWith(t, line, &melbournePt, &geelongPt).Packages[0].Options[0].FeeCents
+	if unknown != furthest {
+		t.Errorf("unknown destination must price as the furthest band: got %d want %d", unknown, furthest)
+	}
+	if unknown == nearest {
+		t.Error("⚠ unknown destination priced as the NEAREST band — a missing coordinate became cheap delivery")
+	}
+}
+
+// ⚠ SC-005 — inspect the SERIALISED response, not the struct. 021 shipped a defect in the mirror
+// direction (`json:"-"` hid a field from the customer AND from the platform's own persistence, so
+// checkout intent had never completed), which is why this asserts on bytes.
+func TestQuote_ResponseDisclosesNoDistanceOrShop(t *testing.T) {
+	res := quoteWith(t, []CheckoutLine{{ProductID: "p1", ShopID: "shop-secret-id", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}, &melbournePt, &geelongPt)
+	blob, err := json.Marshal(res)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	body := string(blob)
+	for _, forbidden := range []string{"shop-secret-id", "straightLineKm", "distance", "Distance", "weightGrams", "postcode", "latitude", "longitude"} {
+		if strings.Contains(body, forbidden) {
+			t.Errorf("⚠ quote response discloses %q — hidden fulfilment (FR-033/FR-034):\n%s", forbidden, body)
+		}
+	}
+}
+
+// ⚠ FR-010/SC-010 — a quoted order keeps the fee it was quoted, whatever later happens to the rules.
+// This holds today with no new code because CaptureQuote persists the fees; this test is the only
+// thing that keeps it holding, because a pricing change could break it completely invisibly.
+func TestQuote_CapturedFeeSurvivesARuleChange(t *testing.T) {
+	store := newFakeStore()
+	store.destOK = true
+	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	store.destPoint = &nearbyPt
+	store.pricingRules = stdRule()
+	store.legs = map[string]Leg{"s1": {ShopID: "s1", OriginOK: true, OriginPoint: &melbournePt,
+		Offerings: []delivery.Offering{{Method: delivery.MethodStandard, PriceCents: 999, LeadDaysMin: 2, LeadDaysMax: 3}}}}
+	svc := NewService(store, &fakeGateway{}, "pk")
+
+	res, err := svc.Quote(context.Background(), "cust-1", validAddr, time.Now())
+	if err != nil {
+		t.Fatalf("quote: %v", err)
+	}
+	quoted := res.Packages[0].Options[0].FeeCents
+
+	// The admin doubles the base after the shopper was quoted.
+	changed := stdRule()
+	r := changed[delivery.MethodStandard]
+	r.BaseCents = 5000
+	changed[delivery.MethodStandard] = r
+	store.pricingRules = changed
+
+	if store.captured.Packages[0].Options[0].FeeCents != quoted {
+		t.Errorf("⚠ the CAPTURED quote must hold the fee the shopper was shown: captured=%d shown=%d",
+			store.captured.Packages[0].Options[0].FeeCents, quoted)
+	}
+}
+
+// FR-007 — a disabled rule withdraws that method entirely; it is not offered at the base, and not
+// offered free.
+func TestQuote_DisabledRuleWithdrawsTheMethod(t *testing.T) {
+	store := newFakeStore()
+	store.destOK = true
+	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1, WeightGrams: 1000}}
+	store.destPoint = &nearbyPt
+	rules := stdRule()
+	r := rules[delivery.MethodStandard]
+	r.Active = false
+	rules[delivery.MethodStandard] = r
+	store.pricingRules = rules
+	store.legs = map[string]Leg{"s1": {ShopID: "s1", OriginOK: true, OriginPoint: &melbournePt,
+		Offerings: []delivery.Offering{{Method: delivery.MethodStandard, PriceCents: 999, LeadDaysMin: 2, LeadDaysMax: 3}}}}
+
+	res, err := NewService(store, &fakeGateway{}, "pk").Quote(context.Background(), "cust-1", validAddr, time.Now())
+	if err != nil {
+		t.Fatalf("quote: %v", err)
+	}
+	if res.Packages[0].Serviceable {
+		t.Error("a package whose only method has a disabled rule must not be serviceable")
 	}
 }

@@ -218,9 +218,12 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" BACK_OFFICE_POOL_ID="$$POOL_ID" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
 		sh -c 'cd $(CORE_DIR) && go run ./cmd/create-first-admin --email "$(EMAIL)" --name "$(NAME)"'
 
-derive-localities: ## Derive db/reference/au-localities.csv from an unzipped G-NAF (GNAF=/path/to/G-NAF) — specs/030
+derive-localities: ## Derive db/reference/au-localities.csv from an unzipped G-NAF (GNAF=/path/to/G-NAF) — specs/030+032
 	@test -n "$(GNAF)" || { echo 'usage: make derive-localities GNAF=~/Downloads/G-NAF_MAY26'; exit 1; }
 	@node db/reference/derive-localities.mjs "$(GNAF)"
+
+reference-test: ## Unit-test the G-NAF derivation (file patterns + coordinate parsing) — no download needed
+	@node --test db/reference/*.test.mjs
 
 load-localities: ## OPERATOR: load/refresh the AU locality reference data (ENV=dev) — idempotent — specs/030
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \

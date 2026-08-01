@@ -617,94 +617,10 @@ export async function recordAreaDecision(
   });
 }
 
-/**
- * Write one area's service levels across EVERY origin zone — the projection (031 R3).
- *
- * ⚠ WHAT THIS IS. The console edits an AREA; `delivery_offering` is keyed on (origin zone,
- * destination zone, method). So one edit fans out to one row per origin. The grid stays the storage
- * and the quoting mechanism — `checkout/quote.go` reads it unchanged, and NOTHING in core-api moves.
- *
- * ⚠ THE COLLAPSE IS DELIBERATE AND IT LOSES SOMETHING. Every origin gets the same fee. Live data had
- * Melbourne Metro standard at $5.00 from a Melbourne shop and $8.00 from a Regional one; after this,
- * one number. Justified because the shopper cannot perceive which shop serves them (hidden fulfilment,
- * 021 FR-019) and the difference becomes internal margin — but it is a real loss, not a no-op.
- *
- * ⚠ DISABLING SETS status='disabled', IT DOES NOT DELETE. A disabled row records that a human
- * switched it off; deletion destroys exactly that information and returns the area to the ambiguity
- * this feature exists to remove.
- *
- * ⚠ A CAPTURED QUOTE IS UNTOUCHED. `order_package_delivery` holds its own copy of the chosen option,
- * so an in-flight order keeps the price it was quoted (FR-014/FR-031). This writes the catalogue,
- * never an order.
+/* ⚠ projectAreaServiceLevels was REMOVED (2026-08-01) — see the note in areas.ts. It wrote one fee
+ * across every origin, collapsing a dimension the next design needs back: same-day eligibility is
+ * per (shop, zone), and the rate grid remains the only place origin is expressed.
  */
-export async function projectAreaServiceLevels(
-  zoneId: string,
-  postcode: string,
-  levels: {
-    method: DeliveryMethod;
-    enabled: boolean;
-    feeAmount: string | null;
-    leadDaysMin: number | null;
-    leadDaysMax: number | null;
-    sameDayCutoff: string | null;
-  }[],
-  actorSub: string,
-): Promise<void> {
-  await withTransaction(async (tx: PoolClient) => {
-    const origins = await tx.query<{ id: string }>(`SELECT id FROM public.delivery_zone`);
-
-    for (const level of levels) {
-      for (const origin of origins.rows) {
-        if (level.enabled) {
-          await tx.query(
-            `INSERT INTO public.delivery_offering
-                  (origin_zone_id, destination_zone_id, method, price_amount,
-                   lead_days_min, lead_days_max, same_day_cutoff, status)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, 'active')
-             ON CONFLICT (origin_zone_id, destination_zone_id, method)
-             DO UPDATE SET price_amount = EXCLUDED.price_amount,
-                           lead_days_min = EXCLUDED.lead_days_min,
-                           lead_days_max = EXCLUDED.lead_days_max,
-                           same_day_cutoff = EXCLUDED.same_day_cutoff,
-                           status = 'active', updated_at = now()`,
-            [
-              origin.id,
-              zoneId,
-              level.method,
-              level.feeAmount,
-              level.leadDaysMin ?? 0,
-              level.leadDaysMax ?? 0,
-              level.sameDayCutoff,
-            ],
-          );
-        } else {
-          // ⚠ Disable, never delete. Only touches a row that already exists — enabling was never
-          // implied by configuring the area, so a method nobody turned on stays absent.
-          await tx.query(
-            `UPDATE public.delivery_offering SET status = 'disabled', updated_at = now()
-              WHERE origin_zone_id = $1 AND destination_zone_id = $2 AND method = $3`,
-            [origin.id, zoneId, level.method],
-          );
-        }
-      }
-    }
-
-    // The area is now decided about, which is what moves it out of "unconfigured".
-    await tx.query(
-      `INSERT INTO public.delivery_area_decision (zone_id, postcode, decision, decided_by)
-            VALUES ($1, $2, 'served', $3)
-       ON CONFLICT ON CONSTRAINT delivery_area_decision_uq
-       DO UPDATE SET decision = 'served', decided_by = EXCLUDED.decided_by,
-                     decided_at = now(), updated_at = now()`,
-      [zoneId, postcode, actorSub],
-    );
-
-    await insertAudit(tx, actorSub, "delivery_area.configure", "delivery_zone", zoneId, {
-      postcode,
-      levels: levels.map((l) => ({ method: l.method, enabled: l.enabled, fee: l.feeAmount })),
-    });
-  });
-}
 
 /** Every postcode in a zone — what else a per-area change affects (031 FR-006, one level up). */
 export async function zonePostcodes(zoneId: string): Promise<string[]> {

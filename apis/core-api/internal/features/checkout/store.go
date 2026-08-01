@@ -20,6 +20,11 @@ type CheckoutLine struct {
 	Name      string
 	UnitCents int64
 	Quantity  int
+	// WeightGrams is the product's shipping weight (032). ⚠ Always > 0 — the column is NOT NULL with a
+	// CHECK, and where nobody has measured a product the platform's stated assumption stands. There is
+	// deliberately no "unknown weight" case to handle here, because a weightless line would price
+	// delivery as though the goods did not exist.
+	WeightGrams int
 }
 
 // ShopPortion is one shop's slice of the fan-out (for the outbox payload / SC-005).
@@ -92,11 +97,12 @@ func NewStore(pool *pgxpool.Pool) Store {
 }
 
 type checkoutLineRow struct {
-	ProductID string `db:"product_id"`
-	ShopID    string `db:"shop_id"`
-	Name      string `db:"name"`
-	UnitPrice string `db:"unit_price_amount"`
-	Quantity  int    `db:"quantity"`
+	ProductID   string `db:"product_id"`
+	ShopID      string `db:"shop_id"`
+	Name        string `db:"name"`
+	UnitPrice   string `db:"unit_price_amount"`
+	Quantity    int    `db:"quantity"`
+	WeightGrams int    `db:"weight_grams"`
 }
 
 func (s *pgStore) CartLines(ctx context.Context, customerID string) ([]CheckoutLine, error) {
@@ -105,7 +111,8 @@ SELECT ci.product_id::text AS product_id,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
        p.price_amount::text AS unit_price_amount,
-       ci.quantity         AS quantity
+       ci.quantity         AS quantity,
+       p.weight_grams      AS weight_grams
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
@@ -124,7 +131,10 @@ ORDER BY ci.added_at ASC`, customerID)
 		if perr != nil {
 			return nil, perr
 		}
-		out = append(out, CheckoutLine{ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name, UnitCents: cents, Quantity: r.Quantity})
+		out = append(out, CheckoutLine{
+			ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name,
+			UnitCents: cents, Quantity: r.Quantity, WeightGrams: r.WeightGrams,
+		})
 	}
 	return out, nil
 }

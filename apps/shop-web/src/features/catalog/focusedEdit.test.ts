@@ -28,6 +28,8 @@ function detail(over: Partial<ProductDetail> = {}): ProductDetail {
     compareAtAmount: null,
     shortDescription: "Silky espresso",
     longDescription: null,
+    weightGrams: 500,
+    weightIsAssumed: true,
     status: "active",
     attributes: [],
     media: [],
@@ -157,5 +159,34 @@ describe("seedAttributeDraft", () => {
       "a-num": { number: "250" },
       "a-multi": { options: ["vegan"] },
     });
+  });
+});
+
+// ── Shipping weight (032, FR-036a/FR-037a) ────────────────────────────────────────────────────
+describe("focused edit — shipping weight", () => {
+  it("sends a changed weight", () => {
+    const changed = diffScalarFields(detail({ weightGrams: 500, weightIsAssumed: true }), {
+      weightGrams: 780,
+    });
+    expect(changed).toEqual({ weightGrams: 780 });
+  });
+
+  // ⚠ Leaving the field blank must NOT patch the weight. Otherwise editing a product's name would
+  // reset a measured weight back to the platform's assumption, silently.
+  it("omits the weight when it was not entered", () => {
+    const changed = diffScalarFields(detail({ weightGrams: 780, weightIsAssumed: false }), {
+      name: "Renamed",
+      weightGrams: undefined,
+    });
+    expect(changed).toEqual({ name: "Renamed" });
+    expect(changed).not.toHaveProperty("weightGrams");
+  });
+
+  // Re-entering the same number is not a change — the PATCH stays minimal (FR-023a).
+  it("omits an unchanged weight", () => {
+    const changed = diffScalarFields(detail({ weightGrams: 780, weightIsAssumed: false }), {
+      weightGrams: 780,
+    });
+    expect(changed).not.toHaveProperty("weightGrams");
   });
 });

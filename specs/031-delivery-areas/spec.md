@@ -362,6 +362,35 @@ Named because each was considered and excluded; none may be smuggled in.
 
 ---
 
+## ⚠ SCOPE REDUCED 2026-08-01 — the pricing half was withdrawn
+
+**What this feature now is**: locality-driven zone composition, the postcode-coverage disclosure, the
+three-state decision record, and the configuration health surface. All of it built, tested and live.
+
+**What was removed, and why it was wrong rather than merely unfinished:**
+
+US2's **per-area pricing projection** collapsed the origin dimension — one fee per area, from every
+shop — on the reasoning that a shopper cannot perceive which shop serves them. ⚠ **That reasoning is
+sound for PRICE and false for ELIGIBILITY.** Whether same-day is possible depends entirely on which
+shop is fulfilling, so the axis this collapse removed is precisely the one the operator's actual model
+is built on: *a shop declares which zones it will serve same-day, and an admin approves it.*
+
+US3's **same-day guard** went with it. It asked "is any shop's postcode in this area's zone?" and read
+yes as "a shop is nearby". Live data disproved it: same-day to **Ballarat** was permitted because a
+shop in **Bendigo** shares zone REGIONAL — **98 km away**, essentially as far as Melbourne (107 km).
+Not merely crude; here it carried no information at all.
+
+⚠ **And research R6's premise was wrong.** It justified that crudeness with "the platform has no
+routing or distance capability". G-NAF ships `LOCALITY_POINT` with a latitude and longitude for every
+locality, in the same download and under the same licence 030 already accepted — **030's derivation
+simply discarded it**. Distance was always available; it was never loaded.
+
+FR-010, FR-013, FR-014, FR-017–FR-021 and SC-007/SC-011/SC-012 therefore **move to the successor
+slice**, where they can be met over real distance and shop-declared eligibility rather than a
+zone-membership proxy.
+
+---
+
 ## Resolved Scope Decisions
 
 - **Existing per-origin rates → the admin reconciles (settled 2026-08-01, from live data).** There is

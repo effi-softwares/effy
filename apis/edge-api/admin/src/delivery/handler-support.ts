@@ -9,6 +9,8 @@ import { forbidden, problem, ProblemType, subject, unavailable } from "@effy/edg
 import type {
   AuditEntryDTO,
   DeliveryOfferingDTO,
+  DeliveryPriceBandDTO,
+  DeliveryPricingRuleDTO,
   DeliveryZoneDTO,
   DeliveryZonePostcodeDTO,
   PagedDTO,
@@ -17,7 +19,16 @@ import type {
 
 import { canManageDelivery, isActiveStaff } from "./authz";
 import { isDeliveryError } from "./types";
-import type { AuditEntry, DeliveryZone, Offering, Paged, ShopLocation, ZonePostcode } from "./types";
+import type {
+  AuditEntry,
+  DeliveryZone,
+  Offering,
+  Paged,
+  PriceBand,
+  PricingRule,
+  ShopLocation,
+  ZonePostcode,
+} from "./types";
 
 const CONFLICT = "https://effyshopping.com/problems/conflict";
 const NOT_FOUND = "https://effyshopping.com/problems/not-found";
@@ -55,6 +66,18 @@ export function mapDeliveryError(err: unknown, scope: RequestScope): APIGatewayP
     switch (err.kind) {
       case "validation":
         return problem(400, ProblemType.ValidationFailed, "Validation failed", err.message, scope, err.fields);
+      // ⚠ 422, not 400 (032). The body parsed and every field is the right type — what is refused is
+      // a CONFIGURATION that would quietly do the wrong thing. The `code` is what makes each refusal
+      // distinguishable: "invalid" tells an operator nothing about which of five rules they broke.
+      case "unprocessable":
+        return problem(
+          422,
+          ProblemType.ValidationFailed,
+          "Cannot apply this configuration",
+          err.message,
+          scope,
+          err.code ? [{ field: err.code, message: err.message }] : err.fields,
+        );
       case "not_found":
         return problem(404, NOT_FOUND, "Not found", err.message, scope);
       case "conflict":
@@ -132,4 +155,30 @@ export function toAuditDTO(p: Paged<AuditEntry>): PagedDTO<AuditEntryDTO> {
     page: p.page,
     pageSize: p.pageSize,
   };
+}
+
+// ── 032-delivery-pricing ───────────────────────────────────────────────────────────────────────
+
+export function toPricingRuleDTO(r: PricingRule): DeliveryPricingRuleDTO {
+  return {
+    method: r.method,
+    baseAmount: r.baseAmount,
+    roundingStep: r.roundingStep,
+    maxAmount: r.maxAmount,
+    status: r.status,
+    distanceBands: r.distanceBands.map(toBandDTO),
+    weightBands: r.weightBands.map(toBandDTO),
+    updatedBy: r.updatedBy,
+    updatedAt: r.updatedAt,
+  };
+}
+
+function toBandDTO(b: PriceBand): DeliveryPriceBandDTO {
+  return { upperBound: b.upperBound, addAmount: b.addAmount };
+}
+
+export function toPricingRuleListDTO(rules: PricingRule[]): { rules: DeliveryPricingRuleDTO[] } {
+  // ⚠ Wrapped in an object rather than returned as a bare array: there are exactly three rules, so
+  // this is not paged, but a top-level JSON array is the shape that cannot gain a field later.
+  return { rules: rules.map(toPricingRuleDTO) };
 }

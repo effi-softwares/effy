@@ -162,3 +162,63 @@ describe("presignUpload (ownership + type/size validation)", () => {
     expect(out).toEqual({ uploadUrl: "u", storageKey: "k" });
   });
 });
+
+// ── Shipping weight (032, FR-036a/FR-037a) ────────────────────────────────────────────────────
+//
+// ⚠ The point of these is that "measured" must mean MEASURED. The flag is derived from the act of
+// supplying a weight and is never accepted from a client — otherwise "measured" would collapse into
+// "the client said so", and the whole distinction between a real weight and the platform's stated
+// assumption would stop meaning anything.
+describe("createProduct — shipping weight", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repo.productTypeIsActive.mockResolvedValue(true);
+    repo.categoryIsActive.mockResolvedValue(true);
+    repo.assignmentsForType.mockResolvedValue([]);
+    repo.createProduct.mockResolvedValue("prod-1");
+    repo.getProductDetail.mockResolvedValue({ id: "prod-1", media: [] });
+  });
+
+  it("passes a supplied weight through to the repository", async () => {
+    await createProduct("shop-1", { ...baseBody, weightGrams: 750 }, "sub");
+    expect(repo.createProduct).toHaveBeenCalledWith(
+      "shop-1",
+      expect.objectContaining({ weightGrams: 750 }),
+      "sub",
+    );
+  });
+
+  // ⚠ NULL means "not supplied, keep the column default (an assumption)". It must not become 0 —
+  // a zero-weight product would ship free, and no test downstream would notice.
+  it("omitting a weight passes null, never zero", async () => {
+    await createProduct("shop-1", baseBody, "sub");
+    const input = repo.createProduct.mock.calls[0]![1] as { weightGrams: number | null };
+    expect(input.weightGrams).toBeNull();
+    expect(input.weightGrams).not.toBe(0);
+  });
+
+  it("rejects a zero or negative weight", async () => {
+    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: 0 }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: -5 }, "sub"))).toBe("validation");
+    expect(repo.createProduct).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-integer or unparseable weight", async () => {
+    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: 1.5 }, "sub"))).toBe("validation");
+    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: "heavy" }, "sub"))).toBe("validation");
+  });
+
+  // 250000 for "250 g" is the obvious slip, and it would price that basket at the cap forever.
+  it("rejects an implausible weight with a units hint", async () => {
+    expect(await kindOf(createProduct("shop-1", { ...baseBody, weightGrams: 300_000 }, "sub"))).toBe("validation");
+  });
+
+  // ⚠ FR-037a. A client that sends weightIsAssumed:false with no weight must not be able to declare
+  // the platform's own default a measurement.
+  it("ignores a client-supplied weightIsAssumed", async () => {
+    await createProduct("shop-1", { ...baseBody, weightIsAssumed: false }, "sub");
+    const input = repo.createProduct.mock.calls[0]![1] as Record<string, unknown>;
+    expect(input).not.toHaveProperty("weightIsAssumed");
+    expect(input.weightGrams).toBeNull();
+  });
+});

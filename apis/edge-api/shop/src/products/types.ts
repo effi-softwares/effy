@@ -127,6 +127,10 @@ export interface ProductDetail {
   compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
+  /** Shipping weight in grams (032) — what delivery is priced from. */
+  weightGrams: number;
+  /** ⚠ TRUE = the platform default is in use; nobody has measured it (FR-037a). */
+  weightIsAssumed: boolean;
   status: ProductStatus;
   attributes: ProductAttributeValue[];
   media: ProductMedia[];
@@ -157,6 +161,11 @@ export interface CreateProductInput {
   compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
+  /**
+   * ⚠ NULL means "not supplied" and the column default (an assumption) stands. It does NOT mean zero
+   * — a zero-weight product is free-delivery-by-arithmetic, which the CHECK constraint refuses.
+   */
+  weightGrams: number | null;
   attributes: AttributeValueInput[];
   sectionIds: string[];
   media: { storageKey: string; isPrimary: boolean; altText: string | null; displayOrder: number }[];

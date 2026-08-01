@@ -5,8 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { AreaServiceLevelForm } from "./components/AreaServiceLevelForm";
-import { areaQuery, useConfigureArea, useMarkAreaNotServed } from "./queries";
+import { areaQuery, useMarkAreaNotServed } from "./queries";
 
 /**
  * Everything one delivery area gets, on one screen (031 FR-022).
@@ -19,7 +18,6 @@ import { areaQuery, useConfigureArea, useMarkAreaNotServed } from "./queries";
  */
 export function AreaDetailScreen({ zoneId, postcode }: { zoneId: string; postcode: string }) {
   const { data: area, error, isPending, isError, refetch } = useQuery(areaQuery(zoneId, postcode));
-  const configure = useConfigureArea(zoneId, postcode);
   const notServed = useMarkAreaNotServed(zoneId, postcode);
   const [note, setNote] = useState("");
   const [confirming, setConfirming] = useState(false);
@@ -76,13 +74,25 @@ export function AreaDetailScreen({ zoneId, postcode }: { zoneId: string; postcod
       {area.state !== "not_served" && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">What this area gets</h2>
-          <AreaServiceLevelForm
-            area={area}
-            siblingCount={area.siblingPostcodes.length}
-            shops={area.shops}
-            saving={configure.isPending}
-            onSave={(levels) => configure.mutate({ serviceLevels: levels })}
-          />
+          {/* ⚠ READ-ONLY. The per-area editor was removed: it wrote one fee across every origin,
+              collapsing a dimension the next design needs back (same-day eligibility is per shop, not
+              per zone). Rates are set in the rate grid until that lands. */}
+          <ul data-testid="area-service-levels" className="space-y-1 text-sm">
+            {area.serviceLevels.map((l) => (
+              <li key={l.method} className="flex items-center justify-between border-b py-1.5">
+                <span>{l.method.replace("_", "-")}</span>
+                <span className="text-muted-foreground">
+                  {l.enabled ? `$${l.feeAmount ?? "—"}` : "not offered"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {area.siblingPostcodes.length > 0 && (
+            <p className="text-sm text-muted-foreground">
+              ⚠ Rates are held per zone — these apply to all {area.siblingPostcodes.length + 1} areas
+              in {area.zoneCode}.
+            </p>
+          )}
         </section>
       )}
 

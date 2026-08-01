@@ -2,7 +2,6 @@ import type {
   AddPostcodesRequest,
   AreaDTO,
   AreaHealthDTO,
-  ConfigureAreaRequest,
   MarkAreaNotServedRequest,
   AuditEntryDTO,
   CreateOfferingRequest,
@@ -168,14 +167,6 @@ export async function getArea(zoneId: string, postcode: string): Promise<AreaDTO
   return api.get<AreaDTO>(`/admin/v1/delivery-zones/${zoneId}/areas/${postcode}`);
 }
 
-/** Configure an area's service levels. ⚠ A REPLACE — an omitted method is turned off. */
-export async function configureArea(
-  zoneId: string,
-  postcode: string,
-  body: ConfigureAreaRequest,
-): Promise<AreaDTO> {
-  return api.put<AreaDTO>(`/admin/v1/delivery-zones/${zoneId}/areas/${postcode}`, body);
-}
 
 /** ⚠ Records the decision AND withdraws the area — recording alone would change nothing. */
 export async function markAreaNotServed(

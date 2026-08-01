@@ -9,13 +9,12 @@
 //
 // So the decision moves to the area, and this file projects it onto the grid. ⚠ The grid stays
 // authoritative — `checkout/quote.go` reads it unchanged and NOTHING in core-api moves (FR-028).
-import { DELIVERY_METHODS, DeliveryError, type DeliveryMethod } from "./types";
+import { DELIVERY_METHODS, DeliveryError } from "./types";
 import type { Area, AreaServiceLevel, AreaShopFeasibility } from "./types";
 import { postcodeCoverage } from "./localities";
 import * as repo from "./repository";
 
 const POSTCODE_RE = /^[0-9]{4}$/;
-const MONEY_RE = /^\d+(\.\d{1,2})?$/;
 
 /** Everything one area gets, in a single read (FR-022). */
 export async function getArea(zoneId: string, postcode: string): Promise<Area> {
@@ -74,92 +73,29 @@ export async function areaShops(zoneId: string): Promise<AreaShopFeasibility[]> 
   return repo.shopsForArea(zoneId);
 }
 
-export interface ConfigureAreaInput {
-  serviceLevels?: unknown;
-}
-
-/**
- * Configure an area's service levels.
+/* ── ⚠ configureArea / the per-area pricing projection was REMOVED (2026-08-01) ────────────────
  *
- * ⚠ A REPLACE, NOT A PATCH. A method omitted from the request is a method turned OFF, not one left
- * ambiguous — ambiguity about what is offered is what this whole feature exists to remove.
+ * 031 collapsed per-origin pricing into one fee per area, on the reasoning that a shopper cannot
+ * perceive which shop serves them. That reasoning still holds FOR PRICE.
  *
- * ⚠ THE SAME-DAY GUARD (FR-018). A fee is a business choice the platform can absorb; **same-day is a
- * physical claim about time**, true only if a shop holding the goods can reach that area today.
- * Enabling it where no shop shares the area's zone requires an explicit acknowledgement, and its
- * absence is a 422 — refused on the SERVER, because a UI-only guard is not a guard.
+ * It does not hold for ELIGIBILITY, and that is what broke it. Whether same-day is possible depends
+ * entirely on which shop is fulfilling — so the origin dimension this collapse removed is exactly the
+ * axis the next design is built on: a shop declares which zones it will serve same-day, and an admin
+ * approves it.
+ *
+ * ⚠ The same-day guard went with it, and deserves its own note. It asked "is any shop's postcode in
+ * this area's zone?" and treated yes as "a shop is nearby". Live data disproved it: same-day to
+ * BALLARAT was permitted because a shop in BENDIGO shares zone REGIONAL — **98 km away**, essentially
+ * as far as Melbourne (107 km). The heuristic was not merely crude; here it carried no information.
+ *
+ * ⚠ Research R6 justified that crudeness with "the platform has no routing or distance capability".
+ * That was wrong: G-NAF ships LOCALITY_POINT with a latitude and longitude per locality, in the same
+ * download and under the same licence 030 already accepted. The 030 derivation simply discarded it.
+ * Distance is available; it was never loaded.
+ *
+ * What survives here: reading what an area currently gets, and recording a deliberate decision not to
+ * serve it. Both are orthogonal to how a fee is calculated.
  */
-export async function configureArea(
-  zoneId: string,
-  postcode: string,
-  input: ConfigureAreaInput,
-  actorSub: string,
-): Promise<Area> {
-  if (!POSTCODE_RE.test(postcode)) {
-    throw new DeliveryError("validation", "invalid postcode", [
-      { field: "postcode", message: "must be a 4-digit postcode" },
-    ]);
-  }
-  const raw = input.serviceLevels;
-  if (!Array.isArray(raw)) {
-    throw new DeliveryError("validation", "invalid serviceLevels", [
-      { field: "serviceLevels", message: "must be an array" },
-    ]);
-  }
-
-  const fields: { field: string; message: string }[] = [];
-  const levels: (AreaServiceLevel & { acknowledged: boolean })[] = [];
-
-  for (const entry of raw as Record<string, unknown>[]) {
-    const method = entry?.method as DeliveryMethod;
-    // ⚠ FR-029: the configurable set is EXACTLY the platform's set. This slice is the first interface
-    // to expose all three together, so it is the one place a fourth could slip in unnoticed.
-    if (!DELIVERY_METHODS.includes(method)) {
-      fields.push({ field: "method", message: `"${String(method)}" is not a delivery method` });
-      continue;
-    }
-    const enabled = entry.enabled === true;
-    const feeAmount = typeof entry.feeAmount === "string" ? entry.feeAmount : null;
-    if (enabled && (!feeAmount || !MONEY_RE.test(feeAmount))) {
-      fields.push({ field: "feeAmount", message: `${method} is enabled but has no valid fee` });
-    }
-    levels.push({
-      method,
-      enabled,
-      feeAmount,
-      leadDaysMin: typeof entry.leadDaysMin === "number" ? entry.leadDaysMin : null,
-      leadDaysMax: typeof entry.leadDaysMax === "number" ? entry.leadDaysMax : null,
-      sameDayCutoff: typeof entry.sameDayCutoff === "string" ? entry.sameDayCutoff : null,
-      acknowledged: entry.noNearbyShopAcknowledged === true,
-    });
-  }
-  if (fields.length > 0) throw new DeliveryError("validation", "invalid serviceLevels", fields);
-
-  const sameDay = levels.find((l) => l.method === "same_day" && l.enabled);
-  if (sameDay && !sameDay.acknowledged) {
-    const shops = await repo.shopsForArea(zoneId);
-    if (!shops.some((s) => s.inZone)) {
-      // ⚠ 422, not a silent accept. Offering same-day where nothing can serve it breaks the promise
-      // at the moment the shopper is most committed — the failure 025 and 030 exist to prevent.
-      throw new DeliveryError("conflict", "no nearby shop for same-day", [
-        {
-          field: "same_day",
-          message:
-            "No shop is in this area's delivery zone, so same-day may not be deliverable. " +
-            "Confirm to enable it anyway.",
-        },
-      ]);
-    }
-  }
-
-  await repo.projectAreaServiceLevels(
-    zoneId,
-    postcode,
-    levels.map(({ acknowledged: _ack, ...l }) => l),
-    actorSub,
-  );
-  return getArea(zoneId, postcode);
-}
 
 /**
  * Mark an area deliberately not served (FR-011/FR-011a).

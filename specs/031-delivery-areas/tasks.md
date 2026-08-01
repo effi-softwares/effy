@@ -17,6 +17,11 @@ leave the shopper's experience byte-identical — none of which a compiler can c
 
 **Organization**: grouped by user story. US1 alone is a shippable increment.
 
+⚠ **SCOPE REDUCED 2026-08-01.** US2's pricing projection and US3's same-day guard were **rolled back**
+— see [spec.md](./spec.md) § *Scope reduced*. US1, US4 and the decision record stand. Tasks covering
+the withdrawn work are marked **[WITHDRAWN]** rather than deleted, because why they were withdrawn is
+more useful than that they existed.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: parallelizable — different files, no dependency on an incomplete task

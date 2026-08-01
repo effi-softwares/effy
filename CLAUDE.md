@@ -203,8 +203,22 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**031-delivery-areas — Delivery Areas: Locality-Driven Zones & Per-Area Service Levels.** 🚧
-**60/80 tasks — all 31 FRs implemented and machine-verified; 14 operator walks + sign-off outstanding.**
+**031-delivery-areas — Delivery Areas: Locality-Driven Zone Composition.** 🚧 **SCOPE REDUCED
+2026-08-01 — the pricing half was withdrawn; composition, the decision record and health stand.**
+
+⚠ **Why it was reduced, because "unfinished" would be the wrong word.** US2 collapsed per-origin
+pricing into one fee per area, arguing the shopper cannot perceive which shop serves them. **That is
+true for PRICE and false for ELIGIBILITY** — whether same-day is possible depends entirely on which
+shop is fulfilling. The collapse removed the exact axis the operator's real model needs back: *a shop
+declares which zones it serves same-day; an admin approves it.*
+
+⚠ **The same-day guard was disproven live.** It asked "is any shop in this area's zone?" — so same-day
+to **Ballarat** was permitted by a shop in **Bendigo, 98 km away**, essentially as far as Melbourne
+(107 km). It carried no information.
+
+⚠ **And research R6's premise was simply wrong.** It said "the platform has no routing or distance
+capability". **G-NAF ships `LOCALITY_POINT` with lat/long for every locality** — same download, same
+CC BY licence 030 accepted — and 030's derivation discarded it. Distance was always available.
 
 Gives the back office the locality record 030 built for shoppers, and moves delivery configuration to
 the unit operations actually thinks in: **the area**. Entirely cold-path and operator-facing.
@@ -1131,5 +1145,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/031-delivery-areas/plan.md
+at specs/032-delivery-pricing/plan.md
 <!-- SPECKIT END -->

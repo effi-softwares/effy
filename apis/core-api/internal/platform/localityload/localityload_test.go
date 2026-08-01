@@ -175,3 +175,122 @@ func asParseError(err error, target **ParseError) bool {
 	}
 	return ok
 }
+
+// ── Coordinates (032) ─────────────────────────────────────────────────────────────────────────
+//
+// ⚠ The whole point of these is that ABSENT and ZERO must never become the same value. 0°N 0°E is in
+// the Gulf of Guinea, ~14 000 km from Australia; under 032's pricing an unknown location takes the
+// furthest band (the safe direction), but a stated 0,0 would price as the furthest place on earth
+// while reporting nothing wrong at all.
+
+const geoHeader = "locality,state,postcode,latitude,longitude\n"
+
+func parseGeo(t *testing.T, body string) ([]Row, error) {
+	t.Helper()
+	return Parse(strings.NewReader(geoHeader + body))
+}
+
+func TestParse_ReadsCoordinates(t *testing.T) {
+	rows, err := parseGeo(t, "Melbourne,VIC,3000,-37.814200,144.963200\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rows[0].Lat == nil || rows[0].Lon == nil {
+		t.Fatalf("coordinates not parsed: %+v", rows[0])
+	}
+	if *rows[0].Lat != -37.8142 || *rows[0].Lon != 144.9632 {
+		t.Errorf("got %v,%v want -37.8142,144.9632", *rows[0].Lat, *rows[0].Lon)
+	}
+}
+
+// ⚠ An empty pair is a legitimate, common state — G-NAF does not carry a point for every locality.
+// It must be NIL, never 0.
+func TestParse_EmptyCoordinateIsNilNotZero(t *testing.T) {
+	rows, err := parseGeo(t, "Nowhere,VIC,3999,,\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rows[0].Lat != nil || rows[0].Lon != nil {
+		t.Errorf("absent coordinate must be nil, got %v,%v", rows[0].Lat, rows[0].Lon)
+	}
+}
+
+// A dataset with no coordinate columns at all still loads — every row is simply location-unknown.
+func TestParse_CoordinateColumnsAreOptional(t *testing.T) {
+	rows, err := parse(t, "Richmond,VIC,3121\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rows[0].Lat != nil || rows[0].Lon != nil {
+		t.Errorf("want nil coordinates on a pre-032 dataset, got %v,%v", rows[0].Lat, rows[0].Lon)
+	}
+}
+
+// ⚠ Half a pair is a BROKEN ROW, not an absence. Treating it as "unknown" would hide a parsing fault
+// behind a gap that looks legitimate.
+func TestParse_RejectsHalfACoordinate(t *testing.T) {
+	for _, body := range []string{
+		"Half,VIC,3000,-37.8142,\n",
+		"Half,VIC,3000,,144.9632\n",
+	} {
+		_, err := parseGeo(t, body)
+		var pe *ParseError
+		if !asParseError(err, &pe) || !strings.Contains(pe.Error(), "half a coordinate") {
+			t.Errorf("want a half-a-coordinate rejection for %q, got: %v", body, err)
+		}
+	}
+}
+
+func TestParse_RejectsUnparseableCoordinate(t *testing.T) {
+	_, err := parseGeo(t, "Bad,VIC,3000,north,east\n")
+	var pe *ParseError
+	if !asParseError(err, &pe) || !strings.Contains(pe.Error(), "not a number") {
+		t.Errorf("want a not-a-number rejection, got: %v", err)
+	}
+}
+
+// ⚠ THE SWAP. G-NAF lists LONGITUDE first, and every Australian longitude (96…168) is a plausible
+// number that is not a latitude — so a positional misread produces a coordinate that looks entirely
+// reasonable and puts the suburb thousands of kilometres away. Latitude is the discriminating axis:
+// nothing in Australia sits above -8.
+func TestParse_RejectsSwappedLatLon(t *testing.T) {
+	_, err := parseGeo(t, "Swapped,VIC,3000,144.9632,-37.8142\n")
+	var pe *ParseError
+	if !asParseError(err, &pe) || !strings.Contains(pe.Error(), "outside Australia") {
+		t.Errorf("want an outside-Australia rejection for a swapped pair, got: %v", err)
+	}
+}
+
+func TestParse_RejectsCoordinateOutsideAustralia(t *testing.T) {
+	for _, body := range []string{
+		"London,VIC,3000,51.5074,-0.1278\n",
+		"NullIsland,VIC,3000,0,0\n", // ⚠ the trap this whole design exists to avoid
+	} {
+		_, err := parseGeo(t, body)
+		var pe *ParseError
+		if !asParseError(err, &pe) || !strings.Contains(pe.Error(), "outside Australia") {
+			t.Errorf("want an outside-Australia rejection for %q, got: %v", body, err)
+		}
+	}
+}
+
+// ⚠ A header carrying one coordinate column but not the other is refused BEFORE any row is read —
+// otherwise every one of 15 000 rows trips "half a coordinate" and the real fault is buried.
+func TestParse_RejectsHalfACoordinateHeader(t *testing.T) {
+	_, err := Parse(strings.NewReader("locality,state,postcode,latitude\nRichmond,VIC,3121,-37.8\n"))
+	if err == nil || !strings.Contains(err.Error(), "one coordinate column but not the other") {
+		t.Fatalf("want a header rejection naming the missing column, got: %v", err)
+	}
+}
+
+// Coordinates are not part of a locality's identity: the same triple twice collapses to one row even
+// when the points differ. ⚠ Row gained pointer fields, which would silently break a map[Row] dedupe.
+func TestParse_DedupesOnTheTripleNotTheCoordinate(t *testing.T) {
+	rows, err := parseGeo(t, "Richmond,VIC,3121,-37.8182,144.9970\nRichmond,VIC,3121,-37.8183,144.9971\n")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("want 1 row after dedupe, got %d", len(rows))
+	}
+}

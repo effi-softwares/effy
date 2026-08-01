@@ -46,13 +46,15 @@ func (s *pgStore) DestinationZone(ctx context.Context, customerID, addressID str
 }
 
 type legRow struct {
-	ShopID      string  `db:"shop_id"`
-	OriginZone  *string `db:"origin_zone_id"`
-	Method      *string `db:"method"`
-	PriceAmount *string `db:"price_amount"`
-	LeadMin     *int    `db:"lead_days_min"`
-	LeadMax     *int    `db:"lead_days_max"`
-	Cutoff      *string `db:"same_day_cutoff"`
+	ShopID      string   `db:"shop_id"`
+	OriginZone  *string  `db:"origin_zone_id"`
+	OriginLat   *float64 `db:"origin_lat"`
+	OriginLon   *float64 `db:"origin_lon"`
+	Method      *string  `db:"method"`
+	PriceAmount *string  `db:"price_amount"`
+	LeadMin     *int     `db:"lead_days_min"`
+	LeadMax     *int     `db:"lead_days_max"`
+	Cutoff      *string  `db:"same_day_cutoff"`
 }
 
 // Legs resolves each shop's origin zone (from its postcode) and the active offerings for
@@ -62,11 +64,17 @@ func (s *pgStore) Legs(ctx context.Context, shopIDs []string, destZoneID string)
 	rows, err := s.pool.Query(ctx, `
 SELECT sh.id::text AS shop_id,
        oz.zone_id::text AS origin_zone_id,
+       oc.latitude::float8  AS origin_lat,
+       oc.longitude::float8 AS origin_lon,
        o.method, o.price_amount::text AS price_amount,
        o.lead_days_min, o.lead_days_max,
        to_char(o.same_day_cutoff, 'HH24:MI') AS same_day_cutoff
 FROM public.shop sh
 LEFT JOIN public.delivery_zone_postcode oz ON oz.postcode = sh.postcode
+-- ⚠ LEFT JOIN, not INNER (032). A shop whose postcode has no centroid must still be able to deliver;
+-- it simply has no known distance, and the pricing core prices an unknown distance at the FURTHEST
+-- band. An INNER JOIN here would silently make that shop's packages undeliverable instead.
+LEFT JOIN public.postcode_centroid oc ON oc.postcode = sh.postcode
 LEFT JOIN public.delivery_offering o
        ON o.origin_zone_id = oz.zone_id
       AND o.destination_zone_id = $2
@@ -86,6 +94,10 @@ WHERE sh.id = ANY($1::uuid[])`, shopIDs, destZoneID)
 		leg.ShopID = r.ShopID
 		if r.OriginZone != nil {
 			leg.OriginOK = true
+		}
+		// ⚠ Both halves or neither — a half-populated point is not a location.
+		if r.OriginLat != nil && r.OriginLon != nil {
+			leg.OriginPoint = &delivery.Point{Lat: *r.OriginLat, Lon: *r.OriginLon}
 		}
 		if r.Method != nil && r.PriceAmount != nil {
 			cents, perr := money.ParseCents(*r.PriceAmount)
@@ -250,4 +262,109 @@ func derefInt(p *int) int {
 		return 0
 	}
 	return *p
+}
+
+// ── 032-delivery-pricing ───────────────────────────────────────────────────────────────────────
+
+// PostcodePoint reads one postcode's centroid.
+//
+// ⚠ ok=false means "we do not know where this is", NOT "it is at 0,0". The caller must carry that
+// distinction all the way into the pricing core, which prices an unknown location at the FURTHEST
+// band (FR-038). Collapsing it to a zero Point here would make the most remote postcode in the
+// country — precisely the one whose location we are least likely to have — the cheapest to deliver
+// to, with nothing anywhere reporting a fault.
+func (s *pgStore) PostcodePoint(ctx context.Context, postcode string) (*delivery.Point, error) {
+	var lat, lon float64
+	err := s.pool.QueryRow(ctx,
+		`SELECT latitude::float8, longitude::float8 FROM public.postcode_centroid WHERE postcode = $1`,
+		postcode).Scan(&lat, &lon)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("checkout: postcode point: %w", err)
+	}
+	return &delivery.Point{Lat: lat, Lon: lon}, nil
+}
+
+// PricingRules reads every active pricing rule with its bands, keyed by method.
+//
+// Two queries rather than a join: there are exactly three rules, and a join would fan each rule row
+// out across its bands and need de-duplicating for no benefit.
+func (s *pgStore) PricingRules(ctx context.Context) (map[delivery.Method]delivery.PricingRule, error) {
+	ruleRows, err := s.pool.Query(ctx, `
+SELECT id::text, method, base_amount::text, rounding_step::text, max_amount::text, status
+  FROM public.delivery_pricing_rule`)
+	if err != nil {
+		return nil, fmt.Errorf("checkout: pricing rules: %w", err)
+	}
+	type rr struct {
+		ID     string `db:"id"`
+		Method string `db:"method"`
+		Base   string `db:"base_amount"`
+		Step   string `db:"rounding_step"`
+		Max    string `db:"max_amount"`
+		Status string `db:"status"`
+	}
+	rules, err := pgx.CollectRows(ruleRows, pgx.RowToStructByName[rr])
+	if err != nil {
+		return nil, fmt.Errorf("checkout: scan pricing rules: %w", err)
+	}
+
+	bandRows, err := s.pool.Query(ctx, `
+SELECT rule_id::text, dimension, upper_bound::float8, add_amount::text
+  FROM public.delivery_price_band ORDER BY rule_id, dimension, upper_bound`)
+	if err != nil {
+		return nil, fmt.Errorf("checkout: price bands: %w", err)
+	}
+	type br struct {
+		RuleID     string  `db:"rule_id"`
+		Dimension  string  `db:"dimension"`
+		UpperBound float64 `db:"upper_bound"`
+		AddAmount  string  `db:"add_amount"`
+	}
+	bands, err := pgx.CollectRows(bandRows, pgx.RowToStructByName[br])
+	if err != nil {
+		return nil, fmt.Errorf("checkout: scan price bands: %w", err)
+	}
+
+	out := map[delivery.Method]delivery.PricingRule{}
+	for _, r := range rules {
+		base, perr := money.ParseCents(r.Base)
+		if perr != nil {
+			return nil, fmt.Errorf("checkout: rule base: %w", perr)
+		}
+		step, perr := money.ParseCents(r.Step)
+		if perr != nil {
+			return nil, fmt.Errorf("checkout: rule step: %w", perr)
+		}
+		maxC, perr := money.ParseCents(r.Max)
+		if perr != nil {
+			return nil, fmt.Errorf("checkout: rule cap: %w", perr)
+		}
+		rule := delivery.PricingRule{
+			Method:          delivery.Method(r.Method),
+			BaseCents:       base,
+			RoundingStepCts: step,
+			MaxCents:        maxC,
+			Active:          r.Status == "active",
+		}
+		for _, b := range bands {
+			if b.RuleID != r.ID {
+				continue
+			}
+			add, perr := money.ParseCents(b.AddAmount)
+			if perr != nil {
+				return nil, fmt.Errorf("checkout: band add: %w", perr)
+			}
+			band := delivery.Band{UpperBound: b.UpperBound, AddCents: add}
+			if b.Dimension == "distance" {
+				rule.DistanceBands = append(rule.DistanceBands, band)
+			} else {
+				rule.WeightBands = append(rule.WeightBands, band)
+			}
+		}
+		out[rule.Method] = rule
+	}
+	return out, nil
 }

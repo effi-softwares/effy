@@ -67,8 +67,29 @@ export interface AuditEntry {
 // Domain exception → mapped to problem+json in the handler (no HTTP concern here).
 export type DeliveryErrorKind =
   | "validation" // → 400
+  | "unprocessable" // → 422 (032: a well-formed body whose CONTENT is refused — see below)
   | "conflict" // → 409 (duplicate zone code, postcode already zoned, duplicate offering)
   | "not_found"; // → 404
+
+/**
+ * ⚠ WHY 032 ADDS A 422 RATHER THAN REUSING 400 (which every earlier slice uses for body validation).
+ *
+ * The pricing refusals are not about a malformed request — the JSON parses, the types are right, the
+ * numbers are numbers. They are about a CONFIGURATION that would quietly do the wrong thing: a cap
+ * below the floor makes every fee the cap (a silently flat price table); an empty band set prices
+ * everything at the base; a cap that is not a multiple of the rounding step produces an unrounded fee
+ * on exactly the most expensive orders. Each is well-formed and semantically refused, which is what
+ * 422 means (RFC 9110 §15.5.21).
+ *
+ * ⚠ Each refusal carries a stable `code`, because "invalid" tells an operator nothing about which of
+ * six rules they broke — the same reasoning behind 027's eight distinguishable promo refusals.
+ */
+export type DeliveryRefusalCode =
+  | "bands_required"
+  | "duplicate_band"
+  | "invalid_rounding"
+  | "cap_below_floor"
+  | "cap_not_rounded";
 
 export interface FieldIssue {
   field: string;
@@ -80,6 +101,8 @@ export class DeliveryError extends Error {
     readonly kind: DeliveryErrorKind,
     message: string,
     readonly fields?: FieldIssue[],
+    /** Stable machine-readable refusal code (032). Present on `unprocessable` errors. */
+    readonly code?: DeliveryRefusalCode,
   ) {
     super(message);
     this.name = "DeliveryError";
@@ -165,4 +188,57 @@ export interface AreaHealth {
   /** ⚠ The REGIONAL class: nobody decided, and nothing is offered. */
   unconfigured: { zoneCode: string; postcode: string }[];
   emptyZones: { zoneCode: string }[];
+}
+
+/* ── 032-delivery-pricing ──────────────────────────────────────────────────────────────────────
+ *
+ * ⚠ PRICING RULES REPLACE delivery_offering.price_amount AS THE SINGLE SOURCE OF A DELIVERY FEE.
+ * The rate grid above (Offering) keeps the window, the lead time and whether a leg is offered at all;
+ * it no longer decides what anything costs. Two sources for one answer is the defect class this
+ * feature exists to remove, so the column is dropped rather than deprecated.
+ *
+ * ⚠ NO SHOP CAN REACH ANY OF THIS. There is no pricing route on apis/edge-api/shop at any verb, which
+ * is how FR-008 is enforced — by route topology, not by a check somebody could forget.
+ */
+
+/** Which axis a band measures. */
+export type BandDimension = "distance" | "weight";
+
+/**
+ * One band: everything up to `upperBound` adds `addAmount`.
+ *
+ * ⚠ UPPER BOUND ONLY. Storing both bounds would make a GAP between two bands representable, and
+ * FR-011 exists precisely because a gap must never mean "no fee".
+ */
+export interface PriceBand {
+  /** Kilometres (distance) or kilograms (weight), as a decimal string. */
+  upperBound: string;
+  addAmount: string;
+}
+
+/** How one delivery method is priced. Exactly one per method (FR-007). */
+export interface PricingRule {
+  method: DeliveryMethod;
+  baseAmount: string;
+  /** ⚠ Fees round UP to a multiple of this — never to nearest (FR-005). */
+  roundingStep: string;
+  /** ⚠ Required ceiling (FR-012); bands ADD, and without one an extreme order produces a number nobody chose. */
+  maxAmount: string;
+  status: DeliveryStatus;
+  distanceBands: PriceBand[];
+  weightBands: PriceBand[];
+  /** ⚠ Never null — FR-013/SC-014 require every pricing change to name a person. */
+  updatedBy: string;
+  updatedAt: string;
+}
+
+/** Whole-rule replacement. ⚠ Bands are only meaningful as a SET — a per-band write would let a quote
+ *  in flight observe a half-edited table. */
+export interface PricingRuleInput {
+  baseAmount: string;
+  roundingStep: string;
+  maxAmount: string;
+  status: DeliveryStatus;
+  distanceBands: PriceBand[];
+  weightBands: PriceBand[];
 }

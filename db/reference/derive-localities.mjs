@@ -15,10 +15,18 @@
  *
  *     {ST}_STATE_psv.psv            STATE_PID → STATE_ABBREVIATION
  *     {ST}_LOCALITY_psv.psv         LOCALITY_PID → LOCALITY_NAME, STATE_PID, LOCALITY_CLASS_CODE
+ *     {ST}_LOCALITY_POINT_psv.psv   LOCALITY_PID → LATITUDE, LONGITUDE          (032)
  *     {ST}_ADDRESS_DETAIL_psv.psv   LOCALITY_PID, POSTCODE   ← the big one, streamed
  *
  * The postcode lives on the ADDRESS, not on the locality — which is precisely why a locality can
  * span several postcodes, and why the natural key is the triple (data-model.md).
+ *
+ * ⚠ COORDINATES WERE ALWAYS HERE, AND 030 DISCARDED THEM. `{ST}_LOCALITY_POINT_psv.psv` ships a
+ * latitude and longitude for every locality, in the same download, under the same CC BY 4.0 licence.
+ * 031's research then asserted "the platform has no routing or distance capability" and used that to
+ * justify a zone-membership proxy for same-day delivery — which permitted same-day to Ballarat from a
+ * shop in Bendigo, 98 km away, essentially as far as Melbourne. The premise was false; the data was on
+ * disk the whole time. See specs/032-delivery-pricing/research.md R1.
  *
  * ⚠ FILE PATTERNS ARE ANCHORED TO THE WHOLE BASENAME, and that is load-bearing. An earlier draft
  * matched `/_LOCALITY_psv\.psv$/`, which ALSO matches `{ST}_STREET_LOCALITY_psv.psv` — a different
@@ -58,6 +66,63 @@ import { fileURLToPath } from "node:url"
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const OUT = join(HERE, "au-localities.csv")
+
+/**
+ * The G-NAF file patterns, EXPORTED so they can be tested without a 1.7 GB download.
+ *
+ * ⚠ EVERY ONE IS ANCHORED TO THE WHOLE BASENAME, and that is the single most important line in this
+ * file. The loose form `/_LOCALITY_psv\.psv$/` also matches `{ST}_STREET_LOCALITY_psv.psv` — a
+ * different table, different columns, holding STREET names — and would have loaded thousands of
+ * street names into the suburb list with nothing complaining. Found only by running against the real
+ * download; a synthetic fixture has no such file to trip over.
+ *
+ * ⚠ `LOCALITY` must NOT match `{ST}_LOCALITY_POINT_psv.psv`, and `POINT` must NOT match
+ * `{ST}_LOCALITY_psv.psv`. Those two are one word apart and are asserted against each other in
+ * derive-localities.test.mjs.
+ */
+export const FILE_PATTERNS = {
+  STATE: /^[A-Z]{2,3}_STATE_psv\.psv$/i,
+  LOCALITY: /^[A-Z]{2,3}_LOCALITY_psv\.psv$/i,
+  LOCALITY_POINT: /^[A-Z]{2,3}_LOCALITY_POINT_psv\.psv$/i,
+  ADDRESS_DETAIL: /^[A-Z]{2,3}_ADDRESS_DETAIL_psv\.psv$/i,
+}
+
+/**
+ * Australia's bounding box, drawn wide enough to include every territory G-NAF ships.
+ *
+ * ⚠ Wide ON PURPOSE. Longitude spans Cocos (96.8° E) to Norfolk Island (167.9° E) — far beyond the
+ * mainland — because parsePoint runs over EVERY LOCALITY_POINT row, including the `OT` pseudo-state
+ * that is filtered out later. Tight mainland bounds would reject those rows as corrupt and inflate
+ * the "unusable" count with perfectly good data, which is the kind of noise that trains people to
+ * ignore a counter.
+ *
+ * ⚠ It exists to REJECT, not to clamp. The discriminating axis is LATITUDE: G-NAF lists LONGITUDE
+ * *first*, and every Australian longitude (96…168) is a plausible-looking number that is not a
+ * latitude — so a positionally-swapped pair produces a coordinate that looks entirely reasonable and
+ * puts the suburb thousands of kilometres away. Since no Australian latitude is above -8, the swap is
+ * caught here. Silently accepting one would price delivery to that suburb at the furthest band
+ * forever, with nothing reporting a fault.
+ */
+export const AU_BOUNDS = { minLat: -55, maxLat: -8, minLon: 95, maxLon: 170 }
+
+/** Parse one G-NAF coordinate pair. Returns null when absent; throws when present and wrong. */
+export function parsePoint(latRaw, lonRaw) {
+  const lat = (latRaw ?? "").trim()
+  const lon = (lonRaw ?? "").trim()
+  if (!lat && !lon) return null
+  // ⚠ One half present is NOT "no point" — it is a broken row, and treating it as absent would hide
+  // a real parsing fault behind a legitimate-looking gap.
+  if (!lat || !lon) throw new Error(`half a coordinate: lat=${JSON.stringify(lat)} lon=${JSON.stringify(lon)}`)
+  const latN = Number(lat)
+  const lonN = Number(lon)
+  if (!Number.isFinite(latN) || !Number.isFinite(lonN)) {
+    throw new Error(`unparseable coordinate: lat=${lat} lon=${lon}`)
+  }
+  if (latN < AU_BOUNDS.minLat || latN > AU_BOUNDS.maxLat || lonN < AU_BOUNDS.minLon || lonN > AU_BOUNDS.maxLon) {
+    throw new Error(`coordinate outside Australia: lat=${latN} lon=${lonN} (columns swapped?)`)
+  }
+  return { lat: latN, lon: lonN }
+}
 
 /** The eight the `locality.state` CHECK constraint permits. */
 const STATES = new Set(["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"])
@@ -126,8 +191,8 @@ async function main() {
   }
 
   // ── 1. STATE_PID → abbreviation ──────────────────────────────────────────────────────────────
-  // ⚠ Anchored to the whole basename. See the note at the top of this file.
-  const stateFiles = findAll(gnaf, (n) => /^[A-Z]{2,3}_STATE_psv\.psv$/i.test(n))
+  // ⚠ Anchored to the whole basename. See FILE_PATTERNS.
+  const stateFiles = findAll(gnaf, (n) => FILE_PATTERNS.STATE.test(n))
   if (stateFiles.length === 0) {
     console.error("derive-localities: no {ST}_STATE_psv.psv found under", gnaf)
     console.error("⚠ Point GNAF at the folder containing 'G-NAF <MONTH> <YEAR>/Standard/'.")
@@ -153,8 +218,9 @@ async function main() {
 
   // ── 2. LOCALITY_PID → { name, state } ────────────────────────────────────────────────────────
   // ⚠ `^[A-Z]{2,3}_LOCALITY_psv\.psv$` and NOT `_LOCALITY_psv\.psv$` — the loose form also matches
-  // {ST}_STREET_LOCALITY_psv.psv and would load street names as suburbs.
-  const localityFiles = findAll(gnaf, (n) => /^[A-Z]{2,3}_LOCALITY_psv\.psv$/i.test(n))
+  // {ST}_STREET_LOCALITY_psv.psv and would load street names as suburbs. It must also NOT match
+  // {ST}_LOCALITY_POINT_psv.psv, which is read separately below.
+  const localityFiles = findAll(gnaf, (n) => FILE_PATTERNS.LOCALITY.test(n))
   const localityByPid = new Map()
   let wrongClass = 0
   let retiredLocality = 0
@@ -179,8 +245,44 @@ async function main() {
       `(${retiredLocality} retired, ${wrongClass} not a residential locality class)`,
   )
 
+  // ── 2b. LOCALITY_PID → { lat, lon } (032) ────────────────────────────────────────────────────
+  // ⚠ Header order is LOCALITY_POINT_PID|DATE_CREATED|DATE_RETIRED|LOCALITY_PID|
+  //   PLANIMETRIC_ACCURACY|LONGITUDE|LATITUDE — note LONGITUDE comes FIRST. Columns are addressed by
+  //   name (readPsv does that), which is what stops the swap; parsePoint's bounds check is the belt to
+  //   that braces, because a swapped pair is numerically plausible and would never look wrong.
+  const pointFiles = findAll(gnaf, (n) => FILE_PATTERNS.LOCALITY_POINT.test(n))
+  const pointByPid = new Map()
+  let retiredPoint = 0
+  let badPoint = 0
+  for (const f of pointFiles) {
+    for await (const r of readPsv(f)) {
+      if (!r.LOCALITY_PID) continue
+      if (r.DATE_RETIRED) {
+        retiredPoint++
+        continue
+      }
+      let pt
+      try {
+        pt = parsePoint(r.LATITUDE, r.LONGITUDE)
+      } catch {
+        // ⚠ Counted and skipped, never coerced to 0,0 — which is in the Gulf of Guinea, and would
+        // price that suburb as the furthest place on earth rather than reporting a problem.
+        badPoint++
+        continue
+      }
+      if (pt) pointByPid.set(r.LOCALITY_PID, pt)
+    }
+  }
+  console.log(
+    `derive-localities: ${pointByPid.size} locality points from ${pointFiles.length} files ` +
+      `(${retiredPoint} retired, ${badPoint} unusable)`,
+  )
+  if (pointFiles.length === 0) {
+    fail("no {ST}_LOCALITY_POINT_psv.psv found — 032 needs coordinates; is this an older G-NAF release?")
+  }
+
   // ── 3. Stream ADDRESS_DETAIL for distinct (LOCALITY_PID, POSTCODE) ───────────────────────────
-  const detailFiles = findAll(gnaf, (n) => /^[A-Z]{2,3}_ADDRESS_DETAIL_psv\.psv$/i.test(n))
+  const detailFiles = findAll(gnaf, (n) => FILE_PATTERNS.ADDRESS_DETAIL.test(n))
   if (detailFiles.length === 0) {
     console.error("derive-localities: no {ST}_ADDRESS_DETAIL_psv.psv found under", gnaf)
     process.exit(2)
@@ -212,7 +314,12 @@ async function main() {
   process.stdout.write("\n")
 
   // ── 4. Join, validate, sort ──────────────────────────────────────────────────────────────────
-  const triples = new Set()
+  //
+  // ⚠ A triple (name, state, postcode) can be produced by SEVERAL locality PIDs — G-NAF sometimes
+  // carries more than one PID for what is, to a shopper, one place. Its coordinate is therefore the
+  // MEAN of the points behind it, not "whichever PID we saw last": the latter is unstable across
+  // dataset refreshes and would break the byte-identical-rerun property this script is built around.
+  const triples = new Map() // key -> { name, state, postcode, latSum, lonSum, points }
   let unknownLocality = 0
   for (const pair of pairs) {
     const [pid, postcode] = pair.split(" ")
@@ -221,11 +328,32 @@ async function main() {
       unknownLocality++
       continue
     }
-    triples.add(`${loc.name} ${loc.state} ${postcode}`)
+    const key = `${loc.name} ${loc.state} ${postcode}`
+    let agg = triples.get(key)
+    if (!agg) {
+      agg = { name: loc.name, state: loc.state, postcode, latSum: 0, lonSum: 0, points: 0 }
+      triples.set(key, agg)
+    }
+    const pt = pointByPid.get(pid)
+    if (pt) {
+      agg.latSum += pt.lat
+      agg.lonSum += pt.lon
+      agg.points++
+    }
   }
 
-  const rows = [...triples]
-    .map((t) => t.split(" "))
+  const rows = [...triples.values()]
+    .map((a) => [
+      a.name,
+      a.state,
+      a.postcode,
+      // ⚠ EMPTY, not "0", when nothing behind this triple had a point. An empty cell means "we do
+      // not know"; a zero is a claim about a place in the Atlantic. The Go loader distinguishes them,
+      // and the pricing core treats an unknown location as the FURTHEST band — the safe direction to
+      // be wrong in. Coercing to 0 here would make the most remote suburb the cheapest to reach.
+      a.points ? (a.latSum / a.points).toFixed(6) : "",
+      a.points ? (a.lonSum / a.points).toFixed(6) : "",
+    ])
     .sort((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]) || a[2].localeCompare(b[2]))
 
   // ── 5. The guards, before anything is written ────────────────────────────────────────────────
@@ -247,11 +375,30 @@ async function main() {
     fail(`${rows.length} triples is outside the plausible 10k–40k range — check the G-NAF release`)
   }
 
-  const csv = "locality,state,postcode\n" + rows.map(([n, s, p]) => `${csvCell(n)},${s},${p}\n`).join("")
+  // ⚠ THE COORDINATE CANARY (032), the same idea as the NT one above. If the LOCALITY_POINT join
+  // silently produced nothing — a renamed file, a changed PID column, a release that drops the table —
+  // every row would carry an empty coordinate, every postcode would price at the FURTHEST band, and
+  // the CSV would look perfectly well-formed. Same-day approval screens would show "no location on
+  // record" for the entire country and nobody would know why.
+  const withPoint = rows.filter((r) => r[3] !== "").length
+  if (withPoint === 0) {
+    fail("no locality carried a coordinate — the LOCALITY_POINT join produced nothing; refusing to write")
+  }
+  if (withPoint < rows.length * 0.9) {
+    fail(
+      `only ${withPoint} of ${rows.length} triples have a coordinate (<90%) — ` +
+        "expected near-complete coverage; check the LOCALITY_POINT files",
+    )
+  }
+
+  const csv =
+    "locality,state,postcode,latitude,longitude\n" +
+    rows.map(([n, s, p, lat, lon]) => `${csvCell(n)},${s},${p},${lat},${lon}\n`).join("")
   await writeFile(OUT, csv, "utf8")
 
   console.log(`derive-localities: wrote ${OUT}`)
   console.log(`  ${rows.length.toLocaleString()} triples · ${statesSeen.size} states · ${leadingZero.toLocaleString()} leading-zero postcodes`)
+  console.log(`  ${withPoint.toLocaleString()} with a coordinate · ${(rows.length - withPoint).toLocaleString()} without`)
   console.log(`  scanned ${scanned.toLocaleString()} addresses (${retired.toLocaleString()} retired, ${droppedPostcode.toLocaleString()} with an unusable postcode, ${unknownLocality.toLocaleString()} with an unknown locality)`)
   console.log("⚠ G-NAF is CC BY 4.0 — keep the attribution in db/reference/README.md.")
 }
@@ -276,7 +423,12 @@ function fail(msg) {
   process.exit(1)
 }
 
-main().catch((err) => {
-  console.error("derive-localities:", err?.stack || err)
-  process.exit(1)
-})
+// ⚠ Only run when EXECUTED, not when imported. derive-localities.test.mjs imports FILE_PATTERNS and
+// parsePoint from here; without this guard the import would run the whole derivation and exit(2) for
+// want of a GNAF argument, so the tests could never run at all.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((err) => {
+    console.error("derive-localities:", err?.stack || err)
+    process.exit(1)
+  })
+}

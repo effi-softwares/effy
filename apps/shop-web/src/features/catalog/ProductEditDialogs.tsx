@@ -57,6 +57,10 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
   const [gtin, setGtin] = useState(detail.gtin ?? "");
   const [shortDescription, setShort] = useState(detail.shortDescription);
   const [longDescription, setLong] = useState(detail.longDescription ?? "");
+  // ⚠ Seeded BLANK when the weight is assumed, so the operator is answering "how heavy is it?" rather
+  // than confirming a number the platform invented. Pre-filling 500 would invite a save that flips the
+  // flag to "measured" without anyone measuring anything.
+  const [weightGrams, setWeight] = useState(detail.weightIsAssumed ? "" : String(detail.weightGrams));
 
   useEffect(() => {
     setName(detail.name);
@@ -65,6 +69,7 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
     setGtin(detail.gtin ?? "");
     setShort(detail.shortDescription);
     setLong(detail.longDescription ?? "");
+    setWeight(detail.weightIsAssumed ? "" : String(detail.weightGrams));
     edit.reset();
     // Seed by open/updatedAt only — see useSeedKey.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -80,6 +85,9 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
       gtin: gtin.trim() || null,
       shortDescription: shortDescription.trim(),
       longDescription: longDescription.trim() || null,
+      // ⚠ Blank means "leave it as it is" (undefined → omitted from the diff), NOT "reset to the
+      // default". There is deliberately no way to un-measure a weight from this dialog.
+      weightGrams: weightGrams.trim() ? Number(weightGrams.trim()) : undefined,
     });
     void edit.save(buildProductUpdate(detail.updatedAt, changed), () => onOpenChange(false));
   }
@@ -116,6 +124,24 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
       </Field>
       <Field id="e-long" label="Long description">
         <Textarea id="e-long" value={longDescription} onChange={(e) => setLong(e.target.value)} />
+      </Field>
+      <Field id="e-weight" label="Shipping weight (grams)">
+        <Input
+          id="e-weight"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          value={weightGrams}
+          onChange={(e) => setWeight(e.target.value)}
+          placeholder={detail.weightIsAssumed ? `${detail.weightGrams} (assumed)` : undefined}
+        />
+        {detail.weightIsAssumed ? (
+          <p className="text-sm text-muted-foreground">
+            ⚠ Nobody has weighed this — {detail.weightGrams} g is an assumption the platform records so
+            delivery can still be priced. Enter the real weight, including packaging.
+          </p>
+        ) : null}
       </Field>
     </FocusedEditDialog>
   );

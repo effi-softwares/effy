@@ -319,17 +319,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
-  deliveryAreaConfigureV1:
-    handler: src/functions/delivery-area-configure-v1-put.handler
-    description: Configure an area's service levels and fees (replace) — 031
-    events:
-      - httpApi:
-          method: PUT
-          path: /admin/v1/delivery-zones/{id}/areas/{postcode}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
   deliveryAreaNotServedV1:
     handler: src/functions/delivery-area-not-served-v1-post.handler
     description: Record a deliberate decision not to serve an area (withdraws it) — 031
@@ -348,6 +337,34 @@ functions:
       - httpApi:
           method: GET
           path: /admin/v1/delivery-health
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── 032-delivery-pricing ──────────────────────────────────────────────────────────────────────
+  # ⚠ THERE IS NO SHOP-SIDE COUNTERPART TO EITHER OF THESE, AT ANY VERB.
+  # FR-008 ("no shop may see, set or influence a delivery fee") is enforced by route topology, not by
+  # a check somebody could forget: apis/edge-api/shop defines no pricing path, so a shop token is
+  # refused by the gateway before any handler runs. SC-004 is verified by making that call with a real
+  # shop token and confirming the 401 — not by observing that the console has no button.
+  deliveryPricingListV1:
+    handler: src/functions/delivery-pricing-list-v1-get.handler
+    description: Delivery pricing rules with their distance/weight bands — 032
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery-pricing
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryPricingUpdateV1:
+    handler: src/functions/delivery-pricing-update-v1-put.handler
+    description: Replace one method's pricing rule and its whole band set — 032
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery-pricing/{method}
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

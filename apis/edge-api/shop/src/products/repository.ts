@@ -232,8 +232,10 @@ export async function createProduct(
       const ins = await client.query<{ id: string }>(
         `INSERT INTO public.product
              (shop_id, product_type_id, primary_category_id, name, sku, gtin, brand,
-              price_amount, compare_at_amount, short_description, long_description, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+              price_amount, compare_at_amount, short_description, long_description, created_by,
+              weight_grams, weight_is_assumed)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                     COALESCE($13::int, 500), $13 IS NULL)
           RETURNING id`,
         [
           shopId,
@@ -248,6 +250,10 @@ export async function createProduct(
           input.shortDescription,
           input.longDescription,
           createdBy,
+          // ⚠ ONE parameter drives both columns: supplying a weight is what makes it MEASURED. A
+          // separate client-settable flag would let "measured" mean only "the client said so".
+          // COALESCE keeps the column default (500g) as the single place the assumption is stated.
+          input.weightGrams,
         ],
       );
       productId = ins.rows[0]!.id;
@@ -298,6 +304,7 @@ export async function updateProduct(
     compareAtAmount: string | null;
     shortDescription: string;
     longDescription: string | null;
+    weightGrams: number | null;
   },
   attributes: CreateProductInput["attributes"],
 ): Promise<"updated" | "stale"> {
@@ -308,7 +315,11 @@ export async function updateProduct(
         `UPDATE public.product SET
              name = $3, product_type_id = $4, primary_category_id = $5, sku = $6, gtin = $7,
              brand = $8, price_amount = $9, compare_at_amount = $10, short_description = $11,
-             long_description = $12, updated_at = now()
+             long_description = $12, updated_at = now(),
+             -- ⚠ A weight is only written when one is SUPPLIED; NULL leaves the row as it stands
+             -- rather than resetting a measured weight back to the assumed default.
+             weight_grams      = COALESCE($14::int, weight_grams),
+             weight_is_assumed = CASE WHEN $14::int IS NULL THEN weight_is_assumed ELSE false END
           WHERE id = $1 AND shop_id = $2
             AND date_trunc('milliseconds', updated_at) = $13::timestamptz
           RETURNING id`,
@@ -326,6 +337,7 @@ export async function updateProduct(
           values.shortDescription,
           values.longDescription,
           expectedUpdatedAt,
+          values.weightGrams,
         ],
       );
     } catch (err) {
@@ -607,6 +619,8 @@ interface ProductRow {
   compare_at_amount: string | null;
   short_description: string;
   long_description: string | null;
+  weight_grams: number;
+  weight_is_assumed: boolean;
   status: ProductStatus;
   created_at: Date;
   updated_at: Date;
@@ -642,7 +656,8 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
             p.name, p.sku, p.gtin, p.brand,
             p.price_amount::text AS price_amount, p.currency,
             p.compare_at_amount::text AS compare_at_amount,
-            p.short_description, p.long_description, p.status, p.created_at, p.updated_at
+            p.short_description, p.long_description, p.weight_grams, p.weight_is_assumed,
+            p.status, p.created_at, p.updated_at
        FROM public.product p
        JOIN public.product_type pt ON pt.id = p.product_type_id
        JOIN public.category c ON c.id = p.primary_category_id
@@ -720,6 +735,8 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     compareAtAmount: row.compare_at_amount,
     shortDescription: row.short_description,
     longDescription: row.long_description,
+    weightGrams: Number(row.weight_grams),
+    weightIsAssumed: row.weight_is_assumed,
     status: row.status,
     attributes,
     media: mediaOut,
