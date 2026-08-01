@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify edge-health \
         db-new db-status db-up db-down check-goose \
-        core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        core-run core-test core-lint core-build create-first-admin delete-admin load-localities edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -218,6 +218,11 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" BACK_OFFICE_POOL_ID="$$POOL_ID" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
 		sh -c 'cd $(CORE_DIR) && go run ./cmd/create-first-admin --email "$(EMAIL)" --name "$(NAME)"'
 
+load-localities: ## OPERATOR: load/refresh the AU locality reference data (ENV=dev) — idempotent — specs/030
+	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
+	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
+		sh -c 'cd $(CORE_DIR) && go run ./cmd/load-localities'
+
 delete-admin: ## OPERATOR: COMPLETELY delete a back-office admin (EMAIL=.. ENV=dev [FORCE=1]) — irreversible — specs/006
 	@test -n "$(EMAIL)" || { echo 'usage: make delete-admin EMAIL=jane@effy.test ENV=dev [FORCE=1]'; exit 1; }
 	@printf 'DELETE admin %s from %s (Cognito + platform record) — IRREVERSIBLE\nContinue? [y/N] ' "$(EMAIL)" "$(ENV)"; \
@@ -307,7 +312,7 @@ cw-gates: ## customer-web: the two build-failing gates (Amplify quarantine + gue
 	@pnpm --filter @effy/customer-web depcruise
 	@pnpm --filter @effy/customer-web size
 
-cw-size: ## customer-web bundle budget — every guest route MUST stay <= 176 KB gzipped first-load JS
+cw-size: ## customer-web bundle budget — every guest route MUST stay <= 174 KB gzipped first-load JS
 	@pnpm --filter @effy/customer-web size
 
 cw-depcruise: ## customer-web: FAIL if any guest route imports aws-amplify (the quarantine, FR-006)

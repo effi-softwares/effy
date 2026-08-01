@@ -23,6 +23,7 @@ import type {
   ProductSort,
   ProductSearchResultDTO,
   ServiceabilityDTO,
+  LocalityDTO,
   PromotionDTO,
 } from "./storefront";
 import type {
@@ -85,6 +86,7 @@ export type {
   ProductSort,
   ProductSearchResultDTO,
   ServiceabilityDTO,
+  LocalityDTO,
   PromotionDTO,
   CartLineDTO,
   CartNoticeDTO,
@@ -143,6 +145,10 @@ export interface CustomerCommerceContract {
   searchResult: ProductSearchResultDTO;
   productSort: ProductSort;
   serviceability: ServiceabilityDTO;
+  // ⚠ Referencing LocalityDTO here is what makes it EXIST in Kotlin. Declaring it in storefront.ts
+  // alone is not enough — the generator walks this aggregator, so an unreferenced type is silently
+  // never generated and the drift check then passes trivially (030 T022a).
+  locality: LocalityDTO;
   promotion: PromotionDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;

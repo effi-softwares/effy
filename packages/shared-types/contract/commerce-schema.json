@@ -947,6 +947,30 @@
       ],
       "type": "object"
     },
+    "LocalityDTO": {
+      "additionalProperties": false,
+      "description": "One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030 FR-005).\n\n⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across states (there are many Springfields), a locality spans several postcodes, and a postcode covers several localities. That is why FR-008 forbids a bare name being selectable, and why the `locality` table's natural key is the triple. A response that drops any one of these is an ambiguous place the client cannot resolve.\n\n⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE, by `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that hinted at coverage would pre-empt that answer and let anyone enumerate the delivery footprint (FR-011).",
+      "properties": {
+        "name": {
+          "description": "The locality name as a shopper would say it, e.g. \"Richmond\".",
+          "type": "string"
+        },
+        "postcode": {
+          "description": "Exactly four digits — the same canonical form `ServiceabilityDTO.postcode` uses.",
+          "type": "string"
+        },
+        "state": {
+          "description": "One of ACT NSW NT QLD SA TAS VIC WA.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "state",
+        "postcode"
+      ],
+      "type": "object"
+    },
     "MediaDTO": {
       "additionalProperties": false,
       "description": "A product image (presigned GET URL + alt text).",
@@ -1960,6 +1984,9 @@
     "home": {
       "$ref": "#/definitions/StorefrontHomeDTO"
     },
+    "locality": {
+      "$ref": "#/definitions/LocalityDTO"
+    },
     "media": {
       "$ref": "#/definitions/MediaDTO"
     },
@@ -2039,6 +2066,7 @@
     "searchResult",
     "productSort",
     "serviceability",
+    "locality",
     "promotion",
     "cart",
     "cartLine",

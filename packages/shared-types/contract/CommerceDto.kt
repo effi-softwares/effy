@@ -703,6 +703,39 @@ data class StorefrontProductCardDTO (
 )
 
 /**
+ * One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030
+ * FR-005).
+ *
+ * ⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across
+ * states (there are many Springfields), a locality spans several postcodes, and a postcode
+ * covers several localities. That is why FR-008 forbids a bare name being selectable, and
+ * why the `locality` table's natural key is the triple. A response that drops any one of
+ * these is an ambiguous place the client cannot resolve.
+ *
+ * ⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE,
+ * by `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that
+ * hinted at coverage would pre-empt that answer and let anyone enumerate the delivery
+ * footprint (FR-011).
+ */
+@Serializable
+data class LocalityDTO (
+    /**
+     * The locality name as a shopper would say it, e.g. "Richmond".
+     */
+    val name: String,
+
+    /**
+     * Exactly four digits — the same canonical form `ServiceabilityDTO.postcode` uses.
+     */
+    val postcode: String,
+
+    /**
+     * One of ACT NSW NT QLD SA TAS VIC WA.
+     */
+    val state: String
+)
+
+/**
  * A product image (presigned GET URL + alt text).
  */
 @Serializable
