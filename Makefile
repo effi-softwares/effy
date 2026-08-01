@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify edge-health \
         db-new db-status db-up db-down check-goose \
-        core-run core-test core-lint core-build create-first-admin delete-admin load-localities edge-install edge-offline edge-test edge-deploy edge-remove \
+        core-run core-test core-lint core-build create-first-admin delete-admin load-localities derive-localities edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -217,6 +217,10 @@ create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EM
 	POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "create-first-admin: cannot read back-office pool id from SSM (001 contract)"; exit 1; }; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" BACK_OFFICE_POOL_ID="$$POOL_ID" AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) \
 		sh -c 'cd $(CORE_DIR) && go run ./cmd/create-first-admin --email "$(EMAIL)" --name "$(NAME)"'
+
+derive-localities: ## Derive db/reference/au-localities.csv from an unzipped G-NAF (GNAF=/path/to/G-NAF) — specs/030
+	@test -n "$(GNAF)" || { echo 'usage: make derive-localities GNAF=~/Downloads/G-NAF_MAY26'; exit 1; }
+	@node db/reference/derive-localities.mjs "$(GNAF)"
 
 load-localities: ## OPERATOR: load/refresh the AU locality reference data (ENV=dev) — idempotent — specs/030
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \

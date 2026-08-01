@@ -14,18 +14,20 @@ recorded beside it in `db/reference/README.md`.
 The dataset must supply, per row, at minimum: locality name, state/territory, postcode. Roughly
 16 000–18 000 rows. Candidates evaluated:
 
-| Source | Verdict |
-|---|---|
-| **Community `australian-postcodes` dataset** (permissively licensed, derived from Australia Post + G-NAF) | **Chosen.** Carries exactly the three fields, is redistributable, and is refreshed publicly. |
-| **Australia Post Postcode Data File** | Rejected — authoritative, but redistribution terms are not clearly compatible with committing it to a repo. |
-| **ABS ASGS "Suburbs and Localities" (SAL)** | Rejected — CC BY and authoritative for *names*, but ABS localities are **not postcode-based**, so it cannot answer the question this feature asks. |
-| **G-NAF** | Rejected — 15M address records to answer a suburb-level question. Enormous, and licensed per end user. |
-| **A commercial geocoding API** | Rejected by the spec (Out of Scope) and by Principle II — this becomes a runtime dependency on a third party for a lookup we can answer from our own database. |
+⚠ **T002 WAS RUN 2026-08-01 AND THE HEADLINE CHOICE FAILED.** The table below is corrected with
+what was actually verified, not what was assumed. The original draft named the community
+`australian-postcodes` dataset as "Chosen — permissively licensed". **It has no licence at all.**
 
-⚠ **The exact dataset file must be verified before it is committed** — field names, row count, and
-licence text. The choice above is the shape of the answer, not a licence review. If the chosen file
-turns out to be non-redistributable, the fallback is ABS SAL for names joined to Australia Post for
-postcodes, which is more work and produces the same three columns.
+| Source | Licence — VERIFIED | Verdict |
+|---|---|---|
+| **`matthewproctor/australianpostcodes`** (the original choice) | ⚠ **NONE.** GitHub API reports `"license": null`; there is no `LICENSE` file (404); the README states no terms. | **REJECTED.** No licence is not the same as a permissive one — it means all rights reserved by default. It cannot be committed to this repo. |
+| **Geoscape G-NAF** via data.gov.au | Tagged **CC BY 4.0** by data.gov.au's own API — but the package **also ships an "End User Licence Agreement" PDF and an "Open G-NAF Use Restriction" fact sheet**. | ⚠ **UNRESOLVED — needs those two PDFs read.** A CC BY tag sitting next to a EULA and a use-restriction sheet is exactly the ambiguity T002 exists to surface. Also **1.7 GB**, from which we would derive ~17k distinct triples. |
+| **ABS ASGS "Suburbs and Localities" (SAL)** | **CC BY 4.0**, clean and unambiguous (verified on the ABS site). | Usable for **names + states**, but ABS localities are **not postcode-based** — it cannot supply the postcode on its own, so it needs a second source and a join. |
+| **A commercial geocoding API** | n/a | Rejected by the spec (Out of Scope) and by Principle II. |
+
+⚠ **There is no drop-in replacement.** The original plan assumed a single small file with a permissive
+licence and all three columns. That file does not appear to exist under terms we can rely on. Every
+remaining path costs more than R1 assumed — this is a real Phase 1 cost increase, not a detail.
 
 **Rationale**: FR-002 requires whole-of-Australia coverage. Only a real dataset satisfies that;
 nothing can be hand-authored. Owning the data locally also keeps the lookup on our own latency and
