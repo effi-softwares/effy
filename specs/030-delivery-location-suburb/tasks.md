@@ -86,8 +86,8 @@ confirmation, not a gate (see its note).
 ### Risk checks — one gate, one confirmation
 
 - [ ] T026 **NON-BLOCKING confirmation** — `ModalBottomSheet` is **already shipped in three customer-mobile screens** (`CheckoutScreen.kt`, `AddressBookScreen.kt`, `AddressFormSheet.kt`), and `AddressFormSheet` is a text-input form inside a sheet, so soft-keyboard behaviour is already exercised on a path 019/022/023 live-validated end-to-end. ⚠ The only genuinely novel part is a **scrolling result list compressing under the keyboard** — confirm that when the sheet is built (T035), not before. Do **not** gate Phase 3 on it
-- [ ] T027 **⚠ GATE — run before any web UI work** Split `DeliveryAffordance` into shell + a **stub** lazily-loaded panel, then run `pnpm --filter @effy/customer-web size` and record the per-route delta against T027a's baseline (research [R7](./research.md)). ⚠ The budget to beat on `/cart` is **0.2 KB**. Target is **byte-neutral or negative** on the always-loaded path — moving the existing panel body behind `next/dynamic` should *free* bytes, and if it does not, the split is not doing its job. If it cannot fit, FR-045 already fixes the response: **reduce the web presentation** — do not raise the limit, do not add a dependency
-- [ ] T027b **⚠ DESIGN CHANGE forced by T027a** Seed the web location by **passing a prop into the existing `DeliveryAffordance` client component** from a server island — **not** via a separate `DeliverySeedClient` module. ⚠ A new always-loaded client component cannot fit in 0.2 KB; a prop on a component that already ships costs approximately nothing. This supersedes research [R8](./research.md)'s original two-file design and changes T056–T058
+- [x] T027 ✅ **GATE PASSED — but only after a real reduction.** ⚠ The `next/dynamic` split ALONE made every route WORSE (+0.4–0.6 KB; `/cart` 173.8 → **174.3**, over budget) — the lazy-loader runtime costs more than the small form it deferred. Three further changes were needed: the mount re-check dynamically imported, the `loading:` fallback dropped, and **`DeliveryNotice` split into its own module** (it rode in the always-loaded chrome on all six routes and is used on one). Final: `/` 172.7 · `/browse` 169.9 · `/search` 173.8 · `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at or below the pre-feature baseline**. Original task text: Split `DeliveryAffordance` into shell + a **stub** lazily-loaded panel, then run `pnpm --filter @effy/customer-web size` and record the per-route delta against T027a's baseline (research [R7](./research.md)). ⚠ The budget to beat on `/cart` is **0.2 KB**. Target is **byte-neutral or negative** on the always-loaded path — moving the existing panel body behind `next/dynamic` should *free* bytes, and if it does not, the split is not doing its job. If it cannot fit, FR-045 already fixes the response: **reduce the web presentation** — do not raise the limit, do not add a dependency
+- [x] T027b **⚠ DESIGN CHANGE forced by T027a** Seed the web location by **passing a prop into the existing `DeliveryAffordance` client component** from a server island — **not** via a separate `DeliverySeedClient` module. ⚠ A new always-loaded client component cannot fit in 0.2 KB; a prop on a component that already ships costs approximately nothing. This supersedes research [R8](./research.md)'s original two-file design and changes T056–T058
 - [x] T027a ✅ **DONE 2026-08-01** — re-measured on `02512f2`, all six routes green: `/` 172.2 · `/browse` 170.1 · `/search` **173.5** · `/product/[id]` 172.3 · `/cart` **173.8** · `/promotions/[id]` 171.0 (KB / 174 KB). ⚠ **The binding constraint is `/cart` at 0.2 KB and `/search` at 0.5 KB of headroom** — the stale "2.1–5.5 KB" figure was ~4–10× too generous. **Every always-loaded byte this feature adds to the storefront chrome must fit in 0.2 KB gzipped**, which is effectively zero. Artifacts restated; see T027b for the design consequence
 
 **Checkpoint**: the endpoint answers, the contract is pinned in two languages, and both risky
@@ -105,39 +105,39 @@ a single digit**. No account required.
 
 ### Shared client state
 
-- [ ] T028 [P] [US1] Add optional `locality` and `state` to the delivery context in `apps/customer-web/lib/delivery-store.ts`; changing the postcode clears both alongside `serviced`. ⚠ This **widens `seedFromAccount`** (`delivery-store.ts:155`) from `(postcode)` to carry the locality and state too — update its existing tests in the same change
-- [ ] T029 [US1] ⚠ Verify a `localStorage` value written **before** this feature still reads cleanly and renders as a bare postcode — a returning shopper must not silently lose their location on deploy day ([data-model.md](./data-model.md))
-- [ ] T030 [P] [US1] Add the same two optional fields to `DeliveryContext` in `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryContextStore.kt`, with the same clear-on-postcode-change rule. ⚠ Same signature widening on `seedFromAccount` (`DeliveryContextStore.kt:75`); update `DeliveryContextStoreTest.kt` in the same change
-- [ ] T031 [P] [US1] Unit-test both stores: setting a locality then changing the postcode leaves no stale name behind
+- [x] T028 [P] [US1] Add optional `locality` and `state` to the delivery context in `apps/customer-web/lib/delivery-store.ts`; changing the postcode clears both alongside `serviced`. ⚠ This **widens `seedFromAccount`** (`delivery-store.ts:155`) from `(postcode)` to carry the locality and state too — update its existing tests in the same change
+- [x] T029 [US1] ⚠ Verify a `localStorage` value written **before** this feature still reads cleanly and renders as a bare postcode — a returning shopper must not silently lose their location on deploy day ([data-model.md](./data-model.md))
+- [x] T030 [P] [US1] Add the same two optional fields to `DeliveryContext` in `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryContextStore.kt`, with the same clear-on-postcode-change rule. ⚠ Same signature widening on `seedFromAccount` (`DeliveryContextStore.kt:75`); update `DeliveryContextStoreTest.kt` in the same change
+- [x] T031 [P] [US1] Unit-test both stores: setting a locality then changing the postcode leaves no stale name behind
 
 ### Mobile — data and domain
 
-- [ ] T032 [P] [US1] Create `apps/customer-mobile/shared/src/commonMain/.../features/localities/domain/Locality.kt` — the entity, the `LocalityRepository` interface, and a `SearchLocalities` use case
-- [ ] T033 [US1] Create `apps/customer-mobile/shared/src/commonMain/.../features/localities/data/HttpLocalityRepository.kt` calling `v1/storefront/localities`, mapping the DTO explicitly and never letting it past the data layer
-- [ ] T034 [US1] Wire the repository and use case explicitly in `apps/customer-mobile/shared/src/commonMain/.../app/AppContainer.kt` (no DI framework)
+- [x] T032 [P] [US1] Create `apps/customer-mobile/shared/src/commonMain/.../features/localities/domain/Locality.kt` — the entity, the `LocalityRepository` interface, and a `SearchLocalities` use case
+- [x] T033 [US1] Create `apps/customer-mobile/shared/src/commonMain/.../features/localities/data/HttpLocalityRepository.kt` calling `v1/storefront/localities`, mapping the DTO explicitly and never letting it past the data layer
+- [x] T034 [US1] Wire the repository and use case explicitly in `apps/customer-mobile/shared/src/commonMain/.../app/AppContainer.kt` (no DI framework)
 
 ### Mobile — the bottom sheet
 
-- [ ] T035 [US1] Create `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliverySheet.kt` — a `ModalBottomSheet` (or the T026 fallback) carrying the input and the results list (FR-026, FR-027)
-- [ ] T036 [US1] Implement the single input that accepts either kind of entry: 4 digits check immediately (FR-007), letters search from the second character (FR-009)
-- [ ] T037 [US1] Render each result as a full-width row showing name, state and postcode together (FR-008), meeting the platform touch-target minimum (FR-032)
-- [ ] T038 [US1] Debounce input at 200 ms and ⚠ discard a response whose query the shopper has moved past — the slow "Rich" result must not repaint the list under a finger already typing "Richm" (research [R6](./research.md))
-- [ ] T039 [US1] Show the serviceability verdict **inside the sheet** (FR-028) and let the shopper try another place without reopening it (FR-029)
-- [ ] T040 [US1] Distinguish the three non-answers in the sheet: too-short input, empty result list, and a failed lookup. ⚠ **None of them may read as "we don't deliver there"** (FR-012, FR-013)
-- [ ] T041 [US1] Replace the `AlertDialog` in `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryBar.kt` with the sheet; keep dismissal leaving the previous location untouched (FR-030), keep the clear action (FR-031), and ⚠ **keep the first-time invitation** — with nothing set the affordance must still say "Set your delivery location" and open in one tap (FR-038)
-- [ ] T042 [P] [US1] Unit tests for the debounce/stale-discard logic and the three-non-answers mapping, in `commonTest`
+- [x] T035 [US1] Create `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliverySheet.kt` — a `ModalBottomSheet` (or the T026 fallback) carrying the input and the results list (FR-026, FR-027)
+- [x] T036 [US1] Implement the single input that accepts either kind of entry: 4 digits check immediately (FR-007), letters search from the second character (FR-009)
+- [x] T037 [US1] Render each result as a full-width row showing name, state and postcode together (FR-008), meeting the platform touch-target minimum (FR-032)
+- [x] T038 [US1] Debounce input at 200 ms and ⚠ discard a response whose query the shopper has moved past — the slow "Rich" result must not repaint the list under a finger already typing "Richm" (research [R6](./research.md))
+- [x] T039 [US1] Show the serviceability verdict **inside the sheet** (FR-028) and let the shopper try another place without reopening it (FR-029)
+- [x] T040 [US1] Distinguish the three non-answers in the sheet: too-short input, empty result list, and a failed lookup. ⚠ **None of them may read as "we don't deliver there"** (FR-012, FR-013)
+- [x] T041 [US1] Replace the `AlertDialog` in `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryBar.kt` with the sheet; keep dismissal leaving the previous location untouched (FR-030), keep the clear action (FR-031), and ⚠ **keep the first-time invitation** — with nothing set the affordance must still say "Set your delivery location" and open in one tap (FR-038)
+- [x] T042 [P] [US1] Unit tests for the debounce/stale-discard logic and the three-non-answers mapping, in `commonTest`
 
 ### Web — the panel
 
-- [ ] T043 [P] [US1] Create `apps/customer-web/lib/localities.ts` — the typed fetch, using `LocalityDTO` from `@effy/shared-types` rather than a local shape
-- [ ] T044 [US1] Finish the T027 split for real: `DeliveryAffordance.tsx` keeps only the button, the `<dialog>` shell and the store subscription; the body moves to `apps/customer-web/app/(shop)/_components/DeliveryPanel.tsx`, loaded via `next/dynamic` on first open (FR-043)
-- [ ] T045 [US1] Implement the input and a hand-rolled `role="listbox"` / `role="option"` list with `aria-activedescendant`, arrow keys and Enter — ⚠ no combobox library; the guest path is barred from `radix-ui` / `sonner` / `vaul` (FR-051, FR-045)
-- [ ] T046 [US1] Debounce at 200 ms and discard superseded responses, matching the mobile rule
-- [ ] T047 [US1] Show the verdict inside the panel (FR-050) and preserve the existing dismissal, focus-trap and background-inertness behaviour (FR-052)
-- [ ] T048 [US1] Map the three non-answers to three distinct messages, as on mobile (FR-012, FR-013)
-- [ ] T049 [P] [US1] Vitest coverage for the debounce/stale rule and the non-answer mapping in `apps/customer-web/lib/`
-- [ ] T050 [US1] Run `pnpm --filter @effy/customer-web depcruise` — ⚠ the guest-path quarantine must stay clean with the panel wired in
-- [ ] T051 [US1] Run `pnpm --filter @effy/customer-web size` with the real panel and record every route's number. ⚠ This is the gate; a breach is fixed by reducing the presentation (FR-044, FR-045)
+- [x] T043 [P] [US1] Create `apps/customer-web/lib/localities.ts` — the typed fetch, using `LocalityDTO` from `@effy/shared-types` rather than a local shape
+- [x] T044 [US1] Finish the T027 split for real: `DeliveryAffordance.tsx` keeps only the button, the `<dialog>` shell and the store subscription; the body moves to `apps/customer-web/app/(shop)/_components/DeliveryPanel.tsx`, loaded via `next/dynamic` on first open (FR-043)
+- [x] T045 [US1] Implement the input and a hand-rolled `role="listbox"` / `role="option"` list with `aria-activedescendant`, arrow keys and Enter — ⚠ no combobox library; the guest path is barred from `radix-ui` / `sonner` / `vaul` (FR-051, FR-045)
+- [x] T046 [US1] Debounce at 200 ms and discard superseded responses, matching the mobile rule
+- [x] T047 [US1] Show the verdict inside the panel (FR-050) and preserve the existing dismissal, focus-trap and background-inertness behaviour (FR-052)
+- [x] T048 [US1] Map the three non-answers to three distinct messages, as on mobile (FR-012, FR-013)
+- [x] T049 [P] [US1] Vitest coverage for the debounce/stale rule and the non-answer mapping in `apps/customer-web/lib/`
+- [x] T050 [US1] Run `pnpm --filter @effy/customer-web depcruise` — ⚠ the guest-path quarantine must stay clean with the panel wired in
+- [x] T051 [US1] Run `pnpm --filter @effy/customer-web size` with the real panel and record every route's number. ⚠ This is the gate; a breach is fixed by reducing the presentation (FR-044, FR-045)
 
 **Checkpoint**: US1 is shippable. A shopper can find their place by name on either surface, and every
 one of the three "we can't answer that" cases is visibly not a refusal.
@@ -154,20 +154,20 @@ are present on first view, with no interaction.
 
 ### Mobile
 
-- [ ] T052 [US2] Add a session observer in `apps/customer-mobile/shared/src/commonMain/.../app/AppContainer.kt`: on transition to `Authenticated`, list addresses (cold path), find `isDefault`, and call `seedFromAccount(...)` (research [R10](./research.md)). ⚠ Not from `HomeScreen` — that never runs if the shopper's first stop is another tab
-- [ ] T053 [US2] Seed the locality name and state from the address's `city` / `region` as well as the postcode; ⚠ `region` is nullable on existing addresses, so tolerate its absence and fall back to the postcode-derived display
-- [ ] T054 [US2] Implement the sign-out rule on the same observer: clear the context **only when `source == ACCOUNT`**; a location the shopper set survives (FR-023)
-- [ ] T055 [P] [US2] `commonTest` for the seeding guard (an existing location is never overwritten — FR-019), the sign-out discrimination in both directions, ⚠ that seeding **does not filter on serviceability** — an unserved default address is still seeded and shown as an ordinary refusal (FR-024) — and that a seeded location is changeable and clearable identically to one the shopper set (FR-020)
+- [x] T052 [US2] Add a session observer in `apps/customer-mobile/shared/src/commonMain/.../app/AppContainer.kt`: on transition to `Authenticated`, list addresses (cold path), find `isDefault`, and call `seedFromAccount(...)` (research [R10](./research.md)). ⚠ Not from `HomeScreen` — that never runs if the shopper's first stop is another tab
+- [x] T053 [US2] Seed the locality name and state from the address's `city` / `region` as well as the postcode; ⚠ `region` is nullable on existing addresses, so tolerate its absence and fall back to the postcode-derived display
+- [x] T054 [US2] Implement the sign-out rule on the same observer: clear the context **only when `source == ACCOUNT`**; a location the shopper set survives (FR-023)
+- [x] T055 [P] [US2] `commonTest` for the seeding guard (an existing location is never overwritten — FR-019), the sign-out discrimination in both directions, ⚠ that seeding **does not filter on serviceability** — an unserved default address is still seeded and shown as an ordinary refusal (FR-024) — and that a seeded location is changeable and clearable identically to one the shopper set (FR-020)
 
 ### Web
 
-- [ ] T056 [US2] Create `apps/customer-web/app/(shop)/_components/DeliverySeed.tsx` — a **server** component reading the session and default address and rendering `<DeliveryAffordance seed={…} />`. ⚠ It must **not** be called from `layout.tsx` directly; that file may not read cookies or headers (research [R8](./research.md))
-- [ ] T057 [US2] Accept the optional `seed` prop in `DeliveryAffordance` and apply it through the existing store guard. ⚠ **No new always-loaded client module** (T027b) — a separate `DeliverySeedClient` cannot fit in `/cart`'s 0.2 KB, a prop on a component that already ships can
-- [ ] T058 [US2] Swap `<DeliveryAffordance />` for `<Suspense><DeliverySeed /></Suspense>` in `apps/customer-web/app/(shop)/layout.tsx`, with the bare affordance as the fallback so the shell still prerenders. ⚠ Confirm a **guest** performs no account read (US2 scenario 8), and ⚠ confirm the public pages still build as `◐ PPR` — a dynamic read outside the boundary would turn every static shell into a per-request render
-- [ ] T059 [US2] Implement the same sign-out clearing rule in `apps/customer-web/lib/delivery-store.ts`, discriminating on `source`
-- [ ] T060 [P] [US2] Vitest for the web seeding guard and the sign-out rule, against **the same four cases as T055** — including the unserved-default case (FR-024) and the seeded-location-is-ordinary case (FR-020)
-- [ ] T061 [US2] ⚠ Confirm by inspection that no path in either surface writes to `/customer/v1/addresses` as part of setting, changing or clearing a location (FR-021, SC-006)
-- [ ] T062 [US2] Re-run `pnpm --filter @effy/customer-web size` — the seed client is **not** lazy-loadable and its bytes are always-loaded (contracts §3)
+- [x] T056 [US2] Create `apps/customer-web/app/(shop)/_components/DeliverySeed.tsx` — a **server** component reading the session and default address and rendering `<DeliveryAffordance seed={…} />`. ⚠ It must **not** be called from `layout.tsx` directly; that file may not read cookies or headers (research [R8](./research.md))
+- [x] T057 [US2] Accept the optional `seed` prop in `DeliveryAffordance` and apply it through the existing store guard. ⚠ **No new always-loaded client module** (T027b) — a separate `DeliverySeedClient` cannot fit in `/cart`'s 0.2 KB, a prop on a component that already ships can
+- [x] T058 [US2] Swap `<DeliveryAffordance />` for `<Suspense><DeliverySeed /></Suspense>` in `apps/customer-web/app/(shop)/layout.tsx`, with the bare affordance as the fallback so the shell still prerenders. ⚠ Confirm a **guest** performs no account read (US2 scenario 8), and ⚠ confirm the public pages still build as `◐ PPR` — a dynamic read outside the boundary would turn every static shell into a per-request render
+- [x] T059 [US2] Implement the same sign-out clearing rule in `apps/customer-web/lib/delivery-store.ts`, discriminating on `source`
+- [x] T060 [P] [US2] Vitest for the web seeding guard and the sign-out rule, against **the same four cases as T055** — including the unserved-default case (FR-024) and the seeded-location-is-ordinary case (FR-020)
+- [x] T061 [US2] ⚠ Confirm by inspection that no path in either surface writes to `/customer/v1/addresses` as part of setting, changing or clearing a location (FR-021, SC-006)
+- [x] T062 [US2] Re-run `pnpm --filter @effy/customer-web size` — the seed client is **not** lazy-loadable and its bytes are always-loaded (contracts §3)
 
 **Checkpoint**: 025's FR-013 account half is wired, three features after it was committed to.
 
@@ -180,15 +180,15 @@ are present on first view, with no interaction.
 **Independent Test**: set a location by choosing a named place, then read the affordance without
 opening anything — suburb, state and verdict are all legible.
 
-- [ ] T063 [P] [US3] Create `apps/customer-web/lib/delivery-display.ts` — a pure function implementing all four rows of the display rule ([contracts §2](./contracts/locality.contract.md))
-- [ ] T064 [P] [US3] Create `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryDisplay.kt` — the same pure function
-- [ ] T065 [P] [US3] Unit-test both against **the four-row table in the contract**, not against whatever the implementation does. ⚠ 028 and 029 both shipped tests whose fixtures agreed with the code rather than the world
-- [ ] T066 [US3] Resolve the name for a bare-postcode entry via `?q=<postcode>`: name it when the postcode covers exactly one locality, show `STATE 1234` when it covers several (FR-034). ⚠ A failed name lookup must leave the **verdict** untouched
-- [ ] T067 [US3] Apply the rule in `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryBar.kt`, keeping the three-state verdict visibly distinct (FR-035) and the polite live-region announcement (FR-037)
-- [ ] T068 [US3] Apply the rule to the web header button in `apps/customer-web/app/(shop)/_components/DeliveryAffordance.tsx`, including its `aria-label`
-- [ ] T069 [US3] Apply the rule to `DeliveryNotice` in the same file so the unserved notice names the place instead of repeating the postcode (FR-041)
-- [ ] T070 [US3] Make the screen-reader announcement use **the same words** as the visible display on both surfaces (FR-042)
-- [ ] T071 [US3] Implement predictable shortening for the web header (FR-040) — ⚠ the state may never be dropped in a way that makes two different places read identically
+- [x] T063 [P] [US3] Create `apps/customer-web/lib/delivery-display.ts` — a pure function implementing all four rows of the display rule ([contracts §2](./contracts/locality.contract.md))
+- [x] T064 [P] [US3] Create `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryDisplay.kt` — the same pure function
+- [x] T065 [P] [US3] Unit-test both against **the four-row table in the contract**, not against whatever the implementation does. ⚠ 028 and 029 both shipped tests whose fixtures agreed with the code rather than the world
+- [x] T066 [US3] Resolve the name for a bare-postcode entry via `?q=<postcode>`: name it when the postcode covers exactly one locality, show `STATE 1234` when it covers several (FR-034). ⚠ A failed name lookup must leave the **verdict** untouched
+- [x] T067 [US3] Apply the rule in `apps/customer-mobile/shared/src/commonMain/.../features/delivery/DeliveryBar.kt`, keeping the three-state verdict visibly distinct (FR-035) and the polite live-region announcement (FR-037)
+- [x] T068 [US3] Apply the rule to the web header button in `apps/customer-web/app/(shop)/_components/DeliveryAffordance.tsx`, including its `aria-label`
+- [x] T069 [US3] Apply the rule to `DeliveryNotice` in the same file so the unserved notice names the place instead of repeating the postcode (FR-041)
+- [x] T070 [US3] Make the screen-reader announcement use **the same words** as the visible display on both surfaces (FR-042)
+- [x] T071 [US3] Implement predictable shortening for the web header (FR-040) — ⚠ the state may never be dropped in a way that makes two different places read identically
 - [ ] T072 [US3] Verify no truncation of the verdict at the narrowest supported phone width and the largest supported system text size, light and dark (FR-036)
 
 **Checkpoint**: all three stories are independently functional.
@@ -218,13 +218,13 @@ without checking and three defects fell out of re-auditing them.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T084 [P] Add a Playwright spec `apps/customer-web/e2e/delivery.spec.ts` covering the keyboard path and the three non-answers
-- [ ] T085 [P] Verify reduced motion — the sheet's entrance routes through the existing motion spec; a shopper who asked for less movement gets none added
-- [ ] T086 [P] Confirm `tokens:check` is **unchanged** — this slice adds no design token, and the palette is closed (Principle V)
-- [ ] T087 [P] Grep the diff for any locality, state or postcode reaching a telemetry call (FR-047, SC-017)
-- [ ] T088 Update the parity register [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) §030 — ⚠ both customer columns move together; that was the point of the scope decision
-- [ ] T089 Update `CLAUDE.md` § Active feature with the outcome, the measured bundle numbers, and any carry-forward
-- [ ] T090 Run the full machine sweep in [quickstart.md](./quickstart.md) §4. ⚠ `pnpm -r typecheck` **and** `pnpm -r test` — vitest does not run `tsc`, and 029 shipped green tests over a failing typecheck; count the reporting packages
+- [x] T084 [P] Playwright spec `apps/customer-web/e2e/delivery.spec.ts` — 9 tests over the keyboard path and the answers that must stay apart. ⚠ **Also fixed 3 EXISTING e2e assertions** in `a11y.spec.ts` and `refinement.spec.ts` that addressed the field by its old label (`Postcode` → `Suburb or postcode`) and its old error text — they would have failed on the first live run
+- [x] T085 [P] Verify reduced motion — the sheet's entrance routes through the existing motion spec; a shopper who asked for less movement gets none added
+- [x] T086 [P] Confirm `tokens:check` is **unchanged** — this slice adds no design token, and the palette is closed (Principle V)
+- [x] T087 [P] Grep the diff for any locality, state or postcode reaching a telemetry call (FR-047, SC-017)
+- [x] T088 Update the parity register [docs/audiences/customer-capabilities.md](../../docs/audiences/customer-capabilities.md) §030 — ⚠ both customer columns move together; that was the point of the scope decision
+- [x] T089 Update `CLAUDE.md` § Active feature with the outcome, the measured bundle numbers, and any carry-forward
+- [x] T090 Run the full machine sweep in [quickstart.md](./quickstart.md) §4. ⚠ `pnpm -r typecheck` **and** `pnpm -r test` — vitest does not run `tsc`, and 029 shipped green tests over a failing typecheck; count the reporting packages
 - [x] T090a [P] Fix the stale `cw-size` help text at `Makefile:310` — it says "MUST stay <= **176 KB**" while `bundle-budget.mjs` enforces `GUEST_LIMIT = 174 * KB`. Pre-existing, surfaced by this slice; the Makefile is the outlier
 - [ ] T091 **⚠ OPERATOR** Sign-off per [quickstart.md](./quickstart.md) §5 — state which walks ran, on which platforms, the measured per-route bundle numbers, and ⚠ that **FR-019 holds within a session on mobile and cannot hold across a restart** (research [R12](./research.md))
 - [ ] T092 **⚠ OPERATOR** Commit the slice

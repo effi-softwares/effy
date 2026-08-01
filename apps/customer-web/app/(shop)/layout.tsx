@@ -5,7 +5,7 @@ import { BrandMark } from "@/components/storefront/BrandMark"
 import { pageSurface } from "@/components/storefront/kit"
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
 
-import { DeliveryAffordance } from "./_components/DeliveryAffordance"
+import { DeliverySeed, DeliverySeedFallback } from "./_components/DeliverySeed"
 import { HeaderSearch, HeaderSearchFallback } from "./_components/HeaderSearch"
 import { MiniCart } from "./_components/MiniCart"
 import { MobileNav, MobileNavFallback } from "./_components/MobileNav"
@@ -77,7 +77,14 @@ export default function ShopLayout({
             {/* FR-012: the delivery location. It lives here rather than beside the cart because
                 "do you deliver to me" is shop information, not a shopping action — the same slot the
                 reference gives to its utility links. */}
-            <DeliveryAffordance />
+            {/* ⚠ DYNAMIC HOLE. `DeliverySeed` reads the session + default address at request time so a
+                signed-in shopper is never asked where they live (030 FR-018). It MUST stay inside this
+                <Suspense> — and this file must never read cookies itself, or every public page stops
+                prerendering into a static shell. The fallback is the same affordance without a seed,
+                so the shell ships immediately and nothing shifts. */}
+            <Suspense fallback={<DeliverySeedFallback />}>
+              <DeliverySeed />
+            </Suspense>
 
             <div className="flex-1" />
 

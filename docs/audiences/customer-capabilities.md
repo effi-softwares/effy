@@ -632,3 +632,62 @@ once looked at** — all remain outstanding.
 **Parity gap with `customer-web`, unchanged from 028**: the storefront still ignores `code`, `terms`,
 `target` and `placement`, so a promotion with a minimum spend shows there **without its terms**, and the
 offers carousel is mobile-only.
+
+---
+
+## §030 — Suburb-aware delivery location
+
+**Both surfaces move together, and that was the point.** 025 gave the storefront its up-front "do we
+deliver to you?" answer but the only way in was a **postcode the shopper had to already know** — so a
+shopper new to the area, renting, or who simply thinks in suburb names could not answer at all. For
+that person the store's first interaction was a dead end. 030 lets them type **"Richmond"**.
+
+| Capability | customer-web | customer-mobile |
+|---|---|---|
+| Find a place by suburb name | ✅ | ✅ |
+| One input accepting either a postcode or a name (FR-006) | ✅ | ✅ |
+| Every place identified by name + state + postcode (FR-008) | ✅ | ✅ |
+| Verdict shown inside the entry surface (FR-028/FR-050) | ✅ | ✅ |
+| Seeded from the account's default address (FR-018) | ✅ | ✅ |
+| Sign-out drops an account place, keeps a device one (FR-023) | ✅ | ✅ |
+| The place displayed rather than bare digits (FR-033/FR-039) | ✅ | ✅ |
+| **Entry surface** | modal panel (unchanged shape) | **bottom sheet** (new — FR-026) |
+| Keyboard-only operation (FR-051) | ✅ | n/a |
+
+**Parity is of capability, not of form factor** — the bottom sheet is a mobile change by operator
+direction; web keeps the modal panel it had.
+
+**⚠ 025's FR-013 account half is finally wired.** `seedFromAccount` existed on **both** surfaces and
+was called by **neither** — a shopper who had already told Effy where they live was still being asked
+to type a postcode. It had been unmet since 025 shipped, on every surface, for three features.
+
+**Data**: one migration `20260801122324_locality.sql` + `db/reference/au-localities.csv` —
+**15,414 triples** derived from **16.9M** G-NAF address records (CC BY 4.0, attribution in
+`db/reference/README.md`). ⚠ The table covers **all of Australia, not only served areas** (FR-002): a
+served-only table would make "we've never heard of that place" and "we don't deliver there"
+indistinguishable, which is the exact conflation this capability exists to prevent.
+
+**⚠ The byte budget forced two design changes on web, and the gate is what found them.**
+`next/dynamic` **alone made every route worse** (+0.4–0.6 KB; `/cart` went over budget) — the lazy
+loader costs more than the small form it deferred. Getting under required also dynamically importing
+the mount re-check, dropping the `loading:` fallback, and **splitting `DeliveryNotice` into its own
+module** — it was riding in the always-loaded chrome on all six routes and is used on one. Separately,
+the planned `DeliverySeedClient` module was replaced by a **prop on the component that already ships**,
+because a new always-loaded client boundary does not fit in 0.2 KB. Final: `/` 172.7 · `/browse` 169.9
+· `/search` 173.8 · `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at
+or below the pre-feature baseline**.
+
+**⚠ FR-019 cannot fully hold on mobile.** The mobile delivery location still does not survive an app
+restart (025's unmet persistence half). So a signed-in shopper who deliberately switches suburbs is
+**re-seeded from their account default on next launch** — the explicit choice that was meant to
+outrank it did not survive. It holds within a session. ⚠ **This feature makes a pre-existing gap
+worse**: before it, nothing was ever seeded, so the gap only meant "retype it".
+
+**⚠ Outstanding (operator)**: every walk. The three-answers observer test with 5 testers (SC-003), 20
+nonsense inputs (SC-004), the seeding walk incl. the **unserved-default** case, one-handed reach with
+the soft keyboard open, screen reader, and **iOS *and* Android** — 028 asked that Android not be
+skipped again and 029 skipped it anyway. Also unwalked: the scrolling result list compressing under
+the keyboard, which is the one genuinely novel part of the sheet.
+
+**Carry-forwards**: mobile telemetry deferred an **eleventh** consecutive slice; the 028/029 banner
+`code`/`terms` face gap on web is untouched by this slice; `/search` has ~0.2 KB of headroom left.

@@ -9,7 +9,7 @@ import { JsonLd, organizationLd } from "@/lib/json-ld"
 
 import { CategoryMosaic } from "./_components/CategoryMosaic"
 import { Hero } from "./_components/Hero"
-import { DeliveryNotice } from "./_components/DeliveryAffordance"
+import { DeliveryNotice } from "./_components/DeliveryNotice"
 import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
 import { PromoCarousel } from "./_components/PromoCarousel"

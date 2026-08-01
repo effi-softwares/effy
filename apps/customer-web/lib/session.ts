@@ -28,6 +28,22 @@ export interface ServerSession {
   sub: string
   email: string | null
   /**
+   * The raw ID token, straight from the cookie, for FORWARDING to a backend (030).
+   *
+   * ⚠ Read the warning on `decodeJwtPayload` below: nothing here is verified. That is fine for this
+   * one use — the token is passed to the API Gateway's JWT authorizer, which DOES verify the
+   * signature and pins the issuer to the customer pool. Forging this cookie buys an attacker a 401.
+   *
+   * ⚠ It exists so a guest-path server component can call a customer endpoint WITHOUT importing
+   * `aws-amplify`, which is barred from the public path and machine-guarded (011 FR-006). Do not
+   * reach for `lib/dal`'s `getSession` from anything under `app/(shop)/` — the guard will stop you,
+   * and it is right to.
+   *
+   * ⚠ It may be EXPIRED — this path does no refresh. A caller must treat a 401 as "no seed", never
+   * as an error worth showing anyone.
+   */
+  idToken: string
+  /**
    * Name parts, from the ID token's standard `given_name` / `family_name` claims. For the header
    * greeting and the avatar's initials — PRESENTATION ONLY.
    *
@@ -51,6 +67,7 @@ export async function readServerSession(): Promise<ServerSession | null> {
 
   return {
     sub: String(claims.sub),
+    idToken: idCookie.value,
     email: typeof claims.email === "string" ? claims.email : null,
     givenName: typeof claims.given_name === "string" ? claims.given_name : null,
     familyName: typeof claims.family_name === "string" ? claims.family_name : null,

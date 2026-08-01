@@ -29,6 +29,17 @@ export interface DeliveryContext {
   /** Normalised to exactly 4 digits (AU) — the same form the server stores and compares. */
   postcode: string
   /**
+   * The locality the shopper picked, e.g. "Richmond" (030 FR-033).
+   *
+   * ⚠ OPTIONAL, and absent is meaningful: it means the shopper typed a bare postcode, or the place
+   * lookup could not resolve one. In that case the display shows the postcode WITHOUT inventing a
+   * suburb (FR-034) — a postcode covering several localities has no single right answer, and
+   * choosing one asserts a decision the shopper never made.
+   */
+  locality?: string | null
+  /** The state/territory, e.g. "VIC". Absent for the same reasons as `locality`. */
+  state?: string | null
+  /**
    * Whether Effy delivers to `postcode`.
    *
    * ⚠ Only ever the answer FOR THE STORED POSTCODE. Changing the postcode invalidates it, so there is
@@ -131,7 +142,26 @@ export function useDeliveryContext(): DeliveryContext | null {
 export function setDeliveryPostcode(raw: string, source: DeliverySource = "guest"): string | null {
   const postcode = normalizePostcode(raw)
   if (!postcode) return null
+  // ⚠ locality/state are cleared with the verdict. Showing the PREVIOUS place's name beside a new
+  // postcode is worse than showing no name at all.
   write({ postcode, serviced: null, checkedAt: 0, source })
+  return postcode
+}
+
+/**
+ * Set the location from a place the shopper CHOSE (030 FR-005) — so we know its name, not just its
+ * digits.
+ *
+ * Distinct from `setDeliveryPostcode` because the shopper picked this from a list: the name is
+ * theirs, not a guess, and FR-033 says the display should use it.
+ */
+export function setDeliveryPlace(
+  place: { locality: string; state: string; postcode: string },
+  source: DeliverySource = "guest",
+): string | null {
+  const postcode = normalizePostcode(place.postcode)
+  if (!postcode) return null
+  write({ postcode, locality: place.locality, state: place.state, serviced: null, checkedAt: 0, source })
   return postcode
 }
 
@@ -152,7 +182,32 @@ export function clearDeliveryContext(): void {
  * A shopper who deliberately set a different postcode on this device keeps it — their explicit choice
  * outranks their saved default.
  */
-export function seedFromAccount(postcode: string): void {
+export function seedFromAccount(place: {
+  postcode: string
+  locality?: string | null
+  state?: string | null
+}): void {
   if (read()) return
-  setDeliveryPostcode(postcode, "account")
+  const postcode = normalizePostcode(place.postcode)
+  if (!postcode) return
+  write({
+    postcode,
+    locality: place.locality ?? null,
+    state: place.state ?? null,
+    serviced: null,
+    checkedAt: 0,
+    source: "account",
+  })
+}
+
+/**
+ * Drop an ACCOUNT-derived location on sign-out; keep one the shopper set themselves (030 FR-023).
+ *
+ * ⚠ `source` was display provenance in 025. This is what makes it load-bearing: a place taken from
+ * someone's account must not outlive the session that produced it, because the device may not be
+ * theirs alone. A place they typed on this device is their own preference and survives.
+ */
+export function clearAccountDeliveryContext(): void {
+  const current = read()
+  if (current?.source === "account") write(null)
 }

@@ -7,12 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,13 +42,18 @@ import org.jetbrains.compose.resources.painterResource
  *   serviced == true   → we deliver
  *   serviced == false  → we do not deliver (browsing is unaffected — FR-014)
  *   serviced == null   → we have not asked, or the check failed. NEVER rendered as a refusal.
+ *
+ * ── 030 ────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * The entry surface is now a **bottom sheet** ([DeliverySheet]), not a centre-screen dialog, and the
+ * set location is written out as a PLACE — "Richmond VIC 3121", not "3121" — by the shared rule in
+ * [formatPlace]. A shopper who was unsure of their postcode cannot verify four bare digits, and that
+ * is exactly the shopper this feature exists for.
  */
 @Composable
 fun DeliveryBar(container: AppContainer) {
     val context by container.deliveryContext.state.collectAsState()
     var editing by remember { mutableStateOf(false) }
-    var draft by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun check(postcode: String) {
@@ -76,11 +78,7 @@ fun DeliveryBar(container: AppContainer) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                draft = context?.postcode ?: ""
-                error = null
-                editing = true
-            }
+            .clickable { editing = true }
             .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
@@ -95,7 +93,9 @@ fun DeliveryBar(container: AppContainer) {
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                if (context == null) "Set your delivery location" else "Deliver to ${context!!.postcode}",
+                // FR-033: the PLACE, not the bare postcode. `formatPlace` degrades to digits when the
+                // locality is unknown, so this is never empty and never invents a suburb (FR-034).
+                context?.let { formatPlace(it) } ?: "Set your delivery location",
                 style = MaterialTheme.typography.bodyMedium,
             )
             context?.let { ctx ->
@@ -108,7 +108,9 @@ fun DeliveryBar(container: AppContainer) {
                     message,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    // Announced so the verdict reaches a screen-reader user (FR-045).
+                    // Announced so the verdict reaches a screen-reader user (FR-045). ⚠ FR-042: it
+                    // names the place in the SAME words the visible line above uses, because both
+                    // come from `formatPlace`.
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
@@ -121,52 +123,11 @@ fun DeliveryBar(container: AppContainer) {
     }
 
     if (editing) {
-        AlertDialog(
-            onDismissRequest = { editing = false },
-            title = { Text("Delivery location") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                    Text(
-                        "We’ll tell you straight away whether we deliver to you.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedTextField(
-                        value = draft,
-                        onValueChange = {
-                            draft = it
-                            error = null
-                        },
-                        label = { Text("Postcode") },
-                        singleLine = true,
-                        isError = error != null,
-                        supportingText = error?.let { { Text(it) } },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val postcode = container.deliveryContext.setPostcode(draft)
-                    if (postcode == null) {
-                        // "That isn't a postcode" — deliberately NOT "we don't deliver there".
-                        error = "Enter a 4-digit postcode."
-                        return@TextButton
-                    }
-                    editing = false
-                    check(postcode)
-                }) { Text("Check") }
-            },
-            dismissButton = {
-                if (context != null) {
-                    TextButton(onClick = {
-                        container.deliveryContext.clear()
-                        editing = false
-                    }) { Text("Clear") }
-                } else {
-                    TextButton(onClick = { editing = false }) { Text("Cancel") }
-                }
-            },
+        DeliverySheet(
+            store = container.deliveryContext,
+            searchLocalities = container.searchLocalities,
+            onCheck = ::check,
+            onDismiss = { editing = false },
         )
     }
 }
