@@ -481,9 +481,19 @@ item.
   page footer.
 - **FR-056**: Shoppers MUST be able to group the saved list by product category, and to order it by
   most recently saved and by purchasable-first.
-- **FR-057**: The empty state for "you have never saved anything" and the state for "you have saved
-  items but none can be delivered where you are" MUST be distinct, and the latter MUST offer a way to
+- **FR-057**: There is exactly ONE empty state, and it means one thing: the shopper has saved nothing.
+  When the shopper HAS saved items but none can be delivered where they are, the list **MUST still
+  render every saved item**, with a notice above it explaining the situation and offering a way to
   change the delivery location.
+  - **⚠ CLARIFIED 2026-08-02, after the first build got it wrong.** The original wording ("the empty
+    state … and the state for …  MUST be distinct") was read as licence to replace the whole list with
+    a second full-screen empty state. That **hid items the shopper had deliberately saved** and made a
+    full list look like a lost one — caught on device.
+  - It is **FR-041's rule one level up**: a withdrawn product must not silently vanish from the list,
+    and neither must an undeliverable one. The requirement was always about a distinct **message**, not
+    about withholding the list.
+  - The per-item verdict (FR-035/FR-036) already says which items cannot come; the notice only explains
+    why none of them can, right now.
 
 ### I. Accessibility and presentation
 

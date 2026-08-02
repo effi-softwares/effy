@@ -24,7 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.EffyProductCard
 import com.effyshopping.customer.mobile.core.presentation.EffySegmentedToggle
 import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
@@ -97,9 +100,15 @@ fun SavedScreen(
             )
 
             is SavedUiState.Ready -> when {
-                // ⚠ TWO DISTINCT EMPTY STATES (FR-057). "You have never saved anything" and "you have
-                // saved things but none can be delivered where you are" are different situations, and
-                // a single message would leave the second shopper thinking their list was lost.
+                // ⚠ ONE empty state, and it means ONE thing: the shopper has saved nothing.
+                //
+                // ⚠ THERE USED TO BE A SECOND. When nothing in the list could be delivered, this
+                // screen replaced the WHOLE LIST with "Nothing here reaches your address" — hiding
+                // items the shopper had deliberately saved and making it look like the list had been
+                // lost. That is FR-041's rule ("a withdrawn product must not silently vanish") broken
+                // one level up, and it over-read FR-057: the spec asks for a distinct MESSAGE, not for
+                // the list to be replaced by one. The message is now a notice ABOVE the items
+                // (see UndeliverableNotice), and the items always render.
                 s.items.isEmpty() -> EffyEmptyState(
                     title = "Nothing saved yet",
                     // ⚠ FR-027: guest saves are DEVICE-HELD, and saying so is the difference between
@@ -112,18 +121,15 @@ fun SavedScreen(
                     onAction = onBrowse,
                 )
 
-                s.items.none { it.verdict.isPurchasable } && s.items.any {
-                    it.verdict == SavedVerdict.NOT_DELIVERED_TO_YOUR_AREA
-                } -> EffyEmptyState(
-                    title = "Nothing here reaches your address",
-                    body = "Your saved items are safe — we just can't deliver any of them to where " +
-                        "you're shopping right now. Try a different delivery location.",
-                    icon = Res.drawable.ic_favorite_outlined,
-                    actionLabel = "Change location",
-                    onAction = onChangeLocation,
-                )
-
                 else -> Column(Modifier.fillMaxSize()) {
+                    // ⚠ A NOTICE, not a replacement for the list. The shopper keeps seeing what they
+                    // saved; this only explains why none of it can be bought right now.
+                    if (s.items.none { it.verdict.isPurchasable } &&
+                        s.items.any { it.verdict == SavedVerdict.NOT_DELIVERED_TO_YOUR_AREA }
+                    ) {
+                        UndeliverableNotice(onChangeLocation)
+                    }
+
                     // ⚠ Only shown when there is enough to sort. A control over three items is noise.
                     if (s.items.size > 3) {
                         EffySegmentedToggle(
@@ -162,6 +168,41 @@ fun SavedScreen(
             }
         }
     }
+}
+
+/**
+ * Shown above the list when nothing in it can be delivered to the shopper's current location.
+ *
+ * ⚠ It sits ABOVE the items rather than instead of them. The shopper saved these deliberately;
+ * hiding them to deliver a message makes a full list look like a lost one, and the per-item note
+ * already says which ones cannot come. This only explains the situation and offers the way out.
+ */
+@Composable
+private fun UndeliverableNotice(onChangeLocation: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+    ) {
+        Text(
+            "We can't deliver any of these to where you're shopping right now.",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+        )
+        Text(
+            "Your saved items are safe — try a different delivery location.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = EffySpacing.xs),
+        )
+        TextButton(
+            onClick = onChangeLocation,
+            contentPadding = PaddingValues(0.dp),
+            modifier = Modifier.padding(top = EffySpacing.xs),
+        ) {
+            Text("Change location")
+        }
+    }
+    EffyHairline()
 }
 
 @Composable

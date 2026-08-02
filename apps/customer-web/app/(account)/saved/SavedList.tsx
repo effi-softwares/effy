@@ -95,21 +95,31 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
     )
   }
 
-  // ⚠ TWO DISTINCT EMPTY STATES (FR-057). "You have never saved anything" and "you have saved things
-  // but none reach you" are different situations, and one message would leave the second shopper
-  // thinking their list had been lost.
-  if (items.every((i) => i.verdict === "not_delivered_to_your_area")) {
-    return (
-      <EmptyState
-        title="Nothing here reaches your address"
-        description="Your saved items are safe — we just can't deliver any of them to where you're shopping right now. Try a different delivery location."
-        action={{ label: "Browse what we do deliver", href: "/browse" }}
-      />
-    )
-  }
+  // ⚠ A NOTICE, not a replacement for the list.
+  //
+  // ⚠ THIS USED TO REPLACE THE WHOLE LIST. When nothing could be delivered, the page rendered an
+  // empty state instead of the items — hiding things the shopper had deliberately saved and making a
+  // full list look like a lost one. That is FR-041's rule ("a withdrawn product must not silently
+  // vanish") broken one level up, and it over-read FR-057: the spec asks for a distinct MESSAGE, not
+  // for the list to be replaced by one. The per-item note already says which items cannot come.
+  const noneReachable =
+    items.length > 0 &&
+    !items.some((i) => isPurchasable(i.verdict)) &&
+    items.some((i) => i.verdict === "not_delivered_to_your_area")
 
   return (
     <>
+      {noneReachable && (
+        <div className="mb-4 border-b pb-4">
+          <p className="font-semibold">
+            We can't deliver any of these to where you're shopping right now.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your saved items are safe — try a different delivery location.
+          </p>
+        </div>
+      )}
+
       {merged > 0 && (
         <p role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
           {merged === 1
