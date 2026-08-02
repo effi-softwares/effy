@@ -128,41 +128,10 @@ func TestEmptyBannerListSerialisesAsAnArrayNotNull(t *testing.T) {
 // Three strings and nothing else. That looks too simple to be worth pinning, which is exactly why it
 // is: a silently renamed json tag compiles fine on both sides and would leave a shopper unable to
 // find any suburb, with every unit test still green.
-const LOCALITY_WIRE_JSON = `[{"name":"Richmond","state":"VIC","postcode":"3121"}]`
-
-func TestLocalitySerialisesToTheAgreedWireShape(t *testing.T) {
-	got, err := json.Marshal([]localityDTO{{Name: "Richmond", State: "VIC", Postcode: "3121"}})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	if string(got) != LOCALITY_WIRE_JSON {
-		t.Errorf("wire drift.\n  Go sends: %s\n  agreed:   %s", got, LOCALITY_WIRE_JSON)
-	}
-}
 
 // ⚠ An empty result is `[]`, never `null`. The handler builds a zero-length slice for exactly this
 // reason: a client forced to distinguish null-from-empty will eventually get it wrong, and the wrong
 // answer here is "that place doesn't exist".
-func TestEmptyLocalityListSerialisesAsAnArrayNotNull(t *testing.T) {
-	got, err := json.Marshal(make([]localityDTO, 0))
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	if string(got) != "[]" {
-		t.Errorf("want [], got %s", got)
-	}
-}
 
 // All three fields are required — no omitempty anywhere. A place missing its state is two different
 // places on the wire (FR-008).
-func TestLocalityFieldsAreNeverOmitted(t *testing.T) {
-	got, err := json.Marshal(localityDTO{})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	for _, key := range []string{`"name"`, `"state"`, `"postcode"`} {
-		if !strings.Contains(string(got), key) {
-			t.Errorf("field %s vanished when empty — it must always be present: %s", key, got)
-		}
-	}
-}

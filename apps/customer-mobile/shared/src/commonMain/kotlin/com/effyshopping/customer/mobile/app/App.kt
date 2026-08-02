@@ -72,7 +72,6 @@ fun App(container: AppContainer) {
             // drop an account-derived one on sign-out. ⚠ Started here rather than from a screen — in a
             // screen it would never run if the shopper's first stop is another tab, and would re-run
             // on every recomposition.
-            container.deliverySeed.start(container.session.state)
         }
 
         // ⚠ THE COLOUR IS PAINTED EDGE-TO-EDGE; THE PADDING IS APPLIED INSIDE IT.

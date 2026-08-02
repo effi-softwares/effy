@@ -18,12 +18,8 @@ export function verdictNote(verdict: SavedVerdict): string {
       return "Available now"
     case "temporarily_unavailable":
       return "Out of stock right now"
-    case "not_delivered_to_your_area":
-      return "Not delivered to your area"
     case "no_longer_sold":
       return "No longer sold"
-    case "not_yet_determined":
-      return "Tell us where you live to check availability"
   }
 }
 

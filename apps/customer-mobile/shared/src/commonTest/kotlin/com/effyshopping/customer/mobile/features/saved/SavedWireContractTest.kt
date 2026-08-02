@@ -130,7 +130,7 @@ class SavedWireContractTest {
     }
 
     /**
-     * ⚠ All five verdicts must decode. A sixth value appearing on the wire would reach a client that
+     * ⚠ All three verdicts must decode. A sixth value appearing on the wire would reach a client that
      * cannot render it, which is why the mapper's `when` is exhaustive with no `else`.
      */
     @Test
@@ -138,9 +138,7 @@ class SavedWireContractTest {
         val expected = listOf(
             "purchasable" to SavedVerdict.Purchasable,
             "temporarily_unavailable" to SavedVerdict.TemporarilyUnavailable,
-            "not_delivered_to_your_area" to SavedVerdict.NotDeliveredToYourArea,
             "no_longer_sold" to SavedVerdict.NoLongerSold,
-            "not_yet_determined" to SavedVerdict.NotYetDetermined,
         )
         for ((wire, domain) in expected) {
             val payload =

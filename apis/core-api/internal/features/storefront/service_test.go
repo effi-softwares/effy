@@ -24,14 +24,6 @@ type fakeReader struct {
 	lastParams  SearchParams
 	promos      []advertisedPromoRow
 	promoErr    error
-
-	// 030 locality lookup. The three `locality*` request fields record what the SERVICE decided, so
-	// localities_test.go can assert the classification without reaching into SQL.
-	localities         []Locality
-	localityErr        error
-	localityQuery      string
-	localityByPostcode bool
-	localityLimit      int
 }
 
 func (f *fakeReader) NewestCards(_ context.Context, _ int) ([]cardRow, error) { return f.newest, nil }
@@ -82,15 +74,6 @@ func (f *fakeReader) CategoryPath(_ context.Context, _ string) ([]string, error)
 
 // Serviceable defaults to "not serviced" — tests that care about delivery use serviceabilityReader,
 // which overrides it (see serviceability_test.go).
-func (f *fakeReader) Serviceable(_ context.Context, _ string) (bool, error) { return false, nil }
-
-// SearchLocalities defaults to "no places" — tests that care use localityReader, which overrides it
-// (see localities_test.go). Recording the arguments here is what lets those tests assert the SERVICE
-// classified the query, rather than asserting on whatever SQL the repository would have run.
-func (f *fakeReader) SearchLocalities(_ context.Context, q string, byPostcode bool, limit int) ([]Locality, error) {
-	f.localityQuery, f.localityByPostcode, f.localityLimit = q, byPostcode, limit
-	return f.localities, f.localityErr
-}
 
 func (f *fakeReader) SearchCards(_ context.Context, p SearchParams) ([]searchRow, error) {
 	f.lastParams = p

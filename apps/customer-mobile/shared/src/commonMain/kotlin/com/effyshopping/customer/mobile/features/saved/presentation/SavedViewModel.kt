@@ -30,7 +30,6 @@ class SavedViewModel(
     private val loadMembership: LoadSavedMembership,
     private val removeSaved: RemoveSaved,
     private val undoRemove: UndoRemoveSaved,
-    private val postcode: () -> String?,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<SavedUiState>(SavedUiState.Loading)
@@ -58,7 +57,7 @@ class SavedViewModel(
 
     private suspend fun fetch() {
         try {
-            val items = listSaved(postcode())
+            val items = listSaved()
             _state.value = SavedUiState.Ready(items)
             // Keep every heart on every other screen in step with what this list just proved.
             runCatching { loadMembership() }

@@ -21,16 +21,12 @@ package com.effyshopping.customer.mobile.features.saved.domain
  *
  *   PURCHASABLE                → buy now
  *   TEMPORARILY_UNAVAILABLE    → sold and delivered here, just not in stock — wait
- *   NOT_DELIVERED_TO_YOUR_AREA → sold and in stock, nothing reaches this address — change address
  *   NO_LONGER_SOLD             → withdrawn entirely — give up
- *   NOT_YET_DETERMINED         → we have no delivery location — tell us where you live
  */
 enum class SavedVerdict {
     PURCHASABLE,
     TEMPORARILY_UNAVAILABLE,
-    NOT_DELIVERED_TO_YOUR_AREA,
     NO_LONGER_SOLD,
-    NOT_YET_DETERMINED,
     ;
 
     /** Only a purchasable item can be added to a cart. Everything else needs the shopper to act first. */
@@ -87,10 +83,10 @@ interface SavedRepository {
     /**
      * The list with a verdict per item.
      *
-     * [postcode] is null when the shopper has no delivery location — a first-class case, not an
-     * error. Every item then reports [SavedVerdict.NOT_YET_DETERMINED] (FR-038).
+     * ⚠ No location. Delivery zones were withdrawn from the platform, so purchasability is decided by
+     * catalogue status alone and every address is implicitly deliverable.
      */
-    suspend fun list(postcode: String?): List<SavedItem>
+    suspend fun list(): List<SavedItem>
 
     /**
      * [restoreSavedAt] is set ONLY by undo, returning the item to the position it previously held.

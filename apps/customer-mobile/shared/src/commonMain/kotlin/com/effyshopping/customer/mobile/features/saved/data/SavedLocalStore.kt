@@ -14,7 +14,6 @@ import kotlinx.serialization.json.Json
  * next launch is WORSE than the wall — the shopper believes they kept something and did not. So the
  * guest list has to survive a force-quit, and this is what makes it.
  *
- * ⚠ 030 IS THE CAUTIONARY TALE. `DeliveryContextStore` was built with a `persist` callback already in
  * place, and `AppContainer` called the no-arg constructor — so the callback was `{}` and nothing was
  * ever written, for an entire feature, invisibly. Three separate comments in the repo then explained
  * the absence as "this app has no key-value persistence", which had been false since 026. If you are

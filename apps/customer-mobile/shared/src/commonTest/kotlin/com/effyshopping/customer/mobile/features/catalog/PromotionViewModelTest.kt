@@ -10,7 +10,6 @@ import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductPage
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
 import com.effyshopping.customer.mobile.features.catalog.domain.Promotion
-import com.effyshopping.customer.mobile.features.catalog.domain.Serviceability
 import com.effyshopping.customer.mobile.features.catalog.presentation.PromotionUiState
 import com.effyshopping.customer.mobile.features.catalog.presentation.PromotionViewModel
 import kotlinx.coroutines.Dispatchers
@@ -48,9 +47,6 @@ private class FakePromoCatalog(private val result: () -> Promotion) : CatalogRep
         sort: ProductSortOption,
         cursor: String?,
     ): ProductPage = throw NotImplementedError()
-
-    override suspend fun serviceability(postcode: String) =
-        Serviceability(postcode = postcode, serviced = true)
 
     override suspend fun promotion(id: String): Promotion {
         reads++

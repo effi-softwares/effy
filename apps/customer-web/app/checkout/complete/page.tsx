@@ -5,7 +5,6 @@ import { Suspense } from "react"
 
 import type { OrderDTO } from "@effy/shared-types"
 
-import { DeliveryBreakdown } from "@/components/DeliveryBreakdown"
 import { OrderAddresses } from "@/components/OrderAddresses"
 import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
@@ -104,7 +103,6 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
         </ul>
         <dl className="space-y-1 border-t p-4 text-sm">
           <Row label="Items" value={formatMoney(dto.itemSubtotalAmount, dto.currency)} />
-          <Row label="Delivery" value={formatMoney(dto.deliveryFeeAmount, dto.currency)} />
           <div className="flex justify-between border-t pt-2 text-base font-semibold">
             <dt>Total paid</dt>
             <dd>{formatMoney(dto.grandTotalAmount, dto.currency)}</dd>
@@ -112,7 +110,6 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
         </dl>
       </section>
 
-      <DeliveryBreakdown fulfillments={dto.fulfillments} currency={dto.currency} />
 
       <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
 

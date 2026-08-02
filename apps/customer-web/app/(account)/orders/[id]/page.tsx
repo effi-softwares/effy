@@ -5,7 +5,6 @@ import { Suspense } from "react"
 
 import type { OrderDTO } from "@effy/shared-types"
 
-import { DeliveryBreakdown } from "@/components/DeliveryBreakdown"
 import { OrderAddresses } from "@/components/OrderAddresses"
 import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
@@ -68,7 +67,6 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         </ul>
         <dl className="space-y-1 border-t p-4 text-sm">
           <Row label="Items" value={formatMoney(dto.itemSubtotalAmount, dto.currency)} />
-          <Row label="Delivery" value={formatMoney(dto.deliveryFeeAmount, dto.currency)} />
           {dto.discountAmount && dto.discountAmount !== "0.00" ? (
             /* 027 FR-049: the discount as computed at PAYMENT, from the order — so the receipt explains
                itself even after the code has since changed or been disabled. */
@@ -84,7 +82,6 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
         </dl>
       </section>
 
-      <DeliveryBreakdown fulfillments={dto.fulfillments} currency={dto.currency} />
 
       <FulfillmentProgress dto={dto} />
 

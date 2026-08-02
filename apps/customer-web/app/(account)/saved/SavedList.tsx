@@ -7,7 +7,6 @@ import type { SavedItemDTO, SavedVerdict } from "@effy/shared-types"
 import { EmptyState } from "@/components/storefront/kit"
 import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { addItem } from "@/lib/cart-actions"
-import { useDeliveryContext } from "@/lib/delivery-store"
 import { formatMoney } from "@/lib/money"
 import { refreshSaved, toggleSaved } from "@/lib/saved-actions"
 import { takeMergeNotice } from "@/lib/saved-merge"
@@ -21,26 +20,10 @@ import { isPurchasable, verdictNote } from "@/lib/saved-display"
  */
 export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
   const [items, setItems] = useState(initial)
-  const delivery = useDeliveryContext()
-  const postcode = delivery?.postcode ?? null
 
   // ⚠ The server render could not know the delivery location (it is device-local, deliberately not a
   // cookie), so it answered "not yet determined" for everything. Re-read with the postcode so the
   // shopper sees real verdicts. FR-039 also requires this to re-run when they change location.
-  useEffect(() => {
-    if (!postcode) return
-    let cancelled = false
-    void fetch(`/api/saved?postcode=${encodeURIComponent(postcode)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((body) => {
-        if (!cancelled && Array.isArray(body)) setItems(body as SavedItemDTO[])
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [postcode])
-
   const [merged, setMerged] = useState(0)
   const [bulk, setBulk] = useState<{ added: number; skipped: { productId: string; reason: string }[] } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -68,7 +51,7 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
       const res = await fetch("/api/saved/add-to-cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postcode: postcode ?? undefined, changeId: crypto.randomUUID() }),
+        body: JSON.stringify({ changeId: crypto.randomUUID() }),
       })
       if (res.ok) setBulk(await res.json())
     } catch {
@@ -102,24 +85,9 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
   // full list look like a lost one. That is FR-041's rule ("a withdrawn product must not silently
   // vanish") broken one level up, and it over-read FR-057: the spec asks for a distinct MESSAGE, not
   // for the list to be replaced by one. The per-item note already says which items cannot come.
-  const noneReachable =
-    items.length > 0 &&
-    !items.some((i) => isPurchasable(i.verdict)) &&
-    items.some((i) => i.verdict === "not_delivered_to_your_area")
-
   return (
     <>
-      {noneReachable && (
-        <div className="mb-4 border-b pb-4">
-          <p className="font-semibold">
-            We can't deliver any of these to where you're shopping right now.
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Your saved items are safe — try a different delivery location.
-          </p>
-        </div>
-      )}
-
+      
       {merged > 0 && (
         <p role="status" className="mb-4 rounded-md border px-3 py-2 text-sm">
           {merged === 1

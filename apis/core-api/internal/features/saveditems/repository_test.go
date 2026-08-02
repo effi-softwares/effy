@@ -226,7 +226,7 @@ func TestSave_AFreshSaveLandsAtTheTop(t *testing.T) {
 	require.NoError(t, r.Save(ctx, shopper, pDraft, &old, AccountCap))
 	require.NoError(t, r.Save(ctx, shopper, pActive, nil, AccountCap)) // now()
 
-	rows, err := r.List(ctx, shopper, nil)
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	require.Equal(t, pActive, rows[0].ProductID,
@@ -266,69 +266,6 @@ func TestSave_ReSavingAtTheCapIsNotRefused(t *testing.T) {
 
 // ── The five-way verdict — the reason this file exists ──────────────────────────────────────────
 
-func TestList_AllFiveVerdicts(t *testing.T) {
-	r, _ := repo(t)
-	ctx := context.Background()
-	for _, p := range []string{pActive, pDraft, pArchived, pOtherShop} {
-		require.NoError(t, r.Save(ctx, shopper, p, nil, AccountCap))
-	}
-
-	// (1)–(4): a shopper in Richmond, which the metro shop reaches.
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
-	require.NoError(t, err)
-	got := verdicts(rows)
-
-	require.Equal(t, "purchasable", got[pActive])
-	require.Equal(t, "temporarily_unavailable", got[pDraft])
-	require.Equal(t, "no_longer_sold", got[pArchived])
-	require.Equal(t, "not_delivered_to_your_area", got[pOtherShop],
-		"⚠ 'we don't deliver that to you' is a DIFFERENT sentence from 'out of stock', and only one is true")
-
-	// (5): the same list, for a shopper who has not said where they live.
-	rows, err = r.List(ctx, shopper, nil)
-	require.NoError(t, err)
-	got = verdicts(rows)
-	require.Equal(t, "not_yet_determined", got[pActive],
-		"nothing may be claimed available before we know where it has to go (FR-038)")
-}
-
-func TestList_ArchivedBeatsNotYetDeterminedInTheCaseOrder(t *testing.T) {
-	r, _ := repo(t)
-	ctx := context.Background()
-	require.NoError(t, r.Save(ctx, shopper, pArchived, nil, AccountCap))
-
-	rows, err := r.List(ctx, shopper, nil) // no location at all
-	require.NoError(t, err)
-	require.Equal(t, "no_longer_sold", rows[0].Verdict,
-		"⚠ the CASE arm order is part of the model — of two true statements, the informative one wins")
-}
-
-func TestList_ZoneWithNoInboundOfferingIsNotDeliverable(t *testing.T) {
-	r, _ := repo(t)
-	ctx := context.Background()
-	require.NoError(t, r.Save(ctx, shopper, pActive, nil, AccountCap))
-
-	// Ballarat: in a zone, but nothing reaches it. This is the 031 REGIONAL defect, and the whole
-	// reason the verdict is not `status = 'active'`.
-	rows, err := r.List(ctx, shopper, ptr(regZone))
-	require.NoError(t, err)
-	require.Equal(t, "not_delivered_to_your_area", rows[0].Verdict)
-}
-
-func TestList_UnpricedMethodWithdrawsPurchasability(t *testing.T) {
-	r, pool := repo(t)
-	ctx := context.Background()
-	require.NoError(t, r.Save(ctx, shopper, pActive, nil, AccountCap))
-
-	_, err := pool.Exec(ctx, `UPDATE public.delivery_pricing_rule SET status = 'disabled'`)
-	require.NoError(t, err)
-
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
-	require.NoError(t, err)
-	require.Equal(t, "not_delivered_to_your_area", rows[0].Verdict,
-		"a method nobody has priced is not offered — omitting this term gives a false 'purchasable'")
-}
-
 // ── Price movement (FR-043/FR-044) ──────────────────────────────────────────────────────────────
 
 func TestList_PriceDropIsDetected(t *testing.T) {
@@ -339,7 +276,7 @@ func TestList_PriceDropIsDetected(t *testing.T) {
 	_, err := pool.Exec(ctx, `UPDATE public.product SET price_amount = 4.00 WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.True(t, rows[0].PriceDropped)
 	require.Equal(t, "6.50", rows[0].SavedPriceAmount, "the list shows what it was when saved")
@@ -354,7 +291,7 @@ func TestList_PriceRiseIsNotFlagged(t *testing.T) {
 	_, err := pool.Exec(ctx, `UPDATE public.product SET price_amount = 9.99 WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.False(t, rows[0].PriceDropped,
 		"the current price is always shown, so nothing is concealed — but a rise is not actionable")
@@ -370,7 +307,7 @@ func TestList_ACurrencyChangeReportsNoDrop(t *testing.T) {
 		`UPDATE public.product SET price_amount = 1.00, currency = 'NZD' WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.False(t, rows[0].PriceDropped, "1.00 NZD is not 'cheaper than' 6.50 AUD — it is incomparable")
 }
@@ -385,7 +322,7 @@ func TestList_ShowsTheProductsCurrentIdentity(t *testing.T) {
 	_, err := pool.Exec(ctx, `UPDATE public.product SET name = 'Renamed Eggs' WHERE id = $1`, pActive)
 	require.NoError(t, err)
 
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.Equal(t, "Renamed Eggs", rows[0].Name,
 		"only the save-time PRICE is remembered; everything else is read live")
@@ -449,7 +386,7 @@ func TestList_AtTheCapIsStillOneStatement(t *testing.T) {
 		require.NoError(t, r.Save(ctx, shopper, id, nil, AccountCap+1))
 	}
 
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.Len(t, rows, AccountCap, "the cap's worth of items come back in one read")
 
@@ -608,7 +545,7 @@ func TestMerge_WithoutADevicePriceUsesTheProductsCurrentPrice(t *testing.T) {
 	require.Equal(t, "AUD", currency)
 
 	// And it must therefore report NO drop — the item did not become cheaper by being merged.
-	rows, err := r.List(ctx, shopper, ptr(metroZone))
+	rows, err := r.List(ctx, shopper)
 	require.NoError(t, err)
 	require.False(t, rows[0].PriceDropped)
 }

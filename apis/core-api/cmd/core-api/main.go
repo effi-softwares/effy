@@ -136,9 +136,9 @@ func run() error {
 
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
 		cart:       cartSvc,
-		savedItems: saveditems.NewService(saveditems.NewRepository(pool), saveditems.PoolZones{Q: pool}, presign).
+		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
-		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithMetrics(m),
+		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc),
 		orders:   orders.NewService(orders.NewRepository(pool)),
 	}
 
@@ -222,7 +222,7 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 
 	// 019 customer commerce. Storefront reads are public; customer-scoped features mount behind
 	// auth.Middleware + customeridentity.Middleware (the resolved customer id scopes every query).
-	storefront.Register(v1, storefront.NewHandler(deps.storefront, deps.metrics))
+	storefront.Register(v1, storefront.NewHandler(deps.storefront))
 	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
 	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))
 	saveditems.Register(v1, deps.customerVerifier, deps.customer, saveditems.NewHandler(deps.savedItems))

@@ -7,8 +7,6 @@ import { useEffect, useMemo, useState } from "react"
 import type {
   AddressDTO,
   CreateCheckoutIntentResponse,
-  DeliveryQuoteResponse,
-  DeliverySelectionDTO,
 } from "@effy/shared-types"
 
 import { useCart } from "@/lib/cart-store"
@@ -19,10 +17,9 @@ import { capture } from "@/lib/telemetry"
 
 import { AddressPicker } from "./AddressPicker"
 import { BillingSection } from "./BillingSection"
-import { DeliveryOptions } from "./DeliveryOptions"
 import { PaymentForm } from "./PaymentForm"
 
-type Step = "review" | "delivery" | "paying"
+type Step = "review" | "paying"
 
 /**
  * The checkout flow (021, extending 019's US3; reworked 027). It walks three steps:
@@ -61,7 +58,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true)
   const [billingId, setBillingId] = useState<string | null>(null)
   const [step, setStep] = useState<Step>("review")
-  const [quote, setQuote] = useState<DeliveryQuoteResponse | null>(null)
   const [intent, setIntent] = useState<CreateCheckoutIntentResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -86,7 +82,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   function selectShipping(id: string) {
     if (id === selectedId) return
     setSelectedId(id)
-    setQuote(null)
     capture({ name: "checkout_address_changed" })
   }
 
@@ -94,7 +89,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   function onShippingAddressAdded(created: AddressDTO) {
     appendAddress(created)
     setSelectedId(created.id)
-    setQuote(null)
     capture({ name: "checkout_address_added" })
   }
 
@@ -122,25 +116,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const canContinue =
     !!selectedId && (billingSameAsShipping || !!billingId) && guestLines.length > 0
 
-  /** Quote the address for its per-package options. Returns the fresh quote, or null on failure. */
-  async function fetchQuote(addressId: string): Promise<DeliveryQuoteResponse | null> {
-    const res = await fetch("/api/checkout/quote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ addressId }),
-    })
-    const data = (await res.json().catch(() => ({}))) as Partial<DeliveryQuoteResponse> & {
-      error?: string
-    }
-    if (!res.ok || !data.packages) {
-      setError(data.error ?? "We couldn’t work out delivery for this address. Please try again.")
-      return null
-    }
-    return data as DeliveryQuoteResponse
-  }
-
-  // Address chosen → quote and advance to the delivery step (re-derives on every address change, FR-006).
-  async function continueToDelivery() {
+  /**
+   * Place the order.
+   *
+   * ⚠ THERE IS NO DELIVERY STEP. This used to quote the address, walk the shopper through
+   * per-package options, and send a captured quote id with their selections. Delivery zones, quotes
+   * and fees were withdrawn from the platform, so checkout is: choose an address, pay.
+   */
+  async function placeOrder() {
     if (!selectedId) {
       setError("Choose a delivery address.")
       return
@@ -153,31 +136,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     setError(null)
     setNotice(null)
     try {
-      const q = await fetchQuote(selectedId)
-      if (q) {
-        setQuote(q)
-        setStep("delivery")
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  // Place the order from the captured quote + the customer's selections. A 409 re-quotes (FR-011a).
-  async function placeOrder(selections: DeliverySelectionDTO[], excludedPackageKeys: string[]) {
-    if (!selectedId || !quote) return
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    try {
       // Send `billingAddressId` ONLY when the customer diverged — the toggle is OFF and the chosen
       // billing differs from shipping. Same-as / equal → omit it so the server stores NULL (FR-009/010).
-      const body: Record<string, unknown> = {
-        addressId: selectedId,
-        quoteId: quote.quoteId,
-        selections,
-        excludedPackageKeys,
-      }
+      const body: Record<string, unknown> = { addressId: selectedId }
       if (!billingSameAsShipping && billingId && billingId !== selectedId) {
         body.billingAddressId = billingId
       }
@@ -186,17 +147,6 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-
-      if (res.status === 409) {
-        // The captured quote is stale — re-quote and re-show the options with the new amounts. Never
-        // charge on a blind retry (FR-011a / SC-004).
-        const fresh = await fetchQuote(selectedId)
-        if (fresh) {
-          setQuote(fresh)
-          setNotice("Delivery options changed. Please review the updated prices before paying.")
-        }
-        return
-      }
 
       const data = (await res.json().catch(() => ({}))) as Partial<CreateCheckoutIntentResponse> & {
         error?: string
@@ -224,31 +174,12 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         </Elements>
         <button
           type="button"
-          onClick={() => setStep("delivery")}
+          onClick={() => setStep("review")}
           className="mt-4 text-sm text-muted-foreground hover:text-foreground"
         >
           ← Back
         </button>
       </div>
-    )
-  }
-
-  if (step === "delivery" && quote) {
-    return (
-      <DeliveryOptions
-        packages={quote.packages}
-        itemSubtotal={estimate.itemSubtotal}
-        currency={currency}
-        busy={busy}
-        error={error}
-        notice={notice}
-        onConfirm={placeOrder}
-        onBack={() => {
-          setStep("review")
-          setNotice(null)
-          setError(null)
-        }}
-      />
     )
   }
 
@@ -289,11 +220,11 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
       <button
         type="button"
-        onClick={continueToDelivery}
+        onClick={placeOrder}
         disabled={busy || !canContinue}
         className="flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
       >
-        Continue to delivery
+        Continue to payment
       </button>
     </div>
 

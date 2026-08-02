@@ -16,9 +16,7 @@ func Register(v1 *gin.RouterGroup, h *Handler) {
 	g.GET("/promotions/:id", h.getPromotion)
 	// 025 US1: "do we deliver to you?" answered BEFORE a cart exists. Public and cacheable like the
 	// rest — it discloses nothing about the caller and nothing about where Effy fulfils from.
-	g.GET("/serviceability", h.getServiceability)
 	// 030 US1: "which places could you mean?" — the other half of the same interaction, which is why
 	// it is mounted here rather than anywhere else. It fires while the shopper is typing, so it is
 	// hot-path work by definition. ⚠ Its results never reflect delivery coverage (FR-011).
-	g.GET("/localities", h.getLocalities)
 }

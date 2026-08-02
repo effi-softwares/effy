@@ -1,9 +1,9 @@
 // Package pricing holds the platform's fixed commercial constants.
 //
-// 021 removed the flat DeliveryFeeCents: delivery is now priced per package by (origin zone ->
-// destination zone, method) from the delivery_offering table (see internal/platform/delivery). What
-// remains here is the currency and the quote-validity window — fixed commercial constants, the
-// established home for values like this (rather than env config).
+// ⚠ There is NO delivery fee on this platform. 021 replaced a flat fee with per-package zone pricing;
+// that whole feature — zones, offerings, pricing rules, same-day approvals and serviceability — was
+// withdrawn. An order is its items minus any discount. What remains here is the currency, a fixed
+// commercial constant.
 package pricing
 
 import "time"

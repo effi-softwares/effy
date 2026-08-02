@@ -93,7 +93,7 @@ class LoadSavedMembership(
 
 /** The saved list, with a verdict per item for the shopper's current location. */
 class ListSaved(private val repo: SavedRepository) {
-    suspend operator fun invoke(postcode: String?): List<SavedItem> = repo.list(postcode)
+    suspend operator fun invoke(): List<SavedItem> = repo.list()
 }
 
 /**

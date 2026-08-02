@@ -11,7 +11,6 @@ import { formatMoney, isDiscounted } from "@/lib/money"
 
 import { AddToCartControl } from "../../_components/AddToCartControl"
 import { SaveControl } from "../../_components/SaveControl"
-import { DeliveryEstimate } from "../../_components/DeliveryEstimate"
 import { ProductGallery } from "../../_components/ProductGallery"
 import { RecordView } from "../../_components/RecordView"
 import { RelatedProducts } from "../../_components/RelatedProducts"
@@ -147,7 +146,6 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           <Rule className="my-6" />
 
           {/* FR-023: what the shopper needs before deciding, next to the price. */}
-          <DeliveryEstimate />
 
           {/* FR-028: unavailability at the point of ACTION, not only over the photograph. */}
           {!product.available && (

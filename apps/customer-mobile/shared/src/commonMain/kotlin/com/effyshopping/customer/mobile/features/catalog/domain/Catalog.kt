@@ -221,7 +221,6 @@ interface CatalogRepository {
     ): ProductPage
 
     /** Up-front delivery serviceability (025). Shares checkout's predicate server-side (FR-014b). */
-    suspend fun serviceability(postcode: String): Serviceability
 
     /** One advertised promotion in full — the destination of a banner tap. */
     suspend fun promotion(id: String): Promotion

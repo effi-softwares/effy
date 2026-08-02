@@ -181,7 +181,6 @@ private fun ReceiptBody(
 
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
     SummaryRow("Items", money(receipt.itemSubtotalAmount, receipt.currency))
-    SummaryRow("Delivery", money(receipt.deliveryFeeAmount, receipt.currency))
     // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order — so the receipt
     // explains itself even after the code has since changed or been disabled.
     if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {

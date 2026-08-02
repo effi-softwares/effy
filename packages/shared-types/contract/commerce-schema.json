@@ -596,15 +596,6 @@
       ],
       "type": "object"
     },
-    "CheckoutDeliveryMethod": {
-      "description": "The three delivery service levels (021). Availability per package follows from the shop's origin zone and the customer's destination zone — never from shop identity, which the customer never sees.",
-      "enum": [
-        "same_day",
-        "scheduled",
-        "standard"
-      ],
-      "type": "string"
-    },
     "ConfirmCheckoutRequest": {
       "additionalProperties": false,
       "description": "POST /v1/checkout/confirm — fallback finalizer (covers a delayed/missed webhook).",
@@ -682,29 +673,11 @@
           "type": "string"
         },
         "billingAddressId": {
-          "description": "023: the BILLING address, when the customer diverged from shipping. Absent / null / equal to `addressId` → billing is \"same as shipping\" (the order stores NULL). Billing never affects the amount or the quote.",
+          "description": "023: the BILLING address, when the customer diverged from shipping. Absent / null / equal to `addressId` → billing is \"same as shipping\" (the order stores NULL). Billing never affects the amount.",
           "type": [
             "string",
             "null"
           ]
-        },
-        "excludedPackageKeys": {
-          "description": "021: packages the customer confirmed proceeding WITHOUT (auto-set-aside undeliverable items). MUST exactly match the server's unserviceable set or the intent is refused (FR-006b, SC-011a).",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "quoteId": {
-          "description": "021: the captured quote being placed. Honored while unexpired; else 409 → re-quote.",
-          "type": "string"
-        },
-        "selections": {
-          "description": "021: the customer's per-package method choices (default preference + overrides, resolved).",
-          "items": {
-            "$ref": "#/definitions/DeliverySelectionDTO"
-          },
-          "type": "array"
         }
       },
       "required": [
@@ -721,13 +694,6 @@
         },
         "currency": {
           "type": "string"
-        },
-        "deliveryBreakdown": {
-          "description": "021: the per-package delivery breakdown, for the order summary. Anonymous.",
-          "items": {
-            "$ref": "#/definitions/DeliveryBreakdownLineDTO"
-          },
-          "type": "array"
         },
         "grandTotalAmount": {
           "type": "string"
@@ -749,164 +715,6 @@
         "publishableKey",
         "grandTotalAmount",
         "currency"
-      ],
-      "type": "object"
-    },
-    "DeliveryBreakdownLineDTO": {
-      "additionalProperties": false,
-      "description": "One line of the per-package delivery breakdown on the intent response (021). Anonymous.",
-      "properties": {
-        "feeAmount": {
-          "type": "string"
-        },
-        "packageKey": {
-          "type": "string"
-        },
-        "serviceLevel": {
-          "type": "string"
-        },
-        "window": {
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "packageKey",
-        "serviceLevel",
-        "feeAmount",
-        "window"
-      ],
-      "type": "object"
-    },
-    "DeliveryMethodOptionDTO": {
-      "additionalProperties": false,
-      "description": "One selectable delivery option for a package (021). Server-computed; the client never sends a fee.",
-      "properties": {
-        "feeAmount": {
-          "type": "string"
-        },
-        "method": {
-          "$ref": "#/definitions/CheckoutDeliveryMethod"
-        },
-        "scheduleDates": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Selectable dates for method='scheduled'; null otherwise."
-        },
-        "serviceLevel": {
-          "description": "Customer-facing label, e.g. \"Same-day\".",
-          "type": "string"
-        },
-        "window": {
-          "description": "Derived window, e.g. \"Today by 6pm\" / \"in 2–3 days\"; null for a scheduled method (pick a date).",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "method",
-        "serviceLevel",
-        "feeAmount",
-        "window",
-        "scheduleDates"
-      ],
-      "type": "object"
-    },
-    "DeliveryQuoteRequest": {
-      "additionalProperties": false,
-      "description": "POST /v1/checkout/quote — per-package delivery options for the cart + address (021 US1).",
-      "properties": {
-        "addressId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "addressId"
-      ],
-      "type": "object"
-    },
-    "DeliveryQuoteResponse": {
-      "additionalProperties": false,
-      "properties": {
-        "expiresAt": {
-          "description": "The captured quote is honored until this instant; after it the customer must re-quote (021 R7).",
-          "type": "string"
-        },
-        "packages": {
-          "items": {
-            "$ref": "#/definitions/QuotePackageDTO"
-          },
-          "type": "array"
-        },
-        "quoteId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "packages",
-        "quoteId",
-        "expiresAt"
-      ],
-      "type": "object"
-    },
-    "DeliverySelectionDTO": {
-      "additionalProperties": false,
-      "description": "The customer's chosen method for one package (021). Carries NO fee — the server prices it (SC-004).",
-      "properties": {
-        "method": {
-          "$ref": "#/definitions/CheckoutDeliveryMethod"
-        },
-        "packageKey": {
-          "type": "string"
-        },
-        "scheduledDate": {
-          "description": "Required only when method='scheduled'.",
-          "type": [
-            "string",
-            "null"
-          ]
-        }
-      },
-      "required": [
-        "packageKey",
-        "method"
-      ],
-      "type": "object"
-    },
-    "LocalityDTO": {
-      "additionalProperties": false,
-      "description": "One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030 FR-005).\n\n⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across states (there are many Springfields), a locality spans several postcodes, and a postcode covers several localities. That is why FR-008 forbids a bare name being selectable, and why the `locality` table's natural key is the triple. A response that drops any one of these is an ambiguous place the client cannot resolve.\n\n⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE, by `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that hinted at coverage would pre-empt that answer and let anyone enumerate the delivery footprint (FR-011).",
-      "properties": {
-        "name": {
-          "description": "The locality name as a shopper would say it, e.g. \"Richmond\".",
-          "type": "string"
-        },
-        "postcode": {
-          "description": "Exactly four digits — the same canonical form `ServiceabilityDTO.postcode` uses.",
-          "type": "string"
-        },
-        "state": {
-          "description": "One of ACT NSW NT QLD SA TAS VIC WA.",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "state",
-        "postcode"
       ],
       "type": "object"
     },
@@ -1021,11 +829,8 @@
           "$ref": "#/definitions/OrderAddressDTO",
           "description": "The SHIPPING address snapshot (the main one — where the order is delivered)."
         },
-        "deliveryFeeAmount": {
-          "type": "string"
-        },
         "discountAmount": {
-          "description": "The promotional discount applied at payment (027 FR-049). The platform's own computation at that moment, stored on the order — so a receipt stays explainable years later even if the code has since been changed or disabled. \"0.00\" (or absent, on a pre-027 order) when no code was used. Invariant: grandTotal = itemSubtotal + deliveryFee − discount.",
+          "description": "The promotional discount applied at payment (027 FR-049). The platform's own computation at that moment, stored on the order — so a receipt stays explainable years later even if the code has since been changed or disabled. \"0.00\" (or absent, on a pre-027 order) when no code was used. Invariant: grandTotal = itemSubtotal − discount. (There is no delivery fee on this platform.)",
           "type": "string"
         },
         "fulfillments": {
@@ -1080,7 +885,6 @@
         "items",
         "deliveryAddress",
         "itemSubtotalAmount",
-        "deliveryFeeAmount",
         "grandTotalAmount",
         "currency",
         "paymentStatus",
@@ -1092,19 +896,6 @@
       "additionalProperties": false,
       "description": "An anonymous per-shop fulfillment portion — NO shop identity (FR-033).\n\n020 gave `status` a life: 019 created every portion `pending` and no code path ever changed it. The values now span the shop's real working lifecycle. Still no shop name, id, or count that would imply WHO is fulfilling (FR-018, SC-009).",
       "properties": {
-        "deliveryFeeAmount": {
-          "type": "string"
-        },
-        "deliveryServiceLevel": {
-          "description": "The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The customer's receipt breakdown shows, per package, what they paid to have it delivered and when it is promised. Absent on pre-021 orders.",
-          "type": "string"
-        },
-        "deliveryWindow": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "itemCount": {
           "type": "number"
         },
@@ -1387,65 +1178,6 @@
       ],
       "type": "object"
     },
-    "QuotePackageDTO": {
-      "additionalProperties": false,
-      "properties": {
-        "items": {
-          "items": {
-            "$ref": "#/definitions/QuotePackageItemDTO"
-          },
-          "type": "array"
-        },
-        "methods": {
-          "items": {
-            "$ref": "#/definitions/DeliveryMethodOptionDTO"
-          },
-          "type": "array"
-        },
-        "packageKey": {
-          "type": "string"
-        },
-        "serviceable": {
-          "description": "False when this package cannot be delivered to the address (021 US2). methods is then empty.",
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "packageKey",
-        "items",
-        "serviceable",
-        "methods"
-      ],
-      "type": "object"
-    },
-    "QuotePackageItemDTO": {
-      "additionalProperties": false,
-      "description": "One ANONYMOUS package in a quote (021) — the items from a single shop, shown without any shop identity or location (FR-019). `packageKey` is an opaque grouping token.",
-      "properties": {
-        "imageUrl": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "productId": {
-          "type": "string"
-        },
-        "quantity": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "productId",
-        "name",
-        "quantity",
-        "imageUrl"
-      ],
-      "type": "object"
-    },
     "ReorderRequest": {
       "additionalProperties": false,
       "description": "POST /v1/cart/reorder — put a past order's items back in the cart (FR-034). Union-with-maximum against the current cart, so a double tap cannot double quantities.",
@@ -1518,8 +1250,7 @@
     "SavedAddToCartRequest": {
       "additionalProperties": false,
       "properties": {
-        "postcode": {
-          "description": "Absent means no delivery location is known — nothing is purchasable, so nothing is added.",
+        "changeId": {
           "type": "string"
         }
       },
@@ -1738,33 +1469,13 @@
       "type": "object"
     },
     "SavedVerdict": {
-      "description": "Whether the shopper can buy a saved item right now, at the delivery location they are shopping for.\n\n⚠ FIVE VALUES, NOT A BOOLEAN, and the distinctions are the point: each one implies a different next action, and collapsing any two of them tells the shopper nothing they can act on.\n\n  purchasable                 → buy now   temporarily_unavailable     → sold and delivered here, just not in stock — wait   not_delivered_to_your_area  → sold and in stock, but nothing reaches this address — change address   no_longer_sold              → withdrawn from sale entirely — give up   not_yet_determined          → the shopper has not said where they live — tell us\n\n⚠ \"Unavailable\" and \"we don't deliver that to you\" are DIFFERENT STATEMENTS and only one of them is true in any given case. Merging them is the 031 REGIONAL defect in miniature: a shopper invited to a checkout that refuses them, with no way to tell whether waiting would help.",
+      "description": "Whether the shopper can buy a saved item right now.\n\n⚠ THREE VALUES. `not_delivered_to_your_area` and `not_yet_determined` were both derived from delivery zones, and delivery zones were withdrawn from the platform. The list still tells the truth about stock and withdrawal — it simply has nothing to say about delivery reach, because nothing on the platform knows it. Each remaining value still implies a different next action:\n\n  purchasable             → buy now   temporarily_unavailable → sold, not in stock — wait   no_longer_sold          → withdrawn entirely — give up",
       "enum": [
         "purchasable",
         "temporarily_unavailable",
-        "not_delivered_to_your_area",
-        "no_longer_sold",
-        "not_yet_determined"
+        "no_longer_sold"
       ],
       "type": "string"
-    },
-    "ServiceabilityDTO": {
-      "additionalProperties": false,
-      "description": "Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).\n\n⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart contents, so anything shown here is an estimate checkout would revise), and no zone id or name (FR-006 — zone names are geographic and would disclose where Effy fulfils from).",
-      "properties": {
-        "postcode": {
-          "description": "The normalised postcode the answer applies to.",
-          "type": "string"
-        },
-        "serviced": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "postcode",
-        "serviced"
-      ],
-      "type": "object"
     },
     "StorefrontCategoryDTO": {
       "additionalProperties": false,
@@ -2135,26 +1846,8 @@
     "createCheckoutIntentResponse": {
       "$ref": "#/definitions/CreateCheckoutIntentResponse"
     },
-    "deliveryBreakdownLine": {
-      "$ref": "#/definitions/DeliveryBreakdownLineDTO"
-    },
-    "deliveryMethodOption": {
-      "$ref": "#/definitions/DeliveryMethodOptionDTO"
-    },
-    "deliveryQuoteRequest": {
-      "$ref": "#/definitions/DeliveryQuoteRequest"
-    },
-    "deliveryQuoteResponse": {
-      "$ref": "#/definitions/DeliveryQuoteResponse"
-    },
-    "deliverySelection": {
-      "$ref": "#/definitions/DeliverySelectionDTO"
-    },
     "home": {
       "$ref": "#/definitions/StorefrontHomeDTO"
-    },
-    "locality": {
-      "$ref": "#/definitions/LocalityDTO"
     },
     "media": {
       "$ref": "#/definitions/MediaDTO"
@@ -2188,12 +1881,6 @@
     },
     "promotion": {
       "$ref": "#/definitions/PromotionDTO"
-    },
-    "quotePackage": {
-      "$ref": "#/definitions/QuotePackageDTO"
-    },
-    "quotePackageItem": {
-      "$ref": "#/definitions/QuotePackageItemDTO"
     },
     "rail": {
       "$ref": "#/definitions/StorefrontRailDTO"
@@ -2231,9 +1918,6 @@
     "searchResult": {
       "$ref": "#/definitions/ProductSearchResultDTO"
     },
-    "serviceability": {
-      "$ref": "#/definitions/ServiceabilityDTO"
-    },
     "updateAddress": {
       "$ref": "#/definitions/UpdateAddressRequest"
     },
@@ -2252,8 +1936,6 @@
     "category",
     "searchResult",
     "productSort",
-    "serviceability",
-    "locality",
     "promotion",
     "cart",
     "cartLine",
@@ -2281,13 +1963,6 @@
     "createCheckoutIntent",
     "createCheckoutIntentResponse",
     "confirmCheckout",
-    "deliveryQuoteRequest",
-    "deliveryQuoteResponse",
-    "quotePackage",
-    "quotePackageItem",
-    "deliveryMethodOption",
-    "deliverySelection",
-    "deliveryBreakdownLine",
     "orderSummary",
     "order",
     "orderItem",

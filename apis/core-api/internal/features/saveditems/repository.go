@@ -91,26 +91,14 @@ func (r *Repository) MembershipIDs(ctx context.Context, customerID string) ([]st
 
 // ── The list, with the five-way verdict, in ONE statement ───────────────────────────────────────
 
-// listSQL answers the whole saved list AND its purchasability against one destination zone.
+// listSQL answers the whole saved list.
 //
-// ⚠ ONE STATEMENT, NOT ONE PER ITEM. A Sydney RDS round trip measures ~135 ms from a local core-api,
-// so a per-item query at the 200-item cap would cost ~27 s against SC-006's 2 s budget. 029's /home
-// 503 (8 serial queries, failing at exactly 3.007 s) is the standing precedent.
+// ⚠ ONE STATEMENT, NOT ONE PER ITEM. A Sydney RDS round trip measures ~135 ms from a local core-api, so
+// a per-item query at the 200-item cap would cost ~27 s against a 2 s budget.
 //
-// ⚠ THE ORDER OF THE CASE ARMS IS PART OF THE MODEL, not an implementation detail:
-//
-//   - `archived` is tested FIRST, before the destination test, so a withdrawn product reads
-//     "no longer sold" even for a shopper who has not said where they live. Of the two true things
-//     we could say, that is the more informative one.
-//   - `not_yet_determined` comes next, before the remaining status distinctions — otherwise we would
-//     imply we had checked delivery when we had no address to check against.
-//   - "not delivered to your area" is the ELSE, so a product only earns it once we know the product
-//     is sellable and the shopper's location is known. It is never a fallback for "something failed".
-//
-// The EXISTS block is the same four-term predicate delivery.Purchasable implements, inlined here
-// because pulling 200 products through a per-row function call would defeat the point of the single
-// statement. ⚠ If you change one, change both — the divergence between the storefront's answer and
-// checkout's is precisely the defect 033 exists to remove.
+// ⚠ THE VERDICT IS NOW CATALOGUE STATUS ALONE. It used to join shop → zone → offering → pricing rule to
+// answer whether the product could reach the shopper's address. Delivery zones were withdrawn from the
+// platform, so there is no such question to answer and every address is implicitly deliverable.
 const listSQL = `
 SELECT s.product_id::text                        AS product_id,
        p.name                                    AS name,
@@ -127,21 +115,8 @@ SELECT s.product_id::text                        AS product_id,
        (p.currency = s.saved_currency AND p.price_amount < s.saved_price_amount) AS price_dropped,
        CASE
          WHEN p.status = 'archived' THEN 'no_longer_sold'
-         WHEN $2::uuid IS NULL      THEN 'not_yet_determined'
          WHEN p.status <> 'active'  THEN 'temporarily_unavailable'
-         WHEN EXISTS (
-             SELECT 1
-               FROM public.shop sh
-               JOIN public.delivery_zone_postcode oz ON oz.postcode = sh.postcode
-               JOIN public.delivery_offering o
-                 ON o.origin_zone_id = oz.zone_id
-                AND o.destination_zone_id = $2::uuid
-                AND o.status = 'active'
-               JOIN public.delivery_pricing_rule r
-                 ON r.method = o.method AND r.status = 'active'
-              WHERE sh.id = p.shop_id
-         ) THEN 'purchasable'
-         ELSE 'not_delivered_to_your_area'
+         ELSE 'purchasable'
        END                                       AS verdict
 FROM public.customer_saved_item s
 JOIN public.product p ON p.id = s.product_id
@@ -175,12 +150,8 @@ type listRow struct {
 }
 
 // List returns the shopper's saved items, newest first, each carrying its verdict.
-//
-// destZoneID is nil when the shopper has no delivery location — a first-class case (FR-038), not an
-// error. Every item then reports `not_yet_determined`, because claiming anything else would be
-// inventing certainty we do not have.
-func (r *Repository) List(ctx context.Context, customerID string, destZoneID *string) ([]listRow, error) {
-	rows, err := r.pool.Query(ctx, listSQL, customerID, destZoneID)
+func (r *Repository) List(ctx context.Context, customerID string) ([]listRow, error) {
+	rows, err := r.pool.Query(ctx, listSQL, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("saveditems: list: %w", err)
 	}

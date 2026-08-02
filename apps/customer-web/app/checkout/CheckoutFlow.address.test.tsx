@@ -34,26 +34,15 @@ function addr(over: Partial<AddressDTO> = {}): AddressDTO {
   }
 }
 
-const quotePackage = {
-  packageKey: "pkg_a1b2",
-  items: [{ productId: "p1", name: "Sourdough loaf", quantity: 1, imageUrl: null }],
-  serviceable: true,
-  methods: [
-    { method: "standard", serviceLevel: "Standard", feeAmount: "5.00", window: "in 2–3 days", scheduleDates: null },
-  ],
-}
-
 function jsonRes(body: unknown, ok = true, status = 200) {
   return { ok, status, json: async () => body } as Response
 }
 
 // Capture the request bodies the flow sends to the hot path.
-let quoteBodies: Array<Record<string, unknown>>
 let intentBodies: Array<Record<string, unknown>>
 let addressWrites: number
 
 beforeEach(() => {
-  quoteBodies = []
   intentBodies = []
   addressWrites = 0
   window.localStorage.setItem(
@@ -73,10 +62,6 @@ beforeEach(() => {
         addressWrites += 1
         return jsonRes(addr({ id: "new1", recipientName: "New Person", isDefault: false }))
       }
-      if (u.endsWith("/api/checkout/quote")) {
-        quoteBodies.push(body)
-        return jsonRes({ packages: [quotePackage], quoteId: `q${quoteBodies.length}`, expiresAt: "2099-01-01T00:00:00Z" })
-      }
       if (u.endsWith("/api/checkout/intent")) {
         intentBodies.push(body)
         return jsonRes({ orderId: "o1", orderNumber: "E-1", clientSecret: "cs", publishableKey: "pk", grandTotalAmount: "15.00", currency: "AUD" })
@@ -92,26 +77,30 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-/** Advance review → delivery → place the order (the intent request). */
+/**
+ * Place the order (the intent request).
+ *
+ * ⚠ ONE CLICK, not two. There used to be a delivery step between the address and payment; delivery
+ * zones, quotes and fees were withdrawn from the platform, so checkout is: choose an address, pay.
+ */
 async function placeOrder(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: /continue to delivery/i }))
-  await user.click(await screen.findByRole("button", { name: /continue to payment/i }))
+  await user.click(screen.getByRole("button", { name: /continue to payment/i }))
 }
 
 describe("CheckoutFlow shipping (US1/US2)", () => {
   it("blocks pay with no saved address and prompts to add one (FR-007)", () => {
     render(<CheckoutFlow initialAddresses={[]} />)
     expect(screen.getByText(/add an address to continue/i)).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /continue to delivery/i })).toBeDisabled()
+    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeDisabled()
   })
 
-  it("pre-selects the default and lets you reach delivery without touching the address (SC-001)", () => {
+  it("pre-selects the default and lets you pay without touching the address (SC-001)", () => {
     render(<CheckoutFlow initialAddresses={[addr()]} />)
     expect(screen.getByText("Pat")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /continue to delivery/i })).toBeEnabled()
+    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled()
   })
 
-  it("switching the shipping address re-quotes for it and never changes the saved default (FR-005/FR-006)", async () => {
+  it("switching the shipping address never changes the saved default (FR-006)", async () => {
     const user = userEvent.setup()
     render(
       <CheckoutFlow
@@ -124,7 +113,6 @@ describe("CheckoutFlow shipping (US1/US2)", () => {
     await placeOrder(user)
 
     // The quote and the intent both key off the newly chosen shipping address.
-    expect(quoteBodies.at(-1)).toMatchObject({ addressId: "a2" })
     expect(intentBodies.at(-1)).toMatchObject({ addressId: "a2" })
     // A per-order switch never writes the address book (no set-default).
     expect(addressWrites).toBe(0)
@@ -166,7 +154,7 @@ describe("CheckoutFlow billing (US4)", () => {
     )
 
     await user.click(screen.getByRole("switch")) // OFF, no billing chosen
-    expect(screen.getByRole("button", { name: /continue to delivery/i })).toBeDisabled()
+    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeDisabled()
   })
 
   it("toggling billing back ON discards the divergent choice (FR-013)", async () => {

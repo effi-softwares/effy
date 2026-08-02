@@ -49,13 +49,8 @@ class HttpSavedRepository(private val core: HttpClient) : SavedRepository, Saved
         SavedMembership(productIds = dto.productIDS.toSet())
     }
 
-    override suspend fun list(postcode: String?): List<SavedItem> = request {
-        core.get("v1/saved") {
-            // ⚠ Omitted entirely when unknown. Sending an empty string would be a DIFFERENT
-            // question — the server treats an absent postcode as "we have not been told" and a
-            // present one as "we checked".
-            if (postcode != null) parameter("postcode", postcode)
-        }.ensureSuccess().body<List<SavedItemDTO>>().map { it.toDomain() }
+    override suspend fun list(): List<SavedItem> = request {
+        core.get("v1/saved").ensureSuccess().body<List<SavedItemDTO>>().map { it.toDomain() }
     }
 
     override suspend fun save(productId: String, restoreSavedAt: String?) {
@@ -165,7 +160,5 @@ private fun SavedItemDTO.toDomain(): SavedItem = SavedItem(
 private fun WireVerdict.toDomain(): SavedVerdict = when (this) {
     WireVerdict.Purchasable -> SavedVerdict.PURCHASABLE
     WireVerdict.TemporarilyUnavailable -> SavedVerdict.TEMPORARILY_UNAVAILABLE
-    WireVerdict.NotDeliveredToYourArea -> SavedVerdict.NOT_DELIVERED_TO_YOUR_AREA
     WireVerdict.NoLongerSold -> SavedVerdict.NO_LONGER_SOLD
-    WireVerdict.NotYetDetermined -> SavedVerdict.NOT_YET_DETERMINED
 }

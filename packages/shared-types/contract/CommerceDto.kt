@@ -470,56 +470,11 @@ data class CreateCheckoutIntentRequest (
     /**
      * 023: the BILLING address, when the customer diverged from shipping. Absent / null / equal
      * to `addressId` → billing is "same as shipping" (the order stores NULL). Billing never
-     * affects the amount or the quote.
+     * affects the amount.
      */
     @SerialName("billingAddressId")
-    val billingAddressID: String? = null,
-
-    /**
-     * 021: packages the customer confirmed proceeding WITHOUT (auto-set-aside undeliverable
-     * items). MUST exactly match the server's unserviceable set or the intent is refused
-     * (FR-006b, SC-011a).
-     */
-    val excludedPackageKeys: List<String>? = null,
-
-    /**
-     * 021: the captured quote being placed. Honored while unexpired; else 409 → re-quote.
-     */
-    @SerialName("quoteId")
-    val quoteID: String? = null,
-
-    /**
-     * 021: the customer's per-package method choices (default preference + overrides, resolved).
-     */
-    val selections: List<DeliverySelectionDTO>? = null
+    val billingAddressID: String? = null
 )
-
-/**
- * The customer's chosen method for one package (021). Carries NO fee — the server prices it
- * (SC-004).
- */
-@Serializable
-data class DeliverySelectionDTO (
-    val method: CheckoutDeliveryMethod,
-    val packageKey: String,
-
-    /**
-     * Required only when method='scheduled'.
-     */
-    val scheduledDate: String? = null
-)
-
-/**
- * The three delivery service levels (021). Availability per package follows from the shop's
- * origin zone and the customer's destination zone — never from shop identity, which the
- * customer never sees.
- */
-@Serializable
-enum class CheckoutDeliveryMethod(val value: String) {
-    @SerialName("same_day") SameDay("same_day"),
-    @SerialName("scheduled") Scheduled("scheduled"),
-    @SerialName("standard") Standard("standard");
-}
 
 @Serializable
 data class CreateCheckoutIntentResponse (
@@ -529,12 +484,6 @@ data class CreateCheckoutIntentResponse (
     val clientSecret: String,
 
     val currency: String,
-
-    /**
-     * 021: the per-package delivery breakdown, for the order summary. Anonymous.
-     */
-    val deliveryBreakdown: List<DeliveryBreakdownLineDTO>? = null,
-
     val grandTotalAmount: String,
 
     @SerialName("orderId")
@@ -542,96 +491,6 @@ data class CreateCheckoutIntentResponse (
 
     val orderNumber: String,
     val publishableKey: String
-)
-
-/**
- * One line of the per-package delivery breakdown on the intent response (021). Anonymous.
- */
-@Serializable
-data class DeliveryBreakdownLineDTO (
-    val feeAmount: String,
-    val packageKey: String,
-    val serviceLevel: String,
-    val window: String? = null
-)
-
-/**
- * One selectable delivery option for a package (021). Server-computed; the client never
- * sends a fee.
- */
-@Serializable
-data class DeliveryMethodOptionDTO (
-    val feeAmount: String,
-    val method: CheckoutDeliveryMethod,
-
-    /**
-     * Selectable dates for method='scheduled'; null otherwise.
-     */
-    val scheduleDates: List<String>? = null,
-
-    /**
-     * Customer-facing label, e.g. "Same-day".
-     */
-    val serviceLevel: String,
-
-    /**
-     * Derived window, e.g. "Today by 6pm" / "in 2–3 days"; null for a scheduled method (pick a
-     * date).
-     */
-    val window: String? = null
-)
-
-/**
- * POST /v1/checkout/quote — per-package delivery options for the cart + address (021 US1).
- */
-@Serializable
-data class DeliveryQuoteRequest (
-    @SerialName("addressId")
-    val addressID: String
-)
-
-@Serializable
-data class DeliveryQuoteResponse (
-    /**
-     * The captured quote is honored until this instant; after it the customer must re-quote
-     * (021 R7).
-     */
-    val expiresAt: String,
-
-    val packages: List<QuotePackageDTO>,
-
-    @SerialName("quoteId")
-    val quoteID: String
-)
-
-@Serializable
-data class QuotePackageDTO (
-    val items: List<QuotePackageItemDTO>,
-    val methods: List<DeliveryMethodOptionDTO>,
-    val packageKey: String,
-
-    /**
-     * False when this package cannot be delivered to the address (021 US2). methods is then
-     * empty.
-     */
-    val serviceable: Boolean
-)
-
-/**
- * One ANONYMOUS package in a quote (021) — the items from a single shop, shown without any
- * shop identity or location (FR-019). `packageKey` is an opaque grouping token.
- */
-@Serializable
-data class QuotePackageItemDTO (
-    @SerialName("imageUrl")
-    val imageURL: String? = null,
-
-    val name: String,
-
-    @SerialName("productId")
-    val productID: String,
-
-    val quantity: Double
 )
 
 /**
@@ -684,39 +543,6 @@ enum class ProductBadge(val value: String) {
 }
 
 /**
- * One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030
- * FR-005).
- *
- * ⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across
- * states (there are many Springfields), a locality spans several postcodes, and a postcode
- * covers several localities. That is why FR-008 forbids a bare name being selectable, and
- * why the `locality` table's natural key is the triple. A response that drops any one of
- * these is an ambiguous place the client cannot resolve.
- *
- * ⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE,
- * by `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that
- * hinted at coverage would pre-empt that answer and let anyone enumerate the delivery
- * footprint (FR-011).
- */
-@Serializable
-data class LocalityDTO (
-    /**
-     * The locality name as a shopper would say it, e.g. "Richmond".
-     */
-    val name: String,
-
-    /**
-     * Exactly four digits — the same canonical form `ServiceabilityDTO.postcode` uses.
-     */
-    val postcode: String,
-
-    /**
-     * One of ACT NSW NT QLD SA TAS VIC WA.
-     */
-    val state: String
-)
-
-/**
  * A product image (presigned GET URL + alt text).
  */
 @Serializable
@@ -763,13 +589,12 @@ data class OrderDTO (
      */
     val deliveryAddress: OrderAddressDTO,
 
-    val deliveryFeeAmount: String,
-
     /**
      * The promotional discount applied at payment (027 FR-049). The platform's own computation
      * at that moment, stored on the order — so a receipt stays explainable years later even if
      * the code has since been changed or disabled. "0.00" (or absent, on a pre-027 order) when
-     * no code was used. Invariant: grandTotal = itemSubtotal + deliveryFee − discount.
+     * no code was used. Invariant: grandTotal = itemSubtotal − discount. (There is no delivery
+     * fee on this platform.)
      */
     val discountAmount: String? = null,
 
@@ -817,16 +642,6 @@ data class OrderAddressDTO (
  */
 @Serializable
 data class OrderFulfillmentDTO (
-    val deliveryFeeAmount: String? = null,
-
-    /**
-     * The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The
-     * customer's receipt breakdown shows, per package, what they paid to have it delivered and
-     * when it is promised. Absent on pre-021 orders.
-     */
-    val deliveryServiceLevel: String? = null,
-
-    val deliveryWindow: String? = null,
     val itemCount: Double,
     val status: Status,
     val subtotalAmount: String,
@@ -1063,10 +878,8 @@ enum class ReorderSkipReason(val value: String) {
 
 @Serializable
 data class SavedAddToCartRequest (
-    /**
-     * Absent means no delivery location is known — nothing is purchasable, so nothing is added.
-     */
-    val postcode: String? = null
+    @SerialName("changeId")
+    val changeID: String? = null
 )
 
 /**
@@ -1159,29 +972,20 @@ data class SavedItemDTO (
 )
 
 /**
- * Whether the shopper can buy a saved item right now, at the delivery location they are
- * shopping for.
+ * Whether the shopper can buy a saved item right now.
  *
- * ⚠ FIVE VALUES, NOT A BOOLEAN, and the distinctions are the point: each one implies a
- * different next action, and collapsing any two of them tells the shopper nothing they can
- * act on.
+ * ⚠ THREE VALUES. `not_delivered_to_your_area` and `not_yet_determined` were both derived
+ * from delivery zones, and delivery zones were withdrawn from the platform. The list still
+ * tells the truth about stock and withdrawal — it simply has nothing to say about delivery
+ * reach, because nothing on the platform knows it. Each remaining value still implies a
+ * different next action:
  *
- * purchasable                 → buy now   temporarily_unavailable     → sold and delivered
- * here, just not in stock — wait   not_delivered_to_your_area  → sold and in stock, but
- * nothing reaches this address — change address   no_longer_sold              → withdrawn
- * from sale entirely — give up   not_yet_determined          → the shopper has not said
- * where they live — tell us
- *
- * ⚠ "Unavailable" and "we don't deliver that to you" are DIFFERENT STATEMENTS and only one
- * of them is true in any given case. Merging them is the 031 REGIONAL defect in miniature:
- * a shopper invited to a checkout that refuses them, with no way to tell whether waiting
- * would help.
+ * purchasable             → buy now   temporarily_unavailable → sold, not in stock — wait
+ * no_longer_sold          → withdrawn entirely — give up
  */
 @Serializable
 enum class SavedVerdict(val value: String) {
     @SerialName("no_longer_sold") NoLongerSold("no_longer_sold"),
-    @SerialName("not_delivered_to_your_area") NotDeliveredToYourArea("not_delivered_to_your_area"),
-    @SerialName("not_yet_determined") NotYetDetermined("not_yet_determined"),
     @SerialName("purchasable") Purchasable("purchasable"),
     @SerialName("temporarily_unavailable") TemporarilyUnavailable("temporarily_unavailable");
 }
@@ -1282,23 +1086,6 @@ data class ProductSearchResultDTO (
      * Total products matching the refinements, ignoring pagination (025 FR-016a).
      */
     val total: Double
-)
-
-/**
- * Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).
- *
- * ⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart
- * contents, so anything shown here is an estimate checkout would revise), and no zone id or
- * name (FR-006 — zone names are geographic and would disclose where Effy fulfils from).
- */
-@Serializable
-data class ServiceabilityDTO (
-    /**
-     * The normalised postcode the answer applies to.
-     */
-    val postcode: String,
-
-    val serviced: Boolean
 )
 
 /**

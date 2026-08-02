@@ -61,7 +61,7 @@ class SavedStoreTest {
         val removed = mutableListOf<String>()
 
         override suspend fun membership() = SavedMembership(membership)
-        override suspend fun list(postcode: String?): List<SavedItem> = emptyList()
+        override suspend fun list(): List<SavedItem> = emptyList()
         override suspend fun save(productId: String, restoreSavedAt: String?) {
             failWith?.let { throw AppException(it) }
             saved += productId to restoreSavedAt

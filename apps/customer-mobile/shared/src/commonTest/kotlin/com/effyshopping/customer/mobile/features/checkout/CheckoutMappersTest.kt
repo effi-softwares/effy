@@ -25,7 +25,6 @@ class CheckoutMappersTest {
         billingAddress = billing,
         currency = "AUD",
         deliveryAddress = address("Ship To"),
-        deliveryFeeAmount = "5.00",
         fulfillments = emptyList(),
         grandTotalAmount = "25.00",
         id = "ord1",

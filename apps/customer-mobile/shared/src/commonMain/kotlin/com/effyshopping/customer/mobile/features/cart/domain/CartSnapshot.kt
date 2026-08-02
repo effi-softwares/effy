@@ -22,7 +22,6 @@ data class CartSnapshot(
     val itemSubtotalAmount: String = "0.00",
     val discountAmount: String = "0.00",
     /** Always "0.00" in the cart — delivery is priced at the delivery step, once an address exists. */
-    val deliveryFeeAmount: String = "0.00",
     val grandTotalAmount: String = "0.00",
     val currency: String = "AUD",
     val notices: List<CartNotice> = emptyList(),

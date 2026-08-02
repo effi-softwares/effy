@@ -173,14 +173,6 @@ type Reader interface {
 	SearchCards(ctx context.Context, p SearchParams) ([]searchRow, error)
 	// CountCards returns the total matching the same filters, ignoring ordering and pagination.
 	CountCards(ctx context.Context, p SearchParams) (int, error)
-	// Serviceable answers whether a (already-normalised) postcode is in a delivery zone. It resolves
-	// through the SAME predicate checkout uses, so the storefront's up-front answer and checkout's
-	// cannot disagree (025 FR-014b).
-	Serviceable(ctx context.Context, postcode string) (bool, error)
-	// SearchLocalities finds places by exact postcode or by name prefix (030 FR-005). The service
-	// decides which; the repository just runs it. ⚠ Ordering is alphabetical and never reflects
-	// serviceability (FR-011).
-	SearchLocalities(ctx context.Context, q string, byPostcode bool, limit int) ([]Locality, error)
 }
 
 type Service struct {

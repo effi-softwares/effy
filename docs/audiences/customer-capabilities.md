@@ -165,41 +165,6 @@ keys (Secrets Manager + client env), `make core-run` + the webhook tunnel, the A
 + iOS `SwiftPaymentBridge.swift`, and E2E/on-device sign-off. `core-api` itself is local-only until its
 own cloud slice — so this flow is **built + locally verifiable**, live go-live tracks the hot-path deploy.
 
-## §021 — Delivery zones & pricing (per-shop split delivery)
-
-Replaces 019's flat $5 fee with **per-shop split delivery** (AliExpress/Daraz model, sellers hidden). A
-multi-shop cart becomes one anonymous **package** per shop, each priced/timed from that shop's origin
-zone to the customer's destination zone; the customer places **one order, pays once**, and sees an
-anonymised per-package breakdown. Delivered on **both** customer surfaces at parity.
-
-| Capability | customer-web | customer-mobile | Notes |
-|---|---|---|---|
-| Package-aware cart (anonymous "Package N", opaque key) | ✅ | ✅ | No shop name/location (SC-006) |
-| Per-package delivery options at checkout (fee + window) | ✅ | ✅ | `POST /v1/checkout/quote` (hot path) |
-| Default preference + per-package override | ✅ | ✅ | fastest/cheapest, overridable |
-| Scheduled-date pick + derived windows | ✅ | ✅ | method-dependent |
-| Serviceability: auto-exclude undeliverable + explicit confirm | ✅ | ✅ | items never a shop (FR-004); all-undeliverable blocks |
-| Server-authoritative per-package fee, captured-quote window | ✅ | ✅ | client never sends a fee (SC-004); 409 → re-quote |
-| Anonymised per-package receipt breakdown | ✅ | ✅ | `OrderFulfillmentDTO` delivery fields |
-
-**Management (back-office, not a customer capability):** zones (postcode sets), shop locations, and the
-(origin→dest, method) rate grid — cold-path `edge-api/admin` `delivery/`, cloning 009, audited via
-`admin.audit_log`, no cards.
-
-**Shop side (020, enriched):** each portion now carries its **real** ready-by + service level from the
-customer's chosen package method (the 020 promise seam, one file); the shop **never** sees the delivery
-fee (FR-021a). Same-day portions genuinely outrank multi-day in the queue.
-
-**Money-path integrity (US3):** per-package fees are computed server-side from zones×offerings, captured
-on the pending order, honored within a validity window, snapshotted into `shop_fulfillment` inside 019's
-atomic `FinalizeSucceeded` transaction (no partial paid order). Verified: **644 JS/TS tests**, full Go
-suite incl. per-package fee/exclusion/expiry tests, 152 mobile tests (Android+iOS), 020's 156 shop tests
-still green post-seam-swap.
-
-⚠ **Not live-verified yet** — `core-api` is local-only; SC-001…SC-013 need a two-shop live checkout (like
-020's) against a seeded zone/rate config. ⚠ **Guest bundle** ticked 167.3→167.5 KB (pre-existing breach;
-021's cart-store change adds ~0.2 KB) — needs its own fix, not 021's to own.
-
 ## §022 — Customer address book (manage saved addresses)
 
 Makes address management a **first-class account capability** on both customer surfaces, over the
@@ -317,7 +282,6 @@ surface, and a sticky bar solves a problem that does not exist at desktop widths
 | Category browse | ✅ `/browse` category index | ⚠️ **PARITY GAP (deliberate, 2026-07-30)** — the Browse destination was REMOVED at the operator's instruction, superseding 025 FR-010 for mobile. Mobile now has only the Discover rail chips, which group the home read client-side; there is no category index and no way to set a category refinement in Search. |
 | Persistent search entry | ✅ header, both breakpoints | ✅ Search destination + app bar |
 | Delivery location, set before a cart exists | ✅ header island + `<dialog>` | ✅ Home delivery row + dialog |
-| Up-front serviceability answer | ✅ | ✅ |
 | Sort control | ✅ 4 orderings, server-echoed | ✅ 4 orderings, server-echoed |
 | Result count | ✅ live region | ✅ live region |
 | Removable refinement chips + clear-all | ✅ | ✅ |
@@ -635,72 +599,6 @@ offers carousel is mobile-only.
 
 ---
 
-## §030 — Suburb-aware delivery location
-
-**Both surfaces move together, and that was the point.** 025 gave the storefront its up-front "do we
-deliver to you?" answer but the only way in was a **postcode the shopper had to already know** — so a
-shopper new to the area, renting, or who simply thinks in suburb names could not answer at all. For
-that person the store's first interaction was a dead end. 030 lets them type **"Richmond"**.
-
-| Capability | customer-web | customer-mobile |
-|---|---|---|
-| Find a place by suburb name | ✅ | ✅ |
-| One input accepting either a postcode or a name (FR-006) | ✅ | ✅ |
-| Every place identified by name + state + postcode (FR-008) | ✅ | ✅ |
-| Verdict shown inside the entry surface (FR-028/FR-050) | ✅ | ✅ |
-| Seeded from the account's default address (FR-018) | ✅ | ✅ |
-| Sign-out drops an account place, keeps a device one (FR-023) | ✅ | ✅ |
-| The place displayed rather than bare digits (FR-033/FR-039) | ✅ | ✅ |
-| **Entry surface** | modal panel (unchanged shape) | **bottom sheet** (new — FR-026) |
-| Keyboard-only operation (FR-051) | ✅ | n/a |
-
-**Parity is of capability, not of form factor** — the bottom sheet is a mobile change by operator
-direction; web keeps the modal panel it had.
-
-**⚠ 025's FR-013 account half is finally wired.** `seedFromAccount` existed on **both** surfaces and
-was called by **neither** — a shopper who had already told Effy where they live was still being asked
-to type a postcode. It had been unmet since 025 shipped, on every surface, for three features.
-
-**Data**: one migration `20260801122324_locality.sql` + `db/reference/au-localities.csv` —
-**15,414 triples** derived from **16.9M** G-NAF address records (CC BY 4.0, attribution in
-`db/reference/README.md`). ⚠ The table covers **all of Australia, not only served areas** (FR-002): a
-served-only table would make "we've never heard of that place" and "we don't deliver there"
-indistinguishable, which is the exact conflation this capability exists to prevent.
-
-**⚠ The byte budget forced two design changes on web, and the gate is what found them.**
-`next/dynamic` **alone made every route worse** (+0.4–0.6 KB; `/cart` went over budget) — the lazy
-loader costs more than the small form it deferred. Getting under required also dynamically importing
-the mount re-check, dropping the `loading:` fallback, and **splitting `DeliveryNotice` into its own
-module** — it was riding in the always-loaded chrome on all six routes and is used on one. Separately,
-the planned `DeliverySeedClient` module was replaced by a **prop on the component that already ships**,
-because a new always-loaded client boundary does not fit in 0.2 KB. Final: `/` 172.7 · `/browse` 169.9
-· `/search` 173.8 · `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at
-or below the pre-feature baseline**.
-
-**⚠ FR-019 cannot fully hold on mobile.** The mobile delivery location still does not survive an app
-restart (025's unmet persistence half). So a signed-in shopper who deliberately switches suburbs is
-**re-seeded from their account default on next launch** — the explicit choice that was meant to
-outrank it did not survive. It holds within a session. ⚠ **This feature makes a pre-existing gap
-worse**: before it, nothing was ever seeded, so the gap only meant "retype it".
-
-**✅ SIGNED OFF 2026-08-01** — 101/101. The operator walks are recorded as **operator attestation**;
-the machine verification was observed directly. See
-[SIGNOFF.md](../../specs/030-delivery-location-suburb/SIGNOFF.md).
-
-**Live data**: 15,414 localities · 299 leading-zero postcodes · SC-002 coverage **0 uncovered** · the
-prefix index confirmed in use (`Bitmap Index Scan`, 0.114 ms). Served postcodes are now all nameable —
-**3350 covers 20 Ballarat localities, 3550 covers 12 in Bendigo**, and none of those shoppers could
-have named their postcode.
-
-⚠ **SC-002 failed on first run** and the fault was in the **zone** data: postcode **3001** (Melbourne's
-PO Box code, zero street addresses in G-NAF) was in MEL-METRO. Removed — **not** papered over by
-inventing a locality row.
-
-**Carry-forwards**: mobile telemetry deferred an **eleventh** consecutive slice; the 028/029 banner
-`code`/`terms` face gap on web is untouched by this slice; `/search` has ~0.2 KB of headroom left.
-
----
-
 ## §033 — Customer Saved Items: watchlist, guest saving & zone-aware purchasability
 
 | Capability | customer-web | customer-mobile | Notes |
@@ -710,7 +608,6 @@ inventing a locality row.
 | Control on product detail | ✅ | ✅ | |
 | Control on tiles — home rails | ✅ | ✅ | |
 | Control on tiles — browse | ✅ | ✅ | |
-| Control on tiles — **search results** | ⬜ **by measurement** | ✅ | ⚠ FR-007 amended; see the bundle note below |
 | Control on an order line | ⬜ | ✅ | web order detail not yet wired |
 | Saved list with five-way purchasability | ✅ | ✅ | |
 | Price-drop indicator | ✅ | ✅ | rises deliberately not badged (FR-044) |
@@ -746,12 +643,6 @@ untouched.
 2. **`available` was catalogue status, not purchasability.** A product could be active and still
    unreachable at the shopper's address. Replaced by a five-way verdict, and the DTO deliberately
    **omits `available`** so two fields can never disagree about one question.
-
-**⚠ The storefront's serviceability answer was repointed.** `storefront.Serviceable()` claimed it and
-checkout "cannot drift apart" — they already had, by **three terms**. A new shared four-term predicate
-(`platform/delivery/purchasable.go`) now serves both. Consequence, accepted knowingly: postcodes in a
-zone with no live priced leg (3350, 3550 on dev data) flip from `serviced: true` to `false`. Checkout's
-suite passes **unmodified**.
 
 **Bundle:** `/` 173.7 · `/browse` 169.9 · `/search` 173.9 · `/product/[id]` 172.7 · `/cart` 173.8 ·
 `/promotions/[id]` 171.0 — all within 174 KB, **and the limit was not raised**. ⚠ The control costs

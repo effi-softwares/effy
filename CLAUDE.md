@@ -203,8 +203,7 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**033-customer-saved-items — Customer Saved Items: Watchlist, Guest Saving & Zone-Aware
-Purchasability.** 🚧 **139/174 tasks — every feature phase BUILT and machine-verified except telemetry;
+**033-customer-saved-items — Customer Saved Items: a watchlist.** 🚧 **139/174 tasks — every feature phase BUILT and machine-verified except telemetry;
 operator walks + commit pending.**
 
 Replaces the half-built favourites capability **entirely** — its behaviour, its stored data, and every
@@ -226,13 +225,6 @@ that made a shopper trust it and then be misled.
   list (Woolworths, Coles) is a **price-and-availability watchlist**. **Buy It Again is named as a
   RESERVED SIBLING** so a later slice need not rename this one. Uber Eats' "Lists" are shareable
   merchant curation and **do not transfer** to single-brand hidden fulfilment.
-- **⚠ THE STOREFRONT'S SERVICEABILITY ANSWER WAS A LIE, AND IS NOW FIXED.**
-  `storefront.Serviceable()` carried a comment claiming it and checkout "cannot drift apart" — **they
-  already had, by three terms** (origin zone, an active `delivery_offering` on the leg, an active
-  `delivery_pricing_rule`). That is 031's REGIONAL defect, which 031 documented and could only fix in an
-  admin endpoint. New shared `platform/delivery/purchasable.go` serves both. **Consequence accepted
-  knowingly**: 3350/3550 flip to `serviced:false` until an offering exists. **Checkout's suite passes
-  UNMODIFIED with an empty diff.**
 - **Data**: one migration `20260802052141_customer_saved_items.sql` — creates `customer_saved_item`,
   **DROPS `customer_favorite`**. ⚠ Old saved items are **not carried forward** (FR-005): they hold no
   save-time price, and migrating them would fabricate a baseline never observed. ⚠ `cart_saved_item`
@@ -267,138 +259,6 @@ that made a shopper trust it and then be misled.
   SC-009 test, force-quit persistence, iOS process-death restore, and **Android, which has never been
   looked at across 028/029/033**. Spec/artifacts: [specs/033-customer-saved-items/](specs/033-customer-saved-items/);
   parity register: [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §033.
-
-**031-delivery-areas — Delivery Areas: Locality-Driven Zone Composition.** 🚧 **SCOPE REDUCED
-2026-08-01 — the pricing half was withdrawn; composition, the decision record and health stand.**
-
-⚠ **Why it was reduced, because "unfinished" would be the wrong word.** US2 collapsed per-origin
-pricing into one fee per area, arguing the shopper cannot perceive which shop serves them. **That is
-true for PRICE and false for ELIGIBILITY** — whether same-day is possible depends entirely on which
-shop is fulfilling. The collapse removed the exact axis the operator's real model needs back: *a shop
-declares which zones it serves same-day; an admin approves it.*
-
-⚠ **The same-day guard was disproven live.** It asked "is any shop in this area's zone?" — so same-day
-to **Ballarat** was permitted by a shop in **Bendigo, 98 km away**, essentially as far as Melbourne
-(107 km). It carried no information.
-
-⚠ **And research R6's premise was simply wrong.** It said "the platform has no routing or distance
-capability". **G-NAF ships `LOCALITY_POINT` with lat/long for every locality** — same download, same
-CC BY licence 030 accepted — and 030's derivation discarded it. Distance was always available.
-
-Gives the back office the locality record 030 built for shoppers, and moves delivery configuration to
-the unit operations actually thinks in: **the area**. Entirely cold-path and operator-facing.
-- **⚠ TWO LIVE DEFECTS MOTIVATED IT, both found in real data.** **(1)** Postcode **3001** — Melbourne's
-  PO-box code, no street addresses — sat in Melbourne Metro because the console validated a postcode's
-  *shape* and nothing else. **(2)** Zone **REGIONAL** served **Ballarat (3350) and Bendigo (3550) with
-  ZERO inbound offerings**, so the storefront answered `{"serviced":true}` and checkout could quote
-  nothing — shoppers invited in and stopped at payment. **That is 025's FR-014b violated in DATA rather
-  than in code**: every Go test passed and the configuration undid the rule. ⚠ 030 widened its reach —
-  before it, a Ballarat shopper had to know "3350"; after it they can type "Alfredton".
-- **Data**: one migration `20260801184250_delivery_area_decisions.sql` — `delivery_area_decision`,
-  which makes **three** states distinguishable where there were two. ⚠ `unconfigured` is deliberately
-  **not** a value: it is the absence of a row, because **you cannot index the absence of a row** and
-  FR-025 is unbuildable until the third state is a fact.
-- **⚠ "Not served" WITHDRAWS the area, it does not annotate it.** Serviceability is decided by zone
-  membership, so a decision recorded *beside* it would have left an area an admin explicitly marked
-  unserved still answering "we deliver here" — the REGIONAL defect **inverted**, introduced by the
-  feature meant to prevent it. Caught by the analyze pass; the first design was inert.
-- **⚠ The disclosure is the point.** An area **is a postcode**, chosen by locality name — so picking
-  "Alfredton" serves all **20** Ballarat localities. `PostcodeCoverageNotice` says so before confirming,
-  and again on **removal**, the more dangerous direction. The same problem exists one level up:
-  `delivery_offering` is zone-keyed, so configuring Ballarat configures **Bendigo**.
-- **⚠ Same-day is a promise, not a price.** A fee is a business choice the platform absorbs; same-day is
-  a physical claim about time. The shops are **shown**, never a computed radius (no routing capability;
-  invented precision on a promise is worse than an honest judgement), and enabling it with none nearby
-  is a server-enforced **422** — a UI-only guard is not a guard.
-- **⚠ Per-origin pricing collapsed to per-area**, deliberately: the shopper cannot perceive which shop
-  serves them (hidden fulfilment), while the grid grew as origins × destinations. Live data had
-  Melbourne Metro standard at **$5.00 and $8.00** — a real loss of expressiveness, taken knowingly. The
-  rate grid is now **read-only** and the orphaned editor + its test were **deleted**, because two
-  management surfaces for one concept is how configuration drifts.
-- **⚠ THE FR-028 GUARD HELD**: `apis/core-api` has an **empty diff** and its `storefront` and `checkout`
-  suites pass **unmodified** (re-run uncached). The shopper's delivery experience is untouched.
-- **Verified**: 6 new cold-path routes (59 Lambda functions) · **201 admin tests** · **112 back-office**
-  · `pnpm -r typecheck` **12/12** · 12/12 test packages · back-office builds · `tokens:check` unchanged
-  (no token) · no cards · telemetry grep clean.
-- **⚠ Two of my own errors, caught and recorded**: both disclosures were built and wired to
-  `siblingCount={0}` / `shops={[]}`, so **neither would ever have rendered**; and the SC-014 assertion
-  was moved out of core-api into a service that **has no database in its test run**, so it pins the
-  query's shape rather than its behaviour.
-- **⚠ Open (operator) — 20 tasks, 14 of them walks**: `make edge-deploy SERVICE=admin ENV=dev`, then
-  ⚠ **`/delivery-health` must return 3350 and 3550 TODAY** (an endpoint that returns empty on its first
-  run has not been proven to find anything), the two **five-admin observer tests** (does an admin know
-  they just served twenty places? can they tell "not served" from "not configured"?), the `422` by
-  `curl` not only the UI, and **W9 — a real checkout to a Ballarat address**, which is the whole feature
-  in one walk. **Carry-forwards**: no metrics emission path in the cold path at all; no real-database
-  test capability in the cold path; the reconciliation prompt unbuilt. Spec/artifacts:
-  [specs/031-delivery-areas/](specs/031-delivery-areas/); register:
-  [docs/audiences/admin-capabilities.md](docs/audiences/admin-capabilities.md) §031.
-
-**030-delivery-location-suburb — Suburb-Aware Delivery Location.** ✅ **SIGNED OFF 2026-08-01 —
-101/101 tasks.** Record: [specs/030-delivery-location-suburb/SIGNOFF.md](specs/030-delivery-location-suburb/SIGNOFF.md).
-⚠ The operator walks are recorded as **operator attestation**; the machine verification was observed
-directly. **Data is live**: 15,414 localities loaded, SC-002 coverage 0 uncovered, the prefix index
-confirmed in use (`Bitmap Index Scan`, 0.114 ms).
-
-Lets a shopper name where they live by **suburb** instead of by a postcode they had to already know.
-025 gave the storefront its up-front "do we deliver to you?" answer and left the only way in as four
-digits — so a shopper new to the area, renting, or who thinks in suburb names could not answer at all.
-- **Data**: `public.locality` (migration `20260801122324_locality.sql`, schema only) +
-  `db/reference/au-localities.csv` — **15,414 triples** derived from **16.9M** G-NAF address records by
-  `make derive-localities`, loaded by `make load-localities` (idempotent). **CC BY 4.0 — attribution in
-  `db/reference/README.md` is required, not optional.**
-- **⚠ THE ASSUMED DATASET HAD NO LICENCE.** Research R1 named a community postcode dataset as
-  "permissively licensed"; the GitHub API reports `"license": null` and there is no LICENSE file. **No
-  licence means all rights reserved, not permissive.** The blocking licence task is the only reason it
-  was not committed. G-NAF replaced it by operator decision.
-- **⚠ Two derivation defects found ONLY by running against the real 1.7 GB download**, neither of which
-  a synthetic fixture could surface: the file pattern `_LOCALITY_psv.psv$` **also matches
-  `{ST}_STREET_LOCALITY_psv.psv`** — it would have loaded **street names as suburbs**; and the STATE
-  table is per-state in `Standard/`, not in `Authority Code/`. Also handled: `OT` (Other Territories) is
-  a **ninth** pseudo-state the `locality.state` CHECK forbids.
-- **Endpoint**: `GET /v1/storefront/localities?q=` on the **hot path**, beside `/serviceability`.
-  ⚠ **`ServiceabilityDTO` was NOT touched** — its two-field freeze and both reflection tests stand,
-  because the design turned out not to need the echo (research R4).
-- **⚠ Principle II nearly failed silently.** `LocalityDTO` in `storefront.ts` alone generated to Kotlin
-  **zero times** — the schema generator walks the `CustomerCommerceContract` aggregator, so an
-  unreferenced type is never generated and `cm-contract-check` would have passed **trivially** while the
-  Kotlin client carried a hand-written type. Caught by the analyze pass, fixed by T022a.
-- **⚠ THE BYTE GATE FOUND A REAL PROBLEM.** `next/dynamic` **alone made every web route worse**
-  (+0.4–0.6 KB; `/cart` 173.8 → **174.3**, over budget) — the lazy loader costs more than the small form
-  it defers. Getting under also required dynamically importing the mount re-check, dropping the
-  `loading:` fallback, and **splitting `DeliveryNotice` into its own module** (it rode in the
-  always-loaded chrome on all six routes and is used on one). The planned `DeliverySeedClient` became a
-  **prop on a component that already ships**. Final: `/` 172.7 · `/browse` 169.9 · `/search` 173.8 ·
-  `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at or below the
-  pre-feature baseline**. ⚠ The **Amplify quarantine also fired** on the seed island (`lib/dal` →
-  `aws-amplify`); fixed with the cookie-decoding `readServerSession`.
-- **Mobile**: the entry surface is now a **bottom sheet** (`DeliverySheet.kt`, operator direction),
-  carrying the input, the results list **and** the verdict. ⚠ The keyboard is **no longer numeric** —
-  025's field was postcode-only; a number pad would make this unusable for exactly the shopper it
-  exists for. `LocalityResult` is a **sealed interface**, not `List<Locality>?`, so the compiler forces
-  "lookup failed" and "no matches" apart.
-- **⚠ 025's FR-013 account half is finally wired** — `seedFromAccount` existed on **both** surfaces and
-  was called by **neither**, for three features.
-- **⚠ FR-019 cannot fully hold on mobile**: the location still does not survive an app restart, so a
-  signed-in shopper who deliberately switches suburbs is **re-seeded from their account default on next
-  launch**. It holds within a session. **This feature makes a pre-existing gap worse** — before it,
-  nothing was ever seeded.
-- **Verified**: Go build/vet/test/gofmt · **466 mobile tests** · iOS + Android compile + APK ·
-  `pnpm -r typecheck` **12/12** · **221 web tests** · bundle gate green · `depcruise` clean ·
-  `cm-guard` · `tokens:check` **unchanged** (no token added) · no contract drift · telemetry grep clean.
-- **⚠ SC-002 FAILED ON FIRST LIVE RUN, and the fault was in the ZONE data.** Postcode **3001** was in
-  MEL-METRO with no locality naming it — 3001 is Melbourne's **PO Box / GPO** code, and G-NAF has zero
-  addresses for it because it has no street addresses. **You cannot leave groceries in a PO box.**
-  Removed from the zone. ⚠ It was **not** "fixed" by inventing a `Melbourne VIC 3001` row, which would
-  have made the assertion pass by fabricating a place that does not exist.
-- **⚠ Carry-forwards**: **FR-019 cannot fully hold on mobile** (no restart persistence, so a signed-in
-  shopper who switches suburbs is re-seeded from their default on next launch — **this feature makes a
-  pre-existing gap worse**); the **3001 fix is not durable** because the 021 zone seed lives in
-  scratchpad **outside the repo**, so a re-seed reintroduces it and there is **no committed source of
-  truth for zone data at all**; mobile telemetry deferred an **eleventh** slice; `/search` has ~0.2 KB
-  of headroom; `core-api` still has no cloud deploy. Spec/artifacts:
-  [specs/030-delivery-location-suburb/](specs/030-delivery-location-suburb/); parity register:
-  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §030.
 
 **029-promotional-banner-carousel — Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
 ✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-01 — 78/89 tasks** (62/73 at sign-off + Phase 9's 16/16
@@ -678,66 +538,6 @@ onto a blank white frame.
   and the **commit**. **`apps/driver-mobile` is untouched by design (FR-020)** — this slice brands five
   surfaces, not six. Spec/artifacts: [specs/024-brand-icons-splash/](specs/024-brand-icons-splash/).
 
-**021 + 022 + 023 — delivery zones, address book, checkout shipping/billing.** ✅ **SIGNED OFF
-(live-validated) 2026-07-22.** Built as three stacked slices, merged to `main` together (PR #1), and
-validated live locally end-to-end: a two-shop cart → per-package delivery quote → Stripe test-card
-payment → order finalized. Live-only bugs found during testing and fixed (see also post-sign-off below):
-- **021 — the captured quote lost shop identity.** `QuotePackage.ShopID` is `json:"-"` (hidden from the
-  customer, FR-019), but the quote is persisted to `order.delivery_quote` **using that same struct**, so
-  `shop_id` read back empty and the intent inserted `order_package_delivery.shop_id = ""` → 500 (invalid
-  uuid). Checkout intent had **never** completed on the 021 flow. Fix: re-attach each package's shop id at
-  intent time from the **cart lines** (`packageKey` = deterministic hash of the shop id) — shop id stays
-  out of the jsonb and the client response. Regression test added (`checkout/service_test.go`).
-- **customer-web checkout showed $0 + disabled button.** The page displayed/gated on the **live** guest
-  cart, which the mount-time merge clears — so the price dropped to $0 and Continue disabled the instant
-  the merge resolved. Fix: snapshot the cart at entry (`CheckoutFlow.tsx`) and display/gate on that (the
-  server cart is authoritative post-merge).
-- **022 — "Set as default" 502'd when a default already existed** (post-sign-off, found 2026-07-22;
-  fix NOT yet committed). `PATCH /customer/v1/addresses/{id}` cleared the prior default and set the new
-  one in a **single data-modifying CTE**, but `customer_address_default_uq` is a NON-deferrable partial
-  unique index and CTE sub-statements share one snapshot (the clear is invisible to the set) — so the
-  constraint saw two `is_default` rows → `23505` → 502 `unavailable`. Promoting a default had **never**
-  worked when the customer already had one. Fix (`apis/edge-api/customer/src/addresses/repo.ts`
-  `update()`): two ordered statements in a `withTransaction` — clear the old default first (guarded on
-  the target existing + owned, so a 404 patch doesn't strip the default), then set the target — so at
-  most one `true` row is ever visible to the index. Repo SQL has no unit-test seam here (verified live).
-- **✅ Cart integrity rewrite (2026-07-23; fix NOT yet committed) — 019 R8 amended to "Option B".** Three
-  live cart bugs on **both** customer surfaces: (a) entering checkout then leaving emptied the cart, (b) a
-  prior abandoned attempt's items reappeared, (c) adding 1 item showed 2–3 in checkout. Root cause: two
-  unreconciled carts (device-local vs server) bridged by an **additive, non-idempotent** `POST /v1/cart/merge`
-  fired on **checkout entry** and never reset except by a *paid* order; the clients read the local cart while
-  checkout read the server cart. **Fix (design now in force):** the **device-local cart is the single source
-  of truth**; the server cart is an **idempotent snapshot** via **`PUT /v1/cart` (replace)** — becomes EXACTLY
-  the local cart, so re-entry re-syncs and never accumulates; the local cart is cleared **only on order
-  completion**. Scope: core-api `cart` (new `Replace`/`ReplaceItems` single-statement CTE, removed additive
-  `Merge` + `/merge` route; 3 new idempotency tests); contract `MergeCartRequest`→`ReplaceCartRequest`
-  (regenerated Kotlin); customer-web (`CheckoutFlow.tsx` replaces + no entry-clear + dropped the snapshot
-  workaround, new `PUT /api/cart` route); customer-mobile (`CartRepository.replace`, `PUT v1/cart`, **iOS
-  `MainViewController` now `remember`s `AppContainer`** so recomposition can't wipe the in-memory cart —
-  mobile's bug (a)). Verified: core-api `go test`/vet/gofmt, **576+ JS/TS tests** (customer-web 127) +
-  customer-web build, mobile iOS compile+tests, `mobile-guard`, contract regen stable. R8 amendment:
-  [specs/019-customer-commerce-flow/research.md](specs/019-customer-commerce-flow/research.md). **Operator:
-  redeploy core-api (`make core-run`) — the `PUT /v1/cart` route + removed `/merge` need the new binary.**
-- **✅ Back-to-back orders reused the first order's PaymentIntent (2026-07-23; customer-web; fix NOT yet
-  committed).** Placing a 2nd order right after a 1st: checkout jumped to Stripe showing the FIRST order's
-  amount / already-completed payment. Root cause: **web never called the `confirm` fallback** (mobile does) —
-  it relied solely on the Stripe webhook to move the order out of `pending_payment`. When the webhook lagged
-  or was misconfigured locally, order 1 stayed `pending_payment`; the checkout backend reuses "the single
-  pending order per customer" (`WHERE status='pending_payment'`), so order 2 **reused order 1's row**, and the
-  **deterministic idempotency key** `hash(orderID, amount)` returned order 1's already-succeeded PaymentIntent
-  (also silently corrupting order 1 — the quote overwrote its items). Fix (web-only, no backend change — the
-  backend already creates a fresh order once order 1 is `paid`): the **completion page finalizes the order
-  server-side via the idempotent `POST /v1/checkout/confirm`** before reading the receipt
-  (`app/checkout/complete/page.tsx`) — moving order 1 out of `pending_payment` the moment the customer lands
-  after paying (covers inline-success AND 3DS-redirect), before another checkout can start. The webhook stays
-  the ultimate authority/backstop. Verified: customer-web typecheck + build + 127 tests.
-- **⚠ Sign-off is "feels-good", not the full SC table.** The happy-path loop is proven live; the operator
-  will continue targeted testing and report bugs. Not yet live-walked: the full serviceability matrix
-  (multi-day + blocked-postcode), the divergent-billing **shop no-leak** proof (SC-007), and the 022
-  delete-default **409** live proof. Deploy/seed runbook + values:
-  [specs/023-checkout-shipping-billing/quickstart.md](specs/023-checkout-shipping-billing/quickstart.md)
-  and the dev delivery seed (zones MEL-METRO/VIC-REGIONAL + rate grid, scratchpad).
-
 **020-shop-order-fulfillment** — Shop Order Fulfillment (Receive → Pick → Handoff). ✅ **SIGNED OFF
 (partial by design) 2026-07-21 — 89/93 tasks. The commerce→fulfilment loop is PROVEN LIVE.**
 Gives the 019 fan-out a consumer: 019 wrote one `shop_fulfillment` per (order, shop) and **nothing read
@@ -769,10 +569,6 @@ on **both** shop surfaces (shop-web + shop-mobile, whose Orders tab was a placeh
   invoked locally only via `apis/edge-api/shop/scripts/invoke-pickup-stub.mjs`. Removal trigger = the
   driver slice. **`scripts/stripe-listen.sh`** (new) syncs the CLI webhook secret into Secrets Manager +
   records the forward URL in SSM before forwarding — kills the secret-drift that stranded the first order.
-- **Next**: **021-delivery-zones-pricing** (planned, decisions locked in
-  [specs/020-shop-order-fulfillment/NEXT-021-delivery-zones.md](specs/020-shop-order-fulfillment/NEXT-021-delivery-zones.md)):
-  postcode-list zones, service levels, per-zone pricing (replaces the flat `DeliveryFeeCents = 500`),
-  serviceability blocked at checkout. 020's delivery promise is already a read-only seam it repoints.
   Spec/artifacts: [specs/020-shop-order-fulfillment/](specs/020-shop-order-fulfillment/); parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §020.
 
@@ -795,7 +591,7 @@ checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** 
 **hot path** (`core-api`, FR-028). Turns the 016 catalog into a shoppable storefront.
 - **Backend (net-new on the Go hot path)**: `storefront` (home rails, product detail, **search** w/
   `pg_trgm` + keyset pagination), `cart` (server cart + merge, re-price, unavailable-exclusion, flat
-  delivery fee), `addresses`, `checkout` (server-authoritative amount, **deterministic-idempotency**
+  `addresses`, `checkout` (server-authoritative amount, **deterministic-idempotency**
   PaymentIntent, the **signature-verified webhook finalizer** = paid-transition + per-shop
   `shop_fulfillment` fan-out + `order.placed` **outbox** + empty-cart, all one tx), `orders` (receipt +
   history), `favorites`. New platform pkgs: `money` (integer-cents), `pricing`, `events` (outbox),

@@ -8,7 +8,6 @@ import (
 
 	"github.com/effyshopping/effy/apis/core-api/internal/features/cart"
 
-	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 )
 
@@ -36,12 +35,18 @@ const GuestCap = 50
 // ⚠ FIVE VALUES, NOT A BOOLEAN, because each implies a different next action and collapsing any two
 // tells the shopper nothing they can act on. "Unavailable" and "we don't deliver that to you" are
 // different statements; merging them is the 031 REGIONAL defect in miniature.
+// ⚠ THREE VALUES, NOT FIVE. `not_delivered_to_your_area` and `not_yet_determined` were both derived
+// from delivery zones, and delivery zones were withdrawn from the platform. The list still tells the
+// truth about stock and withdrawal — it simply has nothing to say about delivery reach, because
+// nothing on the platform knows it. Each remaining value still implies a different next action:
+//
+//	purchasable             → buy now
+//	temporarily_unavailable → sold, not in stock — wait
+//	no_longer_sold          → withdrawn entirely — give up
 const (
-	VerdictPurchasable      = "purchasable"                // buy now
-	VerdictTemporarilyOut   = "temporarily_unavailable"    // wait
-	VerdictNotDeliveredHere = "not_delivered_to_your_area" // change address
-	VerdictNoLongerSold     = "no_longer_sold"             // give up
-	VerdictNotYetDetermined = "not_yet_determined"         // tell us where you live
+	VerdictPurchasable    = "purchasable"
+	VerdictTemporarilyOut = "temporarily_unavailable"
+	VerdictNoLongerSold   = "no_longer_sold"
 )
 
 // ── Domain ──────────────────────────────────────────────────────────────────────────────────────
@@ -74,16 +79,10 @@ type Membership struct {
 // and no database (the house pattern — see storefront/service_test.go).
 type Reader interface {
 	MembershipIDs(ctx context.Context, customerID string) ([]string, error)
-	List(ctx context.Context, customerID string, destZoneID *string) ([]listRow, error)
+	List(ctx context.Context, customerID string) ([]listRow, error)
 	Save(ctx context.Context, customerID, productID string, savedAt *time.Time, cap int) error
 	Remove(ctx context.Context, customerID, productID string) error
 	Merge(ctx context.Context, customerID string, items []MergeItem, cap int) (int, []Skip, []string, error)
-}
-
-// ZoneResolver resolves a destination postcode to its delivery zone. The seam exists so the service
-// can be tested without a database; production passes the repository's pool.
-type ZoneResolver interface {
-	ZoneForPostcode(ctx context.Context, postcode string) (string, bool, error)
 }
 
 // CartAdder is the cart seam for the bulk add (FR-051).
@@ -97,13 +96,12 @@ type CartAdder interface {
 
 type Service struct {
 	repo    Reader
-	zones   ZoneResolver
 	presign media.Presigner
 	cart    CartAdder
 }
 
-func NewService(repo Reader, zones ZoneResolver, presign media.Presigner) *Service {
-	return &Service{repo: repo, zones: zones, presign: presign}
+func NewService(repo Reader, presign media.Presigner) *Service {
+	return &Service{repo: repo, presign: presign}
 }
 
 // WithCart wires the bulk add. Optional, so the service is constructible in tests without a cart.
@@ -122,31 +120,10 @@ func (s *Service) Membership(ctx context.Context, customerID string) (Membership
 
 // List returns the saved list with a verdict per item.
 //
-// postcode is empty when the shopper has no delivery location — a first-class case (FR-038). It
-// resolves to a nil zone, and every item then reports VerdictNotYetDetermined rather than claiming a
-// certainty we do not have.
-//
-// ⚠ A postcode that resolves to NO zone is not an error either: it means we deliver nowhere near
-// them, and the list says "not delivered to your area" for everything. That is a true statement, and
-// it is different from "we have not checked".
-func (s *Service) List(ctx context.Context, customerID, postcode string) ([]Item, error) {
-	var destZone *string
-	if postcode != "" {
-		zoneID, ok, err := s.zones.ZoneForPostcode(ctx, postcode)
-		if err != nil {
-			return nil, err
-		}
-		if ok {
-			destZone = &zoneID
-		} else {
-			// Known location, no zone. Force the "not delivered here" arm rather than the
-			// "not yet determined" one — we DID check.
-			unreachable := "00000000-0000-0000-0000-000000000000"
-			destZone = &unreachable
-		}
-	}
-
-	rows, err := s.repo.List(ctx, customerID, destZone)
+// ⚠ It takes no location. Delivery zones were withdrawn, so purchasability is decided by catalogue
+// status alone and every address is implicitly deliverable.
+func (s *Service) List(ctx context.Context, customerID string) ([]Item, error) {
+	rows, err := s.repo.List(ctx, customerID)
 	if err != nil {
 		return nil, err
 	}
@@ -231,22 +208,6 @@ func (s *Service) Remove(ctx context.Context, customerID, productID string) erro
 
 // ── Zone resolution wired to the shared predicate ───────────────────────────────────────────────
 
-// PoolZones adapts the shared delivery predicate to the ZoneResolver seam.
-//
-// ⚠ delivery.ZoneForPostcode is the ONE postcode→zone implementation, shared with checkout. Do not
-// inline the SQL here; that divergence is the defect 033 exists to remove.
-type PoolZones struct{ Q delivery.RowQuerier }
-
-func (p PoolZones) ZoneForPostcode(ctx context.Context, postcode string) (string, bool, error) {
-	normalized, ok := delivery.NormalizePostcode(postcode)
-	if !ok {
-		// Unparseable. Not an error — it simply resolves to no zone, and the list then says
-		// "not delivered to your area" rather than pretending we never checked.
-		return "", false, nil
-	}
-	return delivery.ZoneForPostcode(ctx, p.Q, normalized)
-}
-
 // ── The guest → account join ────────────────────────────────────────────────────────────────────
 
 // MergeResult is what the shopper's surface needs to DISCLOSE the join (FR-032).
@@ -291,8 +252,8 @@ type AddToCartResult struct {
 // ⚠ NOTHING IS EVER SILENTLY OMITTED (FR-052). Every item that does not go in comes back named, with
 // a reason. A bulk add that quietly drops what it could not take leaves the shopper believing they
 // bought something they did not, and they find out at the till.
-func (s *Service) AddAllToCart(ctx context.Context, customerID, postcode, changeID string) (AddToCartResult, error) {
-	items, err := s.List(ctx, customerID, postcode)
+func (s *Service) AddAllToCart(ctx context.Context, customerID, changeID string) (AddToCartResult, error) {
+	items, err := s.List(ctx, customerID)
 	if err != nil {
 		return AddToCartResult{}, err
 	}

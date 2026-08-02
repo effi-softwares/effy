@@ -169,15 +169,15 @@ func TestEmptyListDecodesAsEmptyNotAFailure(t *testing.T) {
 // ⚠ These are not free-form strings. Each implies a different next action for the shopper, and a
 // sixth value appearing on the wire would reach a client that cannot render it.
 func TestVerdictVocabularyIsClosed(t *testing.T) {
+	// ⚠ THREE, not five. `not_delivered_to_your_area` and `not_yet_determined` were both derived from
+	// delivery zones, which were withdrawn from the platform. A client must never see a value the
+	// server cannot produce.
 	require.Equal(t, []string{
 		"purchasable",
 		"temporarily_unavailable",
-		"not_delivered_to_your_area",
 		"no_longer_sold",
-		"not_yet_determined",
 	}, []string{
-		VerdictPurchasable, VerdictTemporarilyOut, VerdictNotDeliveredHere,
-		VerdictNoLongerSold, VerdictNotYetDetermined,
+		VerdictPurchasable, VerdictTemporarilyOut, VerdictNoLongerSold,
 	})
 }
 

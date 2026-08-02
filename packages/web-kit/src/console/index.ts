@@ -15,5 +15,4 @@ export { DataTable, type DataTableProps } from "./DataTable";
 // ⚠ 032: promoted from apps/back-office. The SHOP console now makes the same postcode-covers-many-
 // suburbs commitment when a shop declares its same-day areas, and a second copy of a CORRECTNESS
 // disclosure is the worst kind to duplicate — two places for the same warning to drift or go stale.
-export { PostcodeCoverageNotice, type PostcodeCoverageNoticeProps } from "./PostcodeCoverageNotice";
 export { currentSection, visibleNav, type NavItem } from "./nav";

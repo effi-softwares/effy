@@ -18,27 +18,21 @@ import type { WireInt } from "./cart";
 import type { ProductBadge } from "./storefront";
 
 /**
- * Whether the shopper can buy a saved item right now, at the delivery location they are shopping for.
+ * Whether the shopper can buy a saved item right now.
  *
- * ⚠ FIVE VALUES, NOT A BOOLEAN, and the distinctions are the point: each one implies a different next
- * action, and collapsing any two of them tells the shopper nothing they can act on.
+ * ⚠ THREE VALUES. `not_delivered_to_your_area` and `not_yet_determined` were both derived from
+ * delivery zones, and delivery zones were withdrawn from the platform. The list still tells the truth
+ * about stock and withdrawal — it simply has nothing to say about delivery reach, because nothing on
+ * the platform knows it. Each remaining value still implies a different next action:
  *
- *   purchasable                 → buy now
- *   temporarily_unavailable     → sold and delivered here, just not in stock — wait
- *   not_delivered_to_your_area  → sold and in stock, but nothing reaches this address — change address
- *   no_longer_sold              → withdrawn from sale entirely — give up
- *   not_yet_determined          → the shopper has not said where they live — tell us
- *
- * ⚠ "Unavailable" and "we don't deliver that to you" are DIFFERENT STATEMENTS and only one of them is
- * true in any given case. Merging them is the 031 REGIONAL defect in miniature: a shopper invited to a
- * checkout that refuses them, with no way to tell whether waiting would help.
+ *   purchasable             → buy now
+ *   temporarily_unavailable → sold, not in stock — wait
+ *   no_longer_sold          → withdrawn entirely — give up
  */
 export type SavedVerdict =
   | "purchasable"
   | "temporarily_unavailable"
-  | "not_delivered_to_your_area"
-  | "no_longer_sold"
-  | "not_yet_determined";
+  | "no_longer_sold";
 
 /**
  * One entry in the saved list.
@@ -143,8 +137,7 @@ export interface SavedMergeResultDTO {
 }
 
 export interface SavedAddToCartRequest {
-  /** Absent means no delivery location is known — nothing is purchasable, so nothing is added. */
-  postcode?: string;
+  changeId?: string;
 }
 
 /**

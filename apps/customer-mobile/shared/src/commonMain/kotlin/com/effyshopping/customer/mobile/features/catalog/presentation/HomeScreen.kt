@@ -56,7 +56,6 @@ import com.effyshopping.customer.mobile.core.presentation.railTileWidthFraction
 import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
-import com.effyshopping.customer.mobile.features.delivery.DeliveryBar
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
 import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
@@ -122,7 +121,6 @@ fun HomeScreen(
         // 025 US1/FR-012: "do we deliver to you?", asked BEFORE a cart is built rather than at
         // checkout. It is not decoration — without it the first honest answer arrives after the
         // shopper has already invested in an order.
-        DeliveryBar(container)
         SearchEntry(onSearch = onSearch)
 
         when (val s = state) {

@@ -44,22 +44,12 @@ type fakeRepo struct {
 func (f *fakeRepo) MembershipIDs(context.Context, string) ([]string, error) {
 	return f.membership, f.err
 }
-func (f *fakeRepo) List(_ context.Context, _ string, zone *string) ([]listRow, error) {
+func (f *fakeRepo) List(_ context.Context, _ string) ([]listRow, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
 	// Mirror the SQL's own rule so the fake cannot disagree with the world: no destination zone means
 	// every item reports "not yet determined".
-	if zone == nil {
-		out := make([]listRow, 0, len(f.rows))
-		for _, r := range f.rows {
-			if r.Verdict != VerdictNoLongerSold {
-				r.Verdict = VerdictNotYetDetermined
-			}
-			out = append(out, r)
-		}
-		return out, nil
-	}
 	return f.rows, nil
 }
 func (f *fakeRepo) Save(_ context.Context, _, productID string, at *time.Time, cap int) error {
@@ -114,8 +104,8 @@ const (
 	postcode = "3121"
 )
 
-func svc(repo *fakeRepo, zones *fakeZones) *Service {
-	return NewService(repo, zones, fakePresign{})
+func svc(repo *fakeRepo, _ *fakeZones) *Service {
+	return NewService(repo, fakePresign{})
 }
 
 // ── Saving and un-saving ────────────────────────────────────────────────────────────────────────
@@ -214,40 +204,6 @@ func row(verdict string) listRow {
 	}
 }
 
-func TestList_NoPostcodeNeverAsksForAZone(t *testing.T) {
-	zones := &fakeZones{}
-	repo := &fakeRepo{rows: []listRow{row(VerdictPurchasable)}}
-
-	items, err := svc(repo, zones).List(context.Background(), cust, "")
-
-	require.NoError(t, err)
-	require.Zero(t, zones.called, "there is nothing to resolve")
-	require.Equal(t, VerdictNotYetDetermined, items[0].Verdict,
-		"a shopper who has not said where they live must not be told anything is available")
-}
-
-func TestList_KnownPostcodeWithNoZoneStillCounts_AsChecked(t *testing.T) {
-	// ⚠ The distinction this pins: "we checked and nothing reaches you" is NOT the same as "we have
-	// not checked". Only the first should ever read as not-delivered.
-	zones := &fakeZones{found: false}
-	repo := &fakeRepo{rows: []listRow{row(VerdictNotDeliveredHere)}}
-
-	items, err := svc(repo, zones).List(context.Background(), cust, "9999")
-
-	require.NoError(t, err)
-	require.Equal(t, 1, zones.called)
-	require.Equal(t, VerdictNotDeliveredHere, items[0].Verdict)
-}
-
-func TestList_ArchivedStaysNoLongerSoldEvenWithoutALocation(t *testing.T) {
-	repo := &fakeRepo{rows: []listRow{row(VerdictNoLongerSold)}}
-	items, err := svc(repo, &fakeZones{}).List(context.Background(), cust, "")
-
-	require.NoError(t, err)
-	require.Equal(t, VerdictNoLongerSold, items[0].Verdict,
-		"of the two true statements, 'no longer sold' is the more informative one (FR-041)")
-}
-
 // ── Mapping — the thing the predecessor got wrong ───────────────────────────────────────────────
 
 func TestList_CarriesTheFieldsThePredecessorDiscarded(t *testing.T) {
@@ -258,7 +214,7 @@ func TestList_CarriesTheFieldsThePredecessorDiscarded(t *testing.T) {
 	r.PriceDropped = true
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, postcode)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
 	require.NoError(t, err)
 
 	// ⚠ The predecessor computed brand / compareAtAmount / badges / savedAt server-side and BOTH
@@ -276,7 +232,7 @@ func TestList_CarriesTheFieldsThePredecessorDiscarded(t *testing.T) {
 
 func TestList_BadgesAreEmptySliceNotNil(t *testing.T) {
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{row(VerdictPurchasable)}}, zones).List(context.Background(), cust, postcode)
+	items, err := svc(&fakeRepo{rows: []listRow{row(VerdictPurchasable)}}, zones).List(context.Background(), cust)
 
 	require.NoError(t, err)
 	require.NotNil(t, items[0].Badges, "badges must serialise as [] not null")
@@ -288,16 +244,15 @@ func TestList_AFailedPresignBlanksTheImageAndNeverFailsTheRead(t *testing.T) {
 	r := row(VerdictPurchasable)
 	r.StorageKey = &storage
 
-	s := NewService(&fakeRepo{rows: []listRow{r}}, &fakeZones{zone: zoneMel, found: true},
-		fakePresign{err: errors.New("s3 down")})
-	items, err := s.List(context.Background(), cust, postcode)
+	s := NewService(&fakeRepo{rows: []listRow{r}}, fakePresign{err: errors.New("s3 down")})
+	items, err := s.List(context.Background(), cust)
 
 	require.NoError(t, err, "losing one thumbnail is a blemish; losing the whole list is an outage")
 	require.Nil(t, items[0].ImageURL)
 }
 
 func TestList_EmptyIsAnEmptySliceNotNil(t *testing.T) {
-	items, err := svc(&fakeRepo{rows: []listRow{}}, &fakeZones{}).List(context.Background(), cust, "")
+	items, err := svc(&fakeRepo{rows: []listRow{}}, &fakeZones{}).List(context.Background(), cust)
 
 	require.NoError(t, err)
 	require.NotNil(t, items)
@@ -305,27 +260,6 @@ func TestList_EmptyIsAnEmptySliceNotNil(t *testing.T) {
 }
 
 // ── The five verdicts survive the mapping unchanged ─────────────────────────────────────────────
-
-func TestList_EveryVerdictReachesTheCallerIntact(t *testing.T) {
-	all := []string{
-		VerdictPurchasable, VerdictTemporarilyOut, VerdictNotDeliveredHere,
-		VerdictNoLongerSold, VerdictNotYetDetermined,
-	}
-	rows := make([]listRow, 0, len(all))
-	for _, v := range all {
-		rows = append(rows, row(v))
-	}
-
-	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: rows}, zones).List(context.Background(), cust, postcode)
-	require.NoError(t, err)
-
-	got := make([]string, 0, len(items))
-	for _, it := range items {
-		got = append(got, it.Verdict)
-	}
-	require.Equal(t, all, got, "the service must not collapse, rename, or reorder the five outcomes")
-}
 
 // ── Price movement through the service (FR-043/FR-044) ─────────────────────────────────────────
 //
@@ -338,7 +272,7 @@ func TestList_PriceDropSurvivesTheMapping(t *testing.T) {
 	r.PriceAmount, r.SavedPriceAmount, r.PriceDropped = "4.00", "6.50", true
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, postcode)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
 	require.NoError(t, err)
 
 	require.True(t, items[0].PriceDropped)
@@ -351,7 +285,7 @@ func TestList_NoDropIsCarriedThroughAsFalse(t *testing.T) {
 	r.PriceAmount, r.SavedPriceAmount, r.PriceDropped = "9.99", "6.50", false
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, postcode)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
 	require.NoError(t, err)
 
 	// ⚠ A RISE produces no flag and no field on the wire (FR-044). The current price is always shown,
@@ -366,7 +300,7 @@ func TestList_MoneyCrossesAsTextNeverAFloat(t *testing.T) {
 	r.PriceAmount, r.SavedPriceAmount = "1234567890.05", "1234567890.99"
 
 	zones := &fakeZones{zone: zoneMel, found: true}
-	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust, postcode)
+	items, err := svc(&fakeRepo{rows: []listRow{r}}, zones).List(context.Background(), cust)
 	require.NoError(t, err)
 
 	// ⚠ numeric(12,2)::text all the way out. A float64 cannot hold this exactly, and money that is
@@ -449,17 +383,15 @@ func mixedRows() []listRow {
 	return []listRow{
 		mk("buyable", VerdictPurchasable),
 		mk("oos", VerdictTemporarilyOut),
-		mk("far", VerdictNotDeliveredHere),
 		mk("gone", VerdictNoLongerSold),
 	}
 }
 
 func TestAddAllToCart_AddsOnlyThePurchasableOnes(t *testing.T) {
 	fc := &fakeCart{}
-	zones := &fakeZones{zone: zoneMel, found: true}
-	s := NewService(&fakeRepo{rows: mixedRows()}, zones, fakePresign{}).WithCart(fc)
+	s := NewService(&fakeRepo{rows: mixedRows()}, fakePresign{}).WithCart(fc)
 
-	res, err := s.AddAllToCart(context.Background(), cust, postcode, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, "chg")
 	require.NoError(t, err)
 
 	require.Equal(t, []string{"buyable"}, res.Added)
@@ -469,13 +401,12 @@ func TestAddAllToCart_AddsOnlyThePurchasableOnes(t *testing.T) {
 // ⚠ THE FAILURE MODE THIS ENDPOINT EXISTS TO PREVENT. A bulk add that quietly drops what it could not
 // take leaves the shopper believing they bought something they did not, and they find out at the till.
 func TestAddAllToCart_NamesEverySkipWithAReason(t *testing.T) {
-	zones := &fakeZones{zone: zoneMel, found: true}
-	s := NewService(&fakeRepo{rows: mixedRows()}, zones, fakePresign{}).WithCart(&fakeCart{})
+	s := NewService(&fakeRepo{rows: mixedRows()}, fakePresign{}).WithCart(&fakeCart{})
 
-	res, err := s.AddAllToCart(context.Background(), cust, postcode, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, "chg")
 	require.NoError(t, err)
 
-	require.Len(t, res.Skipped, 3, "nothing may be omitted silently")
+	require.Len(t, res.Skipped, 2, "nothing may be omitted silently")
 	reasons := map[string]string{}
 	for _, sk := range res.Skipped {
 		reasons[sk.ProductID] = sk.Reason
@@ -483,16 +414,14 @@ func TestAddAllToCart_NamesEverySkipWithAReason(t *testing.T) {
 	// The verdict IS the reason, so the list and the bulk add can never explain the same item
 	// differently.
 	require.Equal(t, VerdictTemporarilyOut, reasons["oos"])
-	require.Equal(t, VerdictNotDeliveredHere, reasons["far"])
 	require.Equal(t, VerdictNoLongerSold, reasons["gone"])
 }
 
 func TestAddAllToCart_CarriesTheCartsOwnRefusalThrough(t *testing.T) {
 	fc := &fakeCart{failOn: map[string]error{"buyable": cart.ErrCartFull}}
-	zones := &fakeZones{zone: zoneMel, found: true}
-	s := NewService(&fakeRepo{rows: mixedRows()}, zones, fakePresign{}).WithCart(fc)
+	s := NewService(&fakeRepo{rows: mixedRows()}, fakePresign{}).WithCart(fc)
 
-	res, err := s.AddAllToCart(context.Background(), cust, postcode, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, "chg")
 	require.NoError(t, err)
 
 	require.Empty(t, res.Added)
@@ -501,11 +430,10 @@ func TestAddAllToCart_CarriesTheCartsOwnRefusalThrough(t *testing.T) {
 }
 
 func TestAddAllToCart_NothingPurchasableIsStillASuccessfulRequest(t *testing.T) {
-	rows := []listRow{row(VerdictNotDeliveredHere)}
-	zones := &fakeZones{zone: zoneMel, found: true}
-	s := NewService(&fakeRepo{rows: rows}, zones, fakePresign{}).WithCart(&fakeCart{})
+	rows := []listRow{row(VerdictTemporarilyOut)}
+	s := NewService(&fakeRepo{rows: rows}, fakePresign{}).WithCart(&fakeCart{})
 
-	res, err := s.AddAllToCart(context.Background(), cust, postcode, "chg")
+	res, err := s.AddAllToCart(context.Background(), cust, "chg")
 
 	// ⚠ Not an error. Nothing was wrong with the request — the shopper's list simply contains nothing
 	// they can buy where they are, and the client renders that from `skipped`.
@@ -520,10 +448,9 @@ func TestAddAllToCart_GivesEachItemItsOwnChangeID(t *testing.T) {
 	rows := []listRow{row(VerdictPurchasable), row(VerdictPurchasable)}
 	rows[0].ProductID, rows[1].ProductID = "a", "b"
 	fc := &fakeCart{}
-	zones := &fakeZones{zone: zoneMel, found: true}
-	s := NewService(&fakeRepo{rows: rows}, zones, fakePresign{}).WithCart(fc)
+	s := NewService(&fakeRepo{rows: rows}, fakePresign{}).WithCart(fc)
 
-	_, err := s.AddAllToCart(context.Background(), cust, postcode, "chg")
+	_, err := s.AddAllToCart(context.Background(), cust, "chg")
 	require.NoError(t, err)
 
 	require.Len(t, fc.changeIDs, 2)

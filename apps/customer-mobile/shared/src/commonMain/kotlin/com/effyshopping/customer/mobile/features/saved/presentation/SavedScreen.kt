@@ -58,7 +58,6 @@ fun SavedScreen(
     onOpen: (String) -> Unit,
     onBack: () -> Unit,
     onBrowse: () -> Unit,
-    onChangeLocation: () -> Unit,
 ) {
     val vm = remember {
         SavedViewModel(
@@ -66,22 +65,13 @@ fun SavedScreen(
             loadMembership = container.loadSavedMembership,
             removeSaved = container.removeSaved,
             undoRemove = container.undoRemoveSaved,
-            postcode = { container.deliveryContext.state.value?.postcode },
         )
     }
     val state by vm.state.collectAsState()
     val savedIds by container.savedStore.saved.collectAsState()
-    val delivery by container.deliveryContext.state.collectAsState()
     // ⚠ CLIENT-SIDE (FR-056). The set is capped at 200 and already in memory, so a round trip per
     // sort would be latency the shopper feels on a control that should be instant.
     var order by remember { mutableStateOf(SavedOrder.RECENT) }
-
-    // ⚠ FR-039: when the shopper changes delivery location, EVERY verdict has to be re-decided —
-    // "not delivered to your area" is an answer about one address, and it stops being true the moment
-    // they pick another. Keying on the postcode means the list re-reads rather than showing a verdict
-    // for somewhere the shopper has left. Without this the screen answers for wherever they happened
-    // to be when it opened.
-    LaunchedEffect(delivery?.postcode) { vm.refresh() }
 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = "Saved items", onBack = onBack)
@@ -122,14 +112,6 @@ fun SavedScreen(
                 )
 
                 else -> Column(Modifier.fillMaxSize()) {
-                    // ⚠ A NOTICE, not a replacement for the list. The shopper keeps seeing what they
-                    // saved; this only explains why none of it can be bought right now.
-                    if (s.items.none { it.verdict.isPurchasable } &&
-                        s.items.any { it.verdict == SavedVerdict.NOT_DELIVERED_TO_YOUR_AREA }
-                    ) {
-                        UndeliverableNotice(onChangeLocation)
-                    }
-
                     // ⚠ Only shown when there is enough to sort. A control over three items is noise.
                     if (s.items.size > 3) {
                         EffySegmentedToggle(
@@ -177,33 +159,6 @@ fun SavedScreen(
  * hiding them to deliver a message makes a full list look like a lost one, and the per-item note
  * already says which ones cannot come. This only explains the situation and offers the way out.
  */
-@Composable
-private fun UndeliverableNotice(onChangeLocation: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
-    ) {
-        Text(
-            "We can't deliver any of these to where you're shopping right now.",
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-        )
-        Text(
-            "Your saved items are safe — try a different delivery location.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = EffySpacing.xs),
-        )
-        TextButton(
-            onClick = onChangeLocation,
-            contentPadding = PaddingValues(0.dp),
-            modifier = Modifier.padding(top = EffySpacing.xs),
-        ) {
-            Text("Change location")
-        }
-    }
-    EffyHairline()
-}
 
 @Composable
 private fun SavedTile(
@@ -239,9 +194,7 @@ private fun SavedTile(
         val note = when (item.verdict) {
             SavedVerdict.PURCHASABLE -> null
             SavedVerdict.TEMPORARILY_UNAVAILABLE -> "Out of stock right now"
-            SavedVerdict.NOT_DELIVERED_TO_YOUR_AREA -> "Not delivered to your area"
             SavedVerdict.NO_LONGER_SOLD -> "No longer sold"
-            SavedVerdict.NOT_YET_DETERMINED -> "Tell us where you live to check"
         }
         if (note != null) {
             Text(

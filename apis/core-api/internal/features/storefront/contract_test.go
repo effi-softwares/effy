@@ -65,12 +65,3 @@ func TestCategoryDTOMatchesContract(t *testing.T) {
 		"key", "name", "parentKey", "productCount", "imageUrl",
 	})
 }
-
-func TestServiceabilityDTOMatchesContract(t *testing.T) {
-	// storefront.ts ServiceabilityDTO.
-	//
-	// ⚠ This one is a POLICY guard as much as a drift guard. FR-014a forbids a delivery fee or window
-	// before checkout and FR-006 forbids exposing a zone — so any new key here is a spec breach, not
-	// just a contract change. If this test fails because a field was added, the field is the bug.
-	assertKeys(t, "ServiceabilityDTO", serviceabilityDTO{}, []string{"postcode", "serviced"})
-}

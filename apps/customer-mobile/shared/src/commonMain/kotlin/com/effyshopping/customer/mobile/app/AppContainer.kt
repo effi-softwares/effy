@@ -25,7 +25,6 @@ import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepos
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
-import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.storage.devicePreferences
@@ -46,17 +45,11 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SetDefault
 import com.effyshopping.customer.mobile.features.addresses.domain.UpdateAddress
 import com.effyshopping.customer.mobile.features.catalog.data.HttpCatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
-import com.effyshopping.customer.mobile.features.catalog.domain.CheckServiceability
 import com.effyshopping.customer.mobile.features.catalog.domain.GetCategories
 import com.effyshopping.customer.mobile.features.catalog.domain.GetHome
 import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.GetPromotion
 import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
-import com.effyshopping.customer.mobile.features.delivery.DeliveryContextStore
-import com.effyshopping.customer.mobile.features.delivery.DeliverySeedCoordinator
-import com.effyshopping.customer.mobile.features.localities.data.HttpLocalityRepository
-import com.effyshopping.customer.mobile.features.localities.domain.LocalityRepository
-import com.effyshopping.customer.mobile.features.localities.domain.SearchLocalities
 import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
 import com.effyshopping.customer.mobile.features.cart.domain.AddToCart
 import com.effyshopping.customer.mobile.features.cart.domain.ApplyPromoCode
@@ -140,14 +133,6 @@ class AppContainer(
     // reconciled against the platform by [cartSync] rather than being the authority itself (FR-006).
     val cart: CartStore by lazy { CartStore(CartLocalStore(devicePreferences()), appScope) }
 
-    /**
-     * Where the shopper wants their order delivered (025 US1).
-     *
-     * ⚠ In-memory for now: this app has no key-value persistence and adding one would breach the
-     * feature's no-new-dependency constraint. The store takes an injected `persist` callback, so
-     * wiring durability later is a constructor argument, not a rewrite. See DeliveryContextStore.
-     */
-    val deliveryContext: DeliveryContextStore = DeliveryContextStore()
     private val cartRepository: CartRepository by lazy { HttpCartRepository(coreClient) }
     private val savedHttp: HttpSavedRepository by lazy { HttpSavedRepository(coreClient) }
     private val savedRepository: SavedRepository get() = savedHttp
@@ -182,13 +167,6 @@ class AppContainer(
     val getProductDetail by lazy { GetProductDetail(catalog) }
     val getPromotion by lazy { GetPromotion(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
-    val checkServiceability by lazy { CheckServiceability(catalog) }
-
-    // Locality lookup (030 US1) — "which places could you mean?", the other half of the same
-    // interaction as checkServiceability, which is why they sit together.
-    private val localities: LocalityRepository by lazy { HttpLocalityRepository(coreClient) }
-    val searchLocalities by lazy { SearchLocalities(localities) }
-
     // Cart (027). Every mutation is: apply to the mirror, then submit to the coordinator — in that order,
     // so a tap never waits on the network.
     val addToCart by lazy { AddToCart(cart, cartSync) }
@@ -233,7 +211,6 @@ class AppContainer(
     // Checkout (019 US3) — create intent → native PaymentSheet (paymentDriver) → confirm → receipt.
     // The address picker + add-new reuse the 022 Address Book use cases below (023 US1–US4) — the same
     // saved addresses the account page manages, on the cold path.
-    val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) }
     // The client carries its OWN publishable key (019 R3) — not the backend echo on the intent.
     val payForOrder by lazy { PayForOrder(checkoutRepo, paymentDriver, AppConfig.stripePublishableKey) }
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
@@ -242,18 +219,6 @@ class AppContainer(
     // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.
     val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
 
-    /**
-     * Seeds the delivery location from the account's default address, and drops it on sign-out
-     * (030 US2). ⚠ Started explicitly by [start] rather than on first access — a `by lazy` that
-     * subscribes to the session would never run until something happened to touch it.
-     */
-    val deliverySeed: DeliverySeedCoordinator by lazy {
-        DeliverySeedCoordinator(
-            store = deliveryContext,
-            listAddresses = { listSavedAddresses() },
-            scope = appScope,
-        )
-    }
     val addSavedAddress by lazy { AddAddress(addressBookRepo) }
     val updateSavedAddress by lazy { UpdateAddress(addressBookRepo) }
     val setDefaultAddress by lazy { SetDefault(addressBookRepo) }

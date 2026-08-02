@@ -9,7 +9,6 @@ import { JsonLd, organizationLd } from "@/lib/json-ld"
 
 import { CategoryMosaic } from "./_components/CategoryMosaic"
 import { Hero } from "./_components/Hero"
-import { DeliveryNotice } from "./_components/DeliveryNotice"
 import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
 import { PromoCarousel } from "./_components/PromoCarousel"
@@ -61,7 +60,6 @@ export default function HomePage() {
       <Hero />
 
       {/* Client island: shown only when the shopper's postcode is outside a serviced zone. */}
-      <DeliveryNotice />
 
       {/* Dynamic hole — the merchandised store, streamed from the hot path. */}
       <Suspense fallback={<HomeSkeleton />}>

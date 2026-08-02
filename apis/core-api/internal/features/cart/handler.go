@@ -65,7 +65,6 @@ type cartDTO struct {
 	SavedLines         []cartLineDTO        `json:"savedLines"`
 	ItemSubtotalAmount string               `json:"itemSubtotalAmount"`
 	DiscountAmount     string               `json:"discountAmount"`
-	DeliveryFeeAmount  string               `json:"deliveryFeeAmount"`
 	GrandTotalAmount   string               `json:"grandTotalAmount"`
 	Currency           string               `json:"currency"`
 	Notices            []cartNoticeDTO      `json:"notices"`
@@ -307,7 +306,6 @@ func toCartDTO(cart Cart) cartDTO {
 		SavedLines:         toLineDTOs(cart.SavedLines),
 		ItemSubtotalAmount: cart.ItemSubtotalAmount,
 		DiscountAmount:     cart.DiscountAmount,
-		DeliveryFeeAmount:  cart.DeliveryFeeAmount,
 		GrandTotalAmount:   cart.GrandTotalAmount,
 		Currency:           cart.Currency,
 		Notices:            toNoticeDTOs(cart.Notices),

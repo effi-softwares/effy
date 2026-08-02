@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
-	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 )
 
 // The shared product-card projection, split into its column list and its FROM so search can splice a
@@ -315,64 +314,6 @@ ORDER BY c.display_order ASC, c.name ASC`)
 	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[categoryRow])
 	if err != nil {
 		return nil, fmt.Errorf("storefront: scan categories: %w", err)
-	}
-	return out, nil
-}
-
-// Serviceable answers whether we can actually deliver to a postcode (025 FR-014, corrected by 033).
-//
-// ⚠ THIS USED TO CALL delivery.ZoneForPostcode DIRECTLY, AND THAT WAS A DEFECT. The comment here
-// claimed FR-014b was satisfied because checkout's DestinationZone called the same function — but
-// zone membership is only the FIRST of the four terms checkout actually requires. Checkout also needs
-// the shop's origin postcode to resolve to a zone, an active delivery_offering on that leg, and an
-// active delivery_pricing_rule for the method. So the storefront and checkout had already drifted by
-// three terms while this comment asserted they could not.
-//
-// Live proof at the time of the fix: zone REGIONAL held 3350 (Ballarat) and 3550 (Bendigo) with zero
-// active inbound offerings, so this endpoint answered {"serviced":true} for a shopper checkout could
-// quote nothing for — 025's FR-014b violated in DATA, which is exactly what 031 documented and could
-// not fix from the admin side.
-//
-// delivery.ServiceablePostcode is now the single implementation of the whole question. Do not inline
-// the SQL back into this file, and do not "simplify" it back to ZoneForPostcode.
-func (r *Repository) Serviceable(ctx context.Context, postcode string) (bool, error) {
-	return delivery.ServiceablePostcode(ctx, r.db, postcode)
-}
-
-// SearchLocalities finds up to limit places matching q (030 FR-005 / FR-008).
-//
-// Two predicates, chosen by the service (see localities.go), never by the caller:
-//
-//	byPostcode  postcode = $1              — the shopper typed digits
-//	byPrefix    lower(name) LIKE $1 || '%' — the shopper typed a name
-//
-// ⚠ The prefix form is served by `locality_name_prefix_idx`, a B-tree on `lower(name)` with
-// `text_pattern_ops`. WITHOUT that operator class the index does not apply under a non-C collation and
-// this becomes a sequential scan over ~18k rows on every keystroke — correct, tested, and slow in a way
-// nothing reports. See specs/030-delivery-location-suburb/research.md R5.
-//
-// ⚠ Ordering is alphabetical and is NEVER influenced by serviceability (FR-011). Ordering served
-// places first would both pre-empt the verdict the shopper has not asked for yet and turn this
-// endpoint into a delivery-coverage enumerator.
-func (r *Repository) SearchLocalities(ctx context.Context, q string, byPostcode bool, limit int) ([]Locality, error) {
-	const (
-		byPostcodeSQL = `SELECT name, state, postcode FROM public.locality WHERE postcode = $1
-		                 ORDER BY name, state, postcode LIMIT $2`
-		byPrefixSQL = `SELECT name, state, postcode FROM public.locality WHERE lower(name) LIKE lower($1) || '%'
-		               ORDER BY name, state, postcode LIMIT $2`
-	)
-	sql := byPrefixSQL
-	if byPostcode {
-		sql = byPostcodeSQL
-	}
-
-	rows, err := r.db.Query(ctx, sql, q, limit)
-	if err != nil {
-		return nil, fmt.Errorf("storefront: query localities: %w", err)
-	}
-	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[Locality])
-	if err != nil {
-		return nil, fmt.Errorf("storefront: scan localities: %w", err)
 	}
 	return out, nil
 }

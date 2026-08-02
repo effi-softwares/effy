@@ -22,8 +22,6 @@ import type {
   StorefrontCategoryDTO,
   ProductSort,
   ProductSearchResultDTO,
-  ServiceabilityDTO,
-  LocalityDTO,
   PromotionDTO,
 } from "./storefront";
 import type {
@@ -54,13 +52,6 @@ import type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
-  DeliveryQuoteRequest,
-  DeliveryQuoteResponse,
-  QuotePackageDTO,
-  QuotePackageItemDTO,
-  DeliveryMethodOptionDTO,
-  DeliverySelectionDTO,
-  DeliveryBreakdownLineDTO,
 } from "./checkout";
 import type {
   OrderStatus,
@@ -95,8 +86,6 @@ export type {
   StorefrontCategoryDTO,
   ProductSort,
   ProductSearchResultDTO,
-  ServiceabilityDTO,
-  LocalityDTO,
   PromotionDTO,
   CartLineDTO,
   CartNoticeDTO,
@@ -125,13 +114,6 @@ export type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
-  DeliveryQuoteRequest,
-  DeliveryQuoteResponse,
-  QuotePackageDTO,
-  QuotePackageItemDTO,
-  DeliveryMethodOptionDTO,
-  DeliverySelectionDTO,
-  DeliveryBreakdownLineDTO,
   OrderStatus,
   PaymentStatus,
   OrderSummaryDTO,
@@ -162,11 +144,6 @@ export interface CustomerCommerceContract {
   category: StorefrontCategoryDTO;
   searchResult: ProductSearchResultDTO;
   productSort: ProductSort;
-  serviceability: ServiceabilityDTO;
-  // ⚠ Referencing LocalityDTO here is what makes it EXIST in Kotlin. Declaring it in storefront.ts
-  // alone is not enough — the generator walks this aggregator, so an unreferenced type is silently
-  // never generated and the drift check then passes trivially (030 T022a).
-  locality: LocalityDTO;
   promotion: PromotionDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;
@@ -194,13 +171,6 @@ export interface CustomerCommerceContract {
   createCheckoutIntent: CreateCheckoutIntentRequest;
   createCheckoutIntentResponse: CreateCheckoutIntentResponse;
   confirmCheckout: ConfirmCheckoutRequest;
-  deliveryQuoteRequest: DeliveryQuoteRequest;
-  deliveryQuoteResponse: DeliveryQuoteResponse;
-  quotePackage: QuotePackageDTO;
-  quotePackageItem: QuotePackageItemDTO;
-  deliveryMethodOption: DeliveryMethodOptionDTO;
-  deliverySelection: DeliverySelectionDTO;
-  deliveryBreakdownLine: DeliveryBreakdownLineDTO;
   orderSummary: OrderSummaryDTO;
   order: OrderDTO;
   orderItem: OrderItemDTO;

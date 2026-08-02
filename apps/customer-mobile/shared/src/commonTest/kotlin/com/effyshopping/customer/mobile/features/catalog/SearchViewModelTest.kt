@@ -19,7 +19,6 @@ import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
-import com.effyshopping.customer.mobile.features.catalog.domain.Serviceability
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -50,9 +49,6 @@ private class FakeCatalog : CatalogRepository {
             ProductPage(items = listOf(card("c")), nextCursor = null, total = 3, sort = sort)
         }
     }
-
-    override suspend fun serviceability(postcode: String) =
-        Serviceability(postcode = postcode, serviced = true)
 
     override suspend fun promotion(id: String): Promotion = throw NotImplementedError()
 }

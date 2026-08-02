@@ -429,10 +429,6 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                             navState.resetToRoot()
                             navState.selectTab(CustomerNavKey.Home)
                         },
-                        onChangeLocation = {
-                            navState.resetToRoot()
-                            navState.selectTab(CustomerNavKey.Home)
-                        },
                     )
                 }
                 entry<CustomerNavKey.AddressBook> {

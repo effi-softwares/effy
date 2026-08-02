@@ -78,17 +78,7 @@ func (h *Handler) list(c *gin.Context) {
 		return
 	}
 
-	postcode := c.Query("postcode")
-	// ⚠ An ABSENT postcode is a first-class case, not an error — it means the shopper has not said
-	// where they live, and every item reports "not yet determined" (FR-038). Only a MALFORMED one is
-	// refused. The bare {"error": ...} shape matches /v1/storefront/serviceability, the sibling this
-	// convention comes from.
-	if postcode != "" && !validPostcode(postcode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_postcode"})
-		return
-	}
-
-	items, err := h.svc.List(c.Request.Context(), cust.ID, postcode)
+	items, err := h.svc.List(c.Request.Context(), cust.ID)
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Error("saveditems: list failed", zap.Error(err))
 		httpx.Internal(c)
@@ -159,20 +149,6 @@ func (h *Handler) respond(c *gin.Context, err error) {
 		logger.FromContext(c.Request.Context()).Error("saveditems: write failed", zap.Error(err))
 		httpx.Internal(c)
 	}
-}
-
-// validPostcode accepts the four-digit Australian form. Normalisation happens in the service, via the
-// shared delivery package — this only rejects shapes that could never resolve.
-func validPostcode(s string) bool {
-	if len(s) != 4 {
-		return false
-	}
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 // Register mounts the saved-items resource on a customer-scoped group.
@@ -277,7 +253,6 @@ func (h *Handler) merge(c *gin.Context) {
 // ── Adding to the cart (FR-051/FR-052) ──────────────────────────────────────────────────────────
 
 type addToCartRequestDTO struct {
-	Postcode string `json:"postcode"`
 	ChangeID string `json:"changeId"`
 }
 
@@ -301,12 +276,7 @@ func (h *Handler) addToCart(c *gin.Context) {
 	var req addToCartRequestDTO
 	_ = c.ShouldBindJSON(&req)
 
-	if req.Postcode != "" && !validPostcode(req.Postcode) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_postcode"})
-		return
-	}
-
-	res, err := h.svc.AddAllToCart(c.Request.Context(), cust.ID, req.Postcode, req.ChangeID)
+	res, err := h.svc.AddAllToCart(c.Request.Context(), cust.ID, req.ChangeID)
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Error("saveditems: add to cart failed", zap.Error(err))
 		httpx.Internal(c)

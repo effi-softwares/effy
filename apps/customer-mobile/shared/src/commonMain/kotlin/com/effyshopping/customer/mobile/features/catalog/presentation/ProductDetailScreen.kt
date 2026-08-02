@@ -47,6 +47,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,7 +57,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
-import com.effyshopping.customer.mobile.features.delivery.formatPlace
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
 import com.effyshopping.mobile.design.EffySpacing
@@ -64,6 +64,8 @@ import com.effyshopping.mobile.kit.ui.EffyTopBar
 import androidx.compose.material3.Icon
 import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.features.saved.presentation.SaveControl
+import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.features.saved.presentation.SaveControl
 import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
@@ -325,27 +327,6 @@ private fun ProductGallery(product: ProductDetail, name: String) {
     }
 }
 
-/** The delivery expectation (FR-023) — serviceability only, never a fee or window (FR-014a). */
-@Composable
-private fun DeliveryExpectation(container: AppContainer) {
-    val context by container.deliveryContext.state.collectAsState()
-    // ⚠ `formatPlace`, not the bare postcode — the SAME rule the Home affordance and the sheet use
-    // (030 FR-033). A shopper who sees "Melbourne VIC 3000" in the header and "3000" here has to work
-    // out for themselves that those are the same place, and that is exactly what SC-008 asks a tester.
-    val message = when (val ctx = context) {
-        null -> "Set your delivery location to see delivery options."
-        else -> when (ctx.serviced) {
-            null -> "Checking delivery to ${formatPlace(ctx)}…"
-            true -> "Delivers to ${formatPlace(ctx)}. Options and cost at checkout."
-            false -> "We don’t deliver to ${formatPlace(ctx)} yet — you can still add this to your cart."
-        }
-    }
-    Text(
-        message,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
 
 /** The persistent buy affordance (FR-025). */
 @Composable
