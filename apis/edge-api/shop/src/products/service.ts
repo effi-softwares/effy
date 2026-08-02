@@ -172,6 +172,8 @@ export async function createProduct(
     if (norm) attributes.push(norm);
   }
 
+  const weightGrams = normaliseWeight(body.weightGrams, fields);
+
   if (fields.length > 0) throw new ProductError("validation", "invalid product", fields);
 
   const input: CreateProductInput = {
@@ -185,6 +187,7 @@ export async function createProduct(
     compareAtAmount,
     shortDescription: shortDescription!,
     longDescription: optText(body.longDescription),
+    weightGrams,
     attributes,
     sectionIds: Array.isArray(body.sectionIds) ? (body.sectionIds as unknown[]).filter((s): s is string => typeof s === "string") : [],
     media: mediaInput,
@@ -381,6 +384,9 @@ export async function updateProduct(
       compareAtAmount,
       shortDescription,
       longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
+      // ⚠ Absent means "leave it alone", NOT "reset to the default". Patching a product's name must
+      // not silently turn a measured weight back into an assumption.
+      weightGrams: "weightGrams" in body ? normaliseWeight(body.weightGrams, fields) : null,
     },
     attributes,
   );
@@ -488,4 +494,35 @@ function toPositiveInt(value: unknown, fallback: number): number {
 function numericStr(value: unknown): string | null {
   const s = typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
   return PRICE_RE.test(s) ? s : null;
+}
+
+/**
+ * Normalise an optional shipping weight (032, FR-036a).
+ *
+ * ⚠ Returns NULL for "not supplied", which the repository turns into "keep the column default / leave
+ * the row alone". It never returns 0: a zero-weight product is free-delivery-by-arithmetic — the same
+ * defect class as a pricing band gap meaning no fee — and the CHECK constraint refuses it anyway, so
+ * catching it here gives the operator a field error instead of a 500.
+ *
+ * ⚠ There is deliberately no path for a client to set `weightIsAssumed`. The flag is derived from the
+ * ACT of supplying a weight; if a client could set it, "measured" would mean only "the client said so"
+ * and the flag would stop distinguishing anything.
+ */
+function normaliseWeight(raw: unknown, fields: FieldIssue[]): number | null {
+  if (raw === undefined || raw === null || raw === "") return null;
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n)) {
+    fields.push({ field: "weightGrams", message: "must be a whole number of grams" });
+    return null;
+  }
+  if (n <= 0) {
+    fields.push({ field: "weightGrams", message: "must be greater than zero — a weightless product would ship free" });
+    return null;
+  }
+  // A quarter-tonne single item is not a grocery; it is a typo (250000 for 250g is the obvious one).
+  if (n > 250_000) {
+    fields.push({ field: "weightGrams", message: "is over 250 kg — check the units (this field is GRAMS)" });
+    return null;
+  }
+  return n;
 }

@@ -20,6 +20,11 @@ type CheckoutLine struct {
 	Name      string
 	UnitCents int64
 	Quantity  int
+	// WeightGrams is the product's shipping weight (032). ⚠ Always > 0 — the column is NOT NULL with a
+	// CHECK, and where nobody has measured a product the platform's stated assumption stands. There is
+	// deliberately no "unknown weight" case to handle here, because a weightless line would price
+	// delivery as though the goods did not exist.
+	WeightGrams int
 }
 
 // ShopPortion is one shop's slice of the fan-out (for the outbox payload / SC-005).
@@ -92,11 +97,12 @@ func NewStore(pool *pgxpool.Pool) Store {
 }
 
 type checkoutLineRow struct {
-	ProductID string `db:"product_id"`
-	ShopID    string `db:"shop_id"`
-	Name      string `db:"name"`
-	UnitPrice string `db:"unit_price_amount"`
-	Quantity  int    `db:"quantity"`
+	ProductID   string `db:"product_id"`
+	ShopID      string `db:"shop_id"`
+	Name        string `db:"name"`
+	UnitPrice   string `db:"unit_price_amount"`
+	Quantity    int    `db:"quantity"`
+	WeightGrams int    `db:"weight_grams"`
 }
 
 func (s *pgStore) CartLines(ctx context.Context, customerID string) ([]CheckoutLine, error) {
@@ -105,7 +111,8 @@ SELECT ci.product_id::text AS product_id,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
        p.price_amount::text AS unit_price_amount,
-       ci.quantity         AS quantity
+       ci.quantity         AS quantity,
+       p.weight_grams      AS weight_grams
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
@@ -124,7 +131,10 @@ ORDER BY ci.added_at ASC`, customerID)
 		if perr != nil {
 			return nil, perr
 		}
-		out = append(out, CheckoutLine{ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name, UnitCents: cents, Quantity: r.Quantity})
+		out = append(out, CheckoutLine{
+			ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name,
+			UnitCents: cents, Quantity: r.Quantity, WeightGrams: r.WeightGrams,
+		})
 	}
 	return out, nil
 }
@@ -178,13 +188,13 @@ func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amo
 		orderNumber = genOrderNumber()
 		if err := tx.QueryRow(ctx, `
 INSERT INTO public."order"
-    (customer_id, order_number, status, currency, item_subtotal_amount, delivery_fee_amount,
+    (customer_id, order_number, status, currency, item_subtotal_amount,
      discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address)
-VALUES ($1, $2, 'pending_payment', $3, $4::numeric, $5::numeric,
-        $8::numeric, NULLIF($9, '')::uuid, NULLIF($10, ''), $6::numeric, $7::jsonb)
+VALUES ($1, $2, 'pending_payment', $3, $4::numeric,
+        $7::numeric, NULLIF($8, '')::uuid, NULLIF($9, ''), $5::numeric, $6::jsonb)
 RETURNING id::text`,
 			customerID, orderNumber, amounts.Currency,
-			money.FormatCents(amounts.ItemSubtotalCents), money.FormatCents(amounts.DeliveryFeeCents),
+			money.FormatCents(amounts.ItemSubtotalCents),
 			money.FormatCents(amounts.GrandTotalCents), string(addressJSON),
 			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode).Scan(&orderID); err != nil {
 			return "", "", fmt.Errorf("checkout: insert order: %w", err)
@@ -193,11 +203,11 @@ RETURNING id::text`,
 		return "", "", fmt.Errorf("checkout: find pending order: %w", err)
 	default:
 		if _, err := tx.Exec(ctx, `
-UPDATE public."order" SET item_subtotal_amount=$2::numeric, delivery_fee_amount=$3::numeric,
-    grand_total_amount=$4::numeric, delivery_address=$5::jsonb,
-    discount_amount=$6::numeric, promo_code_id=NULLIF($7, '')::uuid, promo_code=NULLIF($8, ''),
+UPDATE public."order" SET item_subtotal_amount=$2::numeric,
+    grand_total_amount=$3::numeric, delivery_address=$4::jsonb,
+    discount_amount=$5::numeric, promo_code_id=NULLIF($6, '')::uuid, promo_code=NULLIF($7, ''),
     updated_at=now() WHERE id=$1`,
-			orderID, money.FormatCents(amounts.ItemSubtotalCents), money.FormatCents(amounts.DeliveryFeeCents),
+			orderID, money.FormatCents(amounts.ItemSubtotalCents),
 			money.FormatCents(amounts.GrandTotalCents), string(addressJSON),
 			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode); err != nil {
 			return "", "", fmt.Errorf("checkout: update order: %w", err)
@@ -297,16 +307,15 @@ func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (bool, 
 
 	// 2. Fan-out — one shop_fulfillment per distinct order_item.shop_id (item_count = Σ quantity).
 	if _, err := tx.Exec(ctx, `
+-- ⚠ No JOIN to order_package_delivery. That table carried the per-package delivery capture and was
+-- dropped with delivery; the fan-out is now purely "one fulfilment per distinct shop in the order",
+-- which is what it was before 021.
 INSERT INTO public.shop_fulfillment
-    (order_id, shop_id, item_count, subtotal_amount,
-     delivery_service_level, delivery_method, delivery_fee_amount, promised_ready_at)
-SELECT oi.order_id, oi.shop_id, SUM(oi.quantity)::int, SUM(oi.line_subtotal_amount),
-       opd.service_level, opd.method, opd.delivery_fee_amount, opd.promised_ready_at
+    (order_id, shop_id, item_count, subtotal_amount)
+SELECT oi.order_id, oi.shop_id, SUM(oi.quantity)::int, SUM(oi.line_subtotal_amount)
 FROM public.order_item oi
-JOIN public.order_package_delivery opd
-     ON opd.order_id = oi.order_id AND opd.shop_id = oi.shop_id
 WHERE oi.order_id = $1
-GROUP BY oi.order_id, oi.shop_id, opd.service_level, opd.method, opd.delivery_fee_amount, opd.promised_ready_at
+GROUP BY oi.order_id, oi.shop_id
 ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
 		return false, fmt.Errorf("checkout: fan-out: %w", err)
 	}

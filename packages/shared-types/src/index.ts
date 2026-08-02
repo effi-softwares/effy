@@ -9,11 +9,9 @@ export * from "./cart";
 export * from "./address";
 export * from "./checkout";
 export * from "./order";
-export * from "./favorite";
+// 033-customer-saved-items (replaces the retired ./favorite)
+export * from "./saved-item";
 // 020-shop-order-fulfillment
 export * from "./shop-order";
-// 021-delivery-zones-pricing (management DTOs)
-export * from "./delivery";
-// 027-customer-cart-sync (promotions + order-rules management DTOs)
 export * from "./promotion";
 export * from "./banner";

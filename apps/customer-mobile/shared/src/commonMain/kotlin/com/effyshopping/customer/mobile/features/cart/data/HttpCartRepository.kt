@@ -177,7 +177,6 @@ private fun CartDTO.toDomain() = CartSnapshot(
     savedLines = savedLines.map { it.toDomain(currency) },
     itemSubtotalAmount = itemSubtotalAmount,
     discountAmount = discountAmount,
-    deliveryFeeAmount = deliveryFeeAmount,
     grandTotalAmount = grandTotalAmount,
     currency = currency,
     notices = notices.map {

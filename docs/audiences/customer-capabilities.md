@@ -165,41 +165,6 @@ keys (Secrets Manager + client env), `make core-run` + the webhook tunnel, the A
 + iOS `SwiftPaymentBridge.swift`, and E2E/on-device sign-off. `core-api` itself is local-only until its
 own cloud slice — so this flow is **built + locally verifiable**, live go-live tracks the hot-path deploy.
 
-## §021 — Delivery zones & pricing (per-shop split delivery)
-
-Replaces 019's flat $5 fee with **per-shop split delivery** (AliExpress/Daraz model, sellers hidden). A
-multi-shop cart becomes one anonymous **package** per shop, each priced/timed from that shop's origin
-zone to the customer's destination zone; the customer places **one order, pays once**, and sees an
-anonymised per-package breakdown. Delivered on **both** customer surfaces at parity.
-
-| Capability | customer-web | customer-mobile | Notes |
-|---|---|---|---|
-| Package-aware cart (anonymous "Package N", opaque key) | ✅ | ✅ | No shop name/location (SC-006) |
-| Per-package delivery options at checkout (fee + window) | ✅ | ✅ | `POST /v1/checkout/quote` (hot path) |
-| Default preference + per-package override | ✅ | ✅ | fastest/cheapest, overridable |
-| Scheduled-date pick + derived windows | ✅ | ✅ | method-dependent |
-| Serviceability: auto-exclude undeliverable + explicit confirm | ✅ | ✅ | items never a shop (FR-004); all-undeliverable blocks |
-| Server-authoritative per-package fee, captured-quote window | ✅ | ✅ | client never sends a fee (SC-004); 409 → re-quote |
-| Anonymised per-package receipt breakdown | ✅ | ✅ | `OrderFulfillmentDTO` delivery fields |
-
-**Management (back-office, not a customer capability):** zones (postcode sets), shop locations, and the
-(origin→dest, method) rate grid — cold-path `edge-api/admin` `delivery/`, cloning 009, audited via
-`admin.audit_log`, no cards.
-
-**Shop side (020, enriched):** each portion now carries its **real** ready-by + service level from the
-customer's chosen package method (the 020 promise seam, one file); the shop **never** sees the delivery
-fee (FR-021a). Same-day portions genuinely outrank multi-day in the queue.
-
-**Money-path integrity (US3):** per-package fees are computed server-side from zones×offerings, captured
-on the pending order, honored within a validity window, snapshotted into `shop_fulfillment` inside 019's
-atomic `FinalizeSucceeded` transaction (no partial paid order). Verified: **644 JS/TS tests**, full Go
-suite incl. per-package fee/exclusion/expiry tests, 152 mobile tests (Android+iOS), 020's 156 shop tests
-still green post-seam-swap.
-
-⚠ **Not live-verified yet** — `core-api` is local-only; SC-001…SC-013 need a two-shop live checkout (like
-020's) against a seeded zone/rate config. ⚠ **Guest bundle** ticked 167.3→167.5 KB (pre-existing breach;
-021's cart-store change adds ~0.2 KB) — needs its own fix, not 021's to own.
-
 ## §022 — Customer address book (manage saved addresses)
 
 Makes address management a **first-class account capability** on both customer surfaces, over the
@@ -317,7 +282,6 @@ surface, and a sticky bar solves a problem that does not exist at desktop widths
 | Category browse | ✅ `/browse` category index | ⚠️ **PARITY GAP (deliberate, 2026-07-30)** — the Browse destination was REMOVED at the operator's instruction, superseding 025 FR-010 for mobile. Mobile now has only the Discover rail chips, which group the home read client-side; there is no category index and no way to set a category refinement in Search. |
 | Persistent search entry | ✅ header, both breakpoints | ✅ Search destination + app bar |
 | Delivery location, set before a cart exists | ✅ header island + `<dialog>` | ✅ Home delivery row + dialog |
-| Up-front serviceability answer | ✅ | ✅ |
 | Sort control | ✅ 4 orderings, server-echoed | ✅ 4 orderings, server-echoed |
 | Result count | ✅ live region | ✅ live region |
 | Removable refinement chips + clear-all | ✅ | ✅ |
@@ -635,66 +599,105 @@ offers carousel is mobile-only.
 
 ---
 
-## §030 — Suburb-aware delivery location
+## §033 — Customer Saved Items: watchlist, guest saving & zone-aware purchasability
 
-**Both surfaces move together, and that was the point.** 025 gave the storefront its up-front "do we
-deliver to you?" answer but the only way in was a **postcode the shopper had to already know** — so a
-shopper new to the area, renting, or who simply thinks in suburb names could not answer at all. For
-that person the store's first interaction was a dead end. 030 lets them type **"Richmond"**.
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Save / un-save a product | ✅ | ✅ | idempotent both directions; optimistic with revert |
+| **The control tells the truth on first render** | ✅ | ✅ | one membership read per screen — the defect this slice exists to kill |
+| Control on product detail | ✅ | ✅ | |
+| Control on tiles — home rails | ✅ | ✅ | ⚠ mobile wired 2026-08-02; `TileSaveControl` had **no call site** before that |
+| Control on tiles — browse / category / "see all" | ✅ | ✅ | mobile: all three are one screen (`SearchScreen`), so one wiring covers them |
+| Control on tiles — search results | ⬜ | ✅ | ⚠ web omits it **deliberately** (FR-007 amended, `/search` had 0.1 KB of budget) |
+| Save control touch target ≥ 48 dp | n/a | ✅ | ⚠ was **32 dp** while its own comment claimed 48; fixed 2026-08-02 |
+| Control on an order line | ⬜ | ✅ | web order detail not yet wired |
+| Saved list with five-way purchasability | ✅ | ✅ | |
+| **Saved list is a vertical list of detail rows** | ✅ | ✅ | ⚠ mobile was a 2-up product grid until 2026-08-02 (R18 amended) |
+| **Pull to refresh the list, in every state** | ⬜ | ✅ | FR-068; web has no equivalent gesture |
+| Price-drop indicator | ✅ | ✅ | rises deliberately not badged (FR-044) |
+| Undo a removal, restoring list position | ⬜ | ✅ | ⚠ mobile's was published by the ViewModel and **rendered by nothing** until 2026-08-02 |
+| **Guest saving, no sign-in wall** | ✅ | ✅ | |
+| Guest list survives restart / reload | ✅ | ✅ | `localStorage` · `DevicePreferences` |
+| Guest → account join on sign-in | ✅ | ✅ | union, idempotent, cap-truncated newest-first |
+| Join on **federated** (Google) return | ✅ | ➖ n/a | ⚠ omitting this is how Google sign-in silently drops the guest list |
+| Join disclosed by count | ✅ (on the list) | ⬜ | ⚠ see carry-forwards |
+| Add one saved item to cart | ✅ | ✅ | ⚠ mobile wired 2026-08-02 — T132/T133 were ticked and unbuilt |
+| **Item STAYS on the list after an add** | ✅ | ✅ | FR-050 — a watchlist is not consumed by an add (eBay); the set-aside list is, and that is 027 |
+| **Row says it is already in the cart** | ⬜ | ✅ | FR-050a — "N in your cart · View"; without it a repeat tap silently increments the quantity |
+| **Add all purchasable, nothing omitted silently** | ✅ | ✅ | ⚠ the endpoint **added nothing at all** until 2026-08-02 — a non-uuid change id (below). Skips are itemised on both, sharing one refusal vocabulary; mobile puts each reason on its row and the counts in a toast |
+| Sort — recent / available / aisle | ✅ | ✅ | client-side; the set is capped and in memory |
+| Two distinct empty states | ✅ | ✅ | "never saved" vs "none reach you" |
+| Reachable from the account area | ✅ | ✅ | |
+| Reachable from the storefront | ✅ | ✅ | account menu (zero JS) · Discover header |
+| Clear on sign-out | ⬜ | ✅ | ⚠ see carry-forwards |
+| Telemetry | ⬜ | ⬜ | ⚠ see carry-forwards |
 
-| Capability | customer-web | customer-mobile |
-|---|---|---|
-| Find a place by suburb name | ✅ | ✅ |
-| One input accepting either a postcode or a name (FR-006) | ✅ | ✅ |
-| Every place identified by name + state + postcode (FR-008) | ✅ | ✅ |
-| Verdict shown inside the entry surface (FR-028/FR-050) | ✅ | ✅ |
-| Seeded from the account's default address (FR-018) | ✅ | ✅ |
-| Sign-out drops an account place, keeps a device one (FR-023) | ✅ | ✅ |
-| The place displayed rather than bare digits (FR-033/FR-039) | ✅ | ✅ |
-| **Entry surface** | modal panel (unchanged shape) | **bottom sheet** (new — FR-026) |
-| Keyboard-only operation (FR-051) | ✅ | n/a |
+**Path (Principle III):** hot path, exclusively — `apis/core-api/internal/features/saveditems/`.
+Customer commerce on the shopper's critical path (011 FR-028). ⚠ `core-api` has no cloud deploy, so
+this is locally verifiable and **cannot reach dev** until the hot path's own slice.
 
-**Parity is of capability, not of form factor** — the bottom sheet is a mobile change by operator
-direction; web keeps the modal panel it had.
+**Data:** one migration `20260802052141_customer_saved_items.sql` — creates `public.customer_saved_item`
+and **DROPS `public.customer_favorite`**. ⚠ Saved items from the predecessor are **not carried forward**
+(FR-005): those rows carry no save-time price, and migrating them would fabricate a baseline that was
+never observed. ⚠ `public.cart_saved_item` (the cart's set-aside, 027) is a **different table** and is
+untouched.
 
-**⚠ 025's FR-013 account half is finally wired.** `seedFromAccount` existed on **both** surfaces and
-was called by **neither** — a shopper who had already told Effy where they live was still being asked
-to type a postcode. It had been unmet since 025 shipped, on every surface, for three features.
+**⚠ Two defects in the predecessor, both fixed at the source:**
+1. **Nothing could answer "is this saved?"** — every surface assumed *not saved*, so a shopper's second
+   tap silently un-saved what they were trying to save. One bulk membership read now answers for a whole
+   screen.
+2. **`available` was catalogue status, not purchasability.** A product could be active and still
+   unreachable at the shopper's address. Replaced by a five-way verdict, and the DTO deliberately
+   **omits `available`** so two fields can never disagree about one question.
 
-**Data**: one migration `20260801122324_locality.sql` + `db/reference/au-localities.csv` —
-**15,414 triples** derived from **16.9M** G-NAF address records (CC BY 4.0, attribution in
-`db/reference/README.md`). ⚠ The table covers **all of Australia, not only served areas** (FR-002): a
-served-only table would make "we've never heard of that place" and "we don't deliver there"
-indistinguishable, which is the exact conflation this capability exists to prevent.
+**Bundle:** `/` 173.7 · `/browse` 169.9 · `/search` 173.9 · `/product/[id]` 172.7 · `/cart` 173.8 ·
+`/promotions/[id]` 171.0 — all within 174 KB, **and the limit was not raised**. ⚠ The control costs
++0.7 KB and `/search` had 0.1 KB. Four reclaim attempts were measured (dynamic telemetry import **0 KB**
+· inline SVG instead of lucide **0.1 KB WORSE** · lucide close-icon → text glyph **0.1 KB** ·
+`next/dynamic` on the price filter **0.1 KB and a visible flash**), recovering 0.2 of the 0.7. **FR-007
+was amended** rather than the budget raised. Splitting `saved-merge.ts` out of `saved-actions.ts`
+recovered a further 0.3 KB on `/`, which had reached exactly 174.0.
 
-**⚠ The byte budget forced two design changes on web, and the gate is what found them.**
-`next/dynamic` **alone made every route worse** (+0.4–0.6 KB; `/cart` went over budget) — the lazy
-loader costs more than the small form it deferred. Getting under required also dynamically importing
-the mount re-check, dropping the `loading:` fallback, and **splitting `DeliveryNotice` into its own
-module** — it was riding in the always-loaded chrome on all six routes and is used on one. Separately,
-the planned `DeliverySeedClient` module was replaced by a **prop on the component that already ships**,
-because a new always-loaded client boundary does not fit in 0.2 KB. Final: `/` 172.7 · `/browse` 169.9
-· `/search` 173.8 · `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at
-or below the pre-feature baseline**.
+**Telemetry (Principle VII):** ⚠ **none emitted.** The seven events are specified but Phase 8 is
+unbuilt — and PostHog has **never been initialised on customer-web** (zero non-test call sites for
+`initAnalytics`/`setConsent`, no consent banner), so `capture()` has always been a no-op platform-wide.
+**SC-012 and SC-013 are therefore unmeasurable**, which is recorded rather than claimed. The dead
+`product_favorited` event the predecessor declared and never fired is removed. **Mobile telemetry
+remains deferred — the twelfth consecutive slice. This is not parity and is not claimed as parity.**
 
-**⚠ FR-019 cannot fully hold on mobile.** The mobile delivery location still does not survive an app
-restart (025's unmet persistence half). So a signed-in shopper who deliberately switches suburbs is
-**re-seeded from their account default on next launch** — the explicit choice that was meant to
-outrank it did not survive. It holds within a session. ⚠ **This feature makes a pre-existing gap
-worse**: before it, nothing was ever seeded, so the gap only meant "retype it".
+**⚠ A third defect, found on a device on 2026-08-02: the bulk add had never added anything.**
+`POST /v1/saved/add-to-cart` derived its per-item change id as `changeID + ":" + productID`, and
+`public.cart_change_log.change_id` is a **uuid** column — so every insert failed with `invalid input
+syntax for type uuid` and every item came back refused as "unavailable". The shopper saw "0 items added
+to your cart" with each product blamed. Now a UUIDv5 over (fixed namespace, `changeID:productID`):
+one id per (batch, product), deterministic, so a retry is still a retry. ⚠ The unit test asserted only
+that the ids **differ** — which they did — because the fake cart accepts any string: **the fixture
+agreed with the code rather than with the database**, the same shape as 027's R13. ⚠ And the
+container-backed tests that would have caught it are **red on this branch** (`repository_test.go` seeds
+`public.delivery_pricing_rule`, dropped by the delivery withdrawal), which is why "25 container-backed"
+above should not be read as green.
 
-**✅ SIGNED OFF 2026-08-01** — 101/101. The operator walks are recorded as **operator attestation**;
-the machine verification was observed directly. See
-[SIGNOFF.md](../../specs/030-delivery-location-suburb/SIGNOFF.md).
-
-**Live data**: 15,414 localities · 299 leading-zero postcodes · SC-002 coverage **0 uncovered** · the
-prefix index confirmed in use (`Bitmap Index Scan`, 0.114 ms). Served postcodes are now all nameable —
-**3350 covers 20 Ballarat localities, 3550 covers 12 in Bendigo**, and none of those shoppers could
-have named their postcode.
-
-⚠ **SC-002 failed on first run** and the fault was in the **zone** data: postcode **3001** (Melbourne's
-PO Box code, zero street addresses in G-NAF) was in MEL-METRO. Removed — **not** papered over by
-inventing a locality row.
-
-**Carry-forwards**: mobile telemetry deferred an **eleventh** consecutive slice; the 028/029 banner
-`code`/`terms` face gap on web is untouched by this slice; `/search` has ~0.2 KB of headroom left.
+**Carry-forwards:**
+- ⚠ **Web does not clear the mirror on sign-out.** Sign-out is a deliberately zero-JS route handler, so
+  no client code runs. **`resetCart()` has the identical unwired gap and has since 027** — pre-existing
+  shape, not introduced here. Mobile does clear. Fixing it needs a landing-side hook that costs
+  guest-path bytes; it should fix the cart at the same time.
+- ⚠ **No control on web search tiles** (above) — revisit when `/search` has headroom.
+- ⚠ **No undo on the web list** — the use case exists, the surface does not. (Mobile's bulk-add and undo
+  gaps were closed 2026-08-02; the row above records that they had been claimed before they were built.)
+- ✅ **CLOSED 2026-08-02 — the mobile tile control.** `TileSaveControl` had been written, documented and
+  **called from nowhere**; the home rails, browse and search tiles never received it. It is now wired on
+  Home's rails and on `SearchScreen` (which *is* search, browse, category and "see all"), through one
+  shared `rememberSavedTiles` that performs **one membership read per screen** and owns the refusal
+  message. ⚠ **Still not wired**: the "More like this" rail on product detail, which draws its own
+  bespoke tile rather than `EffyProductCard` — that tile should be replaced by the shared one rather
+  than given a second heart.
+- ⚠ **The join is disclosed on the saved list, not on arrival** — a shopper who never opens the list is
+  not told. Parked in `sessionStorage` because sign-in navigates away.
+- ⚠ **`shop.status` is not a term in the purchasability predicate** — nothing in the hot path reads it,
+  so a suspended shop's products are still sold by cart and checkout. Adding it here would make saved
+  items *stricter* than checkout: a new disagreement replacing the one just fixed.
+- ⚠ **FR-053 amended**: a barred shopper is refused the list too. The platform's barred gate is uniform
+  and a carve-out would be a second, weaker authorization path.
+- **Not built**: notifications (FR-063, reserved sibling) · Buy It Again (FR-064, reserved sibling) ·
+  sharing (FR-065) · multiple lists (FR-066).

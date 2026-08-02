@@ -2,578 +2,227 @@ package checkout
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
-	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
+	"github.com/stretchr/testify/require"
+
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 )
 
-// fakeGateway records what the service asks of the payment provider.
-type fakeGateway struct {
-	createCalls  []CreateIntentInput
-	webhookEvent WebhookEvent
-	webhookErr   error
-	retrieve     PaymentIntent
-}
+// ── Checkout service tests ─────────────────────────────────────────────────────────────────────
+//
+// ⚠ THIS SUITE SHRANK BY DESIGN. It used to be dominated by delivery quoting — per-package options,
+// captured-quote windows, selection validation, exclusion sets, serviceability. Delivery zones,
+// quotes and fees were WITHDRAWN from the platform, so those tests were not "fixed": the behaviour
+// they described no longer exists.
+//
+// What remains is what checkout still decides — the amount, the minimum-order gate, the billing
+// snapshot — and the rule that outlives all of it: the server computes every figure it charges and
+// never takes one from the client.
 
-func (f *fakeGateway) CreatePaymentIntent(_ context.Context, in CreateIntentInput) (PaymentIntent, error) {
-	f.createCalls = append(f.createCalls, in)
-	return PaymentIntent{ID: "pi_1", ClientSecret: "cs_1", Status: IntentRequiresPaymentMethod}, nil
-}
-func (f *fakeGateway) RetrievePaymentIntent(_ context.Context, _ string) (PaymentIntent, error) {
-	return f.retrieve, nil
-}
-func (f *fakeGateway) ConstructWebhookEvent(_ []byte, _ string) (WebhookEvent, error) {
-	return f.webhookEvent, f.webhookErr
-}
-
-// fakeStore is an in-memory checkout store recording orchestration effects.
 type fakeStore struct {
-	lines        []CheckoutLine
-	addressFound bool
-	orderID      string
-	orderNumber  string
-	payments     []struct {
-		orderID, intentID string
-		amount            int64
-		status            string
-	}
-	seen            map[string]bool
-	intentToOrder   map[string]string
-	orderIntent     map[string]string
-	succeeded       []string
-	failed          []string
-	finalizeApplied bool
+	lines   []CheckoutLine
+	address map[string][]byte
 
-	// 021 QuoteStore state
-	destOK           bool
-	captured         CapturedQuote
-	haveCaptured     bool
-	legs             map[string]Leg
-	wroteDeliveries  []PackageDelivery
-	wroteItemSub     int64
-	wroteDeliveryFee int64
-
-	// 023 billing
-	billingSet     bool   // SetOrderBilling was called
-	billingJSON    []byte // the snapshot written (nil = NULL, "same as shipping")
-	missingAddress string // an address id AddressSnapshot reports as not-found (a foreign billing id)
+	amounts     OrderAmounts
+	billingJSON []byte
+	billingSet  bool
+	payment     int64
+	upsertErr   error
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{
-		orderID: "order-1", orderNumber: "EFY-TEST", addressFound: true, finalizeApplied: true,
-		seen: map[string]bool{}, intentToOrder: map[string]string{}, orderIntent: map[string]string{},
-	}
+	return &fakeStore{address: map[string][]byte{
+		addrID:    []byte(`{"line1":"1 Test St"}`),
+		otherAddr: []byte(`{"line1":"9 Other Rd"}`),
+	}}
 }
 
-func (f *fakeStore) CartLines(_ context.Context, _ string) ([]CheckoutLine, error) {
-	return f.lines, nil
-}
+func (f *fakeStore) CartLines(context.Context, string) ([]CheckoutLine, error) { return f.lines, nil }
+
 func (f *fakeStore) AddressSnapshot(_ context.Context, _, addressID string) ([]byte, bool, error) {
-	if !f.addressFound || (f.missingAddress != "" && addressID == f.missingAddress) {
-		return nil, false, nil
-	}
-	return []byte(`{"line1":"snap"}`), true, nil
+	j, ok := f.address[addressID]
+	return j, ok, nil
 }
+
+func (f *fakeStore) UpsertPendingOrder(_ context.Context, _ string, a OrderAmounts, _ []byte, _ []CheckoutLine) (string, string, error) {
+	if f.upsertErr != nil {
+		return "", "", f.upsertErr
+	}
+	f.amounts = a
+	return "order-1", "EFY-TEST01", nil
+}
+
 func (f *fakeStore) SetOrderBilling(_ context.Context, _ string, billingJSON []byte) error {
-	f.billingSet = true
-	f.billingJSON = billingJSON
-	return nil
-}
-func (f *fakeStore) UpsertPendingOrder(_ context.Context, _ string, _ OrderAmounts, _ []byte, _ []CheckoutLine) (string, string, error) {
-	return f.orderID, f.orderNumber, nil
-}
-func (f *fakeStore) UpsertPayment(_ context.Context, orderID, intentID string, amount int64, status string) error {
-	f.payments = append(f.payments, struct {
-		orderID, intentID string
-		amount            int64
-		status            string
-	}{orderID, intentID, amount, status})
-	return nil
-}
-func (f *fakeStore) FindOrderByIntent(_ context.Context, intentID string) (string, bool, error) {
-	o, ok := f.intentToOrder[intentID]
-	return o, ok, nil
-}
-func (f *fakeStore) MarkEventSeen(_ context.Context, eventID, _ string) (bool, error) {
-	if f.seen[eventID] {
-		return false, nil
-	}
-	f.seen[eventID] = true
-	return true, nil
-}
-func (f *fakeStore) OrderIntentForCustomer(_ context.Context, _, orderID string) (string, bool, error) {
-	i, ok := f.orderIntent[orderID]
-	return i, ok, nil
-}
-func (f *fakeStore) FinalizeSucceeded(_ context.Context, orderID string) (bool, error) {
-	f.succeeded = append(f.succeeded, orderID)
-	return f.finalizeApplied, nil
-}
-func (f *fakeStore) FinalizeFailed(_ context.Context, orderID string) error {
-	f.failed = append(f.failed, orderID)
+	f.billingSet, f.billingJSON = true, billingJSON
 	return nil
 }
 
-// ── 021 QuoteStore ──
-func (f *fakeStore) DestinationZone(_ context.Context, _, _ string) (string, string, bool, error) {
-	if !f.destOK {
-		return "3000", "", false, nil
-	}
-	return "3000", "zone-dest", true, nil
-}
-func (f *fakeStore) Legs(_ context.Context, _ []string, _ string) (map[string]Leg, error) {
-	return f.legs, nil
-}
-func (f *fakeStore) CaptureQuote(_ context.Context, _ string, _ []byte, _ []CheckoutLine, cq CapturedQuote) (string, string, error) {
-	f.captured = cq
-	f.haveCaptured = true
-	return f.orderID, f.orderNumber, nil
-}
-func (f *fakeStore) ReadCapturedQuote(_ context.Context, _ string) (CapturedQuote, string, string, bool, error) {
-	return f.captured, f.orderID, f.orderNumber, f.haveCaptured, nil
-}
-func (f *fakeStore) WritePackageDeliveries(_ context.Context, _ string, rows []PackageDelivery, itemSub, deliveryFee int64, discount OrderDiscount, _ time.Time) error {
-	f.wroteDeliveries = rows
-	f.wroteItemSub = itemSub
-	f.wroteDeliveryFee = deliveryFee
+func (f *fakeStore) UpsertPayment(_ context.Context, _, _ string, cents int64, _ string) error {
+	f.payment = cents
 	return nil
 }
 
-const validAddr = "44444444-4444-4444-4444-444444444444"
+func (f *fakeStore) FindOrderByIntent(context.Context, string) (string, bool, error) {
+	return "order-1", true, nil
+}
+func (f *fakeStore) MarkEventSeen(context.Context, string, string) (bool, error) { return true, nil }
+func (f *fakeStore) OrderIntentForCustomer(context.Context, string, string) (string, bool, error) {
+	return "pi_1", true, nil
+}
+func (f *fakeStore) FinalizeSucceeded(context.Context, string) (bool, error) { return true, nil }
+func (f *fakeStore) FinalizeFailed(context.Context, string) error            { return nil }
 
-// twoPackageQuote captures a metro (same_day $7 + standard $5) and a regional (standard $8) package.
-func twoPackageQuote(exp time.Time) CapturedQuote {
-	return CapturedQuote{
-		ExpiresAt: exp,
-		Packages: []QuotePackage{
-			{PackageKey: "pkg_a", ShopID: "s1", Serviceable: true, Options: []QuoteOption{
-				{Method: "same_day", ServiceLevel: "Same-day", FeeCents: 700},
-				{Method: "standard", ServiceLevel: "Standard", FeeCents: 500},
-			}},
-			{PackageKey: "pkg_b", ShopID: "s2", Serviceable: true, Options: []QuoteOption{
-				{Method: "standard", ServiceLevel: "Standard", FeeCents: 800},
-			}},
-		},
-	}
+type fakeGateway struct{ amount int64 }
+
+func (g *fakeGateway) CreatePaymentIntent(_ context.Context, in CreateIntentInput) (PaymentIntent, error) {
+	g.amount = in.AmountMinor
+	return PaymentIntent{ID: "pi_1", ClientSecret: "cs_1", Status: "requires_payment_method"}, nil
 }
 
-func intentInput(sels ...DeliverySelection) IntentInput {
-	return IntentInput{AddressID: validAddr, Selections: sels}
+func (g *fakeGateway) RetrievePaymentIntent(_ context.Context, id string) (PaymentIntent, error) {
+	return PaymentIntent{ID: id, Status: "succeeded"}, nil
 }
 
-// ── 023: billing snapshot ─────────────────────────────────────────────────────────────────────
-
-const otherAddr = "55555555-5555-5555-5555-555555555555"
-
-func singlePackageStore(t *testing.T, now time.Time) *fakeStore {
-	t.Helper()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", Name: "Milk", UnitCents: 500, Quantity: 2}}
-	store.captured = CapturedQuote{ExpiresAt: now.Add(time.Minute), Packages: []QuotePackage{
-		{PackageKey: "pkg_a", ShopID: "s1", Serviceable: true, Options: []QuoteOption{
-			{Method: "standard", ServiceLevel: "Standard", FeeCents: 500},
-		}},
-	}}
-	store.haveCaptured = true
-	return store
+func (g *fakeGateway) ConstructWebhookEvent([]byte, string) (WebhookEvent, error) {
+	return WebhookEvent{}, nil
 }
 
-// FR-009/SC-004: no billing id → billing recorded as NULL ("same as shipping").
-func TestIntentBillingSameAsShippingWritesNull(t *testing.T) {
-	now := time.Now()
-	store := singlePackageStore(t, now)
-	svc := NewService(store, &fakeGateway{}, "pk")
+type fakePolicy struct{ minimum int64 }
 
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c",
-		intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"}), now)
-	if err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	if !store.billingSet {
-		t.Fatal("SetOrderBilling was not called")
-	}
-	if store.billingJSON != nil {
-		t.Errorf("billing = %q, want NULL (nil) for same-as-shipping", store.billingJSON)
-	}
+func (p fakePolicy) Policy(context.Context) (cartpolicy.Policy, error) {
+	return cartpolicy.Policy{MinimumSubtotalCents: p.minimum}, nil
 }
 
-// FR-009: billingAddressId equal to the shipping id → still NULL (it IS the same address).
-func TestIntentBillingEqualToShippingWritesNull(t *testing.T) {
-	now := time.Now()
-	store := singlePackageStore(t, now)
-	svc := NewService(store, &fakeGateway{}, "pk")
+type fakePromos struct{ discount int64 }
 
-	in := intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"})
-	in.BillingAddressID = validAddr // == shipping AddressID
-	if _, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now); err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	if store.billingJSON != nil {
-		t.Errorf("billing = %q, want NULL when billing == shipping", store.billingJSON)
-	}
+func (p fakePromos) DiscountForCustomer(context.Context, string, int64, time.Time) (int64, string, string, error) {
+	return p.discount, "promo-1", "SAVE", nil
 }
 
-// FR-008/SC-005: a distinct, valid billing id → the billing snapshot is stored.
-func TestIntentDivergentBillingStoresSnapshot(t *testing.T) {
-	now := time.Now()
-	store := singlePackageStore(t, now)
-	svc := NewService(store, &fakeGateway{}, "pk")
+const (
+	custID    = "11111111-1111-1111-1111-111111111111"
+	addrID    = "22222222-2222-2222-2222-222222222222"
+	otherAddr = "55555555-5555-5555-5555-555555555555"
+)
 
-	in := intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"})
-	in.BillingAddressID = otherAddr
-	if _, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now); err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	if store.billingJSON == nil {
-		t.Fatal("divergent billing must store a snapshot, got NULL")
-	}
-	if string(store.billingJSON) != `{"line1":"snap"}` {
-		t.Errorf("billing snapshot = %q, want the address snapshot", store.billingJSON)
-	}
+func storeWithMilk() *fakeStore {
+	s := newFakeStore()
+	s.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", Name: "Milk", UnitCents: 500, Quantity: 2}}
+	return s
 }
 
-// FR-021: a billing id that is not the customer's is refused (cannot bill to a foreign address).
-func TestIntentForeignBillingIsRefused(t *testing.T) {
-	now := time.Now()
-	store := singlePackageStore(t, now)
-	store.missingAddress = otherAddr // AddressSnapshot reports this id as not-found
-	svc := NewService(store, &fakeGateway{}, "pk")
-
-	in := intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"})
-	in.BillingAddressID = otherAddr
-	if _, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now); err != ErrAddressNotFound {
-		t.Errorf("want ErrAddressNotFound for a foreign billing id, got %v", err)
-	}
+func svcWith(store *fakeStore, gw *fakeGateway) *Service {
+	return NewService(store, gw, "pk_test")
 }
 
-// A malformed billing id is refused before any snapshot read.
-func TestIntentMalformedBillingIsRefused(t *testing.T) {
-	now := time.Now()
-	store := singlePackageStore(t, now)
-	svc := NewService(store, &fakeGateway{}, "pk")
-
-	in := intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"})
-	in.BillingAddressID = "not-a-uuid"
-	if _, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now); err != ErrAddressNotFound {
-		t.Errorf("want ErrAddressNotFound for a malformed billing id, got %v", err)
-	}
+func intent(s *Service, in IntentInput) (IntentResult, error) {
+	return s.CreateCheckoutIntent(context.Background(), custID, in, time.Now())
 }
 
-// REGRESSION (021): the captured quote is persisted to order.delivery_quote WITHOUT shop identity
-// (QuotePackage.ShopID is `json:"-"`, hidden from the customer — FR-019), so it reads back EMPTY. The
-// intent must re-attach each package's shop id from the cart (packageKey = hash of the shop id) before
-// writing order_package_delivery — else shop_id is inserted as "" and the intent 500s (invalid uuid).
-func TestIntentReattachesShopIdFromCartWhenQuoteHasNone(t *testing.T) {
-	now := time.Now()
-	const shopID = "aaaaaaaa-0000-0000-0000-000000000001"
-	pkg := delivery.PackageKey(shopID)
+// ── The amount ─────────────────────────────────────────────────────────────────────────────────
 
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: shopID, Name: "Milk", UnitCents: 500, Quantity: 2}}
-	// Mirror the jsonb round-trip: the captured package carries its REAL packageKey but an EMPTY ShopID.
-	store.captured = CapturedQuote{ExpiresAt: now.Add(time.Minute), Packages: []QuotePackage{
-		{PackageKey: pkg, ShopID: "", Serviceable: true, Options: []QuoteOption{
-			{Method: "standard", ServiceLevel: "Standard", FeeCents: 500},
-		}},
-	}}
-	store.haveCaptured = true
-	svc := NewService(store, &fakeGateway{}, "pk")
+// ⚠ THE CENTRAL ARITHMETIC, and it is now one line: items minus discount. There is no delivery fee on
+// this platform, so a grand total that exceeds the item subtotal would be money nobody can explain.
+func TestIntent_ChargesItemsMinusDiscount(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
 
-	if _, err := svc.CreateCheckoutIntent(context.Background(), "c",
-		intentInput(DeliverySelection{PackageKey: pkg, Method: "standard"}), now); err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	if len(store.wroteDeliveries) != 1 {
-		t.Fatalf("want 1 package delivery written, got %d", len(store.wroteDeliveries))
-	}
-	if store.wroteDeliveries[0].ShopID != shopID {
-		t.Errorf("delivery shop_id = %q, want %q (re-attached from the cart)", store.wroteDeliveries[0].ShopID, shopID)
-	}
+	res, err := intent(svcWith(store, gw).WithPromotions(fakePromos{discount: 200}), IntentInput{AddressID: addrID})
+	require.NoError(t, err)
+
+	require.EqualValues(t, 1000, store.amounts.ItemSubtotalCents)
+	require.EqualValues(t, 200, store.amounts.DiscountCents)
+	require.EqualValues(t, 800, store.amounts.GrandTotalCents)
+	require.Equal(t, "8.00", res.GrandTotal)
+
+	// ⚠ The gateway is charged the platform's own figure, never anything the client sent.
+	require.EqualValues(t, 800, gw.amount)
+	require.EqualValues(t, 800, store.payment)
 }
 
-// SC-002/FR-009: the shown per-package fee == the charge; the order total == item subtotal + Σ fees.
-func TestIntentSumsPerPackageFees(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{
-		{ProductID: "p1", ShopID: "s1", Name: "Milk", UnitCents: 500, Quantity: 2},  // 1000
-		{ProductID: "p2", ShopID: "s2", Name: "Bread", UnitCents: 300, Quantity: 1}, // 300
-	}
-	store.captured = twoPackageQuote(now.Add(time.Minute))
-	store.haveCaptured = true
-	gw := &fakeGateway{}
-	svc := NewService(store, gw, "pk_test_x")
+func TestIntent_NeverChargesADeliveryFee(t *testing.T) {
+	store := storeWithMilk()
 
-	res, err := svc.CreateCheckoutIntent(context.Background(), "cust-1",
-		intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "same_day"},
-			DeliverySelection{PackageKey: "pkg_b", Method: "standard"}), now)
-	if err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	// items 1300 + same_day 700 + standard 800 = 2800
-	if got := gw.createCalls[0].AmountMinor; got != 2800 {
-		t.Errorf("charge = %d, want 2800 (items 1300 + fees 1500)", got)
-	}
-	if res.GrandTotal != "28.00" {
-		t.Errorf("grand total = %q, want 28.00", res.GrandTotal)
-	}
-	if store.wroteDeliveryFee != 1500 || store.wroteItemSub != 1300 {
-		t.Errorf("wrote fee/sub = %d/%d, want 1500/1300", store.wroteDeliveryFee, store.wroteItemSub)
-	}
-	if len(res.DeliveryBreakdown) != 2 {
-		t.Fatalf("want a 2-line breakdown, got %+v", res.DeliveryBreakdown)
-	}
-	// SC-006: nothing shop-identifying on the breakdown.
-	for _, b := range res.DeliveryBreakdown {
-		if b.PackageKey == "s1" || b.PackageKey == "s2" {
-			t.Errorf("breakdown must use opaque package keys, got %q", b.PackageKey)
-		}
-	}
+	_, err := intent(svcWith(store, &fakeGateway{}), IntentInput{AddressID: addrID})
+	require.NoError(t, err)
+
+	require.Zero(t, store.amounts.DeliveryFeeCents)
+	require.Equal(t, store.amounts.ItemSubtotalCents, store.amounts.GrandTotalCents,
+		"with no discount the total IS the item subtotal")
 }
 
-// SC-004: a client-submitted fee is impossible — selections carry no fee, and the server uses the
-// captured option fee. Here the selection has no way to send a price; we assert the captured fee wins.
-func TestIntentUsesCapturedFeeNotAnyClientValue(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", Name: "Milk", UnitCents: 500, Quantity: 2}}
-	store.captured = CapturedQuote{ExpiresAt: now.Add(time.Minute), Packages: []QuotePackage{
-		{PackageKey: "pkg_a", ShopID: "s1", Serviceable: true, Options: []QuoteOption{
-			{Method: "standard", ServiceLevel: "Standard", FeeCents: 500},
-		}},
-	}}
-	store.haveCaptured = true
-	gw := &fakeGateway{}
-	svc := NewService(store, gw, "pk")
+func TestIntent_ADiscountCannotDriveTheTotalBelowZero(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
 
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c",
-		intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"}), now)
-	if err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	// items 1000 + captured standard 500 = 1500 — the CAPTURED fee, no client price anywhere.
-	if got := gw.createCalls[0].AmountMinor; got != 1500 {
-		t.Errorf("charge = %d, want 1500 (captured fee)", got)
-	}
+	_, err := intent(svcWith(store, gw).WithPromotions(fakePromos{discount: 99_999}), IntentInput{AddressID: addrID})
+	require.NoError(t, err)
+
+	require.Zero(t, store.amounts.GrandTotalCents)
+	require.Zero(t, gw.amount)
 }
 
-// FR-011a: an expired captured quote → re-quote (surfaced as 409 by the handler).
-func TestIntentExpiredQuoteRequiresRequote(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1}}
-	store.captured = twoPackageQuote(now.Add(-time.Second)) // already expired
-	store.haveCaptured = true
-	svc := NewService(store, &fakeGateway{}, "pk")
+// ── The minimum-order gate ─────────────────────────────────────────────────────────────────────
 
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c",
-		intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"}), now)
-	if err != ErrQuoteExpired {
-		t.Errorf("want ErrQuoteExpired, got %v", err)
-	}
+// ⚠ FR-056: re-decided HERE, not trusted from the cart's own gate. A client that ignores its gate —
+// an outdated build, a hand-rolled request — must still be refused.
+func TestIntent_RefusesBelowTheMinimum(t *testing.T) {
+	store := storeWithMilk()
+
+	_, err := intent(svcWith(store, &fakeGateway{}).WithOrderPolicy(fakePolicy{minimum: 5000}),
+		IntentInput{AddressID: addrID})
+
+	var below *BelowMinimumError
+	require.ErrorAs(t, err, &below)
+	require.EqualValues(t, 5000, below.MinimumCents)
+	require.EqualValues(t, 4000, below.RemainingCents, "how much more is needed — never a shop")
 }
 
-// No captured quote at all → must quote first (also ErrQuoteExpired).
-func TestIntentWithoutQuoteRequiresQuote(t *testing.T) {
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1}}
-	store.haveCaptured = false
-	svc := NewService(store, &fakeGateway{}, "pk")
+// ── The address ────────────────────────────────────────────────────────────────────────────────
 
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c",
-		intentInput(DeliverySelection{PackageKey: "pkg_a", Method: "standard"}), time.Now())
-	if err != ErrQuoteExpired {
-		t.Errorf("want ErrQuoteExpired (no quote), got %v", err)
-	}
+func TestIntent_RefusesAnUnknownAddress(t *testing.T) {
+	_, err := intent(svcWith(storeWithMilk(), &fakeGateway{}),
+		IntentInput{AddressID: "99999999-9999-9999-9999-999999999999"})
+	require.ErrorIs(t, err, ErrAddressNotFound)
 }
 
-// R8/SC-011a: excluding a deliverable package is refused (the customer cannot silently drop items).
-func TestIntentExcludingServiceablePackageIsRefused(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1}}
-	store.captured = twoPackageQuote(now.Add(time.Minute))
-	store.haveCaptured = true
-	svc := NewService(store, &fakeGateway{}, "pk")
-
-	in := IntentInput{AddressID: validAddr,
-		Selections:   []DeliverySelection{{PackageKey: "pkg_a", Method: "standard"}},
-		ExcludedKeys: []string{"pkg_b"}} // pkg_b is serviceable — excluding it is not allowed
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now)
-	if err != ErrExclusionMismatch {
-		t.Errorf("want ErrExclusionMismatch, got %v", err)
-	}
+func TestIntent_RefusesAMalformedAddressID(t *testing.T) {
+	_, err := intent(svcWith(storeWithMilk(), &fakeGateway{}), IntentInput{AddressID: "not-a-uuid"})
+	require.ErrorIs(t, err, ErrAddressNotFound)
 }
 
-// R8: an unserviceable package must be confirmed-excluded and its items are NOT charged.
-func TestIntentExcludesUnserviceablePackageFromCharge(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{
-		{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 2}, // serviceable pkg_a → 1000
-		{ProductID: "p2", ShopID: "s2", UnitCents: 900, Quantity: 1}, // unserviceable pkg_b → excluded
-	}
-	cq := twoPackageQuote(now.Add(time.Minute))
-	cq.Packages[1].Serviceable = false
-	cq.Packages[1].Options = nil
-	store.captured = cq
-	store.haveCaptured = true
-	gw := &fakeGateway{}
-	svc := NewService(store, gw, "pk")
+// ── Billing (023) ──────────────────────────────────────────────────────────────────────────────
 
-	in := IntentInput{AddressID: validAddr,
-		Selections:   []DeliverySelection{{PackageKey: "pkg_a", Method: "standard"}},
-		ExcludedKeys: []string{"pkg_b"}}
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now)
-	if err != nil {
-		t.Fatalf("intent: %v", err)
-	}
-	// only pkg_a: items 1000 + standard 500 = 1500. pkg_b's 900 is NOT charged.
-	if got := gw.createCalls[0].AmountMinor; got != 1500 {
-		t.Errorf("charge = %d, want 1500 (excluded pkg not charged)", got)
-	}
-	if store.wroteItemSub != 1000 {
-		t.Errorf("item subtotal = %d, want 1000 (excluded pkg items dropped)", store.wroteItemSub)
-	}
+// FR-009: no billing id → billing recorded as NULL ("same as shipping").
+func TestIntent_SameAsShippingWritesNullBilling(t *testing.T) {
+	store := storeWithMilk()
+
+	_, err := intent(svcWith(store, &fakeGateway{}), IntentInput{AddressID: addrID})
+	require.NoError(t, err)
+
+	require.True(t, store.billingSet, "called on every intent, so toggling back ON clears a prior value")
+	require.Nil(t, store.billingJSON)
 }
 
-// All-undeliverable → block entirely (FR-006c).
-func TestIntentAllUnserviceableBlocks(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 500, Quantity: 1}}
-	cq := CapturedQuote{ExpiresAt: now.Add(time.Minute), Packages: []QuotePackage{
-		{PackageKey: "pkg_a", ShopID: "s1", Serviceable: false},
-	}}
-	store.captured = cq
-	store.haveCaptured = true
-	svc := NewService(store, &fakeGateway{}, "pk")
+func TestIntent_DivergentBillingIsSnapshotted(t *testing.T) {
+	store := storeWithMilk()
 
-	in := IntentInput{AddressID: validAddr, ExcludedKeys: []string{"pkg_a"}}
-	_, err := svc.CreateCheckoutIntent(context.Background(), "c", in, now)
-	if err != ErrNoServiceableItems {
-		t.Errorf("want ErrNoServiceableItems, got %v", err)
-	}
+	_, err := intent(svcWith(store, &fakeGateway{}), IntentInput{AddressID: addrID, BillingAddressID: otherAddr})
+	require.NoError(t, err)
+
+	require.NotNil(t, store.billingJSON)
+	require.Contains(t, string(store.billingJSON), "Other Rd")
 }
 
-func TestIntentRejectsEmptyCartAndBadAddress(t *testing.T) {
-	gw := &fakeGateway{}
+// ── Store failure ──────────────────────────────────────────────────────────────────────────────
 
-	empty := newFakeStore()
-	if _, err := NewService(empty, gw, "pk").CreateCheckoutIntent(context.Background(), "c", intentInput(), time.Now()); err != ErrEmptyCart {
-		t.Errorf("want ErrEmptyCart, got %v", err)
-	}
+func TestIntent_PropagatesAStoreFailureRatherThanCharging(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	store.upsertErr = errors.New("boom")
 
-	badUUID := newFakeStore()
-	badUUID.lines = []CheckoutLine{{ProductID: "p1", ShopID: "s1", UnitCents: 100, Quantity: 1}}
-	if _, err := NewService(badUUID, gw, "pk").CreateCheckoutIntent(context.Background(), "c",
-		IntentInput{AddressID: "not-a-uuid"}, time.Now()); err != ErrAddressNotFound {
-		t.Errorf("want ErrAddressNotFound for bad uuid, got %v", err)
-	}
-}
+	_, err := intent(svcWith(store, gw), IntentInput{AddressID: addrID})
 
-// The quote endpoint groups by shop into anonymous packages and marks serviceability, leaking no shop.
-func TestQuoteGroupsAnonymousPackages(t *testing.T) {
-	now := time.Now()
-	store := newFakeStore()
-	store.destOK = true
-	store.lines = []CheckoutLine{
-		{ProductID: "p1", ShopID: "s1", Name: "Milk", UnitCents: 500, Quantity: 2},
-		{ProductID: "p2", ShopID: "s2", Name: "Bread", UnitCents: 300, Quantity: 1},
-	}
-	store.legs = map[string]Leg{
-		"s1": {ShopID: "s1", OriginOK: true, Offerings: []delivery.Offering{
-			{Method: delivery.MethodStandard, PriceCents: 500, LeadDaysMin: 2, LeadDaysMax: 3},
-		}},
-		// s2 has an origin zone but no offering for this dest → unserviceable.
-		"s2": {ShopID: "s2", OriginOK: true, Offerings: nil},
-	}
-	svc := NewService(store, &fakeGateway{}, "pk")
-
-	res, err := svc.Quote(context.Background(), "cust-1", validAddr, now)
-	if err != nil {
-		t.Fatalf("quote: %v", err)
-	}
-	if len(res.Packages) != 2 {
-		t.Fatalf("want 2 packages, got %d", len(res.Packages))
-	}
-	// Serviceability follows the offerings, not the shop.
-	byKey := map[string]QuotePackage{}
-	for _, p := range res.Packages {
-		byKey[p.PackageKey] = p
-		// SC-006: an anonymous, opaque key — never the raw shop id.
-		if p.PackageKey == "s1" || p.PackageKey == "s2" {
-			t.Errorf("package key must be opaque, got %q", p.PackageKey)
-		}
-	}
-	a := byKey[delivery.PackageKey("s1")]
-	b := byKey[delivery.PackageKey("s2")]
-	if !a.Serviceable || len(a.Options) != 1 {
-		t.Errorf("pkg for s1 should be serviceable with 1 option, got %+v", a)
-	}
-	if b.Serviceable {
-		t.Errorf("pkg for s2 (no offering) should be unserviceable, got %+v", b)
-	}
-	if !store.haveCaptured {
-		t.Error("quote must capture the quote server-side")
-	}
-}
-
-func TestWebhookSucceededFinalizesOnceThenDedups(t *testing.T) {
-	store := newFakeStore()
-	store.intentToOrder["pi_1"] = "order-1"
-	gw := &fakeGateway{webhookEvent: WebhookEvent{ID: "evt_1", Type: EventPaymentSucceeded, PaymentIntentID: "pi_1", IntentStatus: IntentSucceeded}}
-	svc := NewService(store, gw, "pk")
-
-	if err := svc.HandleWebhook(context.Background(), []byte("{}"), "sig"); err != nil {
-		t.Fatalf("webhook: %v", err)
-	}
-	// Redelivery of the SAME event id must be a no-op (SC-006).
-	if err := svc.HandleWebhook(context.Background(), []byte("{}"), "sig"); err != nil {
-		t.Fatalf("webhook redelivery: %v", err)
-	}
-	if len(store.succeeded) != 1 || store.succeeded[0] != "order-1" {
-		t.Errorf("want exactly one finalize for order-1, got %v", store.succeeded)
-	}
-}
-
-func TestWebhookFailedMarksFailedNoFanOut(t *testing.T) {
-	store := newFakeStore()
-	store.intentToOrder["pi_1"] = "order-1"
-	gw := &fakeGateway{webhookEvent: WebhookEvent{ID: "evt_2", Type: EventPaymentFailed, PaymentIntentID: "pi_1", IntentStatus: IntentFailed}}
-	svc := NewService(store, gw, "pk")
-
-	if err := svc.HandleWebhook(context.Background(), []byte("{}"), "sig"); err != nil {
-		t.Fatalf("webhook: %v", err)
-	}
-	if len(store.failed) != 1 || len(store.succeeded) != 0 {
-		t.Errorf("failed event should mark failed only: failed=%v succeeded=%v", store.failed, store.succeeded)
-	}
-}
-
-func TestWebhookBadSignatureErrors(t *testing.T) {
-	store := newFakeStore()
-	gw := &fakeGateway{webhookErr: context.Canceled} // any non-nil error stands in for a bad signature
-	svc := NewService(store, gw, "pk")
-	if err := svc.HandleWebhook(context.Background(), []byte("{}"), "bad"); err == nil {
-		t.Error("expected an error for an unverifiable webhook")
-	}
-}
-
-func TestConfirmFinalizesWhenIntentSucceeded(t *testing.T) {
-	const orderUUID = "55555555-5555-5555-5555-555555555555"
-	store := newFakeStore()
-	store.orderIntent[orderUUID] = "pi_1"
-	gw := &fakeGateway{retrieve: PaymentIntent{ID: "pi_1", Status: IntentSucceeded}}
-	svc := NewService(store, gw, "pk")
-
-	res, err := svc.Confirm(context.Background(), "c", orderUUID)
-	if err != nil {
-		t.Fatalf("confirm: %v", err)
-	}
-	if !res.Paid || len(store.succeeded) != 1 {
-		t.Errorf("confirm should finalize a succeeded intent: paid=%v succeeded=%v", res.Paid, store.succeeded)
-	}
+	require.Error(t, err)
+	require.Zero(t, gw.amount, "no PaymentIntent may be created when the order could not be written")
 }

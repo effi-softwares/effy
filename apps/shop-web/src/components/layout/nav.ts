@@ -19,5 +19,7 @@ export const NAV: NavItem<ShopRole>[] = [
   // access, and the staff standing at the shelves are its primary users. Gating it would hide the
   // work from the people who do it — and the backend admits both roles anyway.
   { label: "Orders", to: "/orders", icon: ClipboardList },
+  // same-day, and the pickers need to. Only SUBMITTING a declaration is manager-only, enforced by the
+  // backend — nav visibility reflects the authoritative gate, it is never a second source of truth.
   { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
 ];

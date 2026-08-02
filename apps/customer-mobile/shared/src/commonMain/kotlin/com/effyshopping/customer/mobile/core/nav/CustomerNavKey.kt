@@ -107,7 +107,7 @@ sealed interface CustomerNavKey : NavKey {
 
     // ── Account sub-screens ────────────────────────────────────────────────────────────────────
 
-    @Serializable data object Favorites : CustomerNavKey
+    @Serializable data object Saved : CustomerNavKey
     @Serializable data object AddressBook : CustomerNavKey
     @Serializable data object Notifications : CustomerNavKey
     @Serializable data object Faqs : CustomerNavKey
@@ -158,7 +158,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.SignUp::class, CustomerNavKey.SignUp.serializer())
             subclass(CustomerNavKey.VerifyOtp::class, CustomerNavKey.VerifyOtp.serializer())
             subclass(CustomerNavKey.Recovery::class, CustomerNavKey.Recovery.serializer())
-            subclass(CustomerNavKey.Favorites::class, CustomerNavKey.Favorites.serializer())
+            subclass(CustomerNavKey.Saved::class, CustomerNavKey.Saved.serializer())
             subclass(CustomerNavKey.AddressBook::class, CustomerNavKey.AddressBook.serializer())
             subclass(CustomerNavKey.Notifications::class, CustomerNavKey.Notifications.serializer())
             subclass(CustomerNavKey.Faqs::class, CustomerNavKey.Faqs.serializer())
@@ -187,7 +187,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.SignUp,
     CustomerNavKey.VerifyOtp("a@b.c", OtpPurpose.SIGN_IN),
     CustomerNavKey.Recovery,
-    CustomerNavKey.Favorites,
+    CustomerNavKey.Saved,
     CustomerNavKey.AddressBook,
     CustomerNavKey.Notifications,
     CustomerNavKey.Faqs,

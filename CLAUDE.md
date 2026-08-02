@@ -203,71 +203,134 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**030-delivery-location-suburb — Suburb-Aware Delivery Location.** ✅ **SIGNED OFF 2026-08-01 —
-101/101 tasks.** Record: [specs/030-delivery-location-suburb/SIGNOFF.md](specs/030-delivery-location-suburb/SIGNOFF.md).
-⚠ The operator walks are recorded as **operator attestation**; the machine verification was observed
-directly. **Data is live**: 15,414 localities loaded, SC-002 coverage 0 uncovered, the prefix index
-confirmed in use (`Bitmap Index Scan`, 0.114 ms).
+**033-customer-saved-items — Customer Saved Items: a watchlist.** 🚧 **183/214 tasks — every feature phase BUILT and machine-verified except telemetry;
+operator walks + commit pending.**
 
-Lets a shopper name where they live by **suburb** instead of by a postcode they had to already know.
-025 gave the storefront its up-front "do we deliver to you?" answer and left the only way in as four
-digits — so a shopper new to the area, renting, or who thinks in suburb names could not answer at all.
-- **Data**: `public.locality` (migration `20260801122324_locality.sql`, schema only) +
-  `db/reference/au-localities.csv` — **15,414 triples** derived from **16.9M** G-NAF address records by
-  `make derive-localities`, loaded by `make load-localities` (idempotent). **CC BY 4.0 — attribution in
-  `db/reference/README.md` is required, not optional.**
-- **⚠ THE ASSUMED DATASET HAD NO LICENCE.** Research R1 named a community postcode dataset as
-  "permissively licensed"; the GitHub API reports `"license": null` and there is no LICENSE file. **No
-  licence means all rights reserved, not permissive.** The blocking licence task is the only reason it
-  was not committed. G-NAF replaced it by operator decision.
-- **⚠ Two derivation defects found ONLY by running against the real 1.7 GB download**, neither of which
-  a synthetic fixture could surface: the file pattern `_LOCALITY_psv.psv$` **also matches
-  `{ST}_STREET_LOCALITY_psv.psv`** — it would have loaded **street names as suburbs**; and the STATE
-  table is per-state in `Standard/`, not in `Authority Code/`. Also handled: `OT` (Other Territories) is
-  a **ninth** pseudo-state the `locality.state` CHECK forbids.
-- **Endpoint**: `GET /v1/storefront/localities?q=` on the **hot path**, beside `/serviceability`.
-  ⚠ **`ServiceabilityDTO` was NOT touched** — its two-field freeze and both reflection tests stand,
-  because the design turned out not to need the echo (research R4).
-- **⚠ Principle II nearly failed silently.** `LocalityDTO` in `storefront.ts` alone generated to Kotlin
-  **zero times** — the schema generator walks the `CustomerCommerceContract` aggregator, so an
-  unreferenced type is never generated and `cm-contract-check` would have passed **trivially** while the
-  Kotlin client carried a hand-written type. Caught by the analyze pass, fixed by T022a.
-- **⚠ THE BYTE GATE FOUND A REAL PROBLEM.** `next/dynamic` **alone made every web route worse**
-  (+0.4–0.6 KB; `/cart` 173.8 → **174.3**, over budget) — the lazy loader costs more than the small form
-  it defers. Getting under also required dynamically importing the mount re-check, dropping the
-  `loading:` fallback, and **splitting `DeliveryNotice` into its own module** (it rode in the
-  always-loaded chrome on all six routes and is used on one). The planned `DeliverySeedClient` became a
-  **prop on a component that already ships**. Final: `/` 172.7 · `/browse` 169.9 · `/search` 173.8 ·
-  `/product/[id]` 172.2 · `/cart` 173.7 · `/promotions/[id]` 170.8 — **four routes at or below the
-  pre-feature baseline**. ⚠ The **Amplify quarantine also fired** on the seed island (`lib/dal` →
-  `aws-amplify`); fixed with the cookie-decoding `readServerSession`.
-- **Mobile**: the entry surface is now a **bottom sheet** (`DeliverySheet.kt`, operator direction),
-  carrying the input, the results list **and** the verdict. ⚠ The keyboard is **no longer numeric** —
-  025's field was postcode-only; a number pad would make this unusable for exactly the shopper it
-  exists for. `LocalityResult` is a **sealed interface**, not `List<Locality>?`, so the compiler forces
-  "lookup failed" and "no matches" apart.
-- **⚠ 025's FR-013 account half is finally wired** — `seedFromAccount` existed on **both** surfaces and
-  was called by **neither**, for three features.
-- **⚠ FR-019 cannot fully hold on mobile**: the location still does not survive an app restart, so a
-  signed-in shopper who deliberately switches suburbs is **re-seeded from their account default on next
-  launch**. It holds within a session. **This feature makes a pre-existing gap worse** — before it,
-  nothing was ever seeded.
-- **Verified**: Go build/vet/test/gofmt · **466 mobile tests** · iOS + Android compile + APK ·
-  `pnpm -r typecheck` **12/12** · **221 web tests** · bundle gate green · `depcruise` clean ·
-  `cm-guard` · `tokens:check` **unchanged** (no token added) · no contract drift · telemetry grep clean.
-- **⚠ SC-002 FAILED ON FIRST LIVE RUN, and the fault was in the ZONE data.** Postcode **3001** was in
-  MEL-METRO with no locality naming it — 3001 is Melbourne's **PO Box / GPO** code, and G-NAF has zero
-  addresses for it because it has no street addresses. **You cannot leave groceries in a PO box.**
-  Removed from the zone. ⚠ It was **not** "fixed" by inventing a `Melbourne VIC 3001` row, which would
-  have made the assertion pass by fabricating a place that does not exist.
-- **⚠ Carry-forwards**: **FR-019 cannot fully hold on mobile** (no restart persistence, so a signed-in
-  shopper who switches suburbs is re-seeded from their default on next launch — **this feature makes a
-  pre-existing gap worse**); the **3001 fix is not durable** because the 021 zone seed lives in
-  scratchpad **outside the repo**, so a re-seed reintroduces it and there is **no committed source of
-  truth for zone data at all**; mobile telemetry deferred an **eleventh** slice; `/search` has ~0.2 KB
-  of headroom; `core-api` still has no cloud deploy. Spec/artifacts:
-  [specs/030-delivery-location-suburb/](specs/030-delivery-location-suburb/); parity register:
-  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §030.
+Replaces the half-built favourites capability **entirely** — its behaviour, its stored data, and every
+trace of it on all three customer surfaces. It was not unbuilt; it was **built wrong**, in two ways
+that made a shopper trust it and then be misled.
+- **⚠ THE HEART LIED.** Nothing on the platform could answer "is this product already saved?", so every
+  surface assumed *not saved* on every render — `FavoriteButton` opened `useState(false)` and its own
+  comment admitted it. A shopper who saved something yesterday saw an empty heart today, tapped it (a
+  no-op `PUT`), tapped again — and **silently un-saved the thing they were trying to save**. Fixed by
+  **one bulk membership read per screen** (`GET /v1/saved/ids`), never an `isSaved` boolean on catalogue
+  reads, which would make every product response shopper-specific and destroy the static shell.
+- **⚠ AND `available` WAS CATALOGUE STATUS, NOT PURCHASABILITY.** With hidden fulfilment and zone-scoped
+  delivery a product can be `status='active'` and still unreachable at the shopper's address, so the
+  list invited people into a checkout that refused them. Replaced by a **five-way verdict** in ONE SQL
+  statement. The DTO deliberately **omits `available`** — carrying both would leave two fields
+  disagreeing about one question.
+- **⚠ IT IS A WATCHLIST, NOT A WISHLIST**, and that was researched rather than assumed. Tesco and
+  Sainsbury's auto-populate "favourites" from purchase history (nobody taps a heart); the AU tap-a-heart
+  list (Woolworths, Coles) is a **price-and-availability watchlist**. **Buy It Again is named as a
+  RESERVED SIBLING** so a later slice need not rename this one. Uber Eats' "Lists" are shareable
+  merchant curation and **do not transfer** to single-brand hidden fulfilment.
+- **Data**: one migration `20260802052141_customer_saved_items.sql` — creates `customer_saved_item`,
+  **DROPS `customer_favorite`**. ⚠ Old saved items are **not carried forward** (FR-005): they hold no
+  save-time price, and migrating them would fabricate a baseline never observed. ⚠ `cart_saved_item`
+  (027's set-aside) is a **different table**, untouched, suite green.
+- **⚠ GUEST SAVING IS THE FEATURE'S CENTRAL BET.** The sign-in wall is the single biggest documented
+  reason saved-item features go unused, and the predecessor put one on the very first tap. A guest now
+  saves freely, the list **survives a restart** on both surfaces, and it joins the account by an
+  idempotent union on sign-in — **including the federated (Google) return**, omitting which is how a
+  Google sign-in silently drops the guest list.
+- **⚠ FOUR OF MY OWN DEFECTS, CAUGHT BEFORE SHIPPING**: (1) `SavedItemDTO` extended
+  `StorefrontProductCardDTO`, which requires `available` — the very field being replaced — and **my
+  key-set test passed because I wrote the expectation from my own struct instead of the contract**,
+  which is 029's exact failure mode. (2) The merge defaulted a missing price to `"0"`, which would have
+  reported **every merged item as a massive price drop**; now nullable, falling back to the product's
+  current price. (3) FR-039 was unmet on mobile — the postcode was read lazily, so changing location
+  left every verdict stale. (4) A sort control with no UI to change it.
+- **⚠ RESEARCH R12 WAS WRONG**, and is corrected: FR-008 was recorded as "blocked at the contract"
+  because the order line carried no `productId`. **It has since 019** — only the mobile *domain model*
+  dropped it, the same mapper-discards-what-the-backend-sends shape that hid `brand`/`badges`.
+- **⚠ TWO SPEC AMENDMENTS, both on measured evidence rather than convenience.** **FR-007**: the control
+  is **omitted from the web search-results grid only** — `/search` had 0.1 KB against a 174 KB gate and
+  the control costs 0.7; four reclaim attempts recovered 0.2 (one made it *worse*). **The budget was not
+  raised.** **FR-053**: a barred shopper is refused the list too — the platform's barred gate is uniform
+  and a carve-out would be a second, weaker authorization path.
+- **⚠ AMENDED 2026-08-02 (Phase 11, operator direction): THE MOBILE LIST IS NOW A CART-SHAPED LIST.**
+  It was a two-column product grid; it is now a **vertical list of detail rows built from `CartRow`'s
+  own composition**, with **pull-to-refresh in every state** (new **FR-068**). The grid's R18
+  justification held for a *catalogue* surface, where a photograph answers "which of these do I want?";
+  this screen answers **"what changed, and can I buy it yet?"**, and every part of that answer is TEXT —
+  price now, price at save time, one sentence per verdict — which a half-width tile column wraps into
+  ragged lines. It also ends an **unjustified parity split**: `customer-web`'s list always was a list.
+  **⚠ Wiring the row closed two gaps that had been TICKED AND NOT BUILT**: T132/T133 claimed
+  add-to-cart on both surfaces while `AddAllSavedToCart` had **no mobile call site**, and the undo
+  affordance (FR-017/FR-018) was published by `SavedViewModel` and **rendered by nothing**, so a
+  mis-tap on the list was unrecoverable. **⚠ And it surfaced a third**: removing the grid left
+  `TileSaveControl` with **no call site at all**, which exposed that the mobile home/browse/search
+  tiles had **never** been wired to it — **FR-007's tile placement was unbuilt on mobile** and the
+  parity register's ✅ was optimistic. Also fixed: the loading state wrapped an **empty `Column`**,
+  which has nothing to scroll, so the refresh gesture it was wrapped in **could not fire**.
+- **⚠ FR-007 CLOSED THE SAME DAY (Phase 11b): the heart is now on every mobile tile.** Home's rails and
+  `SearchScreen` — which **is** search, browse, category and "see all" in one screen — go through one
+  `rememberSavedTiles`, where the three rules that make a tile heart honest live: **one membership read
+  per screen** (FR-020, never one per tile), **one mirror every control reads** (FR-013, so two tiles
+  for one product cannot disagree), and **a refusal that is actually said** — the guest cap refuses
+  deliberately, and a refusal a shopper cannot see is indistinguishable from a bug. **⚠ The read is
+  signed-in only**: a guest's would `401`, and `LoadSavedMembership` **`adopt()`s** its answer, so an
+  empty one would **wipe the device list**. **⚠ And the control's touch target was 32 dp, not 48** —
+  `toggleable` on a 24 dp icon with 4 dp padding, directly under a comment claiming it cleared the
+  constitution's minimum. Harmless on one detail screen; **load-bearing in the corner of a tile**,
+  where a miss navigates away from the thing being saved. Now a 48 dp box around a 32 dp scrim.
+  ⚠ Still unwired: product detail's **"More like this"** rail, which draws a bespoke tile instead of
+  `EffyProductCard` — the fix is the shared tile, not a second heart (T197).
+- **⚠ AND THE BULK ADD HAD NEVER ADDED ANYTHING (Phase 11c).** An operator screenshot showed
+  "**0 items added to your cart**" with all three products refused as "couldn't be added right now".
+  Cause: `AddAllToCart` derived its per-item change id as **`changeID + ":" + productID`**, and
+  `public.cart_change_log.change_id` is a **uuid** column — so **every** insert failed with `invalid
+  input syntax for type uuid`, the cart errored on every item, and `cartReason`'s default reported each
+  as `unavailable`. **The shopper was told their products were the problem when the request never
+  reached the cart.** Now a **UUIDv5** over (fixed namespace, `changeID:productID`) — still one id per
+  (batch, product), still deterministic, so a retry is still recognised as a retry.
+  **⚠ The test was watching it happen**: `TestAddAllToCart_GivesEachItemItsOwnChangeID` asserted only
+  that the ids DIFFER, which `"chg:a"`/`"chg:b"` do, because `fakeCart` takes a `string` and accepts
+  anything — **the fixture agreed with the code instead of with the database**, 027 R13's lesson
+  recurring. It now parses each id as a uuid (proved by reverting the fix) and pins retry determinism.
+  **Layout, same screenshot**: "Add everything available to cart" moved from the list's first item to a
+  **fixed bottom bar** (it scrolled away and sat furthest from the thumb); the bulk result became a
+  **toast** with counts plus a per-row `skipNote` where the reason can be acted on — FR-052 still met,
+  nothing omitted; "0 items added" now reads "Nothing could be added to your cart"; and the
+  `SnackbarHost` became a bottom **overlay** instead of a column child that pushed content down.
+- **⚠ DOES ADDING TO THE CART REMOVE THE SAVED ITEM? NO — and that is now written down (FR-050/FR-050a,
+  Phase 11d).** Two genres of list behave oppositely and this platform has one of each: a **staging**
+  list (the cart's own set-aside, 027) is *consumed* when its item moves to the cart; a **watchlist** is
+  not. eBay's Watchlist, Amazon's Wish List and the Woolworths/Coles favourites are the second kind, and
+  Principle V names **eBay** as this capability's reference. Groceries are re-bought weekly — Tesco and
+  Sainsbury's derive favourites from purchase history precisely so the list is never consumed — and
+  **removing the entry would destroy the save-time price the watch is measured against**, so the next
+  drop could not be reported. **⚠ But keeping it exposed a hazard**: a repeat add **increments the
+  quantity**, so a row still saying "Add to cart" invites a tap that silently buys two. **FR-050a**:
+  the row now reads **"In your cart · View"** / **"N in your cart · View"** (the count matters — it is
+  how a shopper catches the double tap), the **bottom bar becomes "Go to cart"** once everything
+  available is in there (the bulk add is *not* idempotent across taps — each tap is a new batch), and
+  the screen `syncCart()`s on arrival because it now renders from that mirror. **⚠ Deliberately not a
+  quantity stepper**: that is the grocery-tile pattern, and quantity is the cart's business — a stepper
+  here would make two screens responsible for one number.
+- **⚠ `saveditems`' 25 container-backed tests are RED on this branch, and were before any of this
+  work** — `repository_test.go` seeds `public.delivery_pricing_rule`, which the delivery withdrawal
+  (`a478734`) dropped. The "25 container-backed" claim below is **stale**; T206 tracks it. Those are
+  exactly the tests that would have caught the uuid defect.
+- **⚠ AND THE iOS TEST SUITE HAD NEVER COMPILED.** Three backtick test names in this slice's own
+  `commonTest` files contain a **comma**, which **Kotlin/Native forbids in a declaration name** while
+  the JVM accepts it — so `testAndroidHostTest` was green and `:shared:iosSimulatorArm64Test` failed at
+  `compileTestKotlinIosSimulatorArm64` with `Name contains illegal characters: ","`. Every "iOS
+  compile" claim in this slice covered the **main** compilation only, never the tests. Commas replaced
+  with dashes; **iOS now runs 217 tests, 0 failures — the same count as Android**.
+- **Verified**: Go build/vet/gofmt + all packages (**~65 saveditems tests, 25 container-backed**) ·
+  **492 mobile tests** · **242 customer-web tests** · iOS + Android compile · `pnpm -r typecheck` 12/12 ·
+  `depcruise` · `cm-guard` · `cm-tokens-check` · all six routes within budget. Phase 11 re-verified
+  `:shared:compileAndroidMain` · `:shared:testAndroidHostTest` · `:shared:compileKotlinIosSimulatorArm64` ·
+  `mobile-guard`. Phase 11b added `:androidApp:assembleDebug`.
+- **⚠ Open**: **Phase 8 telemetry is unbuilt and CUTTABLE** — and PostHog has **never been initialised
+  on customer-web**, so `capture()` has always been a no-op platform-wide, making **SC-012/SC-013
+  unmeasurable**. Mobile telemetry deferred a **twelfth** slice. **22 operator walks** remain, incl.
+  ⚠ `make db-up` (**destroys the old saved data**), the five-observer verdict test, the colour-free
+  SC-009 test, force-quit persistence, iOS process-death restore, and **Android, which has never been
+  looked at across 028/029/033**. Spec/artifacts: [specs/033-customer-saved-items/](specs/033-customer-saved-items/);
+  parity register: [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §033.
 
 **029-promotional-banner-carousel — Promotional Banners: Fixed Canvas, Template & Offers Carousel.**
 ✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-01 — 78/89 tasks** (62/73 at sign-off + Phase 9's 16/16
@@ -547,66 +610,6 @@ onto a blank white frame.
   and the **commit**. **`apps/driver-mobile` is untouched by design (FR-020)** — this slice brands five
   surfaces, not six. Spec/artifacts: [specs/024-brand-icons-splash/](specs/024-brand-icons-splash/).
 
-**021 + 022 + 023 — delivery zones, address book, checkout shipping/billing.** ✅ **SIGNED OFF
-(live-validated) 2026-07-22.** Built as three stacked slices, merged to `main` together (PR #1), and
-validated live locally end-to-end: a two-shop cart → per-package delivery quote → Stripe test-card
-payment → order finalized. Live-only bugs found during testing and fixed (see also post-sign-off below):
-- **021 — the captured quote lost shop identity.** `QuotePackage.ShopID` is `json:"-"` (hidden from the
-  customer, FR-019), but the quote is persisted to `order.delivery_quote` **using that same struct**, so
-  `shop_id` read back empty and the intent inserted `order_package_delivery.shop_id = ""` → 500 (invalid
-  uuid). Checkout intent had **never** completed on the 021 flow. Fix: re-attach each package's shop id at
-  intent time from the **cart lines** (`packageKey` = deterministic hash of the shop id) — shop id stays
-  out of the jsonb and the client response. Regression test added (`checkout/service_test.go`).
-- **customer-web checkout showed $0 + disabled button.** The page displayed/gated on the **live** guest
-  cart, which the mount-time merge clears — so the price dropped to $0 and Continue disabled the instant
-  the merge resolved. Fix: snapshot the cart at entry (`CheckoutFlow.tsx`) and display/gate on that (the
-  server cart is authoritative post-merge).
-- **022 — "Set as default" 502'd when a default already existed** (post-sign-off, found 2026-07-22;
-  fix NOT yet committed). `PATCH /customer/v1/addresses/{id}` cleared the prior default and set the new
-  one in a **single data-modifying CTE**, but `customer_address_default_uq` is a NON-deferrable partial
-  unique index and CTE sub-statements share one snapshot (the clear is invisible to the set) — so the
-  constraint saw two `is_default` rows → `23505` → 502 `unavailable`. Promoting a default had **never**
-  worked when the customer already had one. Fix (`apis/edge-api/customer/src/addresses/repo.ts`
-  `update()`): two ordered statements in a `withTransaction` — clear the old default first (guarded on
-  the target existing + owned, so a 404 patch doesn't strip the default), then set the target — so at
-  most one `true` row is ever visible to the index. Repo SQL has no unit-test seam here (verified live).
-- **✅ Cart integrity rewrite (2026-07-23; fix NOT yet committed) — 019 R8 amended to "Option B".** Three
-  live cart bugs on **both** customer surfaces: (a) entering checkout then leaving emptied the cart, (b) a
-  prior abandoned attempt's items reappeared, (c) adding 1 item showed 2–3 in checkout. Root cause: two
-  unreconciled carts (device-local vs server) bridged by an **additive, non-idempotent** `POST /v1/cart/merge`
-  fired on **checkout entry** and never reset except by a *paid* order; the clients read the local cart while
-  checkout read the server cart. **Fix (design now in force):** the **device-local cart is the single source
-  of truth**; the server cart is an **idempotent snapshot** via **`PUT /v1/cart` (replace)** — becomes EXACTLY
-  the local cart, so re-entry re-syncs and never accumulates; the local cart is cleared **only on order
-  completion**. Scope: core-api `cart` (new `Replace`/`ReplaceItems` single-statement CTE, removed additive
-  `Merge` + `/merge` route; 3 new idempotency tests); contract `MergeCartRequest`→`ReplaceCartRequest`
-  (regenerated Kotlin); customer-web (`CheckoutFlow.tsx` replaces + no entry-clear + dropped the snapshot
-  workaround, new `PUT /api/cart` route); customer-mobile (`CartRepository.replace`, `PUT v1/cart`, **iOS
-  `MainViewController` now `remember`s `AppContainer`** so recomposition can't wipe the in-memory cart —
-  mobile's bug (a)). Verified: core-api `go test`/vet/gofmt, **576+ JS/TS tests** (customer-web 127) +
-  customer-web build, mobile iOS compile+tests, `mobile-guard`, contract regen stable. R8 amendment:
-  [specs/019-customer-commerce-flow/research.md](specs/019-customer-commerce-flow/research.md). **Operator:
-  redeploy core-api (`make core-run`) — the `PUT /v1/cart` route + removed `/merge` need the new binary.**
-- **✅ Back-to-back orders reused the first order's PaymentIntent (2026-07-23; customer-web; fix NOT yet
-  committed).** Placing a 2nd order right after a 1st: checkout jumped to Stripe showing the FIRST order's
-  amount / already-completed payment. Root cause: **web never called the `confirm` fallback** (mobile does) —
-  it relied solely on the Stripe webhook to move the order out of `pending_payment`. When the webhook lagged
-  or was misconfigured locally, order 1 stayed `pending_payment`; the checkout backend reuses "the single
-  pending order per customer" (`WHERE status='pending_payment'`), so order 2 **reused order 1's row**, and the
-  **deterministic idempotency key** `hash(orderID, amount)` returned order 1's already-succeeded PaymentIntent
-  (also silently corrupting order 1 — the quote overwrote its items). Fix (web-only, no backend change — the
-  backend already creates a fresh order once order 1 is `paid`): the **completion page finalizes the order
-  server-side via the idempotent `POST /v1/checkout/confirm`** before reading the receipt
-  (`app/checkout/complete/page.tsx`) — moving order 1 out of `pending_payment` the moment the customer lands
-  after paying (covers inline-success AND 3DS-redirect), before another checkout can start. The webhook stays
-  the ultimate authority/backstop. Verified: customer-web typecheck + build + 127 tests.
-- **⚠ Sign-off is "feels-good", not the full SC table.** The happy-path loop is proven live; the operator
-  will continue targeted testing and report bugs. Not yet live-walked: the full serviceability matrix
-  (multi-day + blocked-postcode), the divergent-billing **shop no-leak** proof (SC-007), and the 022
-  delete-default **409** live proof. Deploy/seed runbook + values:
-  [specs/023-checkout-shipping-billing/quickstart.md](specs/023-checkout-shipping-billing/quickstart.md)
-  and the dev delivery seed (zones MEL-METRO/VIC-REGIONAL + rate grid, scratchpad).
-
 **020-shop-order-fulfillment** — Shop Order Fulfillment (Receive → Pick → Handoff). ✅ **SIGNED OFF
 (partial by design) 2026-07-21 — 89/93 tasks. The commerce→fulfilment loop is PROVEN LIVE.**
 Gives the 019 fan-out a consumer: 019 wrote one `shop_fulfillment` per (order, shop) and **nothing read
@@ -638,10 +641,6 @@ on **both** shop surfaces (shop-web + shop-mobile, whose Orders tab was a placeh
   invoked locally only via `apis/edge-api/shop/scripts/invoke-pickup-stub.mjs`. Removal trigger = the
   driver slice. **`scripts/stripe-listen.sh`** (new) syncs the CLI webhook secret into Secrets Manager +
   records the forward URL in SSM before forwarding — kills the secret-drift that stranded the first order.
-- **Next**: **021-delivery-zones-pricing** (planned, decisions locked in
-  [specs/020-shop-order-fulfillment/NEXT-021-delivery-zones.md](specs/020-shop-order-fulfillment/NEXT-021-delivery-zones.md)):
-  postcode-list zones, service levels, per-zone pricing (replaces the flat `DeliveryFeeCents = 500`),
-  serviceability blocked at checkout. 020's delivery promise is already a read-only seam it repoints.
   Spec/artifacts: [specs/020-shop-order-fulfillment/](specs/020-shop-order-fulfillment/); parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §020.
 
@@ -664,7 +663,7 @@ checkout → **Stripe** pay → receipt → **multi-shop fan-out**) on **both** 
 **hot path** (`core-api`, FR-028). Turns the 016 catalog into a shoppable storefront.
 - **Backend (net-new on the Go hot path)**: `storefront` (home rails, product detail, **search** w/
   `pg_trgm` + keyset pagination), `cart` (server cart + merge, re-price, unavailable-exclusion, flat
-  delivery fee), `addresses`, `checkout` (server-authoritative amount, **deterministic-idempotency**
+  `addresses`, `checkout` (server-authoritative amount, **deterministic-idempotency**
   PaymentIntent, the **signature-verified webhook finalizer** = paid-transition + per-shop
   `shop_fulfillment` fan-out + `order.placed` **outbox** + empty-cart, all one tx), `orders` (receipt +
   history), `favorites`. New platform pkgs: `money` (integer-cents), `pricing`, `events` (outbox),
@@ -1079,5 +1078,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/030-delivery-location-suburb/plan.md
+at specs/033-customer-saved-items/plan.md
 <!-- SPECKIT END -->

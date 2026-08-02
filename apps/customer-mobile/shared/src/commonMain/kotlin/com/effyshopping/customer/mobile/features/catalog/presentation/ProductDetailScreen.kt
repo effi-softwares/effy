@@ -46,6 +46,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,16 +57,17 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
-import com.effyshopping.customer.mobile.features.delivery.formatPlace
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
-import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
-import com.effyshopping.customer.mobile.resources.ic_favorite_selected
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import androidx.compose.material3.Icon
 import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
+import com.effyshopping.customer.mobile.features.saved.presentation.SaveControl
+import kotlinx.coroutines.launch
+import com.effyshopping.customer.mobile.features.saved.presentation.SaveControl
+import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.DiscountChip
@@ -101,13 +104,16 @@ fun ProductDetailScreen(
             productId = productId,
             getProductDetail = container.getProductDetail,
             addToCart = container.addToCart,
-            saveFavorite = container.saveFavorite,
-            removeFavorite = container.removeFavorite,
         )
     }
     val state by vm.state.collectAsState()
-    val saved by vm.favoriteSaved.collectAsState()
     val justAdded by vm.justAdded.collectAsState()
+    // ⚠ THE FIX THIS WHOLE SLICE EXISTS FOR. The predecessor initialised a local
+    // MutableStateFlow(false) here and nothing ever seeded it, so an already-saved product showed
+    // an empty heart: the first tap was a no-op PUT and the SECOND silently un-saved it. Reading
+    // the shared mirror means the control tells the truth on first render (FR-019).
+    val savedIds by container.savedStore.saved.collectAsState()
+    val scope = rememberCoroutineScope()
     val signedIn = session is SessionState.Authenticated
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -129,11 +135,23 @@ fun ProductDetailScreen(
             is ProductDetailUiState.Ready -> ProductBody(
                 container = container,
                 product = s.product,
-                saved = saved,
                 justAdded = justAdded,
+                saved = s.product.card.id in savedIds,
+                onToggleSaved = { wanted ->
+                    // ⚠ The price travels with the tap so a GUEST's device records the baseline they
+                    // actually saw. Without it the merge would fall back to the price at sign-in time
+                    // and the shopper would silently lose whatever drop they had been watching for.
+                    scope.launch {
+                        runCatching {
+                            container.toggleSaved(
+                                s.product.card.id, wanted,
+                                s.product.card.priceAmount, s.product.card.currency,
+                            )
+                        }
+                    }
+                },
                 onAddToCart = vm::addToCart,
                 onRefresh = vm::refresh,
-                onToggleFavorite = { if (signedIn) vm.toggleFavorite() else onRequireSignIn() },
                 onProductClick = onProductClick,
             )
         }
@@ -144,10 +162,10 @@ fun ProductDetailScreen(
 private fun ProductBody(
     container: AppContainer,
     product: ProductDetail,
-    saved: Boolean,
     justAdded: Boolean,
+    saved: Boolean,
+    onToggleSaved: (Boolean) -> Unit,
     onAddToCart: (Int) -> Unit,
-    onToggleFavorite: () -> Unit,
     onProductClick: (String) -> Unit,
     onRefresh: suspend () -> Unit,
 ) {
@@ -217,19 +235,10 @@ private fun ProductBody(
             )
         }
 
-        // 025 FR-029: a real icon, not the "♥"/"♡" text glyphs this used to render. The label still
-        // carries the state so the meaning survives grayscale and screen readers (FR-047/FR-045).
-        OutlinedButton(onClick = onToggleFavorite, shape = EffyButtonShape) {
-            Icon(
-                painterResource(if (saved) Res.drawable.ic_favorite_selected else Res.drawable.ic_favorite_outlined),
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Text(
-                if (saved) "Saved" else "Save",
-                modifier = Modifier.padding(start = EffySpacing.s),
-            )
-        }
+        // 033: the heart. A real icon toggle, never the "♥"/"♡" text glyphs 025 removed and
+        // mobile-guard now fails the build on. Its accessible NAME is stable and the state travels
+        // separately, so a screen reader hears one control whose state changed (FR-058).
+        SaveControl(saved = saved, onToggle = onToggleSaved)
 
         product.longDescription?.let {
             HorizontalDivider(
@@ -318,27 +327,6 @@ private fun ProductGallery(product: ProductDetail, name: String) {
     }
 }
 
-/** The delivery expectation (FR-023) — serviceability only, never a fee or window (FR-014a). */
-@Composable
-private fun DeliveryExpectation(container: AppContainer) {
-    val context by container.deliveryContext.state.collectAsState()
-    // ⚠ `formatPlace`, not the bare postcode — the SAME rule the Home affordance and the sheet use
-    // (030 FR-033). A shopper who sees "Melbourne VIC 3000" in the header and "3000" here has to work
-    // out for themselves that those are the same place, and that is exactly what SC-008 asks a tester.
-    val message = when (val ctx = context) {
-        null -> "Set your delivery location to see delivery options."
-        else -> when (ctx.serviced) {
-            null -> "Checking delivery to ${formatPlace(ctx)}…"
-            true -> "Delivers to ${formatPlace(ctx)}. Options and cost at checkout."
-            false -> "We don’t deliver to ${formatPlace(ctx)} yet — you can still add this to your cart."
-        }
-    }
-    Text(
-        message,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
 
 /** The persistent buy affordance (FR-025). */
 @Composable

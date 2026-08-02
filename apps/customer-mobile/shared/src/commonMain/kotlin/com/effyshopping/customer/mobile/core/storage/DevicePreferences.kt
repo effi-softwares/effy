@@ -33,8 +33,16 @@ package com.effyshopping.customer.mobile.core.storage
  *   3. It holds **no more than the shopper could already see on screen** — product ids, names,
  *      quantities and prices out of their own cart. Never another person's data, never a token.
  *
- * The cart mirror (`CART_MIRROR`) and its pending-change queue (`CART_QUEUE`) are the only entries
- * admitted under this amendment. See specs/027-customer-cart-sync/research.md R3 for the sizing
+ * Entries admitted under this amendment: the cart mirror (`CART_MIRROR`), its pending-change queue
+ * (`CART_QUEUE`), and — added by 033 — the guest saved list (`SAVED_GUEST`).
+ *
+ * ⚠ 033's entry is admitted deliberately, not by precedent, and it satisfies all three tests more
+ * easily than the cart does: (1) it is replaced wholesale by the platform's membership answer on
+ * every read and discarded on any version mismatch; (2) it is NEVER an input to an authorization or
+ * pricing decision — a saved item is an expression of interest and nothing is charged from it, and
+ * purchasability is decided server-side per request precisely so this store cannot influence it; and
+ * (3) it holds only product ids and the price the shopper was already looking at when they tapped.
+ * It is the shopper's own list of things they said they liked. See specs/027-customer-cart-sync/research.md R3 for the sizing
  * argument (a 100-line cart is ≈45 KB, well inside what these platform stores handle) and for why a
  * real embedded database was rejected for ≤200 rows that are always read whole and never queried.
  *
@@ -72,6 +80,21 @@ object PreferenceKeys {
      * before a force-quit is still applied on the next launch (FR-017), exactly once (FR-018).
      */
     const val CART_QUEUE = "cart_queue"
+
+    /**
+     * 033 — the GUEST saved list, held on this device until the shopper signs in.
+     *
+     * ⚠ Persisted so a guest's taps survive an app restart (FR-025). Without this the feature's
+     * central bet fails silently: usability research is one-sided that the sign-in wall is the single
+     * biggest reason saved-item features go unused, so 033 lets a guest save first — but a list that
+     * evaporates on the next launch is worse than the wall, because the shopper believes they kept
+     * something and did not.
+     *
+     * ⚠ 030's delivery location is the cautionary tale. Its store was built with a `persist` callback
+     * already in place and `AppContainer` passed the no-arg constructor, so the callback was `{}` and
+     * nothing was ever written — for a whole feature, invisibly. Serialised `SavedGuestEnvelope`.
+     */
+    const val SAVED_GUEST = "saved_guest"
 }
 
 /**

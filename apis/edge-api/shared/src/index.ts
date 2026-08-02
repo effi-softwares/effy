@@ -10,4 +10,5 @@ export * from "./lib/rds-ca";
 export * from "./lib/password";
 export * from "./lib/media";
 export * from "./lib/image-dimensions";
+// 032: promoted from edge-api/admin so the shop console shares ONE definition of "a real place".
 export * from "./validate";

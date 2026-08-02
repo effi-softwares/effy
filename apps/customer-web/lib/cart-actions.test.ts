@@ -45,7 +45,6 @@ const dto = (over: Partial<CartDTO> = {}): CartDTO => ({
   savedLines: [],
   itemSubtotalAmount: "0.00",
   discountAmount: "0.00",
-  deliveryFeeAmount: "0.00",
   grandTotalAmount: "0.00",
   currency: "AUD",
   notices: [],

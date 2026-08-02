@@ -107,6 +107,15 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
                 ["Category", detail.categoryName],
                 ["Short description", detail.shortDescription],
                 ["Long description", detail.longDescription ?? "—"],
+                // ⚠ The suffix is the whole point (FR-037a): "500 g" alone means both "we weighed it"
+                // and "nobody has said", and an operator cannot tell which products still need
+                // attention. Delivery is priced from this either way.
+                [
+                  "Shipping weight",
+                  detail.weightIsAssumed
+                    ? `${detail.weightGrams} g (assumed — not yet measured)`
+                    : `${detail.weightGrams} g`,
+                ],
               ]}
             />
           </Section>

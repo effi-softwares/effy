@@ -44,9 +44,6 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressFormSheet
 import com.effyshopping.customer.mobile.features.cart.domain.formatCents
 import com.effyshopping.customer.mobile.features.cart.domain.parseCents
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliverySelection
-import com.effyshopping.customer.mobile.features.checkout.domain.QuotePackage
 
 /**
  * Checkout (019 US3, extended 021 delivery + 023 shipping/billing). Reached only when signed in.
@@ -61,7 +58,6 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
             cart = container.cart,
             listAddresses = container.listSavedAddresses,
             addAddress = container.addSavedAddress,
-            quoteDelivery = container.quoteDelivery,
             pay = container.payForOrder,
         )
     }
@@ -108,27 +104,15 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         }
         EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
 
-        s.requoteNotice?.let {
-            Text(it, color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.bodyMedium)
-        }
-
-        when {
-            s.quoting -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                CircularProgressIndicator(Modifier.padding(4.dp))
-                Text("Working out delivery…", style = MaterialTheme.typography.bodyMedium)
-            }
-
-            s.quote != null -> DeliverySection(s, vm)
-        }
-
+        // ⚠ THERE IS NO DELIVERY STEP. A quote, a method preference, per-package options and a
+        // set-aside confirmation used to sit here. Delivery zones, quotes and fees were withdrawn from
+        // the platform, so checkout is: choose an address, pay.
         BillingSection(s, vm)
 
         s.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 
-        val quote = s.quote
         val billingReady = s.billingSameAsShipping || s.billingSelectedId != null
-        val payEnabled = !s.paying && quote != null && !s.quoting && s.selectedId != null &&
-            !quote.fullyUndeliverable && (!quote.hasSetAside || s.setAsideConfirmed) && billingReady
+        val payEnabled = !s.paying && s.selectedId != null && billingReady
         EffyPrimaryAction(
             if (s.paying) "Processing…" else "Pay now",
             onClick = vm::payNow,
@@ -179,115 +163,6 @@ private fun BillingSection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
         }
         EffySecondaryButton("Add a billing address", onClick = { vm.openAddAddress(AddressTarget.BILLING) })
     }
-}
-
-@Composable
-private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
-    val quote = s.quote ?: return
-    val serviceable = quote.serviceablePackages
-    val multi = quote.packages.size > 1
-
-    if (serviceable.isNotEmpty()) {
-        HorizontalDivider()
-        Text("Delivery options", style = MaterialTheme.typography.titleMedium)
-
-        // One preference applied to every package (FR-006a). Offer the union of available methods.
-        val available = serviceable.flatMap { it.options.map { o -> o.method } }.toSet()
-        if (available.size > 1 && serviceable.size > 1) {
-            Text("Apply to all packages", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                available.sortedBy { it.ordinal }.forEach { method ->
-                    TextButton(onClick = { vm.setDefaultPreference(method) }) {
-                        Text(labelFor(method) + if (s.defaultPreference == method) " ✓" else "")
-                    }
-                }
-            }
-        }
-    }
-
-    serviceable.forEach { pkg ->
-        PackageOptions(pkg, s.selections[pkg.packageKey], multi, onSelect = { vm.overridePackage(pkg.packageKey, it) }, onDate = { vm.setScheduledDate(pkg.packageKey, it) })
-    }
-
-    if (quote.fullyUndeliverable) {
-        HorizontalDivider()
-        Text(
-            "We can’t deliver any of these items to that address. Choose a different address to continue.",
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        return
-    }
-
-    // Auto-set-aside + explicit confirm (021 US2 / T050) — names ITEMS, never a shop (FR-004, SC-006).
-    if (quote.hasSetAside) {
-        HorizontalDivider()
-        Text("Set aside — can’t be delivered here", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
-        Text(
-            "These items can’t be delivered to this address. They won’t be ordered or charged. Change the address to include them.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        quote.undeliverablePackages.flatMap { it.items }.forEach { item ->
-            Text("• ${item.name} × ${item.quantity}", style = MaterialTheme.typography.bodySmall)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = s.setAsideConfirmed, onCheckedChange = vm::confirmSetAside)
-            Text("Proceed without these items", style = MaterialTheme.typography.bodyMedium)
-        }
-    }
-
-    // Delivery total = Σ selected fees (display only; the server recomputes the authoritative amount).
-    val deliveryCents = serviceable.sumOf { pkg ->
-        s.selections[pkg.packageKey]?.let { sel -> pkg.optionFor(sel.method)?.feeAmount?.let(::parseCents) } ?: 0L
-    }
-    EffyHairline()
-    EffyDetailRow("Delivery", "$" + formatCents(deliveryCents))
-}
-
-@Composable
-private fun PackageOptions(
-    pkg: QuotePackage,
-    selection: DeliverySelection?,
-    multi: Boolean,
-    onSelect: (DeliveryMethod) -> Unit,
-    onDate: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (multi) Text("Package", style = MaterialTheme.typography.titleSmall)
-        pkg.items.forEach { item ->
-            Text("• ${item.name} × ${item.quantity}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        pkg.options.forEach { option ->
-            val chosen = selection?.method == option.method
-            Row(
-                modifier = Modifier.fillMaxWidth().selectable(selected = chosen, onClick = { onSelect(option.method) }).padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = chosen, onClick = { onSelect(option.method) })
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(option.serviceLevel, style = MaterialTheme.typography.bodyMedium)
-                    option.window?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
-                Text("$" + option.feeAmount, style = MaterialTheme.typography.bodyMedium)
-            }
-            if (chosen && option.method == DeliveryMethod.SCHEDULED && option.scheduleDates.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    option.scheduleDates.forEach { date ->
-                        TextButton(onClick = { onDate(date) }) {
-                            Text(date + if (selection.scheduledDate == date) " ✓" else "")
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun labelFor(method: DeliveryMethod): String = when (method) {
-    DeliveryMethod.SAME_DAY -> "Same-day"
-    DeliveryMethod.SCHEDULED -> "Pick a date"
-    DeliveryMethod.STANDARD -> "Standard"
 }
 
 /** One selectable saved-address row (023) — a list, never a card (FR-022). Reused for shipping + billing. */

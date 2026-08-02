@@ -1,0 +1,55 @@
+# Alerting rules for 032-delivery-pricing.
+#
+# ⚠ NOT LOADED BY ANYTHING. See ../README.md — the Prometheus/Grafana stack this file is written for
+# does not exist yet. These are specifications, not live alerts.
+#
+# Metrics referenced here are declared in
+# apis/core-api/internal/platform/metrics/metrics.go and emitted from the checkout quote path.
+groups:
+  - name: delivery-pricing
+    rules:
+      # ⚠ THE MONEY PATH. A pricing bug that refuses to quote is indistinguishable from an outage to a
+      # shopper standing in checkout — they simply cannot buy anything, and no error reaches them that
+      # says why. This is the alert that matters most in the slice.
+      - alert: CheckoutQuoteFailureRate
+        expr: |
+          sum(rate(http_requests_total{route="/v1/checkout/quote",status=~"5.."}[5m]))
+            /
+          sum(rate(http_requests_total{route="/v1/checkout/quote"}[5m]))
+            > 0.02
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 2% of delivery quotes are failing"
+          description: >-
+            Shoppers in checkout cannot be quoted a delivery fee. This is the money path: to a
+            shopper it looks like the site is broken, and they leave. Check core-api logs for
+            pricing-rule reads and postcode_centroid lookups.
+
+      # ⚠ NOT "one order hit the cap" — that is a heavy basket going a long way, which is exactly what
+      # a cap is for. A sustained rate means the distance or weight BANDS no longer describe the
+      # business, and every capped order since is being under-charged with nothing else reporting it.
+      #
+      # ⚠ The threshold below is a PLACEHOLDER. It cannot honestly be chosen before the first week of
+      # real quotes — set it from observed data, not from this guess.
+      - alert: DeliveryFeeCapBindingOften
+        expr: |
+          sum(rate(checkout_delivery_fee_cap_hits_total[1h])) > 0.05
+        for: 2h
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Delivery fees are regularly hitting their configured maximum"
+          description: >-
+            The cap is a backstop, not a price. If it binds often the bands have stopped matching
+            reality and those orders are under-charged. Review the distance and weight bands in
+            back-office → Delivery → Pricing.
+
+# ⚠ THERE IS DELIBERATELY NO ALERT ON SAME-DAY OFFER VOLUME.
+#
+# checkout_quote_options_total{method="same_day",offered="false"} legitimately sits at 100% whenever
+# no shop has an approval in force — which is the correct state, not a fault. An alarm that fires on
+# correct behaviour gets muted, and a muted alarm is worse than no alarm because it looks like
+# coverage. Whether the approval queue is being worked is a question for the queue itself
+# (/admin/v1/delivery-declarations?status=pending), which answers it exactly.

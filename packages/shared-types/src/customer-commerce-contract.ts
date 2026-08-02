@@ -2,7 +2,7 @@
  * The customer COMMERCE wire contract, as a single barrel + aggregator — 019-customer-commerce-flow.
  *
  * This exists so the KMP customer mobile app generates its Kotlin DTOs from EXACTLY the commerce types
- * it consumes (storefront, cart, address, checkout, order, favorite) — the same discipline as
+ * it consumes (storefront, cart, address, checkout, order, saved-item) — the same discipline as
  * customer-contract.ts (013). The individual `*.ts` files remain the single source of truth
  * (Principle II); this file only re-exports and aggregates, and is an input to the KMP codegen.
  *
@@ -22,8 +22,6 @@ import type {
   StorefrontCategoryDTO,
   ProductSort,
   ProductSearchResultDTO,
-  ServiceabilityDTO,
-  LocalityDTO,
   PromotionDTO,
 } from "./storefront";
 import type {
@@ -54,13 +52,6 @@ import type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
-  DeliveryQuoteRequest,
-  DeliveryQuoteResponse,
-  QuotePackageDTO,
-  QuotePackageItemDTO,
-  DeliveryMethodOptionDTO,
-  DeliverySelectionDTO,
-  DeliveryBreakdownLineDTO,
 } from "./checkout";
 import type {
   OrderStatus,
@@ -71,7 +62,17 @@ import type {
   OrderFulfillmentDTO,
   OrderDTO,
 } from "./order";
-import type { FavoriteDTO } from "./favorite";
+import type {
+  SavedVerdict,
+  SavedItemDTO,
+  SavedMembershipDTO,
+  SavedMergeItem,
+  SavedMergeRequest,
+  SavedSkip,
+  SavedMergeResultDTO,
+  SavedAddToCartRequest,
+  SavedAddToCartResultDTO,
+} from "./saved-item";
 
 export type {
   ProductBadge,
@@ -85,8 +86,6 @@ export type {
   StorefrontCategoryDTO,
   ProductSort,
   ProductSearchResultDTO,
-  ServiceabilityDTO,
-  LocalityDTO,
   PromotionDTO,
   CartLineDTO,
   CartNoticeDTO,
@@ -115,13 +114,6 @@ export type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
-  DeliveryQuoteRequest,
-  DeliveryQuoteResponse,
-  QuotePackageDTO,
-  QuotePackageItemDTO,
-  DeliveryMethodOptionDTO,
-  DeliverySelectionDTO,
-  DeliveryBreakdownLineDTO,
   OrderStatus,
   PaymentStatus,
   OrderSummaryDTO,
@@ -129,7 +121,15 @@ export type {
   OrderAddressDTO,
   OrderFulfillmentDTO,
   OrderDTO,
-  FavoriteDTO,
+  SavedVerdict,
+  SavedItemDTO,
+  SavedMembershipDTO,
+  SavedMergeItem,
+  SavedMergeRequest,
+  SavedSkip,
+  SavedMergeResultDTO,
+  SavedAddToCartRequest,
+  SavedAddToCartResultDTO,
 };
 
 /** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
@@ -144,11 +144,6 @@ export interface CustomerCommerceContract {
   category: StorefrontCategoryDTO;
   searchResult: ProductSearchResultDTO;
   productSort: ProductSort;
-  serviceability: ServiceabilityDTO;
-  // ⚠ Referencing LocalityDTO here is what makes it EXIST in Kotlin. Declaring it in storefront.ts
-  // alone is not enough — the generator walks this aggregator, so an unreferenced type is silently
-  // never generated and the drift check then passes trivially (030 T022a).
-  locality: LocalityDTO;
   promotion: PromotionDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;
@@ -176,17 +171,21 @@ export interface CustomerCommerceContract {
   createCheckoutIntent: CreateCheckoutIntentRequest;
   createCheckoutIntentResponse: CreateCheckoutIntentResponse;
   confirmCheckout: ConfirmCheckoutRequest;
-  deliveryQuoteRequest: DeliveryQuoteRequest;
-  deliveryQuoteResponse: DeliveryQuoteResponse;
-  quotePackage: QuotePackageDTO;
-  quotePackageItem: QuotePackageItemDTO;
-  deliveryMethodOption: DeliveryMethodOptionDTO;
-  deliverySelection: DeliverySelectionDTO;
-  deliveryBreakdownLine: DeliveryBreakdownLineDTO;
   orderSummary: OrderSummaryDTO;
   order: OrderDTO;
   orderItem: OrderItemDTO;
   orderAddress: OrderAddressDTO;
   orderFulfillment: OrderFulfillmentDTO;
-  favorite: FavoriteDTO;
+  // ⚠ 033. Referencing these here is what makes them EXIST in Kotlin. Declaring them in
+  // saved-item.ts alone is not enough — the generator walks this aggregator, so an unreferenced type
+  // is silently never generated and `commerce-contract:check` then passes TRIVIALLY (both the
+  // regenerated and the committed file are equally missing it). That is 030 T022a, and it stays
+  // invisible until a client needs the class. SavedVerdict, SavedMergeItem and SavedSkip are reached
+  // transitively and need no field of their own.
+  savedItem: SavedItemDTO;
+  savedMembership: SavedMembershipDTO;
+  savedMergeRequest: SavedMergeRequest;
+  savedMergeResult: SavedMergeResultDTO;
+  savedAddToCartRequest: SavedAddToCartRequest;
+  savedAddToCartResult: SavedAddToCartResultDTO;
 }

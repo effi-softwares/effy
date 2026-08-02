@@ -274,6 +274,18 @@ export interface ProductDetailDTO {
   compareAtAmount: string | null;
   shortDescription: string;
   longDescription: string | null;
+  /**
+   * Shipping weight in grams (032). ⚠ A LOGISTICS fact, deliberately distinct from any `net_weight`
+   * attribute a shopper reads on the product page — they agree by backfill today and may legitimately
+   * diverge, because packaging weighs something. Delivery is priced from this.
+   */
+  weightGrams: number;
+  /**
+   * ⚠ TRUE means nobody has recorded a real weight and the platform default is in use. Without this
+   * flag "500 g" would mean both "we weighed it" and "nobody has said", and no operator could tell
+   * which products still need attention (FR-037a).
+   */
+  weightIsAssumed: boolean;
   status: ProductStatus;
   attributes: ProductAttributeValueDTO[];
   media: ProductMediaDTO[];
@@ -304,6 +316,13 @@ export interface CreateProductRequest {
   compareAtAmount?: string | null;
   shortDescription: string;
   longDescription?: string | null;
+  /**
+   * Shipping weight in grams (032, FR-036a). Omit and the platform records its stated default as an
+   * ASSUMPTION. ⚠ There is deliberately no `weightIsAssumed` field: the flag is derived from the act
+   * of supplying a weight and is never accepted from a client, or "measured" would mean only "the
+   * client said so".
+   */
+  weightGrams?: number | null;
   attributes?: AttributeValueInputDTO[];
   sectionIds?: string[];
   primaryMediaStorageKey?: string | null;
@@ -324,6 +343,8 @@ export interface UpdateProductRequest {
   compareAtAmount?: string | null;
   shortDescription?: string;
   longDescription?: string | null;
+  /** Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands. */
+  weightGrams?: number | null;
   attributes?: AttributeValueInputDTO[];
 }
 

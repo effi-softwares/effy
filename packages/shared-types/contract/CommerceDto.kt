@@ -1,4 +1,4 @@
-// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,favorite}.ts — DO NOT EDIT.
+// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types commerce-contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
 
@@ -187,13 +187,6 @@ enum class Kind(val value: String) {
 data class CartDTO (
     val checkout: CartCheckoutStateDTO,
     val currency: String,
-
-    /**
-     * Always "0.00" here: delivery is priced at the delivery step, once a destination exists
-     * (FR-063).
-     */
-    val deliveryFeeAmount: String,
-
     val discount: CartDiscountDTO? = null,
 
     /**
@@ -462,7 +455,7 @@ data class CreateAddressRequest (
 @Serializable
 data class CreateCheckoutIntentRequest (
     /**
-     * The SHIPPING address (required). Serviceability + delivery pricing key off this (021).
+     * The SHIPPING address (required). Snapshotted onto the order at placement.
      */
     @SerialName("addressId")
     val addressID: String,
@@ -470,56 +463,11 @@ data class CreateCheckoutIntentRequest (
     /**
      * 023: the BILLING address, when the customer diverged from shipping. Absent / null / equal
      * to `addressId` → billing is "same as shipping" (the order stores NULL). Billing never
-     * affects the amount or the quote.
+     * affects the amount.
      */
     @SerialName("billingAddressId")
-    val billingAddressID: String? = null,
-
-    /**
-     * 021: packages the customer confirmed proceeding WITHOUT (auto-set-aside undeliverable
-     * items). MUST exactly match the server's unserviceable set or the intent is refused
-     * (FR-006b, SC-011a).
-     */
-    val excludedPackageKeys: List<String>? = null,
-
-    /**
-     * 021: the captured quote being placed. Honored while unexpired; else 409 → re-quote.
-     */
-    @SerialName("quoteId")
-    val quoteID: String? = null,
-
-    /**
-     * 021: the customer's per-package method choices (default preference + overrides, resolved).
-     */
-    val selections: List<DeliverySelectionDTO>? = null
+    val billingAddressID: String? = null
 )
-
-/**
- * The customer's chosen method for one package (021). Carries NO fee — the server prices it
- * (SC-004).
- */
-@Serializable
-data class DeliverySelectionDTO (
-    val method: CheckoutDeliveryMethod,
-    val packageKey: String,
-
-    /**
-     * Required only when method='scheduled'.
-     */
-    val scheduledDate: String? = null
-)
-
-/**
- * The three delivery service levels (021). Availability per package follows from the shop's
- * origin zone and the customer's destination zone — never from shop identity, which the
- * customer never sees.
- */
-@Serializable
-enum class CheckoutDeliveryMethod(val value: String) {
-    @SerialName("same_day") SameDay("same_day"),
-    @SerialName("scheduled") Scheduled("scheduled"),
-    @SerialName("standard") Standard("standard");
-}
 
 @Serializable
 data class CreateCheckoutIntentResponse (
@@ -529,12 +477,6 @@ data class CreateCheckoutIntentResponse (
     val clientSecret: String,
 
     val currency: String,
-
-    /**
-     * 021: the per-package delivery breakdown, for the order summary. Anonymous.
-     */
-    val deliveryBreakdown: List<DeliveryBreakdownLineDTO>? = null,
-
     val grandTotalAmount: String,
 
     @SerialName("orderId")
@@ -543,126 +485,6 @@ data class CreateCheckoutIntentResponse (
     val orderNumber: String,
     val publishableKey: String
 )
-
-/**
- * One line of the per-package delivery breakdown on the intent response (021). Anonymous.
- */
-@Serializable
-data class DeliveryBreakdownLineDTO (
-    val feeAmount: String,
-    val packageKey: String,
-    val serviceLevel: String,
-    val window: String? = null
-)
-
-/**
- * One selectable delivery option for a package (021). Server-computed; the client never
- * sends a fee.
- */
-@Serializable
-data class DeliveryMethodOptionDTO (
-    val feeAmount: String,
-    val method: CheckoutDeliveryMethod,
-
-    /**
-     * Selectable dates for method='scheduled'; null otherwise.
-     */
-    val scheduleDates: List<String>? = null,
-
-    /**
-     * Customer-facing label, e.g. "Same-day".
-     */
-    val serviceLevel: String,
-
-    /**
-     * Derived window, e.g. "Today by 6pm" / "in 2–3 days"; null for a scheduled method (pick a
-     * date).
-     */
-    val window: String? = null
-)
-
-/**
- * POST /v1/checkout/quote — per-package delivery options for the cart + address (021 US1).
- */
-@Serializable
-data class DeliveryQuoteRequest (
-    @SerialName("addressId")
-    val addressID: String
-)
-
-@Serializable
-data class DeliveryQuoteResponse (
-    /**
-     * The captured quote is honored until this instant; after it the customer must re-quote
-     * (021 R7).
-     */
-    val expiresAt: String,
-
-    val packages: List<QuotePackageDTO>,
-
-    @SerialName("quoteId")
-    val quoteID: String
-)
-
-@Serializable
-data class QuotePackageDTO (
-    val items: List<QuotePackageItemDTO>,
-    val methods: List<DeliveryMethodOptionDTO>,
-    val packageKey: String,
-
-    /**
-     * False when this package cannot be delivered to the address (021 US2). methods is then
-     * empty.
-     */
-    val serviceable: Boolean
-)
-
-/**
- * One ANONYMOUS package in a quote (021) — the items from a single shop, shown without any
- * shop identity or location (FR-019). `packageKey` is an opaque grouping token.
- */
-@Serializable
-data class QuotePackageItemDTO (
-    @SerialName("imageUrl")
-    val imageURL: String? = null,
-
-    val name: String,
-
-    @SerialName("productId")
-    val productID: String,
-
-    val quantity: Double
-)
-
-/**
- * A saved product (product card fields + when it was saved).
- */
-@Serializable
-data class FavoriteDTO (
-    val available: Boolean,
-    val badges: List<ProductBadge>,
-    val brand: String? = null,
-    val compareAtAmount: String? = null,
-    val currency: String,
-    val id: String,
-
-    @SerialName("imageUrl")
-    val imageURL: String? = null,
-
-    val name: String,
-    val priceAmount: String,
-    val savedAt: String
-)
-
-/**
- * A badge shown on a product card. Derived server-side (on_sale = has compare-at; new =
- * newest).
- */
-@Serializable
-enum class ProductBadge(val value: String) {
-    @SerialName("new") New("new"),
-    @SerialName("on_sale") OnSale("on_sale");
-}
 
 /**
  * The composed Home payload (GET /v1/storefront/home).
@@ -684,7 +506,8 @@ data class StorefrontRailDTO (
 )
 
 /**
- * The at-a-glance product card used in rails, search results, favorites and recently-viewed.
+ * The at-a-glance product card used in rails, search results, saved items and
+ * recently-viewed.
  */
 @Serializable
 data class StorefrontProductCardDTO (
@@ -703,37 +526,14 @@ data class StorefrontProductCardDTO (
 )
 
 /**
- * One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030
- * FR-005).
- *
- * ⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across
- * states (there are many Springfields), a locality spans several postcodes, and a postcode
- * covers several localities. That is why FR-008 forbids a bare name being selectable, and
- * why the `locality` table's natural key is the triple. A response that drops any one of
- * these is an ambiguous place the client cannot resolve.
- *
- * ⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE,
- * by `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that
- * hinted at coverage would pre-empt that answer and let anyone enumerate the delivery
- * footprint (FR-011).
+ * A badge shown on a product card. Derived server-side (on_sale = has compare-at; new =
+ * newest).
  */
 @Serializable
-data class LocalityDTO (
-    /**
-     * The locality name as a shopper would say it, e.g. "Richmond".
-     */
-    val name: String,
-
-    /**
-     * Exactly four digits — the same canonical form `ServiceabilityDTO.postcode` uses.
-     */
-    val postcode: String,
-
-    /**
-     * One of ACT NSW NT QLD SA TAS VIC WA.
-     */
-    val state: String
-)
+enum class ProductBadge(val value: String) {
+    @SerialName("new") New("new"),
+    @SerialName("on_sale") OnSale("on_sale");
+}
 
 /**
  * A product image (presigned GET URL + alt text).
@@ -782,13 +582,12 @@ data class OrderDTO (
      */
     val deliveryAddress: OrderAddressDTO,
 
-    val deliveryFeeAmount: String,
-
     /**
      * The promotional discount applied at payment (027 FR-049). The platform's own computation
      * at that moment, stored on the order — so a receipt stays explainable years later even if
      * the code has since been changed or disabled. "0.00" (or absent, on a pre-027 order) when
-     * no code was used. Invariant: grandTotal = itemSubtotal + deliveryFee − discount.
+     * no code was used. Invariant: grandTotal = itemSubtotal − discount. (There is no delivery
+     * fee on this platform.)
      */
     val discountAmount: String? = null,
 
@@ -836,16 +635,6 @@ data class OrderAddressDTO (
  */
 @Serializable
 data class OrderFulfillmentDTO (
-    val deliveryFeeAmount: String? = null,
-
-    /**
-     * The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The
-     * customer's receipt breakdown shows, per package, what they paid to have it delivered and
-     * when it is promised. Absent on pre-021 orders.
-     */
-    val deliveryServiceLevel: String? = null,
-
-    val deliveryWindow: String? = null,
     val itemCount: Double,
     val status: Status,
     val subtotalAmount: String,
@@ -1080,6 +869,193 @@ enum class ReorderSkipReason(val value: String) {
     @SerialName("unavailable") Unavailable("unavailable");
 }
 
+@Serializable
+data class SavedAddToCartRequest (
+    @SerialName("changeId")
+    val changeID: String? = null
+)
+
+/**
+ * The result of adding every purchasable saved item to the cart.
+ *
+ * ⚠ `skipped` is the whole point of this shape. FR-052 forbids silent omission: a bulk add
+ * that quietly drops what it could not take leaves the shopper believing they bought
+ * something they did not. Every omission carries a reason.
+ */
+@Serializable
+data class SavedAddToCartResultDTO (
+    val added: List<String>,
+    val skipped: List<SavedSkip>
+)
+
+/**
+ * Why one product could not be taken (a merge or a bulk add).
+ */
+@Serializable
+data class SavedSkip (
+    @SerialName("productId")
+    val productID: String,
+
+    /**
+     * `cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason.
+     */
+    val reason: String
+)
+
+/**
+ * One entry in the saved list.
+ *
+ * Name, image and CURRENT price are read live (FR-045) — a renamed or re-imaged product
+ * shows its true present identity. Only `savedPriceAmount` is remembered, and only so a
+ * drop is detectable.
+ *
+ * ⚠ THIS DELIBERATELY DOES NOT EXTEND `StorefrontProductCardDTO`, and the reason is the
+ * whole point of the feature. That interface carries `available: boolean` — a flag derived
+ * from catalogue status alone, which is precisely the field that lied: a product can be
+ * `available: true` and still not purchasable at the shopper's address, which is how the
+ * predecessor invited people into a checkout that refused them. `verdict` REPLACES it.
+ * Extending the card would carry the lying boolean back in beside the five-way answer that
+ * supersedes it, and a client would then have two fields disagreeing about the same
+ * question — which is how they end up rendering the wrong one.
+ *
+ * The shared card fields are therefore repeated here on purpose. That is duplication with a
+ * reason, not drift.
+ */
+@Serializable
+data class SavedItemDTO (
+    val badges: List<ProductBadge>,
+    val brand: String? = null,
+
+    /**
+     * For client-side grouping by aisle (FR-056). Absent when the product has no primary
+     * category.
+     */
+    val categoryKey: String? = null,
+
+    val compareAtAmount: String? = null,
+    val currency: String,
+    val id: String,
+
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
+    val name: String,
+    val priceAmount: String,
+
+    /**
+     * Present and `true` only when the current price is BELOW the save-time price.
+     *
+     * ⚠ There is deliberately no `priceRose`. The current price is always shown, so nothing is
+     * concealed — but a rise is not something a shopper can act on, and badging it would add
+     * noise to the one signal this list exists to carry.
+     */
+    val priceDropped: Boolean? = null,
+
+    /**
+     * When it was saved. Drives list order (newest first) and undo's restore position.
+     */
+    val savedAt: String,
+
+    /**
+     * The price at the moment of saving — the baseline `priceDropped` is measured against.
+     */
+    val savedPriceAmount: String,
+
+    val verdict: SavedVerdict
+)
+
+/**
+ * Whether the shopper can buy a saved item right now.
+ *
+ * ⚠ THREE VALUES. `not_delivered_to_your_area` and `not_yet_determined` were both derived
+ * from delivery zones, and delivery zones were withdrawn from the platform. The list still
+ * tells the truth about stock and withdrawal — it simply has nothing to say about delivery
+ * reach, because nothing on the platform knows it. Each remaining value still implies a
+ * different next action:
+ *
+ * purchasable             → buy now   temporarily_unavailable → sold, not in stock — wait
+ * no_longer_sold          → withdrawn entirely — give up
+ */
+@Serializable
+enum class SavedVerdict(val value: String) {
+    @SerialName("no_longer_sold") NoLongerSold("no_longer_sold"),
+    @SerialName("purchasable") Purchasable("purchasable"),
+    @SerialName("temporarily_unavailable") TemporarilyUnavailable("temporarily_unavailable");
+}
+
+/**
+ * The shopper's whole set of saved product ids.
+ *
+ * ⚠ THIS IS WHAT MAKES THE HEART TELL THE TRUTH. It is fetched ONCE per screen and answers
+ * for every product on it. The two alternatives were both rejected: an `isSaved` field on
+ * catalogue reads would make every product response shopper-specific and destroy the
+ * storefront's static shell, and a per-product lookup would be one request per tile
+ * (FR-020).
+ *
+ * Bounded by the 200-item cap, which is what keeps a whole-set read cheap enough to do this
+ * way.
+ */
+@Serializable
+data class SavedMembershipDTO (
+    /**
+     * ⚠ WireInt, not number — see the note on the import.
+     */
+    val count: Long,
+
+    @SerialName("productIds")
+    val productIDS: List<String>
+)
+
+@Serializable
+data class SavedMergeRequest (
+    val items: List<SavedMergeItem>
+)
+
+/**
+ * One device-held saved item being offered to an account (FR-028).
+ */
+@Serializable
+data class SavedMergeItem (
+    @SerialName("productId")
+    val productID: String,
+
+    val savedAt: String,
+    val savedCurrency: String? = null,
+
+    /**
+     * ⚠ The GUEST's save-time price travels with it. Taking the price at merge time instead
+     * would silently erase the movement the watchlist exists to report, for exactly the shopper
+     * who saved earliest and has waited longest.
+     *
+     * ⚠ NULLABLE, and absent is meaningful: it means the device never observed a price, because
+     * the surface the shopper tapped on carried only a product id. The platform then uses the
+     * product's CURRENT price as the baseline — which is what an ordinary save records. Sending
+     * `"0"` instead would report the item as having fallen from nothing: a fabricated fact,
+     * worse than an absent one.
+     */
+    val savedPriceAmount: String? = null
+)
+
+/**
+ * The result of joining a device-held list into an account.
+ *
+ * Returns the resulting set so the client seeds its store from this response rather than
+ * issuing a second read, and `added` so the surface can DISCLOSE the join by count (FR-032)
+ * instead of silently absorbing someone else's saves on a shared device.
+ */
+@Serializable
+data class SavedMergeResultDTO (
+    /**
+     * ⚠ WireInt, not number.
+     */
+    val added: Long,
+
+    @SerialName("productIds")
+    val productIDS: List<String>,
+
+    val skipped: List<SavedSkip>
+)
+
 /**
  * A page of search results with a keyset cursor for infinite scroll.
  *
@@ -1103,23 +1079,6 @@ data class ProductSearchResultDTO (
      * Total products matching the refinements, ignoring pagination (025 FR-016a).
      */
     val total: Double
-)
-
-/**
- * Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).
- *
- * ⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart
- * contents, so anything shown here is an estimate checkout would revise), and no zone id or
- * name (FR-006 — zone names are geographic and would disclose where Effy fulfils from).
- */
-@Serializable
-data class ServiceabilityDTO (
-    /**
-     * The normalised postcode the answer applies to.
-     */
-    val postcode: String,
-
-    val serviced: Boolean
 )
 
 /**

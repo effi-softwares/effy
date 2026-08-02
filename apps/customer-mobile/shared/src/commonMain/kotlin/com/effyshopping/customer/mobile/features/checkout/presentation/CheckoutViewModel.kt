@@ -9,14 +9,9 @@ import com.effyshopping.customer.mobile.features.addresses.presentation.AddressF
 import com.effyshopping.customer.mobile.features.addresses.presentation.toDraft
 import com.effyshopping.customer.mobile.features.addresses.presentation.validate
 import com.effyshopping.customer.mobile.features.cart.domain.CartStore
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
-import com.effyshopping.customer.mobile.features.checkout.domain.DeliverySelection
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.PayOutcome
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
-import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
-import com.effyshopping.customer.mobile.features.checkout.domain.QuotePackage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,10 +33,12 @@ sealed interface CheckoutUiState {
     data object Loading : CheckoutUiState
 
     /**
-     * The address + delivery step (021, extended 023). The SHIPPING address is [selectedId] over the
-     * customer's saved addresses (022 book); once selected a [quote] is fetched and the customer picks a
-     * [defaultPreference] + per-package [selections], confirming any [setAsideConfirmed] undeliverable
-     * items before paying.
+     * The address step. The SHIPPING address is [selectedId] over the customer's saved addresses
+     * (022 book).
+     *
+     * ⚠ THERE IS NO DELIVERY STEP. This state used to carry a fetched quote, a method preference,
+     * per-package selections and a set-aside confirmation. Delivery zones, quotes and fees were
+     * withdrawn from the platform, so checkout is now: choose an address, pay.
      *
      * BILLING (023 US4): defaults to the shipping address ([billingSameAsShipping] = true). When turned
      * OFF the customer chooses [billingSelectedId] from the same saved list (or adds one); turning it back
@@ -50,18 +47,11 @@ sealed interface CheckoutUiState {
     data class Ready(
         val addresses: List<SavedAddress>,
         val selectedId: String?,
-        val quoting: Boolean = false,
-        val quote: DeliveryQuote? = null,
-        val defaultPreference: DeliveryMethod? = null,
-        // Effective per-package selection, keyed by packageKey — only for SERVICEABLE packages.
-        val selections: Map<String, DeliverySelection> = emptyMap(),
-        val setAsideConfirmed: Boolean = false,
         val billingSameAsShipping: Boolean = true,
         val billingSelectedId: String? = null,
         val sheet: CheckoutAddressSheet? = null,
         val paying: Boolean = false,
         val error: String? = null,
-        val requoteNotice: String? = null,
     ) : CheckoutUiState {
         /** The billing id to SEND (023): only when diverged AND different from shipping; else null. */
         val effectiveBillingId: String?
@@ -88,7 +78,6 @@ class CheckoutViewModel(
     private val cart: CartStore,
     private val listAddresses: ListAddresses,
     private val addAddress: AddAddress,
-    private val quoteDelivery: QuoteDelivery,
     private val pay: PayForOrder,
 ) : ViewModel() {
 
@@ -110,7 +99,6 @@ class CheckoutViewModel(
             // Pre-select the default; deterministic to the first saved address when none is default (FR-002).
             val selectedId = addresses.firstOrNull { it.isDefault }?.id ?: addresses.firstOrNull()?.id
             _state.value = CheckoutUiState.Ready(addresses = addresses, selectedId = selectedId)
-            if (selectedId != null) loadQuote(selectedId)
         }
     }
 
@@ -118,16 +106,7 @@ class CheckoutViewModel(
     fun select(id: String) {
         val s = ready() ?: return
         if (s.selectedId == id) return
-        // Address changed → every package re-quotes for the new address (FR-005); drop the stale quote.
-        _state.value = s.copy(
-            selectedId = id,
-            quote = null,
-            selections = emptyMap(),
-            setAsideConfirmed = false,
-            error = null,
-            requoteNotice = null,
-        )
-        loadQuote(id)
+        _state.value = s.copy(selectedId = id, error = null)
     }
 
     // ── Billing (023 US4) ────────────────────────────────────────────────────────────────────────────
@@ -198,90 +177,18 @@ class CheckoutViewModel(
         }
     }
 
-    // ── Delivery options (021) ─────────────────────────────────────────────────────────────────────────
-
-    private fun loadQuote(addressId: String, notice: String? = null) {
-        _state.value = (ready() ?: return).copy(quoting = true, error = null, requoteNotice = notice)
-        viewModelScope.launch {
-            val result = runCatching { quoteDelivery(addressId) }
-            val s = ready() ?: return@launch
-            result.fold(
-                onSuccess = { quote ->
-                    _state.value = s.copy(
-                        quoting = false,
-                        quote = quote,
-                        selections = defaultSelections(quote, s.defaultPreference),
-                        setAsideConfirmed = false,
-                    )
-                },
-                onFailure = {
-                    if (it is CancellationException) throw it
-                    _state.value = s.copy(quoting = false, quote = null, error = "We couldn’t work out delivery for that address. Please try another.")
-                },
-            )
-        }
-    }
-
-    /** Apply one preference to every serviceable package (FR-006a); a package without it keeps its option. */
-    fun setDefaultPreference(method: DeliveryMethod) {
-        val s = ready() ?: return
-        val quote = s.quote ?: return
-        _state.value = s.copy(
-            defaultPreference = method,
-            selections = quote.serviceablePackages.associate { pkg ->
-                pkg.packageKey to (selectionFor(pkg, method) ?: s.selections.getValue(pkg.packageKey))
-            },
-        )
-    }
-
-    /** Override the method on ONE package (FR-006a); only that package changes. */
-    fun overridePackage(packageKey: String, method: DeliveryMethod) {
-        val s = ready() ?: return
-        val pkg = s.quote?.serviceablePackages?.firstOrNull { it.packageKey == packageKey } ?: return
-        val selection = selectionFor(pkg, method) ?: return
-        _state.value = s.copy(selections = s.selections + (packageKey to selection))
-    }
-
-    /** Pick a specific date for a scheduled package. */
-    fun setScheduledDate(packageKey: String, date: String) {
-        val s = ready() ?: return
-        val current = s.selections[packageKey] ?: return
-        _state.value = s.copy(selections = s.selections + (packageKey to current.copy(scheduledDate = date)))
-    }
-
-    /** The explicit confirmation to proceed without the auto-set-aside items (FR-006b). */
-    fun confirmSetAside(confirmed: Boolean) {
-        val s = ready() ?: return
-        _state.value = s.copy(setAsideConfirmed = confirmed, error = null)
-    }
-
     fun payNow() {
         val s = ready() ?: return
         val addressId = s.selectedId ?: run {
             _state.value = s.copy(error = "Add a delivery address to continue."); return
-        }
-        val quote = s.quote ?: run {
-            _state.value = s.copy(error = "Choose a delivery address to see options."); return
-        }
-        if (quote.fullyUndeliverable) {
-            _state.value = s.copy(error = "We can’t deliver any of these items to that address. Try a different address."); return
-        }
-        if (quote.hasSetAside && !s.setAsideConfirmed) {
-            _state.value = s.copy(error = "Please confirm proceeding without the set-aside items."); return
         }
         // US4: a divergent billing address must be chosen before paying (FR-012).
         if (!s.billingSameAsShipping && s.billingSelectedId == null) {
             _state.value = s.copy(error = "Choose a billing address."); return
         }
 
-        val order = PlaceOrder(
-            addressId = addressId,
-            quoteId = quote.quoteId,
-            selections = quote.serviceablePackages.mapNotNull { s.selections[it.packageKey] },
-            excludedPackageKeys = quote.excludedPackageKeys,
-            billingAddressId = s.effectiveBillingId,
-        )
-        _state.value = s.copy(paying = true, error = null, requoteNotice = null)
+        val order = PlaceOrder(addressId = addressId, billingAddressId = s.effectiveBillingId)
+        _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
             val outcome = try {
                 pay(order)
@@ -296,10 +203,6 @@ class CheckoutViewModel(
                     _state.value = CheckoutUiState.Placed(outcome.orderId)
                 }
                 PayOutcome.Canceled -> _state.value = (ready() ?: return@launch).copy(paying = false)
-                PayOutcome.Requote -> {
-                    _state.value = (ready() ?: return@launch).copy(paying = false)
-                    loadQuote(addressId, notice = "Prices updated since you started. Please review the new amounts before paying.")
-                }
                 is PayOutcome.Failed -> _state.value = (ready() ?: return@launch).copy(paying = false, error = outcome.message)
             }
         }
@@ -307,22 +210,4 @@ class CheckoutViewModel(
 
     private fun ready(): CheckoutUiState.Ready? = _state.value as? CheckoutUiState.Ready
 
-    private companion object {
-        /** Default each serviceable package to the preference (or its first option); null-safe date pick. */
-        fun defaultSelections(quote: DeliveryQuote, preference: DeliveryMethod?): Map<String, DeliverySelection> =
-            quote.serviceablePackages.associate { pkg ->
-                val selection = (preference?.let { selectionFor(pkg, it) }) ?: firstSelection(pkg)
-                pkg.packageKey to selection
-            }
-
-        fun firstSelection(pkg: QuotePackage): DeliverySelection {
-            val option = pkg.options.first()
-            return DeliverySelection(pkg.packageKey, option.method, if (option.method == DeliveryMethod.SCHEDULED) option.scheduleDates.firstOrNull() else null)
-        }
-
-        fun selectionFor(pkg: QuotePackage, method: DeliveryMethod): DeliverySelection? {
-            val option = pkg.optionFor(method) ?: return null
-            return DeliverySelection(pkg.packageKey, method, if (method == DeliveryMethod.SCHEDULED) option.scheduleDates.firstOrNull() else null)
-        }
-    }
 }

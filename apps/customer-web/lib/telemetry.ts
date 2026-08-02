@@ -118,7 +118,6 @@ export type StorefrontEvent =
   | { name: "cart_viewed"; props?: Record<string, never> }
   | { name: "checkout_started"; props?: Record<string, never> }
   | { name: "order_placed"; props: { orderId: string } }
-  | { name: "product_favorited"; props: { productId: string } }
   | { name: "search_performed"; props?: Record<string, never> }
   // 022 address book. ⚠ NO PII — an address is PII (FR-019, SC-008), so these carry NO address
   // fields at all, only the subject id already attached by `identifyCustomer`. Props is deliberately

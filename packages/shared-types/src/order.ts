@@ -97,14 +97,6 @@ export interface OrderFulfillmentDTO {
   subtotalAmount: string;
   /** Present ONLY when the portion has reached a terminal state (FR-018b). Absent while picking. */
   unavailableItems?: OrderShortfallDTO[];
-  /**
-   * The delivery this portion was bought with (021) — still ANONYMOUS (no shop). The customer's
-   * receipt breakdown shows, per package, what they paid to have it delivered and when it is promised.
-   * Absent on pre-021 orders.
-   */
-  deliveryServiceLevel?: string;
-  deliveryFeeAmount?: string;
-  deliveryWindow?: string | null;
 }
 
 /** Full order / receipt (GET /v1/orders/{id}). */
@@ -123,12 +115,11 @@ export interface OrderDTO {
    */
   billingAddress?: OrderAddressDTO | null;
   itemSubtotalAmount: string;
-  deliveryFeeAmount: string;
   /**
    * The promotional discount applied at payment (027 FR-049). The platform's own computation at that
    * moment, stored on the order — so a receipt stays explainable years later even if the code has since
    * been changed or disabled. "0.00" (or absent, on a pre-027 order) when no code was used.
-   * Invariant: grandTotal = itemSubtotal + deliveryFee − discount.
+   * Invariant: grandTotal = itemSubtotal − discount. (There is no delivery fee on this platform.)
    */
   discountAmount?: string;
   /**

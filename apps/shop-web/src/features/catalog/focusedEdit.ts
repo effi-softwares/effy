@@ -24,6 +24,8 @@ export interface ScalarFieldPatch {
   compareAtAmount?: string | null;
   productTypeId?: string;
   primaryCategoryId?: string;
+  /** Shipping weight in grams (032). Sending one marks it MEASURED (FR-036a). */
+  weightGrams?: number | null;
 }
 
 const SCALAR_KEYS: (keyof ScalarFieldPatch)[] = [
@@ -37,6 +39,7 @@ const SCALAR_KEYS: (keyof ScalarFieldPatch)[] = [
   "compareAtAmount",
   "productTypeId",
   "primaryCategoryId",
+  "weightGrams",
 ];
 
 /**

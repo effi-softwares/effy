@@ -71,6 +71,17 @@ export function AccountMenu({
           Your addresses
         </Link>
 
+        {/* 033 FR-055: a storefront entry point that does not require scrolling to the footer — which
+            was the predecessor's ONLY link to it. ⚠ This menu is a zero-JS server component
+            (<details> + a form), so adding a link here costs the guest bundle nothing. */}
+        <Link
+          href="/saved"
+          data-testid="menu-saved"
+          className="block rounded-sm px-3 py-2 text-sm hover:bg-accent"
+        >
+          Saved items
+        </Link>
+
         {/* ⚠ POST, not GET. A GET sign-out is triggerable by any <img src="/sign-out"> anywhere on
             the internet — a CSRF logout. */}
         <form action="/sign-out" method="post">

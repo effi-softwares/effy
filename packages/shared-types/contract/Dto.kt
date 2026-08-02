@@ -158,18 +158,36 @@ data class PasswordWriteResultDTO (
     val customer: CustomerDTO
 )
 
+@Serializable
+data class ProblemJSON (
+    val detail: String? = null,
+    val fields: List<ProblemFieldIssue>? = null,
+    val instance: String? = null,
+    val status: Double,
+    val title: String,
+    val type: String
+)
+
 /**
  * RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors
  * docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface
  * consumes it, never re-declares it.
  */
 @Serializable
-data class ProblemJSON (
-    val detail: String? = null,
-    val instance: String? = null,
-    val status: Double,
-    val title: String,
-    val type: String
+data class ProblemFieldIssue (
+    /**
+     * The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE
+     * CODE.
+     *
+     * ⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`,
+     * `bands_required`, …). "Please check the fields and try again" tells an operator nothing
+     * about which of five rules they broke, and every one of those rules fails SILENTLY in
+     * production if it is not understood — a cap below the floor makes every delivery cost the
+     * cap, forever.
+     */
+    val field: String,
+
+    val message: String
 )
 
 /**

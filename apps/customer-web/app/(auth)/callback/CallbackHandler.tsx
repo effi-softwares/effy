@@ -11,6 +11,7 @@ import { Hub } from "aws-amplify/utils"
 
 import { safeNextTarget } from "@/lib/next-target"
 import { mergeCartAfterSignIn } from "@/lib/cart-actions"
+import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
 import { capture } from "@/lib/telemetry"
 import { startGoogleSignIn, takePendingNext } from "../_lib/auth-actions"
 
@@ -52,6 +53,9 @@ export function CallbackHandler() {
         capture({ name: "account_linked", props: { provider: "google" } })
         // 027 FR-011 — the federated route needs the same merge as the native ones.
         void mergeCartAfterSignIn()
+    // 033 FR-028: the saved list joins the account on the FEDERATED (Google) return — ⚠ omitting it here is how a
+    // Google sign-in silently drops the guest's saved items while email sign-in keeps them.
+    void mergeSavedAfterSignIn()
 
         const next = safeNextTarget(takePendingNext())
         if (next !== "/") {

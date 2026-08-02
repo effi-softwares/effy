@@ -26,7 +26,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
-	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/pricing"
@@ -130,7 +129,6 @@ type Cart struct {
 	SavedLines         []Line
 	ItemSubtotalAmount string
 	DiscountAmount     string
-	DeliveryFeeAmount  string
 	GrandTotalAmount   string
 	Currency           string
 	Notices            []Notice
@@ -851,7 +849,6 @@ func (s *Service) assemble(ctx context.Context, in assembleInput) (Cart, error) 
 		SavedLines:         savedLines,
 		ItemSubtotalAmount: money.FormatCents(subtotalCents),
 		DiscountAmount:     money.FormatCents(discountCents),
-		DeliveryFeeAmount:  money.FormatCents(0),
 		GrandTotalAmount:   money.FormatCents(grandCents),
 		Currency:           pricing.Currency,
 		Notices:            notices,
@@ -909,7 +906,7 @@ func (s *Service) toLines(ctx context.Context, rows []cartLineRow, collectNotice
 			LineSubtotalAmount: money.FormatCents(lineCents),
 			Available:          available,
 			PriceChangedFrom:   changedFrom,
-			PackageKey:         delivery.PackageKey(row.ShopID),
+			PackageKey:         PackageKey(row.ShopID),
 		})
 	}
 	return lines, subtotalCents, notices, nil

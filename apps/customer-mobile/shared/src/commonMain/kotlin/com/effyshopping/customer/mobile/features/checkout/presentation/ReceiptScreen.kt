@@ -16,6 +16,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import com.effyshopping.customer.mobile.features.saved.presentation.SaveControl
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -127,7 +130,7 @@ fun ReceiptScreen(
                     )
                     if (onDone != null) EffyPrimaryAction(doneLabel ?: "Done", onClick = onDone)
                 }
-                is ReceiptUiState.Ready -> ReceiptBody(s.receipt, doneLabel, onDone)
+                is ReceiptUiState.Ready -> ReceiptBody(container, s.receipt, doneLabel, onDone)
             }
         }
         }
@@ -135,7 +138,14 @@ fun ReceiptScreen(
 }
 
 @Composable
-private fun ReceiptBody(receipt: Receipt, doneLabel: String?, onDone: (() -> Unit)?) {
+private fun ReceiptBody(
+    container: AppContainer,
+    receipt: Receipt,
+    doneLabel: String?,
+    onDone: (() -> Unit)?,
+) {
+    val savedIds by container.savedStore.saved.collectAsState()
+    val scope = rememberCoroutineScope()
     Text(if (receipt.paid) "Payment received" else "Order received", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     Text("Thank you", style = MaterialTheme.typography.headlineSmall)
     Text("Order ${receipt.orderNumber}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -143,15 +153,34 @@ private fun ReceiptBody(receipt: Receipt, doneLabel: String?, onDone: (() -> Uni
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
 
     receipt.items.forEach { item ->
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${item.productName} × ${item.quantity}", style = MaterialTheme.typography.bodyMedium)
-            Text(money(item.lineSubtotalAmount, receipt.currency), style = MaterialTheme.typography.bodyMedium)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            Text("${'$'}{item.productName} × ${'$'}{item.quantity}", style = MaterialTheme.typography.bodyMedium)
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(money(item.lineSubtotalAmount, receipt.currency), style = MaterialTheme.typography.bodyMedium)
+                // 033 FR-008: save from a past order — one of the places people most reliably want to
+                // keep something, and the predecessor had no control here at all.
+                //
+                // ⚠ The product may have been archived or deleted since this order was placed. The
+                // LINE still renders from the order's own snapshot, so the save can 404 — runCatching
+                // swallows it and the control simply does not stick, rather than appearing to succeed.
+                SaveControl(
+                    saved = item.productId in savedIds,
+                    onToggle = { wanted ->
+                        scope.launch {
+                            runCatching { container.toggleSaved(item.productId, wanted) }
+                        }
+                    },
+                )
+            }
         }
     }
 
     HorizontalDivider(Modifier.padding(vertical = 8.dp))
     SummaryRow("Items", money(receipt.itemSubtotalAmount, receipt.currency))
-    SummaryRow("Delivery", money(receipt.deliveryFeeAmount, receipt.currency))
     // 027 FR-049: what the code took off, as computed at PAYMENT and stored on the order — so the receipt
     // explains itself even after the code has since changed or been disabled.
     if (receipt.discountAmount != null && receipt.discountAmount != "0.00") {

@@ -36,7 +36,7 @@ func baseRepo() *fakeRepo {
 	return &fakeRepo{
 		order: orderRow{
 			ID: orderID, OrderNumber: "EFY-1", Status: "paid",
-			ItemSubtotal: "45.00", DeliveryFee: "5.00", GrandTotal: "50.00", Currency: "AUD",
+			ItemSubtotal: "45.00", GrandTotal: "50.00", Currency: "AUD",
 			Address: []byte(`{"city":"Melbourne"}`),
 		},
 		fulfillment: []fulfillmentRow{

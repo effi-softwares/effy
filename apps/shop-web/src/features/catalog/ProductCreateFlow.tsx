@@ -179,6 +179,9 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
         brand: draft.brand.trim() || null,
         sku: draft.sku.trim() || null,
         longDescription: draft.longDescription.trim() || null,
+        // ⚠ Omitted when blank, NOT sent as 0. An unanswered weight must record the platform's stated
+        // assumption; a zero would ship free and nothing downstream would notice (FR-037).
+        weightGrams: draft.weightGrams.trim() ? Number(draft.weightGrams.trim()) : null,
         attributes: collectAttributeInputs(selectedType, draft.attributes),
       };
       // 1) create the product row, 2) attach the primary image (see ordering note above).
@@ -474,6 +477,27 @@ function BasicsStep({
         <Input id="p-sku" value={draft.sku} onChange={(e) => onField({ sku: e.target.value })} />
       </div>
 
+      {/* ⚠ Shipping weight (032, FR-036a). Optional, but the help text says what happens when it is
+          left blank — an operator who does not know that a default is recorded cannot tell later
+          which of their products were guessed at. */}
+      <div className="space-y-2">
+        <Label htmlFor="p-weight">Shipping weight (optional)</Label>
+        <Input
+          id="p-weight"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          value={draft.weightGrams}
+          onChange={(e) => onField({ weightGrams: e.target.value })}
+          aria-describedby="p-weight-help"
+        />
+        <p id="p-weight-help" className="text-sm text-muted-foreground">
+          In <strong>grams</strong>, including packaging — delivery is priced partly on weight. Leave
+          blank and we record an assumed weight you can correct later.
+        </p>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="p-short">
           Short description<span className="ml-0.5 text-destructive">*</span>
@@ -619,6 +643,8 @@ function ReviewStep({
           <dd>{draft.sku}</dd>
         </>
       ) : null}
+      <dt className="text-muted-foreground">Shipping weight</dt>
+      <dd>{draft.weightGrams.trim() ? `${draft.weightGrams.trim()} g` : "assumed"}</dd>
       <dt className="text-muted-foreground">Description</dt>
       <dd>{draft.shortDescription || "—"}</dd>
       </dl>

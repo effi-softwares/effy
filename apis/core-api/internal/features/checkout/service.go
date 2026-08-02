@@ -11,7 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
-	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/pricing"
 )
 
@@ -24,20 +24,12 @@ var (
 
 // IntentResult is returned to the client (client_secret only — the secret key never leaves core-api).
 type IntentResult struct {
-	OrderID           string
-	OrderNumber       string
-	ClientSecret      string
-	PublishableKey    string
-	GrandTotal        string
-	Currency          string
-	DeliveryBreakdown []BreakdownLine
-}
-
-// BreakdownLine is one anonymous per-package delivery line for the order summary (021). No shop.
-type BreakdownLine struct {
-	PackageKey   string
-	ServiceLevel string
-	FeeAmount    string
+	OrderID        string
+	OrderNumber    string
+	ClientSecret   string
+	PublishableKey string
+	GrandTotal     string
+	Currency       string
 }
 
 // ConfirmResult is the fallback-finalizer ack; the client reads the full receipt from GET /v1/orders/{id}.
@@ -48,7 +40,6 @@ type ConfirmResult struct {
 
 type Service struct {
 	store          Store
-	qstore         QuoteStore
 	gateway        PaymentGateway
 	publishableKey string
 	// The order rules (027). Nil-able so existing constructions keep working and the minimum is simply not
@@ -89,31 +80,30 @@ func (e *BelowMinimumError) Error() string { return "checkout: order below the m
 
 func NewService(store Store, gateway PaymentGateway, publishableKey string) *Service {
 	svc := &Service{store: store, gateway: gateway, publishableKey: publishableKey}
-	// pgStore implements both Store and QuoteStore; a test Store that also implements QuoteStore is used
-	// directly, else the delivery-quote paths are unavailable (nil) — the fake supplies its own.
-	if qs, ok := store.(QuoteStore); ok {
-		svc.qstore = qs
-	}
 	return svc
 }
 
-// IntentInput carries the customer's per-package delivery choices for placement (021). The customer id
-// and address come from the trusted context/DB; NO fee is ever here — the server prices from the
-// captured quote (SC-004).
+// IntentInput carries what placement needs. The customer id and address come from the trusted
+// context/DB; NO amount is ever here — the server computes every figure it charges.
+//
+// ⚠ It used to carry per-package delivery Selections and ExcludedKeys. Delivery zones, quotes and fees
+// were withdrawn from the platform, so there is nothing per-package left to choose and nothing to
+// exclude: every item in the cart is charged.
 type IntentInput struct {
 	AddressID string
 	// BillingAddressID is the billing address when the customer diverged from shipping (023). Empty, or
 	// equal to AddressID, means "billing same as shipping" → the order's billing_address is set to NULL.
-	// Billing never affects the amount or the quote.
+	// Billing never affects the amount.
 	BillingAddressID string
-	Selections       []DeliverySelection
-	ExcludedKeys     []string
 }
 
-// CreateCheckoutIntent prices delivery PER PACKAGE from the captured quote (never the client), writes
-// the pending order + per-package deliveries, and creates ONE PaymentIntent with a DETERMINISTIC
-// idempotency key. Honors the captured quote within its validity window (021 FR-011); refuses on
-// expiry, an invalid selection, or an exclusion set that disagrees with serviceability (R8).
+// CreateCheckoutIntent writes the pending order and creates ONE PaymentIntent with a DETERMINISTIC
+// idempotency key.
+//
+// withdrawn, so the amount charged is simply the item subtotal minus any discount. There is no quote
+// to capture, nothing to honour a window on, and no package a shopper can be refused for.
+//
+// Everything that decides money is still computed HERE and never taken from the client (SC-004).
 func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, in IntentInput, now time.Time) (IntentResult, error) {
 	addressID := in.AddressID
 	if _, err := uuid.Parse(addressID); err != nil {
@@ -124,54 +114,19 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	if err != nil {
 		return IntentResult{}, err
 	}
-	if len(lines) == 0 {
-		return IntentResult{}, ErrEmptyCart
-	}
 
-	// The captured quote is the authority for per-package fees (FR-011). No captured quote → the client
-	// must quote first.
-	cq, orderID, orderNumber, found, err := s.qstore.ReadCapturedQuote(ctx, customerID)
+	addressJSON, found, err := s.store.AddressSnapshot(ctx, customerID, addressID)
 	if err != nil {
 		return IntentResult{}, err
 	}
 	if !found {
-		return IntentResult{}, ErrQuoteExpired // treat "no quote" as "must (re)quote"
-	}
-	if now.After(cq.ExpiresAt) {
-		return IntentResult{}, ErrQuoteExpired
+		return IntentResult{}, ErrAddressNotFound
 	}
 
-	// The captured quote is persisted to order.delivery_quote WITHOUT shop identity (QuotePackage.ShopID
-	// is `json:"-"` so it never leaks to the customer — FR-019), so it reads back empty. Re-attach each
-	// package's shop id from the cart lines: packageKey is the deterministic hash of the shop id, so the
-	// cart's own lines map every package back to its shop. Without this, order_package_delivery.shop_id
-	// is inserted as "" and the intent 500s (invalid uuid).
-	shopByPackage := make(map[string]string, len(lines))
+	itemSubtotalCents := int64(0)
 	for _, l := range lines {
-		shopByPackage[delivery.PackageKey(l.ShopID)] = l.ShopID
+		itemSubtotalCents += l.UnitCents * int64(l.Quantity)
 	}
-	for i := range cq.Packages {
-		if shopID, ok := shopByPackage[cq.Packages[i].PackageKey]; ok {
-			cq.Packages[i].ShopID = shopID
-		}
-	}
-
-	selByKey := map[string]DeliverySelection{}
-	for _, sel := range in.Selections {
-		selByKey[sel.PackageKey] = sel
-	}
-	excluded := map[string]bool{}
-	for _, k := range in.ExcludedKeys {
-		excluded[k] = true
-	}
-
-	deliveries, deliveryFeeCents, err := resolveSelections(cq, selByKey, excluded, now)
-	if err != nil {
-		return IntentResult{}, err // ErrExclusionMismatch / ErrSelectionInvalid / ErrNoServiceableItems
-	}
-
-	// Item subtotal excludes any items in an unserviceable (excluded) package — they are not charged.
-	itemSubtotalCents := payableSubtotal(lines, cq, excluded)
 
 	// ⚠ FR-056: the minimum is re-decided HERE, not trusted from the cart's `checkout.allowed`. A client
 	// that ignores the cart's own gate — an outdated build, a hand-rolled request — must still be refused,
@@ -201,10 +156,24 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		discountCents, promoCodeID, promoCode = d, id, code
 	}
 
-	grandTotalCents := itemSubtotalCents + deliveryFeeCents - discountCents
+	grandTotalCents := itemSubtotalCents - discountCents
+	if grandTotalCents < 0 {
+		// A discount larger than the basket cannot produce a negative charge.
+		grandTotalCents = 0
+	}
 
-	discount := OrderDiscount{Cents: discountCents, PromoCodeID: promoCodeID, Code: promoCode}
-	if err := s.qstore.WritePackageDeliveries(ctx, orderID, deliveries, itemSubtotalCents, deliveryFeeCents, discount, cq.ExpiresAt); err != nil {
+	orderID, orderNumber, err := s.store.UpsertPendingOrder(ctx, customerID, OrderAmounts{
+		ItemSubtotalCents: itemSubtotalCents,
+		// ⚠ There is no delivery fee on this platform. The field is kept on OrderAmounts only until the
+		// column is dropped by the withdrawal migration; it is always zero.
+		DeliveryFeeCents: 0,
+		DiscountCents:    discountCents,
+		PromoCodeID:      promoCodeID,
+		PromoCode:        promoCode,
+		GrandTotalCents:  grandTotalCents,
+		Currency:         pricing.Currency,
+	}, addressJSON, lines)
+	if err != nil {
 		return IntentResult{}, err
 	}
 
@@ -230,23 +199,13 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		return IntentResult{}, err
 	}
 
-	breakdown := make([]BreakdownLine, 0, len(deliveries))
-	for _, d := range deliveries {
-		breakdown = append(breakdown, BreakdownLine{
-			PackageKey:   delivery.PackageKey(d.ShopID),
-			ServiceLevel: d.ServiceLevel,
-			FeeAmount:    moneyStr(d.FeeCents),
-		})
-	}
-
 	return IntentResult{
-		OrderID:           orderID,
-		OrderNumber:       orderNumber,
-		ClientSecret:      pi.ClientSecret,
-		PublishableKey:    s.publishableKey,
-		GrandTotal:        moneyStr(grandTotalCents),
-		Currency:          pricing.Currency,
-		DeliveryBreakdown: breakdown,
+		OrderID:        orderID,
+		OrderNumber:    orderNumber,
+		ClientSecret:   pi.ClientSecret,
+		PublishableKey: s.publishableKey,
+		GrandTotal:     moneyStr(grandTotalCents),
+		Currency:       pricing.Currency,
 	}, nil
 }
 
@@ -339,26 +298,6 @@ func (s *Service) Confirm(ctx context.Context, customerID, orderID string) (Conf
 	return ConfirmResult{OrderID: orderID, Paid: false}, nil
 }
 
-// payableSubtotal sums the line subtotals for every line whose package is NOT excluded (021). Items in
-// an auto-set-aside undeliverable package are never charged (FR-006b, SC-011a). Never trusts a client
-// amount — it recomputes from the cart lines.
-func payableSubtotal(lines []CheckoutLine, cq CapturedQuote, excluded map[string]bool) int64 {
-	excludedShops := map[string]bool{}
-	for _, p := range cq.Packages {
-		if excluded[p.PackageKey] {
-			excludedShops[p.ShopID] = true
-		}
-	}
-	var subtotal int64
-	for _, l := range lines {
-		if excludedShops[l.ShopID] {
-			continue
-		}
-		subtotal += l.UnitCents * int64(l.Quantity)
-	}
-	return subtotal
-}
-
 // idempotencyKey is DETERMINISTIC over (order, amount): an unchanged retry returns the same intent; a
 // changed total mints a new one (R5 #1).
 func idempotencyKey(orderID string, amountCents int64) string {
@@ -380,3 +319,6 @@ func paymentStatusFor(s IntentStatus) string {
 		return "requires_payment"
 	}
 }
+
+// moneyStr renders integer cents as the platform's 2-dp decimal string. Money never crosses as a float.
+func moneyStr(cents int64) string { return money.FormatCents(cents) }

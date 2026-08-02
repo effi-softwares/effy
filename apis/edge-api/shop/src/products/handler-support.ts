@@ -141,6 +141,8 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     compareAtAmount: d.compareAtAmount,
     shortDescription: d.shortDescription,
     longDescription: d.longDescription,
+    weightGrams: d.weightGrams,
+    weightIsAssumed: d.weightIsAssumed,
     status: d.status,
     attributes: d.attributes.map((a) => ({
       attributeId: a.attributeId,

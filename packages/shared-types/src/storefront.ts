@@ -35,7 +35,7 @@ export interface MediaDTO {
   alt: string | null;
 }
 
-/** The at-a-glance product card used in rails, search results, favorites and recently-viewed. */
+/** The at-a-glance product card used in rails, search results, saved items and recently-viewed. */
 export interface StorefrontProductCardDTO {
   id: string;
   name: string;
@@ -228,33 +228,4 @@ export interface ProductSearchResultDTO {
   sort: ProductSort;
 }
 
-/** Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).
- *
- * ⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart contents,
- * so anything shown here is an estimate checkout would revise), and no zone id or name (FR-006 — zone
- * names are geographic and would disclose where Effy fulfils from). */
-export interface ServiceabilityDTO {
-  /** The normalised postcode the answer applies to. */
-  postcode: string;
-  serviced: boolean;
-}
 
-/** One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030 FR-005).
- *
- * ⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across states
- * (there are many Springfields), a locality spans several postcodes, and a postcode covers several
- * localities. That is why FR-008 forbids a bare name being selectable, and why the `locality` table's
- * natural key is the triple. A response that drops any one of these is an ambiguous place the client
- * cannot resolve.
- *
- * ⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE, by
- * `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that hinted at
- * coverage would pre-empt that answer and let anyone enumerate the delivery footprint (FR-011). */
-export interface LocalityDTO {
-  /** The locality name as a shopper would say it, e.g. "Richmond". */
-  name: string;
-  /** One of ACT NSW NT QLD SA TAS VIC WA. */
-  state: string;
-  /** Exactly four digits — the same canonical form `ServiceabilityDTO.postcode` uses. */
-  postcode: string;
-}

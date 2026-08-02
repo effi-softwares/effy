@@ -28,8 +28,6 @@ import {
 // ── Row shapes (never escape this module) ──────────────────────────────────────────────────────
 
 interface SummaryRow {
-  promised_ready_at: Date | null;
-  delivery_service_level: string | null;
   id: string;
   order_number: string;
   placed_at: Date;
@@ -41,8 +39,6 @@ interface SummaryRow {
 }
 
 interface DetailRow {
-  promised_ready_at: Date | null;
-  delivery_service_level: string | null;
   id: string;
   order_number: string;
   placed_at: Date;
@@ -79,8 +75,6 @@ const LIST_QUEUE = `
 SELECT sf.id,
        o.order_number,
        o.placed_at,
-       sf.promised_ready_at,
-       sf.delivery_service_level,
        sf.status,
        sf.state_changed_at,
        sf.item_count,
@@ -91,8 +85,10 @@ SELECT sf.id,
   LEFT JOIN public.fulfillment_item fi ON fi.shop_fulfillment_id = sf.id
  WHERE sf.shop_id = $1
    AND sf.status = ANY($2::text[])
- GROUP BY sf.id, o.order_number, o.placed_at, sf.promised_ready_at, sf.delivery_service_level, sf.status, sf.state_changed_at, sf.item_count
- ORDER BY COALESCE(sf.promised_ready_at, o.placed_at) ASC, sf.id ASC
+ GROUP BY sf.id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, sf.item_count
+ -- ⚠ Ordered by placed_at alone. sf.promised_ready_at was a per-package delivery promise and
+-- was dropped with delivery; this is the ordering the queue had before 021.
+ORDER BY o.placed_at ASC, sf.id ASC
 `;
 
 export async function listQueue(
@@ -103,7 +99,7 @@ export async function listQueue(
   const statuses = state === "completed" ? COMPLETED_STATUSES : ACTIVE_STATUSES;
   const res = await query<SummaryRow>(LIST_QUEUE, [shopId, statuses]);
   return res.rows.map((r) => {
-    const promise = promiseFrom(r.placed_at, r.promised_ready_at, r.delivery_service_level);
+    const promise = promiseFrom(r.placed_at, null, null);
     return {
       id: r.id,
       orderNumber: r.order_number,
@@ -129,7 +125,7 @@ export async function listQueue(
  * (FR-007, FR-008). An order-level total would itself leak the existence of other shops' items.
  */
 const READ_DETAIL = `
-SELECT sf.id, o.order_number, o.placed_at, sf.promised_ready_at, sf.delivery_service_level, sf.status, sf.state_changed_at, o.delivery_address
+SELECT sf.id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, o.delivery_address
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
  WHERE sf.id = $1 AND sf.shop_id = $2
@@ -227,7 +223,7 @@ export async function readDetail(
     placedAt: row.placed_at,
     status: row.status,
     stateChangedAt: row.state_changed_at,
-    promise: promiseFrom(row.placed_at, row.promised_ready_at, row.delivery_service_level),
+    promise: promiseFrom(row.placed_at, null, null),
     delivery: mapDelivery(row.delivery_address ?? {}),
     items: items.rows.map(mapItem),
   };

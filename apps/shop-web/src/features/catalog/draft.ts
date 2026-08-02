@@ -31,6 +31,12 @@ export interface ProductDraft {
   brand: string;
   sku: string;
   longDescription: string;
+  /**
+   * Shipping weight in grams (032). ⚠ A STRING in the draft, like priceAmount: the field is a text
+   * input and an empty string must survive a round trip through localStorage as "not answered". A
+   * number would make "" collapse to 0, and a zero weight ships free.
+   */
+  weightGrams: string;
   attributes: Record<string, AttributeDraftValue>;
 }
 
@@ -45,6 +51,7 @@ export function emptyDraft(): ProductDraft {
     brand: "",
     sku: "",
     longDescription: "",
+    weightGrams: "",
     attributes: {},
   };
 }

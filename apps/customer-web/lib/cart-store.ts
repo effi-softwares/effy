@@ -157,7 +157,6 @@ export interface CartMirror {
   savedLines: GuestCartLine[]
   itemSubtotalAmount: string
   discountAmount: string
-  deliveryFeeAmount: string
   grandTotalAmount: string
   currency: string
   notices: CartDTO["notices"]
@@ -177,7 +176,6 @@ export const EMPTY_MIRROR: CartMirror = Object.freeze({
   savedLines: [],
   itemSubtotalAmount: "0.00",
   discountAmount: "0.00",
-  deliveryFeeAmount: "0.00",
   grandTotalAmount: "0.00",
   currency: "AUD",
   notices: [],
@@ -365,7 +363,6 @@ function fromDTO(dto: CartDTO): CartMirror {
     savedLines: dto.savedLines.map(line),
     itemSubtotalAmount: dto.itemSubtotalAmount,
     discountAmount: dto.discountAmount,
-    deliveryFeeAmount: dto.deliveryFeeAmount,
     grandTotalAmount: dto.grandTotalAmount,
     currency: dto.currency,
     notices: dto.notices,

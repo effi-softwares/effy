@@ -307,3 +307,5 @@ untouched, and no constitution amendment was required.
 
 ⚠ **Not device-verified yet** — SC-002/SC-003 (the side-by-side observer test that motivates the whole
 colourway) needs both apps installed on one physical device.
+
+---

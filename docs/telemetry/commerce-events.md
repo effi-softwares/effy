@@ -16,7 +16,6 @@ address. The customer is associated by the auth **subject id** alone (`identifyC
 | `search_performed` | — | A search query is run |
 | `product_viewed` | `{ productId }` | A product detail page opens |
 | `product_added_to_cart` | `{ productId, quantity }` | Add-to-cart |
-| `product_favorited` | `{ productId }` | Save-to-favourites |
 | `cart_viewed` | — | Cart opened |
 | `checkout_started` | — | Checkout begun |
 | `order_placed` | `{ orderId }` | Receipt shown (order placed) |

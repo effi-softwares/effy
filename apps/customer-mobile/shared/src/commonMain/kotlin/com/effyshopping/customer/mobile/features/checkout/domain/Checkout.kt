@@ -22,6 +22,19 @@ data class CheckoutIntent(
 )
 
 data class ReceiptItem(
+    /**
+     * ⚠ ADDED BY 033 so a shopper can save a product from a past order (FR-008).
+     *
+     * The wire has carried this since 019 — `OrderItemDTO.productId` — and this domain model simply
+     * dropped it, which is the same mapper-discards-what-the-backend-sends shape that hid brand and
+     * badges on the saved list. No contract change was needed; the field needed mapping.
+     *
+     * ⚠ A past order's product may since have been archived or deleted. The ORDER line still renders
+     * from its own snapshot (that is what makes a receipt stable), so the save control here must
+     * tolerate an id that no longer resolves — saving it answers 404, and the control says so rather
+     * than appearing to succeed.
+     */
+    val productId: String,
     val productName: String,
     val quantity: Int,
     val unitPriceAmount: String,
@@ -44,7 +57,6 @@ data class Receipt(
     val billingRecipientName: String?,
     val billingAddressLine: String?,
     val itemSubtotalAmount: String,
-    val deliveryFeeAmount: String,
     /**
      * 027 — what a promotional code took off, as computed at PAYMENT, and the code itself. Read from the
      * ORDER rather than re-derived, so a receipt explains itself years later even if the code has since
@@ -59,16 +71,21 @@ data class Receipt(
     val billingSameAsShipping: Boolean get() = billingAddressLine == null
 }
 
-interface CheckoutRepository {
-    /** Per-package delivery quote for the cart + address (021 US1). */
-    suspend fun quote(addressId: String): DeliveryQuote
+/**
+ * What placement needs.
+ *
+ * ⚠ It used to carry per-package delivery selections and an exclusion set. Delivery zones, quotes and
+ * fees were withdrawn from the platform, so there is nothing per-package to choose and nothing to
+ * exclude — every item in the cart is charged, and the shopper picks only an address.
+ */
+data class PlaceOrder(
+    val addressId: String,
+    /** Set only when the shopper diverged from shipping (023). Null means "same as shipping". */
+    val billingAddressId: String? = null,
+)
 
-    /**
-     * Create/locate the pending order + PaymentIntent from the customer's per-package [PlaceOrder]
-     * (021 US3). Throws [com.effyshopping.customer.mobile.core.error.AppException] with
-     * [com.effyshopping.customer.mobile.core.error.AppError.RequoteRequired] on a 409 (stale quote /
-     * lapsed same-day / withdrawn method) so the caller re-quotes (FR-011a).
-     */
+interface CheckoutRepository {
+    /** Create/locate the pending order + PaymentIntent for the chosen address. */
     suspend fun createIntent(order: PlaceOrder): CheckoutIntent
     suspend fun confirm(orderId: String): Boolean
 }
@@ -91,9 +108,6 @@ interface OrdersRepository {
 sealed interface PayOutcome {
     data class Placed(val orderId: String) : PayOutcome
     data object Canceled : PayOutcome
-
-    /** The captured quote went stale (021 FR-011a) — the ViewModel re-quotes and shows the new amounts. */
-    data object Requote : PayOutcome
     data class Failed(val message: String) : PayOutcome
 }
 
@@ -115,7 +129,7 @@ class PayForOrder(
         val intent = try {
             checkout.createIntent(order)
         } catch (e: AppException) {
-            if (e.error is AppError.RequoteRequired) return PayOutcome.Requote else throw e
+            throw e
         }
         return when (val result = payments.presentPaymentSheet(intent.clientSecret, publishableKey)) {
             PaymentResult.Completed -> {

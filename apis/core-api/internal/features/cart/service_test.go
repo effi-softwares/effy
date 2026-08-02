@@ -320,9 +320,6 @@ func TestAddComputesItemTotalsNoCartDeliveryFee(t *testing.T) {
 	if cart.ItemSubtotalAmount != "10.00" {
 		t.Errorf("item subtotal = %q, want 10.00", cart.ItemSubtotalAmount)
 	}
-	if cart.DeliveryFeeAmount != "0.00" {
-		t.Errorf("delivery fee = %q, want 0.00 (calculated at checkout, 021)", cart.DeliveryFeeAmount)
-	}
 	if cart.GrandTotalAmount != "10.00" {
 		t.Errorf("grand total = %q, want 10.00", cart.GrandTotalAmount)
 	}

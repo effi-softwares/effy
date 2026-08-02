@@ -5,7 +5,6 @@ import { BrandMark } from "@/components/storefront/BrandMark"
 import { pageSurface } from "@/components/storefront/kit"
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
 
-import { DeliverySeed, DeliverySeedFallback } from "./_components/DeliverySeed"
 import { HeaderSearch, HeaderSearchFallback } from "./_components/HeaderSearch"
 import { MiniCart } from "./_components/MiniCart"
 import { MobileNav, MobileNavFallback } from "./_components/MobileNav"
@@ -82,9 +81,6 @@ export default function ShopLayout({
                 <Suspense> — and this file must never read cookies itself, or every public page stops
                 prerendering into a static shell. The fallback is the same affordance without a seed,
                 so the shell ships immediately and nothing shifts. */}
-            <Suspense fallback={<DeliverySeedFallback />}>
-              <DeliverySeed />
-            </Suspense>
 
             <div className="flex-1" />
 
