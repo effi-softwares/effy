@@ -18,7 +18,7 @@
 
 /** POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019, extended 021). */
 export interface CreateCheckoutIntentRequest {
-  /** The SHIPPING address (required). Serviceability + delivery pricing key off this (021). */
+  /** The SHIPPING address (required). Snapshotted onto the order at placement. */
   addressId: string;
   /**
    * 023: the BILLING address, when the customer diverged from shipping. Absent / null / equal to

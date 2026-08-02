@@ -205,7 +205,6 @@ data class ProductPage(
 )
 
 /** Whether Effy delivers to a postcode, answered before a cart exists (025 FR-014). */
-data class Serviceability(val postcode: String, val serviced: Boolean)
 
 /** The catalog read port (hot path). Implemented by HttpCatalogRepository over the core client. */
 interface CatalogRepository {
@@ -220,7 +219,6 @@ interface CatalogRepository {
         cursor: String?,
     ): ProductPage
 
-    /** Up-front delivery serviceability (025). Shares checkout's predicate server-side (FR-014b). */
 
     /** One advertised promotion in full — the destination of a banner tap. */
     suspend fun promotion(id: String): Promotion

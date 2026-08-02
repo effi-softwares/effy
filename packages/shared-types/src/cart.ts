@@ -156,8 +156,6 @@ export interface CartDTO {
   itemSubtotalAmount: string;
   /** "0.00" when no code applies. */
   discountAmount: string;
-  /** Always "0.00" here: delivery is priced at the delivery step, once a destination exists (FR-063). */
-  deliveryFeeAmount: string;
   /** itemSubtotal − discount. */
   grandTotalAmount: string;
   currency: string;

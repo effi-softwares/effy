@@ -322,10 +322,6 @@
         "currency": {
           "type": "string"
         },
-        "deliveryFeeAmount": {
-          "description": "Always \"0.00\" here: delivery is priced at the delivery step, once a destination exists (FR-063).",
-          "type": "string"
-        },
         "discount": {
           "anyOf": [
             {
@@ -381,7 +377,6 @@
         "savedLines",
         "itemSubtotalAmount",
         "discountAmount",
-        "deliveryFeeAmount",
         "grandTotalAmount",
         "currency",
         "notices",
@@ -669,7 +664,7 @@
       "description": "POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019, extended 021).",
       "properties": {
         "addressId": {
-          "description": "The SHIPPING address (required). Serviceability + delivery pricing key off this (021).",
+          "description": "The SHIPPING address (required). Snapshotted onto the order at placement.",
           "type": "string"
         },
         "billingAddressId": {

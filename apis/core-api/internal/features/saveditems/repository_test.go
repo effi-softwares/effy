@@ -82,16 +82,6 @@ func seedSchema(t *testing.T, pool *pgxpool.Pool) {
 			updated_at         timestamptz NOT NULL DEFAULT now(),
 			PRIMARY KEY (customer_id, product_id)
 		);
-		CREATE TABLE public.delivery_zone_postcode (
-			id serial PRIMARY KEY, zone_id uuid NOT NULL, postcode text NOT NULL UNIQUE
-		);
-		CREATE TABLE public.delivery_offering (
-			id serial PRIMARY KEY, origin_zone_id uuid NOT NULL, destination_zone_id uuid NOT NULL,
-			method text NOT NULL, status text NOT NULL DEFAULT 'active'
-		);
-		CREATE TABLE public.delivery_pricing_rule (
-			id serial PRIMARY KEY, method text NOT NULL UNIQUE, status text NOT NULL DEFAULT 'active'
-		);
 	`)
 	require.NoError(t, err)
 }
@@ -134,10 +124,7 @@ func seedWorld(t *testing.T, pool *pgxpool.Pool) {
 
 	exec(`INSERT INTO public.product_media (product_id, storage_key, is_primary) VALUES ($1, 'media/eggs.jpg', true)`, pActive)
 
-	exec(`INSERT INTO public.delivery_zone_postcode (zone_id, postcode) VALUES ($1, '3121'), ($2, '3350')`, metroZone, regZone)
-	exec(`INSERT INTO public.delivery_offering (origin_zone_id, destination_zone_id, method) VALUES ($1, $1, 'standard')`, metroZone)
 	exec(`INSERT INTO public.delivery_pricing_rule (method) VALUES ('standard')`)
-	// ⚠ NOTHING inbound to REGIONAL — the live defect this feature exists to stop reproducing.
 }
 
 func repo(t *testing.T) (*Repository, *pgxpool.Pool) {

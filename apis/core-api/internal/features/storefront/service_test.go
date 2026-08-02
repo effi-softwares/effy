@@ -72,9 +72,6 @@ func (f *fakeReader) CategoryPath(_ context.Context, _ string) ([]string, error)
 	return f.path, nil
 }
 
-// Serviceable defaults to "not serviced" — tests that care about delivery use serviceabilityReader,
-// which overrides it (see serviceability_test.go).
-
 func (f *fakeReader) SearchCards(_ context.Context, p SearchParams) ([]searchRow, error) {
 	f.lastParams = p
 	return f.search, nil

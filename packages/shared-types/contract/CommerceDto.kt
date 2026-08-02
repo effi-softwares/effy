@@ -187,13 +187,6 @@ enum class Kind(val value: String) {
 data class CartDTO (
     val checkout: CartCheckoutStateDTO,
     val currency: String,
-
-    /**
-     * Always "0.00" here: delivery is priced at the delivery step, once a destination exists
-     * (FR-063).
-     */
-    val deliveryFeeAmount: String,
-
     val discount: CartDiscountDTO? = null,
 
     /**
@@ -462,7 +455,7 @@ data class CreateAddressRequest (
 @Serializable
 data class CreateCheckoutIntentRequest (
     /**
-     * The SHIPPING address (required). Serviceability + delivery pricing key off this (021).
+     * The SHIPPING address (required). Snapshotted onto the order at placement.
      */
     @SerialName("addressId")
     val addressID: String,

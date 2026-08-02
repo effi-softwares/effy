@@ -100,7 +100,6 @@ type IntentInput struct {
 // CreateCheckoutIntent writes the pending order and creates ONE PaymentIntent with a DETERMINISTIC
 // idempotency key.
 //
-// ⚠ THE PLATFORM HAS NO DELIVERY FEE. Zones, quotes, per-package selections and serviceability were
 // withdrawn, so the amount charged is simply the item subtotal minus any discount. There is no quote
 // to capture, nothing to honour a window on, and no package a shopper can be refused for.
 //
