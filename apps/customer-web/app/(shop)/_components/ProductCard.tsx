@@ -57,7 +57,20 @@ export const productGrid = `grid items-stretch ${gutters} grid-cols-2 sm:grid-co
  */
 export const productGridNarrow = `grid items-stretch ${gutters} grid-cols-2 sm:grid-cols-3 xl:grid-cols-4`
 
-export function ProductCard({ product }: { product: StorefrontProductCardDTO }) {
+export function ProductCard({
+  product,
+  saveControl,
+}: {
+  product: StorefrontProductCardDTO
+  /**
+   * ⚠ A SLOT, not a hook inside this component (033). `ProductCard` has NO "use client" directive and
+   * is dual-mode: client-bundled on `/` (via RecentlyViewedRail) and `/search` (via SearchExperience),
+   * but SERVER-rendered on `/product/[id]` (via RelatedProducts). Putting a hook in here would make it
+   * a client component everywhere, including inside RelatedProducts. Passing an already-built island
+   * in as a prop costs the server-rendered call sites nothing.
+   */
+  saveControl?: React.ReactNode
+}) {
   const discounted = isDiscounted(product.priceAmount, product.compareAtAmount)
   const percentOff =
     discounted && product.compareAtAmount
@@ -69,11 +82,24 @@ export function ProductCard({ product }: { product: StorefrontProductCardDTO }) 
       : null
 
   return (
-    <Link
-      href={`/product/${product.id}`}
-      className="group flex h-full w-full flex-col"
-      aria-label={product.name}
-    >
+    // ⚠ RELATIVE WRAPPER, not a <Link> around everything. The card used to be one big anchor, and a
+    // <button> nested inside an <a> is invalid HTML that produces hydration warnings. The link is now
+    // a STRETCHED OVERLAY (`after:absolute after:inset-0`) covering the card, and the save control
+    // sits ABOVE it on the z-axis — so the whole tile is still one big tap target for navigation
+    // while the heart remains independently clickable.
+    <div className="group relative flex h-full w-full flex-col">
+      {saveControl ? (
+        // z-10 to sit above the stretched link. `pointer-events-auto` because the wrapper below is
+        // inert to pointers; only these two things take clicks.
+        <div className="absolute right-2 top-2 z-10">{saveControl}</div>
+      ) : null}
+
+      <Link
+        href={`/product/${product.id}`}
+        className="absolute inset-0 z-0"
+        aria-label={product.name}
+      />
+
       {/* The tinted tile. No border, no shadow — the tint is the whole separation. */}
       <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-background">
         {product.imageUrl ? (
@@ -138,6 +164,6 @@ export function ProductCard({ product }: { product: StorefrontProductCardDTO }) 
           </>
         )}
       </div>
-    </Link>
+    </div>
   )
 }

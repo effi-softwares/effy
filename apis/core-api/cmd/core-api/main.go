@@ -24,9 +24,9 @@ import (
 	"github.com/effyshopping/effy/apis/core-api/internal/features/cart"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/checkout"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/customerping"
-	"github.com/effyshopping/effy/apis/core-api/internal/features/favorites"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/orders"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/platformstatus"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/saveditems"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/storefront"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
@@ -58,7 +58,7 @@ type dependencies struct {
 	cognito          *cognitoidentityprovider.Client
 
 	// 019 commerce shared collaborators — constructed once, wired into each feature slice's
-	// Register as the commerce features (storefront/cart/checkout/orders/favorites) land. Address
+	// Register as the commerce features (storefront/cart/checkout/orders/saved items) land. Address
 	// management moved to the cold path (edge-api/customer, 022); checkout reads the address table
 	// directly for its order snapshot.
 	pool     *pgxpool.Pool
@@ -72,7 +72,7 @@ type dependencies struct {
 	// Feature services (customer commerce).
 	storefront *storefront.Service
 	cart       *cart.Service
-	favorites  *favorites.Service
+	savedItems *saveditems.Service
 	checkout   *checkout.Service
 	orders     *orders.Service
 }
@@ -136,9 +136,10 @@ func run() error {
 
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
 		cart:       cartSvc,
-		favorites:  favorites.NewService(favorites.NewRepository(pool), presign),
-		checkout:   checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithMetrics(m),
-		orders:     orders.NewService(orders.NewRepository(pool)),
+		savedItems: saveditems.NewService(saveditems.NewRepository(pool), saveditems.PoolZones{Q: pool}, presign).
+			WithCart(savedCartAdder{cartSvc}),
+		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithMetrics(m),
+		orders:   orders.NewService(orders.NewRepository(pool)),
 	}
 
 	router := newRouter(cfg, log, pool, m, deps)
@@ -223,7 +224,19 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 	// auth.Middleware + customeridentity.Middleware (the resolved customer id scopes every query).
 	storefront.Register(v1, storefront.NewHandler(deps.storefront, deps.metrics))
 	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
-	favorites.Register(v1, deps.customerVerifier, deps.customer, favorites.NewHandler(deps.favorites))
 	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))
+	saveditems.Register(v1, deps.customerVerifier, deps.customer, saveditems.NewHandler(deps.savedItems))
 	checkout.Register(v1, deps.customerVerifier, deps.customer, checkout.NewHandler(deps.checkout))
+}
+
+// savedCartAdder adapts the cart service to saved-items' narrow CartAdder seam.
+//
+// ⚠ The adapter exists so `saveditems` depends on ONE method rather than the whole cart service. A
+// wider dependency would let it start making cart decisions that belong to the cart — and the cart's
+// own rules (limits, availability, order policy) must stay the cart's to enforce.
+type savedCartAdder struct{ svc *cart.Service }
+
+func (a savedCartAdder) Add(ctx context.Context, customerID, productID, changeID string, qty int) error {
+	_, err := a.svc.Add(ctx, customerID, productID, changeID, qty)
+	return err
 }

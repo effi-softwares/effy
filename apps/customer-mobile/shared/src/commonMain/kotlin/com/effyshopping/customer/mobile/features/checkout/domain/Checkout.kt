@@ -22,6 +22,19 @@ data class CheckoutIntent(
 )
 
 data class ReceiptItem(
+    /**
+     * ⚠ ADDED BY 033 so a shopper can save a product from a past order (FR-008).
+     *
+     * The wire has carried this since 019 — `OrderItemDTO.productId` — and this domain model simply
+     * dropped it, which is the same mapper-discards-what-the-backend-sends shape that hid brand and
+     * badges on the saved list. No contract change was needed; the field needed mapping.
+     *
+     * ⚠ A past order's product may since have been archived or deleted. The ORDER line still renders
+     * from its own snapshot (that is what makes a receipt stable), so the save control here must
+     * tolerate an id that no longer resolves — saving it answers 404, and the control says so rather
+     * than appearing to succeed.
+     */
+    val productId: String,
     val productName: String,
     val quantity: Int,
     val unitPriceAmount: String,

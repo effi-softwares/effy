@@ -38,13 +38,13 @@ import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
+import com.effyshopping.customer.mobile.features.saved.presentation.SavedScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.PromotionScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptScreen
-import com.effyshopping.customer.mobile.features.favorites.presentation.FavoritesScreen
 import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
 import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
 import com.effyshopping.customer.mobile.features.help.presentation.HelpCenterScreen
@@ -201,13 +201,15 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                         // Notifications is also an Account list row — which meant opening it from
                         // Discover and pressing Back landed on the account page.
                         onNotifications = { navState.push(CustomerNavKey.Notifications) },
-                        // ⚠ These two are the ONLY way into the cart and saved items on this surface
-                        // — Effy's bottom bar has no Cart or Saved tab. Removing them makes the cart
-                        // fillable and unopenable; that regression shipped once already.
+                        // ⚠ This is the ONLY way into the cart on this surface — Effy's bottom bar
+                        // has no Cart tab. Removing it makes the cart fillable and unopenable; that
+                        // regression shipped once already.
                         onCart = { navState.push(CustomerNavKey.Cart) },
-                        onFavorites = {
-                            if (signedIn) navState.push(CustomerNavKey.Favorites) else requireSignIn()
-                        },
+                        // ⚠ Reachable by a GUEST too. The predecessor gated this behind sign-in, and
+                        // usability research is one-sided that the sign-in wall is the single biggest
+                        // reason saved-item features go unused. Guest saving itself lands in US3; the
+                        // route is open from here so the gate never has to be re-added.
+                        onSaved = { navState.push(CustomerNavKey.Saved) },
                         // 028 FR-018: "See all" on a section. PUSHED onto the Home tab, so Back
                         // returns to Home rather than stranding the shopper at the Search tab's
                         // root. The rail's own key decides the refinement — the on-sale rail carries
@@ -415,19 +417,22 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Recovery> { AuthRoutes(container, CustomerNavKey.Recovery) }
 
                 // ── Account sub-screens (bar KEPT, except the two commit forms) ───────────────
-                entry<CustomerNavKey.Favorites> {
-                    FavoritesScreen(
+                entry<CustomerNavKey.Saved> {
+                    SavedScreen(
                         container,
                         onOpen = { navState.push(CustomerNavKey.Product(it)) },
                         onBack = { navState.pop() },
                         onBrowse = {
-                                // Browse was this escape's target; Discover is now the shop window.
-                                // resetToRoot() FIRST — the cart/favorites screen sits inside some
-                                // tab's stack, and selecting Home while already on Home would
-                                // otherwise leave the empty state on screen.
-                                navState.resetToRoot()
-                                navState.selectTab(CustomerNavKey.Home)
-                            },
+                            // resetToRoot() FIRST — the saved screen sits inside some tab's stack, and
+                            // selecting Home while already on Home would otherwise leave the empty
+                            // state on screen.
+                            navState.resetToRoot()
+                            navState.selectTab(CustomerNavKey.Home)
+                        },
+                        onChangeLocation = {
+                            navState.resetToRoot()
+                            navState.selectTab(CustomerNavKey.Home)
+                        },
                     )
                 }
                 entry<CustomerNavKey.AddressBook> {

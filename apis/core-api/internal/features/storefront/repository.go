@@ -319,15 +319,24 @@ ORDER BY c.display_order ASC, c.name ASC`)
 	return out, nil
 }
 
-// Serviceable answers whether a postcode is in any delivery zone (025 FR-014).
+// Serviceable answers whether we can actually deliver to a postcode (025 FR-014, corrected by 033).
 //
-// ⚠ It delegates to delivery.ZoneForPostcode rather than issuing its own SELECT. That is the entire
-// mechanism behind FR-014b: checkout's DestinationZone calls the same function, so the answer a
-// shopper gets in the storefront header and the answer they get at payment come from one
-// implementation and cannot drift apart. Do not inline the SQL back into this file.
+// ⚠ THIS USED TO CALL delivery.ZoneForPostcode DIRECTLY, AND THAT WAS A DEFECT. The comment here
+// claimed FR-014b was satisfied because checkout's DestinationZone called the same function — but
+// zone membership is only the FIRST of the four terms checkout actually requires. Checkout also needs
+// the shop's origin postcode to resolve to a zone, an active delivery_offering on that leg, and an
+// active delivery_pricing_rule for the method. So the storefront and checkout had already drifted by
+// three terms while this comment asserted they could not.
+//
+// Live proof at the time of the fix: zone REGIONAL held 3350 (Ballarat) and 3550 (Bendigo) with zero
+// active inbound offerings, so this endpoint answered {"serviced":true} for a shopper checkout could
+// quote nothing for — 025's FR-014b violated in DATA, which is exactly what 031 documented and could
+// not fix from the admin side.
+//
+// delivery.ServiceablePostcode is now the single implementation of the whole question. Do not inline
+// the SQL back into this file, and do not "simplify" it back to ZoneForPostcode.
 func (r *Repository) Serviceable(ctx context.Context, postcode string) (bool, error) {
-	_, ok, err := delivery.ZoneForPostcode(ctx, r.db, postcode)
-	return ok, err
+	return delivery.ServiceablePostcode(ctx, r.db, postcode)
 }
 
 // SearchLocalities finds up to limit places matching q (030 FR-005 / FR-008).

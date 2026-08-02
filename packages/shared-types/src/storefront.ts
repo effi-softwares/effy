@@ -35,7 +35,7 @@ export interface MediaDTO {
   alt: string | null;
 }
 
-/** The at-a-glance product card used in rails, search results, favorites and recently-viewed. */
+/** The at-a-glance product card used in rails, search results, saved items and recently-viewed. */
 export interface StorefrontProductCardDTO {
   id: string;
   name: string;

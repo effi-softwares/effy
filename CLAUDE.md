@@ -203,6 +203,71 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**033-customer-saved-items — Customer Saved Items: Watchlist, Guest Saving & Zone-Aware
+Purchasability.** 🚧 **139/174 tasks — every feature phase BUILT and machine-verified except telemetry;
+operator walks + commit pending.**
+
+Replaces the half-built favourites capability **entirely** — its behaviour, its stored data, and every
+trace of it on all three customer surfaces. It was not unbuilt; it was **built wrong**, in two ways
+that made a shopper trust it and then be misled.
+- **⚠ THE HEART LIED.** Nothing on the platform could answer "is this product already saved?", so every
+  surface assumed *not saved* on every render — `FavoriteButton` opened `useState(false)` and its own
+  comment admitted it. A shopper who saved something yesterday saw an empty heart today, tapped it (a
+  no-op `PUT`), tapped again — and **silently un-saved the thing they were trying to save**. Fixed by
+  **one bulk membership read per screen** (`GET /v1/saved/ids`), never an `isSaved` boolean on catalogue
+  reads, which would make every product response shopper-specific and destroy the static shell.
+- **⚠ AND `available` WAS CATALOGUE STATUS, NOT PURCHASABILITY.** With hidden fulfilment and zone-scoped
+  delivery a product can be `status='active'` and still unreachable at the shopper's address, so the
+  list invited people into a checkout that refused them. Replaced by a **five-way verdict** in ONE SQL
+  statement. The DTO deliberately **omits `available`** — carrying both would leave two fields
+  disagreeing about one question.
+- **⚠ IT IS A WATCHLIST, NOT A WISHLIST**, and that was researched rather than assumed. Tesco and
+  Sainsbury's auto-populate "favourites" from purchase history (nobody taps a heart); the AU tap-a-heart
+  list (Woolworths, Coles) is a **price-and-availability watchlist**. **Buy It Again is named as a
+  RESERVED SIBLING** so a later slice need not rename this one. Uber Eats' "Lists" are shareable
+  merchant curation and **do not transfer** to single-brand hidden fulfilment.
+- **⚠ THE STOREFRONT'S SERVICEABILITY ANSWER WAS A LIE, AND IS NOW FIXED.**
+  `storefront.Serviceable()` carried a comment claiming it and checkout "cannot drift apart" — **they
+  already had, by three terms** (origin zone, an active `delivery_offering` on the leg, an active
+  `delivery_pricing_rule`). That is 031's REGIONAL defect, which 031 documented and could only fix in an
+  admin endpoint. New shared `platform/delivery/purchasable.go` serves both. **Consequence accepted
+  knowingly**: 3350/3550 flip to `serviced:false` until an offering exists. **Checkout's suite passes
+  UNMODIFIED with an empty diff.**
+- **Data**: one migration `20260802052141_customer_saved_items.sql` — creates `customer_saved_item`,
+  **DROPS `customer_favorite`**. ⚠ Old saved items are **not carried forward** (FR-005): they hold no
+  save-time price, and migrating them would fabricate a baseline never observed. ⚠ `cart_saved_item`
+  (027's set-aside) is a **different table**, untouched, suite green.
+- **⚠ GUEST SAVING IS THE FEATURE'S CENTRAL BET.** The sign-in wall is the single biggest documented
+  reason saved-item features go unused, and the predecessor put one on the very first tap. A guest now
+  saves freely, the list **survives a restart** on both surfaces, and it joins the account by an
+  idempotent union on sign-in — **including the federated (Google) return**, omitting which is how a
+  Google sign-in silently drops the guest list.
+- **⚠ FOUR OF MY OWN DEFECTS, CAUGHT BEFORE SHIPPING**: (1) `SavedItemDTO` extended
+  `StorefrontProductCardDTO`, which requires `available` — the very field being replaced — and **my
+  key-set test passed because I wrote the expectation from my own struct instead of the contract**,
+  which is 029's exact failure mode. (2) The merge defaulted a missing price to `"0"`, which would have
+  reported **every merged item as a massive price drop**; now nullable, falling back to the product's
+  current price. (3) FR-039 was unmet on mobile — the postcode was read lazily, so changing location
+  left every verdict stale. (4) A sort control with no UI to change it.
+- **⚠ RESEARCH R12 WAS WRONG**, and is corrected: FR-008 was recorded as "blocked at the contract"
+  because the order line carried no `productId`. **It has since 019** — only the mobile *domain model*
+  dropped it, the same mapper-discards-what-the-backend-sends shape that hid `brand`/`badges`.
+- **⚠ TWO SPEC AMENDMENTS, both on measured evidence rather than convenience.** **FR-007**: the control
+  is **omitted from the web search-results grid only** — `/search` had 0.1 KB against a 174 KB gate and
+  the control costs 0.7; four reclaim attempts recovered 0.2 (one made it *worse*). **The budget was not
+  raised.** **FR-053**: a barred shopper is refused the list too — the platform's barred gate is uniform
+  and a carve-out would be a second, weaker authorization path.
+- **Verified**: Go build/vet/gofmt + all packages (**~65 saveditems tests, 25 container-backed**) ·
+  **492 mobile tests** · **242 customer-web tests** · iOS + Android compile · `pnpm -r typecheck` 12/12 ·
+  `depcruise` · `cm-guard` · `cm-tokens-check` · all six routes within budget.
+- **⚠ Open**: **Phase 8 telemetry is unbuilt and CUTTABLE** — and PostHog has **never been initialised
+  on customer-web**, so `capture()` has always been a no-op platform-wide, making **SC-012/SC-013
+  unmeasurable**. Mobile telemetry deferred a **twelfth** slice. **16 operator walks** remain, incl.
+  ⚠ `make db-up` (**destroys the old saved data**), the five-observer verdict test, the colour-free
+  SC-009 test, force-quit persistence, iOS process-death restore, and **Android, which has never been
+  looked at across 028/029/033**. Spec/artifacts: [specs/033-customer-saved-items/](specs/033-customer-saved-items/);
+  parity register: [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §033.
+
 **031-delivery-areas — Delivery Areas: Locality-Driven Zone Composition.** 🚧 **SCOPE REDUCED
 2026-08-01 — the pricing half was withdrawn; composition, the decision record and health stand.**
 
@@ -1145,5 +1210,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/032-delivery-pricing/plan.md
+at specs/033-customer-saved-items/plan.md
 <!-- SPECKIT END -->

@@ -3,7 +3,7 @@
 // aggregator (CustomerCommerceContract), the output file, and a DISTINCT Kotlin package so the
 // generated commerce DTOs never collide with the customer-account DTOs in contract/Dto.kt.
 //
-// src/{storefront,cart,order,checkout,address,favorite}.ts are the SINGLE SOURCE OF TRUTH (Principle II).
+// src/{storefront,cart,order,checkout,address,saved-item}.ts are the SINGLE SOURCE OF TRUTH (Principle II).
 // The Kotlin is DERIVED + COMMITTED + drift-guarded (`commerce-contract:check`). ts-json-schema-generator
 // + quicktype are invoked via devDependencies — not a Gradle plugin, not in any build graph.
 
@@ -53,7 +53,7 @@ kt = kt.replace(
   "",
 );
 kt = kt.replace(/^\/\/ To parse the JSON[\s\S]*?\n(?=package )/m, "");
-const banner = `// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,favorite}.ts — DO NOT EDIT.
+const banner = `// GENERATED FROM packages/shared-types/src/{storefront,cart,order,checkout,address,saved-item}.ts — DO NOT EDIT.
 // Regenerate: pnpm --filter @effy/shared-types commerce-contract:gen
 // The wire contract lives in TypeScript ONCE (Principle II); this file is derived and diff-guarded (019).
 `;

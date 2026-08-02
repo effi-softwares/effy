@@ -14,6 +14,7 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -903,6 +904,18 @@ fun EffyProductCard(
     onClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     fillHeight: Boolean = false,
+    /**
+     * An optional overlay on the image, top-right (033). Used by the save control.
+     *
+     * ⚠ A SLOT ON THE ONE CARD, not a second card. Every product tile in this app reaches this
+     * composable — Home rails via EffyRailTile, and Search / Browse / Category / "see all" all render
+     * one SearchScreen — so a slot here is the whole surface. Wrapping at each call site instead
+     * would give four slightly different positions, which is exactly the drift EffyRailTile's own
+     * comment warns about.
+     *
+     * ⚠ Defaults to null, so every existing call site is unchanged.
+     */
+    imageOverlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val percentOff = discountPercent(product.priceAmount, product.compareAtAmount)
 
@@ -954,6 +967,11 @@ fun EffyProductCard(
                     Text("Unavailable", style = MaterialTheme.typography.labelLarge)
                 }
             }
+
+            // ⚠ LAST, so it sits above the unavailable scrim. A shopper must still be able to
+            // un-save something that went out of stock — burying the control under the scrim would
+            // strand it in their list.
+            imageOverlay?.invoke(this)
         }
 
         // The name is body type, NOT display type. It is a label on a tile, not a heading on a page —

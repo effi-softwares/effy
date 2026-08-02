@@ -118,6 +118,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
         paid = paymentStatus.value == "succeeded" || status.value == "paid",
         items = items.map {
             ReceiptItem(
+                productId = it.productID,
                 productName = it.productName,
                 quantity = it.quantity.toInt(),
                 unitPriceAmount = it.unitPriceAmount,

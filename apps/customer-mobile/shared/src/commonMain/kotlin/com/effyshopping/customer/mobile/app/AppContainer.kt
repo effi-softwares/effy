@@ -7,12 +7,25 @@ import com.effyshopping.customer.mobile.core.http.createHttpClient
 import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.features.cart.data.HttpCartRepository
+import com.effyshopping.customer.mobile.features.saved.data.HttpSavedRepository
+import com.effyshopping.customer.mobile.core.storage.nowIsoTimestamp
+import com.effyshopping.customer.mobile.features.saved.data.SavedLocalStore
+import com.effyshopping.customer.mobile.features.saved.domain.GuestPersistence
+import com.effyshopping.customer.mobile.features.saved.domain.AddAllSavedToCart
+import com.effyshopping.customer.mobile.features.saved.domain.MergeSavedOnSignIn
+import com.effyshopping.customer.mobile.features.saved.domain.SavedGuestEntry
+import com.effyshopping.customer.mobile.features.saved.domain.ListSaved
+import com.effyshopping.customer.mobile.features.saved.domain.LoadSavedMembership
+import com.effyshopping.customer.mobile.features.saved.domain.RemoveSaved
+import com.effyshopping.customer.mobile.features.saved.domain.SavedRepository
+import com.effyshopping.customer.mobile.features.saved.domain.SavedStore
+import com.effyshopping.customer.mobile.features.saved.domain.ToggleSaved
+import com.effyshopping.customer.mobile.features.saved.domain.UndoRemoveSaved
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
-import com.effyshopping.customer.mobile.features.favorites.domain.ListFavorites
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.storage.devicePreferences
@@ -60,10 +73,6 @@ import com.effyshopping.customer.mobile.features.cart.domain.SetCartQuantity
 import com.effyshopping.customer.mobile.features.cart.domain.SyncCart
 import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.cart.domain.CartSyncCoordinator
-import com.effyshopping.customer.mobile.features.favorites.data.HttpFavoritesRepository
-import com.effyshopping.customer.mobile.features.favorites.domain.FavoritesRepository
-import com.effyshopping.customer.mobile.features.favorites.domain.RemoveFavorite
-import com.effyshopping.customer.mobile.features.favorites.domain.SaveFavorite
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmOtp
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmPasswordReset
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmSignUp
@@ -118,7 +127,6 @@ class AppContainer(
     }
     private val customers: CustomerRepository by lazy { HttpCustomerRepository(edgeClient) }
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(coreClient) }
-    private val favorites: FavoritesRepository by lazy { HttpFavoritesRepository(coreClient) }
     private val checkoutRepo by lazy { HttpCheckoutRepository(coreClient) }
     // The address book (022) — customer profile management → the COLD path (edge-api/customer,
     // `/customer/v1/addresses`), per the routing law (011 FR-028). A full-CRUD repo, distinct from
@@ -141,6 +149,8 @@ class AppContainer(
      */
     val deliveryContext: DeliveryContextStore = DeliveryContextStore()
     private val cartRepository: CartRepository by lazy { HttpCartRepository(coreClient) }
+    private val savedHttp: HttpSavedRepository by lazy { HttpSavedRepository(coreClient) }
+    private val savedRepository: SavedRepository get() = savedHttp
 
     /**
      * Keeps the mirror and the platform in agreement: sends what the shopper does, and re-prices what they
@@ -195,10 +205,30 @@ class AppContainer(
     val syncCart by lazy { SyncCart(cartSync) }
     private val mergeCartOnSignIn by lazy { MergeCartOnSignIn(cart, cartRepository) }
 
-    // Favorites (019 US2).
-    val saveFavorite by lazy { SaveFavorite(favorites) }
-    val removeFavorite by lazy { RemoveFavorite(favorites) }
-    val listFavorites by lazy { ListFavorites(favorites) }
+    // Saved items (033) — the watchlist. `savedStore` is the ONE mirror every save control on every
+    // screen reads, which is what stops two controls for the same product from disagreeing (FR-013)
+    // and what makes the heart tell the truth on first render (FR-019).
+    // ⚠ REAL persistence, not GuestPersistence.None. 030 shipped a whole feature whose store had this
+    // exact seam and got the no-op — nothing was ever written and three comments then explained the
+    // absence as "this app has no key-value persistence", which had been false since 026.
+    private val savedLocal by lazy { SavedLocalStore(devicePreferences()) }
+    val savedStore: SavedStore by lazy {
+        SavedStore(object : GuestPersistence {
+            override fun load(): List<SavedGuestEntry> = savedLocal.load()
+            override fun save(items: List<SavedGuestEntry>) = savedLocal.save(items)
+            override fun clear() = savedLocal.clear()
+        })
+    }
+    val toggleSaved by lazy {
+        ToggleSaved(savedRepository, savedStore, signedIn) { nowIsoTimestamp() }
+    }
+    private val mergeSavedOnSignIn by lazy { MergeSavedOnSignIn(savedHttp, savedStore) }
+    val addAllSavedToCart by lazy { AddAllSavedToCart(savedHttp) }
+    val loadSavedMembership by lazy { LoadSavedMembership(savedRepository, savedStore) }
+    val listSaved by lazy { ListSaved(savedRepository) }
+    val removeSaved by lazy { RemoveSaved(savedRepository, savedStore) }
+    val undoRemoveSaved by lazy { UndoRemoveSaved(savedRepository, savedStore) }
+
 
     // Checkout (019 US3) — create intent → native PaymentSheet (paymentDriver) → confirm → receipt.
     // The address picker + add-new reuse the 022 Address Book use cases below (023 US1–US4) — the same
@@ -253,8 +283,18 @@ class AppContainer(
             authDriver = authDriver,
             getCustomer = getCustomer,
             scope = appScope,
-            onAuthenticated = { mergeCartOnSignIn() },
-            onSignedOut = { cart.reset() },
+            // ⚠ BOTH merges run on sign-in. The saved merge is idempotent, so it is safe on every
+            // sign-in including a repeat on a device that already merged (FR-029).
+            onAuthenticated = {
+                mergeCartOnSignIn()
+                runCatching { mergeSavedOnSignIn() }
+            },
+            // ⚠ Sign-out clears BOTH — an account's saved items must not stay readable on a shared
+            // device (FR-031).
+            onSignedOut = {
+                cart.reset()
+                savedStore.reset()
+            },
         )
     }
 

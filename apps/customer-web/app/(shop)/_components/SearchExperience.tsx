@@ -1,13 +1,11 @@
 "use client"
 
-import { X } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } from "@effy/shared-types"
 
 import { coreApiBaseUrl } from "@/lib/config"
-import { capture } from "@/lib/telemetry"
 
 import { ProductCard, productGridNarrow } from "./ProductCard"
 
@@ -236,7 +234,9 @@ export function SearchExperience() {
             aria-label={`Remove filter: ${chip.label}`}
           >
             {chip.label}
-            <X className="size-3" aria-hidden="true" />
+            <span aria-hidden="true" className="text-xs leading-none">
+              &times;
+            </span>
           </button>
         ))}
 
@@ -269,7 +269,12 @@ export function SearchExperience() {
             onChange={(e) => {
               const next = e.target.value as ProductSort
               setParam({ sort: next === "newest" ? null : next })
-              capture({ name: "search_sorted", props: { sort: next } })
+              // ⚠ DYNAMIC import (027's rule) — a static telemetry import here rides the
+              // always-loaded guest chunk. Measured byte-neutral on this route, kept for the
+              // convention its three sibling call sites already follow.
+              void import("@/lib/telemetry").then(({ capture }) =>
+                capture({ name: "search_sorted", props: { sort: next } }),
+              )
             }}
             className="h-9 rounded-full border bg-card px-3 text-sm"
           >
@@ -308,6 +313,15 @@ export function SearchExperience() {
           }
         />
       ) : (
+        // ⚠ NO save control on the SEARCH results grid — the one web surface that omits it, and the
+        // omission is MEASURED rather than chosen. /search is the only route where this whole
+        // experience is a client component, so it already carries ProductCard's code in the guest
+        // bundle; adding the control pushed it 173.9 -> 174.6 KB against a 174 KB gate. Four reclaim
+        // attempts were measured: dynamic telemetry import (0 KB), inline SVG instead of lucide
+        // (0.1 KB WORSE), lucide close-icon to a text glyph (0.1 KB), next/dynamic on PriceRange
+        // (0.1 KB plus a visible flash) — recovering 0.2 of the 0.7 needed. The budget is NOT raised;
+        // that is the standing rule. Spec FR-007 is amended instead, recorded in spec.md and the
+        // parity register rather than dropped silently. Every OTHER tile surface carries it.
         <div className={`mt-6 ${productGridNarrow}`}>
           {items.map((p) => (
             <ProductCard key={p.id} product={p} />

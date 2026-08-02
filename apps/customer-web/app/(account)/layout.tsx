@@ -34,6 +34,12 @@ export default function AccountLayout({
             <Link href="/orders" className="text-sm hover:text-foreground/70">
               Orders
             </Link>
+            {/* 033 FR-054: reachable from the account area. ⚠ This nav listed only Browse / Orders /
+                Account — /addresses was missing too, which is why the predecessor's saved page was
+                reachable from exactly one footer link. */}
+            <Link href="/saved" className="text-sm hover:text-foreground/70">
+              Saved items
+            </Link>
             <Link href="/account" className="text-sm hover:text-foreground/70">
               Account
             </Link>

@@ -103,8 +103,8 @@ fun HomeScreen(
     onProductClick: (String) -> Unit,
     onSearch: () -> Unit = {},
     onNotifications: () -> Unit = {},
+    onSaved: () -> Unit = {},
     onCart: () -> Unit = {},
-    onFavorites: () -> Unit = {},
     onSeeAll: (Rail) -> Unit = {},
     onCategoryClick: (CategoryShortcut) -> Unit = {},
     onBannerClick: (Banner) -> Unit = {},
@@ -116,8 +116,8 @@ fun HomeScreen(
         DiscoverHeader(
             container = container,
             onNotifications = onNotifications,
+            onSaved = onSaved,
             onCart = onCart,
-            onFavorites = onFavorites,
         )
         // 025 US1/FR-012: "do we deliver to you?", asked BEFORE a cart is built rather than at
         // checkout. It is not decoration — without it the first honest answer arrives after the
@@ -419,8 +419,8 @@ private fun SectionBlock(
 private fun DiscoverHeader(
     container: AppContainer,
     onNotifications: () -> Unit,
+    onSaved: () -> Unit,
     onCart: () -> Unit,
-    onFavorites: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -429,8 +429,8 @@ private fun DiscoverHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         EffyDisplay("Discover", size = DisplaySize.Page, modifier = Modifier.weight(1f))
-        HeaderAction(Res.drawable.ic_favorite_outlined, "Saved items", onFavorites)
         CartAction(container, onCart)
+        HeaderAction(Res.drawable.ic_favorite_outlined, "Saved items", onSaved)
         HeaderAction(Res.drawable.ic_notifications_outlined, "Notifications", onNotifications)
     }
 }

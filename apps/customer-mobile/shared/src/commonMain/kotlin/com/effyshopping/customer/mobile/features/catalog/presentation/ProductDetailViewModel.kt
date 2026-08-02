@@ -6,8 +6,6 @@ import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.cart.domain.AddToCart
-import com.effyshopping.customer.mobile.features.favorites.domain.RemoveFavorite
-import com.effyshopping.customer.mobile.features.favorites.domain.SaveFavorite
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,23 +20,17 @@ sealed interface ProductDetailUiState {
 }
 
 /**
- * The product detail ViewModel (019 US2). Loads the product, adds it to the device-local guest cart,
- * and toggles the favorite. Favorite calls assume a signed-in customer — the View gates a guest through
- * deferred sign-in before calling [toggleFavorite].
+ * The product detail ViewModel (019 US2). Loads the product and adds it to the device-local guest
+ * cart.
  */
 class ProductDetailViewModel(
     private val productId: String,
     private val getProductDetail: GetProductDetail,
     private val addToCart: AddToCart,
-    private val saveFavorite: SaveFavorite,
-    private val removeFavorite: RemoveFavorite,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<ProductDetailUiState>(ProductDetailUiState.Loading)
     val state: StateFlow<ProductDetailUiState> = _state.asStateFlow()
-
-    private val _favoriteSaved = MutableStateFlow(false)
-    val favoriteSaved: StateFlow<Boolean> = _favoriteSaved.asStateFlow()
 
     private val _justAdded = MutableStateFlow(false)
     val justAdded: StateFlow<Boolean> = _justAdded.asStateFlow()
@@ -93,21 +85,6 @@ class ProductDetailViewModel(
             _justAdded.value = true
             delay(2000)
             _justAdded.value = false
-        }
-    }
-
-    /** Toggle the favorite. Caller guarantees a signed-in session. Optimistic with revert on failure. */
-    fun toggleFavorite() {
-        val target = !_favoriteSaved.value
-        _favoriteSaved.value = target
-        viewModelScope.launch {
-            try {
-                if (target) saveFavorite(productId) else removeFavorite(productId)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Throwable) {
-                _favoriteSaved.value = !target // revert
-            }
         }
     }
 }

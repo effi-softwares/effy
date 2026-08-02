@@ -10,8 +10,8 @@ import { coreApi, uncached } from "@/lib/api/core"
 import { formatMoney, isDiscounted } from "@/lib/money"
 
 import { AddToCartControl } from "../../_components/AddToCartControl"
+import { SaveControl } from "../../_components/SaveControl"
 import { DeliveryEstimate } from "../../_components/DeliveryEstimate"
-import { FavoriteButton } from "../../_components/FavoriteButton"
 import { ProductGallery } from "../../_components/ProductGallery"
 import { RecordView } from "../../_components/RecordView"
 import { RelatedProducts } from "../../_components/RelatedProducts"
@@ -161,6 +161,12 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
           )}
 
           <div className="mt-6">
+            {/* 033: the heart, beside the buy action. Reads the shared mirror, so an already-saved
+                product opens SAVED — the predecessor hard-coded false and un-saved on the 2nd tap. */}
+            <div className="mb-3">
+              <SaveControl productId={product.id} />
+            </div>
+
             <AddToCartControl
               product={{
                 productId: product.id,
@@ -171,10 +177,6 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
                 available: product.available,
               }}
             />
-          </div>
-
-          <div className="mt-4">
-            <FavoriteButton productId={product.id} />
           </div>
         </div>
       </div>

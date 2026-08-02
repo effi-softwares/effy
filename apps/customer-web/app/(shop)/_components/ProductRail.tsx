@@ -3,6 +3,7 @@ import type { StorefrontProductCardDTO } from "@effy/shared-types"
 import { ActionLink, CenteredHeading } from "@/components/storefront/kit"
 
 import { ProductCard, productGrid } from "./ProductCard"
+import { SaveControl } from "./SaveControl"
 
 /**
  * A merchandising row, from the tech-store reference (025 UI refresh).
@@ -37,7 +38,7 @@ export function ProductRail({
           rhythm — see the note on that constant. */}
       <div className={`mt-9 ${productGrid}`}>
         {products.slice(0, 8).map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p.id} product={p} saveControl={<SaveControl productId={p.id} />} />
         ))}
       </div>
 

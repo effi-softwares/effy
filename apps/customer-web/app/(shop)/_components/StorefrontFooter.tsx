@@ -93,7 +93,7 @@ export function StorefrontFooter() {
                 { label: "Account", href: "/account" },
                 { label: "Orders", href: "/orders" },
                 { label: "Addresses", href: "/addresses" },
-                { label: "Saved items", href: "/favorites" },
+                { label: "Saved items", href: "/saved" },
               ]}
             />
             <FooterColumn

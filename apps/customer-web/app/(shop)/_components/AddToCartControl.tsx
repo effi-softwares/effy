@@ -7,7 +7,6 @@ import { useState } from "react"
 import { addItem } from "@/lib/cart-actions"
 import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
-import { capture } from "@/lib/telemetry"
 import { toast } from "@/lib/toast-store"
 
 /** The snapshot an add-to-cart captures (price/name/image frozen at add time — R8). */
@@ -50,7 +49,12 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
       quantity: qty,
       packageKey: product.packageKey ?? DEFAULT_PACKAGE_KEY,
     })
-    capture({ name: "product_added_to_cart", props: { productId: product.productId, quantity: qty } })
+    // ⚠ DYNAMIC import (027's rule). A static `import { capture } from "@/lib/telemetry"`
+    // here rides the ALWAYS-LOADED guest chunk and cost +1.0 KB on four routes last time it
+    // was tried. Paying for the module at the moment of the event costs a guest nothing.
+    void import("@/lib/telemetry").then(({ capture }) =>
+      capture({ name: "product_added_to_cart", props: { productId: product.productId, quantity: qty } }),
+    )
     setAdded(true)
     window.setTimeout(() => setAdded(false), 2000)
     // 025 FR-039: acknowledge the add and offer the cart WITHOUT navigating there. The silent add is

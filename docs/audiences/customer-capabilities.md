@@ -698,3 +698,89 @@ inventing a locality row.
 
 **Carry-forwards**: mobile telemetry deferred an **eleventh** consecutive slice; the 028/029 banner
 `code`/`terms` face gap on web is untouched by this slice; `/search` has ~0.2 KB of headroom left.
+
+---
+
+## §033 — Customer Saved Items: watchlist, guest saving & zone-aware purchasability
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Save / un-save a product | ✅ | ✅ | idempotent both directions; optimistic with revert |
+| **The control tells the truth on first render** | ✅ | ✅ | one membership read per screen — the defect this slice exists to kill |
+| Control on product detail | ✅ | ✅ | |
+| Control on tiles — home rails | ✅ | ✅ | |
+| Control on tiles — browse | ✅ | ✅ | |
+| Control on tiles — **search results** | ⬜ **by measurement** | ✅ | ⚠ FR-007 amended; see the bundle note below |
+| Control on an order line | ⬜ | ✅ | web order detail not yet wired |
+| Saved list with five-way purchasability | ✅ | ✅ | |
+| Price-drop indicator | ✅ | ✅ | rises deliberately not badged (FR-044) |
+| Undo a removal, restoring list position | ⬜ | ✅ | web removes without undo |
+| **Guest saving, no sign-in wall** | ✅ | ✅ | |
+| Guest list survives restart / reload | ✅ | ✅ | `localStorage` · `DevicePreferences` |
+| Guest → account join on sign-in | ✅ | ✅ | union, idempotent, cap-truncated newest-first |
+| Join on **federated** (Google) return | ✅ | ➖ n/a | ⚠ omitting this is how Google sign-in silently drops the guest list |
+| Join disclosed by count | ✅ (on the list) | ⬜ | ⚠ see carry-forwards |
+| Add one saved item to cart | ✅ | ✅ | |
+| **Add all purchasable, nothing omitted silently** | ✅ | ⬜ | mobile use case built, UI not wired |
+| Sort — recent / available / aisle | ✅ | ✅ | client-side; the set is capped and in memory |
+| Two distinct empty states | ✅ | ✅ | "never saved" vs "none reach you" |
+| Reachable from the account area | ✅ | ✅ | |
+| Reachable from the storefront | ✅ | ✅ | account menu (zero JS) · Discover header |
+| Clear on sign-out | ⬜ | ✅ | ⚠ see carry-forwards |
+| Telemetry | ⬜ | ⬜ | ⚠ see carry-forwards |
+
+**Path (Principle III):** hot path, exclusively — `apis/core-api/internal/features/saveditems/`.
+Customer commerce on the shopper's critical path (011 FR-028). ⚠ `core-api` has no cloud deploy, so
+this is locally verifiable and **cannot reach dev** until the hot path's own slice.
+
+**Data:** one migration `20260802052141_customer_saved_items.sql` — creates `public.customer_saved_item`
+and **DROPS `public.customer_favorite`**. ⚠ Saved items from the predecessor are **not carried forward**
+(FR-005): those rows carry no save-time price, and migrating them would fabricate a baseline that was
+never observed. ⚠ `public.cart_saved_item` (the cart's set-aside, 027) is a **different table** and is
+untouched.
+
+**⚠ Two defects in the predecessor, both fixed at the source:**
+1. **Nothing could answer "is this saved?"** — every surface assumed *not saved*, so a shopper's second
+   tap silently un-saved what they were trying to save. One bulk membership read now answers for a whole
+   screen.
+2. **`available` was catalogue status, not purchasability.** A product could be active and still
+   unreachable at the shopper's address. Replaced by a five-way verdict, and the DTO deliberately
+   **omits `available`** so two fields can never disagree about one question.
+
+**⚠ The storefront's serviceability answer was repointed.** `storefront.Serviceable()` claimed it and
+checkout "cannot drift apart" — they already had, by **three terms**. A new shared four-term predicate
+(`platform/delivery/purchasable.go`) now serves both. Consequence, accepted knowingly: postcodes in a
+zone with no live priced leg (3350, 3550 on dev data) flip from `serviced: true` to `false`. Checkout's
+suite passes **unmodified**.
+
+**Bundle:** `/` 173.7 · `/browse` 169.9 · `/search` 173.9 · `/product/[id]` 172.7 · `/cart` 173.8 ·
+`/promotions/[id]` 171.0 — all within 174 KB, **and the limit was not raised**. ⚠ The control costs
++0.7 KB and `/search` had 0.1 KB. Four reclaim attempts were measured (dynamic telemetry import **0 KB**
+· inline SVG instead of lucide **0.1 KB WORSE** · lucide close-icon → text glyph **0.1 KB** ·
+`next/dynamic` on the price filter **0.1 KB and a visible flash**), recovering 0.2 of the 0.7. **FR-007
+was amended** rather than the budget raised. Splitting `saved-merge.ts` out of `saved-actions.ts`
+recovered a further 0.3 KB on `/`, which had reached exactly 174.0.
+
+**Telemetry (Principle VII):** ⚠ **none emitted.** The seven events are specified but Phase 8 is
+unbuilt — and PostHog has **never been initialised on customer-web** (zero non-test call sites for
+`initAnalytics`/`setConsent`, no consent banner), so `capture()` has always been a no-op platform-wide.
+**SC-012 and SC-013 are therefore unmeasurable**, which is recorded rather than claimed. The dead
+`product_favorited` event the predecessor declared and never fired is removed. **Mobile telemetry
+remains deferred — the twelfth consecutive slice. This is not parity and is not claimed as parity.**
+
+**Carry-forwards:**
+- ⚠ **Web does not clear the mirror on sign-out.** Sign-out is a deliberately zero-JS route handler, so
+  no client code runs. **`resetCart()` has the identical unwired gap and has since 027** — pre-existing
+  shape, not introduced here. Mobile does clear. Fixing it needs a landing-side hook that costs
+  guest-path bytes; it should fix the cart at the same time.
+- ⚠ **No control on web search tiles** (above) — revisit when `/search` has headroom.
+- ⚠ **No undo on the web list**, and no bulk-add UI on mobile — both use cases exist, the surfaces do not.
+- ⚠ **The join is disclosed on the saved list, not on arrival** — a shopper who never opens the list is
+  not told. Parked in `sessionStorage` because sign-in navigates away.
+- ⚠ **`shop.status` is not a term in the purchasability predicate** — nothing in the hot path reads it,
+  so a suspended shop's products are still sold by cart and checkout. Adding it here would make saved
+  items *stricter* than checkout: a new disagreement replacing the one just fixed.
+- ⚠ **FR-053 amended**: a barred shopper is refused the list too. The platform's barred gate is uniform
+  and a carve-out would be a second, weaker authorization path.
+- **Not built**: notifications (FR-063, reserved sibling) · Buy It Again (FR-064, reserved sibling) ·
+  sharing (FR-065) · multiple lists (FR-066).

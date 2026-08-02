@@ -886,67 +886,6 @@
       ],
       "type": "object"
     },
-    "FavoriteDTO": {
-      "additionalProperties": false,
-      "description": "A saved product (product card fields + when it was saved).",
-      "properties": {
-        "available": {
-          "type": "boolean"
-        },
-        "badges": {
-          "items": {
-            "$ref": "#/definitions/ProductBadge"
-          },
-          "type": "array"
-        },
-        "brand": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "compareAtAmount": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "currency": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "imageUrl": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "priceAmount": {
-          "type": "string"
-        },
-        "savedAt": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "available",
-        "badges",
-        "brand",
-        "compareAtAmount",
-        "currency",
-        "id",
-        "imageUrl",
-        "name",
-        "priceAmount",
-        "savedAt"
-      ],
-      "type": "object"
-    },
     "LocalityDTO": {
       "additionalProperties": false,
       "description": "One Australian place a shopper can name, from `GET /v1/storefront/localities?q=` (030 FR-005).\n\n⚠ ALL THREE FIELDS IDENTIFY IT, and no two of them do: a locality name recurs across states (there are many Springfields), a locality spans several postcodes, and a postcode covers several localities. That is why FR-008 forbids a bare name being selectable, and why the `locality` table's natural key is the triple. A response that drops any one of these is an ambiguous place the client cannot resolve.\n\n⚠ Nothing here says whether Effy delivers to the place. Serviceability is answered ONCE, by `ServiceabilityDTO`, for the place the shopper actually chose — a suggestion list that hinted at coverage would pre-empt that answer and let anyone enumerate the delivery footprint (FR-011).",
@@ -1576,6 +1515,239 @@
       ],
       "type": "object"
     },
+    "SavedAddToCartRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "postcode": {
+          "description": "Absent means no delivery location is known — nothing is purchasable, so nothing is added.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "SavedAddToCartResultDTO": {
+      "additionalProperties": false,
+      "description": "The result of adding every purchasable saved item to the cart.\n\n⚠ `skipped` is the whole point of this shape. FR-052 forbids silent omission: a bulk add that quietly drops what it could not take leaves the shopper believing they bought something they did not. Every omission carries a reason.",
+      "properties": {
+        "added": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "skipped": {
+          "items": {
+            "$ref": "#/definitions/SavedSkip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "added",
+        "skipped"
+      ],
+      "type": "object"
+    },
+    "SavedItemDTO": {
+      "additionalProperties": false,
+      "description": "One entry in the saved list.\n\nName, image and CURRENT price are read live (FR-045) — a renamed or re-imaged product shows its true present identity. Only `savedPriceAmount` is remembered, and only so a drop is detectable.\n\n⚠ THIS DELIBERATELY DOES NOT EXTEND `StorefrontProductCardDTO`, and the reason is the whole point of the feature. That interface carries `available: boolean` — a flag derived from catalogue status alone, which is precisely the field that lied: a product can be `available: true` and still not purchasable at the shopper's address, which is how the predecessor invited people into a checkout that refused them. `verdict` REPLACES it. Extending the card would carry the lying boolean back in beside the five-way answer that supersedes it, and a client would then have two fields disagreeing about the same question — which is how they end up rendering the wrong one.\n\nThe shared card fields are therefore repeated here on purpose. That is duplication with a reason, not drift.",
+      "properties": {
+        "badges": {
+          "items": {
+            "$ref": "#/definitions/ProductBadge"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "categoryKey": {
+          "description": "For client-side grouping by aisle (FR-056). Absent when the product has no primary category.",
+          "type": "string"
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "type": "string"
+        },
+        "priceDropped": {
+          "description": "Present and `true` only when the current price is BELOW the save-time price.\n\n⚠ There is deliberately no `priceRose`. The current price is always shown, so nothing is concealed — but a rise is not something a shopper can act on, and badging it would add noise to the one signal this list exists to carry.",
+          "type": "boolean"
+        },
+        "savedAt": {
+          "description": "When it was saved. Drives list order (newest first) and undo's restore position.",
+          "type": "string"
+        },
+        "savedPriceAmount": {
+          "description": "The price at the moment of saving — the baseline `priceDropped` is measured against.",
+          "type": "string"
+        },
+        "verdict": {
+          "$ref": "#/definitions/SavedVerdict"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "brand",
+        "imageUrl",
+        "priceAmount",
+        "currency",
+        "compareAtAmount",
+        "badges",
+        "savedAt",
+        "savedPriceAmount",
+        "verdict"
+      ],
+      "type": "object"
+    },
+    "SavedMembershipDTO": {
+      "additionalProperties": false,
+      "description": "The shopper's whole set of saved product ids.\n\n⚠ THIS IS WHAT MAKES THE HEART TELL THE TRUTH. It is fetched ONCE per screen and answers for every product on it. The two alternatives were both rejected: an `isSaved` field on catalogue reads would make every product response shopper-specific and destroy the storefront's static shell, and a per-product lookup would be one request per tile (FR-020).\n\nBounded by the 200-item cap, which is what keeps a whole-set read cheap enough to do this way.",
+      "properties": {
+        "count": {
+          "$ref": "#/definitions/WireInt",
+          "description": "⚠ WireInt, not number — see the note on the import."
+        },
+        "productIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "productIds",
+        "count"
+      ],
+      "type": "object"
+    },
+    "SavedMergeItem": {
+      "additionalProperties": false,
+      "description": "One device-held saved item being offered to an account (FR-028).",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "savedAt": {
+          "type": "string"
+        },
+        "savedCurrency": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "savedPriceAmount": {
+          "description": "⚠ The GUEST's save-time price travels with it. Taking the price at merge time instead would silently erase the movement the watchlist exists to report, for exactly the shopper who saved earliest and has waited longest.\n\n⚠ NULLABLE, and absent is meaningful: it means the device never observed a price, because the surface the shopper tapped on carried only a product id. The platform then uses the product's CURRENT price as the baseline — which is what an ordinary save records. Sending `\"0\"` instead would report the item as having fallen from nothing: a fabricated fact, worse than an absent one.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "productId",
+        "savedPriceAmount",
+        "savedCurrency",
+        "savedAt"
+      ],
+      "type": "object"
+    },
+    "SavedMergeRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/SavedMergeItem"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
+    "SavedMergeResultDTO": {
+      "additionalProperties": false,
+      "description": "The result of joining a device-held list into an account.\n\nReturns the resulting set so the client seeds its store from this response rather than issuing a second read, and `added` so the surface can DISCLOSE the join by count (FR-032) instead of silently absorbing someone else's saves on a shared device.",
+      "properties": {
+        "added": {
+          "$ref": "#/definitions/WireInt",
+          "description": "⚠ WireInt, not number."
+        },
+        "productIds": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "skipped": {
+          "items": {
+            "$ref": "#/definitions/SavedSkip"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "added",
+        "skipped",
+        "productIds"
+      ],
+      "type": "object"
+    },
+    "SavedSkip": {
+      "additionalProperties": false,
+      "description": "Why one product could not be taken (a merge or a bulk add).",
+      "properties": {
+        "productId": {
+          "type": "string"
+        },
+        "reason": {
+          "description": "`cap_reached` | `not_found` | a `SavedVerdict` | a cart refusal reason.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "productId",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "SavedVerdict": {
+      "description": "Whether the shopper can buy a saved item right now, at the delivery location they are shopping for.\n\n⚠ FIVE VALUES, NOT A BOOLEAN, and the distinctions are the point: each one implies a different next action, and collapsing any two of them tells the shopper nothing they can act on.\n\n  purchasable                 → buy now   temporarily_unavailable     → sold and delivered here, just not in stock — wait   not_delivered_to_your_area  → sold and in stock, but nothing reaches this address — change address   no_longer_sold              → withdrawn from sale entirely — give up   not_yet_determined          → the shopper has not said where they live — tell us\n\n⚠ \"Unavailable\" and \"we don't deliver that to you\" are DIFFERENT STATEMENTS and only one of them is true in any given case. Merging them is the 031 REGIONAL defect in miniature: a shopper invited to a checkout that refuses them, with no way to tell whether waiting would help.",
+      "enum": [
+        "purchasable",
+        "temporarily_unavailable",
+        "not_delivered_to_your_area",
+        "no_longer_sold",
+        "not_yet_determined"
+      ],
+      "type": "string"
+    },
     "ServiceabilityDTO": {
       "additionalProperties": false,
       "description": "Whether Effy delivers to a location, answered BEFORE a cart exists (025 FR-014).\n\n⚠ Deliberately just the answer. No delivery fee or window (FR-014a — both depend on cart contents, so anything shown here is an estimate checkout would revise), and no zone id or name (FR-006 — zone names are geographic and would disclose where Effy fulfils from).",
@@ -1656,7 +1828,7 @@
     },
     "StorefrontProductCardDTO": {
       "additionalProperties": false,
-      "description": "The at-a-glance product card used in rails, search results, favorites and recently-viewed.",
+      "description": "The at-a-glance product card used in rails, search results, saved items and recently-viewed.",
       "properties": {
         "available": {
           "type": "boolean"
@@ -1978,9 +2150,6 @@
     "deliverySelection": {
       "$ref": "#/definitions/DeliverySelectionDTO"
     },
-    "favorite": {
-      "$ref": "#/definitions/FavoriteDTO"
-    },
     "home": {
       "$ref": "#/definitions/StorefrontHomeDTO"
     },
@@ -2040,6 +2209,24 @@
     },
     "reorderSkipped": {
       "$ref": "#/definitions/ReorderSkippedDTO"
+    },
+    "savedAddToCartRequest": {
+      "$ref": "#/definitions/SavedAddToCartRequest"
+    },
+    "savedAddToCartResult": {
+      "$ref": "#/definitions/SavedAddToCartResultDTO"
+    },
+    "savedItem": {
+      "$ref": "#/definitions/SavedItemDTO"
+    },
+    "savedMembership": {
+      "$ref": "#/definitions/SavedMembershipDTO"
+    },
+    "savedMergeRequest": {
+      "$ref": "#/definitions/SavedMergeRequest"
+    },
+    "savedMergeResult": {
+      "$ref": "#/definitions/SavedMergeResultDTO"
     },
     "searchResult": {
       "$ref": "#/definitions/ProductSearchResultDTO"
@@ -2106,7 +2293,12 @@
     "orderItem",
     "orderAddress",
     "orderFulfillment",
-    "favorite"
+    "savedItem",
+    "savedMembership",
+    "savedMergeRequest",
+    "savedMergeResult",
+    "savedAddToCartRequest",
+    "savedAddToCartResult"
   ],
   "type": "object",
   "title": "CustomerCommerceContract"
