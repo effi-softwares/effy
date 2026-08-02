@@ -378,6 +378,80 @@ and must be recorded as such in the sign-off** — not claimed.
 
 ---
 
+## Phase 11: Amendment — the mobile saved list becomes a cart-shaped list (2026-08-02, operator direction)
+
+**⚠ This changes a decision, not a detail.** The mobile list was a two-column product grid (T063,
+R18). It is now a **vertical list of detail rows built from the cart's own composition**, with
+**pull-to-refresh in every state**. The reasoning is in the amended R18: a catalogue grid answers
+"which of these do I want?", and this screen answers "what changed, and can I buy it yet?" — an answer
+made entirely of text, which a half-width tile column cannot hold without wrapping.
+
+**⚠ Wiring the row also closed two gaps that were marked complete and were not.** T132/T133 claimed
+add-to-cart on both surfaces; the mobile half existed as a use case (`AddAllSavedToCart`) that **no
+screen called**. The undo affordance (FR-017/FR-018) was likewise published by `SavedViewModel` and
+**rendered by nothing**. Both are now built — recorded here rather than by quietly re-ticking the
+original tasks, because a task that was ticked without the work is worth leaving visible.
+
+- [X] T175 Add **FR-068** (refresh on demand, in every state, never clearing what is on screen) to `spec.md` §H, with the reasoning and the "empty and failed are the states a shopper doubts most" note
+- [X] T176 Amend **R18** in `research.md` — the decision, why the original was wrong, and the ⚠ consequence that `TileSaveControl` now has no call site
+- [X] T177 Amend the `plan.md` Complexity Tracking entry — the card-shaped justification is withdrawn because there is no longer a card-shaped thing on the screen
+- [X] T178 Rebuild `…/mobile/features/saved/presentation/SavedScreen.kt` as a `LazyColumn` of `SavedRow`s — 72 dp tinted thumbnail · name · brand · verdict · price stack with the struck-through save-time price · a full-width action line, mirroring `CartRow`'s two-stack composition
+- [X] T179 [US1] Put the sort control, the bulk-add button and the bulk report **inside** the list as header items, so a small phone does not spend its first screen on controls
+- [X] T180 Make the gesture work in **every** state (FR-068): a content-shaped skeleton list while loading (the old loading state wrapped an empty `Column`, which has nothing to scroll, so the gesture could not fire), and `fillMaxSize` + `Arrangement.Center` inside a `verticalScroll` for the empty and error states — the 027 cart fix, which exists because a plain scrolling column top-aligns
+- [X] T181 [US4] Wire **single** add-to-cart (FR-049), leaving the item on the list (FR-050) — ⚠ the mobile half of T132/T133, which was ticked and unbuilt
+- [X] T182 [US4] Wire **bulk** add through `container.addAllSavedToCart` + `syncCart()`, rendering the **itemised** skip report with the cart's own refusal vocabulary (FR-052) — mirrors `SavedList.tsx`'s `skipReason`
+- [X] T183 Render the **undo** affordance for a removal (FR-017/FR-018) — ⚠ `SavedViewModel.undo` had been published since the slice was built and consumed by nothing, so a mis-tap was unrecoverable
+- [X] T184 Verify: `:shared:compileAndroidMain`, `:shared:testAndroidHostTest`, `:shared:compileKotlinIosSimulatorArm64`, `scripts/mobile-guard.sh` — all green
+- [X] T184a ⚠ **Fix the iOS test suite, which had never compiled.** Three backtick test names in `SavedWireContractTest.kt` and `SavedStoreTest.kt` contain a **comma**, which Kotlin/Native forbids in a declaration name (`Name contains illegal characters: ","`). The JVM accepts it, so `testAndroidHostTest` was green while `:shared:iosSimulatorArm64Test` **failed to compile** — this slice's mobile verification only ever ran the Kotlin/Native **main** compilation, never its tests. Commas replaced with dashes; **217 iOS tests now run, 0 failures**, matching the Android count exactly
+- [X] T185 Update the `§033` parity register and `CLAUDE.md`, including the **downgrade** of the tile-control row: FR-007's tile placement is unbuilt on mobile and the ✅ was optimistic
+- [ ] T186 **OPERATOR** Walk the new list on **both** platforms: pull to refresh from the list, the empty state and the error state; confirm a failed refresh keeps the items; add one item, add everything, read the skip report; remove and undo, confirming the item returns to the position it held
+- [X] T187 ⚠ **The FR-007 tile gap — closed by wiring, not by amending.** The mobile home/browse/search tiles had never carried a save control, so the only way to save on mobile was product detail, an order line or the saved list
+
+### Phase 11b: FR-007 — the save control on mobile tiles
+
+- [X] T188 Create `…/mobile/features/saved/presentation/SavedTiles.kt` — `rememberSavedTiles(container)` returning a `SavedTiles` holder (membership answer · toggle · a `SnackbarHostState` for refusals), plus the `BoxScope.TileSaveControl(product, tiles)` overload and `SavedTileMessages`. ⚠ ONE place, because the three rules that make a tile heart honest (one read per screen · one shared mirror · a refusal that is said) are each a defect if one screen does them differently
+- [X] T189 ⚠ Make the membership read **signed-in only** — a guest's read `401`s, and `LoadSavedMembership` **`adopt()`s** its answer, so an empty answer from a guest would **clear the device list**. The guest's mirror is hydrated from disk in `SavedStore.init` and needs no read
+- [X] T190 Add a pass-through `imageOverlay` parameter to `EffyRailTile` in `…/core/presentation/StorefrontKit.kt` — a pass-through, **not** a second placement, or a product in a rail and the same product in the grid would carry the heart in two different spots
+- [X] T191 [US1] Wire the control on Home's rails (`SectionBlock` → `EffyRailTile`), threading one `SavedTiles` down from `HomeScreen` so the whole screen costs **one** membership read however many rails it renders
+- [X] T192 [US1] Wire the control on `SearchScreen`'s grid — ⚠ this one screen **is** search, browse, category and "see all" (028), so it covers four surfaces at once; mobile keeps it on search too, unlike web (FR-007's amendment is web-only, and there is no bundle to spend here)
+- [X] T193 [US1] Render `SavedTileMessages` on both screens, so the **guest cap refusal** (FR-047) is spoken instead of the heart silently flipping back — and a failed save/un-save says so too
+- [X] T194 ⚠ **Fix the save control's touch target: it was 32 dp, not 48.** `toggleable` hung on the 24 dp `Icon` with 4 dp of padding, directly beneath a comment claiming it cleared the constitution's 48 dp minimum. Survivable on one detail screen; **load-bearing in the corner of every tile**, where a miss navigates away from the thing being saved. The glyph now sits centred in an `EffyMinTouchTarget` box — 48 dp tappable, 32 dp visible scrim
+- [X] T195 Verify: `:shared:compileAndroidMain` · `:shared:testAndroidHostTest` (217/0) · `:shared:iosSimulatorArm64Test` (217/0) · `:androidApp:assembleDebug` · `mobile-guard` — all green
+- [ ] T197 **OPERATOR** ⚠ Decide the **"More like this" rail** on product detail: it draws its own bespoke tile instead of `EffyProductCard`, so it is the one mobile product listing with no save control. The fix is to use the shared tile, **not** to give the bespoke one a second heart
+- [ ] T196 **OPERATOR** Walk FR-007 on device, both platforms: tap the heart on a Home rail tile and on a search-result tile — ✅ it saves **without** opening the product; ✅ the state is right on **first** render after leaving and returning; ✅ the same product in a rail and in the grid always agree (FR-013); ✅ as a guest, save past 50 and read the refusal
+### Phase 11c: the bulk add — the layout, and the reason it never worked (2026-08-02, from a device screenshot)
+
+**⚠ The screenshot that prompted the layout fix also proved the endpoint was a total no-op.** It read
+"**0 items added to your cart**" with all three products refused as "couldn't be added right now" —
+which a shopper reads as *their products* being the problem, when the request never reached the cart.
+
+- [X] T198 ⚠ **Fix `AddAllToCart`'s per-item change id.** It was `changeID + ":" + productID`, and `public.cart_change_log.change_id` is a **uuid** column — so **every** insert failed with `invalid input syntax for type uuid`, the cart errored on every item, and `cartReason`'s default reported each as `unavailable`. Now a **UUIDv5** derived from a fixed namespace + `changeID + ":" + productID`: still one id per (batch, product), still deterministic, so a retried bulk add is still recognised as a retry rather than charging the shopper twice
+- [X] T199 ⚠ **Fix the test that was watching it happen.** `TestAddAllToCart_GivesEachItemItsOwnChangeID` asserted only that the two ids DIFFER — which `"chg:a"` and `"chg:b"` do — because `fakeCart.Add` takes a `string` and accepts anything. **The fixture agreed with the code instead of with the database**, this slice's own recurring lesson (027 R13). It now parses every id as a uuid, and a second test pins determinism across a retry. **Proved by reverting the fix**: the test fails with `change id "chg:a" is not a uuid`
+- [X] T200 Move "Add everything available to cart" out of the list and into a **fixed bottom bar** — as the list's first item it scrolled away the moment the shopper started reading, and sat at the top of a phone, furthest from the thumb. The cart pins "Go To Checkout" for the same reasons
+- [X] T201 Replace the bulk-result **block** with a **toast** carrying the counts, and move each item's reason onto **the row it concerns** (`SavedRow`'s `skipNote`). FR-052 is still met — nothing is omitted, it is said where it can be acted on — and a transient result no longer holds permanent space above the products
+- [X] T202 Say "**Nothing could be added to your cart**" when nothing went in. "0 items added to your cart" is literally true and reads as a bug
+- [X] T203 Move the `SnackbarHost` to a bottom **overlay**. As a column child it reserved space at the TOP and pushed the content down when it appeared, which is a banner, not a toast
+- [X] T204 Verify: Go build/vet/gofmt · `saveditems` service tests · both mobile suites (217/217) · `assembleDebug` · `mobile-guard`
+- [ ] T205 **OPERATOR** ⚠ Re-run the bulk add on device and confirm it **actually adds** — every previous run added nothing. Then open the cart and check the quantities
+- [ ] T206 **OPERATOR** ⚠ **`saveditems`' container-backed tests are RED on this branch, and were before any of today's work** — `repository_test.go` seeds `public.delivery_pricing_rule`, which the delivery withdrawal (a478734) dropped. That is **25 tests, including the ones that would have caught T198**, not running. `CLAUDE.md` claims them green; they are not
+### Phase 11d: FR-050a — the row says where the item went (eBay's watchlist pattern)
+
+**The question that prompted it**: should adding to the cart remove the item from the saved list? **No**
+— and the reasoning is now in FR-050. But keeping it exposed a real hazard: a repeat tap **increments
+the quantity**, so a shopper who is not sure the first tap worked ends up with two.
+
+- [X] T207 Add **FR-050a** to `spec.md` §G, and record under FR-050 *why* a watchlist is not consumed by an add (two list genres · grocery re-buying · the save-time baseline the watch is measured against)
+- [X] T208 Render the cart state on each row: `cartQuantity == 0` → "Add to cart"; otherwise **"In your cart · View"** / **"N in your cart · View"**, routing to the cart. Read from `container.cart.state` — the cart's own mirror, never a second copy
+- [X] T209 ⚠ Make the **bottom bar** answer the same question: when every purchasable item is already in the cart it becomes **"Go to cart"**, because the bulk add is **not** idempotent across taps (each tap is a new batch; only a retry of ONE batch is deduped), so the old label was an invitation to buy two of everything
+- [X] T210 `syncCart()` on arrival — the screen now RENDERS from the cart mirror, so a cart filled on another device would otherwise offer "Add to cart" for something already in it. ⚠ A failure degrades to "Add to cart", never to a false "in your cart"
+- [X] T211 Thread `onCart` from `CustomerShell`'s `entry<CustomerNavKey.Saved>`
+- [X] T212 ⚠ **Deliberately NOT a quantity stepper.** That is the grocery-tile pattern (Woolworths, Coles) and it belongs where a shopper is deciding how much to buy. Quantity is the cart's business; a stepper here would make two screens responsible for one number
+- [ ] T213 **OPERATOR** On device: add a saved item, ✅ it **stays** on the list and the row reads "In your cart · View"; tap View, ✅ it opens the cart; add the same product again from the product page, ✅ the row reads "2 in your cart"; empty the cart, ✅ the row returns to "Add to cart"
+
+
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase dependencies

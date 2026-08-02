@@ -273,6 +273,60 @@ Then by hand: set an item aside from the cart, restore it, discard it. ✅ Uncha
 ✅ Still a **bookmark**, not a heart. ✅ It did not appear in Saved items, and a saved item did not
 appear in the cart's set-aside.
 
+### §4j — ⚠ The mobile list's shape and its refresh (Phase 11, FR-068)
+
+The mobile saved list stopped being a two-column product grid on 2026-08-02. Walk it on **both**
+platforms — Android included, which has never been looked at across 028/029/033.
+
+1. **Shape.** Open Saved items with at least four items, one of them price-dropped and one not
+   purchasable. ✅ Full-width rows, one per item, in the cart's composition: thumbnail · name · brand ·
+   verdict sentence · price with the struck-through save-time price above the action line. ✅ The
+   verdict sentence is **one line**, not wrapped into three. ✅ Nothing on the screen is a bordered box.
+2. **Refresh, in all three states.** Pull down on the **list** → spinner, then current prices. Pull
+   down on the **empty** state (remove everything first) → the gesture works and the composition stays
+   **centred**, not top-aligned. Kill `core-api`, reopen the screen to force the error state, pull down
+   → the gesture works. ✅ Restart `core-api`, pull again → the list returns.
+3. **A failed refresh keeps the list.** With items on screen, kill `core-api`, pull to refresh. ✅ The
+   spinner stops and **the items are still there**. "We could not check" must never read as "you have
+   nothing".
+4. **Add to cart (FR-049/FR-050/FR-050a).** Tap "Add to cart" on a purchasable row. ✅ It lands in the
+   cart and ✅ **stays on the saved list** — this is a watchlist; consuming the entry would end the
+   price watch it exists for. ✅ The row now reads **"In your cart · View"**, and tapping View opens the
+   cart. ✅ Add the same product again from the product page — the row reads **"2 in your cart"**.
+   ✅ Empty the cart and the row returns to "Add to cart". ✅ No "Add to cart" on a non-purchasable row.
+5. **⚠ Add everything (FR-051/FR-052) — this NEVER worked before 2026-08-02.** The action is now a
+   **fixed bar at the bottom**. With a mix of purchasable and not, tap it. ✅ A **toast** states the
+   count — and the count is **not zero**, which is what every earlier run reported because the per-item
+   change id was not a uuid and the cart refused all of them. ✅ Open the cart and confirm the items and
+   quantities are really there. ✅ Each item that did not go in carries "Not added — …" **on its own
+   row**, and that reason is distinct from the row's verdict (an item can be purchasable and still be
+   refused by a full cart).
+   - ⚠ **Tapping it twice DOES add twice**, and that is current behaviour, not a bug being hidden: each
+     tap mints a new batch id, and the cart's `Add` increments (`quantity + EXCLUDED.quantity`). The
+     deterministic id only makes a **retry of the same batch** idempotent. The saved list keeps the
+     item after an add (FR-050), and nothing on the row yet says it is already in the cart — see the
+     carry-forward in the parity register.
+6. **Undo (FR-017/FR-018).** Remove a row that is **not** the newest. ✅ A snackbar offers Undo; tap it.
+   ✅ The item returns to **the position it held**, not to the top. Then re-save it deliberately from
+   product detail — ✅ *that* one goes to the top.
+
+### §4k — ⚠ The save control on mobile tiles (Phase 11b, FR-007)
+
+Until 2026-08-02 no mobile tile carried a heart, so this path has **never** been walked.
+
+1. **Home rails.** Tap the heart on a rail tile. ✅ It fills, and the product page does **not** open —
+   the control consumes the tap. ✅ The same product further along another rail shows filled too
+   (FR-013). Leave Home, come back — ✅ still filled on **first** render (FR-019).
+2. **Search / browse / category / "see all".** All four are one screen. Tap a heart in the grid, open
+   the saved list, ✅ it is there. Un-save it from the list, return to the grid — ✅ the heart is empty.
+3. **Touch target.** With "Show taps"/pointer location on, aim at the outer edge of the heart's corner.
+   ✅ It toggles rather than opening the product. It was a 32 dp target until this change.
+4. **⚠ Guest cap (FR-047).** Signed out, save 50 products, then try a 51st. ✅ A message says the device
+   is full and offers signing in — the heart must not just flip back in silence.
+5. **⚠ Guest list is not clobbered.** Signed out with items saved, open Home and Search several times.
+   ✅ The hearts stay filled — the membership read is signed-in only, because its answer is *adopted*
+   and an empty one would wipe the device list.
+
 ---
 
 ## §5 — Known-risk checks

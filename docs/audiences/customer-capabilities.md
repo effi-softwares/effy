@@ -606,19 +606,25 @@ offers carousel is mobile-only.
 | Save / un-save a product | ✅ | ✅ | idempotent both directions; optimistic with revert |
 | **The control tells the truth on first render** | ✅ | ✅ | one membership read per screen — the defect this slice exists to kill |
 | Control on product detail | ✅ | ✅ | |
-| Control on tiles — home rails | ✅ | ✅ | |
-| Control on tiles — browse | ✅ | ✅ | |
+| Control on tiles — home rails | ✅ | ✅ | ⚠ mobile wired 2026-08-02; `TileSaveControl` had **no call site** before that |
+| Control on tiles — browse / category / "see all" | ✅ | ✅ | mobile: all three are one screen (`SearchScreen`), so one wiring covers them |
+| Control on tiles — search results | ⬜ | ✅ | ⚠ web omits it **deliberately** (FR-007 amended, `/search` had 0.1 KB of budget) |
+| Save control touch target ≥ 48 dp | n/a | ✅ | ⚠ was **32 dp** while its own comment claimed 48; fixed 2026-08-02 |
 | Control on an order line | ⬜ | ✅ | web order detail not yet wired |
 | Saved list with five-way purchasability | ✅ | ✅ | |
+| **Saved list is a vertical list of detail rows** | ✅ | ✅ | ⚠ mobile was a 2-up product grid until 2026-08-02 (R18 amended) |
+| **Pull to refresh the list, in every state** | ⬜ | ✅ | FR-068; web has no equivalent gesture |
 | Price-drop indicator | ✅ | ✅ | rises deliberately not badged (FR-044) |
-| Undo a removal, restoring list position | ⬜ | ✅ | web removes without undo |
+| Undo a removal, restoring list position | ⬜ | ✅ | ⚠ mobile's was published by the ViewModel and **rendered by nothing** until 2026-08-02 |
 | **Guest saving, no sign-in wall** | ✅ | ✅ | |
 | Guest list survives restart / reload | ✅ | ✅ | `localStorage` · `DevicePreferences` |
 | Guest → account join on sign-in | ✅ | ✅ | union, idempotent, cap-truncated newest-first |
 | Join on **federated** (Google) return | ✅ | ➖ n/a | ⚠ omitting this is how Google sign-in silently drops the guest list |
 | Join disclosed by count | ✅ (on the list) | ⬜ | ⚠ see carry-forwards |
-| Add one saved item to cart | ✅ | ✅ | |
-| **Add all purchasable, nothing omitted silently** | ✅ | ⬜ | mobile use case built, UI not wired |
+| Add one saved item to cart | ✅ | ✅ | ⚠ mobile wired 2026-08-02 — T132/T133 were ticked and unbuilt |
+| **Item STAYS on the list after an add** | ✅ | ✅ | FR-050 — a watchlist is not consumed by an add (eBay); the set-aside list is, and that is 027 |
+| **Row says it is already in the cart** | ⬜ | ✅ | FR-050a — "N in your cart · View"; without it a repeat tap silently increments the quantity |
+| **Add all purchasable, nothing omitted silently** | ✅ | ✅ | ⚠ the endpoint **added nothing at all** until 2026-08-02 — a non-uuid change id (below). Skips are itemised on both, sharing one refusal vocabulary; mobile puts each reason on its row and the counts in a toast |
 | Sort — recent / available / aisle | ✅ | ✅ | client-side; the set is capped and in memory |
 | Two distinct empty states | ✅ | ✅ | "never saved" vs "none reach you" |
 | Reachable from the account area | ✅ | ✅ | |
@@ -659,13 +665,33 @@ unbuilt — and PostHog has **never been initialised on customer-web** (zero non
 `product_favorited` event the predecessor declared and never fired is removed. **Mobile telemetry
 remains deferred — the twelfth consecutive slice. This is not parity and is not claimed as parity.**
 
+**⚠ A third defect, found on a device on 2026-08-02: the bulk add had never added anything.**
+`POST /v1/saved/add-to-cart` derived its per-item change id as `changeID + ":" + productID`, and
+`public.cart_change_log.change_id` is a **uuid** column — so every insert failed with `invalid input
+syntax for type uuid` and every item came back refused as "unavailable". The shopper saw "0 items added
+to your cart" with each product blamed. Now a UUIDv5 over (fixed namespace, `changeID:productID`):
+one id per (batch, product), deterministic, so a retry is still a retry. ⚠ The unit test asserted only
+that the ids **differ** — which they did — because the fake cart accepts any string: **the fixture
+agreed with the code rather than with the database**, the same shape as 027's R13. ⚠ And the
+container-backed tests that would have caught it are **red on this branch** (`repository_test.go` seeds
+`public.delivery_pricing_rule`, dropped by the delivery withdrawal), which is why "25 container-backed"
+above should not be read as green.
+
 **Carry-forwards:**
 - ⚠ **Web does not clear the mirror on sign-out.** Sign-out is a deliberately zero-JS route handler, so
   no client code runs. **`resetCart()` has the identical unwired gap and has since 027** — pre-existing
   shape, not introduced here. Mobile does clear. Fixing it needs a landing-side hook that costs
   guest-path bytes; it should fix the cart at the same time.
 - ⚠ **No control on web search tiles** (above) — revisit when `/search` has headroom.
-- ⚠ **No undo on the web list**, and no bulk-add UI on mobile — both use cases exist, the surfaces do not.
+- ⚠ **No undo on the web list** — the use case exists, the surface does not. (Mobile's bulk-add and undo
+  gaps were closed 2026-08-02; the row above records that they had been claimed before they were built.)
+- ✅ **CLOSED 2026-08-02 — the mobile tile control.** `TileSaveControl` had been written, documented and
+  **called from nowhere**; the home rails, browse and search tiles never received it. It is now wired on
+  Home's rails and on `SearchScreen` (which *is* search, browse, category and "see all"), through one
+  shared `rememberSavedTiles` that performs **one membership read per screen** and owns the refusal
+  message. ⚠ **Still not wired**: the "More like this" rail on product detail, which draws its own
+  bespoke tile rather than `EffyProductCard` — that tile should be replaced by the shared one rather
+  than given a second heart.
 - ⚠ **The join is disclosed on the saved list, not on arrival** — a shopper who never opens the list is
   not told. Parked in `sessionStorage` because sign-in navigates away.
 - ⚠ **`shop.status` is not a term in the purchasability predicate** — nothing in the hot path reads it,

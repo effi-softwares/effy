@@ -1153,6 +1153,14 @@ fun EffyRailTile(
     onClick: (String) -> Unit,
     width: Dp,
     modifier: Modifier = Modifier,
+    /**
+     * Passed straight through to [EffyProductCard]'s image slot (033) — the save control.
+     *
+     * ⚠ A pass-through, not a second placement. If the rail positioned its own heart, a product in a
+     * Home rail and the same product in the search grid would carry the control in two slightly
+     * different places, which is precisely the drift this composable's own doc comment warns about.
+     */
+    imageOverlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     // ⚠ TAKES A RESOLVED Dp, NOT A FRACTION — and this is a bug fix, not a preference.
     //
@@ -1166,7 +1174,7 @@ fun EffyRailTile(
     // ⚠ `railTileWidthFraction`'s unit test passed throughout, because it tests the FUNCTION and never
     // that the fraction is applied to a bounded width. The caller resolves the width where constraints
     // are real (the LazyColumn's BoxWithConstraints) and hands a concrete Dp down.
-    EffyProductCard(product, onClick, modifier = modifier.width(width))
+    EffyProductCard(product, onClick, modifier = modifier.width(width), imageOverlay = imageOverlay)
 }
 
 /**

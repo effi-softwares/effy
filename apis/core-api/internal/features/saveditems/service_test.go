@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -455,6 +456,38 @@ func TestAddAllToCart_GivesEachItemItsOwnChangeID(t *testing.T) {
 
 	require.Len(t, fc.changeIDs, 2)
 	require.NotEqual(t, fc.changeIDs[0], fc.changeIDs[1])
+
+	// ⚠ THE ASSERTION THIS TEST WAS MISSING, AND THE WHOLE BULK ADD WAS BROKEN WITHOUT IT.
+	//
+	// The ids were `changeID + ":" + productID`. Distinct — so the check above passed — but
+	// `public.cart_change_log.change_id` is a **uuid** column, so every insert failed with
+	// `invalid input syntax for type uuid` and the shopper was told "0 items added" with every
+	// product refused. `fakeCart` takes a `string` and accepts anything, so the fixture agreed with
+	// the code instead of with the database. A change id must be something the cart can actually
+	// store.
+	for _, id := range fc.changeIDs {
+		_, err := uuid.Parse(id)
+		require.NoErrorf(t, err, "change id %q is not a uuid — cart_change_log.change_id is uuid", id)
+	}
+}
+
+// A retry of the same bulk add must derive the SAME per-item ids, or the cart's dedupe cannot
+// recognise it as a retry and the shopper gets two of everything.
+func TestAddAllToCart_ChangeIDsAreStableAcrossRetries(t *testing.T) {
+	run := func() []string {
+		rows := []listRow{row(VerdictPurchasable), row(VerdictPurchasable)}
+		rows[0].ProductID, rows[1].ProductID = "a", "b"
+		fc := &fakeCart{}
+		s := NewService(&fakeRepo{rows: rows}, fakePresign{}).WithCart(fc)
+		_, err := s.AddAllToCart(context.Background(), cust, "same-batch")
+		require.NoError(t, err)
+		return fc.changeIDs
+	}
+	require.Equal(t, run(), run())
+
+	// ...and a genuinely NEW batch must not collide with the old one, or a deliberate second bulk add
+	// would be swallowed as a duplicate.
+	require.NotEqual(t, itemChangeID("batch-1", "a"), itemChangeID("batch-2", "a"))
 }
 
 func skipReasons(s []Skip) []string {

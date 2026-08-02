@@ -429,6 +429,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                             navState.resetToRoot()
                             navState.selectTab(CustomerNavKey.Home)
                         },
+                        // 033: a saved row that is already in the cart offers the way there rather than
+                        // a second "Add to cart" (eBay's watchlist pattern).
+                        onCart = { navState.push(CustomerNavKey.Cart) },
                     )
                 }
                 entry<CustomerNavKey.AddressBook> {

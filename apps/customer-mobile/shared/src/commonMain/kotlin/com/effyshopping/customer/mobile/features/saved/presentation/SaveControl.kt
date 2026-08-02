@@ -2,6 +2,7 @@ package com.effyshopping.customer.mobile.features.saved.presentation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -19,6 +20,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
 import com.effyshopping.customer.mobile.resources.ic_favorite_selected
@@ -52,18 +54,17 @@ fun SaveControl(
     // card; a ripple here would fire the tile's 0.97 squeeze as though the whole tile were tapped.
     val interactions = remember { MutableInteractionSource() }
 
-    Icon(
-        painter = painterResource(
-            if (saved) Res.drawable.ic_favorite_selected else Res.drawable.ic_favorite_outlined,
-        ),
-        // ⚠ null here: the semantics block below owns the announcement. Setting both makes a screen
-        // reader say it twice.
-        contentDescription = null,
+    // ⚠ THE TOUCH TARGET IS A BOX AROUND THE GLYPH, NOT THE GLYPH.
+    //
+    // This used to hang `toggleable` on the Icon itself: a 24 dp glyph with 4 dp of padding is a
+    // **32 dp** target, while the comment above it claimed it "clears the 48dp fat-finger minimum".
+    // It did not, and the constitution's minimum is not a suggestion — this is the control people
+    // reach for in the corner of a tile, so a miss lands on the tile and navigates away from what
+    // they were trying to save. The invisible box is `EffyMinTouchTarget`; the visible scrim stays
+    // small.
+    Box(
         modifier = modifier
-            // A scrim behind the glyph, because the artwork underneath is a photograph and a bare
-            // outline disappears over a pale one.
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+            .size(EffyMinTouchTarget)
             .toggleable(
                 value = saved,
                 interactionSource = interactions,
@@ -74,19 +75,35 @@ fun SaveControl(
             .semantics {
                 contentDescription = "Save to saved items"
                 stateDescription = if (saved) "Saved" else "Not saved"
-            }
-            .padding(EffySpacing.xs)
-            .size(24.dp),
-        tint = MaterialTheme.colorScheme.onSurface,
-    )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(
+                if (saved) Res.drawable.ic_favorite_selected else Res.drawable.ic_favorite_outlined,
+            ),
+            // ⚠ null here: the semantics block above owns the announcement. Setting both makes a
+            // screen reader say it twice.
+            contentDescription = null,
+            modifier = Modifier
+                // A scrim behind the glyph, because the artwork underneath is a photograph and a bare
+                // outline disappears over a pale one.
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
+                .padding(EffySpacing.xs)
+                .size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
+        )
+    }
 }
 
 /**
  * The tile placement: top-right of the product image.
  *
- * ⚠ The touch target is deliberately larger than the glyph. 24dp of icon inside padding clears the
- * 48dp fat-finger minimum the constitution requires — a heart in the corner of a tile is exactly the
- * control people miss and then mis-tap into the product.
+ * ⚠ The inset is SMALL because the touch target is already large — [SaveControl] is a 48 dp box with
+ * a 32 dp scrim centred in it, so the visible heart sits about 12 dp in from the corner while the
+ * tappable area reaches almost to it. A bigger inset here would push the glyph into the middle of the
+ * artwork; a bigger *target* is what the shopper actually needs, and that is handled inside.
  */
 @Composable
 fun BoxScope.TileSaveControl(
@@ -98,6 +115,6 @@ fun BoxScope.TileSaveControl(
         onToggle = onToggle,
         modifier = Modifier
             .align(Alignment.TopEnd)
-            .padding(EffySpacing.s),
+            .padding(EffySpacing.xs),
     )
 }

@@ -165,7 +165,7 @@ class SavedStoreTest {
     // ── Undo (FR-018) ───────────────────────────────────────────────────────────────────────────
 
     @Test
-    fun `undo restores the original savedAt, not now`() = runTest {
+    fun `undo restores the original savedAt - not now`() = runTest {
         val store = SavedStore()
         val repo = FakeRepo()
 

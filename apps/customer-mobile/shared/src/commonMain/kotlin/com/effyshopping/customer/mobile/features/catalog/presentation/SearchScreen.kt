@@ -57,6 +57,9 @@ import com.effyshopping.customer.mobile.core.presentation.ProductGridPadding
 import com.effyshopping.customer.mobile.core.presentation.ProductGridRowGap
 import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
+import com.effyshopping.customer.mobile.features.saved.presentation.SavedTileMessages
+import com.effyshopping.customer.mobile.features.saved.presentation.TileSaveControl
+import com.effyshopping.customer.mobile.features.saved.presentation.rememberSavedTiles
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_search_outlined
 import com.effyshopping.mobile.design.EffySpacing
@@ -115,6 +118,9 @@ fun SearchScreen(
 ) {
     val vm = viewModel { SearchViewModel(container.searchProducts) }
     val state by vm.state.collectAsState()
+    // 033 FR-007/FR-020: ONE membership read for the whole grid, and one mirror every tile's heart
+    // reads — never a boolean per tile, and never a request per product.
+    val savedTiles = rememberSavedTiles(container)
     val gridState = rememberLazyGridState()
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -165,6 +171,9 @@ fun SearchScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         EffyAppBar(title = title, trailing = { CartAction(container, onCart) })
+        // Without this a refusal — the guest cap most of all — is silent, and a heart that flips
+        // itself back looks like a bug rather than a limit.
+        SavedTileMessages(savedTiles)
 
         Column(modifier = Modifier.padding(horizontal = EffySpacing.md)) {
             // A pill on the tint, matching the web header's search control. `placeholder` rather
@@ -283,6 +292,13 @@ fun SearchScreen(
                         onProductClick,
                         modifier = Modifier.fillMaxHeight(),
                         fillHeight = true,
+                        // 033 FR-007: save from the tile, without opening the product first. ⚠ Unlike
+                        // web — which omits the control on `/search` alone, and only because the route
+                        // had 0.1 KB of a 174 KB budget left — mobile carries it on EVERY tile
+                        // surface. There is no bundle to spend here, and this one screen IS search,
+                        // browse, category and "see all", so omitting it would take the control off
+                        // four surfaces at once.
+                        imageOverlay = { TileSaveControl(product, savedTiles) },
                     )
                 }
             }

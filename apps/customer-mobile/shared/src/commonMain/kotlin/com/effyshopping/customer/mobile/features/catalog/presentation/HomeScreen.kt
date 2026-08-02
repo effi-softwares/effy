@@ -56,6 +56,10 @@ import com.effyshopping.customer.mobile.core.presentation.railTileWidthFraction
 import com.effyshopping.customer.mobile.features.cart.presentation.CartAction
 import com.effyshopping.customer.mobile.features.catalog.domain.Banner
 import com.effyshopping.customer.mobile.features.catalog.domain.Rail
+import com.effyshopping.customer.mobile.features.saved.presentation.SavedTileMessages
+import com.effyshopping.customer.mobile.features.saved.presentation.SavedTiles
+import com.effyshopping.customer.mobile.features.saved.presentation.TileSaveControl
+import com.effyshopping.customer.mobile.features.saved.presentation.rememberSavedTiles
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_catalog_outlined
 import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
@@ -110,6 +114,9 @@ fun HomeScreen(
 ) {
     val vm = viewModel { HomeViewModel(container.getHome, container.getCategories) }
     val state by vm.state.collectAsState()
+    // 033 FR-007/FR-020: ONE membership read for the whole screen, however many rails it renders, and
+    // one mirror every heart on it reads — so two rails carrying the same product cannot disagree.
+    val savedTiles = rememberSavedTiles(container)
 
     Column(modifier = Modifier.fillMaxSize().background(EffySurface.page)) {
         DiscoverHeader(
@@ -118,6 +125,9 @@ fun HomeScreen(
             onSaved = onSaved,
             onCart = onCart,
         )
+        // Without this a refusal — the guest cap most of all — is silent, and a heart that flips
+        // itself back looks like a bug rather than a limit.
+        SavedTileMessages(savedTiles)
         // 025 US1/FR-012: "do we deliver to you?", asked BEFORE a cart is built rather than at
         // checkout. It is not decoration — without it the first honest answer arrives after the
         // shopper has already invested in an order.
@@ -158,7 +168,7 @@ fun HomeScreen(
                         onRefresh = vm::refresh,
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        HomeBlockList(blocks, onProductClick, onSeeAll, onCategoryClick, onBannerClick)
+                        HomeBlockList(blocks, savedTiles, onProductClick, onSeeAll, onCategoryClick, onBannerClick)
                     }
                 }
             }
@@ -176,6 +186,7 @@ fun HomeScreen(
 @Composable
 private fun HomeBlockList(
     blocks: List<HomeBlock>,
+    savedTiles: SavedTiles,
     onProductClick: (String) -> Unit,
     onSeeAll: (Rail) -> Unit,
     onCategoryClick: (CategoryShortcut) -> Unit,
@@ -202,6 +213,7 @@ private fun HomeBlockList(
                     is HomeBlock.Section -> SectionBlock(
                         rail = block.rail,
                         tileWidth = tileWidth,
+                        savedTiles = savedTiles,
                         onProductClick = onProductClick,
                         onSeeAll = { onSeeAll(block.rail) },
                     )
@@ -377,6 +389,7 @@ private fun HomeBlock.blockKey(): String = when (this) {
 private fun SectionBlock(
     rail: Rail,
     tileWidth: Dp,
+    savedTiles: SavedTiles,
     onProductClick: (String) -> Unit,
     onSeeAll: () -> Unit,
 ) {
@@ -400,7 +413,15 @@ private fun SectionBlock(
             contentPadding = PaddingValues(horizontal = EffySpacing.lg),
         ) {
             items(rail.products, key = { it.id }) { product ->
-                EffyRailTile(product, onProductClick, width = tileWidth)
+                // 033 FR-007: the heart on a rail tile. ⚠ Its own `toggleable` consumes the tap, so it
+                // does not also fire the tile's navigation — a shopper saving from a rail must not be
+                // thrown onto the product page for their trouble.
+                EffyRailTile(
+                    product,
+                    onProductClick,
+                    width = tileWidth,
+                    imageOverlay = { TileSaveControl(product, savedTiles) },
+                )
             }
         }
     }

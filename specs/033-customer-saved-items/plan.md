@@ -283,5 +283,8 @@ that look like deviations are not:
 - **Repointing `/v1/storefront/serviceability`** is scope beyond this feature's own surfaces, but it is
   the *removal* of a live defect that FR-035/FR-037 would otherwise force this feature to reproduce on
   a new surface. Recorded as an operator decision in R2.
-- **`EffyProductCard` on the saved list** is not a card layout in the sense Principle V prohibits —
-  justification in R18.
+- **~~`EffyProductCard` on the saved list~~** — **withdrawn 2026-08-02.** The mobile saved list is now
+  a **vertical list of detail rows built from the cart's own composition**, matching `customer-web`,
+  so there is no card-shaped thing on the screen to justify at all. The product tile keeps its
+  recorded no-card justification on the *catalogue* surfaces, where it belongs. Amended decision in
+  R18; the requirement it now also satisfies is **FR-068** (refresh on demand, in every state).

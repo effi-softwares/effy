@@ -503,15 +503,57 @@ by hand as part of the verification sweep.
 
 ## R18 — Design: Principle V compliance for the saved list
 
-**Decision**: the saved list is a **list with detail rows on web** and a **product grid on mobile**.
+**Decision (AMENDED 2026-08-02, on operator direction)**: the saved list is a **vertical list of
+detail rows on BOTH surfaces**. Mobile's rows are built from the **cart row's own composition** —
+72 dp tinted thumbnail · name · verdict · price stack · a full-width action line underneath — and the
+list carries **pull-to-refresh in every state** (FR-068).
 
-**Rationale and justification, as Principle V requires when a card-shaped thing is used**: the
-constitution's prohibition targets *card-style containers used to lay out content* — bordered/elevated
-boxes tiling a page, and metric/summary cards at the top of a page. `EffyProductCard` is neither: it
-is a product tile with no border and no shadow, and it is the platform's single established product
-presentation, already used on Home, Search, Browse and Category. Introducing a second product
-presentation for the saved list is precisely the drift `EffyRailTile`'s comment warns about. Web keeps
-a list, matching how the predecessor and the address book already present account content.
+**⚠ The original decision was a two-column `EffyProductCard` grid on mobile, and it was wrong.** The
+justification recorded below (a product tile is not a prohibited card; it is the platform's single
+product presentation) is still true, and it is still why a product *grid* is the right thing on Home,
+Search, Browse and Category. It does not carry to this screen, for a reason that is about the
+**question the screen answers**, not about Principle V:
+
+- A catalogue surface answers *"which of these do I want?"* — and a large photograph answers that. The
+  saved list answers *"what changed, and can I buy it yet?"*, and **every part of that answer is
+  text**: the price now, the price at save time, and one sentence per verdict.
+- A tile gives that text a half-width column under a square image, so a struck-through was-price and a
+  verdict note wrap into ragged lines and the two tiles in a row disagree in height. The same text in
+  a full-width row is one line each.
+- The **cart already solved this for the same shopper**: a small thumbnail, text with room to be read,
+  and the controls on their own line where their width is not somebody else's leftovers (that comment
+  in `CartRow` records the squeeze that forced it). Reusing that composition is Principle II applied
+  to layout, and it moves the screen **toward** Principle V's "prefer tables, lists, sectioned pages
+  and detail rows" rather than away from it.
+- It also ends a **parity split that was never justified**: `customer-web`'s saved list has always
+  been a list. Two surfaces answering one question in two shapes is drift, not adaptation.
+
+**⚠ Consequence, found and then CLOSED the same day**: removing the tile from this screen left
+`TileSaveControl` with **no call site in the app at all** — which exposed that the mobile home, browse
+and search tiles had **never** been wired to it, so FR-007's tile placement was unbuilt on mobile and
+the parity register's ✅ was optimistic. It is now wired (Home's rails + `SearchScreen`, which is
+search, browse, category and "see all" in one screen) through a single `rememberSavedTiles`, which is
+where the three rules that make a tile heart honest live: **one membership read per screen** (FR-020,
+never one per tile), **one mirror every control reads** (FR-013, so two tiles for one product cannot
+disagree), and **a refusal that is actually said** — the guest cap (FR-047) refuses deliberately, and a
+refusal a shopper cannot see is indistinguishable from a bug. ⚠ The membership read is **signed-in
+only**: a guest's read would `401`, and its answer is `adopt()`ed, so an empty answer would *clear the
+device list*. Still unwired: product detail's "More like this" rail, which draws a bespoke tile rather
+than `EffyProductCard` — the fix there is to use the shared tile, not to add a second heart.
+
+**⚠ And the control's touch target was 32 dp, not 48.** `toggleable` hung on the 24 dp `Icon` with 4 dp
+of padding, directly under a comment claiming it "clears the 48dp fat-finger minimum". It never did.
+That was survivable while the control appeared on one detail screen; putting it in the corner of every
+tile makes it load-bearing, because a miss lands on the tile and **navigates away from the thing the
+shopper was trying to save**. The glyph now sits inside a `EffyMinTouchTarget` box: 48 dp tappable,
+32 dp visible scrim.
+
+**The original rationale, retained because it still governs the product grid** — Principle V's
+prohibition targets *card-style containers used to lay out content*: bordered/elevated boxes tiling a
+page, and metric/summary cards at the top of a page. `EffyProductCard` is neither: it is a product
+tile with no border and no shadow, and it is the platform's single established product presentation.
+Introducing a second product presentation is precisely the drift `EffyRailTile`'s comment warns about
+— which is why the saved list now reuses the **cart's** row rather than inventing a third shape.
 
 **⚠ SC-009 is a genuine design risk, not a formality.** The brand is monochrome with no hue, so a
 filled heart has **no colour cue at all** distinguishing it from an empty one — fill, shape and the

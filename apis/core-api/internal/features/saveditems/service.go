@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/effyshopping/effy/apis/core-api/internal/features/cart"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
@@ -273,7 +275,7 @@ func (s *Service) AddAllToCart(ctx context.Context, customerID, changeID string)
 		// ⚠ A DISTINCT changeId per item. They are separate shopper-visible outcomes, and one
 		// id across the batch would let the cart's own dedupe treat the second item as a retry of
 		// the first.
-		if err := s.cart.Add(ctx, customerID, it.ProductID, changeID+":"+it.ProductID, 1); err != nil {
+		if err := s.cart.Add(ctx, customerID, it.ProductID, itemChangeID(changeID, it.ProductID), 1); err != nil {
 			// ⚠ The CART's refusal, carried through verbatim rather than flattened. "Your cart is
 			// full" and "that is out of stock" need different things from the shopper.
 			res.Skipped = append(res.Skipped, Skip{ProductID: it.ProductID, Reason: cartReason(err)})
@@ -282,6 +284,31 @@ func (s *Service) AddAllToCart(ctx context.Context, customerID, changeID string)
 		res.Added = append(res.Added, it.ProductID)
 	}
 	return res, nil
+}
+
+// savedBulkNamespace seeds the per-item change ids a bulk add derives. Fixed forever: change it and
+// every in-flight retry stops matching the id its first attempt used.
+var savedBulkNamespace = uuid.MustParse("9c0a2f31-6e58-4a0e-9b3f-3f6a1c7f2d54")
+
+// itemChangeID derives ONE change id per (batch, product).
+//
+// ⚠ THIS WAS `changeID + ":" + productID`, AND IT MADE THE ENTIRE BULK ADD A NO-OP.
+//
+// `public.cart_change_log.change_id` is a **uuid** column, and `"<uuid>:<uuid>"` is not a uuid — so
+// every single insert failed with `invalid input syntax for type uuid`, the cart returned an error for
+// every item, and `cartReason`'s default reported each one as "unavailable". On the phone that read as
+// "0 items added to your cart" with all three products refused: the shopper is told their *products*
+// are the problem when the request never reached the cart at all.
+//
+// ⚠ It was invisible to the tests because the fake cart in `service_test.go` accepts any string — the
+// fixture agreed with the code instead of with the database, which is this slice's own recurring
+// lesson (027 R13, 028's five defects). `TestItemChangeID*` now asserts the shape the column requires.
+//
+// v5 (name-based, SHA-1) rather than a fresh random id, because the determinism is the point: a
+// retried bulk add carrying the same batch `changeId` must derive the SAME per-item ids, or the cart's
+// dedupe cannot recognise the retry and the shopper is charged for two of everything.
+func itemChangeID(changeID, productID string) string {
+	return uuid.NewSHA1(savedBulkNamespace, []byte(changeID+":"+productID)).String()
 }
 
 // cartReason maps the cart's sentinels to a reason a client can act on.

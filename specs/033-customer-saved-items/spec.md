@@ -456,6 +456,30 @@ item.
 - **FR-049**: Shoppers MUST be able to add a single purchasable saved item to their cart from the
   list.
 - **FR-050**: Adding a saved item to the cart MUST NOT remove it from the saved list.
+  - **⚠ REAFFIRMED 2026-08-02, on operator direction, with the eBay watchlist as the reference**
+    (Principle V names eBay as this capability's reference platform).
+  - **Two genres of list behave oppositely, and the platform has one of each.** A *staging* list — the
+    cart's own set-aside (027) — is **consumed** when its item moves to the cart, because it is a
+    holding area for the cart. A *watchlist* is **not**, because it is a standing interest in a
+    product. Amazon's "Save for later" is the first; eBay's Watchlist, Amazon's Wish List, and the
+    Woolworths / Coles favourites lists are the second. This is the second.
+  - **Groceries are re-bought.** A list that empties itself as you shop must be rebuilt every week —
+    which is why Tesco and Sainsbury's derive favourites from purchase history instead of asking
+    shoppers to curate them at all.
+  - **⚠ Removing it would also destroy the thing being watched.** The entry carries the price at save
+    time (FR-042), and price drops are measured against it (FR-043). Consume the entry on add and the
+    watch ends; re-saving later starts a *new* baseline at today's price, so the shopper silently loses
+    the drop they were waiting for.
+- **FR-050a**: Where a saved item is already in the cart, the list MUST say so rather than offering to
+  add it again, and MUST offer a route to the cart.
+  - **⚠ ADDED 2026-08-02.** FR-050 keeps the item on the list, which is right — but a row that goes on
+    saying "Add to cart" invites a tap that is **not** a no-op: a repeat add **increments the
+    quantity**. The shopper ends up with two and finds out at the till. The rule closes the gap FR-050
+    opens.
+  - The count MUST be stated: "in your cart" and "two of these are in your cart" are different facts,
+    and the second is the one a shopper needs to catch a mistake.
+  - **⚠ A quantity control on the saved list is deliberately NOT required.** Quantity belongs to the
+    cart; a stepper here would make two screens responsible for one number.
 - **FR-051**: Shoppers MUST be able to add all currently purchasable saved items to their cart in one
   action.
 - **FR-052**: A bulk add MUST NOT silently omit anything. It MUST either complete for every item or
@@ -494,6 +518,19 @@ item.
     about withholding the list.
   - The per-item verdict (FR-035/FR-036) already says which items cannot come; the notice only explains
     why none of them can, right now.
+- **FR-068**: Shoppers MUST be able to refresh the saved list **on demand**, in whatever state it is
+  showing — including while it is loading and after it has failed to load — and a refresh MUST NOT
+  clear what is already on screen.
+  - **⚠ ADDED 2026-08-02, on operator direction.** The list is a watchlist: its entire value is that
+    the price and the purchasability it shows are *current*. A shopper who has just been told a price
+    dropped, or who has moved back into signal, needs a way to ask "is this still true?" — and without
+    one the only answer is to leave the screen and come back, which reads as a broken screen rather
+    than a stale one.
+  - "In whatever state" is load-bearing: **empty and failed are exactly the states a shopper doubts
+    most**, so refusing the gesture there withholds it precisely where it is wanted (the same reasoning
+    027 recorded for the empty cart).
+  - A failed refresh MUST leave the list as it was. "We could not check" must never read as "you have
+    nothing".
 
 ### I. Accessibility and presentation
 

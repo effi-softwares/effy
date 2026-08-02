@@ -203,7 +203,7 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**033-customer-saved-items — Customer Saved Items: a watchlist.** 🚧 **139/174 tasks — every feature phase BUILT and machine-verified except telemetry;
+**033-customer-saved-items — Customer Saved Items: a watchlist.** 🚧 **183/214 tasks — every feature phase BUILT and machine-verified except telemetry;
 operator walks + commit pending.**
 
 Replaces the half-built favourites capability **entirely** — its behaviour, its stored data, and every
@@ -249,12 +249,84 @@ that made a shopper trust it and then be misled.
   the control costs 0.7; four reclaim attempts recovered 0.2 (one made it *worse*). **The budget was not
   raised.** **FR-053**: a barred shopper is refused the list too — the platform's barred gate is uniform
   and a carve-out would be a second, weaker authorization path.
+- **⚠ AMENDED 2026-08-02 (Phase 11, operator direction): THE MOBILE LIST IS NOW A CART-SHAPED LIST.**
+  It was a two-column product grid; it is now a **vertical list of detail rows built from `CartRow`'s
+  own composition**, with **pull-to-refresh in every state** (new **FR-068**). The grid's R18
+  justification held for a *catalogue* surface, where a photograph answers "which of these do I want?";
+  this screen answers **"what changed, and can I buy it yet?"**, and every part of that answer is TEXT —
+  price now, price at save time, one sentence per verdict — which a half-width tile column wraps into
+  ragged lines. It also ends an **unjustified parity split**: `customer-web`'s list always was a list.
+  **⚠ Wiring the row closed two gaps that had been TICKED AND NOT BUILT**: T132/T133 claimed
+  add-to-cart on both surfaces while `AddAllSavedToCart` had **no mobile call site**, and the undo
+  affordance (FR-017/FR-018) was published by `SavedViewModel` and **rendered by nothing**, so a
+  mis-tap on the list was unrecoverable. **⚠ And it surfaced a third**: removing the grid left
+  `TileSaveControl` with **no call site at all**, which exposed that the mobile home/browse/search
+  tiles had **never** been wired to it — **FR-007's tile placement was unbuilt on mobile** and the
+  parity register's ✅ was optimistic. Also fixed: the loading state wrapped an **empty `Column`**,
+  which has nothing to scroll, so the refresh gesture it was wrapped in **could not fire**.
+- **⚠ FR-007 CLOSED THE SAME DAY (Phase 11b): the heart is now on every mobile tile.** Home's rails and
+  `SearchScreen` — which **is** search, browse, category and "see all" in one screen — go through one
+  `rememberSavedTiles`, where the three rules that make a tile heart honest live: **one membership read
+  per screen** (FR-020, never one per tile), **one mirror every control reads** (FR-013, so two tiles
+  for one product cannot disagree), and **a refusal that is actually said** — the guest cap refuses
+  deliberately, and a refusal a shopper cannot see is indistinguishable from a bug. **⚠ The read is
+  signed-in only**: a guest's would `401`, and `LoadSavedMembership` **`adopt()`s** its answer, so an
+  empty one would **wipe the device list**. **⚠ And the control's touch target was 32 dp, not 48** —
+  `toggleable` on a 24 dp icon with 4 dp padding, directly under a comment claiming it cleared the
+  constitution's minimum. Harmless on one detail screen; **load-bearing in the corner of a tile**,
+  where a miss navigates away from the thing being saved. Now a 48 dp box around a 32 dp scrim.
+  ⚠ Still unwired: product detail's **"More like this"** rail, which draws a bespoke tile instead of
+  `EffyProductCard` — the fix is the shared tile, not a second heart (T197).
+- **⚠ AND THE BULK ADD HAD NEVER ADDED ANYTHING (Phase 11c).** An operator screenshot showed
+  "**0 items added to your cart**" with all three products refused as "couldn't be added right now".
+  Cause: `AddAllToCart` derived its per-item change id as **`changeID + ":" + productID`**, and
+  `public.cart_change_log.change_id` is a **uuid** column — so **every** insert failed with `invalid
+  input syntax for type uuid`, the cart errored on every item, and `cartReason`'s default reported each
+  as `unavailable`. **The shopper was told their products were the problem when the request never
+  reached the cart.** Now a **UUIDv5** over (fixed namespace, `changeID:productID`) — still one id per
+  (batch, product), still deterministic, so a retry is still recognised as a retry.
+  **⚠ The test was watching it happen**: `TestAddAllToCart_GivesEachItemItsOwnChangeID` asserted only
+  that the ids DIFFER, which `"chg:a"`/`"chg:b"` do, because `fakeCart` takes a `string` and accepts
+  anything — **the fixture agreed with the code instead of with the database**, 027 R13's lesson
+  recurring. It now parses each id as a uuid (proved by reverting the fix) and pins retry determinism.
+  **Layout, same screenshot**: "Add everything available to cart" moved from the list's first item to a
+  **fixed bottom bar** (it scrolled away and sat furthest from the thumb); the bulk result became a
+  **toast** with counts plus a per-row `skipNote` where the reason can be acted on — FR-052 still met,
+  nothing omitted; "0 items added" now reads "Nothing could be added to your cart"; and the
+  `SnackbarHost` became a bottom **overlay** instead of a column child that pushed content down.
+- **⚠ DOES ADDING TO THE CART REMOVE THE SAVED ITEM? NO — and that is now written down (FR-050/FR-050a,
+  Phase 11d).** Two genres of list behave oppositely and this platform has one of each: a **staging**
+  list (the cart's own set-aside, 027) is *consumed* when its item moves to the cart; a **watchlist** is
+  not. eBay's Watchlist, Amazon's Wish List and the Woolworths/Coles favourites are the second kind, and
+  Principle V names **eBay** as this capability's reference. Groceries are re-bought weekly — Tesco and
+  Sainsbury's derive favourites from purchase history precisely so the list is never consumed — and
+  **removing the entry would destroy the save-time price the watch is measured against**, so the next
+  drop could not be reported. **⚠ But keeping it exposed a hazard**: a repeat add **increments the
+  quantity**, so a row still saying "Add to cart" invites a tap that silently buys two. **FR-050a**:
+  the row now reads **"In your cart · View"** / **"N in your cart · View"** (the count matters — it is
+  how a shopper catches the double tap), the **bottom bar becomes "Go to cart"** once everything
+  available is in there (the bulk add is *not* idempotent across taps — each tap is a new batch), and
+  the screen `syncCart()`s on arrival because it now renders from that mirror. **⚠ Deliberately not a
+  quantity stepper**: that is the grocery-tile pattern, and quantity is the cart's business — a stepper
+  here would make two screens responsible for one number.
+- **⚠ `saveditems`' 25 container-backed tests are RED on this branch, and were before any of this
+  work** — `repository_test.go` seeds `public.delivery_pricing_rule`, which the delivery withdrawal
+  (`a478734`) dropped. The "25 container-backed" claim below is **stale**; T206 tracks it. Those are
+  exactly the tests that would have caught the uuid defect.
+- **⚠ AND THE iOS TEST SUITE HAD NEVER COMPILED.** Three backtick test names in this slice's own
+  `commonTest` files contain a **comma**, which **Kotlin/Native forbids in a declaration name** while
+  the JVM accepts it — so `testAndroidHostTest` was green and `:shared:iosSimulatorArm64Test` failed at
+  `compileTestKotlinIosSimulatorArm64` with `Name contains illegal characters: ","`. Every "iOS
+  compile" claim in this slice covered the **main** compilation only, never the tests. Commas replaced
+  with dashes; **iOS now runs 217 tests, 0 failures — the same count as Android**.
 - **Verified**: Go build/vet/gofmt + all packages (**~65 saveditems tests, 25 container-backed**) ·
   **492 mobile tests** · **242 customer-web tests** · iOS + Android compile · `pnpm -r typecheck` 12/12 ·
-  `depcruise` · `cm-guard` · `cm-tokens-check` · all six routes within budget.
+  `depcruise` · `cm-guard` · `cm-tokens-check` · all six routes within budget. Phase 11 re-verified
+  `:shared:compileAndroidMain` · `:shared:testAndroidHostTest` · `:shared:compileKotlinIosSimulatorArm64` ·
+  `mobile-guard`. Phase 11b added `:androidApp:assembleDebug`.
 - **⚠ Open**: **Phase 8 telemetry is unbuilt and CUTTABLE** — and PostHog has **never been initialised
   on customer-web**, so `capture()` has always been a no-op platform-wide, making **SC-012/SC-013
-  unmeasurable**. Mobile telemetry deferred a **twelfth** slice. **16 operator walks** remain, incl.
+  unmeasurable**. Mobile telemetry deferred a **twelfth** slice. **22 operator walks** remain, incl.
   ⚠ `make db-up` (**destroys the old saved data**), the five-observer verdict test, the colour-free
   SC-009 test, force-quit persistence, iOS process-death restore, and **Android, which has never been
   looked at across 028/029/033**. Spec/artifacts: [specs/033-customer-saved-items/](specs/033-customer-saved-items/);

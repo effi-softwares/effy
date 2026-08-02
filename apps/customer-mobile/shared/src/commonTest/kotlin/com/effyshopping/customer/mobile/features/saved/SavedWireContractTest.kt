@@ -73,7 +73,7 @@ class SavedWireContractTest {
      * that actually broke in 027: the numeric literal.
      */
     @Test
-    fun `Kotlin emits a whole number for count, never a float`() {
+    fun `Kotlin emits a whole number for count - never a float`() {
         val dto = SavedMembershipDTO(count = 1, productIDS = listOf("9f2c1d4e-0000-0000-0000-000000000001"))
         val encoded = json.encodeToString(SavedMembershipDTO.serializer(), dto)
 
@@ -124,7 +124,7 @@ class SavedWireContractTest {
     }
 
     @Test
-    fun `an empty list decodes as empty, not as a failure`() {
+    fun `an empty list decodes as empty - not as a failure`() {
         val items = json.decodeFromString<List<SavedItemDTO>>("[]")
         assertTrue(items.isEmpty())
     }
