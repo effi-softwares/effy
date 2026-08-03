@@ -3,6 +3,7 @@ package com.effyshopping.customer.mobile.features.account
 import com.effyshopping.customer.mobile.core.storage.InMemoryDevicePreferences
 import com.effyshopping.customer.mobile.core.storage.PreferenceKeys
 import com.effyshopping.customer.mobile.core.storage.clearGuestData
+import com.effyshopping.customer.mobile.core.storage.hasDeviceShoppingData
 import com.effyshopping.customer.mobile.features.account.domain.ClosureBlocker
 import com.effyshopping.customer.mobile.features.account.domain.ClosureBlockerKind
 import com.effyshopping.customer.mobile.features.account.domain.ClosurePreview
@@ -175,6 +176,46 @@ class AccountCentreTest {
 
         assertEquals("dark", prefs.getString(PreferenceKeys.APPEARANCE_MODE))
         assertNull(prefs.getString(PreferenceKeys.SAVED_GUEST))
+    }
+
+    /**
+     * ⚠ SIGNING OUT MUST LEAVE NOTHING BEHIND, and the offline cart QUEUE is the part that was missed.
+     *
+     * The stores' own `reset()` writes an empty envelope back, which is functionally clear — but the
+     * queue was covered by neither reset, so a change made just before signing out could still be
+     * drained afterwards, on a shared device, into the next person's session.
+     */
+    @Test
+    fun `everything this device holds is clearable in one call`() {
+        val prefs = InMemoryDevicePreferences()
+        prefs.putString(PreferenceKeys.SAVED_GUEST, "{...}")
+        prefs.putString(PreferenceKeys.CART_MIRROR, "{...}")
+        prefs.putString(PreferenceKeys.CART_QUEUE, "[{...}]")
+        assertTrue(prefs.hasDeviceShoppingData())
+
+        prefs.clearGuestData()
+
+        assertFalse(
+            prefs.hasDeviceShoppingData(),
+            "nothing shopping-related may survive a sign-out",
+        )
+    }
+
+    /**
+     * ⚠ The "clear data on this device" control is shown ONLY when this reports true. Signing out
+     * already clears everything, so offering the button to a just-signed-out shopper implied the app
+     * had not tidied up after them — the opposite of what happened.
+     */
+    @Test
+    fun `a device with nothing on it reports nothing to clear`() {
+        val prefs = InMemoryDevicePreferences()
+        assertFalse(prefs.hasDeviceShoppingData())
+
+        prefs.putString(PreferenceKeys.APPEARANCE_MODE, "dark")
+        assertFalse(
+            prefs.hasDeviceShoppingData(),
+            "an appearance preference is a device setting, not shopping data",
+        )
     }
 
     @Test

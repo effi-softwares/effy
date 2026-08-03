@@ -158,3 +158,16 @@ fun DevicePreferences.clearGuestData() {
     remove(PreferenceKeys.CART_MIRROR)
     remove(PreferenceKeys.CART_QUEUE)
 }
+
+/**
+ * Is there anything on this device worth offering to clear?
+ *
+ * ⚠ This is what keeps the "Clear data on this device" control from appearing when it would do
+ * NOTHING. Signing out already clears all of the above, so a just-signed-out shopper was being shown
+ * a button whose only possible effect was to clear an empty store — which reads as "the app did not
+ * tidy up after me", the opposite of what actually happened.
+ */
+fun DevicePreferences.hasDeviceShoppingData(): Boolean =
+    !getString(PreferenceKeys.SAVED_GUEST).isNullOrBlank() ||
+        !getString(PreferenceKeys.CART_MIRROR).isNullOrBlank() ||
+        !getString(PreferenceKeys.CART_QUEUE).isNullOrBlank()

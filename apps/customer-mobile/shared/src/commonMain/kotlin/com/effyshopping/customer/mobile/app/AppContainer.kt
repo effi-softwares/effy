@@ -83,6 +83,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import com.effyshopping.customer.mobile.core.storage.DevicePreferences
+import com.effyshopping.customer.mobile.core.storage.clearGuestData
 
 /**
  * The ONE hand-wired dependency container (constitution Principle VI — no DI framework). The whole
@@ -275,11 +276,20 @@ class AppContainer(
                 mergeCartOnSignIn()
                 runCatching { mergeSavedOnSignIn() }
             },
-            // ⚠ Sign-out clears BOTH — an account's saved items must not stay readable on a shared
-            // device (FR-031).
+            // ⚠ SIGN-OUT CLEARS EVERYTHING THIS DEVICE HOLDS FOR THE SHOPPER (FR-031, 034).
+            //
+            // The in-memory stores are reset AND the persisted keys are removed. The store resets
+            // alone write an empty envelope back to preferences, which is functionally clear but
+            // leaves the keys behind; the offline CART QUEUE was not covered by either, so a change
+            // made just before signing out could still have been drained afterwards — on a shared
+            // device, into the next person's session.
+            //
+            // An account's cart and saved items must not stay readable, or replayable, once its owner
+            // has signed out.
             onSignedOut = {
                 cart.reset()
                 savedStore.reset()
+                preferences.clearGuestData()
             },
         )
     }
