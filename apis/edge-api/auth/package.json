@@ -1,0 +1,30 @@
+{
+  "name": "@effy/edge-auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy cold-path AUTH service (035) — the Cognito custom-auth-challenge triggers that issue, send and verify the platform's 6-digit sign-in code. Serves ALL FOUR pools. Hosts NO HTTP route: every function is invoked by Cognito, not by the gateway.",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "3.1086.0",
+    "@aws-sdk/client-dynamodb": "3.1086.0",
+    "@aws-sdk/client-sesv2": "3.1086.0",
+    "@aws-sdk/lib-dynamodb": "3.1086.0",
+    "@effy/edge-shared": "workspace:*",
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.162",
+    "@types/node": "^22.10.0",
+    "esbuild": "0.28.1",
+    "serverless": "3.40.0",
+    "serverless-esbuild": "1.57.2",
+    "serverless-offline": "13.10.1",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

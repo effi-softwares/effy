@@ -47,6 +47,31 @@ export const handler: PreSignUpTriggerHandler = async (event) => {
     case "PreSignUp_SignUp":
       // A native self-registration (password or email OTP). Cognito verifies the email itself via
       // the confirmation code, so there is nothing to link and nothing to decide.
+      //
+      // ⚠ 035 — AUTO-CONFIRM, AND WHY IT IS OFF BY DEFAULT.
+      //
+      // AWS states generally that "users who sign themselves up must be confirmed before they can
+      // sign in", and `InitiateAuth` lists `UserNotConfirmedException`. What is NOT documented
+      // anywhere is whether Cognito refuses an UNCONFIRMED user BEFORE the custom-auth triggers
+      // fire. If it does, the passwordless sign-up route cannot work without auto-confirming here.
+      //
+      // That question is spike T003(a), and it is not answerable from documentation — so this is
+      // wired but DISABLED. Enabling it blindly would be worse than leaving it off: auto-confirming
+      // lets someone squat an address they do not control (they cannot sign in, but the real owner
+      // cannot register), and if the spike shows confirmation was never the blocker we would have
+      // taken that risk for nothing.
+      //
+      // ⚠ `autoVerifyEmail` is NEVER set, under any flag. It would mark an address verified that
+      // nobody has proved control of, and under constitution Principle IV a verified-but-unproven
+      // email is an account-takeover primitive — federated linking trusts exactly that field. Our
+      // own OTP verification sets it, in the post-authentication trigger (035 FR-020).
+      if (process.env.AUTO_CONFIRM_SIGNUP === "true") {
+        event.response.autoConfirmUser = true
+        logger.info(
+          { sub: event.userName },
+          "pre-sign-up: auto-confirming (035 — email remains UNVERIFIED until a code is answered)",
+        )
+      }
       return event
 
     default:

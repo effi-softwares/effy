@@ -30,7 +30,8 @@ native web build).
     subscribe with filter policies (the fulfillment fan-out).
 - **Data:** PostgreSQL 16, **raw SQL**, Goose migrations, **no ORM.** Two schemas: `public`
   (operational) and `admin` (back-office accounts + audit).
-- **Infra:** Terraform, multi-env, remote state (S3 + DynamoDB lock). AWS-native: Cognito, RDS,
+- **Infra:** Terraform, multi-env, remote state (S3-native lockfile — ⚠ **no DynamoDB lock table**;
+  the platform's only DynamoDB table is 035's OTP issuance counter). AWS-native: Cognito, RDS,
   ECS/ECR, Lambda, S3, SNS/SQS, SES, Amplify Hosting.
 - **Observability & telemetry:** Prometheus + Grafana (metrics/dashboards/alerts, self-hosted on
   ECS); Crashlytics (mobile crash reporting); PostHog (product analytics + web error tracking on all
@@ -124,8 +125,12 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 ## Auth
 AWS Cognito, **four isolated pools**: customer / driver / shop / admin. **Credentials are
 per-audience** (constitution v1.7.0, amended by 011):
-- **Driver / shop / admin** — **strictly passwordless EMAIL_OTP**, admin-provisioned (no self-signup).
-  **There are no passwords on the platform's internal audiences.**
+- **Driver / shop / admin** — **strictly passwordless email one-time code**, admin-provisioned (no
+  self-signup). **There are no passwords on the platform's internal audiences.** ⚠ Since **035** the
+  code is **issued by the platform itself** (a Cognito custom challenge), not by Cognito's managed
+  `EMAIL_OTP` factor — whose length is fixed at **eight** digits and configurable by nothing. Every
+  code on the platform is now **six** digits (constitution v1.11.1: the phrase names the credential,
+  not the vendor mechanism).
 - **Customer** — the only audience Effy does not employ, and the only one open to the public: **open
   self-registration** with **three credential routes — email+password, email OTP, and Google
   federated sign-in**. All three MUST converge on **one profile / one `sub`** (a federated identity is
@@ -1078,5 +1083,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/034-customer-account-center/plan.md
+at specs/035-six-digit-otp/plan.md
 <!-- SPECKIT END -->

@@ -48,7 +48,18 @@ kotlin {
             kotlin.srcDir(rootProject.file("../../packages/design-system/compose"))
             // 015 — the shared, audience-neutral mobile navigation shell (Principle II). Also gives the
             // customer app its FIRST adaptive layer (WindowSize/AdaptiveContent were shop-only before).
-            kotlin.srcDir(rootProject.file("../../packages/mobile-kit"))
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/common"))
+        }
+
+        // 035 — mobile-kit gained its FIRST platform-specific component (the one-time-code
+        // field, whose iOS actual is a native UITextField so that
+        // `UITextContentTypeOneTimeCode` autofill works at all). The package is therefore
+        // split common/android/ios; each half is srcDir'd into the matching source set.
+        androidMain {
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/android"))
+        }
+        iosMain {
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios"))
         }
 
         androidMain.dependencies {

@@ -1,4 +1,4 @@
-package com.effyshopping.shop.mobile.features.auth.presentation
+package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +36,8 @@ actual fun OtpInput(
     val shape = RoundedCornerShape(16.dp)
     BasicTextField(
         value = value,
+        // ⚠ `normalizeOtp` strips non-digits and NOTHING ELSE — it does not truncate. See the note
+        // on that function: truncating a longer paste to six is the defect this slice fixes.
         onValueChange = { onValueChange(normalizeOtp(it)) },
         enabled = enabled,
         singleLine = true,
@@ -45,6 +47,9 @@ actual fun OtpInput(
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = modifier
             .fillMaxWidth()
+            // 56dp clears the constitution's fat-finger minimum of 48dp with room to spare.
+            // ⚠ Stated as a measured fact, not a comment claiming compliance — 033 shipped a 32dp
+            // control under a comment asserting it cleared the minimum.
             .heightIn(min = 56.dp)
             .semantics {
                 contentDescription = "One-time code"
@@ -59,7 +64,7 @@ actual fun OtpInput(
                 contentAlignment = Alignment.CenterStart,
             ) {
                 if (value.isEmpty()) {
-                    Text("6-digit code", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("$OTP_LENGTH-digit code", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 inner()
             }

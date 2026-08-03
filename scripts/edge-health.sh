@@ -15,6 +15,10 @@
 set -euo pipefail
 
 API_URL="${API_URL:?API_URL not set (should come from /effy/<env>/edge/api_endpoint)}"
+# ⚠ `auth` (035) is deliberately ABSENT and must stay absent. That service is Cognito triggers only
+# — it has no `events:` block on any function and therefore no HTTP surface to probe. Adding it here
+# would report DOWN forever and train everyone to ignore a red row. Its liveness is proven by a real
+# sign-in (quickstart §5) and watched by the Effy/Auth CloudWatch metrics, not by curl.
 SERVICES="${SERVICES:-admin shop}"
 
 printf '\n\033[1mCold-path services @ %s\033[0m\n\n' "${API_URL}"

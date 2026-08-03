@@ -779,3 +779,23 @@ So web signs out and asks for a fresh sign-in, which at least proves the new pas
   guest-deletion entry point · restore call sites · Playwright dirty-check matrix · the Go↔Kotlin wire
   contract test for the new DTOs · **all 11 operator walks**, including Android, which has now gone
   unlooked-at across 028, 029, 033 and this feature.
+
+## §035 — Platform-wide six-digit one-time codes
+
+Passwordless **sign-in** moves from Cognito's managed `EMAIL_OTP` factor (**8 digits**) to a
+platform-issued custom challenge (**6 digits**). ⚠ The four codes that were already six digits —
+sign-up confirmation, password reset, set-first-password step-up and account-closure step-up — are
+**unchanged in every respect** (FR-003).
+
+| # | Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|---|
+| 035.1 | Sign-in code is **6 digits** | 🔒 | 🔒 | code + Terraform done; needs the operator deploy |
+| 035.2 | One-time-code autofill on the sign-in field | 🔒 | 🔒 | ⚠ customer-mobile had **none** — its generic field could not request `UITextContentTypeOneTimeCode` |
+| 035.3 | `email_verified` set after a code sign-in | 🔒 | 🔒 | managed EMAIL_OTP did this automatically; `CUSTOM_AUTH` does not, so a `PostAuthentication` trigger reinstates it |
+| 035.4 | Google linking still resolves to one `sub` | 🔒 | 🔒 | depends on 035.3 — ⚠ if that is missed, linking refuses **weeks later**, with no error at the time it breaks |
+
+⚠ **Recorded gap on this audience only**: the customer client must keep `ALLOW_USER_AUTH` because
+passwordless `SignUp` is legal only while it is present, so the managed **8-digit** flow stays
+reachable by a raw API call on this pool. No Effy surface uses it, and it yields a *stronger*
+credential — a consistency gap, not a privilege escalation. Spike T003(b) tests whether a
+sign-up-only app client closes it.

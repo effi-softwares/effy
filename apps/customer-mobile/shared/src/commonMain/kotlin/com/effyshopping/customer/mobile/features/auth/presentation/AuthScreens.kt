@@ -67,6 +67,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.presentation.EffyPasswordField
+import com.effyshopping.mobile.kit.ui.OtpInput
+import com.effyshopping.mobile.kit.ui.isCompleteOtp
 
 const val PASSWORD_MIN_LENGTH = 12 // mirrors the platform policy (shared-types PASSWORD_MIN_LENGTH)
 
@@ -412,17 +414,27 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
     val state by vm.state.collectAsState()
     var code by remember { mutableStateOf("") }
     AuthScaffold(container, "Enter the code", "Check your inbox — the code expires shortly.", state) {
-        EffyField(
-            "Code",
-            code,
-            { code = it },
-            placeholder = "6-digit code",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        // ⚠ 035 — the SHARED OtpInput, replacing a generic EffyField that had no autofill, no
+        // numeric content type and no length awareness at all. On iOS this is a native UITextField
+        // with `UITextContentTypeOneTimeCode`, which is what makes the OS offer the code from Mail;
+        // the previous field could not ask for it, so customer-mobile simply never had one-tap
+        // autofill (FR-026, FR-035).
+        //
+        // ⚠ Its placeholder used to read "6-digit code" while an EIGHT-digit code arrived. That is
+        // finally true rather than aspirational.
+        OtpInput(
+            value = code,
+            onValueChange = { code = it },
+            onSubmit = { if (isCompleteOtp(code)) vm.submitOtp(route, code) },
+            enabled = !state.loading,
         )
         EffyPrimaryButton(
             "Continue",
             onClick = { vm.submitOtp(route, code) },
-            enabled = !state.loading && code.isNotBlank(),
+            // ⚠ `isCompleteOtp`, not `isNotBlank`. The gate is exactly six digits, so a longer paste
+            // leaves the button inactive and VISIBLE rather than submitting a reshaped value
+            // (FR-004, FR-005).
+            enabled = !state.loading && isCompleteOtp(code),
         )
     }
 }

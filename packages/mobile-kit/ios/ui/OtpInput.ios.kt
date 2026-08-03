@@ -1,7 +1,8 @@
 @file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
-package com.effyshopping.shop.mobile.features.auth.presentation
+package com.effyshopping.mobile.kit.ui
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import kotlinx.cinterop.CValue
@@ -28,10 +30,18 @@ import platform.UIKit.accessibilityLabel
 import platform.UIKit.accessibilityValue
 import platform.darwin.NSObject
 
+/**
+ * ⚠ A NATIVE `UITextField`, NOT A COMPOSE FIELD — and that is the whole value of this file.
+ * `textContentType = UITextContentTypeOneTimeCode` is what makes iOS offer the code from Mail or
+ * Messages as a keyboard suggestion. A Compose `TextField` cannot ask for it, so a Compose-only
+ * implementation silently loses one-tap autofill (FR-026).
+ */
 private class OtpTextFieldDelegate(
     var onChange: (String) -> Unit,
     var onSubmit: () -> Unit,
 ) : NSObject(), UITextFieldDelegateProtocol {
+    // Intercepts every edit INCLUDING paste, splices it by hand and returns false so Kotlin — not
+    // UIKit — owns the text. That is what lets `normalizeOtp` see a pasted value at all.
     override fun textField(
         textField: UITextField,
         shouldChangeCharactersInRange: CValue<NSRange>,
@@ -41,6 +51,7 @@ private class OtpTextFieldDelegate(
         val start = shouldChangeCharactersInRange.useContents { location.toInt() }.coerceIn(0, current.length)
         val length = shouldChangeCharactersInRange.useContents { length.toInt() }
         val end = (start + length).coerceIn(start, current.length)
+        // ⚠ Strips non-digits and NOTHING ELSE — no truncation. See `normalizeOtp`.
         onChange(normalizeOtp(current.replaceRange(start, end, replacementString)))
         return false
     }
@@ -79,7 +90,7 @@ actual fun OtpInput(
                 keyboardType = UIKeyboardTypeNumberPad
                 returnKeyType = UIReturnKeyType.UIReturnKeyDone
                 textContentType = UITextContentTypeOneTimeCode
-                placeholder = "6-digit code"
+                placeholder = "$OTP_LENGTH-digit code"
                 accessibilityLabel = "One-time code"
                 layer.cornerRadius = 16.0
                 layer.borderWidth = 1.0
@@ -96,10 +107,16 @@ actual fun OtpInput(
             field.layer.borderColor = border.CGColor
             field.accessibilityValue = value
         },
-        modifier = modifier.semantics {
-            contentDescription = "One-time code"
-            if (isError) error("Check the one-time code")
-        },
+        // ⚠ heightIn ADDED during the promotion (035 T038). The shop-mobile original had no height
+        // constraint at all on the iOS side, so the touch target was whatever the caller happened
+        // to give it — which is how a control ends up under the 48dp minimum without anyone
+        // noticing. 56dp matches the Android actual.
+        modifier = modifier
+            .heightIn(min = 56.dp)
+            .semantics {
+                contentDescription = "One-time code"
+                if (isError) error("Check the one-time code")
+            },
         properties = UIKitInteropProperties(isNativeAccessibilityEnabled = true),
     )
 }

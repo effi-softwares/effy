@@ -1,6 +1,49 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.11.0 → 1.11.1
+Bump rationale: PATCH — Principle IV's credential wording is CLARIFIED, not changed in substance.
+                The phrase "strictly passwordless EMAIL_OTP" named the credential a shopper or
+                operator uses, but `EMAIL_OTP` is also the literal name of one AWS Cognito
+                sign-in factor. Feature 035-six-digit-otp replaces that factor with a
+                platform-owned custom challenge — because the managed factor's code length is
+                EIGHT digits and is not configurable by any setting on any object, while every
+                other code the platform sends is six.
+                Under the literal reading the platform would become non-conforming the moment it
+                shipped; under the substantive reading nothing changes at all. The principle is
+                about CREDENTIALS and ISOLATION, and both are untouched: four pools, per-pool
+                validation, pinned issuers, no auth proxy, cross-pool rejection, and the same
+                credential routes per audience. A Cognito challenge trigger is not an auth proxy —
+                it is Cognito invoking our code inside its own flow, in the same pool, for the
+                same audience.
+                Not MINOR: no principle is added and no guidance is materially expanded. One
+                sentence of obligation IS added, but it constrains a capability the principle
+                already permitted rather than granting a new one — where the platform issues the
+                code itself, it must own expiry, single-use and rate limiting, and must not log
+                the code.
+                Not MAJOR: no principle removed or redefined; no committed plan invalidated.
+                Operator decision (2026-08-03), feature 035-six-digit-otp.
+
+Modified in this amendment (feature 035-six-digit-otp):
+  - Principle IV → "strictly passwordless EMAIL_OTP" becomes "strictly passwordless email one-time
+    code", with a sub-bullet stating that the phrase names the credential and not a vendor
+    mechanism, and listing the controls a self-issued code MUST carry.
+  - Principle IV → the customer audience's "email OTP" likewise reads "email one-time code".
+
+Dependent updates in THIS change:
+  ⏳ CLAUDE.md § Auth — still says "strictly passwordless EMAIL_OTP" (035 T117).
+  ⏳ ARCHITECTURE.md, packages/web-kit (package.json, index.ts, auth/otp.ts, runtime/amplify.ts),
+     infra/modules/cognito-user-pool/{main.tf,variables.tf} — same phrase (035 T117).
+  ✅ scripts/verify-pool-credentials.sh — extended to assert the new flow state per pool (035 T047).
+  ⏳ docs/audiences/*.md — credential rows (035 T120).
+
+Unchanged: Principles I, II, III, V, VI, VII (bodies + rationale); the SUBSTANCE of Principle IV's
+           isolation model and its per-audience credential split; Governance; Technology Standards;
+           Quality Gates.
+
+Follow-up TODOs: none.
+
+--- prior amendment (retained for history) ---
 Version change: 1.10.0 → 1.11.0
 Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design): the brand constant is replaced.
                 The single accent changes from Effy Emerald #065f46 (+ terracotta #d0735a) to a
@@ -287,13 +330,19 @@ Authentication uses four isolated Cognito pools: customer, driver, shop, admin.
 
 **Credentials — the rule is per-audience, because the audiences differ in kind:**
 
-- **Internal audiences (driver, shop, admin)** — **strictly passwordless EMAIL_OTP**, and strictly
-  **admin-provisioned** (no self-signup). **There are no passwords on the platform's internal
-  audiences.** They are Effy employees; a password is a credential to steal and a reset flow to
-  attack, in exchange for nothing they need.
+- **Internal audiences (driver, shop, admin)** — **strictly passwordless email one-time code**, and
+  strictly **admin-provisioned** (no self-signup). **There are no passwords on the platform's
+  internal audiences.** They are Effy employees; a password is a credential to steal and a reset
+  flow to attack, in exchange for nothing they need.
+  - ⚠ "Email one-time code" names the **credential** — a single-use numeric code delivered to the
+    address on file — **not** a particular vendor mechanism. Whether it is issued by Cognito's
+    managed `EMAIL_OTP` factor or by a platform-owned custom challenge is an **implementation
+    choice recorded in the feature's plan**, not a matter of principle. Where the platform issues
+    the code itself it MUST own expiry, single-use, per-identity rate limiting and per-source rate
+    limiting, and MUST NOT log or store the code in a readable form.
 - **The customer audience** — the only audience the platform does not employ, and the only one open
-  to the public. The customer pool MAY offer **email + password**, **email OTP**, and **federated
-  (Google) sign-in**, and it is **open to self-registration**.
+  to the public. The customer pool MAY offer **email + password**, **email one-time code**, and
+  **federated (Google) sign-in**, and it is **open to self-registration**.
   - **One person is one identity.** All credential routes MUST converge on a **single** pool profile
     (a single `sub`); a federated identity MUST be **linked into the native profile**, never left to
     stand as a second account.
@@ -454,4 +503,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.11.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-07-29
+**Version**: 1.11.1 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-08-03

@@ -52,6 +52,11 @@ provider:
     CUSTOMER_APP_CLIENT_ID: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id}
     # 012 FR-025 — the "your password changed" notification. Branded sender comes from 010.
     NOTIFY_SENDER: no-reply@${sls:stage}.effyshopping.com
+    # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
+    # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
+    # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note
+    # in src/functions/pre-sign-up.ts. It NEVER auto-verifies the email — only our own OTP does.
+    AUTO_CONFIRM_SIGNUP: "false"
   iam:
     role:
       statements:

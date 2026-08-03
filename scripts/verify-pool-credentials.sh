@@ -70,6 +70,62 @@ for audience in driver shop back-office; do
     ok "no password auth flow (${flows})"
   fi
 
+  # 1b. ⚠ THE SIGN-IN CODE FLOW (035). Added because this script would otherwise report a green
+  #     tick while all four pools gained a brand-new FIRST-FACTOR auth flow.
+  #
+  #     Check 1 above greps for three flow names. `ALLOW_CUSTOM_AUTH` is not one of them, so
+  #     switching the platform from Cognito's managed 8-digit EMAIL_OTP to our own 6-digit
+  #     challenge would have passed silently — exactly the failure this file's own header warns
+  #     about ("one careless default away from evaporating, on the pools where the blast radius is
+  #     worst"), and exactly the failure it already suffered once when it did not check back-office
+  #     at all.
+  #
+  #     What is asserted, per specs/035-six-digit-otp/contracts/auth-triggers.contract.md § 2:
+  #       - ALLOW_CUSTOM_AUTH is PRESENT  → the platform's own 6-digit code is reachable
+  #       - ALLOW_USER_AUTH  is ABSENT    → Cognito's managed 8-digit EMAIL_OTP is NOT
+  #
+  #     The second half is the one that matters. These audiences have no self-signup, so nothing
+  #     needs the choice-based flow; leaving it enabled would keep an 8-digit path alive that
+  #     bypasses our attempt cap, our TTL and both rate limits.
+  #
+  #     ⚠ The customer pool is NOT checked here and MUST keep ALLOW_USER_AUTH — passwordless
+  #     SignUp is only legal while it is present (035 research R4b).
+  if grep -q 'ALLOW_CUSTOM_AUTH' <<<"$flows"; then
+    ok "sign-in code flow present (ALLOW_CUSTOM_AUTH)"
+  else
+    bad "${audience}: ALLOW_CUSTOM_AUTH is MISSING (${flows}). The platform's 6-digit sign-in code is unreachable on this pool (035 FR-002)."
+  fi
+
+  if grep -q 'ALLOW_USER_AUTH' <<<"$flows"; then
+    bad "${audience}: ALLOW_USER_AUTH is still enabled (${flows}). Cognito's managed 8-DIGIT EMAIL_OTP remains reachable and bypasses the 3-attempt cap, the 5-minute TTL and both rate limits (035 FR-001)."
+  else
+    ok "managed 8-digit EMAIL_OTP flow removed (no ALLOW_USER_AUTH)"
+  fi
+
+  # 1c. ⚠ THE MOBILE CLIENTS WERE ENTIRELY UNGUARDED until 035. This script read only
+  #     .../app_client_id, so `shop_mobile` and `customer_mobile` — whose auth flows are hardcoded
+  #     in the env root rather than set by the module — were never checked by anything.
+  mobile_client_id=$($AWS ssm get-parameter --name "/effy/${ENV}/auth/${audience}/mobile_app_client_id" \
+    --query 'Parameter.Value' --output text 2>/dev/null || echo "")
+
+  if [ -n "$mobile_client_id" ] && [ "$mobile_client_id" != "None" ]; then
+    mobile_flows=$($AWS cognito-idp describe-user-pool-client \
+      --user-pool-id "$pool_id" --client-id "$mobile_client_id" \
+      --query 'UserPoolClient.ExplicitAuthFlows' --output text)
+
+    if grep -qE 'ALLOW_USER_SRP_AUTH|ALLOW_USER_PASSWORD_AUTH|ALLOW_ADMIN_USER_PASSWORD_AUTH' <<<"$mobile_flows"; then
+      bad "${audience} (mobile client): a PASSWORD auth flow is enabled (${mobile_flows}). This audience must be passwordless."
+    else
+      ok "mobile client: no password auth flow (${mobile_flows})"
+    fi
+
+    if grep -q 'ALLOW_USER_AUTH' <<<"$mobile_flows"; then
+      bad "${audience} (mobile client): ALLOW_USER_AUTH is still enabled (${mobile_flows}). The managed 8-digit EMAIL_OTP flow remains reachable (035 FR-001)."
+    else
+      ok "mobile client: managed 8-digit EMAIL_OTP flow removed"
+    fi
+  fi
+
   # 2. No federated identity provider. Only the customer federates.
   idps=$($AWS cognito-idp describe-user-pool-client \
     --user-pool-id "$pool_id" --client-id "$client_id" \

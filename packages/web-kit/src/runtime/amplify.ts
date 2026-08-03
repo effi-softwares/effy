@@ -3,7 +3,7 @@ import { Amplify } from "aws-amplify";
 /**
  * Point Amplify at exactly one Cognito pool.
  *
- * No identity pool, no self sign-up, no password: every Effy pool is passwordless EMAIL_OTP
+ * No identity pool, no self sign-up, no password: every Effy pool is passwordless email one-time code
  * (constitution Principle IV). A surface configures the pool for its own audience and no other.
  */
 export interface AmplifyPoolConfig {

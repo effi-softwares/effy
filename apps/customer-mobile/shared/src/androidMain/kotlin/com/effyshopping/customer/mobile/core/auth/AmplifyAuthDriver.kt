@@ -1,6 +1,5 @@
 package com.effyshopping.customer.mobile.core.auth
 
-import com.amplifyframework.auth.AuthFactorType
 import com.amplifyframework.auth.AuthUserAttribute
 import com.amplifyframework.auth.AuthUserAttributeKey
 import com.amplifyframework.auth.cognito.AWSCognitoAuthSession
@@ -115,10 +114,15 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
-        // ALWAYS state the preferred factor — omitting it forces a factor-selection round-trip (D7).
+        // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP
+        // (whose length is not configurable by any setting on any object).
+        // ⚠ WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
+        // returning DONE from the first signIn — issuing tokens without presenting the challenge
+        // (amplify-android #2331/#2566, fixed twice, reported recurring).
+        // ⚠ This is the CODE route only. The password route above keeps USER_SRP_AUTH — the customer
+        // audience is the one audience that may hold a password (constitution v1.7.0).
         val options = AWSCognitoAuthSignInOptions.builder()
-            .authFlowType(AuthFlowType.USER_AUTH)
-            .preferredFirstFactor(AuthFactorType.EMAIL_OTP)
+            .authFlowType(AuthFlowType.CUSTOM_AUTH_WITHOUT_SRP)
             .build()
         mapSignIn(signInRecoveringFromStaleSession { Amplify.Auth.signIn(email, null, options) })
     }
@@ -184,10 +188,21 @@ class AmplifyAuthDriver : AuthDriver {
         return if (result.isSignedIn) sessionOrFail() else AuthStep.Failed(AuthError.Unexpected)
     }
 
+    // ⚠ THE `else` BELOW IS A SILENT-FAILURE HAZARD. Kotlin does not require this `when` to be
+    // exhaustive once an `else` exists, so an unhandled Cognito step compiles cleanly and dies at
+    // RUNTIME as an "Unexpected" dead end — no build error, no test failure, just a shopper stuck.
+    // Every step this app accepts is named explicitly.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
         AuthSignInStep.DONE -> sessionOrFail()
+        // 035 — the platform's own 6-digit code.
+        AuthSignInStep.CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE ->
+            AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
+        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above (FR-033) and an in-flight managed-factor session still completes (FR-034).
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_OTP ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
+        AuthSignInStep.CONFIRM_SIGN_UP ->
+            AuthStep.NeedsSignUpConfirmation(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
         else -> AuthStep.Failed(AuthError.Unexpected)
     }
 

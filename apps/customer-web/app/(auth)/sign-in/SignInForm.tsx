@@ -9,6 +9,7 @@ import { safeNextTarget } from "@/lib/next-target"
 import { mergeCartAfterSignIn } from "@/lib/cart-actions"
 import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
 import { capture } from "@/lib/telemetry"
+import { OtpInput } from "@effy/design-system/ui"
 import {
   authErrorMessage,
   signInWithOtp,
@@ -44,13 +45,17 @@ export function SignInForm() {
   // Offering it would be offering a door with no room behind it. See lib/auth-routes.ts.
   const showGoogle = googleEnabled()
 
-  const run = (fn: () => Promise<void>) => {
+  // ⚠ 035 — the error mapping now needs to know WHICH ROUTE failed. `NotAuthorizedException` means
+  // "wrong password" on the password route and "you used all three code attempts" on the code
+  // route; showing the password wording to someone signing in passwordlessly is nonsense they
+  // cannot act on. Callers on a code step pass "code".
+  const run = (fn: () => Promise<void>, context: "password" | "code" = "password") => {
     setError(null)
     start(async () => {
       try {
         await fn()
       } catch (err) {
-        setError(authErrorMessage(err))
+        setError(authErrorMessage(err, context))
       }
     })
   }
@@ -101,28 +106,26 @@ export function SignInForm() {
             run(async () => {
               await submitOtpCode(code.trim())
               done("otp")
-            })
+            }, "code")
           }}
         >
           <p className="text-sm text-muted-foreground">
             We emailed a code to <strong className="text-foreground">{email}</strong>.
           </p>
-          {/* ⚠ NO `maxLength`, no fixed-box grid, and no auto-submit on the Nth keystroke — ON PURPOSE.
-              Cognito sends codes of DIFFERENT LENGTHS depending on the flow, and neither is
-              configurable (research D23):
-                • sign-up confirmation  → 6 digits  (verification_message_template)
-                • EMAIL_OTP sign-in     → 8 digits  (email_mfa_configuration)
-              They are two different Cognito mechanisms with two different email templates, and AWS
-              exposes no knob for either length. Hardcoding 6 here would silently truncate every
-              sign-in code and produce a "that code isn't right" error the customer cannot possibly
-              resolve. Keep this input length-agnostic. */}
-          <Field
+          {/* ⚠ 035 REPLACED THE COMMENT THAT USED TO LIVE HERE. It instructed future authors NOT to
+              constrain the length, because Cognito sent codes of two different lengths and neither
+              was configurable (research D23):
+                • sign-up confirmation  → 6 digits
+                • managed EMAIL_OTP sign-in → 8 digits
+              That rule was correct then and is wrong now. The platform issues its own SIX-digit
+              code for sign-in, so every code on every surface is the same length and the field can
+              finally say so. ⚠ `maxLength` on the shared control is a UX affordance only — a
+              wrong-length value is REFUSED by the server rather than reshaped (FR-005). */}
+          <CodeField
             label="Your code"
             id="code"
             value={code}
             onChange={setCode}
-            inputMode="numeric"
-            autoComplete="one-time-code"
             required
           />
           <Submit pending={pending} label="Sign in" testId="submit-otp" />
@@ -268,6 +271,46 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        {...rest}
+      />
+    </div>
+  )
+}
+
+/**
+ * The one-time-code field (035 FR-035).
+ *
+ * ⚠ Wraps the SHARED `OtpInput` from `@effy/design-system/ui` rather than re-declaring
+ * `inputMode` / `autoComplete` / `maxLength` locally. Every surface having its own code input is
+ * exactly how shop-mobile ended up truncating real codes with nothing to catch it — the behaviour
+ * (autofill token, numeric keyboard, one logical a11y node, no reshaping) now lives in one place.
+ *
+ * ⚠ The `className` keeps THIS surface's visual language (pill radius, taller target) — presentation
+ * is local, behaviour is shared. Do not fork the behaviour to change the look.
+ */
+function CodeField({
+  label,
+  id,
+  value,
+  onChange,
+  ...rest
+}: {
+  label: string
+  id: string
+  value: string
+  onChange: (v: string) => void
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <OtpInput
+        id={id}
+        name={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 rounded-full border bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
         {...rest}
       />
     </div>

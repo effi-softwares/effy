@@ -23,6 +23,23 @@ module "shop_pool" {
     { name = "shop_manager", description = "Manages a shop: full operator access plus shop-level administration." },
     { name = "shop_staff", description = "Baseline shop operator: day-to-day fulfillment work." },
   ]
+
+  # --- 035-six-digit-otp -------------------------------------------------------------------------
+  # The platform's own SIX-digit sign-in code replaces Cognito's managed EIGHT-digit EMAIL_OTP,
+  # whose length is not configurable by any setting on any object.
+  #
+  # ⚠ `disable_choice_based_auth = true` DROPS ALLOW_USER_AUTH, so the managed 8-digit flow stops
+  # being reachable at all on this pool. That is only safe here because this audience has NO
+  # self-signup: passwordless `SignUp` is legal only while ALLOW_USER_AUTH is present, which is why
+  # the CUSTOMER pool must keep it (035 research R4b).
+  #
+  # ⚠ The four ARNs are null until `make edge-deploy SERVICE=auth ENV=dev` has run — Cognito
+  # validates a trigger on UpdateUserPool, so the functions must exist first. Same two-stage dance
+  # as the 011 pre-sign-up trigger.
+  enable_custom_auth_flow   = true
+  disable_choice_based_auth = true
+  custom_auth_lambda_arns   = var.custom_auth_lambda_arns
+
 }
 
 # ── The shop MOBILE app client (014-shop-mobile-foundation, research D3s) ─────────────────────────
@@ -52,9 +69,15 @@ resource "aws_cognito_user_pool_client" "shop_mobile" {
   name         = "${module.shared.name_prefix}-shop-mobile-app"
   user_pool_id = module.shop_pool.user_pool_id
 
-  # EMAIL_OTP only. USER_AUTH carries the choice-based / EMAIL_OTP challenge; refresh keeps sessions.
+  # The platform's own 6-digit sign-in code (035); refresh keeps sessions.
   # NO SRP / NO USER_PASSWORD — the shop audience has no passwords (Principle IV).
-  explicit_auth_flows = ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+  #
+  # ⚠ ALLOW_USER_AUTH REMOVED by 035. It carried Cognito's managed 8-digit EMAIL_OTP, which would
+  # otherwise stay reachable by raw API and bypass the 3-attempt cap, the 5-minute TTL and both
+  # rate limits. Safe to drop here: this audience is admin-provisioned and never self-signs-up.
+  # ⚠ This client was UNGUARDED until 035 — verify-pool-credentials.sh read only the module-owned
+  # app_client_id and never looked at the mobile clients at all.
+  explicit_auth_flows = ["ALLOW_CUSTOM_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
 
   # Public client: PKCE, NO client secret. A secret in a published mobile binary is a LEAKED secret
   # (014 FR-036) — and Amplify's config has no field for one anyway.

@@ -638,6 +638,35 @@ executed") — it can fetch the raw response and assert on it, which no unit tes
 
 ---
 
+> ## ⚠ SUPERSEDED BY 035-six-digit-otp (2026-08-03)
+>
+> **D23's analysis was correct and remains correct.** Every constraint it recorded has been
+> independently re-verified: the code length is not configurable on the pool, the app client,
+> `SignInPolicyType`, `EmailMfaConfigType`, the message templates or the Terraform provider schema;
+> the AWS Amplify team closed the standing request as a Cognito-side limitation; and no release
+> since has added one. A Custom Email Sender trigger cannot help either — it receives the code
+> Cognito already generated and has no response field to hand a different one back.
+>
+> **What changed is the evidence on the other side of the ledger**, not the analysis:
+>
+> 1. The mismatch **broke sign-in on a shipped surface**. `shop-mobile` filtered and truncated code
+>    input to six characters, so a real 8-digit sign-in code was silently cut to its first six and
+>    submitted. Passwordless sign-in there could not succeed. That was not known in July.
+> 2. **Two of the platform's own UIs already told users the code was six digits** — customer-mobile's
+>    sign-in placeholder and shop-mobile's error copy. The promise was already being made.
+> 3. ⚠ **D23's own binding consequence — "do NOT hardcode a length" — was not actually honoured.**
+>    It held on the three web surfaces and was broken on both mobile ones. A rule that two of five
+>    surfaces silently violate is not holding a line.
+>
+> **The cheaper alternative D23 left on the record is dismissed, on the record.** Dropping `email`
+> from `auto_verified_attributes` and routing sign-ups through the sign-in flow would indeed give one
+> code type platform-wide with zero Lambdas — but it unifies on **EIGHT** digits, not six, and the
+> operator's requirement is six. It solves the consistency half and none of the usability half.
+>
+> The replacement is specified in [specs/035-six-digit-otp/](../035-six-digit-otp/) and its cost is
+> stated plainly there: a hundredfold smaller guess space, and every control Cognito was providing
+> for free becomes ours to build and operate.
+
 ## D23 — The 6-vs-8 digit OTP mismatch (2026-07-15) — **accepted, not fixed**
 
 **Observed**: sign-up confirmation emails a **6-digit** code; email-OTP **sign-in** emails an **8-digit**

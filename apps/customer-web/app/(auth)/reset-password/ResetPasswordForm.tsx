@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { OtpInput } from "@effy/design-system/ui"
 
 import { authErrorMessage, startPasswordReset } from "../_lib/auth-actions"
 // 012 FR-022b — a SERVER ACTION, not an Amplify call. The backend screens the new password against
@@ -73,7 +74,11 @@ export function ResetPasswordForm() {
           <p className="text-sm text-muted-foreground">
             We emailed a code to <strong className="text-foreground">{email}</strong>.
           </p>
-          <Field label="Your code" id="code" value={code} onChange={setCode} required />
+          {/* ⚠ 035 — this field had NO `inputMode` and NO `autoComplete="one-time-code"` at all,
+              so on mobile it raised an alphabetic keyboard and never offered the code from Mail.
+              A recovery flow is exactly where that friction hurts most. Now the shared control,
+              same as every other code field on the platform (FR-026, FR-035). */}
+          <CodeField label="Your code" id="code" value={code} onChange={setCode} required />
           <Field
             label="New password"
             id="password"
@@ -115,6 +120,39 @@ export function ResetPasswordForm() {
           </p>
         </form>
       )}
+    </div>
+  )
+}
+
+/**
+ * The one-time-code field (035 FR-035) — the shared control, with this surface's visual language.
+ * See the identical component in SignInForm/SignUpForm; behaviour is shared, presentation is local.
+ */
+function CodeField({
+  label,
+  id,
+  value,
+  onChange,
+  ...rest
+}: {
+  label: string
+  id: string
+  value: string
+  onChange: (v: string) => void
+} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
+  return (
+    <div className="space-y-2">
+      <label htmlFor={id} className="text-sm font-medium">
+        {label}
+      </label>
+      <OtpInput
+        id={id}
+        name={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-11 rounded-full border bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+        {...rest}
+      />
     </div>
   )
 }

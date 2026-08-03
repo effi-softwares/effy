@@ -1,7 +1,7 @@
 # One audience's isolated identity pool + its (public) app client — instantiated four
 # times per env root (customer / driver / shop / back_office). Passwordless EMAIL_OTP
 # via Cognito's managed choice-based flow on the Essentials tier (research.md D4);
-# no Lambda triggers, no passwords, ever.
+# no passwords, ever (⚠ 035 added the custom-auth Lambda triggers — see lambda_config below).
 
 locals {
   # audience "back_office" → resource names "effy-<env>-back-office"
@@ -90,11 +90,31 @@ resource "aws_cognito_user_pool" "this" {
     }
   }
 
-  # The ACCOUNT-LINKING trigger (011, FR-011/FR-012). Null on every pool but customer.
+  # Lambda triggers.
+  #
+  #  - `pre_sign_up`  — the ACCOUNT-LINKING trigger (011, FR-011/FR-012). Null on every pool but customer.
+  #  - the four `*_auth_challenge` / `post_authentication` entries — the platform's own 6-digit
+  #    sign-in code (035). ⚠ ALL FOUR POOLS use them: this is what replaces Cognito's managed
+  #    8-digit EMAIL_OTP.
+  #
+  # ⚠ ORDERING IS LOAD-BEARING. Cognito validates a trigger on UpdateUserPool, so the functions must
+  # already be DEPLOYED before an ARN is set here. Same two-stage dance as pre_sign_up:
+  # apply (null) → `make edge-deploy SERVICE=auth` → set the ARNs in dev.tfvars → apply again.
+  #
+  # ⚠ `lambda_config` is NOT ForceNew. Only `username_attributes`, `alias_attributes` and
+  # `username_configuration.case_sensitive` replace a pool. Setting these is an IN-PLACE update —
+  # but READ THE PLAN ANYWAY (035 FR-030): a replaced pool destroys every account on the platform.
   dynamic "lambda_config" {
-    for_each = var.pre_sign_up_lambda_arn == null ? [] : [var.pre_sign_up_lambda_arn]
+    for_each = (
+      var.pre_sign_up_lambda_arn == null && var.custom_auth_lambda_arns == null
+    ) ? [] : [1]
     content {
-      pre_sign_up = lambda_config.value
+      pre_sign_up = var.pre_sign_up_lambda_arn
+
+      define_auth_challenge          = try(var.custom_auth_lambda_arns.define, null)
+      create_auth_challenge          = try(var.custom_auth_lambda_arns.create, null)
+      verify_auth_challenge_response = try(var.custom_auth_lambda_arns.verify, null)
+      post_authentication            = try(var.custom_auth_lambda_arns.post_authentication, null)
     }
   }
 
@@ -115,6 +135,27 @@ resource "aws_lambda_permission" "pre_sign_up" {
   statement_id  = "AllowCognitoInvoke-${local.pool_name}"
   action        = "lambda:InvokeFunction"
   function_name = var.pre_sign_up_lambda_arn
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
+}
+
+# Cognito must be permitted to invoke each custom-auth trigger, ON THIS POOL.
+#
+# ⚠ ONE PERMISSION PER (FUNCTION, POOL) — four here, sixteen across the four pools. The functions
+# are shared, so a single wildcard `source_arn` would work and is exactly what NOT to do: it would
+# silently admit any pool created later, including one nobody reviewed. The blast radius stays
+# explicit and greppable (Principle IV, Principle VI).
+resource "aws_lambda_permission" "custom_auth" {
+  for_each = var.custom_auth_lambda_arns == null ? {} : {
+    define              = var.custom_auth_lambda_arns.define
+    create              = var.custom_auth_lambda_arns.create
+    verify              = var.custom_auth_lambda_arns.verify
+    post_authentication = var.custom_auth_lambda_arns.post_authentication
+  }
+
+  statement_id  = "AllowCognitoInvoke-${local.pool_name}-${each.key}"
+  action        = "lambda:InvokeFunction"
+  function_name = each.value
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.this.arn
 }
@@ -199,10 +240,20 @@ resource "aws_cognito_user_pool_client" "this" {
   #   ALLOW_REFRESH_TOKEN_AUTH — sessions.
   #
   # Driver / shop / back_office get exactly the two they always had.
+  #
+  # 035 adds ALLOW_CUSTOM_AUTH — the platform's own 6-digit code. On pools with no self-signup it
+  # also DROPS ALLOW_USER_AUTH, so Cognito's managed 8-digit EMAIL_OTP stops being reachable at all.
+  # ⚠ The customer pool cannot drop it: passwordless SignUp is only legal while it is present.
   explicit_auth_flows = concat(
-    ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
+    var.disable_choice_based_auth ? [] : ["ALLOW_USER_AUTH"],
+    ["ALLOW_REFRESH_TOKEN_AUTH"],
     var.enable_password_auth ? ["ALLOW_USER_SRP_AUTH"] : [],
+    var.enable_custom_auth_flow ? ["ALLOW_CUSTOM_AUTH"] : [],
   )
+
+  # ⚠ NOT the code TTL — see the variable's own note. 5 is the floor that still allows three
+  # attempts; below it the session dies before the shopper's last try.
+  auth_session_validity = var.auth_session_validity_minutes
 
   # Public client (mobile/SPA/SSR): PKCE, no secret.
   generate_secret = var.generate_client_secret

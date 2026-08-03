@@ -1,7 +1,6 @@
 package com.effyshopping.shop.mobile.core.auth
 
 import com.amplifyframework.auth.AuthChannelEventName
-import com.amplifyframework.auth.AuthFactorType
 import com.amplifyframework.auth.cognito.AWSCognitoAuthSession
 import com.amplifyframework.auth.cognito.options.AWSCognitoAuthSignInOptions
 import com.amplifyframework.auth.cognito.options.AuthFlowType
@@ -65,10 +64,21 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
-        // ALWAYS state the preferred factor — omitting it forces a factor-selection round-trip (013 D7).
+        // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP.
+        // The managed factor's length is not configurable by any setting on any object, so the only
+        // route to a consistent code length is a custom challenge (specs/035-six-digit-otp/).
+        //
+        // ⚠ WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
+        // returning DONE from the first signIn — issuing tokens without ever presenting the
+        // challenge (amplify-android #2331/#2566, fixed twice, reported recurring at 2.11.2).
+        // There is no password on this pool for SRP to verify in any case.
+        //
+        // ⚠ The `null` password argument is an artefact of Amplify Android's overload, which takes
+        // one positionally even for a passwordless flow. It stays INSIDE this driver — the
+        // commonMain AuthDriver interface has no password parameter, and must not grow one
+        // (constitution Principle IV: there are no passwords on the internal audiences).
         val options = AWSCognitoAuthSignInOptions.builder()
-            .authFlowType(AuthFlowType.USER_AUTH)
-            .preferredFirstFactor(AuthFactorType.EMAIL_OTP)
+            .authFlowType(AuthFlowType.CUSTOM_AUTH_WITHOUT_SRP)
             .build()
         mapSignIn(Amplify.Auth.signIn(email, null, options))
     }
@@ -84,8 +94,18 @@ class AmplifyAuthDriver : AuthDriver {
 
     // ── helpers ──────────────────────────────────────────────────────────────────────────────────
 
+    // ⚠ THE `else` BELOW IS WHY THIS MAPPING IS DANGEROUS TO EDIT. Kotlin does not require a `when`
+    // over an enum to be exhaustive once an `else` exists, so a new Cognito step compiles perfectly
+    // and fails at RUNTIME as an "Unexpected" dead end — no build error, no test failure, just a
+    // shopper stuck on a screen. Every step this app accepts is therefore named explicitly, and
+    // AuthStepMappingTest pins the ones that must map a particular way.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
         AuthSignInStep.DONE -> sessionOrFail()
+        // 035 — the platform's own 6-digit code.
+        AuthSignInStep.CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE ->
+            AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
+        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above (FR-033) and an in-flight managed-factor session still completes (FR-034).
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_OTP ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
         else -> AuthStep.Failed(AuthError.Unexpected)

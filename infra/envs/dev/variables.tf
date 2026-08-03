@@ -67,6 +67,29 @@ variable "customer_pre_sign_up_lambda_arn" {
   default     = null
 }
 
+variable "custom_auth_lambda_arns" {
+  description = <<-EOT
+    The four 035 sign-in-code trigger ARNs, shared by ALL FOUR pools.
+
+    ⚠ TWO-STAGE, and the order is load-bearing:
+      1. apply with this null  → pools exist, still on Cognito's managed 8-digit EMAIL_OTP
+      2. make edge-deploy SERVICE=auth ENV=dev
+      3. set this in dev.tfvars from the deployed ARNs
+      4. apply again  → the pools switch to the platform's 6-digit code
+    Cognito validates a trigger on UpdateUserPool, so a not-yet-deployed ARN fails the apply.
+
+    ⚠ SEED THE HMAC SECRET BEFORE STEP 4 (see infra/envs/dev/otp-store.tf). Without it the triggers
+    fail closed and NOBODY on the attached pools can sign in.
+  EOT
+  type = object({
+    define              = string
+    create              = string
+    verify              = string
+    post_authentication = string
+  })
+  default = null
+}
+
 variable "auth_urls" {
   description = "Per-audience app-client callback/logout URLs (dev placeholders for now). Keys: customer, driver, shop, back_office."
   type = map(object({

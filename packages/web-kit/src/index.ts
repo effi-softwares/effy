@@ -1,7 +1,7 @@
 /**
  * `@effy/web-kit` — the audience-neutral web runtime.
  *
- * Config, Amplify wiring, session/token access, the passwordless EMAIL_OTP flow, the route guard,
+ * Config, Amplify wiring, session/token access, the passwordless email one-time code flow, the route guard,
  * the server-state client, telemetry, and the client store. Every web surface consumes this; none
  * re-implements it (constitution Principle II).
  *

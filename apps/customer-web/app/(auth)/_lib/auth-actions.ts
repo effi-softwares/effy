@@ -73,8 +73,30 @@ export async function signInWithPassword(email: string, password: string) {
  * The random-password hack would leave every OTP customer holding a credential they do not know,
  * cannot rotate, and never asked for.
  *
- * `autoSignIn` then chains registration → verification → session, so the customer types ONE code
- * rather than two.
+ * ⚠ 035 makes that reasoning LOAD-BEARING in a second way. The throwaway-password shortcut would
+ * also break 012's set-first-password flow, which calls `ChangePassword` WITHOUT `PreviousPassword`
+ * — a call that only works on an account that genuinely has no password — and would desynchronise
+ * the platform's own `has_password` column. It is not just distasteful; it silently breaks a
+ * shipped security control.
+ *
+ * ⚠ 035 KEEPS `autoSignIn`, and the reasoning is worth stating because the obvious move is wrong.
+ *
+ * Amplify documents exactly one `authFlowType` for `autoSignIn` — `USER_AUTH` — and this platform
+ * now SIGNS IN with `CUSTOM_WITHOUT_SRP`, so the first instinct is to drop `autoSignIn` and call
+ * `signIn` explicitly after registration. That would be a REGRESSION, not a fix: the code the
+ * customer types here is the `ConfirmSignUp` code, which is already six digits and which 035 does
+ * not touch (FR-003). Removing `autoSignIn` would leave them confirmed but signed out, needing a
+ * SECOND code to get in — two codes where there is currently one.
+ *
+ * `autoSignIn` issues no code of its own, so FR-001 ("every code the platform ISSUES is six
+ * digits") is not engaged. It needs `ALLOW_USER_AUTH`, which the customer client retains anyway
+ * because passwordless `SignUp` is only legal while it is present (research R4b).
+ *
+ * ⚠ UNVERIFIED, AND ON THE SPIKE LIST. What `autoSignIn` does once custom-auth triggers are
+ * attached to this pool is not documented anywhere I could find: it may complete from the
+ * confirmation alone (today's behaviour, one code) or it may initiate a fresh challenge (two
+ * codes, and possibly an eight-digit one). T003 must check this on the dev pool before the
+ * customer audience migrates — see specs/035-six-digit-otp/research.md § R4b.
  */
 export async function signUpWithOtp(
   name: { given: string; family: string },
@@ -84,6 +106,8 @@ export async function signUpWithOtp(
     username: email,
     options: {
       userAttributes: { email, given_name: name.given, family_name: name.family },
+      // ⚠ RETAINED by 035 — see the note above. Removing this would cost the customer a second
+      // code, and it issues none of its own.
       autoSignIn: { authFlowType: "USER_AUTH" },
     },
   })
@@ -97,11 +121,47 @@ export async function completeAutoSignIn() {
   return autoSignIn()
 }
 
+/**
+ * ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP.
+ *
+ * The managed factor's length is not configurable by any setting on any object — not on the pool,
+ * the app client, the sign-in policy, `EmailMfaConfigType`, or the message templates — so a custom
+ * challenge is the only route to one code length across the platform.
+ *
+ * ⚠ `CUSTOM_WITHOUT_SRP`, never `CUSTOM_WITH_SRP`: the WITH_SRP variant has a recorded history of
+ * completing sign-in WITHOUT presenting the challenge.
+ */
 export async function signInWithOtp(email: string) {
   return signIn({
     username: email,
-    options: { authFlowType: "USER_AUTH", preferredChallenge: "EMAIL_OTP" },
+    options: { authFlowType: "CUSTOM_WITHOUT_SRP" },
   })
+}
+
+/**
+ * The sign-in steps this surface accepts (035 T070).
+ *
+ * ⚠ customer-web had NO switch on `signInStep` at all — `signInWithOtp` returned the raw result and
+ * every caller assumed a code was coming. That made it the surface where a new or unexpected step
+ * fails LATEST and most confusingly: no throw, no branch, just a code screen for a code that was
+ * never sent. The console surfaces at least threw.
+ */
+export type OtpSignInStep = "otp-required" | "done"
+
+export function classifySignInStep(step: string): OtpSignInStep {
+  switch (step) {
+    // The platform's own 6-digit code.
+    case "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE":
+      return "otp-required"
+    // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant change
+    // (FR-033) and a session begun under the managed factor still completes (FR-034).
+    case "CONFIRM_SIGN_IN_WITH_EMAIL_CODE":
+      return "otp-required"
+    case "DONE":
+      return "done"
+    default:
+      throw new Error(`Unexpected sign-in step: ${step}`)
+  }
 }
 
 /**
@@ -168,14 +228,26 @@ export async function startPasswordReset(email: string) {
  * of them is turned into something the customer can DO something about — never a dead end, and
  * never a raw exception surfaced to a member of the public.
  */
-export function authErrorMessage(err: unknown): string {
+export function authErrorMessage(err: unknown, context: "password" | "code" = "password"): string {
   const name = (err as { name?: string })?.name ?? ""
 
   switch (name) {
     case "UsernameExistsException":
       return "An account already exists with that email. Try signing in instead."
     case "NotAuthorizedException":
-      return "That email and password don't match. Check them and try again, or reset your password."
+      // ⚠ 035 — THE SAME EXCEPTION NOW MEANS TWO DIFFERENT THINGS, which is why `context` exists.
+      //
+      // On the password route it is a credential mismatch, as it always was. On the CODE route it
+      // is what `failAuthentication: true` from the define trigger surfaces as — i.e. the shopper
+      // used all three attempts. Telling someone on a PASSWORDLESS sign-in that their "email and
+      // password don't match" is nonsense they cannot act on: there is no password to check.
+      //
+      // ⚠ The code-route wording is deliberately the SAME as an unknown address would produce.
+      // Distinguishing "you ran out of tries" from "no such account" would re-open the existence
+      // oracle the whole flow is built to close (FR-028).
+      return context === "code"
+        ? "That didn't work. Request a new code and try again."
+        : "That email and password don't match. Check them and try again, or reset your password."
     case "UserNotFoundException":
       // Cognito is configured with prevent_user_existence_errors, so this should not surface —
       // but if it ever does, we do not confirm whether the account exists.
