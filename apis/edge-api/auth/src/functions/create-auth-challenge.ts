@@ -72,8 +72,10 @@ export const handler = async (
   let key: string;
   try {
     key = await hmacKey();
-  } catch {
+  } catch (err) {
     // Infrastructure failure. Refuse opaquely rather than throwing a message the caller would read.
+    // ⚠ The NAME is logged, never the message — see the note on the SES catch below.
+    logFailure("hmac-key", err);
     emit("otp_send_failed", event.userPoolId);
     event.response.privateChallengeParameters = { digest: "", issuedAt: "0" };
     event.response.challengeMetadata = "";
@@ -107,7 +109,8 @@ export const handler = async (
     // would make an unknown address answer measurably faster than a real one, and existence would
     // leak through latency despite every response body being identical.
     await sendCode({ to: email, code, profile, phantom: userNotFound });
-  } catch {
+  } catch (err) {
+    logFailure("ses-send", err);
     emit("otp_send_failed", event.userPoolId);
     event.response.privateChallengeParameters = { digest: "", issuedAt: "0" };
     event.response.challengeMetadata = "";
@@ -126,3 +129,27 @@ export const handler = async (
   emit("otp_code_issued", event.userPoolId);
   return event;
 };
+
+/**
+ * Log WHY a send failed, without leaking anything.
+ *
+ * ⚠ THE ERROR NAME ONLY — NEVER THE MESSAGE. This is not fussiness: SES's own rejection text
+ * embeds the recipient, e.g. "Email address is not verified. The following identities failed the
+ * check in region AP-SOUTHEAST-2: someone@example.com". Logging `err.message` would put a customer's
+ * address in CloudWatch on every failed send and break FR-014 — and it would do it most often
+ * during an incident, when the logs are being read by the most people.
+ *
+ * ⚠ WHY THIS EXISTS AT ALL. The first deploy failed with `otp_send_failed` and NOTHING else: the
+ * handler caught, emitted a metric and discarded the cause. Diagnosing it took direct SES and IAM
+ * inspection. A metric tells you something broke; it does not tell you what.
+ *
+ * Common names worth recognising:
+ *   MessageRejected              — SES sandbox, and the RECIPIENT is not a verified identity
+ *   AccountSendingPausedException — SES sending disabled for the account
+ *   AccessDeniedException        — the role lacks ses:SendEmail on the identity
+ */
+function logFailure(stage: string, err: unknown): void {
+  const name = err instanceof Error ? err.name : "UnknownError";
+  // eslint-disable-next-line no-console -- structured line; the metric carries the alarm.
+  console.log(JSON.stringify({ level: "error", msg: "otp send failed", stage, error: name }));
+}
