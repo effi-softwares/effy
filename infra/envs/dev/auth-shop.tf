@@ -36,8 +36,21 @@ module "shop_pool" {
   # ⚠ The four ARNs are null until `make edge-deploy SERVICE=auth ENV=dev` has run — Cognito
   # validates a trigger on UpdateUserPool, so the functions must exist first. Same two-stage dance
   # as the 011 pre-sign-up trigger.
-  enable_custom_auth_flow   = true
-  disable_choice_based_auth = true
+  # ⚠ BOTH FLAGS ARE DERIVED FROM THE ARNs, NOT HARDCODED — and that is what makes the two-stage
+  # apply safe rather than an outage.
+  #
+  # The auth service's serverless.yml reads SSM parameters that only the FIRST apply creates, so
+  # apply must precede deploy. If these were hardcoded `true`, that first apply would flip this
+  # pool to ALLOW_CUSTOM_AUTH with NO challenge triggers attached, while simultaneously dropping
+  # ALLOW_USER_AUTH — leaving the audience with no working sign-in flow at all until the second
+  # apply. On the back-office pool that includes the console an operator would use to fix it.
+  #
+  # Derived, the sequence is safe at every point:
+  #   apply #1 (arns null) → flows UNCHANGED, infra created, sign-in keeps working
+  #   deploy               → functions exist
+  #   apply #2 (arns set)  → triggers attach AND flows flip, atomically
+  enable_custom_auth_flow   = var.custom_auth_lambda_arns != null
+  disable_choice_based_auth = var.custom_auth_lambda_arns != null
   custom_auth_lambda_arns   = var.custom_auth_lambda_arns
 
 }
@@ -77,7 +90,13 @@ resource "aws_cognito_user_pool_client" "shop_mobile" {
   # rate limits. Safe to drop here: this audience is admin-provisioned and never self-signs-up.
   # ⚠ This client was UNGUARDED until 035 — verify-pool-credentials.sh read only the module-owned
   # app_client_id and never looked at the mobile clients at all.
-  explicit_auth_flows = ["ALLOW_CUSTOM_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"]
+  # ⚠ Derived from the ARNs like the module-owned clients — offering CUSTOM_AUTH before the triggers
+  # exist would leave shop operators with no working sign-in at all between the two applies.
+  explicit_auth_flows = var.custom_auth_lambda_arns != null ? [
+    "ALLOW_CUSTOM_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"
+    ] : [
+    "ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"
+  ]
 
   # Public client: PKCE, NO client secret. A secret in a published mobile binary is a LEAKED secret
   # (014 FR-036) — and Amplify's config has no field for one anyway.

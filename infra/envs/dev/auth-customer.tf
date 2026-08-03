@@ -151,7 +151,10 @@ module "customer_pool" {
   # ⚠ The obvious alternative — a random throwaway password at sign-up — is REJECTED: it breaks
   # 012's set-first-password flow, which calls ChangePassword WITHOUT PreviousPassword and only
   # works on an account that genuinely has no password. See research R4b.
-  enable_custom_auth_flow = true
+  # ⚠ Derived, not hardcoded — see the note on the internal pools. Offering ALLOW_CUSTOM_AUTH before
+  # the triggers exist would break every client that asks for it, which after 035 is all of them.
+  # (This pool keeps ALLOW_USER_AUTH regardless, so its exposure is smaller — but not zero.)
+  enable_custom_auth_flow = var.custom_auth_lambda_arns != null
   custom_auth_lambda_arns = var.custom_auth_lambda_arns
 
 }
@@ -185,7 +188,12 @@ resource "aws_cognito_user_pool_client" "customer_mobile" {
   # ⚠ 035 adds ALLOW_CUSTOM_AUTH (the platform's 6-digit code) and RETAINS ALLOW_USER_AUTH —
   # passwordless SignUp needs it, so unlike the internal pools this client cannot drop it. See the
   # module block above for the consequence.
-  explicit_auth_flows = ["ALLOW_CUSTOM_AUTH", "ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"]
+  # ⚠ Derived from the ARNs — see the module block above. ALLOW_USER_AUTH and ALLOW_USER_SRP_AUTH
+  # are unconditional here: this audience keeps both its other credential routes.
+  explicit_auth_flows = concat(
+    var.custom_auth_lambda_arns != null ? ["ALLOW_CUSTOM_AUTH"] : [],
+    ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"],
+  )
 
   # Public client: PKCE, NO client secret. A secret in a published mobile binary is a LEAKED secret
   # (013 FR-042) — and Amplify's config has no field for one anyway.

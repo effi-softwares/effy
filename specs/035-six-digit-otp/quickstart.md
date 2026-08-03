@@ -112,37 +112,63 @@ its own header warns about (research R14).
 
 ---
 
-## §4 — Deploy, in this order. The order is load-bearing
+## §4 — Deploy. ⚠ THE ORDER IS LOAD-BEARING AND THE REASON IS NOT OBVIOUS
+
+The auth service reads SSM parameters that **only the first apply creates**, so apply must come
+before deploy. But the pools must NOT switch to the new flow until the triggers exist. Both
+constraints are satisfied because every auth-flow flag is **derived from whether the trigger ARNs
+are set** — so apply #1 changes no sign-in behaviour at all.
 
 ```bash
-# 1. Lambdas FIRST — Cognito validates the trigger on UpdateUserPool, so the ARNs must exist
-make edge-deploy SERVICE=auth ENV=dev
-
-# 2. Record the four ARNs into infra/envs/dev/dev.tfvars (the same two-stage dance as pre_sign_up)
-
-# 3. ⚠ PLAN AND READ IT — the single most important command in this file
-make plan ENV=dev 2>&1 | tee /tmp/035-plan.txt
-grep -nE 'must be replaced|forces replacement|-/\+' /tmp/035-plan.txt
-```
-
-⚠⚠ **If that grep returns ANY line naming `aws_cognito_user_pool` or `aws_cognito_user_pool_client` —
-STOP. Do not apply.** A replaced pool destroys the 006 first admin, every 009 shop operator, and every
-customer. Expected output: **in-place updates only** (FR-030, SC-012).
-
-```bash
-# 4. Apply — attaches lambda_config, WAF, DynamoDB table, client flow changes
+# ── 1. Infrastructure only. ⚠ NO sign-in behaviour changes here. ─────────────────────────────
+#    Creates: DynamoDB counter, HMAC secret SHELL, WAF + associations, 4 alarms, SSM params.
+#    Auth flows stay exactly as they are because custom_auth_lambda_arns is still null.
+make plan ENV=dev 2>&1 | tee /tmp/035-plan-1.txt
+grep -nE 'must be replaced|forces replacement' /tmp/035-plan-1.txt   # ⚠ MUST be empty — see below
 make apply ENV=dev
 
-# 5. Confirm mail can actually leave the building — under this design, no email = no sign-in
+# ── 2. Seed the HMAC key. ⚠ Terraform creates the shell, never the value. ────────────────────
+#    Until this exists the triggers fail CLOSED — correct, but a total sign-in outage once
+#    attached. Do it BEFORE step 5.
+aws secretsmanager put-secret-value --profile ef --region ap-southeast-2 \
+  --secret-id effy-dev-otp-hmac \
+  --secret-string "{\"key\":\"$(openssl rand -hex 32)\"}"
+
+# ── 3. Deploy the Lambdas. They can now resolve the SSM params from step 1. ──────────────────
+make edge-deploy SERVICE=auth ENV=dev
+
+# ── 4. Record the four ARNs into infra/envs/dev/dev.tfvars ───────────────────────────────────
+aws lambda list-functions --profile ef --region ap-southeast-2 \
+  --query "Functions[?starts_with(FunctionName,'effy-edge-auth-dev')].FunctionArn" --output text
+#    then add to dev.tfvars:
+#      custom_auth_lambda_arns = {
+#        define              = "arn:aws:lambda:...:effy-edge-auth-dev-defineAuthChallenge"
+#        create              = "arn:aws:lambda:...:effy-edge-auth-dev-createAuthChallenge"
+#        verify              = "arn:aws:lambda:...:effy-edge-auth-dev-verifyAuthChallenge"
+#        post_authentication = "arn:aws:lambda:...:effy-edge-auth-dev-postAuthentication"
+#      }
+
+# ── 5. Confirm mail can leave the building. ⚠ No email = no sign-in, no password fallback. ───
 make mail-verify ENV=dev
+
+# ── 6. THE CUTOVER. Triggers attach AND client flows flip, atomically. ───────────────────────
+make plan ENV=dev 2>&1 | tee /tmp/035-plan-2.txt
+grep -nE 'must be replaced|forces replacement' /tmp/035-plan-2.txt   # ⚠ MUST be empty
+make apply ENV=dev
 ```
 
-⚠ `make mail-verify` warns rather than fails when SES is in the **sandbox** (200/day, verified
-recipients only). ⚠ Note `ses_sender_enabled = false` in dev today — that flag governs which sender
-**Cognito** uses; our Lambda sends via SES directly and is unaffected. But **production access is a
-hard prerequisite before migrating the customer audience.**
+⚠⚠ **If either grep returns a line naming `aws_cognito_user_pool` or `aws_cognito_user_pool_client`
+— STOP. Do not apply.** A replaced pool destroys the 006 first admin, every 009 shop operator and
+every customer. Expected output on both plans: **in-place updates only** (FR-030, SC-012).
 
----
+⚠ `make mail-verify` warns rather than fails when SES is in the **sandbox** (200/day, verified
+recipients only). Note `ses_sender_enabled = false` in dev — that flag governs which sender
+**Cognito** uses; our Lambda sends via SES directly and is unaffected. But **SES production access is
+a hard prerequisite before the customer audience migrates.**
+
+⚠ **Rollback from step 6 is one line**: remove `custom_auth_lambda_arns` from `dev.tfvars` and apply.
+Every flag derives from it, so the pools return to the managed flow together. Per-surface rollback is
+reverting that surface's `authFlowType` constant — no infrastructure change at all.
 
 ## §5 — Roll out one audience at a time. Internal first
 
