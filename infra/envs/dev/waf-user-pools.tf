@@ -23,8 +23,11 @@
 # ---------------------------------------------------------------------------------------------
 
 resource "aws_wafv2_web_acl" "user_pools" {
-  name        = "${module.shared.name_prefix}-user-pool-signin"
-  description = "035 — rate-based protection on Cognito sign-in. Per-SOURCE only; the per-address limit lives in DynamoDB."
+  name = "${module.shared.name_prefix}-user-pool-signin"
+  # ⚠ WAFv2 validates this against ^[\w+=:#@/\-,\.][\w+=:#@/\-,\.\s]+[\w+=:#@/\-,\.]$ — no em
+  # dashes, semicolons, parentheses or apostrophes, unlike every other description field in this
+  # repo. Keep it to letters, digits, spaces, hyphens, commas and periods.
+  description = "035 rate-based protection on Cognito sign-in. Per-source only, the per-address limit lives in DynamoDB."
   scope       = "REGIONAL"
 
   default_action {
