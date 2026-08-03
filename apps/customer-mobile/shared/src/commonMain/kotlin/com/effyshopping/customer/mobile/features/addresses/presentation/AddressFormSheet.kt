@@ -35,13 +35,9 @@ import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressFormSheet(
-    editing: Boolean,
     form: AddressForm,
     fieldErrors: Map<String, String>,
-    saving: Boolean,
     onChange: (AddressForm) -> Unit,
-    onSubmit: () -> Unit,
-    onCancel: () -> Unit,
 ) {
     // ⚠ The scroll container, IME padding, navigation-bar padding and the title now belong to
     // EffySheet (034 T017). Re-adding them here would double the insets and nest a scroll inside a
@@ -69,17 +65,10 @@ fun AddressFormSheet(
         Field("State / region (optional)", form.region, onChange = { onChange(form.copy(region = it)) })
         Field("Postcode", form.postalCode, error = fieldErrors["postalCode"], keyboard = KeyboardType.Number, onChange = { onChange(form.copy(postalCode = it)) })
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-            // ⚠ 034 T072 — was a RAW Material 3 Button, the only one left in the app, which is why
-            // this form's action never picked up the shared press-scale, height or disabled treatment.
-            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            EffyPrimaryButton(
-                label = if (editing) "Save" else "Add",
-                onClick = onSubmit,
-                enabled = !saving,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        // ⚠ 034 — NO ACTION ROW HERE. `EffySheet` owns the Save/Cancel pair so every account sheet is
+        // identical: primary full-width, Cancel de-weighted beneath it. This form used to draw its own
+        // side-by-side pair (with a raw Material button), which is why it looked like a different
+        // component from the single-field editors.
     }
 }
 

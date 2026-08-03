@@ -212,6 +212,39 @@ if [ -f "$ACCOUNT_SCREENS" ]; then
   fi
 fi
 
+
+# ── 034: every declared route must have an `entry<>` in the shell ─────────────────────────────────
+#
+# ⚠ THIS GUARD EXISTS BECAUSE ITS ABSENCE SHIPPED A CRASH.
+#
+# `CustomerNavKey.kt` documents THREE places a new route must be registered — the sealed interface,
+# the polymorphic serializer module, and ALL_CUSTOMER_ROUTES. That list is incomplete. A route also
+# needs an `entry<CustomerNavKey.X>` in CustomerShell's NavDisplay, or the fallback throws
+# `IllegalStateException: Unknown screen X` the instant a shopper taps it.
+#
+# Nothing caught it: it compiles, the serialization round-trip test passes (the route IS in all three
+# lists), and the reachability check below passes too — that proves something NAVIGATES to the route,
+# not that the shell can RENDER it. 034's Security screen crashed on a device with every gate green.
+NAV_KEYS="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/nav/CustomerNavKey.kt"
+SHELL_FILE="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/app/CustomerShell.kt"
+UNRENDERABLE=""
+if [ -f "$NAV_KEYS" ] && [ -f "$SHELL_FILE" ]; then
+  ROUTES="$(grep -oE '@Serializable data (object|class) [A-Za-z]+' "$NAV_KEYS" | awk '{print $NF}' | sort -u)"
+  for route in $ROUTES; do
+    if ! grep -q "entry<CustomerNavKey\.$route>" "$SHELL_FILE"; then
+      UNRENDERABLE="$UNRENDERABLE$route
+"
+    fi
+  done
+fi
+if [ -n "$UNRENDERABLE" ]; then
+  echo "✗ mobile-guard [apps/customer-mobile]: route declared but the shell CANNOT RENDER it —"
+  echo "  NavDisplay will throw 'Unknown screen' the moment a shopper taps it:"
+  echo "$UNRENDERABLE" | sed '/^$/d; s/^/    CustomerNavKey./'
+  echo "  Add an entry<CustomerNavKey.X> { … } block in CustomerShell's NavDisplay."
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances absent;"
   echo "  every customer destination reachable."

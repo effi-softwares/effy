@@ -147,6 +147,17 @@ val CUSTOMER_TAB_ROOTS: List<CustomerNavKey> = listOf(
  * uses this one and the two platforms stay identical. A route missing from the polymorphic module
  * below throws at restore time on iOS and works fine on Android — never add a route without adding it
  * here, and the serialization test will tell you if you forget.
+ *
+ * ⚠⚠ AND A ROUTE NEEDS A FOURTH REGISTRATION THIS COMMENT USED TO OMIT. ⚠⚠
+ *
+ * It also needs an `entry<CustomerNavKey.X> { … }` block in `CustomerShell`'s `NavDisplay`, or
+ * the fallback throws `IllegalStateException: Unknown screen X` the instant a shopper taps it.
+ *
+ * That gap is invisible to everything else: the code compiles, the serialization round-trip test
+ * passes (the route IS in all three lists below), and `mobile-guard`'s reachability check passes
+ * too — it proves something NAVIGATES to the route, not that the shell can RENDER it. Feature
+ * 034 shipped `Security` this way and it crashed on the first tap, on a device, with every gate
+ * green. `mobile-guard` now checks the `entry<>` registration as well.
  */
 val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {

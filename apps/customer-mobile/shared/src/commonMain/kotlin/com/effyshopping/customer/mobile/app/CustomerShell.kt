@@ -453,6 +453,29 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     AccountRoutes(container, CustomerNavKey.MyDetails, session)
                 }
                 entry<CustomerNavKey.Password> { key -> AccountRoutes(container, key, session) }
+
+                // ⚠ 034 — A ROUTE NEEDS FOUR REGISTRATIONS, NOT THREE, AND THIS IS THE FOURTH.
+                //
+                // `CustomerNavKey.kt` documents three places a route must appear (the sealed
+                // interface, the polymorphic serializer module, and ALL_CUSTOMER_ROUTES). That list
+                // is INCOMPLETE: a route also needs an `entry<>` here, or `NavDisplay` hits the
+                // fallback and throws `IllegalStateException: Unknown screen …` the moment a shopper
+                // taps it.
+                //
+                // ⚠ Nothing caught that. It compiles, the serialization test passes (the route IS in
+                // all three lists), and `mobile-guard` passes too — its reachability check proves
+                // something NAVIGATES to the route, not that the shell can RENDER it. Shipping the
+                // account centre without these three lines crashed the app on the first tap of
+                // "Security", on a device, after every gate was green.
+                entry<CustomerNavKey.Security> {
+                    AccountRoutes(container, CustomerNavKey.Security, session)
+                }
+                entry<CustomerNavKey.Privacy> {
+                    AccountRoutes(container, CustomerNavKey.Privacy, session)
+                }
+                entry<CustomerNavKey.DeleteAccount> {
+                    AccountRoutes(container, CustomerNavKey.DeleteAccount, session)
+                }
             },
         )
     }

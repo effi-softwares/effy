@@ -44,6 +44,7 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressFormSheet
 import com.effyshopping.customer.mobile.features.cart.domain.formatCents
 import com.effyshopping.customer.mobile.features.cart.domain.parseCents
+import com.effyshopping.customer.mobile.core.presentation.EffySheet
 
 /**
  * Checkout (019 US3, extended 021 delivery + 023 shipping/billing). Reached only when signed in.
@@ -121,17 +122,21 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
     }
 
     // The shared add-address form (022) — raised for shipping OR billing (023 US3).
+    // ⚠ 034 — on the SHARED EffySheet now, which owns the title and the Save/Cancel pair. This was
+    // the last hand-rolled ModalBottomSheet in the app; leaving it would have meant checkout's form
+    // looking like a different component from the identical one in the address book.
     s.sheet?.let { sheet ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(onDismissRequest = vm::dismissSheet, sheetState = sheetState) {
+        EffySheet(
+            title = "Add an address",
+            onDismiss = vm::dismissSheet,
+            primaryLabel = "Add",
+            onPrimary = vm::submitAddress,
+            primaryEnabled = !sheet.saving,
+        ) {
             AddressFormSheet(
-                editing = false,
                 form = sheet.form,
                 fieldErrors = sheet.fieldErrors,
-                saving = sheet.saving,
                 onChange = vm::onSheetFormChange,
-                onSubmit = vm::submitAddress,
-                onCancel = vm::dismissSheet,
             )
         }
     }

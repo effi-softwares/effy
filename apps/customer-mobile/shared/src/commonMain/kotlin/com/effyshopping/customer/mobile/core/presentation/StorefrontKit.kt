@@ -98,6 +98,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 
 /**
  * The customer storefront's shared visual vocabulary (025).
@@ -543,7 +544,12 @@ fun EffyNavRow(
  */
 @Composable
 fun EffyField(
-    label: String,
+    /**
+     * ⚠ NULLABLE. Pass `null` inside an [EffySheet] whose title already names the field — otherwise
+     * the shopper reads "First name" twice, once as the heading and once as the label, which is what
+     * the first build of 034's editor actually did.
+     */
+    label: String?,
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -563,11 +569,13 @@ fun EffyField(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = EffySpacing.s),
-        )
+        if (label != null) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(bottom = EffySpacing.s),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -952,24 +960,51 @@ fun EffySheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     dirty: Boolean = false,
+    /** The committing action. Omit only for a sheet that commits nothing. */
+    primaryLabel: String? = null,
+    onPrimary: (() -> Unit)? = null,
+    primaryEnabled: Boolean = true,
+    cancelLabel: String = "Cancel",
     discardTitle: String = "Discard your changes?",
     discardBody: String = "What you typed here will not be saved.",
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    var confirmingDiscard by remember { mutableStateOf(false) }
+    val confirmingDiscardState = remember { mutableStateOf(false) }
+    var confirmingDiscard by confirmingDiscardState
+
+    // ⚠⚠ READ BEFORE TOUCHING THE `confirmValueChange` LAMBDA. ⚠⚠
+    //
+    // `rememberModalBottomSheetState` delegates to
+    //     rememberSaveable(skipPartiallyExpanded, confirmValueChange, skipHiddenState, saver = …)
+    // so **the lambda is a KEY**. Any recomposition that produces a NEW lambda instance discards the
+    // SheetState and rebuilds it with `initialValue = Hidden` — and the sheet then animates Hidden →
+    // Expanded, which the shopper sees as the sheet dropping and springing back.
+    //
+    // The first build captured `dirty` directly. On the FIRST keystroke `dirty` flips false → true,
+    // Compose's lambda memoisation emits a new instance, the key changes, and the sheet dipped —
+    // once, on the first character only, because every later keystroke leaves `dirty` true and reuses
+    // the memoised instance. A perfect little Heisenbug: invisible in tests, obvious on a device.
+    //
+    // The fix is to make the lambda ONE STABLE INSTANCE that reads the current values through State
+    // at call time, so the key never changes. `remember {}` with no keys guarantees that; both values
+    // it reads are MutableState/State, so it always sees the latest without being recreated.
+    val dirtyState = rememberUpdatedState(dirty)
+    val confirmValueChange = remember {
+        { target: SheetValue ->
+            if (target == SheetValue.Hidden && dirtyState.value) {
+                confirmingDiscardState.value = true
+                false
+            } else {
+                true
+            }
+        }
+    }
 
     // Intercepts the DRAG. Returning false vetoes the state change, so the sheet stays put while the
     // alert asks. `onDismissRequest` below covers the scrim tap and the back gesture.
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
-        confirmValueChange = { target ->
-            if (target == SheetValue.Hidden && dirty) {
-                confirmingDiscard = true
-                false
-            } else {
-                true
-            }
-        },
+        confirmValueChange = confirmValueChange,
     )
 
     ModalBottomSheet(
@@ -988,30 +1023,42 @@ fun EffySheet(
                 // be hidden by it.
                 .imePadding()
                 .navigationBarsPadding()
-                .padding(horizontal = EffySpacing.xl, vertical = EffySpacing.s),
+                .padding(horizontal = EffySpacing.xl)
+                .padding(bottom = EffySpacing.lg),
             verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(title, style = MaterialTheme.typography.headlineSmall)
-                // FR-017 — an EXPLICIT close control, in addition to the drag. A path-based gesture
-                // cannot be the only route to a function, and the drag handle is widely missed.
-                IconButton(
-                    onClick = { if (dirty) confirmingDiscard = true else onDismiss() },
-                    modifier = Modifier.size(EffyMinTouchTarget),
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.ic_close),
-                        contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+            // ⚠ NO CLOSE (X) BUTTON, and no header Row — both were removed after the first build.
+            //
+            // The X sat opposite the title and did exactly what Cancel does one row below it. Two
+            // controls for one action is not redundancy that helps; it is a second thing to read, and
+            // it forced a full-height header row that pushed the title down into a band of dead space
+            // under the drag handle.
+            //
+            // FR-017 still holds — it requires an EXPLICIT, non-gesture way out, in addition to the
+            // drag, because a path-based gesture cannot be the only route to a function and the drag
+            // handle is widely missed. **Cancel is that control.** It is visible, permanent, keyboard-
+            // and screen-reader reachable, and it is the one a shopper actually reads.
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(top = EffySpacing.s),
+            )
+
             content()
-            Spacer(Modifier.height(EffySpacing.s))
+
+            // The action pair, owned HERE so every account sheet is identical (034 — "one design").
+            // ⚠ Save first, Cancel BELOW it and DE-WEIGHTED (FR-014/FR-015): Cancel sits under the
+            // thumb's resting position, so two equally-weighted filled buttons turn a mis-tap into
+            // silent data loss.
+            if (primaryLabel != null && onPrimary != null) {
+                EffyPrimaryButton(primaryLabel, onClick = onPrimary, enabled = primaryEnabled)
+            }
+            TextButton(
+                onClick = { if (dirty) confirmingDiscard = true else onDismiss() },
+                modifier = Modifier.fillMaxWidth().heightIn(min = EffyMinTouchTarget),
+            ) {
+                Text(cancelLabel, style = MaterialTheme.typography.bodyLarge)
+            }
         }
     }
 

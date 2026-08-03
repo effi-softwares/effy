@@ -127,15 +127,14 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
         EffySheet(
             title = if (sheet.editingId != null) "Edit address" else "Add an address",
             onDismiss = { vm.dismissSheet() },
+            primaryLabel = if (sheet.editingId != null) "Save" else "Add",
+            onPrimary = { vm.submit() },
+            primaryEnabled = !sheet.saving,
         ) {
             AddressFormSheet(
-                editing = sheet.editingId != null,
                 form = sheet.form,
                 fieldErrors = sheet.fieldErrors,
-                saving = sheet.saving,
                 onChange = vm::onFormChange,
-                onSubmit = vm::submit,
-                onCancel = vm::dismissSheet,
             )
         }
     }

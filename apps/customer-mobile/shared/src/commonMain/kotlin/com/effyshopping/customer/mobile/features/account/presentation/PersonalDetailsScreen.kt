@@ -236,24 +236,23 @@ private fun DetailEditSheet(
     // FR-013 — focused with the keyboard up, without a second interaction.
     LaunchedEffect(title) { focus.requestFocus() }
 
-    EffySheet(title = title, onDismiss = onDismiss, dirty = value != original) {
+    EffySheet(
+        title = title,
+        onDismiss = onDismiss,
+        dirty = value != original,
+        primaryLabel = "Save",
+        onPrimary = onSave,
+        primaryEnabled = !saving,
+    ) {
+        // ⚠ NO LABEL — the sheet's title already says "First name". Passing one here printed it
+        // twice, heading and label, which is what the first build shipped.
         EffyField(
-            label = title,
+            label = null,
             value = value,
             onValueChange = onValueChange,
             error = error,
             keyboardOptions = KeyboardOptions(keyboardType = keyboard),
             modifier = Modifier.focusRequester(focus),
         )
-        // ⚠ Save first, Cancel BELOW and DE-WEIGHTED (FR-014/FR-015). Cancel sits under the thumb's
-        // resting position, so two equally-weighted filled buttons turn a mis-tap into data loss.
-        EffyPrimaryButton("Save", onClick = onSave, enabled = !saving)
-        TextButton(
-            onClick = onDismiss,
-            enabled = !saving,
-            modifier = Modifier.fillMaxWidth().heightIn(min = EffyMinTouchTarget),
-        ) {
-            Text("Cancel", style = MaterialTheme.typography.bodyLarge)
-        }
     }
 }
