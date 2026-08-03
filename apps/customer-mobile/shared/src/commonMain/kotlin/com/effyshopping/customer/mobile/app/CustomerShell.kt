@@ -476,6 +476,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.DeleteAccount> {
                     AccountRoutes(container, CustomerNavKey.DeleteAccount, session)
                 }
+                entry<CustomerNavKey.PasswordReset> {
+                    AccountRoutes(container, CustomerNavKey.PasswordReset, session)
+                }
             },
         )
     }

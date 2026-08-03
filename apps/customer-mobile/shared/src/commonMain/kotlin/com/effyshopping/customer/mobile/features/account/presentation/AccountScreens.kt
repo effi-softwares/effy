@@ -223,7 +223,12 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
         CustomerNavKey.DeleteAccount -> DeleteAccountScreen(container)
         // `setFirst` now travels ON the route rather than as two separate routes — a data class the
         // compiler checks, instead of two objects that had to be kept in step with the screen.
-        is CustomerNavKey.Password -> PasswordScreen(container, vm, setFirst = route.setFirst)
+        // 034 — two journeys, chosen ONLY by the platform-owned `hasPassword`, never by how the
+        // shopper signed in. A Google-linked customer is an ordinary native user and can hold one.
+        is CustomerNavKey.Password ->
+            if (route.setFirst) SetPasswordScreen(container, customer.email)
+            else ChangePasswordScreen(container, customer.email)
+        CustomerNavKey.PasswordReset -> ResetPasswordScreen(container, customer.email)
         // 026 US4 — the new screens. Each is presentational and carries no session requirement of its
         // own; reaching them via Account is what already gates them.
         CustomerNavKey.Notifications -> NotificationsScreen()
@@ -537,72 +542,6 @@ private fun PrivacyScreen(container: AppContainer) {
 }
 
 
-@Composable
-private fun PasswordScreen(container: AppContainer, vm: AccountViewModel, setFirst: Boolean) {
-    val state by vm.state.collectAsState()
-    var current by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
-    var newPassword by remember { mutableStateOf("") }
-    // 026: the source's Reset Password layout — app bar, supporting line, labelled fields, one filled
-    // action. The step-up code request is a SECONDARY button, not a text link: it is a real action
-    // that sends an email, and a text link read as incidental next to the field it fills.
-    Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(
-            title = if (setFirst) "Set a password" else "Change password",
-            onBack = { container.navigator.pop() },
-        )
-        FormColumn {
-            if (setFirst) {
-                Text(
-                    "For your security, we’ll email you a code to confirm it’s you.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                EffySecondaryButton(
-                    "Email me a code",
-                    onClick = { vm.sendSetPasswordCode() },
-                    enabled = !state.loading,
-                )
-                state.maskedDestination?.let {
-                    EffyField(
-                        "Code from your email",
-                        code,
-                        { code = it },
-                        placeholder = "6-digit code",
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                }
-            } else {
-                EffyField(
-                    "Current password",
-                    current,
-                    { current = it },
-                    placeholder = "Enter your current password",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    visualTransformation = PasswordVisualTransformation(),
-                )
-            }
-            EffyField(
-                "New password",
-                newPassword,
-                { newPassword = it },
-                placeholder = "At least $PASSWORD_MIN_LENGTH characters",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                visualTransformation = PasswordVisualTransformation(),
-            )
-            EffyPrimaryButton(
-                if (setFirst) "Set password" else "Change password",
-                onClick = {
-                    if (setFirst) vm.setPassword(code, newPassword) else vm.changePassword(current, newPassword)
-                },
-                enabled = !state.loading,
-            )
-            state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (state.loading) CircularProgressIndicator()
-        }
-    }
-}
 
 @Composable
 private fun InitialsAvatar(initials: String) {

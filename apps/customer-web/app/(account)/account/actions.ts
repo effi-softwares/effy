@@ -135,6 +135,23 @@ export async function writePassword(input: PasswordWriteDTO): Promise<Result> {
 
   // Past this line the credential HAS changed and every session is dead. Nothing that throws here
   // may be reported to the customer as a failed password change — because it wasn't one.
+  //
+  // ⚠ KNOWN PARITY SPLIT WITH MOBILE (034). The mobile app keeps the shopper signed in after a
+  // password change: the backend still revokes every session (that revocation IS the security
+  // control — "someone else has access" is the canonical reason to change a password), and the app
+  // then immediately signs itself back in with the credential the shopper just chose.
+  //
+  // The web surface CANNOT do that, for two independent reasons, and neither is a small fix:
+  //
+  //   1. `aws-amplify/auth/server` exports only `fetchUserAttributes` and `getCurrentUser` — there is
+  //      no server-side `signIn` (the same gap 012 hit with `signOut`). Reaching for the CLIENT SDK
+  //      here would drag `aws-amplify` into the storefront's shared chunk, which is exactly what the
+  //      quarantine and its `depcruise` rule exist to prevent.
+  //   2. Having the BACKEND mint tokens and hand them back would make it broker authentication —
+  //      forbidden outright by constitution Principle IV ("there is no auth proxy").
+  //
+  // So web signs the shopper out and asks them to sign in, which at least proves the new password
+  // immediately. Recorded in the parity register rather than left to be discovered.
   await clearSessionCookies()
   redirect("/sign-in?reason=password-changed")
 }

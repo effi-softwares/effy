@@ -124,6 +124,17 @@ sealed interface CustomerNavKey : NavKey {
     /** The account-deletion flow itself. */
     @Serializable data object DeleteAccount : CustomerNavKey
 
+    /**
+     * Resetting a FORGOTTEN password from inside the account.
+     *
+     * ⚠ A separate route from [Recovery], deliberately. Recovery is the PUBLIC, signed-out journey and
+     * has to ask for an email address because it does not know who is asking. This one is reached by a
+     * signed-in shopper who simply cannot remember their current password — the platform already knows
+     * their address, so asking for it would be a question with a known answer, and typing the wrong one
+     * would fail confusingly.
+     */
+    @Serializable data object PasswordReset : CustomerNavKey
+
     @Serializable
     data class Password(val setFirst: Boolean) : CustomerNavKey
 }
@@ -187,6 +198,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Security::class, CustomerNavKey.Security.serializer())
             subclass(CustomerNavKey.Privacy::class, CustomerNavKey.Privacy.serializer())
             subclass(CustomerNavKey.DeleteAccount::class, CustomerNavKey.DeleteAccount.serializer())
+            subclass(CustomerNavKey.PasswordReset::class, CustomerNavKey.PasswordReset.serializer())
             subclass(CustomerNavKey.Password::class, CustomerNavKey.Password.serializer())
         }
     }
@@ -219,5 +231,6 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Security,
     CustomerNavKey.Privacy,
     CustomerNavKey.DeleteAccount,
+    CustomerNavKey.PasswordReset,
     CustomerNavKey.Password(setFirst = true),
 )

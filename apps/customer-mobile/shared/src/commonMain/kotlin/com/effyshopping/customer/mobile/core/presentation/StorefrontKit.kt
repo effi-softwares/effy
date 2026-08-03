@@ -99,6 +99,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.effyshopping.customer.mobile.resources.ic_visibility
+import com.effyshopping.customer.mobile.resources.ic_visibility_off
 
 /**
  * The customer storefront's shared visual vocabulary (025).
@@ -1078,6 +1082,66 @@ fun EffySheet(
             },
         )
     }
+}
+
+/**
+ * A password input with a reveal toggle — the ONE password field in this app (034).
+ *
+ * ⚠ THE TOGGLE IS AN ACCESSIBILITY CONTROL, NOT A CONVENIENCE. WCAG 2.2 SC 3.3.8 (Accessible
+ * Authentication) exists because making someone type a credential they cannot read, with no way to
+ * check it, is a barrier — worst for anyone using a password manager, a screen reader, or a phone
+ * keyboard that hides what it just typed. GOV.UK's research went further and dropped their "confirm
+ * password" field once they shipped a reveal, on the grounds that seeing the password beats typing it
+ * twice and hoping you made the same mistake both times.
+ *
+ * ⚠ IT EXISTS BECAUSE THERE WERE THREE DESIGNS FOR ONE CONTROL. Sign-in and sign-up each drew a text
+ * "Show"/"Hide" `TextButton`; the recovery screen had no toggle at all; and 034's password screens
+ * added an eye icon. Same control, three answers, one of them missing.
+ *
+ * ⚠ Each field owns its own state. Sharing it across a form would reveal a shopper's CURRENT password
+ * because they wanted to check the new one.
+ *
+ * ⚠ Hidden by default and deliberately NOT `rememberSaveable`: a revealed password must not survive
+ * backgrounding the app and returning to it somewhere public.
+ */
+@Composable
+fun EffyPasswordField(
+    label: String?,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    error: String? = null,
+) {
+    var revealed by remember { mutableStateOf(false) }
+    EffyField(
+        label = label,
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        placeholder = placeholder,
+        error = error,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation =
+            if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+        trailing = {
+            IconButton(
+                onClick = { revealed = !revealed },
+                // FR-055 — the ACTIVATION AREA is the target, not the 24dp glyph inside it.
+                modifier = Modifier.size(EffyMinTouchTarget),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (revealed) Res.drawable.ic_visibility_off else Res.drawable.ic_visibility,
+                    ),
+                    // States what the control DOES next — what a screen-reader user needs, rather
+                    // than a description of the current state.
+                    contentDescription = if (revealed) "Hide password" else "Show password",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+    )
 }
 
 /** The hairline the web closes each merchandising section with. */

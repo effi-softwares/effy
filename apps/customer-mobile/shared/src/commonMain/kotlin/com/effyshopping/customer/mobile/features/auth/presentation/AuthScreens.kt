@@ -66,6 +66,7 @@ import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.effyshopping.customer.mobile.core.presentation.EffyPasswordField
 
 const val PASSWORD_MIN_LENGTH = 12 // mirrors the platform policy (shared-types PASSWORD_MIN_LENGTH)
 
@@ -311,7 +312,6 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
     val state by vm.state.collectAsState()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var reveal by remember { mutableStateOf(false) }
 
     AuthScaffold(
         container,
@@ -331,19 +331,11 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
             placeholder = "Enter your email address",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         )
-        EffyField(
+        EffyPasswordField(
             "Password",
             password,
             { password = it },
             placeholder = "Enter your password",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
-            trailing = {
-                // The source's eye toggle. A label is supplied so the control is announced.
-                TextButton(onClick = { reveal = !reveal }) {
-                    Text(if (reveal) "Hide" else "Show", style = MaterialTheme.typography.bodyMedium)
-                }
-            },
         )
         EffyInlineLink("Forgot your password?", "Reset your password", onClick = {
             container.navigator.push(CustomerNavKey.Recovery)
@@ -372,7 +364,6 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
     var family by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var reveal by remember { mutableStateOf(false) }
     AuthScaffold(
         container,
         title = "Create your account",
@@ -396,18 +387,11 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
         // ⚠ A password is OPTIONAL on this platform — the customer audience may register passwordless
         // (constitution Principle IV). The source has only a password form, so the passwordless route
         // is offered as the SECONDARY action rather than dropped.
-        EffyField(
+        EffyPasswordField(
             "Password",
             password,
             { password = it },
             placeholder = "At least $PASSWORD_MIN_LENGTH characters — optional",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = if (reveal) VisualTransformation.None else PasswordVisualTransformation(),
-            trailing = {
-                TextButton(onClick = { reveal = !reveal }) {
-                    Text(if (reveal) "Hide" else "Show", style = MaterialTheme.typography.bodyMedium)
-                }
-            },
         )
         EffyPrimaryButton(
             "Create account",
@@ -469,13 +453,11 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
             placeholder = "6-digit code",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         )
-        EffyField(
+        EffyPasswordField(
             "New password",
             newPassword,
             { newPassword = it },
             placeholder = "At least $PASSWORD_MIN_LENGTH characters",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            visualTransformation = PasswordVisualTransformation(),
         )
         EffyPrimaryButton(
             "Reset password",

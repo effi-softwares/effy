@@ -737,6 +737,30 @@ without which neither mobile app can be published.
 | Address book: FAB → bottom full-width button | n/a | ✅ | **Amends 022's FR-007** |
 | Guest data deletion | ⬜ | ⬜ | FR-046 built nowhere; **no entry point designed** |
 
+### ⚠ Parity split: staying signed in after a password change
+
+| | Web | Mobile |
+|---|---|---|
+| Every OTHER session revoked | ✅ | ✅ |
+| **This device stays signed in** | ⬜ | ✅ |
+
+Mobile keeps the shopper signed in: the backend still calls `globalSignOut` — **that revocation is the
+security control**, since "someone else has access" is the canonical reason to change a password — and
+the app then immediately re-authenticates with the credential the shopper just chose. Every other
+session dies; this one continues; they land back on their account. It **fails closed**: if the
+re-sign-in does not return `Done`, the app signs out locally rather than render an account behind a
+revoked credential.
+
+⚠ **Web cannot do this**, for two independent reasons, neither of them small:
+1. `aws-amplify/auth/server` exports only `fetchUserAttributes` and `getCurrentUser` — there is **no
+   server-side `signIn`** (the same gap 012 hit with `signOut`). Using the client SDK would drag
+   `aws-amplify` into the storefront's shared chunk, which the quarantine and its `depcruise` rule
+   exist to prevent.
+2. Having the **backend** mint and return tokens would make it broker authentication — forbidden by
+   constitution **Principle IV** ("there is no auth proxy").
+
+So web signs out and asks for a fresh sign-in, which at least proves the new password immediately.
+
 ### ⚠ Open, and why it matters
 
 - **⚠ THE APPS MUST NOT BE SUBMITTED.** Permanent erasure is out of scope by design, so a shopper told
