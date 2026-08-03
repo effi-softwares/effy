@@ -3,7 +3,11 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda"
 import type { AuthedEvent } from "@effy/edge-shared"
 import { claim, json, preamble, problem, ProblemType, subject, unavailable } from "@effy/edge-shared"
 
-import { CustomerBarredError, getOrCreateCustomer } from "../customer/service"
+import {
+  CustomerBarredError,
+  CustomerClosingError,
+  getOrCreateCustomer,
+} from "../customer/service"
 
 /**
  * GET /customer/v1/me — the record-backed identity read (FR-023, FR-025, FR-026).
@@ -83,10 +87,14 @@ export const handler = async (
     })
     return json(200, customer, scope)
   } catch (err) {
-    if (err instanceof CustomerBarredError) {
-      // Uniform refusal. It does NOT disclose that the account is barred, or why — that is an
-      // information leak, and the customer cannot act on it anyway.
-      scope.log.warn({ sub }, "me: refused — barred customer presented a valid token")
+    if (err instanceof CustomerBarredError || err instanceof CustomerClosingError) {
+      // Uniform refusal. It does NOT disclose that the account is barred or closing, or why — that
+      // is an information leak, and the customer cannot act on it anyway. The two remain distinct
+      // errors internally so the logs can tell them apart (034 FR-041).
+      scope.log.warn(
+        { sub, reason: err instanceof CustomerClosingError ? "closing" : "barred" },
+        "me: refused — a valid token was presented for an unusable account",
+      )
       return problem(
         403,
         ProblemType.Forbidden,

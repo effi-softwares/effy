@@ -190,6 +190,28 @@ if [ -n "$UNREACHABLE" ]; then
   FAIL=1
 fi
 
+
+# ── 034 FR-007 / SC-005: no sign-out control on the customer account ROOT ──────────────────────────
+#
+# Both sign-out rows used to sit on the account root, styled destructive, immediately below ordinary
+# navigation rows — one stray tap while browsing ended the session. They now live on Security, with
+# the other credential actions.
+#
+# ⚠ This is a GUARD rather than a unit test because the assertion is an ABSENCE, and Compose UI is not
+# unit-testable on the JVM host here. A behavioural test could only assert that today's screen has no
+# sign-out; it could not notice the day someone helpfully adds one back.
+ACCOUNT_SCREENS="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/account/presentation/AccountScreens.kt"
+if [ -f "$ACCOUNT_SCREENS" ]; then
+  # The account root is everything from `fun AccountScreen(` to the next top-level composable.
+  ROOT_BODY="$(awk '/^private fun AccountScreen\(/{f=1} f{print} /^@Composable/{if(f && NR>1) c++; if(c>1) exit}' "$ACCOUNT_SCREENS" 2>/dev/null || true)"
+  if printf '%s' "$ROOT_BODY" | grep -qE 'vm\.signOut'; then
+    echo "✗ mobile-guard [apps/customer-mobile]: a SIGN-OUT control is on the account ROOT."
+    echo "  034 FR-007 moved both sign-out actions to the Security screen: on the root they sit one"
+    echo "  stray tap away from ordinary navigation, and a tap there ends the session."
+    FAIL=1
+  fi
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances absent;"
   echo "  every customer destination reachable."

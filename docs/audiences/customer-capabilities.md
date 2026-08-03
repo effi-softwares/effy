@@ -701,3 +701,57 @@ above should not be read as green.
   and a carve-out would be a second, weaker authorization path.
 - **Not built**: notifications (FR-063, reserved sibling) · Buy It Again (FR-064, reserved sibling) ·
   sharing (FR-065) · multiple lists (FR-066).
+
+---
+
+## §034 — Customer Account Centre: Detail-Row Editing, Sectioned Account & Account Deletion
+
+Spec/artifacts: [specs/034-customer-account-center/](../../specs/034-customer-account-center/) ·
+⚠ **[SUBMISSION-BLOCKERS.md](../../specs/034-customer-account-center/SUBMISSION-BLOCKERS.md)**
+
+Restructures the customer account area around three ideas — the identity header is the only route to
+personal details, a value is edited **one field at a time in a container over the screen you were on**,
+and sign out moves off the root — plus the one genuinely new capability: **in-app account deletion**,
+without which neither mobile app can be published.
+
+| Capability | Web | Mobile | Notes |
+|---|---|---|---|
+| Identity header is the entry to personal details (no "My details" row) | ✅ | ✅ | FR-002/FR-003 |
+| Personal info as label/value/chevron rows, **no inputs on the screen** | ✅ | ✅ | FR-010/FR-011 |
+| One-field editor with Save + **de-weighted** Cancel | ✅ | ✅ | Sheet on mobile, `ResponsiveModal` on web |
+| **Dirty-check on every dismissal route** | ✅ | ✅ | Web: close/Esc/backdrop/back · Mobile: drag veto **and** scrim/back |
+| Phone number (self-asserted, **never verified**) | ✅ | ✅ | Net-new column. ⚠ No verified indicator, barred from every auth path (FR-060a) |
+| Email shown, not editable, **explains why** | ✅ | ✅ | FR-022 |
+| Avatar generated from initials (no upload) | ✅ | ✅ | 012's FR-001–FR-005 stand **unamended** |
+| Icon shortcuts for Saved items / Notifications | ⬜ | ✅ | Mobile only; web nav already lists them |
+| Labelled sections on the account root | ✅ | ✅ | FR-006, ≤4 groups |
+| **No sign-out on the account root** | ✅ | ✅ | FR-007 / SC-005 |
+| Security screen composed from credentials **actually held** | ✅ | ✅ | FR-025/FR-026 |
+| Sign out + sign out everywhere, on Security | ✅ | ✅ | FR-028; confirmation on *all devices* only |
+| Privacy & data screen | ✅ | ✅ | FR-039 — deletion control is its **last** item |
+| **Account deletion** (preview → code → close) | ✅ | ✅ | FR-037…FR-045 |
+| Blocked-deletion detour (names it, links to it, says when it clears) | ✅ | ✅ | FR-042; `clearsAt` is **non-nullable by construction** |
+| Restore during the grace window | 🔒 | 🔒 | Backend + contract built; **no client call site yet** |
+| Public web deletion route (`/delete-account`) | ✅ | n/a | Google requires it, Apple does not — the most-missed half |
+| Privacy policy / terms routes | ◐ | ◐ | ⚠ **Shells only — content is operator-owned** (FR-052a) |
+| Address book: FAB → bottom full-width button | n/a | ✅ | **Amends 022's FR-007** |
+| Guest data deletion | ⬜ | ⬜ | FR-046 built nowhere; **no entry point designed** |
+
+### ⚠ Open, and why it matters
+
+- **⚠ THE APPS MUST NOT BE SUBMITTED.** Permanent erasure is out of scope by design, so a shopper told
+  *"permanently deleted after 30 days"* still has a row on day 31 — and **SC-010 requires every claim in
+  that disclosure to be true**. Two blockers, both in `SUBMISSION-BLOCKERS.md`: the **erasure slice**
+  (which also needs the first new IAM this capability has required) and **operator-supplied legal
+  content**.
+- **⚠ The blocking-order SQL has no automated coverage.** `findBlockingOrders` is unit-tested at the
+  mapping layer, and the two windows are pinned against each other — but the predicate itself, the thing
+  that was **wrong twice**, is verified only by operator walk T091. The JS side has no container-test
+  infrastructure; adding it to `edge-api` is the honest fix.
+- **⚠ The order-block window is 7 days and the grace period is 30, deliberately.** They answer different
+  questions ("might goods still be in transit?" vs "may they change their mind?"). Unifying them is what
+  made the block permanent for weekly shoppers — the second time this requirement was wrong.
+- **Not built**: telemetry (Phase 9 — and PostHog has still never been initialised on `customer-web`) ·
+  guest-deletion entry point · restore call sites · Playwright dirty-check matrix · the Go↔Kotlin wire
+  contract test for the new DTOs · **all 11 operator walks**, including Android, which has now gone
+  unlooked-at across 028, 029, 033 and this feature.

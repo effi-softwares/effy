@@ -12,6 +12,7 @@
  */
 import type {
   CustomerStatus,
+  ClosureState,
   CustomerDTO,
   UpdateCustomerDTO,
   CredentialRoute,
@@ -21,11 +22,20 @@ import type {
   ResetConfirmDTO,
   PasswordChallengeResultDTO,
   PasswordWriteResultDTO,
+  ClosureBlockerKind,
+  ClosureBlockerDTO,
+  RetainedCategoryDTO,
+  ClosurePreviewDTO,
+  ClosureChallengeResultDTO,
+  ClosureRequestDTO,
+  ClosureResultDTO,
+  ClosureRestoreResultDTO,
 } from "./customer";
 import type { ProblemJSON } from "./problem";
 
 export type {
   CustomerStatus,
+  ClosureState,
   CustomerDTO,
   UpdateCustomerDTO,
   CredentialRoute,
@@ -35,12 +45,21 @@ export type {
   ResetConfirmDTO,
   PasswordChallengeResultDTO,
   PasswordWriteResultDTO,
+  ClosureBlockerKind,
+  ClosureBlockerDTO,
+  RetainedCategoryDTO,
+  ClosurePreviewDTO,
+  ClosureChallengeResultDTO,
+  ClosureRequestDTO,
+  ClosureResultDTO,
+  ClosureRestoreResultDTO,
   ProblemJSON,
 };
 
 /** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
 export interface CustomerContract {
   status: CustomerStatus;
+  closureState: ClosureState;
   customer: CustomerDTO;
   updateCustomer: UpdateCustomerDTO;
   credentialRoute: CredentialRoute;
@@ -50,5 +69,17 @@ export interface CustomerContract {
   resetConfirm: ResetConfirmDTO;
   passwordChallengeResult: PasswordChallengeResultDTO;
   passwordWriteResult: PasswordWriteResultDTO;
+
+  // ── Account closure (034). ⚠ EVERY new type needs a field here, or it generates ZERO times and
+  // the drift check passes trivially — the failure mode 033 recorded as R17.
+  closureBlockerKind: ClosureBlockerKind;
+  closureBlocker: ClosureBlockerDTO;
+  retainedCategory: RetainedCategoryDTO;
+  closurePreview: ClosurePreviewDTO;
+  closureChallengeResult: ClosureChallengeResultDTO;
+  closureRequest: ClosureRequestDTO;
+  closureResult: ClosureResultDTO;
+  closureRestoreResult: ClosureRestoreResultDTO;
+
   problem: ProblemJSON;
 }

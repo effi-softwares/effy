@@ -36,7 +36,7 @@ class SessionManager(
     private val onAuthenticated: suspend () -> Unit = {},
     /** Fired on local sign-out. The cart uses it to drop the account's mirror from this device. */
     private val onSignedOut: () -> Unit = {},
-) {
+) : SessionWriter {
     private val _state = MutableStateFlow<SessionState>(SessionState.Restoring)
     val state: StateFlow<SessionState> = _state.asStateFlow()
 
@@ -66,12 +66,23 @@ class SessionManager(
         if (current is SessionState.Authenticated) loadRecord(seedPassword = false)
     }
 
-    fun setAuthenticated(customer: Customer) {
+    override fun setAuthenticated(customer: Customer) {
         _state.value = if (customer.isBarred) SessionState.Barred else SessionState.Authenticated(customer)
     }
 
     /** A control refused with 403 mid-session (FR-033a) — the record now bars this customer. */
-    fun setBarred() {
+    /**
+     * The record says this account is being deleted (034 FR-041a).
+     *
+     * ⚠ Set from the SAME 403 that raises [setBarred] — the backend deliberately does not disclose
+     * which condition applied, so the client cannot tell them apart from the refusal alone. It is set
+     * when the closure preview confirms a live request, which is the one place the truth is available.
+     */
+    fun setClosing() {
+        _state.value = SessionState.Closing
+    }
+
+    override fun setBarred() {
         _state.value = SessionState.Barred
     }
 

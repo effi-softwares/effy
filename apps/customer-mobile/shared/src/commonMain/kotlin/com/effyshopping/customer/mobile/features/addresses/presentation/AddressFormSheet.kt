@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
  * The shared add/edit address form (022), rendered inside a `ModalBottomSheet`. Extracted from the
@@ -42,16 +43,13 @@ fun AddressFormSheet(
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
 ) {
+    // ⚠ The scroll container, IME padding, navigation-bar padding and the title now belong to
+    // EffySheet (034 T017). Re-adding them here would double the insets and nest a scroll inside a
+    // scroll.
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
-        Text(if (editing) "Edit address" else "Add an address", style = MaterialTheme.typography.headlineSmall)
 
         // Label chips (FR-006a): Home / Work / Other — Other reveals a free-text field.
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
@@ -72,10 +70,15 @@ fun AddressFormSheet(
         Field("Postcode", form.postalCode, error = fieldErrors["postalCode"], keyboard = KeyboardType.Number, onChange = { onChange(form.copy(postalCode = it)) })
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
+            // ⚠ 034 T072 — was a RAW Material 3 Button, the only one left in the app, which is why
+            // this form's action never picked up the shared press-scale, height or disabled treatment.
             TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            Button(onClick = onSubmit, enabled = !saving, shape = EffyButtonShape, modifier = Modifier.weight(1f)) {
-                Text(if (editing) "Save" else "Add")
-            }
+            EffyPrimaryButton(
+                label = if (editing) "Save" else "Add",
+                onClick = onSubmit,
+                enabled = !saving,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }

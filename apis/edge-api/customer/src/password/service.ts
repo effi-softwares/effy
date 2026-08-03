@@ -49,6 +49,10 @@ async function requireActive(cognitoSub: string): Promise<CustomerRow> {
   if (!row) throw new CustomerNotFoundError()
   // FR-034 — a valid credential is NOT permission. The record decides.
   if (row.status !== "active") throw new CustomerBarredError()
+  // 034 FR-041 — and neither is it permission once the customer has asked to be deleted. Changing a
+  // password on an account inside the grace window is exactly the kind of half-alive state closure
+  // is meant to prevent.
+  if (row.closure_state === "closing") throw new CustomerBarredError()
   return row
 }
 

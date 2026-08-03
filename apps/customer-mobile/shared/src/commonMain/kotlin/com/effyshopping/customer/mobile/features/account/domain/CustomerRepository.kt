@@ -15,8 +15,14 @@ interface CustomerRepository {
      */
     suspend fun me(seedPassword: Boolean = false): Customer
 
-    /** Change the display name (FR-023). Returns the updated record. */
-    suspend fun updateName(given: String?, family: String?): Customer
+    /**
+     * Change what is the customer's to change — the name (FR-023) and the phone (034 FR-060).
+     *
+     * ⚠ Pass `""` to CLEAR a field, never `null`. `explicitNulls = false` drops nulls from the
+     * payload entirely, so a null is indistinguishable from "not sent" and the clear silently
+     * no-ops. The backend maps empty → NULL.
+     */
+    suspend fun updateProfile(given: String?, family: String?, phone: String?): Customer
 
     /** Email a step-up code for setting a FIRST password (FR-024). Returns the masked destination. */
     suspend fun requestPasswordChallenge(): String

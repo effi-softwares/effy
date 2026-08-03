@@ -59,6 +59,15 @@ interface DevicePreferences {
     fun getBoolean(key: String, default: Boolean = false): Boolean
 
     fun putBoolean(key: String, value: Boolean)
+
+    /**
+     * Forget a key entirely (034 FR-046).
+     *
+     * ⚠ REMOVE, not "write an empty value". A guest asking to delete their data is owed the data
+     * being gone, not blanked — and a key left behind with an empty string is a value the next
+     * reader has to remember to treat as absent.
+     */
+    fun remove(key: String)
 }
 
 /** The keys in use. Central so two features cannot silently pick the same string. */
@@ -122,4 +131,30 @@ class InMemoryDevicePreferences : DevicePreferences {
     override fun putBoolean(key: String, value: Boolean) {
         values[key] = value.toString()
     }
+
+    override fun remove(key: String) {
+        values.remove(key)
+    }
+}
+
+/**
+ * Erase everything this device holds for a GUEST (034 FR-046).
+ *
+ * ⚠ Apple's own FAQ names guest accounts explicitly: *"Users should have the option to delete
+ * automatically generated accounts (sometimes called 'guest' accounts) and the data associated with
+ * those accounts."* Effy is deliberately guest-first and a guest's saved list survives a restart, so
+ * this is not hypothetical.
+ *
+ * ⚠ THERE IS NOTHING SERVER-SIDE TO ERASE, and that is the whole of it. An Effy guest has no record:
+ * the saved list and the cart mirror live here and only become platform data on sign-in. Claiming a
+ * server-side deletion would be the inverse of the FR-040 problem — a disclosure describing work that
+ * does not happen.
+ *
+ * The appearance preference is deliberately KEPT: it is a device setting, not personal data, and
+ * resetting someone's theme when they asked to clear their shopping data would be a surprise.
+ */
+fun DevicePreferences.clearGuestData() {
+    remove(PreferenceKeys.SAVED_GUEST)
+    remove(PreferenceKeys.CART_MIRROR)
+    remove(PreferenceKeys.CART_QUEUE)
 }

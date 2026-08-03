@@ -37,6 +37,7 @@ import com.effyshopping.customer.mobile.core.theme.EffyTheme
 import com.effyshopping.customer.mobile.features.onboarding.presentation.OnboardingScreen
 import com.effyshopping.mobile.kit.ui.LocalMotionLevel
 import kotlinx.coroutines.launch
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
  * The app root (015). A top-level **session gate** picks the graph: `Restoring` splash, a `Barred`
@@ -110,6 +111,66 @@ fun App(container: AppContainer) {
                         TextButton(
                             onClick = { scope.launch { container.session.signOutLocally() } },
                             modifier = Modifier.padding(top = 16.dp),
+                        ) { Text("Sign out") }
+                    }
+                } }
+
+                // ⚠ 034 FR-041a — THE WAY BACK, and the only exception to "a closing account is
+                // refused everywhere".
+                //
+                // Restore is an EXPLICIT act, never inferred from signing in: the refusal and the
+                // restore run through the same identity lookup, so an implicit restore would have the
+                // gate refuse the very request meant to undo the deletion — and anyone holding this
+                // customer's token would silently un-delete their account merely by opening the app.
+                // Signing in SURFACES the choice; this screen makes it.
+                SessionState.Closing -> Inset { CenteredMessage {
+                    var working by remember { mutableStateOf(false) }
+                    var failed by remember { mutableStateOf(false) }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "Your account is scheduled for deletion",
+                            style = MaterialTheme.typography.titleLarge,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            "You can still change your mind. Restoring brings back your account, " +
+                                "your saved items and your addresses.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        if (failed) {
+                            Text(
+                                "We couldn't restore it just now. Please try again.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                        EffyPrimaryButton(
+                            label = "Restore my account",
+                            enabled = !working,
+                            onClick = {
+                                working = true
+                                failed = false
+                                scope.launch {
+                                    val ok = runCatching { container.restoreAccount.invoke() }.isSuccess
+                                    if (ok) {
+                                        // Re-read the record so the shell renders the live account
+                                        // rather than a stale local guess.
+                                        runCatching { container.session.refreshRecord() }
+                                    } else {
+                                        failed = true
+                                    }
+                                    working = false
+                                }
+                            },
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
+                        TextButton(
+                            onClick = { scope.launch { container.session.signOutLocally() } },
+                            modifier = Modifier.padding(top = 8.dp),
                         ) { Text("Sign out") }
                     }
                 } }

@@ -19,22 +19,26 @@ import (
 
 // ErrNotFound = no customer row for this subject (never bootstrapped on the cold path).
 // ErrBarred   = the customer exists but is barred (access denied).
+// ErrClosing  = the customer asked to be deleted and is inside the grace window (034 FR-041).
 var (
 	ErrNotFound = errors.New("customeridentity: no customer record")
 	ErrBarred   = errors.New("customeridentity: customer is barred")
+	ErrClosing  = errors.New("customeridentity: customer account is closing")
 )
 
 // Customer is the resolved identity handed to commerce services (internal id + status only).
 type Customer struct {
-	ID     string
-	Status string
+	ID           string
+	Status       string
+	ClosureState string
 }
 
-const qBySub = `SELECT id::text AS id, status FROM public.customer WHERE cognito_sub = $1`
+const qBySub = `SELECT id::text AS id, status, closure_state FROM public.customer WHERE cognito_sub = $1`
 
 type row struct {
-	ID     string `db:"id"`
-	Status string `db:"status"`
+	ID           string `db:"id"`
+	Status       string `db:"status"`
+	ClosureState string `db:"closure_state"`
 }
 
 // Resolver looks up customers by verified subject. One instance is wired in main and shared.
@@ -61,7 +65,14 @@ func (r *Resolver) Resolve(ctx context.Context, subject string) (Customer, error
 		return Customer{}, fmt.Errorf("customeridentity: scan: %w", err)
 	}
 	if found.Status == "barred" {
-		return Customer{ID: found.ID, Status: found.Status}, ErrBarred
+		return Customer{ID: found.ID, Status: found.Status, ClosureState: found.ClosureState}, ErrBarred
 	}
-	return Customer{ID: found.ID, Status: found.Status}, nil
+	// 034 FR-041 — closure MUST be enforced HERE as well as on the cold path, and this is the single
+	// easiest thing in that feature to miss. The account screens live on the cold path, but commerce
+	// (cart, checkout, orders) is gated only by this resolver: a closure enforced in one place would
+	// leave a "deleted" customer able to browse, fill a cart and place an order.
+	if found.ClosureState == "closing" {
+		return Customer{ID: found.ID, Status: found.Status, ClosureState: found.ClosureState}, ErrClosing
+	}
+	return Customer{ID: found.ID, Status: found.Status, ClosureState: found.ClosureState}, nil
 }

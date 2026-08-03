@@ -232,8 +232,19 @@ reflects the change and its default status is unaffected.
   reveals a free-text field; the chosen value is stored in the existing free-text label. A label may be
   left unset.
 - **FR-007**: The add form MUST appear in the **surface-appropriate responsive container** — on web a
-  dialog on larger screens and a drawer on smaller screens; on mobile a bottom-sheet drawer raised by a
-  floating action button.
+  dialog on larger screens and a drawer on smaller screens; on mobile a bottom-sheet drawer.
+  **⚠ AMENDED 2026-08-03 by feature 034 (FR-032).** This requirement originally mandated that the
+  mobile drawer be *"raised by a floating action button"*. The FAB is **removed**, replaced by a
+  bottom-anchored full-width primary button, for two reasons — the second is the one that matters:
+  1. A circular FAB **occludes the last row** of a short list, which is exactly where a newly added
+     address lands. An address book is neither long nor scrolling; a FAB earns its keep on
+     content-first feeds.
+  2. ⚠ A FAB is by construction the **loudest thing on the screen**, and measured usability research
+     finds that nudging shoppers toward *"Add"* over *"Edit"* makes them **accumulate outdated
+     addresses and then select the wrong one at checkout**. On a delivery platform that is a
+     **mis-delivered order**, not an untidy list. FR-017a's rule — the row body is the edit target —
+     only holds if Add does not out-shout it.
+  Recorded here rather than left as a silent contradiction, per constitution Principle I.
 - **FR-008**: A newly added address MUST appear in the list immediately, without a full reload.
 - **FR-009**: Invalid or incomplete submissions MUST produce clear field-level errors and MUST preserve
   the customer's entered values.

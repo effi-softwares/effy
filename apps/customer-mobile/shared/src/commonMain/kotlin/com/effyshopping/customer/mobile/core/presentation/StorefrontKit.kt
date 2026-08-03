@@ -74,6 +74,7 @@ import com.effyshopping.customer.mobile.design.EffyColor
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.customer.mobile.resources.ic_close
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
 import com.effyshopping.mobile.design.EffyBanner
 import com.effyshopping.mobile.design.EffyRadius
@@ -84,6 +85,19 @@ import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import com.effyshopping.mobile.kit.ui.widthClassFor
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 /**
  * The customer storefront's shared visual vocabulary (025).
@@ -839,6 +853,181 @@ fun EffyDetailRow(
                 MaterialTheme.typography.titleSmall
             } else {
                 MaterialTheme.typography.bodyLarge
+            },
+        )
+    }
+}
+
+/**
+ * A tappable label / value / chevron row — the account area's editing affordance (034 FR-010).
+ *
+ * ⚠ SEPARATE FROM `EffyDetailRow` ABOVE, WHICH STAYS AS IT IS. That one is a DISPLAY row: no click,
+ * no trailing slot, value right-aligned against the label. This one stacks label over value, is
+ * activatable, and carries a chevron — a different job, and merging them would give the display row
+ * a click target it must not have (it is used inside receipts).
+ *
+ * ⚠ WHY A ROW RATHER THAN AN INLINE FIELD, since that is the real argument: a row with a live input
+ * in it cannot also show a verified state, a "managed by Google" state, or a pending-change state
+ * without becoming cramped. A value-and-chevron row is a DISPLAY surface, so it can carry status; an
+ * input row is an ENTRY surface and cannot.
+ *
+ * `editable = false` keeps the row activatable but drops the chevron and shows `trailingNote` —
+ * because a row that silently ignores a tap is indistinguishable from a broken one (FR-022).
+ */
+@Composable
+fun EffyValueRow(
+    label: String,
+    value: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    editable: Boolean = true,
+    placeholder: String = "Not set",
+    trailingNote: String? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            // FR-055 — 48dp is the ACTIVATION AREA, not the glyph. Feature 033 shipped a 32dp
+            // control directly beneath a comment claiming it met the minimum; the number is stated
+            // here so the next reader can check it rather than trust it.
+            .heightIn(min = EffyMinTouchTarget)
+            .clickable(onClick = onClick)
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                value?.takeIf { it.isNotBlank() } ?: placeholder,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(EffySpacing.md))
+        if (editable) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_arrow_back),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp).rotate(180f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (trailingNote != null) {
+            Text(
+                trailingNote,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * ONE FIELD, ONE SHEET (034 US1) — the mobile half of the per-field editing model.
+ *
+ * ⚠ THE DIRTY-CHECK IS MANDATORY, NOT POLISH (FR-018 / FR-019).
+ *
+ * A changed value must never be discarded silently, and on Android there are THREE ways out: a
+ * downward drag, a scrim tap, and the system back gesture. `onDismissRequest` covers the scrim and
+ * back; it does NOT intercept the drag, which needs `confirmValueChange` on the sheet state. Wiring
+ * only one leaves the other route discarding work. NN/g additionally found that the same downward
+ * swipe often lands on the notification shade instead — so an accidental dismissal is not a rare case.
+ *
+ * ⚠ AND THE CONFIRMATION IS AN ALERT, NOT A SECOND SHEET. Stacking sheets is what FR-023 forbids;
+ * FR-023a records this exemption explicitly.
+ *
+ * @param dirty whether the editor holds unsaved changes — the caller owns the comparison, because
+ *   only it knows what "unchanged" means for its field.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EffySheet(
+    title: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    dirty: Boolean = false,
+    discardTitle: String = "Discard your changes?",
+    discardBody: String = "What you typed here will not be saved.",
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var confirmingDiscard by remember { mutableStateOf(false) }
+
+    // Intercepts the DRAG. Returning false vetoes the state change, so the sheet stays put while the
+    // alert asks. `onDismissRequest` below covers the scrim tap and the back gesture.
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { target ->
+            if (target == SheetValue.Hidden && dirty) {
+                confirmingDiscard = true
+                false
+            } else {
+                true
+            }
+        },
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = { if (dirty) confirmingDiscard = true else onDismiss() },
+        sheetState = sheetState,
+        // FR-024 — bounded on large screens. A full-bleed sheet on a tablet is a 1000dp-wide strip
+        // holding one text field, with a long journey between the label and the action.
+        sheetMaxWidth = 640.dp,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                // FR-016 — the sheet rides above the keyboard, so neither Save nor a field error can
+                // be hidden by it.
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = EffySpacing.xl, vertical = EffySpacing.s),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(title, style = MaterialTheme.typography.headlineSmall)
+                // FR-017 — an EXPLICIT close control, in addition to the drag. A path-based gesture
+                // cannot be the only route to a function, and the drag handle is widely missed.
+                IconButton(
+                    onClick = { if (dirty) confirmingDiscard = true else onDismiss() },
+                    modifier = Modifier.size(EffyMinTouchTarget),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ic_close),
+                        contentDescription = "Close",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            content()
+            Spacer(Modifier.height(EffySpacing.s))
+        }
+    }
+
+    if (confirmingDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmingDiscard = false },
+            title = { Text(discardTitle) },
+            text = { Text(discardBody) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingDiscard = false
+                    onDismiss()
+                }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDiscard = false }) { Text("Keep editing") }
             },
         )
     }

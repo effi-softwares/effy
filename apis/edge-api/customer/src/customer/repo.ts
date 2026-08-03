@@ -30,6 +30,17 @@ import { CUSTOMER_COLUMNS, type CustomerRow } from "./model"
  *
  * `status` is platform-owned. It is written by the platform, never by a sign-in.
  *
+ * ⚠⚠ `closure_state` IS ABSENT FROM IT TOO, AND IT IS THE SAME TRAP WEARING A NEW HAT (034). ⚠⚠
+ *
+ * The failure mode is the mirror image of `status`: the INSERT supplies the column default
+ * ('open'), so a conflict path writing `closure_state = EXCLUDED.closure_state` would SILENTLY
+ * UN-DELETE AN ACCOUNT the moment its owner — or anyone holding their token — made ANY authenticated
+ * request. A customer who asked to be deleted would quietly stop being deleted, with no error and
+ * nothing to notice, and it would read as a harmless tidy-up in review.
+ *
+ * Restore is an EXPLICIT, audited write (`restoreCustomer` below), never a side effect of
+ * authenticating. See 034 FR-041a.
+ *
  * ⚠ `has_password` IS ABSENT FROM THE `DO UPDATE` TOO, AND FOR A RELATED REASON (012).
  * It is seeded ONCE, on the creating INSERT, from `seedHasPassword` — and thereafter it is written
  * ONLY by the platform's own password endpoints. Refreshing it from a client-supplied hint on every
@@ -80,6 +91,8 @@ export async function upsertCustomer(input: {
             -- the moment the customer loaded any other page — the token still carries whatever
             -- Cognito was told at sign-up. The claim SEEDS the record once; the record is the
             -- authority thereafter.
+            -- phone:         NEVER. Same argument as the names (034 FR-060) — it is the customer's.
+            -- closure_state: NEVER, and this is the most dangerous one. See the warning above.
      RETURNING ${CUSTOMER_COLUMNS}`,
     [
       input.cognitoSub,
@@ -92,20 +105,33 @@ export async function upsertCustomer(input: {
   return res.rows[0]!
 }
 
-/** Update only what is the customer's to change (FR-026). */
-export async function updateName(
+/**
+ * Update only what is the customer's to change (FR-026, extended by 034 FR-060 with `phone`).
+ *
+ * ⚠ `phone` joins the name parts here and NOWHERE ELSE. It is deliberately absent from
+ * `upsertCustomer`'s `DO UPDATE` for the same reason the names are: the record is the authority once
+ * created, and refreshing a profile field from a token claim on every request would silently revert
+ * an edit the customer just made.
+ *
+ * ⚠ `closure_state` is NOT here either, and must never be. Closure is written only by the closure
+ * repository below, after a freshly issued verification code — a routine name edit must not be able
+ * to open or close an account.
+ */
+export async function updateProfile(
   cognitoSub: string,
   givenName: string | null,
   familyName: string | null,
+  phone: string | null,
 ): Promise<CustomerRow | null> {
   const res = await query<CustomerRow>(
     `UPDATE public.customer
         SET given_name  = $2,
             family_name = $3,
+            phone       = $4,
             updated_at  = now()
       WHERE cognito_sub = $1
       RETURNING ${CUSTOMER_COLUMNS}`,
-    [cognitoSub, givenName, familyName],
+    [cognitoSub, givenName, familyName, phone],
   )
   return res.rows[0] ?? null
 }

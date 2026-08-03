@@ -40,9 +40,11 @@ class HttpCustomerRepository(private val edge: HttpClient) : CustomerRepository 
         }.ensureSuccess().body<CustomerDTO>().toDomain()
     }
 
-    override suspend fun updateName(given: String?, family: String?): Customer = request {
+    override suspend fun updateProfile(given: String?, family: String?, phone: String?): Customer = request {
         edge.patch("customer/v1/me") {
-            setBody(UpdateCustomerDTO(familyName = family, givenName = given))
+            // ⚠ `""` clears; `null` would be DROPPED by `explicitNulls = false` and the clear would
+            // silently no-op. The callers pass "" for a cleared field, never null.
+            setBody(UpdateCustomerDTO(familyName = family, givenName = given, phone = phone))
         }.ensureSuccess().body<CustomerDTO>().toDomain()
     }
 

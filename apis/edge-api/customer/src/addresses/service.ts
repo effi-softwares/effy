@@ -39,6 +39,10 @@ async function resolveActiveCustomerId(sub: string): Promise<string> {
   const row = await findByCognitoSub(sub);
   if (!row) throw new CustomerNotFoundError();
   if (row.status !== "active") throw new CustomerBarredError();
+  // 034 FR-041 — an account inside the closure grace window is refused here too. ⚠ This gate is
+  // SEPARATE from the profile one by design (it resolves an internal id), so a closure check added
+  // only there would leave the address book fully usable by a customer who asked to be deleted.
+  if (row.closure_state === "closing") throw new CustomerBarredError();
   return row.id;
 }
 

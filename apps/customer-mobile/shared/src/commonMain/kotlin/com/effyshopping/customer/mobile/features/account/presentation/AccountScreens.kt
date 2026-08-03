@@ -49,7 +49,6 @@ import com.effyshopping.customer.mobile.features.account.domain.Customer
 import com.effyshopping.customer.mobile.features.account.domain.RequestPasswordChallenge
 import com.effyshopping.customer.mobile.features.account.domain.SetPassword
 import com.effyshopping.customer.mobile.features.account.domain.SignOutEverywhere
-import com.effyshopping.customer.mobile.features.account.domain.UpdateName
 import com.effyshopping.customer.mobile.features.auth.presentation.PASSWORD_MIN_LENGTH
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyField
@@ -66,6 +65,25 @@ import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
+import com.effyshopping.customer.mobile.core.presentation.EffySheet
+import com.effyshopping.customer.mobile.core.presentation.EffyValueRow
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.rotate
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.customer.mobile.resources.ic_favorite_outlined
+import com.effyshopping.customer.mobile.resources.ic_notifications_outlined
+import com.effyshopping.customer.mobile.resources.ic_orders_outlined
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 data class AccountUiState(
     val loading: Boolean = false,
@@ -81,7 +99,6 @@ data class AccountUiState(
  * password write revokes EVERY session including this device (FR-027), so the app returns to sign-in.
  */
 class AccountViewModel(
-    private val updateNameUseCase: UpdateName,
     private val requestPasswordChallengeUseCase: RequestPasswordChallenge,
     private val setPasswordUseCase: SetPassword,
     private val changePasswordUseCase: ChangePassword,
@@ -91,16 +108,6 @@ class AccountViewModel(
 ) : ViewModel() {
     private val _state = MutableStateFlow(AccountUiState())
     val state = _state.asStateFlow()
-
-    fun updateName(given: String, family: String) = run {
-        launch {
-            // Send "" (not null) for a cleared field: the backend treats "" as a clear, but
-            // `explicitNulls=false` would silently DROP a null, leaving the old value in place.
-            val updated = updateNameUseCase(given, family)
-            session.setAuthenticated(updated)
-            navigator.pop() // back to Account; the greeting reads the record, so it's fresh
-        }
-    }
 
     /** Step 1 of set-password: email the step-up code (FR-024). Returns the masked destination. */
     fun sendSetPasswordCode() = launch {
@@ -203,14 +210,17 @@ fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: Sessi
     }
     val vm = viewModel {
         AccountViewModel(
-            container.updateName, container.requestPasswordChallenge, container.setPassword,
+            container.requestPasswordChallenge, container.setPassword,
             container.changePassword, container.signOutEverywhere, container.session, container.navigator,
         )
     }
     LaunchedEffect(route) { vm.clearTransient() } // fresh transient state on each sub-screen
     when (route) {
         CustomerNavKey.Account -> AccountScreen(container, vm, customer)
-        CustomerNavKey.MyDetails -> EditNameScreen(container, vm, customer)
+        CustomerNavKey.MyDetails -> PersonalDetailsScreen(container, customer)
+        CustomerNavKey.Security -> SecurityScreen(container, vm, customer)
+        CustomerNavKey.Privacy -> PrivacyScreen(container)
+        CustomerNavKey.DeleteAccount -> DeleteAccountScreen(container)
         // `setFirst` now travels ON the route rather than as two separate routes — a data class the
         // compiler checks, instead of two objects that had to be kept in step with the screen.
         is CustomerNavKey.Password -> PasswordScreen(container, vm, setFirst = route.setFirst)
@@ -237,11 +247,20 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
     ) {
+        // ⚠ 034 FR-002 — THE HEADER IS THE TAP TARGET, and there is no "My details" row any more
+        // (FR-003). A shopper looking for "where do I change my name" gets no signal from a header
+        // that is pure decoration sitting above a row that duplicates it. One target, the obvious one.
         Row(
-            modifier = Modifier.fillMaxWidth().padding(EffySpacing.lg),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = EffyMinTouchTarget)
+                .clickable { nav.push(CustomerNavKey.MyDetails) }
+                .padding(EffySpacing.lg),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.lg),
         ) {
+            // 034 FR-061 — the avatar stays GENERATED FROM INITIALS. No upload is introduced, so
+            // feature 012's FR-001…FR-005 stand unamended; the header merely becomes activatable.
             InitialsAvatar(customer.name.initials)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -254,47 +273,70 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Icon(
+                painter = painterResource(Res.drawable.ic_arrow_back),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp).rotate(180f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
-        EffyNavRow("My details", onClick = { nav.push(CustomerNavKey.MyDetails) })
-        // 022: manage saved delivery addresses.
+        // ⚠ FR-004/FR-005 — Saved items and Notifications as ICON SHORTCUTS.
+        //
+        // Built CONTAINER-FREE (icon + label, no filled tile), deliberately departing from the
+        // reference screenshot. Principle V permits a card only when it is demonstrably the right
+        // pattern and NO BETTER LAYOUT EXISTS — and one plainly does here, which is the same quiet
+        // treatment the rest of this screen already uses. Recorded in plan.md § Complexity Tracking.
+        //
+        // Each carries a VISIBLE TEXT LABEL: an icon alone fails FR-005 and is unusable at the
+        // largest text sizes and with a screen reader.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        ) {
+            AccountShortcut(
+                label = "Saved items",
+                icon = Res.drawable.ic_favorite_outlined,
+                onClick = { nav.push(CustomerNavKey.Saved) },
+                modifier = Modifier.weight(1f),
+            )
+            AccountShortcut(
+                label = "Notifications",
+                icon = Res.drawable.ic_notifications_outlined,
+                onClick = { nav.push(CustomerNavKey.Notifications) },
+                modifier = Modifier.weight(1f),
+            )
+            AccountShortcut(
+                label = "Orders",
+                icon = Res.drawable.ic_orders_outlined,
+                onClick = { nav.push(CustomerNavKey.Orders) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(Modifier.height(EffySpacing.md))
+
+        // ⚠ FR-006 — LABELLED SECTIONS, not one undifferentiated list of eleven rows with a blank
+        // gap doing the grouping. SC-004 bounds this at ≤4 groups of ≤6 items.
+        AccountSectionHeader("Shopping")
         EffyNavRow("Address book", onClick = { nav.push(CustomerNavKey.AddressBook) })
-        // 033: the watchlist. Also reachable from the Discover header — one entry point for a
-        // whole screen is thin, and mobile-guard now fails the build on an unreachable route.
-        EffyNavRow("Saved items", onClick = { nav.push(CustomerNavKey.Saved) })
-        // The source kit reaches saved items from a bottom-bar tab; Effy's four tabs carry no Saved
-        // tab, so it is reachable from the Discover header AND from here — this is where a signed-in
-        // shopper looks for their own things, and one entry point for a whole screen is thin.
-        // The source kit reaches saved items from a bottom-bar tab; Effy's five tabs are spoken for,
-        // so it is reachable from the Discover header AND from here — this is where a signed-in
-        // shopper looks for their own things, and one entry point for a whole screen is thin.
-        // FR-024/FR-025: offer EXACTLY the right journey, from the platform-owned hasPassword.
-        if (customer.hasPassword) {
-            EffyNavRow("Change password", onClick = { nav.push(CustomerNavKey.Password(setFirst = false)) })
-        } else {
-            EffyNavRow("Set a password", onClick = { nav.push(CustomerNavKey.Password(setFirst = true)) })
-        }
 
-        Spacer(Modifier.height(EffySpacing.lg))
+        AccountSectionHeader("Account")
+        EffyNavRow("Security", onClick = { nav.push(CustomerNavKey.Security) })
+        EffyNavRow("Privacy & data", onClick = { nav.push(CustomerNavKey.Privacy) })
 
-        // 026 US4 — the screens the source design has and this app did not.
-        EffyNavRow("Notifications", onClick = { nav.push(CustomerNavKey.Notifications) })
+        AccountSectionHeader("Help")
         EffyNavRow("FAQs", onClick = { nav.push(CustomerNavKey.Faqs) })
         EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
         EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
 
-        Spacer(Modifier.height(EffySpacing.lg))
+        // ⚠ FR-007 — NO SIGN-OUT CONTROL ON THIS SCREEN.
+        //
+        // Both sign-out rows used to sit here, styled destructive, immediately below ordinary
+        // navigation rows — a stray tap while browsing ended the session. They now live on Security,
+        // with the other credential actions. See SC-005.
 
-        // Destructive, and said so in WORDS as well as colour — the error token alone would be a
-        // lightness difference under the monochrome palette (FR-040).
-        EffyNavRow("Sign out", onClick = { vm.signOut() }, destructive = true, showChevron = false)
-        EffyNavRow(
-            "Sign out on all devices",
-            supporting = "Ends every session, including this one",
-            onClick = { vm.signOutEverywhere() },
-            destructive = true,
-            showChevron = false,
-        )
+        Spacer(Modifier.height(EffySpacing.xl))
 
         state.error?.let {
             Text(
@@ -309,30 +351,191 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
     }
 }
 
+/**
+ * An account-root shortcut — icon over a VISIBLE label (034 FR-004/FR-005).
+ *
+ * ⚠ No filled container, deliberately. See the note at the call site: Principle V's card rule is not
+ * satisfied by "a tile looks nice", and a container-free treatment is both compliant and consistent
+ * with the rows below it.
+ */
 @Composable
-private fun EditNameScreen(container: AppContainer, vm: AccountViewModel, customer: Customer) {
+private fun AccountShortcut(
+    label: String,
+    icon: DrawableResource,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            // FR-055 — the whole shortcut is the target, not just the glyph.
+            .heightIn(min = 72.dp)
+            .clickable(onClick = onClick)
+            .padding(vertical = EffySpacing.md),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            // The label below is the accessible name; a duplicate description would have a screen
+            // reader announce the same words twice.
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/** A section heading on the account root (FR-006). */
+@Composable
+private fun AccountSectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(
+            start = EffySpacing.lg,
+            end = EffySpacing.lg,
+            top = EffySpacing.lg,
+            bottom = EffySpacing.xs,
+        ),
+    )
+}
+
+/**
+ * Security — composed from the credentials the account ACTUALLY holds (034 FR-025).
+ *
+ * ⚠ NOT A FIXED ROW LIST, and that is the point. Effy's customer pool has three credential routes
+ * (email+password, email OTP, Google), so a screen that always shows "Change password" is wrong for
+ * a large share of customers — the presentation half of the defect feature 012 found in Cognito's
+ * own semantics. Uber is a poor reference here precisely because it has no passwordless account.
+ *
+ * ⚠ SIGN OUT LIVES HERE NOW (FR-028), not on the account root where a stray tap could reach it.
+ */
+@Composable
+private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, customer: Customer) {
     val state by vm.state.collectAsState()
-    var given by remember { mutableStateOf(customer.name.given.orEmpty()) }
-    var family by remember { mutableStateOf(customer.name.family.orEmpty()) }
-    // 026: the source's "My Details" — an app bar, labelled fields, one filled action. The email is
-    // shown as a read-only detail row because changing it is not a capability this app has; a
-    // disabled-looking input would imply it might become one.
+    val nav = container.navigator
+    var confirmingSignOutAll by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize()) {
-        EffyAppBar(title = "My Details", onBack = { container.navigator.pop() })
-        FormColumn {
-            EffyField("First name", given, { given = it }, placeholder = "Enter your first name")
-            EffyField("Last name", family, { family = it }, placeholder = "Enter your last name")
-            EffyDetailRow("Email", customer.email)
-            EffyPrimaryButton(
-                "Save",
-                onClick = { vm.updateName(given, family) },
-                enabled = !state.loading,
+        EffyAppBar(title = "Security", onBack = { container.navigator.pop() })
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+
+            AccountSectionHeader("Signing in")
+
+            // FR-026 — a password row OR an invitation to set one. NEVER both.
+            if (customer.hasPassword) {
+                EffyValueRow(
+                    label = "Password",
+                    value = customer.passwordSetAtIso?.let { "Last changed ${it.take(10)}" }
+                        ?: "Set",
+                    onClick = { nav.push(CustomerNavKey.Password(setFirst = false)) },
+                )
+            } else {
+                EffyValueRow(
+                    label = "Password",
+                    value = "Not set — add one for another way to sign in",
+                    onClick = { nav.push(CustomerNavKey.Password(setFirst = true)) },
+                )
+            }
+            EffyHairline()
+
+            AccountSectionHeader("Sessions")
+
+            // ⚠ FR-030 — NOT styled destructive, settling the disagreement between the two customer
+            // surfaces in favour of the web's position. Signing out is trivially reversible: you sign
+            // back in. Destructive styling is now reserved for account deletion, which is the first
+            // genuinely irreversible action this area has ever had — and if sign-out is already
+            // wearing red, deletion has no stronger signal left to reach for.
+            EffyNavRow("Sign out", onClick = { vm.signOut() }, showChevron = false)
+            EffyNavRow(
+                "Sign out on all devices",
+                supporting = "Ends every session, including this one",
+                onClick = { confirmingSignOutAll = true },
+                showChevron = false,
             )
-            state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (state.loading) CircularProgressIndicator()
+
+            state.error?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+                )
+            }
+        }
+    }
+
+    // FR-029 — confirmation for ALL devices only. It affects sessions the shopper cannot see, which
+    // is exactly the case where a confirmation earns its interruption; ordinary sign-out does not.
+    if (confirmingSignOutAll) {
+        AlertDialog(
+            onDismissRequest = { confirmingSignOutAll = false },
+            title = { Text("Sign out everywhere?") },
+            text = { Text("This ends every session, including the one on this device.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingSignOutAll = false
+                    vm.signOutEverywhere()
+                }) { Text("Sign out everywhere") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingSignOutAll = false }) { Text("Cancel") }
+            },
+        )
+    }
+}
+
+/**
+ * Privacy & data (034 US6) — and the host for account deletion.
+ *
+ * ⚠ THE DELETION CONTROL IS THE LAST ITEM (FR-039), deliberately, and one navigation level deep.
+ * Both stores name "account settings" as the canonical home and Apple's guidance warns against
+ * burying the link; `Account → Privacy & data → bottom` matches the VERIFIED Uber path
+ * (`Account → Settings → Privacy → Account Deletion`), so the placement is a judged risk rather than
+ * an accident. SC-007 makes a fresh-account reviewer the test.
+ */
+@Composable
+private fun PrivacyScreen(container: AppContainer) {
+    val nav = container.navigator
+    Column(modifier = Modifier.fillMaxSize()) {
+        EffyAppBar(title = "Privacy & data", onBack = { nav.pop() })
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+
+            AccountSectionHeader("Privacy")
+            Text(
+                "We keep your orders and payment records after you leave, because tax and " +
+                    "accounting rules require it. Everything else goes with your account.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
+            )
+
+            // ⚠ FR-052/FR-052a — these links are required by BOTH stores, and the documents behind
+            // them do not exist yet. The content is legally reviewed and operator-owned; placeholder
+            // legal text would defeat SC-010, which requires every claim to be true of the built
+            // system. Tracked in SUBMISSION-BLOCKERS.md.
+            EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.Privacy) })
+            EffyNavRow("Terms of service", onClick = { nav.push(CustomerNavKey.Privacy) })
+
+            Spacer(Modifier.height(EffySpacing.xxxl))
+
+            // The LAST item on the screen (FR-039).
+            EffyNavRow(
+                "Delete account",
+                supporting = "Permanently remove your account and personal data",
+                onClick = { nav.push(CustomerNavKey.DeleteAccount) },
+                destructive = true,
+            )
+            Spacer(Modifier.height(EffySpacing.xl))
         }
     }
 }
+
 
 @Composable
 private fun PasswordScreen(container: AppContainer, vm: AccountViewModel, setFirst: Boolean) {
@@ -416,15 +619,3 @@ private fun FormColumn(content: @Composable () -> Unit) = Column(
     verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
 ) { content() }
 
-@Composable
-private fun Password(
-    value: String,
-    label: String,
-    keyboardType: KeyboardType = KeyboardType.Password,
-    onChange: (String) -> Unit,
-) = OutlinedTextField(
-    value, onChange, label = { Text(label) }, singleLine = true,
-    visualTransformation = PasswordVisualTransformation(),
-    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-    modifier = Modifier.fillMaxWidth(),
-)

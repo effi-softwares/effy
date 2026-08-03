@@ -116,6 +116,14 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable data object MyDetails : CustomerNavKey
 
+    // ── 034: the account centre's new destinations ────────────────────────────────────────────
+    /** How you sign in — composed from the credentials the account ACTUALLY holds (FR-025). */
+    @Serializable data object Security : CustomerNavKey
+    /** Privacy & data. Hosts the deletion control, as its LAST item (FR-039). */
+    @Serializable data object Privacy : CustomerNavKey
+    /** The account-deletion flow itself. */
+    @Serializable data object DeleteAccount : CustomerNavKey
+
     @Serializable
     data class Password(val setFirst: Boolean) : CustomerNavKey
 }
@@ -165,6 +173,9 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.HelpCenter::class, CustomerNavKey.HelpCenter.serializer())
             subclass(CustomerNavKey.CustomerService::class, CustomerNavKey.CustomerService.serializer())
             subclass(CustomerNavKey.MyDetails::class, CustomerNavKey.MyDetails.serializer())
+            subclass(CustomerNavKey.Security::class, CustomerNavKey.Security.serializer())
+            subclass(CustomerNavKey.Privacy::class, CustomerNavKey.Privacy.serializer())
+            subclass(CustomerNavKey.DeleteAccount::class, CustomerNavKey.DeleteAccount.serializer())
             subclass(CustomerNavKey.Password::class, CustomerNavKey.Password.serializer())
         }
     }
@@ -194,5 +205,8 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.HelpCenter,
     CustomerNavKey.CustomerService,
     CustomerNavKey.MyDetails,
+    CustomerNavKey.Security,
+    CustomerNavKey.Privacy,
+    CustomerNavKey.DeleteAccount,
     CustomerNavKey.Password(setFirst = true),
 )

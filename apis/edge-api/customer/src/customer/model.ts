@@ -1,4 +1,4 @@
-import type { CustomerDTO, CustomerStatus } from "@effy/shared-types"
+import type { ClosureState, CustomerDTO, CustomerStatus } from "@effy/shared-types"
 
 /** The database row. A wire shape — it never leaks past this layer (Principle VI). */
 export interface CustomerRow {
@@ -7,7 +7,9 @@ export interface CustomerRow {
   email: string
   given_name: string | null
   family_name: string | null
+  phone: string | null
   status: CustomerStatus
+  closure_state: ClosureState
   has_password: boolean
   password_updated_at: Date | null
   created_at: Date
@@ -18,8 +20,8 @@ export interface CustomerRow {
  * Every column the repository returns. One list, referenced by every query, so a column added to
  * the row type cannot be silently half-added to only some of the statements.
  */
-export const CUSTOMER_COLUMNS = `id, cognito_sub, email, given_name, family_name, status,
-          has_password, password_updated_at, created_at, updated_at`
+export const CUSTOMER_COLUMNS = `id, cognito_sub, email, given_name, family_name, phone, status,
+          closure_state, has_password, password_updated_at, created_at, updated_at`
 
 /**
  * Row → DTO.
@@ -34,7 +36,18 @@ export function toDTO(row: CustomerRow): CustomerDTO {
     email: row.email,
     givenName: row.given_name,
     familyName: row.family_name,
+
+    // 034 FR-060 — self-asserted and NEVER verified. FR-060a bars any confirmation indicator on it
+    // and bars it from every identity/recovery path; there is no `phoneVerified` companion because a
+    // field whose only honest value is `false` eventually gets rendered as a badge by someone.
+    phone: row.phone,
+
     status: row.status,
+
+    // 034 FR-041 — deliberately NOT a third value of `status`. `status` is a platform SANCTION whose
+    // safety property is that the customer cannot influence it; closure is the customer's OWN
+    // decision. Keeping them apart is what makes "barred AND closing" (FR-049) representable at all.
+    closureState: row.closure_state,
 
     // FR-013 — the ONLY thing the account page may branch on when choosing between "Set a
     // password" and "Change password". Never "how did they sign in": a Google-LINKED customer is an

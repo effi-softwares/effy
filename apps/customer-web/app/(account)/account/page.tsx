@@ -1,11 +1,10 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { Suspense } from "react"
 
 import { Avatar } from "@/components/Avatar"
 import { requireCustomer } from "@/lib/dal"
-import { PasswordCard } from "./PasswordCard"
-import { ProfileForm } from "./ProfileForm"
-import { SessionCard } from "./SessionCard"
+import { PersonalInfo } from "./PersonalInfo"
 
 export const metadata: Metadata = {
   title: "Your account",
@@ -53,17 +52,45 @@ async function AccountDetails() {
         createdAt={customer.createdAt}
       />
 
-      <ProfileForm givenName={customer.givenName} familyName={customer.familyName} />
-
-      {/* ⚠ Branches on `hasPassword` — the platform's own record — and NEVER on how they signed in.
-          A Google-LINKED customer is an ordinary native user and CAN hold a password (research R5). */}
-      <PasswordCard
-        hasPassword={customer.hasPassword}
-        passwordUpdatedAt={customer.passwordUpdatedAt}
+      <PersonalInfo
+        givenName={customer.givenName}
+        familyName={customer.familyName}
+        phone={customer.phone}
+        email={customer.email}
       />
 
-      <SessionCard />
+      {/* ⚠ 034 FR-007 — NO SIGN-OUT CONTROL ON THIS PAGE, and no password card either. Both moved to
+          /account/security, with the other credential actions. Sign out used to sit one careless
+          click away from ordinary navigation. */}
+      <AccountLinks />
     </div>
+  )
+}
+
+/** The account's remaining sections (034 FR-006) — grouped, not a flat list. */
+function AccountLinks() {
+  return (
+    <nav aria-label="Account settings">
+      <ul className="divide-y border-y">
+        {[
+          { href: "/addresses", label: "Address book" },
+          { href: "/account/security", label: "Security" },
+          { href: "/account/privacy", label: "Privacy & data" },
+        ].map((l) => (
+          <li key={l.href}>
+            <Link
+              href={l.href}
+              className="flex min-h-[48px] items-center justify-between py-3 text-sm hover:text-foreground/70"
+            >
+              {l.label}
+              <span aria-hidden className="text-muted-foreground">
+                &rsaquo;
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
   )
 }
 

@@ -13,11 +13,21 @@ import {
 
 import {
   CustomerBarredError,
+  CustomerClosingError,
   CustomerNotFoundError,
   updateCustomerProfile,
 } from "../customer/service"
 
 const MAX_NAME = 60
+
+/**
+ * The phone is bounded but NOT format-checked (034 FR-060).
+ *
+ * ⚠ Deliberately loose. The value is unverified and non-authoritative — FR-060a bars it from every
+ * identity, recovery and authentication path — so a strict national pattern would be a support
+ * burden that buys nothing. The bound exists only to stop an unbounded write.
+ */
+const MAX_PHONE = 32
 
 /**
  * PATCH /customer/v1/me — the customer maintains their own details (FR-026).
@@ -52,7 +62,9 @@ export const handler = async (
     )
   }
 
-  const body = parseJsonBody<{ givenName?: unknown; familyName?: unknown }>(event.body)
+  const body = parseJsonBody<{ givenName?: unknown; familyName?: unknown; phone?: unknown }>(
+    event.body,
+  )
   if (body.errors.length > 0 || !body.value) {
     return problem(
       400,
@@ -63,8 +75,9 @@ export const handler = async (
     )
   }
 
-  const given = normalise(body.value.givenName)
-  const family = normalise(body.value.familyName)
+  const given = normalise(body.value.givenName, MAX_NAME)
+  const family = normalise(body.value.familyName, MAX_NAME)
+  const phone = normalise(body.value.phone, MAX_PHONE)
 
   if (given.error || family.error) {
     return problem(
@@ -76,15 +89,32 @@ export const handler = async (
     )
   }
 
+  if (phone.error) {
+    return problem(
+      400,
+      ProblemType.ValidationFailed,
+      "Invalid request",
+      `phone must be a string of ${MAX_PHONE} characters or fewer, or empty to clear`,
+      scope,
+    )
+  }
+
   try {
     const customer = await updateCustomerProfile(sub, {
       givenName: given.value,
       familyName: family.value,
+      phone: phone.value,
     })
     return json(200, customer, scope)
   } catch (err) {
-    if (err instanceof CustomerBarredError) {
-      scope.log.warn({ sub }, "profile update refused — barred customer")
+    if (err instanceof CustomerBarredError || err instanceof CustomerClosingError) {
+      // ⚠ ONE uniform refusal for both. A barred customer and a closing one are different facts, and
+      // the service keeps them as distinct errors for the logs — but the WIRE must not disclose
+      // which applied, matching the posture every other customer route already holds.
+      scope.log.warn(
+        { sub, reason: err instanceof CustomerClosingError ? "closing" : "barred" },
+        "profile update refused",
+      )
       return problem(
         403,
         ProblemType.Forbidden,
@@ -108,12 +138,20 @@ export const handler = async (
   }
 }
 
-/** `null` clears the field; a string is trimmed; an empty string means "cleared". */
-function normalise(raw: unknown): { value: string | null; error?: true } {
+/**
+ * `null` clears the field; a string is trimmed; an empty string means "cleared".
+ *
+ * ⚠ THE `""`-MEANS-CLEAR RULE IS LOAD-BEARING, NOT COSMETIC. The mobile client serialises with
+ * `explicitNulls = false`, so a `null` is dropped from the payload entirely and arrives here as
+ * `undefined` — indistinguishable from "field not sent". Every clearable field must therefore send
+ * `""`, and every clearable field must be normalised through this one function, or clearing it
+ * silently no-ops on mobile while appearing to work on web.
+ */
+function normalise(raw: unknown, max: number): { value: string | null; error?: true } {
   if (raw === null || raw === undefined) return { value: null }
   if (typeof raw !== "string") return { value: null, error: true }
 
   const trimmed = raw.trim()
-  if (trimmed.length > MAX_NAME) return { value: null, error: true }
+  if (trimmed.length > max) return { value: null, error: true }
   return { value: trimmed === "" ? null : trimmed }
 }

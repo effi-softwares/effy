@@ -58,14 +58,23 @@ export async function updateProfile(
   const givenName = input.givenName?.trim() || null
   const familyName = input.familyName?.trim() || null
 
+  // 034 FR-060. ⚠ `""` must reach the backend as `""`, NOT be coerced to `null` here — the backend
+  // maps empty→NULL on the same path the names use, and it is the only signal that distinguishes
+  // "clear this" from "field not sent" once the mobile client has dropped its nulls.
+  const phone = input.phone === null || input.phone === undefined ? null : input.phone.trim()
+
   if ((givenName?.length ?? 0) > 60 || (familyName?.length ?? 0) > 60) {
     return { ok: false, error: "That name is too long." }
+  }
+
+  if ((phone?.length ?? 0) > 32) {
+    return { ok: false, error: "That phone number is too long." }
   }
 
   try {
     const customer = await edgeApi(session).patch<CustomerDTO>(
       "/customer/v1/me",
-      { givenName, familyName } satisfies UpdateCustomerDTO,
+      { givenName, familyName, phone } satisfies UpdateCustomerDTO,
       perCustomer,
     )
 

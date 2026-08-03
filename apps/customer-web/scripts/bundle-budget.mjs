@@ -123,6 +123,21 @@ const GUEST_PAGES = [
   // 58.8 KB over budget for two features before anyone looked. A new public route joins this list in
   // the same commit that creates it, or the gate is measuring a storefront that no longer exists.
   { route: "/promotions/[id]", html: ".next/server/app/promotions/[id].html" },
+  // ⚠ Added 2026-08-03 with the routes themselves (034 FR-058c), not afterwards.
+  //
+  // All three are PUBLIC by requirement, not by accident:
+  //   • /delete-account — Google Play requires a deletion path reachable OUTSIDE the app, by someone
+  //     who has uninstalled it. Apple does not require this, which is why it gets skipped, and why a
+  //     missing or invalid deletion link is the most-reported Play rejection in this area.
+  //   • /legal/privacy, /legal/terms — both stores require an in-app privacy policy link backed by
+  //     an active, publicly accessible, non-geofenced URL.
+  //
+  // They are static content today. They are listed anyway, because the note above records exactly
+  // what happens when a public route is not measured: /product/[id] sat 58.8 KB over budget for two
+  // features before anyone looked.
+  { route: "/delete-account", html: ".next/server/app/delete-account.html" },
+  { route: "/legal/privacy", html: ".next/server/app/legal/privacy.html" },
+  { route: "/legal/terms", html: ".next/server/app/legal/terms.html" },
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy

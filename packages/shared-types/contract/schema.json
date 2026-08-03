@@ -24,6 +24,184 @@
       ],
       "type": "object"
     },
+    "ClosureBlockerDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "clearsAt": {
+          "description": "⚠ NEVER null. FR-042 forbids a block that cannot state its own end.",
+          "type": "string"
+        },
+        "href": {
+          "description": "Where the customer goes to act on it — FR-042's \"direct route\". Web routes on this.",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/ClosureBlockerKind"
+        },
+        "reference": {
+          "description": "Shopper-facing reference, e.g. `EFY-HVX2AE`.",
+          "type": "string"
+        },
+        "resolvableByShopper": {
+          "description": "Can the customer act on it, or only wait? Both are acceptable; a dead end is not.",
+          "type": "boolean"
+        },
+        "target": {
+          "additionalProperties": false,
+          "description": "The same destination in the closed vocabulary mobile needs, having no URL router.",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "order",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "reference",
+        "href",
+        "target",
+        "clearsAt",
+        "resolvableByShopper"
+      ],
+      "type": "object"
+    },
+    "ClosureBlockerKind": {
+      "description": "Why a customer cannot be deleted yet (034 FR-042).\n\n⚠ THIS REQUIREMENT HAS BEEN WRONG TWICE, so the shape encodes the lesson rather than trusting a comment. First it blocked on any non-terminal order — but an order's only terminal state is a fulfilment reaching `collected`, which ships behind a dev-only stub with no route in any environment, so EVERY customer who had ever paid became permanently undeletable. The fix bounded it at 30 days, matched to the grace period — and that was the same dead end in disguise, because Effy is a WEEKLY-RE-BUY grocery platform: a shopper who buys every week is always within 30 days of an order, so the platform's most engaged customers still could never delete.\n\nHence `clearsAt` is NON-NULLABLE: a blocker that cannot say when it ends is unrepresentable, not merely discouraged.",
+      "enum": [
+        "order_awaiting_payment",
+        "order_in_transit"
+      ],
+      "type": "string"
+    },
+    "ClosureChallengeResultDTO": {
+      "additionalProperties": false,
+      "description": "The step-up challenge for closure — the same masked-destination shape the password flow uses.",
+      "properties": {
+        "maskedDestination": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "maskedDestination"
+      ],
+      "type": "object"
+    },
+    "ClosurePreviewDTO": {
+      "additionalProperties": false,
+      "description": "Everything the customer must see BEFORE any irreversible step (FR-040). Side-effect free.",
+      "properties": {
+        "activeRequest": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "eraseAfter": {
+                  "type": "string"
+                },
+                "requestedAt": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "requestedAt",
+                "eraseAfter"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Present only when a request is already live."
+        },
+        "blockers": {
+          "description": "Empty ⇒ closure may proceed.",
+          "items": {
+            "$ref": "#/definitions/ClosureBlockerDTO"
+          },
+          "type": "array"
+        },
+        "eraseAfterIfRequestedNow": {
+          "description": "Advisory until a request actually exists.",
+          "type": "string"
+        },
+        "retained": {
+          "items": {
+            "$ref": "#/definitions/RetainedCategoryDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "blockers",
+        "retained",
+        "eraseAfterIfRequestedNow",
+        "activeRequest"
+      ],
+      "type": "object"
+    },
+    "ClosureRequestDTO": {
+      "additionalProperties": false,
+      "description": "Confirming closure. The code is what pays for it (FR-043); a valid session alone may not.",
+      "properties": {
+        "code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "type": "object"
+    },
+    "ClosureRestoreResultDTO": {
+      "additionalProperties": false,
+      "description": "Cancelling a live closure request during the grace window (FR-041a).\n\n⚠ RESTORE IS AN EXPLICIT CALL, never an inference from an authenticated read. Making it implicit is unimplementable — the refusal and the restore run through the SAME identity lookup, so the gate would refuse the very request meant to restore — and unsafe, because anyone holding the customer's token during the window would silently un-delete the account merely by opening the app.",
+      "properties": {
+        "restoredAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "restoredAt"
+      ],
+      "type": "object"
+    },
+    "ClosureResultDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "allSessionsRevoked": {
+          "const": true,
+          "type": "boolean"
+        },
+        "eraseAfter": {
+          "description": "The date the customer is now owed (FR-040).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "eraseAfter",
+        "allSessionsRevoked"
+      ],
+      "type": "object"
+    },
+    "ClosureState": {
+      "description": "Where a customer sits in the closure lifecycle (034).\n\n`\"closing\"` means they asked to be deleted and the grace window is running. Every request is refused while it holds — with exactly ONE exception, the explicit restore call (FR-041a).",
+      "enum": [
+        "open",
+        "closing"
+      ],
+      "type": "string"
+    },
     "CredentialRoute": {
       "description": "How a customer proved who they are. Telemetry + UI only — never an authorization input.",
       "enum": [
@@ -37,6 +215,10 @@
       "additionalProperties": false,
       "description": "The platform's own record of a customer — distinct from their Cognito credential, and authoritative for the access decision (FR-025).\n\nA `barred` customer is refused no matter how valid their credential is. That is the whole point of holding our own record: the claim is the ORIGIN of identity, the record is the AUTHORITY on access.\n\nNote there is no `role` here, and none is coming: the customer pool defines no RBAC groups (constitution Principle IV). That is also a token-size safety measure — id + access + refresh cookies already run to ~4.5 KB against a ~4 KB browser limit, and a fattened claim set would silently truncate the session.",
       "properties": {
+        "closureState": {
+          "$ref": "#/definitions/ClosureState",
+          "description": "Has this customer asked to be deleted? (034 FR-041.)\n\n⚠ DELIBERATELY NOT a third value of `status`. `status` is a PLATFORM SANCTION, and its entire safety property is that the customer cannot influence it; closure is the customer's OWN decision. Collapsing them would make \"barred AND closing\" unrepresentable — and FR-049 requires an answer to exactly that case.\n\nThere is no `\"closed\"`: once erasure runs, the row is gone. A terminal state would be a row every future read must remember to exclude."
+        },
         "createdAt": {
           "type": "string"
         },
@@ -71,6 +253,13 @@
             "null"
           ]
         },
+        "phone": {
+          "description": "A self-asserted contact phone (034 FR-060).\n\n⚠ NEVER VERIFIED by feature 034, and that has two hard consequences (FR-060a): it MUST NOT be rendered with a verified/confirmed indicator, and it MUST NOT be accepted by any identity, recovery or authentication path. There is deliberately no `phoneVerified` companion — a field whose only honest value is `false` is a trap, because someone will eventually render it as a badge.\n\n⚠ DISTINCT from `AddressDTO.phone`, which is the per-address DELIVERY contact a driver calls (FR-060b). This one is a profile convenience; it does not override the address's, and nothing copies one into the other. Two fields disagreeing about who to ring is worse than one gap.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "status": {
           "$ref": "#/definitions/CustomerStatus"
         }
@@ -80,7 +269,9 @@
         "email",
         "givenName",
         "familyName",
+        "phone",
         "status",
+        "closureState",
         "hasPassword",
         "passwordUpdatedAt",
         "createdAt"
@@ -208,6 +399,23 @@
       ],
       "type": "object"
     },
+    "RetainedCategoryDTO": {
+      "additionalProperties": false,
+      "description": "A category of data kept after erasure, and why (FR-045).\n\n⚠ The reason is carried as data, not hardcoded per surface, because SC-010 requires every claim in the disclosure to be TRUE of the built system — and Apple has demanded that developers cite the specific law behind a retention claim. One source, two surfaces, no drift.",
+      "properties": {
+        "category": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "category",
+        "reason"
+      ],
+      "type": "object"
+    },
     "SetPasswordDTO": {
       "additionalProperties": false,
       "description": "Setting a FIRST password. The `code` is what pays for it (FR-017) — a session alone may not.",
@@ -233,7 +441,7 @@
     },
     "UpdateCustomerDTO": {
       "additionalProperties": false,
-      "description": "What a customer may change about themselves (FR-026).\n\n`email` is deliberately absent: changing it is an identity operation, and a customer who can rewrite their own email can walk onto another customer's record (the well-known Cognito takeover). `status` is absent because it is platform-owned. `hasPassword` is absent because it is a CONSEQUENCE of the password endpoints, never an input to them.",
+      "description": "What a customer may change about themselves (FR-026).\n\n`email` is deliberately absent: changing it is an identity operation, and a customer who can rewrite their own email can walk onto another customer's record (the well-known Cognito takeover). `status` is absent because it is platform-owned. `hasPassword` is absent because it is a CONSEQUENCE of the password endpoints, never an input to them.\n\n⚠ `closureState` IS ABSENT FOR THE SAME REASON AS `status`, and the omission is load-bearing. Closure is written only by the closure endpoints, after a freshly issued verification code. A profile PATCH must never be able to open or close an account — it would turn a routine name edit into an un-delete, and it would bypass the proof-of-control FR-043 exists to demand.",
       "properties": {
         "familyName": {
           "type": [
@@ -246,11 +454,19 @@
             "string",
             "null"
           ]
+        },
+        "phone": {
+          "description": "⚠ Send `\"\"` to CLEAR it, never `null`.\n\nThe mobile client serialises with `explicitNulls = false`, which drops nulls from the payload entirely — so a `null` phone is indistinguishable from \"field not sent\" and the clear silently no-ops. The backend maps `\"\"` → `NULL`, on the identical path the name parts already use.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
         "givenName",
-        "familyName"
+        "familyName",
+        "phone"
       ],
       "type": "object"
     }
@@ -259,6 +475,30 @@
   "properties": {
     "changePassword": {
       "$ref": "#/definitions/ChangePasswordDTO"
+    },
+    "closureBlocker": {
+      "$ref": "#/definitions/ClosureBlockerDTO"
+    },
+    "closureBlockerKind": {
+      "$ref": "#/definitions/ClosureBlockerKind"
+    },
+    "closureChallengeResult": {
+      "$ref": "#/definitions/ClosureChallengeResultDTO"
+    },
+    "closurePreview": {
+      "$ref": "#/definitions/ClosurePreviewDTO"
+    },
+    "closureRequest": {
+      "$ref": "#/definitions/ClosureRequestDTO"
+    },
+    "closureRestoreResult": {
+      "$ref": "#/definitions/ClosureRestoreResultDTO"
+    },
+    "closureResult": {
+      "$ref": "#/definitions/ClosureResultDTO"
+    },
+    "closureState": {
+      "$ref": "#/definitions/ClosureState"
     },
     "credentialRoute": {
       "$ref": "#/definitions/CredentialRoute"
@@ -281,6 +521,9 @@
     "resetConfirm": {
       "$ref": "#/definitions/ResetConfirmDTO"
     },
+    "retainedCategory": {
+      "$ref": "#/definitions/RetainedCategoryDTO"
+    },
     "setPassword": {
       "$ref": "#/definitions/SetPasswordDTO"
     },
@@ -293,6 +536,7 @@
   },
   "required": [
     "status",
+    "closureState",
     "customer",
     "updateCustomer",
     "credentialRoute",
@@ -302,6 +546,14 @@
     "resetConfirm",
     "passwordChallengeResult",
     "passwordWriteResult",
+    "closureBlockerKind",
+    "closureBlocker",
+    "retainedCategory",
+    "closurePreview",
+    "closureChallengeResult",
+    "closureRequest",
+    "closureResult",
+    "closureRestoreResult",
     "problem"
   ],
   "type": "object",

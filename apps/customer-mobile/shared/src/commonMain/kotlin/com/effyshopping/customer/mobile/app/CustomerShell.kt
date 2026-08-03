@@ -65,6 +65,14 @@ import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import com.effyshopping.customer.mobile.core.storage.clearGuestData
+import com.effyshopping.mobile.design.EffySpacing
 
 /** The label for each tab root, in bar order. */
 private fun tabLabel(key: CustomerNavKey): String = when (key) {
@@ -491,6 +499,56 @@ private fun GuestAccountLanding(container: AppContainer) {
             Text("Sign in")
         }
         TextButton(onClick = { container.navigator.push(CustomerNavKey.SignUp) }) { Text("Create an account") }
+
+        Spacer(Modifier.height(EffySpacing.xxxl))
+
+        // ⚠ 034 FR-046 — THE GUEST'S ROUTE TO DELETING THEIR OWN DATA.
+        //
+        // Apple's FAQ names guest accounts explicitly: "Users should have the option to delete
+        // automatically generated accounts (sometimes called 'guest' accounts) and the data
+        // associated with those accounts." Effy is guest-first and a guest's saved list survives a
+        // restart, so this is not hypothetical.
+        //
+        // ⚠ IT HAS TO LIVE HERE. Everything else in the account area is behind a session — so a
+        // control built anywhere else would be unreachable by the only people who need it, which is
+        // how this requirement was very nearly shipped as decorative.
+        //
+        // There is nothing server-side to erase: a guest has no record. This clears the device.
+        var confirming by remember { mutableStateOf(false) }
+        var cleared by remember { mutableStateOf(false) }
+
+        TextButton(onClick = { confirming = true }) { Text("Clear data on this device") }
+
+        if (cleared) {
+            Text(
+                "Cleared. Your saved items and basket on this device are gone.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (confirming) {
+            AlertDialog(
+                onDismissRequest = { confirming = false },
+                title = { Text("Clear data on this device?") },
+                text = {
+                    Text(
+                        "This removes the saved items and basket held on this device. " +
+                            "You don't have an Effy account, so there's nothing stored with us to delete.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirming = false
+                        container.preferences.clearGuestData()
+                        cleared = true
+                    }) { Text("Clear") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirming = false }) { Text("Cancel") }
+                },
+            )
+        }
     }
 }
 

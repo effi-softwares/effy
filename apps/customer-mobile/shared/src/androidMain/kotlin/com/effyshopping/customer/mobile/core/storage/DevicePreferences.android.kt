@@ -42,4 +42,8 @@ private object AndroidDevicePreferences : DevicePreferences {
     override fun putBoolean(key: String, value: Boolean) {
         prefs.edit().putBoolean(key, value).apply()
     }
+
+    override fun remove(key: String) {
+        prefs.edit().remove(key).apply()
+    }
 }
