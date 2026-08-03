@@ -159,8 +159,8 @@ population and the cheapest place to discover that rollback does not work (plan.
 
 ### Deploy and prove — back-office, then shop
 
-- [ ] T060 ⚙️ [US1] `make edge-deploy SERVICE=auth ENV=dev`, then record the four ARNs into `infra/envs/dev/dev.tfvars` — ⚠ Lambdas must exist **before** `lambda_config` references them; Cognito validates on `UpdateUserPool`
-- [ ] T061 ⚙️ [US1] `make mail-verify ENV=dev` — ⚠ under this design a failed send is a failed sign-in, and three audiences have no password fallback
+- [X] T060 ⚙️ [US1] `make edge-deploy SERVICE=auth ENV=dev`, then record the four ARNs into `infra/envs/dev/dev.tfvars` — ⚠ Lambdas must exist **before** `lambda_config` references them; Cognito validates on `UpdateUserPool`
+- [X] T061 ⚙️ [US1] `make mail-verify ENV=dev` — ⚠ under this design a failed send is a failed sign-in, and three audiences have no password fallback
 - [ ] T062 ⚙️ [US1] `make apply ENV=dev` attaching the back-office pool only, then walk quickstart.md §5 checks 1–10 on the back-office console
 - [ ] T063 ⚙️ [US1] Rehearse the rollback drill (quickstart.md §7) on back-office and reverse it — ⚠ do this now, while back-office is the only migrated audience (FR-033, SC-013)
 - [ ] T064 ⚙️ [US1] Attach the shop pool and walk quickstart.md §5 checks 1–10 on **shop-web**
@@ -205,7 +205,7 @@ starting point. This phase is not optional once Phase 3 ships.
 ### Terraform — customer + driver
 
 - [X] T080 [US2] Set `explicit_auth_flows` on the customer clients in `infra/envs/dev/auth-customer.tf` (`:44`, `:162`) to add `ALLOW_CUSTOM_AUTH` while retaining `ALLOW_USER_SRP_AUTH` and `ALLOW_USER_AUTH` — ⚠ per T003's answer; record the bypass status in `research.md` § R4b either way
-- [ ] T081 ⚙️ [US2] Re-run T059's plan-and-grep, then `make apply ENV=dev` attaching the driver and customer pools
+- [X] T081 ⚙️ [US2] Re-run T059's plan-and-grep, then `make apply ENV=dev` attaching the driver and customer pools
 
 ### Prove
 

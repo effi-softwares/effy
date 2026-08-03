@@ -1,11 +1,14 @@
 # Sign-off record — 035-six-digit-otp
 
-**Status**: 🚧 **92 / 128 tasks — every code, test and Terraform task BUILT and machine-verified.**
-**33 operator steps remain, and NOTHING has been deployed.** · **Date**: 2026-08-03
+**Status**: ✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-04 — deployed to dev and PROVEN LIVE on one
+surface.** · **Date**: 2026-08-03, concluded 2026-08-04
 
-⚠ **This is not a sign-off. It is a handover.** The feature is code-complete and cannot be
-*validated* without a real inbox and live AWS. Read § "What is not proven" before treating any of it
-as done.
+**The platform now issues its own sign-in code, and a real person has signed in with one.** Confirmed
+by the operator on **customer-mobile (iOS simulator)** against the live dev pools.
+
+⚠ **"Concluded" closes the slice; it does not make the open items true.** One surface of five was
+walked, on one platform of two, and the formal 10-check table in quickstart §5 was not completed.
+Read § "What is still NOT proven" before relying on any of it.
 
 ---
 
@@ -88,23 +91,44 @@ assertions; `normalizeOtp` truncation; and the bypass in defect 1.
 
 ---
 
-## ⚠ What is NOT proven
+## ✅ What the live run DID prove
 
-**Nothing has been deployed. No code has ever been sent. No one has signed in.**
+Deployed to dev and exercised by the operator on **customer-mobile (iOS simulator)**:
 
-1. ⚠ **The premise is unmeasured (T001).** That managed `EMAIL_OTP` emits 8 digits appears in **no
-   official AWS document** — it rests on Amplify engineers' statements and this platform's
-   observation. **If it measures 6, most of this feature is unnecessary.**
-2. ⚠ **Three blocking spikes are unrun (T002, T003).** Whether an `UNCONFIRMED` user can start
-   `CUSTOM_AUTH`; whether a sign-up-only client closes the customer bypass; what `autoSignIn` does
-   with triggers attached. Each can change the design.
-3. ⚠ **Timing parity is structural, not measured.** The tests assert the same calls happen on both
-   paths. Whether an unknown address *actually* answers in the same time is SC-007, and needs a
-   stopwatch against the dev pool.
-4. ⚠ **No automated test can complete a sign-in**, because there is no way to read a sent email in
-   this repo — no MailHog, no SES event destination, no test inbox. That is stated rather than faked.
-5. ⚠ **Android has never been looked at** across 028, 029, 033 — and now 035. SC-014 says that does
-   not repeat. It has not yet been prevented.
+- The four triggers are attached to all four pools and invoke correctly.
+- `CUSTOM_AUTH` is reachable; the client asks for it and Cognito honours it.
+- A code is generated, emailed via SES, delivered, and **accepted** — a full sign-in completes.
+- The audience map resolves the pool (`otp_unknown_pool` stopped firing).
+- The HMAC secret, the DynamoDB counter and the SES send path all work end to end.
+- ⚠ **Sign-up on the same surface still works**, confirming FR-003 — the `ConfirmSignUp` code is
+  untouched by this feature.
+
+**The code length itself is proven by unit test, not by the live walk** — `generateCode()` is
+`String(randomInt(0, 10**6)).padStart(6, "0")`, asserted over 2,000 iterations plus an explicit
+leading-zero case. The operator did not report a digit count, so SC-002 is **satisfied by
+construction rather than by observation**.
+
+## ⚠ What is still NOT proven
+
+1. ⚠ **T001 was never run.** The premise — that managed `EMAIL_OTP` emitted 8 digits — appears in
+   **no official AWS document** and was never measured on this platform. It no longer blocks
+   anything (the new flow works regardless), but the slice's founding claim remains unverified, and
+   the shop-mobile defect it was inferred from is still the only hard evidence.
+2. ⚠ **The three spikes (T002, T003) are unrun.** In particular T003(c): what `autoSignIn` does now
+   that triggers are attached. Sign-up worked in the live run, which is weak evidence it is fine —
+   but nobody counted whether one code or two arrived.
+3. ⚠ **Four of five surfaces are unwalked**: back-office, shop-web, shop-mobile and customer-web.
+   ⚠ **shop-mobile matters most** — its broken sign-in (SC-001) is the defect that justified the
+   whole slice, and it has not been confirmed fixed on a device.
+4. ⚠ **The 10-check table in quickstart §5 was not completed on any surface** — wrong code ×3,
+   expiry, supersession, the rate limit, the 8-digit paste refusal, and the log-leak sweep are all
+   unobserved. These are the compensating controls that make six digits defensible.
+5. ⚠ **Existence parity (SC-007) is structural, not measured.** No stopwatch was put on a real vs
+   unknown address.
+6. ⚠ **`email_verified` (FR-020) was not inspected.** Its failure is silent and surfaces only later,
+   as a refused Google link.
+7. ⚠ **Android has never been looked at** across 028, 029, 033 — and now 035. SC-014 said that would
+   not repeat. It repeated.
 
 ## ⚠ Known gap, recorded not hidden
 
@@ -128,7 +152,29 @@ account that genuinely has no password.
   are already wired.
 - **`AUTO_CONFIRM_SIGNUP` is wired but OFF**, pending T003(a).
 
+## ⚠ BLOCKING FOR PRODUCTION — email deliverability
+
+Recorded as the single largest open risk on this feature, deliberately deferred by the operator on
+2026-08-04.
+
+**SES is in SANDBOX** (`ProductionAccessEnabled: false`). It delivers only to individually verified
+recipient addresses. On this platform that is not a limitation, it is a **hard ceiling on who can
+sign in at all** — email is the ONLY credential, and three of four audiences have no password
+fallback. A sandbox storefront cannot onboard a single real customer.
+
+Required before any production use:
+1. **SES production access** for `ap-southeast-2` (`aws sesv2 put-account-details`, ~24h review).
+2. ⚠ **A website at `effyshopping.com`.** There is currently **no A or CNAME record anywhere** on the
+   apex or `www` — the domain resolves to nothing. AWS reviewers visit the URL on the request, and a
+   dead link is a common rejection.
+3. ⚠ **Bounce visibility, which does not exist.** There are CloudWatch alarms on bounce and complaint
+   RATES, but nothing reports WHICH address bounced. On a platform where email is the only
+   credential, a customer whose address hard-bounces is **permanently locked out and nobody finds
+   out** — they land silently on the SES suppression list and every future sign-in fails with no
+   signal. This needs a configuration set with an SNS event destination. It is a product defect, not
+   an SES compliance box, and it deserves its own slice.
+
 ## Next step
 
-`quickstart.md` §1 — request one sign-in code and one reset code against dev and count the digits.
-Five minutes, and it either confirms the premise or saves the rest of the feature.
+Walk quickstart §5 on **shop-mobile** — SC-001, the journey that could not be completed at all
+before this slice, is still unconfirmed on a device.
