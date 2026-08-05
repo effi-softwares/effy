@@ -2,12 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("./repo", () => ({
   upsertCustomer: vi.fn(),
-  updateName: vi.fn(),
+  updateProfile: vi.fn(),
 }))
 
-import { upsertCustomer, updateName } from "./repo"
+import { upsertCustomer, updateProfile } from "./repo"
 import {
   CustomerBarredError,
+  CustomerClosingError,
   CustomerNotFoundError,
   getOrCreateCustomer,
   updateCustomerProfile,
@@ -21,7 +22,9 @@ const row = (over: Partial<CustomerRow> = {}): CustomerRow => ({
   email: "shopper@example.com",
   given_name: "Janith",
   family_name: "Madarasinghe",
+  phone: null,
   status: "active",
+  closure_state: "open",
   // 012 — platform-owned password state. `false`/`null` is the ordinary case: an email-OTP customer
   // who has never had a password, which is a complete and permanent state, not a gap.
   has_password: false,
@@ -52,7 +55,9 @@ describe("getOrCreateCustomer", () => {
       email: "shopper@example.com",
       givenName: "Janith",
       familyName: "Madarasinghe",
+      phone: null,
       status: "active",
+      closureState: "open",
       hasPassword: false,
       passwordUpdatedAt: null,
       createdAt: "2026-07-14T00:00:00.000Z",
@@ -107,33 +112,94 @@ describe("getOrCreateCustomer", () => {
 
 describe("updateCustomerProfile", () => {
   it("updates both name parts", async () => {
-    vi.mocked(updateName).mockResolvedValue(
+    vi.mocked(updateProfile).mockResolvedValue(
       row({ given_name: "Jan", family_name: "M" }),
     )
 
     const dto = await updateCustomerProfile("sub-1", {
       givenName: "Jan",
       familyName: "M",
+      phone: null,
     })
 
     expect(dto.givenName).toBe("Jan")
     expect(dto.familyName).toBe("M")
-    expect(updateName).toHaveBeenCalledWith("sub-1", "Jan", "M")
+    expect(updateProfile).toHaveBeenCalledWith("sub-1", "Jan", "M", null)
   })
 
   it("REFUSES a barred customer", async () => {
-    vi.mocked(updateName).mockResolvedValue(row({ status: "barred" }))
+    vi.mocked(updateProfile).mockResolvedValue(row({ status: "barred" }))
 
     await expect(
-      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y" }),
+      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y", phone: null }),
     ).rejects.toBeInstanceOf(CustomerBarredError)
   })
 
   it("fails closed when there is no record", async () => {
-    vi.mocked(updateName).mockResolvedValue(null)
+    vi.mocked(updateProfile).mockResolvedValue(null)
 
     await expect(
-      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y" }),
+      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y", phone: null }),
     ).rejects.toBeInstanceOf(CustomerNotFoundError)
+  })
+
+  // ── 034: phone (FR-060) ─────────────────────────────────────────────────────────────────────
+
+  it("stores a trimmed phone", async () => {
+    vi.mocked(updateProfile).mockResolvedValue(row({ phone: "0400 000 000" }))
+
+    const dto = await updateCustomerProfile("sub-1", {
+      givenName: "Jan",
+      familyName: "M",
+      phone: "  0400 000 000  ",
+    })
+
+    expect(dto.phone).toBe("0400 000 000")
+    expect(updateProfile).toHaveBeenCalledWith("sub-1", "Jan", "M", "0400 000 000")
+  })
+
+  /**
+   * ⚠ THE CLEAR PATH, AND IT IS NOT COSMETIC.
+   *
+   * The mobile client serialises with `explicitNulls = false`, so a `null` is dropped from the
+   * payload entirely and arrives as `undefined` — indistinguishable from "field not sent". Every
+   * clearable field must therefore travel as `""`. If this normalisation is ever removed, clearing a
+   * phone silently no-ops on mobile while appearing to work on web.
+   */
+  it("treats an empty string as CLEARED, because a null never survives the mobile wire", async () => {
+    vi.mocked(updateProfile).mockResolvedValue(row({ phone: null }))
+
+    await updateCustomerProfile("sub-1", { givenName: "Jan", familyName: "M", phone: "   " })
+
+    expect(updateProfile).toHaveBeenCalledWith("sub-1", "Jan", "M", null)
+  })
+
+  it("REFUSES a customer inside the closure grace window", async () => {
+    vi.mocked(updateProfile).mockResolvedValue(row({ closure_state: "closing" }))
+
+    await expect(
+      updateCustomerProfile("sub-1", { givenName: "x", familyName: "y", phone: null }),
+    ).rejects.toBeInstanceOf(CustomerClosingError)
+  })
+})
+
+describe("the closure gate (034 FR-041)", () => {
+  it("REFUSES a closing customer on the identity read", async () => {
+    vi.mocked(upsertCustomer).mockResolvedValue(row({ closure_state: "closing" }))
+
+    await expect(getOrCreateCustomer(identity)).rejects.toBeInstanceOf(CustomerClosingError)
+  })
+
+  /**
+   * Barred and closing are DIFFERENT FACTS and stay distinguishable internally — one is a sanction
+   * the platform imposed, the other a decision the customer made. The wire must not tell them apart
+   * (both answer a uniform 403), but the logs and the closure flow must.
+   */
+  it("keeps barred and closing as distinct errors", async () => {
+    vi.mocked(upsertCustomer).mockResolvedValue(row({ status: "barred" }))
+    await expect(getOrCreateCustomer(identity)).rejects.toBeInstanceOf(CustomerBarredError)
+
+    vi.mocked(upsertCustomer).mockResolvedValue(row({ closure_state: "closing" }))
+    await expect(getOrCreateCustomer(identity)).rejects.not.toBeInstanceOf(CustomerBarredError)
   })
 })

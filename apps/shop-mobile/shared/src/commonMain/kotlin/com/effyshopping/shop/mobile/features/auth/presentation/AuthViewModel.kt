@@ -3,6 +3,8 @@ package com.effyshopping.shop.mobile.features.auth.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.shop.mobile.core.auth.AuthError
+import com.effyshopping.mobile.kit.ui.isCompleteOtp
+import com.effyshopping.mobile.kit.ui.normalizeOtp
 import com.effyshopping.shop.mobile.core.auth.AuthStep
 import com.effyshopping.shop.mobile.core.session.SessionManager
 import com.effyshopping.shop.mobile.features.auth.domain.ConfirmSignIn
@@ -32,7 +34,7 @@ data class AuthUiState(
     val canSubmit: Boolean
         get() = submission == AuthSubmission.Idle && when (stage) {
             AuthStage.Email -> emailInput.trim().isNotEmpty()
-            AuthStage.Code -> codeInput.length == OTP_LENGTH
+            AuthStage.Code -> isCompleteOtp(codeInput)
         }
 
     val canResend: Boolean
@@ -103,7 +105,7 @@ class AuthViewModel(
         val snapshot = mutableState.value
         if (snapshot.isBusy || snapshot.stage != AuthStage.Code) return
         val normalizedCode = normalizeOtp(snapshot.codeInput)
-        if (normalizedCode.length != OTP_LENGTH) {
+        if (!isCompleteOtp(normalizedCode)) {
             mutableState.value = snapshot.copy(
                 codeInput = normalizedCode,
                 fieldError = AuthFieldError.MissingCode,
@@ -205,10 +207,11 @@ class AuthViewModel(
     }
 }
 
-internal const val OTP_LENGTH = 6
+// ⚠ OTP_LENGTH and normalizeOtp moved to packages/mobile-kit (035 T037). They were app-local here
+// while customer-mobile had no equivalent at all — the divergence that produced this slice's defect.
+// The old normalizeOtp ended `.take(OTP_LENGTH)`, silently cutting a real 8-digit code down to six
+// and submitting the wrong value. The promoted version strips non-digits ONLY (FR-004).
 private const val DEFAULT_RESEND_COOLDOWN_SECONDS = 30
-
-internal fun normalizeOtp(value: String): String = value.filter(Char::isDigit).take(OTP_LENGTH)
 
 internal fun isValidEmail(value: String): Boolean {
     val at = value.indexOf('@')

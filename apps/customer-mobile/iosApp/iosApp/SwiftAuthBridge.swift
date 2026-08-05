@@ -81,24 +81,24 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Registration
 
-    func signUpWithPassword(email: String, password: String, given: String, family: String,
+    func signUpWithPassword(email: String, password: String,
                             onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
                 let result = try await Amplify.Auth.signUp(username: email, password: password,
-                                                           options: signUpOptions(email, given, family))
+                                                           options: signUpOptions(email))
                 onResult(mapSignUp(result, email: email))
             } catch { onResult(self.failure(error)) }
         }
     }
 
-    func signUpPasswordless(email: String, given: String, family: String,
+    func signUpPasswordless(email: String,
                             onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
                 // password: nil — Cognito creates a genuinely passwordless user (D7).
                 let result = try await Amplify.Auth.signUp(username: email, password: nil,
-                                                           options: signUpOptions(email, given, family))
+                                                           options: signUpOptions(email))
                 onResult(mapSignUp(result, email: email))
             } catch { onResult(self.failure(error)) }
         }
@@ -133,8 +133,12 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
     func signInWithEmailOtp(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             onResult(await signInRecoveringFromStaleSession {
-                // ALWAYS state the preferred factor — omitting it forces a factor-selection round-trip (D7).
-                let plugin = AWSAuthSignInOptions(authFlowType: .userAuth(preferredFirstFactor: .emailOTP))
+                // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit
+                // EMAIL_OTP (whose length is not configurable by any setting on any object).
+                // ⚠ .customWithoutSRP, never .customWithSRP: the WITH_SRP variant has a recorded
+                // history of completing sign-in WITHOUT presenting the challenge.
+                // ⚠ CODE ROUTE ONLY — the password route keeps .userSRP.
+                let plugin = AWSAuthSignInOptions(authFlowType: .customWithoutSRP)
                 let options = AuthSignInRequest.Options(pluginOptions: plugin)
                 return try await Amplify.Auth.signIn(username: email, options: options)
             })
@@ -146,6 +150,26 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
             do {
                 let result = try await Amplify.Auth.confirmSignIn(challengeResponse: code)
                 onResult(mapSignIn(result))
+            } catch { onResult(self.failure(error)) }
+        }
+    }
+
+    /// Send the sign-UP confirmation code again (036 FR-007).
+    ///
+    /// ⚠ Cognito's MANAGED resend — a real API, unlike the sign-in code, which has none and must be
+    /// re-initiated from scratch (see `AuthDriver.resendSignInCode`).
+    func resendSignUpCode(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
+        Task {
+            do {
+                let details = try await Amplify.Auth.resendSignUpCode(for: email)
+                // ⚠ `destinationString`, not `.description`: `destination` is a `DeliveryDestination`
+                // ENUM, and its synthesized description would put "email(\"s***@e***.com\")" on screen.
+                // ⚠ And the outcome is `signupConfirm` — the vocabulary `IosAuthDriver.mapResult`
+                // actually switches on. An invented string falls through to `Unexpected`, which is a
+                // dead end that compiles perfectly.
+                onResult(BridgeAuthResult(outcome: "signupConfirm",
+                                          destination: self.destinationString(details),
+                                          email: email, errorKind: nil))
             } catch { onResult(self.failure(error)) }
         }
     }
@@ -167,18 +191,24 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Mapping
 
-    private func signUpOptions(_ email: String, _ given: String, _ family: String) -> AuthSignUpRequest.Options {
-        AuthSignUpRequest.Options(userAttributes: [
-            AuthUserAttribute(.email, value: email),
-            AuthUserAttribute(.givenName, value: given),
-            AuthUserAttribute(.familyName, value: family),
-        ])
+    /// ⚠ 036 FR-032 — the NAME attributes are gone. They are optional on the pool (no `schema {}`
+    /// block), so registration is unaffected; the name is written after the account exists.
+    private func signUpOptions(_ email: String) -> AuthSignUpRequest.Options {
+        AuthSignUpRequest.Options(userAttributes: [AuthUserAttribute(.email, value: email)])
     }
 
     private func mapSignIn(_ result: AuthSignInResult) -> BridgeAuthResult {
+        // ⚠ THE `default` BELOW IS A SILENT-FAILURE HAZARD. Swift does not force this switch to be
+        // exhaustive once a default exists, so an unhandled step compiles and surfaces as a
+        // dead-end "unexpected" at runtime. Every step this app accepts is named explicitly.
         switch result.nextStep {
         case .done:
             return BridgeAuthResult(outcome: "done", destination: nil, email: nil, errorKind: nil)
+        // 035 — the platform's own 6-digit code.
+        case .confirmSignInWithCustomChallenge(let info):
+            return BridgeAuthResult(outcome: "otp", destination: info?["maskedDestination"], email: nil, errorKind: nil)
+        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above and an in-flight managed-factor session still completes.
         case .confirmSignInWithOTP(let details):
             return BridgeAuthResult(outcome: "otp", destination: destinationString(details), email: nil, errorKind: nil)
         default:

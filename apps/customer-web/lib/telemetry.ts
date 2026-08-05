@@ -3,6 +3,27 @@
 import type { PostHog } from "posthog-js"
 import type { CredentialRoute, ProductSort } from "@effy/shared-types"
 
+/** Which auth journey an `auth_*` event belongs to. */
+type AuthFlow = "sign_in" | "sign_up" | "reset"
+
+/**
+ * What the platform can HONESTLY say about a refused code (036 FR-011, R10).
+ *
+ * ⚠ `code_mismatch` / `code_expired` / `limit_exceeded` are permitted ONLY on `sign_up` and `reset`,
+ * which run Cognito's MANAGED flow and emit real, distinguishable exceptions. On `sign_in` — the
+ * platform's own custom challenge — a wrong code, an expired one, a superseded one and one that was
+ * never sent are indistinguishable by design, and only the first four values below may be used.
+ */
+type AuthCodeOutcome =
+  | "not_accepted"
+  | "attempts_spent"
+  | "session_timed_out"
+  | "ip_rate_limited"
+  | "error"
+  | "code_mismatch"
+  | "code_expired"
+  | "limit_exceeded"
+
 import { posthogConfig } from "@/lib/config"
 
 /**
@@ -111,6 +132,33 @@ export type StorefrontEvent =
   | { name: "deferred_sign_in_resumed"; props: { route: CredentialRoute } }
   | { name: "sign_in_declined"; props?: Record<string, never> }
   | { name: "account_linked"; props: { provider: "google" } }
+
+  // ── 036: the stepped auth flow ────────────────────────────────────────────────────────────────
+  //
+  // ⚠ EVERY VALUE HERE IS SOMETHING THE PLATFORM CAN ACTUALLY KNOW. Note what is ABSENT from
+  // `outcome`: there is no `expired`, no `superseded` and no `not_sent` on the sign-in route, because
+  // the platform genuinely cannot distinguish them — `VerifyAuthChallenge` computes a reason and
+  // DISCARDS it so the response cannot be used to tell whether an account exists. Inventing those
+  // values would put a fiction into the analytics and then into a product decision.
+  | { name: "auth_flow_started"; props: { flow: AuthFlow; entry: "deliberate" | "demanded" } }
+  | { name: "auth_route_chosen"; props: { flow: AuthFlow; route: CredentialRoute } }
+  | {
+      name: "auth_code_requested"
+      props: { flow: AuthFlow; sendOrdinal: number; trigger: "initial" | "resend" }
+    }
+  /** ⚠ The highest-value number in this taxonomy — see the note on `AuthCodeOutcome`. */
+  | {
+      name: "auth_code_resend_refused"
+      props: { flow: AuthFlow; reason: "cooldown" | "flow_ceiling" }
+    }
+  | { name: "auth_code_submitted"; props: { flow: AuthFlow; attempt: number; lengthOk: boolean } }
+  | { name: "auth_code_rejected"; props: { flow: AuthFlow; attempt: number; outcome: AuthCodeOutcome } }
+  | { name: "auth_step_back"; props: { flow: AuthFlow; fromStep: string } }
+  /** Sizes the demand for the Google slice that this feature deliberately did not build. */
+  | { name: "auth_google_unavailable"; props: { flow: AuthFlow } }
+  | { name: "auth_name_step_shown"; props: { route: CredentialRoute } }
+  | { name: "auth_name_step_completed"; props: { route: CredentialRoute } }
+  | { name: "auth_name_step_abandoned"; props: { route: CredentialRoute } }
   // 019 commerce funnel (shared taxonomy — customer-mobile adopts these SAME names when its telemetry
   // lands; NO PII, product ids only). discover → product → cart → checkout → order.
   | { name: "product_viewed"; props: { productId: string } }

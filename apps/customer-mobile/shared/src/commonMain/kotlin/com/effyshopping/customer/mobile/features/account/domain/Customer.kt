@@ -11,6 +11,16 @@ data class Customer(
     val id: String,
     val email: String,
     val name: CustomerName,
+    /**
+     * A self-asserted contact phone (034 FR-060).
+     *
+     * ⚠ NEVER VERIFIED by this feature — FR-060a bars any confirmation indicator on it and bars it
+     * from every identity and recovery path. There is deliberately no `phoneVerified` companion: a
+     * field whose only honest value is `false` eventually gets rendered as a badge by someone.
+     *
+     * ⚠ Distinct from a delivery address's phone, which is what a driver actually calls (FR-060b).
+     */
+    val phone: String?,
     val standing: CustomerStanding,
     val hasPassword: Boolean,
     val passwordSetAtIso: String?, // null = never (a permanent, first-class state)

@@ -36,7 +36,7 @@ The earlier `shop`/`store` split was retired by
 
 | # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
 |---|---|---|---|---|
-| 1 | Passwordless EMAIL_OTP sign-in against the **shop** pool | ✅ | ✅ | Cognito shop pool (001) |
+| 1 | Passwordless **email one-time code** sign-in against the **shop** pool | ✅ | ✅ | Cognito shop pool (001); code issued by the platform since **035** (6 digits) |
 | 2 | Session persists across restart; explicit sign-out clears it | ✅ | ✅ | — |
 | 3 | Protected areas unreachable when signed out; return-to-intent after sign-in | ✅ | ✅ † | — |
 | 4 | Authenticated shell (navigation, current location, identity + sign-out) | ✅ | ✅ | — |
@@ -50,7 +50,7 @@ The earlier `shop`/`store` split was retired by
 **Mobile delivered by [014-shop-mobile-foundation](../../specs/014-shop-mobile-foundation/)** (KMP +
 Compose, Clean Architecture + MVVM, native Amplify auth). Code-complete + build-verified on Android and
 iOS; runs on both. Ported from 013's foundation with the shop deltas (single access-token bearer,
-EMAIL_OTP-only, the RBAC gate).
+email-code-only, the RBAC gate).
 
 **Footnotes:**
 - **† Row 3 (return-to-intent):** shop-mobile is **login-first**, so protected areas are unreachable when
@@ -72,7 +72,7 @@ EMAIL_OTP-only, the RBAC gate).
 Scoped directly from what was the ⬜ column, and **delivered by 014** (rows 1–8, 10; row 9 deferred):
 
 1. **Auth (rows 1–3)** — Amplify (or the Cognito SDK) against the **shop** pool, passwordless
-   EMAIL_OTP, no password field. Session in secure storage; sign-out clears it. A signed-out user
+   email one-time code, no password field. Session in secure storage; sign-out clears it. A signed-out user
    cannot reach a protected destination, and is returned to it after signing in.
 2. **Shell (row 4)** — the app's navigation frame with the verified identity and sign-out, rather than
    porting the web sidebar. **Behaviour** is native on each platform; **visual chrome** is Material 3 on
@@ -309,3 +309,19 @@ untouched, and no constitution amendment was required.
 colourway) needs both apps installed on one physical device.
 
 ---
+
+## §035 — Platform-wide six-digit one-time codes
+
+Sign-in on **both** shop surfaces moves from Cognito's managed `EMAIL_OTP` factor (**8 digits**,
+length not configurable by any setting) to a **platform-issued custom challenge** (**6 digits**), so
+every code Effy sends is the same length.
+
+| # | Capability | shop-web | shop-mobile | Notes |
+|---|---|---|---|---|
+| 035.1 | Sign-in code is **6 digits** | 🔒 | 🔒 | code + Terraform done; needs the operator deploy |
+| 035.2 | ⚠ **shop-mobile sign-in works at all** | n/a | 🔒 | it truncated the real 8-digit code to six and submitted the wrong value — sign-in could not succeed |
+| 035.3 | Managed 8-digit flow no longer reachable | 🔒 | 🔒 | `ALLOW_USER_AUTH` dropped from both clients; safe here because this audience never self-signs-up |
+| 035.4 | Shared one-time-code field | 🔒 | 🔒 | promoted out of shop-mobile into `packages/mobile-kit` and `@effy/design-system/ui` |
+
+⚠ **shop-mobile's client was unguarded until 035** — `verify-pool-credentials.sh` read only the
+module-owned app client and never checked the mobile ones at all.

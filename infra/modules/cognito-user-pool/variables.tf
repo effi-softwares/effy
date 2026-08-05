@@ -52,7 +52,10 @@ variable "allowed_first_auth_factors" {
 
 # --- 011: the customer audience's three credential routes. -------------------------------------
 # Every variable below defaults to the pre-011 behaviour, so driver / shop / back_office are
-# UNCHANGED by construction: strictly passwordless EMAIL_OTP, admin-provisioned, no IdP, no OAuth.
+# UNCHANGED by construction: strictly passwordless email one-time code, admin-provisioned, no IdP,
+# no OAuth. (⚠ 035 changed WHO ISSUES that code — the platform, not Cognito's managed EMAIL_OTP
+# factor — via enable_custom_auth_flow / disable_choice_based_auth below. The credential is the
+# same; its length is now six digits everywhere.)
 # Constitution v1.7.0 permits these ONLY on the customer pool.
 
 variable "enable_password_auth" {
@@ -129,6 +132,79 @@ variable "pre_sign_up_lambda_arn" {
   description = "Pre-sign-up trigger. On the customer pool this is the ACCOUNT-LINKING trigger: it links a Google identity into the NATIVE profile so one person is one `sub` (FR-011), and it REFUSES to link unless the IdP asserts a verified email (FR-012) — linking on an unverified email is an account-takeover primitive, not a convenience."
   type        = string
   default     = null
+}
+
+variable "custom_auth_lambda_arns" {
+  description = <<-EOT
+    The four 035 sign-in-code triggers, or null to leave the pool on Cognito's managed EMAIL_OTP.
+
+    Set on ALL FOUR pools once 035 rolls out — this is what replaces the managed 8-digit code with
+    the platform's own 6-digit one (spec 035 FR-002).
+
+    ⚠ The functions are SHARED across the four pools (one deployment, branching on
+    `event.userPoolId`), but each pool grants its own `aws_lambda_permission` — four per pool,
+    sixteen in total, no wildcards. See specs/035-six-digit-otp/research.md § R8.
+
+    ⚠ ORDERING: the Lambdas must be deployed BEFORE these ARNs are set. Cognito validates the
+    trigger on UpdateUserPool, so a not-yet-deployed ARN fails the apply.
+  EOT
+  type = object({
+    define              = string
+    create              = string
+    verify              = string
+    post_authentication = string
+  })
+  default = null
+}
+
+variable "enable_custom_auth_flow" {
+  description = <<-EOT
+    Adds ALLOW_CUSTOM_AUTH to the app client, making the platform's own 6-digit sign-in code
+    reachable (035).
+
+    ⚠ THIS DOES NOT REMOVE ALLOW_USER_AUTH — see `disable_choice_based_auth`. Both flows coexist by
+    design during rollout, which is what makes a per-surface rollback a client-side constant change
+    rather than a Terraform apply (FR-033).
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "disable_choice_based_auth" {
+  description = <<-EOT
+    Drops ALLOW_USER_AUTH from the app client, so Cognito's MANAGED 8-digit EMAIL_OTP flow is no
+    longer reachable at all.
+
+    ⚠ SET THIS TRUE ONLY ON POOLS WITH NO SELF-SIGNUP (driver / shop / back-office). Passwordless
+    `SignUp` — omitting the password entirely — is only legal while "passwordless sign-in is active
+    in your user pool AND app client", which means ALLOW_USER_AUTH. The customer pool must keep it,
+    which is why the managed 8-digit path stays reachable there by raw API until spike T003 settles
+    whether a sign-up-only app client closes it (research R4b).
+
+    ⚠ The alternative — planting a random throwaway password at sign-up — was REJECTED: it breaks
+    012's set-first-password flow, which calls ChangePassword WITHOUT PreviousPassword and only
+    works on an account that has no password.
+  EOT
+  type        = bool
+  default     = false
+}
+
+variable "auth_session_validity_minutes" {
+  description = <<-EOT
+    Lifetime of the Session token BETWEEN challenge round trips. Valid range 3-15.
+
+    ⚠ THIS IS NOT THE CODE TTL. Cognito refreshes it on every round trip, so it cannot express
+    "this code dies five minutes after issue" — that is enforced from the issued-at timestamp
+    inside the verify trigger (035 FR-008). Setting it BELOW 5 would expire the session before a
+    shopper's third attempt.
+  EOT
+  type        = number
+  default     = 5
+
+  validation {
+    condition     = var.auth_session_validity_minutes >= 3 && var.auth_session_validity_minutes <= 15
+    error_message = "Cognito permits 3-15 minutes. Do not go below 5: the third attempt would be cut off (035 research R5)."
+  }
 }
 
 variable "writable_attributes" {

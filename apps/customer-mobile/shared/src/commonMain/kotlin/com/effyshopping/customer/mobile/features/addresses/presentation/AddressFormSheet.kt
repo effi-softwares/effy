@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
  * The shared add/edit address form (022), rendered inside a `ModalBottomSheet`. Extracted from the
@@ -34,24 +35,17 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressFormSheet(
-    editing: Boolean,
     form: AddressForm,
     fieldErrors: Map<String, String>,
-    saving: Boolean,
     onChange: (AddressForm) -> Unit,
-    onSubmit: () -> Unit,
-    onCancel: () -> Unit,
 ) {
+    // ⚠ The scroll container, IME padding, navigation-bar padding and the title now belong to
+    // EffySheet (034 T017). Re-adding them here would double the insets and nest a scroll inside a
+    // scroll.
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .imePadding()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
     ) {
-        Text(if (editing) "Edit address" else "Add an address", style = MaterialTheme.typography.headlineSmall)
 
         // Label chips (FR-006a): Home / Work / Other — Other reveals a free-text field.
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
@@ -71,12 +65,10 @@ fun AddressFormSheet(
         Field("State / region (optional)", form.region, onChange = { onChange(form.copy(region = it)) })
         Field("Postcode", form.postalCode, error = fieldErrors["postalCode"], keyboard = KeyboardType.Number, onChange = { onChange(form.copy(postalCode = it)) })
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
-            TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-            Button(onClick = onSubmit, enabled = !saving, shape = EffyButtonShape, modifier = Modifier.weight(1f)) {
-                Text(if (editing) "Save" else "Add")
-            }
-        }
+        // ⚠ 034 — NO ACTION ROW HERE. `EffySheet` owns the Save/Cancel pair so every account sheet is
+        // identical: primary full-width, Cancel de-weighted beneath it. This form used to draw its own
+        // side-by-side pair (with a raw Material button), which is why it looked like a different
+        // component from the single-field editors.
     }
 }
 

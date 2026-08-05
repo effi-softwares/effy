@@ -36,8 +36,12 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
     func signInWithEmailOtp(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
-                // ALWAYS state the preferred factor — omitting it forces a factor-selection round-trip (013 D7).
-                let plugin = AWSAuthSignInOptions(authFlowType: .userAuth(preferredFirstFactor: .emailOTP))
+                // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit
+                // EMAIL_OTP (whose length is not configurable by any setting on any object).
+                // ⚠ .customWithoutSRP, never .customWithSRP: the WITH_SRP variant has a recorded
+                // history of completing sign-in WITHOUT presenting the challenge, and there is no
+                // password on this pool for SRP to verify anyway.
+                let plugin = AWSAuthSignInOptions(authFlowType: .customWithoutSRP)
                 let options = AuthSignInRequest.Options(pluginOptions: plugin)
                 let result = try await Amplify.Auth.signIn(username: email, options: options)
                 onResult(mapSignIn(result))
@@ -63,9 +67,17 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
     // MARK: Mapping
 
     private func mapSignIn(_ result: AuthSignInResult) -> BridgeAuthResult {
+        // ⚠ THE `default` BELOW IS A SILENT-FAILURE HAZARD. Swift does not force this switch to be
+        // exhaustive once a default exists, so an unhandled step compiles and surfaces as a
+        // dead-end "unexpected" at runtime. Every step this app accepts is named explicitly.
         switch result.nextStep {
         case .done:
             return BridgeAuthResult(outcome: "done", destination: nil, errorKind: nil)
+        // 035 — the platform's own 6-digit code.
+        case .confirmSignInWithCustomChallenge(let info):
+            return BridgeAuthResult(outcome: "otp", destination: info?["maskedDestination"], errorKind: nil)
+        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above and an in-flight managed-factor session still completes.
         case .confirmSignInWithOTP(let details):
             return BridgeAuthResult(outcome: "otp", destination: destinationString(details), errorKind: nil)
         default:

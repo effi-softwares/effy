@@ -14,6 +14,7 @@ import { mergeCartAfterSignIn } from "@/lib/cart-actions"
 import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
 import { capture } from "@/lib/telemetry"
 import { startGoogleSignIn, takePendingNext } from "../_lib/auth-actions"
+import { ensureCustomerRecord } from "../_lib/seed-actions"
 
 const RETRY_FLAG = "effy_google_retry"
 
@@ -56,6 +57,19 @@ export function CallbackHandler() {
     // 033 FR-028: the saved list joins the account on the FEDERATED (Google) return — ⚠ omitting it here is how a
     // Google sign-in silently drops the guest's saved items while email sign-in keeps them.
     void mergeSavedAfterSignIn()
+
+        // ⚠ 036 R5 — THE RECORD WAS NEVER SEEDED ON THIS PATH, AND NOTHING NOTICED.
+        //
+        // This handler merged the cart and the saved list and then navigated away. It never called
+        // `GET /customer/v1/me`, which is the ONLY thing that creates `public.customer` — so a
+        // federated shopper reached the storefront with no platform record at all. Harmless while
+        // every read created it lazily; a guaranteed failure the moment anything WRITES first, which
+        // is exactly what the name step does: `PATCH /customer/v1/me` answers a missing record with
+        // `403 "this account cannot be used"` — the barred-customer wording.
+        //
+        // Latent today because Google is parked (`customer_google_enabled = false`). Fixed now,
+        // because the day it un-parks is not the day to discover it.
+        void ensureCustomerRecord()
 
         const next = safeNextTarget(takePendingNext())
         if (next !== "/") {

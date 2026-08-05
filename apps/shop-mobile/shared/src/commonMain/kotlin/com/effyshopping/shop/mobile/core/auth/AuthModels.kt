@@ -11,7 +11,19 @@ data class Session(
     val idToken: String,
 )
 
-/** The outcome of an auth step. The one credential flow is email → code. */
+/**
+ * The outcome of an auth step. The one credential flow is email → code.
+ *
+ * ⚠ [NeedsOtp] now covers BOTH the managed factor and 035's custom challenge, and that is on
+ * purpose. The two differ only in which Cognito flow produced them; to this app they mean exactly
+ * the same thing — "a code was emailed, ask for it". Modelling them as separate members would have
+ * forced every `when` to handle a distinction the UI does not have.
+ *
+ * ⚠ What DID need modelling is the mapping in each driver. Both `AmplifyAuthDriver.mapSignIn`
+ * implementations end in `else -> Failed(Unexpected)`, so an unhandled new step compiles cleanly
+ * and dies at runtime as a dead-end screen. The drivers now name every step they accept explicitly
+ * and `AuthStepMappingTest` pins the ones that must never appear.
+ */
 sealed interface AuthStep {
     data class Done(val session: Session) : AuthStep
     data class NeedsOtp(val destination: String) : AuthStep   // a code was emailed → confirm it

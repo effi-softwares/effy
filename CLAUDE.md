@@ -30,7 +30,8 @@ native web build).
     subscribe with filter policies (the fulfillment fan-out).
 - **Data:** PostgreSQL 16, **raw SQL**, Goose migrations, **no ORM.** Two schemas: `public`
   (operational) and `admin` (back-office accounts + audit).
-- **Infra:** Terraform, multi-env, remote state (S3 + DynamoDB lock). AWS-native: Cognito, RDS,
+- **Infra:** Terraform, multi-env, remote state (S3-native lockfile — ⚠ **no DynamoDB lock table**;
+  the platform's only DynamoDB table is 035's OTP issuance counter). AWS-native: Cognito, RDS,
   ECS/ECR, Lambda, S3, SNS/SQS, SES, Amplify Hosting.
 - **Observability & telemetry:** Prometheus + Grafana (metrics/dashboards/alerts, self-hosted on
   ECS); Crashlytics (mobile crash reporting); PostHog (product analytics + web error tracking on all
@@ -124,8 +125,12 @@ Discipline: specs have ZERO tech. A gap found later sends you BACK to fix the ea
 ## Auth
 AWS Cognito, **four isolated pools**: customer / driver / shop / admin. **Credentials are
 per-audience** (constitution v1.7.0, amended by 011):
-- **Driver / shop / admin** — **strictly passwordless EMAIL_OTP**, admin-provisioned (no self-signup).
-  **There are no passwords on the platform's internal audiences.**
+- **Driver / shop / admin** — **strictly passwordless email one-time code**, admin-provisioned (no
+  self-signup). **There are no passwords on the platform's internal audiences.** ⚠ Since **035** the
+  code is **issued by the platform itself** (a Cognito custom challenge), not by Cognito's managed
+  `EMAIL_OTP` factor — whose length is fixed at **eight** digits and configurable by nothing. Every
+  code on the platform is now **six** digits (constitution v1.11.1: the phrase names the credential,
+  not the vendor mechanism).
 - **Customer** — the only audience Effy does not employ, and the only one open to the public: **open
   self-registration** with **three credential routes — email+password, email OTP, and Google
   federated sign-in**. All three MUST converge on **one profile / one `sub`** (a federated identity is
@@ -202,6 +207,74 @@ Everything gets built **slice by slice**, each driven by its own spec → plan �
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**035-six-digit-otp — Platform-Wide Six-Digit One-Time Codes.** ✅ **CONCLUDED (PARTIAL BY DESIGN)
+2026-08-04 — 93/128 tasks. DEPLOYED TO DEV AND PROVEN LIVE on one surface.** Sign-off record:
+[specs/035-six-digit-otp/SIGNOFF.md](specs/035-six-digit-otp/SIGNOFF.md).
+
+**The platform now issues its own sign-in code**, and a real person has signed in with one
+(customer-mobile, iOS simulator, live dev pools). Passwordless sign-in delivered **8** digits while
+sign-up confirmation, password reset and both step-up flows delivered **6**.
+- **⚠ IT WAS NOT COSMETIC.** `shop-mobile` filtered and truncated code input to six characters, so a
+  real 8-digit code was cut to its first six and submitted — **passwordless sign-in there could not
+  succeed**, and nothing on screen said why. Two of the platform's own UIs already told users the
+  code was six digits. ⚠ D23 (011) recorded "do NOT hardcode a length"; the rule held on the three
+  web surfaces and was **broken on both mobile ones**.
+- **⚠ THE LENGTH IS NOT CONFIGURABLE — anywhere.** Not on the pool, the app client,
+  `SignInPolicyType`, `EmailMfaConfigType`, the message templates, or the Terraform provider schema;
+  the Amplify team closed the request as a Cognito-side limitation. A **Custom Email Sender** trigger
+  cannot help either — it receives the code Cognito already generated and has **no response field to
+  return a different one**, so emailing our own would lock out every user. The only route is a
+  **custom challenge**, which is what **supersedes D23** (recorded in place in 011's research).
+- **⚠ THE DESIGN STORES ALMOST NOTHING.** The code lives in the shopper's inbox and as a **keyed hash
+  in `challengeMetadata`** — the only channel that survives between `CreateAuthChallenge`
+  invocations, since `privateChallengeParameters` starts empty on every retry. Attempt counting is
+  free from `session[]`. **No Goose migration.** The only persisted state is one hourly counter over a
+  *hashed* address — the platform's **first DynamoDB table**, a recorded exception to the locked
+  PostgreSQL standard (⚠ the decisive reason is not latency: edge Lambdas reach RDS today *only*
+  because the dev DB is publicly accessible, which `edge-network.tf` calls invalid for prod).
+- **⚠ FR-013 IS NOT BUILDABLE IN A LAMBDA.** The trigger event's `callerContext` has exactly two
+  fields and **neither is an IP**. Per-source limiting is an **AWS WAF** rate rule on each pool
+  (~$6/mo). ⚠ WAF **cannot** see email addresses, so FR-012 (per-address, DynamoDB) and FR-013 are
+  **two mechanisms, not one**.
+- **Data**: none. **Infra**: `apis/edge-api/auth` (4 triggers, all four pools, **104 tests**),
+  DynamoDB counter, WAF, 4 alarms, operator-seeded HMAC secret. Internal pools **drop
+  `ALLOW_USER_AUTH`** entirely; ⚠ **customer keeps it** because passwordless `SignUp` requires it, so
+  the managed 8-digit flow stays reachable there by raw API — a **consistency gap, not a privilege
+  escalation** (T003b would close it).
+- **⚠ FOUR DEFECTS OF MY OWN, three found by my own tests and one on the first deploy**: (1) a
+  **brute-force BYPASS** — success was checked before the attempt cap, so `[wrong,wrong,wrong,correct]`
+  issued tokens; (2) `normalizeOtp` **truncated**, which FR-004 forbids — and **no test covered it**,
+  because the one test touching normalisation used a string with exactly six digits and passed
+  identically before and after the bug; (3) `NotAuthorizedException` now means two things, and the
+  code route showed **password wording to passwordless shoppers**; (4) ⚠ **the audience map read four
+  env vars `serverless.yml` never declared** — every pool resolved "unknown", no email was ever sent,
+  and **100 passing tests missed it because they set those vars themselves**. That is 027 R13 / 029 /
+  033's failure mode a fourth time; a **config-contract test** now reads the real `serverless.yml`.
+- **⚠ ONE TASK IN MY OWN PLAN WAS WRONG AND WAS REVERSED**: T071 would have removed `autoSignIn` from
+  sign-up, costing customers a **second** code — the `ConfirmSignUp` code is already six digits and
+  untouched (FR-003).
+- **Governance**: constitution **1.11.1** (PATCH — "EMAIL_OTP" names the **credential**, not the
+  vendor enum); both audience registers updated; `verify-pool-credentials.sh` **extended** (⚠ it would
+  have reported ✓ PASS while four pools gained a new first-factor flow).
+- **Verified**: 13/13 typecheck · **997 JS/TS tests** · 86 shop-mobile + 238 customer-mobile ·
+  Android **and** iOS compile incl. `compileTestKotlinIosSimulatorArm64` (which 033 found had never
+  run) · `terraform validate`/`fmt` · `depcruise` · both mobile guards · `tokens:check` unchanged ·
+  bundle **byte-identical** on all nine guest routes. **Six negative proofs.**
+- **⚠ BLOCKING FOR PRODUCTION — DELIVERABILITY.** **SES is in SANDBOX**, delivering only to
+  individually verified recipients. On this platform that is a **hard ceiling on who can sign in at
+  all** — email is the ONLY credential and three of four audiences have no password fallback. Needs
+  (a) SES production access for `ap-southeast-2`, (b) ⚠ **a website — there is currently no A or
+  CNAME record anywhere on the apex or `www`**, which AWS reviewers check, and (c) ⚠ **bounce
+  visibility, which does not exist**: alarms watch bounce *rates* but nothing reports *which* address
+  bounced, so a customer whose address hard-bounces is **permanently locked out and nobody finds
+  out**. That last one is a product defect deserving its own slice.
+- **⚠ Open**: 4 of 5 surfaces unwalked — ⚠ **shop-mobile most of all**, since its broken sign-in
+  (SC-001) is the defect that justified the slice and is still unconfirmed on a device. The 10-check
+  table (attempt cap, expiry, supersession, rate limit, 8-digit paste refusal, log-leak sweep) is
+  **unobserved everywhere**; SC-007 timing parity is structural, not measured; `email_verified`
+  (FR-020) uninspected; **T001 was never run**; and ⚠ **Android has never been looked at across 028,
+  029, 033 — and now 035.** Spec/artifacts: [specs/035-six-digit-otp/](specs/035-six-digit-otp/).
 
 **033-customer-saved-items — Customer Saved Items: a watchlist.** 🚧 **183/214 tasks — every feature phase BUILT and machine-verified except telemetry;
 operator walks + commit pending.**
@@ -1078,5 +1151,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/034-customer-account-center/plan.md
+at specs/036-auth-step-flow/plan.md
 <!-- SPECKIT END -->

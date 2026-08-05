@@ -1,0 +1,146 @@
+# edge-auth — Effy cold-path AUTH service (035-six-digit-otp).
+#
+# ⚠ THIS SERVICE HOSTS NO HTTP ROUTE. Every function below is a COGNITO LAMBDA TRIGGER, invoked
+# synchronously by the user pool — never by the shared HTTP API. That is why there is no
+# `provider.httpApi` block and why no function has an `events:` block. The pools are wired to these
+# ARNs in infra/envs/<env>/auth-*.tf, and Cognito's permission to invoke them is granted there too
+# (one aws_lambda_permission per function per pool — 16 in total, no wildcards).
+# The same shape as the 011 pre-sign-up trigger in edge-customer.
+#
+# ⚠ WHY A SEPARATE SERVICE, and not edge-customer (which already hosts a Cognito trigger):
+# these triggers serve ALL FOUR pools, so their role needs cognito-idp on all four pool ARNs.
+# Granting that to the CUSTOMER service's role would give it administrative reach over the
+# INTERNAL audiences — a direct Principle IV smell. See specs/035-six-digit-otp/research.md § R9.
+#
+# ⚠ THE 5-SECOND WALL. Cognito invokes triggers synchronously and "it must respond within 5
+# seconds… You can't change this five-second timeout value." createAuthChallenge does a DynamoDB
+# read-modify-write AND an SES send inside that budget, on a possible ~1s cold start. Hence:
+# arm64 + a lean bundle + module-scope clients + NO Postgres anywhere on this path.
+# Timeout is set to 5 deliberately — a function that outlives Cognito's patience only burns money.
+service: effy-edge-auth
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 512
+  # ⚠ 5, not 10: Cognito abandons the call at 5s regardless. See the header note.
+  timeout: 5
+  logRetentionInDays: 30
+  tags:
+    project: effy
+    slice: 035-six-digit-otp
+    service: auth
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    # The issuance counter (FR-012). ⚠ The ONLY persisted state in this slice — the code itself is
+    # never written anywhere. See specs/035-six-digit-otp/data-model.md.
+    OTP_TABLE_NAME: ${ssm:/effy/${sls:stage}/auth/otp/table_name}
+    # Keyed-hash secret. ⚠ Rotating it invalidates every in-flight code (acceptable for a 5-minute
+    # secret; do not rotate during a sign-in spike).
+    OTP_HMAC_SECRET_ARN: ${ssm:/effy/${sls:stage}/auth/otp/hmac_secret_arn}
+    # Branded sender from 010. ⚠ Under this design a failed send is a FAILED SIGN-IN — there is no
+    # password fallback on three of the four audiences.
+    OTP_SENDER: no-reply@${sls:stage}.effyshopping.com
+    # ⚠ THE AUDIENCE MAP. One deployment serves all four pools by branching on event.userPoolId,
+    # and `src/lib/audience.ts` resolves that id through these four values. Omit any one of them and
+    # that pool becomes UNKNOWN: the trigger fails closed, emits otp_unknown_pool, sends no email,
+    # and nobody on that audience can sign in.
+    #
+    # ⚠ That is exactly what shipped on the first deploy — the code read these, serverless.yml never
+    # declared them, and the unit tests set them via process.env so they could never notice. A
+    # config-contract test (src/lib/audience.config.test.ts) now compares this block against what
+    # the code reads.
+    #
+    # ⚠ Note the HYPHEN in back-office: the SSM path is /auth/back-office/, not /auth/back_office/.
+    CUSTOMER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/customer/user_pool_id}
+    DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
+    SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
+    BACK_OFFICE_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/back-office/user_pool_id}
+  iam:
+    role:
+      statements:
+        # The HMAC key, read through the Parameters-and-Secrets extension.
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/auth/otp/hmac_secret_arn}
+
+        # The code email. ⚠ Scoped to the SES identity rather than "*" — edge-customer's existing
+        # ses:SendEmail grant uses "*", and this slice deliberately does not copy that.
+        - Effect: Allow
+          Action: ses:SendEmail
+          Resource: ${ssm:/effy/${sls:stage}/ses/identity_arn}
+
+        # The issuance counter. One table, four operations, nothing else.
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:UpdateItem
+          Resource: ${ssm:/effy/${sls:stage}/auth/otp/table_arn}
+
+        # FR-020 — reinstating email_verified, which managed EMAIL_OTP did automatically and
+        # CUSTOM_AUTH does not. ⚠ All four pool ARNs, because one trigger set serves four pools
+        # (research R8). This is the permission that could NOT live in the customer service.
+        - Effect: Allow
+          Action: cognito-idp:AdminUpdateUserAttributes
+          Resource:
+            - ${ssm:/effy/${sls:stage}/auth/customer/user_pool_arn}
+            - ${ssm:/effy/${sls:stage}/auth/driver/user_pool_arn}
+            - ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
+            - ${ssm:/effy/${sls:stage}/auth/back-office/user_pool_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — the functions run OUTSIDE the VPC, same as the other three edge services.
+  # ⚠ This is also why the issuance store is DynamoDB and not Postgres: the edge Lambdas reach RDS
+  # today only because the dev database is publicly accessible, a posture infra/envs/dev/
+  # edge-network.tf records as invalid for prod. See research.md § R3.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  # ⚠ NO `events:` ON ANY FUNCTION — see the header. These are pool-wired, not gateway-wired.
+
+  defineAuthChallenge:
+    handler: src/functions/define-auth-challenge.handler
+    description: Cognito define-auth-challenge — the state machine. Counts attempts (max 3) and decides issue/fail/re-challenge (035 FR-011).
+
+  createAuthChallenge:
+    handler: src/functions/create-auth-challenge.handler
+    description: Cognito create-auth-challenge — generates the 6-digit code on the FIRST invocation only, emails it, counts the send (035 FR-001/FR-012).
+
+  verifyAuthChallenge:
+    handler: src/functions/verify-auth-challenge.handler
+    description: Cognito verify-auth-challenge-response — pure constant-time comparison plus TTL. No I/O (035 FR-008/FR-015).
+
+  postAuthentication:
+    handler: src/functions/post-authentication.handler
+    description: Cognito post-authentication — reinstates email_verified, which managed EMAIL_OTP set automatically and CUSTOM_AUTH does not (035 FR-020).

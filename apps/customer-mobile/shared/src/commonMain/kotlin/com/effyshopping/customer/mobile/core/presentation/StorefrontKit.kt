@@ -38,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -74,6 +75,7 @@ import com.effyshopping.customer.mobile.design.EffyColor
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import com.effyshopping.customer.mobile.resources.ic_close
 import com.effyshopping.customer.mobile.resources.ic_orders_outlined
 import com.effyshopping.mobile.design.EffyBanner
 import com.effyshopping.mobile.design.EffyRadius
@@ -84,6 +86,24 @@ import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import com.effyshopping.mobile.kit.ui.widthClassFor
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.effyshopping.customer.mobile.resources.ic_visibility
+import com.effyshopping.customer.mobile.resources.ic_visibility_off
 
 /**
  * The customer storefront's shared visual vocabulary (025).
@@ -282,6 +302,16 @@ fun EffyPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leading: (@Composable () -> Unit)? = null,
+    /**
+     * Show progress INSIDE this button while its own action runs.
+     *
+     * ⚠ IN THE BUTTON, NOT BESIDE IT. The auth screens used to render one loose
+     * `CircularProgressIndicator` in the page column, which had two problems: on a screen with more
+     * than one action ("Sign in" AND "Email me a code instead") it could not say WHICH one was
+     * running, and it appeared and disappeared in the layout flow, nudging everything below it. A
+     * spinner in the pressed control names the action by position and reflows nothing.
+     */
+    loading: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
@@ -309,9 +339,25 @@ fun EffyPrimaryButton(
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leading != null) leading()
+        if (loading) {
+            // ⚠ The label STAYS. Swapping it for a bare spinner loses the one thing that tells the
+            // shopper what they are waiting for, and the button would change width mid-press.
+            EffyButtonSpinner(fg)
+        } else if (leading != null) {
+            leading()
+        }
         Text(label, style = MaterialTheme.typography.titleSmall, color = fg)
     }
+}
+
+/** The in-button progress mark. Sized to sit on the type baseline, never taller than the label. */
+@Composable
+private fun EffyButtonSpinner(color: Color) {
+    CircularProgressIndicator(
+        modifier = Modifier.size(18.dp),
+        color = color,
+        strokeWidth = 2.dp,
+    )
 }
 
 /** The source's secondary button: the page surface inside a hairline border. */
@@ -321,6 +367,16 @@ fun EffySecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Progress inside this button while its own action runs — see [EffyPrimaryButton.loading]. */
+    loading: Boolean = false,
+    /**
+     * An optional mark before the label — currently only "Continue with Google" (036 FR-038).
+     *
+     * ⚠ A SLOT ON THE SHARED BUTTON, NOT A BESPOKE GOOGLE BUTTON. Google requires its own unrecoloured
+     * mark beside the label, and the alternative was a second bordered button that would drift from
+     * this one's height, radius and disabled colour the first time either changed.
+     */
+    leading: (@Composable () -> Unit)? = null,
 ) {
     Box(
         modifier = modifier
@@ -331,11 +387,14 @@ fun EffySecondaryButton(
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val fg = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label
+            if (loading) EffyButtonSpinner(fg) else leading?.invoke()
+            Text(label, style = MaterialTheme.typography.titleSmall, color = fg)
+        }
     }
 }
 
@@ -529,7 +588,12 @@ fun EffyNavRow(
  */
 @Composable
 fun EffyField(
-    label: String,
+    /**
+     * ⚠ NULLABLE. Pass `null` inside an [EffySheet] whose title already names the field — otherwise
+     * the shopper reads "First name" twice, once as the heading and once as the label, which is what
+     * the first build of 034's editor actually did.
+     */
+    label: String?,
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
@@ -549,11 +613,13 @@ fun EffyField(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(bottom = EffySpacing.s),
-        )
+        if (label != null) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(bottom = EffySpacing.s),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -842,6 +908,280 @@ fun EffyDetailRow(
             },
         )
     }
+}
+
+/**
+ * A tappable label / value / chevron row — the account area's editing affordance (034 FR-010).
+ *
+ * ⚠ SEPARATE FROM `EffyDetailRow` ABOVE, WHICH STAYS AS IT IS. That one is a DISPLAY row: no click,
+ * no trailing slot, value right-aligned against the label. This one stacks label over value, is
+ * activatable, and carries a chevron — a different job, and merging them would give the display row
+ * a click target it must not have (it is used inside receipts).
+ *
+ * ⚠ WHY A ROW RATHER THAN AN INLINE FIELD, since that is the real argument: a row with a live input
+ * in it cannot also show a verified state, a "managed by Google" state, or a pending-change state
+ * without becoming cramped. A value-and-chevron row is a DISPLAY surface, so it can carry status; an
+ * input row is an ENTRY surface and cannot.
+ *
+ * `editable = false` keeps the row activatable but drops the chevron and shows `trailingNote` —
+ * because a row that silently ignores a tap is indistinguishable from a broken one (FR-022).
+ */
+@Composable
+fun EffyValueRow(
+    label: String,
+    value: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    editable: Boolean = true,
+    placeholder: String = "Not set",
+    trailingNote: String? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            // FR-055 — 48dp is the ACTIVATION AREA, not the glyph. Feature 033 shipped a 32dp
+            // control directly beneath a comment claiming it met the minimum; the number is stated
+            // here so the next reader can check it rather than trust it.
+            .heightIn(min = EffyMinTouchTarget)
+            .clickable(onClick = onClick)
+            .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                value?.takeIf { it.isNotBlank() } ?: placeholder,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(Modifier.width(EffySpacing.md))
+        if (editable) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_arrow_back),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp).rotate(180f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else if (trailingNote != null) {
+            Text(
+                trailingNote,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * ONE FIELD, ONE SHEET (034 US1) — the mobile half of the per-field editing model.
+ *
+ * ⚠ THE DIRTY-CHECK IS MANDATORY, NOT POLISH (FR-018 / FR-019).
+ *
+ * A changed value must never be discarded silently, and on Android there are THREE ways out: a
+ * downward drag, a scrim tap, and the system back gesture. `onDismissRequest` covers the scrim and
+ * back; it does NOT intercept the drag, which needs `confirmValueChange` on the sheet state. Wiring
+ * only one leaves the other route discarding work. NN/g additionally found that the same downward
+ * swipe often lands on the notification shade instead — so an accidental dismissal is not a rare case.
+ *
+ * ⚠ AND THE CONFIRMATION IS AN ALERT, NOT A SECOND SHEET. Stacking sheets is what FR-023 forbids;
+ * FR-023a records this exemption explicitly.
+ *
+ * @param dirty whether the editor holds unsaved changes — the caller owns the comparison, because
+ *   only it knows what "unchanged" means for its field.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EffySheet(
+    title: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    dirty: Boolean = false,
+    /** The committing action. Omit only for a sheet that commits nothing. */
+    primaryLabel: String? = null,
+    onPrimary: (() -> Unit)? = null,
+    primaryEnabled: Boolean = true,
+    cancelLabel: String = "Cancel",
+    discardTitle: String = "Discard your changes?",
+    discardBody: String = "What you typed here will not be saved.",
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val confirmingDiscardState = remember { mutableStateOf(false) }
+    var confirmingDiscard by confirmingDiscardState
+
+    // ⚠⚠ READ BEFORE TOUCHING THE `confirmValueChange` LAMBDA. ⚠⚠
+    //
+    // `rememberModalBottomSheetState` delegates to
+    //     rememberSaveable(skipPartiallyExpanded, confirmValueChange, skipHiddenState, saver = …)
+    // so **the lambda is a KEY**. Any recomposition that produces a NEW lambda instance discards the
+    // SheetState and rebuilds it with `initialValue = Hidden` — and the sheet then animates Hidden →
+    // Expanded, which the shopper sees as the sheet dropping and springing back.
+    //
+    // The first build captured `dirty` directly. On the FIRST keystroke `dirty` flips false → true,
+    // Compose's lambda memoisation emits a new instance, the key changes, and the sheet dipped —
+    // once, on the first character only, because every later keystroke leaves `dirty` true and reuses
+    // the memoised instance. A perfect little Heisenbug: invisible in tests, obvious on a device.
+    //
+    // The fix is to make the lambda ONE STABLE INSTANCE that reads the current values through State
+    // at call time, so the key never changes. `remember {}` with no keys guarantees that; both values
+    // it reads are MutableState/State, so it always sees the latest without being recreated.
+    val dirtyState = rememberUpdatedState(dirty)
+    val confirmValueChange = remember {
+        { target: SheetValue ->
+            if (target == SheetValue.Hidden && dirtyState.value) {
+                confirmingDiscardState.value = true
+                false
+            } else {
+                true
+            }
+        }
+    }
+
+    // Intercepts the DRAG. Returning false vetoes the state change, so the sheet stays put while the
+    // alert asks. `onDismissRequest` below covers the scrim tap and the back gesture.
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = confirmValueChange,
+    )
+
+    ModalBottomSheet(
+        onDismissRequest = { if (dirty) confirmingDiscard = true else onDismiss() },
+        sheetState = sheetState,
+        // FR-024 — bounded on large screens. A full-bleed sheet on a tablet is a 1000dp-wide strip
+        // holding one text field, with a long journey between the label and the action.
+        sheetMaxWidth = 640.dp,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                // FR-016 — the sheet rides above the keyboard, so neither Save nor a field error can
+                // be hidden by it.
+                .imePadding()
+                .navigationBarsPadding()
+                .padding(horizontal = EffySpacing.xl)
+                .padding(bottom = EffySpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+        ) {
+            // ⚠ NO CLOSE (X) BUTTON, and no header Row — both were removed after the first build.
+            //
+            // The X sat opposite the title and did exactly what Cancel does one row below it. Two
+            // controls for one action is not redundancy that helps; it is a second thing to read, and
+            // it forced a full-height header row that pushed the title down into a band of dead space
+            // under the drag handle.
+            //
+            // FR-017 still holds — it requires an EXPLICIT, non-gesture way out, in addition to the
+            // drag, because a path-based gesture cannot be the only route to a function and the drag
+            // handle is widely missed. **Cancel is that control.** It is visible, permanent, keyboard-
+            // and screen-reader reachable, and it is the one a shopper actually reads.
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(top = EffySpacing.s),
+            )
+
+            content()
+
+            // The action pair, owned HERE so every account sheet is identical (034 — "one design").
+            // ⚠ Save first, Cancel BELOW it and DE-WEIGHTED (FR-014/FR-015): Cancel sits under the
+            // thumb's resting position, so two equally-weighted filled buttons turn a mis-tap into
+            // silent data loss.
+            if (primaryLabel != null && onPrimary != null) {
+                EffyPrimaryButton(primaryLabel, onClick = onPrimary, enabled = primaryEnabled)
+            }
+            TextButton(
+                onClick = { if (dirty) confirmingDiscard = true else onDismiss() },
+                modifier = Modifier.fillMaxWidth().heightIn(min = EffyMinTouchTarget),
+            ) {
+                Text(cancelLabel, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+
+    if (confirmingDiscard) {
+        AlertDialog(
+            onDismissRequest = { confirmingDiscard = false },
+            title = { Text(discardTitle) },
+            text = { Text(discardBody) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingDiscard = false
+                    onDismiss()
+                }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDiscard = false }) { Text("Keep editing") }
+            },
+        )
+    }
+}
+
+/**
+ * A password input with a reveal toggle — the ONE password field in this app (034).
+ *
+ * ⚠ THE TOGGLE IS AN ACCESSIBILITY CONTROL, NOT A CONVENIENCE. WCAG 2.2 SC 3.3.8 (Accessible
+ * Authentication) exists because making someone type a credential they cannot read, with no way to
+ * check it, is a barrier — worst for anyone using a password manager, a screen reader, or a phone
+ * keyboard that hides what it just typed. GOV.UK's research went further and dropped their "confirm
+ * password" field once they shipped a reveal, on the grounds that seeing the password beats typing it
+ * twice and hoping you made the same mistake both times.
+ *
+ * ⚠ IT EXISTS BECAUSE THERE WERE THREE DESIGNS FOR ONE CONTROL. Sign-in and sign-up each drew a text
+ * "Show"/"Hide" `TextButton`; the recovery screen had no toggle at all; and 034's password screens
+ * added an eye icon. Same control, three answers, one of them missing.
+ *
+ * ⚠ Each field owns its own state. Sharing it across a form would reveal a shopper's CURRENT password
+ * because they wanted to check the new one.
+ *
+ * ⚠ Hidden by default and deliberately NOT `rememberSaveable`: a revealed password must not survive
+ * backgrounding the app and returning to it somewhere public.
+ */
+@Composable
+fun EffyPasswordField(
+    label: String?,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    error: String? = null,
+) {
+    var revealed by remember { mutableStateOf(false) }
+    EffyField(
+        label = label,
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        placeholder = placeholder,
+        error = error,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        visualTransformation =
+            if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
+        trailing = {
+            IconButton(
+                onClick = { revealed = !revealed },
+                // FR-055 — the ACTIVATION AREA is the target, not the 24dp glyph inside it.
+                modifier = Modifier.size(EffyMinTouchTarget),
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (revealed) Res.drawable.ic_visibility_off else Res.drawable.ic_visibility,
+                    ),
+                    // States what the control DOES next — what a screen-reader user needs, rather
+                    // than a description of the current state.
+                    contentDescription = if (revealed) "Hide password" else "Show password",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+    )
 }
 
 /** The hairline the web closes each merchandising section with. */

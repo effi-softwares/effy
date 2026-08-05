@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
+  OtpInput,
   Label,
 } from "@effy/design-system/ui";
 
@@ -138,11 +139,14 @@ export function OtpSignInCard({
             <otpForm.Field name="code">
               {(field) => (
                 <div className="space-y-2">
+                  {/* ⚠ The label text is matched by four test files across three packages —
+                      changing it breaks shop-web, back-office and web-kit's own suites at once. */}
                   <Label htmlFor="code">One-time code</Label>
-                  <Input
+                  {/* 035 — the SHARED code field. Behaviour (autofill token, numeric keyboard, one
+                      logical a11y node, no reshaping of a wrong-length paste) lives in one place
+                      rather than being re-declared per surface (FR-035). */}
+                  <OtpInput
                     id="code"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
                     autoFocus
                     required
                     value={field.state.value}

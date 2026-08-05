@@ -47,7 +47,18 @@ kotlin {
             // 015 — the shared, audience-neutral mobile navigation shell (Principle II): adaptive
             // window sizing, the session gate, the NavKey serialization scaffold, and the deferred-intent
             // store. Consumed by BOTH mobile apps; each supplies only its routes/tabs/session mapping.
-            kotlin.srcDir(rootProject.file("../../packages/mobile-kit"))
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/common"))
+        }
+
+        // 035 — mobile-kit gained its FIRST platform-specific component (the one-time-code
+        // field, whose iOS actual is a native UITextField so that
+        // `UITextContentTypeOneTimeCode` autofill works at all). The package is therefore
+        // split common/android/ios; each half is srcDir'd into the matching source set.
+        androidMain {
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/android"))
+        }
+        iosMain {
+            kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios"))
         }
 
         androidMain.dependencies {

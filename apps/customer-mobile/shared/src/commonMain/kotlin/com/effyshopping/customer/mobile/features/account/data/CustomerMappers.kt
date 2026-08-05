@@ -11,6 +11,7 @@ internal fun CustomerDTO.toDomain(): Customer = Customer(
     id = id,
     email = email,
     name = CustomerName(given = givenName, family = familyName),
+    phone = phone,
     standing = when (status) {
         CustomerStatus.Active -> CustomerStanding.ACTIVE
         CustomerStatus.Barred -> CustomerStanding.BARRED

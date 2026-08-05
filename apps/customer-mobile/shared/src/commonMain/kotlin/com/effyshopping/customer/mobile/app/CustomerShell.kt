@@ -65,6 +65,15 @@ import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import com.effyshopping.customer.mobile.core.storage.clearGuestData
+import com.effyshopping.customer.mobile.core.storage.hasDeviceShoppingData
+import com.effyshopping.mobile.design.EffySpacing
 
 /** The label for each tab root, in bar order. */
 private fun tabLabel(key: CustomerNavKey): String = when (key) {
@@ -118,6 +127,15 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     /**
      * Deferred sign-in — pushed onto the tab the shopper is ALREADY in.
      *
+     * ⚠ 036 FR-025 / SC-013 — [returnTo] was a LIVE PARAMETER THAT EVERY CALL SITE PASSED AS `null`.
+     * It has existed on `CustomerNavKey.SignIn` since the route was written, is round-trip tested, and
+     * nothing ever supplied it. The consequence is only visible in one place and it is the worst one:
+     * a shopper who fills a basket, taps checkout, and is asked to sign in was returned to the ROOT of
+     * whatever tab they happened to be in — leaving the checkout they were two taps from completing.
+     *
+     * Pass it wherever the destination is a specific screen. A gated TAB needs nothing: `resetToRoot()`
+     * already lands on that tab's own root, which is exactly what the shopper asked for.
+     *
      * ⚠ It used to `selectTab(Account)` first and remember the original tab in a `pendingTab` string,
      * restoring it once sign-in succeeded. That threw the shopper into a different tab to ask the
      * question, so **Back went to the account page instead of where they came from** — and the
@@ -125,8 +143,31 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
      * the product they were looking at, and `completeSignIn`'s `resetToRoot()` already lands them on
      * the right tab's root afterwards, so nothing needs remembering.
      */
-    fun requireSignIn() {
-        navState.push(CustomerNavKey.SignIn())
+    fun requireSignIn(returnTo: CustomerNavKey? = null) {
+        navState.push(CustomerNavKey.SignIn(returnTo))
+    }
+
+    /**
+     * Tapping a tab a guest cannot use asks them to sign in — it does NOT show them a page whose only
+     * content is a button that asks them to sign in (036 FR-053).
+     *
+     * ⚠ THE INTERSTITIAL WAS A DEAD SCREEN. "Orders / Sign in to see your orders. / [Sign in]" costs a
+     * tap and tells the shopper nothing they did not already know from the tab they just pressed. Web
+     * has never done this — `requireCustomer` redirects `/account` straight to `/sign-in?next=/account`
+     * — so this is a parity fix as much as a UX one.
+     *
+     * ⚠ IT DOES NOT SWITCH TABS FIRST, and that is deliberate. Sign-in is pushed onto the tab the
+     * shopper is ALREADY in, so backing out returns them exactly where they were and they never see
+     * the gate at all. Switching first is what an earlier version did, and Back then landed on the
+     * account page instead of where they came from.
+     *
+     * ⚠ The gate composables are NOT deleted. `GuestAccountLanding` still carries 034 FR-046 — the only
+     * route a never-signed-in guest has to clear the cart and saved items this device holds — and it is
+     * still what renders if the Account tab is reached another way, chiefly straight after signing out.
+     */
+    fun selectTabOrAskToSignIn(tab: CustomerNavKey) {
+        val gated = tab == CustomerNavKey.Orders || tab == CustomerNavKey.Account
+        if (gated && !signedIn) requireSignIn(returnTo = tab) else navState.selectTab(tab)
     }
 
     BackHandler(enabled = navState.canGoBack || navState.activeTab != CustomerNavKey.Home) {
@@ -142,7 +183,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
             )
         },
         selectedTab = navState.activeTab,
-        onSelectTab = navState::selectTab,
+        onSelectTab = ::selectTabOrAskToSignIn,
         showNavigation = navState.showBottomBar,
     ) {
         // ── iOS-style push/pop, via NavDisplay's OWN transition parameters ──────────────────────
@@ -363,7 +404,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     CartScreen(
                         container = container,
                         onCheckout = {
-                            if (signedIn) navState.push(CustomerNavKey.Checkout) else requireSignIn()
+                            // ⚠ Return them to CHECKOUT, not to a tab root (SC-013).
+                            if (signedIn) navState.push(CustomerNavKey.Checkout)
+                            else requireSignIn(CustomerNavKey.Checkout)
                         },
                         onBrowse = {
                                 // Browse was this escape's target; Discover is now the shop window.
@@ -412,7 +455,10 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
                 // ── Auth (bar hidden — a focused flow) ────────────────────────────────────────
                 entry<CustomerNavKey.SignIn> { key -> AuthRoutes(container, key) }
+                entry<CustomerNavKey.SignInPassword> { key -> AuthRoutes(container, key) }
                 entry<CustomerNavKey.SignUp> { AuthRoutes(container, CustomerNavKey.SignUp) }
+                entry<CustomerNavKey.SignUpPassword> { key -> AuthRoutes(container, key) }
+                entry<CustomerNavKey.ProfileName> { AuthRoutes(container, CustomerNavKey.ProfileName) }
                 entry<CustomerNavKey.VerifyOtp> { key -> AuthRoutes(container, key) }
                 entry<CustomerNavKey.Recovery> { AuthRoutes(container, CustomerNavKey.Recovery) }
 
@@ -445,6 +491,32 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     AccountRoutes(container, CustomerNavKey.MyDetails, session)
                 }
                 entry<CustomerNavKey.Password> { key -> AccountRoutes(container, key, session) }
+
+                // ⚠ 034 — A ROUTE NEEDS FOUR REGISTRATIONS, NOT THREE, AND THIS IS THE FOURTH.
+                //
+                // `CustomerNavKey.kt` documents three places a route must appear (the sealed
+                // interface, the polymorphic serializer module, and ALL_CUSTOMER_ROUTES). That list
+                // is INCOMPLETE: a route also needs an `entry<>` here, or `NavDisplay` hits the
+                // fallback and throws `IllegalStateException: Unknown screen …` the moment a shopper
+                // taps it.
+                //
+                // ⚠ Nothing caught that. It compiles, the serialization test passes (the route IS in
+                // all three lists), and `mobile-guard` passes too — its reachability check proves
+                // something NAVIGATES to the route, not that the shell can RENDER it. Shipping the
+                // account centre without these three lines crashed the app on the first tap of
+                // "Security", on a device, after every gate was green.
+                entry<CustomerNavKey.Security> {
+                    AccountRoutes(container, CustomerNavKey.Security, session)
+                }
+                entry<CustomerNavKey.Privacy> {
+                    AccountRoutes(container, CustomerNavKey.Privacy, session)
+                }
+                entry<CustomerNavKey.DeleteAccount> {
+                    AccountRoutes(container, CustomerNavKey.DeleteAccount, session)
+                }
+                entry<CustomerNavKey.PasswordReset> {
+                    AccountRoutes(container, CustomerNavKey.PasswordReset, session)
+                }
             },
         )
     }
@@ -491,6 +563,49 @@ private fun GuestAccountLanding(container: AppContainer) {
             Text("Sign in")
         }
         TextButton(onClick = { container.navigator.push(CustomerNavKey.SignUp) }) { Text("Create an account") }
+
+        // ⚠ 034 FR-046 — the guest's route to deleting the data this device holds for them.
+        //
+        // ⚠ IT IS SHOWN ONLY WHEN THERE IS SOMETHING TO CLEAR, and that condition is the point.
+        // SIGNING OUT ALREADY CLEARS EVERYTHING (see `onSignedOut` in AppContainer), so a shopper who
+        // has just signed out has an empty device — and offering them a "clear your data" button
+        // there implied the app had NOT tidied up after them, which is precisely backwards.
+        //
+        // What remains is the case Apple's FAQ actually names: someone who has NEVER signed in, who
+        // has been browsing as a guest, and whose cart and saved items live only on this device.
+        // They have no account to delete and no sign-out to trigger, so without this they have no
+        // route at all.
+        var hasData by remember { mutableStateOf(container.preferences.hasDeviceShoppingData()) }
+        var confirming by remember { mutableStateOf(false) }
+
+        if (hasData) {
+            Spacer(Modifier.height(EffySpacing.xxxl))
+            TextButton(onClick = { confirming = true }) { Text("Clear data on this device") }
+        }
+
+        if (confirming) {
+            AlertDialog(
+                onDismissRequest = { confirming = false },
+                title = { Text("Clear data on this device?") },
+                text = {
+                    Text(
+                        "This removes the saved items and basket held on this device. " +
+                            "You don't have an Effy account, so there's nothing stored with us to delete.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirming = false
+                        container.cart.reset()
+                        container.preferences.clearGuestData()
+                        hasData = false
+                    }) { Text("Clear") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirming = false }) { Text("Cancel") }
+                },
+            )
+        }
     }
 }
 

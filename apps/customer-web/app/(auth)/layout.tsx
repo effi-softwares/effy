@@ -25,8 +25,17 @@ export default function AuthLayout({
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-sm">{children}</div>
+      {/*
+        ⚠ STRETCH ON A PHONE, CENTRE ON A DESKTOP. The step screens put their footer link — and on
+        single-action steps their primary button — at the BOTTOM of the screen, which needs the column
+        to actually fill the viewport. `items-center` collapsed it to its content height, so "bottom"
+        meant "just under the last field".
+
+        Centring is still right on a large window, where a full-height column would strand the footer
+        hundreds of pixels below the form. Hence the breakpoint rather than a blanket change.
+      */}
+      <main className="flex flex-1 flex-col px-4 py-8 sm:items-center sm:justify-center sm:py-12">
+        <div className="flex w-full max-w-sm flex-1 flex-col sm:block sm:flex-none">{children}</div>
       </main>
     </div>
   )

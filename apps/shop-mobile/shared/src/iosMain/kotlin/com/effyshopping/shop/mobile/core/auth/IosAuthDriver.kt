@@ -68,7 +68,15 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
 data class BridgeSession(val sub: String, val accessToken: String, val idToken: String)
 
 /**
- * A flat auth result the Swift bridge returns. [outcome] is one of `done` | `otp` | `failed`;
+ * A flat auth result the Swift bridge returns.
+ *
+ * ⚠ 035 deliberately did NOT add a fourth outcome for the custom challenge. `otp` now covers BOTH
+ * Cognito's managed factor and the platform's own 6-digit challenge, because to this app they mean
+ * the same thing — "a code was emailed, ask for it". A separate constant would have to be added in
+ * two files per app with no compiler assistance (this string wire is untyped by design), and would
+ * buy a distinction the UI does not have.
+ *
+ * [outcome] is one of `done` | `otp` | `failed`;
  * [errorKind] (on `failed`) is one of `invalidCredentials` | `codeIncorrect` | `codeExpired` |
  * `rateLimited` | `network` | `unexpected`. Kept primitive so Swift constructs it trivially.
  */

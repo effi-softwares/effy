@@ -13,16 +13,19 @@ import com.effyshopping.customer.mobile.features.account.domain.CustomerReposito
  * exist here and not in the shop app (Principle IV, per-audience).
  */
 
-/** Register with a password (one of the customer's three routes). */
+/**
+ * Register with a password (one of the customer's three routes).
+ *
+ * ⚠ 036 FR-032 — NO NAME. It is collected as the LAST step, after the account exists.
+ */
 class RegisterWithPassword(private val authDriver: AuthDriver) {
-    suspend operator fun invoke(email: String, password: String, given: String, family: String): AuthStep =
-        authDriver.signUpWithPassword(email.trim(), password, given.trim(), family.trim())
+    suspend operator fun invoke(email: String, password: String): AuthStep =
+        authDriver.signUpWithPassword(email.trim(), password)
 }
 
 /** Register passwordless (a genuinely passwordless customer — no password seeded). */
 class RegisterPasswordless(private val authDriver: AuthDriver) {
-    suspend operator fun invoke(email: String, given: String, family: String): AuthStep =
-        authDriver.signUpPasswordless(email.trim(), given.trim(), family.trim())
+    suspend operator fun invoke(email: String): AuthStep = authDriver.signUpPasswordless(email.trim())
 }
 
 /** Confirm a registration's emailed code. [email] is the route's stored (already-normalized) address. */
@@ -40,6 +43,21 @@ class SignInWithPassword(private val authDriver: AuthDriver) {
 /** Sign in by emailed one-time code (request the code). */
 class SignInWithEmailOtp(private val authDriver: AuthDriver) {
     suspend operator fun invoke(email: String): AuthStep = authDriver.signInWithEmailOtp(email.trim())
+}
+
+/**
+ * Send another SIGN-IN code (036 FR-007).
+ *
+ * ⚠ Named for what it does. There is no resend API for a custom challenge — this re-runs sign-in,
+ * which resets the attempt counter and consumes one of five hourly sends. See [AuthDriver].
+ */
+class ResendSignInCode(private val authDriver: AuthDriver) {
+    suspend operator fun invoke(email: String): AuthStep = authDriver.resendSignInCode(email.trim())
+}
+
+/** Send the sign-UP confirmation code again — Cognito's managed resend, a genuinely different call. */
+class ResendSignUpCode(private val authDriver: AuthDriver) {
+    suspend operator fun invoke(email: String): AuthStep = authDriver.resendSignUpCode(email.trim())
 }
 
 /** Confirm a sign-in one-time code. */

@@ -1,6 +1,5 @@
 package com.effyshopping.customer.mobile.core.auth
 
-import com.amplifyframework.auth.AuthFactorType
 import com.amplifyframework.auth.AuthUserAttribute
 import com.amplifyframework.auth.AuthUserAttributeKey
 import com.amplifyframework.auth.cognito.AWSCognitoAuthSession
@@ -91,16 +90,16 @@ class AmplifyAuthDriver : AuthDriver {
         null
     }
 
-    override suspend fun signUpWithPassword(email: String, password: String, given: String, family: String): AuthStep =
+    override suspend fun signUpWithPassword(email: String, password: String): AuthStep =
         step {
-            val result = Amplify.Auth.signUp(email, password, signUpOptions(email, given, family))
+            val result = Amplify.Auth.signUp(email, password, signUpOptions(email))
             if (result.isSignUpComplete) autoSignIn() else AuthStep.NeedsSignUpConfirmation(email)
         }
 
-    override suspend fun signUpPasswordless(email: String, given: String, family: String): AuthStep =
+    override suspend fun signUpPasswordless(email: String): AuthStep =
         step {
             // No password parameter — Cognito creates a genuinely passwordless user (D7).
-            val result = Amplify.Auth.signUp(email, null, signUpOptions(email, given, family))
+            val result = Amplify.Auth.signUp(email, null, signUpOptions(email))
             if (result.isSignUpComplete) autoSignIn() else AuthStep.NeedsSignUpConfirmation(email)
         }
 
@@ -115,10 +114,15 @@ class AmplifyAuthDriver : AuthDriver {
     }
 
     override suspend fun signInWithEmailOtp(email: String): AuthStep = step {
-        // ALWAYS state the preferred factor — omitting it forces a factor-selection round-trip (D7).
+        // ⚠ 035 — the platform's own SIX-digit code, not Cognito's managed eight-digit EMAIL_OTP
+        // (whose length is not configurable by any setting on any object).
+        // ⚠ WITHOUT_SRP, never CUSTOM_AUTH_WITH_SRP: the WITH_SRP variant has a recorded history of
+        // returning DONE from the first signIn — issuing tokens without presenting the challenge
+        // (amplify-android #2331/#2566, fixed twice, reported recurring).
+        // ⚠ This is the CODE route only. The password route above keeps USER_SRP_AUTH — the customer
+        // audience is the one audience that may hold a password (constitution v1.7.0).
         val options = AWSCognitoAuthSignInOptions.builder()
-            .authFlowType(AuthFlowType.USER_AUTH)
-            .preferredFirstFactor(AuthFactorType.EMAIL_OTP)
+            .authFlowType(AuthFlowType.CUSTOM_AUTH_WITHOUT_SRP)
             .build()
         mapSignIn(signInRecoveringFromStaleSession { Amplify.Auth.signIn(email, null, options) })
     }
@@ -126,6 +130,19 @@ class AmplifyAuthDriver : AuthDriver {
     override suspend fun confirmOtp(code: String): AuthStep = step {
         mapSignIn(Amplify.Auth.confirmSignIn(code))
     }
+
+    override suspend fun resendSignUpCode(email: String): AuthStep = step {
+        // Cognito's MANAGED resend — a real API, unlike the sign-in code (see `resendSignInCode`).
+        val details = Amplify.Auth.resendSignUpCode(email)
+        AuthStep.NeedsSignUpConfirmation(details.destination ?: email)
+    }
+
+    /**
+     * ⚠ NOT A RESEND — a fresh sign-in. See the note on `AuthDriver.resendSignInCode`: the custom
+     * challenge has no resend API, `CreateAuthChallenge` reuses its envelope on a re-challenge and
+     * sends no email, so only a brand-new `InitiateAuth` produces one.
+     */
+    override suspend fun resendSignInCode(email: String): AuthStep = signInWithEmailOtp(email)
 
     override suspend fun startPasswordReset(email: String): AuthStep = step {
         Amplify.Auth.resetPassword(email)
@@ -168,26 +185,45 @@ class AmplifyAuthDriver : AuthDriver {
         attempt()
     }
 
-    private fun signUpOptions(email: String, given: String, family: String): AuthSignUpOptions =
+    /**
+     * ⚠ 036 FR-032 — the NAME attributes are gone. They are optional on the pool (no `schema {}`
+     * block), so registration is unaffected; the name is written after the account exists.
+     */
+    private fun signUpOptions(email: String): AuthSignUpOptions =
         AuthSignUpOptions.builder()
-            .userAttributes(
-                listOf(
-                    AuthUserAttribute(AuthUserAttributeKey.email(), email),
-                    AuthUserAttribute(AuthUserAttributeKey.givenName(), given),
-                    AuthUserAttribute(AuthUserAttributeKey.familyName(), family),
-                ),
-            )
+            .userAttributes(listOf(AuthUserAttribute(AuthUserAttributeKey.email(), email)))
             .build()
 
-    private suspend fun autoSignIn(): AuthStep {
-        val result = Amplify.Auth.autoSignIn()
-        return if (result.isSignedIn) sessionOrFail() else AuthStep.Failed(AuthError.Unexpected)
-    }
+    /**
+     * ⚠ 036 R6 — THIS DEAD-ENDED ON ANDROID WHILE iOS HANDLED IT CORRECTLY.
+     *
+     * It used to read `if (result.isSignedIn) sessionOrFail() else AuthStep.Failed(Unexpected)`. So a
+     * `CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE` — which `autoSignIn` MAY return now that custom-auth
+     * triggers are attached to this pool — became a hard "something went wrong": the shopper was
+     * confirmed but not signed in, shown a generic error, with no route forward. iOS ran the same
+     * result through `mapSignIn` and would have rendered the code screen.
+     *
+     * ⚠ Whether the challenge actually occurs is 035's still-open T003 / 036's SPIKE-2, and AWS
+     * documents it nowhere. Routing through `mapSignIn` makes the answer stop mattering for
+     * correctness: whatever step comes back is handled the same way it is everywhere else.
+     */
+    private suspend fun autoSignIn(): AuthStep = mapSignIn(Amplify.Auth.autoSignIn())
 
+    // ⚠ THE `else` BELOW IS A SILENT-FAILURE HAZARD. Kotlin does not require this `when` to be
+    // exhaustive once an `else` exists, so an unhandled Cognito step compiles cleanly and dies at
+    // RUNTIME as an "Unexpected" dead end — no build error, no test failure, just a shopper stuck.
+    // Every step this app accepts is named explicitly.
     private suspend fun mapSignIn(result: AuthSignInResult): AuthStep = when (result.nextStep.signInStep) {
         AuthSignInStep.DONE -> sessionOrFail()
+        // 035 — the platform's own 6-digit code.
+        AuthSignInStep.CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE ->
+            AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
+        // ⚠ Kept during rollout: both flows coexist on the pool, so a revert is a one-constant
+        // change above (FR-033) and an in-flight managed-factor session still completes (FR-034).
         AuthSignInStep.CONFIRM_SIGN_IN_WITH_OTP ->
             AuthStep.NeedsOtp(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
+        AuthSignInStep.CONFIRM_SIGN_UP ->
+            AuthStep.NeedsSignUpConfirmation(result.nextStep.codeDeliveryDetails?.destination ?: "your email")
         else -> AuthStep.Failed(AuthError.Unexpected)
     }
 

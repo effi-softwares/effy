@@ -52,6 +52,11 @@ provider:
     CUSTOMER_APP_CLIENT_ID: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id}
     # 012 FR-025 — the "your password changed" notification. Branded sender comes from 010.
     NOTIFY_SENDER: no-reply@${sls:stage}.effyshopping.com
+    # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
+    # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
+    # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note
+    # in src/functions/pre-sign-up.ts. It NEVER auto-verifies the email — only our own OTP does.
+    AUTO_CONFIRM_SIGNUP: "false"
   iam:
     role:
       statements:
@@ -232,6 +237,74 @@ functions:
       - httpApi:
           method: DELETE
           path: /customer/v1/sessions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ── 034: account closure (in-app account deletion) ──────────────────────────────────────────
+  #
+  # ⚠ NO NEW IAM IS REQUIRED BY ANY OF THESE. Every Cognito call they make
+  # (GetUserAttributeVerificationCode, VerifyUserAttribute, GlobalSignOut) is TOKEN-AUTHORIZED —
+  # they relay the customer's own authority. If a deploy of this service starts asking for new
+  # permissions, something has drifted from the plan; stop and reconcile before granting anything.
+  #
+  # ⚠ Apple has required in-app account deletion since 30 June 2022, and Google Play requires it in
+  # TWO places — this in-app path AND a public web URL declared in the Data safety form. The web half
+  # lives in customer-web; it is the most commonly missed half of the requirement.
+
+  customerClosureV1Get:
+    handler: src/functions/customer-closure-v1-get.handler
+    description: What deleting this account will do — blockers, retained data, erase date (034 FR-040/FR-042)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/closure
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # Sends the STEP-UP CODE that closing an account costs (034 FR-043).
+  #
+  # ⚠ Keyed on the account's verified EMAIL attribute, never on a password — which is what lets a
+  # customer whose only credential is Google complete it. A password prompt here would be an
+  # unresolvable dead end for that entire cohort.
+  customerClosureV1Challenge:
+    handler: src/functions/customer-closure-v1-challenge.handler
+    description: Step-up — email a single-purpose code before an account may be closed (034 FR-043)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/closure/challenge
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ⚠ Verifies the code and closes the account in ONE request, then revokes every session.
+  # Erasure runs automatically thereafter — NO human step, and no support agent, stands between the
+  # customer's confirmation and it. Both documented App Review rejections in this area were
+  # deactivation flows with a person in the loop; that is the specific shape that fails.
+  customerClosureV1Post:
+    handler: src/functions/customer-closure-v1-post.handler
+    description: Close the account — verifies a fresh code, then closes and revokes all sessions (034 US3)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/closure
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ⚠ The ONE exception to "a closing account is refused everywhere" (034 FR-041a), and the only way
+  # back. Deliberately an EXPLICIT call: making restore implicit on sign-in is both unimplementable
+  # (the gate would refuse the request meant to restore) and unsafe (anyone holding the token would
+  # silently un-delete the account).
+  customerClosureV1Restore:
+    handler: src/functions/customer-closure-v1-restore.handler
+    description: Cancel a pending deletion during the grace window (034 FR-041a)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/closure/restore
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}

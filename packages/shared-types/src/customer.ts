@@ -10,6 +10,14 @@
 export type CustomerStatus = "active" | "barred";
 
 /**
+ * Where a customer sits in the closure lifecycle (034).
+ *
+ * `"closing"` means they asked to be deleted and the grace window is running. Every request is
+ * refused while it holds — with exactly ONE exception, the explicit restore call (FR-041a).
+ */
+export type ClosureState = "open" | "closing";
+
+/**
  * The platform's own record of a customer — distinct from their Cognito credential, and
  * authoritative for the access decision (FR-025).
  *
@@ -41,7 +49,35 @@ export interface CustomerDTO {
   givenName: string | null;
   familyName: string | null;
 
+  /**
+   * A self-asserted contact phone (034 FR-060).
+   *
+   * ⚠ NEVER VERIFIED by feature 034, and that has two hard consequences (FR-060a): it MUST NOT be
+   * rendered with a verified/confirmed indicator, and it MUST NOT be accepted by any identity,
+   * recovery or authentication path. There is deliberately no `phoneVerified` companion — a field
+   * whose only honest value is `false` is a trap, because someone will eventually render it as a
+   * badge.
+   *
+   * ⚠ DISTINCT from `AddressDTO.phone`, which is the per-address DELIVERY contact a driver calls
+   * (FR-060b). This one is a profile convenience; it does not override the address's, and nothing
+   * copies one into the other. Two fields disagreeing about who to ring is worse than one gap.
+   */
+  phone: string | null;
+
   status: CustomerStatus;
+
+  /**
+   * Has this customer asked to be deleted? (034 FR-041.)
+   *
+   * ⚠ DELIBERATELY NOT a third value of `status`. `status` is a PLATFORM SANCTION, and its entire
+   * safety property is that the customer cannot influence it; closure is the customer's OWN
+   * decision. Collapsing them would make "barred AND closing" unrepresentable — and FR-049 requires
+   * an answer to exactly that case.
+   *
+   * There is no `"closed"`: once erasure runs, the row is gone. A terminal state would be a row
+   * every future read must remember to exclude.
+   */
+  closureState: ClosureState;
 
   /**
    * Does this account have a password? (012 FR-013.)
@@ -73,10 +109,24 @@ export interface CustomerDTO {
  * rewrite their own email can walk onto another customer's record (the well-known Cognito
  * takeover). `status` is absent because it is platform-owned. `hasPassword` is absent because it is
  * a CONSEQUENCE of the password endpoints, never an input to them.
+ *
+ * ⚠ `closureState` IS ABSENT FOR THE SAME REASON AS `status`, and the omission is load-bearing.
+ * Closure is written only by the closure endpoints, after a freshly issued verification code. A
+ * profile PATCH must never be able to open or close an account — it would turn a routine name edit
+ * into an un-delete, and it would bypass the proof-of-control FR-043 exists to demand.
  */
 export interface UpdateCustomerDTO {
   givenName: string | null;
   familyName: string | null;
+
+  /**
+   * ⚠ Send `""` to CLEAR it, never `null`.
+   *
+   * The mobile client serialises with `explicitNulls = false`, which drops nulls from the payload
+   * entirely — so a `null` phone is indistinguishable from "field not sent" and the clear silently
+   * no-ops. The backend maps `""` → `NULL`, on the identical path the name parts already use.
+   */
+  phone: string | null;
 }
 
 /** How a customer proved who they are. Telemetry + UI only — never an authorization input. */
@@ -158,4 +208,91 @@ export interface PasswordChallengeResultDTO {
 export interface PasswordWriteResultDTO {
   customer: CustomerDTO;
   allSessionsRevoked: true;
+}
+
+// ── Account closure / deletion (034) ──────────────────────────────────────────────────────────
+
+/**
+ * Why a customer cannot be deleted yet (034 FR-042).
+ *
+ * ⚠ THIS REQUIREMENT HAS BEEN WRONG TWICE, so the shape encodes the lesson rather than trusting a
+ * comment. First it blocked on any non-terminal order — but an order's only terminal state is a
+ * fulfilment reaching `collected`, which ships behind a dev-only stub with no route in any
+ * environment, so EVERY customer who had ever paid became permanently undeletable. The fix bounded
+ * it at 30 days, matched to the grace period — and that was the same dead end in disguise, because
+ * Effy is a WEEKLY-RE-BUY grocery platform: a shopper who buys every week is always within 30 days
+ * of an order, so the platform's most engaged customers still could never delete.
+ *
+ * Hence `clearsAt` is NON-NULLABLE: a blocker that cannot say when it ends is unrepresentable, not
+ * merely discouraged.
+ */
+export type ClosureBlockerKind =
+  /** Checkout started, money not taken. The customer resolves this themselves, in-app. */
+  | "order_awaiting_payment"
+  /** Paid, goods plausibly still in transit. Clears on fulfilment or after a short bound. */
+  | "order_in_transit";
+
+export interface ClosureBlockerDTO {
+  kind: ClosureBlockerKind;
+  /** Shopper-facing reference, e.g. `EFY-HVX2AE`. */
+  reference: string;
+  /** Where the customer goes to act on it — FR-042's "direct route". Web routes on this. */
+  href: string;
+  /** The same destination in the closed vocabulary mobile needs, having no URL router. */
+  target: { kind: "order"; id: string };
+  /** ⚠ NEVER null. FR-042 forbids a block that cannot state its own end. */
+  clearsAt: string;
+  /** Can the customer act on it, or only wait? Both are acceptable; a dead end is not. */
+  resolvableByShopper: boolean;
+}
+
+/**
+ * A category of data kept after erasure, and why (FR-045).
+ *
+ * ⚠ The reason is carried as data, not hardcoded per surface, because SC-010 requires every claim in
+ * the disclosure to be TRUE of the built system — and Apple has demanded that developers cite the
+ * specific law behind a retention claim. One source, two surfaces, no drift.
+ */
+export interface RetainedCategoryDTO {
+  category: string;
+  reason: string;
+}
+
+/** Everything the customer must see BEFORE any irreversible step (FR-040). Side-effect free. */
+export interface ClosurePreviewDTO {
+  /** Empty ⇒ closure may proceed. */
+  blockers: ClosureBlockerDTO[];
+  retained: RetainedCategoryDTO[];
+  /** Advisory until a request actually exists. */
+  eraseAfterIfRequestedNow: string;
+  /** Present only when a request is already live. */
+  activeRequest: { requestedAt: string; eraseAfter: string } | null;
+}
+
+/** The step-up challenge for closure — the same masked-destination shape the password flow uses. */
+export interface ClosureChallengeResultDTO {
+  maskedDestination: string;
+}
+
+/** Confirming closure. The code is what pays for it (FR-043); a valid session alone may not. */
+export interface ClosureRequestDTO {
+  code: string;
+}
+
+export interface ClosureResultDTO {
+  /** The date the customer is now owed (FR-040). */
+  eraseAfter: string;
+  allSessionsRevoked: true;
+}
+
+/**
+ * Cancelling a live closure request during the grace window (FR-041a).
+ *
+ * ⚠ RESTORE IS AN EXPLICIT CALL, never an inference from an authenticated read. Making it implicit
+ * is unimplementable — the refusal and the restore run through the SAME identity lookup, so the gate
+ * would refuse the very request meant to restore — and unsafe, because anyone holding the customer's
+ * token during the window would silently un-delete the account merely by opening the app.
+ */
+export interface ClosureRestoreResultDTO {
+  restoredAt: string;
 }

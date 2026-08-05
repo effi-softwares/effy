@@ -36,6 +36,20 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
+import androidx.compose.foundation.layout.navigationBarsPadding
+import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
+import com.effyshopping.customer.mobile.core.presentation.EffySheet
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.rotate
+import com.effyshopping.customer.mobile.core.presentation.EffyHairline
+import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_arrow_back
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.foundation.layout.size
 
 /**
  * The address book (022). A LazyColumn of addresses (never cards — Principle V), the default clearly
@@ -53,10 +67,28 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
     }
     val state by vm.state.collectAsState()
 
+    // ⚠ 034 FR-032 — THE FLOATING ACTION BUTTON IS GONE, replaced by a bottom-anchored full-width
+    // primary button. This AMENDS feature 022's FR-007, which mandated the FAB; the amendment is
+    // recorded in 022's spec, not only here.
+    //
+    // Two reasons, and the second is the one that matters:
+    //   1. A circular FAB OCCLUDES THE LAST ROW of a short list — exactly where a newly added
+    //      address lands (FR-033). An address book is neither long nor scrolling; a FAB earns its
+    //      keep on content-first feeds, not here.
+    //   2. ⚠ A FAB is by construction the LOUDEST thing on the screen, and Baymard measured that
+    //      nudging shoppers toward "Add" over "Edit" makes them ACCUMULATE STALE ADDRESSES and then
+    //      pick the wrong one at checkout. On a delivery platform that is a mis-delivered order, not
+    //      an untidy list. Edit must stay as reachable as Add (FR-035) — the row body is the edit
+    //      target, and this button no longer out-shouts it.
     Scaffold(
-        floatingActionButton = {
-            FloatingActionButton(onClick = { vm.openAdd() }) {
-                Text("+", style = MaterialTheme.typography.headlineSmall)
+        bottomBar = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+            ) {
+                EffyPrimaryButton(label = "Add address", onClick = { vm.openAdd() })
             }
         },
     ) { padding ->
@@ -64,15 +96,15 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
             // 026: the source's app bar — a real back affordance instead of a "Back" text button
             // floating opposite the title (025 FR-030 banned improvised text-link navigation, and
             // this screen was the last place one survived).
-            EffyAppBar(title = "Address Book", onBack = onBack)
+            EffyAppBar(title = "Address book", onBack = onBack)
             when {
                 state.loading ->
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
 
                 state.addresses.isEmpty() -> EffyEmptyState(
-                    title = "No Saved Addresses!",
+                    title = "No saved addresses",
                     body = "Add a delivery address and it’ll be ready at checkout.",
-                    actionLabel = "Add an address",
+                    actionLabel = "Add address",
                     onAction = { vm.openAdd() },
                 )
 
@@ -90,7 +122,7 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
                                 onSetDefault = { vm.makeDefault(address.id) },
                                 onDelete = { vm.askDelete(address.id) },
                             )
-                            HorizontalDivider()
+                            EffyHairline()
                         }
                     }
             }
@@ -99,16 +131,21 @@ fun AddressBookScreen(container: AppContainer, onBack: () -> Unit) {
 
     // Add / edit form.
     state.sheet?.let { sheet ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(onDismissRequest = { vm.dismissSheet() }, sheetState = sheetState) {
+        // 034 T017 — on the SHARED EffySheet now, rather than a hand-rolled ModalBottomSheet with
+        // its own state and padding. `dirty = false` deliberately: this form's draft already lives in
+        // the ViewModel and survives dismissal, so the discard prompt would be asking about work that
+        // is not actually lost. The single-field editors, whose value dies with the sheet, pass true.
+        EffySheet(
+            title = if (sheet.editingId != null) "Edit address" else "Add an address",
+            onDismiss = { vm.dismissSheet() },
+            primaryLabel = if (sheet.editingId != null) "Save" else "Add",
+            onPrimary = { vm.submit() },
+            primaryEnabled = !sheet.saving,
+        ) {
             AddressFormSheet(
-                editing = sheet.editingId != null,
                 form = sheet.form,
                 fieldErrors = sheet.fieldErrors,
-                saving = sheet.saving,
                 onChange = vm::onFormChange,
-                onSubmit = vm::submit,
-                onCancel = vm::dismissSheet,
             )
         }
     }
@@ -143,42 +180,99 @@ private fun AddressRow(
     onDelete: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        // The row BODY is the edit affordance (FR-017a) — a big touch target.
-        Column(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-                address.label?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                }
-                if (address.isDefault) DefaultBadge()
-            }
-            Text(address.recipientName, style = MaterialTheme.typography.bodyMedium)
-            Text(address.formatLines(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            address.phone?.takeIf { it.isNotBlank() }?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        // Distinct per-row controls — NOT part of the edit target (FR-017a).
+        // The row BODY is the edit affordance (022 FR-017a) — a big touch target.
+        //
+        // ⚠ 034 pass: it now carries a CHEVRON. The body has always been tappable and nothing said
+        // so, which is the same gap the account centre's detail rows were built to close: an
+        // affordance a shopper cannot see is one they do not use, and Baymard's finding is that when
+        // Edit is hard to notice people press Add instead and accumulate stale addresses — which on a
+        // delivery platform ends as a mis-delivered order, not an untidy list.
         Row(
-            Modifier.fillMaxWidth().padding(start = 8.dp, bottom = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = EffyMinTouchTarget)
+                .clickable(onClick = onEdit)
+                .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!address.isDefault) TextButton(onClick = onSetDefault) { Text("Set default") }
-            TextButton(onClick = onDelete) { Text("Delete") }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
+                ) {
+                    address.label?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, style = MaterialTheme.typography.titleSmall)
+                    }
+                    if (address.isDefault) DefaultBadge()
+                }
+                Text(address.recipientName, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    address.formatLines(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                address.phone?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Spacer(Modifier.width(EffySpacing.md))
+            Icon(
+                painter = painterResource(Res.drawable.ic_arrow_back),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp).rotate(180f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        // The per-row controls — deliberately NOT part of the edit target (022 FR-017a).
+        //
+        // ⚠ 034 pass: "Delete" is no longer shouted on every row. It was one of two identically
+        // weighted text buttons, so the most destructive action on the screen had the same voice as a
+        // routine one, repeated down the whole list. It is now the quiet one, and the row's own
+        // spacing comes from the shared scale rather than five hand-picked dp values.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(start = EffySpacing.md, end = EffySpacing.lg, bottom = EffySpacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (!address.isDefault) {
+                TextButton(onClick = onSetDefault) {
+                    Text("Set as default", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = onDelete) {
+                Text(
+                    "Delete",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun DefaultBadge() {
+    // ⚠ The WORD "Default", not a coloured dot (034 FR-036 / FR-057). Under a monochrome palette a
+    // colour-only marker is a lightness difference and nothing more — invisible to a shopper who
+    // cannot distinguish it, and nearly invisible to everyone else. The word carries the meaning; the
+    // fill is only emphasis.
     Surface(color = MaterialTheme.colorScheme.primary, shape = MaterialTheme.shapes.small) {
         Text(
             "Default",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            modifier = Modifier.padding(horizontal = EffySpacing.s, vertical = 2.dp),
         )
     }
 }

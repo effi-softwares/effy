@@ -30,4 +30,8 @@ private object IosDevicePreferences : DevicePreferences {
     override fun putBoolean(key: String, value: Boolean) {
         defaults.setBool(value, forKey = key)
     }
+
+    override fun remove(key: String) {
+        defaults.removeObjectForKey(key)
+    }
 }

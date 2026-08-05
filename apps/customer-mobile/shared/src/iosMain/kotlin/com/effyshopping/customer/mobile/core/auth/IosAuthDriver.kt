@@ -30,11 +30,11 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
             }
         }
 
-    override suspend fun signUpWithPassword(email: String, password: String, given: String, family: String): AuthStep =
-        mapResult(await { cb -> bridge.signUpWithPassword(email, password, given, family, cb) })
+    override suspend fun signUpWithPassword(email: String, password: String): AuthStep =
+        mapResult(await { cb -> bridge.signUpWithPassword(email, password, cb) })
 
-    override suspend fun signUpPasswordless(email: String, given: String, family: String): AuthStep =
-        mapResult(await { cb -> bridge.signUpPasswordless(email, given, family, cb) })
+    override suspend fun signUpPasswordless(email: String): AuthStep =
+        mapResult(await { cb -> bridge.signUpPasswordless(email, cb) })
 
     override suspend fun confirmSignUp(email: String, code: String): AuthStep =
         mapResult(await { cb -> bridge.confirmSignUp(email, code, cb) })
@@ -47,6 +47,12 @@ class IosAuthDriver(private val bridge: IosAuthBridge) : AuthDriver {
 
     override suspend fun confirmOtp(code: String): AuthStep =
         mapResult(await { cb -> bridge.confirmOtp(code, cb) })
+
+    override suspend fun resendSignUpCode(email: String): AuthStep =
+        mapResult(await { cb -> bridge.resendSignUpCode(email, cb) })
+
+    /** ⚠ NOT a resend — a fresh sign-in. See `AuthDriver.resendSignInCode`. */
+    override suspend fun resendSignInCode(email: String): AuthStep = signInWithEmailOtp(email)
 
     override suspend fun startPasswordReset(email: String): AuthStep =
         mapResult(await { cb -> bridge.startPasswordReset(email, cb) })
@@ -104,12 +110,13 @@ data class BridgeAuthResult(
  */
 interface IosAuthBridge {
     fun fetchSession(forceRefresh: Boolean, onResult: (BridgeSession?) -> Unit)
-    fun signUpWithPassword(email: String, password: String, given: String, family: String, onResult: (BridgeAuthResult) -> Unit)
-    fun signUpPasswordless(email: String, given: String, family: String, onResult: (BridgeAuthResult) -> Unit)
+    fun signUpWithPassword(email: String, password: String, onResult: (BridgeAuthResult) -> Unit)
+    fun signUpPasswordless(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun confirmSignUp(email: String, code: String, onResult: (BridgeAuthResult) -> Unit)
     fun signInWithPassword(email: String, password: String, onResult: (BridgeAuthResult) -> Unit)
     fun signInWithEmailOtp(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun confirmOtp(code: String, onResult: (BridgeAuthResult) -> Unit)
+    fun resendSignUpCode(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun startPasswordReset(email: String, onResult: (BridgeAuthResult) -> Unit)
     fun signOut(onResult: () -> Unit)
 }

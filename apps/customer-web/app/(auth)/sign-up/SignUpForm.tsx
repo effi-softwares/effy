@@ -1,385 +1,311 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useCallback, useRef, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
-import { seedCredentialRoute } from "@/app/(auth)/_lib/seed-actions"
-import { googleEnabled } from "@/lib/auth-routes"
 import { safeNextTarget } from "@/lib/next-target"
+import { mergeCartAfterSignIn } from "@/lib/cart-actions"
+import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
+import { markCodeSent } from "@/lib/otp-cooldown"
 import { capture } from "@/lib/telemetry"
 import {
   authErrorMessage,
   completeAutoSignIn,
   confirmSignUpCode,
+  resendSignUpCodeFor,
   signUpWithOtp,
   signUpWithPassword,
-  startGoogleSignIn,
 } from "../_lib/auth-actions"
+import { seedCredentialRoute } from "../_lib/seed-actions"
+import { useStepHistory } from "../_lib/step-history"
+import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
+import { GoogleButton } from "../_components/GoogleButton"
+import { NameStep } from "../_components/NameStep"
+import {
+  Divider,
+  ErrorNote,
+  Field,
+  PasswordField,
+  StepShell,
+  Submit,
+  TermsNotice,
+  TextAction,
+} from "../_components/AuthKit"
 
-type Step = "details" | "confirm"
+type Step = "identifier" | "password" | "code" | "name"
 type Route = "otp" | "password"
 
-const MIN_PASSWORD = 8
-
 /**
- * Self-registration (FR-009) — the platform's first, and only, open sign-up.
+ * Sign-up as a STEP FORM, with the name asked LAST (036 US3).
  *
- * Every other audience on Effy is provisioned by staff. The customer walks up and creates an
- * account. That difference is why this surface exists in the shape it does.
+ * ⚠ THE ORDER IS THE FEATURE. A new shopper is asked for ONE thing — an email — then confirms a code,
+ * and only then, with an account that already exists and a session already established, is asked what
+ * to call them.
  *
- * THE NAME IS COLLECTED HERE, BEFORE THE ACCOUNT EXISTS (FR-009a) — as FIRST and LAST name, mapping
- * 1:1 onto Cognito's standard `given_name` / `family_name`. A grocery order gets handed to a person;
- * a store that knows an email but not a name has to ask again at the worst possible moment —
- * mid-checkout. Two fields now remove an interruption later.
- *
- * BOTH ROUTES SIGN THE CUSTOMER IN AUTOMATICALLY (FR-009b). Asking someone to re-type the password
- * they chose ninety seconds ago, at the exact moment they have finally committed, is a self-inflicted
- * drop-off.
- *
- * The DEFAULT is the passwordless route: name, email, code, done. A password is offered for people
- * who want one, but it is not the path of least resistance — the fewer passwords the platform stores,
- * the fewer it can lose.
+ * Before this, First name and Last name sat ABOVE the email field: the very first thing a stranger
+ * was asked for was personal data, before they had any reason to trust the form. `given_name` and
+ * `family_name` are OPTIONAL Cognito attributes — there is no `schema {}` block on the pool — and
+ * `public.customer.given_name/family_name` have been nullable since 019, deliberately, for the
+ * federated route. So nothing had to change in Terraform or SQL for this to become possible; it was
+ * only ever a form.
  */
 export function SignUpForm() {
   const router = useRouter()
   const params = useSearchParams()
   const next = safeNextTarget(params.get("next"))
 
-  const [step, setStep] = useState<Step>("details")
   const [route, setRoute] = useState<Route>("otp")
-  const [given, setGiven] = useState("")
-  const [family, setFamily] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
-  const [code, setCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  const showGoogle = googleEnabled()
+  const accountExists = useRef(false)
 
-  const run = (fn: () => Promise<void>) => {
+  const { step, go, back } = useStepHistory<Step>("identifier", {
+    // ⚠ The name step is reachable only once the account is real. A `popstate` landing there before
+    // that would offer to save a profile for an account that does not exist yet — which the PATCH
+    // answers with the barred-customer wording.
+    canEnter: (target) => (target === "name" ? accountExists.current : true),
+  })
+
+  // ⚠ Trimmed AND lowercased — the per-address rate limit is keyed on `HMAC(email)`.
+  const address = email.trim().toLowerCase()
+
+  const run = (fn: () => Promise<void>, context: "password" | "code" = "password") => {
     setError(null)
     start(async () => {
       try {
         await fn()
       } catch (err) {
-        setError(authErrorMessage(err))
+        setError(authErrorMessage(err, context))
       }
     })
   }
 
-  /**
-   * Caught BEFORE the account is attempted (spec AS-1a). Telling someone their passwords don't match
-   * only after a round trip to Cognito — and after Cognito has already created the account with the
-   * first one — would be both slower and wrong.
-   */
-  const mismatch =
-    route === "password" && confirm.length > 0 && password !== confirm
+  const finish = useCallback(() => {
+    capture({ name: "sign_up_completed", props: { route } })
+    // ⚠ 036 FR-037 — SIGN-UP DID NOT MERGE THE GUEST BASKET AND SIGN-IN DID.
+    //
+    // A guest who filled a basket and then registered lost it, while the same guest signing in kept
+    // it. Same union-with-maximum merge, same fire-and-forget, on both paths now.
+    void mergeCartAfterSignIn()
+    void mergeSavedAfterSignIn()
+    if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
+    router.replace(next)
+    router.refresh()
+  }, [next, route, router])
 
+  const submitCode = useCallback(
+    async (code: string): Promise<CodeOutcome> => {
+      setError(null)
+      try {
+        const res = await confirmSignUpCode(address, code)
+
+        // FR-009b — BOTH routes land the customer inside, signed in. `autoSignIn` was armed at
+        // sign-up, so confirming the code completes the session; there is no second code and no "now
+        // please sign in" detour.
+        //
+        // ⚠ UNVERIFIED AND ON THE SPIKE LIST (SPIKE-2 / 035 T003). What `autoSignIn` does now that
+        // custom-auth triggers are attached to this pool is documented nowhere. Source reading says
+        // the PASSWORD route is safe (`USER_SRP_AUTH`, triggers never invoked, no second code); the
+        // OTP route forwards the ConfirmSignUp session as `USER_AUTH`, which AWS documents as the
+        // no-second-code path — but not for a pool with `DefineAuthChallenge` attached.
+        if (res.nextStep?.signUpStep === "COMPLETE_AUTO_SIGN_IN") {
+          await completeAutoSignIn()
+        }
+
+        // 012 FR-013 — the platform CANNOT ask Cognito whether this customer has a password, so
+        // registration is the one moment it can learn. Seeded on the record's creating upsert.
+        // ⚠ Its result is now checked rather than swallowed; the name step needs the record to exist.
+        await seedCredentialRoute(route)
+
+        accountExists.current = true
+        go("name")
+        return "accepted"
+      } catch (err) {
+        const name = (err as { name?: string })?.name
+        // ⚠ Sign-up confirmation runs Cognito's MANAGED flow, so unlike the sign-in route the cause
+        // here is REAL and the message may say which (FR-011).
+        if (name === "LimitExceededException" || name === "TooManyRequestsException") {
+          setError(authErrorMessage(err, "code"))
+          return "exhausted"
+        }
+        if (name === "ExpiredCodeException") {
+          setError("That code has expired. Send another one.")
+          return "rejected"
+        }
+        setError(authErrorMessage(err, "code"))
+        return "rejected"
+      }
+    },
+    [address, go, route],
+  )
+
+  const sendCode = useCallback(async () => {
+    await resendSignUpCodeFor(address)
+    markCodeSent()
+  }, [address])
+
+  const signInLink = (
+    <p className="text-center text-sm text-muted-foreground">
+      Already have an account?{" "}
+      <Link
+        href={`/sign-in?next=${encodeURIComponent(next)}`}
+        className="font-medium text-foreground hover:text-primary"
+      >
+        Sign in
+      </Link>
+    </p>
+  )
+
+  // ── Step 4: who are you? ────────────────────────────────────────────────────────────────────────
+  if (step === "name") {
+    return <NameStep onDone={finish} route={route} />
+  }
+
+  // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
+  if (step === "code") {
+    return (
+      <>
+        {error && <ErrorNote>{error}</ErrorNote>}
+        <CodeStep
+          destination={address}
+          submitLabel="Create account"
+          submitTestId="submit-confirm"
+          onSubmit={submitCode}
+          onResend={sendCode}
+          onChangeEmail={back}
+          onBack={back}
+          flow="sign_up"
+          // ⚠ Managed flow → the refusals really are distinguishable here.
+          distinguishableRefusals
+        />
+      </>
+    )
+  }
+
+  // ── Steps 1 and 2: the credential ───────────────────────────────────────────────────────────────
+  const onPassword = step === "password"
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">Create your account</h1>
-        {next !== "/" && (
-          <p className="text-sm text-muted-foreground" data-testid="deferred-reason">
-            You&apos;ll need an account to place your order. We&apos;ll take you straight back.
-          </p>
-        )}
-      </div>
+    <StepShell
+        title={onPassword ? "Choose a password" : "Create your account"}
+        subtitle={
+          onPassword ? (
+            <>
+              Creating an account for <strong className="text-foreground">{address}</strong>
+            </>
+          ) : next !== "/" ? (
+            <span data-testid="deferred-reason">
+              You&apos;ll need an account to place your order. We&apos;ll take you straight back.
+            </span>
+          ) : (
+            "Start with your email — we'll do the rest in a moment."
+          )
+        }
+      onBack={onPassword ? back : undefined}
+      bottom={signInLink}
+    >
+        {error && <ErrorNote>{error}</ErrorNote>}
 
-      {error && (
-        <p
-          role="alert"
-          data-testid="auth-error"
-          className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground"
-        >
-          {error}
-        </p>
-      )}
-
-      {step === "confirm" ? (
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault()
-            run(async () => {
-              const res = await confirmSignUpCode(email.trim(), code.trim())
-
-              // FR-009b — BOTH routes land the customer inside, signed in. `autoSignIn` was armed at
-              // sign-up, so confirming the code completes the session; there is no second code and no
-              // "now please sign in" detour.
-              if (res.nextStep?.signUpStep === "COMPLETE_AUTO_SIGN_IN") {
-                await completeAutoSignIn()
-              }
-
-              // 012 FR-013 — the platform CANNOT ask Cognito whether this customer has a password, so
-              // registration is the one moment it can learn. Seeded on the record's creating upsert;
-              // ignored forever after. A UX hint, never an authorization input — see seed-actions.ts
-              // for why lying about it gains a caller nothing.
-              await seedCredentialRoute(route)
-
-              capture({ name: "sign_up_completed", props: { route } })
-              if (next !== "/") {
-                capture({ name: "deferred_sign_in_resumed", props: { route } })
-              }
-
-              router.replace(next)
-              router.refresh()
-            })
+            run(
+              async () => {
+                if (onPassword) {
+                  setRoute("password")
+                  await signUpWithPassword(address, password)
+                } else {
+                  setRoute("otp")
+                  await signUpWithOtp(address)
+                }
+                markCodeSent()
+                go("code")
+              },
+              onPassword ? "password" : "code",
+            )
           }}
         >
-          <p className="text-sm text-muted-foreground">
-            We emailed a code to <strong className="text-foreground">{email}</strong>.
-          </p>
-          {/* ⚠ NO `maxLength`, no fixed-box grid, and no auto-submit on the Nth keystroke — ON PURPOSE.
-              Cognito sends codes of DIFFERENT LENGTHS depending on the flow, and neither is
-              configurable (research D23):
-                • sign-up confirmation  → 6 digits  (verification_message_template)
-                • EMAIL_OTP sign-in     → 8 digits  (email_mfa_configuration)
-              They are two different Cognito mechanisms with two different email templates, and AWS
-              exposes no knob for either length. Hardcoding 6 here would silently truncate every
-              sign-in code and produce a "that code isn't right" error the customer cannot possibly
-              resolve. Keep this input length-agnostic. */}
-          <Field
-            label="Your code"
-            id="code"
-            value={code}
-            onChange={setCode}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            required
-          />
-          <Submit pending={pending} label="Create account" testId="submit-confirm" />
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setStep("details")
-              setCode("")
-              setError(null)
-            }}
-          >
-            Go back
-          </button>
-        </form>
-      ) : (
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-
-            if (route === "password" && password !== confirm) {
-              setError("Those passwords don't match.")
-              return
-            }
-
-            run(async () => {
-              capture({ name: "sign_up_started", props: { route } })
-
-              const name = { given: given.trim(), family: family.trim() }
-
-              if (route === "password") {
-                await signUpWithPassword(name, email.trim(), password)
-              } else {
-                // No password. Not a blank one, not a random one — none. See auth-actions.ts.
-                await signUpWithOtp(name, email.trim())
-              }
-              setStep("confirm")
-            })
-          }}
-        >
-          {/* FR-009a — asked once, up front, so nobody has to ask again at checkout.
-              TWO fields, mapping 1:1 onto Cognito's standard given_name / family_name. A delivery
-              label, an order confirmation and a support conversation all need the parts, and a
-              single free-text name cannot be split back into them reliably. */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* ⚠ Mounted on both steps with `autocomplete="username"` so a password manager can pair it
+              with the new password and offer to SAVE. Unmounting it is the classic breakage. */}
+          <div className={onPassword ? "hidden" : undefined}>
             <Field
-              label="First name"
-              id="givenName"
-              value={given}
-              onChange={setGiven}
-              autoComplete="given-name"
-              maxLength={60}
+              label="Email"
+              id="email"
+              type="email"
+              value={email}
+              onChange={setEmail}
+              autoComplete="username"
               required
-            />
-            <Field
-              label="Last name"
-              id="familyName"
-              value={family}
-              onChange={setFamily}
-              autoComplete="family-name"
-              maxLength={60}
-              required
+              readOnly={onPassword}
             />
           </div>
 
-          <Field
-            label="Email"
-            id="email"
-            type="email"
-            value={email}
-            onChange={setEmail}
-            autoComplete="email"
-            required
-          />
-
-          {route === "password" && (
-            <>
-              <Field
-                label="Password"
-                id="password"
-                type="password"
-                value={password}
-                onChange={setPassword}
-                autoComplete="new-password"
-                minLength={MIN_PASSWORD}
-                required
-              />
-              <Field
-                label="Confirm password"
-                id="confirm"
-                type="password"
-                value={confirm}
-                onChange={setConfirm}
-                autoComplete="new-password"
-                minLength={MIN_PASSWORD}
-                required
-                aria-invalid={mismatch}
-              />
-              {mismatch && (
-                <p className="text-sm text-destructive" data-testid="password-mismatch">
-                  Those passwords don&apos;t match.
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                At least {MIN_PASSWORD} characters, with upper and lower case letters and a number.
-              </p>
-            </>
+          {onPassword && (
+            <PasswordField
+              label="Password"
+              id="password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="new-password"
+              minLength={PASSWORD_MIN_LENGTH}
+              required
+              // ⚠ THE RULE IS STATED BEFORE THEY TYPE, AND IT IS NOW TRUE (FR-029).
+              //
+              // This used to read "At least 8 characters, with upper and lower case letters and a
+              // number" from a local `MIN_PASSWORD = 8`. The real policy is 12 characters with NO
+              // composition rules, so the old copy was BOTH too short and falsely restrictive — the
+              // exact drift `authErrorMessage`'s own comment records ("The old text became a LIE the
+              // moment the policy changed"). Built from the shared constant so it cannot drift again.
+              hint={`At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`}
+            />
           )}
 
+          {/* ⚠ NO "CONFIRM PASSWORD" FIELD (FR-030 / 012 FR-023). The reveal toggle on the field above
+              replaces it — GOV.UK removed theirs on exactly that reasoning, the account page already
+              followed the rule, and mobile sign-up never had one. Web was the odd surface out. */}
+
+          {/* ⚠ ABOVE the button, not below it. Below is the commoner convention, but on a phone the
+              footer group sits at the foot of the screen — so below the action it would be the first
+              thing pushed out of view, and "reasonably conspicuous notice" is the limb that
+              inquiry-notice contracts fail on. */}
+          <TermsNotice />
           <Submit
             pending={pending}
-            disabled={mismatch}
-            label={route === "password" ? "Create account" : "Email me a code"}
-            testId={route === "password" ? "submit-password" : "submit-email"}
+            label={onPassword ? "Create account" : "Email me a code"}
+            testId={onPassword ? "submit-password" : "submit-email"}
           />
 
-          <button
-            type="button"
-            data-testid="toggle-route"
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
+          <TextAction
+            testId="toggle-route"
             onClick={() => {
-              setRoute(route === "password" ? "otp" : "password")
-              setPassword("")
-              setConfirm("")
               setError(null)
+              if (onPassword) back()
+              else go("password")
             }}
           >
-            {route === "password"
-              ? "Skip the password — email me a code instead"
-              : "I'd rather set a password"}
-          </button>
+            {onPassword ? "Email me a code instead" : "Set a password instead"}
+          </TextAction>
         </form>
-      )}
 
-      {showGoogle && (
-        <>
-          <Divider />
-
-          <button
-            type="button"
-            data-testid="google-signup"
-            disabled={pending}
-            onClick={() =>
-              run(async () => {
-                capture({ name: "sign_up_started", props: { route: "google" } })
-                await startGoogleSignIn(next)
-              })
-            }
-            className="flex h-11 w-full items-center justify-center rounded-full border text-sm font-medium hover:bg-accent"
-          >
-            Continue with Google
-          </button>
-        </>
-      )}
-
-      <p className="text-center text-sm text-muted-foreground">
-        Already have an account?{" "}
-        <Link
-          href={`/sign-in?next=${encodeURIComponent(next)}`}
-          className="font-medium text-foreground hover:text-primary"
-        >
-          Sign in
-        </Link>
-      </p>
-    </div>
-  )
-}
-
-function Field({
-  label,
-  id,
-  value,
-  onChange,
-  ...rest
-}: {
-  label: string
-  id: string
-  value: string
-  onChange: (v: string) => void
-  // Omit the native onChange — ours takes the value, not the event.
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
-  return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        {...rest}
-      />
-    </div>
-  )
-}
-
-function Submit({
-  pending,
-  label,
-  testId,
-  disabled,
-}: {
-  pending: boolean
-  label: string
-  testId: string
-  disabled?: boolean
-}) {
-  return (
-    <button
-      type="submit"
-      disabled={pending || disabled}
-      data-testid={testId}
-      className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-    >
-      {pending ? "Please wait…" : label}
-    </button>
-  )
-}
-
-function Divider() {
-  return (
-    <div className="relative">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">or</span>
-      </div>
-    </div>
+        {!onPassword && (
+          <>
+            <Divider />
+            <GoogleButton
+              label="Continue with Google"
+              testId="google-signup"
+              disabled={pending}
+              onUnavailable={(message) => {
+                capture({ name: "auth_google_unavailable", props: { flow: "sign_up" } })
+                setError(message)
+              }}
+            />
+          </>
+        )}
+    </StepShell>
   )
 }

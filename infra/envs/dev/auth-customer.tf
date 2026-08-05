@@ -131,6 +131,32 @@ module "customer_pool" {
 
   callback_urls = try(var.auth_urls["customer"].callback_urls, [])
   logout_urls   = try(var.auth_urls["customer"].logout_urls, [])
+
+  # --- 035-six-digit-otp -------------------------------------------------------------------------
+  # The platform's own SIX-digit sign-in code, alongside the routes this audience already has.
+  #
+  # ⚠ `disable_choice_based_auth` STAYS FALSE HERE — unlike the three internal pools. Passwordless
+  # `SignUp` (omitting the password entirely) is legal only while "passwordless sign-in is active in
+  # your user pool AND app client", which means ALLOW_USER_AUTH. Dropping it would break customer
+  # self-registration outright.
+  #
+  # ⚠ THE CONSEQUENCE, RECORDED RATHER THAN HIDDEN: Cognito's managed 8-digit EMAIL_OTP therefore
+  # remains reachable on THIS pool by a raw InitiateAuth call, bypassing the 3-attempt cap, the
+  # 5-minute TTL and both rate limits. No Effy client does this — every surface asks for
+  # CUSTOM_AUTH — but FR-001 says every code the platform issues is six digits, and that is not
+  # strictly true here until spike T003(b) settles whether a sign-up-only app client closes it.
+  # The bypass yields a STRONGER credential (8 digits with Cognito's own throttling), so it is a
+  # consistency gap, not a privilege escalation.
+  #
+  # ⚠ The obvious alternative — a random throwaway password at sign-up — is REJECTED: it breaks
+  # 012's set-first-password flow, which calls ChangePassword WITHOUT PreviousPassword and only
+  # works on an account that genuinely has no password. See research R4b.
+  # ⚠ Derived, not hardcoded — see the note on the internal pools. Offering ALLOW_CUSTOM_AUTH before
+  # the triggers exist would break every client that asks for it, which after 035 is all of them.
+  # (This pool keeps ALLOW_USER_AUTH regardless, so its exposure is smaller — but not zero.)
+  enable_custom_auth_flow = var.custom_auth_lambda_arns != null
+  custom_auth_lambda_arns = var.custom_auth_lambda_arns
+
 }
 
 # ── The customer MOBILE app client (013-customer-mobile-foundation) ──────────────────────────────
@@ -159,7 +185,15 @@ resource "aws_cognito_user_pool_client" "customer_mobile" {
   #   ALLOW_USER_SRP_AUTH      — password over SRP (the password never travels on the wire)
   #   ALLOW_REFRESH_TOKEN_AUTH — sessions
   # Plain ALLOW_USER_PASSWORD_AUTH is deliberately NOT offered (it would put the password on the wire).
-  explicit_auth_flows = ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"]
+  # ⚠ 035 adds ALLOW_CUSTOM_AUTH (the platform's 6-digit code) and RETAINS ALLOW_USER_AUTH —
+  # passwordless SignUp needs it, so unlike the internal pools this client cannot drop it. See the
+  # module block above for the consequence.
+  # ⚠ Derived from the ARNs — see the module block above. ALLOW_USER_AUTH and ALLOW_USER_SRP_AUTH
+  # are unconditional here: this audience keeps both its other credential routes.
+  explicit_auth_flows = concat(
+    var.custom_auth_lambda_arns != null ? ["ALLOW_CUSTOM_AUTH"] : [],
+    ["ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_SRP_AUTH"],
+  )
 
   # Public client: PKCE, NO client secret. A secret in a published mobile binary is a LEAKED secret
   # (013 FR-042) — and Amplify's config has no field for one anyway.

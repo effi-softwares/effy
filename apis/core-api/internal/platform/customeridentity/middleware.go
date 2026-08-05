@@ -16,7 +16,11 @@ type customerCtxKey struct{}
 
 // Middleware resolves the verified subject to a customer record and stores it in the request context.
 // It MUST be mounted AFTER auth.Middleware (which puts the verified identity in context). A missing
-// record fails as 401 (the customer must complete the cold-path bootstrap); a barred customer as 403.
+// record fails as 401 (the customer must complete the cold-path bootstrap); a barred customer as 403;
+// a customer inside the closure grace window (034) as 403 as well.
+//
+// The two 403s are deliberately INDISTINGUISHABLE on the wire — the refusal body is uniform and
+// discloses nothing about which condition applied, matching the cold path's existing posture.
 func Middleware(r *Resolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, ok := auth.IdentityFromContext(c.Request.Context())
@@ -27,7 +31,7 @@ func Middleware(r *Resolver) gin.HandlerFunc {
 		cust, err := r.Resolve(c.Request.Context(), id.Subject)
 		if err != nil {
 			switch {
-			case errors.Is(err, ErrBarred):
+			case errors.Is(err, ErrBarred), errors.Is(err, ErrClosing):
 				httpx.Forbidden(c)
 			case errors.Is(err, ErrNotFound):
 				httpx.Unauthenticated(c)

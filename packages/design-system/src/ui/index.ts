@@ -21,6 +21,7 @@ export * from "./drawer";
 export * from "./dropdown-menu";
 export * from "./responsive-modal";
 export * from "./input";
+export * from "./otp-input";
 export * from "./label";
 export * from "./popover";
 export * from "./radio-group";

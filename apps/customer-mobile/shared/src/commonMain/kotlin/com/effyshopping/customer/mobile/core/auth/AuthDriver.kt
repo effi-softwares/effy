@@ -34,17 +34,39 @@ interface AuthDriver {
     suspend fun currentSession(forceRefresh: Boolean = false): Session?
 
     // ── Registration — TWO routes, and only two ──────────────────────────────────────────────────
-    suspend fun signUpWithPassword(email: String, password: String, given: String, family: String): AuthStep
+    /**
+     * ⚠ 036 FR-032 — NO NAME IS TAKEN HERE ANY MORE, and 011's FR-009a is superseded.
+     *
+     * `given`/`family` used to ride along, because they were collected on the very first sign-up
+     * screen — the first thing a stranger was asked for, before they had any reason to trust the form.
+     * The name is now the LAST step of registration, written by `PATCH /customer/v1/me` once the
+     * account exists and the customer is signed in.
+     *
+     * ✅ Safe, and it needed no infrastructure change: there is no `schema {}` block on the customer
+     * pool, so Cognito's default schema applies and both attributes are OPTIONAL at `SignUp`. The
+     * record's columns have been nullable since 019, deliberately, for the federated route.
+     */
+    suspend fun signUpWithPassword(email: String, password: String): AuthStep
 
     /**
      * Register with NO password, ever. Cognito's `SignUp` allows omitting the password for a
      * passwordless pool (research D7) — there is no throwaway-password hack. The resulting customer
      * genuinely has no password, which is a permanent, first-class state (FR-012).
      */
-    suspend fun signUpPasswordless(email: String, given: String, family: String): AuthStep
+    suspend fun signUpPasswordless(email: String): AuthStep
 
     /** Confirm a registration code, then auto-sign-in → [AuthStep.Done]. */
     suspend fun confirmSignUp(email: String, code: String): AuthStep
+
+    /**
+     * Send the sign-UP confirmation code again (036 FR-007).
+     *
+     * ⚠ This is Cognito's MANAGED flow, so a real resend API exists, refusals here are genuinely
+     * distinguishable, and it does NOT touch the platform's own five-per-hour custom-challenge budget.
+     * ⚠ Before 036, `resendSignUpCode` was called NOWHERE in the repository — no surface on the
+     * platform could resend a sign-up code, and the only recovery was to abandon the flow.
+     */
+    suspend fun resendSignUpCode(email: String): AuthStep
 
     // ── Sign-in — TWO routes, and only two ───────────────────────────────────────────────────────
     /** Password sign-in over SRP — the password never goes on the wire (the pool omits USER_PASSWORD_AUTH). */
@@ -55,6 +77,23 @@ interface AuthDriver {
 
     /** Submit the emailed code for either the OTP sign-in or a sign-up confirmation → [AuthStep.Done]. */
     suspend fun confirmOtp(code: String): AuthStep
+
+    /**
+     * Send another SIGN-IN code (036 FR-007, R4).
+     *
+     * ⚠ NAMED FOR WHAT IT ACTUALLY DOES, BECAUSE THERE IS NO RESEND API FOR A CUSTOM CHALLENGE.
+     * It re-runs `signInWithEmailOtp` from scratch. `CreateAuthChallenge` REUSES the existing envelope
+     * on a re-challenge and sends no email at all — a new email requires a brand-new `InitiateAuth`.
+     * Three consequences the caller owns:
+     *
+     *   • the 3-attempt counter RESETS (the new Cognito session starts with an empty attempt list);
+     *   • the previous code becomes unreachable FROM THIS DEVICE, because the SDK overwrites the stored
+     *     session. ⚠ It is NOT revoked server-side — supersession is a client-side property here;
+     *   • it consumes ONE of the five hourly sends for this address, and ⚠ the SIXTH is refused while
+     *     still returning a normal-looking challenge, so the shopper is shown a code screen for an
+     *     email that does not exist. That is why the ViewModel counts sends.
+     */
+    suspend fun resendSignInCode(email: String): AuthStep
 
     /**
      * START account recovery (emails a code). It FINISHES at the backend

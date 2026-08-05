@@ -190,6 +190,61 @@ if [ -n "$UNREACHABLE" ]; then
   FAIL=1
 fi
 
+
+# ── 034 FR-007 / SC-005: no sign-out control on the customer account ROOT ──────────────────────────
+#
+# Both sign-out rows used to sit on the account root, styled destructive, immediately below ordinary
+# navigation rows — one stray tap while browsing ended the session. They now live on Security, with
+# the other credential actions.
+#
+# ⚠ This is a GUARD rather than a unit test because the assertion is an ABSENCE, and Compose UI is not
+# unit-testable on the JVM host here. A behavioural test could only assert that today's screen has no
+# sign-out; it could not notice the day someone helpfully adds one back.
+ACCOUNT_SCREENS="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/account/presentation/AccountScreens.kt"
+if [ -f "$ACCOUNT_SCREENS" ]; then
+  # The account root is everything from `fun AccountScreen(` to the next top-level composable.
+  ROOT_BODY="$(awk '/^private fun AccountScreen\(/{f=1} f{print} /^@Composable/{if(f && NR>1) c++; if(c>1) exit}' "$ACCOUNT_SCREENS" 2>/dev/null || true)"
+  if printf '%s' "$ROOT_BODY" | grep -qE 'vm\.signOut'; then
+    echo "✗ mobile-guard [apps/customer-mobile]: a SIGN-OUT control is on the account ROOT."
+    echo "  034 FR-007 moved both sign-out actions to the Security screen: on the root they sit one"
+    echo "  stray tap away from ordinary navigation, and a tap there ends the session."
+    FAIL=1
+  fi
+fi
+
+
+# ── 034: every declared route must have an `entry<>` in the shell ─────────────────────────────────
+#
+# ⚠ THIS GUARD EXISTS BECAUSE ITS ABSENCE SHIPPED A CRASH.
+#
+# `CustomerNavKey.kt` documents THREE places a new route must be registered — the sealed interface,
+# the polymorphic serializer module, and ALL_CUSTOMER_ROUTES. That list is incomplete. A route also
+# needs an `entry<CustomerNavKey.X>` in CustomerShell's NavDisplay, or the fallback throws
+# `IllegalStateException: Unknown screen X` the instant a shopper taps it.
+#
+# Nothing caught it: it compiles, the serialization round-trip test passes (the route IS in all three
+# lists), and the reachability check below passes too — that proves something NAVIGATES to the route,
+# not that the shell can RENDER it. 034's Security screen crashed on a device with every gate green.
+NAV_KEYS="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/nav/CustomerNavKey.kt"
+SHELL_FILE="apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/app/CustomerShell.kt"
+UNRENDERABLE=""
+if [ -f "$NAV_KEYS" ] && [ -f "$SHELL_FILE" ]; then
+  ROUTES="$(grep -oE '@Serializable data (object|class) [A-Za-z]+' "$NAV_KEYS" | awk '{print $NF}' | sort -u)"
+  for route in $ROUTES; do
+    if ! grep -q "entry<CustomerNavKey\.$route>" "$SHELL_FILE"; then
+      UNRENDERABLE="$UNRENDERABLE$route
+"
+    fi
+  done
+fi
+if [ -n "$UNRENDERABLE" ]; then
+  echo "✗ mobile-guard [apps/customer-mobile]: route declared but the shell CANNOT RENDER it —"
+  echo "  NavDisplay will throw 'Unknown screen' the moment a shopper taps it:"
+  echo "$UNRENDERABLE" | sed '/^$/d; s/^/    CustomerNavKey./'
+  echo "  Add an entry<CustomerNavKey.X> { … } block in CustomerShell's NavDisplay."
+  FAIL=1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   echo "✓ mobile-guard: auth/config clean; retired presentation and excluded affordances absent;"
   echo "  every customer destination reachable."

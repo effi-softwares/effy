@@ -94,7 +94,29 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable
     data class SignIn(val returnTo: CustomerNavKey? = null) : CustomerNavKey
 
+    /**
+     * The password step of sign-in (036 FR-017).
+     *
+     * ⚠ A separate destination, not a mode flag on [SignIn]. The whole point of the step form is that
+     * choosing "use a password" MOVES you somewhere — with a back arrow that returns you, and with the
+     * address already known so it is never asked twice.
+     */
+    @Serializable
+    data class SignInPassword(val email: String, val returnTo: CustomerNavKey? = null) : CustomerNavKey
+
     @Serializable data object SignUp : CustomerNavKey
+
+    /** The password step of sign-up (036 FR-028). Asks for the password only — the email is known. */
+    @Serializable
+    data class SignUpPassword(val email: String) : CustomerNavKey
+
+    /**
+     * "What should we call you?" — the LAST step of registration, on every route (036 FR-032).
+     *
+     * ⚠ Reached only once the account EXISTS and the shopper is signed in. It completes a profile; it
+     * does not gate access. Abandoning it must never lock anyone out (FR-035a).
+     */
+    @Serializable data object ProfileName : CustomerNavKey
 
     @Serializable
     data class VerifyOtp(
@@ -115,6 +137,25 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable data object CustomerService : CustomerNavKey
 
     @Serializable data object MyDetails : CustomerNavKey
+
+    // ── 034: the account centre's new destinations ────────────────────────────────────────────
+    /** How you sign in — composed from the credentials the account ACTUALLY holds (FR-025). */
+    @Serializable data object Security : CustomerNavKey
+    /** Privacy & data. Hosts the deletion control, as its LAST item (FR-039). */
+    @Serializable data object Privacy : CustomerNavKey
+    /** The account-deletion flow itself. */
+    @Serializable data object DeleteAccount : CustomerNavKey
+
+    /**
+     * Resetting a FORGOTTEN password from inside the account.
+     *
+     * ⚠ A separate route from [Recovery], deliberately. Recovery is the PUBLIC, signed-out journey and
+     * has to ask for an email address because it does not know who is asking. This one is reached by a
+     * signed-in shopper who simply cannot remember their current password — the platform already knows
+     * their address, so asking for it would be a question with a known answer, and typing the wrong one
+     * would fail confusingly.
+     */
+    @Serializable data object PasswordReset : CustomerNavKey
 
     @Serializable
     data class Password(val setFirst: Boolean) : CustomerNavKey
@@ -139,6 +180,17 @@ val CUSTOMER_TAB_ROOTS: List<CustomerNavKey> = listOf(
  * uses this one and the two platforms stay identical. A route missing from the polymorphic module
  * below throws at restore time on iOS and works fine on Android — never add a route without adding it
  * here, and the serialization test will tell you if you forget.
+ *
+ * ⚠⚠ AND A ROUTE NEEDS A FOURTH REGISTRATION THIS COMMENT USED TO OMIT. ⚠⚠
+ *
+ * It also needs an `entry<CustomerNavKey.X> { … }` block in `CustomerShell`'s `NavDisplay`, or
+ * the fallback throws `IllegalStateException: Unknown screen X` the instant a shopper taps it.
+ *
+ * That gap is invisible to everything else: the code compiles, the serialization round-trip test
+ * passes (the route IS in all three lists below), and `mobile-guard`'s reachability check passes
+ * too — it proves something NAVIGATES to the route, not that the shell can RENDER it. Feature
+ * 034 shipped `Security` this way and it crashed on the first tap, on a device, with every gate
+ * green. `mobile-guard` now checks the `entry<>` registration as well.
  */
 val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
@@ -155,7 +207,10 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Receipt::class, CustomerNavKey.Receipt.serializer())
             subclass(CustomerNavKey.OrderDetail::class, CustomerNavKey.OrderDetail.serializer())
             subclass(CustomerNavKey.SignIn::class, CustomerNavKey.SignIn.serializer())
+            subclass(CustomerNavKey.SignInPassword::class, CustomerNavKey.SignInPassword.serializer())
             subclass(CustomerNavKey.SignUp::class, CustomerNavKey.SignUp.serializer())
+            subclass(CustomerNavKey.SignUpPassword::class, CustomerNavKey.SignUpPassword.serializer())
+            subclass(CustomerNavKey.ProfileName::class, CustomerNavKey.ProfileName.serializer())
             subclass(CustomerNavKey.VerifyOtp::class, CustomerNavKey.VerifyOtp.serializer())
             subclass(CustomerNavKey.Recovery::class, CustomerNavKey.Recovery.serializer())
             subclass(CustomerNavKey.Saved::class, CustomerNavKey.Saved.serializer())
@@ -165,6 +220,10 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.HelpCenter::class, CustomerNavKey.HelpCenter.serializer())
             subclass(CustomerNavKey.CustomerService::class, CustomerNavKey.CustomerService.serializer())
             subclass(CustomerNavKey.MyDetails::class, CustomerNavKey.MyDetails.serializer())
+            subclass(CustomerNavKey.Security::class, CustomerNavKey.Security.serializer())
+            subclass(CustomerNavKey.Privacy::class, CustomerNavKey.Privacy.serializer())
+            subclass(CustomerNavKey.DeleteAccount::class, CustomerNavKey.DeleteAccount.serializer())
+            subclass(CustomerNavKey.PasswordReset::class, CustomerNavKey.PasswordReset.serializer())
             subclass(CustomerNavKey.Password::class, CustomerNavKey.Password.serializer())
         }
     }
@@ -184,7 +243,10 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Receipt("o1"),
     CustomerNavKey.OrderDetail("o1"),
     CustomerNavKey.SignIn(),
+    CustomerNavKey.SignInPassword("a@b.c"),
     CustomerNavKey.SignUp,
+    CustomerNavKey.SignUpPassword("a@b.c"),
+    CustomerNavKey.ProfileName,
     CustomerNavKey.VerifyOtp("a@b.c", OtpPurpose.SIGN_IN),
     CustomerNavKey.Recovery,
     CustomerNavKey.Saved,
@@ -194,5 +256,9 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.HelpCenter,
     CustomerNavKey.CustomerService,
     CustomerNavKey.MyDetails,
+    CustomerNavKey.Security,
+    CustomerNavKey.Privacy,
+    CustomerNavKey.DeleteAccount,
+    CustomerNavKey.PasswordReset,
     CustomerNavKey.Password(setFirst = true),
 )

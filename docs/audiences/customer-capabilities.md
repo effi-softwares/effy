@@ -49,15 +49,15 @@ engine**, and most of them **never sign in at all**. Three consequences run thro
 | 2 | Public pages are **server-rendered** and present in the raw HTML | ✅ | — *(no crawler)* | — |
 | 3 | Public pages carry **page-specific metadata + canonical + social preview** | ✅ | — | — |
 | 4 | The storefront publishes a **sitemap** and **crawl directives** | ✅ | — | — |
-| 5 | **Self-registration** — email + password | 🔒 | ⬜ | Cognito customer pool |
-| 6 | **Self-registration** — email one-time code, **no password ever set** | 🔒 | ⬜ | Cognito customer pool |
+| 5 | **Self-registration** — email + password | 🔒 | 🔒 | Cognito customer pool |
+| 6 | **Self-registration** — email one-time code, **no password ever set** | 🔒 | 🔒 | Cognito customer pool |
 | 7 | **Self-registration / sign-in** — Google | ⏸ **PARKED** | ⏸ | Cognito customer pool + Google IdP |
-| 8 | All credential routes converge on **one identity** (one `sub`, one record) | 🔒 | ⬜ | Cognito (native routes); linking trigger (federation) |
-| 9 | **Account recovery** by proving control of the verified email | 🔒 | ⬜ | Cognito customer pool |
-| 10 | Session persists across reload/restart | ✅ | ⬜ | — |
-| 11 | The sign-in demand is **deferred to the point of ordering** | ✅ | ⬜ | — |
-| 12 | Authenticating **returns the customer to exactly where they were** | ✅ | ⬜ | — |
-| 13 | **Declining** to sign in costs the customer nothing | ✅ | ⬜ | — |
+| 8 | All credential routes converge on **one identity** (one `sub`, one record) | 🔒 | 🔒 | Cognito (native routes); linking trigger (federation) |
+| 9 | **Account recovery** by proving control of the verified email | 🔒 | 🔒 | Cognito customer pool |
+| 10 | Session persists across reload/restart | ✅ | ✅ | — |
+| 11 | The sign-in demand is **deferred to the point of ordering** | ✅ | ✅ | — |
+| 12 | Authenticating **returns the customer to exactly where they were** | ✅ | ✅ | — |
+| 13 | **Declining** to sign in costs the customer nothing | ✅ | ✅ | — |
 | 14 | The platform keeps its **own customer record** (created on first appearance) | 🔒 | ⬜ | `edge-api/customer` · `public.customer` |
 | 15 | A **barred** customer is refused despite a valid credential | 🔒 | ⬜ | `edge-api/customer` |
 | 16 | The customer **maintains their own details** (display name) | 🔒 | ⬜ | `edge-api/customer` |
@@ -701,3 +701,139 @@ above should not be read as green.
   and a carve-out would be a second, weaker authorization path.
 - **Not built**: notifications (FR-063, reserved sibling) · Buy It Again (FR-064, reserved sibling) ·
   sharing (FR-065) · multiple lists (FR-066).
+
+---
+
+## §034 — Customer Account Centre: Detail-Row Editing, Sectioned Account & Account Deletion
+
+Spec/artifacts: [specs/034-customer-account-center/](../../specs/034-customer-account-center/) ·
+⚠ **[SUBMISSION-BLOCKERS.md](../../specs/034-customer-account-center/SUBMISSION-BLOCKERS.md)**
+
+Restructures the customer account area around three ideas — the identity header is the only route to
+personal details, a value is edited **one field at a time in a container over the screen you were on**,
+and sign out moves off the root — plus the one genuinely new capability: **in-app account deletion**,
+without which neither mobile app can be published.
+
+| Capability | Web | Mobile | Notes |
+|---|---|---|---|
+| Identity header is the entry to personal details (no "My details" row) | ✅ | ✅ | FR-002/FR-003 |
+| Personal info as label/value/chevron rows, **no inputs on the screen** | ✅ | ✅ | FR-010/FR-011 |
+| One-field editor with Save + **de-weighted** Cancel | ✅ | ✅ | Sheet on mobile, `ResponsiveModal` on web |
+| **Dirty-check on every dismissal route** | ✅ | ✅ | Web: close/Esc/backdrop/back · Mobile: drag veto **and** scrim/back |
+| Phone number (self-asserted, **never verified**) | ✅ | ✅ | Net-new column. ⚠ No verified indicator, barred from every auth path (FR-060a) |
+| Email shown, not editable, **explains why** | ✅ | ✅ | FR-022 |
+| Avatar generated from initials (no upload) | ✅ | ✅ | 012's FR-001–FR-005 stand **unamended** |
+| Icon shortcuts for Saved items / Notifications | ⬜ | ✅ | Mobile only; web nav already lists them |
+| Labelled sections on the account root | ✅ | ✅ | FR-006, ≤4 groups |
+| **No sign-out on the account root** | ✅ | ✅ | FR-007 / SC-005 |
+| Security screen composed from credentials **actually held** | ✅ | ✅ | FR-025/FR-026 |
+| Sign out + sign out everywhere, on Security | ✅ | ✅ | FR-028; confirmation on *all devices* only |
+| Privacy & data screen | ✅ | ✅ | FR-039 — deletion control is its **last** item |
+| **Account deletion** (preview → code → close) | ✅ | ✅ | FR-037…FR-045 |
+| Blocked-deletion detour (names it, links to it, says when it clears) | ✅ | ✅ | FR-042; `clearsAt` is **non-nullable by construction** |
+| Restore during the grace window | 🔒 | 🔒 | Backend + contract built; **no client call site yet** |
+| Public web deletion route (`/delete-account`) | ✅ | n/a | Google requires it, Apple does not — the most-missed half |
+| Privacy policy / terms routes | ◐ | ◐ | ⚠ **Shells only — content is operator-owned** (FR-052a) |
+| Address book: FAB → bottom full-width button | n/a | ✅ | **Amends 022's FR-007** |
+| Guest data deletion | ⬜ | ⬜ | FR-046 built nowhere; **no entry point designed** |
+
+### ⚠ Parity split: staying signed in after a password change
+
+| | Web | Mobile |
+|---|---|---|
+| Every OTHER session revoked | ✅ | ✅ |
+| **This device stays signed in** | ⬜ | ✅ |
+
+Mobile keeps the shopper signed in: the backend still calls `globalSignOut` — **that revocation is the
+security control**, since "someone else has access" is the canonical reason to change a password — and
+the app then immediately re-authenticates with the credential the shopper just chose. Every other
+session dies; this one continues; they land back on their account. It **fails closed**: if the
+re-sign-in does not return `Done`, the app signs out locally rather than render an account behind a
+revoked credential.
+
+⚠ **Web cannot do this**, for two independent reasons, neither of them small:
+1. `aws-amplify/auth/server` exports only `fetchUserAttributes` and `getCurrentUser` — there is **no
+   server-side `signIn`** (the same gap 012 hit with `signOut`). Using the client SDK would drag
+   `aws-amplify` into the storefront's shared chunk, which the quarantine and its `depcruise` rule
+   exist to prevent.
+2. Having the **backend** mint and return tokens would make it broker authentication — forbidden by
+   constitution **Principle IV** ("there is no auth proxy").
+
+So web signs out and asks for a fresh sign-in, which at least proves the new password immediately.
+
+### ⚠ Open, and why it matters
+
+- **⚠ THE APPS MUST NOT BE SUBMITTED.** Permanent erasure is out of scope by design, so a shopper told
+  *"permanently deleted after 30 days"* still has a row on day 31 — and **SC-010 requires every claim in
+  that disclosure to be true**. Two blockers, both in `SUBMISSION-BLOCKERS.md`: the **erasure slice**
+  (which also needs the first new IAM this capability has required) and **operator-supplied legal
+  content**.
+- **⚠ The blocking-order SQL has no automated coverage.** `findBlockingOrders` is unit-tested at the
+  mapping layer, and the two windows are pinned against each other — but the predicate itself, the thing
+  that was **wrong twice**, is verified only by operator walk T091. The JS side has no container-test
+  infrastructure; adding it to `edge-api` is the honest fix.
+- **⚠ The order-block window is 7 days and the grace period is 30, deliberately.** They answer different
+  questions ("might goods still be in transit?" vs "may they change their mind?"). Unifying them is what
+  made the block permanent for weekly shoppers — the second time this requirement was wrong.
+- **Not built**: telemetry (Phase 9 — and PostHog has still never been initialised on `customer-web`) ·
+  guest-deletion entry point · restore call sites · Playwright dirty-check matrix · the Go↔Kotlin wire
+  contract test for the new DTOs · **all 11 operator walks**, including Android, which has now gone
+  unlooked-at across 028, 029, 033 and this feature.
+
+## §035 — Platform-wide six-digit one-time codes
+
+Passwordless **sign-in** moves from Cognito's managed `EMAIL_OTP` factor (**8 digits**) to a
+platform-issued custom challenge (**6 digits**). ⚠ The four codes that were already six digits —
+sign-up confirmation, password reset, set-first-password step-up and account-closure step-up — are
+**unchanged in every respect** (FR-003).
+
+| # | Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|---|
+| 035.1 | Sign-in code is **6 digits** | 🔒 | 🔒 | code + Terraform done; needs the operator deploy |
+| 035.2 | One-time-code autofill on the sign-in field | 🔒 | 🔒 | ⚠ customer-mobile had **none** — its generic field could not request `UITextContentTypeOneTimeCode` |
+| 035.3 | `email_verified` set after a code sign-in | 🔒 | 🔒 | managed EMAIL_OTP did this automatically; `CUSTOM_AUTH` does not, so a `PostAuthentication` trigger reinstates it |
+| 035.4 | Google linking still resolves to one `sub` | 🔒 | 🔒 | depends on 035.3 — ⚠ if that is missed, linking refuses **weeks later**, with no error at the time it breaks |
+
+⚠ **Recorded gap on this audience only**: the customer client must keep `ALLOW_USER_AUTH` because
+passwordless `SignUp` is legal only while it is present, so the managed **8-digit** flow stays
+reachable by a raw API call on this pool. No Effy surface uses it, and it yields a *stronger*
+credential — a consistency gap, not a privilege escalation. Spike T003(b) tests whether a
+sign-up-only app client closes it.
+
+
+---
+
+## §036 — Customer sign-in & sign-up: a stepped flow
+
+The emailed code becomes the DEFAULT route on both surfaces, password becomes a deliberate second
+step, and the customer's **name is asked LAST — after the account exists**. ⚠ This **supersedes 011's
+FR-009a**, which put First name and Last name above the email field on the very first sign-up screen.
+
+⚠ **The mobile column in the baseline table above was corrected by this feature.** Rows 5, 6, 8–13 read
+`⬜` from 013 until now, despite `customer-mobile` having had the full auth stack — `AuthDriver` with
+both registration routes, both sign-in routes, confirmation and recovery — since that slice landed.
+The register understated rather than overstated, which is the safer direction, but it was still wrong,
+and a register nobody trusts is worse than none.
+
+| # | Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|---|
+| 036.1 | Sign-in is a **step form** — identifier, then credential | 🔒 | 🔒 | web: one route, client steps (Amplify's challenge state is per-tab + 3-min). mobile: one Nav3 route per step |
+| 036.2 | The code step **names the address** the code went to | 🔒 | 🔒 | ⚠ mobile carried the masked destination and **discarded** it |
+| 036.3 | **Resend** with a 30 s countdown | 🔒 | 🔒 | ⚠ neither surface had any resend at all |
+| 036.4 | The per-address **hourly ceiling** is said out loud | 🔒 | 🔒 | ⚠ the 6th send is refused while still returning a normal challenge — the shopper would wait for an email that does not exist |
+| 036.5 | A refused code **keeps the typed digits** and does not navigate away | 🔒 | 🔒 | ⚠ web treated a re-issued challenge as SUCCESS and navigated a signed-out shopper away |
+| 036.6 | An over-length paste is **kept and refused**, never truncated | 🔒 | 🔒 | web: cells collapse to a plain field. mobile: cells fall back to flowing text in the error colour |
+| 036.7 | Six visible character positions behind **ONE** field | 🔒 | ⚠ **Android only** | ⚠ iOS keeps the spaced single field pending SPIKE-1 — cells there risk `UITextContentTypeOneTimeCode` autofill, and **autofill beats cells** |
+| 036.8 | Password is a **deliberate step**, with reset on it | 🔒 | 🔒 | web keeps the email mounted with `autocomplete="username"` so managers can still save |
+| 036.9 | Sign-up asks for an **email and nothing else** first | 🔒 | 🔒 | |
+| 036.10 | **No confirm-password field** — a reveal toggle replaces it | 🔒 | ✅ *(never had one)* | 012 FR-023; web was the surface still asking twice |
+| 036.11 | The stated password rule **matches the enforced rule** (12, no composition) | 🔒 | 🔒 | ⚠ three web sites said 8 with composition rules — both too short and falsely restrictive |
+| 036.12 | The **name is the LAST step**, on every route | 🔒 | 🔒 | needs `updateName()`, which had **no caller repo-wide** until this slice |
+| 036.13 | Registration **merges the guest basket** | 🔒 | 🔒 | ⚠ sign-in did; sign-up did not |
+| 036.14 | A **Google** control is present and honest about not being ready | 🔒 | 🔒 | ⚠ customer-mobile **never had one** |
+| 036.15 | Signing in mid-checkout **returns to checkout** | ✅ | 🔒 | ⚠ mobile's `returnTo` was a live parameter every call site passed as `null` |
+
+⚠ **Not yet true on either surface**: nothing here has been walked by a person. The 12-check code-step
+table (attempt cap, expiry, supersession, the 8-digit paste refusal, the hourly ceiling) is
+**unobserved**, and **SPIKE-2** — whether confirming sign-up costs a second code — is unrun and could
+still change the step order on both surfaces.

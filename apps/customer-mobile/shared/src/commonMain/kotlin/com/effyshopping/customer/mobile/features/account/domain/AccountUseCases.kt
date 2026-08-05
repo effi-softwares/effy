@@ -11,10 +11,16 @@ class GetCustomer(private val customers: CustomerRepository) {
     suspend operator fun invoke(seedPassword: Boolean = false): Customer = customers.me(seedPassword)
 }
 
-/** Change the display name. Returns the updated record. */
-class UpdateName(private val customers: CustomerRepository) {
-    suspend operator fun invoke(given: String, family: String): Customer =
-        customers.updateName(given.trim(), family.trim())
+/**
+ * Change the customer's own details — name and phone (034 FR-060).
+ *
+ * ⚠ Every field is sent on every call, including the ones that did not change: the backend's PATCH
+ * writes the columns it names, so omitting a field would clear it. The caller passes the current
+ * value for anything it is not editing.
+ */
+class UpdateProfile(private val customers: CustomerRepository) {
+    suspend operator fun invoke(given: String, family: String, phone: String): Customer =
+        customers.updateProfile(given.trim(), family.trim(), phone.trim())
 }
 
 /** Email a step-up code for setting a FIRST password (FR-024). Returns the masked destination. */

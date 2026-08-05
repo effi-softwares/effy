@@ -89,3 +89,12 @@ db_multi_az              = false
 db_backup_retention_days = 0 # backups OFF: accepted dev risk, data is disposable
 db_deletion_protection   = false
 db_performance_insights  = false
+
+# 035 — the sign-in code triggers. Setting this is THE CUTOVER: it attaches the
+# triggers AND flips every client to ALLOW_CUSTOM_AUTH. Removing it is the rollback.
+custom_auth_lambda_arns = {
+  define              = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-defineAuthChallenge"
+  create              = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-createAuthChallenge"
+  verify              = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-verifyAuthChallenge"
+  post_authentication = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-postAuthentication"
+}

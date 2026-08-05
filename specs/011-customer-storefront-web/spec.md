@@ -354,9 +354,18 @@ credential.
 - **FR-009**: A member of the public MUST be able to **register themselves** as a customer, with no
   invitation, provisioning, or approval step. The customer is the platform's first and only
   self-registering audience.
-- **FR-009a**: Registration MUST collect the customer's **first name and last name**, as **two
-  separate fields**, on both native routes (password and one-time code), **before the account is
-  created**, and the created account MUST carry both. A grocery order is handed to a person; a store
+- **FR-009a**: ⚠ **SUPERSEDED BY 036 FR-032 (2026-08-05) — the "before the account is created" clause
+  is REVERSED.** Registration still collects a **first name and last name as two separate fields** on
+  every route, and the account still carries both — but they are now the **LAST step of registration,
+  asked AFTER the account exists and the customer is signed in**, not the first thing a stranger sees.
+  The reasoning below was sound about *what* to collect and wrong about *when*: it argued from the
+  delivery label, which is satisfied equally well by asking one screen later, and it put personal data
+  above the email field before the person had any reason to trust the form. Nothing in the platform
+  required the original order — `given_name`/`family_name` are **optional** Cognito attributes and both
+  columns have been nullable since 019. The original text follows, for the record.
+  ~~Registration MUST collect the customer's first name and last name, as two separate fields, on both
+  native routes (password and one-time code), **before the account is created**, and the created
+  account MUST carry both.~~ A grocery order is handed to a person; a store
   that must ask "who are you?" mid-checkout has asked too late.
   *(Two parts, not one free-text name: the parts are what a delivery label and an order confirmation
   need, and a single name cannot be reliably split back into them. The **federated** route supplies

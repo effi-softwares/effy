@@ -35,7 +35,12 @@ import com.effyshopping.customer.mobile.features.account.domain.GetCustomer
 import com.effyshopping.customer.mobile.features.account.domain.RequestPasswordChallenge
 import com.effyshopping.customer.mobile.features.account.domain.SetPassword
 import com.effyshopping.customer.mobile.features.account.domain.SignOutEverywhere
-import com.effyshopping.customer.mobile.features.account.domain.UpdateName
+import com.effyshopping.customer.mobile.features.account.domain.CloseAccount
+import com.effyshopping.customer.mobile.features.account.domain.PreviewAccountClosure
+import com.effyshopping.customer.mobile.features.account.domain.RequestClosureCode
+import com.effyshopping.customer.mobile.features.account.domain.RestoreAccount
+import com.effyshopping.customer.mobile.features.account.domain.UpdateProfile
+import com.effyshopping.customer.mobile.features.account.data.HttpClosureRepository
 import com.effyshopping.customer.mobile.features.addresses.data.HttpAddressRepository
 import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
@@ -67,6 +72,8 @@ import com.effyshopping.customer.mobile.features.cart.domain.SyncCart
 import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.cart.domain.CartSyncCoordinator
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmOtp
+import com.effyshopping.customer.mobile.features.auth.domain.ResendSignInCode
+import com.effyshopping.customer.mobile.features.auth.domain.ResendSignUpCode
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmPasswordReset
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmSignUp
 import com.effyshopping.customer.mobile.features.auth.domain.RegisterPasswordless
@@ -77,6 +84,8 @@ import com.effyshopping.customer.mobile.features.auth.domain.StartPasswordReset
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import com.effyshopping.customer.mobile.core.storage.DevicePreferences
+import com.effyshopping.customer.mobile.core.storage.clearGuestData
 
 /**
  * The ONE hand-wired dependency container (constitution Principle VI — no DI framework). The whole
@@ -131,7 +140,14 @@ class AppContainer(
     // ⚠ 027: this replaced 019's in-memory `GuestCartStore`. It is hydrated from `DevicePreferences`
     // before the first frame, so a force-quit no longer loses the shopper's cart (FR-001), and it is
     // reconciled against the platform by [cartSync] rather than being the authority itself (FR-006).
-    val cart: CartStore by lazy { CartStore(CartLocalStore(devicePreferences()), appScope) }
+    /**
+     * The device store, exposed so the guest landing can offer "clear data on this device"
+     * (034 FR-046). One instance — `devicePreferences()` returns the platform store, and two callers
+     * building their own would be two views of the same underlying prefs, which is only confusing.
+     */
+    val preferences: DevicePreferences by lazy { devicePreferences() }
+
+    val cart: CartStore by lazy { CartStore(CartLocalStore(preferences), appScope) }
 
     private val cartRepository: CartRepository by lazy { HttpCartRepository(coreClient) }
     private val savedHttp: HttpSavedRepository by lazy { HttpSavedRepository(coreClient) }
@@ -158,6 +174,8 @@ class AppContainer(
     val signInWithPassword by lazy { SignInWithPassword(authDriver) }
     val signInWithEmailOtp by lazy { SignInWithEmailOtp(authDriver) }
     val confirmOtp by lazy { ConfirmOtp(authDriver) }
+    val resendSignInCode by lazy { ResendSignInCode(authDriver) }
+    val resendSignUpCode by lazy { ResendSignUpCode(authDriver) }
     val startPasswordReset by lazy { StartPasswordReset(authDriver) }
     val confirmPasswordReset by lazy { ConfirmPasswordReset(customers) }
 
@@ -189,7 +207,7 @@ class AppContainer(
     // ⚠ REAL persistence, not GuestPersistence.None. 030 shipped a whole feature whose store had this
     // exact seam and got the no-op — nothing was ever written and three comments then explained the
     // absence as "this app has no key-value persistence", which had been false since 026.
-    private val savedLocal by lazy { SavedLocalStore(devicePreferences()) }
+    private val savedLocal by lazy { SavedLocalStore(preferences) }
     val savedStore: SavedStore by lazy {
         SavedStore(object : GuestPersistence {
             override fun load(): List<SavedGuestEntry> = savedLocal.load()
@@ -225,7 +243,15 @@ class AppContainer(
     val deleteSavedAddress by lazy { DeleteAddress(addressBookRepo) }
 
     val getCustomer by lazy { GetCustomer(customers) }
-    val updateName by lazy { UpdateName(customers) }
+    val updateProfile by lazy { UpdateProfile(customers) }
+
+    // 034 — account closure. Same cold-path client; a separate repository because closure is a
+    // different capability from the profile, not a fifth method on it.
+    private val closures by lazy { HttpClosureRepository(edgeClient) }
+    val previewAccountClosure by lazy { PreviewAccountClosure(closures) }
+    val requestClosureCode by lazy { RequestClosureCode(closures) }
+    val closeAccount by lazy { CloseAccount(closures) }
+    val restoreAccount by lazy { RestoreAccount(closures) }
     val requestPasswordChallenge by lazy { RequestPasswordChallenge(customers) }
     val setPassword by lazy { SetPassword(customers) }
     val changePassword by lazy { ChangePassword(customers) }
@@ -254,11 +280,20 @@ class AppContainer(
                 mergeCartOnSignIn()
                 runCatching { mergeSavedOnSignIn() }
             },
-            // ⚠ Sign-out clears BOTH — an account's saved items must not stay readable on a shared
-            // device (FR-031).
+            // ⚠ SIGN-OUT CLEARS EVERYTHING THIS DEVICE HOLDS FOR THE SHOPPER (FR-031, 034).
+            //
+            // The in-memory stores are reset AND the persisted keys are removed. The store resets
+            // alone write an empty envelope back to preferences, which is functionally clear but
+            // leaves the keys behind; the offline CART QUEUE was not covered by either, so a change
+            // made just before signing out could still have been drained afterwards — on a shared
+            // device, into the next person's session.
+            //
+            // An account's cart and saved items must not stay readable, or replayable, once its owner
+            // has signed out.
             onSignedOut = {
                 cart.reset()
                 savedStore.reset()
+                preferences.clearGuestData()
             },
         )
     }
