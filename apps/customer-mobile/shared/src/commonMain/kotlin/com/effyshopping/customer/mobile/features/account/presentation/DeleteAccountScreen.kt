@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
+import com.effyshopping.mobile.kit.ui.OTP_LENGTH
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -235,7 +236,7 @@ fun DeleteAccountScreen(container: AppContainer) {
                     label = "Code from your email",
                     value = code,
                     onValueChange = { code = it },
-                    placeholder = "6-digit code",
+                    placeholder = "$OTP_LENGTH-digit code",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 )
                 EffyPrimaryButton(

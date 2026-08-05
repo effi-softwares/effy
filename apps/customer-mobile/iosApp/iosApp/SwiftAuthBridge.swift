@@ -81,24 +81,24 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Registration
 
-    func signUpWithPassword(email: String, password: String, given: String, family: String,
+    func signUpWithPassword(email: String, password: String,
                             onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
                 let result = try await Amplify.Auth.signUp(username: email, password: password,
-                                                           options: signUpOptions(email, given, family))
+                                                           options: signUpOptions(email))
                 onResult(mapSignUp(result, email: email))
             } catch { onResult(self.failure(error)) }
         }
     }
 
-    func signUpPasswordless(email: String, given: String, family: String,
+    func signUpPasswordless(email: String,
                             onResult: @escaping (BridgeAuthResult) -> Void) {
         Task {
             do {
                 // password: nil — Cognito creates a genuinely passwordless user (D7).
                 let result = try await Amplify.Auth.signUp(username: email, password: nil,
-                                                           options: signUpOptions(email, given, family))
+                                                           options: signUpOptions(email))
                 onResult(mapSignUp(result, email: email))
             } catch { onResult(self.failure(error)) }
         }
@@ -154,6 +154,21 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         }
     }
 
+    /// Send the sign-UP confirmation code again (036 FR-007).
+    ///
+    /// ⚠ Cognito's MANAGED resend — a real API, unlike the sign-in code, which has none and must be
+    /// re-initiated from scratch (see `AuthDriver.resendSignInCode`).
+    func resendSignUpCode(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
+        Task {
+            do {
+                let details = try await Amplify.Auth.resendSignUpCode(for: email)
+                onResult(BridgeAuthResult(outcome: "signUpConfirmation",
+                                          destination: details.destination.description,
+                                          email: email, errorKind: nil))
+            } catch { onResult(self.failure(error)) }
+        }
+    }
+
     // MARK: Recovery / sign-out
 
     func startPasswordReset(email: String, onResult: @escaping (BridgeAuthResult) -> Void) {
@@ -171,12 +186,10 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
 
     // MARK: Mapping
 
-    private func signUpOptions(_ email: String, _ given: String, _ family: String) -> AuthSignUpRequest.Options {
-        AuthSignUpRequest.Options(userAttributes: [
-            AuthUserAttribute(.email, value: email),
-            AuthUserAttribute(.givenName, value: given),
-            AuthUserAttribute(.familyName, value: family),
-        ])
+    /// ⚠ 036 FR-032 — the NAME attributes are gone. They are optional on the pool (no `schema {}`
+    /// block), so registration is unaffected; the name is written after the account exists.
+    private func signUpOptions(_ email: String) -> AuthSignUpRequest.Options {
+        AuthSignUpRequest.Options(userAttributes: [AuthUserAttribute(.email, value: email)])
     }
 
     private func mapSignIn(_ result: AuthSignInResult) -> BridgeAuthResult {

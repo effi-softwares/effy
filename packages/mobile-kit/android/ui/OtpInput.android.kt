@@ -31,6 +31,7 @@ actual fun OtpInput(
     modifier: Modifier,
     enabled: Boolean,
     isError: Boolean,
+    variant: OtpVariant,
 ) {
     val borderColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
     val shape = RoundedCornerShape(16.dp)
@@ -56,17 +57,25 @@ actual fun OtpInput(
                 if (isError) error("Check the one-time code")
             },
         decorationBox = { inner ->
-            Box(
-                Modifier
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow, shape)
-                    .border(1.dp, borderColor, shape)
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                if (value.isEmpty()) {
-                    Text("$OTP_LENGTH-digit code", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // ⚠ The cells branch does NOT call `inner()`, on purpose. `OtpCells` paints the glyphs
+            // itself from `value`; rendering the inner field as well would draw the real text on top
+            // of the cells. See the note on `OtpCells` for what that costs (caret, selection) and why
+            // it is the right trade here.
+            if (variant == OtpVariant.Cells) {
+                OtpCells(value = value, isError = isError, enabled = enabled)
+            } else {
+                Box(
+                    Modifier
+                        .background(MaterialTheme.colorScheme.surfaceContainerLow, shape)
+                        .border(1.dp, borderColor, shape)
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (value.isEmpty()) {
+                        Text("$OTP_LENGTH-digit code", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    inner()
                 }
-                inner()
             }
         },
     )

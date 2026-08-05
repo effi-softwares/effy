@@ -122,43 +122,68 @@ test.describe("the credential routes on offer", () => {
     await expect(page.getByTestId("submit-password")).toBeVisible()
   })
 
-  test("sign-up asks for FIRST and LAST name on both routes (FR-009a)", async ({ page }) => {
-    await page.goto("/sign-up")
-
-    // A grocery order gets handed to a person. Asking at checkout is asking too late.
-    // Two fields, mapping onto the identity provider's standard given/family name attributes — a
-    // single free-text name cannot be split back into the parts a delivery label needs.
-    await expect(page.getByLabel("First name")).toBeVisible()
-    await expect(page.getByLabel("Last name")).toBeVisible()
-
-    await page.getByTestId("toggle-route").click()
-    await expect(page.getByLabel("First name")).toBeVisible()
-    await expect(page.getByLabel("Last name")).toBeVisible()
-  })
-
-  test("the password route confirms the password, and catches a mismatch BEFORE submitting", async ({
+  test("⚠ NO screen before the account exists asks for a name (036 FR-027, SC-005)", async ({
     page,
   }) => {
+    // ⚠ THIS ASSERTION IS THE INVERSE OF THE ONE IT REPLACES. 011's FR-009a put First name and Last
+    // name ABOVE the email field, so the very first thing a stranger was asked for was personal data,
+    // before they had any reason to trust the form. 036 FR-032 supersedes it: the name is now the
+    // LAST step, asked once the account exists and the customer is signed in.
+    await page.goto("/sign-up")
+
+    await expect(page.getByLabel("First name")).toHaveCount(0)
+    await expect(page.getByLabel("Last name")).toHaveCount(0)
+
+    // And still absent on the password step.
+    await page.getByTestId("toggle-route").click()
+    await expect(page.getByLabel("First name")).toHaveCount(0)
+    await expect(page.getByLabel("Last name")).toHaveCount(0)
+  })
+
+  test("⚠ the password step asks for the password ONCE, with a reveal (036 FR-030)", async ({
+    page,
+  }) => {
+    // ⚠ REPLACES a test that asserted a "confirm password" field and a mismatch guard. 012's FR-023
+    // states the platform MUST NOT ask for a re-typed confirmation — the reveal toggle replaces it,
+    // which is GOV.UK's published reasoning and what the account page already did. Web sign-up was
+    // the one surface still disagreeing; mobile never had a confirm field.
     await page.goto("/sign-up")
     await page.getByTestId("toggle-route").click()
 
-    await page.getByLabel("First name").fill("Janith")
-    await page.getByLabel("Last name").fill("Madarasinghe")
-    await page.getByLabel("Email").fill("mismatch@example.com")
-    await page.getByLabel("Password", { exact: true }).fill("Password123")
-    await page.getByLabel("Confirm password").fill("Password124")
+    await expect(page.getByLabel("Password", { exact: true })).toBeVisible()
+    await expect(page.getByLabel("Confirm password")).toHaveCount(0)
+    await expect(page.getByTestId("password-mismatch")).toHaveCount(0)
 
-    // Caught client-side: no account is attempted, so Cognito never creates one with the first
-    // password and then tells us the second didn't match.
-    await expect(page.getByTestId("password-mismatch")).toBeVisible()
-    await expect(page.getByTestId("submit-password")).toBeDisabled()
+    // The reveal is what makes the single field safe to type into.
+    await expect(page.getByRole("button", { name: /show password/i })).toBeVisible()
   })
 
-  test("Google is PARKED — not offered, and not offered-but-broken", async ({ page }) => {
-    for (const path of ["/sign-in", "/sign-up"]) {
-      await page.goto(path)
-      await expect(page.getByTestId("google-signin")).toHaveCount(0)
-      await expect(page.getByTestId("google-signup")).toHaveCount(0)
-    }
+  test("⚠ the stated password rule matches the rule the platform enforces (036 FR-029)", async ({
+    page,
+  }) => {
+    // ⚠ The old copy promised "at least 8 characters, with upper and lower case letters and a
+    // number" — BOTH too short and falsely restrictive, since the real policy is 12 with no
+    // composition rules. A rule stated wrongly is worse than none: it rejects valid passwords.
+    await page.goto("/sign-up")
+    await page.getByTestId("toggle-route").click()
+
+    await expect(page.getByText(/at least 12 characters/i)).toBeVisible()
+    await expect(page.getByText(/upper and lower case/i)).toHaveCount(0)
+  })
+
+  test("⚠ Google is OFFERED, and says honestly that it is not ready (036 FR-038, FR-039)", async ({
+    page,
+  }) => {
+    // ⚠ INVERTS the old assertion of `toHaveCount(0)`. The operator asked for the control to ship now
+    // and the capability later. The mitigation for an unbacked button is FR-039: a specific,
+    // non-alarming refusal — never the generic "Something went wrong", which would be a lie, because
+    // nothing went wrong.
+    await page.goto("/sign-in")
+    await expect(page.getByTestId("google-signin")).toBeVisible()
+    await page.getByTestId("google-signin").click()
+    await expect(page.getByTestId("auth-error")).toContainText(/isn't available yet/i)
+
+    await page.goto("/sign-up")
+    await expect(page.getByTestId("google-signup")).toBeVisible()
   })
 })

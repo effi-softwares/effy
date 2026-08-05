@@ -24,6 +24,12 @@ expect fun OtpInput(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isError: Boolean = false,
+    /**
+     * ⚠ DEFAULTS TO [OtpVariant.Plain], and the default is load-bearing. `apps/shop-mobile` is out of
+     * scope for 036 (FR-044a) and must keep today's rendering byte-for-byte — its
+     * `AuthFoundationUiTest` and `OtpInputTest` re-run unmodified as the proof.
+     */
+    variant: OtpVariant = OtpVariant.Plain,
 )
 
 /** The platform's one and only code length (035 FR-001). */

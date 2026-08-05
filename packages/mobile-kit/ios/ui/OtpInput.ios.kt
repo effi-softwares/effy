@@ -71,6 +71,28 @@ actual fun OtpInput(
     modifier: Modifier,
     enabled: Boolean,
     isError: Boolean,
+    /**
+     * ⚠ ACCEPTED AND DELIBERATELY IGNORED, PENDING SPIKE-1 (036 R3c, plan §Spikes).
+     *
+     * This actual is a NATIVE `UITextField` inside a `UIKitView`, and that is not a stylistic choice:
+     * `textContentType = UITextContentTypeOneTimeCode` is what produces the one-tap QuickType
+     * suggestion from Mail, and a Compose field cannot request it. Painting Compose cells here means
+     * compositing them with a colour-cleared but still-visible, still-first-responder text field —
+     * and THREE things could break it, none of which Apple or JetBrains document:
+     *
+     *   1. whether a colour-cleared field still gets the QuickType one-time-code suggestion
+     *      (clear colours are not `hidden`, but `alpha = 0` is known to suppress it);
+     *   2. CMP 1.11.x z-order and hit-testing for Compose content over a `UIKitView`;
+     *   3. `UIKitInteropProperties(isNativeAccessibilityEnabled = true)` gives UIKit ownership of
+     *      accessibility for this subtree, so Compose cells would need `clearAndSetSemantics {}` or a
+     *      second a11y node appears — breaking the one-node invariant this component exists to hold.
+     *
+     * ⚠ AUTOFILL BEATS CELLS. It is the highest-value behaviour in this component and the only part of
+     * 036 that can be silently destroyed. Until the spike passes on a physical device, iOS keeps the
+     * spaced single field — which is GOV.UK's actually-shipped design, not a degraded fallback — and
+     * the parity split is recorded rather than hidden.
+     */
+    @Suppress("UNUSED_PARAMETER") variant: OtpVariant,
 ) {
     val change = rememberUpdatedState(onValueChange)
     val submit = rememberUpdatedState(onSubmit)

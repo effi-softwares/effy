@@ -72,6 +72,8 @@ import com.effyshopping.customer.mobile.features.cart.domain.SyncCart
 import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.cart.domain.CartSyncCoordinator
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmOtp
+import com.effyshopping.customer.mobile.features.auth.domain.ResendSignInCode
+import com.effyshopping.customer.mobile.features.auth.domain.ResendSignUpCode
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmPasswordReset
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmSignUp
 import com.effyshopping.customer.mobile.features.auth.domain.RegisterPasswordless
@@ -172,6 +174,8 @@ class AppContainer(
     val signInWithPassword by lazy { SignInWithPassword(authDriver) }
     val signInWithEmailOtp by lazy { SignInWithEmailOtp(authDriver) }
     val confirmOtp by lazy { ConfirmOtp(authDriver) }
+    val resendSignInCode by lazy { ResendSignInCode(authDriver) }
+    val resendSignUpCode by lazy { ResendSignUpCode(authDriver) }
     val startPasswordReset by lazy { StartPasswordReset(authDriver) }
     val confirmPasswordReset by lazy { ConfirmPasswordReset(customers) }
 

@@ -1,6 +1,6 @@
 "use server"
 
-import type { CredentialRoute } from "@effy/shared-types"
+import type { CredentialRoute, CustomerDTO } from "@effy/shared-types"
 
 import { edgeApi, perCustomer } from "@/lib/api/edge"
 import { getSession } from "@/lib/dal"
@@ -34,18 +34,49 @@ import { getSession } from "@/lib/dal"
  * constitution's own distinction, one level down: **the claim is the origin; the record is the
  * authority.**
  */
-export async function seedCredentialRoute(route: CredentialRoute): Promise<void> {
+export async function seedCredentialRoute(route: CredentialRoute): Promise<boolean> {
   const session = await getSession()
-  if (!session) return
+  if (!session) return false
 
   try {
     // The FIRST authenticated call creates the record. The query param seeds `has_password` on that
     // INSERT and is ignored by every later call — the platform's own password writes are
     // authoritative from then on.
     await edgeApi(session).get(`/customer/v1/me?route=${route}`, perCustomer)
+    return true
   } catch {
-    // Non-fatal. The record still gets created on the customer's next authenticated request; it will
-    // simply default to `has_password = false`, which is the SAFE error: it offers the SET flow,
-    // which is gated behind an emailed code. The other error would merely leave them stuck.
+    // Still non-fatal for `has_password` itself — the record gets created on the customer's next
+    // authenticated request and defaults to `false`, which is the SAFE error: it offers the SET flow,
+    // gated behind an emailed code.
+    //
+    // ⚠ 036 R5 — BUT THE CALLER NOW NEEDS TO KNOW. This function had TWO silent exits, and under
+    // name-last they stop being harmless: the name step writes with `PATCH /customer/v1/me`, and that
+    // handler answers a missing record with `403 "this account cannot be used"` — the same string a
+    // BARRED customer sees. A ninety-second-old account being told it cannot be used is the worst
+    // possible message at the worst possible moment. Reporting the failure lets the name step ensure
+    // the record itself before writing.
+    return false
+  }
+}
+
+/**
+ * Make sure the customer's platform record exists, and return it.
+ *
+ * ⚠ READ BEFORE YOU WRITE (036 FR-035, R5). `GET /customer/v1/me` is the ONLY thing that creates the
+ * record, and it is an idempotent upsert — so calling it costs one request and removes an entire
+ * failure class. `PATCH` without it answers 403 with the barred-customer wording.
+ *
+ * ⚠ Mobile does not need this: `SessionState.Authenticated` is unreachable there without a successful
+ * `GET /me`, so the record is guaranteed to exist by the time any screen renders. Web has no such
+ * chokepoint — which is exactly why the hazard is web-only and easy to miss.
+ */
+export async function ensureCustomerRecord(): Promise<CustomerDTO | null> {
+  const session = await getSession()
+  if (!session) return null
+
+  try {
+    return await edgeApi(session).get<CustomerDTO>("/customer/v1/me", perCustomer)
+  } catch {
+    return null
   }
 }

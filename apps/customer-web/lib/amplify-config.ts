@@ -1,5 +1,7 @@
 import type { ResourcesConfig } from "aws-amplify"
 
+import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
+
 import { cognitoConfig, siteUrl } from "@/lib/config"
 
 /**
@@ -74,11 +76,20 @@ export function amplifyConfig(): ResourcesConfig {
 
         // Mirrors the Terraform password_policy. Client-side only, for immediate feedback —
         // Cognito enforces the real thing.
+        //
+        // ⚠ 036 R8 — THIS BLOCK WAS WRONG IN BOTH DIRECTIONS, AND HAD BEEN SINCE 012 CHANGED THE
+        // POLICY. It claimed 8 characters when the platform requires 12, and it claimed upper/lower/
+        // number composition rules which the platform deliberately does NOT impose (current NIST
+        // guidance: composition rules are actively harmful — they produce `Password1!`). Client-side
+        // feedback that is stricter than reality in one dimension and looser in another is worse than
+        // none: it rejects valid passwords and accepts invalid ones.
+        //
+        // The length comes from the shared constant the backend enforces, so it cannot drift again.
         passwordFormat: {
-          minLength: 8,
-          requireLowercase: true,
-          requireUppercase: true,
-          requireNumbers: true,
+          minLength: PASSWORD_MIN_LENGTH,
+          requireLowercase: false,
+          requireUppercase: false,
+          requireNumbers: false,
           requireSpecialCharacters: false,
         },
       },

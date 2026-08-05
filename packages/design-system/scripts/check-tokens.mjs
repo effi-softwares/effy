@@ -116,7 +116,32 @@ for (const [appName, set] of [
   }
 }
 
-// 4) non-text semantic colours must not acquire a foreground pair (see SEMANTIC_NON_TEXT above)
+// 4) ⚠ the monospace stack must stay monospace — the OTP cell geometry depends on it (036 R3a).
+//
+// `OtpInput`'s `variant="cells"` paints six character positions behind ONE input using a
+// `repeating-linear-gradient` whose period is `1ch + gap`. `1ch` is the advance width of "0", which
+// equals every other digit's advance ONLY in a monospace font. Today `--font-mono` is not declared,
+// so Tailwind's monospace default applies and the geometry holds.
+//
+// The failure this guards is silent: declaring `--font-mono` as a proportional family would slide
+// every cell out from under its digit, and NOTHING else would fail — not a type check, not a test,
+// not a contrast pair. It would simply look subtly wrong on the one screen where six characters have
+// to line up with six marks.
+const MONO_HINTS = ["mono", "consol", "menlo", "courier", "sfmono"];
+const monoDecl = css.match(/--font-mono\s*:\s*([^;]+);/);
+if (monoDecl) {
+  const value = monoDecl[1].toLowerCase();
+  if (!MONO_HINTS.some((hint) => value.includes(hint))) {
+    errors.push(
+      `--font-mono is declared as "${monoDecl[1].trim()}", which does not look monospace. ` +
+        `OtpInput's cell variant measures cells in \`ch\` (the advance of "0") and needs every ` +
+        `digit to share that advance. Either keep --font-mono monospace, or rebuild the cells ` +
+        `without \`ch\` units (packages/design-system/src/ui/otp-input.tsx).`,
+    );
+  }
+}
+
+// 5) non-text semantic colours must not acquire a foreground pair (see SEMANTIC_NON_TEXT above)
 for (const name of SEMANTIC_NON_TEXT) {
   if (`${name}-foreground` in light || `${name}-foreground` in dark) {
     errors.push(

@@ -1,54 +1,76 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useCallback, useRef, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 
-import { googleEnabled } from "@/lib/auth-routes"
 import { safeNextTarget } from "@/lib/next-target"
 import { mergeCartAfterSignIn } from "@/lib/cart-actions"
 import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
+import { markCodeSent } from "@/lib/otp-cooldown"
 import { capture } from "@/lib/telemetry"
-import { OtpInput } from "@effy/design-system/ui"
 import {
   authErrorMessage,
+  classifySignInStep,
+  isStaleSignInSession,
+  resendSignInCode,
   signInWithOtp,
   signInWithPassword,
-  startGoogleSignIn,
   submitOtpCode,
 } from "../_lib/auth-actions"
+import { useStepHistory } from "../_lib/step-history"
+import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
+import { GoogleButton } from "../_components/GoogleButton"
+import {
+  Divider,
+  ErrorNote,
+  Field,
+  PasswordField,
+  StepShell,
+  Submit,
+  TextAction,
+} from "../_components/AuthKit"
 
-type Mode = "choose" | "password" | "otp-sent"
+type Step = "identifier" | "password" | "code"
 
 /**
- * Sign-in — three routes, one identity.
+ * Sign-in as a STEP FORM (036 US1, US2).
  *
- * The customer is not asked to understand any of this. They see: a box for their email, a button
- * to be emailed a code, an option to use a password if they set one, and Continue with Google.
+ * One decision per screen: the emailed code first, Google beside it, a password only if you ask for
+ * one. The customer is not asked to understand any of it.
+ *
+ * ⚠ ALL THREE STEPS LIVE ON THIS ONE ROUTE, and that is a constraint rather than a shortcut. Amplify
+ * keeps the in-flight challenge in per-tab `sessionStorage` with a three-minute expiry, `autoSignIn`
+ * state is memory-only, and splitting the email from the password across URLs is what breaks password
+ * managers. See `_lib/step-history.ts` for the full reasoning.
  */
 export function SignInForm() {
   const router = useRouter()
   const params = useSearchParams()
 
-  // The destination they were heading for before we interrupted them (FR-020). Validated: it
-  // arrives in a URL and is therefore attacker-controlled.
+  // The destination they were heading for before we interrupted them (FR-025). Validated: it arrives
+  // in a URL and is therefore attacker-controlled.
   const next = safeNextTarget(params.get("next"))
 
-  const [mode, setMode] = useState<Mode>("choose")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [code, setCode] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  // Google is BUILT but PARKED: no Cognito hosted domain configured → no federation → no button.
-  // Offering it would be offering a door with no room behind it. See lib/auth-routes.ts.
-  const showGoogle = googleEnabled()
+  // ⚠ Whether a challenge is actually live. `popstate` can land on the code step after the session has
+  // been spent or replaced; without this the shopper would sit on a code form with nothing behind it,
+  // typing into a session no one can check (FR-022, R1).
+  const challengeLive = useRef(false)
 
-  // ⚠ 035 — the error mapping now needs to know WHICH ROUTE failed. `NotAuthorizedException` means
-  // "wrong password" on the password route and "you used all three code attempts" on the code
-  // route; showing the password wording to someone signing in passwordlessly is nonsense they
-  // cannot act on. Callers on a code step pass "code".
+  const { step, go, back } = useStepHistory<Step>("identifier", {
+    canEnter: (target) => (target === "code" ? challengeLive.current : true),
+  })
+
+  // ⚠ Trimmed AND lowercased. The platform's per-address rate limit is keyed on `HMAC(email)`, so
+  // `A@x.com` and `a@x.com` would consume two separate hourly buckets and neither would match the
+  // other's send history.
+  const address = email.trim().toLowerCase()
+
   const run = (fn: () => Promise<void>, context: "password" | "code" = "password") => {
     setError(null)
     start(async () => {
@@ -60,117 +82,174 @@ export function SignInForm() {
     })
   }
 
-  const done = (route: "password" | "otp") => {
-    capture({ name: "sign_in_completed", props: { route } })
-    // 027 FR-011: fold this browser's cart into the account cart — union with MAXIMUM quantity, so nothing
-    // is lost from either side and a repeated sign-in changes nothing. Fired before navigating, and NOT
-    // awaited: the shopper should not wait on it, and the cart page reconciles again on open either way.
-    void mergeCartAfterSignIn()
-    // 033 FR-028: the saved list joins the account on sign-in.
-    void mergeSavedAfterSignIn()
-    if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
-    // `replace`, not `push`: the sign-in page must not sit in the back-button history where a
-    // signed-in customer can land on it again.
-    router.replace(next)
-    router.refresh()
+  const done = useCallback(
+    (route: "password" | "otp") => {
+      capture({ name: "sign_in_completed", props: { route } })
+      // 027 FR-011: fold this browser's cart into the account cart — union with MAXIMUM quantity, so
+      // nothing is lost from either side and a repeated sign-in changes nothing. Fired before
+      // navigating and NOT awaited; the cart page reconciles again on open either way.
+      void mergeCartAfterSignIn()
+      // 033 FR-028: the saved list joins the account on sign-in.
+      void mergeSavedAfterSignIn()
+      if (next !== "/") capture({ name: "deferred_sign_in_resumed", props: { route } })
+      // `replace`, not `push`: the sign-in page must not sit in the back-button history where a
+      // signed-in customer can land on it again.
+      router.replace(next)
+      router.refresh()
+    },
+    [next, router],
+  )
+
+  /**
+   * ⚠ THE REPAIR (FR-012, SC-003, R9).
+   *
+   * `classifySignInStep` has existed since 035, is correct, and was called by NOTHING. The old code
+   * discarded `confirmSignIn`'s result and ran `done()` unconditionally — so a wrong code on attempt
+   * 1 or 2, which raises NO exception because Cognito simply re-issues the challenge, was treated as
+   * a successful sign-in. The shopper was navigated away, still signed out, with nothing on screen.
+   */
+  const submitCode = useCallback(
+    async (code: string): Promise<CodeOutcome> => {
+      setError(null)
+      try {
+        const result = await submitOtpCode(code)
+        if (result.isSignedIn) {
+          done("otp")
+          return "accepted"
+        }
+        const nextStep = result.nextStep?.signInStep
+        if (nextStep && classifySignInStep(nextStep) === "done") {
+          done("otp")
+          return "accepted"
+        }
+        // Cognito asked for the code again → it was not accepted, and attempts remain.
+        return "rejected"
+      } catch (err) {
+        if (isStaleSignInSession(err)) {
+          // ⚠ The client gave up before the server did. Not a refusal — send them back to the email
+          // step, address intact, where one tap gets a fresh code.
+          challengeLive.current = false
+          setError(authErrorMessage(err, "code"))
+          back()
+          return "stale"
+        }
+        if ((err as { name?: string })?.name === "NotAuthorizedException") {
+          challengeLive.current = false
+          return "exhausted"
+        }
+        setError(authErrorMessage(err, "code"))
+        return "rejected"
+      }
+    },
+    [back, done],
+  )
+
+  const sendCode = useCallback(async () => {
+    await resendSignInCode(address)
+    challengeLive.current = true
+    markCodeSent()
+  }, [address])
+
+  const joinLink = (
+    <p className="text-center text-sm text-muted-foreground">
+      Don&apos;t have an account?{" "}
+      <Link
+        href={`/sign-up?next=${encodeURIComponent(next)}`}
+        className="font-medium text-foreground hover:text-primary"
+      >
+        Join
+      </Link>
+    </p>
+  )
+
+  // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
+  if (step === "code") {
+    return (
+      <div className="space-y-6">
+        {error && <ErrorNote>{error}</ErrorNote>}
+        <CodeStep
+          destination={address}
+          submitLabel="Sign in"
+          submitTestId="submit-otp"
+          onSubmit={submitCode}
+          onResend={sendCode}
+          onChangeEmail={back}
+          onBack={back}
+        />
+        {joinLink}
+      </div>
+    )
   }
 
+  // ── Steps 1 and 2: the credential ───────────────────────────────────────────────────────────────
+  //
+  // ⚠ ONE `<form>`, WITH THE EMAIL INPUT ALWAYS MOUNTED. On the password step it is hidden but still
+  // present and still `autocomplete="username"`, because a password manager pairs a username field
+  // with a password field to fill and — much more fragilely — to SAVE. Unmounting it is exactly the
+  // breakage that identifier-first flows are known for.
+  const onPassword = step === "password"
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">Sign in to Effy</h1>
-        {next !== "/" && (
-          // FR-019 — say WHY we are asking now. The customer was browsing happily a moment ago.
-          <p className="text-sm text-muted-foreground" data-testid="deferred-reason">
-            You&apos;ll need an account to place your order. Sign in and we&apos;ll take you
-            straight back.
-          </p>
-        )}
-      </div>
+      <StepShell
+        title={onPassword ? "Enter your password" : "Sign in to Effy"}
+        subtitle={
+          onPassword ? (
+            <>
+              Signing in as <strong className="text-foreground">{address}</strong>
+            </>
+          ) : next !== "/" ? (
+            // FR-019 — say WHY we are asking now. The customer was browsing happily a moment ago.
+            <span data-testid="deferred-reason">
+              You&apos;ll need an account to place your order. Sign in and we&apos;ll take you
+              straight back.
+            </span>
+          ) : (
+            "It's good to see you again."
+          )
+        }
+        onBack={onPassword ? back : undefined}
+      >
+        {error && <ErrorNote>{error}</ErrorNote>}
 
-      {error && (
-        <p
-          role="alert"
-          data-testid="auth-error"
-          className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground"
-        >
-          {error}
-        </p>
-      )}
-
-      {mode === "otp-sent" ? (
         <form
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault()
-            run(async () => {
-              await submitOtpCode(code.trim())
-              done("otp")
-            }, "code")
+            run(
+              async () => {
+                if (onPassword) {
+                  await signInWithPassword(address, password)
+                  done("password")
+                  return
+                }
+                await signInWithOtp(address)
+                challengeLive.current = true
+                markCodeSent()
+                go("code")
+              },
+              onPassword ? "password" : "code",
+            )
           }}
         >
-          <p className="text-sm text-muted-foreground">
-            We emailed a code to <strong className="text-foreground">{email}</strong>.
-          </p>
-          {/* ⚠ 035 REPLACED THE COMMENT THAT USED TO LIVE HERE. It instructed future authors NOT to
-              constrain the length, because Cognito sent codes of two different lengths and neither
-              was configurable (research D23):
-                • sign-up confirmation  → 6 digits
-                • managed EMAIL_OTP sign-in → 8 digits
-              That rule was correct then and is wrong now. The platform issues its own SIX-digit
-              code for sign-in, so every code on every surface is the same length and the field can
-              finally say so. ⚠ `maxLength` on the shared control is a UX affordance only — a
-              wrong-length value is REFUSED by the server rather than reshaped (FR-005). */}
-          <CodeField
-            label="Your code"
-            id="code"
-            value={code}
-            onChange={setCode}
-            required
-          />
-          <Submit pending={pending} label="Sign in" testId="submit-otp" />
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setMode("choose")
-              setCode("")
-            }}
-          >
-            Use a different email
-          </button>
-        </form>
-      ) : (
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            run(async () => {
-              if (mode === "password") {
-                await signInWithPassword(email.trim(), password)
-                done("password")
-                return
-              }
-              await signInWithOtp(email.trim())
-              setMode("otp-sent")
-            })
-          }}
-        >
-          <Field
-            label="Email"
-            id="email"
-            type="email"
-            value={email}
-            onChange={setEmail}
-            autoComplete="email"
-            required
-          />
-
-          {mode === "password" && (
+          <div className={onPassword ? "hidden" : undefined}>
             <Field
+              label="Email"
+              id="email"
+              type="email"
+              value={email}
+              onChange={setEmail}
+              // ⚠ `username`, not `email`. Managers key their stored credential on the field they
+              // recognise as the username; `type="email"` alone is not that signal.
+              autoComplete="username"
+              required
+              readOnly={onPassword}
+            />
+          </div>
+
+          {onPassword && (
+            <PasswordField
               label="Password"
               id="password"
-              type="password"
               value={password}
               onChange={setPassword}
               autoComplete="current-password"
@@ -180,173 +259,45 @@ export function SignInForm() {
 
           <Submit
             pending={pending}
-            label={mode === "password" ? "Sign in" : "Email me a code"}
-            testId={mode === "password" ? "submit-password" : "submit-email"}
+            label={onPassword ? "Sign in" : "Email me a code"}
+            testId={onPassword ? "submit-password" : "submit-email"}
           />
 
-          <button
-            type="button"
-            data-testid="toggle-mode"
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
+          <TextAction
+            testId="toggle-mode"
             onClick={() => {
-              setMode(mode === "password" ? "choose" : "password")
               setError(null)
+              if (onPassword) back()
+              else go("password")
             }}
           >
-            {mode === "password"
-              ? "Email me a code instead"
-              : "I have a password"}
-          </button>
+            {onPassword ? "Email me a code instead" : "Use a password instead"}
+          </TextAction>
         </form>
-      )}
 
-      {showGoogle && (
-        <>
-          <Divider />
+        {!onPassword && (
+          <>
+            <Divider />
+            <GoogleButton
+              label="Continue with Google"
+              testId="google-signin"
+              disabled={pending}
+              onUnavailable={setError}
+            />
+          </>
+        )}
 
-          <button
-            type="button"
-            data-testid="google-signin"
-            disabled={pending}
-            onClick={() =>
-              run(async () => {
-                capture({ name: "sign_in_completed", props: { route: "google" } })
-                // This LEAVES the origin — there is no pure-SDK federation path. `next` is stashed
-                // and recovered on /callback.
-                await startGoogleSignIn(next)
-              })
-            }
-            className="flex h-11 w-full items-center justify-center rounded-full border text-sm font-medium hover:bg-accent"
-          >
-            Continue with Google
-          </button>
-        </>
-      )}
+        {/* ⚠ FR-019 — reset lives on the password step, where the person who needs it is standing. */}
+        {onPassword && (
+          <p className="text-center text-sm">
+            <Link href="/reset-password" className="text-muted-foreground hover:text-foreground">
+              Forgot your password?
+            </Link>
+          </p>
+        )}
+      </StepShell>
 
-      <p className="text-center text-sm text-muted-foreground">
-        New to Effy?{" "}
-        <Link
-          href={`/sign-up?next=${encodeURIComponent(next)}`}
-          className="font-medium text-foreground hover:text-primary"
-        >
-          Create an account
-        </Link>
-      </p>
-
-      {mode === "password" && (
-        <p className="text-center text-sm">
-          <Link
-            href="/reset-password"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Forgot your password?
-          </Link>
-        </p>
-      )}
-    </div>
-  )
-}
-
-function Field({
-  label,
-  id,
-  value,
-  onChange,
-  ...rest
-}: {
-  label: string
-  id: string
-  value: string
-  onChange: (v: string) => void
-  // Omit the native onChange — ours takes the value, not the event.
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
-  return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        {...rest}
-      />
-    </div>
-  )
-}
-
-/**
- * The one-time-code field (035 FR-035).
- *
- * ⚠ Wraps the SHARED `OtpInput` from `@effy/design-system/ui` rather than re-declaring
- * `inputMode` / `autoComplete` / `maxLength` locally. Every surface having its own code input is
- * exactly how shop-mobile ended up truncating real codes with nothing to catch it — the behaviour
- * (autofill token, numeric keyboard, one logical a11y node, no reshaping) now lives in one place.
- *
- * ⚠ The `className` keeps THIS surface's visual language (pill radius, taller target) — presentation
- * is local, behaviour is shared. Do not fork the behaviour to change the look.
- */
-function CodeField({
-  label,
-  id,
-  value,
-  onChange,
-  ...rest
-}: {
-  label: string
-  id: string
-  value: string
-  onChange: (v: string) => void
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
-  return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <OtpInput
-        id={id}
-        name={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 rounded-full border bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
-        {...rest}
-      />
-    </div>
-  )
-}
-
-function Submit({
-  pending,
-  label,
-  testId,
-}: {
-  pending: boolean
-  label: string
-  testId: string
-}) {
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      data-testid={testId}
-      className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-    >
-      {pending ? "Please wait…" : label}
-    </button>
-  )
-}
-
-function Divider() {
-  return (
-    <div className="relative">
-      <div className="absolute inset-0 flex items-center">
-        <span className="w-full border-t" />
-      </div>
-      <div className="relative flex justify-center text-xs uppercase">
-        <span className="bg-background px-2 text-muted-foreground">or</span>
-      </div>
+      {joinLink}
     </div>
   )
 }

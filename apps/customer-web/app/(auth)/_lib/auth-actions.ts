@@ -6,6 +6,7 @@ import {
   confirmSignUp,
   resetPassword,
   confirmResetPassword,
+  resendSignUpCode,
   signIn,
   signInWithRedirect,
   signUp,
@@ -30,20 +31,26 @@ import { PASSWORD_MIN_LENGTH, type CredentialRoute } from "@effy/shared-types"
  * moment the customer has finally committed, and it was a defect against the spec's own acceptance
  * scenario ("an account is created, AND THEY ARE SIGNED IN").
  */
-export async function signUpWithPassword(
-  name: { given: string; family: string },
-  email: string,
-  password: string,
-) {
+/**
+ * ⚠ 036 FR-032 — NO NAME IS SENT HERE ANY MORE, and 011's FR-009a is superseded.
+ *
+ * `given_name`/`family_name` used to ride along on this call, because they were collected on the very
+ * first screen — above the email field, before the stranger had any reason to trust the form. The
+ * name is now the LAST step of registration, written by `PATCH /customer/v1/me` once the account
+ * exists and the customer is signed in.
+ *
+ * ✅ Safe, and it needed no infrastructure change: there is no `schema {}` block on the customer pool,
+ * so Cognito's default schema applies and both attributes are OPTIONAL at `SignUp`. The record's
+ * columns have been nullable since 019, deliberately, for the federated route — "the platform must
+ * not invent a name it was never given". Registration simply creates the row with NULLs, which every
+ * surface already renders gracefully.
+ */
+export async function signUpWithPassword(email: string, password: string) {
   return signUp({
     username: email,
     password,
     options: {
-      // `given_name` / `family_name` are STANDARD Cognito attributes, so they ride on the ID token
-      // with no custom claim and the backend stores them on the first authenticated request
-      // (FR-009a). Two fields, not one: a delivery label needs the parts, and a single free-text
-      // name cannot be split back into them reliably.
-      userAttributes: { email, given_name: name.given, family_name: name.family },
+      userAttributes: { email },
       autoSignIn: true,
     },
   })
@@ -98,14 +105,12 @@ export async function signInWithPassword(email: string, password: string) {
  * codes, and possibly an eight-digit one). T003 must check this on the dev pool before the
  * customer audience migrates — see specs/035-six-digit-otp/research.md § R4b.
  */
-export async function signUpWithOtp(
-  name: { given: string; family: string },
-  email: string,
-) {
+export async function signUpWithOtp(email: string) {
   return signUp({
     username: email,
     options: {
-      userAttributes: { email, given_name: name.given, family_name: name.family },
+      // ⚠ 036 FR-032 — no name here either. See `signUpWithPassword` above.
+      userAttributes: { email },
       // ⚠ RETAINED by 035 — see the note above. Removing this would cost the customer a second
       // code, and it issues none of its own.
       autoSignIn: { authFlowType: "USER_AUTH" },
@@ -174,6 +179,47 @@ export function classifySignInStep(step: string): OtpSignInStep {
  */
 export async function submitOtpCode(code: string) {
   return confirmSignIn({ challengeResponse: code })
+}
+
+// ── Sending another code (036 FR-007, R4) ──────────────────────────────────────────────────────
+
+/**
+ * ⚠ THERE IS NO "RESEND" API FOR THE SIGN-IN CODE, AND THIS FUNCTION IS NAMED FOR WHAT IT ACTUALLY
+ * DOES. It re-runs `signIn` from scratch.
+ *
+ * `CreateAuthChallenge` REUSES the existing envelope on a re-challenge and sends no email at all
+ * (`create-auth-challenge.ts` — "Retry path: reuse, never regenerate"). A new email is produced only
+ * by an invocation with an empty session, i.e. a brand-new `InitiateAuth`. So a "resend" is a fresh
+ * sign-in, and it carries three consequences the UI owns:
+ *
+ *   • the 3-attempt counter RESETS — the new Cognito session starts with an empty attempt list;
+ *   • the previous code becomes unreachable FROM THIS DEVICE, because `signIn` overwrites the stored
+ *     session. ⚠ It is NOT revoked server-side; a holder of the old `Session` string could still
+ *     redeem it for the remainder of its TTL. "Supersession" is a client-side property here;
+ *   • it consumes ONE of five hourly sends for this address.
+ *
+ * ⚠ That last one is why `otp-cooldown.ts` and the caller's per-flow send counter are load-bearing
+ * rather than polite. The SIXTH send in a clock hour is refused by the trigger, which then returns a
+ * NORMAL-LOOKING challenge with a masked destination — so the shopper is shown "we emailed a code to
+ * a•••@…" for an email that does not exist, and finds out only after burning three guesses.
+ */
+export async function resendSignInCode(email: string) {
+  return signInWithOtp(email)
+}
+
+/**
+ * Send the sign-UP confirmation code again.
+ *
+ * ⚠ This is a genuinely different mechanism from `resendSignInCode`: it is Cognito's MANAGED flow, so
+ * a real resend API exists, refusals here are distinguishable (`CodeMismatchException` vs
+ * `ExpiredCodeException` vs `LimitExceededException`), and it does NOT touch the platform's own
+ * five-per-hour custom-challenge budget — Cognito's separate per-user limit applies instead.
+ *
+ * ⚠ Before 036 this API was called NOWHERE in the repository. No surface on the platform could resend
+ * a sign-up code; the only recovery was to abandon the flow and start again.
+ */
+export async function resendSignUpCodeFor(email: string) {
+  return resendSignUpCode({ username: email })
 }
 
 // ── Route (c): Google ──────────────────────────────────────────────────────────────────────────
@@ -274,9 +320,42 @@ export function authErrorMessage(err: unknown, context: "password" | "code" = "p
       return "We couldn't link that account. Make sure the email on your Google account is verified, then try again."
     case "InvalidParameterException":
       return "Something in that form wasn't quite right. Check it and try again."
+    case "SignInException":
+      // ⚠ 036 R1 — THE CLIENT GAVE UP BEFORE THE SERVER DID, and the shopper must not be told
+      // "something went wrong" for it.
+      //
+      // Amplify keeps the in-flight challenge (username, challengeName, signInSession) in
+      // `window.sessionStorage` under `CognitoSignInState.*` with a THREE-MINUTE expiry. The code
+      // itself is valid for FIVE (`OTP_TTL_SECONDS = 300`). So there is a two-minute window where a
+      // hard reload throws this locally while the code and the Cognito session are both still good —
+      // and a new browser tab has no state at all, because sessionStorage is per-tab.
+      //
+      // This is a recoverable, explicable state, not a fault. The caller routes back to the email
+      // step with the address intact.
+      return "Your sign-in timed out. Send a new code to continue."
+    case "ForbiddenException":
+      // ⚠ 036 R10 — the AWS WAF rate rule on the user pools (100 requests / 5 min / IP) blocks the
+      // request before it ever reaches Cognito, so the SDK surfaces a bare 403.
+      //
+      // Until now this fell through to the generic default on EVERY surface, so a person being
+      // rate-limited by their own network was told the platform was broken. It is not; they are
+      // early, and waiting works.
+      return "Too many attempts from this network. Wait a few minutes and try again."
     default:
       return "Something went wrong. Please try again."
   }
+}
+
+/**
+ * Is this the client-side challenge-state expiry rather than a refusal from Cognito? (036 R1)
+ *
+ * ⚠ The caller must treat this differently from every other failure: there is nothing wrong with the
+ * code the shopper typed, and nothing wrong with the account. The step machine sends them back to the
+ * email step — with the address still populated — where one tap gets a fresh code. Showing the
+ * refusal in place would leave them retyping a code that can no longer be checked by anyone.
+ */
+export function isStaleSignInSession(err: unknown): boolean {
+  return (err as { name?: string })?.name === "SignInException"
 }
 
 export const ROUTE_LABEL: Record<CredentialRoute, string> = {

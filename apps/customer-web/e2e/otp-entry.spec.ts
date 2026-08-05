@@ -56,19 +56,22 @@ test.describe("one-time-code field", () => {
     // THE REGRESSION THIS WHOLE FEATURE EXISTS TO PREVENT. shop-mobile truncated an 8-digit code to
     // its first six and submitted the wrong value, with nothing on screen to say why.
     //
-    // On web the guard is `maxLength=6`, which stops the field ACCEPTING more — the value never
-    // becomes a plausible-looking six digits derived from something longer, and the server refuses
-    // anything that is not exactly six regardless.
+    // ⚠ 036 INVERTED THIS ASSERTION, and the inversion is the point.
+    //
+    // It used to demand `value === "123456"` — i.e. it asserted that web TRUNCATES, via the native
+    // `maxLength=6`. That is the same reshaping 035 called a defect on mobile, and FR-004 forbids it:
+    // "a value longer than six digits MUST NOT be silently shortened — the extra input is a signal
+    // something is wrong and must stay visible to the shopper". The old test encoded the defect,
+    // exactly as 029's `banner_test.go` asserted the wrong navigation target.
+    //
+    // All eight digits now survive, and the submit stays unavailable until exactly six are present.
     await page.goto("/reset-password")
 
     const code = page.locator("#code")
     await code.fill("12345678")
 
-    const value = await code.inputValue()
-    expect(value.length).toBeLessThanOrEqual(6)
-    // ⚠ And crucially: whatever is in the box is what gets submitted. Nothing downstream re-derives
-    // a different value from it.
-    expect(value).toBe("123456")
+    // ⚠ Kept in full — NOT reshaped into something plausible-looking and submittable.
+    await expect(code).toHaveValue("12345678")
   })
 
   test("the field accepts a six-digit value in a single action", async ({ page }) => {

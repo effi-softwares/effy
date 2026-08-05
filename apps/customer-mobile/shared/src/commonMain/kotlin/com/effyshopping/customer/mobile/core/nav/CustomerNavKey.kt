@@ -94,7 +94,29 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable
     data class SignIn(val returnTo: CustomerNavKey? = null) : CustomerNavKey
 
+    /**
+     * The password step of sign-in (036 FR-017).
+     *
+     * ⚠ A separate destination, not a mode flag on [SignIn]. The whole point of the step form is that
+     * choosing "use a password" MOVES you somewhere — with a back arrow that returns you, and with the
+     * address already known so it is never asked twice.
+     */
+    @Serializable
+    data class SignInPassword(val email: String, val returnTo: CustomerNavKey? = null) : CustomerNavKey
+
     @Serializable data object SignUp : CustomerNavKey
+
+    /** The password step of sign-up (036 FR-028). Asks for the password only — the email is known. */
+    @Serializable
+    data class SignUpPassword(val email: String) : CustomerNavKey
+
+    /**
+     * "What should we call you?" — the LAST step of registration, on every route (036 FR-032).
+     *
+     * ⚠ Reached only once the account EXISTS and the shopper is signed in. It completes a profile; it
+     * does not gate access. Abandoning it must never lock anyone out (FR-035a).
+     */
+    @Serializable data object ProfileName : CustomerNavKey
 
     @Serializable
     data class VerifyOtp(
@@ -185,7 +207,10 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Receipt::class, CustomerNavKey.Receipt.serializer())
             subclass(CustomerNavKey.OrderDetail::class, CustomerNavKey.OrderDetail.serializer())
             subclass(CustomerNavKey.SignIn::class, CustomerNavKey.SignIn.serializer())
+            subclass(CustomerNavKey.SignInPassword::class, CustomerNavKey.SignInPassword.serializer())
             subclass(CustomerNavKey.SignUp::class, CustomerNavKey.SignUp.serializer())
+            subclass(CustomerNavKey.SignUpPassword::class, CustomerNavKey.SignUpPassword.serializer())
+            subclass(CustomerNavKey.ProfileName::class, CustomerNavKey.ProfileName.serializer())
             subclass(CustomerNavKey.VerifyOtp::class, CustomerNavKey.VerifyOtp.serializer())
             subclass(CustomerNavKey.Recovery::class, CustomerNavKey.Recovery.serializer())
             subclass(CustomerNavKey.Saved::class, CustomerNavKey.Saved.serializer())
@@ -218,7 +243,10 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Receipt("o1"),
     CustomerNavKey.OrderDetail("o1"),
     CustomerNavKey.SignIn(),
+    CustomerNavKey.SignInPassword("a@b.c"),
     CustomerNavKey.SignUp,
+    CustomerNavKey.SignUpPassword("a@b.c"),
+    CustomerNavKey.ProfileName,
     CustomerNavKey.VerifyOtp("a@b.c", OtpPurpose.SIGN_IN),
     CustomerNavKey.Recovery,
     CustomerNavKey.Saved,

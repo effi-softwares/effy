@@ -17,6 +17,8 @@ import {
   CustomerNotFoundError,
   updateCustomerProfile,
 } from "../customer/service"
+import { updateName } from "../password/cognito"
+import { ACCESS_TOKEN_HEADER } from "../password/identity"
 
 const MAX_NAME = 60
 
@@ -105,6 +107,7 @@ export const handler = async (
       familyName: family.value,
       phone: phone.value,
     })
+    await syncNameToCognito(event, scope, sub, given.value, family.value)
     return json(200, customer, scope)
   } catch (err) {
     if (err instanceof CustomerBarredError || err instanceof CustomerClosingError) {
@@ -135,6 +138,64 @@ export const handler = async (
     }
     scope.log.error({ err, sub }, "profile update failed")
     return unavailable(scope)
+  }
+}
+
+/**
+ * Mirror the name onto the Cognito profile so the ID token's claim agrees with the record.
+ *
+ * ⚠ THIS CALL WAS MISSING, AND ITS ABSENCE WAS A LIVE, SHIPPED BUG (036 R5).
+ *
+ * `updateName` has existed since 012 and had NO CALL SITES anywhere in the repository. Meanwhile
+ * `app/(account)/account/actions.ts` told the reader: "The backend writes the record AND the Cognito
+ * attributes. We then force a refresh here, minting a new ID token that carries the new claim."
+ * It did not. The refresh minted a genuinely new token carrying the SAME OLD `given_name`, so the
+ * storefront header — which greets from that claim, deliberately, because it costs zero backend calls
+ * on a cached page — showed the customer's old first name PERMANENTLY, not "for up to an hour".
+ *
+ * 036 makes this load-bearing rather than merely correct: the name is now collected AFTER the account
+ * exists (FR-032), so if this write does not happen there is no earlier moment at which the claim was
+ * ever populated. The greeting would read "Account" forever.
+ *
+ * ── Three rules, each of which is the reason a naive version would be wrong ──────────────────────
+ *
+ * ⚠ DATABASE FIRST, COGNITO SECOND, AND NEVER FATAL. The record is authoritative and is already
+ * committed by the time we get here. Failing the request on a Cognito blip would tell the customer
+ * their save failed when it succeeded, and they would try again — writing the same thing twice and
+ * still seeing an error. Same posture as `notify.ts`.
+ *
+ * ⚠ THE ACCESS TOKEN IS OPTIONAL HERE, unlike every other caller of `requireCaller`. Both clients
+ * send `X-Effy-Access-Token` today, but making it mandatory would turn an in-flight mobile build into
+ * a hard 401 on a profile save. Absent token → skip the mirror, log it, and let the record stand.
+ *
+ * ⚠ THE PHONE IS NEVER SENT. Writing Cognito's `phone_number` would make an unverified phone an
+ * identity attribute, which 034 FR-060a forbids outright — and `customer/phone-isolation.test.ts`
+ * scans this service for exactly that mistake.
+ *
+ * No IAM is involved: `UpdateUserAttributes` is authorised by the CUSTOMER'S OWN access token, which
+ * is why `password/cognito.ts` opens by stating that the module needs no permissions at all.
+ */
+async function syncNameToCognito(
+  event: AuthedEvent,
+  scope: ReturnType<typeof preamble>,
+  sub: string,
+  givenName: string | null,
+  familyName: string | null,
+): Promise<void> {
+  const headers = event.headers ?? {}
+  const accessToken =
+    headers[ACCESS_TOKEN_HEADER] ?? headers[ACCESS_TOKEN_HEADER.toUpperCase()] ?? undefined
+
+  if (!accessToken) {
+    scope.log.warn({ sub }, "profile name not mirrored to cognito: no access token presented")
+    return
+  }
+
+  try {
+    await updateName(accessToken, givenName, familyName)
+  } catch (err) {
+    // Deliberately swallowed. The record is the authority and it is already written.
+    scope.log.warn({ err, sub }, "profile name mirror to cognito failed")
   }
 }
 

@@ -421,7 +421,10 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
                 // ── Auth (bar hidden — a focused flow) ────────────────────────────────────────
                 entry<CustomerNavKey.SignIn> { key -> AuthRoutes(container, key) }
+                entry<CustomerNavKey.SignInPassword> { key -> AuthRoutes(container, key) }
                 entry<CustomerNavKey.SignUp> { AuthRoutes(container, CustomerNavKey.SignUp) }
+                entry<CustomerNavKey.SignUpPassword> { key -> AuthRoutes(container, key) }
+                entry<CustomerNavKey.ProfileName> { AuthRoutes(container, CustomerNavKey.ProfileName) }
                 entry<CustomerNavKey.VerifyOtp> { key -> AuthRoutes(container, key) }
                 entry<CustomerNavKey.Recovery> { AuthRoutes(container, CustomerNavKey.Recovery) }
 

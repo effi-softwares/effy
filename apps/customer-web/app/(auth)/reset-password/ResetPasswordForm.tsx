@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { OtpInput } from "@effy/design-system/ui"
+import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
 import { authErrorMessage, startPasswordReset } from "../_lib/auth-actions"
 // 012 FR-022b — a SERVER ACTION, not an Amplify call. The backend screens the new password against
@@ -86,7 +87,10 @@ export function ResetPasswordForm() {
             value={password}
             onChange={setPassword}
             autoComplete="new-password"
-            minLength={8}
+            // ⚠ 036 R8 — was `8`, while the platform enforces 12. A client-side minimum that is
+            // LOOSER than the server's turns a clear "too short" into a rejected submit with a
+            // backend error, at the one moment the customer is already locked out.
+            minLength={PASSWORD_MIN_LENGTH}
             required
           />
           <Submit pending={pending} label="Set new password" />
@@ -148,9 +152,12 @@ function CodeField({
       <OtpInput
         id={id}
         name={id}
+        // ⚠ 036 — the SAME field as sign-in and sign-up (FR-001). The `cells` variant also carries
+        // FR-004: it does not truncate a longer paste, because a code that is not six digits did not
+        // come from us and the shopper needs to SEE that rather than have it quietly reshaped.
+        variant="cells"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 rounded-full border bg-background px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring"
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
         {...rest}
       />
     </div>
