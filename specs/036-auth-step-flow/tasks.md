@@ -133,6 +133,17 @@ the research that decided each choice, and [spec.md](spec.md) FR-047 … FR-052.
       still holds. `EffyPrimaryButton`/`EffySecondaryButton` gained a `loading` slot that keeps the
       label and adds an 18 dp mark — swapping the label out would lose the one thing that says what
       you are waiting for, and would change the button's width mid-press.
+- [X] T150 ⚠ **Gated tabs go straight to sign-in (FR-053).** Orders and Account showed an interstitial
+      whose entire content was a message and a "Sign in" button — a tap that told the shopper nothing
+      the tab they just pressed had not. ⚠ **Web has never done this**: `requireCustomer` redirects
+      `/account` to `/sign-in?next=/account`, so this is a parity fix as much as a UX one.
+      ⚠ It does NOT switch tabs first — sign-in is pushed onto the tab the shopper is already in, so
+      declining returns them exactly where they were and the gate never renders. `finishJourney` now
+      honours a tab-root `returnTo` by selecting that tab, so signing in lands on the thing they pressed.
+      ⚠ **`GuestAccountLanding` is deliberately NOT deleted**: it carries 034 FR-046, the only route a
+      never-signed-in guest has to clear the cart and saved items on their device, and it is still what
+      renders on the Account tab straight after a sign-out. Deleting it would have silently orphaned a
+      shipped requirement.
 - [ ] T147 ⚠ **OPERATOR** — walk the new layout on a real phone: groups legible, action above the
       keyboard on the smallest device, cells full-width, three-step recovery, terms links reachable
 - [ ] T148 ⚠ **OPERATOR** — mobile terms links are TEXT ONLY. There is no legal screen in the app and

@@ -219,6 +219,12 @@ A shopper who expects to sign in with Google can see that option on both the sig
   Its text MUST be full-contrast and its links MUST be underlined — the platform has no brand hue, so
   colour cannot carry link-ness.
 
+- **FR-053**: Choosing a destination that requires an account MUST take the shopper **straight to
+  sign-in**. It MUST NOT show an interstitial whose only content is a message and a "Sign in" button.
+  On success they arrive at the destination they chose; on declining they return exactly where they
+  were, having never seen a gate. ⚠ This does not remove the guest's route to **clear the data this
+  device holds** (034 FR-046) — that is not a gate and must remain reachable.
+
 ### Cross-cutting
 
 - **FR-041**: This feature MUST NOT change the platform's visual language — no new colour, no new typeface, no new spacing or corner scale. The only colour used for a refusal is the platform's existing error colour.
@@ -267,6 +273,8 @@ A shopper who expects to sign in with Google can see that option on both the sig
 - **SC-021**: On every single-action step, the committing action is visible **with the keyboard open**, on the smallest supported phone.
 - **SC-022**: In five observed sessions, all five identify the code field as a code field without reading the label.
 - **SC-023**: A shopper can reach the Terms of Service and the Privacy Policy from the screen that creates their account, **without losing their place in the flow**.
+- **SC-024**: A guest choosing an account-only destination reaches sign-in in **one tap**, and declining returns them to where they were without ever seeing a gate screen.
+- **SC-025**: A guest who has never signed in can still clear the cart and saved items held on their device.
 
 ---
 

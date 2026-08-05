@@ -449,6 +449,10 @@ class AuthViewModel(
         when {
             // They were interrupted mid-task — put them back exactly there.
             returnTo != null && returnTo !in CUSTOMER_TAB_ROOTS -> navigator.push(returnTo)
+            // ⚠ They tapped a gated TAB and were asked to sign in instead of being shown a dead gate
+            // (036 FR-053). Take them to the thing they actually pressed. `resetToRoot()` has already
+            // returned the tab they were standing in to its own root, so this only switches tabs.
+            returnTo != null -> navigator.selectTab(returnTo)
             landOnHome -> navigator.selectTab(CustomerNavKey.Home)
         }
     }

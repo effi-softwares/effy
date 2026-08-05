@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -178,7 +179,7 @@ private fun <T> BottomBar(
     selectedTab: T,
     onSelectTab: (T) -> Unit,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             // ⚠ `background`, NOT `surface`.
@@ -188,25 +189,41 @@ private fun <T> BottomBar(
             // `background` is #1A1A1A — so the whole navigation strip rendered as a distinctly
             // lighter band across the bottom of every screen. The bar is part of the page, not a
             // raised sheet on it; the source design draws it that way too.
-            .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(
-                WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
-            )
-            .heightIn(min = 72.dp)
-            // Material 3's own `NavigationBar` does this and our hand-rolled Row did not: without it
-            // a screen reader announces each tab in isolation, with no "2 of 4" position.
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
+            //
+            // The background sits on the COLUMN rather than the row so it still paints behind the
+            // gesture-inset strip below the tabs, exactly as it did when the row owned it.
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        destinations.forEach { destination ->
-            NavigationButton(
-                label = destination.label,
-                selected = destination.tab == selectedTab,
-                onClick = { onSelectTab(destination.tab) },
-                icon = { destination.icon(destination.tab == selectedTab) },
-                modifier = Modifier.weight(1f),
-            )
+        // The hairline that separates the bar from the page above it. Because the bar and the page
+        // share one `background` value, nothing else marks where the content ends — the rail form
+        // has always drawn its own edge (see [SideRail]) and the bar had no equivalent.
+        //
+        // It is the platform `border` token (`outlineVariant`), so it follows the appearance in both
+        // directions and introduces no colour of its own, and it is drawn ABOVE the horizontal
+        // window insets so it runs edge to edge rather than stopping at the tab row's cutout inset.
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                )
+                .heightIn(min = 72.dp)
+                // Material 3's own `NavigationBar` does this and our hand-rolled Row did not: without
+                // it a screen reader announces each tab in isolation, with no "2 of 4" position.
+                .selectableGroup(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            destinations.forEach { destination ->
+                NavigationButton(
+                    label = destination.label,
+                    selected = destination.tab == selectedTab,
+                    onClick = { onSelectTab(destination.tab) },
+                    icon = { destination.icon(destination.tab == selectedTab) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

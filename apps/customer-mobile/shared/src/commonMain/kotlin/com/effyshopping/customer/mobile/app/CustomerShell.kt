@@ -147,6 +147,29 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
         navState.push(CustomerNavKey.SignIn(returnTo))
     }
 
+    /**
+     * Tapping a tab a guest cannot use asks them to sign in — it does NOT show them a page whose only
+     * content is a button that asks them to sign in (036 FR-053).
+     *
+     * ⚠ THE INTERSTITIAL WAS A DEAD SCREEN. "Orders / Sign in to see your orders. / [Sign in]" costs a
+     * tap and tells the shopper nothing they did not already know from the tab they just pressed. Web
+     * has never done this — `requireCustomer` redirects `/account` straight to `/sign-in?next=/account`
+     * — so this is a parity fix as much as a UX one.
+     *
+     * ⚠ IT DOES NOT SWITCH TABS FIRST, and that is deliberate. Sign-in is pushed onto the tab the
+     * shopper is ALREADY in, so backing out returns them exactly where they were and they never see
+     * the gate at all. Switching first is what an earlier version did, and Back then landed on the
+     * account page instead of where they came from.
+     *
+     * ⚠ The gate composables are NOT deleted. `GuestAccountLanding` still carries 034 FR-046 — the only
+     * route a never-signed-in guest has to clear the cart and saved items this device holds — and it is
+     * still what renders if the Account tab is reached another way, chiefly straight after signing out.
+     */
+    fun selectTabOrAskToSignIn(tab: CustomerNavKey) {
+        val gated = tab == CustomerNavKey.Orders || tab == CustomerNavKey.Account
+        if (gated && !signedIn) requireSignIn(returnTo = tab) else navState.selectTab(tab)
+    }
+
     BackHandler(enabled = navState.canGoBack || navState.activeTab != CustomerNavKey.Home) {
         if (!navState.pop()) navState.selectTab(CustomerNavKey.Home)
     }
@@ -160,7 +183,7 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
             )
         },
         selectedTab = navState.activeTab,
-        onSelectTab = navState::selectTab,
+        onSelectTab = ::selectTabOrAskToSignIn,
         showNavigation = navState.showBottomBar,
     ) {
         // ── iOS-style push/pop, via NavDisplay's OWN transition parameters ──────────────────────
