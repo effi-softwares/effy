@@ -38,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -301,6 +302,16 @@ fun EffyPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leading: (@Composable () -> Unit)? = null,
+    /**
+     * Show progress INSIDE this button while its own action runs.
+     *
+     * ⚠ IN THE BUTTON, NOT BESIDE IT. The auth screens used to render one loose
+     * `CircularProgressIndicator` in the page column, which had two problems: on a screen with more
+     * than one action ("Sign in" AND "Email me a code instead") it could not say WHICH one was
+     * running, and it appeared and disappeared in the layout flow, nudging everything below it. A
+     * spinner in the pressed control names the action by position and reflows nothing.
+     */
+    loading: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
@@ -328,9 +339,25 @@ fun EffyPrimaryButton(
         horizontalArrangement = Arrangement.spacedBy(EffySpacing.s, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leading != null) leading()
+        if (loading) {
+            // ⚠ The label STAYS. Swapping it for a bare spinner loses the one thing that tells the
+            // shopper what they are waiting for, and the button would change width mid-press.
+            EffyButtonSpinner(fg)
+        } else if (leading != null) {
+            leading()
+        }
         Text(label, style = MaterialTheme.typography.titleSmall, color = fg)
     }
+}
+
+/** The in-button progress mark. Sized to sit on the type baseline, never taller than the label. */
+@Composable
+private fun EffyButtonSpinner(color: Color) {
+    CircularProgressIndicator(
+        modifier = Modifier.size(18.dp),
+        color = color,
+        strokeWidth = 2.dp,
+    )
 }
 
 /** The source's secondary button: the page surface inside a hairline border. */
@@ -340,6 +367,8 @@ fun EffySecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /** Progress inside this button while its own action runs — see [EffyPrimaryButton.loading]. */
+    loading: Boolean = false,
     /**
      * An optional mark before the label — currently only "Continue with Google" (036 FR-038).
      *
@@ -362,12 +391,9 @@ fun EffySecondaryButton(
             horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            leading?.invoke()
-            Text(
-                label,
-                style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label,
-            )
+            val fg = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label
+            if (loading) EffyButtonSpinner(fg) else leading?.invoke()
+            Text(label, style = MaterialTheme.typography.titleSmall, color = fg)
         }
     }
 }

@@ -25,6 +25,9 @@ import { ErrorNote, StepShell, Submit, TextAction } from "./AuthKit"
  * discarded `confirmSignIn`'s result and treated a re-issued challenge as success, navigating a
  * still-signed-out shopper away with nothing on screen.
  */
+/** The code form’s id — lets the bottom-anchored submit button live outside the <form>. */
+const FORM_ID = "code-step-form"
+
 export type CodeOutcome = "accepted" | "rejected" | "exhausted" | "stale"
 
 export function CodeStep({
@@ -148,22 +151,25 @@ export function CodeStep({
         title="Let's start that again"
         subtitle="That code can't be used any more. We'll send you a fresh one."
         onBack={onBack}
+        bottom={
+          <>
+            <button
+              type="button"
+              data-testid="start-over"
+              disabled={resend.sending || resend.atCeiling}
+              onClick={() => void resend.resend()}
+              className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            >
+              {resend.sending ? "Please wait…" : "Send a new code"}
+            </button>
+            {resend.atCeiling && <CeilingNote />}
+            <TextAction onClick={onChangeEmail} testId="change-email">
+              Use a different email
+            </TextAction>
+          </>
+        }
       >
-        <div className="space-y-4">
-          <button
-            type="button"
-            data-testid="start-over"
-            disabled={resend.sending || resend.atCeiling}
-            onClick={() => void resend.resend()}
-            className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-          >
-            {resend.sending ? "Please wait…" : "Send a new code"}
-          </button>
-          {resend.atCeiling && <CeilingNote />}
-          <TextAction onClick={onChangeEmail} testId="change-email">
-            Use a different email
-          </TextAction>
-        </div>
+        {null}
       </StepShell>
     )
   }
@@ -178,8 +184,27 @@ export function CodeStep({
         </>
       }
       onBack={onBack}
+      bottom={
+        <>
+          {/*
+            ⚠ AT THE BOTTOM OF THE SCREEN, in the thumb's reach — this step has exactly one committing
+            action. The `form` attribute rather than nesting, so the button can live outside the
+            <form> it submits and still be a real submit button.
+          */}
+          <Submit
+            pending={pending}
+            label={submitLabel}
+            testId={submitTestId}
+            disabled={!complete}
+            form={FORM_ID}
+          />
+          <TextAction onClick={onChangeEmail} testId="change-email">
+            Wrong email? Change it
+          </TextAction>
+        </>
+      }
     >
-      <form className="space-y-4" onSubmit={submit}>
+      <form id={FORM_ID} className="space-y-4" onSubmit={submit}>
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <div className="space-y-2">
@@ -210,19 +235,7 @@ export function CodeStep({
 
         {children}
 
-        {/* ⚠ The action sits at the BOTTOM of the step, under the resend — where a thumb already is. */}
-        <div className="space-y-3">
-          <ResendControl resend={resend} note={resendNote} />
-          <Submit
-            pending={pending}
-            label={submitLabel}
-            testId={submitTestId}
-            disabled={!complete}
-          />
-          <TextAction onClick={onChangeEmail} testId="change-email">
-            Wrong email? Change it
-          </TextAction>
-        </div>
+        <ResendControl resend={resend} note={resendNote} />
       </form>
     </StepShell>
   )
@@ -245,15 +258,21 @@ function ResendControl({
         ) : resend.remaining > 0 ? (
           <span data-testid="resend-countdown">Send another code in {resend.remaining}s</span>
         ) : (
-          <button
-            type="button"
-            data-testid="resend-code"
-            disabled={!resend.canResend}
-            onClick={() => void resend.resend()}
-            className="min-h-11 font-medium text-foreground underline underline-offset-4 hover:opacity-80 disabled:opacity-60"
-          >
-            {resend.sending ? "Sending…" : "Send another code"}
-          </button>
+          <>
+            {/* ⚠ A TEXT ACTION, matching mobile word for word (FR-044). Resending is a recovery
+                affordance, not a route through the flow — a bordered button gave it the same weight as
+                a credential choice and stacked a second full-width control above the committing one. */}
+            Didn&apos;t get it?{" "}
+            <button
+              type="button"
+              data-testid="resend-code"
+              disabled={!resend.canResend}
+              onClick={() => void resend.resend()}
+              className="min-h-11 font-medium text-foreground underline underline-offset-4 hover:opacity-80 disabled:opacity-60"
+            >
+              {resend.sending ? "Sending…" : "Send another code"}
+            </button>
+          </>
         )}
       </p>
       {note && (
@@ -263,7 +282,7 @@ function ResendControl({
       )}
       {!resend.atCeiling && (
         <p className="text-center text-xs text-muted-foreground">
-          Didn&apos;t get it? Check your spam folder, then send another code.
+          Check your spam folder if it doesn&apos;t arrive.
         </p>
       )}
     </div>

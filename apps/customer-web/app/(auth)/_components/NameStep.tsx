@@ -96,8 +96,17 @@ export function NameStep({
     <StepShell
       title="What should we call you?"
       subtitle="We'll use this when we say hello and when we hand over your order."
+      bottom={
+        <Submit
+          pending={pending}
+          label="Finish"
+          testId="submit-name"
+          disabled={!complete}
+          form="name-step-form"
+        />
+      }
     >
-      <form className="space-y-4" onSubmit={submit}>
+      <form id="name-step-form" className="space-y-4" onSubmit={submit}>
         {error && <ErrorNote>{error}</ErrorNote>}
         <div className="grid grid-cols-2 gap-3">
           <Field
@@ -120,7 +129,6 @@ export function NameStep({
             required
           />
         </div>
-        <Submit pending={pending} label="Finish" testId="submit-name" disabled={!complete} />
       </form>
     </StepShell>
   )

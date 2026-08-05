@@ -163,7 +163,21 @@ pnpm --filter @effy/customer-web exec playwright test
 cd apps/customer-mobile && ./gradlew :shared:testAndroidHostTest \
   :shared:compileKotlinIosSimulatorArm64 :shared:compileTestKotlinIosSimulatorArm64 \
   :androidApp:assembleDebug
+
+# ⚠ AND THE SWIFT. Gradle does NOT compile `iosApp/` — it builds the Kotlin framework the Swift
+# links against, and stops there. Every "iOS compiles" claim made from gradle alone is a claim about
+# Kotlin only.
+cd apps/customer-mobile/iosApp && xcodebuild -project iosApp.xcodeproj -scheme iosApp \
+  -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+  -configuration Debug build CODE_SIGNING_ALLOWED=NO
 ```
+
+⚠ **The `xcodebuild` line is not optional, and 036 learned that the hard way.** A change to
+`SwiftAuthBridge.swift` passed every gradle gate — Kotlin main, Kotlin test, Android APK — and failed
+in Xcode with `Value of type 'DeliveryDestination' has no member 'description'`. The operator found
+it, not the build. This is 033's finding one layer out: that slice discovered the iOS *test*
+compilation had never run while "iOS compiles" was being claimed from the *main* one; here the Swift
+half had never been compiled at all.
 
 ⚠ **`size` must show the nine guest routes byte-identical.** `/search` has **2.0 KB** of headroom. Do **not**
 raise the limit.

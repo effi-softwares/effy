@@ -1,11 +1,14 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useCallback, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { OtpInput } from "@effy/design-system/ui"
+import Link from "next/link"
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
 import { authErrorMessage, startPasswordReset } from "../_lib/auth-actions"
+import { useStepHistory } from "../_lib/step-history"
+import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
+import { ErrorNote, Field, PasswordField, StepShell, Submit } from "../_components/AuthKit"
 // 012 FR-022b — a SERVER ACTION, not an Amplify call. The backend screens the new password against
 // breach corpora (which the browser cannot be trusted to do) and records that a password now exists
 // (which Cognito cannot be asked). See _lib/recovery-actions.ts.
@@ -25,183 +28,165 @@ import { finishPasswordReset } from "../_lib/recovery-actions"
  */
 export function ResetPasswordForm() {
   const router = useRouter()
-  const [sent, setSent] = useState(false)
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  const run = (fn: () => Promise<void>) => {
-    setError(null)
-    start(async () => {
-      try {
-        await fn()
-      } catch (err) {
-        setError(authErrorMessage(err))
-      }
-    })
+  const codeSent = useRef(false)
+  const { step, go, back } = useStepHistory<"email" | "code" | "password">("email", {
+    canEnter: (target) => (target === "email" ? true : codeSent.current),
+  })
+
+  // ⚠ Trimmed AND lowercased — Cognito's per-user throttle and the platform's own rate limit both key
+  // on the address, and two casings would be two buckets.
+  const address = email.trim().toLowerCase()
+
+  const sendCode = useCallback(async () => {
+    await startPasswordReset(address)
+    codeSent.current = true
+  }, [address])
+
+  /**
+   * ⚠ THE CODE IS COLLECTED HERE AND SPENT ONE STEP LATER — it is deliberately NOT verified in
+   * between, and that is a requirement rather than a shortcut.
+   *
+   * 012's FR-022b makes recovery finish at the BACKEND with the code and the new password in ONE
+   * request, because a separate "verify the code" call would mint a *"you may now set a password"*
+   * state that is worth stealing. So this step holds the code and moves on; if it was wrong, the
+   * refusal arrives when the password is submitted.
+   *
+   * That is a real cost — a mistyped code is reported one screen later than the shopper would like —
+   * and it is the same shape the signed-in password flow already uses. Splitting recovery into steps
+   * is what makes each screen one decision; verifying the code separately is what security forbids.
+   */
+  const holdCode = useCallback(
+    async (submitted: string): Promise<CodeOutcome> => {
+      setCode(submitted)
+      go("password")
+      return "accepted"
+    },
+    [go],
+  )
+
+  if (step === "code") {
+    return (
+      <>
+        {error && <ErrorNote>{error}</ErrorNote>}
+        <CodeStep
+          destination={address}
+          submitLabel="Continue"
+          submitTestId="submit-reset-code"
+          onSubmit={holdCode}
+          onResend={sendCode}
+          onChangeEmail={back}
+          onBack={back}
+          flow="reset"
+          distinguishableRefusals
+        />
+      </>
+    )
   }
 
-  return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">Reset your password</h1>
-
-      {error && (
-        <p
-          role="alert"
-          data-testid="auth-error"
-          className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm"
-        >
-          {error}
-        </p>
-      )}
-
-      {sent ? (
+  if (step === "password") {
+    return (
+      <StepShell
+        title="Choose a new password"
+        subtitle="Almost done — pick something you'll remember."
+        onBack={back}
+        bottom={
+          <Submit
+            pending={pending}
+            label="Set new password"
+            testId="submit-reset"
+            disabled={password.length < PASSWORD_MIN_LENGTH}
+            form="reset-password-form"
+          />
+        }
+      >
+        {error && <ErrorNote>{error}</ErrorNote>}
         <form
+          id="reset-password-form"
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault()
-            run(async () => {
-              const res = await finishPasswordReset(email.trim(), code.trim(), password)
-              // ⚠ A Server Action RETURNS its failure rather than throwing it across the boundary. The
-              // backend's message is already safe to show: it collapses "wrong code" / "expired" / "no
-              // such customer" into one, so it cannot be used to discover who shops at Effy.
-              if (!res.ok) throw new Error(res.error)
-              router.replace("/sign-in")
+            setError(null)
+            start(async () => {
+              // ⚠ Code AND password, together, in one request (012 FR-022b).
+              const res = await finishPasswordReset(address, code, password)
+              if (!res.ok) {
+                setError(res.error)
+                return
+              }
+              // 012 FR-024 — a password change ends every session, so sign-in is the only way on.
+              router.replace("/sign-in?reason=password-changed")
             })
           }}
         >
-          <p className="text-sm text-muted-foreground">
-            We emailed a code to <strong className="text-foreground">{email}</strong>.
-          </p>
-          {/* ⚠ 035 — this field had NO `inputMode` and NO `autoComplete="one-time-code"` at all,
-              so on mobile it raised an alphabetic keyboard and never offered the code from Mail.
-              A recovery flow is exactly where that friction hurts most. Now the shared control,
-              same as every other code field on the platform (FR-026, FR-035). */}
-          <CodeField label="Your code" id="code" value={code} onChange={setCode} required />
-          <Field
+          <PasswordField
             label="New password"
             id="password"
-            type="password"
             value={password}
             onChange={setPassword}
             autoComplete="new-password"
-            // ⚠ 036 R8 — was `8`, while the platform enforces 12. A client-side minimum that is
-            // LOOSER than the server's turns a clear "too short" into a rejected submit with a
-            // backend error, at the one moment the customer is already locked out.
             minLength={PASSWORD_MIN_LENGTH}
             required
+            hint={`At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`}
           />
-          <Submit pending={pending} label="Set new password" />
         </form>
-      ) : (
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault()
-            run(async () => {
-              await startPasswordReset(email.trim())
-              setSent(true)
-            })
-          }}
-        >
-          <Field
-            label="Email"
-            id="email"
-            type="email"
-            value={email}
-            onChange={setEmail}
-            autoComplete="email"
-            required
+      </StepShell>
+    )
+  }
+
+  return (
+    <StepShell
+      title="Reset your password"
+      subtitle="Enter your email and we'll send you a code."
+      bottom={
+        <>
+          <Submit
+            pending={pending}
+            label="Send code"
+            testId="submit-reset-email"
+            form="reset-email-form"
           />
-          <Submit pending={pending} label="Email me a reset code" />
           <p className="text-center text-sm text-muted-foreground">
             Never set a password?{" "}
-            <a href="/sign-in" className="font-medium text-foreground hover:text-primary">
+            <Link href="/sign-in" className="font-medium text-foreground hover:text-primary">
               Sign in with an email code instead
-            </a>
+            </Link>
           </p>
-        </form>
-      )}
-    </div>
-  )
-}
-
-/**
- * The one-time-code field (035 FR-035) — the shared control, with this surface's visual language.
- * See the identical component in SignInForm/SignUpForm; behaviour is shared, presentation is local.
- */
-function CodeField({
-  label,
-  id,
-  value,
-  onChange,
-  ...rest
-}: {
-  label: string
-  id: string
-  value: string
-  onChange: (v: string) => void
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
-  return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <OtpInput
-        id={id}
-        name={id}
-        // ⚠ 036 — the SAME field as sign-in and sign-up (FR-001). The `cells` variant also carries
-        // FR-004: it does not truncate a longer paste, because a code that is not six digits did not
-        // come from us and the shopper needs to SEE that rather than have it quietly reshaped.
-        variant="cells"
-        value={value}
-        onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
-        {...rest}
-      />
-    </div>
-  )
-}
-
-function Field({
-  label,
-  id,
-  value,
-  onChange,
-  ...rest
-}: {
-  label: string
-  id: string
-  value: string
-  onChange: (v: string) => void
-  // Omit the native onChange — ours takes the value, not the event.
-} & Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "value" | "id">) {
-  return (
-    <div className="space-y-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 w-full rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        {...rest}
-      />
-    </div>
-  )
-}
-
-function Submit({ pending, label }: { pending: boolean; label: string }) {
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+        </>
+      }
     >
-      {pending ? "Please wait…" : label}
-    </button>
+      {error && <ErrorNote>{error}</ErrorNote>}
+      <form
+        id="reset-email-form"
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          setError(null)
+          start(async () => {
+            try {
+              await sendCode()
+              go("code")
+            } catch (err) {
+              setError(authErrorMessage(err, "code"))
+            }
+          })
+        }}
+      >
+        <Field
+          label="Email"
+          id="email"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          autoComplete="username"
+          required
+        />
+      </form>
+    </StepShell>
   )
 }

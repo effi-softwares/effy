@@ -1,6 +1,8 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
-import com.effyshopping.mobile.kit.ui.OTP_LENGTH
+import com.effyshopping.mobile.kit.ui.OtpInput
+import com.effyshopping.mobile.kit.ui.OtpVariant
+import com.effyshopping.mobile.kit.ui.isCompleteOtp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -232,17 +234,21 @@ fun DeleteAccountScreen(container: AppContainer) {
                     "Enter the code we sent to ${state.maskedDestination}.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                EffyField(
-                    label = "Code from your email",
+                // ⚠ 036 FR-001 — the SHARED code field. It was a generic `EffyField` with no digit
+                // filter and no autofill, on the single most consequential confirmation the platform
+                // has: this code deletes an account.
+                OtpInput(
                     value = code,
                     onValueChange = { code = it },
-                    placeholder = "$OTP_LENGTH-digit code",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    onSubmit = { if (isCompleteOtp(code)) vm.confirm(code) },
+                    enabled = !state.loading,
+                    variant = OtpVariant.Cells,
                 )
                 EffyPrimaryButton(
                     label = "Delete my account",
                     onClick = { vm.confirm(code) },
-                    enabled = !state.loading && code.isNotBlank(),
+                    // ⚠ Exactly six digits — a wrong-length value is refused, not reshaped.
+                    enabled = !state.loading && isCompleteOtp(code),
                 )
             }
 

@@ -111,15 +111,25 @@ export function Submit({
   label,
   testId,
   disabled,
+  form,
 }: {
   pending: boolean
   label: string
   testId: string
   disabled?: boolean
+  /**
+   * The id of the `<form>` this submits.
+   *
+   * ⚠ Needed because the button is bottom-anchored and therefore renders OUTSIDE the form element.
+   * Without it the button is inert and pressing Enter in the field is the only way to submit — which
+   * is exactly the kind of thing that looks fine in review and fails on a phone.
+   */
+  form?: string
 }) {
   return (
     <button
       type="submit"
+      form={form}
       disabled={pending || disabled}
       data-testid={testId}
       className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
@@ -173,6 +183,40 @@ export function ErrorNote({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * The terms notice, shown wherever an account is actually created (036 FR-047).
+ *
+ * ⚠ IT NAMES TWO DOCUMENTS, NOT THREE. The familiar "Terms, Privacy Policy and Cookie Use" string is
+ * a US framing: cookie and tracking consent require a prior affirmative act under ePrivacy and cannot
+ * ride on a passive sentence, so bundling it here would be non-compliant in the EU/UK. Terms are
+ * "agreed"; a privacy policy is "acknowledged" — it is a notice, not a thing one consents to. Any
+ * marketing opt-in needs its own unticked box and is deliberately not here.
+ *
+ * ⚠ FULL-CONTRAST TEXT AND UNDERLINED LINKS, both deliberate. Small type COMBINED with low contrast
+ * is the exact failure a US court named when it refused to enforce terms shown in "tiny gray font"
+ * (*Berman v. Freedom Financial*, 9th Cir. 2022) — and the muted step is the tempting choice on a
+ * neutral ramp. The underline is not decoration either: with no brand hue there is no colour to
+ * distinguish a link, and WCAG 1.4.1 failure F73 is precisely "using colour alone".
+ *
+ * ⚠ NEW TAB. Navigating away mid-flow would drop the in-flight Amplify challenge, which lives in
+ * per-tab `sessionStorage` — the shopper would come back to a dead form.
+ */
+export function TermsNotice() {
+  return (
+    <p className="text-xs text-foreground">
+      By continuing you agree to Effy&apos;s{" "}
+      <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+        Terms of Service
+      </a>{" "}
+      and acknowledge our{" "}
+      <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+        Privacy Policy
+      </a>
+      .
+    </p>
+  )
+}
+
 export function Divider() {
   return (
     <div className="relative">
@@ -197,30 +241,53 @@ export function StepShell({
   title,
   subtitle,
   onBack,
+  bottom,
   children,
 }: {
   title: string
   subtitle?: React.ReactNode
   onBack?: () => void
+  /**
+   * The bottom group — pushed to the foot of the column on a phone.
+   *
+   * ⚠ TWO DIFFERENT THINGS GO HERE depending on the screen. On a step with ONE committing action
+   * (the code step, the name step, a password step) it is that action, in the thumb's reach. On a
+   * step offering several routes the actions belong with the fields they act on, and this holds only
+   * the opposite-journey link — "Don't have an account? Join" — which is genuinely a footer.
+   */
+  bottom?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
-    <div className="space-y-6">
+    // ⚠ THE SPACING IS DELIBERATELY UNEVEN, and that is the whole change. Everything used to sit in
+    // one `space-y-6` stack, so the gap between the heading and the first field was the same as the
+    // gap between a label and its input — and the screen read as a single crammed block. Gestalt
+    // proximity only groups when the between-group gap is unmistakably larger than the within-group
+    // one, so: 8px inside the heading, 40px to the body, 40px to the bottom group.
+    <div className="flex flex-1 flex-col">
       {onBack && (
         <button
           type="button"
           onClick={onBack}
           data-testid="step-back"
-          className="-ml-1 flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="-ml-1 mb-6 flex min-h-11 w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <span aria-hidden>←</span> Back
         </button>
       )}
+
+      {/* GROUP 1 — what this screen is. Title and subtitle are one thought. */}
       <div className="space-y-2" aria-live="polite">
         <h1 className="text-3xl font-extrabold uppercase tracking-[-0.02em]">{title}</h1>
         {subtitle && <div className="text-sm text-muted-foreground">{subtitle}</div>}
       </div>
-      {children}
+
+      {/* GROUP 2 — what you do here. ⚠ Skipped entirely when a step has no body (the exhausted code
+          step is title + one action), so it does not leave a 40px hole where content would be. */}
+      {children && <div className="mt-10 space-y-4">{children}</div>}
+
+      {/* GROUP 3 — pushed to the bottom by `mt-auto` on a phone; a plain gap once centred. */}
+      {bottom && <div className="mt-auto space-y-3 pt-10">{bottom}</div>}
     </div>
   )
 }

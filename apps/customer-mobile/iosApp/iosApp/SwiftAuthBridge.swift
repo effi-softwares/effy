@@ -162,8 +162,13 @@ final class SwiftAuthBridge: NSObject, IosAuthBridge {
         Task {
             do {
                 let details = try await Amplify.Auth.resendSignUpCode(for: email)
-                onResult(BridgeAuthResult(outcome: "signUpConfirmation",
-                                          destination: details.destination.description,
+                // ⚠ `destinationString`, not `.description`: `destination` is a `DeliveryDestination`
+                // ENUM, and its synthesized description would put "email(\"s***@e***.com\")" on screen.
+                // ⚠ And the outcome is `signupConfirm` — the vocabulary `IosAuthDriver.mapResult`
+                // actually switches on. An invented string falls through to `Unexpected`, which is a
+                // dead end that compiles perfectly.
+                onResult(BridgeAuthResult(outcome: "signupConfirm",
+                                          destination: self.destinationString(details),
                                           email: email, errorKind: nil))
             } catch { onResult(self.failure(error)) }
         }

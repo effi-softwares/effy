@@ -194,6 +194,31 @@ A shopper who expects to sign in with Google can see that option on both the sig
 - **FR-039**: While the capability is not connected, choosing it MUST produce a plain, specific explanation that this way in is not available yet, and MUST point the shopper at the email route. It MUST NOT produce a generic failure message.
 - **FR-040**: Connecting the capability later MUST NOT require the control to move or be reworded.
 
+### Layout & composition *(added 2026-08-05, operator direction after walking the built screens)*
+
+- **FR-047**: Every auth step MUST be composed as **three groups** — (1) what this screen is (title +
+  subtitle), (2) what you do here (fields and their actions), (3) the way out (the opposite-journey
+  link, or on a single-action step the committing action). The space **between** groups MUST be
+  unmistakably larger than the space **within** a group. Uniform spacing is what made the built
+  screens read as one crammed block at the top of the page.
+- **FR-048**: On a step with exactly **one committing action** — the code step, the name step, a
+  password step, the reset steps — that action MUST sit at the **bottom of the screen**, within reach
+  of a thumb, and MUST NOT be hidden behind the software keyboard.
+- **FR-049**: The opposite-journey link ("Don't have an account? Join" / "Already have an account?
+  Sign in") MUST sit at the **bottom** of the screen, furthest from the thing the shopper came to do.
+- **FR-050**: The code field MUST present as **six character positions filling the width of its
+  column** on a phone — not as an ordinary text box. It remains ONE input (FR-002). On a wide layout
+  the group MUST be capped and centred rather than stretched.
+- **FR-051**: Password recovery MUST be a **stepped flow**: the address, then the code, then the new
+  password — one decision per screen. ⚠ The code MUST NOT be verified in a separate request: 012's
+  FR-022b requires it to travel with the new password in one call, so the code step **collects** and
+  the password step **spends**. A wrong code is therefore reported at the password step.
+- **FR-052**: The screens that create an account MUST show a terms notice naming the **Terms of
+  Service** (agreed) and the **Privacy Policy** (acknowledged), placed **above** the committing
+  action. ⚠ It MUST NOT bundle cookie or marketing consent, which require a separate affirmative act.
+  Its text MUST be full-contrast and its links MUST be underlined — the platform has no brand hue, so
+  colour cannot carry link-ness.
+
 ### Cross-cutting
 
 - **FR-041**: This feature MUST NOT change the platform's visual language — no new colour, no new typeface, no new spacing or corner scale. The only colour used for a refusal is the platform's existing error colour.
@@ -238,6 +263,10 @@ A shopper who expects to sign in with Google can see that option on both the sig
 - **SC-017**: The flow is legible and operable at the platform's largest supported text size and in both light and dark appearance.
 - **SC-018**: No colour value, typeface, spacing step or corner radius outside the existing design system appears in the delivered screens — verified by the platform's existing token drift checks passing unchanged.
 - **SC-019**: A shopper reaching the third refused code is told the attempt is over and can start again in **one action**.
+- **SC-020**: On every auth step, the gap between groups is at least **twice** the gap within a group — measurable from the rendered screen.
+- **SC-021**: On every single-action step, the committing action is visible **with the keyboard open**, on the smallest supported phone.
+- **SC-022**: In five observed sessions, all five identify the code field as a code field without reading the label.
+- **SC-023**: A shopper can reach the Terms of Service and the Privacy Policy from the screen that creates their account, **without losing their place in the flow**.
 
 ---
 

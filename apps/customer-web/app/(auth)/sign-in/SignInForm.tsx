@@ -165,7 +165,7 @@ export function SignInForm() {
   // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
   if (step === "code") {
     return (
-      <div className="space-y-6">
+      <>
         {error && <ErrorNote>{error}</ErrorNote>}
         <CodeStep
           destination={address}
@@ -177,8 +177,7 @@ export function SignInForm() {
           onBack={back}
           flow="sign_in"
         />
-        {joinLink}
-      </div>
+      </>
     )
   }
 
@@ -190,8 +189,7 @@ export function SignInForm() {
   // breakage that identifier-first flows are known for.
   const onPassword = step === "password"
   return (
-    <div className="space-y-6">
-      <StepShell
+    <StepShell
         title={onPassword ? "Enter your password" : "Sign in to Effy"}
         subtitle={
           onPassword ? (
@@ -208,8 +206,11 @@ export function SignInForm() {
             "It's good to see you again."
           )
         }
-        onBack={onPassword ? back : undefined}
-      >
+      onBack={onPassword ? back : undefined}
+      // ⚠ The opposite journey is a FOOTER, not an action — it belongs at the foot of the screen,
+      // furthest from the thing the shopper came here to do.
+      bottom={joinLink}
+    >
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <form
@@ -300,9 +301,6 @@ export function SignInForm() {
             </Link>
           </p>
         )}
-      </StepShell>
-
-      {joinLink}
-    </div>
+    </StepShell>
   )
 }

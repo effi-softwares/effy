@@ -240,6 +240,48 @@ Derived from the spec's story priorities, with the two spikes and the shared com
 
 ---
 
+## Amendment A1 — layout & composition (2026-08-05, operator direction)
+
+Added after walking the built screens. Everything sat crammed at the top under one uniform gap, the
+code field looked like an ordinary text box, and the committing action floated mid-page. New
+requirements: **FR-047 … FR-052**.
+
+**Research findings that decided the design** (full briefings ran before any code):
+
+- ⚠ **There is no first-party "2× rule".** Apple, Google and NN/g publish spacing *scales* and the
+  *direction* (between-group > within-group); the 2× heuristic is community convention. So the ratio
+  is justified by Gestalt proximity, not cited to a spec — and the numbers come from the tokens that
+  exist. ⚠ `EffySpacing` is **4 · 8 · 12 · 16 · 20 · 40 with no 24 or 32 step**, so the honest choice
+  is **16 within / 40 between**. Adding a step means editing the generator and committing three
+  regenerated Compose files across three apps; it is not worth it for one screen family.
+- ⚠ **Neither M3 nor Apple HIG prescribes pinning a form's submit button.** It is observed convention
+  plus Hoober's thumb-zone research. Recorded as a judgement, not a mandate.
+- ⚠ **The keyboard problem is already solved here, by accident.** `App.kt:213` wraps the whole shell in
+  `windowInsetsPadding(WindowInsets.safeDrawing)`, which **includes the IME and consumes it** — so the
+  shell shrinks when the keyboard opens and a `Scaffold(bottomBar=…)` inside sits above it for free.
+  **`imePadding()` in the auth screens would be a no-op.** (`AuthScaffold`'s own `safeDrawing` call was
+  already dead weight for the same reason.)
+- ⚠ **Do not pin the footer link separately.** Two independently-pinned bottom elements compete for the
+  same thumb zone and the same inset. The footer is pushed to the bottom of the scroll column instead.
+- ⚠ **Full-bleed is right on a phone and wrong on a desktop.** Published guidance is to keep the digit
+  group compact and centred rather than spread across a wide layout — so mobile fills its column and
+  caps at 360 dp, and web sizes from the font inside its 384 px card.
+- ⚠ **"Terms, Privacy Policy and Cookie Use" is a US framing and is not safe to copy.** Cookie and
+  marketing consent need a separate affirmative act under ePrivacy; only Terms (agreed) and Privacy
+  (acknowledged) may ride on a passive sentence. The notice sits **above** the action because the
+  action is bottom-pinned, and *Berman v. Freedom Financial* turns on conspicuousness — below it would
+  be the first thing pushed out of view. Full contrast and underlined links, because a monochrome
+  palette has no colour to carry link-ness (WCAG 1.4.1 / F73).
+
+**Reused rather than invented**: the `Scaffold(bottomBar = …)` shape already established by
+`PasswordScreens.kt`'s `PasswordStepScaffold`, two directories away, for exactly this kind of
+multi-step credential flow.
+
+⚠ **FR-051's cost, stated plainly**: recovery becomes three screens, but 012's FR-022b forbids
+verifying the code separately — it must travel with the new password in one request, or a stealable
+"you may now set a password" state exists. So the code step **collects** and the password step
+**spends**, and a mistyped code is reported one screen later than the shopper would like.
+
 ## Risks
 
 | Risk | Likelihood | Mitigation |

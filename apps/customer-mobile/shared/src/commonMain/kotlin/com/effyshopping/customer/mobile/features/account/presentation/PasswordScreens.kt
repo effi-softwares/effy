@@ -1,6 +1,9 @@
 package com.effyshopping.customer.mobile.features.account.presentation
 
 import com.effyshopping.mobile.kit.ui.OTP_LENGTH
+import com.effyshopping.mobile.kit.ui.OtpInput
+import com.effyshopping.mobile.kit.ui.OtpVariant
+import com.effyshopping.mobile.kit.ui.isCompleteOtp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -213,7 +216,9 @@ class PasswordFlowViewModel(
     private fun authMessage(e: AuthError): String = when (e) {
         AuthError.InvalidCredentials -> "That email or password isn't right."
         AuthError.CodeIncorrect -> "That code isn't right."
-        AuthError.CodeExpired -> "That code has expired. Ask for a new one."
+        // ⚠ 036 — names the control that actually exists. This flow's resend lives one step BACK, on
+        // the "Email me a code" intro; "ask for a new one" pointed at nothing on this screen.
+        AuthError.CodeExpired -> "That code has expired. Go back and ask for a new one."
         is AuthError.RateLimited -> "Too many attempts. Please wait a little and try again."
         AuthError.Network -> "No connection. Check your network and try again."
         AuthError.Unavailable -> "We're having trouble right now. Try again shortly."
@@ -524,22 +529,28 @@ private fun CodeDrivenPasswordFlow(
 
         CodeStep.CODE -> PasswordStepScaffold(
             title = title,
-            supporting = "Enter the 6-digit code we sent to ${state.maskedDestination ?: "your email"}.",
+            supporting = "Enter the $OTP_LENGTH-digit code we sent to ${state.maskedDestination ?: "your email"}.",
             actionLabel = "Continue",
-            actionEnabled = code.isNotBlank(),
             // The code is not spent here — it travels with the new password in ONE request, so a
             // session that cannot produce it never reaches the write.
+            // ⚠ `isCompleteOtp`, not `isNotBlank`: exactly six digits, so a longer paste leaves the
+            // action inactive and VISIBLE rather than advancing with a reshaped value (FR-004/FR-005).
+            actionEnabled = isCompleteOtp(code),
             onAction = { onStep(CodeStep.PASSWORD) },
             onBack = back,
             loading = state.loading,
             error = state.error,
         ) {
-            EffyField(
-                label = "Code",
+            // ⚠ 036 FR-001 — the SHARED code field, at last. This was a generic `EffyField`: no digit
+            // filter, no length gate, and — the one that actually costs the customer something — no
+            // `UITextContentTypeOneTimeCode`, so iOS never offered the code from Mail on a screen
+            // reached precisely when someone is already locked out of their password.
+            OtpInput(
                 value = code,
                 onValueChange = onCode,
-                placeholder = "$OTP_LENGTH-digit code",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                onSubmit = { if (isCompleteOtp(code)) onStep(CodeStep.PASSWORD) },
+                enabled = !state.loading,
+                variant = OtpVariant.Cells,
             )
         }
 

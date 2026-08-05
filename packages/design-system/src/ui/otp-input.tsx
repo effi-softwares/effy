@@ -100,7 +100,7 @@ function OtpInput({
         // radius clips the first and last cell. So: no border, no fill, no padding, no radius, and
         // `!` so a caller cannot re-add them by accident.
         variant === "cells" &&
-          "!rounded-none !border-0 !bg-transparent !px-0 !shadow-none mx-auto block h-auto py-2 text-center !tracking-[var(--otp-gap)] text-2xl tabular-nums",
+          "!rounded-none !border-0 !bg-transparent !px-0 !shadow-none mx-auto block h-auto py-3 text-center !tracking-[var(--otp-gap)] text-3xl tabular-nums",
         // ⚠ `--otp-rule` lives in the CLASS layer, not in `CELL_GEOMETRY`. An inline custom property
         // wins on specificity, so setting it inline would make the invalid and focus states below
         // silently dead — the cells would stay grey while the field was announcing an error.
@@ -133,6 +133,13 @@ function OtpInput({
  * risks the `tokens:check` gate for no benefit, and this feature must leave that gate untouched
  * (SC-018). Nothing here is a token: every colour is an existing token variable.
  *
+ * ⚠ SIZED TO BE SEEN, AND CENTRED RATHER THAN FULL-BLEED. The cells are driven by the font, so the
+ * group's width is `6 × (1ch + gap)` — at a 30px monospace that is ≈250px inside a 384px column,
+ * which is the published guidance: keep the digit group compact and centred, do not spread it across
+ * a wide layout. (Mobile is the opposite case and DOES fill its column, because a phone's column IS
+ * roughly that width — see `packages/mobile-kit/common/ui/OtpCells.kt`, which caps at 360dp for the
+ * same reason.)
+ *
  * ⚠ THE GEOMETRY. With `letter-spacing: g`, character *i* starts at `i × (1ch + g)` and is `1ch`
  * wide — so a gradient with period `1ch + g` that inks `[0, 1ch]` lands exactly under each character.
  * `1ch` is the advance of "0", which is only reliable in a monospace font; `--font-mono` is not
@@ -147,14 +154,14 @@ function OtpInput({
 const CELL_GEOMETRY = {
   "--otp-n": OTP_LENGTH,
   "--otp-cell": "1ch",
-  "--otp-gap": "0.75ch",
+  "--otp-gap": "1.5ch",
   // ⚠ `--otp-rule` is deliberately NOT set here — see the class layer above. Inline custom
   // properties beat classes, which would kill the focus and invalid states.
   width: "calc(var(--otp-n) * (var(--otp-cell) + var(--otp-gap)))",
   marginRight: "calc(-1 * var(--otp-gap))",
   backgroundImage:
     "repeating-linear-gradient(to right, var(--otp-rule) 0 var(--otp-cell), transparent var(--otp-cell) calc(var(--otp-cell) + var(--otp-gap)))",
-  backgroundSize: "calc(100% - var(--otp-gap)) 2px",
+  backgroundSize: "calc(100% - var(--otp-gap)) 3px",
   backgroundRepeat: "no-repeat",
   backgroundPosition: "0 100%",
 } as React.CSSProperties

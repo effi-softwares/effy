@@ -30,6 +30,7 @@ import {
   PasswordField,
   StepShell,
   Submit,
+  TermsNotice,
   TextAction,
 } from "../_components/AuthKit"
 
@@ -168,7 +169,7 @@ export function SignUpForm() {
   // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
   if (step === "code") {
     return (
-      <div className="space-y-6">
+      <>
         {error && <ErrorNote>{error}</ErrorNote>}
         <CodeStep
           destination={address}
@@ -182,16 +183,14 @@ export function SignUpForm() {
           // ⚠ Managed flow → the refusals really are distinguishable here.
           distinguishableRefusals
         />
-        {signInLink}
-      </div>
+      </>
     )
   }
 
   // ── Steps 1 and 2: the credential ───────────────────────────────────────────────────────────────
   const onPassword = step === "password"
   return (
-    <div className="space-y-6">
-      <StepShell
+    <StepShell
         title={onPassword ? "Choose a password" : "Create your account"}
         subtitle={
           onPassword ? (
@@ -206,8 +205,9 @@ export function SignUpForm() {
             "Start with your email — we'll do the rest in a moment."
           )
         }
-        onBack={onPassword ? back : undefined}
-      >
+      onBack={onPassword ? back : undefined}
+      bottom={signInLink}
+    >
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <form
@@ -269,6 +269,11 @@ export function SignUpForm() {
               replaces it — GOV.UK removed theirs on exactly that reasoning, the account page already
               followed the rule, and mobile sign-up never had one. Web was the odd surface out. */}
 
+          {/* ⚠ ABOVE the button, not below it. Below is the commoner convention, but on a phone the
+              footer group sits at the foot of the screen — so below the action it would be the first
+              thing pushed out of view, and "reasonably conspicuous notice" is the limb that
+              inquiry-notice contracts fail on. */}
+          <TermsNotice />
           <Submit
             pending={pending}
             label={onPassword ? "Create account" : "Email me a code"}
@@ -301,9 +306,6 @@ export function SignUpForm() {
             />
           </>
         )}
-      </StepShell>
-
-      {signInLink}
-    </div>
+    </StepShell>
   )
 }

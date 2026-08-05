@@ -301,7 +301,9 @@ export function authErrorMessage(err: unknown, context: "password" | "code" = "p
     case "CodeMismatchException":
       return "That code isn't right. Check it and try again."
     case "ExpiredCodeException":
-      return "That code has expired. Ask for a new one."
+      // ⚠ 036 — "Send another one", not "Ask for a new one". The old wording instructed an action the
+      // screen provided NO CONTROL FOR: there was no resend anywhere on the platform. There is now.
+      return "That code has expired. Send another one."
     case "LimitExceededException":
     case "TooManyRequestsException":
     case "TooManyFailedAttemptsException":

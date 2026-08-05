@@ -16,8 +16,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +54,11 @@ import com.effyshopping.customer.mobile.core.nav.OtpPurpose
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmOtp
 import com.effyshopping.customer.mobile.features.auth.domain.ResendSignInCode
+import com.effyshopping.customer.mobile.features.auth.domain.ResendVerdict
+import com.effyshopping.customer.mobile.features.auth.domain.cooldownAfterSend
+import com.effyshopping.customer.mobile.features.auth.domain.resendVerdict
+import com.effyshopping.customer.mobile.features.auth.domain.tallyAfterResend
+import com.effyshopping.customer.mobile.features.auth.domain.tallyAttempt
 import com.effyshopping.customer.mobile.features.auth.domain.ResendSignUpCode
 import com.effyshopping.customer.mobile.features.account.domain.UpdateProfile
 import com.effyshopping.customer.mobile.features.auth.domain.ConfirmPasswordReset
@@ -93,8 +100,30 @@ const val PASSWORD_MIN_LENGTH = 12 // mirrors the platform policy (shared-types 
  * for one immutable observable object; FR-022 asks that going backwards never loses a typed value.
  * Both are the same fix.
  */
+/**
+ * WHICH action is in flight — not merely that one is (036 A1).
+ *
+ * ⚠ A BOOLEAN WAS NOT ENOUGH, and the screenshot showed why: several auth screens offer two actions
+ * ("Sign in" AND "Email me a code instead"), so a single `loading` flag could disable both and spin
+ * *somewhere*, but could not say which one the shopper was waiting on. Naming the submission lets the
+ * spinner live in the pressed control, where its position IS the answer.
+ *
+ * ⚠ Copied from `apps/shop-mobile`'s `AuthSubmission`, which had this shape already — the customer app
+ * simply never gained it.
+ */
+enum class AuthSubmission {
+    Idle,
+    SendingCode,
+    ConfirmingCode,
+    ResendingCode,
+    SigningIn,
+    Registering,
+    SavingName,
+    ResettingPassword,
+}
+
 data class AuthUiState(
-    val loading: Boolean = false,
+    val submission: AuthSubmission = AuthSubmission.Idle,
     val error: String? = null,
     val info: String? = null,
     /** The address in play — shown on the code step so the shopper knows where to look (FR-006). */
@@ -115,16 +144,20 @@ data class AuthUiState(
     val exhausted: Boolean = false,
     val seedPassword: Boolean = false,
     val returnTo: CustomerNavKey? = null,
-)
+) {
+    /** Anything in flight. Kept so every existing `enabled = !state.loading` read still holds. */
+    val loading: Boolean get() = submission != AuthSubmission.Idle
 
-/** ⚠ Mirrors `OTP_SENDS_PER_HOUR` in `apis/edge-api/auth/src/otp/policy.ts`. */
-private const val MAX_SENDS_PER_FLOW = 5
+    /** Is THIS control the one that is waiting? */
+    fun busyWith(action: AuthSubmission): Boolean = submission == action
+}
 
-/** ⚠ Mirrors `OTP_MAX_ATTEMPTS`. */
-private const val MAX_OTP_ATTEMPTS = 3
-
-/** The resend cooldown, matching customer-web's `otp-cooldown.ts`. */
-private const val RESEND_COOLDOWN_SECONDS = 30
+/**
+ * ⚠ The ceiling, the attempt cap and the cooldown now live in
+ * `features/auth/domain/OtpFlowRules.kt` as PURE FUNCTIONS — see the note there. They were private
+ * consts and inline `if`s in this file, which is why the two rules most likely to strand a shopper
+ * had no test on either mobile app.
+ */
 
 /**
  * The auth flow (013 US2). Registration (two routes), sign-in (two routes), OTP confirm, recovery.
@@ -187,22 +220,22 @@ class AuthViewModel(
     fun registerWithPassword(email: String, password: String) = run {
         if (!passwordLongEnough(password)) return@run
         beginFlow(email, seedPassword = true, returnTo = null)
-        drive(registration = true) { registerWithPasswordUseCase(normalise(email), password) }
+        drive(AuthSubmission.Registering, registration = true) { registerWithPasswordUseCase(normalise(email), password) }
     }
 
     fun registerPasswordless(email: String) {
         beginFlow(email, seedPassword = false, returnTo = null)
-        drive(registration = true) { registerPasswordlessUseCase(normalise(email)) }
+        drive(AuthSubmission.SendingCode, registration = true) { registerPasswordlessUseCase(normalise(email)) }
     }
 
     fun signInWithPassword(email: String, password: String, returnTo: CustomerNavKey?) {
         beginFlow(email, seedPassword = false, returnTo = returnTo)
-        drive(registration = false) { signInWithPasswordUseCase(normalise(email), password) }
+        drive(AuthSubmission.SigningIn, registration = false) { signInWithPasswordUseCase(normalise(email), password) }
     }
 
     fun signInWithOtp(email: String, returnTo: CustomerNavKey?) {
         beginFlow(email, seedPassword = false, returnTo = returnTo)
-        drive(registration = false) { signInWithEmailOtpUseCase(normalise(email)) }
+        drive(AuthSubmission.SendingCode, registration = false) { signInWithEmailOtpUseCase(normalise(email)) }
     }
 
     /**
@@ -214,15 +247,18 @@ class AuthViewModel(
      */
     fun resendCode(purpose: OtpPurpose) {
         val s = _state.value
-        if (s.loading || s.resendRemaining > 0) return
-        if (s.sendsThisFlow >= MAX_SENDS_PER_FLOW) {
-            _state.value = s.copy(
-                error = "We can't send another code to this address right now. " +
-                    "Check your spam folder, or try again later.",
-            )
-            return
+        when (resendVerdict(s.sendsThisFlow, s.resendRemaining, s.loading)) {
+            ResendVerdict.Busy, ResendVerdict.Cooldown -> return
+            ResendVerdict.Ceiling -> {
+                _state.value = s.copy(
+                    error = "We can't send another code to this address right now. " +
+                        "Check your spam folder, or try again later.",
+                )
+                return
+            }
+            ResendVerdict.Allowed -> Unit
         }
-        launch {
+        launch(AuthSubmission.ResendingCode) {
             val step = when (purpose) {
                 OtpPurpose.SIGN_UP -> resendSignUpCodeUseCase(s.email)
                 else -> resendSignInCodeUseCase(s.email)
@@ -235,8 +271,8 @@ class AuthViewModel(
                     // no longer works; a shopper reading top-down has no way to tell which is which.
                     info = "New code sent. Use the most recent email — the older code no longer works.",
                     // ⚠ A resend starts a NEW Cognito session, whose attempt list is empty.
-                    attemptsUsed = 0,
-                    exhausted = false,
+                    attemptsUsed = tallyAfterResend().used,
+                    exhausted = tallyAfterResend().exhausted,
                 )
             }
             noteCodeSent()
@@ -245,8 +281,8 @@ class AuthViewModel(
 
     fun submitOtp(route: CustomerNavKey.VerifyOtp, code: String) {
         when (route.purpose) {
-            OtpPurpose.SIGN_IN -> drive(registration = false) { confirmOtpUseCase(code) }
-            OtpPurpose.SIGN_UP -> drive(registration = true) { confirmSignUpUseCase(route.email, code) }
+            OtpPurpose.SIGN_IN -> drive(AuthSubmission.ConfirmingCode, registration = false) { confirmOtpUseCase(code) }
+            OtpPurpose.SIGN_UP -> drive(AuthSubmission.ConfirmingCode, registration = true) { confirmSignUpUseCase(route.email, code) }
             // ⚠ Recovery has its own screen (code + new password, finished at the backend). This
             // branch was an empty `{}` — a declared, serialised, round-trip-tested DEAD BRANCH. It now
             // says so rather than silently doing nothing when tapped.
@@ -261,7 +297,7 @@ class AuthViewModel(
             _state.value = _state.value.copy(error = "Please tell us both names.")
             return
         }
-        launch {
+        launch(AuthSubmission.SavingName) {
             try {
                 // ⚠ `phone = ""` means "clear", and that is correct here: a brand-new account has no phone,
                 // and the backend maps empty→NULL on the same path the names use. Passing anything else
@@ -277,7 +313,7 @@ class AuthViewModel(
 
     fun sendRecoveryCode(email: String) {
         _state.value = _state.value.copy(email = normalise(email))
-        launch {
+        launch(AuthSubmission.SendingCode) {
             when (val step = startPasswordResetUseCase(email)) {
                 is AuthStep.NeedsOtp ->
                     _state.value = _state.value.copy(
@@ -292,7 +328,7 @@ class AuthViewModel(
 
     fun confirmRecovery(email: String, code: String, newPassword: String) {
         if (!passwordLongEnough(newPassword)) return
-        launch {
+        launch(AuthSubmission.ResettingPassword) {
             try {
                 confirmPasswordResetUseCase(email, code, newPassword)
                 _state.value = AuthUiState(info = "Password updated. Sign in with your new password.")
@@ -321,7 +357,7 @@ class AuthViewModel(
     private fun noteCodeSent() {
         _state.value = _state.value.copy(
             sendsThisFlow = _state.value.sendsThisFlow + 1,
-            resendRemaining = RESEND_COOLDOWN_SECONDS,
+            resendRemaining = cooldownAfterSend(),
         )
         viewModelScope.launch {
             while (_state.value.resendRemaining > 0) {
@@ -339,8 +375,8 @@ class AuthViewModel(
         return true
     }
 
-    private fun drive(registration: Boolean, block: suspend () -> AuthStep) {
-        launch {
+    private fun drive(action: AuthSubmission, registration: Boolean, block: suspend () -> AuthStep) {
+        launch(action) {
             val before = _state.value
             when (val step = block()) {
                 // ⚠ After REGISTRATION the journey is not over: the name is the last step (FR-032).
@@ -373,11 +409,11 @@ class AuthViewModel(
                     // the third ends the session rather than merely being wrong (FR-013).
                     val codeRefused = step.error == AuthError.CodeIncorrect ||
                         step.error == AuthError.CodeExpired
-                    val attempts = if (codeRefused) before.attemptsUsed + 1 else before.attemptsUsed
+                    val tally = tallyAttempt(before.attemptsUsed, codeRefused)
                     _state.value = before.copy(
                         error = message(step.error, before.seedPassword),
-                        attemptsUsed = attempts,
-                        exhausted = attempts >= MAX_OTP_ATTEMPTS,
+                        attemptsUsed = tally.used,
+                        exhausted = tally.exhausted,
                     )
                 }
             }
@@ -417,13 +453,13 @@ class AuthViewModel(
         }
     }
 
-    private inline fun launch(crossinline block: suspend () -> Unit) {
-        _state.value = _state.value.copy(loading = true, error = null)
+    private inline fun launch(action: AuthSubmission, crossinline block: suspend () -> Unit) {
+        _state.value = _state.value.copy(submission = action, error = null)
         viewModelScope.launch {
             try {
                 block()
             } finally {
-                _state.value = _state.value.copy(loading = false)
+                _state.value = _state.value.copy(submission = AuthSubmission.Idle)
             }
         }
     }
@@ -501,42 +537,85 @@ fun AuthRoutes(container: AppContainer, route: CustomerNavKey) {
  */
 @Composable
 private fun AuthScaffold(
-    container: AppContainer,
     title: String,
     subtitle: String,
     state: AuthUiState,
-    footer: (@Composable () -> Unit)? = null,
+    /**
+     * The screen's bottom group — pinned above the keyboard, in the thumb's reach.
+     *
+     * ⚠ TWO DIFFERENT THINGS GO HERE, and which one depends on the screen. On a screen with ONE
+     * committing action (the code step, the name step, a password step) it is that action. On a
+     * screen offering several routes (sign-in step 1, sign-up step 1) the actions belong with the
+     * fields they act on, and this holds only the opposite-journey link — "Don't have an account?
+     * Join" — which is genuinely a footer.
+     */
+    bottomBar: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(EffySurface.page)
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .verticalScroll(rememberScrollState())
-            .padding(EffySpacing.lg),
-        verticalArrangement = Arrangement.spacedBy(EffySpacing.lg),
-    ) {
-        // ⚠ Effy is GUEST-FIRST, so this is an adaptation of the source and not a copy of it. In the
-        // kit the login screen IS the app's root — nothing precedes it, so it needs no way back. Here
-        // sign-in is pushed over whatever the shopper was doing, and abandoning it must be possible:
-        // without this arrow a guest who tapped Orders was left in the flow with the tab bar hidden.
-        // The kit's own pushed auth screen (Verification Code) shows exactly this — a bare arrow above
-        // the headline, no bar. It draws only when there is somewhere to return to.
-        EffyBackArrow()
-        EffyDisplay(title, size = DisplaySize.Page)
-        Text(
-            subtitle,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        content()
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        if (state.loading) CircularProgressIndicator()
-        if (footer != null) {
-            Spacer(Modifier.height(EffySpacing.xl))
-            footer()
+    Scaffold(
+        containerColor = EffySurface.page,
+        bottomBar = {
+            if (bottomBar != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = EffySpacing.lg)
+                        .padding(top = EffySpacing.md, bottom = EffySpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
+                    content = bottomBar,
+                )
+            }
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = EffySpacing.lg)
+                .padding(bottom = EffySpacing.xxxl),
+        ) {
+            // ⚠ Effy is GUEST-FIRST, so this is an adaptation of the source and not a copy of it. In
+            // the kit the login screen IS the app's root — nothing precedes it, so it needs no way
+            // back. Here sign-in is pushed over whatever the shopper was doing, and abandoning it
+            // must be possible: without this arrow a guest who tapped Orders was left in the flow
+            // with the tab bar hidden. It draws only when there is somewhere to return to.
+            EffyBackArrow()
+
+            Spacer(Modifier.height(EffySpacing.lg))
+
+            // ── GROUP 1: what this screen is ────────────────────────────────────────────────────
+            // Title and subtitle are ONE thought, so they sit at the tightest gap on the scale.
+            EffyDisplay(title, size = DisplaySize.Page)
+            Spacer(Modifier.height(EffySpacing.s))
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            // ── The break between groups ────────────────────────────────────────────────────────
+            //
+            // ⚠ 40 dp, against 16 dp inside the groups. Gestalt proximity only does its work when the
+            // between-group gap is unambiguously larger than the within-group one; at 16/20 it reads
+            // as "slightly more space", not as a boundary, which is exactly why every element used to
+            // look crammed into one undifferentiated stack.
+            //
+            // ⚠ 40 is `EffySpacing.xxxl` and 16 is `lg` — the scale jumps 20 → 40 with NO 24 or 32
+            // step, so this is the honest choice from the tokens that exist. Adding a step would mean
+            // editing the generator and committing three regenerated Compose files across three apps.
+            Spacer(Modifier.height(EffySpacing.xxxl))
+
+            // ── GROUP 2: what you do here ───────────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.lg)) {
+                content()
+                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                state.info?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                // ⚠ NO PAGE-LEVEL SPINNER. It used to sit here, loose in the column: it could not say
+                // WHICH of two actions was running, and it appeared and disappeared in the layout
+                // flow, nudging everything below it. Progress now lives in the pressed button.
+            }
         }
     }
 }
@@ -555,11 +634,10 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
     var email by remember { mutableStateOf("") }
 
     AuthScaffold(
-        container,
         title = "Sign in to Effy",
         subtitle = "It’s good to see you again.",
         state = state,
-        footer = {
+        bottomBar = {
             EffyInlineLink("Don’t have an account?", "Join", onClick = {
                 container.navigator.push(CustomerNavKey.SignUp)
             })
@@ -576,6 +654,7 @@ private fun SignInScreen(container: AppContainer, vm: AuthViewModel, returnTo: C
             "Email me a code",
             onClick = { vm.signInWithOtp(email, returnTo) },
             enabled = !state.loading && email.isNotBlank(),
+            loading = state.busyWith(AuthSubmission.SendingCode),
         )
         EffyOrDivider()
         // ⚠ The source design offers Google AND Facebook. Facebook stays DROPPED (FR-030a) — it is not
@@ -607,11 +686,10 @@ private fun SignInPasswordScreen(
     var password by remember { mutableStateOf("") }
 
     AuthScaffold(
-        container,
         title = "Enter your password",
         subtitle = "Signing in as ${route.email}.",
         state = state,
-        footer = {
+        bottomBar = {
             EffyInlineLink("Don’t have an account?", "Join", onClick = {
                 container.navigator.push(CustomerNavKey.SignUp)
             })
@@ -631,11 +709,13 @@ private fun SignInPasswordScreen(
             "Sign in",
             onClick = { vm.signInWithPassword(route.email, password, route.returnTo) },
             enabled = !state.loading && password.isNotBlank(),
+            loading = state.busyWith(AuthSubmission.SigningIn),
         )
         EffySecondaryButton(
             "Email me a code instead",
             onClick = { vm.signInWithOtp(route.email, route.returnTo) },
             enabled = !state.loading,
+            loading = state.busyWith(AuthSubmission.SendingCode),
         )
     }
 }
@@ -652,11 +732,10 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
     val state by vm.state.collectAsState()
     var email by remember { mutableStateOf("") }
     AuthScaffold(
-        container,
         title = "Create your account",
         subtitle = "Start with your email — we’ll do the rest in a moment.",
         state = state,
-        footer = {
+        bottomBar = {
             EffyInlineLink("Already have an account?", "Sign in", onClick = {
                 container.navigator.push(CustomerNavKey.SignIn())
             })
@@ -669,10 +748,12 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
             placeholder = "Enter your email address",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         )
+        TermsNotice()
         EffyPrimaryButton(
             "Email me a code",
             onClick = { vm.registerPasswordless(email) },
             enabled = !state.loading && email.isNotBlank(),
+            loading = state.busyWith(AuthSubmission.SendingCode),
         )
         EffyOrDivider()
         GoogleSignInButton(enabled = !state.loading, onUnavailable = { vm.showGoogleUnavailable() })
@@ -702,14 +783,23 @@ private fun SignUpPasswordScreen(
     val state by vm.state.collectAsState()
     var password by remember { mutableStateOf("") }
     AuthScaffold(
-        container,
         title = "Choose a password",
         subtitle = "Creating an account for ${route.email}.",
         state = state,
-        footer = {
-            EffyInlineLink("Already have an account?", "Sign in", onClick = {
-                container.navigator.push(CustomerNavKey.SignIn())
-            })
+        bottomBar = {
+            TermsNotice()
+            EffyPrimaryButton(
+                "Create account",
+                onClick = { vm.registerWithPassword(route.email, password) },
+                enabled = !state.loading && password.isNotBlank(),
+                loading = state.busyWith(AuthSubmission.Registering),
+            )
+            EffySecondaryButton(
+                "Email me a code instead",
+                onClick = { vm.registerPasswordless(route.email) },
+                enabled = !state.loading,
+                loading = state.busyWith(AuthSubmission.SendingCode),
+            )
         },
     ) {
         // ⚠ The rule is stated BEFORE they type, and it is the rule the platform actually enforces
@@ -724,16 +814,6 @@ private fun SignUpPasswordScreen(
             "At least $PASSWORD_MIN_LENGTH characters. Use anything you like — no special characters required.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        EffyPrimaryButton(
-            "Create account",
-            onClick = { vm.registerWithPassword(route.email, password) },
-            enabled = !state.loading && password.isNotBlank(),
-        )
-        EffySecondaryButton(
-            "Email me a code instead",
-            onClick = { vm.registerPasswordless(route.email) },
-            enabled = !state.loading,
         )
     }
 }
@@ -754,18 +834,20 @@ private fun ProfileNameScreen(container: AppContainer, vm: AuthViewModel) {
     var given by remember { mutableStateOf("") }
     var family by remember { mutableStateOf("") }
     AuthScaffold(
-        container,
         title = "What should we call you?",
         subtitle = "We’ll use this when we say hello and when we hand over your order.",
         state = state,
+        bottomBar = {
+            EffyPrimaryButton(
+                "Finish",
+                onClick = { vm.saveName(given, family) },
+                enabled = !state.loading && given.isNotBlank() && family.isNotBlank(),
+                loading = state.busyWith(AuthSubmission.SavingName),
+            )
+        },
     ) {
         EffyField("First name", given, { given = it }, placeholder = "Enter your first name")
         EffyField("Last name", family, { family = it }, placeholder = "Enter your last name")
-        EffyPrimaryButton(
-            "Finish",
-            onClick = { vm.saveName(given, family) },
-            enabled = !state.loading && given.isNotBlank() && family.isNotBlank(),
-        )
     }
 }
 
@@ -786,28 +868,49 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
     // a form that still looks usable would invite typing into nothing (FR-013).
     if (state.exhausted) {
         AuthScaffold(
-            container,
             title = "Let’s start that again",
             subtitle = "That code can’t be used any more. We’ll send you a fresh one.",
             state = state,
-        ) {
-            EffyPrimaryButton(
-                "Send a new code",
-                onClick = { code = ""; vm.resendCode(route.purpose) },
-                enabled = !state.loading,
-            )
-        }
+            bottomBar = {
+                EffyPrimaryButton(
+                    "Send a new code",
+                    onClick = { code = ""; vm.resendCode(route.purpose) },
+                    enabled = !state.loading,
+                    loading = state.busyWith(AuthSubmission.ResendingCode),
+                )
+            },
+        ) {}
         return
     }
 
     AuthScaffold(
-        container,
         title = "Enter your code",
         // ⚠ FR-006 — the address, at last. `AuthStep.NeedsOtp` has always carried it and the ViewModel
         // used to discard it, so the screen could not say where to look.
         subtitle = "We sent a code to ${state.maskedDestination ?: state.email}. " +
             "The code works for 5 minutes.",
         state = state,
+        bottomBar = {
+            EffyPrimaryButton(
+                // ⚠ Pinned to the BOTTOM of the screen, in the thumb's reach and above the keyboard —
+                // this screen has exactly one committing action, and inline it floated mid-page on a
+                // tall device while the rest of the screen sat empty.
+                if (route.purpose == OtpPurpose.SIGN_UP) "Create account" else "Sign in",
+                onClick = { vm.submitOtp(route, code) },
+                loading = state.busyWith(AuthSubmission.ConfirmingCode),
+                // ⚠ `isCompleteOtp`, not `isNotBlank`. Exactly six digits, so a longer paste leaves
+                // the button inactive and VISIBLE rather than submitting a reshaped value (FR-004,
+                // FR-005). ⚠ And there is deliberately NO auto-submit: codes die after three
+                // attempts, and a mistyped last digit that submitted itself would spend one the
+                // shopper never chose to.
+                enabled = !state.loading && isCompleteOtp(code),
+            )
+            EffySecondaryButton(
+                "Wrong email? Change it",
+                onClick = { container.navigator.pop() },
+                enabled = !state.loading,
+            )
+        },
     ) {
         // ⚠ 035 — the SHARED OtpInput. On iOS this is a native UITextField with
         // `UITextContentTypeOneTimeCode`, which is what makes the OS offer the code from Mail.
@@ -832,23 +935,39 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
         }
 
         ResendRow(state = state, onResend = { vm.resendCode(route.purpose) })
-
-        EffyPrimaryButton(
-            // ⚠ The action sits at the BOTTOM of the step, under the resend — where a thumb already is.
-            if (route.purpose == OtpPurpose.SIGN_UP) "Create account" else "Sign in",
-            onClick = { vm.submitOtp(route, code) },
-            // ⚠ `isCompleteOtp`, not `isNotBlank`. Exactly six digits, so a longer paste leaves the
-            // button inactive and VISIBLE rather than submitting a reshaped value (FR-004, FR-005).
-            // ⚠ And there is deliberately NO auto-submit: codes die after three attempts, and a
-            // mistyped last digit that submitted itself would spend one the shopper never chose to.
-            enabled = !state.loading && isCompleteOtp(code),
-        )
-        EffySecondaryButton(
-            "Wrong email? Change it",
-            onClick = { container.navigator.pop() },
-            enabled = !state.loading,
-        )
     }
+}
+
+/**
+ * The terms notice shown wherever an account is actually created (036 FR-047).
+ *
+ * ⚠ IT SITS ABOVE THE BUTTON, NOT BELOW IT. Below is the commoner convention, but this button is
+ * pinned to the bottom of the screen — so below it would be the last thing pushed off-screen or under
+ * the keyboard, and "reasonably conspicuous notice" is precisely the limb that inquiry-notice
+ * contracts fail on (*Berman v. Freedom Financial*, 9th Cir. 2022, where the terms were "tiny gray
+ * font"). Above the action it is always visible at the moment of assent.
+ *
+ * ⚠ IT NAMES TWO DOCUMENTS, NOT THREE. The familiar "Terms, Privacy Policy and Cookie Use" string is
+ * a US framing: cookie/tracking consent requires a prior affirmative act under ePrivacy and cannot
+ * ride on a passive sentence, so bundling it here would be non-compliant in the EU/UK. Terms are
+ * "agreed"; a privacy policy is "acknowledged" — it is a notice, not a thing one consents to.
+ *
+ * ⚠ FULL-CONTRAST TEXT, deliberately not `onSurfaceVariant`. Small size COMBINED with low contrast is
+ * the exact failure a court criticised, and the muted step is the tempting choice on a neutral ramp.
+ *
+ * ⚠ NOT TAPPABLE ON MOBILE YET, AND THAT IS RECORDED RATHER THAN FAKED. There is no legal screen in
+ * this app and no storefront base URL in its build config — `requiredKeys` carries the two API hosts
+ * and nothing else, so adding one would fail every existing build until each developer updated their
+ * `secrets.properties`. The documents are named so the notice is honest; wiring the links needs the
+ * config key (or in-app legal routes) and is its own small task. Web links to the real routes.
+ */
+@Composable
+private fun TermsNotice() {
+    Text(
+        "By continuing you agree to Effy's Terms of Service and acknowledge our Privacy Policy.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 /**
@@ -861,25 +980,32 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
  */
 @Composable
 private fun ResendRow(state: AuthUiState, onResend: () -> Unit) {
-    when {
-        state.sendsThisFlow >= MAX_SENDS_PER_FLOW ->
+    // ⚠ The SAME verdict the ViewModel acts on. Re-deriving "is the ceiling reached?" in the view is
+    // how a screen ends up offering a control its handler will refuse.
+    when (resendVerdict(state.sendsThisFlow, state.resendRemaining, state.loading)) {
+        ResendVerdict.Ceiling ->
             Text(
                 "We can’t send another code to this address right now. " +
                     "Check your spam folder, or try again later.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        state.resendRemaining > 0 ->
+        ResendVerdict.Cooldown ->
             Text(
                 "Send another code in ${state.resendRemaining}s",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        else ->
-            EffySecondaryButton(
+        // ⚠ A TEXT ACTION, NOT A BORDERED BUTTON. Resending is a recovery affordance, not a route
+        // through the flow — giving it the same weight as "Use a password instead" made two very
+        // different things look equally likely, and put a second full-width bordered control directly
+        // above the committing action. `EffyInlineLink` still carries the 48 dp touch target and an
+        // underline, which is what makes it legible as an action on a palette with no brand hue.
+        ResendVerdict.Allowed, ResendVerdict.Busy ->
+            EffyInlineLink(
+                "Didn’t get it?",
                 "Send another code",
                 onClick = onResend,
-                enabled = !state.loading,
             )
     }
 }
@@ -921,43 +1047,113 @@ private fun GoogleSignInButton(enabled: Boolean, onUnavailable: () -> Unit) {
     )
 }
 
+/** Which part of recovery the shopper is on. */
+private enum class RecoveryStep { Email, Code, Password }
+
+/**
+ * Password recovery, as THREE steps (036 FR-048).
+ *
+ * ⚠ THE CODE IS COLLECTED AT STEP 2 AND SPENT AT STEP 3 — it is not verified in between, and that is
+ * a requirement rather than a shortcut. 012's FR-022b makes recovery finish at the BACKEND, with the
+ * code and the new password travelling in ONE request, because a separate "verify the code" call
+ * would create a *"you may now set a password"* state that is worth stealing. So step 2 holds the
+ * code and moves on; if it was wrong, the refusal arrives when the password is submitted.
+ *
+ * That is a real cost — the shopper learns of a mistyped code one screen later than they would like —
+ * and it is the same shape the signed-in password flow already uses (`PasswordScreens`' INTRO → CODE
+ * → PASSWORD). Splitting it into three screens is what the operator asked for and what makes each
+ * step a single decision; verifying the code separately is what security forbids.
+ */
 @Composable
 private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
     val state by vm.state.collectAsState()
-    var email by remember { mutableStateOf("") }
-    var code by remember { mutableStateOf("") }
+    var step by rememberSaveable { mutableStateOf(RecoveryStep.Email) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var code by rememberSaveable { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
-    AuthScaffold(container, "Reset your password", "We’ll email you a code to set a new one.", state) {
-        EffyField(
-            "Email",
-            email,
-            { email = it },
-            placeholder = "Enter your email address",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-        )
-        EffySecondaryButton(
-            "Send me a code",
-            onClick = { vm.sendRecoveryCode(email) },
-            enabled = !state.loading && email.isNotBlank(),
-        )
-        EffyField(
-            "Code",
-            code,
-            { code = it },
-            placeholder = "$OTP_LENGTH-digit code",
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        )
-        EffyPasswordField(
-            "New password",
-            newPassword,
-            { newPassword = it },
-            placeholder = "At least $PASSWORD_MIN_LENGTH characters",
-        )
-        EffyPrimaryButton(
-            "Reset password",
-            onClick = { vm.confirmRecovery(email, code, newPassword) },
-            enabled = !state.loading,
-        )
+
+    when (step) {
+        RecoveryStep.Email -> AuthScaffold(
+            title = "Reset your password",
+            subtitle = "Enter your email and we’ll send you a code.",
+            state = state,
+            bottomBar = {
+                EffyPrimaryButton(
+                    "Send code",
+                    onClick = {
+                        vm.sendRecoveryCode(email)
+                        step = RecoveryStep.Code
+                    },
+                    enabled = !state.loading && email.isNotBlank(),
+                    loading = state.busyWith(AuthSubmission.SendingCode),
+                )
+            },
+        ) {
+            EffyField(
+                "Email",
+                email,
+                { email = it },
+                placeholder = "Enter your email address",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            )
+        }
+
+        RecoveryStep.Code -> AuthScaffold(
+            title = "Enter your code",
+            subtitle = "We sent a code to ${state.email.ifBlank { email }}. " +
+                "The code works for 5 minutes.",
+            state = state,
+            bottomBar = {
+                EffyPrimaryButton(
+                    "Continue",
+                    onClick = { step = RecoveryStep.Password },
+                    // ⚠ Exactly six digits — a longer paste is kept and refused, never reshaped.
+                    enabled = !state.loading && isCompleteOtp(code),
+                )
+                EffySecondaryButton(
+                    "Wrong email? Change it",
+                    onClick = { step = RecoveryStep.Email },
+                    enabled = !state.loading,
+                )
+            },
+        ) {
+            OtpInput(
+                value = code,
+                onValueChange = { code = it },
+                onSubmit = { if (isCompleteOtp(code)) step = RecoveryStep.Password },
+                enabled = !state.loading,
+                isError = state.error != null || code.length > OTP_LENGTH,
+                variant = OtpVariant.Cells,
+            )
+            ResendRow(state = state, onResend = { vm.sendRecoveryCode(email) })
+        }
+
+        RecoveryStep.Password -> AuthScaffold(
+            title = "Choose a new password",
+            subtitle = "Almost done — pick something you’ll remember.",
+            state = state,
+            bottomBar = {
+                EffyPrimaryButton(
+                    "Reset password",
+                    // ⚠ HERE is where the code is spent, alongside the password, in one request.
+                    onClick = { vm.confirmRecovery(email, code, newPassword) },
+                    enabled = !state.loading && newPassword.length >= PASSWORD_MIN_LENGTH,
+                    loading = state.busyWith(AuthSubmission.ResettingPassword),
+                )
+            },
+        ) {
+            EffyPasswordField(
+                "New password",
+                newPassword,
+                { newPassword = it },
+                placeholder = "At least $PASSWORD_MIN_LENGTH characters",
+            )
+            Text(
+                "At least $PASSWORD_MIN_LENGTH characters. Use anything you like — no special characters required.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

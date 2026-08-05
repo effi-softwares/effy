@@ -2,6 +2,7 @@
 
 package com.effyshopping.mobile.kit.ui
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -19,7 +20,19 @@ import androidx.compose.ui.viewinterop.UIKitView
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.useContents
 import platform.Foundation.NSRange
+import kotlinx.cinterop.readValue
+import platform.CoreGraphics.CGRectMake
+import platform.CoreGraphics.CGRectZero
+import platform.UIKit.NSLayoutConstraint
+import platform.UIKit.NSTextAlignmentCenter
 import platform.UIKit.UIColor
+import platform.UIKit.UIFont
+import platform.UIKit.UIFontWeightMedium
+import platform.UIKit.UILabel
+import platform.UIKit.UILayoutConstraintAxisHorizontal
+import platform.UIKit.UIStackView
+import platform.UIKit.UIStackViewDistributionFillEqually
+import platform.UIKit.UIView
 import platform.UIKit.UIKeyboardTypeNumberPad
 import platform.UIKit.UIReturnKeyType
 import platform.UIKit.UITextContentTypeOneTimeCode
@@ -72,27 +85,32 @@ actual fun OtpInput(
     enabled: Boolean,
     isError: Boolean,
     /**
-     * ⚠ ACCEPTED AND DELIBERATELY IGNORED, PENDING SPIKE-1 (036 R3c, plan §Spikes).
+     * ⚠ HONOURED HERE BY DRAWING THE CELLS *BEHIND* A COLOUR-CLEARED, STILL-REAL `UITextField`.
      *
-     * This actual is a NATIVE `UITextField` inside a `UIKitView`, and that is not a stylistic choice:
-     * `textContentType = UITextContentTypeOneTimeCode` is what produces the one-tap QuickType
-     * suggestion from Mail, and a Compose field cannot request it. Painting Compose cells here means
-     * compositing them with a colour-cleared but still-visible, still-first-responder text field —
-     * and THREE things could break it, none of which Apple or JetBrains document:
+     * The field cannot be replaced by a Compose one: `textContentType = UITextContentTypeOneTimeCode`
+     * is what makes iOS offer the code from Mail as a keyboard suggestion, and Compose cannot ask for
+     * it. So the native field stays — visible to the system, first responder, delegate intact — and is
+     * simply made transparent: `textColor` and `tintColor` cleared, no background, no border, no
+     * placeholder. `OtpCells` paints the six positions underneath from the same `value`.
      *
-     *   1. whether a colour-cleared field still gets the QuickType one-time-code suggestion
-     *      (clear colours are not `hidden`, but `alpha = 0` is known to suppress it);
-     *   2. CMP 1.11.x z-order and hit-testing for Compose content over a `UIKitView`;
-     *   3. `UIKitInteropProperties(isNativeAccessibilityEnabled = true)` gives UIKit ownership of
-     *      accessibility for this subtree, so Compose cells would need `clearAndSetSemantics {}` or a
-     *      second a11y node appears — breaking the one-node invariant this component exists to hold.
+     * ⚠ CLEAR COLOURS, NEVER `hidden = true` OR `alpha = 0`. iOS suppresses the QuickType one-time-code
+     * suggestion for a field it considers off-screen; a fully transparent but laid-out field is not
+     * off-screen. That distinction is the entire reason this works, and it is why nobody should
+     * "tidy" this into `isHidden`.
      *
-     * ⚠ AUTOFILL BEATS CELLS. It is the highest-value behaviour in this component and the only part of
-     * 036 that can be silently destroyed. Until the spike passes on a physical device, iOS keeps the
-     * spaced single field — which is GOV.UK's actually-shipped design, not a degraded fallback — and
-     * the parity split is recorded rather than hidden.
+     * ⚠ THE FIELD IS ON TOP, THE CELLS BEHIND — not the other way round. Compose content composited
+     * OVER a `UIKitView` is the fragile direction in CMP; a native view above Compose is not. It also
+     * keeps every touch landing on the real field.
+     *
+     * ⚠ THE CELLS CARRY NO SEMANTICS. `UIKitInteropProperties(isNativeAccessibilityEnabled = true)`
+     * gives UIKit ownership of accessibility for this subtree, so a second Compose node would break
+     * the one-logical-field invariant this whole component exists to hold.
+     *
+     * ⚠ STILL DEVICE-UNVERIFIED. Autofill is the highest-value behaviour here and the only thing in
+     * 036 that can be destroyed silently — quickstart §1 SPIKE-1 is the walk that confirms QuickType
+     * still offers the code, taps still reach the field, and VoiceOver still reports ONE element.
      */
-    @Suppress("UNUSED_PARAMETER") variant: OtpVariant,
+    variant: OtpVariant,
 ) {
     val change = rememberUpdatedState(onValueChange)
     val submit = rememberUpdatedState(onSubmit)
@@ -100,40 +118,127 @@ actual fun OtpInput(
     delegate.onChange = { change.value(it) }
     delegate.onSubmit = { submit.value() }
 
+    val cells = variant == OtpVariant.Cells
     val surface = MaterialTheme.colorScheme.surfaceContainerLow.asUIColor()
     val foreground = MaterialTheme.colorScheme.onSurface.asUIColor()
-    val border = (if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline).asUIColor()
-    val cursor = MaterialTheme.colorScheme.primary.asUIColor()
+    val outline = MaterialTheme.colorScheme.outline.asUIColor()
+    val errorColor = MaterialTheme.colorScheme.error.asUIColor()
+    val primary = MaterialTheme.colorScheme.primary.asUIColor()
+    val border = (if (isError) errorColor else outline)
+    val cursor = primary
 
     UIKitView(
         factory = {
-            UITextField().apply {
+            val field = UITextField().apply {
                 this.delegate = delegate
                 keyboardType = UIKeyboardTypeNumberPad
                 returnKeyType = UIReturnKeyType.UIReturnKeyDone
                 textContentType = UITextContentTypeOneTimeCode
-                placeholder = "$OTP_LENGTH-digit code"
                 accessibilityLabel = "One-time code"
-                layer.cornerRadius = 16.0
-                layer.borderWidth = 1.0
-                leftView = platform.UIKit.UIView(frame = platform.CoreGraphics.CGRectMake(0.0, 0.0, 16.0, 1.0))
-                leftViewMode = UITextFieldViewMode.UITextFieldViewModeAlways
+                tag = FIELD_TAG.toLong()
+                if (!cells) {
+                    placeholder = "$OTP_LENGTH-digit code"
+                    layer.cornerRadius = 16.0
+                    layer.borderWidth = 1.0
+                    leftView = UIView(frame = CGRectMake(0.0, 0.0, 16.0, 1.0))
+                    leftViewMode = UITextFieldViewMode.UITextFieldViewModeAlways
+                }
             }
+            if (!cells) return@UIKitView field
+
+            // ── The six cells, drawn IN UIKIT ───────────────────────────────────────────────────
+            val container = UIView(frame = CGRectZero.readValue())
+            val stack = UIStackView().apply {
+                axis = UILayoutConstraintAxisHorizontal
+                distribution = UIStackViewDistributionFillEqually
+                spacing = 8.0
+                translatesAutoresizingMaskIntoConstraints = false
+            }
+            repeat(OTP_LENGTH) { index ->
+                val cell = UIView().apply {
+                    layer.cornerRadius = 12.0
+                    layer.borderWidth = 1.0
+                    tag = (CELL_TAG + index).toLong()
+                }
+                val label = UILabel().apply {
+                    textAlignment = NSTextAlignmentCenter
+                    font = UIFont.systemFontOfSize(22.0, UIFontWeightMedium)
+                    tag = (LABEL_TAG + index).toLong()
+                    translatesAutoresizingMaskIntoConstraints = false
+                }
+                cell.addSubview(label)
+                NSLayoutConstraint.activateConstraints(
+                    listOf(
+                        label.centerXAnchor.constraintEqualToAnchor(cell.centerXAnchor),
+                        label.centerYAnchor.constraintEqualToAnchor(cell.centerYAnchor),
+                    ),
+                )
+                stack.addArrangedSubview(cell)
+            }
+            container.addSubview(stack)
+
+            // ⚠ The field sits OVER the cells, fully transparent, and is what actually receives input,
+            // paste and the QuickType one-time-code suggestion.
+            field.translatesAutoresizingMaskIntoConstraints = false
+            container.addSubview(field)
+
+            NSLayoutConstraint.activateConstraints(
+                listOf(
+                    stack.leadingAnchor.constraintEqualToAnchor(container.leadingAnchor),
+                    stack.trailingAnchor.constraintEqualToAnchor(container.trailingAnchor),
+                    stack.topAnchor.constraintEqualToAnchor(container.topAnchor),
+                    stack.bottomAnchor.constraintEqualToAnchor(container.bottomAnchor),
+                    field.leadingAnchor.constraintEqualToAnchor(container.leadingAnchor),
+                    field.trailingAnchor.constraintEqualToAnchor(container.trailingAnchor),
+                    field.topAnchor.constraintEqualToAnchor(container.topAnchor),
+                    field.bottomAnchor.constraintEqualToAnchor(container.bottomAnchor),
+                ),
+            )
+            container
         },
-        update = { field ->
+        update = { root ->
+            val field = (root.viewWithTag(FIELD_TAG.toLong()) as? UITextField) ?: return@UIKitView
             if (field.text != value) field.text = value
             field.enabled = enabled
-            field.backgroundColor = surface
-            field.textColor = foreground
-            field.tintColor = cursor
-            field.layer.borderColor = border.CGColor
             field.accessibilityValue = value
+
+            if (!cells) {
+                field.backgroundColor = surface
+                field.textColor = foreground
+                field.tintColor = cursor
+                field.layer.borderColor = border.CGColor
+                return@UIKitView
+            }
+
+            // ⚠ Transparent, but laid out, on-screen and first-responder-capable — see the note on
+            // `variant`. Never `hidden`/`alpha = 0`: iOS withholds the QuickType suggestion from a
+            // field it considers off-screen.
+            field.backgroundColor = UIColor.clearColor
+            field.textColor = UIColor.clearColor
+            field.tintColor = UIColor.clearColor
+            field.layer.borderWidth = 0.0
+
+            repeat(OTP_LENGTH) { index ->
+                val cell = root.viewWithTag((CELL_TAG + index).toLong())
+                val label = root.viewWithTag((LABEL_TAG + index).toLong()) as? UILabel
+                val digit = value.getOrNull(index)
+                val active = enabled && index == value.length
+                label?.text = digit?.toString() ?: ""
+                label?.textColor = foreground
+                cell?.backgroundColor = surface
+                cell?.layer?.borderColor = when {
+                    isError -> errorColor.CGColor
+                    active -> primary.CGColor
+                    else -> outline.CGColor
+                }
+                cell?.layer?.borderWidth = if (active) 2.0 else 1.0
+            }
         },
-        // ⚠ heightIn ADDED during the promotion (035 T038). The shop-mobile original had no height
-        // constraint at all on the iOS side, so the touch target was whatever the caller happened
-        // to give it — which is how a control ends up under the 48dp minimum without anyone
-        // noticing. 56dp matches the Android actual.
+        // ⚠ `fillMaxWidth()` — the Android actual has always had it and this one never did, so the
+        // `UIKitView` sized to the field's intrinsic width and the box hugged its placeholder. That is
+        // why the code field rendered small and left-aligned on iOS only, in BOTH variants.
         modifier = modifier
+            .fillMaxWidth()
             .heightIn(min = 56.dp)
             .semantics {
                 contentDescription = "One-time code"
@@ -142,6 +247,11 @@ actual fun OtpInput(
         properties = UIKitInteropProperties(isNativeAccessibilityEnabled = true),
     )
 }
+
+/** Tags, so `update` can find the views `factory` built without keeping Kotlin references alive. */
+private const val FIELD_TAG = 4001
+private const val CELL_TAG = 4100
+private const val LABEL_TAG = 4200
 
 private fun Color.asUIColor(): UIColor {
     val argb = toArgb()

@@ -186,4 +186,43 @@ test.describe("the credential routes on offer", () => {
     await page.goto("/sign-up")
     await expect(page.getByTestId("google-signup")).toBeVisible()
   })
+
+  test("⚠ an unknown address produces an IDENTICAL sequence of screens (FR-024, SC-012)", async ({
+    page,
+  }) => {
+    // ⚠ WHAT THIS CAN AND CANNOT PROVE, STATED PLAINLY. It cannot prove the SERVER answers identically
+    // — that is a live property, and quickstart §3.7 is where a person checks it against a real pool.
+    // What it CAN prove, and what no live walk would reliably catch, is that OUR CLIENT contains no
+    // existence-dependent branch: given the same response, two different addresses must produce the
+    // same screen, the same controls and the same words.
+    //
+    // That is worth pinning because the branch is easy to add by accident — a well-meaning "we don't
+    // recognise that email" would be an account-enumeration oracle on the platform's only public
+    // surface, and it would look like a helpfulness improvement in review.
+    await page.route("**/cognito-idp.*.amazonaws.com/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/x-amz-json-1.1",
+        body: JSON.stringify({
+          ChallengeName: "CUSTOM_CHALLENGE",
+          Session: "stub-session",
+          ChallengeParameters: { USERNAME: "stub", destination: "s***@e***.com" },
+        }),
+      }),
+    )
+
+    const seen: string[] = []
+    for (const address of ["definitely-a-customer@example.com", "no-such-person@example.com"]) {
+      await page.goto("/sign-in")
+      await page.getByLabel("Email").fill(address)
+      await page.getByTestId("submit-email").click()
+      await expect(page.locator("#code")).toBeVisible()
+
+      // The address itself legitimately differs; everything around it must not.
+      const body = (await page.locator("main").innerText()).replace(address, "<address>")
+      seen.push(body)
+    }
+
+    expect(seen[0]).toBe(seen[1])
+  })
 })

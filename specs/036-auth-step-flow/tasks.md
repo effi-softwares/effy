@@ -16,7 +16,7 @@ out-of-scope consoles were not disturbed.
 
 ---
 
-## STATUS — 2026-08-05: 110/137. **Both customer surfaces built and machine-verified.**
+## STATUS — 2026-08-05: 130/148. **Both customer surfaces built and machine-verified.**
 
 ⚠ **NOT signed off.** Every remaining task is a spike, an operator walk, or a test — see "What is NOT
 done" below. Nothing in this feature has been observed by a human on a device or in a browser.
@@ -26,14 +26,15 @@ done" below. Nothing in this feature has been observed by a human on a device or
 | Gate | Result |
 |---|---|
 | `pnpm -r typecheck` | ✅ 13/13 |
-| `pnpm -r test` | ✅ all green — `edge-customer` **87 → 93** (+6 new); every other package identical to baseline |
+| `pnpm -r test` | ✅ all green — `customer-web` **208 → 232**, `edge-customer` **87 → 93**; consoles identical to baseline |
 | ⚠ Console proof gate (T028) | ✅ `web-kit` 48 · `back-office` 77 · `shop-web` 138 — **unmodified**, matching baseline exactly |
 | ⚠ Guest bundle | ✅ **byte-identical on all nine routes** (`/search` and `/cart` still 172.0 / 174 KB) |
 | `tokens:check` | ✅ unchanged — no token added |
 | `depcruise` (Amplify quarantine) | ✅ clean, 269 modules |
 | `check-no-emerald` / `check-no-jade` | ✅ (see deviation D5) |
 | `mobile-guard` | ✅ route reachability **and** `entry<>` coverage, with 3 new routes |
-| `customer-mobile` | ✅ **480 tests**, 0 failures · Android `assembleDebug` ✅ · iOS main **and** `compileTestKotlinIosSimulatorArm64` ✅ |
+| `customer-mobile` | ✅ **492 tests** (480 → 492), 0 failures · Android `assembleDebug` ✅ · Kotlin/Native main **and** `compileTestKotlinIosSimulatorArm64` ✅ |
+| ⚠ **Swift** (`xcodebuild -scheme iosApp`) | ✅ **BUILD SUCCEEDED** — ⚠ a gate that did not exist until the operator hit a Swift compile error; gradle never compiles `iosApp/` |
 | ⚠ `shop-mobile` (out of scope) | ✅ **162 tests**, 0 failures, unmodified — the mobile half of the proof gate |
 | Telemetry | ✅ 10 `auth_*` events emitted through the existing seam — ⚠ **but PostHog is still uninitialised on `customer-web`, so every one is a no-op today** |
 | Governance | ✅ parity register §036 + **rows 5–13 corrected** (stale `⬜` since 013); 011 FR-009a marked **superseded**; 035 FR-027 marked **unmeetable as built** |
@@ -53,7 +54,7 @@ iOS handled it correctly (four slices old); `OtpPurpose.RECOVERY`'s `submitOtp` 
 route change — harmless only while the flow state lived outside it, and a data-loss bug the moment
 036 moved it in.
 
-### ⚠ Two negative proofs run (this repo's idiom — break it and watch it fail)
+### ⚠ Three negative proofs run (this repo's idiom — break it and watch it fail)
 
 1. **T013 `--font-mono` guard** — injected a proportional `--font-mono`; `check-tokens` failed with the
    intended message; `tokens.css` restored byte-identical.
@@ -62,6 +63,100 @@ route change — harmless only while the flow state lived outside it, and a data
    satisfied the search. That is 029's exact failure mode — the fixture agreeing with the code instead
    of the world — and it survived only because the negative proof was run. The test now scans the
    **handler body** and fails correctly when the call is removed.
+3. **T059 the resend ceiling** — raised `MAX_SENDS_PER_FLOW` from 5 to 50; exactly the two tests that
+   should fail did; restoring it went green again.
+
+### T059 — the coverage gap, closed by an extraction
+
+⚠ The resend ceiling and the attempt cap lived as private constants and inline `if`s inside
+`AuthViewModel`, which takes twelve collaborators including concrete `SessionManager` and
+`CustomerNavigator` classes. Testing them meant standing up the whole auth stack in fakes, so nobody
+had — and the two rules that decide whether a shopper can get back into their account were unasserted
+on **both** mobile apps.
+
+They are now pure functions in `features/auth/domain/OtpFlowRules.kt` (Principle VI — they are
+decisions, not effects), consumed by both the ViewModel **and** the view, so the screen cannot offer a
+control its handler will refuse. 12 new tests, including that a network failure must **not** cost an
+attempt and that a resend **resets** the tally because it is genuinely a new Cognito session.
+
+⚠ **And the first run failed on iOS only.** Five test names contained commas, which Kotlin/Native
+rejects and the JVM accepts — so Android was green and `compileTestKotlinIosSimulatorArm64` caught it.
+That is the exact wall 033 hit and recorded, hit again; the gate 033 added is what stopped it.
+
+### ⚠ A GAP IN MY OWN VERIFICATION, found by the operator
+
+`SwiftAuthBridge.swift` failed to compile — `Value of type 'DeliveryDestination' has no member
+'description'` — **after** I had reported "iOS main and test compile ✅" repeatedly.
+
+Both halves of that are worth stating. **Gradle does not compile `iosApp/`.** It builds the Kotlin
+framework the Swift links against and stops; `compileKotlinIosSimulatorArm64` and
+`compileTestKotlinIosSimulatorArm64` say nothing whatsoever about the Swift bridge. So every "iOS
+compiles" claim in this slice was a claim about Kotlin only, and the one file most likely to break —
+the hand-written bridge, edited three times here — was covered by nothing.
+
+⚠ **This is 033's finding one layer out.** That slice discovered the iOS *test* compilation had never
+run while "iOS compiles" was claimed from the *main* one. Same shape, one level further: the Swift
+half had never been compiled at all.
+
+**Two defects, not one.** The compiler caught `.description` on an enum. It could not catch the
+second: I had invented the outcome string `"signUpConfirmation"`, while `IosAuthDriver.mapResult`
+switches on `"signupConfirm"`. That compiles perfectly and falls through to `AuthError.Unexpected` —
+a resend that dead-ends with a generic error, on device only, with every gate green.
+
+Fixed both; `xcodebuild -scheme iosApp` now **BUILD SUCCEEDED** and is added to
+[quickstart.md](quickstart.md) §6 as a required gate.
+
+### Amendment A1 — layout & composition (T138–T148)
+
+Added on operator direction after walking the built screens. See [plan.md](plan.md) §Amendment A1 for
+the research that decided each choice, and [spec.md](spec.md) FR-047 … FR-052.
+
+- [X] T138 Three-group rhythm on both surfaces — 16 within / 40 between, from the tokens that exist
+- [X] T139 ⚠ Bottom-anchored committing action on every single-action step (`Scaffold(bottomBar)` on
+      mobile, `mt-auto` bottom group on web) — reusing `PasswordStepScaffold`'s established shape
+- [X] T140 Opposite-journey link moved to the bottom group on both surfaces
+- [X] T141 Code field fills its column on mobile, capped at 360 dp; enlarged and centred on web
+- [X] T142 Recovery split into address → code → password, with the code **collected** not spent
+- [X] T143 Terms notice above the account-creating action, Terms + Privacy only
+- [X] T144 ⚠ Web: `(auth)` layout stretches on a phone and stays centred on a desktop
+- [X] T145 ⚠ Web: `Submit` gains `form=` so a bottom-anchored button outside the `<form>` still submits
+- [X] T146 Verified: 13/13 typecheck · all suites · bundle byte-identical · guards · Kotlin/Native ·
+      Android APK · **Swift** · shop-mobile unmodified
+- [X] T019 ⚠ **iOS cells implemented** — cells drawn BEHIND a colour-cleared but still-real, still-first-responder `UITextField`, so `UITextContentTypeOneTimeCode` autofill survives. ⚠ Also fixed a second, independent bug: the iOS actual had **no `fillMaxWidth()`** where Android always had one, so the field sized to its placeholder and rendered as a small left-aligned box **on iOS only**.
+- [X] T149 ⚠ **In-button progress, replacing the loose page spinner.** The auth screens rendered one
+      `CircularProgressIndicator` in the page column. Two problems, both visible on a device: on a
+      screen with TWO actions ("Sign in" and "Email me a code instead") it could not say which one was
+      running, and it appeared and disappeared **in the layout flow**, nudging everything below it.
+      ⚠ A boolean `loading` was not enough to fix it — the state had to name WHICH action is in flight.
+      `AuthSubmission` (copied from `apps/shop-mobile`, which had this shape already) does that;
+      `state.loading` survives as a derived value so every existing `enabled = !state.loading` read
+      still holds. `EffyPrimaryButton`/`EffySecondaryButton` gained a `loading` slot that keeps the
+      label and adds an 18 dp mark — swapping the label out would lose the one thing that says what
+      you are waiting for, and would change the button's width mid-press.
+- [ ] T147 ⚠ **OPERATOR** — walk the new layout on a real phone: groups legible, action above the
+      keyboard on the smallest device, cells full-width, three-step recovery, terms links reachable
+- [ ] T148 ⚠ **OPERATOR** — mobile terms links are TEXT ONLY. There is no legal screen in the app and
+      no storefront base URL in its build config (`requiredKeys` carries two API hosts and nothing
+      else), so adding one would fail every build until each developer updated `secrets.properties`.
+      Needs either the config key or in-app legal routes. **Web links to the real routes.**
+
+### Tests added (T014, T056–T059, T072)
+
+`customer-web` **208 → 232**; `customer-mobile` **480 → 492**.
+
+- **T057** — the sign-in step classifier and the refusal mapping. ⚠ `classifySignInStep` existed since
+  035, was correct, and was **called by nothing**; an exported-but-uncalled function is invisible to
+  type checks, tests and guards alike, which is exactly how the storefront came to treat a re-issued
+  challenge as a successful sign-in.
+- **T058** — ⚠ a source scan over the installed `@aws-amplify/auth`, pinning the `sessionStorage`
+  persistence, the four `CognitoSignInState.*` keys and the **3-minute** expiry that the whole
+  one-route step design rests on. It is an `@internal` module whose own TODO promises a rewrite; if an
+  upgrade removes it, nothing else here would notice and the symptom is a shopper losing a live code
+  on a refresh, in production, intermittently.
+- **T072** — ⚠ two different addresses must produce a byte-identical screen. It cannot prove the
+  SERVER answers identically (that is quickstart §3.7, with a real pool) — what it proves is that OUR
+  CLIENT contains no existence-dependent branch, which is the part a well-meaning "we don't recognise
+  that email" would break in a review that looked like a helpfulness improvement.
 
 ### Deviations from the plan, recorded rather than silent
 
@@ -80,25 +175,54 @@ route change — harmless only while the flow state lived outside it, and a data
 - **D5 — ⚠ my own comment broke `check-no-emerald`.** The note warning future authors not to "fix"
   Google blue quoted the banned hex literally; the guard scans comments. Reworded to name the value
   without writing it.
-- **D6 — T014 (a `design-system` unit test) not done.** That package has no test runner by design (its
-  `test` script is zero-dep node checks). Adding vitest there is new infrastructure out of proportion
-  to one component; the behaviour is covered by the Playwright specs and the console suites.
-- **D7 — `reset-password` adopted the `cells` variant and digit filtering, not the full `CodeStep`.**
-  It gets FR-004 and the shared field; it does **not** yet get resend or the countdown (T040 partial).
-- **D8 — ⚠ iOS accepts `variant` and deliberately IGNORES it (T019 not done).** Cells there require
-  compositing Compose over a colour-cleared `UITextField`, and **SPIKE-1 has not run**. iOS keeps the
-  spaced single field — which is GOV.UK's actually-shipped design, not a degraded fallback. **Autofill
-  beats cells**: `UITextContentTypeOneTimeCode` is the highest-value behaviour in the component and the
-  only thing in 036 that can be silently destroyed. **This is a recorded Android/iOS presentation
-  split.**
+- **D6 — T014 lives in `apps/customer-web`, not `packages/design-system`.** That package has no test
+  runner by design (its `test` script is zero-dep node check-scripts, and its generator is "proudly
+  zero-dep"); adding vitest there for one component would be new infrastructure out of proportion.
+  The app already has the runner, the DOM and the React-alias plumbing, and is what consumes the new
+  variant. 8 tests, pinning **both** the cells contract and — as hard — the default variant's, which
+  the two out-of-scope consoles depend on.
+- **D7 — RESOLVED.** `reset-password` now uses the full `CodeStep`, so recovery gets the resend, the
+  countdown and the hourly ceiling like the other two journeys. ⚠ Doing so exposed that
+  `e2e/otp-entry.spec.ts` **could never have passed**: five tests did `goto("/reset-password")` and
+  immediately located `#code`, but that route has rendered an EMAIL form first since it was written.
+  Nothing caught it because Playwright is not in `pnpm test` — it needs a built server and is run by
+  hand. The tests now walk the step with the Cognito transport stubbed (the transport only; no test
+  claims a code was sent or verified). **They remain unexecuted here.**
+- **D8a — ⚠ THE FIRST iOS CELLS ATTEMPT WAS INVISIBLE, and the reason was on my own risk list.**
+  Cells drawn in Compose *behind* a colour-cleared `UIKitView` never appeared: CMP composites the
+  native view **above** the Compose canvas and clears the region beneath it. I had written "CMP z-order
+  and hit-testing for Compose content over a `UIKitView`" as risk #2 of SPIKE-1, then reasoned that
+  cells-behind-field was the safe direction and shipped it without checking. It is not a safe
+  direction; there is no safe direction. The operator found a blank gap where the field should be.
+  **Fixed by drawing the six cells in UIKit** — a `UIStackView` of bordered cells with a centred
+  `UILabel` each, and the transparent `UITextField` constrained over the top inside the *same* native
+  view. No Compose compositing, no hole to punch. `OtpCells` (Compose) is now **Android-only**, and its
+  header says so.
+- **D8 — RESOLVED, and the deferral was the wrong call.** iOS ignored `variant` pending SPIKE-1, so the
+  operator ran the build and saw the **plain box** — the exact screen 036 exists to fix, on the surface
+  they were testing. The cells now render there: drawn BEHIND a colour-cleared but still-real,
+  still-first-responder `UITextField`, with the field on top (Compose over `UIKitView` is the fragile
+  compositing direction; native over Compose is not) and the cells carrying no semantics so UIKit keeps
+  sole ownership of the a11y node.
+  ⚠ **A second, independent bug surfaced with it**: the iOS actual had **no `fillMaxWidth()`** where the
+  Android one always had. The `UIKitView` therefore sized to the text field's intrinsic width and the
+  box hugged its placeholder — which is why the field looked small and left-aligned **on iOS only**, in
+  both variants. Android was fine, so no gradle gate could have caught it.
 - **D9 — the Google mark now ships on BOTH surfaces (T110 done).** A hand-authored VectorDrawable at
   `packages/design-system/mobile-assets/drawable/ic_google_g.xml`, synced by the existing drift guard
   (82 → 84 asset copies), rendered with **no tint** — a tint would be a licence breach, not a style
   choice. `EffySecondaryButton` gained an optional `leading` slot rather than forking a bespoke Google
   button that would drift from its height, radius and disabled colour.
-- **D10 — `PasswordScreens`/`DeleteAccountScreen` got the shared `OTP_LENGTH` in their copy but did
-  NOT adopt `OtpInput` (T022 partial).** They still use a plain `EffyField` with no digit filter and no
-  autofill. Recorded, not hidden.
+- **D10 — RESOLVED.** `PasswordScreens` (set/reset) and `DeleteAccountScreen` now use the shared
+  `OtpInput`. ⚠ Both were plain `EffyField`s with no digit filter, no length gate and — the part that
+  costs a customer something — no `UITextContentTypeOneTimeCode`, so iOS never offered the code from
+  Mail. On the deletion screen that field confirms **account deletion**, and on the password screens it
+  is reached precisely when someone is already locked out. Their submit gates were `isNotBlank()`; they
+  are now `isCompleteOtp()`.
+- **D11 — two copy strings still told shoppers to do something the screen could not do.** Web's
+  expired-code message said "Ask for a new one" when no resend existed anywhere on the platform; it now
+  says "Send another one", and the control exists. The mobile account-password flow's resend lives one
+  step BACK, so its message now says so instead of pointing at nothing.
 
 ### ⚠ A regression I introduced and had to undo (T052)
 
@@ -119,9 +243,17 @@ was a live parameter every caller passed as `null` — so signing in mid-checkou
   gates whether sign-up costs a second code**, and both surfaces' sign-up flows are built on the
   *documented* no-second-code behaviour, which **has not been observed live**. If it is wrong, the step
   order changes on both surfaces.
-- **T014, T019, T022, T040, T056–T059, T072, T105, T106** — the iOS cells (SPIKE-1), the two partial
-  component adoptions, and the remaining tests including a mobile `AuthViewModelTest`.
-- **T118** the full copy sweep · **T122, T123, T127** accessibility and the final gate.
+- **T019 — DONE, but SPIKE-1 still matters.** The cells now render on iOS. What is still unverified on
+  a device is whether QuickType offers the one-time code from Mail with the field's colours cleared,
+  whether every tap reaches it, and whether VoiceOver reports exactly one element. ⚠ Clear colours are
+  deliberately NOT `hidden`/`alpha = 0` — iOS suppresses the suggestion for a field it considers
+  off-screen, and that distinction is the whole reason this approach can work.
+- **T105/T106 — ⚠ blocked on the same wall as everything else here: there is no test inbox.** The name
+  step can only be reached by completing a real registration, and this repo has deliberately never
+  faked that ("mocking Cognito and calling that proof would be exactly the dishonest green this slice
+  has been careful to avoid"). A test that stubs its way to the name step would assert the stub, not
+  the flow. Left open rather than filled with something that reads green and proves nothing.
+- **T122, T123** — the accessibility passes (keyboard-only, screen-reader-only), which need a person.
 - **T131–T137 — ⚠ EVERY OPERATOR WALK.** The 12-check code-step table has been walked on **no**
   surface, on **no** device. That is the same gap 035 shipped with, and the reason its defects
   surfaced on a device rather than in CI.
@@ -174,7 +306,7 @@ of the four stories depend on.
 - [X] T011 Add the `.otp-cells` CSS block to `packages/design-system/src/tokens.css`: monospace + `font-variant-numeric: tabular-nums`, `repeating-linear-gradient` cell grid, ⚠ `--otp-cells: 6` **hardcoded** (advanced `attr()` is Chrome-only), ⚠ `padding-left` + `clip-path` to cancel the trailing letter-space off-by-one, ⚠ `dir="ltr"` (the technique is direction-physical). **No new token** — reuse existing ramp variables
 - [X] T012 ⚠ Make the `cells` variant **own its padding and radius** — the three customer-web call sites pass `px-3 rounded-full`, and `className` lands last in `cn()`, so consumer padding destroys the cell alignment and pill radius clips the first and last cell borders (R3a)
 - [X] T013 [P] Add a `--font-mono` assertion to `scripts/check-tokens.mjs`: the cells need monospace for `1ch`, and a proportional value would misalign the grid silently with nothing failing
-- [ ] T014 [P] Unit-test `otp-input.tsx` in `packages/design-system/src/ui/otp-input.test.tsx`: default variant renders exactly one input with the current attributes; `cells` variant still renders **exactly one** input
+- [X] T014 [P] Unit-test `otp-input.tsx` in `packages/design-system/src/ui/otp-input.test.tsx`: default variant renders exactly one input with the current attributes; `cells` variant still renders **exactly one** input
 
 ### The shared code field — mobile
 
@@ -185,7 +317,7 @@ of the four stories depend on.
 - [ ] T019 ⚠ **Gated on T004.** If SPIKE-1 passed, apply cells in `packages/mobile-kit/ios/ui/OtpInput.ios.kt` via Compose cells **behind** a colour-cleared `UITextField`, keeping `textContentType = UITextContentTypeOneTimeCode` and marking the Compose layer `clearAndSetSemantics {}` (UIKit owns a11y for that subtree). If SPIKE-1 failed, leave this file unchanged and record the split
 - [X] T020 [P] ⚠ Add `apps/customer-mobile/shared/src/commonTest/.../ui/OtpInputTest.kt` — `customer-mobile` has **no OTP test at all** today, and `shop-mobile`'s UI test stubs the component out via `otpInputOverride`, so "exactly one node" has **never** been asserted against the real component on either app
 - [X] T021 [P] ⚠ Replace the hardcoded `"6-digit code"` placeholder strings in `apps/customer-mobile/.../AuthScreens.kt:464` and `.../account/presentation/PasswordScreens.kt:526,540` with values built from `OTP_LENGTH` (FR-045)
-- [ ] T022 ⚠ Adopt `OtpInput` in `apps/customer-mobile/.../account/presentation/PasswordScreens.kt` (the `CodeStep.CODE` step) — it currently uses a plain `EffyField` with **no digit filter, no autofill and a submit gate of `isNotBlank()`** (Principle II)
+- [X] T022 ⚠ Adopt `OtpInput` in `apps/customer-mobile/.../account/presentation/PasswordScreens.kt` (the `CodeStep.CODE` step) — it currently uses a plain `EffyField` with **no digit filter, no autofill and a submit gate of `isNotBlank()`** (Principle II)
 
 ### Shared web step chrome and error mapping
 
@@ -243,10 +375,10 @@ recover; exhaust three attempts and start again — all without sign-up, passwor
 ### Tests
 
 - [X] T055 [P] [US1] ⚠ **Invert** `apps/customer-web/e2e/otp-entry.spec.ts:65-71` — it asserts an 8-digit paste becomes `"123456"`, the **opposite** of FR-004. The test encodes the defect, exactly as 029's `banner_test.go` did
-- [ ] T056 [P] [US1] Add e2e coverage in `apps/customer-web/e2e/otp-entry.spec.ts` for: destination shown, resend disabled then enabled, digits preserved on refusal, and ⚠ **no navigation on a refused code** (SC-003)
-- [ ] T057 [P] [US1] Add `apps/customer-web/app/(auth)/_lib/auth-actions.test.ts` covering `classifySignInStep` wiring, the `SignInException` mapping and the `ForbiddenException` mapping
-- [ ] T058 [P] [US1] ⚠ Add a regression test asserting the four `CognitoSignInState.*` `sessionStorage` keys exist after `signIn()` — the persistence this design relies on is an `@internal` Amplify module whose own TODO promises a rewrite (R1)
-- [ ] T059 [P] [US1] Add `apps/customer-mobile/shared/src/commonTest/.../features/auth/AuthViewModelTest.kt` — ⚠ there is **no** auth ViewModel test on this surface at all; cover attempt counting, the send ceiling, cooldown, and `returnTo`
+- [X] T056 [P] [US1] Add e2e coverage in `apps/customer-web/e2e/otp-entry.spec.ts` for: destination shown, resend disabled then enabled, digits preserved on refusal, and ⚠ **no navigation on a refused code** (SC-003)
+- [X] T057 [P] [US1] Add `apps/customer-web/app/(auth)/_lib/auth-actions.test.ts` covering `classifySignInStep` wiring, the `SignInException` mapping and the `ForbiddenException` mapping
+- [X] T058 [P] [US1] ⚠ Add a regression test asserting the four `CognitoSignInState.*` `sessionStorage` keys exist after `signIn()` — the persistence this design relies on is an `@internal` Amplify module whose own TODO promises a rewrite (R1)
+- [X] T059 [P] [US1] Add `apps/customer-mobile/shared/src/commonTest/.../features/auth/AuthViewModelTest.kt` — ⚠ there is **no** auth ViewModel test on this surface at all; cover attempt counting, the send ceiling, cooldown, and `returnTo`
 
 **Checkpoint**: US1 is independently shippable — the repair is done and the code screen carries its own weight.
 
@@ -272,7 +404,7 @@ email survives; verify a password manager fills and saves.
 - [X] T069 [US2] Split `SignInScreen` in `apps/customer-mobile/.../AuthScreens.kt` into the identifier step and the password step, matching web's order and wording (FR-044)
 - [X] T070 [US2] Keep `EffyPasswordField`'s existing reveal toggle and 48 dp target on the mobile password step (FR-042)
 - [X] T071 [P] [US2] Update `apps/customer-mobile/shared/src/commonTest/.../app/ScreenInventoryTest.kt:54` — ⚠ it pins `ALL_CUSTOMER_ROUTES.size == 27` and every new route must round-trip through `customerNavSavedState`, the iOS-process-death trap it exists to catch
-- [ ] T072 [P] [US2] Add e2e coverage in `apps/customer-web/e2e/deferred-signin.spec.ts` for the step transition, back-preserves-email, and ⚠ **identical screens for an unknown address** (FR-024, SC-012)
+- [X] T072 [P] [US2] Add e2e coverage in `apps/customer-web/e2e/deferred-signin.spec.ts` for the step transition, back-preserves-email, and ⚠ **identical screens for an unknown address** (FR-024, SC-012)
 
 **Checkpoint**: both credential routes work as steps; nothing is lost going backwards.
 
@@ -360,7 +492,7 @@ specific "not yet" message, not a generic error.
 
 ## Phase 7: Polish, Verification & Sign-off
 
-- [ ] T118 [P] Apply [contracts/copy.md](contracts/copy.md) verbatim on both surfaces and delete every retired string listed there — ⚠ including mobile's *"That code has expired. Ask for a new one."*, which instructs an action the screen had no control for
+- [X] T118 [P] Apply [contracts/copy.md](contracts/copy.md) verbatim on both surfaces and delete every retired string listed there — ⚠ including mobile's *"That code has expired. Ask for a new one."*, which instructs an action the screen had no control for
 - [X] T119 [P] Emit the `auth_*` events from [contracts/telemetry.md](contracts/telemetry.md), ⚠ via **dynamic** `capture` imports in any guest-reachable client component — a static import cost +1.0 KB on four guest routes in 027
 - [X] T120 ⚠ Confirm the `outcome` property carries **no** `expired`, `superseded` or `not_sent` value on the sign-in route — the platform cannot distinguish them and a fiction in analytics becomes a fiction in a product decision (R10)
 - [X] T121 [P] Verify every control introduced or moved is ≥ 48 dp/px (FR-042) — ⚠ 033 shipped a 32 dp target under a comment claiming 48
@@ -369,7 +501,7 @@ specific "not yet" message, not a generic error.
 - [X] T124 ⚠ Update `docs/audiences/customer-capabilities.md` §036 — including **correcting rows 5–13**, whose mobile column has read `⬜` since 013 despite mobile having had the full auth stack all along (FR-046)
 - [X] T125 Record in [spec.md](spec.md) that 011's FR-009a (name collected before the account exists) is **superseded** by FR-032 — Principle I requires fixing the earlier artifact, not just the code
 - [X] T126 Record in `specs/035-six-digit-otp/spec.md` that FR-027 is **unmeetable as built** and why (FR-028 won), per R10
-- [ ] T127 Run the full machine gate from [quickstart.md](quickstart.md) §6 — ⚠ including `compileTestKotlinIosSimulatorArm64`, which 033 found had **never** run
+- [X] T127 Run the full machine gate from [quickstart.md](quickstart.md) §6 — ⚠ including `compileTestKotlinIosSimulatorArm64`, which 033 found had **never** run
 - [X] T128 ⚠ Confirm `pnpm --filter @effy/design-system tokens:check` passes **unchanged** — this feature adds no token (FR-041, SC-018)
 - [X] T129 ⚠ Confirm the nine guest routes are **byte-identical** via `pnpm --filter @effy/customer-web size`; `/search` has 2.0 KB of headroom and the limit must **not** be raised
 - [X] T130 ⚠ Re-run the Phase 2 proof gate (T028) at the end — the four console tests must still pass **unmodified**

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,6 +41,12 @@ enum class OtpVariant {
 
 /**
  * Six character cells, drawn from the current value (036 FR-002, R3b).
+ *
+ * ⚠ ANDROID ONLY, and that is a correction rather than a design. iOS drew these cells for exactly one
+ * build and they were INVISIBLE: `UIKitView` composites its native view above the Compose canvas and
+ * clears the region beneath it, so anything Compose paints *behind* an interop view is never seen. The
+ * iOS actual now builds the same six cells in UIKit, inside the same native view as the text field, so
+ * no compositing is involved at all. Do not "share" this composable back to iOS.
  *
  * ⚠ THIS IS DECORATION AROUND ONE FIELD — NOT SIX FIELDS. The editor above it remains a single
  * `BasicTextField` with a single accessibility node named "One-time code". Six real inputs are
@@ -92,18 +99,29 @@ fun OtpCells(
         return
     }
 
-    Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(OTP_LENGTH) { index ->
-            Cell(
-                digit = value.getOrNull(index),
-                active = enabled && index == value.length,
-                isError = isError,
-                modifier = Modifier.weight(1f),
-            )
+    // ⚠ FULL WIDTH, BUT CAPPED. The cells divide the available width equally, so on a phone they fill
+    // the column edge to edge — which is the affordance a shopper recognises. Without the cap they
+    // keep growing on a tablet or an unconstrained parent and become six wide rectangles instead of
+    // six character positions. 360 dp is arithmetic, not a citation: six cells at the ~48 dp touch
+    // target plus five 8 dp gaps is ≈ 328 dp, and the published guidance is to keep the group compact
+    // and centred rather than let it span a wide layout.
+    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(
+            Modifier.fillMaxWidth().widthIn(max = 360.dp).heightIn(min = 56.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            repeat(OTP_LENGTH) { index ->
+                Cell(
+                    digit = value.getOrNull(index),
+                    active = enabled && index == value.length,
+                    isError = isError,
+                    // ⚠ `aspectRatio` is deliberately NOT used: a square cell at a narrow width would
+                    // shrink the height below the touch minimum on a 320 dp device. Height is pinned,
+                    // width flexes.
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

@@ -46,11 +46,11 @@ caused deliberately. Mobile's existing curly apostrophes (`’`) are kept.
 | Primary (sign-up) | **Create account** |
 | Primary (reset) | **Set new password** |
 | Resend, waiting | Send another code in **{n}s** |
-| Resend, ready | **Send another code** |
+| Resend, ready | Didn't get it? **Send another code** — ⚠ a TEXT action on both surfaces, never a bordered button: resending is a recovery affordance, not a route through the flow |
 | Resend confirmation | ⚠ New code sent. **Use the most recent email** — the older code no longer works. |
 | Resend refused (5/flow) | We can't send another code to this address right now. Check your spam folder, or try again later. |
 | Wrong email | Wrong email? **Change it** |
-| Didn't arrive | Didn't get it? Check your spam folder, then send another code. |
+| Didn't arrive | Check your spam folder if it doesn't arrive. |
 
 ### Refusals — ⚠ each is exactly what the platform can support
 
