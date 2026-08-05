@@ -197,12 +197,17 @@ variable "alert_email" {
     error_message = "alert_email must be empty or a single email address."
   }
 
-  # ⚠ MECHANICAL ENFORCEMENT of the constitution's Real-World Identifiers rule (v1.12.0). This exact
-  # address belongs to an assistant session, not to this platform, and it was applied here once by
-  # mistake. A rule that lives only in a document is a rule that gets broken again.
+  # ⚠ MECHANICAL ENFORCEMENT of the constitution's Real-World Identifiers rule (v1.12.0).
+  #
+  # The address that was applied here by mistake belongs to an assistant session, not to this
+  # platform. A rule that lives only in a document is a rule that gets broken again.
+  #
+  # ⚠ SCOPED TO THE WHOLE DOMAIN, NOT ONE ADDRESS. The first version of this block compared against
+  # a single literal — and `anything@sub.phantm.com` sailed straight through it. Banning one address
+  # while leaving its domain open is the shape of a guard that looks like enforcement and is not.
   validation {
-    condition     = var.alert_email != "techsupport+claudeone@phantm.com"
-    error_message = "PROHIBITED: techsupport+claudeone@phantm.com must never be used in this project (constitution v1.12.0, Real-World Identifiers). Ask the operator for the address."
+    condition     = !can(regex("(?i)phantm\\.com$", var.alert_email))
+    error_message = "PROHIBITED: no phantm.com address (or any subdomain of it) may be used in this project — constitution v1.12.0, Real-World Identifiers. Approved Effy mailboxes: workspace-admin@effyshopping.com (operational), hello@effyshopping.com (customer-facing). Anything else: ask the operator."
   }
 }
 
