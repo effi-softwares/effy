@@ -175,6 +175,7 @@ export function SignInForm() {
           onResend={sendCode}
           onChangeEmail={back}
           onBack={back}
+          flow="sign_in"
         />
         {joinLink}
       </div>
@@ -282,7 +283,11 @@ export function SignInForm() {
               label="Continue with Google"
               testId="google-signin"
               disabled={pending}
-              onUnavailable={setError}
+              onUnavailable={(message) => {
+                // ⚠ Sizes the demand for the Google slice this feature deliberately did not build.
+                capture({ name: "auth_google_unavailable", props: { flow: "sign_in" } })
+                setError(message)
+              }}
             />
           </>
         )}

@@ -4,6 +4,8 @@ import * as React from "react"
 
 import { OTP_LENGTH, OtpInput } from "@effy/design-system/ui"
 
+import { capture } from "@/lib/telemetry"
+
 import { useCodeResend } from "../_lib/use-code-resend"
 import { ErrorNote, StepShell, Submit, TextAction } from "./AuthKit"
 
@@ -33,6 +35,7 @@ export function CodeStep({
   onResend,
   onChangeEmail,
   onBack,
+  flow,
   distinguishableRefusals = false,
   children,
 }: {
@@ -44,6 +47,8 @@ export function CodeStep({
   onResend: () => Promise<void>
   onChangeEmail: () => void
   onBack?: () => void
+  /** Which journey this step belongs to — telemetry only. */
+  flow: "sign_in" | "sign_up" | "reset"
   /**
    * ⚠ Sign-UP confirmation and password reset run Cognito's MANAGED flow, which emits real
    * `CodeMismatchException` / `ExpiredCodeException` / `LimitExceededException`. There the cause is
@@ -59,10 +64,19 @@ export function CodeStep({
   const [exhausted, setExhausted] = React.useState(false)
   const [pending, setPending] = React.useState(false)
   const [resendNote, setResendNote] = React.useState<string | null>(null)
+  const [attempts, setAttempts] = React.useState(0)
+  // ⚠ A ref, not `resend.sends`: that would reference `resend` inside its own `onSend` closure, before
+  // the const is declared. The code that got us to this step is the first send.
+  const sendOrdinal = React.useRef(1)
 
   const resend = useCodeResend({
     onSend: async () => {
       await onResend()
+      sendOrdinal.current += 1
+      capture({
+        name: "auth_code_requested",
+        props: { flow, sendOrdinal: sendOrdinal.current, trigger: "resend" },
+      })
       setCode("")
       setError(null)
       setExhausted(false)
@@ -92,7 +106,21 @@ export function CodeStep({
     setPending(true)
     setResendNote(null)
     try {
+      capture({ name: "auth_code_submitted", props: { flow, attempt: attempts + 1, lengthOk: true } })
       const outcome = await onSubmit(code)
+      if (outcome !== "accepted") {
+        capture({
+          name: "auth_code_rejected",
+          props: {
+            flow,
+            attempt: attempts + 1,
+            outcome: outcome === "exhausted" ? "attempts_spent"
+              : outcome === "stale" ? "session_timed_out"
+              : "not_accepted",
+          },
+        })
+        setAttempts((n) => n + 1)
+      }
       if (outcome === "rejected") {
         // ⚠ The digits STAY. Clearing the field on a refusal makes the shopper retype five correct
         // characters to fix one wrong one (FR-010, SC-002).

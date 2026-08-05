@@ -162,7 +162,7 @@ export function SignUpForm() {
 
   // ── Step 4: who are you? ────────────────────────────────────────────────────────────────────────
   if (step === "name") {
-    return <NameStep onDone={finish} />
+    return <NameStep onDone={finish} route={route} />
   }
 
   // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
@@ -178,6 +178,7 @@ export function SignUpForm() {
           onResend={sendCode}
           onChangeEmail={back}
           onBack={back}
+          flow="sign_up"
           // ⚠ Managed flow → the refusals really are distinguishable here.
           distinguishableRefusals
         />
@@ -293,7 +294,10 @@ export function SignUpForm() {
               label="Continue with Google"
               testId="google-signup"
               disabled={pending}
-              onUnavailable={setError}
+              onUnavailable={(message) => {
+                capture({ name: "auth_google_unavailable", props: { flow: "sign_up" } })
+                setError(message)
+              }}
             />
           </>
         )}

@@ -340,6 +340,14 @@ fun EffySecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    /**
+     * An optional mark before the label — currently only "Continue with Google" (036 FR-038).
+     *
+     * ⚠ A SLOT ON THE SHARED BUTTON, NOT A BESPOKE GOOGLE BUTTON. Google requires its own unrecoloured
+     * mark beside the label, and the alternative was a second bordered button that would drift from
+     * this one's height, radius and disabled colour the first time either changed.
+     */
+    leading: (@Composable () -> Unit)? = null,
 ) {
     Box(
         modifier = modifier
@@ -350,11 +358,17 @@ fun EffySecondaryButton(
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            color = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(EffySpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading?.invoke()
+            Text(
+                label,
+                style = MaterialTheme.typography.titleSmall,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else EffyDisabled.label,
+            )
+        }
     }
 }
 

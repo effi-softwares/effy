@@ -365,9 +365,22 @@ secret that the identity provider previously protected.
   announced as a one-time-code field, regardless of its visual treatment.
 - **FR-026**: Every code-entry field MUST support platform one-time-code autofill and MUST accept a
   pasted code in a single action, including when the paste carries whitespace or separators.
-- **FR-027**: Refusals MUST be distinguishable to the person: a wrong code, an expired code, a
-  superseded code, too many attempts, and too many requests MUST each produce a different message
-  telling them what to do next.
+- **FR-027**: ⚠ **UNMET, AND UNMEETABLE AS BUILT — recorded 2026-08-05 during 036 (research R10).**
+  This requirement and **FR-028** below are in direct tension, and FR-028 won in the implementation.
+  On the code SIGN-IN route the platform cannot distinguish these cases at the client, by design:
+  `VerifyAuthChallenge` computes a reason (`malformed | expired | mismatch | no-envelope`) and
+  **discards it**, returning only a boolean, so the response cannot be used to tell whether an account
+  exists. Worse, a **rate-limited** send returns a normal-looking challenge with a masked destination,
+  so "we couldn't send one" is indistinguishable from "we sent one". Attempts 1 and 2 raise **no
+  exception at all** — Cognito simply re-issues the challenge — and only the third produces
+  `NotAuthorizedException`.
+  Where the platform genuinely CAN distinguish a cause — sign-up confirmation and password reset, which
+  use Cognito's managed flow and emit real `CodeMismatchException` / `ExpiredCodeException` /
+  `LimitExceededException` — 036 FR-011 requires the message to say which. On the sign-in route it
+  requires the opposite: that no message claims knowledge the platform does not have.
+  ~~Refusals MUST be distinguishable to the person: a wrong code, an expired code, a superseded code,
+  too many attempts, and too many requests MUST each produce a different message telling them what to
+  do next.~~
 - **FR-028**: No refusal message may disclose whether an email address corresponds to an existing
   account.
 - **FR-029**: The stale comments on the web sign-in and sign-up surfaces that instruct future authors

@@ -127,6 +127,15 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
     /**
      * Deferred sign-in — pushed onto the tab the shopper is ALREADY in.
      *
+     * ⚠ 036 FR-025 / SC-013 — [returnTo] was a LIVE PARAMETER THAT EVERY CALL SITE PASSED AS `null`.
+     * It has existed on `CustomerNavKey.SignIn` since the route was written, is round-trip tested, and
+     * nothing ever supplied it. The consequence is only visible in one place and it is the worst one:
+     * a shopper who fills a basket, taps checkout, and is asked to sign in was returned to the ROOT of
+     * whatever tab they happened to be in — leaving the checkout they were two taps from completing.
+     *
+     * Pass it wherever the destination is a specific screen. A gated TAB needs nothing: `resetToRoot()`
+     * already lands on that tab's own root, which is exactly what the shopper asked for.
+     *
      * ⚠ It used to `selectTab(Account)` first and remember the original tab in a `pendingTab` string,
      * restoring it once sign-in succeeded. That threw the shopper into a different tab to ask the
      * question, so **Back went to the account page instead of where they came from** — and the
@@ -134,8 +143,8 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
      * the product they were looking at, and `completeSignIn`'s `resetToRoot()` already lands them on
      * the right tab's root afterwards, so nothing needs remembering.
      */
-    fun requireSignIn() {
-        navState.push(CustomerNavKey.SignIn())
+    fun requireSignIn(returnTo: CustomerNavKey? = null) {
+        navState.push(CustomerNavKey.SignIn(returnTo))
     }
 
     BackHandler(enabled = navState.canGoBack || navState.activeTab != CustomerNavKey.Home) {
@@ -372,7 +381,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     CartScreen(
                         container = container,
                         onCheckout = {
-                            if (signedIn) navState.push(CustomerNavKey.Checkout) else requireSignIn()
+                            // ⚠ Return them to CHECKOUT, not to a tab root (SC-013).
+                            if (signedIn) navState.push(CustomerNavKey.Checkout)
+                            else requireSignIn(CustomerNavKey.Checkout)
                         },
                         onBrowse = {
                                 // Browse was this escape's target; Discover is now the shop window.

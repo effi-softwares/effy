@@ -32,7 +32,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.resources.Res
+import com.effyshopping.customer.mobile.resources.ic_google_g
+import org.jetbrains.compose.resources.painterResource
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -262,7 +267,8 @@ class AuthViewModel(
                 // and the backend maps empty→NULL on the same path the names use. Passing anything else
                 // would invent a value the customer never gave.
                 updateProfileUseCase(given.trim(), family.trim(), "")
-                finishJourney()
+                // ⚠ Home, and ONLY here. See `finishJourney`.
+                finishJourney(landOnHome = true)
             } catch (e: AppException) {
                 _state.value = _state.value.copy(error = messageForApp(e))
             }
@@ -343,7 +349,7 @@ class AuthViewModel(
                         session.onSignedIn(before.seedPassword)
                         navigator.push(CustomerNavKey.ProfileName)
                     } else {
-                        finishJourney()
+                        finishJourney(landOnHome = false)
                     }
                 is AuthStep.NeedsOtp -> {
                     // ⚠ The masked destination is finally KEPT. Both drivers have always populated it
@@ -378,20 +384,36 @@ class AuthViewModel(
         }
     }
 
-    private suspend fun finishJourney() {
+    /**
+     * Where the shopper lands (036 FR-025, SC-013).
+     *
+     * ⚠ RETURN-TO-INTENT IS THE RULE; HOME IS THE EXCEPTION, and getting that backwards is a
+     * regression I made and had to undo. The first version sent every sign-in with no explicit
+     * `returnTo` to Home — which meant a guest who tapped **Orders**, was told "sign in to see your
+     * orders", and did exactly that, arrived on **Discover**. The thing they asked for was one tap
+     * away and they were sent somewhere else.
+     *
+     * `resetToRoot()` already lands them on the root of the tab that RAISED the demand, which is the
+     * right answer for every gated tab: Orders → orders, Account → their account. So:
+     *
+     *   • an explicit non-tab-root [AuthUiState.returnTo] (checkout, a product) → push it;
+     *   • otherwise → stay in the tab that asked, via its own root;
+     *   • [landOnHome] → Home, and ONLY after a fresh REGISTRATION. A brand-new customer has no
+     *     orders and an empty account, so neither tab root has anything to show them; Home is where
+     *     shopping starts, and it is the one case the operator's "go to home page" describes.
+     *
+     * ⚠ `resetToRoot()` FIRST, NEVER `resetTo(Home)`. Sign-in runs inside whichever tab raised it, so
+     * resetting to Home set that tab's stack to [Home] — after which tapping Account showed Discover,
+     * for good. `CustomerNavState.resetTo` actively `require`s against it.
+     */
+    private suspend fun finishJourney(landOnHome: Boolean) {
         session.onSignedIn(_state.value.seedPassword)
         val returnTo = _state.value.returnTo
-        // ⚠ resetToRoot() FIRST, NEVER resetTo(Home). Sign-in runs inside whichever tab raised it, so
-        // resetting to Home set that tab's stack to [Home] — after which tapping Account showed
-        // Discover, for good. `CustomerNavState.resetTo` actively `require`s against it.
         navigator.resetToRoot()
-        if (returnTo != null && returnTo !in CUSTOMER_TAB_ROOTS) {
-            // They were interrupted mid-task — put them back (FR-025, SC-013).
-            navigator.push(returnTo)
-        } else if (returnTo == null) {
-            // ⚠ They came to sign in DELIBERATELY, so Home is the destination (FR-025). Selecting the
-            // tab is a separate call from resetting the stack, and the order matters — see above.
-            navigator.selectTab(CustomerNavKey.Home)
+        when {
+            // They were interrupted mid-task — put them back exactly there.
+            returnTo != null && returnTo !in CUSTOMER_TAB_ROOTS -> navigator.push(returnTo)
+            landOnHome -> navigator.selectTab(CustomerNavKey.Home)
         }
     }
 
@@ -873,14 +895,30 @@ private fun ResendRow(state: AuthUiState, onResend: () -> Unit) {
  * to redirect to, and a real `signInWithWebUI` would fail with a generic error — which is exactly what
  * FR-039 forbids. Nothing went wrong; the capability is not built yet, and saying so is the feature.
  *
- * ⚠ The mark is deliberately NOT drawn here yet: Google's branding guidelines forbid recolouring the
- * 'G' and require the standard colour asset, which mobile needs as a VectorDrawable in
- * `packages/design-system/mobile-assets/`. Shipping the label without the mark is honest; shipping a
- * recoloured or approximated mark would breach Google's terms.
+ * ⚠ THE MARK MUST NEVER BE RECOLOURED. Google's guidelines: "you can't change the size or color of
+ * the Google 'G' logo. It must be the standard color version." So it is drawn from the authored asset
+ * at `packages/design-system/mobile-assets/drawable/ic_google_g.xml` with NO tint applied — a tint
+ * here would be a licence breach, not a style choice. It is also `null`-described: Google forbids the
+ * icon appearing without accompanying text, so the label carries the accessible name.
+ *
+ * ⚠ This is the constitution's own named exception to the monochrome rule — "an asset, not a token".
+ * No token is added and `tokens:check` is unaffected.
  */
 @Composable
 private fun GoogleSignInButton(enabled: Boolean, onUnavailable: () -> Unit) {
-    EffySecondaryButton("Continue with Google", onClick = onUnavailable, enabled = enabled)
+    EffySecondaryButton(
+        "Continue with Google",
+        onClick = onUnavailable,
+        enabled = enabled,
+        leading = {
+            Image(
+                painter = painterResource(Res.drawable.ic_google_g),
+                // ⚠ Decorative: the button's own label is the accessible name.
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+        },
+    )
 }
 
 @Composable

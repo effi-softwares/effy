@@ -16,7 +16,7 @@ out-of-scope consoles were not disturbed.
 
 ---
 
-## STATUS — 2026-08-05: 104/137. **Both customer surfaces built and machine-verified.**
+## STATUS — 2026-08-05: 110/137. **Both customer surfaces built and machine-verified.**
 
 ⚠ **NOT signed off.** Every remaining task is a spike, an operator walk, or a test — see "What is NOT
 done" below. Nothing in this feature has been observed by a human on a device or in a browser.
@@ -35,6 +35,8 @@ done" below. Nothing in this feature has been observed by a human on a device or
 | `mobile-guard` | ✅ route reachability **and** `entry<>` coverage, with 3 new routes |
 | `customer-mobile` | ✅ **480 tests**, 0 failures · Android `assembleDebug` ✅ · iOS main **and** `compileTestKotlinIosSimulatorArm64` ✅ |
 | ⚠ `shop-mobile` (out of scope) | ✅ **162 tests**, 0 failures, unmodified — the mobile half of the proof gate |
+| Telemetry | ✅ 10 `auth_*` events emitted through the existing seam — ⚠ **but PostHog is still uninitialised on `customer-web`, so every one is a no-op today** |
+| Governance | ✅ parity register §036 + **rows 5–13 corrected** (stale `⬜` since 013); 011 FR-009a marked **superseded**; 035 FR-027 marked **unmeetable as built** |
 
 ### What landed on mobile
 
@@ -89,26 +91,40 @@ route change — harmless only while the flow state lived outside it, and a data
   beats cells**: `UITextContentTypeOneTimeCode` is the highest-value behaviour in the component and the
   only thing in 036 that can be silently destroyed. **This is a recorded Android/iOS presentation
   split.**
-- **D9 — the mobile Google button ships WITHOUT the mark (T110 not done).** Google's guidelines forbid
-  recolouring or approximating the 'G' and require the standard colour asset, which mobile needs as a
-  hand-authored VectorDrawable. Shipping the label alone is honest; shipping an approximated mark would
-  breach Google's terms. Web has the real mark.
+- **D9 — the Google mark now ships on BOTH surfaces (T110 done).** A hand-authored VectorDrawable at
+  `packages/design-system/mobile-assets/drawable/ic_google_g.xml`, synced by the existing drift guard
+  (82 → 84 asset copies), rendered with **no tint** — a tint would be a licence breach, not a style
+  choice. `EffySecondaryButton` gained an optional `leading` slot rather than forking a bespoke Google
+  button that would drift from its height, radius and disabled colour.
 - **D10 — `PasswordScreens`/`DeleteAccountScreen` got the shared `OTP_LENGTH` in their copy but did
   NOT adopt `OtpInput` (T022 partial).** They still use a plain `EffyField` with no digit filter and no
   autofill. Recorded, not hidden.
 
-### What is NOT done — 33 tasks
+### ⚠ A regression I introduced and had to undo (T052)
+
+The first version of `finishJourney` sent every sign-in with no explicit `returnTo` to **Home**. That
+read the operator's "go to home page" too literally: a guest who tapped **Orders**, was told "sign in
+to see your orders", and did exactly that, would have arrived on **Discover**. The thing they asked for
+was one tap away and they were sent somewhere else.
+
+Corrected: **return-to-intent is the rule; Home is the exception.** `resetToRoot()` already lands on
+the root of the tab that raised the demand, which is right for every gated tab. Home applies **only
+after a fresh registration**, where a brand-new customer has no orders and an empty account, so neither
+tab root has anything to show them. And `returnTo` is now supplied at the checkout call site, where it
+was a live parameter every caller passed as `null` — so signing in mid-checkout returns to checkout.
+
+### What is NOT done — 27 tasks
 
 - **T003–T008 — ⚠ BOTH BLOCKING SPIKES.** Operator-only (physical iPhone; live dev pools). ⚠ **SPIKE-2
   gates whether sign-up costs a second code**, and both surfaces' sign-up flows are built on the
   *documented* no-second-code behaviour, which **has not been observed live**. If it is wrong, the step
   order changes on both surfaces.
-- **T052** — `returnTo` is still `null` at every mobile `requireSignIn()` call site, so SC-013 (return
-  to checkout, not Home) is unmet on mobile. Web has it.
-- **T014, T056–T059, T072, T105, T106** — remaining tests, including a mobile `AuthViewModelTest`.
-- **T110** the Google VectorDrawable · **T119** telemetry emission.
-- **T122–T127, T131–T137** — accessibility passes, doc/parity-register updates, and **every operator
-  walk**. ⚠ The 12-check code-step table has been walked on **no** surface.
+- **T014, T019, T022, T040, T056–T059, T072, T105, T106** — the iOS cells (SPIKE-1), the two partial
+  component adoptions, and the remaining tests including a mobile `AuthViewModelTest`.
+- **T118** the full copy sweep · **T122, T123, T127** accessibility and the final gate.
+- **T131–T137 — ⚠ EVERY OPERATOR WALK.** The 12-check code-step table has been walked on **no**
+  surface, on **no** device. That is the same gap 035 shipped with, and the reason its defects
+  surfaced on a device rather than in CI.
 
 ---
 
@@ -220,7 +236,7 @@ recover; exhaust three attempts and start again — all without sign-up, passwor
 - [X] T049 [US1] ⚠ Pass `isError = true` to `OtpInput` on refusal — the parameter exists and `VerifyOtpScreen` never passes it, so the red border and the error semantics are dead code on this surface
 - [X] T050 [US1] Add the "attempt is over" state and the "Change it" affordance to the mobile code screen (FR-013, FR-014)
 - [X] T051 [US1] ⚠ Fix `completeSignIn` (`AuthScreens.kt:200-208`) to land on Home when sign-in was deliberate: `navigator.resetToRoot()` **first**, then `selectTab(Home)` — never `resetTo(Home)`, which plants Home as the Account tab's root and is a bug `CustomerNavState.kt:151` `require`s against (FR-025)
-- [ ] T052 [US1] ⚠ Supply `returnTo` at the three `requireSignIn()` call sites in `apps/customer-mobile/.../app/CustomerShell.kt:137,344,362,375` — it is a live, tested-by-nothing parameter every call site currently passes as `null` (FR-025, SC-013)
+- [X] T052 [US1] ⚠ Supply `returnTo` at the three `requireSignIn()` call sites in `apps/customer-mobile/.../app/CustomerShell.kt:137,344,362,375` — it is a live, tested-by-nothing parameter every call site currently passes as `null` (FR-025, SC-013)
 - [X] T053 [US1] ⚠ Route `AmplifyAuthDriver.autoSignIn()` (`androidMain/.../AmplifyAuthDriver.kt:186-189`) through `mapSignIn` — a challenge currently becomes a hard `AuthError.Unexpected` on Android while **iOS handles it correctly**; this is the four-slice-old "Android has never been looked at" carry-forward (R6)
 - [X] T054 [US1] ⚠ Give mobile the route-aware refusal wording — it still folds `NotAuthorizedException` into *"That email or password isn't right."* and shows password wording to **passwordless** shoppers; mobile never got 035's fix ([contracts/copy.md](contracts/copy.md))
 
@@ -329,7 +345,7 @@ specific "not yet" message, not a generic error.
 
 - [X] T108 [P] [US4] Add the authored `packages/design-system/src/assets/google-g.svg` from Google's official asset pack, ⚠ **unrecoloured** — Google's guidelines forbid changing the logo's colour, and `packages/brand` is the wrong home precisely because recolouring is what it does (R7)
 - [X] T109 [P] [US4] Create `packages/design-system/src/ui/google-mark.tsx` as an inlined SVG component, ⚠ **not exported from the `ui` barrel** — guest routes import that barrel and `/search` has 2.0 KB of headroom
-- [ ] T110 [P] [US4] Hand-author `packages/design-system/mobile-assets/drawable/ic_google_g.xml` (four solid-fill paths) with Google's licence note alongside, following the `MATERIAL_SYMBOLS_LICENSE.txt` precedent, and let the existing sync + drift guard carry it
+- [X] T110 [P] [US4] Hand-author `packages/design-system/mobile-assets/drawable/ic_google_g.xml` (four solid-fill paths) with Google's licence note alongside, following the `MATERIAL_SYMBOLS_LICENSE.txt` precedent, and let the existing sync + drift guard carry it
 - [X] T111 [US4] Create `apps/customer-web/app/(auth)/_components/GoogleButton.tsx` — mark plus "Continue with Google" (⚠ Google forbids the icon alone), below the primary action with the existing divider (FR-038)
 - [X] T112 [US4] ⚠ Choosing it shows *"Google sign-in isn't available yet"* and returns to step 1 — and calls **nothing**. There is no hosted domain, so a real `signInWithRedirect` would produce exactly the generic failure FR-039 forbids
 - [X] T113 [US4] Place the button on both web screens, replacing the `googleEnabled()` gate that renders nothing today (FR-038)
@@ -345,14 +361,14 @@ specific "not yet" message, not a generic error.
 ## Phase 7: Polish, Verification & Sign-off
 
 - [ ] T118 [P] Apply [contracts/copy.md](contracts/copy.md) verbatim on both surfaces and delete every retired string listed there — ⚠ including mobile's *"That code has expired. Ask for a new one."*, which instructs an action the screen had no control for
-- [ ] T119 [P] Emit the `auth_*` events from [contracts/telemetry.md](contracts/telemetry.md), ⚠ via **dynamic** `capture` imports in any guest-reachable client component — a static import cost +1.0 KB on four guest routes in 027
+- [X] T119 [P] Emit the `auth_*` events from [contracts/telemetry.md](contracts/telemetry.md), ⚠ via **dynamic** `capture` imports in any guest-reachable client component — a static import cost +1.0 KB on four guest routes in 027
 - [X] T120 ⚠ Confirm the `outcome` property carries **no** `expired`, `superseded` or `not_sent` value on the sign-in route — the platform cannot distinguish them and a fiction in analytics becomes a fiction in a product decision (R10)
 - [X] T121 [P] Verify every control introduced or moved is ≥ 48 dp/px (FR-042) — ⚠ 033 shipped a 32 dp target under a comment claiming 48
 - [ ] T122 [P] Walk both surfaces in dark mode and at the largest supported text size (SC-017)
 - [ ] T123 [P] Keyboard-only and screen-reader-only passes on web; VoiceOver and TalkBack on mobile (SC-016)
-- [ ] T124 ⚠ Update `docs/audiences/customer-capabilities.md` §036 — including **correcting rows 5–13**, whose mobile column has read `⬜` since 013 despite mobile having had the full auth stack all along (FR-046)
-- [ ] T125 Record in [spec.md](spec.md) that 011's FR-009a (name collected before the account exists) is **superseded** by FR-032 — Principle I requires fixing the earlier artifact, not just the code
-- [ ] T126 Record in `specs/035-six-digit-otp/spec.md` that FR-027 is **unmeetable as built** and why (FR-028 won), per R10
+- [X] T124 ⚠ Update `docs/audiences/customer-capabilities.md` §036 — including **correcting rows 5–13**, whose mobile column has read `⬜` since 013 despite mobile having had the full auth stack all along (FR-046)
+- [X] T125 Record in [spec.md](spec.md) that 011's FR-009a (name collected before the account exists) is **superseded** by FR-032 — Principle I requires fixing the earlier artifact, not just the code
+- [X] T126 Record in `specs/035-six-digit-otp/spec.md` that FR-027 is **unmeetable as built** and why (FR-028 won), per R10
 - [ ] T127 Run the full machine gate from [quickstart.md](quickstart.md) §6 — ⚠ including `compileTestKotlinIosSimulatorArm64`, which 033 found had **never** run
 - [X] T128 ⚠ Confirm `pnpm --filter @effy/design-system tokens:check` passes **unchanged** — this feature adds no token (FR-041, SC-018)
 - [X] T129 ⚠ Confirm the nine guest routes are **byte-identical** via `pnpm --filter @effy/customer-web size`; `/search` has 2.0 KB of headroom and the limit must **not** be raised

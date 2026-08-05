@@ -3,6 +3,7 @@
 import * as React from "react"
 
 import { updateProfile } from "@/app/(account)/account/actions"
+import { capture } from "@/lib/telemetry"
 
 import { ensureCustomerRecord } from "../_lib/seed-actions"
 import { ErrorNote, Field, StepShell, Submit } from "./AuthKit"
@@ -30,7 +31,13 @@ import { ErrorNote, Field, StepShell, Submit } from "./AuthKit"
  * refresh only became meaningful in this slice — see `customer-me-v1-patch.ts`, where `updateName()`
  * finally got a caller.
  */
-export function NameStep({ onDone }: { onDone: () => void }) {
+export function NameStep({
+  onDone,
+  route,
+}: {
+  onDone: () => void
+  route: "otp" | "password" | "google"
+}) {
   const [given, setGiven] = React.useState("")
   const [family, setFamily] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
@@ -40,6 +47,7 @@ export function NameStep({ onDone }: { onDone: () => void }) {
   const [phone, setPhone] = React.useState<string | null>(null)
 
   React.useEffect(() => {
+    capture({ name: "auth_name_step_shown", props: { route } })
     let cancelled = false
     void ensureCustomerRecord().then((customer) => {
       if (cancelled || !customer) return
@@ -52,6 +60,7 @@ export function NameStep({ onDone }: { onDone: () => void }) {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function submit(event: React.FormEvent) {
@@ -72,6 +81,7 @@ export function NameStep({ onDone }: { onDone: () => void }) {
         setError(result.error)
         return
       }
+      capture({ name: "auth_name_step_completed", props: { route } })
       onDone()
     } catch {
       setError("We couldn't save that. Please try again.")
