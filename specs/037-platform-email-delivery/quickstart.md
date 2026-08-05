@@ -66,19 +66,39 @@ make global-init
 cd infra/global && AWS_PROFILE=ef terraform plan -var-file=global.tfvars
 ```
 
-With the `import {}` blocks in place and **no new records yet**, the plan must show:
+⚠ **CORRECTED 2026-08-06.** This section originally said to expect
+`0 to add, 0 to change, 0 to destroy / 2 to import`. That was written for a sequence where adoption
+was a separate commit from the new records; the config declares all four records in one file, so a
+single plan does everything. The expectation below is what this config actually produces.
 
 ```
-Plan: 0 to add, 0 to change, 0 to destroy.
-2 to import.
+Plan: 2 to import, 2 to add, 2 to change, 0 to destroy.
 ```
 
-⚠ **A non-empty change count here means the config does not match what is live.** Stop and fix the
-config — do not apply. The usual cause is TXT quoting: the value in HCL must be the *content*
+**Read the two changes carefully — they are the whole point of this step:**
+
+| Resource | Expected | ⚠ If you see anything else |
+| --- | --- | --- |
+| `apex_mx` | **`ttl 300 -> 3600` and NOTHING ELSE** | A change to `records` means the declaration does not match the live value. **STOP.** Applying would clobber the only route to the company's mailbox. |
+| `apex_txt` | ttl change + the sender-policy string **added** beside the existing ownership proof | The proof being *replaced* rather than kept means all four records would collapse into one. **STOP.** |
+
+The usual cause of a mismatch is TXT quoting: the value in HCL is the record's *content*
 (`google-site-verification=…`), never wrapped in escaped quotes.
 
+### ⚠ Stage the apply — do not apply the whole plan at once
+
+The plan creates the alignment policy in the same run as the authorisation and signing records,
+which is ordering rule 2 in reverse. At `p=none` the consequence does not bite (a monitor-only policy
+tells receivers to take no action, and the sender-policy record is live immediately), but stage it
+anyway — the habit is what protects you when the policy is later tightened to quarantine or reject.
+
 ```bash
-make global-apply     # imports only
+cd infra/global
+AWS_PROFILE=ef terraform apply -var-file=global.tfvars \
+  -target=aws_route53_record.apex_mx \
+  -target=aws_route53_record.apex_txt \
+  -target=aws_route53_record.workspace_dkim
+
 dig +short MX effyshopping.com @8.8.8.8    # ⚠ must still return 1 smtp.google.com.
 ```
 

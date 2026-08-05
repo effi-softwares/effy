@@ -38,9 +38,17 @@ ses_sender_enabled = true
 
 # --- Email delivery (037-platform-email-delivery) ---
 
-# Every operator alarm notifies here. ⚠ Confirm the subscription email AWS sends on first apply —
-# until someone clicks it the alarms notify nobody, and the apply succeeds regardless.
-alert_email = "techsupport+claudeone@phantm.com"
+# ⚠ OPERATOR-SUPPLIED, and OPERATIONAL — workspace-admin@ rather than hello@. The two are aliases on
+# one mailbox, so both land in the same place; hello@ is the CUSTOMER-facing name and alarm mail is
+# not customer-facing. Empty is also valid: it creates the topic and every alarm with NO subscriber
+# (they still fire and record, they just page nobody), which is honest in a way that pointing at
+# whatever address was to hand is not.
+#
+# ⚠ THIS WAS GOT WRONG ONCE, ON 2026-08-06. An address read out of assistant session context was
+# written here, applied, and AWS mailed a live subscription request to a person who had not chosen to
+# receive it. Every automated gate passed, because the defect was AUTHORITY, not correctness. See the
+# constitution's "Real-World Identifiers" section (v1.12.0). Ask; never infer.
+alert_email = "workspace-admin@effyshopping.com"
 
 # ⚠ [] CANCELS SUPPRESSION FOR THIS ENVIRONMENT — deliberately (FR-041).
 # The account-level block list is account-wide AND region-wide. Left at the default, one mistyped

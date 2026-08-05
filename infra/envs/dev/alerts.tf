@@ -23,7 +23,13 @@ resource "aws_sns_topic" "alerts" {
 #
 # Terraform also cannot delete an unconfirmed subscription: destroying it removes the resource from
 # state while it continues to exist in AWS.
+# ⚠ CONDITIONAL ON AN OPERATOR-SUPPLIED ADDRESS (constitution v1.12.0, Real-World Identifiers).
+# Empty means the topic exists with NO subscriber — alarms still fire and still record, they simply
+# page nobody. That is the correct state until someone chooses an address, and it is honest in a way
+# that pointing at a plausible-looking address is not.
 resource "aws_sns_topic_subscription" "alerts_email" {
+  count = var.alert_email == "" ? 0 : 1
+
   topic_arn = aws_sns_topic.alerts.arn
   protocol  = "email"
   endpoint  = var.alert_email
@@ -40,6 +46,11 @@ resource "aws_ssm_parameter" "alerts_topic_arn" {
 }
 
 output "alerts_topic_arn" {
-  description = "The operator alert topic. ⚠ Check the email subscription is CONFIRMED — an unconfirmed one notifies nobody while looking healthy."
+  description = "The operator alert topic. ⚠ If an email endpoint is set, check the subscription is CONFIRMED — an unconfirmed one notifies nobody while looking perfectly healthy."
   value       = aws_sns_topic.alerts.arn
+}
+
+output "alerts_endpoint_configured" {
+  description = "⚠ false means every alarm in this environment currently pages NOBODY. Set alert_email in this env's tfvars — the value must be operator-chosen."
+  value       = var.alert_email != ""
 }

@@ -102,6 +102,31 @@ Observable and measurable from day one (constitution Principle VII; full detail 
   command that provisions cloud resources or mutates live state — it hands those steps to the user
   with exact commands to run.
 
+## Prohibited values (hard rules)
+
+- ⚠ **`techsupport+claudeone@phantm.com` MUST NEVER appear anywhere in this project.** Not in
+  Terraform variables or `.tfvars`, not in `serverless.yml`, not as an SNS/alarm endpoint, not as a
+  test fixture, seed, doc example, spec, or commit message. It is the address attached to the
+  assistant's session — **not** an address the operator chose for this platform.
+- **The general rule it stands for:** a real-world identifier — an email address, a phone number, a
+  domain, an account id, a notification endpoint — is **asked for**, never inferred from session
+  metadata, the git user, or anything else the environment happens to expose. An identifier being
+  *visible* is not consent to *use* it.
+- **When the value is unknown, fail loudly.** A required variable with no default, or a validation
+  that refuses a placeholder, is correct. Filling the gap with a plausible guess is not — a wrong
+  outward-facing value that silently works is worse than a build that stops, because it reaches real
+  people before anyone notices.
+- **The approved Effy mailboxes**, when a feature needs one:
+  - **`workspace-admin@effyshopping.com`** — the operator's own account. **Operational** endpoints:
+    alarm notifications, vendor/account contacts, anything aimed at whoever runs the platform.
+  - **`hello@effyshopping.com`** — an alias on that same account, and the **customer-facing** one.
+    Anywhere a person outside Effy will see it: reply-to on automated mail, support contact in the UI.
+  - Both land in one inbox, so the choice is about what the address *says*, not where it goes. ⚠ They
+    are approved for platform use — not a licence to invent a **third** address. Anything else is
+    asked for.
+- Enforced mechanically in `infra/envs/dev/variables.tf` (a validation block on `alert_email` that
+  rejects the banned address) and by constitution v1.12.0.
+
 ## Workflow (the method)
 ```
 Brief (product framing, user-authored)  →  /constitution (technical law, once)

@@ -182,12 +182,27 @@ variable "dmarc_rua" {
 }
 
 variable "alert_email" {
-  description = "Address every operator alarm notifies (037 FR-037). ⚠ AWS sends a confirmation link on first apply; the subscription notifies NOBODY until a human clicks it, and `terraform apply` reports success either way."
+  description = <<-EOT
+    Address every operator alarm notifies (037 FR-037). OPERATOR-SUPPLIED — empty means the topic is
+    created with no subscriber, which is the correct state until someone chooses an address.
+
+    ⚠ AWS sends a confirmation link on first apply, and the subscription notifies NOBODY until a
+    human clicks it — while `terraform apply` reports success either way.
+  EOT
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
-    error_message = "alert_email must be a single email address."
+    condition     = var.alert_email == "" || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be empty or a single email address."
+  }
+
+  # ⚠ MECHANICAL ENFORCEMENT of the constitution's Real-World Identifiers rule (v1.12.0). This exact
+  # address belongs to an assistant session, not to this platform, and it was applied here once by
+  # mistake. A rule that lives only in a document is a rule that gets broken again.
+  validation {
+    condition     = var.alert_email != "techsupport+claudeone@phantm.com"
+    error_message = "PROHIBITED: techsupport+claudeone@phantm.com must never be used in this project (constitution v1.12.0, Real-World Identifiers). Ask the operator for the address."
   }
 }
 
