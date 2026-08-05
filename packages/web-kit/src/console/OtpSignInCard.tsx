@@ -175,6 +175,27 @@ export function OtpSignInCard({
             >
               Use a different email
             </Button>
+
+            {/*
+              ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always — never
+              conditioned on whether the platform can actually reach this address.
+
+              It matters most HERE. Shop, driver and back-office are strictly passwordless: an
+              emailed code is their ONLY credential, so an address that has silently stopped
+              accepting mail is a total lockout with no self-service way back. This line is the way
+              back.
+
+              ⚠ It must not become conditional. Delivery state is only knowable for an address the
+              platform has emailed, so varying this copy would answer "does this address have an Effy
+              account?" to anyone who types one — the enumeration oracle 035 exists to close. The
+              honest, specific statement lives on authenticated surfaces instead (FR-030).
+            */}
+            <p className="text-center text-xs text-muted-foreground" data-testid="stuck-note">
+              Still not arriving?{" "}
+              <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
+                hello@effyshopping.com
+              </a>
+            </p>
           </form>
         )}
       </CardContent>

@@ -51,7 +51,11 @@ provider:
     # keyed on the app client id rather than the pool id.
     CUSTOMER_APP_CLIENT_ID: ${ssm:/effy/${sls:stage}/auth/customer/app_client_id}
     # 012 FR-025 — the "your password changed" notification. Branded sender comes from 010.
-    NOTIFY_SENDER: no-reply@${sls:stage}.effyshopping.com
+    # ⚠ 037: from the SSM contract, not a literal — same change as edge-auth. `NOTIFY_SENDER` is
+    # REMOVED rather than kept as a fallback: a fallback preserves exactly the drift this ends.
+    MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
+    MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
     # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
     # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note
@@ -74,9 +78,12 @@ provider:
         # Lambda still cannot touch an account whose token it does not hold.
         #
         # That is why the block below is about EMAIL, and not about passwords.
+        # ⚠ 037 FR-043: was `Resource: "*"` — a grant to send as ANY verified identity in the
+        # account, including the future production one. edge-auth's own comment called this out and
+        # declined to copy it; nobody had fixed it. Now scoped to this environment's identity.
         - Effect: Allow
           Action: ses:SendEmail
-          Resource: "*"
+          Resource: ${ssm:/effy/${sls:stage}/ses/identity_arn}
 
         # Account linking (FR-011). An authorized ADMINISTRATIVE write against the CUSTOMER pool
         # — the same shape as 006's first-admin bootstrap and 009's shop-user provisioning. It is

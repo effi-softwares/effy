@@ -261,14 +261,17 @@ sign-up confirmation, password reset and both step-up flows delivered **6**.
   Android **and** iOS compile incl. `compileTestKotlinIosSimulatorArm64` (which 033 found had never
   run) · `terraform validate`/`fmt` · `depcruise` · both mobile guards · `tokens:check` unchanged ·
   bundle **byte-identical** on all nine guest routes. **Six negative proofs.**
-- **⚠ BLOCKING FOR PRODUCTION — DELIVERABILITY.** **SES is in SANDBOX**, delivering only to
-  individually verified recipients. On this platform that is a **hard ceiling on who can sign in at
-  all** — email is the ONLY credential and three of four audiences have no password fallback. Needs
-  (a) SES production access for `ap-southeast-2`, (b) ⚠ **a website — there is currently no A or
-  CNAME record anywhere on the apex or `www`**, which AWS reviewers check, and (c) ⚠ **bounce
-  visibility, which does not exist**: alarms watch bounce *rates* but nothing reports *which* address
-  bounced, so a customer whose address hard-bounces is **permanently locked out and nobody finds
-  out**. That last one is a product defect deserving its own slice.
+- **⚠ ~~BLOCKING FOR PRODUCTION — DELIVERABILITY~~ — CORRECTED 2026-08-05 by 037.** This entry said
+  **"SES is in SANDBOX"** and named it the platform's headline production blocker. **It was already
+  false when 037 began**, and nobody had re-tested: unrestricted sending was **GRANTED** (review case
+  `178578384200127`, 50,000/day at 14/sec) and `dev.effyshopping.com` was verified with DKIM and a
+  working custom MAIL FROM. A stale blocker left standing is worse than no note at all — it hides the
+  real ones. Of the three items it listed: (a) production access — **already granted**; (b) a website
+  on the apex — **no longer a prerequisite** (the request was approved without one), though the apex
+  is still bare; (c) ⚠ **bounce visibility — REAL, and now built by 037**: a configuration set with an
+  SNS event destination, an idempotent consumer, `public.email_delivery_{status,event}`, a back-office
+  view and an audited two-part repair. The note called it "a product defect deserving its own slice";
+  it got one.
 - **⚠ Open**: 4 of 5 surfaces unwalked — ⚠ **shop-mobile most of all**, since its broken sign-in
   (SC-001) is the defect that justified the slice and is still unconfirmed on a device. The 10-check
   table (attempt cap, expiry, supersession, rate limit, 8-digit paste refusal, log-leak sweep) is
@@ -1151,5 +1154,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/036-auth-step-flow/plan.md
+at specs/037-platform-email-delivery/plan.md
 <!-- SPECKIT END -->

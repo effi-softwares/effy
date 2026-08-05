@@ -30,6 +30,72 @@ module "ses" {
   domain  = module.dns.zone_name
   zone_id = module.dns.zone_id
   region  = var.aws_region
+
+  # 037: attach the outcome pipeline as this identity's DEFAULT configuration set, and give the
+  # namespace's DMARC record a reporting address so monitor mode collects something.
+  configuration_set_name = module.ses_events.configuration_set_name
+  dmarc_rua              = var.dmarc_rua
+}
+
+# ── Per-message delivery outcomes (037-platform-email-delivery) ───────────────────────────────
+# The configuration set + the topic its outcomes land on. Everything that sends mail in this
+# environment attaches to this set, so a failure to reach ONE person is visible — which the
+# account-wide reputation alarms below structurally cannot be.
+module "ses_events" {
+  source = "../../modules/ses-events"
+
+  name_prefix    = module.shared.name_prefix
+  aws_account_id = var.aws_account_id
+
+  # ⚠ [] in dev — see the variable's own documentation. This is what stops a mistyped dev address
+  # from permanently blocking a real customer in production (FR-041).
+  suppressed_reasons = var.ses_suppressed_reasons
+}
+
+# ── App↔infra contract: /effy/<env>/ses/* ─────────────────────────────────────────────────────
+#
+# ⚠ THE DEFECT THIS ENDS: the sender address existed in THREE places in TWO shapes — hardcoded as
+# `no-reply@${sls:stage}.effyshopping.com` in both apis/edge-api/auth/serverless.yml and
+# apis/edge-api/customer/serverless.yml, and as `Effy <no-reply@…>` here. They had ALREADY drifted,
+# so the Lambdas sent with no display name while Cognito would send with one. One writer, many
+# readers (Principle II; contracts/ssm-mail.contract.md).
+locals {
+  # The ONE definition of who Effy is in a recipient's inbox. Both the SSM contract and Cognito's
+  # own configuration read this — never two literals that can disagree.
+  mail_sender   = module.ses.from_address
+  mail_reply_to = "hello@${var.root_domain}"
+}
+
+resource "aws_ssm_parameter" "ses_sender" {
+  name        = "/effy/${var.env}/ses/sender"
+  description = "The platform's sender for this environment, display name included. Read by every service that sends mail."
+  type        = "String"
+  value       = local.mail_sender
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "ses_reply_to" {
+  name        = "/effy/${var.env}/ses/reply_to"
+  description = "Where replies to automated mail go — the operator's monitored mailbox. 037 FR-022 REVERSES 010's FR-022, whose reason (the platform could not receive mail) no longer holds."
+  type        = "String"
+  value       = local.mail_reply_to
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "ses_configuration_set" {
+  name        = "/effy/${var.env}/ses/configuration_set"
+  description = "Configuration set every sender passes explicitly, so each send is attributable to a per-message outcome."
+  type        = "String"
+  value       = module.ses_events.configuration_set_name
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "ses_events_topic_arn" {
+  name        = "/effy/${var.env}/ses/events_topic_arn"
+  description = "SNS topic carrying delivery outcomes. The admin service subscribes to it from serverless.yml."
+  type        = "String"
+  value       = module.ses_events.events_topic_arn
+  tier        = "Standard"
 }
 
 # ── Letting Cognito send through the identity ─────────────────────────────────────────────────
@@ -89,15 +155,34 @@ locals {
   pool_email_configuration = var.ses_sender_enabled ? {
     email_sending_account = "DEVELOPER"
     source_arn            = module.ses.identity_arn
-    from_email_address    = module.ses.from_address
-    # No reply-to: the platform cannot RECEIVE mail. An address that silently bounces replies is
-    # worse than no address at all (spec FR-022).
-    reply_to_email_address = null
+    from_email_address    = local.mail_sender
+
+    # ⚠ 037 REVERSES 010's FR-022. That rule set this to null because "the platform cannot RECEIVE
+    # mail, and an address that silently bounces replies is worse than no address at all." The
+    # reasoning was right and its premise is gone: the apex now routes to the operator's mailbox.
+    # A shopper who cannot sign in and hits reply on their code email is the highest-intent support
+    # signal this platform will ever get, and it used to vanish.
+    #
+    # ⚠ Read from the SAME local the SSM contract publishes — one literal, two consumers. Writing
+    # the address here a second time would re-create in miniature the exact drift this slice exists
+    # to end (FR-004).
+    reply_to_email_address = local.mail_reply_to
+
+    # 037 FR-024: attributes Cognito's own mail — sign-up confirmation, password recovery,
+    # email-change and both step-up codes — to the outcome pipeline. Without this, four of the five
+    # code-bearing flows would send with no per-message visibility at all.
+    #
+    # ⚠ Only meaningful under DEVELOPER. Under COGNITO_DEFAULT, Cognito uses its own internal sender
+    # and the configuration set is inert.
+    configuration_set = module.ses_events.configuration_set_name
     } : {
     email_sending_account  = try(var.email_configuration.email_sending_account, "COGNITO_DEFAULT")
     source_arn             = try(var.email_configuration.source_arn, null)
     from_email_address     = try(var.email_configuration.from_email_address, null)
     reply_to_email_address = try(var.email_configuration.reply_to_email_address, null)
+    # Inert under COGNITO_DEFAULT — Cognito uses its own internal sender. Present so both branches
+    # produce the same object shape.
+    configuration_set = null
   }
 }
 
@@ -119,6 +204,8 @@ resource "aws_cloudwatch_metric_alarm" "cert_expiry" {
   threshold           = 30
   comparison_operator = "LessThanThreshold"
   treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
   alarm_description   = "ACM cert renews automatically ONLY while its DNS validation record resolves. Firing here means renewal is broken — the endpoint will go untrusted at expiry."
 }
 
@@ -135,6 +222,7 @@ resource "aws_cloudwatch_metric_alarm" "ses_bounce_rate" {
   threshold           = 0.05
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
   alarm_description   = "SES bounce rate > 5%. AWS pauses sending past this — which means NOBODY can sign in (EMAIL_OTP is the only credential)."
 }
 
@@ -148,7 +236,58 @@ resource "aws_cloudwatch_metric_alarm" "ses_complaint_rate" {
   threshold           = 0.001
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
   alarm_description   = "SES complaint rate > 0.1%. AWS pauses sending past this — which means NOBODY can sign in."
+}
+
+# ── 037: the alarms that see ONE person, not a rate ───────────────────────────────────────────
+#
+# ⚠ WHY THE RATE ALARMS ABOVE ARE NOT ENOUGH. A single customer whose address hard-bounces never
+# moves a percentage — and that one person is permanently locked out of an account that, for three
+# of the four audiences, has no other credential. The rate alarms protect the ACCOUNT; these
+# protect a PERSON.
+resource "aws_cloudwatch_metric_alarm" "mail_hard_bounce" {
+  alarm_name          = "${module.shared.name_prefix}-mail-hard-bounce"
+  namespace           = "Effy/Mail"
+  metric_name         = "mail_hard_bounce"
+  dimensions          = { env = var.env }
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  alarm_description   = "A permanent delivery failure was recorded. Someone may now be unable to sign in at all — check the back-office deliverability view and repair if the address is recoverable."
+}
+
+# ⚠ THIS ALARM EXISTS BECAUSE AWS PROVIDES NO SIGNAL FOR IT (research R11).
+# There is no CloudWatch metric and no EventBridge event for a broken custom MAIL FROM. The only
+# native notification is an email to the AWS ACCOUNT ROOT ADDRESS, which on a solo-operator project
+# is exactly as unmonitored as the gap this slice is closing. So the platform polls and publishes
+# its own metric (apis/edge-api/admin ses-identity-health, hourly).
+#
+# The failure it catches is silent by construction: with behavior_on_mx_failure = USE_DEFAULT_VALUE
+# (the right choice — the alternative makes every send fail, i.e. nobody signs in), SES quietly
+# falls back to an amazonses.com envelope. Mail keeps flowing. What breaks is SPF alignment, so
+# deliverability decays at the receiver over DAYS and the rate alarms fire only after the damage.
+#
+# ⚠ treat_missing_data = "breaching" is deliberate: a probe that stops running must TRIP this alarm,
+# not silence it.
+resource "aws_cloudwatch_metric_alarm" "mail_from_unhealthy" {
+  alarm_name          = "${module.shared.name_prefix}-mail-from-unhealthy"
+  namespace           = "Effy/Mail"
+  metric_name         = "mail_from_domain_healthy"
+  dimensions          = { env = var.env }
+  statistic           = "Minimum"
+  period              = 3600
+  evaluation_periods  = 2
+  threshold           = 1
+  comparison_operator = "LessThanThreshold"
+  treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+  alarm_description   = "The custom MAIL FROM is not in SUCCESS, or the hourly probe stopped reporting. Mail still sends but SPF alignment is degraded — and the Failed state is TERMINAL: SES stops retrying after 72h and setup must be restarted by hand."
 }
 
 output "dns_zone_name" {

@@ -99,6 +99,49 @@ describe("deployment configuration", () => {
     }
   });
 
+  it("⚠ declares the three mail-contract variables, and resolves each from SSM (037)", () => {
+    // 037 replaced a hardcoded sender with the /effy/<env>/ses/* contract. The failure mode is
+    // EXACTLY the one at the top of this file: the source reads a variable the deployment never
+    // declares, every send throws, and no test notices because the tests set it themselves.
+    const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8");
+    const declared = readServerlessEnvKeys();
+
+    for (const key of ["MAIL_SENDER", "MAIL_REPLY_TO", "MAIL_CONFIGURATION_SET"]) {
+      expect(declared.has(key), `serverless.yml must declare ${key}`).toBe(true);
+
+      const line = yaml.split("\n").find((l) => new RegExp(`^\\s*${key}:`).test(l));
+      expect(line, `${key} is not declared`).toBeDefined();
+
+      // ⚠ It must come FROM SSM. A declared-but-hardcoded value would satisfy the key check above
+      // while re-creating the exact drift the contract exists to end.
+      expect(line, `${key} must resolve from the /effy/<env>/ses/* contract, not a literal`).toMatch(
+        /\$\{ssm:\/effy\/\$\{sls:stage\}\/ses\/[a-z_]+\}/,
+      );
+    }
+  });
+
+  it("⚠ no longer declares the retired OTP_SENDER — a fallback would preserve the drift", () => {
+    // Keeping the old name alongside the new one is the tempting, wrong move: it makes the change
+    // safe-looking while leaving two sources of truth for one address, which is the defect.
+    const declared = readServerlessEnvKeys();
+    expect(declared.has("OTP_SENDER"), "OTP_SENDER must be removed, not kept as a fallback").toBe(
+      false,
+    );
+  });
+
+  it("⚠ hardcodes no sender address anywhere in the deployment config", () => {
+    // The general form of the above. Comments are stripped first: this file's own history is
+    // documented in a comment that legitimately names the retired literal, and asserting against
+    // prose is how 035's hyphenation test failed the first time.
+    const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8");
+    const config = yaml
+      .split("\n")
+      .filter((l) => !/^\s*#/.test(l))
+      .join("\n");
+
+    expect(config).not.toMatch(/no-reply@/);
+  });
+
   it("⚠ uses the HYPHENATED back-office SSM path", () => {
     // The SSM contract is /effy/<env>/auth/back-office/… — an underscore resolves to nothing and
     // the variable silently becomes empty, which is the same lockout by another route.

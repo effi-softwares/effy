@@ -984,6 +984,37 @@ private fun TermsNotice() {
  */
 @Composable
 private fun ResendRow(state: AuthUiState, onResend: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+        ResendControl(state, onResend)
+        StuckNote()
+    }
+}
+
+/**
+ * ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always.
+ *
+ * The platform now knows when it cannot reach an address — a hard bounce is recorded and the account
+ * screen says so plainly (FR-030). This screen deliberately does NOT.
+ *
+ * ⚠ WHY NOT, EVEN THOUGH IT WOULD BE KINDER. This screen is unauthenticated, and delivery state is
+ * only knowable for an address the platform has actually emailed — which implies an account exists.
+ * Saying "we can't reach that address" here would answer "does this person have an Effy account?" to
+ * anyone who types one, spending the enumeration defence 035 built (phantom sends to the mailbox
+ * simulator, timing parity) to improve a line of copy.
+ *
+ * ⚠ NEVER MAKE THIS CONDITIONAL.
+ */
+@Composable
+private fun StuckNote() {
+    Text(
+        "Still not arriving? Email hello@effyshopping.com",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun ResendControl(state: AuthUiState, onResend: () -> Unit) {
     // ⚠ The SAME verdict the ViewModel acts on. Re-deriving "is the ceiling reached?" in the view is
     // how a screen ends up offering a control its handler will refuse.
     when (resendVerdict(state.sendsThisFlow, state.resendRemaining, state.loading)) {

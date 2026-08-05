@@ -175,6 +175,37 @@ variable "api_subdomain" {
   default     = "edge-api"
 }
 
+variable "dmarc_rua" {
+  description = "Address receiving this namespace's DMARC aggregate reports (037 FR-017). Without it, monitor mode collects nothing and there is never evidence on which to tighten the policy."
+  type        = string
+  default     = "mailto:dmarc@effyshopping.com"
+}
+
+variable "alert_email" {
+  description = "Address every operator alarm notifies (037 FR-037). ⚠ AWS sends a confirmation link on first apply; the subscription notifies NOBODY until a human clicks it, and `terraform apply` reports success either way."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be a single email address."
+  }
+}
+
+variable "ses_suppressed_reasons" {
+  description = <<-EOT
+    Which outcomes add an address to — and block it from — the ACCOUNT-WIDE suppression list, for
+    mail sent through this environment's configuration set (037 FR-041).
+
+    ⚠ [] IN NON-PRODUCTION, and not for convenience: the account-level list is account-wide and
+    region-wide, so a mistyped address in dev would otherwise make that real person unreachable in
+    PRODUCTION, with no warning and no visible relationship between the two events.
+
+    Production keeps the default ["BOUNCE","COMPLAINT"] — there, suppression is protection.
+  EOT
+  type        = list(string)
+  default     = ["BOUNCE", "COMPLAINT"]
+}
+
 variable "ses_sender_enabled" {
   description = "Flip to true ONLY after the SES domain identity reports VERIFIED (`make mail-verify ENV=dev`). Cognito REJECTS a source_arn whose identity is unverified, and verification is asynchronous — it completes minutes after the apply that creates the DKIM records returns. false = the four pools stay on the Cognito built-in sender; true = they send as no-reply@<env>.<root_domain>. This flag is the gate made explicit (010 tasks T028a)."
   type        = bool

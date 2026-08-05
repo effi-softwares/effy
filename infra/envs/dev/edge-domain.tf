@@ -56,6 +56,46 @@ resource "aws_route53_record" "api_aaaa" {
   }
 }
 
+# ── The sending namespace must RESOLVE (037 FR-013 / SC-006) ─────────────────────────────────
+#
+# ⚠ `dev.effyshopping.com` is the domain in the visible From: of every code this platform sends, and
+# until now it had NO address record and no mail-exchanger record — it did not resolve at all.
+# RFC 5321 §2.3.5 requires a sender domain to exist and be queryable, and Microsoft and Yahoo are
+# both reported to reject outright on sender domains that do not. That is the most likely cause of
+# silent partial delivery, and it is invisible from our side.
+#
+# ⚠ THIS IS NOT A WEBSITE, and the slice does not pretend otherwise. It aliases the same gateway
+# `edge-api.dev` uses, so the name resolves and serves API 404s. A real landing page is out of scope.
+#
+# ⚠ NO MAIL-EXCHANGER RECORD, deliberately (research R5). RFC 5321's implicit-MX rule makes a host
+# with an address record mail-routable without one, and adding one would mean registering this
+# namespace with the operator's mail service and then accepting mail nobody reads — while replies
+# already route to hello@ (FR-022). If SC-004/SC-005 show Outlook still rejecting, the remedy is
+# pre-decided: add the mail-exchanger record. Do not guess at other causes first.
+resource "aws_route53_record" "zone_apex_a" {
+  zone_id = module.dns.zone_id
+  name    = module.dns.zone_name
+  type    = "A"
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.edge.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.edge.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "zone_apex_aaaa" {
+  zone_id = module.dns.zone_id
+  name    = module.dns.zone_name
+  type    = "AAAA"
+
+  alias {
+    name                   = aws_apigatewayv2_domain_name.edge.domain_name_configuration[0].target_domain_name
+    zone_id                = aws_apigatewayv2_domain_name.edge.domain_name_configuration[0].hosted_zone_id
+    evaluate_target_health = false
+  }
+}
+
 # The raw execute-api URL, PUBLISHED rather than left as folklore.
 #
 # It is NOT deprecated. It is the fallback that makes the cutover additive (FR-011) and the

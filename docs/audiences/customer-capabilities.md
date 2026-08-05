@@ -837,3 +837,29 @@ and a register nobody trusts is worse than none.
 table (attempt cap, expiry, supersession, the 8-digit paste refusal, the hourly ceiling) is
 **unobserved**, and **SPIKE-2** — whether confirming sign-up costs a second code — is unrun and could
 still change the step order on both surfaces.
+
+---
+
+## §037 — Platform Email Delivery (037-platform-email-delivery)
+
+Legend: ✅ built · 🔒 built this slice · ➖ deliberately not on this surface
+
+| # | Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- | --- |
+| 037.1 | Codes arrive from **one Effy sender** on every flow | 🔒 | 🔒 | backend-wide; four of five flows previously came from a generic third-party address |
+| 037.2 | No **~50/day** onboarding ceiling | 🔒 | 🔒 | the identity provider's built-in sender was the real cap — not the SES sandbox, which was already lifted |
+| 037.3 | Replies to an automated message **reach a person** | 🔒 | 🔒 | reverses 010's FR-022, whose premise (the platform cannot receive mail) no longer holds |
+| 037.4 | A **uniform** "still not arriving?" escape hatch on the code step | 🔒 | 🔒 | FR-030a — shown to EVERYONE; ⚠ must never become conditional |
+| 037.5 | The account page says plainly when the address is unreachable | 🔒 | ⬜ | ⚠ **NOT BUILT ON MOBILE** — see below |
+| 037.6 | Delivery state is **never** exposed on an unauthenticated surface | 🔒 | 🔒 | guarded by a test that fails the build (`enumeration.test.ts`) |
+
+⚠ **037.5 is a real parity gap, and it is stated rather than glossed.** `CustomerDTO.emailDelivery`
+reaches **both** surfaces — the generated Kotlin contract carries it, so the data is there — but only
+`customer-web` renders it. A customer-mobile shopper whose address has hard-bounced sees nothing on
+their account screen and has only the uniform escape hatch (037.4) to go on. The backend, the
+contract and the web surface are done; the mobile view is the outstanding half.
+
+⚠ **Nothing in this table has been walked by a person.** Every row is machine-verified only. The
+operator checks that would make them true — a code delivered to a never-registered address, the
+authentication report at Gmail/Outlook/Yahoo, the induced-bounce lockout and its repair — are listed
+in [the quickstart](../../specs/037-platform-email-delivery/quickstart.md) § 9 and remain unrun.

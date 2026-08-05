@@ -123,6 +123,7 @@ resource "aws_cognito_user_pool" "this" {
     source_arn             = var.email_configuration.source_arn
     from_email_address     = var.email_configuration.from_email_address
     reply_to_email_address = var.email_configuration.reply_to_email_address
+    configuration_set      = var.email_configuration.configuration_set
   }
 
   tags = var.tags

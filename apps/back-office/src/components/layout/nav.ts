@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, Shield, Store, Tags } from "lucide-react";
+import { BadgePercent, LayoutDashboard, MailWarning, Shield, Store, Tags } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -22,5 +22,11 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // answering "is this code still live?" is support work. admin/manager get the mutating controls
   // (gated in-screen, enforced by the backend).
   { label: "Promotions", to: "/promotions", icon: BadgePercent },
+  // Deliverability has NO requiredRole: every back-office role sees it, csa included. A CSA is
+  // exactly who is on the phone to the person who cannot sign in, and "we can't reach your address"
+  // is the whole answer to that call. Only the REPAIR is admin/manager (gated in-screen, enforced by
+  // the backend) — it re-enables mail to an address that hard-failed, and a fresh bounce spends the
+  // sending reputation every audience's sign-in depends on.
+  { label: "Deliverability", to: "/deliverability", icon: MailWarning },
   { label: "Admin", to: "/admin", icon: Shield, requiredRole: "admin" },
 ];

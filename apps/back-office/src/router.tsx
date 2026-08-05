@@ -9,6 +9,10 @@ import {
   promotionDetailRoute,
   promotionsIndexRoute,
 } from "./routes/promotions";
+import {
+  deliverabilityDetailRoute,
+  deliverabilityIndexRoute,
+} from "./routes/deliverability";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
 
@@ -20,6 +24,8 @@ const routeTree = rootRoute.addChildren([
     adminRoute,
     shopsIndexRoute,
     shopDetailRoute,
+    deliverabilityIndexRoute,
+    deliverabilityDetailRoute,
     catalogSchemaRoute,
     promotionsIndexRoute,
     orderRulesRoute,

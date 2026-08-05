@@ -157,7 +157,13 @@ account that genuinely has no password.
 Recorded as the single largest open risk on this feature, deliberately deferred by the operator on
 2026-08-04.
 
-**SES is in SANDBOX** (`ProductionAccessEnabled: false`). It delivers only to individually verified
+**⚠ SUPERSEDED 2026-08-05 by 037 — this is no longer true.** `ProductionAccessEnabled` is **true**
+(review case `178578384200127`, 50,000/day at 14/sec), and the bounce-visibility gap named below
+is BUILT. Left in place rather than deleted because the change of state is itself the lesson: this
+blocker sat at the top of the platform's risk list for weeks after it had been resolved, because
+nobody re-checked. Original text follows.
+
+~~**SES is in SANDBOX** (`ProductionAccessEnabled: false`).~~ It delivers only to individually verified
 recipient addresses. On this platform that is not a limitation, it is a **hard ceiling on who can
 sign in at all** — email is the ONLY credential, and three of four audiences have no password
 fallback. A sandbox storefront cannot onboard a single real customer.

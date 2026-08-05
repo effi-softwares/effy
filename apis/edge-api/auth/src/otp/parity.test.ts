@@ -33,7 +33,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   vi.resetModules();
   process.env.CUSTOMER_USER_POOL_ID = POOL;
-  process.env.OTP_SENDER = "no-reply@dev.effyshopping.com";
+  process.env.MAIL_SENDER = "Effy <no-reply@dev.effyshopping.com>";
   const { resetAudienceIndexForTests } = await import("../lib/audience.js");
   resetAudienceIndexForTests();
   const { reserve } = await import("./issuance.js");

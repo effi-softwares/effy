@@ -149,6 +149,9 @@ resource "aws_ssm_parameter" "ses_identity_arn" {
 
 # A spike in failed verifications across many addresses is a distributed guessing campaign. Cognito
 # no longer sees it — this is OUR metric now, and nothing else is watching.
+# ⚠ 037 wired these to a notification target. They shipped with 035 and had NO alarm_actions —
+# they turned red in a console nobody was watching. Under 035's own design a failed send IS a
+# failed sign-in, so these are on the mail-and-sign-in path and inside 037 FR-037's scope.
 resource "aws_cloudwatch_metric_alarm" "otp_verify_failures" {
   alarm_name          = "${module.shared.name_prefix}-otp-verify-failures"
   alarm_description   = "035 — elevated one-time-code verification failures. Expected baseline is typos; a sustained spike is a guessing campaign against a 6-digit space."
@@ -160,6 +163,7 @@ resource "aws_cloudwatch_metric_alarm" "otp_verify_failures" {
   threshold           = 50
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
 # ⚠ The triggers fail CLOSED. An error here is not a degraded experience — it is nobody being able
@@ -175,6 +179,7 @@ resource "aws_cloudwatch_metric_alarm" "otp_send_failures" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
 # ⚠ See the header. Any value above zero means the per-address limit is not being enforced.
@@ -189,6 +194,7 @@ resource "aws_cloudwatch_metric_alarm" "otp_ratelimit_store_unavailable" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 }
 
 # A pool this code was never reviewed against is wired to these triggers. Should be impossible.
@@ -203,4 +209,5 @@ resource "aws_cloudwatch_metric_alarm" "otp_unknown_pool" {
   threshold           = 0
   comparison_operator = "GreaterThanThreshold"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 }
