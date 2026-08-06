@@ -24,7 +24,7 @@ TF            := AWS_PROFILE=$(AWS_PROFILE) terraform
 TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/envs/qa $(INFRA_DIR)/envs/staging $(INFRA_DIR)/envs/prod
 
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
-        global-init global-plan global-apply global-output dns-verify mail-verify edge-health \
+        global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-down check-goose \
         core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
@@ -417,11 +417,18 @@ dns-verify: ## SC-001/002/004: delegation live, branded API trusted, raw URL sti
 
 edge-health: ## Probe every cold-path service: healthz (liveness) + readyz (readiness). Public, no token.
 	@API_URL="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/edge/api_endpoint)" \
-	SERVICES="admin shop" bash scripts/edge-health.sh
+	SERVICES="admin shop customer" bash scripts/edge-health.sh
 
-mail-verify: ## SC-010: DKIM/SPF/DMARC published; the SES identity reports verified
+# 010 SC-001/002/004 + 037 FR-001/FR-017: is the platform AUTHORIZED to send as its namespace?
+mail-verify: ## Mail is authorized: DKIM/SPF/DMARC published, SES identity verified, sender configured
 	@ROOT_DOMAIN="$${ROOT_DOMAIN:-effyshopping.com}" ENV="$(ENV)" AWS_PROFILE="$(AWS_PROFILE)" \
 	AWS_REGION="$(AWS_REGION)" bash scripts/mail-verify.sh
+
+# 037 SC-010/SC-014/SC-020: is the outcome pipeline RUNNING? Configured and running are two facts,
+# and the gap between them is precisely the blindness this feature exists to remove.
+mail-events-verify: ## Delivery outcomes flow: consumer subscribed + erroring?, log hygiene, alarms wired
+	@ENV="$(ENV)" AWS_PROFILE="$(AWS_PROFILE)" AWS_REGION="$(AWS_REGION)" \
+	bash scripts/mail-events-verify.sh
 
 ## --- Dev cost control: stop the DB while you're not developing ---
 # The DB instance is the one big always-on dev cost (the bulk of the ≈US$22/mo; its
