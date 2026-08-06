@@ -300,6 +300,42 @@ changed; confirm a dev failure does not suppress the address elsewhere.
 
 ---
 
+## Phase 8b: ⚠ THE FIRST DEPLOY BROKE SIGN-IN ON ALL FOUR POOLS (2026-08-06)
+
+Found by the operator, not by any check: the customer iOS app requested a sign-in code and no email
+arrived. **`mail-verify` reported 17/17 green throughout**, because being *authorized* to send (DKIM,
+SPF, DMARC, a verified identity, production access) and being *permitted* to send (IAM) are
+different facts, and it only checks the first.
+
+**Defect 1 — `ses:SendEmail` was granted on the identity alone.** `ses:SendEmail` is authorized
+against **every resource the request touches**. 037 added `ConfigurationSetName` to every send, so
+each send now touches **two** resources — the identity *and* the configuration set. Every send
+failed with `AccessDeniedException`, an error naming neither. ⚠ **T126 did not cause this so much as
+complete it**: narrowing `edge-customer` from `"*"` to the identity looked like tightening and was
+in fact breaking, because `"*"` had been covering the configuration set by accident.
+⚠ **Cognito's own sends were unaffected** — the `effy-<env>-cognito-send` identity policy grants on
+the identity alone, which is sufficient because Cognito's request does not *name* a configuration
+set (it applies as the identity default). So sign-up confirmation and password recovery kept working
+while passwordless sign-in was completely dead — which is exactly why this was hard to see.
+
+**Defect 2 — the alarm that exists for this could never fire.** All four of 035's alarms in
+`infra/envs/dev/otp-store.tf` declare **no dimensions**, while `observability.ts` published only
+`Dimensions: [["userPoolId"]]`. In EMF **each dimension set is a separate metric**, so
+`Effy/Auth otp_send_failed` *without dimensions* never existed. `effy-dev-otp-send-failures` — whose
+description reads *"a failed send IS a failed sign-in"* — sat at **OK** through 7 recorded failures,
+reporting "no datapoints were received". ⚠ Neither side was wrong alone; the defect lived only in
+the relationship between them, which is 027 R13's shape for the sixth time in this repo.
+
+- [X] T144 Publish `/effy/<env>/ses/configuration_set_arn` from `infra/envs/dev/dns.tf` (the module already output it and nobody consumed it), and add it to [contracts/ssm-mail.contract.md](./contracts/ssm-mail.contract.md) with the reason both keys exist.
+- [X] T145 Grant `ses:SendEmail` on **both** ARNs in `apis/edge-api/{auth,customer}/serverless.yml`.
+- [X] T146 ⚠ Rewrite the IAM assertion in `apis/edge-api/customer/src/lib/notify.config.test.ts` and add its twin to `auth`'s. **The existing test watched this happen**: it asserted the resource line `toContain("/ses/identity_arn")` and passed, because that was true and insufficient — the fixture agreeing with the code instead of with AWS. Both now assert **both** resources; proved by reverting the fix (`× must ALSO name the configuration set`).
+- [X] T147 Emit `Dimensions: [["userPoolId"], []]` from `apis/edge-api/auth/src/lib/observability.ts`, and add `observability.test.ts` — which reads the **real** `otp-store.tf`, extracts every `Effy/Auth` alarm, and asserts each one's dimension set is actually published. Proved by reverting: **5 failures**, one per alarm plus the aggregate.
+- [ ] T148 🧑‍💻 **OPERATOR** — `make apply ENV=dev` (publishes the new SSM parameter), then `make edge-deploy SERVICE=auth ENV=dev` and `SERVICE=customer ENV=dev`. ⚠ Terraform **first** — the IAM statements resolve that parameter at deploy time and the deploy fails without it.
+- [ ] T149 🧑‍💻 **OPERATOR** — request a sign-in code from customer-mobile and confirm it **arrives**. Then `aws logs filter-log-events --log-group-name /aws/lambda/effy-edge-auth-dev-createAuthChallenge --filter-pattern '"otp send failed"'` → expect **zero** new entries.
+- [ ] T150 🧑‍💻 **OPERATOR** — ⚠ confirm the alarm can now fire: `aws cloudwatch list-metrics --namespace Effy/Auth --metric-name otp_send_failed` must list a metric with an **empty** `Dimensions` array. Until it does, `otp-send-failures` is still decoration. ⚠ This is also the strongest available rehearsal for **T123/SC-014**.
+
+---
+
 ## Phase 9: Polish & Cross-Cutting Concerns
 
 - [X] T131 ⚠ **Correct the stale blocker.** `CLAUDE.md` and [specs/035-six-digit-otp/SIGNOFF.md](../035-six-digit-otp/SIGNOFF.md) both name the SES sandbox as the platform's headline production blocker. It was granted before this slice began (research R1). Correct both, and mark 035's bounce-visibility carry-forward closed here.

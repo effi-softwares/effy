@@ -124,10 +124,14 @@ head "Log hygiene (SC-020)"
 # proves the code paths it knows about. This proves what actually got written.
 if $AWS logs describe-log-groups --log-group-name-prefix "${LOG_GROUP}" \
      --query 'logGroups[0].logGroupName' --output text 2>/dev/null | grep -q "${CONSUMER}"; then
+  # ⚠ `--limit`, NOT `--max-items`. The latter is a CLIENT-side pagination control: the CLI keeps
+  # fetching pages and prints the query result once PER PAGE, so `length(events)` came back as five
+  # lines of "0" — which is not the string "0", so the check reported a PII leak that did not exist.
+  # A guard that cries wolf gets switched off, and this one guards recipient addresses.
   hits="$(
     $AWS logs filter-log-events --log-group-name "${LOG_GROUP}" \
-      --filter-pattern '"@"' --max-items 5 \
-      --query 'length(events)' --output text 2>/dev/null || echo "0"
+      --filter-pattern '"@"' --limit 5 --no-paginate \
+      --query 'length(events)' --output text 2>/dev/null | head -1 || echo "0"
   )"
   if [ "${hits}" = "0" ] || [ "${hits}" = "None" ]; then
     ok "no '@' in any consumer log line"

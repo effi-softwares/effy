@@ -142,6 +142,41 @@ describe("deployment configuration", () => {
     expect(config).not.toMatch(/no-reply@/);
   });
 
+  it("⚠ grants ses:SendEmail on BOTH the identity and the configuration set", () => {
+    // ⚠ THE OUTAGE THIS EXISTS TO PREVENT. `ses:SendEmail` is authorized against every resource the
+    // request touches. This service's send names a configuration set (037, so the outcome is
+    // attributable), so it touches TWO: the identity and the configuration set. The deployed policy
+    // named only the identity, and every send failed with `AccessDeniedException` — an error that
+    // names neither resource, so it reads like a verification or sandbox problem.
+    //
+    // ⚠ A failed send IS a failed sign-in for driver, shop and back-office, which have no password
+    // and no federated route. This was a total sign-in outage on all four pools, and `mail-verify`
+    // reported 17/17 green throughout: being AUTHORIZED to send (DKIM, SPF, DMARC, a verified
+    // identity) and being PERMITTED to send (IAM) are different facts, and it only checks the first.
+    const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8");
+    const lines = yaml.split("\n").filter((l) => !/^\s*#/.test(l));
+
+    const sesLine = lines.findIndex((l) => /Action:\s*ses:SendEmail/.test(l));
+    expect(sesLine, "no ses:SendEmail statement found").toBeGreaterThanOrEqual(0);
+
+    const block: string[] = [];
+    for (let i = sesLine + 1; i < lines.length; i++) {
+      const line = lines[i] ?? "";
+      if (block.length > 0 && !/^\s*-\s/.test(line)) break;
+      block.push(line);
+      if (block.length === 1 && !/Resource:\s*$/.test(line)) break; // single-line form
+    }
+    const resources = block.join("\n");
+
+    expect(resources).toMatch(/Resource:/);
+    expect(resources, 'ses:SendEmail must not be granted on "*"').not.toMatch(/"\*"/);
+    expect(resources, "must name this environment's identity").toContain("/ses/identity_arn");
+    expect(
+      resources,
+      "must ALSO name the configuration set — a send that specifies one is authorized against both",
+    ).toContain("/ses/configuration_set_arn");
+  });
+
   it("⚠ uses the HYPHENATED back-office SSM path", () => {
     // The SSM contract is /effy/<env>/auth/back-office/… — an underscore resolves to nothing and
     // the variable silently becomes empty, which is the same lockout by another route.

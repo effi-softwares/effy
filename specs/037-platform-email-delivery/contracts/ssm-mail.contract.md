@@ -12,8 +12,31 @@ in the same sense as
 | `/effy/<env>/ses/sender` | String | `infra/envs/dev/dns.tf` — **new** | `Effy <no-reply@dev.effyshopping.com>` | `edge-api/auth`, `edge-api/customer` |
 | `/effy/<env>/ses/reply_to` | String | `infra/envs/dev/dns.tf` — **new** | `hello@effyshopping.com` | `edge-api/auth`, `edge-api/customer` |
 | `/effy/<env>/ses/configuration_set` | String | `infra/modules/ses-events` — **new** | `effy-dev-mail` | `edge-api/auth`, `edge-api/customer` |
+| `/effy/<env>/ses/configuration_set_arn` | String | `infra/envs/dev/dns.tf` — **added 2026-08-06** | `arn:aws:ses:ap-southeast-2:…:configuration-set/effy-dev-mail` | `edge-api/auth` IAM, `edge-api/customer` IAM |
 | `/effy/<env>/ses/events_topic_arn` | String | `infra/modules/ses-events` — **new** | `arn:aws:sns:ap-southeast-2:…:effy-dev-ses-events` | `edge-api/admin` (SNS subscription + IAM) |
 | `/effy/<env>/alerts/topic_arn` | String | `infra/envs/dev/alerts.tf` — **new** | `arn:aws:sns:ap-southeast-2:…:effy-dev-alerts` | CloudWatch alarms in Terraform **and** in `serverless.yml` |
+
+## ⚠ Why `configuration_set` and `configuration_set_arn` are BOTH here
+
+They look redundant and are not. The **name** is what a sender passes in the request
+(`ConfigurationSetName`). The **ARN** is what IAM must authorize.
+
+`ses:SendEmail` is authorized against **every resource the request touches**. A send that names a
+configuration set touches two — the identity **and** the configuration set — so a policy granting
+only the identity **denies the call**, with `AccessDeniedException` naming neither.
+
+⚠ **This shipped broken on 2026-08-06 and took sign-in down on all four pools.** Before this slice
+the senders passed no configuration set, so identity-only was correct. Adding
+`ConfigurationSetName` without widening the grant meant every code email failed — and on driver,
+shop and back-office a failed send *is* a failed sign-in, because there is no password. Both
+`edge-api/auth` and `edge-api/customer` must name **both** ARNs, and a test in each service now
+asserts it.
+
+⚠ **Cognito's own sends are not affected and need no change.** The identity policy
+`effy-<env>-cognito-send` grants the Cognito service principal `ses:SendEmail` on the identity
+alone, which is sufficient because Cognito's request does **not** name a configuration set — the set
+applies as the identity's *default*. That is also why this defect hid: sign-up confirmation and
+password recovery kept working while passwordless sign-in was completely dead.
 
 ## The defect this contract closes
 

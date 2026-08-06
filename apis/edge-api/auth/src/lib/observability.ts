@@ -35,7 +35,23 @@ export function emit(metric: OtpMetric, userPoolId: string, value = 1): void {
       CloudWatchMetrics: [
         {
           Namespace: "Effy/Auth",
-          Dimensions: [["userPoolId"]],
+          // ⚠ TWO DIMENSION SETS, AND THE EMPTY ONE IS NOT DECORATION.
+          //
+          // A dimension set defines a SEPARATE metric. Publishing only `[["userPoolId"]]` means the
+          // metric `Effy/Auth otp_send_failed` — with no dimensions — DOES NOT EXIST, and an alarm
+          // that names namespace + metric without dimensions watches exactly that: nothing. It sits
+          // at OK reporting "no datapoints were received" forever.
+          //
+          // ⚠ THAT IS WHAT HAPPENED. All four of 035's alarms (otp-send-failures,
+          // otp-verify-failures, otp-ratelimit-store-unavailable, otp-unknown-pool) are declared
+          // without dimensions in infra/envs/dev/otp-store.tf. On 2026-08-06 the auth service
+          // failed EVERY send for hours with AccessDeniedException — 7 recorded failures on the
+          // customer pool alone — and `otp-send-failures` never left OK. The alarm whose own
+          // description reads "a failed send IS a failed sign-in" could not fire, by construction.
+          //
+          // The empty set publishes the aggregate the alarms actually watch; the `userPoolId` set
+          // is kept because it is what tells you WHICH audience is broken.
+          Dimensions: [["userPoolId"], []],
           Metrics: [{ Name: metric, Unit: "Count" }],
         },
       ],

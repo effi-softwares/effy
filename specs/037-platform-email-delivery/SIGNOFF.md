@@ -105,6 +105,43 @@ back-office together through `@effy/web-kit`'s `OtpSignInCard`.
 
 ---
 
+## 4b. ⚠ THE FIRST DEPLOY BROKE SIGN-IN ON ALL FOUR POOLS
+
+Found on 2026-08-06 by the operator running the iOS customer app — **not** by any check in this
+slice. ⚠ **`mail-verify` reported 17/17 green throughout.** Being *authorized* to send (DKIM, SPF,
+DMARC, verified identity, production access) and being *permitted* to send (IAM) are different
+facts; it only checks the first. That gap is now the first thing `mail-events-verify` is for.
+
+**Defect 1 — `ses:SendEmail` granted on the identity alone.** The action is authorized against every
+resource the request touches. 037 made every send name a configuration set, so each touches **two**
+resources. Every send failed with `AccessDeniedException` — which names neither, so it reads like a
+verification or sandbox problem. ⚠ **T126 completed the defect rather than causing it**: narrowing
+`edge-customer` from `"*"` to the identity looked like tightening, and was breaking, because `"*"`
+had been covering the configuration set by accident.
+
+⚠ **Cognito's own sends were never affected**, because the `effy-<env>-cognito-send` identity policy
+grants on the identity alone and Cognito's request does not *name* a configuration set — it applies
+as the identity's default. **Sign-up confirmation and password recovery kept working while
+passwordless sign-in was completely dead.** A partial outage in the one flow with no fallback.
+
+**Defect 2 — the alarm for exactly this could never fire.** All four 035 alarms declare no
+dimensions; `observability.ts` published only `[["userPoolId"]]`. In EMF each dimension set is a
+separate metric, so the dimensionless one never existed. `effy-dev-otp-send-failures` — *"a failed
+send IS a failed sign-in"* — held **OK** through 7 recorded failures, reporting "no datapoints were
+received". ⚠ Neither the emitter nor the alarm was wrong alone. The defect lived only in the
+relationship between them, invisible to any unit test on either side: 027 R13's shape for the sixth
+time in this repo.
+
+**Both fixed, both guards proved by reverting** (T144–T147). ⚠ **Both fixes are UNDEPLOYED** — see
+T148–T150.
+
+⚠ **What this says about the slice's own evidence.** 033 of these tasks were ticked before a single
+code email had ever been sent through the new path. The machine gates were green, the DNS was
+perfect, and the feature was **completely non-functional**. Nothing short of T037 would have caught
+it, and T037 is still open.
+
+---
+
 ## 5. ⚠ NOT PROVEN — 33 open tasks, every one of them a live walk
 
 Nothing in this section has been observed by anyone.
