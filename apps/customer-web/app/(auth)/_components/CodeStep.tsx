@@ -285,7 +285,35 @@ function ResendControl({
           Check your spam folder if it doesn&apos;t arrive.
         </p>
       )}
+      <StuckNote />
     </div>
+  )
+}
+
+/**
+ * ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always.
+ *
+ * The platform now knows when it cannot reach an address — a hard bounce is recorded against the
+ * account, and the account page says so plainly (FR-030). This screen deliberately does NOT.
+ *
+ * ⚠ WHY NOT, EVEN THOUGH IT WOULD BE KINDER. This screen is unauthenticated, and delivery state is
+ * only knowable for an address the platform has actually emailed — which implies an account exists.
+ * Saying "we can't reach that address" to whoever typed it would therefore answer *"does this person
+ * have an Effy account?"* to anyone who asks, spending the enumeration defence 035 built (phantom
+ * sends to the mailbox simulator, timing parity) to improve a line of copy.
+ *
+ * So the honest statement moves to the surfaces where the person has PROVEN the account is theirs,
+ * and this line gives everyone a way out without telling an attacker anything. It must never become
+ * conditional — see the invariance test in CodeStep.enumeration.test.tsx.
+ */
+function StuckNote() {
+  return (
+    <p className="text-center text-xs text-muted-foreground" data-testid="stuck-note">
+      Still not arriving?{" "}
+      <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
+        hello@effyshopping.com
+      </a>
+    </p>
   )
 }
 

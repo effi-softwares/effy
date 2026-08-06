@@ -175,6 +175,57 @@ variable "api_subdomain" {
   default     = "edge-api"
 }
 
+variable "dmarc_rua" {
+  description = "Address receiving this namespace's DMARC aggregate reports (037 FR-017). Without it, monitor mode collects nothing and there is never evidence on which to tighten the policy."
+  type        = string
+  default     = "mailto:dmarc@effyshopping.com"
+}
+
+variable "alert_email" {
+  description = <<-EOT
+    Address every operator alarm notifies (037 FR-037). OPERATOR-SUPPLIED — empty means the topic is
+    created with no subscriber, which is the correct state until someone chooses an address.
+
+    ⚠ AWS sends a confirmation link on first apply, and the subscription notifies NOBODY until a
+    human clicks it — while `terraform apply` reports success either way.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.alert_email == "" || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alert_email))
+    error_message = "alert_email must be empty or a single email address."
+  }
+
+  # ⚠ MECHANICAL ENFORCEMENT of the constitution's Real-World Identifiers rule (v1.12.0).
+  #
+  # The address that was applied here by mistake belongs to an assistant session, not to this
+  # platform. A rule that lives only in a document is a rule that gets broken again.
+  #
+  # ⚠ SCOPED TO THE WHOLE DOMAIN, NOT ONE ADDRESS. The first version of this block compared against
+  # a single literal — and `anything@sub.phantm.com` sailed straight through it. Banning one address
+  # while leaving its domain open is the shape of a guard that looks like enforcement and is not.
+  validation {
+    condition     = !can(regex("(?i)phantm\\.com$", var.alert_email))
+    error_message = "PROHIBITED: no phantm.com address (or any subdomain of it) may be used in this project — constitution v1.12.0, Real-World Identifiers. Approved Effy mailboxes: workspace-admin@effyshopping.com (operational), hello@effyshopping.com (customer-facing). Anything else: ask the operator."
+  }
+}
+
+variable "ses_suppressed_reasons" {
+  description = <<-EOT
+    Which outcomes add an address to — and block it from — the ACCOUNT-WIDE suppression list, for
+    mail sent through this environment's configuration set (037 FR-041).
+
+    ⚠ [] IN NON-PRODUCTION, and not for convenience: the account-level list is account-wide and
+    region-wide, so a mistyped address in dev would otherwise make that real person unreachable in
+    PRODUCTION, with no warning and no visible relationship between the two events.
+
+    Production keeps the default ["BOUNCE","COMPLAINT"] — there, suppression is protection.
+  EOT
+  type        = list(string)
+  default     = ["BOUNCE", "COMPLAINT"]
+}
+
 variable "ses_sender_enabled" {
   description = "Flip to true ONLY after the SES domain identity reports VERIFIED (`make mail-verify ENV=dev`). Cognito REJECTS a source_arn whose identity is unverified, and verification is asynchronous — it completes minutes after the apply that creates the DKIM records returns. false = the four pools stay on the Cognito built-in sender; true = they send as no-reply@<env>.<root_domain>. This flag is the gate made explicit (010 tasks T028a)."
   type        = bool

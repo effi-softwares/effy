@@ -9,7 +9,15 @@ output "domain" {
 }
 
 output "from_address" {
-  description = "The platform's no-reply sender for this environment. NO reply-to is configured: the platform cannot RECEIVE mail, and an address that bounces replies is worse than none (spec FR-022)."
+  description = <<-EOT
+    The platform's sender for this environment — the ONE definition every sender reads, published to
+    /effy/<env>/ses/sender by the env root (037 FR-004/FR-005).
+
+    ⚠ 010's FR-022 said no reply-to could exist because the platform could not receive mail. That is
+    no longer true: the apex now routes to the operator's mailbox, so 037's FR-022 REVERSES it and a
+    reply address is configured alongside this one. A reply that reaches a person beats a reply that
+    vanishes; a reply that BOUNCES is what the original rule was protecting against.
+  EOT
   value       = "Effy <no-reply@${var.domain}>"
 }
 

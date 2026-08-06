@@ -33,7 +33,10 @@ export async function notifyPasswordChanged(input: {
   /** True when this is the customer's FIRST password, false when they replaced an existing one. */
   isFirstPassword: boolean
 }): Promise<void> {
-  const from = process.env.NOTIFY_SENDER
+  // ⚠ 037: from the SSM-published contract, not a literal. `NOTIFY_SENDER` was a second hardcoded
+  // copy of the same address that edge-auth also hardcoded — and Terraform published a third, in a
+  // different shape. See contracts/ssm-mail.contract.md.
+  const from = process.env.MAIL_SENDER
   if (!from) {
     // ⚠ Deliberately NOT fatal. The password has ALREADY been changed by the time we get here — the
     // Cognito write is done and cannot be unwound. Failing the request now would tell the customer
@@ -41,7 +44,7 @@ export async function notifyPasswordChanged(input: {
     //
     // But it is a REAL defect and must be loud: this is a security notification, and its silent
     // absence is exactly the condition under which a takeover goes unnoticed.
-    logger.error("NOTIFY_SENDER is unset — the password-change notification was NOT sent (FR-025)")
+    logger.error("MAIL_SENDER is unset — the password-change notification was NOT sent (FR-025)")
     return
   }
 
@@ -65,6 +68,15 @@ export async function notifyPasswordChanged(input: {
       new SendEmailCommand({
         FromEmailAddress: from,
         Destination: { ToAddresses: [input.to] },
+
+        // 037 FR-022 / FR-024 — a reply reaches a person, and the send is attributable to a
+        // per-message outcome. Both optional at runtime: this notification already swallows its own
+        // failures (see above), so it must not become the thing that throws.
+        ...(process.env.MAIL_REPLY_TO ? { ReplyToAddresses: [process.env.MAIL_REPLY_TO] } : {}),
+        ...(process.env.MAIL_CONFIGURATION_SET
+          ? { ConfigurationSetName: process.env.MAIL_CONFIGURATION_SET }
+          : {}),
+
         Content: {
           Simple: {
             Subject: { Data: subject, Charset: "UTF-8" },

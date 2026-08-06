@@ -264,6 +264,9 @@ variable "email_configuration" {
     source_arn             = optional(string)
     from_email_address     = optional(string)
     reply_to_email_address = optional(string)
+    # 037: attributes Cognito's own mail to a configuration set, so its sends produce per-message
+    # delivery outcomes like the platform's own do. ⚠ Inert under COGNITO_DEFAULT.
+    configuration_set = optional(string)
   })
   default = {}
 }

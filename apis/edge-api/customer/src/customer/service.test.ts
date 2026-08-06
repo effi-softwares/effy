@@ -20,6 +20,8 @@ const row = (over: Partial<CustomerRow> = {}): CustomerRow => ({
   id: "c-1",
   cognito_sub: "sub-1",
   email: "shopper@example.com",
+  // 037 — no outcome recorded, the common case.
+  email_delivery: null,
   given_name: "Janith",
   family_name: "Madarasinghe",
   phone: null,
@@ -60,6 +62,9 @@ describe("getOrCreateCustomer", () => {
       closureState: "open",
       hasPassword: false,
       passwordUpdatedAt: null,
+      // 037 — no outcome recorded for this address, which is the common case. Absence of evidence
+      // is not evidence of failure.
+      emailDelivery: "reachable",
       createdAt: "2026-07-14T00:00:00.000Z",
     })
   })

@@ -35,7 +35,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
         brand-gen brand-check \
-        dev-status dev-stop dev-start check-dev-park
+        dev-status dev-stop dev-start check-dev-park check-no-phantm
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -90,6 +90,9 @@ validate: ## Validate one env root (ENV=...); backend not required
 
 verify-naming: ## One-name rule (008): fail on any retired audience token lacking a documented exclusion
 	@bash scripts/verify-no-store.sh
+
+check-no-phantm: ## ⚠ FAIL if the banned external domain (any subdomain or address) appears anywhere — constitution v1.12.0
+	@bash scripts/check-no-phantm.sh
 
 verify-pool-credentials: ## OPERATOR (011 FR-017): assert driver/shop/admin stay passwordless, unfederated, admin-provisioned
 	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) bash scripts/verify-pool-credentials.sh
@@ -343,6 +346,7 @@ brand-check: ## brand: FAIL if any committed brand asset drifts from the authore
 brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) survives in live source
 	@bash scripts/check-no-jade.sh
 	@bash scripts/check-no-emerald.sh
+	@bash scripts/check-no-phantm.sh
 
 # --- shop-mobile (014). Same Principle-II codegen + build-failing guard as 013; EMAIL_OTP-only surface.
 # The shop contract (from shop.ts) and the shop-packaged Compose theme are committed + drift-guarded.

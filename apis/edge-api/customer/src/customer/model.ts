@@ -1,4 +1,9 @@
-import type { ClosureState, CustomerDTO, CustomerStatus } from "@effy/shared-types"
+import type {
+  ClosureState,
+  CustomerDTO,
+  CustomerStatus,
+  EmailDeliveryState,
+} from "@effy/shared-types"
 
 /** The database row. A wire shape — it never leaks past this layer (Principle VI). */
 export interface CustomerRow {
@@ -14,6 +19,14 @@ export interface CustomerRow {
   password_updated_at: Date | null
   created_at: Date
   updated_at: Date
+
+  /**
+   * 037 — the platform's conclusion about whether it can reach this customer's address.
+   *
+   * ⚠ NULL when no outcome has ever been recorded, which is the overwhelmingly common case. Absence
+   * of evidence is not evidence of failure, so `toDTO` maps null → "reachable".
+   */
+  email_delivery: EmailDeliveryState | null
 }
 
 /**
@@ -21,7 +34,21 @@ export interface CustomerRow {
  * the row type cannot be silently half-added to only some of the statements.
  */
 export const CUSTOMER_COLUMNS = `id, cognito_sub, email, given_name, family_name, phone, status,
-          closure_state, has_password, password_updated_at, created_at, updated_at`
+          closure_state, has_password, password_updated_at, created_at, updated_at,
+          (SELECT s.state FROM public.email_delivery_status s
+            WHERE s.address = customer.email) AS email_delivery`
+
+/**
+ * ⚠ WHY THE DELIVERY STATE IS A CORRELATED SUBQUERY RATHER THAN A JOIN.
+ *
+ * This one string is used both as `SELECT … FROM public.customer` and as `RETURNING …` on three
+ * UPDATEs and an INSERT. A join can only be written in the first form, so a join would have left the
+ * write paths reporting "reachable" for a customer the platform demonstrably cannot reach — a small
+ * lie, told on exactly the screen where the truth matters.
+ *
+ * A subquery works in both, which is what keeps the "one list, referenced by every query" rule above
+ * actually true. It is a single indexed lookup on a primary key.
+ */
 
 /**
  * Row → DTO.
@@ -56,6 +83,18 @@ export function toDTO(row: CustomerRow): CustomerDTO {
 
     // FR-015 — null means NEVER, which is a legitimate, complete, permanent state. Not a gap.
     passwordUpdatedAt: row.password_updated_at?.toISOString() ?? null,
+
+    // 037 FR-030 — whether the platform can actually reach this address.
+    //
+    // ⚠ AUTHENTICATED SURFACES ONLY. No sign-in screen may branch on this: delivery state is only
+    // knowable for an address the platform has emailed, so showing it to whoever typed an address
+    // answers "does this address have an Effy account?" — the enumeration oracle 035 spent its
+    // phantom-send and timing-parity design closing. The unauthenticated escape hatch is UNIFORM
+    // instead (FR-030a).
+    //
+    // ⚠ null → "reachable": absence of evidence is not evidence of failure, and almost every
+    // customer has simply never had an outcome recorded.
+    emailDelivery: row.email_delivery ?? "reachable",
 
     createdAt: row.created_at.toISOString(),
   }

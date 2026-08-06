@@ -24,6 +24,25 @@ variable "dmarc_policy" {
   }
 }
 
+variable "dmarc_rua" {
+  description = "Address that receives this namespace's DMARC aggregate reports. NULL means monitor mode collects nothing — a p=none record with no rua is a record that can never justify tightening (037 FR-017)."
+  type        = string
+  default     = null
+}
+
+variable "configuration_set_name" {
+  description = <<-EOT
+    Configuration set applied by DEFAULT to mail sent from this identity (037 FR-024/R2).
+
+    ⚠ This is the SAFETY NET half, not the enforcement half. A caller that passes its own
+    ConfigurationSetName overrides it, so senders ALSO pass it explicitly — the default exists so a
+    caller that forgets is still observed, which is the difference between "our bounce rate is 3%"
+    and "THIS person's address is dead".
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Extra tags. The provider's default_tags already cover the base set."
   type        = map(string)

@@ -79,12 +79,19 @@ function bodyFor(profile: AudienceProfile, code: string): string {
  * at all, which is the easiest way to keep that true.
  */
 export async function sendCode(input: SendCodeInput): Promise<void> {
-  const from = process.env.OTP_SENDER;
+  // ⚠ 037: read from the SSM-published contract (/effy/<env>/ses/*), never a literal. The sender
+  // used to be hardcoded here AND in edge-customer AND in Terraform, in two different shapes — the
+  // Lambdas sent with no display name while Cognito would have sent with one. One writer, many
+  // readers (Principle II; contracts/ssm-mail.contract.md).
+  const from = process.env.MAIL_SENDER;
   if (!from) {
     // Configuration failure, not user data — safe to be specific, because it can only happen to a
     // misdeployed service and never as a result of anything a caller sent.
-    throw new Error("OTP_SENDER is not configured");
+    throw new Error("MAIL_SENDER is not configured");
   }
+
+  const replyTo = process.env.MAIL_REPLY_TO;
+  const configurationSet = process.env.MAIL_CONFIGURATION_SET;
 
   const destination = input.phantom ? BLACKHOLE : input.to;
 
@@ -92,6 +99,23 @@ export async function sendCode(input: SendCodeInput): Promise<void> {
     new SendEmailCommand({
       FromEmailAddress: from,
       Destination: { ToAddresses: [destination] },
+
+      // ⚠ 037 FR-022 REVERSES 010's FR-022, which forbade a reply address because the platform could
+      // not receive mail. It can now. Someone who cannot sign in and hits reply on their code email
+      // is the highest-intent support signal this platform will ever get, and it used to vanish.
+      ...(replyTo ? { ReplyToAddresses: [replyTo] } : {}),
+
+      // ⚠ 037 FR-024 — the whole reason a per-address lockout is now VISIBLE. Without a
+      // configuration set SES publishes no per-message outcome, so a hard bounce is invisible: the
+      // send returns success, the screen says "we've sent you a code", and no code ever arrives
+      // again.
+      //
+      // ⚠ Optional at runtime ON PURPOSE. The identity carries the same set as its DEFAULT, so a
+      // missing variable degrades to "still observed" rather than "sign-in broken" — which matters
+      // because throwing here would take down sign-in for four audiences over a telemetry setting.
+      // Its ABSENCE is caught at build time instead, by the config-contract test.
+      ...(configurationSet ? { ConfigurationSetName: configurationSet } : {}),
+
       Content: {
         Simple: {
           Subject: { Data: subjectFor(input.profile, input.code), Charset: "UTF-8" },

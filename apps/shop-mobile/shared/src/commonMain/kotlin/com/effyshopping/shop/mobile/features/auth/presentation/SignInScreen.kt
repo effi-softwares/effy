@@ -221,6 +221,23 @@ private fun CodeStage(
                 modifier = Modifier.testTag("auth_different_email"),
             )
         }
+
+        // ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always.
+        //
+        // It matters most on this surface. The shop audience is strictly passwordless — an emailed
+        // code is the ONLY credential — so an address that has silently stopped accepting mail is a
+        // total lockout with no self-service way back. This line is the way back.
+        //
+        // ⚠ NEVER MAKE IT CONDITIONAL on whether the platform can reach the address. Delivery state
+        // is only knowable for an address we have emailed, so varying this copy would answer "does
+        // this address have an Effy account?" to anyone who types one — the enumeration oracle 035
+        // was built to close. The specific statement lives on authenticated surfaces (FR-030).
+        Text(
+            "Still not arriving? Email hello@effyshopping.com",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag("auth_stuck_note"),
+        )
     }
 }
 

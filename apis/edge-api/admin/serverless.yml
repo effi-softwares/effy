@@ -46,6 +46,11 @@ provider:
     # `promotions/` prefix rather than in a bucket of their own, so one bucket policy and one
     # lifecycle rule cover all operator-uploaded imagery.
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    # Email deliverability (037). The sending domain is what the hourly MAIL FROM probe inspects;
+    # the alerts topic is what every alarm below notifies. Both from the SSM contract — never a
+    # literal (contracts/ssm-mail.contract.md).
+    MAIL_SENDING_DOMAIN: ${sls:stage}.effyshopping.com
+    MAIL_ALERTS_TOPIC_ARN: ${ssm:/effy/${sls:stage}/alerts/topic_arn}
   iam:
     role:
       statements:
@@ -72,6 +77,23 @@ provider:
             - cognito-idp:AdminDisableUser
             - cognito-idp:AdminEnableUser
           Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
+        # Email deliverability (037). Three reads and ONE delete, all scoped to this environment's
+        # SES identity — never "*". ⚠ There is deliberately no PutSuppressedDestination: nothing in
+        # the product needs to make a person unreachable by hand, and a button that can silently
+        # disable someone's only credential is a weapon, not a feature.
+        - Effect: Allow
+          Action:
+            - ses:GetEmailIdentity
+            - ses:GetSuppressedDestination
+            - ses:DeleteSuppressedDestination
+          Resource: ${ssm:/effy/${sls:stage}/ses/identity_arn}
+        # The hourly MAIL FROM probe publishes its own metric — AWS provides none for this.
+        - Effect: Allow
+          Action: cloudwatch:PutMetricData
+          Resource: "*"
+          Condition:
+            StringEquals:
+              cloudwatch:namespace: Effy/Mail
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). An in-VPC
@@ -563,6 +585,71 @@ functions:
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
 # Per-function CloudWatch alarms. API-level 5xx alarm lives in Terraform (A3).
+  # ── Email deliverability (037-platform-email-delivery) ──────────────────────────────────────
+
+  # ⚠ THE ONLY THING ON THIS PLATFORM THAT CAN SEE ONE PERSON BEING LOCKED OUT. A send to a blocked
+  # address returns success and delivers nothing; the rate alarms cannot help, because one person
+  # never moves a rate.
+  #
+  # ⚠ NO filterPolicy. SES publishes the discriminator in the message BODY, not in message
+  # attributes, so an attribute filter would silently match nothing — a subscription that looks
+  # configured and receives zero events. Filtering happens in the consumer, where it is visible and
+  # testable.
+  #
+  # ⚠ topicName is REQUIRED alongside arn. Serverless uses it to name the CloudFormation
+  # subscription resources; omitting it with an explicit arn is a common deploy failure.
+  sesEventConsumer:
+    handler: src/functions/ses-event-consumer.handler
+    description: Consume SES delivery outcomes → public.email_delivery_* (037)
+    timeout: 30
+    events:
+      - sns:
+          arn: ${ssm:/effy/${sls:stage}/ses/events_topic_arn}
+          topicName: effy-${sls:stage}-ses-events
+
+  # ⚠ EXISTS BECAUSE AWS PROVIDES NO SIGNAL. There is no CloudWatch metric and no EventBridge event
+  # for a broken custom MAIL FROM; the only native notification goes to the AWS account root
+  # address. See the handler's header.
+  sesIdentityHealth:
+    handler: src/functions/ses-identity-health.handler
+    description: Hourly MAIL FROM / DKIM health probe → Effy/Mail metric (037)
+    timeout: 15
+    events:
+      - schedule: rate(1 hour)
+
+  deliverabilityListV1:
+    handler: src/functions/deliverability-list-v1-get.handler
+    description: List addresses the platform cannot reach — 037
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/deliverability
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliverabilityDetailV1:
+    handler: src/functions/deliverability-detail-v1-get.handler
+    description: One address's delivery history and live suppression state — 037
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/deliverability/{address}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliverabilityRepairV1:
+    handler: src/functions/deliverability-repair-v1-post.handler
+    description: Audited repair — clears the suppression entry AND the platform record — 037
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/deliverability/{address}/repair
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
 resources:
   Resources:
     # healthz does no work, so it can essentially only fail on a broken bundle or a runtime init
@@ -1146,3 +1233,78 @@ resources:
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
+
+    # ── Email deliverability (037) ────────────────────────────────────────────────────────────
+    #
+    # ⚠ THESE FOUR DEPART FROM THE CONVENTION ABOVE, DELIBERATELY: they carry AlarmActions.
+    # The 44 alarms preceding them have none — they turn red in a console nobody watches. Copying
+    # that wholesale would have shipped four brand-new alarms that notify nobody, in the slice whose
+    # entire purpose is that someone finds out (037 FR-037).
+    #
+    # ⚠ The remaining 44 here (and 32 in the shop service) stay unwired and are recorded as an
+    # explicit carry-forward under FR-037a — named and counted, not quietly absorbed.
+    SesEventConsumerErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-ses-event-consumer-errors
+        AlarmDescription: >-
+          The delivery-outcome consumer is failing. While it is down the platform is BLIND to
+          per-address delivery failures — which is the exact condition 037 exists to remove.
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref SesEventConsumerLambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions: ["${ssm:/effy/${sls:stage}/alerts/topic_arn}"]
+    SesIdentityHealthErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-ses-identity-health-errors
+        AlarmDescription: >-
+          The MAIL FROM probe is failing. Its metric alarm treats missing data as breaching, so this
+          is the earlier and more specific signal.
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref SesIdentityHealthLambdaFunction }]
+        Statistic: Sum
+        Period: 3600
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions: ["${ssm:/effy/${sls:stage}/alerts/topic_arn}"]
+    DeliverabilityListV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-deliverability-list-v1-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliverabilityListV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions: ["${ssm:/effy/${sls:stage}/alerts/topic_arn}"]
+    DeliverabilityRepairV1ErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-deliverability-repair-v1-errors
+        AlarmDescription: >-
+          The repair path is failing. An operator trying to unlock someone cannot, and the person
+          stays locked out of an account that may have no other credential.
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref DeliverabilityRepairV1LambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions: ["${ssm:/effy/${sls:stage}/alerts/topic_arn}"]

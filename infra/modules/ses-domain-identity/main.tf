@@ -25,6 +25,11 @@ resource "aws_sesv2_email_identity" "this" {
   email_identity = var.domain
   tags           = var.tags
 
+  # 037: every send from this identity is attributed to a configuration set, so SES publishes a
+  # per-message outcome for it. Without one the platform's only signal is an account-wide RATE —
+  # and a single person being locked out never moves a rate.
+  configuration_set_name = var.configuration_set_name
+
   dkim_signing_attributes {
     next_signing_key_length = "RSA_2048_BIT"
   }
@@ -77,12 +82,24 @@ resource "aws_route53_record" "mail_from_spf" {
 
 # ── DMARC ─────────────────────────────────────────────────────────────────────────────────────
 # p=none by default — see the dmarc_policy variable for why starting at reject is dangerous here.
+#
+# ⚠ EVERY ENVIRONMENT PUBLISHES ITS OWN (037 FR-015). A receiver queries the From domain's own
+# _dmarc record FIRST and only falls back to the organisational domain when it finds nothing — so
+# this record makes dev self-governing, and the apex's policy (and its sp=) never reaches it. That
+# is the property that lets the apex tighten to reject while an environment is still at none.
 resource "aws_route53_record" "dmarc" {
   zone_id = var.zone_id
   name    = "_dmarc.${var.domain}"
   type    = "TXT"
   ttl     = 600
-  records = ["v=DMARC1; p=${var.dmarc_policy};"]
+
+  # rua is what makes monitor mode mean anything: without aggregate reports there is no evidence
+  # that legitimate mail aligns, and therefore no basis on which to ever tighten the policy.
+  records = [
+    var.dmarc_rua == null
+    ? "v=DMARC1; p=${var.dmarc_policy};"
+    : "v=DMARC1; p=${var.dmarc_policy}; rua=${var.dmarc_rua}; fo=1"
+  ]
 
   allow_overwrite = true
 }

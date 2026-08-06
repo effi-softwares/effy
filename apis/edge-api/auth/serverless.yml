@@ -57,7 +57,14 @@ provider:
     OTP_HMAC_SECRET_ARN: ${ssm:/effy/${sls:stage}/auth/otp/hmac_secret_arn}
     # Branded sender from 010. ⚠ Under this design a failed send is a FAILED SIGN-IN — there is no
     # password fallback on three of the four audiences.
-    OTP_SENDER: no-reply@${sls:stage}.effyshopping.com
+    # ⚠ 037: the sender, its reply address and the outcome configuration set all come from the
+    # SSM contract (/effy/<env>/ses/*), NEVER a literal. This line used to be
+    # `OTP_SENDER: no-reply@${sls:stage}.effyshopping.com` — a hardcoded copy that edge-customer
+    # ALSO hardcoded, while Terraform published a third in the `Effy <no-reply@…>` display-name
+    # shape. They had already drifted. See contracts/ssm-mail.contract.md.
+    MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
+    MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     # ⚠ THE AUDIENCE MAP. One deployment serves all four pools by branching on event.userPoolId,
     # and `src/lib/audience.ts` resolves that id through these four values. Omit any one of them and
     # that pool becomes UNKNOWN: the trigger fails closed, emits otp_unknown_pool, sends no email,

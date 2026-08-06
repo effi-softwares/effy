@@ -242,6 +242,27 @@ data class CustomerDTO (
      */
     val email: String,
 
+    /**
+     * How reliably the platform can reach this account's email address (037 FR-030).
+     *
+     * ⚠ AUTHENTICATED SURFACES ONLY. This MUST NOT be exposed on any unauthenticated surface,
+     * and no sign-in screen may branch on it. Delivery state is only knowable for an address
+     * the platform has actually emailed, so disclosing it to whoever typed an address answers
+     * "does this address have an Effy account?" — an enumeration oracle, and a direct
+     * regression against 035's phantom-send and timing-parity defences. The unauthenticated
+     * escape hatch is UNIFORM instead (FR-030a).
+     *
+     * ⚠ Defaults to `"reachable"` when the platform holds no outcome for the address. Absence
+     * of evidence is not evidence of failure, and the overwhelmingly common case is an address
+     * that has simply never bounced.
+     *
+     * ⚠ There is deliberately no `reason` or `diagnostic` companion. Those are the receiving
+     * server's own words, written for a postmaster — on an account page they are noise at best
+     * and alarming at worst. They live in the back-office console, where an operator has asked
+     * for them.
+     */
+    val emailDelivery: EmailDeliveryState,
+
     val familyName: String? = null,
 
     /**
@@ -299,6 +320,51 @@ data class CustomerDTO (
 
     val status: CustomerStatus
 )
+
+/**
+ * How reliably the platform can reach this account's email address (037 FR-030).
+ *
+ * ⚠ AUTHENTICATED SURFACES ONLY. This MUST NOT be exposed on any unauthenticated surface,
+ * and no sign-in screen may branch on it. Delivery state is only knowable for an address
+ * the platform has actually emailed, so disclosing it to whoever typed an address answers
+ * "does this address have an Effy account?" — an enumeration oracle, and a direct
+ * regression against 035's phantom-send and timing-parity defences. The unauthenticated
+ * escape hatch is UNIFORM instead (FR-030a).
+ *
+ * ⚠ Defaults to `"reachable"` when the platform holds no outcome for the address. Absence
+ * of evidence is not evidence of failure, and the overwhelmingly common case is an address
+ * that has simply never bounced.
+ *
+ * ⚠ There is deliberately no `reason` or `diagnostic` companion. Those are the receiving
+ * server's own words, written for a postmaster — on an account page they are noise at best
+ * and alarming at worst. They live in the back-office console, where an operator has asked
+ * for them.
+ *
+ * The platform's conclusion about whether it can reach an address (037).
+ *
+ * Derived from per-message outcomes, never from a single send: `SendEmail` returns success
+ * and a message id even for an address the mail service has permanently blocked, so "the
+ * call succeeded" is not evidence of delivery.
+ *
+ * - `reachable`      — last outcome was a delivery, or nothing is known.
+ * - `soft_failing`   — a transient failure (mailbox full, a delay, an out-of-office).
+ * Informational;                      it gates nothing.
+ * - `undeliverable`  — a PERMANENT failure. ⚠ For driver, shop and back-office this is a
+ * total                      account lockout: email is their only credential and there is
+ * no fallback.
+ * - `complained`     — the recipient marked a message as spam. ⚠ Recorded and surfaced, but
+ * it MUST                      NOT bar anyone from signing in to their own account — a
+ * complaint usually                      means someone typed a stranger's address into
+ * sign-in, and barring on it locks                      out an account that stranger may
+ * legitimately own later (FR-031).
+ */
+@Serializable
+enum class EmailDeliveryState(val value: String) {
+    @SerialName("complained") Complained("complained"),
+    @SerialName("reachable") Reachable("reachable"),
+    @SerialName("soft_failing") SoftFailing("soft_failing"),
+    @SerialName("undeliverable") Undeliverable("undeliverable");
+}
 
 /**
  * A customer's standing with Effy. PLATFORM-OWNED — never derived from a token claim.

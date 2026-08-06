@@ -1,6 +1,30 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.11.1 → 1.12.0
+Bump rationale: MINOR — a new section is added ("Real-World Identifiers"), plus one new Quality
+                Gate bullet. No existing principle is removed or redefined, and no committed plan is
+                invalidated, so it is not MAJOR; it adds a rule rather than clarifying one, so it is
+                not PATCH.
+
+Added in this amendment (operator directive, 2026-08-06):
+  - NEW SECTION "Real-World Identifiers (NON-NEGOTIABLE)" — identifiers that reach a person or
+    organisation outside the repo MUST be operator-supplied, never inferred from session metadata or
+    the environment; where unknown, configuration MUST fail loudly rather than carry a guess;
+    `techsupport+claudeone@phantm.com` is prohibited outright; and two mailboxes are APPROVED for
+    platform use (workspace-admin@ operational, hello@ customer-facing) so a feature needing one does
+    not have to guess.
+  - Quality Gates: a feature MUST NOT merge with an operator-unsupplied real-world identifier in its
+    configuration, fixtures or documentation.
+
+Trigger: during 037-platform-email-delivery, that address was read out of session context and
+written into infra/envs/dev/dev.tfvars as the CloudWatch alarm endpoint. The apply created a live
+SNS email subscription and AWS mailed a confirmation request to it. Every automated gate passed —
+typecheck, tests, terraform validate — because the defect was one of AUTHORITY, not correctness.
+Mechanically enforced by a validation block on `alert_email` in infra/envs/dev/variables.tf, and
+recorded in CLAUDE.md.
+
+--- previous report ---
 Version change: 1.11.0 → 1.11.1
 Bump rationale: PATCH — Principle IV's credential wording is CLARIFIED, not changed in substance.
                 The phrase "strictly passwordless EMAIL_OTP" named the credential a shopper or
@@ -469,6 +493,36 @@ A plan MAY introduce a new library only within these standards (e.g., a Go helpe
 utility). It MUST NOT swap a locked technology (e.g., add an ORM, change the migration tool,
 move the hot path off Go) without amending this constitution first.
 
+## Real-World Identifiers (NON-NEGOTIABLE)
+
+A **real-world identifier** is any value that reaches, names, or bills a person or organisation
+outside this repository: an email address, a phone number, a domain, an AWS account id, a
+notification endpoint, a billing reference, a social handle.
+
+- Real-world identifiers MUST be **supplied by the operator**. They MUST NOT be inferred from
+  session metadata, the git user, the environment, or any other value the tooling happens to expose.
+  **An identifier being visible is not consent to use it.**
+- Where an identifier is not yet known, the configuration MUST **fail loudly** — a required variable
+  with no default, or a validation that refuses a placeholder. It MUST NOT be filled with a
+  plausible guess. A wrong outward-facing value that silently works is worse than a build that
+  stops, because it reaches real people before anyone notices.
+- ⚠ **`techsupport+claudeone@phantm.com` is PROHIBITED** anywhere in this project — configuration,
+  infrastructure, fixtures, seeds, documentation, specs or commit messages. It is the address
+  attached to an assistant session, not one the operator chose for this platform.
+- **Two mailboxes are approved** for platform use, and a feature needing one MUST use them rather
+  than introducing another: **`workspace-admin@effyshopping.com`** for operational endpoints (alarm
+  notifications, vendor and account contacts) and **`hello@effyshopping.com`** for anything a person
+  outside Effy will see (reply-to on automated mail, the support contact in a UI). They deliver to
+  one inbox; the distinction is what the address *communicates*. Any **other** identifier remains
+  operator-supplied under the rule above.
+
+**Rationale**: on 2026-08-06 that address was read out of session context and written into
+`infra/envs/dev/dev.tfvars` as the alarm endpoint. The apply created a live SNS email subscription
+and AWS mailed a confirmation request to it. Nothing technical failed — every gate passed — because
+the failure was one of *authority*, not correctness: a value nobody had chosen was made
+outward-facing. Guessing an identifier is guessing on someone's behalf, and this platform sends
+credentials by email; the blast radius of the wrong address is not cosmetic.
+
 ## Quality Gates
 
 Compliance is enforced at merge time, not discovered later.
@@ -482,6 +536,8 @@ Compliance is enforced at merge time, not discovered later.
   Principle VII) before implementation begins.
 - Any deviation from a principle MUST be recorded as a justified exception in the plan's
   Complexity Tracking; an undocumented deviation is a defect.
+- No feature merges with an **operator-unsupplied real-world identifier** in its configuration,
+  fixtures or documentation (see Real-World Identifiers).
 
 ## Governance
 
@@ -503,4 +559,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.11.1 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-08-03
+**Version**: 1.12.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-08-06

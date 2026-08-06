@@ -4,6 +4,7 @@ import { Suspense } from "react"
 
 import { Avatar } from "@/components/Avatar"
 import { requireCustomer } from "@/lib/dal"
+import { EmailDeliveryNotice } from "./EmailDeliveryNotice"
 import { PersonalInfo } from "./PersonalInfo"
 
 export const metadata: Metadata = {
@@ -45,6 +46,13 @@ async function AccountDetails() {
 
   return (
     <div className="mt-8 space-y-6">
+      {/*
+        ⚠ FIRST, ABOVE EVERYTHING (037 FR-030). If the platform cannot email this person, that is the
+        most important thing on the page — it means their sign-in codes, receipts and security
+        notices are silently going nowhere. Renders nothing at all in the common case.
+      */}
+      <EmailDeliveryNotice state={customer.emailDelivery} email={customer.email} />
+
       <IdentityStrip
         givenName={customer.givenName}
         familyName={customer.familyName}

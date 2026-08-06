@@ -102,6 +102,31 @@ Observable and measurable from day one (constitution Principle VII; full detail 
   command that provisions cloud resources or mutates live state — it hands those steps to the user
   with exact commands to run.
 
+## Prohibited values (hard rules)
+
+- ⚠ **`techsupport+claudeone@phantm.com` MUST NEVER appear anywhere in this project.** Not in
+  Terraform variables or `.tfvars`, not in `serverless.yml`, not as an SNS/alarm endpoint, not as a
+  test fixture, seed, doc example, spec, or commit message. It is the address attached to the
+  assistant's session — **not** an address the operator chose for this platform.
+- **The general rule it stands for:** a real-world identifier — an email address, a phone number, a
+  domain, an account id, a notification endpoint — is **asked for**, never inferred from session
+  metadata, the git user, or anything else the environment happens to expose. An identifier being
+  *visible* is not consent to *use* it.
+- **When the value is unknown, fail loudly.** A required variable with no default, or a validation
+  that refuses a placeholder, is correct. Filling the gap with a plausible guess is not — a wrong
+  outward-facing value that silently works is worse than a build that stops, because it reaches real
+  people before anyone notices.
+- **The approved Effy mailboxes**, when a feature needs one:
+  - **`workspace-admin@effyshopping.com`** — the operator's own account. **Operational** endpoints:
+    alarm notifications, vendor/account contacts, anything aimed at whoever runs the platform.
+  - **`hello@effyshopping.com`** — an alias on that same account, and the **customer-facing** one.
+    Anywhere a person outside Effy will see it: reply-to on automated mail, support contact in the UI.
+  - Both land in one inbox, so the choice is about what the address *says*, not where it goes. ⚠ They
+    are approved for platform use — not a licence to invent a **third** address. Anything else is
+    asked for.
+- Enforced mechanically in `infra/envs/dev/variables.tf` (a validation block on `alert_email` that
+  rejects the banned address) and by constitution v1.12.0.
+
 ## Workflow (the method)
 ```
 Brief (product framing, user-authored)  →  /constitution (technical law, once)
@@ -261,14 +286,17 @@ sign-up confirmation, password reset and both step-up flows delivered **6**.
   Android **and** iOS compile incl. `compileTestKotlinIosSimulatorArm64` (which 033 found had never
   run) · `terraform validate`/`fmt` · `depcruise` · both mobile guards · `tokens:check` unchanged ·
   bundle **byte-identical** on all nine guest routes. **Six negative proofs.**
-- **⚠ BLOCKING FOR PRODUCTION — DELIVERABILITY.** **SES is in SANDBOX**, delivering only to
-  individually verified recipients. On this platform that is a **hard ceiling on who can sign in at
-  all** — email is the ONLY credential and three of four audiences have no password fallback. Needs
-  (a) SES production access for `ap-southeast-2`, (b) ⚠ **a website — there is currently no A or
-  CNAME record anywhere on the apex or `www`**, which AWS reviewers check, and (c) ⚠ **bounce
-  visibility, which does not exist**: alarms watch bounce *rates* but nothing reports *which* address
-  bounced, so a customer whose address hard-bounces is **permanently locked out and nobody finds
-  out**. That last one is a product defect deserving its own slice.
+- **⚠ ~~BLOCKING FOR PRODUCTION — DELIVERABILITY~~ — CORRECTED 2026-08-05 by 037.** This entry said
+  **"SES is in SANDBOX"** and named it the platform's headline production blocker. **It was already
+  false when 037 began**, and nobody had re-tested: unrestricted sending was **GRANTED** (review case
+  `178578384200127`, 50,000/day at 14/sec) and `dev.effyshopping.com` was verified with DKIM and a
+  working custom MAIL FROM. A stale blocker left standing is worse than no note at all — it hides the
+  real ones. Of the three items it listed: (a) production access — **already granted**; (b) a website
+  on the apex — **no longer a prerequisite** (the request was approved without one), though the apex
+  is still bare; (c) ⚠ **bounce visibility — REAL, and now built by 037**: a configuration set with an
+  SNS event destination, an idempotent consumer, `public.email_delivery_{status,event}`, a back-office
+  view and an audited two-part repair. The note called it "a product defect deserving its own slice";
+  it got one.
 - **⚠ Open**: 4 of 5 surfaces unwalked — ⚠ **shop-mobile most of all**, since its broken sign-in
   (SC-001) is the defect that justified the slice and is still unconfirmed on a device. The 10-check
   table (attempt cap, expiry, supersession, rate limit, 8-digit paste refusal, log-leak sweep) is
@@ -1151,5 +1179,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/036-auth-step-flow/plan.md
+at specs/037-platform-email-delivery/plan.md
 <!-- SPECKIT END -->

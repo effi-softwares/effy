@@ -29,7 +29,37 @@ email_configuration = {
 #
 # ⚠ On that second apply: ABORT if any Cognito pool shows "must be replaced" / "-/+". A replaced
 # pool destroys every account in it — the 006 first admin and the 009 shop users included.
-ses_sender_enabled = false
+#
+# ⚠ FLIPPED TO true BY 037 (FR-002/FR-007). Until now the four pools were still on the Cognito
+# built-in sender: a generic third-party from-address AND a ~50-messages-per-day-per-pool ceiling on
+# sign-up confirmation, password recovery, email-change and both step-up codes. That cap — not the
+# SES sandbox, which was lifted before 037 began — was the platform's real onboarding ceiling.
+ses_sender_enabled = true
+
+# --- Email delivery (037-platform-email-delivery) ---
+
+# ⚠ OPERATOR-SUPPLIED, and OPERATIONAL — workspace-admin@ rather than hello@. The two are aliases on
+# one mailbox, so both land in the same place; hello@ is the CUSTOMER-facing name and alarm mail is
+# not customer-facing. Empty is also valid: it creates the topic and every alarm with NO subscriber
+# (they still fire and record, they just page nobody), which is honest in a way that pointing at
+# whatever address was to hand is not.
+#
+# ⚠ THIS WAS GOT WRONG ONCE, ON 2026-08-06. An address read out of assistant session context was
+# written here, applied, and AWS mailed a live subscription request to a person who had not chosen to
+# receive it. Every automated gate passed, because the defect was AUTHORITY, not correctness. See the
+# constitution's "Real-World Identifiers" section (v1.12.0). Ask; never infer.
+alert_email = "workspace-admin@effyshopping.com"
+
+# ⚠ [] CANCELS SUPPRESSION FOR THIS ENVIRONMENT — deliberately (FR-041).
+# The account-level block list is account-wide AND region-wide. Left at the default, one mistyped
+# address in dev would permanently block that person in PRODUCTION too. The cost is that dev keeps
+# sending to genuinely dead addresses and each attempt counts toward the shared bounce rate; that is
+# survivable only because 037 now RECORDS every such failure instead of absorbing it.
+#
+# ⚠ VERIFY AFTER APPLY — the provider's update path may not send this the way the plan implies:
+#   aws sesv2 get-configuration-set --configuration-set-name effy-dev-mail --query 'SuppressionOptions'
+#   {"SuppressedReasons": []} → active.   null → INHERITING, and FR-041 is NOT met.
+ses_suppressed_reasons = []
 
 # Placeholder dev URLs — inert until an OAuth flow is enabled; the Amplify choice-based
 # EMAIL_OTP flow talks to Cognito directly and does not use them (data-model.md E4).
