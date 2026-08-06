@@ -135,14 +135,34 @@ class AccountViewModel(
 
     fun signOut() = launch {
         session.signOutLocally()
-        // The Account tab returns to ITS root, which for a guest is the sign-in landing. Resetting to
-        // Home instead left the Account tab permanently rendering Discover.
-        navigator.resetToRoot()
+        goHomeAsGuest()
     }
 
     fun signOutEverywhere() = launch {
         runCatching { signOutEverywhereUseCase() }
         session.signOutLocally()
+        goHomeAsGuest()
+    }
+
+    /**
+     * Where signing out lands: the Home tab, at its root.
+     *
+     * ⚠ It used to be `resetToRoot()` alone, which left the shopper on the ACCOUNT tab — whose guest
+     * root was a page containing nothing but a "Sign in" button. Signing out is not a request to sign
+     * in again; it is a request to stop being signed in, and the app is guest-first, so the store is
+     * the honest destination.
+     *
+     * ⚠ BOTH tabs are cleared, and that is not belt-and-braces. `resetToRoot()` acts on the ACTIVE tab
+     * only (see `CustomerNavState.resetToRoot`), so clearing Home alone would leave the Account tab
+     * holding the signed-in screen the shopper just left — Security, or a password form — waiting to be
+     * re-rendered the moment they sign in again. Clear where we are, then clear where we are going.
+     *
+     * The device is already wiped by this point: `signOutLocally` runs `onSignedOut`, which resets the
+     * cart and saved stores and removes their persisted keys (034 FR-031).
+     */
+    private fun goHomeAsGuest() {
+        navigator.resetToRoot()
+        navigator.selectTab(CustomerNavKey.Home)
         navigator.resetToRoot()
     }
 
@@ -155,9 +175,9 @@ class AccountViewModel(
     private suspend fun finishAfterPasswordWrite() {
         // FR-027: the write revoked EVERY session, including this device. Back to sign-in with the news.
         session.signOutLocally()
-        // Back to the tab root (the guest landing), then into sign-in — so the arrow has somewhere
-        // to go, rather than stranding the customer on a rootless sign-in screen.
-        navigator.resetToRoot()
+        // ⚠ Sign-in is pushed onto HOME, not onto the Account tab. Backing out of it has to land on a
+        // screen a guest can actually see, and the Account tab's guest page no longer exists.
+        goHomeAsGuest()
         navigator.push(CustomerNavKey.SignIn())
     }
 
@@ -203,9 +223,10 @@ class AccountViewModel(
 fun AccountRoutes(container: AppContainer, route: CustomerNavKey, session: SessionState) {
     val customer = (session as? SessionState.Authenticated)?.customer
     if (customer == null) {
-        // Defensive: only a signed-in customer reaches here; if not, fall back to the tab root,
-        // which renders the guest landing.
+        // Defensive: only a signed-in customer reaches here. Without a session there is no account
+        // page to fall back to any more, so leave for the store.
         container.navigator.resetToRoot()
+        container.navigator.selectTab(CustomerNavKey.Home)
         return
     }
     val vm = viewModel {

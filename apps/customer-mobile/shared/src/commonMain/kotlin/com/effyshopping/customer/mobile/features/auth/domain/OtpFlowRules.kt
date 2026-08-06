@@ -52,13 +52,22 @@ enum class ResendVerdict {
  *
  * ⚠ THE ORDER OF THESE CHECKS IS NOT ARBITRARY. `Busy` and `Cooldown` are transient and self-clearing;
  * `Ceiling` is not, and telling someone "wait 12 seconds" when the real answer is "not for another
- * forty minutes" would be a worse lie than saying nothing. Cooldown is checked first only because it
- * is the one the shopper can see counting down, so it is the one they are already expecting.
+ * forty minutes" would be a worse lie than saying nothing.
+ *
+ * ⚠ COOLDOWN OUTRANKS BUSY, AND IT DID NOT USED TO. `loading` was checked FIRST, which meant SUBMITTING
+ * A CODE REWROTE THE COUNTDOWN: tapping "Sign in" set `loading`, the verdict flipped Cooldown → Busy,
+ * and "Send another code in 9s" was replaced mid-wait by "Didn't get it? Send another code". The
+ * shopper had asked to sign in, not to resend, and the screen answered a question they had not asked —
+ * offering, at that, the one action the cooldown exists to withhold. The countdown is a clock: an
+ * unrelated request in flight is not a reason for it to stop running.
+ *
+ * `Ceiling` moves ahead of `Busy` for the same reason — a spent hourly budget is still spent while a
+ * request happens to be in flight.
  */
 fun resendVerdict(sendsThisFlow: Int, resendRemaining: Int, loading: Boolean): ResendVerdict = when {
-    loading -> ResendVerdict.Busy
     resendRemaining > 0 -> ResendVerdict.Cooldown
     sendsThisFlow >= MAX_SENDS_PER_FLOW -> ResendVerdict.Ceiling
+    loading -> ResendVerdict.Busy
     else -> ResendVerdict.Allowed
 }
 

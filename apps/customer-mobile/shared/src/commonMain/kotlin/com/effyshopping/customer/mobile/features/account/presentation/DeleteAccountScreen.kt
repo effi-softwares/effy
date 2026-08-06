@@ -105,6 +105,10 @@ class DeleteAccountViewModel(
         // Every session is dead, including this one. Back to the signed-out storefront — there is
         // nothing to navigate back TO, because the account this screen belonged to is closed.
         session.signOutLocally()
+        // ⚠ Home, not this tab's root — the Account tab has no guest page to return to, and a closed
+        // account least of all. Both stacks are cleared: `resetToRoot()` acts on the active tab only.
+        navigator.resetToRoot()
+        navigator.selectTab(CustomerNavKey.Home)
         navigator.resetToRoot()
     }
 

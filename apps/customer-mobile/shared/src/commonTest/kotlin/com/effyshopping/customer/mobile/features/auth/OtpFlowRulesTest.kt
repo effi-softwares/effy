@@ -91,6 +91,23 @@ class OtpFlowRulesTest {
     }
 
     @Test
+    fun `⚠ submitting a code does not stop the resend countdown`() {
+        // THE DEFECT THIS PINS. `loading` was checked before the cooldown, so tapping "Sign in" flipped
+        // the verdict Cooldown → Busy and the screen replaced "Send another code in 9s" with "Didn't
+        // get it? Send another code" — answering a question the shopper had not asked, and offering the
+        // one action the cooldown exists to withhold. A code submission is not a resend.
+        assertEquals(
+            ResendVerdict.Cooldown,
+            resendVerdict(sendsThisFlow = 1, resendRemaining = 9, loading = true),
+        )
+        // And a spent hourly budget is still spent while a request is in flight.
+        assertEquals(
+            ResendVerdict.Ceiling,
+            resendVerdict(sendsThisFlow = MAX_SENDS_PER_FLOW, resendRemaining = 0, loading = true),
+        )
+    }
+
+    @Test
     fun `⚠ the ceiling is reported even while cooling down is also true`() {
         // Cooldown is transient and self-clearing; the ceiling is not. A shopper told "wait 12
         // seconds" when the real answer is "not for another forty minutes" has been misled — so once

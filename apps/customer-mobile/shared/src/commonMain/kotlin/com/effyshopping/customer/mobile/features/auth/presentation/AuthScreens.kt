@@ -938,7 +938,7 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
             )
         }
 
-        ResendRow(state = state, onResend = { vm.resendCode(route.purpose) })
+        ResendControl(state = state, onResend = { vm.resendCode(route.purpose) })
     }
 }
 
@@ -981,38 +981,14 @@ private fun TermsNotice() {
  * SIXTH is refused while STILL returning a normal challenge carrying a masked destination — so
  * without this the screen would cheerfully announce a code that was never sent, and the shopper would
  * find out only after burning three guesses.
+ *
+ * ⚠ THIS IS THE ONLY LINE UNDER THE INPUT. It used to be two: the countdown, plus a permanent "Still
+ * not arriving? Email hello@effyshopping.com" support note (037 FR-030a). The note is removed by
+ * operator direction — one recovery affordance in the flow, not a second one competing with the resend
+ * the shopper is already being asked to wait for. Nothing about the enumeration reasoning it carried
+ * has changed: this screen still says nothing about whether an address is deliverable or known, which
+ * is the property that mattered.
  */
-@Composable
-private fun ResendRow(state: AuthUiState, onResend: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
-        ResendControl(state, onResend)
-        StuckNote()
-    }
-}
-
-/**
- * ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always.
- *
- * The platform now knows when it cannot reach an address — a hard bounce is recorded and the account
- * screen says so plainly (FR-030). This screen deliberately does NOT.
- *
- * ⚠ WHY NOT, EVEN THOUGH IT WOULD BE KINDER. This screen is unauthenticated, and delivery state is
- * only knowable for an address the platform has actually emailed — which implies an account exists.
- * Saying "we can't reach that address" here would answer "does this person have an Effy account?" to
- * anyone who types one, spending the enumeration defence 035 built (phantom sends to the mailbox
- * simulator, timing parity) to improve a line of copy.
- *
- * ⚠ NEVER MAKE THIS CONDITIONAL.
- */
-@Composable
-private fun StuckNote() {
-    Text(
-        "Still not arriving? Email hello@effyshopping.com",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
 @Composable
 private fun ResendControl(state: AuthUiState, onResend: () -> Unit) {
     // ⚠ The SAME verdict the ViewModel acts on. Re-deriving "is the ceiling reached?" in the view is
@@ -1036,11 +1012,16 @@ private fun ResendControl(state: AuthUiState, onResend: () -> Unit) {
         // different things look equally likely, and put a second full-width bordered control directly
         // above the committing action. `EffyInlineLink` still carries the 48 dp touch target and an
         // underline, which is what makes it legible as an action on a palette with no brand hue.
+        // ⚠ `Busy` renders the SAME control, inert — not a different one. A request in flight is a
+        // reason not to accept a second tap, not a reason for the affordance to appear or vanish; a row
+        // that swaps its content while the shopper waits is what made submitting a code look like it
+        // had reset the resend clock.
         ResendVerdict.Allowed, ResendVerdict.Busy ->
             EffyInlineLink(
                 "Didn’t get it?",
                 "Send another code",
                 onClick = onResend,
+                enabled = !state.loading,
             )
     }
 }
@@ -1160,7 +1141,7 @@ private fun RecoveryScreen(container: AppContainer, vm: AuthViewModel) {
                 isError = state.error != null || code.length > OTP_LENGTH,
                 variant = OtpVariant.Cells,
             )
-            ResendRow(state = state, onResend = { vm.sendRecoveryCode(email) })
+            ResendControl(state = state, onResend = { vm.sendRecoveryCode(email) })
         }
 
         RecoveryStep.Password -> AuthScaffold(

@@ -683,6 +683,11 @@ fun EffyOrDivider(label: String = "Or", modifier: Modifier = Modifier) {
  *
  * The action half is UNDERLINED, not merely coloured, because under a monochrome palette a coloured
  * link is only a lightness difference from body text (FR-040).
+ *
+ * ⚠ [enabled] DIMS AND DEAFENS THE ACTION RATHER THAN REMOVING IT. A link that disappears while a
+ * request is in flight makes the row reflow under the shopper's thumb, and a live one accepts the
+ * double tap the in-flight request is the reason to refuse. The prompt keeps its colour: it is a
+ * sentence, not a control.
  */
 @Composable
 fun EffyInlineLink(
@@ -690,6 +695,7 @@ fun EffyInlineLink(
     action: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -703,9 +709,10 @@ fun EffyInlineLink(
                 fontWeight = FontWeight.SemiBold,
                 textDecoration = TextDecoration.Underline,
             ),
+            color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .heightIn(min = EffyMinTouchTarget)
-                .clickable(onClick = onClick)
+                .clickable(enabled = enabled, onClick = onClick)
                 .padding(vertical = EffySpacing.md),
         )
     }

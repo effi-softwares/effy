@@ -169,6 +169,10 @@ class PasswordFlowViewModel(
     /** Leave the success screen — back to the account the shopper came from. */
     fun leave() {
         if (_state.value.staySignedIn) navigator.pop() else {
+            // ⚠ Sign-in is pushed onto HOME. The session is gone, so backing out of it must land on a
+            // screen a guest can see — the Account tab's guest page no longer exists.
+            navigator.resetToRoot()
+            navigator.selectTab(CustomerNavKey.Home)
             navigator.resetToRoot()
             navigator.push(CustomerNavKey.SignIn())
         }

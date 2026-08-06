@@ -15,7 +15,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -65,15 +64,6 @@ import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.mobile.kit.ui.rememberMotionSpec
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import androidx.compose.material3.AlertDialog
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
-import com.effyshopping.customer.mobile.core.storage.clearGuestData
-import com.effyshopping.customer.mobile.core.storage.hasDeviceShoppingData
-import com.effyshopping.mobile.design.EffySpacing
 
 /** The label for each tab root, in bar order. */
 private fun tabLabel(key: CustomerNavKey): String = when (key) {
@@ -161,9 +151,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
      * the gate at all. Switching first is what an earlier version did, and Back then landed on the
      * account page instead of where they came from.
      *
-     * ⚠ The gate composables are NOT deleted. `GuestAccountLanding` still carries 034 FR-046 — the only
-     * route a never-signed-in guest has to clear the cart and saved items this device holds — and it is
-     * still what renders if the Account tab is reached another way, chiefly straight after signing out.
+     * ⚠ The guest ACCOUNT landing is now deleted outright, and signing out goes to Home rather than to
+     * it (see `AccountViewModel.signOut`). Nothing routes a guest to the Account tab any more, so its
+     * guest branch only leaves. `GatedTab` survives for Orders on the same last-resort footing.
      */
     fun selectTabOrAskToSignIn(tab: CustomerNavKey) {
         val gated = tab == CustomerNavKey.Orders || tab == CustomerNavKey.Account
@@ -381,7 +371,18 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                     if (signedIn) {
                         AccountRoutes(container, CustomerNavKey.Account, session)
                     } else {
-                        GuestAccountLanding(container)
+                        // ⚠ THERE IS NO GUEST ACCOUNT PAGE. A guest tapping Account is asked to sign in
+                        // (`selectTabOrAskToSignIn`) and signing out lands on Home, so nothing routes
+                        // here without a session — this branch is the last resort for a session that
+                        // ends while the tab is on screen, and it leaves rather than renders.
+                        //
+                        // ⚠ It replaced a landing page whose whole content was "Sign in" / "Create an
+                        // account" — a page that told the shopper only what the tab they just pressed
+                        // already told them. Its one unique affordance, "Clear data on this device"
+                        // (034 FR-046), is not lost: SIGNING OUT CLEARS THE DEVICE UNCONDITIONALLY
+                        // (`onSignedOut` in AppContainer resets both stores and removes the persisted
+                        // keys), so the button was a manual path to something the app now always does.
+                        LaunchedEffect(Unit) { navState.selectTab(CustomerNavKey.Home) }
                     }
                 }
 
@@ -544,69 +545,6 @@ private fun CustomerDestinationIcon(tab: CustomerNavKey, selected: Boolean) {
         else -> error("$tab is not a tab root")
     }
     Icon(painterResource(resource), contentDescription = null)
-}
-
-/** Guest landing inside the Account tab — the deferred-sign-in entry (no card, DOCTRINE-2). */
-@Composable
-private fun GuestAccountLanding(container: AppContainer) {
-    AdaptiveContent(
-        modifier = Modifier.padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Your account", style = MaterialTheme.typography.headlineSmall)
-        Text(
-            "Sign in to manage your profile and orders. You can keep browsing without an account.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Button(onClick = { container.navigator.push(CustomerNavKey.SignIn()) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Sign in")
-        }
-        TextButton(onClick = { container.navigator.push(CustomerNavKey.SignUp) }) { Text("Create an account") }
-
-        // ⚠ 034 FR-046 — the guest's route to deleting the data this device holds for them.
-        //
-        // ⚠ IT IS SHOWN ONLY WHEN THERE IS SOMETHING TO CLEAR, and that condition is the point.
-        // SIGNING OUT ALREADY CLEARS EVERYTHING (see `onSignedOut` in AppContainer), so a shopper who
-        // has just signed out has an empty device — and offering them a "clear your data" button
-        // there implied the app had NOT tidied up after them, which is precisely backwards.
-        //
-        // What remains is the case Apple's FAQ actually names: someone who has NEVER signed in, who
-        // has been browsing as a guest, and whose cart and saved items live only on this device.
-        // They have no account to delete and no sign-out to trigger, so without this they have no
-        // route at all.
-        var hasData by remember { mutableStateOf(container.preferences.hasDeviceShoppingData()) }
-        var confirming by remember { mutableStateOf(false) }
-
-        if (hasData) {
-            Spacer(Modifier.height(EffySpacing.xxxl))
-            TextButton(onClick = { confirming = true }) { Text("Clear data on this device") }
-        }
-
-        if (confirming) {
-            AlertDialog(
-                onDismissRequest = { confirming = false },
-                title = { Text("Clear data on this device?") },
-                text = {
-                    Text(
-                        "This removes the saved items and basket held on this device. " +
-                            "You don't have an Effy account, so there's nothing stored with us to delete.",
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        confirming = false
-                        container.cart.reset()
-                        container.preferences.clearGuestData()
-                        hasData = false
-                    }) { Text("Clear") }
-                },
-                dismissButton = {
-                    TextButton(onClick = { confirming = false }) { Text("Cancel") }
-                },
-            )
-        }
-    }
 }
 
 /** A gated tab a guest can see but not use — the tap raises deferred sign-in. */
