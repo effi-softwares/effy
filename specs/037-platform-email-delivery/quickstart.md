@@ -286,7 +286,7 @@ Force each into ALARM and confirm a person is notified out of band:
 | --- | --- |
 | `mail-hard-bounce` | send to `bounce@simulator.amazonses.com` |
 | `mail-from-unhealthy` | temporarily point the bounce-return mail-exchanger record elsewhere, or stop the probe (`treat_missing_data = breaching` must trip it) |
-| `mail-consumer-errors` | publish a deliberately malformed message to the events topic |
+| `mail-consumer-errors` (deployed as `effy-edge-admin-<env>-ses-event-consumer-errors`) | publish a deliberately malformed message to the events topic |
 | the four inherited from 035 | already exercised by that slice; confirm only that they now have a target |
 
 ### 9e. No secrets, no addresses (SC-020)

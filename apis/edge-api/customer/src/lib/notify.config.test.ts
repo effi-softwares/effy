@@ -80,20 +80,46 @@ describe("deployment configuration", () => {
     expect(declared.has("NOTIFY_SENDER")).toBe(false)
   })
 
-  it("⚠ scopes ses:SendEmail to this environment's identity, never to \"*\" (037 FR-043)", () => {
-    // The grant was `Resource: "*"` — permission to send as ANY verified identity in the account,
-    // including the future production one. edge-auth's own comment called it out and declined to
-    // copy it; nobody fixed it until 037. This test is what stops it coming back.
+  it("⚠ grants ses:SendEmail on BOTH the identity and the configuration set, never on \"*\"", () => {
+    // Two requirements in one statement, and the second one is why this test was rewritten.
+    //
+    // FR-043: the grant was `Resource: "*"` — permission to send as ANY verified identity in the
+    // account, including the future production one. edge-auth's own comment called it out and
+    // declined to copy it; nobody fixed it until 037.
+    //
+    // ⚠ AND THEN NARROWING IT BROKE SENDING ENTIRELY. `ses:SendEmail` is authorized against every
+    // resource the request touches, and 037 made every send name a configuration set. Identity-only
+    // therefore denies the call — `AccessDeniedException`, naming neither resource. Sign-in was
+    // down on all four pools.
+    //
+    // ⚠ THE PREVIOUS VERSION OF THIS TEST WATCHED IT HAPPEN. It asserted the resource line
+    // `toContain("/ses/identity_arn")` and passed — because that was true, and insufficient. It
+    // encoded what the code said instead of what SES requires: 027 R13's lesson, recurring for the
+    // fifth time in this repo. It now asserts BOTH resources, which is falsifiable by the real
+    // failure.
     const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8")
     const lines = yaml.split("\n").filter((l) => !/^\s*#/.test(l))
 
     const sesLine = lines.findIndex((l) => /Action:\s*ses:SendEmail/.test(l))
     expect(sesLine, "no ses:SendEmail statement found").toBeGreaterThanOrEqual(0)
 
-    const resource = lines[sesLine + 1] ?? ""
-    expect(resource).toMatch(/Resource:/)
-    expect(resource, "ses:SendEmail must not be granted on \"*\"").not.toMatch(/"\*"/)
-    expect(resource).toContain("/ses/identity_arn")
+    // The statement's resources: the `Resource:` key plus every list item until the block ends.
+    const block: string[] = []
+    for (let i = sesLine + 1; i < lines.length; i++) {
+      const line = lines[i] ?? ""
+      if (block.length > 0 && !/^\s*-\s/.test(line)) break
+      block.push(line)
+      if (block.length === 1 && !/Resource:\s*$/.test(line)) break // single-line form
+    }
+    const resources = block.join("\n")
+
+    expect(resources).toMatch(/Resource:/)
+    expect(resources, 'ses:SendEmail must not be granted on "*"').not.toMatch(/"\*"/)
+    expect(resources, "must name this environment's identity").toContain("/ses/identity_arn")
+    expect(
+      resources,
+      "must ALSO name the configuration set — a send that specifies one is authorized against both",
+    ).toContain("/ses/configuration_set_arn")
   })
 
   it("⚠ hardcodes no sender address anywhere in the deployment config", () => {

@@ -81,9 +81,16 @@ provider:
         # ⚠ 037 FR-043: was `Resource: "*"` — a grant to send as ANY verified identity in the
         # account, including the future production one. edge-auth's own comment called this out and
         # declined to copy it; nobody had fixed it. Now scoped to this environment's identity.
+        #
+        # ⚠ AND TO THE CONFIGURATION SET — both, or the send is denied. `ses:SendEmail` authorizes
+        # against every resource the request touches, and 037 made every send name a configuration
+        # set. Narrowing from `"*"` to the identity alone therefore did not tighten this grant; it
+        # BROKE it. Same defect as edge-auth's, same fix, found the same day.
         - Effect: Allow
           Action: ses:SendEmail
-          Resource: ${ssm:/effy/${sls:stage}/ses/identity_arn}
+          Resource:
+            - ${ssm:/effy/${sls:stage}/ses/identity_arn}
+            - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
 
         # Account linking (FR-011). An authorized ADMINISTRATIVE write against the CUSTOMER pool
         # — the same shape as 006's first-admin bootstrap and 009's shop-user provisioning. It is

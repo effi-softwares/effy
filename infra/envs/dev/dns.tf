@@ -90,6 +90,27 @@ resource "aws_ssm_parameter" "ses_configuration_set" {
   tier        = "Standard"
 }
 
+# ⚠ THE PERMISSION HALF OF THE LINE ABOVE, AND IT IS NOT OPTIONAL.
+#
+# `ses:SendEmail` authorizes against EVERY resource the request touches. A send that names a
+# configuration set touches two: the identity AND the configuration set. A policy granting only the
+# identity therefore DENIES the call outright — with `AccessDeniedException`, which says nothing
+# about which resource was missing.
+#
+# ⚠ THIS SHIPPED BROKEN AND CAUSED A TOTAL SIGN-IN OUTAGE. Before 037 the senders passed no
+# configuration set, so the identity-only grant was sufficient and correct. 037 added
+# `ConfigurationSetName` to every send WITHOUT widening the grant, so every code email failed on all
+# four pools — and because a failed send is a failed sign-in on the three passwordless audiences,
+# nobody could sign in at all. The only signal was `otp_send_failed` and one log line reading
+# `{"stage":"ses-send","error":"AccessDeniedException"}`.
+resource "aws_ssm_parameter" "ses_configuration_set_arn" {
+  name        = "/effy/${var.env}/ses/configuration_set_arn"
+  description = "ARN of the configuration set. Every ses:SendEmail grant MUST name this alongside the identity — a send that specifies a configuration set is authorized against both."
+  type        = "String"
+  value       = module.ses_events.configuration_set_arn
+  tier        = "Standard"
+}
+
 resource "aws_ssm_parameter" "ses_events_topic_arn" {
   name        = "/effy/${var.env}/ses/events_topic_arn"
   description = "SNS topic carrying delivery outcomes. The admin service subscribes to it from serverless.yml."

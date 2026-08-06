@@ -90,9 +90,22 @@ provider:
 
         # The code email. ⚠ Scoped to the SES identity rather than "*" — edge-customer's existing
         # ses:SendEmail grant uses "*", and this slice deliberately does not copy that.
+        #
+        # ⚠ BOTH RESOURCES ARE REQUIRED, AND OMITTING THE SECOND IS A TOTAL SIGN-IN OUTAGE.
+        # `ses:SendEmail` is authorized against every resource the request touches. This send names a
+        # configuration set (037, so the outcome is attributable), so it touches the identity AND the
+        # configuration set. Granting only the identity denies the call with `AccessDeniedException`
+        # — which names neither resource, so it reads like a verification or sandbox problem.
+        #
+        # ⚠ THIS IS NOT HYPOTHETICAL. It shipped that way and broke sign-in on all four pools: a
+        # failed send IS a failed sign-in for driver, shop and back-office, which have no password.
+        # `mail-verify` stayed 17/17 green throughout, because being AUTHORIZED to send and being
+        # PERMITTED to send are different facts and it only checks the first.
         - Effect: Allow
           Action: ses:SendEmail
-          Resource: ${ssm:/effy/${sls:stage}/ses/identity_arn}
+          Resource:
+            - ${ssm:/effy/${sls:stage}/ses/identity_arn}
+            - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
 
         # The issuance counter. One table, four operations, nothing else.
         - Effect: Allow
