@@ -43,6 +43,8 @@ one person never moves a *rate*.
 | Migration applied — `public.email_delivery_{status,event}` | T103 | 2026-08-06 |
 | `auth`, `customer`, `admin` deployed to dev | T035/T104 | 2026-08-06 |
 | **Per-audience credential rules unchanged by this slice** | T036 — full pass, see below | 2026-08-06 |
+| ⚠ **A sign-in code sent by the platform ARRIVES** — customer pool, customer-mobile on iOS | T149, after the §4b fix | 2026-08-06 |
+| ⚠ **The outcome pipeline recorded a real event end to end** (`delivery` → `reachable`) | consumer logs, §4b | 2026-08-06 |
 
 **T036 in full**, because it is the check that would have caught a sender change quietly altering an
 auth flow: driver / shop (including the mobile client) / back-office all report no password flow
@@ -132,8 +134,26 @@ received". ⚠ Neither the emitter nor the alarm was wrong alone. The defect liv
 relationship between them, invisible to any unit test on either side: 027 R13's shape for the sixth
 time in this repo.
 
-**Both fixed, both guards proved by reverting** (T144–T147). ⚠ **Both fixes are UNDEPLOYED** — see
-T148–T150.
+**Both fixed, both guards proved by reverting** (T144–T147), **and both now DEPLOYED AND PROVEN LIVE**
+(T148–T150, 2026-08-06):
+
+- both Lambda roles name **both** ARNs, read back from the **deployed** policy with
+  `aws iam get-role-policy` — not from the source that produced it;
+- **a sign-in code arrives on customer-mobile (iOS)**, and zero `otp send failed` entries since;
+- `Effy/Auth otp_code_issued` now lists **both** dimension sets — `[{userPoolId}]` and `[]` — so the
+  aggregate the alarms watch will exist at its first datapoint. ⚠ `otp_send_failed`'s empty set is
+  absent, and that is the *healthy* state: `list-metrics` returns only metrics with data, and
+  nothing has failed since.
+
+⚠ **AND THE OUTCOME PIPELINE RECORDED ITS FIRST REAL EVENT**, unprompted, from that sign-in:
+
+```
+{"eventType":"delivery","state":"reachable","recorded":true,"addr":"c66b7388c47d","msg":"delivery outcome"}
+```
+
+SES → SNS → consumer → `public.email_delivery_status`, end to end, with the address present **only**
+as a fingerprint (SC-020 holding live rather than in a unit test). ⚠ **This is the `delivery` path
+only.** The bounce path — the one the whole feature exists for — is still unproven; that is T105.
 
 ⚠ **What this says about the slice's own evidence.** 033 of these tasks were ticked before a single
 code email had ever been sent through the new path. The machine gates were green, the DNS was
