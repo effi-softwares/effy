@@ -135,6 +135,11 @@ const GUEST_PAGES = [
   // They are static content today. They are listed anyway, because the note above records exactly
   // what happens when a public route is not measured: /product/[id] sat 58.8 KB over budget for two
   // features before anyone looked.
+  // ⚠ Added 2026-08-07 with the route itself (039 US6), not afterwards. A guest reaches this page by
+  // following a link in a confirmation email — it is public by requirement, since the recipient may
+  // have no account and never will. The note above records what happened the last time a
+  // guest-reachable route went unmeasured: /product/[id] sat 58.8 KB over budget for two features.
+  { route: "/newsletter/confirm", html: ".next/server/app/newsletter/confirm.html" },
   { route: "/delete-account", html: ".next/server/app/delete-account.html" },
   { route: "/legal/privacy", html: ".next/server/app/legal/privacy.html" },
   { route: "/legal/terms", html: ".next/server/app/legal/terms.html" },

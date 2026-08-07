@@ -27,23 +27,45 @@ export interface RenderedMessage {
  */
 const compiled = new Map<string, HandlebarsTemplateDelegate>();
 
-function template(key: string, source: string): HandlebarsTemplateDelegate {
+/**
+ * @param escape HTML-escape substituted values. TRUE for the HTML part, FALSE for the text part.
+ *
+ * ⚠ THE TEXT PART MUST NOT BE HTML-ESCAPED, and this was a real defect until 039 found it.
+ *
+ * Both parts were compiled with escaping on. Handlebars escapes `=` to `&#x3D;`, so a URL carrying a
+ * query parameter rendered as `…/confirm?token&#x3D;ABC123`. In the HTML part that is harmless —
+ * browsers and mail clients decode entities inside attribute values, so the link works. **In the plain
+ * text part nothing decodes it.** The recipient sees, copies and follows a literally malformed URL
+ * whose query string is `token&#x3D;ABC123`: the `token` parameter is simply absent.
+ *
+ * ⚠ It would have broken double opt-in for every plain-text reader — including anyone whose client
+ * blocks HTML — with no error anywhere: the send succeeds, the mail arrives, the link is there, and
+ * confirmation silently never happens. It was invisible until a template needed a tokenised URL.
+ *
+ * Escaping plain text was never right; it was inherited from the HTML path. The HTML part keeps
+ * escaping, for the reason the note below gives.
+ */
+function template(key: string, source: string, escape: boolean): HandlebarsTemplateDelegate {
   let fn = compiled.get(key);
   if (!fn) {
     // ⚠ `strict: false` deliberately: a missing OPTIONAL value renders empty rather than throwing.
     // Required values are already guaranteed by validateVars() before we get here, so throwing on a
     // lookup would only convert a caught problem into an uncaught one.
-    fn = Handlebars.compile(source, { noEscape: false });
+    fn = Handlebars.compile(source, { noEscape: !escape });
     compiled.set(key, fn);
   }
   return fn;
 }
 
 /**
- * ⚠ EVERY SUBSTITUTED VALUE IS ESCAPED. Handlebars' `{{ }}` escapes by default and templates never
- * use `{{{ }}}`. This matters because SES's own template engine does NOT escape — its documentation
- * says so explicitly — and on this platform product names, shop names and customer names are all
- * user-influenced. An unescaped engine is an HTML-injection primitive aimed at customers' inboxes.
+ * ⚠ EVERY SUBSTITUTED VALUE IN THE HTML PART IS ESCAPED. Handlebars' `{{ }}` escapes by default and
+ * templates never use `{{{ }}}`. This matters because SES's own template engine does NOT escape — its
+ * documentation says so explicitly — and on this platform product names, shop names and customer names
+ * are all user-influenced. An unescaped engine is an HTML-injection primitive aimed at inboxes.
+ *
+ * ⚠ The TEXT part is deliberately NOT escaped, and that is not a weakening of the above: there is no
+ * markup in a text/plain body for an injected value to escape into. HTML-escaping it only corrupts
+ * legitimate characters — see the long note on `template()` for the URL defect it caused.
  */
 export function render<T extends TemplateId>(
   id: T,
@@ -85,7 +107,8 @@ export function render<T extends TemplateId>(
     templateId: id,
     subject: entry.subject(vars as never, profile),
     preheader: entry.preheader(vars as never, profile),
-    html: template(`${id}:html`, artifact.html)(context),
-    text: template(`${id}:text`, artifact.text)(context),
+    html: template(`${id}:html`, artifact.html, true)(context),
+    // ⚠ NOT escaped — see `template()`. Plain text is not HTML; there is nothing to decode it later.
+    text: template(`${id}:text`, artifact.text, false)(context),
   };
 }

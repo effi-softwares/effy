@@ -61,6 +61,19 @@ provider:
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
+    # ── 039: newsletter double opt-in (US6) ──────────────────────────────────────────────────────
+    #
+    # ⚠ DECLARED HERE OR THE SERVICE SENDS NOTHING. This is 035's defect verbatim — four env vars the
+    # code read and `serverless.yml` never declared, so every lookup resolved "unknown", no email was
+    # ever sent, and 100 passing tests missed it because they set the vars themselves. A
+    # config-contract test (src/newsletter/config.contract.test.ts) now reads THIS FILE and fails if a
+    # key the service reads is missing from it.
+    #
+    # ⚠ The confirm base URL is the WEB page, not this API. The emailed link goes to the storefront,
+    # which calls the confirm route server-side and renders the outcome.
+    NEWSLETTER_CONFIRM_BASE_URL: ${ssm:/effy/${sls:stage}/web/site_url, 'http://localhost:3000'}/newsletter/confirm
+    NEWSLETTER_TOKEN_TTL_HOURS: "24"
+    NEWSLETTER_RESEND_COOLDOWN_MINUTES: "60"
     # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
     # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
     # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note
@@ -344,6 +357,34 @@ functions:
       - httpApi:
           method: POST
           path: /customer/v1/password/reset-confirm
+
+  # ── 039: newsletter (US6) ──────────────────────────────────────────────────────────────────────
+  #
+  # ⚠ BOTH DELIBERATELY PUBLIC — note the ABSENT `authorizer` blocks, as with healthz/readyz and the
+  # password-reset-confirm route above. Subscribing must work for an anonymous visitor who has no
+  # account and may never have one; behind the customer JWT authorizer it would be unreachable by the
+  # people it exists for. Neither route holds any privilege: subscribe writes one row keyed on an
+  # address the caller supplied, and confirm consumes a single-use token from an email.
+  #
+  # ⚠ NO PER-ROUTE THROTTLE, and that is not an oversight. HTTP API throttling is a *stage*
+  # `route_settings` property; the stage is Terraform-owned (infra/envs/<env>/edge-gateway.tf) and this
+  # service attaches via an external `httpApi.id`, so nothing written here could set it — it would
+  # silently do nothing. FR-035 was narrowed to the per-address cooldown, which lives in SQL.
+  customerNewsletterV1Post:
+    handler: src/functions/customer-newsletter-v1-post.handler
+    description: PUBLIC — subscribe to Effy updates; uniform, non-enumerating response (039 FR-030/FR-032)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/newsletter
+
+  customerNewsletterV1Confirm:
+    handler: src/functions/customer-newsletter-v1-confirm-get.handler
+    description: PUBLIC — double opt-in confirm; single-use, TTL-bounded token (039 FR-031)
+    events:
+      - httpApi:
+          method: GET
+          path: /customer/v1/newsletter/confirm
 
   # ⚠ NOT an HTTP route. This is a COGNITO TRIGGER — it is invoked by the customer user pool
   # itself, immediately before a profile is created. It has no `events` block on purpose; the

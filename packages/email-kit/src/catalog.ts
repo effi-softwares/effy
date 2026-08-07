@@ -242,6 +242,44 @@ export const CATALOG = {
     // wires it, swallow fits. Inert today (no call site).
     onSendFailure: "swallow",
   },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // 039 — newsletter double opt-in.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  "newsletter-confirmation": {
+    vars: { confirmUrl: "string", expiresIn: "string" },
+    subject: (_v, p) => `Confirm your ${p.productName} subscription`,
+    // ⚠ Does not repeat the subject and carries no secret — the token lives in the URL only.
+    preheader: () => "One tap to confirm, and we'll keep you posted.",
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+
+    /**
+     * ⚠ `transactional`, AND THIS IS THE ARGUABLE ONE — so here is the reasoning rather than a bare
+     * value. It is newsletter-shaped, which suggests `lifecycle` and therefore a mandatory unsubscribe
+     * URL. But an unsubscribe link here would leave a subscription that DOES NOT YET EXIST: nobody is
+     * subscribed until this link is followed. The recipient's exit is to ignore it, which is stronger
+     * than any link, and the message says so in as many words.
+     *
+     * The distinction is not cosmetic. The moment the platform sends an actual campaign, that message
+     * is `lifecycle` and this catalogue's discriminated union makes it a COMPILE ERROR to ship without
+     * an unsubscribe URL. `lifecycle` ships unused precisely so that day is enforced, not remembered.
+     */
+    category: "transactional",
+
+    /**
+     * ⚠ `throw`. The subscription row is written BEFORE the send, so a swallowed failure would leave a
+     * row stuck at `pending` with a token nobody ever received — a subscriber who believes they signed
+     * up, never confirms, and can never be written to. The caller turns the throw into the retryable
+     * error state (FR-033) so the visitor is told to try again while their input is still on screen.
+     *
+     * ⚠ It differs from `account-password-changed`'s `swallow` for a concrete reason: there the
+     * underlying change had ALREADY happened irreversibly, so failing the request would tell the
+     * customer a lie. Here nothing irreversible has occurred and a retry is genuinely useful.
+     */
+    onSendFailure: "throw",
+  },
 } as const satisfies Record<string, MessageEntry>;
 
 export type TemplateId = keyof typeof CATALOG;

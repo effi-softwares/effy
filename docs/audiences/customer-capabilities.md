@@ -897,3 +897,46 @@ causing it, and Cognito's real message-length limit measured — are listed in
 customer on this surface receives are now branded", not that either app changed — the change is in
 `@effy/email-kit`, `edge-auth`, `edge-customer` and `edge-admin`. There is no new screen on either
 customer surface.
+
+---
+
+## §039 — Customer Web Home: Merchandised Landing Redesign (039-customer-home-redesign)
+
+Legend: ✅ built · 🔒 built this slice · ➖ deliberately not on this surface · ⬜ not yet
+
+The storefront home page becomes a **longer, merchandised landing** — an image-led hero band, category
+shortcuts, interleaved product rails and promotional offer panels, an app-awareness section and a
+newsletter — adapting the composition of an operator-supplied grocery reference. It is a
+**presentation slice over data the platform already serves**: no new catalogue capability, no hot-path
+change, no storefront DTO touched (FR-003). The newsletter is the single new capability.
+
+| # | Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- | --- |
+| 039.1 | **Image-led hero** — headline, two actions, honest value claims over operator artwork | 🔒 | ➖ | mobile Home is 028's sectioned merchandising; a different composition for a different surface |
+| 039.2 | Hero **degrades to a neutral placeholder** when no artwork is supplied | 🔒 | ➖ | never a broken frame; box reserved so no layout shift (FR-011/SC-001) |
+| 039.3 | **Category shortcut strip** → a category listing in one tap, full set in one more | 🔒 | ✅ | mobile has 028's category row; ⚠ both omit unstocked parents — `productCount` still does not roll up (028's open defect) |
+| 039.4 | **Merchandised rails** in a fixed order — on-sale, featured, departments | 🔒 | ✅ | web order is now composed, not the server's array order |
+| 039.5 | **Promotional offer panels** — one large plus two stacked, from advertised `inline` promotions | 🔒 | ✅ | mobile has 029's offers carousel; ⚠ web now renders promotion **terms**, closing a 029 carry-forward |
+| 039.6 | A promotion that ended between load and tap → **"this offer has ended"** | ✅ | ✅ | unchanged: `/promotions/[id]` re-applies Home's visibility predicate (029) |
+| 039.7 | **App-awareness** section — store badges present, non-linking, "coming soon" | 🔒 | ➖ | the apps are unpublished; ⚠ **no store URL exists anywhere**, enforced by a source-level test |
+| 039.8 | **Newsletter subscribe** with double opt-in confirmation email | 🔒 | ⬜ | new capability; cold path on `edge-customer`; mobile has no equivalent and none is planned yet |
+| 039.9 | Subscribing **never reveals whether an address is already on the list** | 🔒 | ➖ | uniform result for new/pending/confirmed (FR-032); no `already` state exists in the contract |
+| 039.10 | Every section **hides itself** when it has no data | 🔒 | ✅ | structural — `SectionShell` returns null, and the composer never emits an empty section |
+
+**Unchanged by operator lock (FR-002)**: the header, top navigation, information strip, the **product
+card**, and the footer. Now enforced mechanically by `make storefront-locks` — a sha256 baseline that
+fails and names any locked file that drifted, rather than a comment nobody runs.
+
+⚠ **The value panels are the platform's only coloured chrome** — a recorded Principle V exception
+(FR-005a), taken on operator direction and bounded to one component: component-local values, never
+design tokens, `tokens:check` passing unchanged. Deleting one constant is the entire revert.
+
+⚠ **Nothing in this table has been walked by a person.** Every row is machine-verified — 14/14
+typecheck, 14/14 test suites, 351 customer-web tests, 44 home/newsletter e2e assertions against a
+production build, every colour and brand guard. The five section reviews and the three newsletter
+operator steps are listed in
+[the quickstart](../../specs/039-customer-home-redesign/quickstart.md) and remain unrun.
+
+⚠ **customer-mobile is untouched by this slice.** The ✅ marks in its column are 028/029 capabilities
+that already existed, not parity delivered here — recorded explicitly because 028's register carried
+an optimistic ✅ that turned out to be unbuilt.

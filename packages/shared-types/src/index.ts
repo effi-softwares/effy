@@ -15,3 +15,5 @@ export * from "./saved-item";
 export * from "./shop-order";
 export * from "./promotion";
 export * from "./banner";
+// 039-customer-home-redesign
+export * from "./newsletter";

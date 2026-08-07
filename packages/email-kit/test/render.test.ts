@@ -94,6 +94,49 @@ describe("render", () => {
     });
   });
 
+  /**
+   * ⚠ REGRESSION — THE TEXT PART MUST NOT BE HTML-ESCAPED.
+   *
+   * Both parts were compiled with escaping on. Handlebars escapes `=` to `&#x3D;`, so any URL with a
+   * query parameter came out as `…?token&#x3D;ABC`. In the HTML part that is harmless — clients decode
+   * entities inside attribute values. In the plain-text part **nothing decodes it**, so the recipient
+   * sees and follows a malformed URL whose `token` parameter is simply absent.
+   *
+   * It would have broken 039's double opt-in for every plain-text reader with no error anywhere: the
+   * send succeeds, the mail arrives, the link is visible, and confirmation silently never happens. It
+   * stayed invisible until a template first needed a tokenised URL.
+   *
+   * ⚠ This lives in the SHARED render suite, not in 039's template test, because it is a property of
+   * the engine and it protects every template that ever puts a URL in text.
+   */
+  describe("text/plain is not HTML (039)", () => {
+    const url = "https://x.test/newsletter/confirm?token=ABC123&src=email";
+
+    it("renders a query-string URL verbatim in the text part", () => {
+      const m = render(
+        "newsletter-confirmation",
+        { confirmUrl: url, expiresIn: "24 hours" },
+        "customer",
+        identity,
+      );
+
+      expect(m.text).toContain(url);
+      expect(m.text).not.toContain("&#x3D;");
+      expect(m.text).not.toContain("&amp;");
+    });
+
+    it("still escapes the HTML part, because that one really is markup", () => {
+      const m = render(
+        "newsletter-confirmation",
+        { confirmUrl: '"><script>alert(1)</script>', expiresIn: "24 hours" },
+        "customer",
+        identity,
+      );
+
+      expect(m.html).not.toContain("<script>");
+    });
+  });
+
   it("leaves Cognito's {####} placeholder untouched", async () => {
     // ⚠ Proven by RENDERING, not by reading the Handlebars grammar. A substitution engine that ate
     // {####} would make every Cognito-sent message arrive with a literal placeholder where the code

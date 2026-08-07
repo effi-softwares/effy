@@ -292,6 +292,20 @@ export const MANAGED_DIRS = [
  */
 export const MANAGED_DIR_EXEMPT = ["Contents.json", ".gitkeep"]
 
+/**
+ * Directories INSIDE a managed directory that hold editorial CONTENT rather than generated assets.
+ *
+ * ⚠ Added by 039, which put an operator-supplied hero photograph in `apps/customer-web/public/hero/`
+ * and immediately failed this check as an "orphaned brand asset". It is not one: the brand generator
+ * neither writes it nor could, because it is a photograph somebody chose, not a rendering of the mark.
+ *
+ * ⚠ Exempting the SUBDIRECTORY rather than stopping watching `public/` is the point. `public/` is
+ * exactly where a stale favicon or a hand-edited icon would hide, and that is what this check exists
+ * to catch. Anything added here must be content the generator has no opinion about — if a future
+ * entry is really a generated asset, it belongs in a target, not in this list.
+ */
+export const MANAGED_SUBDIR_EXEMPT = ["apps/customer-web/public/hero"]
+
 /** Asset locations this check knowingly does NOT cover, so the limitation is greppable. */
 export function orphanCoverage() {
   return {

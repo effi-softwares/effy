@@ -233,6 +233,70 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**039-customer-home-redesign — Customer Web Home: Merchandised Landing Redesign.** 🚧 **84/94 tasks —
+every section BUILT and machine-verified. Not deployed, not committed, NOT WALKED BY A PERSON.**
+Sign-off record: [specs/039-customer-home-redesign/SIGNOFF.md](specs/039-customer-home-redesign/SIGNOFF.md).
+
+Turns the storefront home into a **longer merchandised landing** adapting an operator-supplied grocery
+reference: image-led hero, category shortcuts, interleaved rails, promotional offer panels, an
+app-awareness band and a newsletter. A **presentation slice over data the platform already serves** —
+zero `core-api` changes, zero storefront DTO changes (FR-003) — plus one new capability, the newsletter.
+- **Six sections cost +1.0 KB.** `/` went **171.7 → 172.7 KB** against a 174 KB gate. Every section is a
+  server component; the only client boundary is the newsletter form. ⚠ The plan claimed 170.5 KB /
+  3.5 KB headroom; it was **171.7 / 2.3** — a third less room than the constraint was written against.
+- **⚠⚠ EVERY EMAIL'S PLAIN-TEXT PART WAS HTML-ESCAPED**, in the shared `email-kit` render path.
+  Handlebars turns `=` into `&#x3D;`, so a tokenised URL became `…?token&#x3D;ABC`. Harmless in HTML
+  (clients decode entities in attributes); **in text/plain nothing decodes it**. Double opt-in would
+  have failed for every plain-text reader **with no error anywhere** — send succeeds, mail arrives, link
+  is visible, confirmation never happens. Invisible until a template first needed a query parameter.
+- **⚠ The offers block was wired to a placement that does not exist.** Spec, contract and tasks all said
+  `placement === "offers"`; `BannerPlacement` is `"carousel" | "inline"`. It would have matched nothing
+  and rendered as **absent** — a *valid* state under FR-018, so it would not have looked like a bug.
+- **⚠ THE PLATFORM'S FIRST COLOURED CHROME**, on operator direction: three value panels in `#F95F09` /
+  `#374128` / `#6BB252`. A recorded Principle V exception (**FR-005a**), bounded exactly as 024 bounded
+  the mobile splash grounds — component-local, **never design tokens**, not named for a role.
+  **`tokens:check` passes unchanged**, which is the mechanical proof it did not enter the design system;
+  deleting one constant is the entire revert. ⚠ The reference's own panels **fail WCAG AA** with white
+  text (orange **3.15:1**, green **2.59:1**), so the fills are exact and the *foreground* is adapted per
+  panel — ratios computed in the test, not asserted in a comment.
+- **⚠ FOUR DEFECTS FOUND ONLY BY LOOKING.** An orphaned divider; a **backwards phone layout**
+  (`order-first` is unprefixed, so it applied at every breakpoint while `lg:` made desktop look right);
+  the **CTA hierarchy vanishing in dark mode** (the monochrome accent inverts, the photograph does not);
+  a scrim bleaching the artwork. All four were live with a fully green suite. **These tests were not
+  wrong — layout, contrast and hierarchy are not properties a DOM assertion can see.**
+- **⚠ TWO REQUIREMENTS HAD IMPLEMENTATION AND NO COVERAGE.** FR-035's abuse resistance had **no test at
+  all**. FR-033's input preservation was **broken**: React resets an uncontrolled form once its action
+  completes, so the field cleared on every outcome — including the failure whose whole point is that the
+  address survives, while the message read "your address is still here".
+- **⚠ The hero asset resolution was a defect documented as behaviour.** A module-scope `const` meant a
+  long-running dev server cached `null` forever; the operator dropped the artwork in and kept seeing the
+  placeholder. `public/hero/README.md` had *written that down as expected*. A supported empty state
+  indistinguishable from a bug is worse than no fallback.
+- **FR-002 is now mechanical.** The header/nav/product-card/footer lock was a comment; `make
+  storefront-locks` is a sha256 baseline that fails and names what drifted (proven by breaking it).
+- **Data**: one forward-only migration `20260807115924_newsletter_subscriber.sql` — `public.
+  newsletter_subscriber`, **no FK to `customer`** (research R8: conflating them would make subscribe an
+  account-existence oracle). **Email**: a seventh live template, `newsletter-confirmation`.
+  **Backend**: `apis/edge-api/customer/src/newsletter/` — two **public** routes, cold path.
+  ⚠ FR-035's gateway throttle was **unbuildable where the plan put it** (stage `route_settings` is
+  Terraform-owned) and was narrowed to a per-address SQL cooldown, with the residual per-source gap
+  recorded rather than hidden.
+- **Verified**: `pnpm -r typecheck` **14/14** · `pnpm -r test` **14/14** · customer-web **351** ·
+  edge-customer **134** · email-kit **52** · `make email-check` **8 templates** · **44 e2e** on a
+  production build · `storefront-locks` · `brand-check` · `check-tokens`/`tokens:check` unchanged ·
+  bundle gate **10 routes**.
+- **⚠ Open (10)**: the newsletter's three operator steps — commit the migration + `make db-up`,
+  `make edge-deploy SERVICE=customer`, and the live walk (**gated on 038 being deployed**; also needs
+  `/effy/dev/web/site_url`, or the confirm link points at localhost) — plus **five deferred UI reviews**
+  and the commit. ⚠ **Six findings that are NOT 039's** are recorded in its quickstart so they are not
+  mistaken for it: three storefront e2e specs stale since **025**, two `a11y` tests referencing a
+  removed delivery control (**verified against a clean HEAD build**), `SaveControl` at **36×36 on web**
+  (033 raised the mobile one and never the web one), 8×8 carousel dots, the hero **not preloaded** while
+  three below-the-fold banners are, and **PostHog never initialised on customer-web** — which is why
+  039 declared five telemetry events and ships **one**. Spec/artifacts:
+  [specs/039-customer-home-redesign/](specs/039-customer-home-redesign/); parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §039.
+
 **038-email-template-system — Platform Email Template System.** 🚧 **97/134 tasks — every authoring
 and wiring phase BUILT and machine-verified; only operator deploy/walks + telemetry-doc remain. Not
 deployed, not committed.**

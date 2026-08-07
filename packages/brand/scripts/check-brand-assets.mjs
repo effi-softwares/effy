@@ -10,7 +10,7 @@ import { readFileSync, existsSync, readdirSync, statSync } from "node:fs"
 import { resolve, join, relative } from "node:path"
 
 import { buildAll, buildManifest, REPO, PKG, MANIFEST, sha256 } from "./gen-brand-assets.mjs"
-import { MANAGED_DIRS, MANAGED_DIR_EXEMPT } from "../src/targets.mjs"
+import { MANAGED_DIRS, MANAGED_DIR_EXEMPT, MANAGED_SUBDIR_EXEMPT } from "../src/targets.mjs"
 
 function walk(dir) {
   const out = []
@@ -46,6 +46,8 @@ async function main() {
     for (const abs of walk(resolve(REPO, dir))) {
       const rel = relative(REPO, abs).split("\\").join("/")
       const base = rel.split("/").pop()
+      // ⚠ Content directories are skipped by PATH, not by filename — see MANAGED_SUBDIR_EXEMPT.
+      if (MANAGED_SUBDIR_EXEMPT.some((d) => rel.startsWith(`${d}/`))) continue
       if (!declared.has(rel) && !MANAGED_DIR_EXEMPT.includes(base)) orphans.push(rel)
     }
   }

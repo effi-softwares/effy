@@ -41,6 +41,13 @@
     "htmlSha": "b383414c2e761f40",
     "textSha": "8d4d518a448e81dd"
   },
+  "newsletter-confirmation": {
+    "htmlBytes": 16860,
+    "htmlChars": 16852,
+    "textBytes": 505,
+    "htmlSha": "48b21cdbcd8af3f3",
+    "textSha": "a2bc1d98f2cba889"
+  },
   "order-confirmation": {
     "htmlBytes": 28927,
     "htmlChars": 28919,

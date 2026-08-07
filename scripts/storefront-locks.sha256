@@ -1,0 +1,6 @@
+6b7af57159d4897cdcdbae01db546866e19b3556aa1cfae9d92ee26307d48f74  apps/customer-web/app/(shop)/layout.tsx
+47466216310ffcd7ea98c6185dfcbc884905cb1b1730abaaa0af5b9ce4b7dd4d  apps/customer-web/app/(shop)/_components/ProductCard.tsx
+515575c0e29a65ef9dd1d06283803b6c5de335fdf24e60ed0f51a947e458ac9d  apps/customer-web/app/(shop)/_components/StorefrontFooter.tsx
+cb46ec8d4d01d4c78e23f53ab7b82c06fe416615bd6ebfb4c3646b349b1e91ac  apps/customer-web/app/(shop)/_components/PrimaryNav.tsx
+5fa85ed6eaccfe2d5174c39ac23db055d83cea73f8f7c06e4d55c3152c806c20  apps/customer-web/app/(shop)/_components/MobileNav.tsx
+d4086abc2463176ed8a074810e27a578183c3a6803f545af16de2ab3f893a04c  apps/customer-web/app/(shop)/_components/HeaderSearch.tsx

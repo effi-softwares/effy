@@ -35,6 +35,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
         brand-gen brand-check email-gen email-check email-preview \
+        storefront-locks storefront-locks-update \
         dev-status dev-stop dev-start check-dev-park check-no-phantm
 
 help: ## List targets
@@ -357,6 +358,12 @@ brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) s
 	@bash scripts/check-no-jade.sh
 	@bash scripts/check-no-emerald.sh
 	@bash scripts/check-no-phantm.sh
+
+storefront-locks: ## storefront: FAIL if an operator-LOCKED file (header/nav/product card/footer) drifted (039 FR-002)
+	@bash scripts/check-storefront-locks.sh
+
+storefront-locks-update: ## storefront: re-record the lock baseline — commit it WITH the change that justified it
+	@bash scripts/check-storefront-locks.sh --update
 
 # --- shop-mobile (014). Same Principle-II codegen + build-failing guard as 013; EMAIL_OTP-only surface.
 # The shop contract (from shop.ts) and the shop-packaged Compose theme are committed + drift-guarded.

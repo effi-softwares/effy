@@ -356,6 +356,67 @@ Two genuine test defects were found while chasing it, both mine:
 - `getByRole("link", {name: /on sale/i})` matched **two** links (hero CTA + header nav): a strict-mode
   violation, not a rendering fault.
 
+## US6 verification result — 2026-08-07
+
+The newsletter, built end to end. **All code done; only the three operator steps remain** (T082 migration,
+T083 deploy, T084 the live walk — the last gated on 038 being deployed).
+
+| Gate | Result |
+|---|---|
+| `pnpm -r typecheck` | ✅ clean, whole workspace |
+| `pnpm -r test` | ✅ **all packages green** |
+| `pnpm --filter @effy/customer-web test` | ✅ **351 passed** (39 files) |
+| `pnpm --filter @effy/edge-customer test` | ✅ 134 passed (+35 newsletter: 30 service, 5 config-contract) |
+| `pnpm --filter @effy/email-kit test` | ✅ 52 passed |
+| `make email-check` | ✅ **8 templates**, tokens + structure + size + text + drift clean |
+| `e2e/newsletter.spec.ts` | ✅ **16 passed** (chromium + mobile), production build |
+| Bundle gate | ✅ `/` **172.7 KB / 174 KB** · `/newsletter/confirm` **168.2 KB** |
+| `brand-check` · `check-tokens` · `tokens:check` · no-emerald · no-jade | ✅ all green |
+
+⚠ **The newsletter cost +0.9 KB on `/`** (171.8 → 172.7), leaving **1.3 KB** of headroom. That is the
+measured price of a client boundary, and it was paid deliberately — see below.
+
+### ⚠ Five defects found while building US6
+
+1. **⚠⚠ THE PLAIN-TEXT PART OF EVERY EMAIL WAS HTML-ESCAPED.** Both parts were compiled with escaping
+   on, so Handlebars turned `=` into `&#x3D;` and a confirm link rendered as
+   `…/confirm?token&#x3D;ABC`. In HTML that is harmless — clients decode entities in attribute values.
+   **In text/plain nothing decodes it**, so the `token` parameter is simply absent.
+   **It would have broken double opt-in for every plain-text reader** — including anyone whose client
+   blocks HTML — with no error anywhere: send succeeds, mail arrives, link is visible, confirmation
+   silently never happens. Fixed in `render.ts` (the shared path, so it protects every template), with
+   the regression test in the shared render suite rather than in 039's.
+   ⚠ It was invisible until a template first needed a tokenised URL.
+2. **⚠ FR-033 WAS BROKEN AND EVERY UNIT TEST PASSED.** React **resets an uncontrolled form once its
+   action completes**, so the field cleared on *every* outcome — including the failure whose entire
+   point is that the address survives. The error message read "your address is still here" while it
+   demonstrably was not. Caught by an e2e assertion on the failure branch; fixed by holding the value
+   in state. Nothing in the source hinted at it, because the reset is React's behaviour, not ours.
+3. **The email guard caught a missing fixture** before any test did — `make email-check` refuses a
+   template it cannot preview or verify. Working exactly as designed.
+4. **⚠ 024's brand guard flagged the hero photograph as an orphaned brand asset.** It watches all of
+   `apps/customer-web/public/`, and a content directory now lives there. Fixed with a narrow
+   `MANAGED_SUBDIR_EXEMPT` path exemption — **not** by stopping watching `public/`, which is exactly
+   where a stale favicon would hide.
+5. **A test asserted a property the code did not have**, and the honest fix was to correct the test:
+   "never echoes the token back into the page" fails, because Next serialises `searchParams` into the
+   RSC flight payload whether or not anything renders them.
+
+### ⚠ Two decisions worth reading before changing them
+
+- **The newsletter form is a CLIENT component, and the plan said it would not be.** Research R3
+  preferred a param-driven result and named `useActionState` only as a fallback. It is unavoidable:
+  **FR-033 requires the visitor's input to survive a failure**, and a redirect cannot carry it back
+  without putting an email address in the URL — where it lands in server logs, `Referer` and history.
+  A kilobyte of JavaScript is the better trade than converting a transient form value into PII written
+  to three places. The measured cost is +0.9 KB.
+- **The confirm token appears in the confirm page's RSC payload, and that is accepted.** A
+  confirm-then-redirect was built to remove it and **reverted**: `redirect()` inside a streamed
+  Suspense boundary returns 200, not a 3xx, so the token stayed anyway — *and* a client without
+  JavaScript was left on "Confirming…" forever. The decisive point is that **the token is already
+  spent** by the time that HTML exists (confirm runs before render, single-use, hash cleared). A Route
+  Handler redirecting before any HTML is produced would remove it; recorded as an option, not built.
+
 ## Gates (run before sign-off)
 
 ```bash
@@ -375,7 +436,49 @@ node packages/design-system/scripts/check-tokens.mjs   # SC-004 — ⚠ lives in
 catalogue error — confirming no empty rows and a self-explaining state in every degraded case; and
 light/dark × desktop/tablet/phone (SC-006).
 
-## Operator-supplied, still open
-- Final **hero image** asset (drop into `public/hero/`).
-- Real **app-store URLs** — deferred to a later slice when the apps ship (badges stay disabled until then).
-- Confirm **038 is deployed** (the newsletter confirmation email rides its email-kit send path).
+## Operator-supplied, still open (T093)
+
+**Assets**
+- ✅ **Hero image supplied and installed** — `banner-1.jpg` → `public/hero/hero-1.jpg`, recompressed
+  847 KB → 318 KB (q78, visually identical). ⚠ Any REPLACEMENT must keep a pale, flat, low-detail
+  left-hand zone; there is no scrim, so legibility is a property of the asset. Constraints are written
+  in `apps/customer-web/public/hero/README.md`.
+- ⬜ **App artwork** for the app-promo section — renders the neutral placeholder until supplied.
+- ⬜ Real **app-store URLs** — deferred to the slice that ships the apps. Until then the badges must
+  stay non-linking; a source-level test fails on any store URL in those two modules.
+
+**Blocking the newsletter walk**
+- ⬜ **Commit the migration, then `make db-up ENV=dev`** (T082 — 003's commit guard blocks it otherwise).
+- ⬜ **`make edge-deploy SERVICE=customer ENV=dev`** (T083).
+- ⬜ **Confirm 038 is deployed** — the confirmation email rides its email-kit send path (T084).
+- ⬜ **`/effy/dev/web/site_url` in SSM.** `NEWSLETTER_CONFIRM_BASE_URL` falls back to
+  `http://localhost:3000/newsletter/confirm` if it is unset. ⚠ That fallback does not crash — it emails
+  a confirm link nobody outside the developer's machine can follow, and the subscription is
+  permanently unconfirmable with no error anywhere. The config-contract test proves the key is
+  DECLARED; only the operator can prove it has a real value.
+
+**Deferred UI reviews** (operator direction: "continue to next steps, we will later fix UI issues")
+- ⬜ T020 hero · T028 categories · T038 rails · T048 offers · T055 app promo.
+
+## Known-open, NOT introduced by 039
+
+Recorded so they are not mistaken for this slice's work, and not silently fixed inside it:
+
+- ⚠ **Three storefront e2e specs are stale since 025.** `ssr-seo.spec.ts`, `guest.spec.ts` and
+  `deferred-signin.spec.ts` assert copy (`"Groceries, delivered."`, `"Why Effy"`, `"Start browsing"`)
+  that `git grep` at HEAD finds **only inside the spec files**. They could not have passed before 039
+  touched anything.
+- ⚠ **Two `a11y.spec.ts` tests reference a delivery-location control that no longer exists** — removed
+  with the delivery withdrawal. **Verified against a stashed, clean HEAD build**: the string appears
+  **zero** times, so these fail without 039 too.
+- ⚠ **`SaveControl` is 36×36 on web** — below the 44 px minimum, on every product tile. 033 raised the
+  MOBILE control from 32 dp to 48 dp for exactly this reason and never raised the web one. Excluded by
+  name from 039's touch-target guard so the guard stays useful; owned by the saved-items surface.
+- ⚠ **`PromoCarousel` dot indicators are 8×8** (029). Tiny by design as indicators, but they are
+  anchors, so they are also targets.
+- ⚠ **The hero is not preloaded while three below-the-fold promo banners are.** Next emits no
+  `<link rel=preload>` for an `unoptimized` image even with `priority`. A prioritisation inversion on
+  the LCP element, owned by `PromoCarousel`.
+- ⚠ **PostHog has never been initialised on `customer-web`** (CLAUDE.md §033), so `capture()` is a
+  permanent no-op. 039 declared five events and ships **one**, server-side; the other four were dropped
+  rather than shipped as measurement that measures nothing.

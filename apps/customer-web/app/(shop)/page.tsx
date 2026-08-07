@@ -13,6 +13,7 @@ import { type HomeSection, composeSections, isEmptyStore } from "./home-composit
 import { AppPromo } from "./_components/AppPromo"
 import { CategoryStrip } from "./_components/CategoryStrip"
 import { Hero } from "./_components/Hero"
+import { NewsletterForm } from "./_components/NewsletterForm"
 import { OffersPanels } from "./_components/OffersPanels"
 import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
@@ -83,6 +84,10 @@ export default function HomePage() {
           AFTER the streamed merchandising hole in the document, which is where a shopper meets it, and
           still prerenders because it is outside the <Suspense> boundary. */}
       <AppPromo />
+
+      {/* Contract row 9 — static shell. The form posts to a Server Action; only its RESULT state needs
+          a client boundary (see NewsletterForm's header for why FR-033 forces one). */}
+      <NewsletterForm />
 
       {/* Device-local recently-viewed (client island). */}
       <RecentlyViewedRail />

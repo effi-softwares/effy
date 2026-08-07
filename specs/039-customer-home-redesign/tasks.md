@@ -373,16 +373,16 @@ on 038 being deployed, everything before it is not.
 
 ### Contract & data (do first — everything else depends on these)
 
-- [ ] T056 [P] [US6] Create `packages/shared-types/src/newsletter.ts` with `NewsletterSubscribeRequest`,
+- [X] T056 [P] [US6] Create `packages/shared-types/src/newsletter.ts` with `NewsletterSubscribeRequest`,
       `NewsletterSubscribeResult` (**three** variants — `{status:"ok"} | {status:"invalid"} |
       {status:"error"}`; the `error` arm is what T078/T080 and FR-033's retryable state need, and there is
       deliberately **no `already` arm** — that is FR-032's enumeration oracle) and `NewsletterConfirmResult`
       (`{status:"confirmed"|"expired"}`) exactly as pinned in
       [contracts/newsletter-api.contract.md](contracts/newsletter-api.contract.md) — the SSOT both web and
       edge import (Principle II).
-- [ ] T057 [US6] Export the new module from `packages/shared-types/src/index.ts` under a
+- [X] T057 [US6] Export the new module from `packages/shared-types/src/index.ts` under a
       `// 039-customer-home-redesign` comment, matching the existing per-slice grouping.
-- [ ] T058 [US6] Create the forward-only Goose migration
+- [X] T058 [US6] Create the forward-only Goose migration
       `db/migrations/<timestamp>_newsletter_subscriber.sql` per [data-model.md](data-model.md): `CREATE
       EXTENSION IF NOT EXISTS citext`, then `public.newsletter_subscriber` (`id uuid PK
       gen_random_uuid()`, `email citext UNIQUE`, `status text CHECK IN ('pending','confirmed',
@@ -392,45 +392,45 @@ on 038 being deployed, everything before it is not.
 
 ### Email template
 
-- [ ] T059 [P] [US6] Author `packages/email-kit/src/templates/newsletter-confirmation.mjml` — the double
+- [X] T059 [P] [US6] Author `packages/email-kit/src/templates/newsletter-confirmation.mjml` — the double
       opt-in message: what they signed up for, one confirm button/link, an expiry sentence, no discount or
       incentive claim (FR-034). Monochrome by generation from `src/generated/theme.mjml`; **every text colour
       declares its own background** (038's forced-dark-mode rule); MJML comments stripped.
-- [ ] T060 [P] [US6] Author the text part `packages/email-kit/src/text/newsletter-confirmation.txt.hbs` —
+- [X] T060 [P] [US6] Author the text part `packages/email-kit/src/text/newsletter-confirmation.txt.hbs` —
       038's guards fail a template with no text part.
-- [ ] T061 [US6] Register `newsletter-confirmation` in `packages/email-kit/src/catalog.ts` with
+- [X] T061 [US6] Register `newsletter-confirmation` in `packages/email-kit/src/catalog.ts` with
       `category: "transactional"` (it is an opt-in confirm action, research R5 — a `lifecycle` entry would
       require an unsubscribe URL that does not yet exist), its variable shape (`confirmUrl: string`,
       `expiresIn: string`), audience `customer`, and an explicit `onSendFailure` policy with the reason stated
       in a comment.
-- [ ] T062 [US6] Run `make email-gen` to compile the committed artifacts, then `make email-check` — drift,
+- [X] T062 [US6] Run `make email-gen` to compile the committed artifacts, then `make email-check` — drift,
       **both** size budgets, missing text part, banned techniques, nested `@`-rules, contrast in all three
       passes, mid-tone band, placeholder integrity, category/unsubscribe. Fix and re-run until green.
-- [ ] T063 [P] [US6] Add a render test at `packages/email-kit/test/newsletter-confirmation.test.ts`,
+- [X] T063 [P] [US6] Add a render test at `packages/email-kit/test/newsletter-confirmation.test.ts`,
       alongside the existing per-template tests (`test/order-confirmation.test.ts` — **not** `src/`, which
       holds none), asserting the confirmation renders with a plausible `confirmUrl`, that the URL appears in **both** the
       HTML and text parts, and that the body contains no discount/incentive wording (FR-034).
 
 ### Backend — cold path (`edge-customer`)
 
-- [ ] T064 [P] [US6] Create `apis/edge-api/customer/src/newsletter/repo.ts` — raw SQL, no ORM: an idempotent
+- [X] T064 [P] [US6] Create `apis/edge-api/customer/src/newsletter/repo.ts` — raw SQL, no ORM: an idempotent
       `INSERT … ON CONFLICT (email) DO UPDATE` that **only** rotates `confirm_token_hash` and bumps
       `confirm_sent_at` when `status='pending'` AND `confirm_sent_at` is older than the cooldown (returning
       whether a send is due), plus a `confirm(tokenHash)` that flips a pending, in-TTL row to `confirmed`,
       sets `confirmed_at` and NULLs the hash. Both in one statement each — the check and the write cannot be
       separated (027's `FOR UPDATE` lesson).
-- [ ] T065 [US6] Create `apis/edge-api/customer/src/newsletter/service.ts` — validate (syntactic + length
+- [X] T065 [US6] Create `apis/edge-api/customer/src/newsletter/service.ts` — validate (syntactic + length
       bound) → normalise (trim + lowercase) → generate a random token, store **only its hash** (035's
       posture) → call the repo → send `newsletter-confirmation` via `@effy/email-kit/send` **only when the
       repo says a send is due**, following the shape of `apis/edge-api/customer/src/password/notify.ts`.
       Returns the **uniform** result for new/pending/confirmed alike (FR-032). TTL **24 h**, cooldown
       **1 h** (data-model § Timing constants), both read from env with those defaults — never a literal.
-- [ ] T066 [US6] Create `apis/edge-api/customer/src/functions/customer-newsletter-v1-post.ts` and
+- [X] T066 [US6] Create `apis/edge-api/customer/src/functions/customer-newsletter-v1-post.ts` and
       `apis/edge-api/customer/src/functions/customer-newsletter-v1-confirm-get.ts` — thin edge handlers over
       the service, returning `202 {status:"ok"}` / `400 {status:"invalid"}` / `429` per the API contract, and
       `200 {status:"confirmed"|"expired"}` for confirm. **No 429 route** — see T067. Structured logs on both
       paths (plan § Telemetry).
-- [ ] T067 [US6] Add the two **public (no authorizer)** routes to `apis/edge-api/customer/serverless.yml`
+- [X] T067 [US6] Add the two **public (no authorizer)** routes to `apis/edge-api/customer/serverless.yml`
       (`POST /customer/v1/newsletter`, `GET /customer/v1/newsletter/confirm`), alongside the existing
       `healthz`/`readyz` public precedent, declaring the new env keys (`NEWSLETTER_CONFIRM_BASE_URL`,
       `NEWSLETTER_TOKEN_TTL_HOURS=24`, `NEWSLETTER_RESEND_COOLDOWN_MINUTES=60`). Add a comment stating **why a
@@ -439,39 +439,39 @@ on 038 being deployed, everything before it is not.
       Terraform-owned *stage* `route_settings` property and this service attaches via an external
       `httpApi.id`, so no `serverless.yml` edit can set it. FR-035 was amended to the per-address cooldown,
       which T064 builds and T069a proves. Do not add a throttle here — it will silently do nothing.
-- [ ] T068 [P] [US6] Unit tests `apis/edge-api/customer/src/newsletter/service.test.ts`: invalid email → no DB
+- [X] T068 [P] [US6] Unit tests `apis/edge-api/customer/src/newsletter/service.test.ts`: invalid email → no DB
       call, no email; new email → row + send; already-pending inside cooldown → **same result, no send, no
       token rotation**; already-confirmed → same result, no send; send failure → the subscription still
       recorded and the failure logged loudly.
-- [ ] T069 [P] [US6] Container test `apis/edge-api/customer/src/newsletter/repo.container.test.ts` (the
+- [X] T069 [P] [US6] Container test `apis/edge-api/customer/src/newsletter/repo.container.test.ts` (the
       existing `closure/repo.container.test.ts` pattern): the unique constraint is case-insensitive
       (`A@b.com` and `a@b.com` are one row), the cooldown predicate actually suppresses a rotation, and
       `confirm` is single-use — a second call with the same token returns expired. Assert the TTL and
       cooldown against the pinned **24 h / 1 h** (data-model § Timing constants).
-- [ ] T069a [US6] **FR-035's only test.** In `apis/edge-api/customer/src/newsletter/service.test.ts`, prove
+- [X] T069a [US6] **FR-035's only test.** In `apis/edge-api/customer/src/newsletter/service.test.ts`, prove
       the abuse property directly: submitting the same address **N times in a row** creates exactly **one**
       row and sends exactly **one** email, and the second submission's *response is byte-identical* to the
       first. ⚠ This is the whole of FR-035's enforcement now that the gateway throttle is gone (spec
       amendment, research R4) — before this task the requirement had implementation but **no test at all**.
       Also assert what it does **not** cover: a loop over *distinct* addresses still sends one email each,
       which R4 records as accepted and is not a bug.
-- [ ] T070 [US6] Add the **config-contract test** `apis/edge-api/customer/src/newsletter/config.contract.test.ts`
+- [X] T070 [US6] Add the **config-contract test** `apis/edge-api/customer/src/newsletter/config.contract.test.ts`
       that reads the **real** `apis/edge-api/customer/serverless.yml` and asserts it declares every env key the
       newsletter service reads — including `NEWSLETTER_CONFIRM_BASE_URL`, `NEWSLETTER_TOKEN_TTL_HOURS` and
       `NEWSLETTER_RESEND_COOLDOWN_MINUTES` — self-checked against email-kit's exported `MAIL_ENV_KEYS`; the fifth guard of
       035's defect (four env vars the service read and `serverless.yml` never declared, with 100 passing tests
       missing it because they set the vars themselves).
-- [ ] T071 [P] [US6] Add a negative test asserting the subscribe response body and status are **identical**
+- [X] T071 [P] [US6] Add a negative test asserting the subscribe response body and status are **identical**
       for a new, a pending and a confirmed address — FR-032's non-enumeration property, pinned so a future
       "helpful" 409 cannot be added without failing a test.
 
 ### Web — zero-JS form and confirm page
 
-- [ ] T072 [US6] Create `apps/customer-web/app/(shop)/newsletter/actions.ts` — a Server Action that
+- [X] T072 [US6] Create `apps/customer-web/app/(shop)/newsletter/actions.ts` — a Server Action that
       re-validates the email server-side, calls `POST /customer/v1/newsletter` through the existing edge
       client (`apps/customer-web/lib/api/edge.ts`), and returns the typed result. No client fetch, no client
       validation library (research R3).
-- [ ] T073 [US6] Create `apps/customer-web/app/(shop)/_components/NewsletterForm.tsx` — a **server component**
+- [X] T073 [US6] Create `apps/customer-web/app/(shop)/_components/NewsletterForm.tsx` — a **server component**
       rendering a plain `<form>` with `type="email" required` (first-pass validation with no request, FR-030)
       bound to the Server Action, using `Field`/`input`/`btnClass` from `components/storefront/kit.tsx`.
       **Three** states render server-side — success, invalid, failure — with the submitted value
@@ -479,31 +479,31 @@ on 038 being deployed, everything before it is not.
       already-known address gets the **success** surface, byte-identical, because a distinct one is a
       subscriber-enumeration oracle (FR-032). Copy carries no discount claim (FR-034). **Zero client JS** —
       if a client boundary appears unavoidable, prefer a redirect/param-driven result (research R3).
-- [ ] T074 [US6] Place `NewsletterForm` at contract row 9 in `apps/customer-web/app/(shop)/page.tsx`, in the
+- [X] T074 [US6] Place `NewsletterForm` at contract row 9 in `apps/customer-web/app/(shop)/page.tsx`, in the
       static shell.
-- [ ] T075 [US6] Create `apps/customer-web/app/(shop)/newsletter/confirm/page.tsx` — a public server component
+- [X] T075 [US6] Create `apps/customer-web/app/(shop)/newsletter/confirm/page.tsx` — a public server component
       that reads `?token=`, calls the confirm endpoint server-side and renders "You're subscribed" or "This
       link has expired", each with a link back to the store (FR-043). Zero client JS.
-- [ ] T076 [US6] Add `/newsletter/confirm` to `GUEST_PAGES` in `apps/customer-web/scripts/bundle-budget.mjs`
+- [X] T076 [US6] Add `/newsletter/confirm` to `GUEST_PAGES` in `apps/customer-web/scripts/bundle-budget.mjs`
       **in the same change that creates the route**, with a comment matching the existing convention — the
       file itself records what happened the last time a guest-reachable route went unmeasured.
-- [ ] T077 [P] [US6] Unit test `apps/customer-web/app/(shop)/_components/NewsletterForm.test.tsx`: renders a
+- [X] T077 [P] [US6] Unit test `apps/customer-web/app/(shop)/_components/NewsletterForm.test.tsx`: renders a
       native `<form>` with `type="email" required`; no `"use client"` directive in the module; each of the
       **three** states renders distinct, plain-language copy; the failure state re-renders the submitted
       value; and **no branch renders "already subscribed" wording** (a grep assertion — FR-032).
-- [ ] T078 [P] [US6] Unit test `apps/customer-web/app/(shop)/newsletter/actions.test.ts`: an invalid email is
+- [X] T078 [P] [US6] Unit test `apps/customer-web/app/(shop)/newsletter/actions.test.ts`: an invalid email is
       rejected **before** any edge call; a backend throw returns the retryable error result rather than
       propagating; the email never appears in a telemetry property (FR-042).
-- [ ] T079 [P] [US6] Playwright spec `apps/customer-web/e2e/newsletter.spec.ts`: submitting an invalid address
+- [X] T079 [P] [US6] Playwright spec `apps/customer-web/e2e/newsletter.spec.ts`: submitting an invalid address
       produces browser-native validation and **no network request**; submitting a valid address reaches the
       success surface; the confirm page renders both outcomes from a token query param.
-- [ ] T080 [P] [US6] Emit `newsletter_submitted` with `outcome: "ok"|"invalid"|"error"` from the
+- [X] T080 [P] [US6] Emit `newsletter_submitted` with `outcome: "ok"|"invalid"|"error"` from the
       Server Action (server-side telemetry — no client bytes), asserting in T078 that **no email address** is
       ever a property (FR-042).
 
 ### Verification & deploy (US6)
 
-- [ ] T081 [US6] Verify US6 code: `pnpm -r typecheck`, `pnpm --filter @effy/customer-web test`,
+- [X] T081 [US6] Verify US6 code: `pnpm -r typecheck`, `pnpm --filter @effy/customer-web test`,
       `pnpm --filter @effy/edge-customer test`, `make email-check`,
       `pnpm --filter @effy/customer-web build` + `node apps/customer-web/scripts/bundle-budget.mjs` (`/` and
       `/newsletter/confirm` both within budget).
@@ -522,43 +522,43 @@ on 038 being deployed, everything before it is not.
 
 ## Phase 9: Polish & Cross-Cutting Concerns
 
-- [ ] T085 [P] Accessibility pass across the whole page (SC-009): exactly one `h1`, correct `h2`/`h3` ordering
+- [X] T085 [P] Accessibility pass across the whole page (SC-009): exactly one `h1`, correct `h2`/`h3` ordering
       through every new section, every interactive element **≥ 44 × 44 CSS px** (plan § Numeric thresholds),
       and no section conveying meaning by colour alone. Add the assertions to
       `apps/customer-web/e2e/a11y.spec.ts` rather than checking by eye.
-- [ ] T085a [P] **FR-002's mechanical guard** — the operator lock is currently enforced by a comment, and a
+- [X] T085a [P] **FR-002's mechanical guard** — the operator lock is currently enforced by a comment, and a
       comment does not fail a build. Add a check to `apps/customer-web/package.json`'s test script (or
       `scripts/`) that fails if this feature's diff touches any of `app/(shop)/layout.tsx`,
       `_components/ProductCard.tsx`, `_components/StorefrontFooter.tsx`, `_components/PrimaryNav.tsx`,
       `_components/MobileNav.tsx` or `_components/HeaderSearch.tsx` — the same shape as the
       `check-no-emerald`/`check-no-jade` guards this repo already trusts. Prove it by deliberately touching
       one file and confirming a non-zero exit.
-- [ ] T085b [P] **FR-003's check** — "no new catalogue/browsing capability" is the requirement that keeps a
+- [X] T085b [P] **FR-003's check** — "no new catalogue/browsing capability" is the requirement that keeps a
       presentation slice from growing a backend, and nothing asserts it. Confirm and record in
       `specs/039-customer-home-redesign/quickstart.md`: **zero** new hot-path (`core-api`) routes, **zero**
       new or changed fields on any storefront DTO in `packages/shared-types/src/storefront.ts`, and **zero**
       changes under `apis/core-api/`. The one new backend surface is the newsletter, which FR-003 exempts.
-- [ ] T086 [P] Run the colour guards and confirm **zero new tokens** (SC-004): `node scripts/check-tokens.mjs`
+- [X] T086 [P] Run the colour guards and confirm **zero new tokens** (SC-004): `node scripts/check-tokens.mjs`
       (unchanged output), `scripts/check-no-emerald.sh`, `scripts/check-no-jade.sh`.
-- [ ] T087 [P] Full-workspace verification: `pnpm -r typecheck` (count the reporting packages — 029's lesson:
+- [X] T087 [P] Full-workspace verification: `pnpm -r typecheck` (count the reporting packages — 029's lesson:
       `pnpm -r test` was green while `typecheck` failed, caught only because the "Done" count fell),
       `pnpm -r test`, `turbo build`.
-- [ ] T088 Final bundle accounting: run `node apps/customer-web/scripts/bundle-budget.mjs` and record the
+- [X] T088 Final bundle accounting: run `node apps/customer-web/scripts/bundle-budget.mjs` and record the
       per-route delta against T001's baseline in `specs/039-customer-home-redesign/quickstart.md`. The
       redesign's net added client JS must be ~0 KB (contract § Budget); if any route moved more than ~0.5 KB,
       find the import that did it before signing off.
-- [ ] T089 [P] Degraded-state matrix (SC-005): render `/` across full data · no promotions · no categories ·
+- [X] T089 [P] Degraded-state matrix (SC-005): render `/` across full data · no promotions · no categories ·
       empty catalogue · catalogue error, confirming **no empty rows** and a self-explaining state with a way
       forward in every case. Record the five results in `specs/039-customer-home-redesign/quickstart.md`.
-- [ ] T090 [P] Appearance and viewport matrix (SC-006): light and dark × desktop, tablet and phone widths for
+- [X] T090 [P] Appearance and viewport matrix (SC-006): light and dark × desktop, tablet and phone widths for
       every new section, paying particular attention to text over photographic artwork (FR-007).
-- [ ] T091 [P] Update the parity register
+- [X] T091 [P] Update the parity register
       `docs/audiences/customer-capabilities.md` with a `§039` entry — what the web home now carries, and
       explicitly that **customer-mobile's home is unchanged by this slice** so the register does not imply a
       parity that was never built (028's optimistic ✅ is the precedent).
-- [ ] T092 [P] Update `CLAUDE.md`'s **Active feature** section for 039 — what was built, what is
+- [X] T092 [P] Update `CLAUDE.md`'s **Active feature** section for 039 — what was built, what is
       machine-verified, and what remains operator-gated, in the same shape as the existing entries.
-- [ ] T093 Record the open operator-supplied items in
+- [X] T093 Record the open operator-supplied items in
       `specs/039-customer-home-redesign/quickstart.md` § "Operator-supplied, still open": the final hero image
       asset, real app-store URLs (deferred to the slice where the apps ship), and confirmation that **038 is
       deployed** before the newsletter email can actually send.
@@ -566,7 +566,7 @@ on 038 being deployed, everything before it is not.
       rebuild** before it appears. Resolving it at request time would cost bundle bytes on the tightest page
       on the platform, so this is the deliberate trade — but an operator who copies the file in and sees the
       placeholder will otherwise think it is broken.
-- [ ] T094 Sign-off: walk the full SC-001…SC-010 table from [spec.md](spec.md), mark each proven / unproven,
+- [X] T094 Sign-off: walk the full SC-001…SC-010 table from [spec.md](spec.md), mark each proven / unproven,
       and write the result to `specs/039-customer-home-redesign/SIGNOFF.md`. State plainly which criteria are
       machine-verified and which rest on an operator walk — a criterion nobody has observed is not met.
 - [ ] T095 Commit the feature (all six sections, the migration, the email template and the contract) once

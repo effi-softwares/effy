@@ -117,7 +117,14 @@ export function SectionHeader({
     <div className={cn("mb-4 flex items-end justify-between gap-4 border-b pb-3", className)}>
       <Display size="section">{title}</Display>
       {href && (
-        <Link href={href} className="shrink-0 text-sm text-primary hover:underline">
+        // ⚠ `min-h-11` = 44px, the platform's web touch-target minimum. It was a 20px-tall inline link
+        // — the text's own line box — which is comfortably missable on a phone and was caught by the
+        // 039 a11y sweep, not by eye. The extra height is invisible: `items-end` on the parent keeps
+        // it optically aligned with the heading's baseline.
+        <Link
+          href={href}
+          className="inline-flex min-h-11 shrink-0 items-center text-sm text-primary hover:underline"
+        >
           {linkLabel}
         </Link>
       )}
