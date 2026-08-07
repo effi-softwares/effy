@@ -11,6 +11,14 @@
 # testing
 /coverage
 
+# Playwright run artifacts. ⚠ Neither was ignored until 039 ran the e2e suite and found ten
+# `test-results/` directories staged as untracked changes — failure screenshots, traces and
+# `.last-run.json`, which rewrites on every run. They are regenerated output, never source.
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
 # next.js
 /.next/
 /out/

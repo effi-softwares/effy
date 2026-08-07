@@ -1,3 +1,4 @@
+import Image from "next/image"
 import Link from "next/link"
 
 import { cn } from "@/lib/utils"
@@ -360,3 +361,185 @@ export function EmptyState({
 
 /** Back-compat for callers that imported the previous heading name. */
 export const SectionHeading = Display
+
+/* ── Merchandised-landing primitives (039) ───────────────────────────────────────────────────── */
+
+/**
+ * A fixed-ratio image box that CANNOT render a broken frame (039 FR-011/FR-014/FR-018).
+ *
+ * ⚠ THE BOX IS RESERVED BEFORE THE PIXELS ARRIVE. The aspect ratio is set on the container, not
+ * inferred from the image, so the placeholder and the photograph occupy exactly the same space. That
+ * is the whole of SC-001's "no layout shift when the hero art loads" — there is no shift because
+ * nothing ever resizes.
+ *
+ * ⚠ A null `src` is a SUPPORTED STATE, not an error path. Three different callers need it for three
+ * different reasons — the hero before the operator supplies artwork, a category the catalogue has no
+ * photograph for, a promotion authored without one — and every one of them previously would have had
+ * to remember to write its own fallback. 028 shipped a placeholder that only ran when the URL was
+ * null and did nothing while the image loaded; the fix is to make absence the container's business
+ * rather than each caller's.
+ *
+ * The placeholder is `muted` on `muted-foreground` — both ramp tokens, so it is correct in both
+ * appearances by construction and adds nothing for `check-tokens` to find.
+ */
+export function MediaFrame({
+  src,
+  alt,
+  ratio = "square",
+  /** Shown centred in the placeholder when there is no image — typically a category's initial. */
+  fallbackLabel,
+  sizes,
+  priority = false,
+  rounded = "rounded-2xl",
+  className,
+  children,
+}: {
+  src: string | null | undefined
+  /** Empty string when the image is decorative and the surrounding text already names it. */
+  alt: string
+  ratio?: "square" | "video" | "wide" | "portrait" | "banner"
+  fallbackLabel?: string
+  sizes?: string
+  priority?: boolean
+  rounded?: string
+  className?: string
+  /** Overlaid content — a Scrim and its text. Rendered above the image in both states. */
+  children?: React.ReactNode
+}) {
+  return (
+    <div
+      className={cn(
+        "relative w-full overflow-hidden bg-muted",
+        ratio === "square" && "aspect-square",
+        ratio === "video" && "aspect-video",
+        ratio === "wide" && "aspect-[3/2]",
+        ratio === "portrait" && "aspect-[4/5]",
+        ratio === "banner" && "aspect-[2/1]",
+        rounded,
+        className,
+      )}
+    >
+      {src ? (
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          unoptimized
+          sizes={sizes}
+          priority={priority}
+          className="object-cover"
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          className="flex h-full w-full items-center justify-center bg-muted text-2xl font-semibold text-muted-foreground/60"
+        >
+          {fallbackLabel}
+        </div>
+      )}
+      {children}
+    </div>
+  )
+}
+
+/**
+ * The overlay that makes text legible over ARBITRARY artwork (039 FR-007).
+ *
+ * ⚠ THIS IS THE ONE PLACE ON THE STOREFRONT WHERE A COLOUR MUST NOT INVERT, and that is not an
+ * oversight — it is 029's post-mortem written down as code. The scrim there was `colorScheme.surface`,
+ * so light mode bleached the photograph and put dark type on a white film over a busy image. The real
+ * error was deeper than the token choice: **the artwork is the same picture in both appearances**, so
+ * the thing guaranteeing contrast over it cannot be the thing that flips. A fixed dark veil with fixed
+ * light type is correct in both modes precisely because it ignores both.
+ *
+ * ⚠ Vertical, not diagonal. 029's gradient ran bottom-left→top-right, leaving it weakest exactly where
+ * the bottom-anchored title sat.
+ *
+ * Black and white are the ends of the monochrome ramp (`#1A1A1A`…`#FFFFFF`), so this introduces no hue
+ * and nothing for the colour guards to catch — the same technique `PromoCarousel` already uses.
+ */
+export function Scrim({
+  strength = "standard",
+  className,
+}: {
+  /** `strong` for small text over busy artwork; `standard` matches the existing carousel. */
+  strength?: "standard" | "strong"
+  className?: string
+}) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "absolute inset-0 bg-gradient-to-t",
+        strength === "standard" && "from-black/70 to-black/10",
+        strength === "strong" && "from-black/85 via-black/50 to-black/20",
+        className,
+      )}
+    />
+  )
+}
+
+/**
+ * Type colours that sit on ARTWORK — fixed in both appearances, for the reason `Scrim` documents at
+ * length: the photograph underneath does not invert, so the type over it must not either.
+ *
+ * `onScrim` (white) pairs with a `Scrim`. `onLightScrim` (black) is for artwork whose text zone is
+ * already pale — a **controlled zone** rather than a veil, which is FR-007's other limb.
+ *
+ * ⚠ A `tone="light"` gradient briefly existed here for the hero and was removed with it (operator
+ * decision — the veil faded the artwork). It is not kept "in case": an unused variant of a
+ * legibility primitive is worse than no variant, because the next person assumes it is the tested path.
+ * Both are ends of the monochrome ramp, so neither introduces a hue.
+ */
+export const onScrim = "text-white"
+export const onLightScrim = "text-black"
+
+/**
+ * A page section: the standard container, rhythm, heading level and optional "view all".
+ *
+ * ⚠ IT RENDERS NOTHING WHEN IT HAS NOTHING (039 FR-004). Self-hiding is the single rule every section
+ * on this page shares, and repeating `if (!items.length) return null` in eight components is how one of
+ * them eventually forgets and ships an empty frame. Putting it in the shell makes the rule structural.
+ *
+ * ⚠ The heading is an `h2`, always. The page has exactly one `h1` (the sr-only page title), and a
+ * section that picked its own level would break the outline (SC-009).
+ */
+export function SectionShell({
+  title,
+  href,
+  linkLabel = "View all",
+  /** Set when the section's own content already carries a heading, or it is purely decorative. */
+  headless = false,
+  className,
+  children,
+}: {
+  title?: string
+  href?: string
+  linkLabel?: string
+  headless?: boolean
+  className?: string
+  children?: React.ReactNode
+}) {
+  if (isEmptyContent(children)) return null
+
+  return (
+    <section className={cn("mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14", className)}>
+      {!headless && title && <SectionHeader title={title} href={href} linkLabel={linkLabel} />}
+      {children}
+    </section>
+  )
+}
+
+/**
+ * Whether `children` amounts to nothing renderable.
+ *
+ * ⚠ `!children` alone is wrong, and wrong in the direction that matters: `[]` and `[false, null]` are
+ * both truthy, so a section handed an empty mapped array would render its heading and a blank space —
+ * the exact empty frame FR-004 forbids, and the one a caller is most likely to produce (`items.map(...)`
+ * over an empty list).
+ */
+function isEmptyContent(children: React.ReactNode): boolean {
+  if (children === null || children === undefined || children === false || children === "") return true
+  if (Array.isArray(children)) return children.every((c) => isEmptyContent(c as React.ReactNode))
+  return false
+}

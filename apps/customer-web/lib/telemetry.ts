@@ -206,6 +206,32 @@ export type StorefrontEvent =
   | { name: "product_removed_from_cart"; props: { productId: string } }
   | { name: "promo_code_applied"; props: { code: string } }
   | { name: "promo_code_refused"; props: { reason: string } }
+  // ── 039 home redesign: ONE event, and read the warning before adding a second ─────────────────
+  //
+  // ⚠ THE OUTCOME, NEVER THE ADDRESS. A newsletter subscriber's email is PII and is not a customer
+  // account, so it is not even the subject id — it is nothing this taxonomy may carry. The props type
+  // is a closed three-value enum, so attaching an email is a COMPILE ERROR rather than a review catch.
+  // `already` is deliberately NOT a value: the platform does not distinguish an already-known address
+  // from a new one anywhere, including here, because a distinct outcome would rebuild in analytics the
+  // enumeration oracle FR-032 removes from the response.
+  | { name: "newsletter_submitted"; props: { outcome: "ok" | "invalid" | "error" } }
+
+// ⚠⚠ NOTHING IN THIS FILE CAPTURES ANYTHING TODAY, AND 039 DID NOT CHANGE THAT ⚠⚠
+//
+// `initAnalytics()` returns early unless consent has been granted, and `setConsent()` is the only
+// thing that grants it. Neither is called ANYWHERE in this application except its own unit test —
+// there is no consent banner, no settings toggle, no call on load. So `started` is never true, and
+// `capture()` has returned early on every call since this surface was built (CLAUDE.md §033).
+//
+// This is recorded here, at the taxonomy, because it is invisible at the call sites: adding an event
+// and "wiring it up" looks like a completed measurement and produces a permanent silence. 039 declared
+// five events in its plan and dropped four of them for exactly this reason — the fifth is kept because
+// the typed key is the right SSOT for whenever consent lands, not because it will be measured now.
+//
+// ⚠ AND THIS MODULE IS `"use client"`. A Server Action importing `capture()` would compile and do
+// nothing twice over — once for the missing consent, once because `getConsent()` returns "unknown" off
+// the browser. The newsletter's real signal is the BACKEND STRUCTURED LOG in the edge service, which
+// runs regardless. Initialising PostHog on this surface is 033's open carry-forward and its own slice.
 
 export function capture(event: StorefrontEvent) {
   if (!started || !ph || getConsent() !== "granted") return

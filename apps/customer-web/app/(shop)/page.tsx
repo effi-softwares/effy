@@ -3,12 +3,17 @@ import { Suspense } from "react"
 
 import type { StorefrontCategoryDTO, StorefrontHomeDTO } from "@effy/shared-types"
 
+import { EmptyState } from "@/components/storefront/kit"
 import { coreApi, uncached } from "@/lib/api/core"
 import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
 
-import { CategoryMosaic } from "./_components/CategoryMosaic"
+import { type HomeSection, composeSections, isEmptyStore } from "./home-composition"
+
+import { AppPromo } from "./_components/AppPromo"
+import { CategoryStrip } from "./_components/CategoryStrip"
 import { Hero } from "./_components/Hero"
+import { OffersPanels } from "./_components/OffersPanels"
 import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
 import { PromoCarousel } from "./_components/PromoCarousel"
@@ -52,10 +57,18 @@ export default function HomePage() {
     <>
       <JsonLd data={organizationLd(siteUrl())} />
 
-      {/* Static — in the prerender, present in raw HTML.
-          ⚠ The reference opens the homepage with a full-width PROMOTIONAL BANNER, not a type-led
-          hero: a retail storefront leads with what is on offer, not with a slogan. So the H1 is
-          screen-reader-only and the carousel takes the top slot. */}
+      {/* Static shell — in the prerender, present in the raw HTML a crawler receives (FR-040), and
+          NOT gated on the catalogue read below (FR-012).
+
+          ⚠ The H1 is screen-reader-only and every section — including the hero — heads itself at H2.
+          The page therefore has exactly one top-level heading no matter which sections have data
+          (SC-009), which is the one structural invariant that has to survive all six 039 sections
+          landing one at a time.
+
+          ⚠ 039 REPLACES 025's type-led hero with an image-led one. 025's note here argued a retail
+          storefront should lead with what is on offer rather than a slogan, and put the promo carousel
+          in the top slot; the operator's 039 direction is a hero band, and the offers now get their
+          own dedicated panels further down (contract rows 3 and 6) rather than the first screen. */}
       <h1 className="sr-only">Effy — groceries, delivered</h1>
       <Hero />
 
@@ -65,6 +78,11 @@ export default function HomePage() {
       <Suspense fallback={<HomeSkeleton />}>
         <HomeContent />
       </Suspense>
+
+      {/* Contract row 7 — static shell, no request-time data, present for crawlers (FR-040). It sits
+          AFTER the streamed merchandising hole in the document, which is where a shopper meets it, and
+          still prerenders because it is outside the <Suspense> boundary. */}
+      <AppPromo />
 
       {/* Device-local recently-viewed (client island). */}
       <RecentlyViewedRail />
@@ -84,46 +102,86 @@ async function HomeContent() {
     return <StoreUnavailable />
   }
 
-  if (home.rails.length === 0) {
+  // ⚠ "Empty" is decided from the PRODUCTS, not the rail count. A server that returns four rails with
+  // nothing in them is an empty store, and the previous `rails.length === 0` check called that a full
+  // one — then rendered four headings above four blank spaces (FR-016).
+  if (isEmptyStore(home)) {
+    return <EmptyStore />
+  }
+
+  const sections = composeSections(home, categories)
+  if (sections.length === 0) {
     return <EmptyStore />
   }
 
   return (
     <>
-      <PromoCarousel banners={home.banners} />
+      {/* ⚠ The page RENDERS A COMPOSED SEQUENCE, it does not decide the order here. `composeSections`
+          owns the top-to-bottom argument (FR-001) and the self-hiding rule (FR-004) so both are unit
+          testable — rendering async Server Components is exactly what Vitest cannot do.
 
-      {home.rails.map((rail, i) => (
-        <div key={rail.key}>
-          <ProductRail title={rail.title} products={rail.products} href={railHref(rail.key)} />
+          ⚠ 039 RETIRES `CategoryMosaic`, which used to sit at the BOTTOM of this page. The mosaic was a
+          discovery block a shopper reached after scrolling the whole storefront; the shortcut strip is
+          a navigation affordance, and navigation belongs before the thing it navigates. The file is
+          deleted rather than left unused — its only call site was here. */}
+      {sections.map((section, i) => (
+        <div key={sectionKey(section)}>
+          {section.kind === "categories" && <CategoryStrip categories={section.categories} />}
+          {section.kind === "carousel" && <PromoCarousel banners={section.banners} />}
+          {section.kind === "offers" && (
+            <OffersPanels banners={section.banners} title={section.title} />
+          )}
+          {section.kind === "rail" && (
+            <ProductRail
+              title={section.rail.title}
+              products={section.rail.products}
+              href={section.href}
+            />
+          )}
           {/* The reference closes each merchandising section with a hairline rule. */}
-          {i < home.rails.length - 1 && (
+          {section.kind === "rail" && i < sections.length - 1 && (
             <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
               <hr className="border-border" />
             </div>
           )}
         </div>
       ))}
-
-      <CategoryMosaic categories={categories} />
     </>
   )
 }
 
-/** "View all" for a rail — category rails filter by category, on-sale filters, featured goes to search. */
-function railHref(key: string): string {
-  if (key.startsWith("category:")) {
-    return `/search?category=${encodeURIComponent(key.slice("category:".length))}`
-  }
-  if (key === "on_sale") return "/search?saleOnly=true"
-  return "/search"
+/** A stable React key per section — `kind` alone repeats once several rails are on the page. */
+function sectionKey(section: HomeSection): string {
+  return section.kind === "rail" ? `rail:${section.key}` : section.kind
 }
 
+/**
+ * The streaming fallback.
+ *
+ * ⚠ BUILT FROM THE SAME PRIMITIVES AS THE CONTENT, deliberately. 028 shipped a skeleton assembled from
+ * different building blocks than the thing it stood in for, so it could not match its shape at any
+ * width and the swap-in visibly jumped. It now mirrors the real sequence: a category strip of circles,
+ * then two product rails on the shared `productGrid`.
+ */
 function HomeSkeleton() {
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6" aria-hidden="true">
+      {/* The category strip — circles, matching CategoryStrip's tiles rather than generic bars. */}
+      <div className="mb-16 space-y-8">
+        <div className="h-9 w-64 animate-pulse rounded bg-muted" />
+        <div className="flex gap-6 sm:gap-8">
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <div key={i} className="flex w-24 shrink-0 flex-col items-center gap-3 sm:w-28">
+              <div className="w-20 animate-pulse rounded-full bg-muted pb-[100%] sm:w-24" />
+              <div className="h-4 w-16 animate-pulse rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      </div>
+
       {[0, 1].map((row) => (
         <div key={row} className="mb-16 space-y-8">
-          <div className="mx-auto h-10 w-64 animate-pulse rounded bg-muted" />
+          <div className="h-9 w-64 animate-pulse rounded bg-muted" />
           <div className={productGrid}>
             {[0, 1, 2, 3, 4].map((i) => (
               <div key={i} className="space-y-3">
@@ -139,15 +197,20 @@ function HomeSkeleton() {
   )
 }
 
+/**
+ * ⚠ BOTH DEGRADED STATES OFFER A WAY FORWARD (FR-016/FR-043). They previously explained themselves and
+ * then dead-ended — "check back soon" and "try again in a moment" with nothing to press. A shopper who
+ * reached the storefront and found nothing has to be able to do something other than leave, and on a
+ * catalogue error the other routes may well be fine.
+ */
 function EmptyStore() {
   return (
     <div className="mx-auto my-16 w-full max-w-7xl px-4 sm:px-6">
-      <div className="rounded-2xl border border-dashed p-12 text-center">
-        <h2 className="text-lg font-medium">The shelves are still being stocked</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          Our catalogue is on its way. Check back soon.
-        </p>
-      </div>
+      <EmptyState
+        title="The shelves are still being stocked"
+        description="Our catalogue is on its way. Search is open if you know what you're after."
+        action={{ label: "Search the store", href: "/search" }}
+      />
     </div>
   )
 }
@@ -155,12 +218,11 @@ function EmptyStore() {
 function StoreUnavailable() {
   return (
     <div className="mx-auto my-16 w-full max-w-7xl px-4 sm:px-6">
-      <div className="rounded-2xl border border-dashed p-12 text-center">
-        <h2 className="text-lg font-medium">We couldn&rsquo;t load the store just now</h2>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          Please try again in a moment.
-        </p>
-      </div>
+      <EmptyState
+        title="We couldn&rsquo;t load the store just now"
+        description="This is on us, not you. Reloading usually sorts it — or browse the categories directly."
+        action={{ label: "Browse categories", href: "/browse" }}
+      />
     </div>
   )
 }
