@@ -60,7 +60,6 @@ provider:
     # falls back to the public reply address, so behaviour is unchanged until the value is set.
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
-    MAIL_NONPROD_ALLOWLIST: ${ssm:/effy/${sls:stage}/mail/nonprod_allowlist, ''}
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
     # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
     # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth

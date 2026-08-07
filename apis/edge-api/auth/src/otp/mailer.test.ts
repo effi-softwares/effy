@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  * SES mock: given a `sendCode(...)`, the SendEmailCommand that reaches SES carries the right sender,
  * reply address, configuration set, recipient, template tag and both body parts — and the security
  * invariants 035/037 established still hold (throw on failure, phantom → simulator, code confined to
- * the message). `@effy/email-kit` has its own render/send/allowlist tests; this file proves the wire
+ * the message). `@effy/email-kit` has its own render/send tests; this file proves the wire
  * between the trigger and the system.
  */
 
@@ -44,21 +44,10 @@ beforeEach(() => {
   process.env.MAIL_SENDER = "Effy <no-reply@dev.effyshopping.com>";
   process.env.MAIL_REPLY_TO = "hello@effyshopping.com";
   process.env.MAIL_CONFIGURATION_SET = "effy-dev-mail";
-  // ⚠ EFFY_ENV is unset here (a dev-like environment), so the non-production allowlist is ACTIVE.
-  // The test recipients are on it; this both permits the send and documents that the auth path now
-  // runs behind the allowlist. Its own refusal behaviour is proven in @effy/email-kit.
-  process.env.MAIL_NONPROD_ALLOWLIST = "@example.com";
 });
 
 afterEach(() => {
-  for (const k of [
-    "MAIL_SENDER",
-    "MAIL_REPLY_TO",
-    "MAIL_CONFIGURATION_SET",
-    "MAIL_NONPROD_ALLOWLIST",
-    "MAIL_POSTAL_ADDRESS",
-    "EFFY_ENV",
-  ]) {
+  for (const k of ["MAIL_SENDER", "MAIL_REPLY_TO", "MAIL_CONFIGURATION_SET", "MAIL_POSTAL_ADDRESS"]) {
     delete process.env[k];
   }
   vi.resetModules();

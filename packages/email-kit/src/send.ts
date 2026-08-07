@@ -41,8 +41,6 @@ function ses(): SESv2Client {
  */
 export const BLACKHOLE = "success@simulator.amazonses.com";
 
-const SIMULATOR_DOMAIN = "@simulator.amazonses.com";
-
 export interface SendOptions {
   readonly to: string;
   readonly audience: Audience;
@@ -53,41 +51,8 @@ export interface SendOptions {
 export interface SendResult {
   readonly templateId: TemplateId;
   readonly messageId: string | undefined;
-  readonly outcome: "sent" | "suppressed" | "failed";
+  readonly outcome: "sent" | "failed";
   readonly durationMs: number;
-}
-
-export class RecipientRefusedError extends Error {}
-
-/**
- * ⚠ FAIL-CLOSED NON-PRODUCTION RECIPIENT ALLOWLIST (spec FR-043 / SC-012).
- *
- * The canonical in-house-email disaster — a developer mailing the production user table — is one
- * environment variable away, and its blast radius is external and irreversible. This platform has
- * been bitten four times by configuration that tests supplied to themselves, so the guard is a
- * property of the sender rather than a convention.
- *
- * ⚠ It CANNOT protect the four messages Cognito sends itself (the CustomMessage trigger returns a
- * body; Cognito makes the SES call). Dev pools containing only operator-created accounts is the
- * mitigation there — a mitigation, not a guarantee.
- */
-export function recipientAllowed(address: string, env: NodeJS.ProcessEnv = process.env): boolean {
-  if ((env.EFFY_ENV ?? "").toLowerCase() === "prod") return true;
-  const normalised = address.trim().toLowerCase();
-  if (normalised.endsWith(SIMULATOR_DOMAIN)) return true;
-
-  const raw = env.MAIL_NONPROD_ALLOWLIST;
-  // ⚠ An UNSET allowlist refuses everything. The opposite default — "no list, no restriction" —
-  // would mean a misdeployed service silently regains the ability to mail the world.
-  if (!raw || !raw.trim()) return false;
-
-  return raw
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-    .some((entry) =>
-      entry.startsWith("@") ? normalised.endsWith(entry) : entry === normalised,
-    );
 }
 
 export interface SendLogger {
@@ -131,17 +96,6 @@ export async function sendEmail<T extends TemplateId>(
 
     const identity = identityFromEnv();
     const destination = options.phantom ? BLACKHOLE : options.to;
-
-    if (!recipientAllowed(destination)) {
-      // ⚠ Loud, and NOT swallowed by the failure policy: this is the guard working, not a fault.
-      logger?.error(
-        { template_id: id, audience: options.audience, outcome: "suppressed" },
-        "non-production allowlist refused a recipient",
-      );
-      throw new RecipientRefusedError(
-        `refused: ${id} to a recipient outside MAIL_NONPROD_ALLOWLIST in EFFY_ENV=${process.env.EFFY_ENV}`,
-      );
-    }
 
     const message = render(id, vars, options.audience, identity);
     const replyTo = replyAddressFor(profile, identity);

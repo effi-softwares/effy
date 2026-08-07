@@ -69,12 +69,9 @@ provider:
     # falls back to the public reply address, so behaviour is unchanged until the value is set.
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
-    # ⚠ 038: the non-production recipient allowlist and the operator-supplied postal address.
-    # Both resolve from the SSM contract (037 ssm-mail.contract.md, extended). The empty fallback
-    # keeps a deploy from failing before the operator has set them — but ⚠ an UNSET allowlist refuses
-    # every non-simulator recipient in dev, which is the safe default (a dev cannot mail a stranger)
-    # and is exactly why the operator sets it before the first sign-in walk.
-    MAIL_NONPROD_ALLOWLIST: ${ssm:/effy/${sls:stage}/mail/nonprod_allowlist, ''}
+    # ⚠ 038: the operator-supplied postal address for the email footer. Optional at runtime for
+    # transactional mail (CAN-SPAM-exempt), so the empty fallback keeps a deploy from failing before
+    # the operator sets it — an unset value simply omits the footer line, never a guessed address.
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
     # ⚠ THE AUDIENCE MAP. One deployment serves all four pools by branching on event.userPoolId,
     # and `src/lib/audience.ts` resolves that id through these four values. Omit any one of them and

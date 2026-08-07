@@ -28,9 +28,7 @@ const goodEnv = () => {
   process.env.MAIL_SENDER = "Effy <no-reply@dev.effyshopping.com>";
   process.env.MAIL_REPLY_TO = "hello@effyshopping.com";
   process.env.MAIL_CONFIGURATION_SET = "effy-dev-mail";
-  process.env.MAIL_NONPROD_ALLOWLIST = "@example.com";
   process.env.MAIL_POSTAL_ADDRESS = "1 Test St, Sydney NSW";
-  process.env.EFFY_ENV = "dev";
 };
 
 beforeEach(() => {
@@ -45,9 +43,7 @@ afterEach(() => {
     "MAIL_REPLY_TO",
     "MAIL_REPLY_TO_INTERNAL",
     "MAIL_CONFIGURATION_SET",
-    "MAIL_NONPROD_ALLOWLIST",
     "MAIL_POSTAL_ADDRESS",
-    "EFFY_ENV",
   ]) {
     delete process.env[k];
   }
@@ -55,15 +51,13 @@ afterEach(() => {
 });
 
 describe("MAIL_ENV_KEYS", () => {
-  it("⚠ names EXACTLY the environment variables send.ts reads — self-check, so it cannot drift", async () => {
+  it("⚠ names EXACTLY the environment variables the mail path reads — self-check, so it cannot drift", async () => {
     // The edge services' config-contract tests trust this list; this keeps it honest against the
     // real source, which is what makes trusting it safe (035's defect was a list that lied).
     const { MAIL_ENV_KEYS } = await import("../src/send.js");
     const here = dirname(fileURLToPath(import.meta.url));
-    // ⚠ Scans BOTH files that read the mail environment: config.ts (identity) and send.ts (allowlist
-    // + configuration set). The regex matches `process.env.X` and the aliased `env.X` that
-    // `recipientAllowed` reads (its parameter defaults to `process.env`). A regex that only saw one
-    // form or one file would pass a list that lies — the very drift this guards (035's defect).
+    // ⚠ Scans BOTH files that read the mail environment: config.ts (identity) and send.ts (the
+    // configuration set). A regex that saw only one file would pass a list that lies (035's defect).
     const read = new Set<string>();
     for (const file of ["../src/config.ts", "../src/send.ts"]) {
       const src = readFileSync(resolve(here, file), "utf8");

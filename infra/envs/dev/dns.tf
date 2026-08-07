@@ -105,26 +105,11 @@ resource "aws_ssm_parameter" "ses_reply_to_internal" {
   tier        = "Standard"
 }
 
-# ⚠ BOTH params are CONDITIONAL on a non-empty value. AWS SSM rejects an empty String parameter
-# ("Member must have length greater than or equal to 1"), so an unset value cannot be stored as "".
-# Instead the param is simply NOT CREATED, and the services resolve their `${ssm:…, ''}` fallback to
-# an empty string — which the app already treats as "unset" (the allowlist refuses everyone but the
-# simulator; the footer omits the postal line). This is the correct shape for an optional operator
-# input: absent means absent, not an empty record.
-resource "aws_ssm_parameter" "mail_nonprod_allowlist" {
-  count = var.mail_nonprod_allowlist == "" ? 0 : 1
-  name  = "/effy/${var.env}/mail/nonprod_allowlist"
-  description = join(" ", [
-    "⚠ Non-production recipient allowlist (038 FR-043). Comma-separated exact addresses and/or @domain",
-    "entries. In any env that is not prod, email-kit REFUSES any recipient not on this list (the",
-    "mailbox simulator is always allowed). ⚠ NOT SET = refuse everyone but the simulator — the safe",
-    "fail-closed default. Set it in dev.tfvars before the first live sign-in walk to a real inbox.",
-  ])
-  type  = "String"
-  value = var.mail_nonprod_allowlist
-  tier  = "Standard"
-}
-
+# ⚠ CONDITIONAL on a non-empty value. AWS SSM rejects an empty String parameter ("Member must have
+# length greater than or equal to 1"), so an unset value cannot be stored as "". Instead the param is
+# simply NOT CREATED, and the services resolve their `${ssm:…, ''}` fallback to an empty string —
+# which the app treats as "unset" (the footer omits the postal line). The correct shape for an
+# optional operator input: absent means absent, not an empty record.
 resource "aws_ssm_parameter" "mail_postal_address" {
   count = var.mail_postal_address == "" ? 0 : 1
   name  = "/effy/${var.env}/mail/postal_address"

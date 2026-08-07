@@ -98,9 +98,9 @@ export type FailurePolicy = "throw" | "swallow";
  * Who actually puts the message on the wire.
  *
  * ⚠ `cognito` means Cognito sends it, and the platform therefore CANNOT attach a message tag, choose
- * a configuration set, or set a header on it. Those messages get no delivery attribution and are not
- * covered by the non-production recipient allowlist. A property of the mechanism, not a gap.
- * It also selects a much tighter size budget — see `contracts/cognito-custom-message.contract.md`.
+ * a configuration set, or set a header on it. Those messages get no delivery attribution — a
+ * property of the mechanism, not a gap. It also selects a much tighter size budget — see
+ * `contracts/cognito-custom-message.contract.md`.
  */
 export type SentBy = "platform" | "cognito";
 

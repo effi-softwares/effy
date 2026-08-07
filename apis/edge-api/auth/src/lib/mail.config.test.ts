@@ -57,15 +57,13 @@ describe("mail deployment configuration", () => {
     }
   });
 
-  it("⚠ resolves the non-production allowlist and postal address from the SSM mail contract", () => {
+  it("⚠ resolves the postal address from the SSM mail contract", () => {
     const yaml = readFileSync(resolve(serviceRoot, "serverless.yml"), "utf8");
-    for (const key of ["MAIL_NONPROD_ALLOWLIST", "MAIL_POSTAL_ADDRESS"]) {
-      const line = yaml.split("\n").find((l) => new RegExp(`^\\s*${key}:`).test(l));
-      expect(line, `${key} is not declared`).toBeDefined();
-      expect(line, `${key} must come from /effy/<env>/mail/*`).toMatch(
-        /\$\{ssm:\/effy\/\$\{sls:stage\}\/mail\/[a-z_]+/,
-      );
-    }
+    const line = yaml.split("\n").find((l) => /^\s*MAIL_POSTAL_ADDRESS:/.test(l));
+    expect(line, "MAIL_POSTAL_ADDRESS is not declared").toBeDefined();
+    expect(line, "MAIL_POSTAL_ADDRESS must come from /effy/<env>/mail/*").toMatch(
+      /\$\{ssm:\/effy\/\$\{sls:stage\}\/mail\/[a-z_]+/,
+    );
   });
 
   it("⚠ hardcodes no sender address anywhere in the deployment config", () => {

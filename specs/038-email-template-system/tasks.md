@@ -391,6 +391,38 @@ Task: "Create footer.mjml — one footer, operator-supplied postal address"
 
 ---
 
+## Implementation status — update 6 (2026-08-07): non-production allowlist REMOVED (operator decision)
+
+**The non-production recipient allowlist (was User Story 6 / FR-043 / SC-012) was removed at the
+operator's request** — it was introduced by the spec's research, not asked for, and the operator
+judged it unnecessary complexity. This is a deliberate scope reduction, recorded here rather than
+reverted silently.
+
+**Removed**: `recipientAllowed()` + `RecipientRefusedError` from `send.ts`; the `MAIL_NONPROD_ALLOWLIST`
+and `EFFY_ENV` reads (and their entries in `MAIL_ENV_KEYS`); `test/allowlist.test.ts`; the
+`/effy/<env>/mail/nonprod_allowlist` SSM param and its `mail_nonprod_allowlist` variable; the
+allowlist assertions in the auth/customer config-contract tests; and the `serverless.yml` env var in
+both services. `SendResult.outcome` lost its now-unreachable `"suppressed"` value.
+
+**Kept**: everything else — the `BLACKHOLE`/phantom simulator path (035's timing-parity control, a
+separate mechanism), attribution, the postal address, and `reply_to_internal`.
+
+⚠ **What this changes operationally**: nothing in production (the allowlist was already a no-op there),
+and in dev the sender no longer restricts recipients — dev can email any address in its Cognito pools
+(which hold only operator-created test accounts). One fewer tfvars value to set before deploying.
+
+**Verified after removal**: `pnpm -r typecheck` **14/14** · `pnpm -r test` **1159 passed** ·
+`make email-check` · `terraform validate`/`fmt` clean · a repo-wide scan confirms zero allowlist
+references remain in live code, infra or active docs.
+
+**⚠ Also fixed here**: the two `mail/*` SSM params were created unconditionally with an empty-string
+default, which **AWS SSM rejects** (`Member must have length >= 1`) — it surfaced on the operator's
+first `make apply`. Both are now `count = var.x == "" ? 0 : 1`: an unset optional input means the
+param is simply absent, and the service resolves its `${ssm:…, ''}` fallback. `terraform validate`
+cannot catch this (empty string is valid HCL, invalid only at the SSM API) — only a real apply does.
+
+---
+
 ## Implementation status — update 5 (2026-08-07): Polish (Phase 9, non-operator)
 
 **101 / 134 tasks complete. Every Claude-authorable task in the slice is now done.** What remains is

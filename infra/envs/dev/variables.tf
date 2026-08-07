@@ -107,19 +107,6 @@ variable "custom_message_lambda_arn" {
   default     = null
 }
 
-variable "mail_nonprod_allowlist" {
-  description = <<-EOT
-    Non-production recipient allowlist for email (038 FR-043). Comma-separated exact addresses and/or
-    `@domain` entries. email-kit refuses any recipient not on this list in any non-prod environment
-    (the mailbox simulator is always allowed).
-
-    ⚠ DEFAULT IS EMPTY, which fail-closes to "refuse everyone but the simulator" — the safe default.
-    Set it in dev.tfvars before the first live sign-in walk so real test inboxes can receive mail.
-  EOT
-  type        = string
-  default     = ""
-}
-
 variable "mail_postal_address" {
   description = <<-EOT
     Operator-supplied postal address for the email footer (constitution: Real-World Identifiers).
