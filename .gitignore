@@ -43,6 +43,20 @@ dist/
 *.log
 .pnpm-store/
 
+# ⚠ EXCEPTION (038): packages/email-kit/dist/ is a COMMITTED, DRIFT-GUARDED artifact, not a build
+# output. `make email-check` regenerates it and fails if the contents changed — which is only
+# meaningful if the previous contents are in the repository. Same rule as design-system's committed
+# Compose theme and @effy/brand's 57 committed assets; those escape this pattern only because they
+# do not live in a directory called `dist`.
+# ⚠ dist/preview/ IS a build output and stays ignored — it is regenerated on demand and would
+# otherwise put seven rendered HTML pages into every diff.
+# ⚠ BOTH lines are required. Git will not descend into an excluded directory, so re-including the
+# directory alone is not enough — the `/**` line is what actually re-includes the files. Verified
+# with `git check-ignore -v`, because the one-line version looks correct and silently does nothing.
+!packages/email-kit/dist/
+!packages/email-kit/dist/**
+packages/email-kit/dist/preview/
+
 # --- Terraform (infra) ---
 # NOTE: .terraform.lock.hcl and *.tfvars are COMMITTED on purpose — reproducible provider
 # versions and per-env config are code; no secrets live in tfvars (spec 001-infra-foundation).

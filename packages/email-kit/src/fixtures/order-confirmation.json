@@ -1,0 +1,136 @@
+{
+  "orderNumber": "EFY-HVX2AE",
+  "deliveryEstimate": "between 2pm and 4pm today",
+  "items": [
+    {
+      "name": "Organic bananas",
+      "quantity": "1",
+      "lineTotal": "$2.50"
+    },
+    {
+      "name": "Free-range eggs (12)",
+      "quantity": "2",
+      "lineTotal": "$7.74"
+    },
+    {
+      "name": "Sourdough loaf",
+      "quantity": "3",
+      "lineTotal": "$15.72"
+    },
+    {
+      "name": "Whole milk 2L",
+      "quantity": "1",
+      "lineTotal": "$6.61"
+    },
+    {
+      "name": "Baby spinach 200g",
+      "quantity": "2",
+      "lineTotal": "$15.96"
+    },
+    {
+      "name": "Chicken breast 1kg",
+      "quantity": "3",
+      "lineTotal": "$28.05"
+    },
+    {
+      "name": "Cherry tomatoes",
+      "quantity": "1",
+      "lineTotal": "$10.72"
+    },
+    {
+      "name": "Greek yoghurt 1kg",
+      "quantity": "2",
+      "lineTotal": "$24.18"
+    },
+    {
+      "name": "Cheddar block 500g",
+      "quantity": "3",
+      "lineTotal": "$40.38"
+    },
+    {
+      "name": "Basmati rice 5kg",
+      "quantity": "1",
+      "lineTotal": "$14.83"
+    },
+    {
+      "name": "Olive oil 1L",
+      "quantity": "2",
+      "lineTotal": "$32.40"
+    },
+    {
+      "name": "Roma tomatoes",
+      "quantity": "3",
+      "lineTotal": "$52.71"
+    },
+    {
+      "name": "Red onions 1kg",
+      "quantity": "1",
+      "lineTotal": "$18.94"
+    },
+    {
+      "name": "Avocados (4)",
+      "quantity": "2",
+      "lineTotal": "$40.62"
+    },
+    {
+      "name": "Salmon fillets 500g",
+      "quantity": "3",
+      "lineTotal": "$11.04"
+    },
+    {
+      "name": "Pasta penne 500g",
+      "quantity": "1",
+      "lineTotal": "$5.05"
+    },
+    {
+      "name": "Tinned chickpeas",
+      "quantity": "2",
+      "lineTotal": "$12.84"
+    },
+    {
+      "name": "Coffee beans 1kg",
+      "quantity": "3",
+      "lineTotal": "$23.37"
+    },
+    {
+      "name": "Dark chocolate 200g",
+      "quantity": "1",
+      "lineTotal": "$9.16"
+    },
+    {
+      "name": "Sparkling water 12pk",
+      "quantity": "2",
+      "lineTotal": "$21.06"
+    },
+    {
+      "name": "Carrots 1kg",
+      "quantity": "3",
+      "lineTotal": "$35.70"
+    },
+    {
+      "name": "Broccoli",
+      "quantity": "1",
+      "lineTotal": "$13.27"
+    },
+    {
+      "name": "Bell peppers (3)",
+      "quantity": "2",
+      "lineTotal": "$29.28"
+    },
+    {
+      "name": "Minced beef 1kg",
+      "quantity": "3",
+      "lineTotal": "$48.03"
+    },
+    {
+      "name": "Frozen peas 1kg",
+      "quantity": "1",
+      "lineTotal": "$17.38"
+    }
+  ],
+  "subtotal": "$537.54",
+  "deliveryFee": "$7.90",
+  "total": "$545.44",
+  "deliveryAddress": "Unit 4, 128 Example Street, Sydney NSW 2000",
+  "orderUrl": "https://effyshopping.com/orders/EFY-HVX2AE"
+}

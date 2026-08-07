@@ -233,6 +233,74 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**038-email-template-system — Platform Email Template System.** 🚧 **97/134 tasks — every authoring
+and wiring phase BUILT and machine-verified; only operator deploy/walks + telemetry-doc remain. Not
+deployed, not committed.**
+
+Moves the platform's email from **plain-text strings assembled inside two Lambdas** to one designed,
+guarded system — a new shared package **`@effy/email-kit`** (65 files). Every message the platform can
+send is defined in **one typed catalogue**, authored in **MJML**, compiled at build time to
+**committed, drift-guarded artifacts**, and rendered with **Handlebars** at send. The premise needed
+correcting first: ⚠ **the platform had never sent an HTML email** (both existing mailers built a
+`string[]` and set only a text body), and ⚠ **four of the six live message types are sent by Cognito
+itself**, not by platform code.
+- **The design derives from the monochrome tokens, generated not transcribed** — a change to
+  `tokens.css` reaches email with no hand edit (SC-020). ⚠ **A hueless ramp is the design's biggest
+  asset in the inbox**: for a zero-saturation colour, lightness-inversion and channel-inversion
+  produce the same value, so the ramp is **mathematically immune** to the hue distortion that mangles
+  branded email in forced dark mode — it flips end-for-end and stays legible. The exposure is the two
+  semantic colours (never the sole carrier of meaning) and **partial** inversion (every text colour
+  declares its own background).
+- **Cost was not a decision input** — every architecture costs ~$20/mo at 200k emails. The constraint
+  that chose the shape is the **5-second Cognito trigger wall**: three of four audiences have no
+  password, so a slow render is a sign-in outage. That ruled out runtime MJML (100 MB+ deps), React
+  Email (a documented ~80 MB/function bundle regression), and any queue hop on the sign-in path.
+  ⚠ Proven: the auth Lambda bundle carries **neither the MJML compiler nor** (for the render-only
+  interceptor) **the SES client**.
+- **All six live messages are on the system.** `edge-auth`'s sign-in code and `edge-customer`'s
+  password-changed notice **delegate** to it (both hand-rolled mailers deleted — zero email content
+  left in a request handler); Cognito's four (sign-up, reset, verify, MFA) are branded by a **new
+  `CustomMessage` interceptor** on all four pools that ⚠ **NEVER throws** — any failure returns the
+  event unmodified so Cognito falls back to its default, because a throw breaks sign-up/recovery.
+  ⚠ The platform **never sees the Cognito codes**: the templates emit Cognito's `{####}` placeholder,
+  which it substitutes after the trigger returns (a security property, not a limitation).
+- **A seventh template — `order-confirmation` — is the commerce proof** (template only, no call site,
+  FR-062): a line-item table that survives the Word engine, a totals block, money formatting, proven
+  **under render with a 25-item basket at ~33 KB** against Gmail's 102 KB clip.
+- ⚠ **Two size budgets, not one**: Gmail's ~102 KB, and ⚠ **~20,000 characters for the four
+  Cognito-sent templates** — five times tighter, and confirming the exact figure against a live pool
+  is the top open non-operator item (**T125**). The first compiled template came out at 24,336 chars
+  (over) before restructuring; MJML's **~2.5 KB per `mj-section`** is what spends the budget.
+- **Guards, all fail-and-name-the-template** (`make email-check`): drift, size (both budgets), missing
+  text part, banned techniques, nested `@`-rules, contrast **in three passes** (light · dark · forced-
+  invert), the mid-tone-band ban, placeholder integrity, `{####}` placement, category/unsubscribe.
+  The typed catalogue makes an **unsubscribable sign-in code** and a **wrong-vars call site** fail to
+  **compile**. A config-contract test in each edge service reads the **real `serverless.yml`** (the
+  fifth guard of 035's defect), self-checked against email-kit's exported `MAIL_ENV_KEYS`.
+- **⚠ Defects found by building, all fixed**: internal commentary (incl. phishing reasoning) was
+  shipping **inside customer email** (MJML `keepComments` defaults true); **every message carried a
+  request to `fonts.googleapis.com`** (MJML auto-injects Google Fonts for the "Roboto" fallback) — a
+  privacy leak on the platform's most sensitive mail; **the dark restatement did nothing** because
+  MJML puts `css-class` on the `<td>` while the colour is on an inner element; and **the receipt
+  button was invisible in dark mode** (same nested-element class of bug on the fill).
+- **Data**: one forward-only migration adds nullable `public.email_delivery_event.template_id`; 037's
+  consumer reads the SES `effy-template` tag into it. ⚠ NULL means "sent by Cognito, or pre-038" —
+  data, not a gap. **Infra**: the `CustomMessage` trigger in the cognito module (one
+  `aws_lambda_permission` per pool, two-stage ARN), three new SSM keys
+  (`ses/reply_to_internal`, `mail/nonprod_allowlist`, `mail/postal_address`, the last two
+  operator-supplied with a placeholder-refusing validation), and a **`custom_message_fallback`
+  alarm** (the one blind spot the interceptor introduces — a branded message silently falling back).
+- **Verified**: `pnpm -r typecheck` **14/14** · `pnpm -r test` (**7 email templates**, ~55 email-kit
+  tests, 20 interceptor tests, all edge + web suites) · `make email-check` · `terraform validate`/`fmt`
+  · retired-hue guards · the bundle proofs. **Not walked by a person** anywhere.
+- ⚠ **Open**: the two-stage trigger-ARN deploy + live walks (all four audiences, the fail-safe proven
+  by causing it), the **client-matrix walk** (nothing open-source renders the Word engine — the one
+  thing no test substitutes for), **T125** (measure Cognito's real limit), and the order-confirmation
+  wiring (a later slice). Telemetry metric-filters (T126) deferred with rationale — the sign-in send
+  is already metered by `otp_send_failed`. Spec/artifacts:
+  [specs/038-email-template-system/](specs/038-email-template-system/); parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §038.
+
 **035-six-digit-otp — Platform-Wide Six-Digit One-Time Codes.** ✅ **CONCLUDED (PARTIAL BY DESIGN)
 2026-08-04 — 93/128 tasks. DEPLOYED TO DEV AND PROVEN LIVE on one surface.** Sign-off record:
 [specs/035-six-digit-otp/SIGNOFF.md](specs/035-six-digit-otp/SIGNOFF.md).
@@ -1179,5 +1247,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/037-platform-email-delivery/plan.md
+at specs/038-email-template-system/plan.md
 <!-- SPECKIT END -->

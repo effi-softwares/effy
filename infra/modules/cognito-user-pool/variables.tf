@@ -157,6 +157,24 @@ variable "custom_auth_lambda_arns" {
   default = null
 }
 
+variable "custom_message_lambda_arn" {
+  description = <<-EOT
+    The 038 CustomMessage trigger, or null to leave Cognito's own default templates in place.
+
+    Brands the four messages Cognito sends itself (sign-up confirmation, password reset, email
+    verification, MFA). The Lambda RENDERS the platform design and returns HTML; Cognito substitutes
+    the code and sends. It never throws — a throw fails the whole sign-up/recovery operation — so a
+    render failure returns the event unmodified and Cognito falls back to its default.
+
+    ⚠ Shared across all four pools (one deployment, branching on `event.userPoolId`); each pool grants
+    its own `aws_lambda_permission`. ⚠ ORDERING: deploy the Lambda BEFORE setting this ARN — Cognito
+    validates the trigger on UpdateUserPool. Setting it is an IN-PLACE update (lambda_config is not
+    ForceNew), but read the plan anyway (035 FR-030): a replaced pool destroys every account.
+  EOT
+  type        = string
+  default     = null
+}
+
 variable "enable_custom_auth_flow" {
   description = <<-EOT
     Adds ALLOW_CUSTOM_AUTH to the app client, making the platform's own 6-digit sign-in code

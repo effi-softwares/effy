@@ -1,0 +1,12 @@
+Verify your email for {{effyProductName}}
+
+{####}
+
+Enter this code to confirm this email address for {{effyProductName}}. It can only be used once.
+
+If you didn't make this change, you can ignore this email.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

@@ -202,6 +202,11 @@ export function parseOutcome(raw: unknown): DeliveryEvent[] {
 
   const occurredAt: string = msg.mail?.timestamp ?? new Date().toISOString()
 
+  // ⚠ 038 attribution. SES `mail.tags` is a map of string→string[]; the platform sets exactly one
+  // `effy-template` value. Absent for a Cognito-sent message (which cannot be tagged) or a
+  // pre-038 send — both legitimately NULL, never an error.
+  const templateId: string | null = msg.mail?.tags?.["effy-template"]?.[0] ?? null
+
   let recipients: RawRecipient[] = []
   let subType: string | null = null
   let reason: string | null = null
@@ -241,6 +246,7 @@ export function parseOutcome(raw: unknown): DeliveryEvent[] {
       reason: reason ?? r?.status ?? null,
       diagnostic: r?.diagnosticCode ?? null,
       messageId,
+      templateId,
       occurredAt,
     })
   }

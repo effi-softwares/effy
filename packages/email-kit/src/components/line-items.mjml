@@ -1,0 +1,24 @@
+<!-- LINE ITEMS — a receipt's item table.
+     ⚠ A REAL mj-include, unlike most content blocks: the `{{#each items}}` loop is RENDER-TIME
+     Handlebars, not a compile-time parameter, so the enclosing template supplies `items` at send time
+     and the include needs no arguments. Any template that declares
+     `items: { of: { name: "string", quantity: "string", lineTotal: "string" } }` can use it.
+
+     ⚠ TABLE-BASED (mj-table → a real <table>), which is what survives the Word engine — a receipt is
+     the one place a data table is genuinely the right structure, and it holds up where a div grid
+     would not. ⚠ Money and quantity arrive PRE-FORMATTED as strings (FR-048): "2", "$7.80". The
+     template never formats a number.
+
+     ⚠ Every cell carries `class="e-ink"` so the dark-mode restatement reaches it — the dark rules
+     target `.e-ink` (the element itself), and a bare <td> would stay light-mode near-black on a dark
+     ground. Each cell also states its own colour inline, so the message is correct with no stylesheet
+     at all (contract §4). -->
+<mj-table role="presentation" cellpadding="0" cellspacing="0" width="100%" css-class="e-ink"
+          font-family="'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  {{#each items}}
+  <tr>
+    <td class="e-ink" style="padding:8px 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{quantity}} &times; {{name}}</td>
+    <td class="e-ink" align="right" valign="top" style="padding:8px 0 8px 16px;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;white-space:nowrap;">{{lineTotal}}</td>
+  </tr>
+  {{/each}}
+</mj-table>

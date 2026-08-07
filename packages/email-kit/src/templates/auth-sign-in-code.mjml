@@ -1,0 +1,59 @@
+<!-- auth-sign-in-code — the platform's highest-volume message.
+     Spec: specs/038-email-template-system/spec.md § D5.
+
+     ⚠ For driver, shop and back-office this is the ONLY credential that exists — there is no
+     password to fall back on. A message that does not arrive, or arrives unreadable, is a total
+     lockout. That is why its catalogue entry is the one with onSendFailure: "throw".
+
+     ⚠ NO CLICKABLE LINK except the support contact in the footer (spec FR-050). A "this wasn't me"
+     link in unsolicited credential mail trains people to click exactly what every phishing campaign
+     depends on, and it puts a one-click affordance into a message that may be arriving in an inbox
+     an attacker already controls. The platform already refuses this in its password-change
+     notification; the rule is now the system's, not one file's. -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>{{code}} is your {{effyProductName}} sign-in code</mj-title>
+    <!-- ⚠ States the purpose; does NOT repeat the subject and does NOT restate the code (FR-032).
+         The code is already in the subject, where it can be read from a lock-screen notification —
+         repeating it here would put a live credential in the inbox list twice. -->
+    <mj-preview>Enter this code to sign in. It expires in {{expiryMinutes}} minutes.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <!-- ⚠ ONE SECTION for the whole message body. Every mj-section costs ~2.5 KB of table
+         scaffolding and MSO ghost tables; this template must also fit Cognito's ~20,000-character
+         limit when its siblings reuse the shape. Section count is the budget, not word count. -->
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">Your sign-in code</mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 24px 0">
+          {{#if isInternal}}Enter this code to sign in to your work account.{{else}}Enter this code to sign in.{{/if}}
+          It expires in {{expiryMinutes}} minutes and can only be used once.
+        </mj-text>
+
+        <!-- THE CODE.
+             ⚠ A filled surface holding ONE value is a value treatment, not a card layout — the same
+             role a chip or an input field plays. Constitution Principle V forbids cards that LAY OUT
+             content; nothing here is tiled. Recorded in the plan, as the constitution requires.
+
+             ⚠ SQUARE, not the 8px radius the spec's wireframe drew. Rounding it needs its own
+             section+column (border-radius is a column attribute), which costs ~2.5 KB — 12% of the
+             Cognito budget — to buy corners that the Word engine squares anyway. The flat band is
+             the same design in MORE clients, for less. Recorded as a deliberate amendment. -->
+        <mj-text mj-class="code" align="center" container-background-color="#f5f5f5"
+                 css-class="e-ink e-bg-code" padding="24px 16px">{{code}}</mj-text>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="24px 0 0 0">
+          If you didn&rsquo;t ask to sign in, you can ignore this email &mdash; nobody can use the code without it.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

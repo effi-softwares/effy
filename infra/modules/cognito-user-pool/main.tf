@@ -106,7 +106,9 @@ resource "aws_cognito_user_pool" "this" {
   # but READ THE PLAN ANYWAY (035 FR-030): a replaced pool destroys every account on the platform.
   dynamic "lambda_config" {
     for_each = (
-      var.pre_sign_up_lambda_arn == null && var.custom_auth_lambda_arns == null
+      var.pre_sign_up_lambda_arn == null &&
+      var.custom_auth_lambda_arns == null &&
+      var.custom_message_lambda_arn == null
     ) ? [] : [1]
     content {
       pre_sign_up = var.pre_sign_up_lambda_arn
@@ -115,6 +117,9 @@ resource "aws_cognito_user_pool" "this" {
       create_auth_challenge          = try(var.custom_auth_lambda_arns.create, null)
       verify_auth_challenge_response = try(var.custom_auth_lambda_arns.verify, null)
       post_authentication            = try(var.custom_auth_lambda_arns.post_authentication, null)
+
+      # ⚠ 038 — brands Cognito's own four messages. Null leaves Cognito's defaults untouched.
+      custom_message = var.custom_message_lambda_arn
     }
   }
 
@@ -157,6 +162,18 @@ resource "aws_lambda_permission" "custom_auth" {
   statement_id  = "AllowCognitoInvoke-${local.pool_name}-${each.key}"
   action        = "lambda:InvokeFunction"
   function_name = each.value
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.this.arn
+}
+
+# Cognito must be permitted to invoke the 038 CustomMessage trigger, ON THIS POOL.
+# ⚠ One per pool, no wildcard — same discipline as the custom-auth permissions above.
+resource "aws_lambda_permission" "custom_message" {
+  count = var.custom_message_lambda_arn == null ? 0 : 1
+
+  statement_id  = "AllowCognitoInvoke-${local.pool_name}-custom-message"
+  action        = "lambda:InvokeFunction"
+  function_name = var.custom_message_lambda_arn
   principal     = "cognito-idp.amazonaws.com"
   source_arn    = aws_cognito_user_pool.this.arn
 }

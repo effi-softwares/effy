@@ -1,0 +1,12 @@
+<!-- DIVIDER — a hairline rule.
+
+     ⚠ Structure in this design comes from hairlines and typographic hierarchy, never from card-style
+     containers (constitution Principle V; spec FR-014). This is the block that does that work.
+
+     Rendered by MJML as a bordered <p> inside a td rather than a CSS `border` on a content element,
+     which is what makes it survive the Word engine's unreliable border handling. -->
+<mj-section padding="0 32px">
+  <mj-column>
+    <mj-divider />
+  </mj-column>
+</mj-section>

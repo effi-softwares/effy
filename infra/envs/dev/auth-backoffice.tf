@@ -48,6 +48,8 @@ module "back_office_pool" {
   enable_custom_auth_flow   = var.custom_auth_lambda_arns != null
   disable_choice_based_auth = var.custom_auth_lambda_arns != null
   custom_auth_lambda_arns   = var.custom_auth_lambda_arns
+  # ⚠ 038 — brands Cognito's own four messages on this pool (two-stage; see variables.tf).
+  custom_message_lambda_arn = var.custom_message_lambda_arn
 
 }
 

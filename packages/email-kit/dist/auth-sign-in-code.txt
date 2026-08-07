@@ -1,0 +1,12 @@
+Your {{effyProductName}} sign-in code
+
+{{code}}
+
+{{#if isInternal}}Enter this code to sign in to your work account.{{else}}Enter this code to sign in.{{/if}} It expires in {{expiryMinutes}} minutes and can only be used once.
+
+If you didn't ask to sign in, you can ignore this email - nobody can use the code without it.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

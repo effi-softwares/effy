@@ -1,0 +1,20 @@
+Your {{effyProductName}} order {{orderNumber}} is confirmed
+
+Order {{orderNumber}} is on its way - arriving {{deliveryEstimate}}.
+
+Items:
+{{#each items}}  {{quantity}} x {{name}}  {{lineTotal}}
+{{/each}}
+Subtotal: {{subtotal}}
+Delivery: {{deliveryFee}}
+Total: {{total}}
+
+Delivering to:
+{{deliveryAddress}}
+
+View your order: {{orderUrl}}
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

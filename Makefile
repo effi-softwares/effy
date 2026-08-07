@@ -34,7 +34,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         shop-verify-isolation shop-verify-gate shop-token-claims \
         cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
-        brand-gen brand-check \
+        brand-gen brand-check email-gen email-check email-preview \
         dev-status dev-stop dev-start check-dev-park check-no-phantm
 
 help: ## List targets
@@ -342,6 +342,16 @@ brand-gen: ## brand: regenerate every icon/splash/favicon from packages/brand/sr
 	@pnpm --filter @effy/brand brand:gen
 brand-check: ## brand: FAIL if any committed brand asset drifts from the authored mark (024 SC-008)
 	@pnpm --filter @effy/brand brand:check
+
+# --- Email templates (038) -----------------------------------------------------------------
+# Same shape as tokens:gen/tokens:check and brand:gen/brand:check — authored source, COMMITTED
+# derived artifacts, a drift check that fails and names the stale template.
+email-gen: ## email: regenerate every template artifact from src/*.mjml + the design-system tokens (038)
+	@pnpm --filter @effy/email-kit email:gen
+email-check: ## email: FAIL on template drift, size, contrast, banned techniques or a missing text part (038)
+	@pnpm --filter @effy/email-kit email:check
+email-preview: ## email: render every template against its fixture to dist/preview/index.html (038, no cloud)
+	@pnpm --filter @effy/email-kit email:preview
 
 brand-guards: ## brand: FAIL if any RETIRED brand palette (Jade, Effy Emerald) survives in live source
 	@bash scripts/check-no-jade.sh

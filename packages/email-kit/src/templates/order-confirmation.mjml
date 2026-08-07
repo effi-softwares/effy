@@ -1,0 +1,64 @@
+<!-- order-confirmation — the data-heavy proof that the system scales past a code (spec US5 / FR-058).
+     ⚠ TEMPLATE ONLY. Nothing sends this yet (FR-062); wiring it to a real order event belongs to the
+     slice that owns order notifications. It exists now so the receipt components — a line-item table
+     that survives the Word engine, a totals block, money formatting, the 102 KB budget with a large
+     basket — are PROVEN rather than designed on paper.
+
+     ⚠ Platform-sent (not Cognito), so the budget is Gmail's ~102 KB, not the ~20,000-char Cognito one.
+     ⚠ Money, quantities and the delivery window arrive PRE-FORMATTED as strings (FR-048). -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>Your {{effyProductName}} order {{orderNumber}} is confirmed</mj-title>
+    <mj-preview>Arriving {{deliveryEstimate}}.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 8px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">Your order is confirmed</mj-text>
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          Order {{orderNumber}} is on its way &mdash; arriving {{deliveryEstimate}}.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- The items. A REAL mj-include; the {{#each items}} iterates at render time. -->
+    <mj-section padding="8px 32px 0 32px">
+      <mj-column>
+        <mj-include path="../components/line-items.mjml" />
+      </mj-column>
+    </mj-section>
+
+    <!-- A hairline between the items and the totals. -->
+    <mj-include path="../components/divider.mjml" />
+
+    <!-- The totals. Also a real mj-include. -->
+    <mj-section padding="16px 32px 0 32px">
+      <mj-column>
+        <mj-include path="../components/rows.mjml" />
+      </mj-column>
+    </mj-section>
+
+    <!-- The primary action. mj-button emits the bulletproof VML+<a> pattern itself, so no hand-rolled
+         button component is needed. Both dark classes named so the label inverts with the fill. -->
+    <mj-section padding="24px 32px 8px 32px">
+      <mj-column>
+        <mj-button href="{{orderUrl}}" css-class="e-btn-bg e-btn-fg" align="left">View your order</mj-button>
+      </mj-column>
+    </mj-section>
+
+    <!-- Delivery address, as a labelled detail block (authored inline — it is order-specific). -->
+    <mj-section padding="8px 32px 24px 32px">
+      <mj-column>
+        <mj-text mj-class="small" css-class="e-muted">Delivering to</mj-text>
+        <mj-text mj-class="body" css-class="e-ink" padding="4px 0 0 0">{{deliveryAddress}}</mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

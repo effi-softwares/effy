@@ -64,7 +64,18 @@ provider:
     # shape. They had already drifted. See contracts/ssm-mail.contract.md.
     MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
     MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    # ⚠ 038 FR-037: internal audiences reply to the operational mailbox once the operator
+    # publishes /effy/<env>/ses/reply_to_internal (= workspace-admin@). Empty until then; email-kit
+    # falls back to the public reply address, so behaviour is unchanged until the value is set.
+    MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
+    # ⚠ 038: the non-production recipient allowlist and the operator-supplied postal address.
+    # Both resolve from the SSM contract (037 ssm-mail.contract.md, extended). The empty fallback
+    # keeps a deploy from failing before the operator has set them — but ⚠ an UNSET allowlist refuses
+    # every non-simulator recipient in dev, which is the safe default (a dev cannot mail a stranger)
+    # and is exactly why the operator sets it before the first sign-in walk.
+    MAIL_NONPROD_ALLOWLIST: ${ssm:/effy/${sls:stage}/mail/nonprod_allowlist, ''}
+    MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
     # ⚠ THE AUDIENCE MAP. One deployment serves all four pools by branching on event.userPoolId,
     # and `src/lib/audience.ts` resolves that id through these four values. Omit any one of them and
     # that pool becomes UNKNOWN: the trigger fails closed, emits otp_unknown_pool, sends no email,
@@ -164,3 +175,11 @@ functions:
   postAuthentication:
     handler: src/functions/post-authentication.handler
     description: Cognito post-authentication — reinstates email_verified, which managed EMAIL_OTP set automatically and CUSTOM_AUTH does not (035 FR-020).
+
+  customMessage:
+    handler: src/functions/custom-message.handler
+    # ⚠ 038: brands Cognito's own four messages (sign-up, reset, verify, MFA). Renders and returns HTML;
+    # Cognito sends. NEVER throws — a throw fails the whole sign-up/recovery operation, so every failure
+    # returns the event unmodified and Cognito falls back to its default. timeout: 5 inherited from
+    # provider (Cognito abandons a trigger at 5s regardless). No SES client, no DynamoDB — render only.
+    description: Cognito custom-message — renders the platform design for sign-up/reset/verify/MFA; fail-safe to Cognito's default (038 FR-054/FR-055).

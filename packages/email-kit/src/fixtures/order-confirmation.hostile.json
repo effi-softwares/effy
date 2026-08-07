@@ -1,0 +1,13 @@
+{
+  "orderNumber": "EFY-<b>HAX</b>",
+  "deliveryEstimate": "soon\"><script>alert(1)</script>",
+  "items": [
+    { "name": "<script>alert('xss')</script> Bananas", "quantity": "1", "lineTotal": "$3.50" },
+    { "name": "Eggs \"><img src=x onerror=alert(1)>", "quantity": "2", "lineTotal": "$9.00" }
+  ],
+  "subtotal": "$12.50",
+  "deliveryFee": "$7.90",
+  "total": "$20.40",
+  "deliveryAddress": "1 Test St </td></tr><script>alert(1)</script>",
+  "orderUrl": "https://effyshopping.com/orders/x"
+}

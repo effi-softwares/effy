@@ -108,13 +108,14 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
               <th className="py-2 font-medium">When</th>
               <th className="py-2 font-medium">Outcome</th>
               <th className="py-2 font-medium">Detail</th>
+              <th className="py-2 font-medium">Template</th>
               <th className="py-2 font-medium">Message</th>
             </tr>
           </thead>
           <tbody>
             {data.events.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-3 text-muted-foreground">
+                <td colSpan={5} className="py-3 text-muted-foreground">
                   No events recorded.
                 </td>
               </tr>
@@ -124,6 +125,11 @@ export function DeliverabilityDetailScreen({ address }: { address: string }) {
                 <td className="py-2">{new Date(e.occurredAt).toLocaleString()}</td>
                 <td className="py-2">{e.eventType.replace("_", " ")}</td>
                 <td className="py-2 font-mono text-xs">{e.subType ?? "—"}</td>
+                {/* ⚠ A null template is an ANSWER, not a gap: Cognito sends cannot be tagged. Say so
+                    plainly rather than rendering blank, which would read as missing data. */}
+                <td className="py-2 font-mono text-xs">
+                  {e.templateId ?? <span className="text-muted-foreground">Cognito / pre-038</span>}
+                </td>
                 <td className="py-2 font-mono text-xs text-muted-foreground">{e.messageId}</td>
               </tr>
             ))}

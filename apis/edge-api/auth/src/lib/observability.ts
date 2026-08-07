@@ -25,7 +25,13 @@ export type OtpMetric =
   | "otp_rate_limited"
   | "otp_ratelimit_store_unavailable"
   | "otp_email_verify_failed"
-  | "otp_unknown_pool";
+  | "otp_unknown_pool"
+  // 038 — the CustomMessage interceptor. `rendered`: a branded message was produced. `fallback`:
+  // ⚠ the fail-safe returned the event unmodified, so Cognito sent its OWN default template. A spike
+  // in `fallback` means branding is silently broken — the message still arrives, so nothing else
+  // signals it; this metric is the only signal, which is why it deserves an alarm.
+  | "custom_message_rendered"
+  | "custom_message_fallback";
 
 export function emit(metric: OtpMetric, userPoolId: string, value = 1): void {
   // EMF: CloudWatch parses this shape out of the log stream into a real metric.

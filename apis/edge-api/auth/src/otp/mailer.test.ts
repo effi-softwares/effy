@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * ⚠ `mailer.ts` HAD NO DIRECT TEST until 037, despite being the single point through which every
- * sign-in code on the platform passes. Everything that touched it mocked the whole module
- * (`vi.mock("./mailer")`), which proves the caller's behaviour and nothing about the message.
- *
- * These tests assert the SendEmailCommand INPUT, because that is the thing a recipient actually
- * sees and the thing 037 changed.
+ * ⚠ Since 038 `mailer.ts` is a THIN ADAPTER over `@effy/email-kit/send` — the content, design and SES
+ * call all live in the email system. These tests therefore assert the DELEGATION CONTRACT through the
+ * SES mock: given a `sendCode(...)`, the SendEmailCommand that reaches SES carries the right sender,
+ * reply address, configuration set, recipient, template tag and both body parts — and the security
+ * invariants 035/037 established still hold (throw on failure, phantom → simulator, code confined to
+ * the message). `@effy/email-kit` has its own render/send/allowlist tests; this file proves the wire
+ * between the trigger and the system.
  */
 
 const send = vi.fn();
@@ -43,17 +44,28 @@ beforeEach(() => {
   process.env.MAIL_SENDER = "Effy <no-reply@dev.effyshopping.com>";
   process.env.MAIL_REPLY_TO = "hello@effyshopping.com";
   process.env.MAIL_CONFIGURATION_SET = "effy-dev-mail";
+  // ⚠ EFFY_ENV is unset here (a dev-like environment), so the non-production allowlist is ACTIVE.
+  // The test recipients are on it; this both permits the send and documents that the auth path now
+  // runs behind the allowlist. Its own refusal behaviour is proven in @effy/email-kit.
+  process.env.MAIL_NONPROD_ALLOWLIST = "@example.com";
 });
 
 afterEach(() => {
-  delete process.env.MAIL_SENDER;
-  delete process.env.MAIL_REPLY_TO;
-  delete process.env.MAIL_CONFIGURATION_SET;
+  for (const k of [
+    "MAIL_SENDER",
+    "MAIL_REPLY_TO",
+    "MAIL_CONFIGURATION_SET",
+    "MAIL_NONPROD_ALLOWLIST",
+    "MAIL_POSTAL_ADDRESS",
+    "EFFY_ENV",
+  ]) {
+    delete process.env[k];
+  }
   vi.resetModules();
 });
 
 describe("sendCode", () => {
-  it("sends from MAIL_SENDER, display name included", async () => {
+  it("sends from MAIL_SENDER, display name included, to the recipient", async () => {
     const { sendCode } = await loadMailer();
     await sendCode({ to: "person@example.com", code: "123456", profile: PROFILE, phantom: false });
 
@@ -62,8 +74,6 @@ describe("sendCode", () => {
   });
 
   it("⚠ carries a reply address — 037 FR-022 reverses 010's FR-022", async () => {
-    // 010 forbade one because the platform could not receive mail. It can now, and a shopper who
-    // cannot sign in and hits reply is the highest-intent support signal the platform gets.
     const { sendCode } = await loadMailer();
     await sendCode({ to: "person@example.com", code: "123456", profile: PROFILE, phantom: false });
 
@@ -78,14 +88,31 @@ describe("sendCode", () => {
   });
 
   it("⚠ still sends when the configuration set is unset — visibility must not break sign-in", async () => {
-    // The identity carries the same set as its DEFAULT, so a missing variable degrades to "still
-    // observed". Throwing here would take down sign-in for four audiences over a telemetry setting.
     delete process.env.MAIL_CONFIGURATION_SET;
     const { sendCode } = await loadMailer();
     await sendCode({ to: "person@example.com", code: "123456", profile: PROFILE, phantom: false });
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(lastInput().ConfigurationSetName).toBeUndefined();
+  });
+
+  it("⚠ tags the message with its template id — how 037's consumer attributes a bounce (038 FR-010)", async () => {
+    const { sendCode } = await loadMailer();
+    await sendCode({ to: "person@example.com", code: "123456", profile: PROFILE, phantom: false });
+
+    expect(lastInput().EmailTags).toEqual([{ Name: "effy-template", Value: "auth-sign-in-code" }]);
+  });
+
+  it("⚠ sends a rendered HTML part AND a plain-text part, not the old text-only body", async () => {
+    const { sendCode } = await loadMailer();
+    await sendCode({ to: "person@example.com", code: "123456", profile: PROFILE, phantom: false });
+
+    const body = lastInput().Content.Simple.Body;
+    expect(body.Html?.Data).toContain("<!doctype html>");
+    expect(body.Html?.Data).toContain("123456");
+    expect(body.Text?.Data).toContain("123456");
+    // ⚠ Purpose-written text part, not a stripped transcript of the HTML.
+    expect(body.Text?.Data).not.toContain("<");
   });
 
   it("⚠ THROWS when the sender is unset — sending from a wrong address is worse than not sending", async () => {
@@ -98,27 +125,40 @@ describe("sendCode", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("⚠ routes a phantom send to the simulator — 035's timing-parity defence, unbroken by 037", async () => {
-    // If this ever regresses, "account exists" leaks through response latency even though every
-    // response body is identical. 037 touched this file; this test is why that is safe.
+  it("⚠ routes a phantom send to the simulator — 035's timing-parity defence, unbroken", async () => {
+    // If this regresses, "account exists" leaks through response latency even though every response
+    // body is identical. It is a REAL send on the SAME path — not a skip, not a sleep.
     const { sendCode } = await loadMailer();
-    await sendCode({ to: "stranger@example.com", code: "123456", profile: PROFILE, phantom: true });
+    await sendCode({ to: "stranger@nowhere.test", code: "123456", profile: PROFILE, phantom: true });
 
     expect(send).toHaveBeenCalledTimes(1);
     expect(lastInput().Destination.ToAddresses).toEqual(["success@simulator.amazonses.com"]);
-    // ⚠ And it is a REAL send on the SAME path — not a skip, not a sleep.
     expect(lastInput().FromEmailAddress).toBe("Effy <no-reply@dev.effyshopping.com>");
   });
 
-  it("⚠ never puts the code or the recipient anywhere but the message itself", async () => {
+  it("⚠ carries the code in the subject and the message body — and NOWHERE else in the request", async () => {
     const { sendCode } = await loadMailer();
     await sendCode({ to: "person@example.com", code: "424242", profile: PROFILE, phantom: false });
 
     const input = lastInput();
-    // The code belongs in the subject and body — and nowhere else in the request.
     expect(input.Content.Simple.Subject.Data).toContain("424242");
-    expect(JSON.stringify({ ...input, Content: undefined, Destination: undefined })).not.toContain(
-      "424242",
-    );
+    // Strip the parts that legitimately hold the code (subject/body) and the recipient; the code must
+    // appear in neither the tags, the headers, the sender, nor the reply address.
+    expect(
+      JSON.stringify({ ...input, Content: undefined, Destination: undefined }),
+    ).not.toContain("424242");
+  });
+
+  it("addresses each internal audience by its own product name and wording", async () => {
+    const { sendCode } = await loadMailer();
+    await sendCode({
+      to: "person@example.com",
+      code: "555000",
+      profile: { audience: "shop", productName: "Effy Shop", internal: true },
+      phantom: false,
+    });
+
+    expect(lastInput().Content.Simple.Subject.Data).toContain("Effy Shop");
+    expect(lastInput().Content.Simple.Body.Text.Data).toContain("work account");
   });
 });

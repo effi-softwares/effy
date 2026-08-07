@@ -1,0 +1,42 @@
+<!-- auth-sign-up-code — the confirmation code a new customer enters to finish creating their account.
+     ⚠ SENT BY COGNITO, NOT BY THE PLATFORM. This template is rendered by the CustomMessage trigger
+     and handed to Cognito; Cognito makes the SES call. Three consequences follow, and each is a rule:
+
+       1. ⚠ THE CODE IS `{####}`, A PLACEHOLDER. The platform NEVER sees the real code — Cognito
+          substitutes it AFTER the trigger returns. Emit the placeholder exactly; declare no `code`
+          variable, because there is nothing to pass. A message that arrived showing a literal
+          `{####}` would mean the substitution engine ate it.
+       2. ⚠ Size budget is Cognito's ~20,000 CHARACTERS, five times tighter than Gmail's — the guard
+          enforces it for every sentBy:"cognito" template.
+       3. No SES tag, no configuration set, no non-prod allowlist reach this message. -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>Confirm your email for {{effyProductName}}</mj-title>
+    <mj-preview>Enter this code to finish setting up your account.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">Confirm your email address</mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 24px 0">
+          Enter this code to finish creating your {{effyProductName}} account. It can only be used once.
+        </mj-text>
+
+        <mj-text mj-class="code" css-class="e-ink e-bg-code" align="center"
+                 container-background-color="#f5f5f5" padding="24px 16px">{####}</mj-text>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="24px 0 0 0">
+          If you didn&rsquo;t create a {{effyProductName}} account, you can ignore this email.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

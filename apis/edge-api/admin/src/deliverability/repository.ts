@@ -71,11 +71,11 @@ function toStatus(r: StatusRow): DeliveryStatusRow {
 export async function insertEvent(e: DeliveryEvent): Promise<boolean> {
   const res = await query<{ id: string }>(
     `INSERT INTO public.email_delivery_event
-       (address, raw_address, event_type, sub_type, reason, message_id, occurred_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (address, raw_address, event_type, sub_type, reason, message_id, template_id, occurred_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (message_id, event_type, address) DO NOTHING
      RETURNING id`,
-    [e.address, e.rawAddress, e.eventType, e.subType, e.reason, e.messageId, e.occurredAt],
+    [e.address, e.rawAddress, e.eventType, e.subType, e.reason, e.messageId, e.templateId, e.occurredAt],
   )
   return res.rowCount === 1
 }
@@ -184,9 +184,10 @@ export async function listEvents(address: string, limit = 50): Promise<DeliveryE
     event_type: DeliveryEventType
     sub_type: string | null
     message_id: string
+    template_id: string | null
     occurred_at: Date
   }>(
-    `SELECT event_type, sub_type, message_id, occurred_at
+    `SELECT event_type, sub_type, message_id, template_id, occurred_at
        FROM public.email_delivery_event
       WHERE address = $1
       ORDER BY occurred_at DESC
@@ -198,6 +199,7 @@ export async function listEvents(address: string, limit = 50): Promise<DeliveryE
     eventType: r.event_type,
     subType: r.sub_type,
     messageId: r.message_id,
+    templateId: r.template_id,
     occurredAt: r.occurred_at.toISOString(),
   }))
 }

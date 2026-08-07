@@ -55,7 +55,13 @@ provider:
     # REMOVED rather than kept as a fallback: a fallback preserves exactly the drift this ends.
     MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
     MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    # ⚠ 038 FR-037: internal audiences reply to the operational mailbox once the operator
+    # publishes /effy/<env>/ses/reply_to_internal (= workspace-admin@). Empty until then; email-kit
+    # falls back to the public reply address, so behaviour is unchanged until the value is set.
+    MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
+    MAIL_NONPROD_ALLOWLIST: ${ssm:/effy/${sls:stage}/mail/nonprod_allowlist, ''}
+    MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
     # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
     # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
     # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note

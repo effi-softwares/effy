@@ -211,3 +211,26 @@ resource "aws_cloudwatch_metric_alarm" "otp_unknown_pool" {
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alerts.arn]
 }
+
+# ⚠ 038 — the CustomMessage interceptor could not brand a message it was SUPPOSED to brand, so
+# Cognito sent its own default instead. This is the ONE blind spot the interceptor introduces: the
+# person still receives a working (unbranded) message, so nothing else signals the failure — no
+# bounce, no failed sign-in, no error the customer sees. This metric is the only signal.
+#
+# ⚠ It fires ONLY on a genuine branding failure (a render error or a placeholder mismatch), NOT on a
+# benign pass-through (an unmapped trigger), so a non-zero value is always actionable. Complements
+# 037's delivery alarms (which watch what happens AFTER SES accepts) and otp-send-failures (the
+# sign-in send) — none of those can see a Cognito message quietly falling back to its default.
+resource "aws_cloudwatch_metric_alarm" "custom_message_fallback" {
+  alarm_name          = "${module.shared.name_prefix}-custom-message-fallback"
+  alarm_description   = "038 — a Cognito sign-up/reset/verify/MFA message could not be branded and fell back to Cognito's default. The message still arrived; the platform design silently did not."
+  namespace           = "Effy/Auth"
+  metric_name         = "custom_message_fallback"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+}

@@ -1,0 +1,12 @@
+Your {{effyProductName}} verification code
+
+{####}
+
+Enter this code to continue signing in to {{effyProductName}}. It can only be used once.
+
+If you didn't try to sign in, you can ignore this email - nobody can use the code without it.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

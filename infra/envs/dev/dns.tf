@@ -62,8 +62,13 @@ module "ses_events" {
 locals {
   # The ONE definition of who Effy is in a recipient's inbox. Both the SSM contract and Cognito's
   # own configuration read this — never two literals that can disagree.
-  mail_sender   = module.ses.from_address
+  mail_sender = module.ses.from_address
+  # Customer-facing reply address — the public support mailbox.
   mail_reply_to = "hello@${var.root_domain}"
+  # ⚠ 038 FR-037: internal audiences (driver/shop/back-office) reply to the OPERATIONAL mailbox.
+  # `workspace-admin@` is one of the two constitution-approved addresses; deriving it here (rather
+  # than accepting a parameter) is what keeps a third address structurally impossible.
+  mail_reply_to_internal = "workspace-admin@${var.root_domain}"
 }
 
 resource "aws_ssm_parameter" "ses_sender" {
@@ -88,6 +93,42 @@ resource "aws_ssm_parameter" "ses_configuration_set" {
   type        = "String"
   value       = module.ses_events.configuration_set_name
   tier        = "Standard"
+}
+
+# ── 038 additions to the app↔infra mail contract ──────────────────────────────────────────────
+
+resource "aws_ssm_parameter" "ses_reply_to_internal" {
+  name        = "/effy/${var.env}/ses/reply_to_internal"
+  description = "Reply address for INTERNAL-audience mail (driver/shop/back-office) — the operational mailbox. email-kit derives the reply per audience; empty here would fall back to the public reply (038 FR-037)."
+  type        = "String"
+  value       = local.mail_reply_to_internal
+  tier        = "Standard"
+}
+
+resource "aws_ssm_parameter" "mail_nonprod_allowlist" {
+  name = "/effy/${var.env}/mail/nonprod_allowlist"
+  description = join(" ", [
+    "⚠ Non-production recipient allowlist (038 FR-043). Comma-separated exact addresses and/or @domain",
+    "entries. In any env that is not prod, email-kit REFUSES any recipient not on this list (the",
+    "mailbox simulator is always allowed). ⚠ EMPTY = refuse everyone but the simulator — the safe",
+    "fail-closed default. The operator sets it in dev.tfvars before the first live sign-in walk.",
+  ])
+  type  = "String"
+  value = var.mail_nonprod_allowlist
+  tier  = "Standard"
+}
+
+resource "aws_ssm_parameter" "mail_postal_address" {
+  name = "/effy/${var.env}/mail/postal_address"
+  description = join(" ", [
+    "⚠ Operator-supplied postal address for the email footer (constitution: Real-World Identifiers).",
+    "Optional at runtime for TRANSACTIONAL mail (CAN-SPAM-exempt) — empty omits the footer line rather",
+    "than shipping a guessed address. ⚠ LIFECYCLE mail must enforce presence where such a message is",
+    "authored. A validation refuses an obvious placeholder if a value IS given.",
+  ])
+  type  = "String"
+  value = var.mail_postal_address
+  tier  = "Standard"
 }
 
 # ⚠ THE PERMISSION HALF OF THE LINE ABOVE, AND IT IS NOT OPTIONAL.

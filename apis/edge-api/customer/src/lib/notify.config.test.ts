@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url"
 import { dirname, resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
+import { MAIL_ENV_KEYS } from "@effy/email-kit/send"
+
 /**
  * ⚠ THE DEPLOYMENT CONTRACT for edge-customer (037).
  *
@@ -50,12 +52,22 @@ function readEnvKeysUsedBy(relativePath: string): Set<string> {
 
 describe("deployment configuration", () => {
   it("⚠ declares every environment variable the mail path reads", () => {
+    // ⚠ Since 038 the mail path reads its environment inside `@effy/email-kit/send`, not here. So the
+    // contract is now: this service's serverless.yml declares every variable EMAIL-KIT reads. The
+    // list is exported and self-checked against email-kit's real source (email-kit/test/send.test.ts),
+    // so it cannot silently drift from what the code actually reads — which was 035's exact defect.
     const declared = readServerlessEnvKeys()
-    const used = readEnvKeysUsedBy("src/password/notify.ts")
 
-    expect(used.size).toBeGreaterThan(0) // guard: a refactor must not make this test vacuous
-    const missing = [...used].filter((k) => !declared.has(k))
+    expect(MAIL_ENV_KEYS.length).toBeGreaterThan(0) // guard: never vacuous
+    const missing = MAIL_ENV_KEYS.filter((k) => !declared.has(k))
     expect(missing, `serverless.yml is missing: ${missing.join(", ")}`).toEqual([])
+  })
+
+  it("⚠ notify.ts itself reads NO process.env — the env is email-kit's to read", () => {
+    // A positive assertion that delegation is complete: a stray `process.env.MAIL_*` left behind in
+    // notify.ts would be a second, un-contracted reader — the very split-brain 037 removed.
+    const used = readEnvKeysUsedBy("src/password/notify.ts")
+    expect([...used], `notify.ts must not read env directly: ${[...used].join(", ")}`).toEqual([])
   })
 
   it("⚠ resolves the mail contract from SSM, not from a literal (037)", () => {

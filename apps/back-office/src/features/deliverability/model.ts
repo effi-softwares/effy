@@ -25,6 +25,13 @@ export interface DeliveryEvent {
   eventType: "bounce" | "complaint" | "delivery" | "reject" | "delivery_delay";
   subType: string | null;
   messageId: string;
+  /**
+   * ⚠ The template this outcome belongs to (038). `null` means the message was sent by Cognito
+   * (sign-up, password reset, verification, MFA — which cannot be tagged) or predates 038. The
+   * console renders that as "Cognito / pre-038", NOT as blank or unknown — a null here is an answer,
+   * not a gap, and the same honesty the screen already applies to `subject` and `suppressedInSes`.
+   */
+  templateId: string | null;
   occurredAt: string;
 }
 

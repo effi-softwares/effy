@@ -104,6 +104,23 @@ describe("parseOutcome", () => {
     expect(e!.subType).toBe("Permanent/General")
     expect(e!.diagnostic).toContain("550 5.1.1")
     expect(e!.messageId).toBe("0100018f-aaaa")
+    // ⚠ 038: no `effy-template` tag on this fixture → NULL, meaning "Cognito-sent, or pre-038".
+    expect(e!.templateId).toBeNull()
+  })
+
+  it("⚠ 038: attributes an outcome to its template from the SES `effy-template` tag", () => {
+    // This is how "which message is bouncing?" becomes answerable. SES `mail.tags` is a map of
+    // string→string[]; the platform sets exactly one value.
+    const [e] = parseOutcome({
+      ...BOUNCE,
+      mail: { ...BOUNCE.mail, tags: { "effy-template": ["auth-sign-in-code"] } },
+    })
+    expect(e!.templateId).toBe("auth-sign-in-code")
+  })
+
+  it("⚠ 038: a message with no tag attributes to NULL, never throws (Cognito sends cannot be tagged)", () => {
+    const [e] = parseOutcome({ ...BOUNCE, mail: { ...BOUNCE.mail, tags: {} } })
+    expect(e!.templateId).toBeNull()
   })
 
   it("⚠ fans out one message naming several recipients into several events", () => {

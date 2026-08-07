@@ -15,6 +15,23 @@ in the same sense as
 | `/effy/<env>/ses/configuration_set_arn` | String | `infra/envs/dev/dns.tf` — **added 2026-08-06** | `arn:aws:ses:ap-southeast-2:…:configuration-set/effy-dev-mail` | `edge-api/auth` IAM, `edge-api/customer` IAM |
 | `/effy/<env>/ses/events_topic_arn` | String | `infra/modules/ses-events` — **new** | `arn:aws:sns:ap-southeast-2:…:effy-dev-ses-events` | `edge-api/admin` (SNS subscription + IAM) |
 | `/effy/<env>/alerts/topic_arn` | String | `infra/envs/dev/alerts.tf` — **new** | `arn:aws:sns:ap-southeast-2:…:effy-dev-alerts` | CloudWatch alarms in Terraform **and** in `serverless.yml` |
+| `/effy/<env>/ses/reply_to_internal` | String | `infra/envs/dev/dns.tf` — **added by 038** | `workspace-admin@effyshopping.com` | `edge-api/auth`, `edge-api/customer` (via `@effy/email-kit`) |
+| `/effy/<env>/mail/nonprod_allowlist` | String | `infra/envs/dev/dns.tf` — **added by 038** | `dev@effy.test,@effy.test` (empty in prod) | `edge-api/auth`, `edge-api/customer` (via `@effy/email-kit`) |
+| `/effy/<env>/mail/postal_address` | String | `infra/envs/dev/dns.tf` — **added by 038** | *(operator-supplied; empty omits the footer line)* | `edge-api/auth`, `edge-api/customer` (via `@effy/email-kit`) |
+
+## ⚠ 038 additions (the three keys above)
+
+The email-template system (038) routes every send through `@effy/email-kit`, which reads three more
+keys. All three carry a **safe empty-string fallback** in `serverless.yml` (`${ssm:…, ''}`), so a
+deploy never fails on their absence — but each has a real meaning when set:
+
+- **`ses/reply_to_internal`** — internal-audience mail replies to the operational mailbox (FR-037).
+  Empty falls back to the public `reply_to`, so behaviour is unchanged until the operator sets it.
+- **`mail/nonprod_allowlist`** — the fail-closed non-production recipient guard (FR-043). ⚠ **Empty
+  refuses everyone but the mailbox simulator** — the safe default, not an open door.
+- **`mail/postal_address`** — operator-supplied (constitution: Real-World Identifiers). Optional at
+  runtime for transactional mail; empty omits the footer line rather than shipping a guess. A
+  Terraform validation refuses an obvious placeholder if a value is given.
 
 ## ⚠ Why `configuration_set` and `configuration_set_arn` are BOTH here
 

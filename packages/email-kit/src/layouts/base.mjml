@@ -1,0 +1,48 @@
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════
+     BASE LAYOUT — the skeleton EVERY template in src/templates/ follows.
+
+     ⚠ THIS FILE IS NOT COMPILED. Only src/templates/*.mjml are. It is the reference a new message
+     is copied from, and `check-email.mjs` asserts that every real template has the three includes
+     below and writes no colour, size or font of its own (spec FR-016 / SC-003).
+
+     ⚠ WHY THE "12 BUILDING BLOCKS" ARE NOT 12 FILES: MJML's <mj-include> has no parameters — an
+     include is spliced in verbatim, so it cannot carry content. Blocks therefore come in two kinds:
+
+       · CONTENT-FREE STRUCTURES are includes:  header · footer · divider
+       · CONTENT-CARRYING BLOCKS are mj-class recipes generated into theme.mjml from the design
+         tokens:  wordmark · h1 · body · muted · small · footer · code  (+ mj-button, mj-table)
+
+     A template selects a recipe with mj-class and NEVER writes a hex value, a font-size or a
+     font-family. That is the same guarantee twelve files would have given, enforced by a linter
+     instead of by convention — which is stronger, because a linter cannot be forgotten.
+     ═══════════════════════════════════════════════════════════════════════════════════════════ -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <!-- The generated theme: palette, type scale, both dark-mode mechanisms, the meta block, and
+         the MSO font override that stops classic Outlook rendering everything in Times New Roman. -->
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>The subject line, repeated</mj-title>
+    <!-- ⚠ PREVIEW TEXT. MJML hides this correctly for us. It must state the message's purpose,
+         must NOT repeat the subject, and must NOT contain a code or a monetary amount (FR-032). -->
+    <mj-preview>What this message is about.</mj-preview>
+  </mj-head>
+
+  <!-- ⚠ The page ground is the ramp's 50 step, NOT #FFFFFF: pure white inverts to exactly #000000,
+       the harshest possible dark surface. The value comes from the generated theme. -->
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+
+    <mj-include path="../components/header.mjml" />
+
+    <!-- ── content ──────────────────────────────────────────────────────────────────────────
+         <mj-section padding="0 32px 8px 32px">
+           <mj-column>
+             <mj-text mj-class="h1">One statement, not a greeting</mj-text>
+             <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">One sentence.</mj-text>
+           </mj-column>
+         </mj-section>
+         ────────────────────────────────────────────────────────────────────────────────────── -->
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

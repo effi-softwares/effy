@@ -863,3 +863,37 @@ contract and the web surface are done; the mobile view is the outstanding half.
 operator checks that would make them true — a code delivered to a never-registered address, the
 authentication report at Gmail/Outlook/Yahoo, the induced-bounce lockout and its repair — are listed
 in [the quickstart](../../specs/037-platform-email-delivery/quickstart.md) § 9 and remain unrun.
+
+## §038 — Platform Email Template System (038-email-template-system)
+
+Legend: ✅ built · 🔒 built this slice · ➖ deliberately not on this surface · ⬜ not yet
+
+The platform's emails move from **plain-text strings assembled inside two Lambdas** to one designed,
+guarded system — `@effy/email-kit`. Every message the platform can send is defined in one typed
+catalogue, authored in MJML, compiled to committed drift-guarded artifacts, and rendered with
+Handlebars at send. The email design derives from the monochrome design tokens (generated, never
+transcribed) and is built to survive every major client — including the Word engine and forced dark
+mode, which a hueless ramp handles by construction.
+
+| # | Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- | --- |
+| 038.1 | The **sign-in code** email arrives in the Effy design | 🔒 | 🔒 | backend-wide (edge-auth); the code is still in the subject so it reads from a lock-screen |
+| 038.2 | The **password-changed** notice arrives in the Effy design | 🔒 | 🔒 | edge-customer; keeps its no-recovery-link and swallow-on-failure rules |
+| 038.3 | **Sign-up, reset, verify, MFA** — Cognito's own four — arrive in the Effy design | 🔒 | 🔒 | via the CustomMessage interceptor; ⚠ **fail-safe to Cognito's default** so a render failure never breaks the flow |
+| 038.4 | Every message is legible with **images blocked** (brand is live text) | 🔒 | 🔒 | no logo image ships — the wordmark is type (FR-013) |
+| 038.5 | Every message survives **forced dark mode** with no dark-on-dark | 🔒 | 🔒 | the neutral ramp is inversion-immune; contrast checked in three passes incl. forced-invert |
+| 038.6 | A delivery bounce is **attributed to the message** that caused it | 🔒 | 🔒 | SES `effy-template` tag → `email_delivery_event.template_id`; ⚠ NULL for Cognito-sent (cannot be tagged) |
+| 038.7 | An **order-confirmation** receipt template exists and is proven | ⬜ | ⬜ | ⚠ **template only, no call site** (FR-062) — the receipt components proven, wiring is the order-notifications slice |
+
+⚠ **Nothing in this table has been walked by a person.** Every row is machine-verified: 14/14
+typecheck, the full test suite, `make email-check` (drift · size · contrast ×3 · structure), and the
+bundle proof that the MJML compiler never reaches a 5-second Cognito trigger. The operator checks that
+would make them true — the two-stage trigger-ARN deploy, a real inbox on Apple Mail / Gmail / the
+non-Google-account Gmail app / **classic Outlook** / Outlook.com dark mode, the fail-safe proven by
+causing it, and Cognito's real message-length limit measured — are listed in
+[the quickstart](../../specs/038-email-template-system/quickstart.md) and remain unrun.
+
+⚠ **This is a backend/shared-package slice, not a customer-UI one.** The 🔒 marks mean "the emails a
+customer on this surface receives are now branded", not that either app changed — the change is in
+`@effy/email-kit`, `edge-auth`, `edge-customer` and `edge-admin`. There is no new screen on either
+customer surface.

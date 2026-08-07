@@ -1,93 +1,35 @@
-import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2"
-
 import { logger } from "@effy/edge-shared"
+import { sendEmail } from "@effy/email-kit/send"
 
 /**
- * "Your password changed" (012 FR-025).
+ * "Your password changed" (012 FR-025), since 038 rendered by `@effy/email-kit`.
  *
  * ⚠ THIS IS THE ONLY CONTROL THAT CATCHES A *SUCCESSFUL* SILENT TAKEOVER. Every other defence in
- * this slice is about PREVENTING an illegitimate password write. This one exists for the case where
- * one happened anyway — a phished code, a compromised inbox, an insider. If the customer's real
- * address gets a message saying "your password changed" and it wasn't them, they can act. Without
- * it, a successful takeover is completely silent, and the first they learn of it is when they cannot
- * sign in.
+ * this slice PREVENTS an illegitimate password write. This one exists for the case where one
+ * happened anyway — a phished code, a compromised inbox, an insider. If the customer's real address
+ * gets a message saying "your password changed" and it wasn't them, they can act.
  *
- * ⚠⚠ NO RESET LINK IN THIS EMAIL. EVER. ⚠⚠
+ * ⚠⚠ NO RESET LINK IN THIS EMAIL. EVER. ⚠⚠ The `account-password-changed` template carries none, by
+ * construction — that link is a phishing primitive, and it puts a one-click recovery affordance into
+ * a message that, by hypothesis, may be arriving in an inbox an attacker already controls. The rule
+ * now lives in the template, not in a comment on a hand-assembled body.
  *
- * The instinct is to be helpful: "If this wasn't you, click here to reset your password." That link
- * is itself a phishing primitive — it trains customers to click password links in unsolicited mail,
- * which is the exact behaviour every credential-phishing campaign depends on, and it puts a
- * one-click account-recovery affordance into a message that, by hypothesis, may be arriving in an
- * inbox an attacker already controls. Tell them to contact support. Nothing else.
+ * ⚠ SWALLOWS on failure, by design, and this is the message's DECLARED policy
+ * (`onSendFailure: "swallow"`) rather than local handling: the password has ALREADY been changed and
+ * the Cognito write cannot be unwound, so failing the customer's request would tell them their change
+ * failed when it did not — a worse lie than a missing email. But its silent absence is exactly the
+ * condition under which a takeover goes unnoticed, so the failure is logged LOUDLY. Passing the
+ * shared `logger` is what makes `sendEmail` log the failure instead of staying silent.
  */
-
-let client: SESv2Client | undefined
-
-function ses(): SESv2Client {
-  client ??= new SESv2Client({})
-  return client
-}
-
 export async function notifyPasswordChanged(input: {
   to: string
   /** True when this is the customer's FIRST password, false when they replaced an existing one. */
   isFirstPassword: boolean
 }): Promise<void> {
-  // ⚠ 037: from the SSM-published contract, not a literal. `NOTIFY_SENDER` was a second hardcoded
-  // copy of the same address that edge-auth also hardcoded — and Terraform published a third, in a
-  // different shape. See contracts/ssm-mail.contract.md.
-  const from = process.env.MAIL_SENDER
-  if (!from) {
-    // ⚠ Deliberately NOT fatal. The password has ALREADY been changed by the time we get here — the
-    // Cognito write is done and cannot be unwound. Failing the request now would tell the customer
-    // their change failed when it did not, which is a worse lie than a missing email.
-    //
-    // But it is a REAL defect and must be loud: this is a security notification, and its silent
-    // absence is exactly the condition under which a takeover goes unnoticed.
-    logger.error("MAIL_SENDER is unset — the password-change notification was NOT sent (FR-025)")
-    return
-  }
-
-  const subject = input.isFirstPassword
-    ? "A password was added to your Effy account"
-    : "Your Effy password was changed"
-
-  const body = [
-    input.isFirstPassword
-      ? "A password was just added to your Effy account. You can now sign in with either your password or an emailed code."
-      : "Your Effy password was just changed.",
-    "",
-    "For your security, this signed you out on every device.",
-    "",
-    // No link. See the warning above.
-    "If this wasn't you, contact Effy support straight away.",
-  ].join("\n")
-
-  try {
-    await ses().send(
-      new SendEmailCommand({
-        FromEmailAddress: from,
-        Destination: { ToAddresses: [input.to] },
-
-        // 037 FR-022 / FR-024 — a reply reaches a person, and the send is attributable to a
-        // per-message outcome. Both optional at runtime: this notification already swallows its own
-        // failures (see above), so it must not become the thing that throws.
-        ...(process.env.MAIL_REPLY_TO ? { ReplyToAddresses: [process.env.MAIL_REPLY_TO] } : {}),
-        ...(process.env.MAIL_CONFIGURATION_SET
-          ? { ConfigurationSetName: process.env.MAIL_CONFIGURATION_SET }
-          : {}),
-
-        Content: {
-          Simple: {
-            Subject: { Data: subject, Charset: "UTF-8" },
-            Body: { Text: { Data: body, Charset: "UTF-8" } },
-          },
-        },
-      }),
-    )
-  } catch (err) {
-    // Same reasoning as above: the credential change is already committed. Log loudly, do not fail
-    // the customer's request over a mail-delivery problem they cannot do anything about.
-    logger.error({ err }, "password-change notification failed to send (FR-025)")
-  }
+  await sendEmail(
+    "account-password-changed",
+    { isFirstPassword: input.isFirstPassword },
+    { to: input.to, audience: "customer" },
+    logger,
+  )
 }

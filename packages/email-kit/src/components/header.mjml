@@ -1,0 +1,18 @@
+<!-- HEADER — the Effy wordmark.
+
+     ⚠ LIVE TEXT, NOT AN IMAGE, and this is load-bearing rather than a convenience (spec FR-013):
+       · classic Outlook blocks images by DEFAULT, so an image logo is absent on first render;
+       · SVG is now blocked across Gmail, Outlook and Yahoo after a 2025 surge in malicious payloads;
+       · a dark transparent PNG becomes invisible the moment a client darkens the surface under it.
+     Type inverts perfectly and costs no bytes. For a hueless design the wordmark IS type, so this
+     is nearly free — the strongest single recommendation in the compatibility research.
+
+     ⚠ ONE SECTION, ONE COLUMN. Every mj-section costs ~2.5 KB of table scaffolding and MSO ghost
+     tables, and four of the platform's seven templates are routed through Cognito, whose message
+     limit is ~20,000 characters — five times tighter than Gmail's. Section count, not word count,
+     is what spends that budget. Do not split this into two. -->
+<mj-section padding="32px 32px 20px 32px">
+  <mj-column>
+    <mj-text mj-class="wordmark">{{effyProductName}}</mj-text>
+  </mj-column>
+</mj-section>

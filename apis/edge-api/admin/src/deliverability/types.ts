@@ -49,6 +49,11 @@ export interface DeliveryEvent {
   /** ⚠ The receiving server's own text. Stored for operators; NEVER logged — it contains the address. */
   diagnostic: string | null;
   messageId: string;
+  /**
+   * ⚠ The `@effy/email-kit` template id from the SES `effy-template` tag (038). NULL means the
+   * message was sent by Cognito (which cannot be tagged) or predates 038 — data, not a gap.
+   */
+  templateId: string | null;
   occurredAt: string;
 }
 
@@ -97,6 +102,8 @@ export interface DeliveryEventDTO {
   eventType: DeliveryEventType;
   subType: string | null;
   messageId: string;
+  /** ⚠ NULL = "sent by Cognito, or before 038" — the console must render it as such, not as unknown. */
+  templateId: string | null;
   occurredAt: string;
 }
 

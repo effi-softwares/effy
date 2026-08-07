@@ -101,5 +101,32 @@ export interface PostAuthenticationEvent extends BaseTriggerEvent {
   response: Record<string, never>;
 }
 
+/**
+ * `CustomMessage` — the trigger that lets the platform BRAND the four messages Cognito sends itself
+ * (sign-up confirmation, password reset, email verification, MFA). 038.
+ *
+ * ⚠ `codeParameter` IS A PLACEHOLDER, NOT A CODE. It holds the literal string `{####}`, which Cognito
+ * substitutes AFTER this trigger returns — the platform never sees the real code. The rendered HTML
+ * must contain `{####}` where the code belongs. This is a security PROPERTY (the platform gains a
+ * branded message without taking custody of a credential), not an inconvenience.
+ */
+export interface CustomMessageEvent extends BaseTriggerEvent {
+  readonly request: {
+    readonly userAttributes: Record<string, string>;
+    /** ⚠ `{####}` — see the type note above. Use it as given; do not hardcode the placeholder. */
+    readonly codeParameter: string;
+    readonly usernameParameter?: string;
+    readonly linkParameter?: string;
+    readonly clientMetadata?: Record<string, string>;
+  };
+  response: {
+    smsMessage?: string | null;
+    /** We set this (the rendered HTML). */
+    emailMessage?: string | null;
+    /** We set this. */
+    emailSubject?: string | null;
+  };
+}
+
 /** The one challenge name this platform authors. Everything else is somebody else's state. */
 export const CUSTOM_CHALLENGE = "CUSTOM_CHALLENGE";

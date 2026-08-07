@@ -1,0 +1,51 @@
+{
+  "account-password-changed": {
+    "htmlBytes": 15795,
+    "htmlChars": 15787,
+    "textBytes": 655,
+    "htmlSha": "9e32c3e59ded7f18",
+    "textSha": "acc50cf56bb4ce82"
+  },
+  "auth-email-verification-code": {
+    "htmlBytes": 15568,
+    "htmlChars": 15560,
+    "textBytes": 351,
+    "htmlSha": "faea84cd46ed2e78",
+    "textSha": "b8ed960744d46bd5"
+  },
+  "auth-password-reset-code": {
+    "htmlBytes": 15641,
+    "htmlChars": 15633,
+    "textBytes": 419,
+    "htmlSha": "35ba1db86e20e0b0",
+    "textSha": "3ddcce995750fa26"
+  },
+  "auth-sign-in-code": {
+    "htmlBytes": 15722,
+    "htmlChars": 15714,
+    "textBytes": 463,
+    "htmlSha": "c5ff1b7c3f77bcef",
+    "textSha": "36a873160f094935"
+  },
+  "auth-sign-up-code": {
+    "htmlBytes": 15592,
+    "htmlChars": 15584,
+    "textBytes": 370,
+    "htmlSha": "c75ca2e4f928c337",
+    "textSha": "605afbaae27ba788"
+  },
+  "auth-step-up-code": {
+    "htmlBytes": 15591,
+    "htmlChars": 15583,
+    "textBytes": 379,
+    "htmlSha": "b383414c2e761f40",
+    "textSha": "8d4d518a448e81dd"
+  },
+  "order-confirmation": {
+    "htmlBytes": 28927,
+    "htmlChars": 28919,
+    "textBytes": 480,
+    "htmlSha": "fc330e55a63eb298",
+    "textSha": "7e17e39ee8141911"
+  }
+}

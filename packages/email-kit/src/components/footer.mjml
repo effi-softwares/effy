@@ -1,0 +1,33 @@
+<!-- FOOTER — one footer, for every message, from one file.
+
+     ⚠ NOT per-message, on purpose. Before this package the platform had exactly TWO emails and
+     already had two different sign-offs: one said "— Effy", the other said nothing. At sixty
+     messages that becomes sixty footers.
+
+     The three values are platform-injected by the render layer, never passed by a call site:
+       {{effyProductName}}   — from the message's audience
+       {{effySupportEmail}}  — DERIVED from audience (hello@ customer-facing, workspace-admin@
+                               internal). ⚠ A send site cannot invent a third address.
+       {{effyPostalAddress}} — ⚠ OPERATOR-SUPPLIED via SSM. Never inferred; the send fails loudly
+                               when it is unset (constitution: Real-World Identifiers).
+
+     ⚠ NO UNSUBSCRIBE LINK. Every message shipping today is transactional, and an unsubscribe
+     control on a sign-in code is an account lockout with no recovery path — driver, shop and
+     back-office have no other credential. The catalogue makes the wrong combination unrepresentable
+     rather than relying on this comment.
+
+     ⚠ THE RULE AND THE TEXT SHARE ONE SECTION. See the note in header.mjml: section count is what
+     spends the Cognito budget. mj-divider inside the same column is the same hairline for ~2.5 KB
+     less than a section of its own. -->
+<mj-section padding="8px 32px 32px 32px">
+  <mj-column>
+    <mj-divider padding="0 0 20px 0" />
+    <mj-text mj-class="footer" css-class="e-muted">
+      {{effyProductName}}{{#if effyPostalAddress}}<br />
+      {{effyPostalAddress}}{{/if}}
+    </mj-text>
+    <mj-text mj-class="footer" css-class="e-muted" padding="8px 0 0 0">
+      Questions? Reply to this email or write to {{effySupportEmail}}.
+    </mj-text>
+  </mj-column>
+</mj-section>

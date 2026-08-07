@@ -90,6 +90,59 @@ variable "custom_auth_lambda_arns" {
   default = null
 }
 
+variable "custom_message_lambda_arn" {
+  description = <<-EOT
+    The 038 CustomMessage trigger ARN, shared by ALL FOUR pools — brands Cognito's own sign-up,
+    password-reset, email-verification and MFA messages.
+
+    ⚠ TWO-STAGE, same shape as custom_auth_lambda_arns:
+      1. apply with this null  → pools keep Cognito's default (unbranded) messages
+      2. make edge-deploy SERVICE=auth ENV=dev   (the function is in the auth service, already there)
+      3. set this in dev.tfvars from the deployed `customMessage` ARN
+      4. apply again  → the four messages switch to the platform design
+    Cognito validates a trigger on UpdateUserPool, so a not-yet-deployed ARN fails the apply. Setting
+    it is an IN-PLACE update, but read the plan anyway (035 FR-030): a replaced pool destroys accounts.
+  EOT
+  type        = string
+  default     = null
+}
+
+variable "mail_nonprod_allowlist" {
+  description = <<-EOT
+    Non-production recipient allowlist for email (038 FR-043). Comma-separated exact addresses and/or
+    `@domain` entries. email-kit refuses any recipient not on this list in any non-prod environment
+    (the mailbox simulator is always allowed).
+
+    ⚠ DEFAULT IS EMPTY, which fail-closes to "refuse everyone but the simulator" — the safe default.
+    Set it in dev.tfvars before the first live sign-in walk so real test inboxes can receive mail.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "mail_postal_address" {
+  description = <<-EOT
+    Operator-supplied postal address for the email footer (constitution: Real-World Identifiers).
+
+    ⚠ Optional at runtime for transactional mail (CAN-SPAM-exempt) — empty omits the footer line
+    rather than shipping a guessed address. It MUST NOT be a placeholder if given; the validation
+    below refuses obvious ones. Lifecycle mail (none in this slice) must enforce presence separately.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    # ⚠ Empty is allowed (absent, not guessed). A NON-empty value must be real, not a placeholder —
+    # a wrong outward-facing value that silently works is worse than an omitted line, because it
+    # reaches real people. This is the constitution's "refuse a placeholder" applied to the one
+    # real-world identifier this slice prints on every email.
+    condition = var.mail_postal_address == "" || !can(regex(
+      "(?i)(placeholder|example|todo|xxx|123 (main|test|fake))", var.mail_postal_address
+    ))
+    error_message = "mail_postal_address looks like a placeholder. Supply the operator's real address, or leave it empty to omit the footer line."
+  }
+}
+
 variable "auth_urls" {
   description = "Per-audience app-client callback/logout URLs (dev placeholders for now). Keys: customer, driver, shop, back_office."
   type = map(object({

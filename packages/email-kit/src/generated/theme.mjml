@@ -1,0 +1,118 @@
+<mj-attributes>
+  <mj-all font-family="'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />
+
+  <mj-text font-size="16px" line-height="24px" font-weight="400" color="#1a1a1a" padding="0" align="left" css-class="e-ink" />
+  <mj-section background-color="#ffffff" css-class="e-bg-canvas" padding="0" />
+  <mj-column padding="0" />
+  <mj-button background-color="#1a1a1a" color="#ffffff" border-radius="8px"
+             font-size="16px" line-height="20px" font-weight="600" inner-padding="14px 28px" align="left" css-class="e-btn-bg" />
+  <mj-divider border-width="1px" border-style="solid" border-color="#e6e6e6" padding="0" css-class="e-rule" />
+
+  <mj-class name="wordmark" font-size="22px" line-height="28px" font-weight="600" letter-spacing="-0.01em" color="#1a1a1a" />
+  <mj-class name="h1" font-size="24px" line-height="32px" font-weight="600" letter-spacing="-0.01em" color="#1a1a1a" />
+  <mj-class name="body" font-size="16px" line-height="24px" font-weight="400" color="#1a1a1a" />
+  <mj-class name="muted" font-size="16px" line-height="24px" font-weight="400" color="#666666" />
+  <mj-class name="small" font-size="14px" line-height="21px" font-weight="400" color="#666666" />
+  <mj-class name="footer" font-size="14px" line-height="21px" font-weight="400" color="#666666" />
+  <mj-class name="code" font-size="36px" line-height="44px" font-weight="500" letter-spacing="0.15em" color="#1a1a1a" />
+</mj-attributes>
+
+<mj-style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+
+  /* ⚠ Apple's data detectors re-colour phone numbers, dates and addresses in their own blue —
+     a third hue the constitution forbids. This is the only way to refuse it. */
+  a[x-apple-data-detectors] {
+    color: inherit !important; text-decoration: none !important; font-size: inherit !important;
+    font-family: inherit !important; font-weight: inherit !important; line-height: inherit !important;
+  }
+
+  /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
+     NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
+  @media (prefers-color-scheme: dark) {
+      .e-bg-page { background-color: #0a0a0a !important; }
+      .e-bg-canvas { background-color: #1a1a1a !important; }
+      .e-bg-code { background-color: #333333 !important; }
+      .e-ink,
+      .e-ink div,
+      .e-ink p,
+      .e-ink span,
+      .e-ink a,
+      .e-ink h1 { color: #ffffff !important; }
+      .e-muted,
+      .e-muted div,
+      .e-muted p,
+      .e-muted span,
+      .e-muted a,
+      .e-muted h1 { color: #b3b3b3 !important; }
+      .e-rule p { border-top-color: #4d4d4d !important; }
+      .e-btn-bg td { background-color: #f5f5f5 !important; }
+      .e-btn-fg,
+      .e-btn-fg div,
+      .e-btn-fg p,
+      .e-btn-fg span,
+      .e-btn-fg a,
+      .e-btn-fg h1 { color: #1a1a1a !important; }
+      .e-error,
+      .e-error div,
+      .e-error p,
+      .e-error span,
+      .e-error a,
+      .e-error h1 { color: #ff6b6b !important; }
+  }
+</mj-style>
+
+<mj-style>
+  /* Dark, mechanism 2 of 2 — the SAME rules as the media query above, for Outlook.com and the
+     Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
+     (DARK_RULES) so they cannot drift. */
+    [data-ogsc] .e-bg-page,
+    [data-ogsb] .e-bg-page { background-color: #0a0a0a !important; }
+    [data-ogsc] .e-bg-canvas,
+    [data-ogsb] .e-bg-canvas { background-color: #1a1a1a !important; }
+    [data-ogsc] .e-bg-code,
+    [data-ogsb] .e-bg-code { background-color: #333333 !important; }
+    [data-ogsc] .e-ink,
+    [data-ogsc] .e-ink div,
+    [data-ogsc] .e-ink p,
+    [data-ogsc] .e-ink span,
+    [data-ogsc] .e-ink a,
+    [data-ogsc] .e-ink h1 { color: #ffffff !important; }
+    [data-ogsc] .e-muted,
+    [data-ogsc] .e-muted div,
+    [data-ogsc] .e-muted p,
+    [data-ogsc] .e-muted span,
+    [data-ogsc] .e-muted a,
+    [data-ogsc] .e-muted h1 { color: #b3b3b3 !important; }
+    [data-ogsc] .e-rule p { border-top-color: #4d4d4d !important; }
+    [data-ogsc] .e-btn-bg td,
+    [data-ogsb] .e-btn-bg td { background-color: #f5f5f5 !important; }
+    [data-ogsc] .e-btn-fg,
+    [data-ogsc] .e-btn-fg div,
+    [data-ogsc] .e-btn-fg p,
+    [data-ogsc] .e-btn-fg span,
+    [data-ogsc] .e-btn-fg a,
+    [data-ogsc] .e-btn-fg h1 { color: #1a1a1a !important; }
+    [data-ogsc] .e-error,
+    [data-ogsc] .e-error div,
+    [data-ogsc] .e-error p,
+    [data-ogsc] .e-error span,
+    [data-ogsc] .e-error a,
+    [data-ogsc] .e-error h1 { color: #ff6b6b !important; }
+</mj-style>
+
+<mj-raw>
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no,url=no" />
+</mj-raw>
+
+<mj-raw>
+  <!--[if mso]>
+  <style type="text/css">
+    * { font-family: Arial, Helvetica, sans-serif !important; }
+    table, td, h1, h2, h3, p, a, span, div { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+</mj-raw>
