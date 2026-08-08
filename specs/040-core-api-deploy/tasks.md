@@ -165,8 +165,8 @@ one env wrapper, several stories necessarily touch the same files — those task
 
 ### ⚙️ Operator live-AWS steps (handed off — Claude does NOT run these)
 
-- [ ] T045 ⚙️ OPERATOR [US3] `cd infra/envs/dev && terraform plan -out core-api.plan` → **cost/negative-space audit** (one service, no autoscaling/NAT/endpoint/new-cert/new-secret/new-DB) → `terraform apply core-api.plan`.
-- [ ] T046 ⚙️ OPERATOR [US6] `make core-ecr-login ENV=dev` → `make core-image-push ENV=dev TAG=latest` → `make core-deploy ENV=dev`; `aws ecs wait services-stable`.
+- [X] T045 ⚙️ OPERATOR [US3] `cd infra/envs/dev && terraform plan -out core-api.plan` → **cost/negative-space audit** (one service, no autoscaling/NAT/endpoint/new-cert/new-secret/new-DB) → `terraform apply core-api.plan`.
+- [X] T046 ⚙️ OPERATOR [US6] `make core-ecr-login ENV=dev` → `make core-image-push ENV=dev TAG=latest` → `make core-deploy ENV=dev`; `aws ecs wait services-stable`.
 - [ ] T047 ⚙️ OPERATOR [US1] Acceptance: `curl https://core-api.dev.effyshopping.com/healthz` → 200 trusted TLS (SC-001); a real read `/v1/storefront/home` (SC-002); HTTP→HTTPS 301 (SC-007); uncovered-host + long-request checks (SC-010).
 - [ ] T048 ⚙️ OPERATOR [US4] Force the task unhealthy → confirm ALB deregisters + 503, restore → resumes (SC-006); push a deliberately health-failing image → confirm circuit-breaker rollback, then restore.
 - [ ] T049 ⚙️ OPERATOR [US5] Sweep image + `aws logs tail /ecs/effy-dev-core-api` for `password=|sk_…|whsec_|BEGIN|AKIA` → clean (SC-008).

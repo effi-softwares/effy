@@ -225,10 +225,14 @@ template.** Both built mobile apps now share a **production navigation shell** (
 adaptive bottom-bar/rail + per-tab back stacks; customer guest-first with deferred sign-in, shop login-first;
 built on stable Material 3, Nav3-migration-ready). Still the **documented vision**: the **catalog** (there
 are no product tables anywhere yet — spec'd as **016-shop-product-catalog**),
-**cart / checkout / payment**, the hot path's **cloud deployment** (`core-api` was local-Docker-only by
-decision — its go-live is its own slice, now **spec'd + built as 040-core-api-deploy**: cheapest
-single-task Fargate + ALB at `core-api.dev.effyshopping.com`, no autoscaling, operator apply/deploy
-pending), and the **event backbone**.
+**cart / checkout / payment**, the hot path's **cloud deployment** — ✅ **DONE for dev as
+040-core-api-deploy**: `core-api` was local-Docker-only; it now runs as a cheapest single-task Fargate
+service + ALB (no autoscaling, default-VPC public subnets, no NAT, ~$30/mo), **DEPLOYED and LIVE at
+`core-api.dev.effyshopping.com`**, with customer-mobile wired to it. ⚠ Acceptance walk (health/secret-
+sweep/cost-audit SC proofs), customer-web repoint + CORS, container CI/CD, and the commit are pending;
+prod bring-up carries recorded dependencies (apex cert/record, private DB + NAT). Sign-off:
+[specs/040-core-api-deploy/SIGNOFF.md](specs/040-core-api-deploy/SIGNOFF.md). Still ahead: the
+**event backbone**.
 
 Everything gets built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.

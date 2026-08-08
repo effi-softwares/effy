@@ -34,14 +34,16 @@ make core-run ENV=dev           # local path still works on DB_DSN (nothing loca
 
 ## 2. Apply the infrastructure (creates ECR, ALB, service, IAM, DNS — service not yet healthy)
 
+⚠ Every Terraform call MUST carry the platform's AWS profile. Use the Makefile (it wraps
+`AWS_PROFILE=ef terraform`) — a bare `terraform init` uses default creds and 403s on the state bucket.
+
 ```bash
-cd infra/envs/dev
-terraform init
-terraform plan -out core-api.plan      # ── THE US3 COST AUDIT ──
+make init ENV=dev                  # AWS_PROFILE=ef terraform init (backend needs the ef profile)
+make plan ENV=dev                  # ── THE US3 COST AUDIT ──
 # Confirm in the plan: exactly ONE ecs_service (desired_count 1); NO aws_appautoscaling_*;
 # NO aws_nat_gateway / aws_eip(nat) / aws_vpc_endpoint; NO new aws_acm_certificate;
 # NO new aws_secretsmanager_secret; NO aws_db_instance. Then:
-terraform apply core-api.plan
+make apply ENV=dev
 ```
 
 `wait_for_steady_state = false`, so apply returns even though the service has **no image yet** — the
@@ -117,7 +119,8 @@ is what unblocks every "not walked live" customer-facing item that depended on t
 ## Teardown
 
 ```bash
-cd infra/envs/dev && terraform destroy   # removes the module's resources; the reused DB/cert/zone/secrets are owned elsewhere and remain
+make destroy ENV=dev   # AWS_PROFILE=ef; removes the whole dev root. To drop ONLY core-api, target the module:
+                       # AWS_PROFILE=ef terraform -chdir=infra/envs/dev destroy -target=module.core_api
 ```
 
 ## Production (NOT this slice — dependency checklist)
