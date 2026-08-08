@@ -10,6 +10,10 @@ secrets.properties
 # 013 D12 — we configure Amplify from code; if anyone reintroduces a generated file, keep it out too.
 amplifyconfiguration.json
 amplify_outputs.json
+# DEV signing — the keystore and its passwords are local-only, never committed (like secrets.properties).
+keystore.properties
+keystore/
+
 .idea
 .DS_Store
 captures

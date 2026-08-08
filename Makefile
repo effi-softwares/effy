@@ -32,7 +32,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
         shop-dev shop-build shop-lint shop-test \
         cw-dev cw-build cw-lint cw-test cw-e2e cw-gates cw-size cw-depcruise \
         shop-verify-isolation shop-verify-gate shop-token-claims \
-        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-ngrok-edge cm-ngrok-core \
+        cm-contract-gen cm-contract-check cm-tokens-gen cm-tokens-check cm-guard cm-codegen cm-keystore cm-apk cm-ngrok-edge cm-ngrok-core \
         sm-contract-gen sm-contract-check sm-tokens-check sm-guard sm-codegen sm-test sm-ngrok-edge \
         brand-gen brand-check email-gen email-check email-preview \
         storefront-locks storefront-locks-update \
@@ -363,6 +363,31 @@ cm-tokens-check: ## customer-mobile: FAIL if the committed Compose theme drifts 
 cm-guard: ## customer-mobile: the build-failing guard — escape-hatch ban (FR-024) + no secret-shaped keys (FR-042)
 	@bash scripts/mobile-guard.sh
 cm-codegen: cm-contract-check cm-tokens-check ## customer-mobile: both Principle-II drift checks together
+
+# --- customer-mobile: shareable DEV APK. A DEV keystore + a signed release APK you can sideload on a
+# real Android phone. The keystore and its passwords are git-ignored (keystore.properties / keystore/),
+# exactly like secrets.properties. This is a DEV signing key for internal test builds — NOT a store key.
+CM_KEYSTORE       ?= keystore/customer-dev.jks
+CM_KEY_ALIAS      ?= effy-customer-dev
+CM_KEYSTORE_PASS  ?= effydevkeystore
+cm-keystore: ## customer-mobile: generate the git-ignored DEV signing keystore (idempotent — skips if present)
+	@cd apps/customer-mobile && if [ -f "$(CM_KEYSTORE)" ]; then \
+	  echo "cm-keystore: $(CM_KEYSTORE) already exists — leaving it in place"; \
+	else \
+	  mkdir -p "$$(dirname $(CM_KEYSTORE))"; \
+	  keytool -genkeypair -v -keystore "$(CM_KEYSTORE)" -alias "$(CM_KEY_ALIAS)" \
+	    -keyalg RSA -keysize 2048 -validity 10000 \
+	    -storepass "$(CM_KEYSTORE_PASS)" -keypass "$(CM_KEYSTORE_PASS)" \
+	    -dname "CN=Effy Customer Dev, OU=Development, O=Effy, L=Sydney, ST=NSW, C=AU"; \
+	  echo "cm-keystore: created $(CM_KEYSTORE) — ensure keystore.properties points at it"; \
+	fi
+cm-apk: ## customer-mobile: build a signed DEV release APK for sideloading (needs secrets.properties + a keystore)
+	@test -f apps/customer-mobile/secrets.properties || { echo "cm-apk: apps/customer-mobile/secrets.properties missing — copy secrets.properties.example and fill from 'make output ENV=dev'"; exit 1; }
+	@test -f apps/customer-mobile/keystore.properties || { echo "cm-apk: apps/customer-mobile/keystore.properties missing — run 'make cm-keystore' then create it (see keystore.properties)"; exit 1; }
+	@cd apps/customer-mobile && ./gradlew :androidApp:assembleRelease
+	@echo ""
+	@echo "cm-apk: APK ready → apps/customer-mobile/androidApp/build/outputs/apk/release/androidApp-release.apk"
+	@echo "        install:  adb install -r <that path>   (or share the file and open it on the phone)"
 
 # --- brand marks (024). One authored vector -> every icon/splash/favicon on all six surfaces.
 # Same shape as the tokens generator above: an authored source, COMMITTED derived artifacts, and a
