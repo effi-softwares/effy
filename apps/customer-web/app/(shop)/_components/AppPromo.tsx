@@ -19,7 +19,7 @@ import { StoreBadges } from "./StoreBadges"
  */
 export function AppPromo() {
   return (
-    <section className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+    <section className="container py-12 sm:py-16">
       <div className="grid items-center gap-8 rounded-3xl bg-muted px-6 py-10 sm:px-10 sm:py-12 lg:grid-cols-2 lg:gap-12">
         <div>
           <Display size="sub">The Effy app is on its way</Display>

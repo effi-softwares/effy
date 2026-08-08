@@ -530,7 +530,7 @@ export function SectionShell({
   if (isEmptyContent(children)) return null
 
   return (
-    <section className={cn("mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14", className)}>
+    <section className={cn("container py-10 sm:py-14", className)}>
       {!headless && title && <SectionHeader title={title} href={href} linkLabel={linkLabel} />}
       {children}
     </section>

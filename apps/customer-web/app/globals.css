@@ -19,6 +19,48 @@
 /* Tokens + the @theme mapping + the `dark` variant, all from the design system. */
 @import "@effy/design-system/tokens.css";
 
+/* ── The content column ────────────────────────────────────────────────────────────────────────
+ *
+ * ONE definition of "how wide is the page and how far off the edge does it sit", used by every
+ * section, layout and page on this surface.
+ *
+ * ⚠ Before this it was the literal string `mx-auto w-full max-w-7xl px-4 sm:px-6`, written out in
+ * TWENTY-FOUR places — the header, the footer, the hero, every rail, every page. Four separate
+ * decisions (centring, full width, the 80rem cap, the responsive gutter) repeated verbatim, which
+ * meant the page's alignment could only be changed by finding all twenty-four and keeping them in
+ * step. That is the same drift the product grid's `productGrid` constant was extracted to prevent.
+ *
+ * ── Why a custom `@utility`, not Tailwind's stock `container` ──────────────────────────────────
+ *
+ * Tailwind v4's built-in `container` is NOT the v3 one: it centres nothing, pads nothing, and has
+ * no `center`/`padding` config options — those were removed, and it is now a plain set of
+ * breakpoint max-widths. Redefining it with `@utility container` is v4's supported override and is
+ * what shadcn's own v4 templates do.
+ *
+ * The values are the previous ones EXACTLY, so this change is a refactor and not a re-layout:
+ * 80rem is `max-w-7xl`, and the product grid's column counts were chosen from the card width they
+ * produce inside it (see `productGrid` in ProductCard.tsx) — narrowing this silently re-tunes every
+ * listing on the storefront.
+ *
+ * ⚠ It intentionally does NOT grow at `2xl`. A grocery listing at 96rem gets a sixth short column,
+ * not a better page.
+ *
+ * ⚠ Tailwind still emits its OWN `.container` breakpoint rules (40rem…96rem) alongside this one; the
+ * override wins on source order, not specificity. Verified in a browser rather than assumed — the
+ * computed `max-width` is 1280px and the gutter 16px/24px at 390…1920px. The e2e assertion in
+ * `e2e/container.spec.ts` is what keeps that true, because the failure mode is silent: if the stock
+ * rules ever won, every page would simply be wider, which looks like a design choice.
+ */
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 80rem;
+  padding-inline: --spacing(4);
+  @variant sm {
+    padding-inline: --spacing(6);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

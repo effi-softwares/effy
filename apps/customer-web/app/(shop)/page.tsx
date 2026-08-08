@@ -145,7 +145,7 @@ async function HomeContent() {
           )}
           {/* The reference closes each merchandising section with a hairline rule. */}
           {section.kind === "rail" && i < sections.length - 1 && (
-            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+            <div className="container">
               <hr className="border-border" />
             </div>
           )}
@@ -170,7 +170,7 @@ function sectionKey(section: HomeSection): string {
  */
 function HomeSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6" aria-hidden="true">
+    <div className="container py-12" aria-hidden="true">
       {/* The category strip — circles, matching CategoryStrip's tiles rather than generic bars. */}
       <div className="mb-16 space-y-8">
         <div className="h-9 w-64 animate-pulse rounded bg-muted" />
@@ -210,7 +210,7 @@ function HomeSkeleton() {
  */
 function EmptyStore() {
   return (
-    <div className="mx-auto my-16 w-full max-w-7xl px-4 sm:px-6">
+    <div className="container my-16">
       <EmptyState
         title="The shelves are still being stocked"
         description="Our catalogue is on its way. Search is open if you know what you're after."
@@ -222,7 +222,7 @@ function EmptyStore() {
 
 function StoreUnavailable() {
   return (
-    <div className="mx-auto my-16 w-full max-w-7xl px-4 sm:px-6">
+    <div className="container my-16">
       <EmptyState
         title="We couldn&rsquo;t load the store just now"
         description="This is on us, not you. Reloading usually sorts it — or browse the categories directly."

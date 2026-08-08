@@ -29,7 +29,7 @@ export function StorefrontFooter() {
     <>
       {/* ── 1. Value props ───────────────────────────────────────────────────────────────────── */}
       <section className="mt-16 border-t bg-background">
-        <div className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-12 sm:grid-cols-3 sm:px-6">
+        <div className="container grid gap-8 py-12 sm:grid-cols-3">
           <ValueProp
             icon={<Headphones className="size-5" aria-hidden="true" />}
             title="Browse without an account"
@@ -50,7 +50,7 @@ export function StorefrontFooter() {
 
       {/* ── 2. Closing CTA ───────────────────────────────────────────────────────────────────── */}
       <section className="bg-foreground text-background">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="container flex flex-col gap-5 py-10 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Start your first order</h2>
             <p className="mt-1.5 text-sm text-background/70">
@@ -76,7 +76,7 @@ export function StorefrontFooter() {
 
       {/* ── 3. Dark footer ───────────────────────────────────────────────────────────────────── */}
       <footer className="bg-foreground text-background/80">
-        <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6">
+        <div className="container py-12">
           <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
             <FooterColumn
               title="Shop"

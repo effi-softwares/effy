@@ -20,7 +20,7 @@ export default function AuthLayout({
       <ConfigureAmplify />
 
       <header className="border-b">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center px-4 sm:px-6">
+        <div className="container flex h-16 items-center">
           <BrandMark />
         </div>
       </header>

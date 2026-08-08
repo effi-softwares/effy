@@ -81,7 +81,7 @@ export function Hero({
         )}
 
         <div className="absolute inset-0">
-          <div className="mx-auto flex h-full w-full max-w-7xl items-center px-4 sm:px-6">
+          <div className="container flex h-full items-center">
             <div className={`max-w-xl ${hasArt ? onLightScrim : "text-foreground"}`}>
               <Display as="h2" size="hero">
                 Everything you need, delivered

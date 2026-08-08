@@ -31,7 +31,7 @@ export function ProductRail({
   if (products.length === 0) return null
 
   return (
-    <section className={`mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 ${className ?? ""}`}>
+    <section className={`container py-12 sm:py-16 ${className ?? ""}`}>
       <CenteredHeading>{title}</CenteredHeading>
 
       {/* Columns and gutters come from `productGrid` so every listing on the storefront shares one

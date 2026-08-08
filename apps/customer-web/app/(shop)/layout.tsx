@@ -24,20 +24,25 @@ import { ToastRegion } from "./_components/ToastRegion"
  * "rendered from scratch on every request", which is the difference between the storefront this is
  * meant to be and a slow one.
  *
- * ── The chrome, after the shadcn navbar-03 pattern ─────────────────────────────────────────────
+ * ── The chrome, after the shadcn navbar-01 pattern ─────────────────────────────────────────────
  *
- * An information bar, then a header of TWO ROWS divided by a hairline:
+ * An information bar, then ONE header row (operator direction, 2026-08-08):
  *
  *   info    shop-level announcement (dark, scrolls away)
  *   ═══════════════════════════════════════════════════════════════════════════════════
- *   row 1   delivery location (left)                ·   search + cart + account (right)
+ *   ≥ lg    logo · primary nav          ·          search · cart · account
  *   ───────────────────────────────────────────────────────────────────────────────────
- *   row 2   logo + wordmark (left)                  ·   primary nav, pipe-separated (right)
+ *   < lg    logo                        ·          cart · menu
+ *           full-width search (its own row, below the sticky header)
  *
- * The split is what makes it read as a store rather than an app bar: the top row is *about the shop*
- * (where it delivers, who you are, what's in your basket) and the bottom row is *about the catalogue*.
- * Mixing the two into one row is what the previous header did, and it is why the logo, nav, search and
- * five icons were all competing for the same horizontal space.
+ * ⚠ THE DESKTOP THRESHOLD IS `lg`, NOT `md`. Five things now share one row — mark, four
+ * pipe-separated links, a search field, the cart and the account control — and at 768 px they do not
+ * fit without the nav wrapping into the search box. Below `lg` the links and the account control move
+ * into the drawer, which is what makes the single row possible at all: the merge is only safe because
+ * the small-screen layout drops to two controls, not because the row got tighter.
+ *
+ * ⚠ `PrimaryNav` (`hidden lg:flex`) and `MobileNav` (`lg:hidden`) MUST keep the same breakpoint, or
+ * the same four links are in the accessibility tree twice at some width.
  *
  * ⚠ NO blur and NO translucency — the header is opaque and shares the page surface.
  */
@@ -57,7 +62,7 @@ export default function ShopLayout({
           Effy's copy states what is TRUE of the platform: delivery framing and the guest-first
           promise. No invented phone number, no invented opening hours. */}
       <div className="bg-foreground text-background">
-        <div className="mx-auto flex h-9 w-full max-w-7xl items-center justify-between gap-4 px-4 text-xs sm:px-6">
+        <div className="container flex h-9 items-center justify-between gap-4 text-xs">
           <span className="truncate">Fresh groceries and everyday essentials, delivered</span>
           <span className="hidden shrink-0 sm:inline">
             Browse without an account —{" "}
@@ -70,51 +75,40 @@ export default function ShopLayout({
       </div>
 
       <header className={`sticky top-0 z-40 border-b ${pageSurface}`}>
-        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-          {/* ── Row 1: utility + actions ───────────────────────────────────────────────────── */}
-          <div className="flex h-16 items-center gap-4 border-b">
-            {/* FR-012: the delivery location. It lives here rather than beside the cart because
-                "do you deliver to me" is shop information, not a shopping action — the same slot the
-                reference gives to its utility links. */}
-            {/* ⚠ DYNAMIC HOLE. `DeliverySeed` reads the session + default address at request time so a
-                signed-in shopper is never asked where they live (030 FR-018). It MUST stay inside this
-                <Suspense> — and this file must never read cookies itself, or every public page stops
-                prerendering into a static shell. The fallback is the same affordance without a seed,
-                so the shell ships immediately and nothing shifts. */}
+        <div className="container flex h-16 items-center gap-4 lg:gap-6">
+          {/* Identity, then the catalogue — the two things that answer "where am I and what is here". */}
+          <BrandMark />
+          <Suspense fallback={<PrimaryNavFallback />}>
+            <PrimaryNav />
+          </Suspense>
 
-            <div className="flex-1" />
-
+          {/* `ml-auto` rather than `justify-between`: the nav must sit BESIDE the mark, not spread away
+              from it, so the row reads left-to-right as identity → catalogue → actions. */}
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
             {/* FR-011: a persistent search entry. Compact here so it does not crowd the row; the
                 full-width field appears under the header on small screens.
                 ⚠ Wrapped in <Suspense> because HeaderSearch reads useSearchParams(), which under
                 cacheComponents is a dynamic read — outside a boundary it makes the whole route
                 blocking, and the build fails rather than letting that happen. The fallback is the
                 same control minus the value, so the shell still ships a usable box. */}
-            <Suspense fallback={<HeaderSearchFallback className="hidden w-64 lg:block" />}>
-              <HeaderSearch className="hidden w-64 lg:block" />
+            <Suspense fallback={<HeaderSearchFallback className="hidden lg:block lg:w-60 xl:w-72" />}>
+              <HeaderSearch className="hidden lg:block lg:w-60 xl:w-72" />
             </Suspense>
 
-            <div className="flex items-center gap-3">
-              <MiniCart />
-              {/* DYNAMIC HOLE — reads cookies at request time and streams into this reserved slot
-                  while the rest of the page is already on screen.
-                  ⚠ Hidden below `md`: on a phone the account control lives in the drawer instead, so
-                  the header carries only the cart. */}
-              <div className="hidden md:block">
-                <Suspense fallback={<UserIslandSkeleton />}>
-                  <UserIsland />
-                </Suspense>
-              </div>
+            <MiniCart />
+
+            {/* DYNAMIC HOLE — reads cookies at request time and streams into this reserved slot
+                while the rest of the page is already on screen.
+                ⚠ Hidden below `lg`: on a phone the account control lives in the drawer instead, so
+                the header carries only the cart and the menu. */}
+            <div className="hidden lg:block">
+              <Suspense fallback={<UserIslandSkeleton />}>
+                <UserIsland />
+              </Suspense>
             </div>
-          </div>
 
-          {/* ── Row 2: identity + catalogue nav ────────────────────────────────────────────── */}
-          <div className="flex h-16 items-center justify-between gap-4">
-            <BrandMark />
-            <Suspense fallback={<PrimaryNavFallback />}>
-              <PrimaryNav />
-            </Suspense>
-            {/* Below `md` the pipe-separated nav is hidden and this drawer replaces it. */}
+            {/* Below `lg` the pipe-separated nav is hidden and this drawer replaces it — carrying the
+                same four links AND the account control. */}
             <Suspense fallback={<MobileNavFallback />}>
               <MobileNav
                 account={
@@ -128,9 +122,11 @@ export default function ShopLayout({
         </div>
       </header>
 
-      {/* The full-width search field, on the viewports where row 1 has no room for it. */}
+      {/* The full-width search field, on the viewports where the single header row has no room for it.
+          ⚠ Deliberately OUTSIDE the sticky <header>: it is a second row on a phone, and pinning both
+          would spend a quarter of a small viewport on chrome that is only needed once per visit. */}
       <div className="border-b lg:hidden">
-        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6">
+        <div className="container py-4">
           <Suspense fallback={<HeaderSearchFallback size="lg" />}>
             <HeaderSearch size="lg" />
           </Suspense>

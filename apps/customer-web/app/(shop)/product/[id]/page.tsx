@@ -83,7 +83,7 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       : null
 
   return (
-    <article className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
+    <article className="container py-6">
       <RecordView productId={product.id} />
 
       {/* Breadcrumb — the reference opens every inner page with one. */}
@@ -244,7 +244,7 @@ function ProductSections({ product }: { product: StorefrontProductDetailDTO }) {
 
 function ProductSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6" aria-hidden="true">
+    <div className="container py-6" aria-hidden="true">
       <div className="mb-6 h-4 w-56 animate-pulse rounded bg-muted" />
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
         <div className="flex flex-col-reverse gap-3 md:flex-row">

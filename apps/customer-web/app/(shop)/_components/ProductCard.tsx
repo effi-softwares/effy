@@ -37,7 +37,8 @@ import { formatMoney, isDiscounted } from "@/lib/money"
  * files. Tuning it meant finding all three and keeping them in step — which is exactly the kind of
  * thing that silently drifts, leaving the home page and the search results on different rhythms.
  *
- * Column counts are chosen from the CARD WIDTH they produce inside `max-w-7xl` (80rem), not picked
+ * Column counts are chosen from the CARD WIDTH they produce inside the `container` (80rem — see the
+ * `@utility container` in app/globals.css), not picked
  * for symmetry: 5-up on a wide screen lands each tile near 14rem, which is the size a product tile
  * wants to be. Below `lg` it steps down so a tile never becomes a thumbnail.
  *

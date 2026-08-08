@@ -30,7 +30,7 @@ export default function NewsletterConfirmPage({
   searchParams: Promise<{ token?: string }>
 }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-20 sm:px-6">
+    <div className="container py-20">
       <Suspense fallback={<Outcome title="Confirming…" body="One moment." />}>
         <ConfirmOutcome searchParams={searchParams} />
       </Suspense>

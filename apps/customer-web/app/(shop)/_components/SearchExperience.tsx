@@ -159,7 +159,7 @@ export function SearchExperience() {
   }, [category, saleOnly, minPrice, maxPrice, setParam])
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6">
+    <div className="container py-6">
       {/* ⚠ NO search field here.
        *
        * The header already ships one on every route — compact in row 1 on desktop, full width

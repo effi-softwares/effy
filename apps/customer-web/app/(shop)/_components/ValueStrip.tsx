@@ -70,7 +70,7 @@ export const VALUE_CLAIMS = PANELS.map((p) => ({ value: p.value, label: p.label 
 
 export function ValueStrip() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 sm:pb-14">
+    <div className="container pb-10 sm:pb-14">
       {/* ⚠ Overlaps the banner's bottom edge, as the reference does — the panels sit half on the
           artwork and half on the page. `-mt-*` pulls them up; `relative` keeps them above the image.
           On phone they stack and the overlap is dropped: three stacked panels hanging off the banner

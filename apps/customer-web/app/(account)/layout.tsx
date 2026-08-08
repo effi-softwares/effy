@@ -21,7 +21,7 @@ export default function AccountLayout({
           area is not a place to shop, but it must not look like a different product either. That
           discontinuity is exactly what made the old account pages feel bolted on. */}
       <header className="border-b">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-6 px-4 sm:px-6">
+        <div className="container flex h-16 items-center gap-6">
           <Link href="/" className="flex items-center gap-2" aria-label="Effy home">
             <span className="inline-block size-6 rounded-full bg-primary" aria-hidden="true" />
             <span className="text-xl font-extrabold uppercase tracking-[-0.02em]">Effy</span>

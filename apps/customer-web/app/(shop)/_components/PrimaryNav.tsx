@@ -6,10 +6,16 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 
 /**
- * The catalogue navigation — the bottom-right half of the two-row header (shadcn navbar-03 pattern).
+ * The catalogue navigation — sits beside the brand mark in the single header row.
  *
  * The reference's distinguishing detail is the PIPE SEPARATORS between links and the active item
  * carried in weight and colour rather than an underline. Both are reproduced here.
+ *
+ * ⚠ `shrink-0` + `whitespace-nowrap` are load-bearing, not decoration. It shares one flex row with a
+ * search field whose neighbour — the account island — is WIDER when signed in ("Hi, Janith" + menu)
+ * than when a guest sees a "Sign in" button. Without these the four links are what gives way at the
+ * tightest desktop width, and a nav that wraps onto a second line is the failure the merge exists to
+ * avoid. The search field shrinks instead, which costs nothing but visible placeholder text.
  *
  * ⚠ It is a client component only because the active item is derived from the current route. That is
  * the whole reason — no data, no state. It reads `useSearchParams` as well as the path because two of
@@ -38,7 +44,7 @@ export function PrimaryNav({ className }: { className?: string }) {
   }
 
   return (
-    <nav aria-label="Primary" className={cn("hidden items-center md:flex", className)}>
+    <nav aria-label="Primary" className={cn("hidden shrink-0 items-center whitespace-nowrap lg:flex", className)}>
       {LINKS.map((link, i) => {
         const active = isActive(link.href)
         return (
@@ -68,7 +74,7 @@ export function PrimaryNav({ className }: { className?: string }) {
 /** The shell's copy, rendered while the route-aware version streams in. */
 export function PrimaryNavFallback({ className }: { className?: string }) {
   return (
-    <nav aria-label="Primary" className={cn("hidden items-center md:flex", className)}>
+    <nav aria-label="Primary" className={cn("hidden shrink-0 items-center whitespace-nowrap lg:flex", className)}>
       {LINKS.map((link, i) => (
         <span key={link.href} className="flex items-center">
           {i > 0 && <span aria-hidden="true" className="mx-3 h-4 w-px bg-border lg:mx-4" />}

@@ -20,8 +20,10 @@ import { cn } from "@/lib/utils"
  * `<dialog>` + `showModal()` provides focus trapping, Escape-to-close, an inert background and top-
  * layer stacking natively. The only thing it does not provide is the slide-in position, which is CSS.
  *
- * ⚠ It is `md:hidden`, and the desktop `PrimaryNav` is `hidden md:flex` — the two are mutually
- * exclusive at every width, so the same links are never in the accessibility tree twice.
+ * ⚠ It is `lg:hidden`, and the desktop `PrimaryNav` is `hidden lg:flex` — the two are mutually
+ * exclusive at every width, so the same links are never in the accessibility tree twice. The
+ * threshold is `lg` rather than `md` because the header is ONE row: below 1024 px the links and the
+ * account control live in here, which is what leaves room for the mark, the cart and the menu.
  */
 
 const LINKS = [
@@ -63,7 +65,7 @@ export function MobileNav({
   }
 
   return (
-    <div className={cn("md:hidden", className)}>
+    <div className={cn("lg:hidden", className)}>
       <button
         type="button"
         onClick={() => dialogRef.current?.showModal()}
@@ -144,7 +146,7 @@ export function MobileNav({
 /** The shell's copy, rendered while the route-aware drawer streams in. */
 export function MobileNavFallback({ className }: { className?: string }) {
   return (
-    <div className={cn("md:hidden", className)}>
+    <div className={cn("lg:hidden", className)}>
       <span
         aria-hidden="true"
         className="inline-flex size-10 items-center justify-center rounded-md"

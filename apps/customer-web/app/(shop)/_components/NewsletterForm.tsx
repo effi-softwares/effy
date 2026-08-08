@@ -65,7 +65,7 @@ export function NewsletterForm() {
 
   return (
     <section className="border-t bg-muted/40">
-      <div className="mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
+      <div className="container py-12 sm:py-16">
         <div className="max-w-xl">
           <Display size="sub">Keep up with Effy</Display>
 
