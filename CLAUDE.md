@@ -225,8 +225,10 @@ template.** Both built mobile apps now share a **production navigation shell** (
 adaptive bottom-bar/rail + per-tab back stacks; customer guest-first with deferred sign-in, shop login-first;
 built on stable Material 3, Nav3-migration-ready). Still the **documented vision**: the **catalog** (there
 are no product tables anywhere yet — spec'd as **016-shop-product-catalog**),
-**cart / checkout / payment**, the hot path's **cloud deployment** (`core-api` is local-Docker-only by
-decision — its go-live is its own slice), and the **event backbone**.
+**cart / checkout / payment**, the hot path's **cloud deployment** (`core-api` was local-Docker-only by
+decision — its go-live is its own slice, now **spec'd + built as 040-core-api-deploy**: cheapest
+single-task Fargate + ALB at `core-api.dev.effyshopping.com`, no autoscaling, operator apply/deploy
+pending), and the **event backbone**.
 
 Everything gets built **slice by slice**, each driven by its own spec → plan → tasks. Don't build all
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
@@ -1311,5 +1313,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/039-customer-home-redesign/plan.md
+at specs/040-core-api-deploy/plan.md
 <!-- SPECKIT END -->

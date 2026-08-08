@@ -221,6 +221,58 @@ variable "dmarc_rua" {
   default     = "mailto:dmarc@effyshopping.com"
 }
 
+# ── Hot-path (core-api) cloud deployment (040) ──────────────────────────────────────────────
+# The prod promotion knobs. Producing core-api.effyshopping.com is these values changed, not
+# code (spec FR-014 / SC-003). See data-model.md § Production delta and core-api.tf's comment.
+
+variable "core_api_subdomain" {
+  description = "Single label for the HOT-PATH API under this env's namespace → core-api.dev.effyshopping.com. Its own name, distinct from api_subdomain (the cold path). MUST stay one label — the wildcard certificate matches exactly one (010 research R3)."
+  type        = string
+  default     = "core-api"
+}
+
+variable "core_api_image_tag" {
+  description = "Image tag core-api runs. dev: latest (mutable, force-new-deployment picks it up); prod: an immutable git-sha."
+  type        = string
+  default     = "latest"
+}
+
+variable "core_api_cpu" {
+  description = "Fargate task CPU units. 256 = 0.25 vCPU, the cheapest (no autoscaling)."
+  type        = number
+  default     = 256
+}
+
+variable "core_api_memory" {
+  description = "Fargate task memory (MiB). 512 is the smallest valid pairing with 256 CPU."
+  type        = number
+  default     = 512
+}
+
+variable "core_api_desired_count" {
+  description = "Number of running tasks. FIXED at 1 (cheapest); there is NO autoscaling."
+  type        = number
+  default     = 1
+}
+
+variable "core_api_cors_origins" {
+  description = "Browser origins allowed to call the hot path (customer-web). Native mobile + SSR need no CORS. The deployed storefront origin is added here per env; localhost:3000 covers local dev."
+  type        = list(string)
+  default     = ["http://localhost:3000"]
+}
+
+variable "core_api_assign_public_ip" {
+  description = "DEV-ONLY: true = the task runs in PUBLIC subnets with a public IP and egresses with NO NAT (the cheapest posture, matching the dev DB's public endpoint). ⚠ NEVER true where real data lives — prod uses private subnets (false) + a NAT/endpoints."
+  type        = bool
+  default     = true
+}
+
+variable "core_api_subnet_ids" {
+  description = "Subnets for the ALB + task. [] = the module resolves the DEFAULT VPC's public subnets (dev). Prod supplies PRIVATE subnet ids here."
+  type        = list(string)
+  default     = []
+}
+
 variable "alert_email" {
   description = <<-EOT
     Address every operator alarm notifies (037 FR-037). OPERATOR-SUPPLIED — empty means the topic is

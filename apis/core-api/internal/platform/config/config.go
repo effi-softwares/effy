@@ -26,9 +26,23 @@ type Config struct {
 }
 
 type DB struct {
-	// libpq keyword-format DSN, composed at invocation from the platform contract
-	// (002/003 discipline). Never logged, never written to disk.
-	DSN string `env:"DSN,required,notEmpty"`
+	// libpq keyword-format DSN. Two delivery modes, checked in this order:
+	//   1. DB_DSN set (the local `make core-run` loop composes it from the contract and
+	//      injects it) → used verbatim.
+	//   2. DB_DSN empty (the cloud/Fargate path, 040) → composed in Load() from the parts
+	//      below, so the password can arrive as an injected ECS secret while host/port/name/
+	//      user arrive as plain task-def env. A missing part fails boot with the var named.
+	// Never logged, never written to disk (002/003 discipline).
+	DSN string `env:"DSN"`
+
+	// Parts used ONLY when DSN is empty. Optional at parse time (the DSN path leaves them
+	// unset); Load() enforces their presence when it must compose. DB_PASSWORD is a secret
+	// and is treated as one — it is never echoed, including in the missing-parts error.
+	Host     string `env:"HOST"`
+	Port     string `env:"PORT"`
+	Name     string `env:"NAME"`
+	User     string `env:"USER"`
+	Password string `env:"PASSWORD"`
 }
 
 type AWS struct {
@@ -97,6 +111,16 @@ func Load() (Config, error) {
 	if err != nil {
 		// env/v11 error text names the offending variable; never echo values.
 		return Config{}, fmt.Errorf("config: %w", err)
+	}
+
+	// Cloud path (040): no DB_DSN supplied → compose it from the parts so the password can
+	// be an injected secret rather than a pre-composed string. DB_DSN, when set, always wins.
+	if cfg.DB.DSN == "" {
+		dsn, derr := composeDSN(cfg.DB)
+		if derr != nil {
+			return Config{}, derr
+		}
+		cfg.DB.DSN = dsn
 	}
 
 	cfg.Server = Server{

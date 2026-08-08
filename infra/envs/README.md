@@ -38,6 +38,26 @@ The higher roots are deliberately skeletons (no pools yet). To promote:
    together, or the API loses its database.
 5. `make plan ENV=<env>` → review → the **operator** runs `make apply ENV=<env>`.
 
+### Promoting the hot path (core-api) — 040-core-api-deploy
+
+`dev` runs core-api as ONE Fargate task behind an ALB at `core-api.dev.effyshopping.com`, in the
+**default VPC's public subnets with a public IP and no NAT** — the cheapest posture, and the same
+public-network trade the dev DB already accepts. Copy `envs/dev/core-api.tf` forward, then change
+these values (they are the module's inputs — **config, not code**, spec FR-014):
+
+- **Network**: `core_api_assign_public_ip = false` and `core_api_subnet_ids = [<private>]`. A private
+  task has **no internet path without a NAT gateway (~$32/mo) or interface endpoints** — the same
+  problem the Lambda note below documents. This lands **together** with the private-DB change (step 4);
+  a private task must reach a private DB.
+- **Hostname**: prod is `core-api.effyshopping.com` — a label **directly under the apex**, not under a
+  `prod.` child namespace. The child wildcard `*.<env>.effyshopping.com` does **not** cover it, so prod
+  needs an **apex-level record + a certificate covering `core-api.effyshopping.com`** (an apex wildcard
+  `*.effyshopping.com` or a SAN), owned by the prod/global root — not by the child zone.
+- **Image**: `core_api_image_tag = "<git-sha>"` (immutable — a known rollback artifact), not `latest`.
+- **Rollout**: dev uses `min 0 / max 100` (a brief deploy gap). Prod may set `min 100 / max 200` for a
+  zero-downtime rolling deploy (a transient second task's cost, still **no autoscaling**).
+- **DB durability**: as step 4 — backups on before real customer data.
+
 ## 🔴 Known debt: the dev database is on the public internet (2026-07-12)
 
 **Status: accepted for `dev`, must be closed before any environment holds real data.**

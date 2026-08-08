@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-down check-goose \
-        core-run core-test core-lint core-build create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        core-run core-test core-lint core-build core-ecr-login core-image-push core-deploy create-first-admin delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -185,6 +185,13 @@ CORE_DIR := apis/core-api
 # Cold path (A3): a family of services under apis/edge-api/<service>; SERVICE selects one.
 EDGE_DIR := apis/edge-api/$(SERVICE)
 
+# Hot-path cloud deploy (040): the ECR repo, ECS cluster and service all share the module's
+# name = effy-<env>-core-api. The account id is resolved at invocation (never hard-coded).
+CORE_ECR_REPO := effy-$(ENV)-core-api
+CORE_CLUSTER  := effy-$(ENV)-core-api
+CORE_SERVICE  := effy-$(ENV)-core-api
+TAG           ?= latest
+
 AUTH_PARAM_CMD = AWS_PROFILE=$(AWS_PROFILE) aws ssm get-parameter --region $(AWS_REGION) --query Parameter.Value --output text --name
 SECRET_CMD     = AWS_PROFILE=$(AWS_PROFILE) aws secretsmanager get-secret-value --region $(AWS_REGION) --query SecretString --output text --secret-id
 
@@ -214,6 +221,28 @@ core-lint: ## gofmt check + go vet for core-api
 
 core-build: ## Build the production core-api image (distroless, TARGETARCH-aware)
 	@docker build --target runtime -t effy/core-api:local $(CORE_DIR)
+
+# ── Hot-path cloud deploy (040-core-api-deploy) — OPERATOR-run (mutate live AWS) ──────────────
+core-ecr-login: ## OPERATOR: docker login to the core-api ECR repo (ENV=dev)
+	@ACCOUNT="$$(AWS_PROFILE=$(AWS_PROFILE) aws sts get-caller-identity --query Account --output text)" || exit 1; \
+	AWS_PROFILE=$(AWS_PROFILE) aws ecr get-login-password --region $(AWS_REGION) \
+	  | docker login --username AWS --password-stdin "$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com"
+
+core-image-push: ## OPERATOR: build core-api for linux/arm64 and push (TAG=latest ENV=dev)
+	@ACCOUNT="$$(AWS_PROFILE=$(AWS_PROFILE) aws sts get-caller-identity --query Account --output text)" || exit 1; \
+	REPO="$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com/$(CORE_ECR_REPO)"; \
+	echo "building linux/arm64 → $$REPO:$(TAG)"; \
+	docker buildx build --platform linux/arm64 --target runtime -t "$$REPO:$(TAG)" $(CORE_DIR) --push
+
+core-deploy: ## OPERATOR: force a new core-api ECS deployment + wait for stable (TAG=latest ENV=dev)
+	@printf 'ECS force-new-deployment  →  cluster/service=%s stage=%s (live AWS)\nContinue? [y/N] ' "$(CORE_SERVICE)" "$(ENV)"; \
+	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
+	AWS_PROFILE=$(AWS_PROFILE) aws ecs update-service --region $(AWS_REGION) \
+	  --cluster $(CORE_CLUSTER) --service $(CORE_SERVICE) --force-new-deployment >/dev/null; \
+	echo "waiting for the service to stabilise (circuit breaker rolls back a health-failing deploy)…"; \
+	AWS_PROFILE=$(AWS_PROFILE) aws ecs wait services-stable --region $(AWS_REGION) \
+	  --cluster $(CORE_CLUSTER) --services $(CORE_SERVICE); \
+	echo "deployed."
 
 create-first-admin: ## OPERATOR: bootstrap the FIRST back-office super-admin (EMAIL=.. NAME=".." ENV=dev) — specs/006
 	@test -n "$(EMAIL)" && test -n "$(NAME)" || { echo 'usage: make create-first-admin EMAIL=jane@effy.test NAME="Jane Doe" ENV=dev'; exit 1; }
