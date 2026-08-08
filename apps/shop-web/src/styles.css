@@ -3,9 +3,10 @@
 @source "../../../packages/web-kit/src";
 @import "@effy/design-system/tokens.css";
 
-/* This surface defines NO theme of its own (FR-013 / SC-007). Brand, dark mode, and neutral
-   surfaces with the single Effy Forest accent all arrive from the shared design system. The rules
-   below only bind Tailwind's defaults to those tokens — asserted by src/theme-tokens.test.ts. */
+/* This surface defines NO theme of its own (FR-013 / SC-007). Brand, dark mode, and the monochrome
+   neutral identity (plus the bounded chart palette for data-viz) all arrive from the shared design
+   system. The rules below only bind Tailwind's defaults to those tokens — asserted by
+   src/theme-tokens.test.ts. */
 @layer base {
   * {
     border-color: var(--color-border);

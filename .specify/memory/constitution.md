@@ -1,6 +1,40 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.12.0 → 1.13.0
+Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains ONE bounded exception to
+                the "no third hue" rule: a categorical DATA-VISUALISATION palette (--chart-1..5) is
+                permitted in the design-system tokens, for charts only. No principle is removed or
+                redefined and no committed plan is invalidated (so not MAJOR); it materially expands
+                Principle V's guidance rather than merely clarifying it (so not PATCH).
+
+Added in this amendment (operator directive, feature 041-monochrome-console-redesign, 2026-08-08):
+  - Principle V → the "exactly TWO semantic colours / no third hue" bullet gains a sub-clause: a
+    bounded categorical chart palette (--chart-1..5, both appearances) MAY exist in the design-system
+    SSOT for DATA-VISUALISATION ONLY. It is never a UI accent, fill, border, or text colour; it is
+    not surfaced to the mobile Compose themes; and no chart token may acquire a -foreground pair
+    (mechanically enforced by scripts/check-tokens.mjs). The monochrome ramp still carries every UI
+    accent role, the accent still inverts by appearance, and the WCAG AA (zero-exemption) and
+    retired-hue invariants are UNCHANGED.
+  - The internal operator consoles (shop-web, back-office) adopt the shadcn "dashboard" layout — a
+    permitted application of the EXISTING "No card layouts" escape clause (a card/summary layout where
+    it is the demonstrably-right pattern and the justification is recorded in the plan). This is not a
+    new rule; the justification lives in specs/041-monochrome-console-redesign/plan.md.
+  - Quality Gates: a colour outside the monochrome ramp, the two semantic states, and the bounded
+    chart palette MUST NOT appear in the design-system tokens or in live UI (enforced by
+    check-tokens.mjs + the retired-hue sweeps).
+
+Trigger: feature 041 adopts an operator-supplied appearance identity that includes a colored chart
+palette for the console dashboards. Adopting it verbatim would introduce hues beyond the two semantic
+states; this amendment bounds those hues to data-visualisation so the monochrome UI identity is
+preserved everywhere a person reads the interface, while charts may use categorical colour.
+
+Dependent updates in THIS change:
+  ✅ packages/design-system/src/tokens.css — header comment + --chart-1..5 added (feature 041).
+  ✅ packages/design-system/scripts/check-tokens.mjs — chart-token coverage + ring UI-bar fix.
+  ✅ CLAUDE.md § Design system — updated to note the bounded chart palette (feature 041 T035).
+
+--- previous report ---
 Version change: 1.11.1 → 1.12.0
 Bump rationale: MINOR — a new section is added ("Real-World Identifiers"), plus one new Quality
                 Gate bullet. No existing principle is removed or redefined, and no committed plan is
@@ -395,8 +429,12 @@ One design-system package drives every surface.
 - Exactly **TWO semantic colours** exist alongside the ramp: error/destructive `#e01010` and success
   `#0C9409`. Neither may be used decoratively or as an accent, and **success is a NON-TEXT indicator
   only** (4.00:1 on white — above the 3:1 bar for UI components, below the 4.5:1 bar for text). No
-  third hue may be introduced. The single exception is a third-party sign-in mark whose provider's
-  brand guidelines require its own colours; that is an asset, not a token.
+  third hue may be introduced as a UI colour. Two exceptions, each an asset/data role rather than a UI
+  accent: (1) a third-party sign-in mark whose provider's brand guidelines require its own colours;
+  and (2) a bounded categorical **data-visualisation palette** (`--chart-1..5`, both appearances) that
+  MAY exist in the design-system tokens **for charts only** — never a UI accent, fill, border, or text
+  colour, never surfaced to the mobile themes, and never given a `-foreground` pair. The monochrome
+  ramp still carries every UI accent role.
 - The full token set — this ramp (light + dark), the two semantic colours, the **General Sans**
   typeface, and the spacing + radius scales — comes from the design-system package (the SSOT), never
   hardcoded per surface.
@@ -559,4 +597,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.12.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-08-06
+**Version**: 1.13.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-08-08

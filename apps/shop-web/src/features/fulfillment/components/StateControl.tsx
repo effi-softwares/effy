@@ -82,7 +82,7 @@ export function StateControl({
 
       {transition.isError ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
-          <span className={conflict ? "font-medium text-amber-700 dark:text-amber-400" : "text-destructive"}>
+          <span className={conflict ? "font-medium text-foreground" : "text-destructive"}>
             {fulfillmentMutationError(transition.error)}
           </span>
           {conflict ? (

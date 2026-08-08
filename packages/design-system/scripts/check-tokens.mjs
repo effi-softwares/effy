@@ -88,7 +88,9 @@ const PAIRS = [
   ["sidebar-foreground", "sidebar", TEXT],
   ["sidebar-primary-foreground", "sidebar-primary", TEXT],
   ["sidebar-accent-foreground", "sidebar-accent", TEXT],
-  ["ring", "background", TEXT],
+  // A focus ring is a non-text UI component (WCAG 1.4.11 → 3:1), not text. 041 tuned the adopted
+  // grey ring to clear this bar in both appearances.
+  ["ring", "background", UI],
   ["disabled-foreground", "disabled", UI],
   ["placeholder", "background", UI],
   ["success", "background", UI],
@@ -98,7 +100,17 @@ const PAIRS = [
 // never a fill with a label on it. The structural guarantee is that it has NO paired foreground
 // token: without `--success-foreground` there is nothing to put text on it with. Adding one is the
 // exact regression this forbids, and it would need its own 4.5:1 pair (which #0C9409 fails at 4.00:1).
-const SEMANTIC_NON_TEXT = ["success"];
+const SEMANTIC_NON_TEXT = ["success", "chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
+
+// The bounded data-visualisation palette (constitution v1.13.0): CHARTS ONLY. Each must exist in
+// both appearances (the key-set check above enforces parity; this asserts presence at all) and — via
+// SEMANTIC_NON_TEXT below — none may acquire a -foreground pair, so a chart hue can never become
+// text-on-fill or a labelled UI accent.
+const CHART_TOKENS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
+for (const name of CHART_TOKENS) {
+  if (!(name in light)) errors.push(`--${name} missing from :root (chart palette must exist in both appearances)`);
+  if (!(name in dark)) errors.push(`--${name} missing from .dark (chart palette must exist in both appearances)`);
+}
 
 for (const [appName, set] of [
   ["light", light],

@@ -1,8 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 
-import { ConsoleShell } from "@effy/web-kit/console";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@effy/design-system/ui";
+import { ConsoleShell, DashboardOverview } from "@effy/web-kit/console";
 
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
@@ -70,20 +82,54 @@ function AppShell() {
   );
 }
 
+// Sample series for the overview chart. ⚠ Illustrative, NOT live operations (console-shell
+// contract C2): no figure here is read from the platform.
+const SAMPLE_SHOPS = [
+  { region: "North", active: 4, suspended: 1 },
+  { region: "South", active: 6, suspended: 0 },
+  { region: "East", active: 3, suspended: 1 },
+  { region: "West", active: 5, suspended: 2 },
+];
+
+const SHOPS_CONFIG = {
+  active: { label: "Active", color: "var(--color-chart-1)" },
+  suspended: { label: "Suspended", color: "var(--color-chart-2)" },
+} satisfies ChartConfig;
+
 function DashboardScreen() {
   const { data } = useQuery(sessionQuery);
   const identity = data?.status === "signed-in" ? data.identity : null;
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold">
-          Welcome{identity?.email ? `, ${identity.email}` : ""}
-        </h1>
-        <p className="text-muted-foreground">
-          You're signed in to the Effy back-office console.
-        </p>
-      </div>
+    <DashboardOverview
+      title={`Welcome${identity?.email ? `, ${identity.email}` : ""}`}
+      description="You're signed in to the Effy back-office console."
+      stats={[
+        { label: "Shops", value: "—", hint: "Live count arrives with admin metrics" },
+        { label: "Staff", value: "—", hint: "Illustrative until wired" },
+        { label: "Active promotions", value: "—", hint: "Illustrative until wired" },
+        { label: "Delivery events (24h)", value: "—", hint: "Illustrative until wired" },
+      ]}
+      chart={
+        <Card>
+          <CardHeader>
+            <CardTitle>Shops by region</CardTitle>
+            <CardDescription>Sample data — not live operations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={SHOPS_CONFIG} className="h-[240px] w-full">
+              <BarChart data={SAMPLE_SHOPS} margin={{ left: 12, right: 12 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="region" tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                <Bar dataKey="active" fill="var(--color-active)" radius={4} />
+                <Bar dataKey="suspended" fill="var(--color-suspended)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      }
+    >
       <ProvingScreen />
-    </div>
+    </DashboardOverview>
   );
 }

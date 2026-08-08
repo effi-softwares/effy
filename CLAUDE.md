@@ -171,15 +171,17 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
-**MONOCHROME — there is NO brand hue** (constitution v1.10.0 → **v1.11.0**, feature 026). A ten-step
-neutral ramp `#1A1A1A` … `#FFFFFF` carries every accent role, and the accent **INVERTS between
-appearances**: near-black `#1A1A1A` on light, near-white `#F5F5F5` on dark, each taking the other as
-its label. A hue reads against both grounds; a neutral one does not, so a single accent value would be
-invisible in one mode. Exactly **TWO** semantic colours exist alongside the ramp — error `#e01010` and
-success `#0C9409` (success is a **non-text indicator only**, 4.00:1). **No third hue may be
-introduced**; the sole exception is a third-party sign-in mark whose provider requires its own
-colours, which is an asset, not a token. Typeface **General Sans**, plus spacing/radius scales —
-shared across all surfaces via one design-system package.
+**MONOCHROME — there is NO brand hue in the UI** (constitution v1.10.0 → v1.11.0 → **v1.13.0**,
+features 026 & **041**). A neutral ramp (adopted values `#0a0a0a` … `#ffffff`, feature 041) carries
+every UI accent role, and the accent **INVERTS between appearances**: near-black on light, near-white
+on dark, each taking the other as its label. A hue reads against both grounds; a neutral one does not,
+so a single accent value would be invisible in one mode. Exactly **TWO** semantic colours exist
+alongside the ramp — error `#e01010` and success `#0C9409` (success is a **non-text indicator only**,
+4.00:1). **No third hue may be introduced as a UI colour**; two exceptions, each a data/asset role
+rather than a UI accent: a third-party sign-in mark, and a bounded **data-visualisation palette**
+(`--chart-1..5`, feature 041/v1.13.0) permitted **for charts only** — never a UI accent/fill/text,
+never given a `-foreground` pair, never surfaced to the mobile Compose themes. Typeface **General
+Sans**, plus spacing/radius scales — shared across all surfaces via one design-system package.
 **RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0) and Jade `#0FB57E` / fill
 `#047857` (v1.10.0). Both are swept out of live source by `scripts/check-no-emerald.sh` and
 `scripts/check-no-jade.sh`. **Dark mode required, and user-selectable (Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
@@ -238,6 +240,36 @@ Everything gets built **slice by slice**, each driven by its own spec → plan �
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**041-monochrome-console-redesign — Monochrome Consoles & Shop Mobile: Unified Dashboard Identity.**
+🚧 **Foundation + both consoles + shop-mobile theme BUILT and machine-verified; operator device walk +
+commit pending.** Adopts an operator-supplied appearance identity as the shared design-token SSOT,
+puts **shop-web** and **back-office** on the shadcn **dashboard** structure (a shared `DashboardOverview`:
+section cards + a `recharts` chart + the existing proving screen, inside the shared `ConsoleShell`), and
+re-skins **shop-mobile** by regenerating its Compose theme (colour only, no structure/flow change).
+- **Constitution → v1.13.0**: UI stays monochrome (the neutral ramp carries every UI accent, still
+  inverting by appearance); ONE bounded exception — a **data-visualisation palette** (`--chart-1..5`)
+  **for charts only**, never a UI accent, never surfaced to mobile.
+- **⚠ Pasted values were adopted in VALUE, not verbatim.** The oklch was hex-converted (the token
+  guards + Compose generator are hex-only); the constitutional semantic error stays `#e01010` (not the
+  theme's `#e7000b`); the AA invariant was NOT relaxed — the adopted `muted-foreground` (4.35:1) and
+  `ring` (2.58:1) **fail AA** and were tuned (`#6b6b6b`, `#808080`); and the dark theme's **blue
+  `sidebar-primary` was neutralized** to the monochrome accent.
+- **⚠ Two non-monochrome hues were live and are now gone**: `amber` used as a "warning" colour across
+  shop-web fulfillment/catalog (→ monochrome emphasis by weight), and a green-tinted `#5c6b64` in
+  back-office's bootstrap fallback.
+- **⚠ Email is a token-derived surface too** — the sweep caught that `packages/email-kit/dist/*` are
+  generated from `tokens.css`; regenerated (10 files) and re-verified (`email-check` clean, contrast
+  holds under the new tokens). Compose themes for all three mobile apps regenerated + drift-checked.
+- **Verified**: `pnpm -r typecheck` 14/14 · design-system AA gate green (36 vars × 2) · `tokens:check`
+  (8 compose files) · `check-no-emerald`/`check-no-jade` · web-kit 48 · shop-web 139 · back-office 77 ·
+  customer-web 351 · email-kit 52 + `email-check` · `sm-tokens-check`/`sm-guard` · both consoles build ·
+  customer-web bundle **172.8 KB / 174** (SC-006 unchanged).
+- **⚠ Open (operator)**: the shop-mobile full Gradle/Android/iOS compile + on-device walk
+  (Light/Dark/Follow-System), and the commit. Overview chart data is **illustrative sample data**
+  (labelled) — live metrics are a later slice; recharts adds ~400 KB to the login-gated consoles
+  (code-split candidate). Spec/artifacts: [specs/041-monochrome-console-redesign/](specs/041-monochrome-console-redesign/);
+  parity register: [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §041.
 
 **039-customer-home-redesign — Customer Web Home: Merchandised Landing Redesign.** 🚧 **84/94 tasks —
 every section BUILT and machine-verified. Not deployed, not committed, NOT WALKED BY A PERSON.**
@@ -1317,5 +1349,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/040-core-api-deploy/plan.md
+at specs/041-monochrome-console-redesign/plan.md
 <!-- SPECKIT END -->

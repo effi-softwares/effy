@@ -33,7 +33,7 @@ const columns: ColumnDef<FulfillmentSummary>[] = [
         params={{ fulfillmentId: row.original.id }}
         className={
           row.original.atRisk
-            ? "font-semibold text-amber-700 hover:underline dark:text-amber-400"
+            ? "font-semibold text-foreground hover:underline"
             : "font-medium hover:underline"
         }
       >
@@ -62,7 +62,7 @@ const columns: ColumnDef<FulfillmentSummary>[] = [
           {row.original.gatheredCount}/{row.original.itemCount}
         </span>
         {row.original.unavailableCount > 0 ? (
-          <div className="text-xs text-amber-700 dark:text-amber-400">
+          <div className="text-xs font-medium text-foreground">
             {row.original.unavailableCount} unavailable
           </div>
         ) : null}

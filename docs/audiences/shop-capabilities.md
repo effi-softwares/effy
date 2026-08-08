@@ -325,3 +325,29 @@ every code Effy sends is the same length.
 
 ⚠ **shop-mobile's client was unguarded until 035** — `verify-pool-credentials.sh` read only the
 module-owned app client and never checked the mobile ones at all.
+
+---
+
+## §041 — Monochrome consoles & shop mobile: unified dashboard identity
+
+The platform adopts an operator-supplied appearance identity as the shared design-token SSOT and puts
+the two internal web consoles on the shadcn **dashboard** structure. **shop-web** and **back-office**
+gain a dashboard overview landing (section cards + a chart + the existing proving screen) inside the
+shared `ConsoleShell`; **shop-mobile** is a **colour-only** change — its Compose theme regenerates
+from the new tokens, no screen or flow touched. Constitution amended to **v1.13.0**: the UI stays
+monochrome (the neutral ramp carries every UI accent, still inverting by appearance), with ONE bounded
+exception — a data-visualisation palette (`--chart-1..5`) permitted **for charts only**, never a UI
+accent, never surfaced to the mobile themes.
+
+| # | Capability | shop-web | shop-mobile | Notes |
+|---|---|---|---|---|
+| 041.1 | Adopted monochrome identity from the shared tokens | ✅ | ✅ | one `tokens.css` change re-themes every surface; AA gate green, retired-hue sweeps clean |
+| 041.2 | shadcn dashboard structure (shell + overview) | ✅ | n/a | shared `ConsoleShell` + new shared `DashboardOverview`; mobile is colour-only by design |
+| 041.3 | Bounded chart palette (data-viz only) | ✅ | n/a | new `@effy/design-system/ui` `chart` primitive (recharts); charts never reach mobile |
+| 041.4 | `amber` "warning" hue removed (was a third UI hue) | ✅ | n/a | converted to monochrome emphasis (weight/foreground) across fulfillment + catalog |
+| 041.5 | Blue dark `sidebar-primary` neutralized | ✅ | ✅ | the adopted theme's dark active-nav blue is set back to the monochrome accent |
+
+⚠ **Not device-verified yet** — the shop-mobile full Gradle/Android/iOS compile and the on-device
+walk (Light/Dark/Follow-System) are the operator's step; the change is a pure token regen (guards
+`sm-tokens-check`/`sm-guard` green), so risk is low. The overview chart data on both consoles is
+**illustrative sample data**, explicitly labelled — live metrics are a later slice.

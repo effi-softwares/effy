@@ -5,6 +5,11 @@
  * a sidebar it will never render.
  */
 export { ConsoleShell, type ConsoleShellProps } from "./ConsoleShell";
+export {
+  DashboardOverview,
+  type DashboardOverviewProps,
+  type OverviewStat,
+} from "./DashboardOverview";
 export { ConsoleBrand, type ConsoleBrandProps } from "./ConsoleBrand";
 export { ConsoleHeader, type ConsoleHeaderProps } from "./ConsoleHeader";
 export { ConsoleUserMenu, type ConsoleUserMenuProps } from "./ConsoleUserMenu";

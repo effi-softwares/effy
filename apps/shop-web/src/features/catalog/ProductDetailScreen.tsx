@@ -71,9 +71,9 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
       {detail.missingMandatoryAttributes.length > 0 ? (
         <div
           role="status"
-          className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900 dark:bg-amber-950/40"
+          className="flex items-start gap-2 rounded-md border border-border bg-muted px-4 py-3 text-sm"
         >
-          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
           <div>
             <p className="font-medium">Missing required details</p>
             <p className="text-muted-foreground">

@@ -47,7 +47,7 @@ try {
       }}
     >
       <h1 style={{ fontSize: "1.25rem" }}>Configuration error</h1>
-      <p style={{ color: "#5c6b64" }}>{message}</p>
+      <p style={{ color: "#737373" }}>{message}</p>
     </div>,
   );
 }

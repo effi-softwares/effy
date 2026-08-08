@@ -286,7 +286,7 @@ function RosterControls({
         </Button>
       </div>
       {isLastActiveManager ? (
-        <p className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
+        <p className="flex items-center gap-1 text-xs font-medium text-foreground">
           <AlertTriangle className="size-3" />
           Only active manager — changing this leaves the shop without one.
         </p>

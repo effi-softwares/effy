@@ -18,7 +18,7 @@ export function PromiseCell({ promise, atRisk }: { promise: DeliveryPromise; atR
       <div
         className={
           atRisk
-            ? "flex items-center gap-1.5 font-semibold text-amber-700 dark:text-amber-400"
+            ? "flex items-center gap-1.5 font-semibold text-foreground"
             : "flex items-center gap-1.5 tabular-nums"
         }
       >

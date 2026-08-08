@@ -38,10 +38,16 @@ describe("shop-web inherits the design system and defines no theme of its own", 
   // 026: the brand is monochrome. The accent INVERTS between appearances — that is the invariant
   // most likely to be "simplified" away by someone who assumes one accent value, so assert it.
   it("resolves the monochrome accent from the shared source, inverting by appearance", () => {
-    expect(tokensCss).toMatch(/--primary:\s*#1a1a1a/); // light: near-black
-    expect(tokensCss).toMatch(/--primary:\s*#f5f5f5/); // dark: near-white
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#ffffff/);
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#1a1a1a/);
+    expect(tokensCss).toMatch(/--primary:\s*#171717/); // light: near-black (adopted, feature 041)
+    expect(tokensCss).toMatch(/--primary:\s*#e5e5e5/); // dark: near-white
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#fafafa/);
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#171717/);
+  });
+
+  // 041: charts are the ONE place non-monochrome colour is allowed, and never as text.
+  it("carries the bounded data-visualisation palette with no foreground pair", () => {
+    expect(tokensCss).toMatch(/--chart-1:\s*#/);
+    expect(tokensCss).not.toContain("--chart-1-foreground");
   });
 
   it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {

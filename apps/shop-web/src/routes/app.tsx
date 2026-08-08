@@ -1,8 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { createRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
+import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 
-import { ConsoleShell } from "@effy/web-kit/console";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@effy/design-system/ui";
+import { ConsoleShell, DashboardOverview } from "@effy/web-kit/console";
 
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
@@ -72,18 +84,72 @@ function AppShell() {
   );
 }
 
+// Sample series for the overview chart. ⚠ Illustrative, NOT live operations (console-shell
+// contract C2): the label says so, and no figure here is read from the platform. Wiring live
+// fulfillment metrics is a later slice.
+const SAMPLE_ACTIVITY = [
+  { day: "Mon", received: 18, ready: 14 },
+  { day: "Tue", received: 22, ready: 20 },
+  { day: "Wed", received: 15, ready: 15 },
+  { day: "Thu", received: 27, ready: 23 },
+  { day: "Fri", received: 31, ready: 28 },
+  { day: "Sat", received: 24, ready: 22 },
+  { day: "Sun", received: 12, ready: 12 },
+];
+
+const ACTIVITY_CONFIG = {
+  received: { label: "Received", color: "var(--color-chart-1)" },
+  ready: { label: "Ready", color: "var(--color-chart-2)" },
+} satisfies ChartConfig;
+
 function DashboardScreen() {
   const { data } = useQuery(sessionQuery);
   const identity = data?.status === "signed-in" ? data.identity : null;
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="text-xl font-semibold">
-          Welcome{identity?.email ? `, ${identity.email}` : ""}
-        </h1>
-        <p className="text-muted-foreground">You're signed in to the Effy shop console.</p>
-      </div>
+    <DashboardOverview
+      title={`Welcome${identity?.email ? `, ${identity.email}` : ""}`}
+      description="You're signed in to the Effy shop console."
+      stats={[
+        { label: "Orders to pick", value: "—", hint: "Live count arrives with fulfillment metrics" },
+        { label: "Ready for pickup", value: "—", hint: "Illustrative until wired" },
+        { label: "Catalog items", value: "—", hint: "Illustrative until wired" },
+        { label: "Same-day areas", value: "—", hint: "Illustrative until wired" },
+      ]}
+      chart={
+        <Card>
+          <CardHeader>
+            <CardTitle>Fulfillment activity</CardTitle>
+            <CardDescription>Sample data — not live operations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={ACTIVITY_CONFIG} className="h-[240px] w-full">
+              <AreaChart data={SAMPLE_ACTIVITY} margin={{ left: 12, right: 12 }}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                <Area
+                  dataKey="received"
+                  type="natural"
+                  fill="var(--color-received)"
+                  fillOpacity={0.2}
+                  stroke="var(--color-received)"
+                  stackId="a"
+                />
+                <Area
+                  dataKey="ready"
+                  type="natural"
+                  fill="var(--color-ready)"
+                  fillOpacity={0.2}
+                  stroke="var(--color-ready)"
+                  stackId="b"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      }
+    >
       <ProvingScreen />
-    </div>
+    </DashboardOverview>
   );
 }

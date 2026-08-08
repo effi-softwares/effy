@@ -1,11 +1,14 @@
-/* Effy design tokens — the brand SSOT (constitution Principle V, v1.11.0).
+/* Effy design tokens — the brand SSOT (constitution Principle V, v1.13.0).
 
-   Feature 026 (2026-07-29): the brand is MONOCHROME. A ten-step neutral ramp (#1A1A1A · #333333 ·
-   #4D4D4D · #666666 · #808080 · #999999 · #B3B3B3 · #CCCCCC · #E6E6E6 · #FFFFFF) carries EVERY accent
-   role — primary fill, selected state, active navigation, focus ring, emphasis. There is NO brand hue.
-   This SUPERSEDES Effy Emerald + terracotta, which are RETIRED alongside Jade. The retired values are
-   named in exactly one place — packages/brand/src/colourways.mjs — and swept out of everywhere else by
-   scripts/check-no-emerald.sh, which is why they are not written literally here.
+   Feature 041 (2026-08-08): the platform adopts an operator-supplied appearance identity. The UI is
+   still MONOCHROME — a neutral ramp carries EVERY UI accent role (primary fill, selected state, active
+   navigation, focus ring, emphasis) and there is NO brand hue in the interface. The accent still
+   INVERTS between appearances. Two things are added on operator direction: the neutral values are the
+   adopted set (near-white/near-black ramp, hex-converted from the source oklch), and a bounded
+   DATA-VISUALISATION palette (--chart-1..5) exists FOR CHARTS ONLY — never a UI accent/fill/text,
+   never given a -foreground pair, never surfaced to the mobile Compose themes (constitution v1.13.0).
+   Retired Effy Emerald + terracotta + Jade remain swept out by scripts/check-no-emerald.sh /
+   check-no-jade.sh. The dark --sidebar-primary is NEUTRALIZED from the source's blue (see .dark).
 
    ⚠ THE ACCENT INVERTS BETWEEN APPEARANCES. --primary is near-black #1A1A1A on light and near-white
    #F5F5F5 on dark, each taking the other as its label. Emerald could hold ONE value across both modes
@@ -66,106 +69,127 @@
 }
 
 :root {
-  /* Radius base = md (16px); the scale is pinned explicitly in @theme (not calc). Pill via rounded-full. */
-  --radius: 1rem;
+  /* Radius base (0.625rem = 10px). The sm/md scale stays PINNED in @theme (8/16px) so web px ==
+     mobile EffyRadius dp (SC-004); this base only feeds components that read --radius directly. */
+  --radius: 0.625rem;
 
-  /* Surfaces — white ground, white cards. The source design is a white canvas; separation comes from
+  /* Surfaces — white ground, white cards (adopted identity, feature 041). Separation comes from
      hairline borders and type weight, not from a tinted ground. */
   --background: #ffffff;
-  --foreground: #1a1a1a; /* ramp 900 — 17.40:1 */
+  --foreground: #0a0a0a; /* 19.80:1 */
   --card: #ffffff;
-  --card-foreground: #1a1a1a;
+  --card-foreground: #0a0a0a;
   --popover: #ffffff;
-  --popover-foreground: #1a1a1a;
+  --popover-foreground: #0a0a0a;
 
-  /* The accent IS the ramp. Near-black fill, white label — 17.40:1. See the header on inversion. */
-  --primary: #1a1a1a; /* ramp 900 */
-  --primary-foreground: #ffffff;
+  /* The accent IS the ramp. Near-black fill, near-white label — 17.18:1. See the header on inversion. */
+  --primary: #171717;
+  --primary-foreground: #fafafa;
 
-  --secondary: #e6e6e6; /* ramp 100 */
-  --secondary-foreground: #1a1a1a; /* 13.94:1 */
-  --muted: #e6e6e6; /* ramp 100 */
-  --muted-foreground: #666666; /* ramp 600 — 4.60:1 on --muted, the tightest text pair in the set */
-  /* A hover state is a HINT, not a state change: ramp 50 reads as "this is interactive" without
-     repainting the element. --accent-foreground sits at 15.96:1 on it. */
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717; /* 16.44:1 */
+  --muted: #f5f5f5;
+  /* AA TUNING (041): adopted --muted-foreground #737373 measures 4.35:1 on #f5f5f5 (FAILS AA text);
+     tuned to #6b6b6b → ~4.99:1. */
+  --muted-foreground: #6b6b6b;
+  /* A hover state is a HINT, not a state change: ramp 50 reads as "this is interactive". */
   --accent: #f5f5f5;
-  --accent-foreground: #1a1a1a;
+  --accent-foreground: #171717;
 
-  /* Error — source #ED1010 measures 4.48:1 with white and FAILS AA text; tuned to #e01010 → 4.94:1. */
+  /* Error — the constitution's pinned semantic colour (#e01010 → 4.94:1). NOT the adopted theme's
+     #e7000b: the two semantic hues are fixed by Principle V, which feature 041 did not amend. */
   --destructive: #e01010;
   --destructive-foreground: #ffffff;
 
-  /* Success — NON-TEXT ONLY (4.00:1: clears 3:1 for a border/icon, fails 4.5:1 for text).
-     Deliberately has NO --success-foreground; check-tokens.mjs fails the build if one appears. */
+  /* Success — NON-TEXT ONLY (4.00:1). Deliberately has NO --success-foreground. */
   --success: #0c9409;
 
-  /* Disabled — WCAG exempts disabled controls; we hold 3:1 anyway (3.16:1). The source's own
-     white-on-#CCCCCC is 1.61:1 and unreadable in sunlight. */
+  /* Disabled — WCAG exempts disabled controls; we hold 3:1 anyway (3.16:1). */
   --disabled: #e6e6e6;
   --disabled-foreground: #808080; /* ramp 500 */
 
-  /* Placeholder — source #999999 is 2.85:1 on white and FAILS; ramp 500 gives 3.95:1. */
+  /* Placeholder — ramp 500 gives 3.95:1 on white. */
   --placeholder: #808080;
 
-  --border: #e6e6e6; /* ramp 100 — a hairline divider, deliberately not contrast-tested */
-  --input: #e6e6e6;
-  --ring: #1a1a1a; /* focus is the accent itself — 17.40:1 */
+  --border: #e5e5e5; /* hairline divider, deliberately not contrast-tested */
+  --input: #e5e5e5;
+  /* AA TUNING (041): adopted --ring #a1a1a1 measures 2.58:1 on white (FAILS even the 3:1 UI bar);
+     tuned to #808080 → 3.95:1 (a focus ring is a non-text UI component, WCAG 1.4.11 → 3:1). */
+  --ring: #808080;
+
+  /* Data-visualisation palette (constitution v1.13.0) — CHARTS ONLY. Never a UI accent/fill/text,
+     never given a -foreground pair, never surfaced to the mobile themes. */
+  --chart-1: #f54900;
+  --chart-2: #009689;
+  --chart-3: #104e64;
+  --chart-4: #ffb900;
+  --chart-5: #fe9a00;
 
   /* Dashboard sidebar — one step off the content ground so the rail reads as a distinct plane. */
-  --sidebar: #f5f5f5;
-  --sidebar-foreground: #1a1a1a; /* 15.96:1 */
-  --sidebar-primary: #1a1a1a;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e6e6e6; /* hover / active-item highlight */
-  --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #e6e6e6;
-  --sidebar-ring: #1a1a1a;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0a0a0a;
+  --sidebar-primary: #171717;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5; /* hover / active-item highlight */
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #808080;
 }
 
 .dark {
-  /* The ramp, re-selected per role for a dark ground — NOT a wholesale inversion, which would make
-     --card lighter than --background in a way that reads as an artefact. */
-  --background: #1a1a1a; /* ramp 900 */
-  --foreground: #ffffff; /* 17.40:1 */
-  --card: #333333; /* ramp 800 — one step up from the ground */
-  --card-foreground: #ffffff; /* 12.63:1 */
-  --popover: #333333;
-  --popover-foreground: #ffffff;
+  /* The adopted dark neutrals (feature 041). --card is one step up from the ground, not a wholesale
+     inversion. */
+  --background: #0a0a0a;
+  --foreground: #fafafa; /* 18.97:1 */
+  --card: #171717;
+  --card-foreground: #fafafa; /* 14.23:1 */
+  --popover: #171717;
+  --popover-foreground: #fafafa;
 
-  /* ⚠ THE INVERSION. Near-WHITE fill with a near-black label. Emerald kept its value across both
-     appearances because a hue reads against either ground; #1a1a1a on #1a1a1a is invisible. */
-  --primary: #f5f5f5;
-  --primary-foreground: #1a1a1a; /* 15.96:1 */
+  /* ⚠ THE INVERSION. Near-WHITE fill with a near-black label — a neutral accent is invisible on its
+     own ground, so it must flip end-for-end between appearances. */
+  --primary: #e5e5e5;
+  --primary-foreground: #171717; /* 14.23:1 */
 
-  --secondary: #333333; /* ramp 800 */
-  --secondary-foreground: #ffffff;
-  --muted: #333333;
-  --muted-foreground: #b3b3b3; /* ramp 300 — 6.03:1 */
-  --accent: #4d4d4d; /* ramp 700 hover */
-  --accent-foreground: #ffffff;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a1a1a1; /* 5.86:1 */
+  --accent: #262626;
+  --accent-foreground: #fafafa;
 
-  --destructive: #ff6b6b; /* lifted for the dark ground — 7.13:1 with its near-black label */
+  --destructive: #ff6b6b; /* constitution semantic — 6.85:1 with its near-black label */
   --destructive-foreground: #0a0a0a;
 
-  --success: #22c55e; /* lifted for the dark ground — 7.64:1. Still NON-TEXT ONLY. */
+  --success: #22c55e; /* constitution semantic, NON-TEXT ONLY */
 
   --disabled: #333333;
   --disabled-foreground: #808080; /* 3.20:1 */
 
   --placeholder: #808080; /* 4.41:1 on the dark ground */
 
-  --border: #4d4d4d; /* ramp 700 — visible against the ground without becoming a slab */
-  --input: #4d4d4d;
-  --ring: #ffffff; /* focus inverts with the accent — 17.40:1 */
+  --border: #232323; /* white @10% flattened over the ground */
+  --input: #2f2f2f; /* white @15% flattened */
+  --ring: #737373; /* 4.18:1 — a non-text focus indicator (WCAG 1.4.11 → 3:1) */
 
-  --sidebar: #0a0a0a; /* deeper than the content ground for depth */
-  --sidebar-foreground: #ffffff; /* 19.80:1 */
-  --sidebar-primary: #f5f5f5;
-  --sidebar-primary-foreground: #1a1a1a;
-  --sidebar-accent: #333333; /* active/hover item */
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1a1a1a; /* subtle against the deeper sidebar */
-  --sidebar-ring: #ffffff;
+  /* CHARTS ONLY — see :root. */
+  --chart-1: #1447e6;
+  --chart-2: #00bc7d;
+  --chart-3: #fe9a00;
+  --chart-4: #ad46ff;
+  --chart-5: #ff2056;
+
+  --sidebar: #171717;
+  --sidebar-foreground: #fafafa;
+  /* ⚠ NEUTRALIZED (041): the adopted theme's dark --sidebar-primary is a BLUE (#1447e6) — a coloured
+     UI accent, which the "charts only" rule forbids. Set to the monochrome accent so the active nav
+     item stays neutral in dark mode. */
+  --sidebar-primary: #e5e5e5;
+  --sidebar-primary-foreground: #171717;
+  --sidebar-accent: #262626; /* active/hover item */
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #232323;
+  --sidebar-ring: #737373;
 }
 
 @theme inline {
@@ -205,6 +229,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* Data-visualisation palette — CHARTS ONLY (constitution v1.13.0). */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);

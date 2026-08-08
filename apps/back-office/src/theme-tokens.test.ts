@@ -41,13 +41,13 @@ describe("design-system tokens — Effy Forest brand (017)", () => {
   // 026: the brand is monochrome. The accent INVERTS between appearances — that is the invariant
   // most likely to be "simplified" away by someone who assumes one accent value, so assert it.
   it("uses the monochrome neutral ramp as the accent, inverting by appearance", () => {
-    expect(tokensCss).toMatch(/--primary:\s*#1a1a1a/); // light: near-black
-    expect(tokensCss).toMatch(/--primary:\s*#f5f5f5/); // dark: near-white
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#ffffff/);
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#1a1a1a/);
-    // the focus ring is the accent itself, and inverts with it
-    expect(tokensCss).toMatch(/--ring:\s*#1a1a1a/);
-    expect(tokensCss).toMatch(/--ring:\s*#ffffff/);
+    expect(tokensCss).toMatch(/--primary:\s*#171717/); // light: near-black (adopted, feature 041)
+    expect(tokensCss).toMatch(/--primary:\s*#e5e5e5/); // dark: near-white
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#fafafa/);
+    expect(tokensCss).toMatch(/--primary-foreground:\s*#171717/);
+    // the focus ring is an AA-tuned neutral (WCAG 1.4.11 UI bar), not the accent (041)
+    expect(tokensCss).toMatch(/--ring:\s*#808080/); // light
+    expect(tokensCss).toMatch(/--ring:\s*#737373/); // dark
   });
 
   it("carries exactly two semantic hues, and success has no foreground pair", () => {

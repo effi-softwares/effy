@@ -4,7 +4,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web design system — the brand SSOT (MONOCHROME: a ten-step neutral ramp with NO brand hue, whose accent INVERTS by appearance — near-black on light, near-white on dark — plus exactly two bounded semantic colours; General Sans type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V, v1.11.0). Internal package: exports TS source + CSS.",
+  "description": "Effy web design system — the brand SSOT (MONOCHROME: a ten-step neutral ramp with NO brand hue, whose accent INVERTS by appearance — near-black on light, near-white on dark — plus exactly two bounded semantic colours and a bounded data-visualisation chart palette for charts only; General Sans type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V, v1.13.0). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",
@@ -31,6 +31,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
     "radix-ui": "^1.6.2",
+    "recharts": "^2.15.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "vaul": "^1.1.2"
