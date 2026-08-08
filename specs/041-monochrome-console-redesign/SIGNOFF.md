@@ -44,6 +44,26 @@ Operator device walk + commit **pending**. Not committed.
 | email-kit test + `email-check` | ✅ 52 + clean (regenerated) |
 | `sm-tokens-check` / `sm-guard` | ✅ |
 
+## Amendment — aligned to shadcn preset `bIkeymG` (post-commit)
+
+The operator supplied preset `bIkeymG` (`pnpm dlx shadcn@latest apply --preset bIkeymG`) as the exact
+target. Inspected by running the CLI in a **throwaway** project (never the real apps). It is **fully
+monochrome**. Reconciliation (decision: "preset look, keep hard invariants"):
+
+- **Charts → greyscale** (`#d4d4d4 · #737373 · #525252 · #404040 · #262626`, both appearances),
+  replacing the colored palette first shipped. The design is now fully monochrome; the v1.13.0
+  chart-palette exception is unused (candidate to tighten later).
+- **Radii → the preset scale**: `--radius-sm 0.375rem (6px)`, `md 0.5rem (8px)`, `lg 0.625rem (10px)`,
+  `xl 0.875rem (14px)` (was 8/16). Web↔mobile parity preserved (both derive from the tokens); the
+  `check-tokens.mjs` and `email-kit` radius assertions were updated (6/8), compose + email regenerated.
+- **NOT followed** (hard invariants preserved): the preset's `muted-foreground` `#737373` (4.35:1) and
+  `ring` `#a1a1a1` (2.58:1) **fail AA** → kept the tuned `#6b6b6b` / `#808080`; `destructive` stays the
+  constitution's `#e01010` (preset was `#e7000b`); dark `sidebar-primary` stays neutralized (preset was
+  blue `#1447e6`).
+- Re-verified after the alignment: AA gate (radii 6/8) · `tokens:check` (8 compose files) · email 52 +
+  `email-check` (button radius → 6px) · shop-web 139 · back-office 77 · both build · customer-web
+  172.8 KB / 174 · no-emerald/no-jade clean.
+
 ## Open (operator)
 
 - **T031 (full) / T032** — shop-mobile Gradle Android+iOS compile + on-device walk (Light / Dark /

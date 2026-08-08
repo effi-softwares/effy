@@ -30,7 +30,7 @@ export const EMAIL_TOKENS = {
       "error": "#ff6b6b",
       "success": "#22c55e"
   },
-  radiusSm: "8px",
+  radiusSm: "6px",
 } as const;
 
 export const EMAIL_TYPE = {

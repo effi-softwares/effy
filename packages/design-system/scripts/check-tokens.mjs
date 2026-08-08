@@ -4,7 +4,7 @@
 // follows the same philosophy — Node stdlib only — so "is the brand legible?" is a build failure, not a
 // Lighthouse score three months later. It asserts, against src/tokens.css:
 //   1. every color var exists in BOTH :root (light) and .dark,
-//   2. --radius-sm = 0.5rem (8px) and --radius-md = 1rem (16px)  — web == mobile EffyRadius (SC-004),
+//   2. --radius-sm = 0.375rem (6px) and --radius-md = 0.5rem (8px) — web == mobile EffyRadius (SC-004),
 //   3. every foreground/surface text pair meets WCAG 2.1 AA (>= 4.5:1) in both appearances, and the
 //      accent/destructive fills + the focus ring clear their thresholds.
 
@@ -41,8 +41,10 @@ const remPx = (name) => {
   const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
   return m ? Math.round(parseFloat(m[1]) * 16) : null;
 };
-if (remPx("--radius-sm") !== 8) errors.push(`--radius-sm must be 0.5rem (8px), got ${remPx("--radius-sm")}px`);
-if (remPx("--radius-md") !== 16) errors.push(`--radius-md must be 1rem (16px), got ${remPx("--radius-md")}px`);
+// Preset bIkeymG scale (041): sm=6px, md=8px. The invariant is web==mobile PARITY (both derive from
+// these tokens), not a specific number; the generator emits the same dp.
+if (remPx("--radius-sm") !== 6) errors.push(`--radius-sm must be 0.375rem (6px), got ${remPx("--radius-sm")}px`);
+if (remPx("--radius-md") !== 8) errors.push(`--radius-md must be 0.5rem (8px), got ${remPx("--radius-md")}px`);
 
 // 3) WCAG 2.1 contrast
 const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -167,4 +169,4 @@ if (errors.length) {
   console.error("check-tokens: FAILED\n  - " + errors.join("\n  - "));
   process.exit(1);
 }
-console.log(`check-tokens: OK — ${Object.keys(light).length} vars × 2 appearances, radii 8/16, all pairs pass WCAG AA`);
+console.log(`check-tokens: OK — ${Object.keys(light).length} vars × 2 appearances, radii 6/8, all pairs pass WCAG AA`);

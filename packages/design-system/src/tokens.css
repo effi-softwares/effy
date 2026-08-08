@@ -117,13 +117,14 @@
      tuned to #808080 → 3.95:1 (a focus ring is a non-text UI component, WCAG 1.4.11 → 3:1). */
   --ring: #808080;
 
-  /* Data-visualisation palette (constitution v1.13.0) — CHARTS ONLY. Never a UI accent/fill/text,
-     never given a -foreground pair, never surfaced to the mobile themes. */
-  --chart-1: #f54900;
-  --chart-2: #009689;
-  --chart-3: #104e64;
-  --chart-4: #ffb900;
-  --chart-5: #fe9a00;
+  /* Data-visualisation palette — CHARTS ONLY (constitution v1.13.0). GREYSCALE, per preset bIkeymG:
+     the design is fully monochrome, so charts are a neutral ramp, not a categorical hue set. Never a
+     UI accent/fill/text, never given a -foreground pair, never surfaced to the mobile themes. */
+  --chart-1: #d4d4d4;
+  --chart-2: #737373;
+  --chart-3: #525252;
+  --chart-4: #404040;
+  --chart-5: #262626;
 
   /* Dashboard sidebar — one step off the content ground so the rail reads as a distinct plane. */
   --sidebar: #fafafa;
@@ -172,12 +173,12 @@
   --input: #2f2f2f; /* white @15% flattened */
   --ring: #737373; /* 4.18:1 — a non-text focus indicator (WCAG 1.4.11 → 3:1) */
 
-  /* CHARTS ONLY — see :root. */
-  --chart-1: #1447e6;
-  --chart-2: #00bc7d;
-  --chart-3: #fe9a00;
-  --chart-4: #ad46ff;
-  --chart-5: #ff2056;
+  /* CHARTS ONLY — greyscale, same values as light (preset bIkeymG). See :root. */
+  --chart-1: #d4d4d4;
+  --chart-2: #737373;
+  --chart-3: #525252;
+  --chart-4: #404040;
+  --chart-5: #262626;
 
   --sidebar: #171717;
   --sidebar-foreground: #fafafa;
@@ -193,12 +194,14 @@
 }
 
 @theme inline {
-  /* Radius — pinned EXPLICITLY (no calc chain) so web px == mobile EffyRadius dp (017 SC-004).
-     sm=8px, md=16px (brand default), lg=16px, xl=20px; pill via rounded-full. */
-  --radius-sm: 0.5rem;
-  --radius-md: 1rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.25rem;
+  /* Radius — the preset bIkeymG scale, pinned EXPLICITLY as rem (the preset's calc chain over the
+     0.625rem base, resolved so the hex/rem-only Compose generator can read it). Still web px == mobile
+     EffyRadius dp — SC-004 is PARITY, not the specific numbers, and both sides derive from here.
+     sm=6px, md=8px, lg=10px, xl=14px; pill via rounded-full. */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.875rem;
 
   /* Typography — General Sans is the one family (display + body), declared by the @font-face rules at
      the top of this file. No app registers a font of its own; importing this file is what supplies it. */

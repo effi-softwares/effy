@@ -4,7 +4,7 @@
   <mj-text font-size="16px" line-height="24px" font-weight="400" color="#0a0a0a" padding="0" align="left" css-class="e-ink" />
   <mj-section background-color="#ffffff" css-class="e-bg-canvas" padding="0" />
   <mj-column padding="0" />
-  <mj-button background-color="#171717" color="#fafafa" border-radius="8px"
+  <mj-button background-color="#171717" color="#fafafa" border-radius="6px"
              font-size="16px" line-height="20px" font-weight="600" inner-padding="14px 28px" align="left" css-class="e-btn-bg" />
   <mj-divider border-width="1px" border-style="solid" border-color="#e5e5e5" padding="0" css-class="e-rule" />
 

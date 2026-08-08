@@ -152,7 +152,7 @@ export function buildEmailTokens() {
     return m ? Math.round(parseFloat(m[1]) * 16) : null;
   };
   const radiusSm = remPx("--radius-sm");
-  if (radiusSm !== 8) errors.push(`--radius-sm must be 0.5rem (8px), got ${radiusSm}px`);
+  if (radiusSm !== 6) errors.push(`--radius-sm must be 0.375rem (6px), got ${radiusSm}px`);
   tokens.radiusSm = `${radiusSm}px`;
 
   if (errors.length) {

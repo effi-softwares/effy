@@ -7,8 +7,8 @@ import androidx.compose.ui.unit.dp
 
 /** Corner radii (dp) — sm/md pinned to equal the web --radius-sm/md; default = md. Pill via RoundedCornerShape(50%). */
 object EffyRadius {
-    val sm = 8.dp
-    val md = 16.dp
+    val sm = 6.dp
+    val md = 8.dp
     val default = 10.dp
 }
 

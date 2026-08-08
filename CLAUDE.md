@@ -258,6 +258,14 @@ re-skins **shop-mobile** by regenerating its Compose theme (colour only, no stru
 - **⚠ Two non-monochrome hues were live and are now gone**: `amber` used as a "warning" colour across
   shop-web fulfillment/catalog (→ monochrome emphasis by weight), and a green-tinted `#5c6b64` in
   back-office's bootstrap fallback.
+- **⚠ Aligned to shadcn preset `bIkeymG`** (operator-supplied, `apply --preset`): it is **fully
+  monochrome** — the charts are **greyscale** (`#d4d4d4…#262626`), not the colored palette first
+  shipped — and uses the preset's tighter **radii (sm 6 / md 8 / lg 10 / xl 14 px**, down from 8/16;
+  parity preserved, mobile regenerated). The preset's AA-failing `muted-foreground`/`ring`, its
+  `#e7000b` red, and its blue dark `sidebar-primary` were **not** followed — hard invariants (AA,
+  the constitution's `#e01010`, the neutral sidebar) win. Confirmed by running the CLI in a throwaway
+  project. The v1.13.0 chart-palette exception is now **unused** (charts are neutral), so it could be
+  tightened later.
 - **⚠ Email is a token-derived surface too** — the sweep caught that `packages/email-kit/dist/*` are
   generated from `tokens.css`; regenerated (10 files) and re-verified (`email-check` clean, contrast
   holds under the new tokens). Compose themes for all three mobile apps regenerated + drift-checked.
