@@ -7,7 +7,8 @@ import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
 
 import { HeaderSearch, HeaderSearchFallback } from "./_components/HeaderSearch"
 import { MiniCart } from "./_components/MiniCart"
-import { MobileNav, MobileNavFallback } from "./_components/MobileNav"
+import { MobileNavFallback } from "./_components/MobileNav"
+import { MobileNavIsland } from "./_components/MobileNavIsland"
 import { PrimaryNav, PrimaryNavFallback } from "./_components/PrimaryNav"
 import { StorefrontFooter } from "./_components/StorefrontFooter"
 import { ToastRegion } from "./_components/ToastRegion"
@@ -108,15 +109,11 @@ export default function ShopLayout({
             </div>
 
             {/* Below `lg` the pipe-separated nav is hidden and this drawer replaces it — carrying the
-                same four links AND the account control. */}
+                same four links AND the account control, the latter as a slide-in second level.
+                ⚠ DYNAMIC HOLE: the island reads the session so the drawer can show a guest a sign-in
+                button and a customer their account. It must stay inside this <Suspense>. */}
             <Suspense fallback={<MobileNavFallback />}>
-              <MobileNav
-                account={
-                  <Suspense fallback={<UserIslandSkeleton />}>
-                    <UserIsland />
-                  </Suspense>
-                }
-              />
+              <MobileNavIsland />
             </Suspense>
           </div>
         </div>

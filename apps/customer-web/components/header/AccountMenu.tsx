@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { Avatar } from "@/components/Avatar"
+import { ACCOUNT_LINKS } from "@/components/header/account-links"
 
 /**
  * The header account menu (012 FR-028).
@@ -55,32 +56,19 @@ export function AccountMenu({
       </summary>
 
       <div className="absolute right-0 z-50 mt-2 w-56 rounded-md border bg-popover p-1 shadow-md">
-        <Link
-          href="/account"
-          data-testid="menu-account"
-          className="block rounded-sm px-3 py-2 text-sm hover:bg-accent"
-        >
-          Your account
-        </Link>
-
-        <Link
-          href="/addresses"
-          data-testid="menu-addresses"
-          className="block rounded-sm px-3 py-2 text-sm hover:bg-accent"
-        >
-          Your addresses
-        </Link>
-
-        {/* 033 FR-055: a storefront entry point that does not require scrolling to the footer — which
-            was the predecessor's ONLY link to it. ⚠ This menu is a zero-JS server component
-            (<details> + a form), so adding a link here costs the guest bundle nothing. */}
-        <Link
-          href="/saved"
-          data-testid="menu-saved"
-          className="block rounded-sm px-3 py-2 text-sm hover:bg-accent"
-        >
-          Saved items
-        </Link>
+        {/* ⚠ The list is shared with the drawer's account panel (`account-links.ts`) so the two
+            cannot drift. This menu is a zero-JS server component (<details> + a form), so adding an
+            entry there costs the guest bundle nothing here either. */}
+        {ACCOUNT_LINKS.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            data-testid={link.testId}
+            className="block rounded-sm px-3 py-2 text-sm hover:bg-accent"
+          >
+            {link.label}
+          </Link>
+        ))}
 
         {/* ⚠ POST, not GET. A GET sign-out is triggerable by any <img src="/sign-out"> anywhere on
             the internet — a CSRF logout. */}
