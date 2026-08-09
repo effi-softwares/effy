@@ -137,4 +137,4 @@ custom_auth_lambda_arns = {
 # attaches dev.effyshopping.com (apex + www) and removes the old apex→gateway alias records in the
 # same apply. ⚠ Highest-risk apply; confirm `dig dev.effyshopping.com` + a valid cert afterwards, and
 # that api./core-api. are unchanged.
-amplify_domain_enabled = false
+amplify_domain_enabled = true
