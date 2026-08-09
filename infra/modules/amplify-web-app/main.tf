@@ -11,6 +11,52 @@ locals {
   })
 }
 
+# ── Amplify service role (required for WEB_COMPUTE / SSR) ───────────────────────────────────────
+#
+# Amplify assumes this role to run the SSR build/compute and write its logs. The only permission it
+# needs for a hosting-only SSR app is CloudWatch Logs under /aws/amplify/*. (No Gen2 backend here, so
+# no broad AmplifyBackendDeployFullAccess.)
+#
+# ⚠ TRUST MUST INCLUDE BOTH `amplify.amazonaws.com` AND `lambda.amazonaws.com`. The SSR runtime is
+# Lambda-backed, so a role trusted only by amplify fails to be assumed and the build dies at step 0
+# with "Unable to assume specified IAM Role" (AWS SSR-compute-role docs; found live 2026-08-09).
+data "aws_iam_policy_document" "amplify_assume" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["amplify.amazonaws.com", "lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "amplify" {
+  name               = "${var.name}-amplify"
+  assume_role_policy = data.aws_iam_policy_document.amplify_assume.json
+  tags               = var.tags
+}
+
+data "aws_iam_policy_document" "amplify_logs" {
+  statement {
+    sid    = "SsrComputeLogs"
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:DescribeLogGroups",
+    ]
+    resources = ["arn:aws:logs:*:*:log-group:/aws/amplify/*:log-stream:*", "arn:aws:logs:*:*:log-group:/aws/amplify/*"]
+  }
+}
+
+resource "aws_iam_role_policy" "amplify_logs" {
+  name   = "ssr-compute-logs"
+  role   = aws_iam_role.amplify.id
+  policy = data.aws_iam_policy_document.amplify_logs.json
+}
+
 resource "aws_amplify_app" "this" {
   name = var.name
 
@@ -22,6 +68,11 @@ resource "aws_amplify_app" "this" {
   # ⚠ REQUIRED for Next.js 14+ (customer-web is Next 16 SSR/PPR). "WEB" (static) cannot detect or
   # run the SSR app (research D3).
   platform = "WEB_COMPUTE"
+
+  # ⚠ REQUIRED for WEB_COMPUTE: an SSR app cannot build/run without a service role Amplify can assume
+  # — without it the build fails at the first step with "Unable to assume specified IAM Role". The
+  # role's job is to let the SSR compute write its logs (research D3 / implementation 2026-08-09).
+  iam_service_role_arn = aws_iam_role.amplify.arn
 
   # The repo-root amplify.yml is the source of truth for the build; it overrides anything set here.
   # It declares exactly ONE application, which is what confines the pipeline to apps/customer-web.

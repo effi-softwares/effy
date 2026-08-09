@@ -289,6 +289,11 @@ value is exactly what the constitution forbids, and an unused secret is dead con
   two-stage shape as `ses_sender_enabled`, so no code is edited between the two applies.
 - **Cold-path env var uses the real subdomain**: `EDGE_API_BASE_URL = https://edge-api.<zone>` (the
   `api_subdomain` default is `edge-api`, not `api`) — corrected from the plan's shorthand.
+- **⚠ Service role added (WEB_COMPUTE requirement — found on first apply).** The first Amplify build
+  failed at step 0 with "Unable to assume specified IAM Role": a Next.js SSR (`WEB_COMPUTE`) app
+  cannot build/run without an `iam_service_role_arn`. The module now creates an IAM role trusted by
+  `amplify.amazonaws.com` with CloudWatch Logs on `/aws/amplify/*` and sets it on the app. This was a
+  gap in the originally authored module.
 - **Build-failure alarm** (D9) implemented as an EventBridge rule (`aws.amplify` /
   `jobStatus = FAILED`) → the existing `aws_sns_topic.alerts`, plus an `aws_sns_topic_policy` that
   **preserves the default account-owner statement** and adds EventBridge + CloudWatch publish rights —
