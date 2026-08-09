@@ -15,5 +15,11 @@ export * from "./saved-item";
 export * from "./shop-order";
 export * from "./promotion";
 export * from "./banner";
+
+// 042 — the home layout block system. `artwork-canvas` supersedes the singleton `banner` canvas;
+// both are exported while 042 is in flight, and `banner` is removed with the advertising facet.
+export * from "./block-catalogue";
+export * from "./home-layout";
+export * from "./artwork-canvas";
 // 039-customer-home-redesign
 export * from "./newsletter";

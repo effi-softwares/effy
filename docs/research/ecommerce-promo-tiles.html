@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the big retailers actually build promo tiles — Effy research</title>
+<style>
+  :root { color-scheme: light dark; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0 auto; max-width: 62rem; padding: 2.5rem 1.25rem 6rem;
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #fff; color: #18181b;
+  }
+  @media (prefers-color-scheme: dark) { body { background: #0f0f10; color: #e8e8e6; } }
+  h1, h2, h3, h4 { line-height: 1.2; margin: 2.25em 0 .6em; font-weight: 700; }
+  h1 { font-size: 2rem; margin-top: 0; }
+  h2 { font-size: 1.5rem; padding-top: .6em; border-top: 1px solid currentColor; border-color: color-mix(in srgb, currentColor 15%, transparent); }
+  h3 { font-size: 1.15rem; }
+  p, li { overflow-wrap: anywhere; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .875em; }
+  pre { padding: 1rem; overflow-x: auto; border-radius: 6px;
+        background: color-mix(in srgb, currentColor 6%, transparent); }
+  code { padding: .1em .35em; border-radius: 3px;
+         background: color-mix(in srgb, currentColor 8%, transparent); }
+  pre code { padding: 0; background: none; }
+  /* Wide tables scroll inside their own box; the page never scrolls sideways. */
+  .table-wrap { overflow-x: auto; margin: 1.25rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { text-align: left; vertical-align: top; padding: .5rem .7rem;
+           border: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+  th { font-weight: 600; background: color-mix(in srgb, currentColor 5%, transparent); }
+  blockquote { margin: 1.25rem 0; padding: .1rem 1rem;
+               border-left: 3px solid color-mix(in srgb, currentColor 25%, transparent);
+               color: color-mix(in srgb, currentColor 75%, transparent); }
+  a { color: inherit; text-underline-offset: 2px; }
+  img { max-width: 100%; height: auto; }
+  .provenance { margin: 0 0 2.5rem; padding: 1rem 1.25rem; border-radius: 8px; font-size: .9rem;
+                background: color-mix(in srgb, currentColor 6%, transparent); }
+  .provenance p { margin: .4em 0; }
+</style>
+</head>
+<body>
+<div class="provenance">
+  <p><strong>Research note — not a specification.</strong> Captured 2026-08-09 as background for
+  <code>specs/042-storefront-home-composer/</code>. Findings were gathered by inspecting live page
+  markup and shipped JavaScript, not screenshots; each claim carries its evidence inline.</p>
+  <p>Saved into the repository so the spec's decisions can be traced to their source without
+  depending on an external URL. Fonts and page chrome from the original render were stripped;
+  the content is unaltered.</p>
+</div>
+<style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style>
+
+<style>
+
+
+
+
+:root{
+  --ground:#ffffff; --panel:#f7f7f7; --panel-2:#eeeeee; --line:#e2e2e2; --line-strong:#cfcfcf;
+  --ink:#0a0a0a; --ink-2:#454545; --muted:#6b6b6b;
+  --accent:#1a1a1a; --accent-ink:#fafafa;
+  --ok:#0a7d08; --no:#c40d0d; --warn:#6b6b6b;
+  --code-bg:#f2f2f2; --code-ink:#1a1a1a;
+  --shadow:0 1px 2px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0a0a0a; --panel:#141414; --panel-2:#1e1e1e; --line:#282828; --line-strong:#3a3a3a;
+    --ink:#f5f5f5; --ink-2:#c8c8c8; --muted:#909090;
+    --accent:#f5f5f5; --accent-ink:#0a0a0a;
+    --ok:#3fc03c; --no:#ff6b6b; --warn:#909090;
+    --code-bg:#161616; --code-ink:#e8e8e8;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0a0a0a; --panel:#141414; --panel-2:#1e1e1e; --line:#282828; --line-strong:#3a3a3a;
+  --ink:#f5f5f5; --ink-2:#c8c8c8; --muted:#909090;
+  --accent:#f5f5f5; --accent-ink:#0a0a0a;
+  --ok:#3fc03c; --no:#ff6b6b; --warn:#909090;
+  --code-bg:#161616; --code-ink:#e8e8e8;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"General Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-weight:400; font-size:17px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; margin:0;
+}
+.wrap{max-width:1040px;margin:0 auto;padding:0 28px 120px;}
+.prose{max-width:70ch;}
+
+h1,h2,h3,h4{text-wrap:balance;margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.15;}
+h1{font-size:clamp(2.1rem,5vw,3.2rem);letter-spacing:-.035em;}
+h2{font-size:clamp(1.5rem,3vw,2rem);letter-spacing:-.028em;}
+h3{font-size:1.18rem;letter-spacing:-.018em;}
+h4{font-size:.98rem;font-weight:500;}
+p{margin:0;}
+
+.eyebrow{
+  font-size:.7rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);
+}
+code,pre,.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  font-variant-ligatures:none;}
+code{background:var(--code-bg);color:var(--code-ink);padding:.12em .38em;border-radius:4px;font-size:.86em;}
+pre{
+  background:var(--code-bg);color:var(--code-ink);border:1px solid var(--line);
+  border-radius:8px;padding:16px 18px;overflow-x:auto;font-size:.8rem;line-height:1.55;margin:0;
+}
+pre code{background:none;padding:0;font-size:1em;}
+
+a{color:var(--ink);text-underline-offset:3px;text-decoration-color:var(--line-strong);}
+a:hover{text-decoration-color:var(--ink);}
+a:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:2px;}
+
+/* ---- rhythm ---- */
+section{display:flex;flex-direction:column;gap:22px;}
+.stack{display:flex;flex-direction:column;gap:14px;}
+.stack-lg{display:flex;flex-direction:column;gap:34px;}
+.rule{height:1px;background:var(--line);border:0;margin:0;}
+
+/* ---- masthead ---- */
+.masthead{padding:76px 0 40px;display:flex;flex-direction:column;gap:26px;}
+.masthead .lede{font-size:1.18rem;color:var(--ink-2);max-width:64ch;}
+.meta-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;
+}
+.meta-grid div{background:var(--ground);padding:14px 16px;display:flex;flex-direction:column;gap:3px;}
+.meta-grid .k{font-size:.68rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.meta-grid .v{font-size:.95rem;font-weight:500;font-variant-numeric:tabular-nums;}
+
+/* ---- section heads ---- */
+.sec-head{display:flex;flex-direction:column;gap:8px;padding-top:52px;}
+.sec-head .eyebrow{color:var(--muted);}
+
+/* ---- verdict strip ---- */
+.verdict{
+  display:flex;gap:14px;align-items:flex-start;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px;
+}
+.verdict .tag{
+  flex:none;font-size:.68rem;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 8px;border-radius:4px;border:1px solid var(--line-strong);color:var(--ink-2);
+  margin-top:2px;white-space:nowrap;
+}
+.verdict.live .tag{color:var(--ok);border-color:currentColor;}
+.verdict.baked .tag{color:var(--no);border-color:currentColor;}
+.verdict.mixed .tag{color:var(--ink-2);border-color:var(--line-strong);}
+.verdict .body{font-size:.95rem;color:var(--ink-2);}
+.verdict .body strong{color:var(--ink);font-weight:600;}
+
+/* ---- platform dossier ---- */
+.dossier{border-top:2px solid var(--ink);padding-top:20px;display:flex;flex-direction:column;gap:18px;}
+.dossier-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;}
+.dossier-head h3{font-size:1.5rem;letter-spacing:-.026em;}
+.dossier-head .sub{font-size:.85rem;color:var(--muted);}
+.grade{
+  font-size:.66rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 8px;border-radius:4px;background:var(--panel-2);color:var(--ink-2);white-space:nowrap;
+}
+.grade.blocked{color:var(--no);}
+
+dl.facts{display:grid;grid-template-columns:minmax(120px,168px) 1fr;gap:10px 20px;margin:0;font-size:.93rem;}
+dl.facts dt{font-weight:500;color:var(--muted);font-size:.82rem;letter-spacing:.01em;padding-top:2px;}
+dl.facts dd{margin:0;color:var(--ink-2);}
+dl.facts dd strong{color:var(--ink);font-weight:600;}
+@media(max-width:620px){dl.facts{grid-template-columns:1fr;gap:3px 0;}dl.facts dd{margin-bottom:10px;}}
+
+/* ---- tables ---- */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;}
+table{border-collapse:collapse;width:100%;font-size:.87rem;min-width:560px;}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;}
+thead th{
+  background:var(--panel);font-weight:600;font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0;}
+td.num{font-variant-numeric:tabular-nums;}
+td .y{color:var(--ok);font-weight:600;}
+td .n{color:var(--no);font-weight:600;}
+td .q{color:var(--muted);}
+
+/* ---- ranked list ---- */
+.rank{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.rank-item{display:grid;grid-template-columns:52px 1fr;border-bottom:1px solid var(--line);}
+.rank-item:last-child{border-bottom:0;}
+.rank-n{
+  background:var(--panel);display:flex;align-items:flex-start;justify-content:center;padding:18px 0;
+  font-size:1.05rem;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink);
+  border-right:1px solid var(--line);
+}
+.rank-b{padding:16px 20px;display:flex;flex-direction:column;gap:8px;}
+.rank-b h4{font-size:1.02rem;font-weight:600;letter-spacing:-.012em;}
+.rank-b p{font-size:.9rem;color:var(--ink-2);}
+.rank-b .who{font-size:.78rem;color:var(--muted);}
+.rank-b .who b{color:var(--ink-2);font-weight:500;}
+
+/* ---- specimen gallery ---- */
+.specimens{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:20px;}
+.spec{display:flex;flex-direction:column;gap:9px;}
+.spec-frame{
+  position:relative;aspect-ratio:3/2;border-radius:8px;overflow:hidden;border:1px solid var(--line);
+  isolation:isolate;
+}
+.photo{position:absolute;inset:0;
+  background:
+    radial-gradient(60% 70% at 18% 14%, #fdf6e3 0%, #f0d9a8 38%, rgba(240,217,168,0) 72%),
+    radial-gradient(48% 58% at 78% 26%, #ffffff 0%, #dfe7ea 42%, rgba(223,231,234,0) 74%),
+    radial-gradient(70% 80% at 62% 88%, #2b2118 0%, #4a3a2a 44%, rgba(74,58,42,0) 78%),
+    radial-gradient(55% 65% at 8% 82%, #6d5c3f 0%, rgba(109,92,63,0) 70%),
+    linear-gradient(155deg,#e8dcc4 0%,#c9b795 34%,#7a6748 66%,#33281c 100%);
+}
+.photo::after{content:"";position:absolute;inset:0;opacity:.5;
+  background-image:repeating-linear-gradient(38deg,rgba(255,255,255,.14) 0 2px,rgba(0,0,0,.1) 2px 4px);
+  mix-blend-mode:overlay;}
+.spec-copy{position:absolute;left:0;right:0;bottom:0;padding:16px;z-index:2;color:#fff;}
+.spec-copy .kick{font-size:.62rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;opacity:.9;}
+.spec-copy .hl{font-size:1.06rem;font-weight:600;line-height:1.2;letter-spacing:-.015em;margin-top:3px;}
+.spec-copy .sc{font-size:.76rem;opacity:.92;margin-top:3px;}
+
+/* the five treatments */
+.t-none{}
+.t-naive::before{content:"";position:absolute;inset:0;z-index:1;
+  background:linear-gradient(to top,rgba(0,0,0,.6) 0%,rgba(0,0,0,0) 55%);}
+.t-eased::before{content:"";position:absolute;left:0;right:0;bottom:0;height:62%;z-index:1;
+  background:linear-gradient(to top,#0000008a 0,#00000085 6%,#0000007a,#0000006e 16%,#00000061 20%,#0000004f 25%,#00000040 31%,#00000030 38%,#00000021 46%,#00000014 56%,#0000000a 68%,#00000003 83%,#0000);}
+.t-box .spec-copy{background:rgba(10,10,10,.9);margin:12px;border-radius:6px;padding:13px 15px;
+  left:0;right:auto;bottom:0;max-width:78%;}
+.t-split{display:grid;grid-template-columns:44% 56%;}
+.t-split .panel-side{background:#1a1a1a;color:#fff;padding:16px;display:flex;flex-direction:column;justify-content:center;z-index:2;}
+.t-split .photo{position:relative;inset:auto;grid-column:2;}
+.t-below{aspect-ratio:auto;border:0;border-radius:0;display:flex;flex-direction:column;gap:0;}
+.t-below .photo{position:relative;inset:auto;aspect-ratio:16/9;border-radius:8px;border:1px solid var(--line);overflow:hidden;}
+.t-below .under{padding:12px 2px 0;color:var(--ink);}
+.t-below .under .kick{font-size:.62rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.t-below .under .hl{font-size:1.02rem;font-weight:600;line-height:1.2;letter-spacing:-.015em;margin-top:3px;}
+.t-below .under .sc{font-size:.78rem;color:var(--ink-2);margin-top:3px;}
+.spec-cap{font-size:.8rem;color:var(--muted);}
+.spec-cap b{color:var(--ink);font-weight:600;display:block;font-size:.86rem;margin-bottom:2px;}
+.spec-cap .v{color:var(--ok);font-weight:500;}
+.spec-cap .x{color:var(--no);font-weight:500;}
+
+/* ---- callout ---- */
+.callout{border-left:3px solid var(--ink);background:var(--panel);padding:16px 20px;border-radius:0 8px 8px 0;
+  display:flex;flex-direction:column;gap:9px;}
+.callout h4{font-size:.98rem;font-weight:600;}
+.callout p{font-size:.92rem;color:var(--ink-2);}
+
+/* ---- field list ---- */
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.fgroup{background:var(--ground);padding:18px 20px;display:flex;flex-direction:column;gap:11px;}
+.fgroup h4{font-size:.72rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+.fgroup ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px;}
+.fgroup li{font-size:.86rem;color:var(--ink-2);line-height:1.45;}
+.fgroup li b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.83em;color:var(--ink);font-weight:600;}
+.fgroup li .req{color:var(--muted);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;}
+
+ul.bullets{margin:0;padding-left:1.15em;display:flex;flex-direction:column;gap:9px;}
+ul.bullets li{color:var(--ink-2);font-size:.95rem;}
+ul.bullets li b,ul.bullets li strong{color:var(--ink);font-weight:600;}
+
+.srcs{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px;}
+.srcs a{color:var(--ink-2);word-break:break-all;}
+
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="stack">
+    <div class="eyebrow">Field research &middot; merchandising surfaces &middot; August 2026</div>
+    <h1>How the big retailers actually build promo tiles</h1>
+    <p class="lede">Thirteen grocery, food-delivery and general-retail platforms, examined through their delivered markup, embedded payloads and shipped JavaScript rather than their screenshots. The short version: <strong>the copy is live DOM text almost everywhere</strong>, the artwork is commissioned per tile shape rather than cropped, and <strong>most of them solve text-over-photography by not putting text on the photograph</strong>.</p>
+  </div>
+  <div class="meta-grid">
+    <div><span class="k">Platforms probed</span><span class="v">13</span></div>
+    <div><span class="k">Markup obtained</span><span class="v">12</span></div>
+    <div><span class="k">Schemas read</span><span class="v">7</span></div>
+    <div><span class="k">No evidence</span><span class="v">1</span></div>
+  </div>
+  <p class="prose" style="font-size:.9rem;color:var(--muted);">Method: raw HTTP fetch of each homepage with a desktop browser user-agent, then inspection of the delivered HTML, embedded JSON/GraphQL payloads, linked stylesheets, and CDN response headers — supplemented by published engineering documentation and open-source schemas. Every claim marked <span class="grade">Markup</span> was read out of bytes fetched directly. Claims marked <span class="grade blocked">Blocked</span> are gaps, stated as gaps.</p>
+</header>
+
+<hr class="rule">
+
+<!-- ======================= THE THREE ANSWERS ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">The questions you asked, answered first</div>
+    <h2>Three direct answers</h2>
+  </div>
+
+  <div class="stack-lg">
+
+    <div class="stack">
+      <h3>1. Is the tile's text live DOM text, or baked into the image?</h3>
+      <p class="prose"><strong>Live DOM text at ten of the twelve surfaces where evidence was obtained.</strong> Two exceptions, both instructive: Amazon bakes everything, and Woolworths bakes exactly one thing on purpose.</p>
+      <p class="prose">There is a reliable forensic tell, and it works on any site: <strong>look at the <code>alt</code> attribute.</strong></p>
+      <ul class="bullets prose">
+        <li>When the copy is live text, the artwork is decorative and the alt is <b>empty or descriptive of the picture</b>. Walmart: <code>alt="Black backpack on a wood surface next to a banana, snacks and a travel cup."</code> — that describes a photograph, not an offer. eBay goes further and wraps the image in <code>role="img" aria-hidden="true"</code> with an empty alt. Uber Eats' offer badge uses <code>&lt;img alt="" role="presentation"&gt;</code> for the trophy icon beside live text.</li>
+        <li>When the copy is baked into the pixels, the alt <b>carries the marketing copy</b>, because it is the only place the words can live. Target's Superhero: <code>alt="College, Dorm deals are here, bullseye university"</code> — and the component's text container next to it is rendered <em>empty</em>. Amazon, the fully-baked outlier, duplicates its entire headline into both <code>alt</code> <em>and</em> <code>aria-label</code>.</li>
+      </ul>
+      <p class="prose">Target does both deliberately: its ultra-wide <b>Superhero</b> is a flat Scene7 composite with the words in the artwork, while its <b>Story Block</b> tiles use live <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code> text. Baked-in text is a per-slot choice reserved for one full-bleed placement, not a house position.</p>
+      <div class="callout">
+        <h4>The most useful negative result: Uber Eats proves it by paired comparison</h4>
+        <p>One captured document contains two adjacent store tiles. "Rocket Sushi" carries <code>"promotion":{"text":" Top Offer • Buy 1, Get 1 Free","promotionUuid":"…"}</code> and renders a badge div; "Nojo Ramen Tavern" carries <code>"promotion":null</code> and its <code>&lt;figure&gt;</code> holds only a lazy-load placeholder. <strong>Both have the identical six-rung image ladder.</strong> The image pipeline is the same and only the data differs — so the offer cannot be in the image. In the captured markup the badge text is a sibling of an image container that <em>has not even loaded yet</em>. And the badge model carries <code>textColor:{color:"#FFFFFF"}</code> at runtime, which is impossible on baked pixels.</p>
+      </div>
+      <div class="callout">
+        <h4>Woolworths bakes exactly one field, and does it correctly</h4>
+        <p>The only principled hybrid in the sample: the <strong>price</strong> goes into the artwork — so a designer controls its typography, which is the one genuine argument for baking — while headline, subcopy and CTA stay live. It is made accessible by a parallel <code>sr-only</code> restatement of the price in the DOM, never left as pixels alone. If you ever bake anything, this is the shape: one field, for a typographic reason, with a text restatement beside it.</p>
+      </div>
+    </div>
+
+    <div class="stack">
+      <h3>2. What makes text legible over photography without ruining the photograph?</h3>
+      <p class="prose">The dominant answer across these sites is not a gradient. It is <strong>don't put the text on the photograph.</strong> Five of the seven surfaces I could read place their promo copy either <em>beside</em> the image in a colour panel or <em>below</em> it entirely, as the default state. The full ranking, with evidence, is <a href="#legibility">further down</a>.</p>
+      <p class="prose">The most telling single data point: Shopify's Dawn theme — the reference storefront implementation, used by millions of shops — ships <code>image_overlay_opacity</code> with a <strong>default of 0</strong>, <code>show_text_box</code> defaulting to <strong>true</strong>, and <code>show_text_below</code> defaulting to <strong>true</strong> on mobile. Its own CSS then does <code>.banner--mobile-bottom::after { display: none }</code>: when the text leaves the image, the scrim is deleted. The scrim exists only to serve the text, never as a look.</p>
+    </div>
+
+    <div class="stack">
+      <h3>3. Is "a discount code with rules" the same entity as "editorial merchandising that links somewhere"?</h3>
+      <p class="prose"><strong>Two entities, everywhere I could observe both in one payload.</strong> The banner never carries the discount's rules; it carries a <em>destination</em> and, at most, a human-readable summary plus a link to terms.</p>
+      <ul class="bullets prose">
+        <li><b>Instacart</b> is the cleanest proof, because both live in the same GraphQL cache. Editorial placements are <code>ContentManagement*</code> types — a placement id, a placement <em>type</em>, a placement <em>layout</em>, and a named data query. The offer is an entirely separate <code>ItemsResponseBackedItemPriceItemPromotionSection</code> carrying <code>offerLabelString</code> ("Buy 2 or more for $4.60 each"), <code>offerSublabelString</code>, <code>offerReferenceString</code>, <code>badgeVariant</code> and clip-coupon state. Different type, different lifecycle, attached to an <em>item</em>, not to a banner.</li>
+        <li><b>eBay</b>'s banner headline says "Best loved items at 12%* off" as plain marketing copy; the CTA links to a campaign landing page and a <em>separate</em> small link labelled <code>*See terms.</code> points at <code>pages.ebay.com/promo/2026/his12aug/</code>. The banner holds no code and no rules.</li>
+        <li><b>Walmart</b>'s card schema has a <code>legalDisclosure</code> field and a <code>primaryCta.clickThrough</code> URL — but nothing resembling a discount rule, threshold or code. Headings routinely end in an asterisk ("Free setup &amp; support on select computers*") whose expansion lives elsewhere.</li>
+      </ul>
+      <div class="callout">
+        <h4>What that means for a platform with a promo-code table</h4>
+        <p>The banner should reference a promotion, not embed it. Everything the shopper reads on the tile — eyebrow, headline, terms line — is authored copy belonging to the <em>banner</em>; the code, thresholds, caps and window belong to the <em>promotion</em>, and the tile's only structural link to it is a destination URL. This is exactly why a cart-level code has no products to filter to, and why a promotion tap needs a destination that restates the offer rather than a search result.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ======================= LEGIBILITY ======================= -->
+<section id="legibility">
+  <div class="sec-head">
+    <div class="eyebrow">Ranked by observed prevalence, most common first</div>
+    <h2>Text over photography: what they actually do</h2>
+  </div>
+
+  <p class="prose">Ranking is by how many of the seven surfaces I could read markup for use each technique as their <em>default or primary</em> mode. Live specimens below use one deliberately hostile "photograph" — bright top-left, dark bottom-right, busy texture — which is the case that breaks naive approaches.</p>
+
+  <div class="specimens">
+
+    <div class="spec">
+      <div class="spec-frame t-none">
+        <div class="photo"></div>
+        <div class="spec-copy">
+          <div class="kick">Weekend savers</div>
+          <div class="hl">Half price on fresh produce</div>
+          <div class="sc">Until Sunday, in selected areas</div>
+        </div>
+      </div>
+      <p class="spec-cap"><b>No treatment</b><span class="x">Fails.</span> White type over a light region. This is the state everyone is trying to escape.</p>
+    </div>
+
+    <div class="spec">
+      <div class="spec-frame t-below">
+        <div class="photo"></div>
+        <div class="under">
+          <div class="kick">Weekend savers</div>
+          <div class="hl">Half price on fresh produce</div>
+          <div class="sc">Until Sunday, in selected areas</div>
+        </div>
+      </div>
+      <p class="spec-cap"><b>#1 — Text outside the image</b><span class="v">Photograph untouched.</span> Aldi, Instacart's value props, Target's Story Blocks, Dawn's mobile default.</p>
+    </div>
+
+    <div class="spec">
+      <div class="spec-frame t-split">
+        <div class="panel-side">
+          <div class="kick" style="opacity:.85">Weekend savers</div>
+          <div class="hl" style="font-size:1rem;font-weight:600;line-height:1.2;margin-top:3px;">Half price on fresh produce</div>
+          <div class="sc" style="font-size:.74rem;opacity:.85;margin-top:4px;">Until Sunday</div>
+        </div>
+        <div class="photo"></div>
+      </div>
+      <p class="spec-cap"><b>#2 — Split panel</b><span class="v">Photograph untouched.</span> eBay's 16-column banner, Instacart's hero. Text sits in a themed colour panel beside the art.</p>
+    </div>
+
+    <div class="spec">
+      <div class="spec-frame t-box">
+        <div class="photo"></div>
+        <div class="spec-copy">
+          <div class="kick">Weekend savers</div>
+          <div class="hl">Half price on fresh produce</div>
+          <div class="sc">Until Sunday, in selected areas</div>
+        </div>
+      </div>
+      <p class="spec-cap"><b>#3 — Solid box on the image</b><span class="v">Contrast guaranteed.</span> Dawn's <code>show_text_box</code> (default on), Target's <code>--headline-bg-color</code>.</p>
+    </div>
+
+    <div class="spec">
+      <div class="spec-frame t-naive">
+        <div class="photo"></div>
+        <div class="spec-copy">
+          <div class="kick">Weekend savers</div>
+          <div class="hl">Half price on fresh produce</div>
+          <div class="sc">Until Sunday, in selected areas</div>
+        </div>
+      </div>
+      <p class="spec-cap"><b>The naive scrim</b><span class="x">Visible band edge.</span> Two stops, 60% to transparent. Greys the lower half and shows a hard line where it ends.</p>
+    </div>
+
+    <div class="spec">
+      <div class="spec-frame t-eased">
+        <div class="photo"></div>
+        <div class="spec-copy">
+          <div class="kick">Weekend savers</div>
+          <div class="hl">Half price on fresh produce</div>
+          <div class="sc">Until Sunday, in selected areas</div>
+        </div>
+      </div>
+      <p class="spec-cap"><b>#5 — IKEA's eased scrim</b><span class="v">No visible edge.</span> Thirteen stops on an eased curve, in a fixed-height band. Copied verbatim from production.</p>
+    </div>
+
+  </div>
+
+  <div class="rank">
+
+    <div class="rank-item">
+      <div class="rank-n">1</div>
+      <div class="rank-b">
+        <h4>Text entirely outside the artwork — below it, or beside it</h4>
+        <p>Image is a clean rectangle with its own aspect ratio; headline, subcopy and CTA are ordinary flow content underneath or in an adjacent column. Nothing overlaps, so nothing can fail.</p>
+        <p class="who"><b>Evidence:</b> Aldi AU — all ten <code>cms-multilayout-teaser</code> blocks put <code>__title</code> and <code>__description</code> in a sibling <code>__content</code> div after the <code>&lt;picture&gt;</code>. Instacart — hero <code>&lt;h1&gt;</code> and the three value-prop cards keep copy out of the image; the decorative PNG carries <code>alt=""</code>. Target Story Blocks — <code>styles_storycardTextDefaultPosition</code> renders <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code> below the picture. Shopify Dawn — <code>show_text_below</code> defaults to <code>true</code>.</p>
+      </div>
+    </div>
+
+    <div class="rank-item">
+      <div class="rank-n">2</div>
+      <div class="rank-b">
+        <h4>A flat authored colour area — block background, text box, or headline background</h4>
+        <p>The merchandiser picks a colour, and the type sits on that colour rather than on pixels. Sometimes the whole module has a background; sometimes only the copy does; sometimes only on mobile.</p>
+        <p class="who"><b>Evidence:</b> Target ships three separate levers — a module-level <code>background-color</code> (eleven blocks on <code>#FAF0E6</code>, plus <code>#97C3BC</code>, <code>#D6E8E6</code>, <code>#FFAF99</code>, <code>#516680</code>), a <code>--headline-bg-color</code> used with five distinct values, and a <code>--mobile-copy-background-color</code> used on four blocks specifically for the mobile breakpoint. Shopify Dawn — <code>show_text_box</code> defaults <code>true</code>, and the box takes a named <code>color_scheme</code>. eBay — <code>dp-banner-color-theme__container</code>. Aldi — every teaser carries an inline <code>background-color</code>.</p>
+      </div>
+    </div>
+
+    <div class="rank-item">
+      <div class="rank-n">3</div>
+      <div class="rank-b">
+        <h4>Per-tile authored text colour over artwork commissioned with a clear area</h4>
+        <p>No overlay at all. The merchandiser sets the type colour to suit the specific photograph, and the photograph is briefed and shot with an empty region where the words go. The schema has a colour field and no scrim field.</p>
+        <p class="who"><b>Evidence:</b> Walmart — every card carries <code>heading.textColor</code>, <code>eyebrow.textColor</code> and <code>primaryCtaGroup.textColor</code> as authored hex. The full-width hero uses <code>#ffffff</code>; the five collection tiles all use Walmart navy <code>#001e60</code> over light-ground photography. There is no overlay, opacity or gradient field anywhere in the card schema. Target's asset filenames encode the same discipline — the slot is named in the file (<code>…-Col-Hero.jpg</code>, <code>…-Col-VerticalSm.jpg</code>).</p>
+      </div>
+    </div>
+
+    <div class="rank-item">
+      <div class="rank-n">4</div>
+      <div class="rank-b">
+        <h4>Copy baked into the image</h4>
+        <p>Reserved for one full-bleed slot where the typography is part of the campaign artwork. Costs you translation, responsive text sizing, selectable text and search — and it forces the marketing copy into the <code>alt</code> attribute.</p>
+        <p class="who"><b>Evidence:</b> Target's Superhero only. Two Scene7 assets, <code>2400×473</code> desktop and <code>1500×647</code> mobile, with the component's text container rendered empty and the headline living in <code>alt</code>. Its Story Blocks, in the same page, use live text — so this is a per-slot choice, not a platform position.</p>
+      </div>
+    </div>
+
+    <div class="rank-item">
+      <div class="rank-n">5</div>
+      <div class="rank-b">
+        <h4>An overlay scrim — the minority, and never left to the client to guess</h4>
+        <p>Two platforms use one as standard, and neither hard-codes it. IKEA's is a <em>fixed-height band anchored to the bottom</em>, not a full-tile wash, with thirteen colour stops on an eased falloff so there is no perceptible edge. Uber Eats makes it <strong>a server-supplied number</strong>.</p>
+        <p class="who"><b>Evidence:</b> IKEA — all thirteen <code>hri-text-overlay-card</code> instances render a dedicated <code>&lt;div class="hri-text-overlay-card__gradient"&gt;&lt;/div&gt;</code> as the first child of the card's link. Uber Eats — its shipped billboard renderer destructures <code>image = {url, overlayOpacity, responsiveImagesByFormat}</code> alongside <code>card = {backgroundColor, textColor, isBackgroundDark, …}</code>. Shopify Dawn offers a scrim but it is a <em>flat</em> <code>#000000</code> layer at author-set opacity, defaulting to <code>0</code>.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="callout">
+    <h4>The only published specification of any of this — and it is a grocery one</h4>
+    <p>Instacart's retailer-facing storefront documentation states the primary banner's composition as an explicit ratio: <strong>desktop &ldquo;56% solid color with 44% visible image&rdquo;; mobile &ldquo;65% solid color with 35% visible image&rdquo;</strong>, with text and button on the left. That is techniques 1 and 2 fused into a content contract — the merchandiser is told, in percentages, how much of the tile is a flat colour panel, and the proportion <em>grows</em> on mobile because the copy needs proportionally more room. It is the single most directly usable number in this research, and I found nothing else like it published anywhere.</p>
+    <p style="font-size:.85rem;color:var(--muted);">Instacart Storefront merchandising documentation, <code>merchandising_opportunities/creatives/</code>.</p>
+  </div>
+
+  <div class="stack">
+    <h3>IKEA's scrim, verbatim from production CSS</h3>
+    <p class="prose">Two variants ship. The difference between them is only the starting alpha — <code>8a</code> (54%) and <code>a6</code> (65%) — so the curve is tuned once and the strength is the variable. Note <code>height: 12.5rem</code>: it darkens the bottom 200px where the text is, and leaves the rest of the photograph completely alone.</p>
+<pre><code>.hri-text-overlay-card__gradient {
+  height: 12.5rem;                       /* fixed band, NOT the full tile */
+  background: linear-gradient(to top,
+    #0000008a  0,    #00000085  6%,   #0000007a,
+    #0000006e 16%,   #00000061 20%,   #0000004f 25%,
+    #00000040 31%,   #00000030 38%,   #00000021 46%,
+    #00000014 56%,   #0000000a 68%,   #00000003 83%,
+    #0000);
+}
+/* stronger variant — identical curve, starts at 65% instead of 54% */</code></pre>
+    <p class="prose" style="font-size:.9rem;color:var(--muted);">Source: <code>https://www.ikea.com/global/assets/dwf/hri/bento-CrRCvheV.css</code>, fetched 2026-08-09.</p>
+  </div>
+
+  <div class="callout">
+    <h4>Why the thirteen stops matter</h4>
+    <p>A two-stop <code>linear-gradient(transparent, rgba(0,0,0,.6))</code> interpolates linearly in sRGB, which the eye reads as a soft <em>ramp</em> that abruptly stops — you can see the line where it terminates, and it flattens the mid-tones across the whole lower half. The eased multi-stop curve concentrates almost all of the darkening in the bottom fifth and tapers to 1% before it ends, so there is no edge to see and the photograph's mid-tones survive. If you take one implementation detail from this research, take this one.</p>
+  </div>
+
+  <div class="callout">
+    <h4><code>isBackgroundDark</code> — the field that solves the problem an inverting accent creates</h4>
+    <p>Uber Eats' card model carries a boolean, <strong><code>isBackgroundDark</code></strong>, next to <code>textColor</code> and <code>overlayOpacity</code>. The tile's type colour is chosen from <em>the artwork's</em> luminance, decided server-side when the creative is authored — not from the viewer's theme.</p>
+    <p>That distinction is the whole point. <strong>A photograph does not invert when the UI does.</strong> A design system whose accent flips between light and dark will, if the tile naively takes its colour from the theme, put dark type on a dark photo in one appearance and white type on a bright one in the other — and the artwork looks identical in both. Uber's answer is to make the tile's foreground a property of the <em>image</em>, carried in the payload, and to leave it alone when the theme changes. The same reasoning is why IKEA's scrim is fixed dark in both appearances: the thing that makes type legible over an image cannot be the thing that inverts.</p>
+  </div>
+
+  <div class="stack">
+    <h3>What you have to hit, and against what</h3>
+    <p class="prose">Nielsen Norman Group's guidance on text over images sets the bar at WCAG's <strong>4.5:1</strong>, or <strong>3:1 for large text</strong> (18pt, or 14pt bold). Their governing principle is the part teams skip, and it is the reason a scrim tuned against one hero fails against the next one:</p>
+    <p class="prose" style="border-left:3px solid var(--line-strong);padding-left:18px;color:var(--ink-2);font-style:italic;">Ensure the method provides a high enough contrast for the <strong style="font-style:normal;">worst-case</strong> background image and text placement.</p>
+    <p class="prose">This is what makes techniques 1 and 2 structurally safer than 3 and 5: a flat colour panel has one contrast ratio that can be machine-checked once, while an overlay's effective contrast depends on a photograph nobody has uploaded yet. It is also the argument for keeping a scrim's strength as a two-value variant — IKEA's 54% and 65% — rather than a free slider.</p>
+  </div>
+</section>
+
+<!-- ======================= DATA MODEL ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">Synthesised from Walmart's Tempo, Target's Slingshot, Instacart's GraphQL and Shopify Dawn</div>
+    <h2>The industry-standard promotional tile</h2>
+  </div>
+
+  <p class="prose">Every field below appears in at least two of the four systems I could read schemas for. Where the systems agree on a name, I have used theirs.</p>
+
+  <div class="fields">
+
+    <div class="fgroup">
+      <h4>Copy</h4>
+      <ul>
+        <li><b>eyebrow</b> <span class="req">optional</span> — the kicker above the headline. Walmart <code>eyebrow.text</code>; Instacart has it as a distinct string per section.</li>
+        <li><b>headline</b> <span class="req">required</span> — Walmart <code>heading.text</code>, Target <code>&lt;h2&gt;</code>, Aldi <code>__title</code>, Dawn <code>heading</code> block.</li>
+        <li><b>subcopy</b> <span class="req">optional</span> — Walmart <code>subheading</code>, Target <code>&lt;h3&gt;</code>, Aldi <code>__description</code>, Dawn <code>text</code> block.</li>
+        <li><b>disclaimer</b> <span class="req">optional</span> — Walmart <code>legalDisclosure</code>, Instacart <code>legalCopyString</code>, eBay's clamped terms line. <em>Frequently carries its own URL.</em></li>
+      </ul>
+    </div>
+
+    <div class="fgroup">
+      <h4>Action</h4>
+      <ul>
+        <li><b>ctaLabel</b> — Walmart <code>primaryCta.linkText</code>, Aldi <code>base-button__label</code>, Dawn <code>button_label_1</code>.</li>
+        <li><b>ctaHref</b> — Walmart <code>primaryCta.clickThrough.{type,value}</code>. Note <code>type</code>: the destination is a <em>tagged union</em>, not a bare URL.</li>
+        <li><b>ctaStyle</b> — Walmart <code>primaryCtaStyle: "pill" | "textLink"</code>; Dawn <code>button_style_secondary</code>. Two variants, no more.</li>
+        <li><b>ctaHidden</b> — Walmart ships both <code>enableCta</code> and <code>isCtaHidden</code>; the whole tile stays clickable either way.</li>
+      </ul>
+    </div>
+
+    <div class="fgroup">
+      <h4>Artwork</h4>
+      <ul>
+        <li><b>image.src</b> + <b>image.assetId</b> — the asset is identified, not just linked.</li>
+        <li><b>image.alt</b> — <em>always present, usually empty.</em> Walmart writes <code>""</code> on the hero and a description on the rest.</li>
+        <li><b>image.templateUrl</b> — Instacart's <code>…/{width=}x{height=}/…</code>. The client fills in dimensions; the CDN renders.</li>
+        <li><b>mobileImage</b> <span class="req">optional</span> — Instacart's <code>mobileBackgroundImage</code>, Target's second Scene7 asset. A genuinely different composition, not a crop.</li>
+      </ul>
+    </div>
+
+    <div class="fgroup">
+      <h4>Presentation</h4>
+      <ul>
+        <li><b>backgroundColor</b> — on every Walmart card and every Aldi teaser.</li>
+        <li><b>textColor</b> — Walmart authors it per copy field; eBay and Dawn instead reference a <em>named colour scheme</em>. The named-scheme approach is the one that survives a design system.</li>
+        <li><b>contentPosition</b> — Dawn's nine-cell grid (<code>top-left</code>…<code>bottom-right</code>); Walmart's <code>verticalAlignment</code>+<code>horizontalAlignment</code>; Target's per-breakpoint percentage coordinates.</li>
+        <li><b>aspectRatio</b> — per breakpoint. Target authors decimals derived from the uploaded asset; IKEA uses named tokens (<code>square-to-semiportrait-from-lg</code>).</li>
+      </ul>
+    </div>
+
+    <div class="fgroup">
+      <h4>Badge</h4>
+      <ul>
+        <li><b>badge.text</b> + <b>badge.variant</b> — IKEA's <code>commercial-message</code> component with variants <code>family</code> and <code>new</code>; Instacart's <code>badgeVariant: "retailerPromotion"</code>.</li>
+        <li>Target instead exposes raw styling — <code>--ribbon-background-color</code>, <code>--ribbon-font-color</code>, <code>--ribbon-padding</code>. <em>The variant approach ages better than the hex approach.</em></li>
+      </ul>
+    </div>
+
+    <div class="fgroup">
+      <h4>Placement &amp; lifecycle</h4>
+      <ul>
+        <li><b>placementId</b> / <b>zone</b> — Walmart binds each module to a <code>contentZone{N}</code>; Instacart carries <code>cm_placement_id</code>, <code>cm_placement_type</code>, <code>cm_placement_layout</code>.</li>
+        <li><b>position</b> — <em>sparse integers.</em> Target's slots run 200, 400, 425, 450, 460, 475, 500, 525, 600… Gaps exist so a merchandiser can insert without renumbering.</li>
+        <li><b>status</b> + <b>version</b> + <b>publishedAt</b> — Walmart carries all three on every module (<code>version: 9</code>, <code>status: "published"</code>).</li>
+        <li><b>name</b> — a human campaign label. Target: <code>HP_DormDeals_SH_0809</code>. Walmart: <code>Nonmember 8/3 7AM PST - 8/10 7AM PST - Full Width HeroPOV - Desktop</code>. <em>The scheduling window lives in the name because a human needs to recognise it in a list.</em></li>
+        <li><b>trackingProperties</b> — on every section, at every platform, without exception.</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="stack">
+    <h3>DoorDash argues for naming the slots semantically, not editorially</h3>
+    <p class="prose">The field list above is editorial — <code>eyebrow</code>, <code>headline</code>, <code>subcopy</code>. DoorDash's published <code>Facet</code> model takes the opposite view and uses <strong>positional slots</strong>: <code>title</code>, <code>subtitle</code>, <code>accessory</code>, <code>description</code> for text, and <code>main</code>, <code>icon</code>, <code>background</code>, <code>accessory</code> for images, each documented as meaning "different things in the context of different components".</p>
+    <p class="prose">The trade is real. Semantic slots let one payload feed a hero, a rail tile and a list row without a new type per surface — which is why a company serving restaurants, grocery and convenience from one feed chose them. Editorial names make the authoring UI self-explanatory and the validation obvious. For a single-brand storefront with a handful of tile shapes, the editorial naming is almost certainly right; the DoorDash model earns its abstraction at a scale most platforms never reach. Their own post warns that the generic <code>custom</code> map became an anti-pattern engineers reached for instead of the real fields.</p>
+  </div>
+
+  <div class="callout">
+    <h4>Three things I expected to find and did not</h4>
+    <p><strong>No scrim or overlay field</strong> in Walmart's, Target's or Instacart's schemas — only Dawn and Uber Eats have one, and Dawn defaults it off. <strong>No discount rules</strong> on any banner entity, at any platform. And <strong>no public design system documents a marketing promo component at all</strong>: eBay Evo has Card, Item Tile, Carousel, Badge and four kinds of notice, but no Banner, Hero or Promotion. Uber's Base Web <em>does</em> have a "Banner" — defined as "a contextual message… for inline callouts, form validation, and warning/success/failure states". In design-system vocabulary, <strong>"banner" means system alert, not promotion.</strong> If you name a component <code>Banner</code>, expect to disambiguate it forever.</p>
+  </div>
+
+  <div class="stack">
+    <h3>Uber Eats' billboard card, lifted from its own shipped bundle</h3>
+    <p class="prose">The closest thing to an independent replication of the Walmart schema, arrived at by a different company for a different vertical — and the field list is almost the same one.</p>
+<pre><code>card  = { backgroundImage, trailingImage, backgroundColor, textColor, isBackgroundDark,
+          title, subtitle, cta { text, backgroundColor, textColor },
+          eyebrowRichText, uuid, storeAd }
+image = { url, overlayOpacity, responsiveImagesByFormat }   // a .json url means Lottie
+
+// store-tile offer badge
+signposts = [ { text, backgroundColor:{color:"#0E8345"}, textColor:{color:"#FFFFFF"} } ]
+// store tiles additionally ship { text, accessibilityText, badgeType } triples
+
+feed card types: BILLBOARD | INFEED_BANNER | INFO_BANNER | BACKGROUND_IMAGE_CAROUSEL</code></pre>
+    <p class="prose">Three details worth taking. <code>eyebrowRichText</code> confirms the eyebrow as a distinct field <em>and</em> as rich text, matching Target's WYSIWYG headline. The CTA carries its own <code>backgroundColor</code>/<code>textColor</code> independent of the card's — so a pill can be legible even where the headline sits on a different part of the image. And <code>accessibilityText</code> ships <em>beside</em> the visible badge text rather than replacing it, which is how you get "Top Offer, Buy one get one free" read aloud from a badge that visually reads "Top Offer • Buy 1, Get 1 Free".</p>
+    <p class="prose" style="font-size:.88rem;color:var(--muted);"><b>Evidence grade:</b> this is read from Uber's shipped renderer source and from live analytics payloads (a real April 2026 event carries <code>"cardTitle":"¡Combo Classic Burger de Carl's Jr. a solo $149!"</code> — a headline with a price travelling as a string field). <em>No rendered billboard DOM was captured</em>, so treat the field list as authoritative and the rendered markup as inferred.</p>
+  </div>
+</section>
+
+<!-- ======================= ARTWORK ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">Breakpoints, ratios and formats</div>
+    <h2>How the artwork is handled</h2>
+  </div>
+
+  <div class="tbl-wrap">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Platform</th><th>Mechanism</th><th>Renditions</th><th>Format negotiation</th></tr></thead>
+      <tbody>
+        <tr><td><b>Target</b></td><td><code>&lt;picture&gt;</code> with four <code>media</code> breakpoints (0/668/992/1200)</td><td class="num">Two <em>different master assets</em> for the hero — 2400×473 and 1500×647 — plus width switching</td><td>URL says <code>fmt=pjpeg</code>; server returns <span class="y">AVIF</span></td></tr>
+        <tr><td><b>Aldi AU</b></td><td><code>&lt;picture&gt;</code>, three breakpoints (0/760/992)</td><td>One master at 1440×720, two <em>named Scene7 crops</em>: <code>:2-1</code> and <code>:16-9</code></td><td>Extensionless URL; server returns <span class="y">AVIF</span></td></tr>
+        <tr><td><b>IKEA</b></td><td>Duplicate <code>&lt;img&gt;</code> per <code>data-breakpoint</code>, plus a named <code>aspect-ratio-box</code> token</td><td>Ten widths, 240–1600, via t-shirt size tokens <code>?f=xxxs…sg</code></td><td>URL says <code>.jpg</code>; returns <span class="y">AVIF</span> with <code>vary: accept</code></td></tr>
+        <tr><td><b>Walmart</b></td><td>Single <code>&lt;img&gt;</code>; a <em>separate asset per named bento slot</em></td><td>One asset per slot shape — filenames end <code>-Col-Hero</code>, <code>-Col-Horizontal</code>, <code>-Col-VerticalSm</code>, <code>-Col-VerticalLg</code></td><td>URL says <code>.jpg</code>; returns <span class="y">WebP</span></td></tr>
+        <tr><td><b>Instacart</b></td><td><code>&lt;picture&gt;</code> with <em>density</em> descriptors (1×/1.5×/2×/3×); separate <code>mobileBackgroundImage</code></td><td>Thumbor-style <code>/image-server/{W}x{H}/filters:fill(FFF,true):format(webp)/</code></td><td><span class="y">WebP</span> requested explicitly in the URL filter</td></tr>
+        <tr><td><b>eBay</b></td><td>Single <code>&lt;img&gt;</code>, <code>object-fit: cover</code> with <code>object-position: left-center</code></td><td>Size tokens <code>s-l500</code> / <code>s-l960</code> / <code>s-l1600</code> / <code>s-l2400</code></td><td><span class="y">WebP</span> in the URL extension</td></tr>
+        <tr><td><b>Shopify Dawn</b></td><td><code>image_tag</code> with a <code>widths</code> ladder; one 750px breakpoint</td><td><code>375, 550, 750, 1100, 1500, 1780, 2000, 3000, 3840</code></td><td>Handled by Shopify's CDN</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="stack">
+    <h3>The three findings that matter</h3>
+    <ul class="bullets prose">
+      <li><strong>Almost nobody branches on format in markup — but "nobody" would be wrong.</strong> Six of the seven Western retail sites emit no <code>type="image/webp"</code> at all: the URL advertises JPEG and the CDN negotiates. Target and Aldi both returned <code>image/avif</code> for a URL literally containing <code>fmt=pjpeg</code>. <b>Uber Eats is the exception</b> — it ships an explicit <code>&lt;picture&gt;&lt;source type="image/webp"&gt;</code> and encodes the format into the URL path (<code>/image-proc/resize/eats/format=webp/width=…/srcb64=&lt;base64(originUrl)&gt;</code>). Both approaches ship in production; negotiation is the majority and needs no template branch, explicit <code>type</code> is the belt-and-braces minority.</li>
+      <li><strong>Art direction is real, and it means a second asset — not a crop.</strong> Target's two hero masters measure 2400×473 (5.074:1) and 1500×647 (2.318:1), and those decimals appear <em>exactly</em> in the component's <code>--aspect-ratio-lg</code> and <code>--aspect-ratio-default</code>. The ratio is read off the uploaded file. Walmart goes further and commissions a distinct photograph per bento slot shape.</li>
+      <li><strong>The alternative is a named server-side crop.</strong> Aldi uploads one 2:1 master and requests <code>:2-1</code> or <code>:16-9</code> from Scene7 per breakpoint. One asset, two shapes, no second commission — meaningfully cheaper to operate, and the crop is defined once in the DAM rather than in CSS.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ======================= BENTO ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">Composition</div>
+    <h2>The bento grid itself</h2>
+  </div>
+
+  <p class="prose"><strong>Tile size is authored data at every platform I could read — never positional convention.</strong> The three systems solve it three different ways, in increasing order of rigidity.</p>
+
+  <dl class="facts">
+    <dt>Walmart — named slots</dt>
+    <dd>A module declares a <code>viewType</code> (<code>collectionView</code>, <code>fiveCardGridHeroFullWidthView</code>) and exposes one authored object per <strong>semantically named slot</strong>: <code>collectionHero</code>, <code>horizontal</code>, <code>verticalSmallLeft</code>, <code>verticalSmallRight</code>, <code>verticalLarge</code>. The merchandiser fills a shape, not an index. Page layout above that is a nested container tree with <code>flow: vertical|horizontal</code>, <code>style.gridColumns</code>, and slots mapping to ordered <code>contentZone{N}</code> refs.</dd>
+
+    <dt>Target — spans per breakpoint</dt>
+    <dd>A twelve-column grid where each block carries its own span as inline custom properties: <code>--xs-col-b: calc(12/12*100%)</code>, <code>--md-col-b: calc(6/12*100%)</code>. Carousels get <code>--xs-col-p: calc(100%/3)</code>, <code>--md-col-p: calc(100%/5)</code>, <code>--lg-col-p: calc(100%/6)</code> — three, five and six across. Every block is wrapped in a <code>GenericSlingshotPagePlannerSlot</code> carrying <code>data-component-type</code>, <code>data-component-position</code>, <code>data-component-version</code> and <code>data-content-type</code>.</dd>
+
+    <dt>IKEA — container queries</dt>
+    <dd>The most modern of the three, and the most relevant if you want one tile component at many sizes. <code>.hri-bento-box-card</code> declares <code>container-type: inline-size; container-name: bento-box-card</code>, and the tile's own contents respond to <em>its</em> width — the circular tag scales 100px→330px across four container breakpoints and hides itself below 250px. The tile never needs to know where it sits. IKEA also ships a <code>hri-bento-box-card--text</code> variant with no image at all.</dd>
+  </dl>
+
+  <div class="stack">
+    <h3>The component taxonomy is small</h3>
+    <p class="prose">Target's homepage rendered twenty page-planner slots drawing on just seven component types: <b>Superhero</b>, <b>Story Block</b>, <b>Story</b>, <b>Banner</b>, <b>Manual TCIN Carousel</b>, <b>Item Or Promotion Carousel</b>, <b>Browse&nbsp;–&nbsp;Manual</b>. Each slot also declares whether its contents are hand-picked or algorithmic — <code>data-content-type</code> was one of <code>all_manual</code>, <code>manual</code>, <code>static</code>, <code>ct_static</code> or <code>dynamic</code>.</p>
+    <p class="prose">Aspect ratios observed on Target: <code>1/1</code>, <code>2/1</code>, <code>2.149/1</code>, <code>2.318/1</code>, <code>3.641/1</code>, <code>5.074/1</code>, <code>5.53/1</code>, <code>9.877/1</code>. The odd decimals are not design decisions — they are the true dimensions of whatever the studio delivered.</p>
+  </div>
+</section>
+
+<!-- ======================= ACCESSIBILITY ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">Link structure, alt text, heading levels</div>
+    <h2>Accessibility: no consensus, but clear rules</h2>
+  </div>
+
+  <div class="tbl-wrap">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Platform</th><th>Tile link structure</th><th>Headline element</th><th>Decorative artwork</th></tr></thead>
+      <tbody>
+        <tr><td><b>IKEA</b></td><td>One link wrapping the whole card</td><td><code>&lt;p&gt;</code> with a typography class — <em>not</em> a heading</td><td>Descriptive alt; arrow icon <code>aria-hidden</code></td></tr>
+        <tr><td><b>Target</b></td><td>One link wrapping picture + text</td><td><code>&lt;h2&gt;</code>, subcopy <code>&lt;h3&gt;</code></td><td>alt carries the copy on baked-in tiles; <code>alt=""</code> otherwise</td></tr>
+        <tr><td><b>eBay</b></td><td>Two links — CTA and terms. Image not a link</td><td><code>&lt;h2&gt;</code></td><td><code>role="img" aria-hidden="true"</code> <em>and</em> empty alt</td></tr>
+        <tr><td><b>Aldi AU</b></td><td>One link, wrapping only the CTA button</td><td><code>&lt;p&gt;</code> — no headings in the teaser at all</td><td>Descriptive alt ("Assorted grocery items in a blue ALDI bag.")</td></tr>
+        <tr><td><b>Walmart</b></td><td>CTA link; card-level click tracked separately</td><td>Authored text, level not exposed in payload</td><td><code>alt=""</code> on the hero, descriptive elsewhere</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <p class="prose">The disagreement is about whether the whole tile is one link. The <em>agreement</em> is on four points, and they held without exception:</p>
+
+  <ul class="bullets prose">
+    <li><strong>Never a link inside a link.</strong> Where the whole tile is clickable (IKEA, Target), there is exactly one <code>&lt;a&gt;</code> and the "CTA" is a visual affordance — IKEA's is an <code>aria-hidden</code> arrow glyph with no text at all.</li>
+    <li><strong>Ambiguous CTA labels get an accessible name that includes the headline.</strong> Aldi's button is labelled "Order Now" visually but <code>aria-label="Order Now Get 30% off your first DoorDash order.* (opens in a new tab)"</code>. Five links reading "Shop now" are useless in a link list; this is how they fix it without changing the design.</li>
+    <li><strong>Decorative artwork is hidden, and hidden properly.</strong> eBay belt-and-braces it with both <code>aria-hidden="true"</code> on the wrapper and an empty <code>alt</code>.</li>
+    <li><strong>Visual size is decoupled from semantic level.</strong> Dawn's heading block offers sizes <code>h0</code>, <code>h1</code>, <code>h2</code>, <code>hxl</code>, <code>hxxl</code> while always rendering an <code>&lt;h2&gt;</code> element. Target does the same with <code>styles_fontSize2</code> on an <code>&lt;h2&gt;</code>.</li>
+  </ul>
+
+  <div class="stack">
+    <h3>eBay publishes the rule the others only imply</h3>
+    <p class="prose">eBay's Evo design system is the one place I found the whole-tile-link question answered explicitly, and the answer is a <strong>binary with no middle</strong>:</p>
+    <ul class="bullets prose">
+      <li>A <b>self-actionable card</b> — the whole tile is one link or button — <strong>cannot contain interactive elements such as buttons or links within it.</strong> Focus lands only on the card.</li>
+      <li>A <b>non-self-actionable card</b> is inert, "not itself interactive, but houses elements, such as an image wrapped by an anchor, an add to favorites button, item title that is also wrapped in an anchor". Focus lands on the children.</li>
+      <li>Evo also warns against nesting headings or lists inside a self-actionable card, "as screen readers will only announce the button or link text" — which explains IKEA's choice of a <code>&lt;p&gt;</code> rather than an <code>&lt;h2&gt;</code> inside its whole-card link.</li>
+      <li>The <b>hybrid</b> — whole-tile click <em>plus</em> inner controls — is explicitly pushed to a <code>&lt;div&gt;</code> with JavaScript event handling rather than nested anchors.</li>
+    </ul>
+    <p class="prose">That resolves the apparent disagreement in the table above. Target and IKEA are self-actionable, so they have exactly one anchor and their "CTA" is decoration. eBay and Aldi are non-self-actionable, so they have named child links and a real button. <strong>Both are correct; what is never correct is a whole-tile link with a button inside it</strong>, which is the shape most hand-rolled promo tiles drift into. A save/favourite control on a promotional tile forces you into the second camp.</p>
+  </div>
+
+  <div class="stack">
+    <h3>If the tiles are in a carousel, eBay's rules are unusually prescriptive</h3>
+    <ul class="bullets prose">
+      <li>The carousel <strong>must</strong> have a heading in the page's heading structure, and items <strong>must</strong> be marked up as a list. Previous/next <strong>must</strong> be real <code>&lt;button&gt;</code> elements. <strong>Peeked partial slides must not be focusable.</strong></li>
+      <li>Items outside the viewport <strong>must not be keyboard focusable and must not be reachable with the virtual cursor</strong> — navigation is via the buttons only.</li>
+      <li>Auto-rotation requires a pause/play control that is the first interactive element and <strong>always visible</strong>; it must pause on hover and on keyboard focus entering. Discrete carousels <em>should</em> not auto-start; continuous ones <em>must</em> not.</li>
+      <li>Disabled edge buttons <strong>stay in the tab order</strong>, announced as disabled — deliberately, so focus is never lost when a control disables under it.</li>
+      <li>Focus order: pause/play → previous → in-viewport content → next → pagination. ARIA: <code>role="group"</code> + <code>aria-roledescription</code> + <code>aria-labelledby</code> pointing at the visible heading.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <h4>Target's screen-reader craft, worth stealing</h4>
+    <p>Its display headline renders "Up to <b>40</b>%" as styled spans, then repairs the reading with <code>&lt;span class="h-sr-only"&gt;percent off&lt;/span&gt;</code> beside the numeral and <code>aria-hidden="true"</code> on the decorative <code>%</code> and on the <code>&lt;br&gt;</code> that forces the line break. A sighted user sees a stacked display number; a screen reader hears "Up to 40 percent off". Responsive line breaks use <code>&lt;br class="dn"&gt;</code> so they vanish at small sizes.</p>
+  </div>
+</section>
+
+<!-- ======================= PLATFORM DOSSIERS ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">Primary evidence, platform by platform</div>
+    <h2>The dossiers</h2>
+  </div>
+
+  <div class="stack-lg">
+
+  <!-- INSTACART -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Instacart</h3><span class="sub">Grocery marketplace</span><span class="grade">Markup + GraphQL cache</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">The entire homepage is a <strong>server-driven layout</strong>. Every string on the page arrives as a named field in a URL-encoded Apollo cache embedded in the HTML — <code>HomepageLayout</code> with sections <code>hero</code>, <code>valueProps</code>, <code>retailersList</code>, <code>affordabilityRetailersList</code>, <code>stats</code>, <code>faqs</code>, <code>appDownloadQrCode</code>. Nothing is baked into an image.</div></div>
+    <dl class="facts">
+      <dt>Field convention</dt><dd>Every copy field is suffixed <code>String</code>, every asset is an <code>Image</code>, every action is a <code>CtaAction</code>. The hero alone carries <code>headingString</code>, <code>refreshedHeadingString</code>, <code>subheadingString</code>, <code>signUpForFreeDeliveriesString</code>, <code>signUp3fdTermsString</code> and <code>signUp3fdTermsCtaAction</code>.</dd>
+      <dt>Disclaimer</dt><dd>First-class. <code>legalCopyString: "Offers subject to terms and eligibility"</code> on the affordability rail; the hero's <code>*Valid for first 3 orders. Service fees and terms apply.</code> renders as its own <code>&lt;a&gt;</code> to a help article.</dd>
+      <dt>Image type</dt><dd><code>{ url, resizedUrl, templateUrl, altText }</code>. <code>templateUrl</code> is <code>…/image-server/{width=}x{height=}/…</code> — the client substitutes dimensions. <code>altText</code> is <code>null</code> on decorative value-prop art.</dd>
+      <dt>Art direction</dt><dd>Two separate assets for one slot: <code>backgroundImage</code> at <code>/image-server/x428/…</code> (height-constrained) and <code>mobileBackgroundImage</code> at <code>/image-server/768x/…</code> (width-constrained), plus a third <code>heroImage</code> PNG cut-out.</dd>
+      <dt>Colour</dt><dd><strong>Token names, not hex</strong> — <code>systemGrayscale10</code>, <code>systemGrayscale70</code>, <code>brandPrimaryRegular</code>. The only platform in the sample that refuses to let a merchandiser type a hex code.</dd>
+      <dt>Legibility</dt><dd>Split panel. The <code>&lt;h1&gt;</code>, CTA and terms link sit in a left column; the cut-out PNG occupies a right column; the photograph is a CSS background behind both.</dd>
+      <dt>Storefront placements</dt><dd>On a retailer storefront the payload carries <code>cm_placement_id</code>, <code>cm_placement_type: "card_list"</code>, <code>cm_placement_layout</code> and a bound data query (<code>DiscoverNavCarousel</code>, <code>FlyerPersonalizedItems</code>, <code>NutritiousItems</code>, <code>ProductCategories</code>) with a <code>surface</code> and a <code>rank</code>. The merchandiser picks a component and a data source; the items are resolved at request time.</dd>
+    </dl>
+  </div>
+
+  <!-- WALMART -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Walmart</h3><span class="sub">Grocery + general retail &middot; "Tempo" CMS</span><span class="grade">Markup + <code>__NEXT_DATA__</code></span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">Every promotional card arrives fully structured under <code>props.pageProps.initialTempoData.data.contentLayout</code>. <strong>This is the most complete promo-tile schema I obtained anywhere</strong>, and it maps almost field-for-field onto the synthesised model above.</div></div>
+<pre><code>{
+  "containerId": "gridHeroFullWidth5CardContainer1",
+  "moduleHeight": "gridHeroFullWidth",
+  "image": { "assetId": "…", "assetName": "…-AdjBnGridPOV-HeroFullWidth.jpg",
+             "src": "https://i5.walmartimages.com/…", "alt": "" },
+  "backgroundColor": "#FFFFFF",
+  "textSpan": "horizontal", "textAlignment": "topLeft",
+  "verticalAlignment": "top", "horizontalAlignment": "left",
+  "eyebrow":    { "text": "Check off your list fast!", "textColor": "#ffffff",
+                  "textFontSize": "medium", "textFontWeight": "bold" },
+  "heading":    { "text": "Members get free same-day delivery on school essentials",
+                  "textColor": "#ffffff", "textFontSize": "small", "textFontWeight": "bold" },
+  "subheading": null,
+  "legalDisclosure": null,
+  "dynamicPricing": null,
+  "enableCta": "True", "isCtaHidden": "False",
+  "primaryCtaGroup": {
+    "primaryCtaStyle": "pill",
+    "primaryCta": { "linkText": "Try Walmart+ for $1",
+                    "clickThrough": { "type": "url", "value": "https://walmart.com/plus?…" } },
+    "textColor": "#2e2f32", "textFontSize": "small" },
+  "personalizedAsset": "True", "servedBy": "p13n",
+  "messageId": "6377c53f-…", "pinnedMessages": [ /* 15 candidate creatives */ ]
+}</code></pre>
+    <dl class="facts">
+      <dt>Bento slots</dt><dd>Named, not indexed: <code>collectionHero</code>, <code>horizontal</code>, <code>verticalSmallLeft</code>, <code>verticalSmallRight</code>, <code>verticalLarge</code> — and the asset filenames confirm a separate photograph is commissioned per slot shape.</dd>
+      <dt>Page layout</dt><dd>A nested container tree of <code>{type: "container", flow, style.gridColumns}</code> holding <code>slot</code>s that map to ordered <code>ZONE</code> refs (<code>contentZone1</code>…<code>contentZone40</code>+). Modules bind to a zone via <code>matchedTrigger: {pageType, pageId, zone, inheritable}</code>.</dd>
+      <dt>Personalization</dt><dd><code>pinnedMessages</code> holds fifteen candidate creative ids; <code>servedBy: "p13n"</code> and a resolved <code>messageId</code> indicate which won. The tile is a <em>slot with a candidate pool</em>, not a fixed creative.</dd>
+      <dt>Legibility</dt><dd>Authored <code>textColor</code> per copy field, no overlay of any kind in the schema. Hero uses white; the five collection tiles all use navy <code>#001e60</code> over light photography.</dd>
+      <dt>Alt text</dt><dd>Empty on the hero (copy is live text over it), descriptive elsewhere. One alt carries legal copy — <code>"…Subject to availability. Restrictions, medication exclusions and fees apply. Actual delivery bag not shown."</code> — because that text <em>is</em> in the image.</dd>
+    </dl>
+  </div>
+
+  <!-- TARGET -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Target</h3><span class="sub">Grocery + general retail &middot; "Slingshot" / Page Planner</span><span class="grade">Markup</span></div>
+    <div class="verdict mixed"><span class="tag">Both</span><div class="body">The only platform in the sample that bakes copy into artwork — but only for one slot type. <strong>Superhero</strong> ships a flat Scene7 composite with an empty text container and the headline in <code>alt</code>; <strong>Story Block</strong> and <strong>Story</strong> render live <code>&lt;h2&gt;</code>/<code>&lt;h3&gt;</code> text below the picture.</div></div>
+    <dl class="facts">
+      <dt>Slot wrapper</dt><dd>Every module sits in a <code>GenericSlingshotPagePlannerSlot</code> carrying <code>data-component-id</code>, <code>data-component-position</code> (sparse: 200, 400, 425, 450, 460, 475, 500, 525, 600, 615, 630, 645, 660, 675, 700, 1000, 1200, 1600, 2600, 2800), <code>data-component-title</code>, <code>data-component-type</code>, <code>data-component-version</code>, <code>data-content-type</code>.</dd>
+      <dt>Campaign naming</dt><dd>Human-legible, encoding page, campaign, component and date: <code>HP_DormDeals_SH_0809</code>, <code>HP_DormWorthyDeals_MCSL_0809</code>, <code>2026_08Wk1_RTW_AugustNewness</code>. <code>Roundel</code> appears twice — their retail-media network occupies ordinary slots.</dd>
+      <dt>Rich text</dt><dd>The headline field is <strong>WYSIWYG HTML, not a plain string</strong>. Production markup contains merchandiser-authored <code>&lt;span style="color:#cc0000"&gt;</code>, <code>font-weight:200</code>, <code>font-size:220%</code>, <code>line-height:.9em</code>, even <code>font-feature-settings:'pnum','ss01'</code>.</dd>
+      <dt>Text placement</dt><dd>Absolute positioning at merchandiser-authored percentages, per breakpoint: <code>--custom-text-position-default-top:58%</code>, <code>--custom-text-position-top-md:51%</code>, <code>--custom-text-position-top-lg:54%</code>, plus width and alignment for each.</dd>
+      <dt>Legibility levers</dt><dd>Three, all flat colour: module <code>background-color</code>, <code>--headline-bg-color</code> (five distinct values in use), and <code>--mobile-copy-background-color</code> (four uses, mobile only). Also <code>--primary-image-opacity-variable-from-props</code>, though every card on the day observed used <code>1</code>.</dd>
+      <dt>Badge</dt><dd><code>--ribbon-background-color: #000000</code>, <code>--ribbon-font-color: #FFFFFF</code>, plus <code>--ribbon-font-size</code>, <code>--ribbon-padding</code>, <code>--ribbon-background-image</code>.</dd>
+      <dt>Art direction</dt><dd>Verified against Scene7 metadata: the hero's desktop master is <code>2400×473</code> and its mobile master is <code>1500×647</code> — two different photographs, and their ratios (5.074 and 2.318) appear verbatim in the component's CSS variables.</dd>
+    </dl>
+  </div>
+
+  <!-- IKEA -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>IKEA</h3><span class="sub">General retail &middot; "Skapa" design system</span><span class="grade">Markup + CSS</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">The most directly relevant reference in the sample — IKEA <strong>literally calls it a bento</strong>. The route is <code>/src/routes/bento/bento.route.tsx</code> and the containers are <code>hri-bento-container</code> → <code>hri-bento-box</code> → <code>hri-bento-box-card</code>.</div></div>
+    <dl class="facts">
+      <dt>Component</dt><dd><code>data-skapa="text-overlay-card@0.5.9"</code> — a versioned design-system component, one of twenty-six Skapa components on the page (<code>commercial-message@9.0.9</code>, <code>aspect-ratio-box@15.1.23</code>, <code>teaser@19.0.17</code>, <code>price-module@11.1.2</code>, <code>pill@12.0.17</code>…).</dd>
+      <dt>Card anatomy</dt><dd><code>&lt;a&gt;</code> → <code>__gradient</code> (empty div, the scrim) → <code>__wrapper</code> → <code>__addon</code> (badge) → <code>__text-container</code> → <code>__title</code> + arrow icon. Image is a sibling <code>aspect-ratio-box</code>.</dd>
+      <dt>Badge</dt><dd><code>commercial-message</code> with variants <code>--family</code> (nine instances, "IKEA Family price") and <code>--new</code>. A variant enum, not a hex pair.</dd>
+      <dt>Aspect ratio</dt><dd><strong>Named responsive tokens</strong>, the cleanest solution I saw: <code>semiportrait</code>, <code>portrait</code>, <code>square</code>, <code>wide</code>, and transitions <code>square-to-semiportrait-from-lg</code>, <code>semiportrait-to-square-from-lg</code>, <code>square-to-wide-from-lg</code>.</dd>
+      <dt>Container queries</dt><dd><code>container-type: inline-size; container-name: bento-box-card</code>. The circular tag scales 100→130→140→230→330px across container widths 250/390/600/900/1200 and hides itself below 250px. The tile is size-aware without knowing its position.</dd>
+      <dt>Scrim</dt><dd>All thirteen overlay cards render one. Fixed <code>height: 12.5rem</code>, thirteen eased stops. Two strength variants. <em>See the CSS above.</em></dd>
+      <dt>Composition</dt><dd>The homepage is server-composed micro-frontends — twelve independently rendered route fragments including <code>bento</code>, <code>deals</code>, <code>editorial-shelf</code>, <code>inspirational-feed</code>, <code>new-products</code>, <code>services</code>, <code>recalls</code>.</dd>
+    </dl>
+  </div>
+
+  <!-- ALDI -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Aldi Australia</h3><span class="sub">Grocery &middot; Adobe Experience Manager</span><span class="grade">Markup</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">The simplest correct implementation in the sample, and the closest match to a single-brand grocery storefront. <strong>Text is entirely outside the image</strong> — there is no overlay, no scrim and no positioning system, because there is nothing to position.</div></div>
+<pre><code>&lt;div class="cms-multilayout-teaser" style="background-color:#ffffff"
+     data-aem-key="teaser_copy_copy_cop"&gt;
+  &lt;picture class="base-picture cms-multilayout-teaser__image"&gt;…&lt;/picture&gt;
+  &lt;div class="cms-multilayout-teaser__content"&gt;
+    &lt;div class="cms-multilayout-teaser__headline"&gt;
+      &lt;p class="cms-multilayout-teaser__title"&gt;Get 30% off your first DoorDash order.*&lt;/p&gt;
+      &lt;p class="cms-multilayout-teaser__description"&gt;*Promo codes in-app. Fees &amp;amp; terms
+         apply. New users only.&lt;/p&gt;
+    &lt;/div&gt;
+    &lt;a class="… cms-multilayout-teaser__link" href="https://doordash.sng.link/…"
+       aria-label="Order Now Get 30% off your first DoorDash order.* (opens in a new tab)"
+       data-track-type="external" target="_blank" rel="noopener"&gt;
+      &lt;span class="base-button__label"&gt;Order Now&lt;/span&gt;
+    &lt;/a&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+    <dl class="facts">
+      <dt>Fields</dt><dd>title, description, CTA label, CTA href, background colour, image. That is the whole model. The <code>description</code> doubles as the disclaimer.</dd>
+      <dt>Grid</dt><dd><code>container-layout</code> → <code>component-layout--wide</code> → <code>component-grid</code> → <code>component-grid__content--3</code>. Column count is authored in the class.</dd>
+      <dt>Artwork</dt><dd>Scene7. One master at <code>1440×720</code> (exactly 2:1) with named crops <code>:2-1</code> (≥992px) and <code>:16-9</code> (below). <code>fit=constrain</code>, explicit <code>width</code>/<code>height</code> on the <code>&lt;img&gt;</code>, <code>lastModified</code> in the query string for cache busting.</dd>
+      <dt>Badges</dt><dd>Product tiles carry live-text labels — <code>&lt;div class="base-label base-label--info"&gt;While Stocks Last&lt;/div&gt;</code> — plus a separate discount-tag wrapper on the price component.</dd>
+    </dl>
+  </div>
+
+  <!-- EBAY -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>eBay</h3><span class="sub">Marketplace</span><span class="grade">Markup</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">Three banners in a snap carousel, each a <strong>16-column split panel</strong>: copy in columns 2–8, photograph in columns 8–17. Text is never over the image.</div></div>
+    <dl class="facts">
+      <dt>Fields</dt><dd><code>&lt;h2&gt;</code> headline ("Best loved items at 12%* off"), <code>&lt;p&gt;</code> subcopy, a pill CTA <code>&lt;a&gt;</code> ("Get your coupon"), and an optional terms line in <code>data-testid="dp-ebc-tnc"</code> whose <code>*See terms.</code> link points at a separate promo page. One of the three banners carries terms; the field is optional.</dd>
+      <dt>Colour</dt><dd><strong>Named theme classes</strong> — <code>dp-banner-color-theme__container</code> and <code>dp-banner-color-theme__action</code>. The merchandiser picks a theme; the panel and CTA colours follow. No per-field hex.</dd>
+      <dt>Overflow defence</dt><dd><code>line-clamp-3</code> on the headline, <code>line-clamp-2</code> on subcopy and terms. The component defends its own layout against long copy — a detail nobody else in the sample shipped.</dd>
+      <dt>Artwork</dt><dd>One image, <code>object-fit: cover</code> with <code>object-position: left-center</code> — a named focal point rather than art direction. WebP at <code>s-l960</code> / <code>s-l1600</code> / <code>s-l2400</code>.</dd>
+      <dt>Accessibility</dt><dd><code>&lt;div role="img" aria-hidden="true"&gt;</code> wrapping an <code>&lt;img alt&gt;</code>. Doubly decorative.</dd>
+      <dt>Delivery</dt><dd>Each banner carries <code>adsTrackingMetadata</code> with placement, campaign and message ids — served by the marketing platform, not hard-coded.</dd>
+    </dl>
+  </div>
+
+  <!-- SHOPIFY DAWN -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Shopify Dawn</h3><span class="sub">Reference storefront theme</span><span class="grade">Source code</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">The only platform whose <em>authoring interface</em> I could read directly, because the schema is in the source. Its defaults are the most useful single artefact in this research.</div></div>
+    <dl class="facts">
+      <dt>Section settings</dt><dd><code>image</code>, <code>image_2</code>, <code>image_overlay_opacity</code> (default <strong>0</strong>), <code>image_height</code> (<code>adapt|small|medium|large</code>), <code>image_behavior</code> (<code>none|ambient|fixed|zoom-in</code>), <code>desktop_content_position</code> (nine cells), <code>desktop_content_alignment</code>, <code>show_text_box</code> (default <strong>true</strong>), <code>color_scheme</code>, <code>stack_images_on_mobile</code>, <code>mobile_content_alignment</code>, <code>show_text_below</code> (default <strong>true</strong>).</dd>
+      <dt>Blocks</dt><dd>Three, each <code>limit: 1</code>. <code>heading</code> (<code>inline_richtext</code> + size <code>h0|h1|h2|hxl|hxxl</code>), <code>text</code> (<code>inline_richtext</code> + style <code>body|subtitle|caption-with-letter-spacing</code>), <code>buttons</code> (two label/link/secondary triples).</dd>
+      <dt>Overlay</dt><dd>A flat <code>#000000</code> full-cover <code>::after</code> at author-set opacity. Not a gradient. And <code>.banner--mobile-bottom::after { display: none }</code> — removed entirely when the text moves below the image.</dd>
+      <dt>Robustness</dt><dd>A button with a label but no link renders <code>role="link" aria-disabled="true"</code> rather than a dead anchor. Heading always renders <code>&lt;h2&gt;</code> regardless of the chosen visual size.</dd>
+      <dt>Images</dt><dd>Widths <code>375, 550, 750, 1100, 1500, 1780, 2000, 3000, 3840</code>; a single 750px breakpoint; <code>fetchpriority="high"</code> when the section is first on the page.</dd>
+    </dl>
+  </div>
+
+  <!-- DOORDASH -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>DoorDash</h3><span class="sub">Food delivery &middot; the "Facet" server-driven UI system</span><span class="grade">Published protobuf</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">Markup was unobtainable, but DoorDash <strong>published the actual protobuf</strong>, which is better. A <code>Facet</code> is documented as mapping "one-to-one to a view on the screen" — and the homepage rewrite that motivated it was explicitly about supporting "non-restaurant merchants, such as <strong>grocery stores</strong>, flower shops, convenience stores".</div></div>
+<pre><code>Facet {
+  id, component { id, category }, text, images, custom, events,
+  children[]           // recursive
+  logging, layout, style
+}
+Text   { title, subtitle, accessory, description, custom{} }
+Images { main, icon, background, accessory, custom{} }
+Image  { uri, placeholder, local, style: STYLE_ROUNDED | STYLE_CIRCLE }
+Events { click -> Action { name, data } }
+FacetSection { id, header[], body[], layout }</code></pre>
+    <dl class="facts">
+      <dt>The key design idea</dt><dd>The text and image sub-models are <strong>semantic slots, not domain fields</strong>. Each is documented as "means different things in the context of different components". <code>title</code>/<code>subtitle</code>/<code>accessory</code>/<code>description</code> is DoorDash's answer to eyebrow/headline/subcopy, and <code>images.main</code>/<code>background</code>/<code>accessory</code> is its answer to artwork versus badge.</dd>
+      <dt>Worked example</dt><dd><code>text: {title: "Frosty Bear", subtitle: "Pizza, Vegetarian, DashPass", description: "4.8, 14,400+ ratings, Free delivery over $12", annotation: "$10 off, DashPass only"}</code> with <code>images: {main, background, accessory: "dashpass-logo"}</code>. Note the promotional line arrives as an <em>annotation</em> — a copy slot, not a discount object.</dd>
+      <dt>Lessons they published</dt><dd>Three worth having. <strong>The <code>custom</code> escape hatch is named as an anti-pattern by its own authors</strong> — engineers reach for it instead of the prototypical fields. <strong>Prototypical fallback components were built and abandoned</strong> as useless. <strong>Client capability versioning</strong> (SemVer on the request, plus dropping containers with no recognised children and Facets with unknown actions) "reduced our need to version our libraries by about 50%".</dd>
+      <dt>Cost</dt><dd>19 net-new components per platform, three client engineers each on iOS and Android. GraphQL could not express the recursive model, so responses are flattened server-side with a <code>childrenCount</code> and rebuilt on the client.</dd>
+    </dl>
+  </div>
+
+  <!-- AIRBNB / UBER -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Airbnb &middot; Uber Eats</h3><span class="sub">Corroborating server-driven layout</span><span class="grade">Engineering blogs</span></div>
+    <div class="verdict live"><span class="tag">Layout is data</span><div class="body">Both confirm the pattern from the other end: the backend decides not just the content but <strong>which components appear, in what order, and how many</strong>.</div></div>
+    <dl class="facts">
+      <dt>Airbnb</dt><dd>A response is <em>sections</em> plus <em>screens</em>. A section carries "the exact data to be displayed — already translated, localized, and formatted". Two ideas transfer directly: <strong><code>SectionComponentType</code> controls how a section renders, separately from its data</strong> — <code>TITLE</code> and <code>PLUS_TITLE</code> share one model and render differently, which is the "one banner payload, several treatments" problem solved cleanly. And <strong>screens reference sections by id rather than inlining them</strong>, with compact and wide breakpoints specified separately.</dd>
+      <dt>Uber Eats</dt><dd>Verbatim: "intelligence on the backend determines <strong>how many</strong> restaurant carousels should be displayed; <strong>what kind</strong> of restaurant carousels should be presented to this eater; and how to rank the plain list". No schema published — this is a ranking post, not an architecture one — but it settles the question of whether the feed composition is authored or computed.</dd>
+      <dt>Target, separately</dt><dd>Target names its own pattern <strong>Configuration-Driven UI</strong> evolving to AI-driven UI, with pages "constructed from reusable components" including promotional banners, and layout order chosen by a LinUCB bandit at p95 &lt;25ms. <em>Caveat: that article's stated focus is product detail pages, not the homepage — the framing generalises, the measured result does not.</em></dd>
+    </dl>
+  </div>
+
+  <!-- INSTACART DOCS -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Instacart Storefront</h3><span class="sub">The only published placement taxonomy found anywhere</span><span class="grade">Vendor documentation</span></div>
+    <div class="verdict live"><span class="tag">Authoring contract</span><div class="body">Instacart documents what a retailer merchandiser may actually create, with pixel dimensions. It is the closest thing in existence to a published promo-authoring specification.</div></div>
+    <dl class="facts">
+      <dt>Placement types</dt><dd>Primary Banner Carousel (<strong>up to six</strong>, single or split), Secondary Banner Carousel, Announcement Banner (<strong>exactly one active at a time</strong>), Slim Banner, Image Tile Carousel, Content Cards, and four product-carousel flavours (Standard / Sponsored / Flyer / Featured).</dd>
+      <dt>Authorable fields</dt><dd>Image, text area, link destination (product, department, collection — a raw URL only by request), <strong>separate web and mobile-app creatives</strong>, and an <strong>effective period</strong>. Documented workflow trick: chain banners with sequential effective periods so the next takes over automatically.</dd>
+      <dt>Notably absent</dt><dd>No character limits, no background-colour field, no terms or disclaimer field are documented. The disclaimer gap matches what I found in Walmart's live payloads.</dd>
+      <dt>Art direction, enforced as contract</dt><dd>Large- and small-screen creatives have <strong>genuinely different aspect ratios</strong>, not scaled versions: primary banner single is <code>3200×566</code> desktop versus <code>1125×450</code> mobile; a split primary banner's colour-background half goes from <code>704×566</code> landscape to <code>189×450</code> <em>portrait</em>. Animated WebP or GIF is capped at five seconds.</dd>
+    </dl>
+  </div>
+
+  <!-- BLOCKED -->
+  <div class="dossier">
+    <div class="dossier-head"><h3>Uber Eats</h3><span class="sub">Food delivery + grocery</span><span class="grade">SSR markup + shipped bundle</span></div>
+    <div class="verdict live"><span class="tag">Live text</span><div class="body">Every HTML page returns <code>403</code>, but <code>/_static/*.js</code> is <strong>not</strong> behind the bot wall — so the renderer's own source is readable, and archived captures of the SEO-rendered store grids supply real markup. See the paired-comparison proof and the billboard schema above.</div></div>
+<pre><code>&lt;span data-baseweb="tag" …&gt;
+  &lt;img alt="" role="presentation" src="…/offers/trophy.png" height="11" width="10"/&gt;
+  &lt;div class="gm bu hh"&gt; Top Offer • Buy 1, Get 1 Free&lt;/div&gt;
+&lt;/span&gt;</code></pre>
+    <dl class="facts">
+      <dt>Offer copy observed</dt><dd>As bare DOM text: <code>Free Item (Spend $30)</code>, <code>Spend $40, Save $8</code>, <code>2 Offers Available</code>, <code>Buy 1, get a free item</code>. Across every capture there is <strong>no long, offer-restating <code>alt</code> anywhere</strong> — the signature of baked-in copy is entirely absent.</dd>
+      <dt>Artwork</dt><dd><code>https://cn-geo1.uber.com/image-proc/resize/eats/format=webp/width=&lt;W&gt;/height=&lt;H&gt;/quality=70/srcb64=&lt;base64(originUrl)&gt;</code> — default 550×440 at q70, wrapped in a real <code>&lt;picture&gt;&lt;source type="image/webp"&gt;</code>. Store heroes use a six-rung width ladder, 2880 down to 240, with a "first rendition ≥550px" picker.</dd>
+      <dt>Legibility</dt><dd>Server-supplied <code>overlayOpacity</code> plus the <code>isBackgroundDark</code> flag driving <code>textColor</code>. The tile's foreground is a property of the artwork, not of the theme.</dd>
+    </dl>
+  </div>
+
+  <div class="dossier">
+    <div class="dossier-head"><h3>Tesco &middot; DoorDash &middot; Woolworths &middot; Amazon &middot; Coles</h3><span class="sub">Bot-blocked to direct fetch; reached by other routes</span><span class="grade">Mixed</span></div>
+    <div class="verdict mixed"><span class="tag">Verdicts only</span><div class="body">Evidence was obtained for all five, at varying depth. Recorded here at the confidence it actually carries — verdict and mechanism, not a full field inventory.</div></div>
+    <div class="tbl-wrap">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Platform</th><th>Verdict</th><th>Mechanism</th><th>Evidence strength</th></tr></thead>
+        <tbody>
+          <tr><td><b>Tesco</b></td><td class="y">Live text — all three promo patterns</td><td>Server-rendered markup</td><td>Raw SSR markup</td></tr>
+          <tr><td><b>DoorDash</b></td><td class="y">Live text over a CSS background image</td><td>Text is DOM; artwork is a CSS <code>background</code>, so the copy is never in the raster</td><td>Raw SSR markup</td></tr>
+          <tr><td><b>Woolworths</b></td><td class="q">Hybrid — copy live, <b>price baked in</b></td><td>Price rendered into the artwork for typographic control, with a parallel <code>sr-only</code> restatement. <code>ctaUrl</code> and <code>deeplink</code> ship as sibling fields — a web href and a mobile target on one record</td><td>SSR DOM + <code>__NEXT_DATA__</code></td></tr>
+          <tr><td><b>Amazon</b></td><td class="n">Fully baked in</td><td>The sample's only complete outlier. Pays for it by duplicating the whole headline into <code>alt</code> <em>and</em> <code>aria-label</code></td><td>Raw SSR markup</td></tr>
+          <tr><td><b>Coles</b></td><td class="q">Live text (probable)</td><td>Copy visible as text in a rendered fetch; underlying markup not inspected</td><td>Rendered fetch only — treat as indicative</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div class="dossier">
+    <div class="dossier-head"><h3>Sainsbury's</h3><span class="grade blocked">No evidence obtained</span></div>
+    <div class="verdict"><span class="tag">Gap</span><div class="body">The one platform on the brief that yielded nothing. Every route was refused. <strong>I am not going to characterise its markup from screenshots</strong> — no claim in this document is generalised to cover it.</div></div>
+  </div>
+
+  </div>
+</section>
+
+<!-- ======================= RECOMMENDATION ======================= -->
+<section>
+  <div class="sec-head">
+    <div class="eyebrow">What the evidence supports</div>
+    <h2>If you are building this once, build it this way</h2>
+  </div>
+
+  <ul class="bullets prose">
+    <li><strong>Live text, always.</strong> Baked-in copy appears once in eleven surfaces, in one full-bleed slot, at a company with a studio on staff. Everything else is structured fields. It also settles your translation, dark-mode and responsive-type problems for free.</li>
+    <li><strong>Default the text to below or beside the image; make overlay the opt-in.</strong> That is Dawn's default, Aldi's only mode, and eBay's and Instacart's hero pattern. It is also the only mode that cannot fail against an unpredictable photograph.</li>
+    <li><strong>When you must overlay, use a fixed-height eased band, not a full-tile wash.</strong> IKEA's thirteen stops over 200px is copy-pasteable and is the single highest-value artefact here.</li>
+    <li><strong>Prefer a named colour scheme to per-field hex.</strong> Instacart and eBay reference token names; Walmart and Target let merchandisers type hex and now have <code>#FAf0E6</code> and <code>#FAF0E6</code> in the same page. For a monochrome system this matters more, not less — a hex field is how a hue gets in.</li>
+    <li><strong>Make tile size authored data with a semantic name.</strong> Walmart's <code>verticalSmallLeft</code> beats an array index because the artwork brief, the asset filename and the slot all agree. IKEA's container queries mean one component serves every size.</li>
+    <li><strong>Give the disclaimer its own field and its own optional URL.</strong> Three of four schemas have one; asterisks in headlines with nowhere to resolve are the alternative, and Walmart demonstrates the failure mode.</li>
+    <li><strong>Let the CDN negotiate the format.</strong> Six of seven retail sites ship no format branch at all — one URL per rendition and <code>Vary: Accept</code>. Only Uber Eats emits an explicit <code>&lt;source type="image/webp"&gt;</code>, and it gains nothing a negotiating CDN doesn't already give you.</li>
+    <li><strong>Carry the tile's foreground colour in the payload, derived from the artwork.</strong> Uber Eats' <code>isBackgroundDark</code> is the cleanest solution found to the problem an inverting accent creates: the photograph doesn't invert when the theme does, so the type colour over it must not be a theme token. Author it with the creative, and leave it alone in dark mode.</li>
+    <li><strong>Give the CTA its own colour pair, independent of the card's.</strong> Uber Eats does; it is what lets a pill stay legible when it sits over a different region of the image from the headline.</li>
+    <li><strong>Ship <code>accessibilityText</code> beside visible badge text, not instead of it.</strong> "Top Offer • Buy 1, Get 1 Free" needs a spoken form; a bullet character read aloud is noise.</li>
+    <li><strong>If you ever bake a field, bake only that field, and restate it in the DOM.</strong> Woolworths bakes the price for typographic control and puts an <code>sr-only</code> copy beside it. Amazon bakes everything and has to duplicate the headline into <code>alt</code> and <code>aria-label</code> — that is the cost, and it is visible in their markup.</li>
+    <li><strong>Clamp the copy.</strong> eBay's <code>line-clamp-3</code>/<code>line-clamp-2</code> is the only defence in the sample against a merchandiser pasting a paragraph into a headline field.</li>
+    <li><strong>Decide the tile's link structure before you build it, using eBay's binary.</strong> One anchor around the whole tile <em>and no interactive children</em>, or an inert tile with named child controls. If a promo tile will ever carry a save control, you are in the second camp and the CTA must be a real button with an accessible name that includes the headline.</li>
+    <li><strong>Don't call it <code>Banner</code>.</strong> In every design system I could read, that word already means a system alert. <code>PromoTile</code>, <code>Teaser</code> (Aldi/AEM), <code>Storycard</code> (Target) or <code>TextOverlayCard</code> (IKEA) all read unambiguously.</li>
+    <li><strong>If the tiles sit in a carousel, the first slide owns your LCP.</strong> <code>fetchpriority="high"</code> on slide one and nothing else; never lazy-load it. Chrome still counts an image as an LCP candidate after it has been removed from the DOM, so an auto-rotating carousel can hand its LCP to whichever slide happens to be heaviest.</li>
+  </ul>
+</section>
+
+<hr class="rule" style="margin-top:56px;">
+
+<section>
+  <div class="sec-head" style="padding-top:28px;"><div class="eyebrow">Sources</div></div>
+  <div class="srcs">
+    <span>All URLs fetched 2026-08-09 unless noted. Page HTML and embedded payloads inspected directly.</span>
+    <a href="https://www.instacart.com/">https://www.instacart.com/</a>
+    <a href="https://www.instacart.com/store/safeway/storefront">https://www.instacart.com/store/safeway/storefront</a>
+    <a href="https://www.walmart.com/">https://www.walmart.com/</a>
+    <a href="https://www.target.com/">https://www.target.com/</a>
+    <a href="https://target.scene7.com/is/image/Target/GUEST_11731f37-255f-4ad0-a0aa-fbf5fc54ce93?req=set,json">https://target.scene7.com/is/image/Target/GUEST_11731f37-…?req=set,json</a>
+    <a href="https://www.ikea.com/us/en/">https://www.ikea.com/us/en/</a>
+    <a href="https://www.ikea.com/global/assets/dwf/hri/bento-CrRCvheV.css">https://www.ikea.com/global/assets/dwf/hri/bento-CrRCvheV.css</a>
+    <a href="https://www.ikea.com/global/assets/dwf/hri/bento-YS-jIMBS.css">https://www.ikea.com/global/assets/dwf/hri/bento-YS-jIMBS.css</a>
+    <a href="https://www.aldi.com.au/">https://www.aldi.com.au/</a>
+    <a href="https://www.ebay.com/">https://www.ebay.com/</a>
+    <a href="https://github.com/Shopify/dawn/blob/main/sections/image-banner.liquid">https://github.com/Shopify/dawn/blob/main/sections/image-banner.liquid</a>
+    <a href="https://github.com/Shopify/dawn/blob/main/assets/section-image-banner.css">https://github.com/Shopify/dawn/blob/main/assets/section-image-banner.css</a>
+    <a href="https://github.com/Shopify/dawn/blob/main/sections/slideshow.liquid">https://github.com/Shopify/dawn/blob/main/sections/slideshow.liquid</a>
+    <span style="padding-top:8px;">Published documentation</span>
+    <a href="https://careersatdoordash.com/blog/improving-development-velocity-with-generic-server-driven-ui-components/">DoorDash &mdash; Improving Development Velocity with Generic, Server-Driven UI Components</a>
+    <a href="https://medium.com/airbnb-engineering/a-deep-dive-into-airbnbs-server-driven-ui-system-842244c5f5">Airbnb &mdash; A deep dive into Airbnb's server-driven UI system</a>
+    <a href="https://tech.instacart.com/building-instacarts-view-model-api-part-1-why-view-model-4362f64ffd2a">Instacart &mdash; Building Instacart's view model API, Part 1</a>
+    <a href="https://www.uber.com/us/en/blog/uber-eats-recommending-marketplace/">Uber &mdash; Food Discovery with Uber Eats: Recommending for the Marketplace</a>
+    <a href="https://tech.target.com/blog/page-layout-optimization-bandits">Target &mdash; What If Your Page Layout Could Learn? Optimizing with Bandits</a>
+    <a href="https://opensource.ebay.com/evo-web/components/card/accessibility">eBay Evo &mdash; Card accessibility</a>
+    <a href="https://opensource.ebay.com/evo-web/components/carousel/accessibility">eBay Evo &mdash; Carousel accessibility</a>
+    <a href="https://baseweb.design/components/banner/">Uber Base Web &mdash; Banner</a>
+    <a href="https://www.nngroup.com/articles/text-over-images/">Nielsen Norman Group &mdash; Ensure High Contrast for Text Over Images</a>
+    <a href="https://web.dev/articles/carousel-best-practices">web.dev &mdash; Carousel best practices</a>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

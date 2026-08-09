@@ -1,0 +1,67 @@
+{
+  "$comment": [
+    "THE ARTWORK CANVAS SET (042) — one definition per shape the platform accepts.",
+    "",
+    "⚠ THIS REPLACES THE SINGLETON `banner-canvas.json`. That file declared ONE canvas, 1200×600 at",
+    "2:1, and the server refused anything else. A bento grid needs tall, wide and square tiles, and a",
+    "2:1 image cannot fill a tall tile without the cropping the contract forbids.",
+    "",
+    "⚠ NOTHING MAY HARDCODE THESE NUMBERS. A literal width in a component, a script or a test is the",
+    "drift this file exists to prevent — and it has already happened once: customer-web never imported",
+    "the canvas at all, hardcodes `aspect-[2/1]` in three places, and a test PINS the violation.",
+    "",
+    "⚠ VALUES ARE PROVISIONAL UNTIL THE BENTO IS BUILT (T055a). The STRUCTURE is settled; the numbers",
+    "are confirmed against the rendered grid at each breakpoint. Artwork attached before that",
+    "confirmation is refused or mis-shaped once they change, so do not attach any.",
+    "",
+    "⚠ WHY JSON RATHER THAN TS. `scripts/gen-compose-theme.mjs` is plain Node ESM and cannot import a",
+    "TypeScript module; the back-office console needs these as numbers and cannot read a CSS custom",
+    "property. JSON is the one format both ends consume without build-tool coupling.",
+    "",
+    "⚠ WHY NOT tokens.css. That file is the BRAND source of truth — colours, spacing, radii, typeface.",
+    "An image canvas is an asset constraint, not a style token, and filing it there would be a category",
+    "error the next person copies."
+  ],
+
+  "canvases": {
+    "hero": {
+      "$comment": "The full-bleed banner. 2:1 matches the band's proportion at desktop.",
+      "width": 2400,
+      "height": 1200,
+      "aspectRatio": 2,
+      "maxBytes": 307200
+    },
+
+    "tile-large": {
+      "$comment": "The bento's anchor tile — roughly square at desktop, so a square canvas.",
+      "width": 1200,
+      "height": 1200,
+      "aspectRatio": 1,
+      "maxBytes": 204800
+    },
+
+    "tile-wide": {
+      "$comment": "The horizontal tile. 16:9 rather than 2:1 so it does not read as a second hero.",
+      "width": 1600,
+      "height": 900,
+      "aspectRatio": 1.7778,
+      "maxBytes": 204800
+    },
+
+    "tile-tall": {
+      "$comment": "The vertical tile. The inverse of tile-wide, so one photograph can serve either.",
+      "width": 900,
+      "height": 1600,
+      "aspectRatio": 0.5625,
+      "maxBytes": 204800
+    },
+
+    "tile-small": {
+      "$comment": "The paired small tiles. Square, and the smallest artwork the platform accepts.",
+      "width": 1000,
+      "height": 1000,
+      "aspectRatio": 1,
+      "maxBytes": 153600
+    }
+  }
+}
