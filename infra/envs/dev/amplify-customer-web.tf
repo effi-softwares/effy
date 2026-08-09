@@ -59,6 +59,12 @@ module "amplify_customer_web" {
 
   env_vars = local.customer_web_env
 
+  # ⚠ Amplify's build cannot reliably assume a Terraform-created service role (SSR IaC edge case).
+  # Empty = Terraform creates one (may fail with "Unable to assume specified IAM Role"). The working
+  # path: let Amplify auto-create the role in the console once, then set this to that ARN so TF just
+  # references it. See var.amplify_service_role_arn and quickstart §2a.
+  service_role_arn = var.amplify_service_role_arn
+
   # Two-stage cutover (var.amplify_domain_enabled, quickstart §2–3). Empty domain = stage A.
   domain_name = var.amplify_domain_enabled ? module.dns.zone_name : ""
   enable_www  = true

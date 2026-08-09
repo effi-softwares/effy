@@ -20,18 +20,21 @@ locals {
 # ⚠ TRUST MUST INCLUDE BOTH `amplify.amazonaws.com` AND `lambda.amazonaws.com`. The SSR runtime is
 # Lambda-backed, so a role trusted only by amplify fails to be assumed and the build dies at step 0
 # with "Unable to assume specified IAM Role" (AWS SSR-compute-role docs; found live 2026-08-09).
+# Created ONLY when var.service_role_arn is empty. See that variable's warning: an Amplify-created
+# role is the reliable path, so the recommended flow passes an external ARN and this block is inert.
 data "aws_iam_policy_document" "amplify_assume" {
   statement {
     effect  = "Allow"
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["amplify.amazonaws.com", "lambda.amazonaws.com"]
+      identifiers = ["amplify.amazonaws.com"]
     }
   }
 }
 
 resource "aws_iam_role" "amplify" {
+  count              = var.service_role_arn == "" ? 1 : 0
   name               = "${var.name}-amplify"
   assume_role_policy = data.aws_iam_policy_document.amplify_assume.json
   tags               = var.tags
@@ -52,9 +55,14 @@ data "aws_iam_policy_document" "amplify_logs" {
 }
 
 resource "aws_iam_role_policy" "amplify_logs" {
+  count  = var.service_role_arn == "" ? 1 : 0
   name   = "ssr-compute-logs"
-  role   = aws_iam_role.amplify.id
+  role   = aws_iam_role.amplify[0].id
   policy = data.aws_iam_policy_document.amplify_logs.json
+}
+
+locals {
+  service_role_arn = var.service_role_arn != "" ? var.service_role_arn : aws_iam_role.amplify[0].arn
 }
 
 resource "aws_amplify_app" "this" {
@@ -72,7 +80,7 @@ resource "aws_amplify_app" "this" {
   # ⚠ REQUIRED for WEB_COMPUTE: an SSR app cannot build/run without a service role Amplify can assume
   # — without it the build fails at the first step with "Unable to assume specified IAM Role". The
   # role's job is to let the SSR compute write its logs (research D3 / implementation 2026-08-09).
-  iam_service_role_arn = aws_iam_role.amplify.arn
+  iam_service_role_arn = local.service_role_arn
 
   # The repo-root amplify.yml is the source of truth for the build; it overrides anything set here.
   # It declares exactly ONE application, which is what confines the pipeline to apps/customer-web.

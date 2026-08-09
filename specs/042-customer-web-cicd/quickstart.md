@@ -48,6 +48,35 @@ another package's isolation silently.
 
 ---
 
+## 2a. ⚠ The SSR service role (do this once, in the console)
+
+A Next.js SSR (`WEB_COMPUTE`) app needs a service role Amplify can assume to run/log. **Amplify's build
+orchestrator frequently cannot assume a Terraform-created role** — the build fails at step 0 with
+`Unable to assume specified IAM Role`, even when the role's trust (`amplify.amazonaws.com`) and logs
+permissions are correct. This is a known IaC limitation. The reliable path:
+
+1. Amplify console → app `effy-dev-customer-web` → **App settings → IAM roles** (or **General →
+   Service role**) → **Create and use a new service role** → save. Amplify generates a role AND
+   registers it with its build service.
+2. Trigger a build and confirm it gets **past step 0**:
+   ```bash
+   AWS_PROFILE=ef aws amplify start-job --region ap-southeast-2 \
+     --app-id <APP_ID> --branch-name dev --job-type RELEASE
+   ```
+3. Read the ARN Amplify assigned and pin it in Terraform so IaC stops fighting it:
+   ```bash
+   AWS_PROFILE=ef aws amplify get-app --region ap-southeast-2 \
+     --app-id <APP_ID> --query 'app.iamServiceRoleArn' --output text
+   ```
+   Put it in `infra/envs/dev/dev.tfvars` as `amplify_service_role_arn = "arn:aws:iam::…:role/…"`,
+   then `make apply ENV=dev`. Terraform now references the working role and removes the one it had
+   created. ⚠ Set the variable BEFORE re-applying — otherwise Terraform reverts the app to its own
+   (unassumable) role.
+
+Prod does the same one-time console step and pins its own ARN.
+
+---
+
 ## 2. Apply the Amplify Terraform (stage A — app + branch, NO domain yet)
 
 Recommended two-stage domain cutover for zero email-resolution overlap (research D6). Stage A creates

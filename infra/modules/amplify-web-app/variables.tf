@@ -69,6 +69,21 @@ variable "enable_www" {
   default     = true
 }
 
+variable "service_role_arn" {
+  description = <<-EOT
+    ARN of the Amplify service role (the SSR CloudWatch Logs role) the app assumes to build/run.
+
+    ⚠ Leave "" to have this module create the role. BUT: Amplify's build orchestrator frequently
+    CANNOT assume a role created outside Amplify's own flow — the build then fails at step 0 with
+    "Unable to assume specified IAM Role" (a well-documented IaC edge case). The reliable path is to
+    let Amplify AUTO-CREATE the role once (Amplify console → App settings → IAM roles → create/use a
+    new service role), then paste that ARN here so Terraform references it and never fights it.
+    Prod does the same one-time console step and pins its ARN.
+  EOT
+  type        = string
+  default     = ""
+}
+
 variable "enable_auto_build" {
   description = "Auto-build + deploy on every push to deploy_branch (FR-001). Off only for a paused surface."
   type        = bool

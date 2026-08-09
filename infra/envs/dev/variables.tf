@@ -359,3 +359,17 @@ variable "amplify_domain_enabled" {
   type        = bool
   default     = false
 }
+
+variable "amplify_service_role_arn" {
+  description = <<-EOT
+    ARN of the Amplify service role (SSR CloudWatch Logs role) for the storefront app.
+
+    ⚠ Leave "" only for the first attempt. Amplify's build orchestrator often CANNOT assume a
+    Terraform-created role (build fails at step 0 with "Unable to assume specified IAM Role"). The
+    reliable fix: in the Amplify console → the app → App settings → IAM roles, let Amplify create/use
+    a new service role, confirm a build passes, then paste that ARN here and re-apply so Terraform
+    references the working role instead of creating its own (quickstart §2a).
+  EOT
+  type        = string
+  default     = ""
+}
