@@ -210,3 +210,38 @@ minutes** on `aws_acm_certificate_validation` and then errors in a way that look
 fault and is actually DNS's.
 
 Full runbook: [specs/010-domain-dns-foundation/quickstart.md](../../specs/010-domain-dns-foundation/quickstart.md).
+
+## Customer storefront hosting (042-customer-web-cicd)
+
+The customer storefront (`apps/customer-web`) is deployed by **AWS Amplify Hosting's native Git
+pipeline**, provisioned via the reusable module `infra/modules/amplify-web-app` and instantiated per
+environment (dev: `infra/envs/dev/amplify-customer-web.tf`). A push/merge to the environment's
+`amplify_deploy_branch` auto-builds **only** `apps/customer-web` (scoped by the repo-root
+`amplify.yml`, which declares exactly one application) and serves it at the env's apex.
+
+**Two-stage cutover** (like `ses_sender_enabled`): apply with `amplify_domain_enabled = false` (stage
+A — app builds on the Amplify default hostname), verify, then flip to `true` (stage B — attaches the
+apex + `www` and removes the old apex→gateway alias records in the same apply). Full runbook:
+[specs/042-customer-web-cicd/quickstart.md](../../specs/042-customer-web-cicd/quickstart.md).
+
+**Prod bring-up = configuration, not rework** (FR-018/FR-019). Instantiate the same module in
+`infra/envs/prod/` with production values:
+
+```hcl
+# infra/envs/prod/amplify-customer-web.tf (later)
+module "amplify_customer_web" {
+  source         = "../../modules/amplify-web-app"
+  name           = "${module.shared.name_prefix}-customer-web"
+  repository_url = var.amplify_repository_url
+  access_token   = data.aws_ssm_parameter.amplify_github_token.value  # /effy/prod/amplify/github_access_token
+  deploy_branch  = var.amplify_deploy_branch                          # e.g. "main" or a "production" branch
+  app_root       = "apps/customer-web"
+  env_vars       = local.customer_web_env                             # prod Cognito refs + prod SSM keys
+  domain_name    = var.amplify_domain_enabled ? "effyshopping.com" : "" # the RESERVED apex
+  enable_www     = true
+}
+```
+
+No `amplify.yml`, `.npmrc`, or module-logic change is needed to target `effyshopping.com` (SC-008).
+⚠ Prod carries the same recorded dependencies as the rest of the platform (private DB, etc.) — those
+are unrelated to hosting.

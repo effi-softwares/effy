@@ -1,0 +1,46 @@
+# Amplify Hosting monorepo build spec — 042-customer-web-cicd.
+#
+# ⚠ THIS FILE OVERRIDES the console build settings. Amplify applies console settings to all branches
+# UNLESS an amplify.yml is present at the repo root, in which case this wins. That is deliberate: the
+# build is code-reviewed here, not clicked into a console.
+#
+# ⚠ EXACTLY ONE application is declared. This is the mechanical guarantee of FR-006/FR-021 — the
+# pipeline structurally cannot build shop-web, back-office, or any mobile app, because they are never
+# declared. DO NOT add a second `applications[]` entry to deploy another surface; give it its own
+# Amplify app instead. (contracts/amplify-build.contract.md — "applications has length 1".)
+version: 1
+applications:
+  # appRoot MUST equal the AMPLIFY_MONOREPO_APP_ROOT env var on the Amplify app, or the build fails
+  # with "Invalid monorepo spec, no appRoot matching path found" (research D2).
+  - appRoot: apps/customer-web
+    frontend:
+      # Install AND build from the monorepo root so pnpm resolves the @effy/* workspace packages
+      # (design-system / shared-types / api-client). Building from apps/customer-web would not see
+      # them — they live above the app root (FR-007).
+      buildPath: '/'
+      phases:
+        preBuild:
+          commands:
+            # Amplify's build image does not ship pnpm; corepack pins the EXACT repo version
+            # (packageManager: pnpm@10.28.2) so local and CI install identically (research D4).
+            - corepack enable
+            - corepack prepare pnpm@10.28.2 --activate
+            - pnpm install --frozen-lockfile
+        build:
+          commands:
+            # Gates BEFORE the build: a non-zero exit here fails the deploy and Amplify keeps the
+            # last good version live (FR-003/FR-005). Playwright e2e is intentionally NOT here — it
+            # needs browsers + a running server and belongs in a dedicated CI stage (research D8).
+            - pnpm --filter @effy/customer-web typecheck
+            - pnpm --filter @effy/customer-web test
+            - pnpm --filter @effy/customer-web size
+            - pnpm --filter @effy/customer-web build
+      artifacts:
+        # Next.js SSR (platform = WEB_COMPUTE) output.
+        baseDirectory: apps/customer-web/.next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+          - apps/customer-web/.next/cache/**/*

@@ -323,3 +323,39 @@ variable "ses_sender_enabled" {
   type        = bool
   default     = false
 }
+
+# ── Customer storefront CI/CD (042-customer-web-cicd) ─────────────────────────────────────────
+# The prod-portability knobs (FR-018/FR-019): producing effyshopping.com from the production branch
+# is these values changed in a prod .tfvars, not a code edit.
+
+variable "amplify_repository_url" {
+  description = "HTTPS URL of the Git repo Amplify connects to for the customer storefront. github.com is natively supported by Amplify."
+  type        = string
+  default     = "https://github.com/effi-softwares/effy"
+}
+
+variable "amplify_deploy_branch" {
+  description = "The branch whose pushes auto-deploy the storefront to THIS environment. dev → the dev integration branch; prod → the production release branch. A variable, never a literal (FR-018)."
+  type        = string
+  default     = "dev"
+}
+
+variable "stripe_publishable_key_ssm" {
+  description = "SSM path holding the (public, browser-safe) Stripe publishable key for this env. Operator-supplied (constitution: Real-World Identifiers). Its presence is required — a missing key fails the plan loudly rather than shipping a guess."
+  type        = string
+  default     = "/effy/dev/stripe/publishable_key"
+}
+
+variable "amplify_domain_enabled" {
+  description = <<-EOT
+    Two-stage custom-domain cutover (042, quickstart §2–3), same shape as ses_sender_enabled.
+
+    false → STAGE A: the Amplify app + dev branch are created and build on the Amplify default
+            hostname (…​.amplifyapp.com). Verify the first build there.
+    true  → STAGE B (cutover): attach dev.effyshopping.com (apex + www) and — in the SAME apply —
+            remove the old apex alias records that pointed the apex at the edge API gateway (037).
+            ⚠ Highest-risk apply; confirm resolution + a valid cert live afterwards.
+  EOT
+  type        = bool
+  default     = false
+}
