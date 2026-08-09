@@ -82,9 +82,8 @@ export function Hero({
   const slides = rotates ? imageSrcs : imageSrcs.slice(0, 1)
 
   return (
-    <section>
-      <div
-        className={`relative h-[26rem] w-full overflow-hidden sm:h-[30rem] lg:h-[34rem] ${
+      <section
+        className={`relative h-104 w-full overflow-hidden sm:h-120 lg:h-136 ${
           hasArt ? "" : "border-b bg-muted"
         }`}
       >
@@ -164,11 +163,6 @@ export function Hero({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* The reference closes its banner with a three-up value band. Ours sits on the page surface
-          directly beneath, so it stays on tokens and inverts correctly with the appearance. */}
-      <ValueStrip />
-    </section>
+      </section>
   )
 }
