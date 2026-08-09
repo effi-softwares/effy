@@ -165,7 +165,7 @@ async function HomeContent() {
       {sections.map((section, i) => (
         <div key={sectionKey(section)}>
           {section.kind === "categories" && <CategoryStrip categories={section.categories} />}
-          {section.kind === "carousel" && <PromoCarousel banners={section.banners} />}
+          {/* {section.kind === "carousel" && <PromoCarousel banners={section.banners} />} */}
           {section.kind === "offers" && (
             <OffersPanels banners={section.banners} title={section.title} />
           )}
