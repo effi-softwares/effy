@@ -3,6 +3,7 @@
 package storefront
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -77,8 +78,35 @@ type promotionDTO struct {
 }
 
 type homeDTO struct {
+	// ⚠ `banners` STAYS, and stays present-and-empty once nothing populates it (042). Two Compose
+	// Multiplatform builds are in the field and cannot be updated in step with a deploy; removing a
+	// key a shipped client decodes is a wire break, and one that fails at the customer's phone rather
+	// than in CI. The key is retired by a later slice, once no build in use still reads it.
 	Banners []bannerDTO `json:"banners"`
 	Rails   []railDTO   `json:"rails"`
+	// Layout is the operator-authored block order (042). ⚠ ALWAYS PRESENT, possibly empty: a client
+	// that finds it empty composes the page the way it always has, so a surface that has not yet
+	// adopted the composer is unaffected by this field appearing.
+	Layout []layoutBlockDTO `json:"layout"`
+}
+
+// layoutBlockDTO is one section of the operator-authored home page.
+//
+// ⚠ `props` IS PASSED THROUGH AS RAW JSON rather than typed per block. The field schema for every
+// block type already exists once, in `packages/shared-types/src/block-catalogue.ts`, and it is the
+// contract both the composer and the storefront read. Re-declaring those shapes in Go would be a
+// second definition of the same catalogue — which is the drift Principle II exists to prevent, and
+// which `promotions/types.ts` demonstrates by re-declaring `BannerPlacement` today.
+//
+// What the server decides is which blocks survive and what content they resolve to; what a block's
+// fields MEAN is the catalogue's business.
+type layoutBlockDTO struct {
+	ID    string          `json:"id"`
+	Type  string          `json:"type"`
+	Props json.RawMessage `json:"props"`
+	// Rail is populated for `product_rail` blocks, so a client renders one from the block itself
+	// rather than cross-referencing `rails` by key. Absent for every other type.
+	Rail *railDTO `json:"rail,omitempty"`
 }
 
 type categoryDTO struct {
@@ -149,7 +177,41 @@ func (h *Handler) getHome(c *gin.Context) {
 			Placement: b.Placement,
 		})
 	}
-	c.JSON(http.StatusOK, homeDTO{Banners: banners, Rails: rails})
+	// ⚠ A non-nil empty slice, never nil: `[]` and `null` are different values to a decoder, and a
+	// client that switches on "empty" must not also have to handle "absent".
+	layout := make([]layoutBlockDTO, 0, len(home.Blocks))
+	for _, b := range home.Blocks {
+		block := layoutBlockDTO{ID: b.ID, Type: b.Type, Props: b.Props}
+		if b.Rail != nil {
+			block.Rail = &railDTO{Key: b.Rail.Key, Title: b.Rail.Title, Products: toCardDTOs(b.Rail.Products)}
+		}
+		layout = append(layout, block)
+	}
+
+	c.JSON(http.StatusOK, homeDTO{Banners: banners, Rails: rails, Layout: layout})
+}
+
+// homeLayoutDTO is the page structure alone — no products, no presigned URLs, nothing that expires
+// or depends on the shopper. That is precisely what makes it cacheable, and the cacheability is what
+// keeps the public home page a prerendered shell (FR-037).
+type homeLayoutDTO struct {
+	Blocks []layoutBlockDTO `json:"blocks"`
+	// Revision lets a caller tell one published state from another without diffing the blocks.
+	Revision int64 `json:"revision"`
+}
+
+func (h *Handler) getHomeLayout(c *gin.Context) {
+	layout, err := h.svc.HomeLayout(c.Request.Context())
+	if err != nil {
+		logger.FromContext(c.Request.Context()).Error("storefront: home layout read failed", zap.Error(err))
+		httpx.Unavailable(c)
+		return
+	}
+	blocks := make([]layoutBlockDTO, 0, len(layout.Blocks))
+	for _, b := range layout.Blocks {
+		blocks = append(blocks, layoutBlockDTO{ID: b.ID, Type: b.Type, Props: b.Props})
+	}
+	c.JSON(http.StatusOK, homeLayoutDTO{Blocks: blocks, Revision: layout.Revision})
 }
 
 func (h *Handler) getCategories(c *gin.Context) {

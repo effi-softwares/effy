@@ -7,6 +7,12 @@ import "github.com/gin-gonic/gin"
 func Register(v1 *gin.RouterGroup, h *Handler) {
 	g := v1.Group("/storefront")
 	g.GET("/home", h.getHome)
+	// 042: the page STRUCTURE alone, split from /home on purpose. It carries no products and nothing
+	// that expires, so the web surface can read it through a cached path tagged `home-layout` and keep
+	// the public home page a prerendered shell; /home stays uncached for the content that streams into
+	// it. Mobile takes the combined answer from /home instead — a Compose client has no streaming hole
+	// to fill and wants one round trip.
+	g.GET("/home/layout", h.getHomeLayout)
 	g.GET("/categories", h.getCategories)
 	g.GET("/products", h.getProducts)        // ?ids= now; full search/browse form in US4
 	g.GET("/products/:id", h.getProductByID) // product detail (US2)

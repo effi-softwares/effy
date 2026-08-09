@@ -87,3 +87,18 @@ export function stripeConfig() {
     ),
   }
 }
+
+/**
+ * The shared secret that authenticates a cache-invalidation request (042).
+ *
+ * ⚠ REQUIRED, WITH NO DEFAULT AND NO PLACEHOLDER. The constitution's rule on real-world identifiers
+ * is that an unknown value fails loudly rather than being guessed, and a secret is the sharpest case
+ * of it: a default would make the route publicly callable everywhere it was not overridden, and it
+ * would *work*, so nothing would ever reveal the mistake.
+ *
+ * ⚠ Server-side only — no NEXT_PUBLIC_ prefix. A secret in the client bundle is not a secret, and
+ * this surface's bundle is downloaded by every guest.
+ */
+export function revalidateSecret(): string {
+  return required("REVALIDATE_SECRET", process.env.REVALIDATE_SECRET)
+}

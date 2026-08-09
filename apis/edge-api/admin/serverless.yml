@@ -51,12 +51,22 @@ provider:
     # literal (contracts/ssm-mail.contract.md).
     MAIL_SENDING_DOMAIN: ${sls:stage}.effyshopping.com
     MAIL_ALERTS_TOPIC_ARN: ${ssm:/effy/${sls:stage}/alerts/topic_arn}
+    # Home layout (042). Publishing invalidates the storefront's cached page structure — without
+    # these two the publish succeeds and shoppers keep seeing the old page for up to an hour, with
+    # nothing reporting it. Both come from the SSM contract; the secret is operator-generated and
+    # the code refuses a placeholder rather than inventing one (constitution: real-world identifiers).
+    STOREFRONT_BASE_URL: ${ssm:/effy/${sls:stage}/web/site_url}
+    REVALIDATE_SECRET_ARN: ${ssm:/effy/${sls:stage}/web/revalidate_secret_arn}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # 042: the storefront revalidation bearer. Scoped to that one secret's ARN — never a wildcard.
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/web/revalidate_secret_arn}
         # Banner artwork (028): scoped to the media bucket's OBJECT ARN — never a wildcard. Presigned
         # URLs inherit this identity's authority, so a broader grant here would be a broader grant
         # handed to whoever holds the url. Mirrors the shop service's product-media statement.
@@ -649,6 +659,66 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+
+  # ── Home layout composer (042) ─────────────────────────────────────────────────────────────────
+  # Read is open to any active staff (support work); every mutation is admin/manager and carries the
+  # revision it was based on, so a second operator's publish cannot silently discard the first's.
+  homeLayoutV1:
+    handler: src/functions/home-layout-v1-get.handler
+    description: The home layout — draft, published, revision and provenance — 042 FR-001
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/home-layout
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  homeLayoutDraftV1:
+    handler: src/functions/home-layout-draft-v1-put.handler
+    description: Replace the draft body — never touches what shoppers see — 042 FR-002
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/home-layout/draft
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  homeLayoutPublishV1:
+    handler: src/functions/home-layout-publish-v1-post.handler
+    description: Validate and publish the draft, then invalidate the storefront cache — 042 FR-013
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/home-layout/publish
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  homeLayoutRevertV1:
+    handler: src/functions/home-layout-revert-v1-post.handler
+    description: Discard the draft and return to the last published state — 042 FR-014
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/home-layout/revert
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  homeLayoutAuditV1:
+    handler: src/functions/home-layout-audit-v1-get.handler
+    description: Who changed the home page and when — the slice's only accountability control — 042 FR-015
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/home-layout/audit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
 
 resources:
   Resources:

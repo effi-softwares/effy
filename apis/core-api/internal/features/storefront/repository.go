@@ -317,3 +317,45 @@ ORDER BY c.display_order ASC, c.name ASC`)
 	}
 	return out, nil
 }
+
+/* ── 042: the operator-authored home layout ──────────────────────────────────────────────────── */
+
+// homeLayoutRow is the wire shape of the published layout read; it never leaves this file.
+//
+// ⚠ The body is carried as raw JSON rather than decoded here. The repository's job is to fetch bytes;
+// deciding which blocks are renderable — and dropping the ones that are not (FR-042) — is a domain
+// decision that belongs in the service, where it can be counted and tested.
+type homeLayoutRow struct {
+	Published []byte `db:"published"`
+	Revision  int64  `db:"revision"`
+}
+
+// PublishedLayout reads the layout shoppers see.
+//
+// ⚠ ONLY the published body. There is deliberately no parameter, header or flag that can make this
+// return the draft — draft content is reachable exclusively through an authenticated preview session
+// (FR-022). A boolean here would be one refactor away from leaking unpublished merchandising onto the
+// public storefront.
+//
+// ⚠ A MISSING ROW IS NOT AN ERROR. The table is a singleton seeded by its own migration, but an
+// environment restored from an older dump, or one where the migration has not run, must render the
+// coherent minimal page rather than 500 the storefront. Absence returns an empty layout and `false`.
+func (r *Repository) PublishedLayout(ctx context.Context) (homeLayoutRow, bool, error) {
+	const sql = `
+SELECT published, revision
+FROM public.home_layout
+WHERE singleton`
+
+	rows, err := r.db.Query(ctx, sql)
+	if err != nil {
+		return homeLayoutRow{}, false, fmt.Errorf("storefront: query home layout: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[homeLayoutRow])
+	if err != nil {
+		return homeLayoutRow{}, false, fmt.Errorf("storefront: scan home layout: %w", err)
+	}
+	if len(out) == 0 {
+		return homeLayoutRow{}, false, nil
+	}
+	return out[0], true, nil
+}

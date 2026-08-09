@@ -24,6 +24,16 @@ type fakeReader struct {
 	lastParams  SearchParams
 	promos      []advertisedPromoRow
 	promoErr    error
+	// 042: the published layout. The zero value means "no row", which is the state every test
+	// predating the composer is asserting against — so those tests keep asserting exactly what they
+	// always did rather than being quietly re-pointed at a new code path.
+	layout      homeLayoutRow
+	layoutFound bool
+	layoutErr   error
+}
+
+func (f *fakeReader) PublishedLayout(_ context.Context) (homeLayoutRow, bool, error) {
+	return f.layout, f.layoutFound, f.layoutErr
 }
 
 func (f *fakeReader) NewestCards(_ context.Context, _ int) ([]cardRow, error) { return f.newest, nil }

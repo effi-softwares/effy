@@ -8,8 +8,10 @@ import (
 	"strconv"
 	"time"
 
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
@@ -114,6 +116,15 @@ type Promotion struct {
 type Home struct {
 	Banners []Banner
 	Rails   []Rail
+	// Blocks is the operator-authored page order (042). Empty when no layout has been published,
+	// in which case the client composes the page the way it always has.
+	Blocks []Block
+}
+
+// HomeLayout is the published page structure with no content attached (042).
+type HomeLayout struct {
+	Blocks   []Block
+	Revision int64
 }
 
 // Category is a browse/filter category. ProductCount and ImageURL (025) let browse render a real
@@ -173,15 +184,26 @@ type Reader interface {
 	SearchCards(ctx context.Context, p SearchParams) ([]searchRow, error)
 	// CountCards returns the total matching the same filters, ignoring ordering and pagination.
 	CountCards(ctx context.Context, p SearchParams) (int, error)
+	// PublishedLayout returns the operator-authored home layout (042). found=false means no row —
+	// which is not an error, and renders the code-composed page unchanged.
+	PublishedLayout(ctx context.Context) (homeLayoutRow, bool, error)
 }
 
 type Service struct {
 	repo    Reader
 	presign media.Presigner
+	layoutM *LayoutMetrics
 }
 
 func NewService(repo Reader, presign media.Presigner) *Service {
 	return &Service{repo: repo, presign: presign}
+}
+
+// WithLayoutMetrics attaches the 042 layout instrumentation. Optional by design — a nil *LayoutMetrics
+// records nothing and every code path is otherwise identical (see metrics.go).
+func (s *Service) WithLayoutMetrics(m *LayoutMetrics) *Service {
+	s.layoutM = m
+	return s
 }
 
 // Home composes the merchandised Home: a Featured rail (newest), an On-sale rail, and up to
@@ -217,10 +239,12 @@ func (s *Service) Home(ctx context.Context) (Home, error) {
 	defer cancel()
 
 	var (
-		featured   []cardRow
-		onSale     []cardRow
-		candidates []railCandidate
-		banners    []Banner
+		featured    []cardRow
+		onSale      []cardRow
+		candidates  []railCandidate
+		banners     []Banner
+		layoutRow   homeLayoutRow
+		layoutFound bool
 	)
 
 	// Wave 1 — everything that depends on nothing.
@@ -229,6 +253,31 @@ func (s *Service) Home(ctx context.Context) (Home, error) {
 	g.Go(func() (err error) { onSale, err = s.repo.OnSaleCards(gctx, railProductLimit); return })
 	g.Go(func() (err error) { candidates, err = s.repo.RailCandidates(gctx, categoryRailMax); return })
 	g.Go(func() (err error) { banners, err = s.banners(gctx); return })
+	// ⚠ 042: the layout joins WAVE 1, not a serial read before it. 029 measured a Sydney RDS round
+	// trip at 135 ms and found eight serial queries eating 46% of the home budget; adding a ninth in
+	// front of them would spend that latency again for one small row.
+	g.Go(func() error {
+		start := time.Now()
+		row, found, err := s.repo.PublishedLayout(gctx)
+		s.layoutM.observeRead(time.Since(start).Seconds())
+		if err != nil {
+			// ⚠ THE LAYOUT READ CAN NEVER FAIL THE HOME PAGE, and this returns nil deliberately.
+			//
+			// The obvious version of this — propagate the error like every other read in the wave —
+			// would mean the platform's only public surface 503s on any environment where 042's
+			// migration has not been applied, because `public.home_layout` does not exist there and
+			// Postgres answers 42P01. That is not a hypothetical: the migration is an operator step,
+			// so there is a real window in which it is true, and the storefront must survive it.
+			//
+			// The failure is logged at error level rather than swallowed. Losing the operator's
+			// ordering is a degradation worth knowing about; it is not worth a dead storefront.
+			logger.FromContext(ctx).Error("storefront: home layout read failed, serving without it",
+				zap.Error(err))
+			return nil
+		}
+		layoutRow, layoutFound = row, found
+		return nil
+	})
 	if err := g.Wait(); err != nil {
 		return Home{}, err
 	}
@@ -261,6 +310,36 @@ func (s *Service) Home(ctx context.Context) (Home, error) {
 		}
 	}
 	home.Banners = banners
+
+	// ⚠ 042: the layout is resolved AFTER the rails, because a `product_rail` block is only renderable
+	// if the rail it names came back with products — and "the rail is empty" is a fact this request
+	// discovered, not one publish-time validation could have known.
+	//
+	// ⚠ NO PUBLISHED LAYOUT IS NOT AN ERROR. Before the operator ever publishes, `Blocks` is empty and
+	// the storefront composes the page exactly as it did before this feature existed. That is what
+	// makes the migration to a data-composed page invisible to shoppers rather than a cutover.
+	if layoutFound {
+		raw, err := decodeLayout(layoutRow.Published)
+		if err != nil {
+			// The page is served without operator ordering rather than not at all — the same
+			// degradation rule as a single bad block, applied to the whole body.
+			logger.FromContext(ctx).Error("storefront: published home layout is unreadable", zap.Error(err))
+		} else {
+			railsByKey := make(map[string]Rail, len(home.Rails))
+			for _, r := range home.Rails {
+				railsByKey[r.Key] = r
+			}
+			blocks, omitted := resolveBlocks(raw, railsByKey)
+			s.layoutM.recordOmissions(omitted)
+			for _, o := range omitted {
+				// The block TYPE is logged, never labelled — see metrics.go for why.
+				logger.FromContext(ctx).Warn("storefront: home block omitted",
+					zap.String("blockType", o.Type), zap.String("reason", string(o.Reason)))
+			}
+			home.Blocks = blocks
+		}
+	}
+
 	return home, nil
 }
 
@@ -767,3 +846,53 @@ func plural(n int, unit string) string {
 }
 
 func ptr(s string) *string { return &s }
+
+// HomeLayout returns the published page STRUCTURE — which blocks, in what order, with what operator
+// copy — and nothing that depends on stock, price or the shopper.
+//
+// ⚠ THIS ENDPOINT EXISTS SO THE STOREFRONT CAN STILL PRERENDER. Making the page order data-driven
+// would otherwise move the entire body behind a request-time read, and the static shell the public
+// home page depends on (FR-037) would be gone. Because this answer changes only when someone
+// publishes, the web surface reads it through a cached path tagged `home-layout` and invalidates
+// that tag on publish, while products stream into Suspense holes exactly as they do today.
+//
+// `revision` is returned so a caller can tell one published state from another without diffing the
+// blocks — the composer's preview and the revalidation path both need that.
+func (s *Service) HomeLayout(ctx context.Context) (HomeLayout, error) {
+	ctx, cancel := context.WithTimeout(ctx, readTimeout)
+	defer cancel()
+
+	start := time.Now()
+	row, found, err := s.repo.PublishedLayout(ctx)
+	s.layoutM.observeRead(time.Since(start).Seconds())
+	if err != nil {
+		// ⚠ Same rule as Home(): an empty structure, never a failed read. This endpoint is consumed by
+		// the storefront's CACHED path — a 503 here does not degrade one section, it throws inside the
+		// page's cached render and takes the home page with it. On an environment where 042's
+		// migration has not run, `public.home_layout` does not exist and Postgres answers 42P01.
+		logger.FromContext(ctx).Error("storefront: home layout read failed, serving an empty structure",
+			zap.Error(err))
+		return HomeLayout{}, nil
+	}
+	// ⚠ Nothing published is a valid, cacheable answer — an empty block list, not a 404. The client
+	// composes the page the way it always has, and a missing row is not a reason to fail a read.
+	if !found {
+		return HomeLayout{}, nil
+	}
+
+	raw, err := decodeLayout(row.Published)
+	if err != nil {
+		// Same degradation rule as a single bad block: serve an empty structure and let the page
+		// compose itself, rather than failing the platform's only public surface over a bad row.
+		logger.FromContext(ctx).Error("storefront: published home layout is unreadable", zap.Error(err))
+		return HomeLayout{Revision: row.Revision}, nil
+	}
+
+	blocks, omitted := resolveStructure(raw)
+	s.layoutM.recordOmissions(omitted)
+	for _, o := range omitted {
+		logger.FromContext(ctx).Warn("storefront: home block omitted",
+			zap.String("blockType", o.Type), zap.String("reason", string(o.Reason)))
+	}
+	return HomeLayout{Blocks: blocks, Revision: row.Revision}, nil
+}

@@ -114,6 +114,11 @@ func run() error {
 	m := metrics.New()
 	m.RegisterPoolStats(pool)
 
+	// 042: a dropped home block is a silent success — a 200 with a section missing. These two
+	// collectors are the only thing that makes that visible (see storefront/metrics.go).
+	storefrontLayoutMetrics := storefront.NewLayoutMetrics()
+	m.Register(storefrontLayoutMetrics.Collectors()...)
+
 	// 019 commerce shared collaborators, built once (research R2/R3/R7).
 	presign := media.NewResolver(s3.NewFromConfig(awsCfg), cfg.AWS.MediaBucket)
 	paymentGateway := checkout.NewStripeGateway(cfg.Stripe.SecretKey, cfg.Stripe.WebhookSecret)
@@ -134,8 +139,9 @@ func run() error {
 		payments: paymentGateway,
 		metrics:  m,
 
-		storefront: storefront.NewService(storefront.NewRepository(pool), presign),
-		cart:       cartSvc,
+		storefront: storefront.NewService(storefront.NewRepository(pool), presign).
+			WithLayoutMetrics(storefrontLayoutMetrics),
+		cart: cartSvc,
 		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
 		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc),

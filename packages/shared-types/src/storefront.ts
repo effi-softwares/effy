@@ -172,10 +172,43 @@ export interface PromotionDTO {
   validity: string | null;
 }
 
+/**
+ * One section of the operator-authored home page, as it appears inside the composed Home payload.
+ *
+ * ⚠ `props` IS UNTYPED HERE ON PURPOSE. Every block type's field schema is declared once, in
+ * `block-catalogue.ts`, and that is the contract both the composer and the renderer read. Restating
+ * those shapes as a union here would be a second definition of the same catalogue — and the renderer
+ * must stay *tolerant* anyway (FR-042): a props shape it does not recognise drops one block and
+ * serves the rest, which a strict union would turn into a parse failure for the whole page.
+ */
+export interface StorefrontLayoutBlockDTO {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  /** Populated for `product_rail` blocks only, so a client renders one without a second lookup. */
+  rail?: StorefrontRailDTO;
+}
+
 /** The composed Home payload (GET /v1/storefront/home). */
 export interface StorefrontHomeDTO {
+  /**
+   * ⚠ RETAINED, AND EXPECTED TO BE EMPTY (042). Two Compose Multiplatform builds are in the field
+   * decoding this key; removing it is a wire break that fails on a customer's phone rather than in
+   * CI. It is retired by a later slice, once no build in use still reads it.
+   */
   banners: BannerDTO[];
   rails: StorefrontRailDTO[];
+  /**
+   * The operator-authored page order (042). ⚠ ALWAYS PRESENT, possibly empty — a client that finds it
+   * empty composes the page the way it always has, so a surface that has not adopted the composer is
+   * unaffected by this field existing.
+   *
+   * ⚠ Web does NOT read the order from here. It reads the structure from `GET
+   * /v1/storefront/home/layout` through a cached path, because block order coming out of this
+   * uncached read would put the whole page body behind request time (FR-037). This field serves
+   * mobile, which has no streaming hole to fill and wants one round trip.
+   */
+  layout: StorefrontLayoutBlockDTO[];
 }
 
 /** A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the

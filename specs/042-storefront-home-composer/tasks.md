@@ -54,34 +54,34 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 
 ### Database
 
-- [ ] T009 Write `db/migrations/<timestamp>_home_layout.sql` creating `public.home_layout` as a schema-enforced singleton per [data-model.md](./data-model.md) §1 (`draft`, `published`, `revision`, publish metadata)
-- [ ] T010 In the same migration, **seed `published` with an explicit representation of today's home page** — hero, category strip, on-sale rail, offers, featured rail, category rails, app promo, newsletter. ⚠ The storefront must not change appearance on deploy, and an empty seed plus a deleted `PromoHero` leaves no hero at all (depends on T009)
+- [X] T009 Write `db/migrations/<timestamp>_home_layout.sql` creating `public.home_layout` as a schema-enforced singleton per [data-model.md](./data-model.md) §1 (`draft`, `published`, `revision`, publish metadata)
+- [X] T010 In the same migration, **seed `published` with an explicit representation of today's home page** — hero, category strip, on-sale rail, offers, featured rail, category rails, app promo, newsletter. ⚠ The storefront must not change appearance on deploy, and an empty seed plus a deleted `PromoHero` leaves no hero at all (depends on T009)
 - [ ] T010a ⚠ **Assert the seeded layout passes `validate.ts`.** The seed is written by SQL and therefore bypasses the service that would otherwise refuse it — including `hero.artwork`, which is required and canvas-validated. Add a test that runs the seed body through the cold-path validator, and confirm the hero artwork object exists in the media bucket (depends on T010, T090)
 - [ ] T011 **OPERATOR** Commit the migration, then `make db-up ENV=dev` and verify with the `jsonb_array_length(published)` query in [quickstart.md](./quickstart.md) §1 (depends on T010)
 
 ### Hot path — the public read
 
-- [ ] T012 [P] Add `homeLayoutRow` and `PublishedLayout()` to `apis/core-api/internal/features/storefront/repository.go` — a primary-key read of `published`
-- [ ] T013 Add block domain types and `layoutBlocks()` to `apis/core-api/internal/features/storefront/service.go`, resolving each block's references and **omitting rather than failing** on unknown type, unreadable props, or a missing reference (FR-042) (depends on T012)
-- [ ] T013a ⚠ **Read the published layout through a CACHED path tagged `home-layout`** in `apps/customer-web/app/(shop)/home-data.ts`, keeping rails and products `uncached()`. Without this, block order coming from an uncached read moves the **entire page body** behind request time and the prerendered shell FR-037 requires is gone (depends on T012)
-- [ ] T013b Create `apps/customer-web/app/api/revalidate/route.ts` — a POST route authenticated by a shared secret that invalidates the `home-layout` tag. ⚠ The secret is **operator-supplied and fails loudly when unset** (constitution, Real-World Identifiers) (depends on T013a)
-- [ ] T013c Call the revalidation route from `publish` and `revert` in the admin service, and **surface a revalidation failure to the operator** — a silent failure means they believe they published while shoppers see the old page (FR-015a) (depends on T013b, T022)
+- [X] T012 [P] Add `homeLayoutRow` and `PublishedLayout()` to `apis/core-api/internal/features/storefront/repository.go` — a primary-key read of `published`
+- [X] T013 Add block domain types and `layoutBlocks()` to `apis/core-api/internal/features/storefront/service.go`, resolving each block's references and **omitting rather than failing** on unknown type, unreadable props, or a missing reference (FR-042) (depends on T012)
+- [X] T013a ⚠ **Read the published layout through a CACHED path tagged `home-layout`** in `apps/customer-web/app/(shop)/home-data.ts`, keeping rails and products `uncached()`. Without this, block order coming from an uncached read moves the **entire page body** behind request time and the prerendered shell FR-037 requires is gone (depends on T012)
+- [X] T013b Create `apps/customer-web/app/api/revalidate/route.ts` — a POST route authenticated by a shared secret that invalidates the `home-layout` tag. ⚠ The secret is **operator-supplied and fails loudly when unset** (constitution, Real-World Identifiers) (depends on T013a)
+- [X] T013c Call the revalidation route from `publish` and `revert` in the admin service, and **surface a revalidation failure to the operator** — a silent failure means they believe they published while shoppers see the old page (FR-015a) (depends on T013b, T022)
 - [ ] T013d [P] Test that a publish invalidates the tag and the next storefront request serves the new layout, and that `/` still builds as a prerendered route (SC-005, FR-037)
-- [ ] T014 Add `layoutBlockDTO` and wire `layout` into `homeDTO` in `apis/core-api/internal/features/storefront/handler.go`, keeping `banners` **present and empty** ⚠ removing the key is a wire break for mobile builds in the field (depends on T013)
-- [ ] T015 [P] Add `storefront_home_blocks_omitted_total` (labelled by omission reason) and `storefront_home_layout_read_seconds` to the hot path's metrics registry. ⚠ FR-042 makes omission a silent success path — uncounted, a page losing a section is invisible
-- [ ] T016 [P] Write `apis/core-api/internal/features/storefront/layout_test.go` covering: hidden blocks omitted server-side, unknown type omitted, missing reference omitted, array order preserved, empty layout renders nothing
-- [ ] T017 Extend `apis/core-api/internal/features/storefront/wire_contract_test.go` with a byte-identical JSON literal for the layout payload, pinning Go against the shared contract (depends on T014)
+- [X] T014 Add `layoutBlockDTO` and wire `layout` into `homeDTO` in `apis/core-api/internal/features/storefront/handler.go`, keeping `banners` **present and empty** ⚠ removing the key is a wire break for mobile builds in the field (depends on T013)
+- [X] T015 [P] Add `storefront_home_blocks_omitted_total` (labelled by omission reason) and `storefront_home_layout_read_seconds` to the hot path's metrics registry. ⚠ FR-042 makes omission a silent success path — uncounted, a page losing a section is invisible
+- [X] T016 [P] Write `apis/core-api/internal/features/storefront/layout_test.go` covering: hidden blocks omitted server-side, unknown type omitted, missing reference omitted, array order preserved, empty layout renders nothing
+- [X] T017 Extend `apis/core-api/internal/features/storefront/wire_contract_test.go` with a byte-identical JSON literal for the layout payload, pinning Go against the shared contract (depends on T014)
 
 ### Cold path — the authoring slice
 
-- [ ] T018 [P] Create `apis/edge-api/admin/src/homelayout/types.ts` importing the block types from `@effy/shared-types` — ⚠ import, never re-declare locally; `promotions/types.ts` re-declares `BannerPlacement` today and that is exactly the drift Principle II forbids
-- [ ] T019 [P] Create `apis/edge-api/admin/src/homelayout/authz.ts` — read = any active staff incl. `csa`; mutate = active AND role ∈ `{admin, manager}`, decided from `admin.staff`, fail-closed (FR-016)
-- [ ] T020 Create `apis/edge-api/admin/src/homelayout/repository.ts` with raw SQL for read, draft write, publish, revert — every mutation writing `admin.audit_log` **inside the same transaction** (FR-015) (depends on T009)
-- [ ] T021 Implement optimistic concurrency in the repository: `WHERE revision = $n` with a bump; zero rows affected → distinguishable conflict (FR-017) (depends on T020)
-- [ ] T022 Create `apis/edge-api/admin/src/homelayout/service.ts` with `getLayout`, `saveDraft`, `publish`, `revert` and the `refuse()` → problem+json mapping (depends on T019, T021)
-- [ ] T023 [P] Create handler files in `apis/edge-api/admin/functions/` for `home-layout-v1-get`, `home-layout-draft-v1-put`, `home-layout-publish-v1-post`, `home-layout-revert-v1-post`, `home-layout-audit-v1-get`
-- [ ] T024 Register the routes in `apis/edge-api/admin/serverless.yml` behind the back-office authorizer (depends on T023)
-- [ ] T025 [P] Add a config-contract test in `apis/edge-api/admin/src/homelayout/config.test.ts` reading the **real `serverless.yml`** and asserting every route and env var this slice needs is declared. ⚠ 035 shipped four env vars the config never declared; 100 passing tests missed it because they set the vars themselves
+- [X] T018 [P] Create `apis/edge-api/admin/src/homelayout/types.ts` importing the block types from `@effy/shared-types` — ⚠ import, never re-declare locally; `promotions/types.ts` re-declares `BannerPlacement` today and that is exactly the drift Principle II forbids
+- [X] T019 [P] Create `apis/edge-api/admin/src/homelayout/authz.ts` — read = any active staff incl. `csa`; mutate = active AND role ∈ `{admin, manager}`, decided from `admin.staff`, fail-closed (FR-016)
+- [X] T020 Create `apis/edge-api/admin/src/homelayout/repository.ts` with raw SQL for read, draft write, publish, revert — every mutation writing `admin.audit_log` **inside the same transaction** (FR-015) (depends on T009)
+- [X] T021 Implement optimistic concurrency in the repository: `WHERE revision = $n` with a bump; zero rows affected → distinguishable conflict (FR-017) (depends on T020)
+- [X] T022 Create `apis/edge-api/admin/src/homelayout/service.ts` with `getLayout`, `saveDraft`, `publish`, `revert` and the `refuse()` → problem+json mapping (depends on T019, T021)
+- [X] T023 [P] Create handler files in `apis/edge-api/admin/functions/` for `home-layout-v1-get`, `home-layout-draft-v1-put`, `home-layout-publish-v1-post`, `home-layout-revert-v1-post`, `home-layout-audit-v1-get`
+- [X] T024 Register the routes in `apis/edge-api/admin/serverless.yml` behind the back-office authorizer (depends on T023)
+- [X] T025 [P] Add a config-contract test in `apis/edge-api/admin/src/homelayout/config.test.ts` reading the **real `serverless.yml`** and asserting every route and env var this slice needs is declared. ⚠ 035 shipped four env vars the config never declared; 100 passing tests missed it because they set the vars themselves
 
 ### Storefront rendering skeleton
 

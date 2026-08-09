@@ -69,6 +69,19 @@ func (m *Metrics) Handler() gin.HandlerFunc {
 	return gin.WrapH(h)
 }
 
+// Register adds feature-owned collectors to the platform registry.
+//
+// ⚠ The collectors themselves are DEFINED IN THE FEATURE that emits them, not here. A metric's name,
+// help text and label set are part of that feature's vocabulary, and a platform package accumulating
+// one field per feature is how a shared registry turns into a second, worse dependency graph. This
+// package owns the registry and the RED middleware; it does not own what features choose to measure.
+//
+// Panics on a duplicate registration, like the rest of the package: a metric silently not being
+// collected is exactly the blind spot Principle VII exists to close.
+func (m *Metrics) Register(cs ...prometheus.Collector) {
+	m.registry.MustRegister(cs...)
+}
+
 // RegisterPoolStats exposes pgx pool saturation (Principle VII: DB-pool visibility).
 func (m *Metrics) RegisterPoolStats(pool *pgxpool.Pool) {
 	m.registry.MustRegister(newPoolCollector(pool))

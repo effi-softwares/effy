@@ -135,3 +135,82 @@ func TestEmptyBannerListSerialisesAsAnArrayNotNull(t *testing.T) {
 
 // All three fields are required — no omitempty anywhere. A place missing its state is two different
 // places on the wire (FR-008).
+
+// ── THE HOME LAYOUT (042) ───────────────────────────────────────────────────────────────────────
+//
+// LAYOUT_WIRE_JSON is the exact payload one `product_rail` block produces inside `home.layout`.
+//
+// ⚠ THIS ONE PINS A DIFFERENT KIND OF RISK FROM THE BANNER LITERAL. There is no numeric field to
+// turn into a float here; the hazard is `props`, which is passed through as raw JSON precisely so
+// that Go never re-declares the block catalogue. Pass-through is the right design and it is also
+// unusually easy to break invisibly — a `json.RawMessage` that arrives nil marshals to the literal
+// `null`, which is valid JSON, decodes without complaint, and reaches a renderer as a block with no
+// content. Nothing in Go would notice. These bytes are what notices.
+//
+// ⚠ IT ALSO PINS THE OMISSIONS. `rail` carries `omitempty` (absent on six of the seven block types)
+// while `props` deliberately does not. Reversing either is a one-word edit that compiles.
+const LAYOUT_WIRE_JSON = `{"id":"b_rail_sale","type":"product_rail","props":{"railKey":"on_sale"},` +
+	`"rail":{"key":"on_sale","title":"On sale","products":[]}}`
+
+func TestLayoutBlockSerialisesToTheAgreedBytes(t *testing.T) {
+	got, err := json.Marshal(layoutBlockDTO{
+		ID:    "b_rail_sale",
+		Type:  "product_rail",
+		Props: json.RawMessage(`{"railKey":"on_sale"}`),
+		Rail:  &railDTO{Key: "on_sale", Title: "On sale", Products: make([]productCardDTO, 0)},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(got) != LAYOUT_WIRE_JSON {
+		t.Fatalf("layout wire payload drifted.\n got: %s\nwant: %s", got, LAYOUT_WIRE_JSON)
+	}
+}
+
+func TestLayoutBlockPropsSurviveAsRawJSONRatherThanAString(t *testing.T) {
+	// ⚠ The failure this rules out: `props` typed as `string` instead of `json.RawMessage`. It would
+	// compile, every Go test asserting "the props round-trip" would pass, and the wire would carry
+	// `"props":"{\"railKey\":\"on_sale\"}"` — a JSON string containing JSON. Every client would then
+	// need a second parse nobody told them about.
+	b, err := json.Marshal(layoutBlockDTO{ID: "b", Type: "offers", Props: json.RawMessage(`{"tiles":[]}`)})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(b), `"props":{"tiles":[]}`) {
+		t.Fatalf("props must be embedded as an OBJECT, not escaped into a string: %s", b)
+	}
+}
+
+func TestBlockWithoutARailOmitsTheKeyEntirely(t *testing.T) {
+	// Six of the seven block types have no rail. `"rail":null` on every one of them would be noise a
+	// client has to defend against; absence is unambiguous.
+	b, err := json.Marshal(layoutBlockDTO{ID: "b_news", Type: "newsletter", Props: json.RawMessage(`{}`)})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(b), `"rail"`) {
+		t.Fatalf("a block with no rail must omit the key, not send null: %s", b)
+	}
+}
+
+func TestHomeAlwaysCarriesBothLayoutAndBanners(t *testing.T) {
+	// ⚠ TWO OPPOSITE FAILURES IN ONE ASSERTION.
+	//
+	// `layout` must be present even when empty, so a client can switch on "empty" without also
+	// handling "absent" — and `banners` must STAY present even once nothing populates it, because two
+	// Compose Multiplatform builds are in the field decoding it. Removing that key is a wire break
+	// that fails on a customer's phone rather than in CI.
+	got, err := json.Marshal(homeDTO{
+		Banners: make([]bannerDTO, 0),
+		Rails:   make([]railDTO, 0),
+		Layout:  make([]layoutBlockDTO, 0),
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, key := range []string{`"banners":[]`, `"rails":[]`, `"layout":[]`} {
+		if !strings.Contains(string(got), key) {
+			t.Fatalf("home must always carry %s, as an array and never null: %s", key, got)
+		}
+	}
+}

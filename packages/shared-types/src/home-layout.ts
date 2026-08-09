@@ -86,6 +86,11 @@ export interface HomeLayoutDTO {
  */
 export interface PublishedLayoutDTO {
   blocks: LayoutBlock[]
+  /**
+   * The revision this structure was published at. Lets a caller tell one published state from another
+   * without diffing the blocks — the preview and the cache-invalidation path both need that.
+   */
+  revision: number
 }
 
 /** Why a block was dropped at render time — the label on `storefront_home_blocks_omitted_total`. */
