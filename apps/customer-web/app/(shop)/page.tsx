@@ -9,10 +9,12 @@ import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
 
 import { type HomeSection, composeSections, isEmptyStore } from "./home-composition"
+import { getHome } from "./home-data"
 
 import { AppPromo } from "./_components/AppPromo"
 import { CategoryStrip } from "./_components/CategoryStrip"
 import { Hero } from "./_components/Hero"
+import { PromoHero, PromoHeroSkeleton } from "./_components/PromoHero"
 import { NewsletterForm } from "./_components/NewsletterForm"
 import { OffersPanels } from "./_components/OffersPanels"
 import { productGrid } from "./_components/ProductCard"
@@ -71,7 +73,20 @@ export default function HomePage() {
           in the top slot; the operator's 039 direction is a hero band, and the offers now get their
           own dedicated panels further down (contract rows 3 and 6) rather than the first screen. */}
       <h1 className="sr-only">Effy — groceries, delivered</h1>
-      <Hero />
+      {/* <Hero /> */}
+
+      {/* ⚠ ITS OWN SUSPENSE BOUNDARY, at page level — not inside `HomeContent` (operator direction,
+          2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
+          advertised promotions and that read is deliberately uncached. But it must not be BEHIND the
+          merchandising hole either: sharing that boundary made the page's largest element wait on the
+          category read it has no use for, and put the whole first screen behind whichever of the two
+          requests was slower. Its own boundary means it paints as soon as its own data lands.
+
+          Both boundaries read `/v1/storefront/home`; `getHome()` is `cache()`-wrapped so that is one
+          request, by construction rather than by relying on Next's memoization. */}
+      <Suspense fallback={<PromoHeroSkeleton />}>
+        <PromoHeroSection />
+      </Suspense>
 
       {/* Client island: shown only when the shopper's postcode is outside a serviced zone. */}
 
@@ -95,12 +110,30 @@ export default function HomePage() {
   )
 }
 
+/**
+ * The promotions band (039 comparison build).
+ *
+ * ⚠ A FAILED READ RENDERS NOTHING, it does not render an error. `HomeContent` below reads the same
+ * payload and already owns the "the store is unavailable" message — two boundaries reporting one
+ * outage would tell the shopper the site is broken twice, once in the largest element on the page.
+ * A hero is the wrong place to deliver that news.
+ */
+async function PromoHeroSection() {
+  let home: StorefrontHomeDTO
+  try {
+    home = await getHome()
+  } catch {
+    return null
+  }
+  return <PromoHero banners={home.banners} />
+}
+
 async function HomeContent() {
   let home: StorefrontHomeDTO
   let categories: StorefrontCategoryDTO[]
   try {
     ;[home, categories] = await Promise.all([
-      coreApi().get<StorefrontHomeDTO>("/v1/storefront/home", uncached()),
+      getHome(),
       coreApi().get<StorefrontCategoryDTO[]>("/v1/storefront/categories", uncached()),
     ])
   } catch {

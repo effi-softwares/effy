@@ -155,20 +155,30 @@ describe("Hero — the immediately-served banner (US1)", () => {
     expect(primary.className).not.toContain("bg-black")
   })
 
-  /** SC-001: the band is the same height in both states, so nothing reflows when the art lands. */
+  /**
+   * SC-001: the band is the same height in both states, so nothing reflows when the art lands.
+   *
+   * ⚠ This asserts that the two states AGREE, not what the height happens to be. It used to hard-code
+   * `h-[26rem] sm:h-[30rem] lg:h-[34rem]`, and when the band moved to the spacing scale
+   * (`h-104 sm:h-120 lg:h-136`) the test did not fail on the numbers — its element lookup returned
+   * `undefined`, because it searched for a class containing `h-[`. A height test that breaks when the
+   * height is *renamed* is testing the wrong thing; the invariant is equality between the states.
+   */
   it("reserves the same band height with and without artwork", () => {
-    const heightOf = (c: HTMLElement) =>
-      Array.from(c.querySelectorAll("div")).find((d) => d.className.includes("h-["))?.className
+    const heightOf = (c: HTMLElement) => {
+      const band = c.querySelector<HTMLElement>("[class*='h-']")!
+      return band.className.split(/\s+/).filter((k) => /(^|:)h-/.test(k))
+    }
 
     const { container: withArt } = render(<Hero imageSrcs={["/hero/hero-1.webp"]} />)
     const { container: without } = render(<Hero imageSrcs={[]} />)
 
+    const heights = heightOf(withArt)
+    // A band with no height classes at all would otherwise pass this by matching an empty list.
+    expect(heights.length).toBeGreaterThanOrEqual(3)
     // Every breakpoint, both states — a height that matched at one width and not another would still
     // shift the page for the shoppers on the other width.
-    for (const h of ["h-[26rem]", "sm:h-[30rem]", "lg:h-[34rem]"]) {
-      expect(heightOf(withArt)).toContain(h)
-      expect(heightOf(without)).toContain(h)
-    }
+    expect(heightOf(without)).toEqual(heights)
   })
 
   /**
