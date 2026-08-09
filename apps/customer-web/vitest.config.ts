@@ -45,6 +45,8 @@ export default defineConfig({
       { find: /^react-dom\/client$/, replacement: r("react-dom/client") },
       { find: /^react\/jsx-runtime$/, replacement: r("react/jsx-runtime") },
       { find: /^react\/jsx-dev-runtime$/, replacement: r("react/jsx-dev-runtime") },
+      // See test-stubs/server-only.ts — a bundler guard that Vitest cannot resolve, and does not need.
+      { find: /^server-only$/, replacement: new URL("./test-stubs/server-only.ts", import.meta.url).pathname },
     ],
   },
   test: {

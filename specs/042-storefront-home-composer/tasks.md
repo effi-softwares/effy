@@ -50,7 +50,7 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 
 - [X] T008a ⚠ **Inventory what `app/(shop)/page.tsx` actually renders today**, and reconcile the catalogue against it. **DONE** — recorded in `contracts/block-catalogue.contract.md`. Three corrections resulted: `HomeSection` has **three** kinds not seven (so the block system absorbs page-level JSX too, which the plan understated); **`RecentlyViewedRail` was missing from the catalogue entirely** and is a client island — modelled as `recently_viewed` with position-only authoring; and `ValueStrip` renders **nowhere** (an unused import), so it is included as a block the operator can deliberately bring back
 - [X] T008b ⚠ **NOT NEEDED — the premise was stale.** `ValueStrip` is not nested inside `Hero`; it is an unused *import* there and renders nowhere, so there is nothing to split and FR-008 is not breached. Superseded by T008a's disposition
-- [ ] T008c ⚠ **OPERATOR DECISION, blocks the `hero` block schema.** `Hero` (static, six local artworks, hardcoded copy) is commented out; `PromoHero` (promotions-driven, streamed) is live. They were built to be compared and the comparison was never concluded. If `Hero` wins, `hero` carries operator-authored copy + artwork + CTAs and `PromoHero` is deleted. If `PromoHero` wins, the hero is promotions-driven and its field schema is entirely different. ⚠ No artifact had named this; everything else in the catalogue can proceed without it
+- [X] T008c ✅ **RESOLVED 2026-08-09 — `PromoHero` wins, and BOTH static heroes are deleted.** `Hero.tsx`, its test, `lib/hero-asset.ts`, the six `public/hero/*.webp` artworks and the `.fx-hero` CSS are removed; the platform now has exactly one hero. ⚠ **The decision changed where the hero's CONTENT comes from**: the winning carousel is fed by advertised promotions, and 042 deletes that facet — so `hero` authors its own slides in the composer and a promotion is OPTIONAL, lending the slide a live window rather than being its content. ⚠ **Transitional**: `PromoHero` stays page-level JSX and `renderBlock` returns null for `hero`, so the top of the storefront keeps working until an operator authors slides; both go together in Phase 7
 
 ### Database
 
@@ -85,9 +85,9 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 
 ### Storefront rendering skeleton
 
-- [ ] T026 [P] Create `apps/customer-web/app/(shop)/_components/blocks/` with one **server** component per block type, each a pure props-driven wrapper around the existing component (`Hero`, `CategoryStrip`, `ProductRail`, `ValueStrip`, `AppPromo`, `NewsletterForm`)
-- [ ] T027 Replace `composeSections()` usage in `apps/customer-web/app/(shop)/page.tsx` with a renderer over the published layout, using a `switch` with a `never` default so a new block type is a **compile error**, not a silently blank section. ⚠ **Retain the page-level screen-reader-only `h1` outside the block renderer** — it is page JSX, not a block, and FR-040/SC-010 depend on it surviving this rewrite (depends on T026)
-- [ ] T028 Implement position-derived image priority in the block renderer — first image eager + `fetchpriority="high"`, all others lazy — as a derived value with **no authorable field** (FR-039). ⚠ The storefront currently has the inverse defect (depends on T027)
+- [X] T026 [P] Create `apps/customer-web/app/(shop)/_components/blocks/` with one **server** component per block type, each a pure props-driven wrapper around the existing component (`Hero`, `CategoryStrip`, `ProductRail`, `ValueStrip`, `AppPromo`, `NewsletterForm`)
+- [X] T027 Replace `composeSections()` usage in `apps/customer-web/app/(shop)/page.tsx` with a renderer over the published layout, using a `switch` with a `never` default so a new block type is a **compile error**, not a silently blank section. ⚠ **Retain the page-level screen-reader-only `h1` outside the block renderer** — it is page JSX, not a block, and FR-040/SC-010 depend on it surviving this rewrite (depends on T026)
+- [X] T028 Implement position-derived image priority in the block renderer — first image eager + `fetchpriority="high"`, all others lazy — as a derived value with **no authorable field** (FR-039). ⚠ The storefront currently has the inverse defect (depends on T027)
 
 **Checkpoint**: The storefront renders from data. Nothing is authorable yet.
 
@@ -111,9 +111,9 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 - [ ] T033 [P] [US1] Create `apps/back-office/src/features/home-layout/repo.ts` with the HTTP calls to the five Phase-2 routes
 - [ ] T034 [P] [US1] Create `apps/back-office/src/features/home-layout/queries.ts` — TanStack Query options and mutations. ⚠ Server state via the cache, never hand-cached in component state (Principle VI)
 - [ ] T035 [P] [US1] Create `apps/back-office/src/features/home-layout/access.ts` mirroring the server's role gate for UI affordances only — the server decides
-- [ ] T035a [US1] ⚠ **OPERATOR decision, before T036**: is drag-to-reorder required, or do move-up/move-down buttons suffice? FR-004 currently mandates both. Buttons-only removes a dependency entirely; if that is the answer, **amend FR-004** rather than leaving a MUST unmet. Do not carry this into implementation as an open question
-- [ ] T036 [US1] Add `@dnd-kit` to `apps/back-office/package.json` **if T035a chose drag**. ⚠ Admin-only; it must never appear in a storefront bundle (depends on T032, T035a)
-- [ ] T037 [US1] Create `apps/back-office/src/features/home-layout/components/BlockList.tsx` — drag-to-reorder **and** always-visible move-up/move-down buttons (FR-004). ⚠ `pointerWithin` is pointer-only and keyboard-inaccessible; use `closestCorners` with an activation distance (depends on T036)
+- [X] T035a [US1] ✅ **RESOLVED 2026-08-09 — buttons only.** FR-004 amended in `spec.md`: drag is withdrawn, the keyboard control is the only path and is therefore strengthened rather than weakened. T036 is cancelled
+- [X] T036 [US1] ~~Add `@dnd-kit`~~ — **CANCELLED by T035a.** No drag-and-drop dependency enters the back office
+- [ ] T037 [US1] Create `apps/back-office/src/features/home-layout/components/BlockList.tsx` — always-visible move-up/move-down buttons (FR-004, as amended). ⚠ The first and last blocks must have their unavailable direction **disabled rather than absent**, so the control does not shift under the pointer as a block travels
 - [ ] T038 [US1] Ensure focus follows a block moved by keyboard, and that the control announces the new position (US1 acceptance scenario 2, FR-004) (depends on T037)
 - [ ] T039 [US1] Create `apps/back-office/src/features/home-layout/HomeComposerScreen.tsx` — the block list, add-from-preset, hide/remove, and the publish/revert actions (depends on T033, T034, T037)
 - [ ] T040 [US1] Add the route in `apps/back-office/src/routes/` and a nav entry in `apps/back-office/src/components/layout/nav.ts` (depends on T039)

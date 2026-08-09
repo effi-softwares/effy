@@ -9,11 +9,12 @@ import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
 
 import { type HomeSection, composeSections, isEmptyStore } from "./home-composition"
-import { getHome } from "./home-data"
+import { getHome, getHomeLayout } from "./home-data"
+
+import { type BlockContext, firstImageBlock, renderBlock } from "./_components/blocks"
 
 import { AppPromo } from "./_components/AppPromo"
 import { CategoryStrip } from "./_components/CategoryStrip"
-import { Hero } from "./_components/Hero"
 import { PromoHero, PromoHeroSkeleton } from "./_components/PromoHero"
 import { NewsletterForm } from "./_components/NewsletterForm"
 import { OffersPanels } from "./_components/OffersPanels"
@@ -49,7 +50,7 @@ export const metadata: Metadata = {
  *    star ratings — there are no reviews on this platform, and inventing them is not a design
  *    decision.
  *
- * The static shell (H1, hero, section scaffolding) prerenders and is present in the raw HTML for
+ * The static shell (H1, section scaffolding) prerenders and is present in the raw HTML for
  * crawlers (FR-002). The merchandised rails depend on `core-api`, so they stream inside a <Suspense>
  * boundary — the PPR model: instant static shell, then content, degrading to a skeleton and then to a
  * friendly empty/error state.
@@ -67,12 +68,12 @@ export default function HomePage() {
           (SC-009), which is the one structural invariant that has to survive all six 039 sections
           landing one at a time.
 
-          ⚠ 039 REPLACES 025's type-led hero with an image-led one. 025's note here argued a retail
-          storefront should lead with what is on offer rather than a slogan, and put the promo carousel
-          in the top slot; the operator's 039 direction is a hero band, and the offers now get their
-          own dedicated panels further down (contract rows 3 and 6) rather than the first screen. */}
+          ⚠ THERE IS NOW EXACTLY ONE HERO, and the h1 above is the whole of the static shell's top.
+          025 shipped a type-led hero; 039 replaced it with a six-image rotation; both are DELETED
+          (operator decision, T008c). `PromoHero` won the comparison and is the only hero the platform
+          has — so the first screen is built from real advertised promotions rather than authored
+          slogans, which is also what makes it operator-editable rather than a code change. */}
       <h1 className="sr-only">Effy — groceries, delivered</h1>
-      {/* <Hero /> */}
 
       {/* ⚠ ITS OWN SUSPENSE BOUNDARY, at page level — not inside `HomeContent` (operator direction,
           2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
@@ -83,6 +84,15 @@ export default function HomePage() {
 
           Both boundaries read `/v1/storefront/home`; `getHome()` is `cache()`-wrapped so that is one
           request, by construction rather than by relying on Next's memoization. */}
+      {/* ⚠ THE HERO IS STILL PAGE-LEVEL, and this is a TRANSITIONAL arrangement with a defined end.
+          T008c settled that this carousel is the platform's only hero — both static ones are deleted —
+          but it is fed today by ADVERTISED PROMOTIONS, and 042 removes that facet from discount codes
+          in Phase 7. So the hero becomes a block whose slides the operator authors, and until someone
+          has authored one there is nothing for a `hero` block to draw.
+
+          Rendering it here keeps the top of the storefront working throughout that gap. `renderBlock`
+          returns null for `hero` so the two can never draw at once, and the operator can still POSITION
+          it in the composer. When Phase 7 lands, this element and that null case go together. */}
       <Suspense fallback={<PromoHeroSkeleton />}>
         <PromoHeroSection />
       </Suspense>
@@ -144,6 +154,30 @@ async function HomeContent() {
   // one — then rendered four headings above four blank spaces (FR-016).
   if (isEmptyStore(home)) {
     return <EmptyStore />
+  }
+
+  // ⚠ THE PUBLISHED LAYOUT WINS WHEN THERE IS ONE, and `composeSections` is the fallback for when
+  // there is not. Both paths exist on purpose and only for as long as the transition needs them:
+  // 042's migration is an operator step, so there is a real window in which the table is empty or
+  // absent, and the storefront must render its page throughout it. Phase 7 deletes the fallback once
+  // the layout is authoritative everywhere.
+  //
+  // ⚠ The layout read cannot fail this page — the hot path degrades a failed or missing layout to an
+  // empty structure rather than an error, precisely so this call has no failure branch to get wrong.
+  const layout = await getHomeLayout()
+  if (layout.blocks.length > 0) {
+    const ctx: BlockContext = {
+      categories,
+      railsByKey: new Map(home.rails.map((r) => [r.key, r])),
+      firstImageBlockId: firstImageBlock(layout.blocks),
+    }
+    return (
+      <>
+        {layout.blocks.map((block) => (
+          <div key={block.id}>{renderBlock(block, ctx)}</div>
+        ))}
+      </>
+    )
   }
 
   const sections = composeSections(home, categories)

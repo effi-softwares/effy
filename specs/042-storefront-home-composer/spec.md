@@ -31,7 +31,7 @@ That coupling is not merely inconvenient — it has produced defects that are **
 
 ### User Story 1 - Reorder and publish the home page (Priority: P1)
 
-A member of back-office staff opens the Home Composer and sees the storefront's home page as an ordered list of blocks — the hero, the category shortcuts, each product rail, the offers section, and so on. They drag the offers section above the first product rail, preview the result, and publish. Shoppers see the new order on the next page load. Realising it read better the other way, the operator reverts to the last published state in one action.
+A member of back-office staff opens the Home Composer and sees the storefront's home page as an ordered list of blocks — the hero, the category shortcuts, each product rail, the offers section, and so on. They move the offers section above the first product rail, preview the result, and publish. Shoppers see the new order on the next page load. Realising it read better the other way, the operator reverts to the last published state in one action.
 
 **Why this priority**: This is the whole point of the feature — the storefront's argument, top to bottom, becomes an operator decision rather than a deploy. It also delivers value with **no new block types at all**: simply making today's fixed sequence editable is a complete, shippable slice.
 
@@ -125,7 +125,9 @@ The operator uploads artwork of the wrong shape, leaves a headline blank, writes
 - **FR-001**: A member of back-office staff MUST be able to view the storefront home page as an ordered list of blocks.
 - **FR-002**: Staff MUST be able to add a block chosen from a **closed catalogue** of block types. Arbitrary or free-form blocks MUST NOT be creatable.
 - **FR-003**: Every block type MUST be offered as one or more **presets** — pre-filled with representative content — rather than as an empty shell.
-- **FR-004**: Staff MUST be able to reorder blocks by dragging **and** by an equivalent keyboard-operable control. Reordering MUST NOT be available by pointer only.
+- **FR-004**: Staff MUST be able to reorder blocks by a keyboard-operable control (move up / move down) that is always visible. Moving a block by keyboard MUST keep focus on the moved block and announce its new position. Reordering MUST NOT be available by pointer only.
+
+  > ⚠ **AMENDED 2026-08-09 (operator decision, T035a).** This requirement originally mandated dragging **and** a keyboard equivalent. Dragging is withdrawn: it added a drag-and-drop dependency to the back office and a second reordering mechanism to keep in step with the first, in exchange for convenience on a list the 20-block ceiling (FR-009) already keeps short. The accessibility half of the original requirement is not merely retained but strengthened — it was the fallback and is now the only path, so it cannot be the one that goes untested.
 - **FR-005**: Staff MUST be able to remove a block, and separately to **hide** it — retaining its content for later reuse.
 - **FR-006**: Staff MUST be able to edit a block's content through a form derived from that block type's own field definition.
 - **FR-006a**: Staff MUST be able to see artwork that is already attached to a block, not merely a reference to it. ⚠ Recorded because it is absent today: the back office returns a storage key and renders a text placeholder where the operator's own image should be.

@@ -128,11 +128,20 @@ export type BlockField =
  * today and was missing from every earlier draft — omitting it would mean an operator reorders the
  * home page and one section inexplicably refuses to move.
  *
- * ⚠ `hero` is DEFERRED. Two heroes exist — a static one (commented out) and a promotions-driven one
- * (live) — and the comparison between them was never concluded. Its field schema depends entirely on
- * which wins, so guessing it would be inventing a requirement. Tracked as T008c.
+ * ⚠ `hero` RESOLVED 2026-08-09 (operator decision, T008c). Two heroes existed — a static six-image
+ * rotation and a promotions-driven carousel. The carousel wins and BOTH static heroes are deleted
+ * from the storefront, so the platform now has exactly one.
+ *
+ * ⚠ THAT DECISION CHANGES WHERE THE HERO'S CONTENT COMES FROM, which is the part worth reading. The
+ * live carousel is built from ADVERTISED PROMOTIONS — and 042 deletes the advertising facet on
+ * discount codes outright. Carrying the hero over unchanged would leave the largest element on the
+ * storefront fed by a column that no longer exists. So `hero` authors its own slides here, in the
+ * composer, like every other block: the operator writes the words and attaches the artwork, and may
+ * optionally LINK a promotion so the slide inherits that promotion's live window and stops showing
+ * when it ends. The promotion becomes a schedule the slide can borrow, not the slide's content.
  */
 export const BLOCK_TYPES = [
+  "hero",
   "category_strip",
   "product_rail",
   "offers",
@@ -247,6 +256,60 @@ const OFFER_TILE_FIELDS: readonly BlockField[] = [
   },
 ]
 
+/**
+ * One full-bleed slide of the hero carousel.
+ *
+ * ⚠ NO `size`, UNLIKE AN OFFER TILE. Every slide fills the same box, so there is nothing to choose
+ * and one canvas serves them all — which is also what lets the carousel crossfade without any slide
+ * resizing under the one above it.
+ *
+ * ⚠ COPY SITS ON THE ARTWORK HERE, and this is the ONE PLACE ON THE PLATFORM WHERE THAT IS TRUE.
+ * FR-007's research ranked "text outside the image" first and "a scrim over the artwork" last, and
+ * the offers bento follows that ruling — an offer tile has no way to express "put the copy on the
+ * photograph". A hero cannot: a full-bleed band with the words beside it is not a hero band, it is a
+ * two-column banner. The exception is bounded by making the artwork requirement carry the burden
+ * instead — `hero` artwork must be prepared with a clear region for type (the canvas declares one),
+ * which is a rule about the ASSET rather than a control the operator can get wrong in the form.
+ */
+const HERO_SLIDE_FIELDS: readonly BlockField[] = [
+  { kind: "text", key: "eyebrow", label: "Eyebrow", required: false, maxLength: 40 },
+  { kind: "text", key: "headline", label: "Headline", required: true, maxLength: 60 },
+  { kind: "longText", key: "supporting", label: "Supporting line", required: false, maxLength: 120 },
+  // ⚠ The condition sentence, e.g. "On orders over $30". Optional, but when a slide carries a code
+  // its terms are not — 029 shipped a promotion to the web surface WITHOUT its terms because the
+  // banner face ignored the field, which is a discount advertised without the condition that binds it.
+  { kind: "text", key: "terms", label: "Terms", required: false, maxLength: 90 },
+  { kind: "text", key: "ctaLabel", label: "Button label", required: true, maxLength: 30 },
+  { kind: "destination", key: "ctaDestination", label: "Button destination", required: true },
+  { kind: "artwork", key: "artwork", label: "Artwork", required: true, canvas: "hero" },
+  /**
+   * ⚠ OPTIONAL, AND IT BUYS A SCHEDULE RATHER THAN CONTENT. Linking a promotion makes the slide
+   * inherit that promotion's live window and exhaustion, so a slide advertising a code stops showing
+   * itself the moment the code stops working. Unlinked, the slide is ordinary merchandising and stays
+   * up until an operator takes it down.
+   */
+  { kind: "reference", key: "promoCodeId", label: "Linked promotion", required: false, references: "promotion" },
+]
+
+const HERO: BlockDefinition = {
+  type: "hero",
+  label: "Hero",
+  resolution: "server-resolved",
+  fields: [
+    /**
+     * ⚠ ONE SLIDE IS A VALID HERO, and the minimum is 1 rather than 2 for a reason: the alternative
+     * is a store with one thing to say being unable to have a hero at all. With a single slide the
+     * carousel does not rotate — there is nothing to rotate to — which is the correct behaviour and
+     * not a special case in the renderer.
+     *
+     * ⚠ The maximum is 6 because the rotation's timing is a fixed cycle divided among the slides:
+     * past six, each slide's turn is too short to read before it is replaced.
+     */
+    { kind: "list", key: "slides", label: "Slides", required: true, min: 1, max: 6, of: HERO_SLIDE_FIELDS },
+  ],
+  presets: [{ name: "Single promotional slide", props: { slides: [] } }],
+}
+
 const OFFERS: BlockDefinition = {
   type: "offers",
   label: "Offers",
@@ -316,6 +379,7 @@ const RECENTLY_VIEWED: BlockDefinition = {
 }
 
 export const BLOCK_CATALOGUE: Readonly<Record<BlockType, BlockDefinition>> = {
+  hero: HERO,
   category_strip: CATEGORY_STRIP,
   product_rail: PRODUCT_RAIL,
   offers: OFFERS,

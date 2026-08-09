@@ -69,10 +69,11 @@ type rawBlock struct {
 // pinning the two together (T006, re-scoped). Until that generator exists, this list and the TS one
 // are kept in step by `layout_test.go`, which fails if they diverge in the cases it covers.
 //
-// ⚠ `hero` is ABSENT ON PURPOSE. Two heroes exist on the storefront — a static one and a
-// promotions-driven one — and their comparison was never concluded, so no `hero` schema is agreed.
-// Until it is, the hero stays page-level markup outside the block list (T008c).
+// ⚠ `hero` RESOLVED 2026-08-09 (T008c) — the promotions-driven carousel won, both static heroes were
+// deleted from the storefront, and the hero is now a block that authors its own slides. Listed first
+// because it is first on the page.
 var knownBlockTypes = map[string]struct{}{
+	"hero":            {},
 	"category_strip":  {},
 	"product_rail":    {},
 	"offers":          {},

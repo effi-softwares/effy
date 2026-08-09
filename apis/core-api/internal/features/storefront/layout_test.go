@@ -153,7 +153,7 @@ func TestKnownBlockTypes_MatchesTheSharedCatalogue(t *testing.T) {
 	// than hidden (Principle II). Until the generated catalogue exists, this test is what keeps the
 	// two in step — so it is written against the TS catalogue's contents, not against this map.
 	want := []string{
-		"category_strip", "product_rail", "offers",
+		"hero", "category_strip", "product_rail", "offers",
 		"value_strip", "app_promo", "newsletter", "recently_viewed",
 	}
 	if len(knownBlockTypes) != len(want) {
@@ -164,10 +164,12 @@ func TestKnownBlockTypes_MatchesTheSharedCatalogue(t *testing.T) {
 			t.Fatalf("catalogue drift: Go is missing %q", w)
 		}
 	}
-	// `hero` is deliberately absent until the two-hero comparison is concluded (T008c). If someone
-	// adds it here without agreeing a schema, this fails and says why.
-	if _, ok := knownBlockTypes["hero"]; ok {
-		t.Fatal("hero has no agreed schema yet — see T008c before adding it")
+	// ⚠ `hero` was deliberately absent until 2026-08-09, when T008c concluded the two-hero comparison:
+	// the promotions-driven carousel won and both static heroes were deleted. The guard that used to
+	// keep it out now keeps it IN, because the storefront has no other hero to fall back to — dropping
+	// it from this map would silently blank the top of the home page.
+	if _, ok := knownBlockTypes["hero"]; !ok {
+		t.Fatal("hero is the storefront's only hero — omitting it here blanks the top of the page")
 	}
 }
 

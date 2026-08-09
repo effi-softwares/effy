@@ -72,13 +72,58 @@ describe("the block catalogue is closed and complete", () => {
   })
 
   /**
-   * ⚠ `hero` is deliberately ABSENT. Two heroes exist — a static one (commented out) and a
-   * promotions-driven one (live) — and their comparison was never concluded. The field schema depends
-   * entirely on which wins, so specifying it now would be inventing a requirement (T008c).
+   * ⚠ RESOLVED 2026-08-09 (T008c). The promotions-driven carousel won and both static heroes were
+   * deleted from the storefront — so `hero` is a block, and it is FIRST in the catalogue because it
+   * is first on the page.
    */
-  it("does NOT yet define hero — its schema is blocked on an unresolved operator decision", () => {
-    expect(BLOCK_TYPES as readonly string[]).not.toContain("hero")
-    expect(blockDefinition("hero")).toBeNull()
+  it("defines hero, and puts it first", () => {
+    expect(BLOCK_TYPES[0]).toBe("hero")
+    expect(blockDefinition("hero")).not.toBeNull()
+  })
+
+  /**
+   * ⚠ THE ASSERTION THAT MATTERS ABOUT THE HERO, and it is about where its CONTENT comes from.
+   *
+   * The carousel that won is built from advertised promotions today — and this feature DELETES the
+   * advertising facet on discount codes. Carried over unchanged, the largest element on the
+   * storefront would be fed by a column that no longer exists. So the hero authors its own slides,
+   * and a promotion is optional: it lends the slide a live window, it is not the slide's content.
+   */
+  it("authors its own slides rather than depending on a promotion existing", () => {
+    const slides = BLOCK_CATALOGUE.hero.fields.find((f) => f.key === "slides")
+    if (slides?.kind !== "list") throw new Error("hero slides must be a list field")
+    expect(slides.required).toBe(true)
+
+    const byKey = new Map(slides.of.map((f) => [f.key, f]))
+    // The words and the artwork are the operator's, and required.
+    for (const key of ["headline", "ctaLabel", "ctaDestination", "artwork"]) {
+      expect(byKey.get(key)?.required, `${key} must be required on a hero slide`).toBe(true)
+    }
+    // The promotion is a schedule the slide may borrow — never a prerequisite for having a hero.
+    expect(byKey.get("promoCodeId")?.required).toBe(false)
+  })
+
+  it("accepts a single-slide hero, because a store with one thing to say still has a hero", () => {
+    const slides = BLOCK_CATALOGUE.hero.fields.find((f) => f.key === "slides")
+    if (slides?.kind !== "list") throw new Error("hero slides must be a list field")
+    expect(slides.min).toBe(1)
+    expect(slides.max).toBe(6)
+  })
+
+  /**
+   * ⚠ THE HERO IS THE ONE DELIBERATE EXCEPTION to FR-007's copy-off-artwork rule, and the exception is
+   * bounded by the ASSET rather than by a control. A hero slide has no `variant` or `overlay` field
+   * either — the operator cannot choose a text treatment here any more than they can on an offer
+   * tile. What differs is only that the hero's layout places copy over the image by design.
+   */
+  it("still offers no control over how copy is treated", () => {
+    const slides = BLOCK_CATALOGUE.hero.fields.find((f) => f.key === "slides")
+    if (slides?.kind !== "list") throw new Error("hero slides must be a list field")
+    const keys = slides.of.map((f) => f.key)
+    expect(keys).not.toContain("variant")
+    expect(keys).not.toContain("textTreatment")
+    expect(keys).not.toContain("overlay")
+    expect(keys).not.toContain("align")
   })
 
   it("returns null for a type this build does not know, rather than throwing", () => {
