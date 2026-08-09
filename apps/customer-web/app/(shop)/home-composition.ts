@@ -17,7 +17,6 @@ import type { BannerDTO, StorefrontCategoryDTO, StorefrontHomeDTO, StorefrontRai
 /** One section, ready to render. A section that would be empty is never emitted at all. */
 export type HomeSection =
   | { kind: "categories"; categories: StorefrontCategoryDTO[] }
-  | { kind: "carousel"; banners: BannerDTO[] }
   | { kind: "rail"; key: string; rail: StorefrontRailDTO; href: string }
   | { kind: "offers"; block: "a" | "b"; title: string; banners: BannerDTO[] }
 
@@ -75,14 +74,14 @@ export function composeSections(
     sections.push({ kind: "categories", categories })
   }
 
-  // ⚠ Carousel-placement banners only. `inline` is the dedicated offers placement (029 FR-027) and is
-  // consumed by the offer panels in US4 — never by both, or one promotion appears twice on one page.
-  // An ABSENT placement means "carousel", matching the column default, so a banner from a server that
-  // has not been redeployed degrades to the safe case instead of vanishing.
-  const carouselBanners = home.banners.filter((b) => (b.placement ?? "carousel") === "carousel")
-  if (carouselBanners.length > 0) {
-    sections.push({ kind: "carousel", banners: carouselBanners })
-  }
+  // ⚠ NO CAROUSEL SECTION (operator direction, 2026-08-09). `PromoCarousel` used to occupy this slot
+  // with the `carousel`-placement banners; it is removed and the component deleted.
+  //
+  // ⚠ CAROUSEL-PLACEMENT BANNERS ARE NOT ORPHANED — `PromoHero` renders `home.banners` UNFILTERED at
+  // the top of the page, so every advertised promotion still appears. But that is the ONLY thing
+  // showing them now: restore the static `Hero` in place of `PromoHero` and the carousel-placement
+  // promotions vanish from the storefront with nothing reporting it. The `inline` ones below are
+  // unaffected either way.
 
   // ⚠ `inline` is the DEDICATED OFFERS placement (029 FR-027), exclusive with `carousel`. Block A
   // takes the first three and block B takes what is left — so FR-020's "MUST NOT duplicate a promotion

@@ -148,20 +148,22 @@ test.describe("home page accessibility (039, SC-009)", () => {
     await page.waitForLoadState("networkidle")
 
     /**
-     * ⚠ TWO PRE-EXISTING OFFENDERS ARE EXCLUDED, BY NAME AND WITH THEIR OWNERS — not silently.
-     * Both predate 039 and neither is on this page because of it:
+     * ⚠ ONE PRE-EXISTING OFFENDER IS EXCLUDED, BY NAME AND WITH ITS OWNER — not silently:
      *
      *   • `SaveControl` — 36×36 on every product tile (039 counted 39 of them). ⚠ 033's post-mortem
      *     records raising the MOBILE tile control from 32 dp to 48 dp for exactly this reason; the WEB
      *     one was never raised. A real open defect, owned by the saved-items surface.
-     *   • `PromoCarousel` dots — 8×8 (029). Tiny by design as INDICATORS, but they are anchors, so
-     *     they are also targets.
      *
-     * Excluding them keeps this guard meaningful for everything else instead of red from day one.
-     * Fixing them belongs to their own slices — quietly repairing another feature's component inside a
+     * Excluding it keeps this guard meaningful for everything else instead of red from day one.
+     * Fixing it belongs to its own slice — quietly repairing another feature's component inside a
      * home-page redesign is how scope commitments erode.
+     *
+     * ⚠ The second exclusion — `PromoCarousel`'s 8×8 dots (029) — was REMOVED when that component was
+     * deleted from the home page (2026-08-09). The guard is correspondingly stricter now: if anything
+     * reintroduces a sub-minimum target named "go to promotion …", this fails rather than tolerating
+     * it on a stale allowance.
      */
-    const KNOWN_PRE_EXISTING = [/save to saved items/i, /^go to promotion /i]
+    const KNOWN_PRE_EXISTING = [/save to saved items/i]
 
     const tooSmall = await page
       .locator("main a, main button")

@@ -19,7 +19,6 @@ import { NewsletterForm } from "./_components/NewsletterForm"
 import { OffersPanels } from "./_components/OffersPanels"
 import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
-import { PromoCarousel } from "./_components/PromoCarousel"
 import { RecentlyViewedRail } from "./_components/RecentlyViewedRail"
 
 export const metadata: Metadata = {
@@ -165,7 +164,6 @@ async function HomeContent() {
       {sections.map((section, i) => (
         <div key={sectionKey(section)}>
           {section.kind === "categories" && <CategoryStrip categories={section.categories} />}
-          {/* {section.kind === "carousel" && <PromoCarousel banners={section.banners} />} */}
           {section.kind === "offers" && (
             <OffersPanels banners={section.banners} title={section.title} />
           )}

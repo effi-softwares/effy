@@ -20,8 +20,8 @@ import { MediaFrame, SectionShell } from "@/components/storefront/kit"
  * ⚠ NO SCROLLBAR (operator direction, 2026-08-09) — but the BAR is hidden, not the scrolling.
  * `overflow-x-auto` stays, so the row still scrolls by wheel, trackpad, touch and keyboard;
  * `[scrollbar-width:none]` + `[&::-webkit-scrollbar]:hidden` only suppress the chrome. That pair is
- * the same one `PromoCarousel` and `ProductGallery` already use — if a fourth scroller ever wants
- * it, it should become a shared utility rather than a third copy.
+ * the same one `ProductGallery` already uses — if a third scroller ever wants it, it should become a
+ * shared utility rather than another copy.
  *
  * ⚠ What is genuinely given up: on a platform with CLASSIC (non-overlay) scrollbars — Windows, and
  * macOS set to "always show" — the bar was the only thing announcing that this row continues past

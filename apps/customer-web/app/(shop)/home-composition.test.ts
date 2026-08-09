@@ -80,7 +80,7 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
   it("emits the full contract sequence when every slot has data", () => {
     const sections = composeSections(
       home({
-        banners: [banner("b1", "carousel")],
+        banners: [banner("b1", "inline")],
         rails: [rail("featured"), rail("on_sale"), rail("category:pantry"), rail("category:meals")],
       }),
       [category("pantry")],
@@ -88,8 +88,8 @@ describe("composeSections — the order is fixed and named (FR-001)", () => {
 
     expect(kinds(sections)).toEqual([
       "categories",
-      "carousel",
       "rail:on_sale",
+      "offers",
       "rail:featured",
       "rail:category:pantry",
       "rail:category:meals",
@@ -148,7 +148,7 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
     expect(kinds(sections)).toEqual(["rail:featured"])
   })
 
-  it("omits the carousel when there are no banners", () => {
+  it("omits the offer block when there are no banners", () => {
     const sections = composeSections(home({ banners: [], rails: [rail("featured")] }), [])
 
     expect(kinds(sections)).toEqual(["rail:featured"])
@@ -166,37 +166,42 @@ describe("composeSections — every empty section hides itself (FR-004)", () => 
   })
 })
 
+/**
+ * Banner placement (029 FR-027), after `PromoCarousel` was removed from the page.
+ *
+ * ⚠ THE PAGE NOW CONSUMES ONLY `inline`. `carousel`-placement banners are not a section here at all —
+ * `PromoHero` renders `home.banners` unfiltered at the top of the page instead. These tests pin the
+ * half that is still this file's business: the offer blocks take `inline` and nothing else, so a
+ * carousel-placement promotion can never be shown twice by the sections below the hero.
+ */
 describe("composeSections — banner placement (029 FR-027)", () => {
-  /**
-   * ⚠ `inline` is the DEDICATED OFFERS placement and belongs to the offer panels (US4), never to the
-   * carousel. A promotion appearing in both would be the same message twice on one page.
-   */
-  it("gives the carousel only carousel-placement banners", () => {
+  it("gives the offer blocks ONLY inline-placement banners", () => {
     const sections = composeSections(
       home({ banners: [banner("a", "carousel"), banner("b", "inline")], rails: [] }),
       [],
     )
 
-    const carousel = sections.find((s) => s.kind === "carousel")
-    expect(carousel && carousel.kind === "carousel" && carousel.banners.map((b) => b.key)).toEqual([
-      "a",
-    ])
+    const offers = sections.find((s) => s.kind === "offers")
+    expect(offers && offers.kind === "offers" && offers.banners.map((x) => x.key)).toEqual(["b"])
   })
 
   /**
-   * ⚠ A MISSING placement means "carousel", matching the database column's default. A banner from a
-   * server that has not been redeployed must degrade to the safe case rather than disappearing.
+   * ⚠ A MISSING placement means "carousel", matching the database column's default — so a banner from
+   * a server that has not been redeployed must NOT fall into the offer blocks.
    */
-  it("treats a banner with no placement as carousel", () => {
+  it("treats a banner with no placement as carousel, so it is not an offer", () => {
     const sections = composeSections(home({ banners: [banner("a")], rails: [] }), [])
 
-    expect(kinds(sections)).toEqual(["carousel"])
+    expect(kinds(sections)).toEqual([])
   })
 
-  it("omits the carousel entirely when every banner is inline — they go to the offer block", () => {
-    const sections = composeSections(home({ banners: [banner("b", "inline")], rails: [] }), [])
+  it("emits no section at all when every banner is carousel-placement", () => {
+    const sections = composeSections(
+      home({ banners: [banner("a", "carousel"), banner("b", "carousel")], rails: [] }),
+      [],
+    )
 
-    expect(kinds(sections)).toEqual(["offers"])
+    expect(kinds(sections)).toEqual([])
   })
 })
 
