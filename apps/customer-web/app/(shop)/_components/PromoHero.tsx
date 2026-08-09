@@ -139,6 +139,15 @@ export function PromoHero({ banners }: { banners: BannerDTO[] }) {
               className="absolute inset-0 size-full object-cover"
             />
 
+            {/* A very light left-to-right vignette: darker under the copy, clear over the product.
+                ⚠ It is a MOOD LAYER, NOT A LEGIBILITY ONE. At 35% falling to nothing it cannot
+                rescue white type on a pale banner — that check stays editorial (see the header).
+                Deliberately kept under the stretched link below so it never intercepts a click. */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-linear-to-r from-black/35 to-transparent"
+            />
+
             {/* The band leads to the promotion in full — `/promotions/<id>`.
                 ⚠ A STRETCHED SIBLING, not a wrapper: wrapping would make it an ancestor of the two
                 buttons, and nested interactive elements are invalid HTML. It works because the copy
