@@ -81,8 +81,19 @@ export function Display({
   )
 }
 
-/** A centred section heading — template #1 centres every one ("NEW ARRIVALS", "TOP SELLING"). */
-export function CenteredHeading({
+/**
+ * THE section heading — every merchandising section title on the storefront resolves to this.
+ *
+ * ⚠ CENTRED ON SMALL SCREENS, LEFT-ALIGNED FROM `sm` UP (operator direction, 2026-08-09). It replaces
+ * `CenteredHeading`, which centred at every width — the rename is deliberate rather than a behaviour
+ * change hidden behind an unchanged name, since a component called `CenteredHeading` that is not
+ * always centred is a trap for the next caller.
+ *
+ * ⚠ ONE DEFINITION, so the alignment cannot drift between section types. `SectionHeader` (title plus
+ * a "see all" link) composes this rather than restating `text-center sm:text-left`; a second copy is
+ * how the rails and the panels end up disagreeing at one breakpoint and nobody notices.
+ */
+export function SectionHeading({
   children,
   className,
 }: {
@@ -90,11 +101,32 @@ export function CenteredHeading({
   className?: string
 }) {
   return (
-    <Display size="section" className={cn("text-center", className)}>
+    // ⚠ `normal-case` OVERRIDES `Display`'s base `uppercase` (operator direction, 2026-08-09), and it
+    // is scoped to section titles ON PURPOSE — the hero and the page-level `PageHeader` keep their
+    // uppercase display treatment, where the all-caps poster look is the point. Removing it from
+    // `Display` itself would have changed all three at once.
+    //
+    // ⚠ `leading-tight` comes with it. `Display`'s 0.95 leading is tuned for capitals, which have no
+    // descenders; in mixed case the g/p/y of "Shop by category" hang below a line box that is shorter
+    // than the type itself.
+    <Display size="section" className={cn("normal-case leading-tight text-center sm:text-left", className)}>
       {children}
     </Display>
   )
 }
+
+/**
+ * The vertical rhythm every storefront section shares.
+ *
+ * ⚠ A CONSTANT BECAUSE IT HAD ALREADY DRIFTED. `SectionShell` used `py-10 sm:py-14` while
+ * `ProductRail`, `AppPromo` and `NewsletterForm` each wrote `py-12 sm:py-16` — so the gap between the
+ * category strip and the first rail was visibly smaller than the gap between two rails, and no single
+ * file was obviously wrong. Same reasoning as `productGrid`: one decision, one definition.
+ *
+ * Halved from the largest of those (operator direction) — 64px between sections on a phone and 80px
+ * on a desktop, down from 96/128.
+ */
+export const sectionSpacing = "py-8 sm:py-10"
 
 /**
  * A merchandising section header: title on the left, a "see all" link on the right.
@@ -114,8 +146,21 @@ export function SectionHeader({
   className?: string
 }) {
   return (
-    <div className={cn("mb-4 flex items-end justify-between gap-4 border-b pb-3", className)}>
-      <Display size="section">{title}</Display>
+    // ⚠ NO BOTTOM BORDER (operator direction, 2026-08-09). It was `border-b pb-3`, a rule under every
+    // section title. `mb-6` replaces the separation the border and its padding provided, so removing
+    // it does not close the gap between a heading and its content.
+    //
+    // ⚠ STACKED AND CENTRED BELOW `sm`, a row above it. Centring the title while leaving the "see all"
+    // link pinned right would read as a mistake, so the whole header switches axis together — which is
+    // also why the link is a full row of its own on a phone rather than a corner target.
+    <div
+      className={cn(
+        "mb-6 flex flex-col items-center gap-2",
+        "sm:flex-row sm:items-end sm:justify-between sm:gap-4",
+        className,
+      )}
+    >
+      <SectionHeading>{title}</SectionHeading>
       {href && (
         // ⚠ `min-h-11` = 44px, the platform's web touch-target minimum. It was a 20px-tall inline link
         // — the text's own line box — which is comfortably missable on a phone and was caught by the
@@ -366,9 +411,6 @@ export function EmptyState({
   )
 }
 
-/** Back-compat for callers that imported the previous heading name. */
-export const SectionHeading = Display
-
 /* ── Merchandised-landing primitives (039) ───────────────────────────────────────────────────── */
 
 /**
@@ -530,7 +572,7 @@ export function SectionShell({
   if (isEmptyContent(children)) return null
 
   return (
-    <section className={cn("container py-10 sm:py-14", className)}>
+    <section className={cn("container", sectionSpacing, className)}>
       {!headless && title && <SectionHeader title={title} href={href} linkLabel={linkLabel} />}
       {children}
     </section>

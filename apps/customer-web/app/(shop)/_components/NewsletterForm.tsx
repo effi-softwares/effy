@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react"
 
 import type { NewsletterSubscribeResult } from "@effy/shared-types"
 
-import { Display, btnClass, input } from "@/components/storefront/kit"
+import { Display, btnClass, input, sectionSpacing } from "@/components/storefront/kit"
 
 import { subscribeToNewsletter } from "../newsletter/actions"
 
@@ -65,7 +65,7 @@ export function NewsletterForm() {
 
   return (
     <section className="border-t bg-muted/40">
-      <div className="container py-12 sm:py-16">
+      <div className={`container ${sectionSpacing}`}>
         <div className="max-w-xl">
           <Display size="sub">Keep up with Effy</Display>
 

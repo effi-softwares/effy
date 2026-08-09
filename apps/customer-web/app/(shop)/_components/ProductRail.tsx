@@ -1,6 +1,6 @@
 import type { StorefrontProductCardDTO } from "@effy/shared-types"
 
-import { ActionLink, CenteredHeading } from "@/components/storefront/kit"
+import { ActionLink, SectionHeading, sectionSpacing } from "@/components/storefront/kit"
 
 import { ProductCard, productGrid } from "./ProductCard"
 import { SaveControl } from "./SaveControl"
@@ -31,8 +31,8 @@ export function ProductRail({
   if (products.length === 0) return null
 
   return (
-    <section className={`container py-12 sm:py-16 ${className ?? ""}`}>
-      <CenteredHeading>{title}</CenteredHeading>
+    <section className={`container ${sectionSpacing} ${className ?? ""}`}>
+      <SectionHeading>{title}</SectionHeading>
 
       {/* Columns and gutters come from `productGrid` so every listing on the storefront shares one
           rhythm — see the note on that constant. */}
