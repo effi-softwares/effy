@@ -88,6 +88,11 @@ type homeDTO struct {
 	// that finds it empty composes the page the way it always has, so a surface that has not yet
 	// adopted the composer is unaffected by this field appearing.
 	Layout []layoutBlockDTO `json:"layout"`
+	// ⚠ Which of the layout's referenced promotions are usable RIGHT NOW (042 FR-030). It rides this
+	// UNCACHED read on purpose: the structure is cached for an hour so the home page can prerender,
+	// and "this offer is still available" is a live claim another shopper can falsify (029). Always
+	// present, possibly empty.
+	LivePromotionIDs []string `json:"livePromotionIds"`
 }
 
 // layoutBlockDTO is one section of the operator-authored home page.
@@ -188,7 +193,13 @@ func (h *Handler) getHome(c *gin.Context) {
 		layout = append(layout, block)
 	}
 
-	c.JSON(http.StatusOK, homeDTO{Banners: banners, Rails: rails, Layout: layout})
+	livePromos := home.LivePromotionIDs
+	if livePromos == nil {
+		livePromos = []string{}
+	}
+	c.JSON(http.StatusOK, homeDTO{
+		Banners: banners, Rails: rails, Layout: layout, LivePromotionIDs: livePromos,
+	})
 }
 
 // homeLayoutDTO is the page structure alone — no products, no presigned URLs, nothing that expires
@@ -198,10 +209,15 @@ type homeLayoutDTO struct {
 	Blocks []layoutBlockDTO `json:"blocks"`
 	// Revision lets a caller tell one published state from another without diffing the blocks.
 	Revision int64 `json:"revision"`
+	// IsDraft says this is UNPUBLISHED content, so the storefront can mark the page noindex and tell
+	// the operator what they are looking at.
+	IsDraft bool `json:"isDraft"`
 }
 
 func (h *Handler) getHomeLayout(c *gin.Context) {
-	layout, err := h.svc.HomeLayout(c.Request.Context())
+	// ⚠ A query parameter rather than a header, because the storefront's cached fetch path is the
+	// caller and a header would have to be threaded through a signature built to take none.
+	layout, err := h.svc.HomeLayout(c.Request.Context(), c.Query("preview"))
 	if err != nil {
 		logger.FromContext(c.Request.Context()).Error("storefront: home layout read failed", zap.Error(err))
 		httpx.Unavailable(c)
@@ -211,7 +227,13 @@ func (h *Handler) getHomeLayout(c *gin.Context) {
 	for _, b := range layout.Blocks {
 		blocks = append(blocks, layoutBlockDTO{ID: b.ID, Type: b.Type, Props: b.Props})
 	}
-	c.JSON(http.StatusOK, homeLayoutDTO{Blocks: blocks, Revision: layout.Revision})
+	// ⚠ A preview response must NEVER be cached — not by a CDN, not by the browser. It carries
+	// unpublished merchandising, and a shared cache that stored it would serve draft content to
+	// ordinary shoppers long after the operator closed the tab.
+	if layout.IsDraft {
+		c.Header("Cache-Control", "private, no-store")
+	}
+	c.JSON(http.StatusOK, homeLayoutDTO{Blocks: blocks, Revision: layout.Revision, IsDraft: layout.IsDraft})
 }
 
 func (h *Handler) getCategories(c *gin.Context) {

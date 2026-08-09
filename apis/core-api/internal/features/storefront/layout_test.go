@@ -253,7 +253,7 @@ func TestHome_AnUnreadableLayoutServesThePageAnyway(t *testing.T) {
 func layoutOnly(t *testing.T, published string, found bool) HomeLayout {
 	t.Helper()
 	repo := &fakeReader{layout: homeLayoutRow{Published: []byte(published), Revision: 7}, layoutFound: found}
-	got, err := NewService(repo, fakePresign{}).HomeLayout(context.Background())
+	got, err := NewService(repo, fakePresign{}).HomeLayout(context.Background(), "")
 	if err != nil {
 		t.Fatalf("HomeLayout: %v", err)
 	}
@@ -350,11 +350,110 @@ func TestHome_SurvivesTheLayoutTableNotExistingYet(t *testing.T) {
 func TestHomeLayout_SurvivesTheLayoutTableNotExistingYet(t *testing.T) {
 	// ⚠ Worse here than in Home(). This endpoint feeds the storefront's CACHED read, so an error does
 	// not lose one section — it throws inside the page's cached render and takes the page with it.
-	got, err := NewService(&layoutFailingReader{}, fakePresign{}).HomeLayout(context.Background())
+	got, err := NewService(&layoutFailingReader{}, fakePresign{}).HomeLayout(context.Background(), "")
 	if err != nil {
 		t.Fatalf("a failed layout read must never fail the structure endpoint: %v", err)
 	}
 	if len(got.Blocks) != 0 {
 		t.Fatalf("want an empty structure, got %+v", got.Blocks)
+	}
+}
+
+// ── FR-030: a tile linked to a promotion stops advertising when the promotion ends ──────────────
+
+func homeWithPromoLayout(t *testing.T, published string, live []string, lerr error) (Home, *fakeReader) {
+	t.Helper()
+	repo := &fakeReader{
+		newest:       []cardRow{card("p1", "Milk", nil, 1, strptr("k1"))},
+		layout:       homeLayoutRow{Published: []byte(published)},
+		layoutFound:  true,
+		livePromos:   live,
+		livePromoErr: lerr,
+	}
+	home, err := NewService(repo, fakePresign{}).Home(context.Background())
+	if err != nil {
+		t.Fatalf("Home: %v", err)
+	}
+	return home, repo
+}
+
+const offersWithPromos = `[{"id":"o1","type":"offers","props":{"tiles":[
+  {"headline":"A","promoCodeId":"promo-live"},
+  {"headline":"B","promoCodeId":"promo-expired"},
+  {"headline":"C"}
+]}}]`
+
+func TestHome_AsksOnlyAboutThePromotionsThisPageReferences(t *testing.T) {
+	// ⚠ NOT "every live promotion". The answer travels to the browser, and how many promotions exist
+	// is not something a storefront read should disclose as a side effect of laying out a page.
+	_, repo := homeWithPromoLayout(t, offersWithPromos, []string{"promo-live"}, nil)
+
+	if len(repo.livePromoAsked) != 2 {
+		t.Fatalf("want exactly the 2 referenced ids, got %v", repo.livePromoAsked)
+	}
+	for _, id := range repo.livePromoAsked {
+		if id != "promo-live" && id != "promo-expired" {
+			t.Fatalf("asked about an id the page does not reference: %q", id)
+		}
+	}
+}
+
+func TestHome_ReportsOnlyTheLivePromotions(t *testing.T) {
+	home, _ := homeWithPromoLayout(t, offersWithPromos, []string{"promo-live"}, nil)
+	if len(home.LivePromotionIDs) != 1 || home.LivePromotionIDs[0] != "promo-live" {
+		t.Fatalf("want only the live promotion, got %v", home.LivePromotionIDs)
+	}
+}
+
+func TestHome_FailsClosedWhenLivenessCannotBeChecked(t *testing.T) {
+	// ⚠ AN EMPTY SET, so every promotion-linked tile is dropped. The opposite default would advertise
+	// a discount the platform may already have stopped honouring — and a shopper who types an expired
+	// code has been misled by the storefront itself, which is worse than a missing tile.
+	home, _ := homeWithPromoLayout(t, offersWithPromos, nil, errors.New("db down"))
+	if len(home.LivePromotionIDs) != 0 {
+		t.Fatalf("a failed liveness check must advertise nothing, got %v", home.LivePromotionIDs)
+	}
+	// ...and it must not fail the page.
+	if len(home.Rails) == 0 {
+		t.Fatal("the rest of the page must still be served")
+	}
+}
+
+func TestHome_AsksNothingWhenNoBlockReferencesAPromotion(t *testing.T) {
+	_, repo := homeWithPromoLayout(t, `[{"id":"n1","type":"newsletter","props":{}}]`, nil, nil)
+	if repo.livePromoAsked != nil {
+		t.Fatalf("no references means no query, got %v", repo.livePromoAsked)
+	}
+}
+
+func TestPromotionRefs_FindsThemAtAnyDepthAndDeduplicates(t *testing.T) {
+	// ⚠ WALKED GENERICALLY, not per block type. `promoCodeId` sits one level inside a list on BOTH the
+	// offers tile and the hero slide, and a per-type reader would need extending every time a block
+	// gains the field — with the failure silent: an unwalked reference is never checked for liveness,
+	// so an expired promotion stays advertised.
+	blocks := []Block{
+		{ID: "h", Type: "hero", Props: json.RawMessage(`{"slides":[{"promoCodeId":"a"}]}`)},
+		{ID: "o", Type: "offers", Props: json.RawMessage(`{"tiles":[{"promoCodeId":"a"},{"promoCodeId":"b"}]}`)},
+		{ID: "n", Type: "newsletter", Props: json.RawMessage(`{}`)},
+		{ID: "x", Type: "offers", Props: json.RawMessage(`not json`)},
+	}
+	got := promotionRefs(blocks)
+	if len(got) != 2 {
+		t.Fatalf("want 2 distinct ids, got %v", got)
+	}
+	seen := map[string]bool{}
+	for _, id := range got {
+		seen[id] = true
+	}
+	if !seen["a"] || !seen["b"] {
+		t.Fatalf("want a and b, got %v", got)
+	}
+}
+
+func TestPromotionRefs_IgnoresAnEmptyReference(t *testing.T) {
+	// An optional field left blank is not a reference to nothing — it is no reference.
+	got := promotionRefs([]Block{{Props: json.RawMessage(`{"tiles":[{"promoCodeId":""}]}`)}})
+	if len(got) != 0 {
+		t.Fatalf("want none, got %v", got)
 	}
 }

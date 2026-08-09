@@ -4,6 +4,7 @@ import type {
   StorefrontRailDTO,
 } from "@effy/shared-types"
 
+import { OffersBento, type OfferTile } from "../OffersBento"
 import { AppPromo } from "../AppPromo"
 import { CategoryStrip } from "../CategoryStrip"
 import { NewsletterForm } from "../NewsletterForm"
@@ -39,6 +40,15 @@ export interface BlockContext {
    * banners while the hero is not preloaded at all.
    */
   firstImageBlockId: string | null
+  /**
+   * Promotions referenced by this layout that are usable RIGHT NOW (042 FR-030).
+   *
+   * ⚠ IT COMES FROM THE UNCACHED READ, deliberately. The structure this renderer walks is cached for
+   * an hour so the home page can prerender; liveness is a claim another shopper can falsify (029).
+   * Filtering against the cached body would leave an expired promotion advertised for up to an hour
+   * after it stopped working.
+   */
+  livePromotionIds: ReadonlySet<string>
 }
 
 /**
@@ -83,10 +93,13 @@ export function renderBlock(
       return <ProductRail title={rail.title} products={rail.products} href={railHref(rail.key)} />
     }
 
-    case "offers":
-      // The bento grid is US2's work. Until it lands the block is inert rather than half-rendered —
-      // a partial offers section would be worse than none, and the seed ships it with no tiles.
-      return null
+    case "offers": {
+      const tiles = offerTiles(props, ctx)
+      // FR-029: nothing at all rather than an empty frame. A promotional block with a placeholder in
+      // it is indistinguishable from one whose images failed to load.
+      if (tiles.length === 0) return null
+      return <OffersBento tiles={tiles} title={typeof props.title === "string" ? props.title : undefined} />
+    }
 
     case "value_strip":
       return <ValueStrip />
@@ -141,4 +154,82 @@ function assertNever(type: never): null {
 export function firstImageBlock(blocks: StorefrontLayoutBlockDTO[]): string | null {
   const carriesImagery = new Set(["hero", "offers", "category_strip", "product_rail"])
   return blocks.find((b) => carriesImagery.has(b.type))?.id ?? null
+}
+
+/**
+ * The destination vocabulary, resolved to a URL.
+ *
+ * ⚠ FOUR KINDS, AND `promotion` IS DELIBERATELY NOT ONE (042 T058). This feature retires the
+ * promotion-detail page, so keeping that kind would let an operator author a tile aimed at a route
+ * that no longer exists — which is precisely the defect 029 spent a slice fixing, where every banner
+ * pointed at the unfiltered store for its entire life because nothing asserted where a link led.
+ *
+ * ⚠ An unrecognised kind yields `null` and the TILE IS DROPPED, never rendered non-tappable. A
+ * promotional tile with a dead call to action is worse than no tile: the shopper acts on it.
+ */
+function destinationHref(dest: unknown): string | null {
+  if (typeof dest !== "object" || dest === null) return null
+  const d = dest as { kind?: unknown; categoryKey?: unknown; productId?: unknown }
+
+  switch (d.kind) {
+    case "search":
+      return "/search"
+    case "sale":
+      return "/search?onSale=true"
+    case "category":
+      return typeof d.categoryKey === "string" && d.categoryKey ? `/browse/${d.categoryKey}` : null
+    case "product":
+      return typeof d.productId === "string" && d.productId ? `/product/${d.productId}` : null
+    default:
+      return null
+  }
+}
+
+/** Read the authored tiles off an offers block, dropping any that cannot be rendered honestly. */
+function offerTiles(props: Record<string, unknown>, ctx: BlockContext): OfferTile[] {
+  const raw = props.tiles
+  if (!Array.isArray(raw)) return []
+
+  const out: OfferTile[] = []
+  raw.forEach((item, i) => {
+    if (typeof item !== "object" || item === null) return
+    const t = item as Record<string, unknown>
+
+    const headline = typeof t.headline === "string" ? t.headline : ""
+    const ctaLabel = typeof t.ctaLabel === "string" ? t.ctaLabel : ""
+    const href = destinationHref(t.ctaDestination)
+    // Publish-time validation refuses all three, so reaching here means the layout predates a rule
+    // or was written past the API. Dropping the tile is the same degradation rule as everywhere else.
+    if (!headline || !ctaLabel || !href) return
+
+    /**
+     * ⚠ A TILE LINKED TO A PROMOTION DISAPPEARS WHEN THAT PROMOTION DOES (FR-030). The operator does
+     * not have to remember to take it down — which is the whole reason linking exists, since the
+     * alternative is a storefront advertising a code that no longer works.
+     */
+    if (typeof t.promoCodeId === "string" && t.promoCodeId !== "") {
+      if (!ctx.livePromotionIds.has(t.promoCodeId)) return
+    }
+
+    out.push({
+      id: typeof t.id === "string" ? t.id : `tile-${i}`,
+      size: typeof t.size === "string" ? t.size : "small",
+      eyebrow: typeof t.eyebrow === "string" ? t.eyebrow : undefined,
+      headline,
+      supporting: typeof t.supporting === "string" ? t.supporting : undefined,
+      ctaLabel,
+      ctaHref: href,
+      ctaStyle: typeof t.ctaStyle === "string" ? t.ctaStyle : undefined,
+      // Artwork resolution is the composer's presigned-read work (T061); until a tile carries a URL
+      // it renders as copy, which reads as a design choice rather than a broken load.
+      imageUrl: typeof t.imageUrl === "string" ? t.imageUrl : null,
+      /**
+       * ⚠ `alt=""` HERE IS A DECLARATION, NOT A DEFAULT. It is reached only when the operator ticked
+       * "decorative" — publish refuses artwork that is neither described nor declared. Both storefront
+       * banner components hardcode the empty string today, which is the defect this replaces.
+       */
+      alt: typeof t.altText === "string" ? t.altText : "",
+    })
+  })
+  return out
 }

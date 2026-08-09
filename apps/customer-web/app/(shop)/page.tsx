@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import { draftMode } from "next/headers"
 import { Suspense } from "react"
 
 import type { StorefrontCategoryDTO, StorefrontHomeDTO } from "@effy/shared-types"
@@ -9,7 +10,7 @@ import { siteUrl } from "@/lib/config"
 import { JsonLd, organizationLd } from "@/lib/json-ld"
 
 import { type HomeSection, composeSections, isEmptyStore } from "./home-composition"
-import { getHome, getHomeLayout } from "./home-data"
+import { getHome, getLayoutForRequest } from "./home-data"
 
 import { type BlockContext, firstImageBlock, renderBlock } from "./_components/blocks"
 
@@ -22,7 +23,21 @@ import { productGrid } from "./_components/ProductCard"
 import { ProductRail } from "./_components/ProductRail"
 import { RecentlyViewedRail } from "./_components/RecentlyViewedRail"
 
-export const metadata: Metadata = {
+/**
+ * ⚠ A DRAFT PREVIEW MUST NEVER BE INDEXED (T079), and `metadata` is a static export so it cannot
+ * decide that — which is why `generateMetadata` replaces it.
+ *
+ * The risk is small and permanent: a crawler that followed a leaked preview link would index
+ * unpublished merchandising, and a search result showing an offer that never ran outlives the
+ * preview session by weeks. The token expires in fifteen minutes; a search index does not.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const draft = await draftMode()
+  if (!draft.isEnabled) return PUBLIC_METADATA
+  return { ...PUBLIC_METADATA, robots: { index: false, follow: false } }
+}
+
+const PUBLIC_METADATA: Metadata = {
   title: "Effy — groceries, delivered",
   description:
     "Shop fresh groceries and everyday essentials from Effy. Browse without an account; sign in only when you order.",
@@ -74,6 +89,15 @@ export default function HomePage() {
           has — so the first screen is built from real advertised promotions rather than authored
           slogans, which is also what makes it operator-editable rather than a code change. */}
       <h1 className="sr-only">Effy — groceries, delivered</h1>
+
+      {/* ⚠ THE ONE THING A PREVIEW MUST NOT HIDE. Everywhere else the goal is that preview and the
+          published page are INDISTINGUISHABLE (SC-003) — but an operator who forgets which they are
+          looking at can publish something they never reviewed, or worse, conclude the live site is
+          broken because they are seeing an unfinished draft. This band is deliberately outside that
+          goal, and it is server-rendered, so it costs the public page nothing. */}
+      <Suspense fallback={null}>
+        <PreviewBanner />
+      </Suspense>
 
       {/* ⚠ ITS OWN SUSPENSE BOUNDARY, at page level — not inside `HomeContent` (operator direction,
           2026-08-09). It cannot join the static shell the way `Hero` does, because it is built from
@@ -164,12 +188,14 @@ async function HomeContent() {
   //
   // ⚠ The layout read cannot fail this page — the hot path degrades a failed or missing layout to an
   // empty structure rather than an error, precisely so this call has no failure branch to get wrong.
-  const layout = await getHomeLayout()
+  const layout = await getLayoutForRequest()
   if (layout.blocks.length > 0) {
     const ctx: BlockContext = {
       categories,
       railsByKey: new Map(home.rails.map((r) => [r.key, r])),
       firstImageBlockId: firstImageBlock(layout.blocks),
+      // From the UNCACHED read — see BlockContext for why liveness cannot ride the cached structure.
+      livePromotionIds: new Set(home.livePromotionIds ?? []),
     }
     return (
       <>
@@ -293,6 +319,39 @@ function StoreUnavailable() {
         description="This is on us, not you. Reloading usually sorts it — or browse the categories directly."
         action={{ label: "Browse categories", href: "/browse" }}
       />
+    </div>
+  )
+}
+
+/**
+ * Says "this is a draft" and offers the way out.
+ *
+ * ⚠ THE EXIT IS A `<form method="post">`, NOT A LINK. Next prefetches links on hover and on viewport
+ * entry, so a GET exit would end the session before the operator clicked it — the page would snap
+ * back to published while they were still reading the draft, and it would only reproduce by hovering.
+ *
+ * ⚠ Zero client JavaScript: a form and a button. The guest bundle has about 1 KB of headroom against
+ * a hard gate, and a control only an operator ever sees must not spend any of it.
+ */
+async function PreviewBanner() {
+  const draft = await draftMode()
+  if (!draft.isEnabled) return null
+
+  return (
+    <div className="border-b border-border bg-muted">
+      <div className="container flex flex-wrap items-center justify-between gap-3 py-2">
+        <p className="text-sm font-medium">
+          Draft preview — this is not what shoppers see.
+        </p>
+        <form action="/api/preview/exit" method="post">
+          <button
+            type="submit"
+            className="min-h-11 text-sm font-medium underline underline-offset-4"
+          >
+            Leave preview
+          </button>
+        </form>
+      </div>
     </div>
   )
 }

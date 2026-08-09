@@ -6,10 +6,13 @@
 // has to live with whatever ends up in the column. A rule that exists only in a form is not a rule.
 import {
   BLOCK_TYPES,
+  type BlockField,
   type BlockType,
   MAX_BLOCKS_PER_LAYOUT,
   blockDefinition,
 } from "@effy/shared-types";
+
+import { isMediaValidationError, presignRead, presignUpload } from "@effy/edge-shared";
 
 import * as repo from "./repository";
 import { revalidateStorefront } from "./revalidate";
@@ -156,7 +159,7 @@ function validateForPublish(body: LayoutBody): LayoutIssue[] {
         blockId: block.id,
         field: "",
         code: "unknown_block_type",
-        message: `“${block.type}” is not a block this platform knows`,
+        message: `\u201C${block.type}\u201D is not a block this platform knows`,
       });
       continue;
     }
@@ -164,66 +167,191 @@ function validateForPublish(body: LayoutBody): LayoutIssue[] {
     const def = blockDefinition(block.type as BlockType);
     if (!def) continue;
 
-    for (const field of def.fields) {
-      const value = block.props[field.key];
-      const missing =
-        value === undefined ||
-        value === null ||
-        (typeof value === "string" && value.trim() === "") ||
-        (Array.isArray(value) && value.length === 0);
-
-      if (field.required && missing) {
-        issues.push({
-          blockId: block.id,
-          field: field.key,
-          code: "field_required",
-          message: `${field.label} is required`,
-        });
-        continue;
-      }
-      if (missing) continue;
-
-      // ⚠ Length is checked HERE, not only in the composer's input. An over-long headline does not
-      // fail — it renders, and it renders wrapped across a tile it was never designed to fill, which
-      // is a defect only a person looking at the page would ever find.
-      if ((field.kind === "text" || field.kind === "longText") && typeof value === "string") {
-        if (value.length > field.maxLength) {
-          issues.push({
-            blockId: block.id,
-            field: field.key,
-            code: "field_too_long",
-            message: `${field.label} must be ${field.maxLength} characters or fewer (this is ${value.length})`,
-          });
-        }
-      }
-
-      if (field.kind === "enum" && typeof value === "string") {
-        const allowed = field.options.map((o) => o.value);
-        if (!allowed.includes(value)) {
-          issues.push({
-            blockId: block.id,
-            field: field.key,
-            code: "field_not_an_option",
-            // ⚠ The operator-facing LABELS, not the stored values — "Large" is what they chose from,
-            // "large" is what the database holds, and a message naming the wrong one sends them
-            // looking for a control that does not exist.
-            message: `${field.label} must be one of: ${field.options.map((o) => o.label).join(", ")}`,
-          });
-        }
-      }
-
-      if (field.kind === "list" && Array.isArray(value)) {
-        if (value.length < field.min || value.length > field.max) {
-          issues.push({
-            blockId: block.id,
-            field: field.key,
-            code: "list_out_of_range",
-            message: `${field.label} must hold between ${field.min} and ${field.max} items (this has ${value.length})`,
-          });
-        }
-      }
-    }
+    checkFields(def.fields, block.props, block.id, "", issues);
   }
 
   return issues;
+}
+
+/**
+ * Check one level of fields, recursing into list items.
+ *
+ * ⚠ THE RECURSION IS THE POINT, and its absence was a real hole. Walking only the top level means an
+ * `offers` block is checked for "does it have a tiles array" and NOTHING ELSE — so a tile with no
+ * headline, no button label and no artwork publishes cleanly and renders as an empty frame in the
+ * middle of the storefront. Every rule that matters for the bento lives one level down.
+ *
+ * `path` builds a dotted trail (`tiles.0.headline`) so the composer can put the message on the field
+ * that caused it rather than in a banner above a page of twenty blocks.
+ */
+function checkFields(
+  fields: readonly BlockField[],
+  props: Record<string, unknown>,
+  blockId: string,
+  path: string,
+  issues: LayoutIssue[],
+): void {
+  for (const field of fields) {
+    const value = props[field.key];
+    const at = path ? `${path}.${field.key}` : field.key;
+    const missing =
+      value === undefined ||
+      value === null ||
+      (typeof value === "string" && value.trim() === "") ||
+      (Array.isArray(value) && value.length === 0);
+
+    if (field.required && missing) {
+      issues.push({ blockId, field: at, code: "field_required", message: `${field.label} is required` });
+      continue;
+    }
+    if (missing) continue;
+
+    // ⚠ Length is checked HERE, not only in the composer's input. An over-long headline does not
+    // fail — it renders, and it renders wrapped across a tile it was never designed to fill, which
+    // is a defect only a person looking at the page would ever find.
+    if ((field.kind === "text" || field.kind === "longText") && typeof value === "string") {
+      if (value.length > field.maxLength) {
+        issues.push({
+          blockId,
+          field: at,
+          code: "field_too_long",
+          message: `${field.label} must be ${field.maxLength} characters or fewer (this is ${value.length})`,
+        });
+      }
+    }
+
+    if (field.kind === "enum" && typeof value === "string") {
+      const allowed = field.options.map((o) => o.value);
+      if (!allowed.includes(value)) {
+        issues.push({
+          blockId,
+          field: at,
+          code: "field_not_an_option",
+          // ⚠ The operator-facing LABELS, not the stored values — "Large" is what they chose from,
+          // "large" is what the database holds, and a message naming the wrong one sends them
+          // looking for a control that does not exist.
+          message: `${field.label} must be one of: ${field.options.map((o) => o.label).join(", ")}`,
+        });
+      }
+    }
+
+    if (field.kind === "list" && Array.isArray(value)) {
+      if (value.length < field.min || value.length > field.max) {
+        issues.push({
+          blockId,
+          field: at,
+          code: "list_out_of_range",
+          message: `${field.label} must hold between ${field.min} and ${field.max} items (this has ${value.length})`,
+        });
+        continue;
+      }
+      value.forEach((item, i) => {
+        if (typeof item !== "object" || item === null || Array.isArray(item)) {
+          issues.push({
+            blockId,
+            field: `${at}.${i}`,
+            code: "list_item_malformed",
+            message: `${field.label} item ${i + 1} is not filled in`,
+          });
+          return;
+        }
+        const itemProps = item as Record<string, unknown>;
+        checkFields(field.of, itemProps, blockId, `${at}.${i}`, issues);
+        checkArtworkDescription(field.of, itemProps, blockId, `${at}.${i}`, issues);
+      });
+    }
+  }
+}
+
+/**
+ * Artwork must be described, or explicitly declared decorative (FR-026).
+ *
+ * ⚠ THIS CLOSES A DEFECT THE PLATFORM HAS SHIPPED SINCE PROMOTIONAL BANNERS EXISTED. Both storefront
+ * banner components hardcode `alt=""` — artwork declared decorative — while the canvas definition
+ * carries a MARKED TEXT ZONE, which is the platform stating in its own contract that the artwork
+ * carries the message. A screen-reader user gets nothing from a block a sighted shopper reads a
+ * headline off. Those cannot both be right.
+ *
+ * ⚠ Neither field is `required` on its own, deliberately. Forcing alt text onto genuinely decorative
+ * artwork produces the opposite failure — a screen reader announcing "abstract green pattern" between
+ * every offer. The rule is that exactly one of the two must be ANSWERED, so silence is a refusal
+ * rather than the silent `alt=""` it is today.
+ */
+function checkArtworkDescription(
+  fields: readonly BlockField[],
+  props: Record<string, unknown>,
+  blockId: string,
+  path: string,
+  issues: LayoutIssue[],
+): void {
+  const artwork = fields.find((f) => f.kind === "artwork");
+  if (!artwork) return;
+  if (!props[artwork.key]) return; // no artwork attached — its own required-field issue covers it
+
+  const alt = props.altText;
+  const described = typeof alt === "string" && alt.trim() !== "";
+  if (described || props.decorative === true) return;
+
+  issues.push({
+    blockId,
+    field: path ? `${path}.altText` : "altText",
+    code: "artwork_not_described",
+    message:
+      "Describe this artwork for people who cannot see it, or mark it decorative if it carries no message",
+  });
+}
+
+// ── Artwork (042 US2) ──────────────────────────────────────────────────────────────────────────
+
+/**
+ * Mint a presigned PUT for block artwork.
+ *
+ * ⚠ THE BYTES NEVER PASS THROUGH LAMBDA — the console PUTs straight to S3 and then saves the key
+ * through the ordinary draft route. That is the shape `shop` and `promotions` already use, and it is
+ * what keeps a multi-megabyte photograph off a 5-second function.
+ *
+ * ⚠ CONFORMANCE IS CHECKED ON SAVE, NOT HERE, and that ordering is deliberate: a presigned URL is
+ * minted before any bytes exist, so there is nothing to measure yet. 029 recorded that its equivalent
+ * check ran on update but NOT on create, which meant a non-conforming image could be attached at
+ * creation with no check at all — the same trap is avoided here by validating the KEY at publish
+ * rather than trusting the moment of upload.
+ */
+export async function presignArtwork(
+  contentType: unknown,
+  fileSize: unknown,
+): Promise<{ uploadUrl: string; storageKey: string }> {
+  // ⚠ The layout must exist before a writable key is minted for it — otherwise this is a writable
+  // object with no owner, on an environment where the migration has not run.
+  await getLayout();
+
+  try {
+    // One prefix for the whole page's artwork. The singleton has no id to scope by, so `home` is it.
+    return await presignUpload("home-layout", "artwork", contentType, fileSize);
+  } catch (e) {
+    if (isMediaValidationError(e)) {
+      throw new LayoutError(422, "artwork_invalid", e.message);
+    }
+    throw e;
+  }
+}
+
+/**
+ * A presigned READ, so the composer can show the operator their own artwork.
+ *
+ * ⚠ THIS IS MISSING FROM THE PLATFORM TODAY AND IT IS WHY THE PROMOTIONS CONSOLE SHOWS A TEXT
+ * PLACEHOLDER WHERE AN IMAGE SHOULD BE. The stored value is an S3 key, which is not fetchable by a
+ * browser; without a read presign the operator attaches a photograph and then has no way to confirm
+ * they attached the right one. Reviewing artwork you cannot see is not reviewing it.
+ */
+export async function viewArtwork(storageKey: unknown): Promise<{ url: string }> {
+  if (typeof storageKey !== "string" || storageKey.trim() === "") {
+    throw new LayoutError(400, "artwork_key_required", "which artwork?");
+  }
+  // ⚠ Scoped to this feature's own prefix. Without it, an authenticated caller could mint a read URL
+  // for ANY object in the media bucket — product photography, another feature's uploads — by passing
+  // its key. The gate on this route is "can compose the home page", not "can read the bucket".
+  if (!storageKey.startsWith("home-layout/")) {
+    throw new LayoutError(400, "artwork_key_invalid", "that is not home page artwork");
+  }
+  return { url: await presignRead(storageKey) };
 }

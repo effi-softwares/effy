@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, MailWarning, Shield, Store, Tags } from "lucide-react";
+import { BadgePercent, Home, LayoutDashboard, MailWarning, Shield, Store, Tags } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -14,6 +14,12 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // Shops has NO requiredRole: every back-office role sees it. csa gets a read-only register
   // (mutating controls are gated in-screen and enforced by the backend); admin/manager can write.
   { label: "Shops", to: "/shops", icon: Store },
+  // Home page (042) has NO requiredRole: every back-office role sees the layout read-only — a CSA
+  // asked "why does the site say X" needs to be able to look. admin/manager get the composing and
+  // publishing controls (gated in-screen, enforced by the backend). ⚠ It is the front page of the
+  // platform's only PUBLIC surface, which is why the mutate gate here is the same one promotions and
+  // shops use rather than anything looser.
+  { label: "Home page", to: "/home-page", icon: Home },
   // Catalog has NO requiredRole: every back-office role sees the schema read-only (csa included);
   // admin/manager get the mutating controls (gated in-screen, enforced by the backend).
   { label: "Catalog", to: "/catalog", icon: Tags },

@@ -247,6 +247,26 @@ const OFFER_TILE_FIELDS: readonly BlockField[] = [
   },
   // ⚠ The canvas is chosen from `size` at validation time; "tile" is the family, not a literal shape.
   { kind: "artwork", key: "artwork", label: "Artwork", required: true, canvas: "tile" },
+  /**
+   * ⚠ ALT TEXT IS A FIELD AT ALL BECAUSE THE PLATFORM HAS NEVER HAD ONE. Both storefront banner
+   * components hardcode `alt=""` today — artwork declared DECORATIVE — while the canvas definition
+   * carries a marked text zone, which is the platform stating in its own contract that the artwork
+   * CARRIES THE MESSAGE. A screen-reader user gets nothing from a promotional block that a sighted
+   * shopper reads a headline off. Those two facts cannot both be right, and the canvas is the one
+   * telling the truth.
+   *
+   * It is not `required: true` because a genuinely decorative image exists and forcing alt text onto
+   * one produces the other failure — a screen reader reading out "abstract green pattern" between
+   * every offer. `decorative` below is the deliberate opt-out, and the validator enforces that
+   * exactly one of the two is answered (FR-026).
+   */
+  { kind: "text", key: "altText", label: "Alt text", required: false, maxLength: 140 },
+  /**
+   * ⚠ AN EXPLICIT OPT-OUT, NOT A DEFAULT. `alt=""` is the correct markup for decorative artwork and
+   * the wrong markup for everything else — and it is what you get by forgetting. Making the operator
+   * say so turns silence into a refusal instead of into the platform's current defect.
+   */
+  { kind: "boolean", key: "decorative", label: "Artwork is decorative", required: false },
   {
     kind: "reference",
     key: "promoCodeId",
@@ -307,7 +327,28 @@ const HERO: BlockDefinition = {
      */
     { kind: "list", key: "slides", label: "Slides", required: true, min: 1, max: 6, of: HERO_SLIDE_FIELDS },
   ],
-  presets: [{ name: "Single promotional slide", props: { slides: [] } }],
+  /**
+   * ⚠ THE WORDS ARE PRE-FILLED; THE ARTWORK CANNOT BE. Every other field a preset can answer, it
+   * answers — but `artwork` names a file that has to exist, and no preset can invent one. So a hero
+   * added from a preset is one upload away from publishable rather than a blank form, and the single
+   * refusal an operator meets names the one thing only they can supply.
+   */
+  presets: [
+    {
+      name: "Single promotional slide",
+      props: {
+        slides: [
+          {
+            eyebrow: "This week",
+            headline: "Fresh in, delivered today",
+            supporting: "Everything on the shelves, brought to your door.",
+            ctaLabel: "Shop now",
+            ctaDestination: { kind: "search" },
+          },
+        ],
+      },
+    },
+  ],
 }
 
 const OFFERS: BlockDefinition = {
@@ -318,7 +359,37 @@ const OFFERS: BlockDefinition = {
     { kind: "text", key: "title", label: "Section title", required: false, maxLength: 60 },
     { kind: "list", key: "tiles", label: "Tiles", required: true, min: 1, max: 6, of: OFFER_TILE_FIELDS },
   ],
-  presets: [{ name: "Offers", props: { title: "Offers", tiles: [] } }],
+  /**
+   * ⚠ Same rule as the hero: the copy is pre-filled and the artwork is the operator's one required
+   * act. Two tiles rather than the full five-tile composition — a bento degrades coherently with
+   * fewer tiles (FR-018), and asking someone to source five photographs before they can publish
+   * anything is how a feature goes unused.
+   */
+  presets: [
+    {
+      name: "Two offer tiles",
+      props: {
+        title: "Offers",
+        tiles: [
+          {
+            size: "large",
+            eyebrow: "Weekly deal",
+            headline: "Save on the weekly shop",
+            ctaLabel: "See the deals",
+            ctaDestination: { kind: "sale" },
+            ctaStyle: "button",
+          },
+          {
+            size: "small",
+            headline: "New this week",
+            ctaLabel: "Browse",
+            ctaDestination: { kind: "search" },
+            ctaStyle: "link",
+          },
+        ],
+      },
+    },
+  ],
 }
 
 const VALUE_STRIP: BlockDefinition = {
@@ -339,7 +410,24 @@ const VALUE_STRIP: BlockDefinition = {
       ],
     },
   ],
-  presets: [{ name: "Three value panels", props: { items: [] } }],
+  /**
+   * ⚠ PRE-FILLED WITH THE PANELS THE STOREFRONT RENDERS TODAY, not an empty list. An empty `items`
+   * would not merely be unhelpful — `items` is required with a minimum of one, so a block added from
+   * a blank preset CANNOT BE PUBLISHED. The operator would add a section, be refused, and have to
+   * work out from a validation message what a value panel is supposed to contain.
+   */
+  presets: [
+    {
+      name: "Three value panels",
+      props: {
+        items: [
+          { headline: "One brand", supporting: "every product is Effy's own — no third-party sellers" },
+          { headline: "No account", supporting: "needed to browse — we ask who you are when you order" },
+          { headline: "Same day", supporting: "in serviced areas" },
+        ],
+      },
+    },
+  ],
 }
 
 const APP_PROMO: BlockDefinition = {

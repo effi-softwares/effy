@@ -152,12 +152,23 @@ SELECT p.id,
        p.ends_at
 FROM public.promo_code p`
 
-const advertisedPromoPredicate = `p.is_advertised
-  AND p.status = 'active'
+// promoLivePredicate is "is this promotion currently usable" — status, window, exhaustion. Four
+// terms, all ordinary promotion semantics that the cart already honours.
+//
+// ⚠ SPLIT OUT FROM advertisedPromoPredicate BY 042, and the split is the point. An offer tile that
+// links a promotion must inherit its live window (FR-030) but must NOT require `is_advertised`: the
+// tile IS the advertisement now, and 042 deletes that column outright. Sharing one const would have
+// meant either dragging a doomed column into the new path or hand-copying four terms into a second
+// statement — and two copies of a visibility rule is how a shopper meets an offer the platform has
+// already stopped honouring.
+const promoLivePredicate = `p.status = 'active'
   AND (p.starts_at IS NULL OR p.starts_at <= now())
   AND (p.ends_at   IS NULL OR p.ends_at   >  now())
   AND (p.max_redemptions IS NULL
        OR (SELECT count(*) FROM public.promo_redemption r WHERE r.promo_code_id = p.id) < p.max_redemptions)`
+
+const advertisedPromoPredicate = `p.is_advertised
+  AND ` + promoLivePredicate
 
 // AdvertisedPromotions returns the promotions cleared to appear as banners on Home (028 FR-036/037c).
 //
@@ -341,10 +352,21 @@ type homeLayoutRow struct {
 // environment restored from an older dump, or one where the migration has not run, must render the
 // coherent minimal page rather than 500 the storefront. Absence returns an empty layout and `false`.
 func (r *Repository) PublishedLayout(ctx context.Context) (homeLayoutRow, bool, error) {
-	const sql = `
-SELECT published, revision
-FROM public.home_layout
-WHERE singleton`
+	return r.layoutBody(ctx, `SELECT published, revision FROM public.home_layout WHERE singleton`)
+}
+
+// DraftLayout returns the UNPUBLISHED body — what the operator is working on (042 US3).
+//
+// ⚠ THE ONLY CALLER IS THE PREVIEW PATH, AND IT IS GATED ON A VERIFIED TOKEN. There is no flag,
+// header or query parameter that makes an ordinary storefront read return this (FR-022). Draft
+// content is unpublished merchandising: prices that were never agreed, offers that may never run.
+func (r *Repository) DraftLayout(ctx context.Context) (homeLayoutRow, bool, error) {
+	// ⚠ Aliased to `published` so one row struct serves both. The alternative is a second near-identical
+	// struct whose only difference is a column name, which is two definitions of one shape.
+	return r.layoutBody(ctx, `SELECT draft AS published, revision FROM public.home_layout WHERE singleton`)
+}
+
+func (r *Repository) layoutBody(ctx context.Context, sql string) (homeLayoutRow, bool, error) {
 
 	rows, err := r.db.Query(ctx, sql)
 	if err != nil {
@@ -358,4 +380,35 @@ WHERE singleton`
 		return homeLayoutRow{}, false, nil
 	}
 	return out[0], true, nil
+}
+
+// LivePromotionIDs narrows a set of promotion ids to those currently usable (042 FR-030).
+//
+// ⚠ IT TAKES THE IDS THE PAGE ACTUALLY REFERENCES rather than returning every live promotion. The
+// answer travels to the browser, and "how many promotions exist" is not something a storefront read
+// should disclose as a side effect of laying out a page.
+//
+// ⚠ `id::text = ANY($1)`, not `id = ANY($1::uuid[])`. The ids come from an operator-authored layout,
+// so a truncated paste is an ordinary input — and sending it at a uuid column raises `invalid input
+// syntax for type uuid`, which surfaces as a 503: the platform claiming it is broken when the truth
+// is that no such promotion exists. The cast cannot error on any input.
+func (r *Repository) LivePromotionIDs(ctx context.Context, ids []string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	const sql = `
+SELECT p.id::text
+FROM public.promo_code p
+WHERE p.id::text = ANY($1)
+  AND ` + promoLivePredicate
+
+	rows, err := r.db.Query(ctx, sql, ids)
+	if err != nil {
+		return nil, fmt.Errorf("storefront: query live promotions: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return nil, fmt.Errorf("storefront: scan live promotions: %w", err)
+	}
+	return out, nil
 }

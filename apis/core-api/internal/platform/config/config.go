@@ -22,6 +22,12 @@ type Config struct {
 	Log    Log    `envPrefix:"LOG_"`
 	Stripe Stripe `envPrefix:"STRIPE_"`
 
+	// 042 US3 — the storefront-control secret, used to verify preview tokens minted by the back
+	// office. ⚠ OPTIONAL, unlike Stripe's: an environment without it simply has no preview, and
+	// `verifyPreviewToken` refuses every token. Making it required would mean a missing secret takes
+	// the whole hot path down over a feature nobody is using at that moment.
+	PreviewSecret string `env:"PREVIEW_SECRET"`
+
 	Server Server
 }
 

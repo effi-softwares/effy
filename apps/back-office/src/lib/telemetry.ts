@@ -24,7 +24,14 @@ export type AnalyticsEvent =
   // Catalog schema-authority events (016). No PII — the ids are platform identifiers, never
   // operator-typed values.
   | { name: "schema_type_created"; productTypeId: string }
-  | { name: "schema_attribute_created"; attributeId: string };
+  | { name: "schema_attribute_created"; attributeId: string }
+  // Home Composer events (042). ⚠ `blocks` is a COUNT, never the layout body — the body is operator
+  // copy destined for a public page, and shipping it to a third-party analytics vendor is not
+  // something a telemetry call should quietly decide. No PII beyond the auto-stamped subject id.
+  | { name: "home_layout_edited"; blocks: number }
+  | { name: "home_layout_published"; blocks: number }
+  | { name: "home_layout_reverted" }
+  | { name: "home_layout_previewed" };
 
 const telemetry = createTelemetry<AnalyticsEvent>({
   key: config.posthogKey(),

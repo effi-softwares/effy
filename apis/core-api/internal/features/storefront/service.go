@@ -119,12 +119,26 @@ type Home struct {
 	// Blocks is the operator-authored page order (042). Empty when no layout has been published,
 	// in which case the client composes the page the way it always has.
 	Blocks []Block
+	// LivePromotionIDs are the promotions referenced by the published layout that are usable RIGHT
+	// NOW (042 FR-030).
+	//
+	// ⚠ IT TRAVELS ON THIS UNCACHED READ, NOT WITH THE CACHED STRUCTURE, and that placement is the
+	// whole reason FR-030 can be honoured at all. The structure — block order, operator copy — changes
+	// only on publish and is cached for an hour so the home page can still prerender. Liveness is a
+	// LIVE CLAIM another shopper can falsify: 029 established that "this offer is still available"
+	// must never be served from a cache. Filtering tiles against the cached body would leave an
+	// expired promotion advertised for up to an hour after it stopped working.
+	LivePromotionIDs []string
 }
 
 // HomeLayout is the published page structure with no content attached (042).
 type HomeLayout struct {
 	Blocks   []Block
 	Revision int64
+	// IsDraft says the caller is looking at unpublished content. ⚠ The storefront uses it to mark the
+	// page `noindex` and to show the operator they are in a preview — a preview indistinguishable
+	// from the real page is the goal for LAYOUT, and precisely the wrong goal for that one fact.
+	IsDraft bool
 }
 
 // Category is a browse/filter category. ProductCount and ImageURL (025) let browse render a real
@@ -187,12 +201,17 @@ type Reader interface {
 	// PublishedLayout returns the operator-authored home layout (042). found=false means no row —
 	// which is not an error, and renders the code-composed page unchanged.
 	PublishedLayout(ctx context.Context) (homeLayoutRow, bool, error)
+	// LivePromotionIDs narrows a set of promotion ids to those currently usable (042 FR-030).
+	LivePromotionIDs(ctx context.Context, ids []string) ([]string, error)
+	// DraftLayout returns the unpublished body — preview only, behind a verified token (042 US3).
+	DraftLayout(ctx context.Context) (homeLayoutRow, bool, error)
 }
 
 type Service struct {
-	repo    Reader
-	presign media.Presigner
-	layoutM *LayoutMetrics
+	repo          Reader
+	presign       media.Presigner
+	layoutM       *LayoutMetrics
+	previewSecret string
 }
 
 func NewService(repo Reader, presign media.Presigner) *Service {
@@ -203,6 +222,13 @@ func NewService(repo Reader, presign media.Presigner) *Service {
 // records nothing and every code path is otherwise identical (see metrics.go).
 func (s *Service) WithLayoutMetrics(m *LayoutMetrics) *Service {
 	s.layoutM = m
+	return s
+}
+
+// WithPreviewSecret enables draft preview (042 US3). Absent, every preview token is refused and the
+// storefront serves published content to everyone — the safe half of the failure.
+func (s *Service) WithPreviewSecret(secret string) *Service {
+	s.previewSecret = secret
 	return s
 }
 
@@ -337,6 +363,23 @@ func (s *Service) Home(ctx context.Context) (Home, error) {
 					zap.String("blockType", o.Type), zap.String("reason", string(o.Reason)))
 			}
 			home.Blocks = blocks
+
+			// ⚠ Narrowed to the ids THIS PAGE references, never "every live promotion". The answer
+			// travels to the browser, and how many promotions exist is not something a storefront
+			// read should disclose as a side effect of laying out a page.
+			if refs := promotionRefs(blocks); len(refs) > 0 {
+				live, lerr := s.repo.LivePromotionIDs(ctx, refs)
+				if lerr != nil {
+					// ⚠ FAIL CLOSED — an empty set, so every promotion-linked tile is dropped. The
+					// opposite default would advertise a discount the platform may already have
+					// stopped honouring, which is worse than a missing tile: a shopper who types an
+					// expired code has been misled by the storefront itself.
+					logger.FromContext(ctx).Error("storefront: live promotion check failed, hiding linked tiles",
+						zap.Error(lerr))
+				} else {
+					home.LivePromotionIDs = live
+				}
+			}
 		}
 	}
 
@@ -858,12 +901,22 @@ func ptr(s string) *string { return &s }
 //
 // `revision` is returned so a caller can tell one published state from another without diffing the
 // blocks — the composer's preview and the revalidation path both need that.
-func (s *Service) HomeLayout(ctx context.Context) (HomeLayout, error) {
+func (s *Service) HomeLayout(ctx context.Context, previewToken string) (HomeLayout, error) {
 	ctx, cancel := context.WithTimeout(ctx, readTimeout)
 	defer cancel()
 
+	// ⚠ THE TOKEN IS VERIFIED BEFORE THE DRAFT IS READ, and an invalid one falls through to published
+	// rather than refusing. A 401 here would tell an anonymous prober that a preview mechanism exists
+	// and that their guess was wrong; serving the ordinary page tells them nothing and costs a real
+	// operator with a stale link only a confusing moment, not a broken storefront.
+	draft := previewToken != "" && verifyPreviewToken(s.previewSecret, previewToken, time.Now()) == nil
+
 	start := time.Now()
-	row, found, err := s.repo.PublishedLayout(ctx)
+	read := s.repo.PublishedLayout
+	if draft {
+		read = s.repo.DraftLayout
+	}
+	row, found, err := read(ctx)
 	s.layoutM.observeRead(time.Since(start).Seconds())
 	if err != nil {
 		// ⚠ Same rule as Home(): an empty structure, never a failed read. This endpoint is consumed by
@@ -894,5 +947,5 @@ func (s *Service) HomeLayout(ctx context.Context) (HomeLayout, error) {
 		logger.FromContext(ctx).Warn("storefront: home block omitted",
 			zap.String("blockType", o.Type), zap.String("reason", string(o.Reason)))
 	}
-	return HomeLayout{Blocks: blocks, Revision: row.Revision}, nil
+	return HomeLayout{Blocks: blocks, Revision: row.Revision, IsDraft: draft}, nil
 }

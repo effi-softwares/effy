@@ -25,4 +25,12 @@ export const config = {
   apiBaseUrl: (): string => cfg.require("VITE_API_BASE_URL"),
   posthogKey: (): string | undefined => cfg.optional("VITE_POSTHOG_KEY"),
   posthogHost: (): string | undefined => cfg.optional("VITE_POSTHOG_HOST"),
+  /**
+   * The customer storefront's public origin — where a home-page preview opens (042 US3).
+   *
+   * ⚠ OPTIONAL, so a console without it simply has no preview control rather than failing to boot.
+   * A required value here would make the whole back office unusable on any environment where the
+   * storefront is not yet deployed, over a feature that only affects one screen.
+   */
+  storefrontBaseUrl: (): string | undefined => cfg.optional("VITE_STOREFRONT_BASE_URL"),
 };

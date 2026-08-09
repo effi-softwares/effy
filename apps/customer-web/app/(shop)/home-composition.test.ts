@@ -51,7 +51,7 @@ function banner(key: string, placement?: BannerDTO["placement"]): BannerDTO {
 }
 
 function home(over: Partial<StorefrontHomeDTO> = {}): StorefrontHomeDTO {
-  return { banners: [], rails: [], layout: [], ...over }
+  return { banners: [], rails: [], layout: [], livePromotionIds: [], ...over }
 }
 
 const kinds = (s: ReturnType<typeof composeSections>) =>

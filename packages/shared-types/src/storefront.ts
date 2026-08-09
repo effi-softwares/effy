@@ -209,6 +209,15 @@ export interface StorefrontHomeDTO {
    * mobile, which has no streaming hole to fill and wants one round trip.
    */
   layout: StorefrontLayoutBlockDTO[];
+  /**
+   * Promotions referenced by the layout that are usable RIGHT NOW (042 FR-030).
+   *
+   * ⚠ It rides THIS uncached read rather than the cached structure. Block order and operator copy
+   * change only on publish and are cached so the home page can prerender; "this offer is still
+   * available" is a live claim another shopper can falsify (029). Filtering tiles against a cached
+   * body would leave an expired promotion advertised for up to an hour after it stopped working.
+   */
+  livePromotionIds: string[];
 }
 
 /** A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the

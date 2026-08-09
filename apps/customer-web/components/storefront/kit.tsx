@@ -1,6 +1,8 @@
 import Image from "next/image"
 import Link from "next/link"
 
+import { ARTWORK_CANVASES, type ArtworkCanvasKey, BANNER_CANVAS } from "@effy/shared-types"
+
 import { cn } from "@/lib/utils"
 
 /**
@@ -435,6 +437,7 @@ export function MediaFrame({
   src,
   alt,
   ratio = "square",
+  canvas,
   /** Shown centred in the placeholder when there is no image — typically a category's initial. */
   fallbackLabel,
   sizes,
@@ -447,6 +450,22 @@ export function MediaFrame({
   /** Empty string when the image is decorative and the surrounding text already names it. */
   alt: string
   ratio?: "square" | "video" | "wide" | "portrait" | "banner"
+  /**
+   * A canvas key from `@effy/shared-types` — the shape the platform ACCEPTS for this artwork, read
+   * from the same file the upload validator checks against. Wins over `ratio` when given.
+   *
+   * ⚠ THIS EXISTS BECAUSE THE STOREFRONT WAS BREAKING A PROMISE THE PLATFORM MAKES IN WRITING.
+   * `ratio="banner"` hardcoded `aspect-[2/1]` here while the canvas definition lived in
+   * `shared-types` — two numbers for one shape, and nothing keeping them equal. The design's claim
+   * that artwork is never cropped holds only when the accepted shape and the rendered box are the
+   * same ratio, which cannot be true by coincidence.
+   *
+   * ⚠ `ratio="banner"` SURVIVES but no longer carries a number — it now resolves through
+   * `BANNER_CANVAS`, the same singleton the upload validator uses. Its one remaining call site is
+   * 039's `OffersPanels`, which Phase 7 deletes; deleting the option early would mean editing a
+   * component that is about to go, and leaving the LITERAL is what actually mattered.
+   */
+  canvas?: ArtworkCanvasKey
   fallbackLabel?: string
   sizes?: string
   priority?: boolean
@@ -455,18 +474,30 @@ export function MediaFrame({
   /** Overlaid content — a Scrim and its text. Rendered above the image in both states. */
   children?: React.ReactNode
 }) {
+  // The box's shape, when it comes from a canvas rather than a fixed class.
+  const boxRatio = canvas
+    ? `${ARTWORK_CANVASES[canvas].width} / ${ARTWORK_CANVASES[canvas].height}`
+    : ratio === "banner"
+      ? `${BANNER_CANVAS.width} / ${BANNER_CANVAS.height}`
+      : null
+
   return (
     <div
       className={cn(
         "relative w-full overflow-hidden bg-muted",
-        ratio === "square" && "aspect-square",
-        ratio === "video" && "aspect-video",
-        ratio === "wide" && "aspect-[3/2]",
-        ratio === "portrait" && "aspect-[4/5]",
-        ratio === "banner" && "aspect-[2/1]",
+        // ⚠ Suppressed entirely when the box comes from a canvas — `ratio` defaults to "square", so
+        // without this a canvas-sized frame would also carry `aspect-square` and the two would fight.
+        !boxRatio && ratio === "square" && "aspect-square",
+        !boxRatio && ratio === "video" && "aspect-video",
+        !boxRatio && ratio === "wide" && "aspect-[3/2]",
+        !boxRatio && ratio === "portrait" && "aspect-[4/5]",
         rounded,
         className,
       )}
+      // ⚠ An inline style rather than a class, because the ratio is DATA — Tailwind scans source
+      // text, so `aspect-[${w}/${h}]` from a variable produces no CSS whatsoever and the box would
+      // silently collapse. That failure renders.
+      style={boxRatio ? { aspectRatio: boxRatio } : undefined}
     >
       {src ? (
         <Image

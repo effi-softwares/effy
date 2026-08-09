@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react"
+import { ARTWORK_CANVASES } from "@effy/shared-types"
 import { describe, expect, it } from "vitest"
 
 import { MediaFrame, Scrim, SectionShell, onScrim } from "./kit"
@@ -48,12 +49,42 @@ describe("MediaFrame — absence is a supported state (FR-011/FR-014)", () => {
    */
   it("reserves the box on the container in BOTH states, so nothing resizes when art arrives", () => {
     const { container: withArt } = render(
-      <MediaFrame src="https://example.test/a.png" alt="" ratio="banner" />,
+      <MediaFrame src="https://example.test/a.png" alt="" ratio="portrait" />,
     )
-    const { container: without } = render(<MediaFrame src={null} alt="" ratio="banner" />)
+    const { container: without } = render(<MediaFrame src={null} alt="" ratio="portrait" />)
 
-    expect(withArt.firstElementChild?.className).toContain("aspect-[2/1]")
-    expect(without.firstElementChild?.className).toContain("aspect-[2/1]")
+    expect(withArt.firstElementChild?.className).toContain("aspect-[4/5]")
+    expect(without.firstElementChild?.className).toContain("aspect-[4/5]")
+  })
+
+  /**
+   * ⚠ THIS TEST REPLACES ONE THAT PINNED A DEFECT (042 T065). It used to assert `ratio="banner"`
+   * produced `aspect-[2/1]` — a number hardcoded here while the platform's canvas definition lived in
+   * `shared-types`. Two numbers for one shape, with nothing keeping them equal, on a design whose
+   * stated promise is that artwork is NEVER CROPPED. That promise holds only when the accepted shape
+   * and the rendered box share a ratio, which cannot be true by coincidence.
+   *
+   * The `banner` option is deleted rather than deprecated: leaving it would leave the second number
+   * reachable. The box is now driven from the canvas itself.
+   */
+  it("takes its box from the canvas the platform actually accepts", () => {
+    const { container } = render(
+      <MediaFrame src="https://example.test/a.png" alt="" canvas="tile-wide" />,
+    )
+    const box = container.firstElementChild as HTMLElement
+    const c = ARTWORK_CANVASES["tile-wide"]
+    expect(box.style.aspectRatio).toBe(`${c.width} / ${c.height}`)
+    // ⚠ An inline style, NOT a class — Tailwind scans source text, so an interpolated
+    // `aspect-[${w}/${h}]` produces no CSS at all and the box silently collapses to nothing.
+    expect(box.className).not.toMatch(/aspect-/)
+  })
+
+  it("reserves that box in the empty state too, so nothing jumps when the artwork arrives", () => {
+    const { container } = render(<MediaFrame src={null} alt="" canvas="tile-tall" />)
+    const c = ARTWORK_CANVASES["tile-tall"]
+    expect((container.firstElementChild as HTMLElement).style.aspectRatio).toBe(
+      `${c.width} / ${c.height}`,
+    )
   })
 
   it("keeps the placeholder out of the accessibility tree — the surrounding text names the thing", () => {

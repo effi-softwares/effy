@@ -57,7 +57,7 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 - [X] T009 Write `db/migrations/<timestamp>_home_layout.sql` creating `public.home_layout` as a schema-enforced singleton per [data-model.md](./data-model.md) §1 (`draft`, `published`, `revision`, publish metadata)
 - [X] T010 In the same migration, **seed `published` with an explicit representation of today's home page** — hero, category strip, on-sale rail, offers, featured rail, category rails, app promo, newsletter. ⚠ The storefront must not change appearance on deploy, and an empty seed plus a deleted `PromoHero` leaves no hero at all (depends on T009)
 - [ ] T010a ⚠ **Assert the seeded layout passes `validate.ts`.** The seed is written by SQL and therefore bypasses the service that would otherwise refuse it — including `hero.artwork`, which is required and canvas-validated. Add a test that runs the seed body through the cold-path validator, and confirm the hero artwork object exists in the media bucket (depends on T010, T090)
-- [ ] T011 **OPERATOR** Commit the migration, then `make db-up ENV=dev` and verify with the `jsonb_array_length(published)` query in [quickstart.md](./quickstart.md) §1 (depends on T010)
+- [X] T011 **OPERATOR** Commit the migration, then `make db-up ENV=dev` and verify with the `jsonb_array_length(published)` query in [quickstart.md](./quickstart.md) §1 (depends on T010)
 
 ### Hot path — the public read
 
@@ -66,7 +66,7 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 - [X] T013a ⚠ **Read the published layout through a CACHED path tagged `home-layout`** in `apps/customer-web/app/(shop)/home-data.ts`, keeping rails and products `uncached()`. Without this, block order coming from an uncached read moves the **entire page body** behind request time and the prerendered shell FR-037 requires is gone (depends on T012)
 - [X] T013b Create `apps/customer-web/app/api/revalidate/route.ts` — a POST route authenticated by a shared secret that invalidates the `home-layout` tag. ⚠ The secret is **operator-supplied and fails loudly when unset** (constitution, Real-World Identifiers) (depends on T013a)
 - [X] T013c Call the revalidation route from `publish` and `revert` in the admin service, and **surface a revalidation failure to the operator** — a silent failure means they believe they published while shoppers see the old page (FR-015a) (depends on T013b, T022)
-- [ ] T013d [P] Test that a publish invalidates the tag and the next storefront request serves the new layout, and that `/` still builds as a prerendered route (SC-005, FR-037)
+- [X] T013d [P] Test that a publish invalidates the tag and the next storefront request serves the new layout, and that `/` still builds as a prerendered route (SC-005, FR-037)
 - [X] T014 Add `layoutBlockDTO` and wire `layout` into `homeDTO` in `apis/core-api/internal/features/storefront/handler.go`, keeping `banners` **present and empty** ⚠ removing the key is a wire break for mobile builds in the field (depends on T013)
 - [X] T015 [P] Add `storefront_home_blocks_omitted_total` (labelled by omission reason) and `storefront_home_layout_read_seconds` to the hot path's metrics registry. ⚠ FR-042 makes omission a silent success path — uncounted, a page losing a section is invisible
 - [X] T016 [P] Write `apis/core-api/internal/features/storefront/layout_test.go` covering: hidden blocks omitted server-side, unknown type omitted, missing reference omitted, array order preserved, empty layout renders nothing
@@ -101,27 +101,27 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 
 ### Tests for User Story 1
 
-- [ ] T029 [P] [US1] Write `apis/edge-api/admin/src/homelayout/service.test.ts` covering: draft write leaves `published` untouched; publish copies draft→published; revert copies published→draft; audit row written in the same transaction
-- [ ] T030 [P] [US1] Write `apis/edge-api/admin/src/homelayout/repository.test.ts` covering the stale-revision conflict (FR-017) and the `csa` mutation refusal (FR-016)
-- [ ] T031 [P] [US1] Write `apps/back-office/src/features/home-layout/model.test.ts` for move-up/move-down/hide/remove reducers over an ordered block array
+- [X] T029 [P] [US1] Write `apis/edge-api/admin/src/homelayout/service.test.ts` covering: draft write leaves `published` untouched; publish copies draft→published; revert copies published→draft; audit row written in the same transaction
+- [X] T030 [P] [US1] Write `apis/edge-api/admin/src/homelayout/repository.test.ts` covering the stale-revision conflict (FR-017) and the `csa` mutation refusal (FR-016)
+- [X] T031 [P] [US1] Write `apps/back-office/src/features/home-layout/model.test.ts` for move-up/move-down/hide/remove reducers over an ordered block array
 
 ### Implementation for User Story 1
 
-- [ ] T032 [P] [US1] Create `apps/back-office/src/features/home-layout/model.ts` — block list operations as pure functions (reorder, hide, remove, insert-from-preset)
-- [ ] T033 [P] [US1] Create `apps/back-office/src/features/home-layout/repo.ts` with the HTTP calls to the five Phase-2 routes
-- [ ] T034 [P] [US1] Create `apps/back-office/src/features/home-layout/queries.ts` — TanStack Query options and mutations. ⚠ Server state via the cache, never hand-cached in component state (Principle VI)
-- [ ] T035 [P] [US1] Create `apps/back-office/src/features/home-layout/access.ts` mirroring the server's role gate for UI affordances only — the server decides
+- [X] T032 [P] [US1] Create `apps/back-office/src/features/home-layout/model.ts` — block list operations as pure functions (reorder, hide, remove, insert-from-preset)
+- [X] T033 [P] [US1] Create `apps/back-office/src/features/home-layout/repo.ts` with the HTTP calls to the five Phase-2 routes
+- [X] T034 [P] [US1] Create `apps/back-office/src/features/home-layout/queries.ts` — TanStack Query options and mutations. ⚠ Server state via the cache, never hand-cached in component state (Principle VI)
+- [X] T035 [P] [US1] Create `apps/back-office/src/features/home-layout/access.ts` mirroring the server's role gate for UI affordances only — the server decides
 - [X] T035a [US1] ✅ **RESOLVED 2026-08-09 — buttons only.** FR-004 amended in `spec.md`: drag is withdrawn, the keyboard control is the only path and is therefore strengthened rather than weakened. T036 is cancelled
 - [X] T036 [US1] ~~Add `@dnd-kit`~~ — **CANCELLED by T035a.** No drag-and-drop dependency enters the back office
-- [ ] T037 [US1] Create `apps/back-office/src/features/home-layout/components/BlockList.tsx` — always-visible move-up/move-down buttons (FR-004, as amended). ⚠ The first and last blocks must have their unavailable direction **disabled rather than absent**, so the control does not shift under the pointer as a block travels
-- [ ] T038 [US1] Ensure focus follows a block moved by keyboard, and that the control announces the new position (US1 acceptance scenario 2, FR-004) (depends on T037)
-- [ ] T039 [US1] Create `apps/back-office/src/features/home-layout/HomeComposerScreen.tsx` — the block list, add-from-preset, hide/remove, and the publish/revert actions (depends on T033, T034, T037)
-- [ ] T040 [US1] Add the route in `apps/back-office/src/routes/` and a nav entry in `apps/back-office/src/components/layout/nav.ts` (depends on T039)
-- [ ] T041 [P] [US1] Define at least one **preset per block type** in `packages/shared-types/src/block-catalogue.ts` — pre-filled, never a blank shell (FR-003). The highest-leverage feature for a single operator
-- [ ] T042 [US1] Implement hide-vs-remove as distinct actions, with hidden blocks retaining their content and omitted server-side (FR-005) (depends on T039)
-- [ ] T043 [US1] Enforce the 20-block ceiling server-side with `layout_too_many_blocks`, and surface the limit in the composer (FR-009) (depends on T022)
-- [ ] T044 [P] [US1] Write `apps/back-office/src/features/home-layout/HomeComposerScreen.test.tsx` covering reorder, hide, publish and revert against a fake repo
-- [ ] T045 [P] [US1] Emit `home_layout_edited`, `home_layout_published`, `home_layout_reverted` through the existing back-office telemetry taxonomy (Principle VII)
+- [X] T037 [US1] Create `apps/back-office/src/features/home-layout/components/BlockList.tsx` — always-visible move-up/move-down buttons (FR-004, as amended). ⚠ The first and last blocks must have their unavailable direction **disabled rather than absent**, so the control does not shift under the pointer as a block travels
+- [X] T038 [US1] Ensure focus follows a block moved by keyboard, and that the control announces the new position (US1 acceptance scenario 2, FR-004) (depends on T037)
+- [X] T039 [US1] Create `apps/back-office/src/features/home-layout/HomeComposerScreen.tsx` — the block list, add-from-preset, hide/remove, and the publish/revert actions (depends on T033, T034, T037)
+- [X] T040 [US1] Add the route in `apps/back-office/src/routes/` and a nav entry in `apps/back-office/src/components/layout/nav.ts` (depends on T039)
+- [X] T041 [P] [US1] Define at least one **preset per block type** in `packages/shared-types/src/block-catalogue.ts` — pre-filled, never a blank shell (FR-003). The highest-leverage feature for a single operator
+- [X] T042 [US1] Implement hide-vs-remove as distinct actions, with hidden blocks retaining their content and omitted server-side (FR-005) (depends on T039)
+- [X] T043 [US1] Enforce the 20-block ceiling server-side with `layout_too_many_blocks`, and surface the limit in the composer (FR-009) (depends on T022)
+- [X] T044 [P] [US1] Write `apps/back-office/src/features/home-layout/HomeComposerScreen.test.tsx` covering reorder, hide, publish and revert against a fake repo
+- [X] T045 [P] [US1] Emit `home_layout_edited`, `home_layout_published`, `home_layout_reverted` through the existing back-office telemetry taxonomy (Principle VII)
 - [ ] T046 [US1] **OPERATOR** Walk quickstart §4 — reorder, verify storefront unchanged, keyboard move, publish, revert, hide (SC-001, SC-004)
 - [ ] T047 [US1] **OPERATOR** Confirm the US1 walk is completable by someone who has not seen the tool. ⚠ **This is not SC-002** — that criterion's flow includes adding an offer and previewing it, which need US2 and US3. SC-002 is walked at T084a
 - [ ] T048 [US1] **OPERATOR** SC-011 — confirm every surface rendering the layout produces the same order and content
@@ -138,30 +138,30 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 
 ### Tests for User Story 2
 
-- [ ] T049 [P] [US2] Write `apps/customer-web/app/(shop)/_components/OffersBento.test.tsx` covering the degradation ladder: 5 tiles → full bento, 3 → coherent, 2 → coherent, 1 → single, 0 → **renders nothing** (FR-029)
-- [ ] T050 [P] [US2] Test that no placeholder or empty tile is ever emitted — an empty frame in a promotional block is indistinguishable from a failed load
-- [ ] T051 [P] [US2] Test that a tile is one link **or** a distinct CTA control, never a link containing a control (FR-027), and that the CTA's accessible name identifies its offer
+- [X] T049 [P] [US2] Write `apps/customer-web/app/(shop)/_components/OffersBento.test.tsx` covering the degradation ladder: 5 tiles → full bento, 3 → coherent, 2 → coherent, 1 → single, 0 → **renders nothing** (FR-029)
+- [X] T050 [P] [US2] Test that no placeholder or empty tile is ever emitted — an empty frame in a promotional block is indistinguishable from a failed load
+- [X] T051 [P] [US2] Test that a tile is one link **or** a distinct CTA control, never a link containing a control (FR-027), and that the CTA's accessible name identifies its offer
 
 ### Implementation for User Story 2
 
-- [ ] T052 [P] [US2] Add the offer-tile shape to `packages/shared-types/src/block-catalogue.ts` — `size`, `variant`, `eyebrow`, `headline`, `supporting`, `cta`, `artwork`, `altText`, `decorative`, `promoCodeId` (depends on T002)
-- [ ] T053 [US2] Extend the cold-path validator for the `offers` block: 1–6 tiles, required fields, enum ranges (depends on T022, T052)
-- [ ] T054 [US2] Resolve `promoCodeId` in the hot path by **ANDing the promotion's live-window predicate** onto the tile's — reusing the existing `advertisedPromoPredicate` shared const so the two cannot drift (FR-030) (depends on T013)
-- [ ] T055 [US2] Create `apps/customer-web/app/(shop)/_components/OffersBento.tsx` — a CSS-grid bento with authored tile sizes, degrading by tile count and reflowing to one column (depends on T026)
+- [X] T052 [P] [US2] Add the offer-tile shape to `packages/shared-types/src/block-catalogue.ts` — `size`, `eyebrow`, `headline`, `supporting`, `ctaLabel`, `ctaDestination`, `ctaStyle`, `artwork`, `altText`, `decorative`, `promoCodeId`. ⚠ **`variant` REMOVED from this list** — it contradicted T057 ("no overlay variant is built") and FR-034. A `variant` field is the control that would let an operator put copy over a photograph, which is the thing the legibility strategy removes rather than manages; the catalogue test asserts its absence
+- [X] T053 [US2] Extend the cold-path validator for the `offers` block: 1–6 tiles, required fields, enum ranges (depends on T022, T052)
+- [X] T054 [US2] Resolve `promoCodeId` in the hot path by **ANDing the promotion's live-window predicate** onto the tile's — reusing the existing `advertisedPromoPredicate` shared const so the two cannot drift (FR-030) (depends on T013)
+- [X] T055 [US2] Create `apps/customer-web/app/(shop)/_components/OffersBento.tsx` — a CSS-grid bento with authored tile sizes, degrading by tile count and reflowing to one column (depends on T026)
 - [ ] T055a [US2] ⚠ **Confirm the artwork canvas dimensions against the built bento** at each breakpoint and finalise `artwork-canvases.json` (T003's values were provisional). Artwork attached before this is refused or mis-shaped once the numbers change (depends on T055)
-- [ ] T056 [US2] Implement the tile's copy panel — a solid, token-coloured ground beside or below the artwork, never over it. ⚠ This is the whole legibility strategy: it removes the contrast problem rather than managing it (research R4) (depends on T055)
-- [ ] T057 [US2] ⚠ **No overlay variant is built.** Assert instead that a tile's copy box never overlaps its artwork box at any breakpoint — the mechanical form of FR-034/SC-009, and the reason no pixel decoder is needed (depends on T056)
-- [ ] T058 [US2] Wire tile CTAs through the closed `BannerTarget` vocabulary **narrowed to four kinds** — `search | sale | category | product`. ⚠ **Remove the `promotion` kind**: T114 retires the page it pointed at, and keeping it would let an operator author a tile aimed at a dead route — the exact defect 029 fixed and this feature claims to remove (depends on T052)
-- [ ] T059 [P] [US2] Create `apps/back-office/src/features/home-layout/components/ArtworkField.tsx` — upload, canvas-normalise to the tile's canvas, presign, PUT, attach key
-- [ ] T060 [US2] Add `home-layout-artwork-presign-v1-post` handler and route (depends on T024)
-- [ ] T061 [US2] Add `home-layout-artwork-view-v1-get` returning a **presigned read** so the composer can display already-attached artwork. ⚠ This is missing today — the back office returns a raw key and shows a text placeholder instead of the operator's own image (depends on T024)
-- [ ] T062 [US2] Create `apps/back-office/src/features/home-layout/components/BlockForm.tsx` — a form generated from the block's field schema, not hand-built per type (depends on T002, T059)
-- [ ] T063 [US2] Add the tile editor (size, variant, copy, CTA, artwork, alt text) to the offers block form (depends on T062)
-- [ ] T064 [US2] Enforce alt text at save unless `decorative` is explicitly set (FR-026). ⚠ There is no banner alt-text field anywhere today — both storefront components hardcode `alt=""` (depends on T053)
-- [ ] T065 [P] [US2] Extend `apps/customer-web/components/storefront/kit.tsx`'s `MediaFrame` to take a canvas key rather than a hardcoded ratio, and remove `aspect-[2/1]`. ⚠ Its test currently **pins** the violation and must change with it (FR-035)
+- [X] T056 [US2] Implement the tile's copy panel — a solid, token-coloured ground beside or below the artwork, never over it. ⚠ This is the whole legibility strategy: it removes the contrast problem rather than managing it (research R4) (depends on T055)
+- [X] T057 [US2] ⚠ **No overlay variant is built.** Assert instead that a tile's copy box never overlaps its artwork box at any breakpoint — the mechanical form of FR-034/SC-009, and the reason no pixel decoder is needed (depends on T056)
+- [X] T058 [US2] Wire tile CTAs through the closed `BannerTarget` vocabulary **narrowed to four kinds** — `search | sale | category | product`. ⚠ **Remove the `promotion` kind**: T114 retires the page it pointed at, and keeping it would let an operator author a tile aimed at a dead route — the exact defect 029 fixed and this feature claims to remove (depends on T052)
+- [X] T059 [P] [US2] Create `apps/back-office/src/features/home-layout/components/ArtworkField.tsx` — upload, canvas-normalise to the tile's canvas, presign, PUT, attach key
+- [X] T060 [US2] Add `home-layout-artwork-presign-v1-post` handler and route (depends on T024)
+- [X] T061 [US2] Add `home-layout-artwork-view-v1-get` returning a **presigned read** so the composer can display already-attached artwork. ⚠ This is missing today — the back office returns a raw key and shows a text placeholder instead of the operator's own image (depends on T024)
+- [X] T062 [US2] Create `apps/back-office/src/features/home-layout/components/BlockForm.tsx` — a form generated from the block's field schema, not hand-built per type (depends on T002, T059)
+- [X] T063 [US2] Add the tile editor (size, variant, copy, CTA, artwork, alt text) to the offers block form (depends on T062)
+- [X] T064 [US2] Enforce alt text at save unless `decorative` is explicitly set (FR-026). ⚠ There is no banner alt-text field anywhere today — both storefront components hardcode `alt=""` (depends on T053)
+- [X] T065 [P] [US2] Extend `apps/customer-web/components/storefront/kit.tsx`'s `MediaFrame` to take a canvas key rather than a hardcoded ratio, and remove `aspect-[2/1]`. ⚠ Its test currently **pins** the violation and must change with it (FR-035)
 - [ ] T066 [P] [US2] Generate one artwork template SVG per canvas by extending `packages/design-system/scripts/gen-banner-template.mjs`, with the drift check extended to N files
 - [ ] T067 [P] [US2] Extend `packages/design-system/scripts/check-banner-canvas.mjs` to validate every canvas in the set, and wire it into `tokens:check`. ⚠ It is in `pnpm test` but **not** in any `make` target today, unlike its sibling
-- [ ] T068 [P] [US2] Write `apps/back-office/src/features/home-layout/components/ArtworkField.test.tsx` covering canvas-conformance rejection and the presign→PUT→attach ordering (no orphan objects)
+- [X] T068 [P] [US2] Write `apps/back-office/src/features/home-layout/components/ArtworkField.test.tsx` covering canvas-conformance rejection and the presign→PUT→attach ordering (no orphan objects)
 - [ ] T069 [US2] **OPERATOR** Walk quickstart §5 — five tiles, desktop bento, phone single column, degradation to 3/2/1/0, CTA destination, promotion expiry
 - [ ] T070 [US2] **OPERATOR** SC-008 — a person using a screen reader reaches every tile's message and CTA and can tell which offer each control belongs to
 - [ ] T071 [US2] **OPERATOR** SC-009 — confirm **no published tile places copy over artwork** at any breakpoint, so contrast is a design-system property rather than a photograph's
@@ -181,21 +181,21 @@ Multi-surface monorepo. Real paths throughout — see plan.md § Project Structu
 ### Tests for User Story 3
 
 - [ ] T073 [P] [US3] Write `apps/customer-web/e2e/preview.spec.ts` asserting: no token → published content; valid token → draft content; ended session → published content again (FR-022)
-- [ ] T074 [P] [US3] Test that the post-enable redirect target is **fixed server-side** and cannot be driven by `searchParams` — an open-redirect proof
+- [X] T074 [P] [US3] Test that the post-enable redirect target is **fixed server-side** and cannot be driven by `searchParams` — an open-redirect proof
 
 ### Implementation for User Story 3
 
-- [ ] T075 [US3] Add `home-layout-preview-v1-post` minting a short-lived signed preview token (depends on T024)
-- [ ] T076 [US3] Create `apps/customer-web/app/api/preview/route.ts` — **app root, not inside `(shop)`**, so it inherits no storefront layout and stays clear of the 011 Amplify quarantine boundary — **`GET`** to enable, exchanging the token for a draft session and redirecting to a server-fixed path (depends on T075)
-- [ ] T077 [US3] Create the draft-session exit as a **`POST`** route. ⚠ Never reachable from a `<Link>` — Next prefetches, so the session would clear before the operator clicks (depends on T076)
-- [ ] T078 [US3] Make the storefront home read the **draft** body when a valid draft session is present, published otherwise — the same page, the same components, no second renderer (FR-018) (depends on T027, T076)
-- [ ] T079 [US3] Mark the draft route `noindex` (depends on T078)
-- [ ] T080 [US3] Add the "Preview" action to the composer, opening the storefront in a **new tab**. ⚠ Not an iframe: different origins mean a third-party cookie, which Safari blocks by default — it would work on a developer's machine and fail for the operator (research R5) (depends on T039, T075)
-- [ ] T081 [P] [US3] Emit `home_layout_previewed` (Principle VII)
+- [X] T075 [US3] Add `home-layout-preview-v1-post` minting a short-lived signed preview token (depends on T024)
+- [X] T076 [US3] Create `apps/customer-web/app/api/preview/route.ts` — **app root, not inside `(shop)`**, so it inherits no storefront layout and stays clear of the 011 Amplify quarantine boundary — **`GET`** to enable, exchanging the token for a draft session and redirecting to a server-fixed path (depends on T075)
+- [X] T077 [US3] Create the draft-session exit as a **`POST`** route. ⚠ Never reachable from a `<Link>` — Next prefetches, so the session would clear before the operator clicks (depends on T076)
+- [X] T078 [US3] Make the storefront home read the **draft** body when a valid draft session is present, published otherwise — the same page, the same components, no second renderer (FR-018) (depends on T027, T076)
+- [X] T079 [US3] Mark the draft route `noindex` (depends on T078)
+- [X] T080 [US3] Add the "Preview" action to the composer, opening the storefront in a **new tab**. ⚠ Not an iframe: different origins mean a third-party cookie, which Safari blocks by default — it would work on a developer's machine and fail for the operator (research R5) (depends on T039, T075)
+- [X] T081 [P] [US3] Emit `home_layout_previewed` (Principle VII)
 - [ ] T082 [US3] **OPERATOR** Walk quickstart §6 steps 1–5 — draft visible in preview, public unchanged, phone width, real empty states, session ends
 - [ ] T083 [US3] **OPERATOR** SC-003 — compare preview against the published page at phone and desktop width, in **light and dark**. They must be indistinguishable
 - [ ] T084 [US3] **OPERATOR** ⚠ Verify preview in **Safari** specifically — the new-tab design exists because of Safari's third-party-cookie policy
-- [ ] T085 [P] [US3] Verify the preview route adds no client JS to the public bundle — `pnpm size` unchanged
+- [X] T085 [P] [US3] Verify the preview route adds no client JS to the public bundle — `pnpm size` unchanged
 - [ ] T086 [US3] **OPERATOR** SC-013 — empty layout, all blocks hidden, and all data sources empty each render a coherent page with no empty frames or broken images
 
 **Checkpoint**: The operator can trust what they see before publishing.

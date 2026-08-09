@@ -128,3 +128,14 @@ custom_auth_lambda_arns = {
   verify              = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-verifyAuthChallenge"
   post_authentication = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-postAuthentication"
 }
+
+# --- The storefront's contract (042-storefront-home-composer) ---
+
+# ⚠ Where the back office posts a cache invalidation when someone publishes the home page, and where
+# 039's newsletter confirm link points. NOT secret — it is the address shoppers already type.
+#
+# ⚠ localhost is correct FOR NOW and will stop being correct. `customer-web` has no cloud deployment
+# yet, so dev's storefront is whatever the operator is running. The moment it is hosted, this becomes
+# its real origin — and until then a publish from a deployed back office cannot reach it, which the
+# operator will be told about rather than left to discover.
+storefront_base_url = "http://localhost:3000"

@@ -1,4 +1,5 @@
 import { unstable_cacheLife as cacheLife, unstable_cacheTag as cacheTag } from "next/cache"
+import { cookies, draftMode } from "next/headers"
 import { cache } from "react"
 
 import type { PublishedLayoutDTO, StorefrontHomeDTO } from "@effy/shared-types"
@@ -64,4 +65,47 @@ export async function getHomeLayout(): Promise<PublishedLayoutDTO> {
   cacheTag(HOME_LAYOUT_TAG)
   cacheLife("hours")
   return coreApi().get<PublishedLayoutDTO>("/v1/storefront/home/layout")
+}
+
+/**
+ * The layout as an operator previewing a DRAFT sees it (042 US3).
+ *
+ * ⚠ SEPARATE FROM THE CACHED READ ABOVE, AND UNCACHED, for a reason worth stating plainly: a draft
+ * changes every time the operator types. Caching it would show them a stale page and call it a
+ * preview, which is worse than having no preview at all — they would review it, see nothing wrong,
+ * and publish something they never actually looked at.
+ *
+ * ⚠ It also must not share a cache entry with the public read. `"use cache"` keys on arguments, so a
+ * single function taking an optional token would store the draft under a key an ordinary shopper's
+ * request could reach. Two functions, one cached and one not, makes that impossible rather than
+ * unlikely.
+ *
+ * The token is verified by the HOT PATH, which holds the secret. An invalid or expired one is not an
+ * error here: the hot path answers with published content and `isDraft: false`, and the operator sees
+ * the ordinary page — which is what a stale link should do.
+ */
+export async function getDraftHomeLayout(token: string): Promise<PublishedLayoutDTO> {
+  return coreApi().get<PublishedLayoutDTO>(
+    `/v1/storefront/home/layout?preview=${encodeURIComponent(token)}`,
+    uncached(),
+  )
+}
+
+/**
+ * The layout for THIS request — draft when the operator is previewing, published otherwise.
+ *
+ * ⚠ ONE ENTRY POINT, so the page has no branch of its own (FR-018). The preview is the real page:
+ * same route, same components, no second renderer. A parallel preview renderer eventually disagrees
+ * with the thing it previews, and the operator trusts it right up until the moment it is wrong.
+ */
+export async function getLayoutForRequest(): Promise<PublishedLayoutDTO> {
+  const draft = await draftMode()
+  if (!draft.isEnabled) return getHomeLayout()
+
+  const token = (await cookies()).get("effy_preview_token")?.value
+  // Draft mode enabled with no token is a half-state — an expired cookie, or someone who found the
+  // route. The published page is the honest answer, not an error.
+  if (!token) return getHomeLayout()
+
+  return getDraftHomeLayout(token)
 }

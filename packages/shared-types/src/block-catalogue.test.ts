@@ -137,6 +137,53 @@ describe("the block catalogue is closed and complete", () => {
     }
   })
 
+  /**
+   * ⚠ THIS IS FR-003 MADE MECHANICAL, and it guards a failure worse than "unhelpful".
+   *
+   * Three presets originally shipped with an empty required list — `slides: []`, `tiles: []`,
+   * `items: []`. A required list has a minimum of one, so a block added from one of those presets
+   * COULD NOT BE PUBLISHED. The operator adds a section, is refused, and has to work out from a
+   * validation message what the section was supposed to contain. A preset that cannot be published
+   * is worse than no preset at all: it looks like the tool offering help and is the tool wasting
+   * their time.
+   */
+  it("never ships a preset whose required list is empty", () => {
+    for (const type of BLOCK_TYPES) {
+      const def = BLOCK_CATALOGUE[type]
+      for (const preset of def.presets) {
+        for (const field of def.fields) {
+          if (field.kind !== "list" || !field.required) continue
+          const value = preset.props[field.key]
+          expect(
+            Array.isArray(value) && value.length >= field.min,
+            `${type} preset "${preset.name}" leaves the required list "${field.key}" empty, so a block ` +
+              `added from it cannot be published`,
+          ).toBe(true)
+        }
+      }
+    }
+  })
+
+  /**
+   * ⚠ Every required field a preset CAN answer, it answers. The deliberate exception is `artwork`,
+   * which names a file that has to exist — no preset can invent one, so it stays the operator's one
+   * required act rather than being faked with a placeholder that would ship to shoppers.
+   */
+  it("pre-fills every required field except artwork, which only the operator can supply", () => {
+    for (const type of BLOCK_TYPES) {
+      const def = BLOCK_CATALOGUE[type]
+      for (const preset of def.presets) {
+        for (const field of def.fields) {
+          if (!field.required || field.kind === "artwork" || field.kind === "list") continue
+          expect(
+            preset.props[field.key],
+            `${type} preset "${preset.name}" leaves required field "${field.key}" unanswered`,
+          ).toBeDefined()
+        }
+      }
+    }
+  })
+
   it("gives every text field an enforceable maximum length", () => {
     const walk = (fields: readonly BlockField[]): void => {
       for (const f of fields) {

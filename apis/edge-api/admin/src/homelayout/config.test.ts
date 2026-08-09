@@ -47,7 +47,7 @@ function providerEnvKeys(): Set<string> {
 /** Every `process.env.X` this slice actually reads, discovered from source rather than listed here. */
 function envKeysReadBySource(): Set<string> {
   const keys = new Set<string>()
-  for (const file of ["revalidate.ts", "service.ts", "repository.ts", "authz.ts"]) {
+  for (const file of ["revalidate.ts", "service.ts", "repository.ts", "authz.ts", "preview.ts"]) {
     const src = readFileSync(resolve(here, file), "utf8")
     for (const m of src.matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)) {
       if (m[1]) keys.add(m[1])
@@ -92,6 +92,9 @@ describe("every home layout route is registered behind the back-office authorize
     { fn: "homeLayoutPublishV1", method: "POST", path: "/admin/v1/home-layout/publish" },
     { fn: "homeLayoutRevertV1", method: "POST", path: "/admin/v1/home-layout/revert" },
     { fn: "homeLayoutAuditV1", method: "GET", path: "/admin/v1/home-layout/audit" },
+    { fn: "homeLayoutPreviewV1", method: "POST", path: "/admin/v1/home-layout/preview" },
+    { fn: "homeLayoutArtworkPresignV1", method: "POST", path: "/admin/v1/home-layout/artwork/presign" },
+    { fn: "homeLayoutArtworkViewV1", method: "GET", path: "/admin/v1/home-layout/artwork" },
   ]
 
   for (const { fn, method, path } of expected) {

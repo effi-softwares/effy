@@ -323,3 +323,22 @@ variable "ses_sender_enabled" {
   type        = bool
   default     = false
 }
+
+# ── The storefront's contract (042) ─────────────────────────────────────────────────────────────
+
+variable "storefront_base_url" {
+  description = "Public origin of the customer storefront (no trailing slash). The back office posts cache invalidations here on publish, and 039's newsletter composes its confirm link from it."
+  type        = string
+
+  validation {
+    # ⚠ Refuses a placeholder rather than accepting one. A wrong outward-facing address that silently
+    # "works" is worse than a build that stops: publishes would report success while every shopper
+    # kept seeing the old page, and a newsletter confirm link would point somewhere nobody can reach.
+    condition     = can(regex("^https?://[^/]+$", var.storefront_base_url))
+    error_message = "storefront_base_url must be a full origin with no trailing slash, e.g. https://dev.effyshopping.com — set the real value in this env's .tfvars."
+  }
+}
+
+# ⚠ There is deliberately NO `revalidate_secret` variable. The bearer's VALUE is seeded by the
+# operator directly into Secrets Manager (see web.tf) — a Terraform variable would carry it into
+# state, and `dev.tfvars` is committed on the stated premise that nothing in it is secret.

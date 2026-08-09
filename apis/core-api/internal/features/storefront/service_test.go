@@ -30,10 +30,26 @@ type fakeReader struct {
 	layout      homeLayoutRow
 	layoutFound bool
 	layoutErr   error
+	// 042 FR-030 — which referenced promotions are live, and what the service asked about.
+	livePromos     []string
+	livePromoAsked []string
+	livePromoErr   error
+	// 042 US3 — the unpublished body, served only behind a verified preview token.
+	draft      homeLayoutRow
+	draftFound bool
 }
 
 func (f *fakeReader) PublishedLayout(_ context.Context) (homeLayoutRow, bool, error) {
 	return f.layout, f.layoutFound, f.layoutErr
+}
+
+func (f *fakeReader) DraftLayout(_ context.Context) (homeLayoutRow, bool, error) {
+	return f.draft, f.draftFound, nil
+}
+
+func (f *fakeReader) LivePromotionIDs(_ context.Context, ids []string) ([]string, error) {
+	f.livePromoAsked = ids
+	return f.livePromos, f.livePromoErr
 }
 
 func (f *fakeReader) NewestCards(_ context.Context, _ int) ([]cardRow, error) { return f.newest, nil }

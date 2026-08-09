@@ -184,3 +184,51 @@ func resolveBlocks(raw []rawBlock, railsByKey map[string]Rail) ([]Block, []Layou
 
 	return out, omitted
 }
+
+// promotionRefs collects every promotion id referenced by a block's props, at any depth.
+//
+// ⚠ WALKED GENERICALLY RATHER THAN PER BLOCK TYPE. `promoCodeId` appears on an offer TILE and on a
+// hero SLIDE — both one level inside a list — and a per-type reader would have to be extended every
+// time a block gains the field, with the failure being silent: an unwalked reference is simply never
+// checked for liveness, so an expired promotion stays advertised. Walking the JSON finds them all,
+// including in block types that do not exist yet.
+func promotionRefs(blocks []Block) []string {
+	seen := map[string]struct{}{}
+	var out []string
+
+	var walk func(v any)
+	walk = func(v any) {
+		switch t := v.(type) {
+		case map[string]any:
+			for k, child := range t {
+				if k == "promoCodeId" {
+					if id, ok := child.(string); ok && id != "" {
+						if _, dup := seen[id]; !dup {
+							seen[id] = struct{}{}
+							out = append(out, id)
+						}
+					}
+					continue
+				}
+				walk(child)
+			}
+		case []any:
+			for _, child := range t {
+				walk(child)
+			}
+		}
+	}
+
+	for _, b := range blocks {
+		if len(b.Props) == 0 {
+			continue
+		}
+		var props any
+		// A block whose props do not parse is skipped, not fatal — same rule as everywhere else here.
+		if err := json.Unmarshal(b.Props, &props); err != nil {
+			continue
+		}
+		walk(props)
+	}
+	return out
+}

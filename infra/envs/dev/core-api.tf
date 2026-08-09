@@ -77,6 +77,23 @@ module "core_api" {
     DB_PASSWORD           = "${module.db.master_secret_arn}:password::"
     STRIPE_SECRET_KEY     = data.aws_secretsmanager_secret.stripe_secret_key.arn
     STRIPE_WEBHOOK_SECRET = data.aws_secretsmanager_secret.stripe_webhook_secret.arn
+
+    # 042 US3 — verifies the preview tokens the back office mints, so an operator can see the DRAFT
+    # home page on the real storefront rather than in a second renderer that would eventually
+    # disagree with it.
+    #
+    # ⚠ THE SAME SECRET THE ADMIN SERVICE SIGNS WITH, and the same one the storefront presents for
+    # cache invalidation — deliberately, with domain separation doing the work a third secret would.
+    # Every preview signature is over `preview:v1:` + payload, so a token can never be replayed as a
+    # revalidation bearer or the reverse. The cost is recorded rather than hidden: one compromised
+    # secret yields both cache-flush and the ability to read unpublished merchandising. Neither is
+    # customer data, and a third operator-seeded secret across three services buys a separation this
+    # threat model does not need.
+    #
+    # ⚠ OPTIONAL in the app's config, unlike Stripe's. An environment without it simply has no
+    # preview — every token is refused and the storefront serves published content to everyone, which
+    # is the safe half. Making it required would take the whole hot path down over one screen.
+    PREVIEW_SECRET = aws_secretsmanager_secret.revalidate.arn
   }
 
   # Base ARNs the execution role may GetSecretValue on (no JSON-key selectors here).
@@ -84,6 +101,7 @@ module "core_api" {
     module.db.master_secret_arn,
     data.aws_secretsmanager_secret.stripe_secret_key.arn,
     data.aws_secretsmanager_secret.stripe_webhook_secret.arn,
+    aws_secretsmanager_secret.revalidate.arn,
   ]
 
   # Task role: presign product media.

@@ -708,6 +708,39 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  homeLayoutPreviewV1:
+    handler: src/functions/home-layout-preview-v1-post.handler
+    description: Mint a short-lived grant to view the draft home page — 042 US3
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/home-layout/preview
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  homeLayoutArtworkPresignV1:
+    handler: src/functions/home-layout-artwork-presign-v1-post.handler
+    description: Mint a presigned PUT for block artwork — bytes never pass through Lambda — 042 US2
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/home-layout/artwork/presign
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  homeLayoutArtworkViewV1:
+    handler: src/functions/home-layout-artwork-view-v1-get.handler
+    description: A presigned READ so the composer can show the operator their own artwork — 042 US2
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/home-layout/artwork
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   homeLayoutAuditV1:
     handler: src/functions/home-layout-audit-v1-get.handler
     description: Who changed the home page and when — the slice's only accountability control — 042 FR-015

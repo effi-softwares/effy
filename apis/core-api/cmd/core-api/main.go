@@ -140,7 +140,8 @@ func run() error {
 		metrics:  m,
 
 		storefront: storefront.NewService(storefront.NewRepository(pool), presign).
-			WithLayoutMetrics(storefrontLayoutMetrics),
+			WithLayoutMetrics(storefrontLayoutMetrics).
+			WithPreviewSecret(cfg.PreviewSecret),
 		cart: cartSvc,
 		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
