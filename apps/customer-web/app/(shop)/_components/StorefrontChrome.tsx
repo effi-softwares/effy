@@ -108,18 +108,34 @@ export function StorefrontChrome({
             <PrimaryNav />
           </Suspense>
 
-          {/* `ml-auto` rather than `justify-between`: the nav must sit BESIDE the mark, not spread away
-              from it, so the row reads left-to-right as identity → catalogue → actions. */}
-          <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {/* `flex-1` + `justify-end` rather than `justify-between`: the nav must sit BESIDE the mark,
+              not spread away from it, so the row reads left-to-right as identity → catalogue →
+              actions. Taking the remaining space (instead of `ml-auto`, which only pushes) is what
+              lets the search field below grow into whatever the nav and the actions leave over. */}
+          <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
             {/* FR-011: a persistent search entry. Compact here so it does not crowd the row; the
                 full-width field appears under the header on small screens.
                 ⚠ Wrapped in <Suspense> because HeaderSearch reads useSearchParams(), which under
                 cacheComponents is a dynamic read — outside a boundary it makes the whole route
                 blocking, and the build fails rather than letting that happen. The fallback is the
-                same control minus the value, so the shell still ships a usable box. */}
+                same control minus the value, so the shell still ships a usable box.
+
+                ⚠ FLUID, not a fixed width per breakpoint. It was `lg:w-60 xl:w-72`, and 240px could
+                not hold its own placeholder — the field read "Search groceries, brands anc" on a
+                laptop. Picking a bigger fixed number only moves the clipping to a different
+                viewport, because the space actually available here depends on the nav's width AND
+                on whether the account control says "Sign in" or the customer's name.
+
+                So it takes what is left: `flex-1` to grow, `max-w-sm` so it never becomes an
+                absurdly long bar on a wide screen, `min-w-0` so it is the thing that yields when the
+                row is tight — `PrimaryNav` is `shrink-0`, so the alternative to the field narrowing
+                is the nav wrapping, which is worse. The fallback MUST carry the same classes or the
+                box changes size when the real field streams in. */}
             {search && (
-              <Suspense fallback={<HeaderSearchFallback className="hidden lg:block lg:w-60 xl:w-72" />}>
-                <HeaderSearch className="hidden lg:block lg:w-60 xl:w-72" />
+              <Suspense
+                fallback={<HeaderSearchFallback className="hidden min-w-0 max-w-sm flex-1 lg:block" />}
+              >
+                <HeaderSearch className="hidden min-w-0 max-w-sm flex-1 lg:block" />
               </Suspense>
             )}
 

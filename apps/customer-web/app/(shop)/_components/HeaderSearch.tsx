@@ -14,6 +14,20 @@ import { useEffect, useState } from "react"
  * Submitting navigates to /search with the query as a parameter — refinements stay query params so
  * discovery keeps its crawl and cache policy (FR-017).
  */
+
+/**
+ * ⚠ SHORT ON PURPOSE, and shared by both renderers below so they cannot drift.
+ *
+ * The compact field in the header is the narrowest place this component appears, and the previous
+ * copy — "Search groceries, brands and more…" — was clipped mid-word there: the header read
+ * "Search groceries, brands anc". A truncated placeholder is worse than a terse one. It reads as a
+ * rendering fault rather than as copy, and the words it drops are precisely the ones that were doing
+ * the explaining, so the length bought nothing and cost the field its credibility.
+ *
+ * It is sized for the TIGHTER of the two placements. The full-width row on small screens has room
+ * for more, but a second string would be a second thing to keep true.
+ */
+const PLACEHOLDER = "Search products…"
 export function HeaderSearch({ className, size = "md" }: { className?: string; size?: "md" | "lg" }) {
   const router = useRouter()
   const params = useSearchParams()
@@ -45,7 +59,7 @@ export function HeaderSearch({ className, size = "md" }: { className?: string; s
           name="q"
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          placeholder="Search groceries, brands and more…"
+          placeholder={PLACEHOLDER}
           aria-label="Search products"
           className={`w-full rounded-full border bg-card pl-11 pr-4 ${size === "lg" ? "h-12 text-base" : "h-10 text-sm"}`}
         />
@@ -71,7 +85,7 @@ export function HeaderSearchFallback({ className, size = "md" }: { className?: s
         <input
           type="search"
           name="q"
-          placeholder="Search groceries, brands and more…"
+          placeholder={PLACEHOLDER}
           aria-label="Search products"
           className={`w-full rounded-full border bg-card pl-11 pr-4 ${size === "lg" ? "h-12 text-base" : "h-10 text-sm"}`}
         />

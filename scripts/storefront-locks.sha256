@@ -3,4 +3,4 @@ bc1f06131bd79e8e19ac703790b9453ac6b9b43333dbbe6a778adf796e7b00e7  apps/customer-
 c8a26ee4daba3c9771c1d0d226baa0a1ce8d6c09b5fde8f60afff426fbce1712  apps/customer-web/app/(shop)/_components/StorefrontFooter.tsx
 8b9863100f638030d166e4f3a9f0e419150b698df9ffaaf0c3a28e533f353a03  apps/customer-web/app/(shop)/_components/PrimaryNav.tsx
 2979d79e341fc0ee9b1b3c6d54c8c268d800a3d2bc8f51f33149c0d452b227df  apps/customer-web/app/(shop)/_components/MobileNav.tsx
-d4086abc2463176ed8a074810e27a578183c3a6803f545af16de2ab3f893a04c  apps/customer-web/app/(shop)/_components/HeaderSearch.tsx
+1f2670c00ae62c737975ce117fc9f47938c6f4e8f2046574a20d6dc48963c0b9  apps/customer-web/app/(shop)/_components/HeaderSearch.tsx

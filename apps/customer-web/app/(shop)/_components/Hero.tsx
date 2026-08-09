@@ -1,7 +1,5 @@
-import Image from "next/image"
-
 import { ActionLink, Display, onLightScrim } from "@/components/storefront/kit"
-import { heroImageUrl } from "@/lib/hero-asset"
+import { HERO_ROTATION_COUNT, heroImageUrls } from "@/lib/hero-asset"
 
 import { ValueStrip } from "./ValueStrip"
 
@@ -42,6 +40,30 @@ import { ValueStrip } from "./ValueStrip"
  * headline becomes unreadable with nothing failing — no test, no guard, no build error. The constraint
  * moved out of the code and into `public/hero/README.md`, where it is now written down.
  *
+ * ⚠ THAT COST GREW WITH THE ROTATION: the promise now has to hold for SIX artworks, not one, and each
+ * has a different coloured ground (olive, orange-red, peach, amber, mint, lilac). All six were measured
+ * before they were adopted — black type clears AA on every one, worst 5.82:1 — and the supporting line
+ * was moved from `text-black/75` to `/80` because at 75% it measured **4.47:1 on hero-2**, three
+ * hundredths under the 4.5:1 body-text minimum. Nothing would have reported that.
+ *
+ * ── The rotation ────────────────────────────────────────────────────────────────────────────────
+ *
+ * One artwork every ten seconds, one-minute loop, crossfaded — and NO JavaScript, because `/` has ~0.1 KB of
+ * guest budget left and a timer in a client component would fail the gate. All six images ship in the
+ * HTML and CSS decides which is on top; see `.fx-hero` in `app/globals.css` for why the handover is
+ * built the way it is (a naive crossfade dips to the page background every minute).
+ *
+ * ⚠ ONLY THE FIRST IMAGE IS FETCHED AT HIGH PRIORITY. It is the LCP element; the other five are
+ * marked `fetchpriority="low"` so they queue behind everything that affects first paint. They are
+ * still downloaded — 334 KB for the set, against 311 KB for the single JPEG this replaces — so the
+ * rotation is close to byte-neutral, but five of those images are speculative for a visitor who
+ * leaves inside a minute.
+ *
+ * ⚠ IT REFUSES TO ROTATE ON A PARTIAL SET. With fewer than `HERO_ROTATION_COUNT` artworks resolved,
+ * the first is rendered STILL rather than animated, because the keyframes divide the cycle into six
+ * fixed turns — a short set would rotate with dead frames where the missing images should be, which
+ * looks like a loading fault rather than like a missing file.
+ *
  * ── Absence ─────────────────────────────────────────────────────────────────────────────────────
  *
  * With no asset the band falls back to the page's own surface and TOKEN type — not black-on-white,
@@ -49,12 +71,15 @@ import { ValueStrip } from "./ValueStrip"
  * to fix them against. This is why the component branches on `hasArt` rather than just swapping a src.
  */
 export function Hero({
-  /** Test seam only. Production always uses the build-time resolved asset. */
-  imageSrc = heroImageUrl(),
+  /** Test seam only. Production always uses the build-time resolved assets. */
+  imageSrcs = heroImageUrls(),
 }: {
-  imageSrc?: string | null
+  imageSrcs?: readonly string[]
 } = {}) {
-  const hasArt = Boolean(imageSrc)
+  const hasArt = imageSrcs.length > 0
+  // A partial set is rendered still rather than rotated — see the note above.
+  const rotates = imageSrcs.length === HERO_ROTATION_COUNT
+  const slides = rotates ? imageSrcs : imageSrcs.slice(0, 1)
 
   return (
     <section>
@@ -64,20 +89,30 @@ export function Hero({
         }`}
       >
         {hasArt && (
-          <>
-            {/* ⚠ object-position walks left as the viewport narrows. The asset is 2.21:1; a phone
-                crops it to roughly square, and centring would put the headline on top of a basket of
-                broccoli. Anchoring left keeps the flat zone under the type at every width. */}
-            <Image
-              src={imageSrc!}
-              alt=""
-              fill
-              unoptimized
-              priority
-              sizes="100vw"
-              className="object-cover object-[18%_center] sm:object-[28%_center] lg:object-center"
-            />
-          </>
+          // ⚠ `fx-hero` styles ITS OWN CHILDREN, so this wrapper must contain nothing but slides.
+          <div className={rotates ? "fx-hero" : undefined}>
+            {slides.map((src, i) => (
+              /* ⚠ A plain <img>, not next/image. The images are already `unoptimized` (they are
+                 pre-encoded WebP committed to `public/`), so next/image contributed only positioning
+                 — while making `fetchpriority` awkward to set per slide, which is the one thing that
+                 actually matters when six images share one banner.
+
+                 ⚠ object-position walks left as the viewport narrows. The assets are 2:1; a phone
+                 crops to roughly square, and centring would put the headline on top of the produce.
+                 Anchoring left keeps the flat zone under the type at every width. */
+              <img
+                key={src}
+                src={src}
+                alt=""
+                style={{ "--fx-hero-i": i } as React.CSSProperties}
+                // The first is the LCP element and is fetched eagerly at high priority; the rest
+                // must not compete with it for bandwidth before first paint.
+                fetchPriority={i === 0 ? "high" : "low"}
+                decoding={i === 0 ? "sync" : "async"}
+                className="absolute inset-0 size-full object-cover object-[18%_center] sm:object-[28%_center] lg:object-center"
+              />
+            ))}
+          </div>
         )}
 
         <div className="absolute inset-0">
@@ -89,7 +124,11 @@ export function Hero({
 
               <p
                 className={`mt-4 max-w-md text-sm sm:mt-5 sm:text-base ${
-                  hasArt ? "text-black/75" : "text-muted-foreground"
+                  // ⚠ /80, NOT /75. Measured against the text zone of all six artworks: at 75% this
+                  // line is 4.47:1 on hero-2 — under the 4.5:1 body-text minimum by three
+                  // hundredths, on one ground out of six, with nothing to report it. /80 clears
+                  // every one (worst 4.82:1).
+                  hasArt ? "text-black/80" : "text-muted-foreground"
                 }`}
               >
                 Fresh groceries and everyday essentials from one brand. Browse without an account — we
