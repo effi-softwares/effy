@@ -241,9 +241,9 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**042-customer-web-cicd — Customer Storefront Continuous Deployment (dev).** 🚧 **Code-complete +
-machine-verified (module `terraform validate`/`fmt`, `amplify.yml` single-app invariant); operator
-applies + live walk + commit PENDING.** Gives `apps/customer-web` (Next 16 SSR, previously local-only)
+**042-customer-web-cicd — Customer Storefront Continuous Deployment (dev).** ✅ **DEPLOYED & LIVE at
+`https://dev.effyshopping.com`** (HTTPS, valid cert; auto-builds from the `dev` branch;
+Terraform-managed). Commit + formal SC walk pending. Gives `apps/customer-web` (Next 16 SSR, previously local-only)
 a **managed Git-driven pipeline**: a push/merge to the `dev` branch of `github.com/effi-softwares/effy`
 auto-builds **only** that one workspace (AWS Amplify Hosting **monorepo mode** — repo-root `amplify.yml`
 declaring exactly one application; the mechanical guarantee no other surface deploys) and serves it at
@@ -259,13 +259,19 @@ the reusable `infra/modules/amplify-web-app` module with prod values — no pipe
   operator SSM; **publishes `/effy/dev/web/site_url`** — closing 039's newsletter-confirm-link fallback.
   `platform = WEB_COMPUTE` (Next SSR); `.npmrc node-linker=hoisted` (Amplify pnpm/Turborepo req — ⚠
   changes install linking for the WHOLE monorepo, re-verify gate T003). Build runs the storefront's
-  own gates (`typecheck→test→size→build`) so a failure keeps the last good version live; Amplify build
-  FAILED → the existing alerts SNS topic.
-- **⚠ Implementation note**: Route53 records for the domain are **Amplify-managed** (not Terraform) —
-  apex ALIAS is not cleanly derivable from the association resource and this avoids the verification
-  deadlock; documented drift. **Highest-risk step is the apex cutover apply** (T021/T022), verified live.
-- **⚠ Open (operator)**: T003 (hoisted-linker re-verify), the stage-A/stage-B applies + full SC walk
-  (SC-001..SC-009, quickstart §5), `make edge-deploy SERVICE=customer`, and the commit. Carry-forwards:
+  own gates (`typecheck→test→build→size`; ⚠ `build` before `size` — size reads build output) so a
+  failure keeps the last good version live; Amplify build FAILED → the existing alerts SNS topic.
+- **⚠⚠ THE SSR SERVICE ROLE MUST EXIST AT `CreateApp` TIME.** "Unable to assume specified IAM Role"
+  is NOT about trust/permissions or Terraform-vs-console — Amplify only registers the role association
+  at create time. An app created without a role and then given one by a later apply fails every build
+  forever. **Recreate the app if the role must change; never bolt it on.** (Removing the `module` block
+  and applying once **destroyed the live app** — don't.)
+- **✅ The Terraform domain association WORKED**: Amplify auto-created + verified the in-account Route53
+  records (apex + `www`) and issued the ACM cert (`us-east-1`); no console step. `dev.effyshopping.com`
+  is live over HTTPS; the apex→gateway records were removed in the same apply with no resolution gap.
+- **⚠ Open (operator)**: **the commit** (infra changes; `amplify.yml`+`.npmrc` already on `dev`) and the
+  formal SC walk (SC-004 no-console-exposure, SC-005 failed-gate, SC-007 no-secret-in-bundle sweep;
+  the rest shown by the live deploy). T003 (hoisted-linker re-verify) still advisable. Carry-forwards:
   e2e in a separate CI, `REVALIDATE_SECRET`/`/api/revalidate` (a DIFFERENT unbuilt "home composer"
   feature — not this slice), PostHog init (039), per-PR previews. Spec/artifacts:
   [specs/042-customer-web-cicd/](specs/042-customer-web-cicd/); sign-off:

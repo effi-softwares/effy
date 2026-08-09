@@ -291,9 +291,28 @@ value is exactly what the constitution forbids, and an unused secret is dead con
   `api_subdomain` default is `edge-api`, not `api`) — corrected from the plan's shorthand.
 - **⚠ Service role added (WEB_COMPUTE requirement — found on first apply).** The first Amplify build
   failed at step 0 with "Unable to assume specified IAM Role": a Next.js SSR (`WEB_COMPUTE`) app
-  cannot build/run without an `iam_service_role_arn`. The module now creates an IAM role trusted by
-  `amplify.amazonaws.com` with CloudWatch Logs on `/aws/amplify/*` and sets it on the app. This was a
-  gap in the originally authored module.
+  needs an `iam_service_role_arn`. The module creates an IAM role trusted by `amplify.amazonaws.com`
+  with CloudWatch Logs on `/aws/amplify/*` and sets it on the app.
+- **⚠⚠ THE REAL ROOT CAUSE OF "Unable to assume specified IAM Role" — create-time vs update-time
+  (found live 2026-08-10, deployed successfully).** The error was NOT about Terraform-vs-console and
+  NOT about the trust/permissions (both were correct). It was that the service role must be present in
+  the **initial `CreateApp`** — Amplify registers the role association at create time only. The
+  original app (`d3…`) was created with **no** role, then had one **added by later applies**; Amplify
+  never registered it, so every subsequent build failed identically regardless of trust content or
+  even after the role was cleared. The moment Terraform created the app **fresh with the role in one
+  step** (after the old app was deleted), the build worked. **Lesson for prod: never add/replace the
+  service role on an existing Amplify app — recreate the app if the role must change.** (A mid-debug
+  detour to "console-managed app" was based on a wrong theory and was reverted — Terraform manages the
+  app end to end.)
+- **⚠ `size` ran before `build` in `amplify.yml` (bug, fixed).** The bundle-budget gate reads
+  `next build` output, so the order must be `typecheck → test → build → size`. Fixed and pushed to
+  `dev`.
+- **✅ The Terraform domain association WORKED (D6 uncertainty resolved positively).** Setting
+  `amplify_domain_enabled = true` created `aws_amplify_domain_association` for the apex + `www`, and
+  **Amplify auto-created and verified the Route53 records in the in-account zone** — no manual record
+  wiring, no console fallback needed. HTTPS (ACM cert in `us-east-1`) issued automatically.
+  `dev.effyshopping.com` is live and secure. The apex→gateway records were removed in the same apply
+  with no resolution gap (FR-011/SC-009 held).
 - **Build-failure alarm** (D9) implemented as an EventBridge rule (`aws.amplify` /
   `jobStatus = FAILED`) → the existing `aws_sns_topic.alerts`, plus an `aws_sns_topic_policy` that
   **preserves the default account-owner statement** and adds EventBridge + CloudWatch publish rights —

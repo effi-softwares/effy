@@ -1,7 +1,50 @@
 # Sign-off: 042-customer-web-cicd — Customer Storefront Continuous Deployment (dev)
 
-**Status**: 🚧 Code-complete + machine-verified (what can be, without AWS). Operator applies + live
-walk PENDING. Not deployed. Not committed. Date: 2026-08-09.
+**Status**: ✅ **DEPLOYED & LIVE in dev** — `https://dev.effyshopping.com` serves the storefront over
+a valid cert; the app auto-builds from the `dev` branch. Terraform-managed. Commit pending. Date:
+2026-08-10.
+
+## Live outcome
+
+- **App**: `effy-dev-customer-web` (Amplify, `WEB_COMPUTE`), **Terraform-managed** via
+  `infra/modules/amplify-web-app`, connected to `github.com/effi-softwares/effy` branch `dev`,
+  monorepo-scoped to `apps/customer-web`. Auto-builds on push.
+- **Domain**: `dev.effyshopping.com` (apex + `www`) live over **HTTPS** (ACM cert auto-issued in
+  `us-east-1`; Route53 records auto-managed by Amplify in-account). The apex→gateway alias records
+  (037) were removed in the cutover apply with no resolution gap.
+- **Config**: env vars wired from Terraform refs + SSM (Cognito ids, URLs, Stripe publishable key);
+  `/effy/dev/web/site_url` published; **edge-customer redeployed** so the newsletter confirm link uses
+  the live URL (039 item closed).
+
+## ⚠ Hard-won lessons (READ before prod bring-up)
+
+1. **AWS profile**: every hand-run `aws`/`terraform` command must use `AWS_PROFILE=ef` (account
+   `724289623101`). The default profile is a different account — SSM params written without the profile
+   went to the wrong account and the plan couldn't find them.
+2. **SSR service role must exist at `CreateApp` time.** "Unable to assume specified IAM Role" was NOT a
+   trust/permission or Terraform-vs-console problem — it was that the role was *added to an existing
+   app*. Amplify only registers the role association at create time. **Recreate the app if the service
+   role must change; never bolt it on.** Deleting + recreating the app fresh (with the role) fixed it.
+3. **`amplify.yml` gate order**: `build` must precede `size` (bundle-budget reads build output).
+4. **The Terraform domain association works** — Amplify auto-manages the in-account Route53 records;
+   no console step or manual record wiring was needed.
+5. **Never remove the `module` block and apply casually** — doing so destroyed the working app once.
+
+## Machine verification (Terraform)
+
+- ✅ `terraform validate` (module) · `terraform fmt -recursive infra/` clean.
+- ✅ `amplify.yml` single-application invariant.
+
+## Open (operator)
+
+- **T035 — commit** the slice's infra changes (module, `amplify-customer-web.tf`, `variables.tf`,
+  `dev.tfvars`, `edge-domain.tf` apex gating, docs). ⚠ `amplify.yml` + `.npmrc` are already on `dev`.
+- **SC walk** not yet formally done: SC-004 (a `back-office`-only push exposes no console — inherently
+  true, own app), SC-005 (failed-gate keeps last good version — Amplify-native), SC-007 (no secret in
+  the browser bundle sweep). SC-001/002/003/006/009 effectively demonstrated by the live deploy.
+- **Cleanup (optional)**: the now-unused `amplify_service_role_arn` / `stripe_publishable_key_ssm`
+  variables can be pruned; the `amplify-web-app` module still creates its own service role (works —
+  fresh create), so no change needed there.
 
 ## What was built (Claude-authored)
 
