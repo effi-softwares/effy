@@ -940,3 +940,15 @@ operator steps are listed in
 ⚠ **customer-mobile is untouched by this slice.** The ✅ marks in its column are 028/029 capabilities
 that already existed, not parity delivered here — recorded explicitly because 028's register carried
 an optimistic ✅ that turned out to be unbuilt.
+
+## §042 — Customer storefront continuous deployment
+
+The storefront moved from local-only to **continuously deployed**: a push/merge to the `dev` branch
+auto-builds and serves `apps/customer-web` at **`https://dev.effyshopping.com`** via AWS Amplify
+Hosting (monorepo mode, scoped to that one app root — no other surface deploys). The storefront takes
+over the zone apex from the API-gateway alias records (037), and now points at the deployed hot path
+(`core-api.dev.effyshopping.com`, 040) and cold path (`edge-api.dev.effyshopping.com`). Production
+reaches `effyshopping.com` by re-instantiating the same Terraform module with prod values (no
+pipeline rework). ⚠ **Machine-verified only** (module `terraform validate`, `fmt`, `amplify.yml`
+single-application invariant) — the live pipeline, apex cutover, and SC walk are operator-run; see
+[specs/042-customer-web-cicd/](../../specs/042-customer-web-cicd/).

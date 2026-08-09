@@ -128,3 +128,13 @@ custom_auth_lambda_arns = {
   verify              = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-verifyAuthChallenge"
   post_authentication = "arn:aws:lambda:ap-southeast-2:724289623101:function:effy-edge-auth-dev-postAuthentication"
 }
+
+# --- Customer storefront CI/CD (042-customer-web-cicd) ---
+
+# ⚠ TWO-STAGE custom-domain cutover (quickstart §2–3).
+# Leave false for STAGE A: creates the Amplify app + dev branch, first build serves on the Amplify
+# default hostname (…​.amplifyapp.com) — verify there. Then flip to true for STAGE B (cutover):
+# attaches dev.effyshopping.com (apex + www) and removes the old apex→gateway alias records in the
+# same apply. ⚠ Highest-risk apply; confirm `dig dev.effyshopping.com` + a valid cert afterwards, and
+# that api./core-api. are unchanged.
+amplify_domain_enabled = true

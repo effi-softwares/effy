@@ -72,7 +72,15 @@ resource "aws_route53_record" "api_aaaa" {
 # namespace with the operator's mail service and then accepting mail nobody reads — while replies
 # already route to hello@ (FR-022). If SC-004/SC-005 show Outlook still rejecting, the remedy is
 # pre-decided: add the mail-exchanger record. Do not guess at other causes first.
+# ⚠ RECONCILED BY 042 (customer-web CI/CD, FR-012). These apex aliases pointed dev.effyshopping.com
+# at the edge API gateway ONLY so the email sender domain resolves (above). The customer storefront
+# now takes over the apex: at the cutover apply (var.amplify_domain_enabled = true) these records are
+# REMOVED (count → 0) so Amplify can claim the apex, and Amplify's own apex record keeps the name
+# resolving — so the sender-domain-resolves property is preserved with NO window (FR-011/SC-009).
+# Before cutover (stage A) they remain, so the apex still resolves during first-build verification.
+# ⚠ The `api.`/`core-api.` subdomain records are UNAFFECTED — only the bare apex changes.
 resource "aws_route53_record" "zone_apex_a" {
+  count   = var.amplify_domain_enabled ? 0 : 1
   zone_id = module.dns.zone_id
   name    = module.dns.zone_name
   type    = "A"
@@ -85,6 +93,7 @@ resource "aws_route53_record" "zone_apex_a" {
 }
 
 resource "aws_route53_record" "zone_apex_aaaa" {
+  count   = var.amplify_domain_enabled ? 0 : 1
   zone_id = module.dns.zone_id
   name    = module.dns.zone_name
   type    = "AAAA"
