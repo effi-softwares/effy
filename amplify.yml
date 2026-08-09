@@ -28,13 +28,15 @@ applications:
             - pnpm install --frozen-lockfile
         build:
           commands:
-            # Gates BEFORE the build: a non-zero exit here fails the deploy and Amplify keeps the
-            # last good version live (FR-003/FR-005). Playwright e2e is intentionally NOT here — it
-            # needs browsers + a running server and belongs in a dedicated CI stage (research D8).
+            # Gates: a non-zero exit at any step fails the deploy and Amplify keeps the last good
+            # version live (FR-003/FR-005). Playwright e2e is intentionally NOT here — it needs
+            # browsers + a running server and belongs in a dedicated CI stage (research D8).
+            # ⚠ ORDER MATTERS: `size` reads `next build`'s prerendered output, so `build` MUST run
+            # before it. (typecheck/test need no build; size needs the build.)
             - pnpm --filter @effy/customer-web typecheck
             - pnpm --filter @effy/customer-web test
-            - pnpm --filter @effy/customer-web size
             - pnpm --filter @effy/customer-web build
+            - pnpm --filter @effy/customer-web size
       artifacts:
         # Next.js SSR (platform = WEB_COMPUTE) output.
         baseDirectory: apps/customer-web/.next
