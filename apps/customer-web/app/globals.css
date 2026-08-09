@@ -90,6 +90,58 @@
 }
 
 @layer components {
+  /* ── The information-bar ticker ────────────────────────────────────────────────────────────────
+   *
+   * Cycles the stacked lines in `InfoBar` with NO JavaScript. Every line is in the HTML at once and
+   * CSS decides which is visible, so the rotation runs inside the cached static shell — the guest
+   * path has ~0.1 KB of budget left and cannot afford a client component for a decorative strip.
+   *
+   * ONE animation, offset per line by `--fx-ticker-i`. Four lines × 5s = a 20s loop, so each line
+   * gets a quarter of it: visible for ~19s/20s of its own quarter, with a short fade and a half-em
+   * rise on the way in and out.
+   *
+   * ⚠ THE 25% IS THE LINE COUNT, and CSS cannot derive a keyframe percentage from a custom property.
+   * Changing how many lines `InfoBar` renders means changing 25% → 100/n here as well; `InfoBar` has
+   * a compile-time guard that fails typecheck if the two fall out of step, because the failure is
+   * otherwise silent — the strip just develops a stutter or a gap that looks like a rendering bug.
+   *
+   * ⚠ Base opacity is 0. Lines 2-4 have not started their animation during the first quarter of the
+   * loop, so without this they would all be painted on top of each other until their turn came.
+   */
+  .fx-ticker > * {
+    opacity: 0;
+    animation: fx-ticker-cycle 20s linear infinite;
+    animation-delay: calc(var(--fx-ticker-i) * 5s);
+  }
+
+  @keyframes fx-ticker-cycle {
+    0% {
+      opacity: 0;
+      transform: translateY(0.5em);
+    }
+    2%,
+    23% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    25%,
+    100% {
+      opacity: 0;
+      transform: translateY(-0.5em);
+    }
+  }
+
+  /* FR-025 — motion is decoration, never information. The strip stops entirely and shows the first
+   * line; the other three stay in the DOM, so a screen reader still reads all four. */
+  @media (prefers-reduced-motion: reduce) {
+    .fx-ticker > * {
+      animation: none;
+    }
+    .fx-ticker > :first-child {
+      opacity: 1;
+    }
+  }
+
   /* ── Native <dialog> transitions ───────────────────────────────────────────────────────────────
    *
    * The guest path forbids `radix-ui`, `sonner` and `vaul` (contracts/customer-ui.contract.md §1,

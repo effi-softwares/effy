@@ -1,11 +1,11 @@
 import { Suspense } from "react"
-import Link from "next/link"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
 import { pageSurface } from "@/components/storefront/kit"
 import { UserIsland, UserIslandSkeleton } from "@/components/header/UserIsland"
 
 import { HeaderSearch, HeaderSearchFallback } from "./HeaderSearch"
+import { InfoBar } from "./InfoBar"
 import { MiniCart } from "./MiniCart"
 import { MobileNavFallback } from "./MobileNav"
 import { MobileNavIsland } from "./MobileNavIsland"
@@ -96,20 +96,9 @@ export function StorefrontChrome({
           is worth one read, and keeping it on screen forever would spend permanent vertical space on
           something nobody re-reads.
 
-          Effy's copy states what is TRUE of the platform: delivery framing and the guest-first
-          promise. No invented phone number, no invented opening hours. */}
-      <div className="bg-foreground text-background">
-        <div className="container flex h-9 items-center justify-between gap-4 text-xs">
-          <span className="truncate">Fresh groceries and everyday essentials, delivered</span>
-          <span className="hidden shrink-0 sm:inline">
-            Browse without an account —{" "}
-            <Link href="/sign-in" className="underline underline-offset-2 hover:no-underline">
-              sign in
-            </Link>{" "}
-            only when you order
-          </span>
-        </div>
-      </div>
+          ⚠ Every line it cycles must be TRUE of this platform — see `InfoBar` for what that rules
+          out and why each line is defensible. */}
+      <InfoBar />
 
       <header className={`sticky top-0 z-40 border-b ${pageSurface}`}>
         <div className="container flex h-16 items-center gap-4 lg:gap-6">
