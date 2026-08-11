@@ -73,7 +73,7 @@ export function SavedList({ initial }: { initial: SavedItemDTO[] }) {
       <EmptyState
         title="Nothing saved yet"
         description="Tap the heart on anything you want to keep an eye on. We'll show you when the price drops or it comes back in stock. Saved before signing in? Those stay on this device until you sign in."
-        action={{ label: "Start shopping", href: "/browse" }}
+        action={{ label: "Start shopping", href: "/search" }}
       />
     )
   }

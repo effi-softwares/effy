@@ -159,7 +159,7 @@ async function PromotionDetail({ params }: { params: Promise<{ id: string }> }) 
       </p>
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <ActionLink href="/browse">Browse products</ActionLink>
+        <ActionLink href="/search">Browse products</ActionLink>
         <ActionLink href="/cart" variant="outline">
           Go to cart
         </ActionLink>

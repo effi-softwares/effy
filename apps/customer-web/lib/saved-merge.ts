@@ -4,7 +4,7 @@
  * The guest → account join, and its disclosure (033 FR-028/FR-032).
  *
  * ⚠ ITS OWN MODULE, FOR BYTES. `SaveControl` imports `saved-actions`, and `saved-actions` is
- * therefore on `/`, `/browse` and `/product/[id]`. When this code lived there it pushed `/` to
+ * therefore on `/` and `/product/[id]`. When this code lived there it pushed `/` to
  * exactly 174.0 KB against a 174 KB budget — zero headroom. Nothing here is needed by a tile: the
  * merge runs on the auth pages and the disclosure is read by the saved list, none of which are
  * budgeted routes. Keep it that way.

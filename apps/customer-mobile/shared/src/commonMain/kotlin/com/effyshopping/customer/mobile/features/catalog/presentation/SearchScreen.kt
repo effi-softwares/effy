@@ -116,7 +116,7 @@ fun SearchScreen(
      */
     title: String = "Search",
 ) {
-    val vm = viewModel { SearchViewModel(container.searchProducts) }
+    val vm = viewModel { SearchViewModel(container.searchProducts, container.getFacets) }
     val state by vm.state.collectAsState()
     // 033 FR-007/FR-020: ONE membership read for the whole grid, and one mirror every tile's heart
     // reads — never a boolean per tile, and never a request per product.
@@ -129,6 +129,8 @@ fun SearchScreen(
     // genuine UI state — it has no meaning to the search — so hoisting it into the ViewModel would
     // put a presentation concern in the domain-facing layer for nothing.
     var field by remember { mutableStateOf(TextFieldValue(state.query, TextRange(state.query.length))) }
+    // 043 US1: the advanced filter bottom sheet.
+    var showFilters by remember { mutableStateOf(false) }
 
     // ── FR-008 + FR-012a ────────────────────────────────────────────────────────────────────────
     //
@@ -212,19 +214,16 @@ fun SearchScreen(
                 horizontalArrangement = Arrangement.spacedBy(EffySpacing.s),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                // The advanced filter entry (043 US1) — opens the bottom sheet holding every facet.
+                // The badge shows how many filters are applied (FR-014).
                 FilterChip(
-                    selected = state.saleOnly,
-                    onClick = vm::toggleSale,
-                    label = { Text("On sale") },
+                    selected = state.activeFilterCount > 0,
+                    onClick = { showFilters = true },
+                    label = {
+                        Text(if (state.activeFilterCount > 0) "Filters · ${state.activeFilterCount}" else "Filters")
+                    },
                 )
-                if (state.categoryKey != null) {
-                    FilterChip(
-                        selected = true,
-                        onClick = { vm.applyCategory(null) },
-                        label = { Text(state.categoryKey!!) },
-                    )
-                }
-                if (state.saleOnly || state.categoryKey != null) {
+                if (state.activeFilterCount > 0) {
                     TextButton(onClick = vm::clearRefinements) { Text("Clear all") }
                 }
             }
@@ -302,6 +301,20 @@ fun SearchScreen(
                     )
                 }
             }
+        }
+
+        // 043 US1: the advanced filter bottom sheet.
+        if (showFilters) {
+            FilterSheet(
+                state = state,
+                onDismiss = { showFilters = false },
+                onToggleSale = vm::toggleSale,
+                onCategory = vm::applyCategory,
+                onToggleBrand = vm::toggleBrand,
+                onToggleAttribute = vm::toggleAttribute,
+                onApplyPrice = vm::applyPrice,
+                onClearAll = vm::clearRefinements,
+            )
         }
     }
 }

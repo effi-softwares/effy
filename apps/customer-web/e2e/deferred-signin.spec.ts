@@ -12,7 +12,7 @@ test.describe("the sign-in demand is deferred to the point of ordering", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
   test("a guest is NEVER prompted while browsing (FR-018 / SC-001)", async ({ page }) => {
-    for (const path of ["/", "/browse"]) {
+    for (const path of ["/", "/search"]) {
       await page.goto(path)
       expect(new URL(page.url()).pathname, `${path} redirected to sign-in`).toBe(path)
     }

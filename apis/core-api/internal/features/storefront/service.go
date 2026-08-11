@@ -173,6 +173,13 @@ type Reader interface {
 	SearchCards(ctx context.Context, p SearchParams) ([]searchRow, error)
 	// CountCards returns the total matching the same filters, ignoring ordering and pagination.
 	CountCards(ctx context.Context, p SearchParams) (int, error)
+	// Facet reads (043). Each count read takes a SearchParams with the target facet's own selection
+	// cleared by the service, so a facet's options are counted independent of that facet's selection.
+	FacetableAttributeDefs(ctx context.Context) ([]attrDefRow, error)
+	BrandCounts(ctx context.Context, p SearchParams) ([]optionCountRow, error)
+	CategoryCounts(ctx context.Context, p SearchParams) ([]optionCountRow, error)
+	AttributeCounts(ctx context.Context, p SearchParams, def attrDefRow) ([]optionCountRow, error)
+	FacetPriceBounds(ctx context.Context, p SearchParams) (*string, *string, error)
 }
 
 type Service struct {
@@ -443,7 +450,8 @@ type SearchQuery struct {
 	MinPrice    string
 	MaxPrice    string
 	SaleOnly    bool
-	Attributes  map[string]string
+	Brands      []string
+	Attributes  map[string][]string
 	Sort        ProductSort
 	Cursor      string
 	Limit       int
@@ -485,7 +493,7 @@ func (s *Service) Search(ctx context.Context, q SearchQuery) (SearchResult, erro
 
 	params := SearchParams{
 		Q: q.Q, CategoryKey: q.CategoryKey, MinPrice: q.MinPrice, MaxPrice: q.MaxPrice,
-		SaleOnly: q.SaleOnly, Attributes: q.Attributes, Sort: sort, Limit: limit + 1,
+		SaleOnly: q.SaleOnly, Brands: q.Brands, Attributes: q.Attributes, Sort: sort, Limit: limit + 1,
 	}
 	if q.Cursor != "" {
 		cur, ok := DecodeCursor(q.Cursor)

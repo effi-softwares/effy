@@ -3,6 +3,8 @@ package com.effyshopping.customer.mobile.features.catalog.data
 import com.effyshopping.customer.mobile.commerce.contract.BannerDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerTarget as BannerTargetDTO
 import com.effyshopping.customer.mobile.commerce.contract.BannerPlacement as BannerPlacementDTO
+import com.effyshopping.customer.mobile.commerce.contract.FacetDTO
+import com.effyshopping.customer.mobile.commerce.contract.FacetSetDTO
 import com.effyshopping.customer.mobile.commerce.contract.Kind
 import com.effyshopping.customer.mobile.commerce.contract.MediaDTO
 import com.effyshopping.customer.mobile.commerce.contract.ProductAttributeGroupDTO
@@ -19,8 +21,13 @@ import com.effyshopping.customer.mobile.features.catalog.domain.Banner
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerPlacement
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
+import com.effyshopping.customer.mobile.features.catalog.domain.Facet
+import com.effyshopping.customer.mobile.features.catalog.domain.FacetControl
+import com.effyshopping.customer.mobile.features.catalog.domain.FacetOption
+import com.effyshopping.customer.mobile.features.catalog.domain.FacetSet
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.Media
+import com.effyshopping.customer.mobile.features.catalog.domain.PriceBounds
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductBadge
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
@@ -143,4 +150,19 @@ internal fun StorefrontProductDetailDTO.toDomain(): ProductDetail = ProductDetai
     attributes = attributes.map { it.toDomain() },
     categoryPath = categoryPath,
     categoryKey = categoryKey,
+)
+
+// ── Facets (043) ─────────────────────────────────────────────────────────────────────────────────
+
+internal fun FacetSetDTO.toDomain(): FacetSet = FacetSet(
+    priceBounds = priceBounds?.let { PriceBounds(min = it.min, max = it.max) },
+    facets = facets.map { it.toDomain() },
+)
+
+internal fun FacetDTO.toDomain(): Facet = Facet(
+    key = key,
+    label = label,
+    // `type.value` is the wire string; fromWire is tolerant of an unknown control (→ MULTI_SELECT).
+    control = FacetControl.fromWire(type.value),
+    options = options.map { FacetOption(value = it.value, label = it.label, count = it.count.toInt()) },
 )

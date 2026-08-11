@@ -7,6 +7,7 @@ package storefront
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -316,4 +317,136 @@ ORDER BY c.display_order ASC, c.name ASC`)
 		return nil, fmt.Errorf("storefront: scan categories: %w", err)
 	}
 	return out, nil
+}
+
+// ── Facet counting (043) ─────────────────────────────────────────────────────────────────────────
+//
+// Every facet-count query reuses the SAME `filters()` builder the search page and total use, so the
+// counts describe exactly the set the grid will show. The caller passes a SearchParams copy with the
+// target facet's own selection cleared (own-selection exclusion), so ticking one brand still shows the
+// other brands' counts (FR-008/FR-010). GROUP BY only yields values that are present, so every option
+// returned has count ≥ 1 — zero-count omission (FR-009) is a property of the query, not a filter step.
+
+// attrDefRow is a facetable attribute definition (single/multi-select or boolean, active).
+type attrDefRow struct {
+	Key      string `db:"key"`
+	Name     string `db:"name"`
+	DataType string `db:"data_type"`
+}
+
+// optionCountRow is one facet option with its count in the current set.
+type optionCountRow struct {
+	Value string `db:"value"`
+	Label string `db:"label"`
+	Count int    `db:"n"`
+}
+
+func (r *Repository) collectOptionCounts(ctx context.Context, sql string, args []any) ([]optionCountRow, error) {
+	rows, err := r.db.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("storefront: query facet counts: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[optionCountRow])
+	if err != nil {
+		return nil, fmt.Errorf("storefront: scan facet counts: %w", err)
+	}
+	return out, nil
+}
+
+// FacetableAttributeDefs returns the active attributes that become characteristic facets (R5): the
+// bounded, option-backed data types. `number`/text attributes are not faceted in this slice.
+func (r *Repository) FacetableAttributeDefs(ctx context.Context) ([]attrDefRow, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT key, name, data_type
+FROM public.attribute_definition
+WHERE status = 'active'
+  AND data_type IN ('single_select', 'multi_select', 'boolean')
+ORDER BY name ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("storefront: query facetable attributes: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[attrDefRow])
+	if err != nil {
+		return nil, fmt.Errorf("storefront: scan facetable attributes: %w", err)
+	}
+	return out, nil
+}
+
+// BrandCounts groups the filtered active set by brand (brand's own selection already cleared by the
+// caller). Served by product_active_brand_idx.
+func (r *Repository) BrandCounts(ctx context.Context, p SearchParams) ([]optionCountRow, error) {
+	args := make([]any, 0, 8)
+	next := binder(&args)
+	var b strings.Builder
+	b.WriteString("SELECT p.brand AS value, p.brand AS label, count(*) AS n\nFROM public.product p")
+	r.filters(&b, p, next)
+	b.WriteString("\n  AND p.brand IS NOT NULL AND p.brand <> ''")
+	b.WriteString("\nGROUP BY p.brand\nORDER BY count(*) DESC, p.brand ASC")
+	return r.collectOptionCounts(ctx, b.String(), args)
+}
+
+// CategoryCounts groups the filtered active set by primary category (category's own selection cleared),
+// so a shopper can see sibling categories' counts and switch.
+func (r *Repository) CategoryCounts(ctx context.Context, p SearchParams) ([]optionCountRow, error) {
+	args := make([]any, 0, 8)
+	next := binder(&args)
+	var b strings.Builder
+	b.WriteString("SELECT c.key AS value, c.name AS label, count(p.id) AS n\nFROM public.product p" +
+		"\nJOIN public.category c ON c.id = p.primary_category_id AND c.status = 'active'")
+	r.filters(&b, p, next)
+	b.WriteString("\nGROUP BY c.key, c.name\nORDER BY count(p.id) DESC, c.name ASC")
+	return r.collectOptionCounts(ctx, b.String(), args)
+}
+
+// AttributeCounts groups the filtered active set by one attribute's values (that attribute's own
+// selection cleared). The value expression depends on the data type; the label prefers the authored
+// allowed-value label. count(DISTINCT p.id) is correct for multi_select, where one product unnests to
+// several option rows.
+func (r *Repository) AttributeCounts(ctx context.Context, p SearchParams, def attrDefRow) ([]optionCountRow, error) {
+	args := make([]any, 0, 8)
+	next := binder(&args)
+
+	valueExpr := "pav.value_text" // single_select
+	extraFrom := ""
+	switch def.DataType {
+	case "multi_select":
+		valueExpr = "v"
+		extraFrom = "\nCROSS JOIN LATERAL unnest(pav.value_options) AS v"
+	case "boolean":
+		valueExpr = "pav.value_boolean::text"
+	}
+
+	var b strings.Builder
+	kp := next(def.Key)
+	fmt.Fprintf(&b, `SELECT %s AS value, coalesce(aav.label, %s) AS label, count(DISTINCT p.id) AS n
+FROM public.product p
+JOIN public.product_attribute_value pav ON pav.product_id = p.id
+JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND ad.key = %s%s
+LEFT JOIN public.attribute_allowed_value aav ON aav.attribute_definition_id = ad.id AND aav.value = %s`,
+		valueExpr, valueExpr, kp, extraFrom, valueExpr)
+	r.filters(&b, p, next)
+	// ⚠ GROUP BY / ORDER BY the value EXPRESSION, never the `value` alias. `value` also appears inside
+	// coalesce(aav.label, <expr>) in the SELECT, and Postgres does not treat an output-alias in GROUP BY
+	// as covering that nested occurrence — it raises 42803 ("must appear in the GROUP BY clause"). This
+	// bug shipped because the facet tests faked the repository, so the SQL never ran against a real
+	// Postgres. Grouping by the expression makes the nested reference covered.
+	fmt.Fprintf(&b, "\n  AND %s IS NOT NULL\nGROUP BY %s, aav.label\nORDER BY count(DISTINCT p.id) DESC, %s ASC",
+		valueExpr, valueExpr, valueExpr)
+	return r.collectOptionCounts(ctx, b.String(), args)
+}
+
+// FacetPriceBounds returns min/max price over the filtered set (price's own bounds cleared by the
+// caller), driving the price control's range. Both are nil when the set is empty.
+func (r *Repository) FacetPriceBounds(ctx context.Context, p SearchParams) (*string, *string, error) {
+	args := make([]any, 0, 8)
+	next := binder(&args)
+	var b strings.Builder
+	b.WriteString("SELECT min(p.price_amount)::text AS lo, max(p.price_amount)::text AS hi\nFROM public.product p")
+	r.filters(&b, p, next)
+
+	var lo, hi *string
+	if err := r.db.QueryRow(ctx, b.String(), args...).Scan(&lo, &hi); err != nil {
+		return nil, nil, fmt.Errorf("storefront: query price bounds: %w", err)
+	}
+	return lo, hi, nil
 }

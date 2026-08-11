@@ -204,7 +204,7 @@ export function PromoHero({ banners }: { banners: BannerDTO[] }) {
                       actions. Fixed black/white rather than tokens: the artwork does not invert with
                       the appearance, so neither may they. */}
                   <div className="pointer-events-auto mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
-                    <ActionLink href="/browse" size="lg" className="bg-black text-white hover:bg-black/85">
+                    <ActionLink href="/search" size="lg" className="bg-black text-white hover:bg-black/85">
                       Shop now
                     </ActionLink>
                     <ActionLink

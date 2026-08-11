@@ -487,6 +487,74 @@ data class CreateCheckoutIntentResponse (
 )
 
 /**
+ * One refinable dimension: category, brand, an attribute-definition key, or `offers` (043).
+ */
+@Serializable
+data class FacetDTO (
+    /**
+     * `"category"`, `"brand"`, `"offers"`, or an attribute-definition key (e.g. `"diet"`).
+     */
+    val key: String,
+
+    val label: String,
+    val options: List<FacetOptionDTO>,
+    val type: FacetType
+)
+
+/**
+ * One selectable value within a facet, carrying its count in the CURRENT result set (043
+ * FR-008).
+ *
+ * ⚠ Zero-count options are OMITTED by the server (FR-009) — an option that leads nowhere is
+ * not an option. `count` is therefore always ≥ 1 as delivered.
+ */
+@Serializable
+data class FacetOptionDTO (
+    /**
+     * ⚠ `WireInt` (`@asType integer`) so the generated Kotlin reads an Int, not a Double — the
+     * 027 `1.0`-into-an-int lesson, applied to the count field.
+     */
+    val count: Long,
+
+    val label: String,
+    val value: String
+)
+
+/**
+ * The control a facet drives (043).
+ *
+ * `single_select` — pick one (category; reuses the `categoryKey` filter param).
+ * `multi_select`  — tick many, OR within (brand, single/multi-select + boolean attributes).
+ * `toggle`        — an on/off control (offers). Closed vocabulary: a client meeting an
+ * unknown value                  renders nothing for that facet (tolerant reader).
+ */
+@Serializable
+enum class FacetType(val value: String) {
+    @SerialName("multi_select") MultiSelect("multi_select"),
+    @SerialName("single_select") SingleSelect("single_select"),
+    @SerialName("toggle") Toggle("toggle");
+}
+
+/**
+ * The facets available for a query + applied filters, with per-option counts (043 US2).
+ *
+ * Computed on filter-change, NOT per page — the product grid pages independently via
+ * `ProductSearchResultDTO`. `priceBounds` drives the price control's range and is null when
+ * the set is empty.
+ */
+@Serializable
+data class FacetSetDTO (
+    val facets: List<FacetDTO>,
+    val priceBounds: PriceBounds? = null
+)
+
+@Serializable
+data class PriceBounds (
+    val max: String,
+    val min: String
+)
+
+/**
  * The composed Home payload (GET /v1/storefront/home).
  */
 @Serializable

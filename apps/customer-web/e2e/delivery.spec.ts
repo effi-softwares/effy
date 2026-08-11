@@ -144,6 +144,6 @@ test.describe("delivery location — browsing is never blocked (SC-012)", () => 
     await page.keyboard.press("Escape")
 
     // FR-014: whatever the verdict, the catalogue is still reachable.
-    await expect(page.getByRole("link", { name: /browse/i }).first()).toBeVisible()
+    await expect(page.getByRole("link", { name: /all products/i }).first()).toBeVisible()
   })
 })

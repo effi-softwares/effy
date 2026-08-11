@@ -7,11 +7,11 @@ import { MediaFrame, SectionShell } from "@/components/storefront/kit"
 /**
  * The category shortcut row (039 US2, FR-013/FR-014) — the reference's "Popular Categories" band.
  *
- * A horizontally-scrolling row of circular image tiles with the category name beneath, and a "View all
- * categories" action into `/browse`. Deliberately distinct from the two category presentations this app
- * already has (research R7): `CategoryChips` is a text-only filter row, and `CategoryTile` is the large
- * rectangular tile `/browse` uses. Neither is a circular shortcut strip, so this is a new composition
- * rather than a fork of either — and `CategoryTile` is left untouched for `/browse`.
+ * A horizontally-scrolling row of circular image tiles with the category name beneath, and a "Shop all
+ * products" action into `/search` (the storefront's single catalogue page — the dedicated `/browse`
+ * category index was retired by operator decision). Deliberately distinct from the other category
+ * presentation this app has (research R7): `CategoryChips` is a text-only filter row; this is a circular
+ * shortcut strip, a new composition rather than a fork of it.
  *
  * ⚠ ONLY STOCKED CATEGORIES. Filtering on `productCount > 0` is not tidiness — category filtering is
  * exact-match everywhere on this platform, so a shortcut to an empty category opens a listing with
@@ -51,7 +51,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
   const stocked = categories.filter((c) => c.productCount > 0).slice(0, CATEGORY_SHORTCUT_CAP)
 
   return (
-    <SectionShell title="Shop by category" href="/browse" linkLabel="View all categories">
+    <SectionShell title="Shop by category" href="/search" linkLabel="Shop all products">
       {stocked.length > 0 ? (
         <ul className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:gap-8 sm:px-0 [&::-webkit-scrollbar]:hidden">
           {stocked.map((category) => (

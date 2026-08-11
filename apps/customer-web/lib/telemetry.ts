@@ -50,8 +50,8 @@ import { posthogConfig } from "@/lib/config"
  *
  * It cost **67.9 KB gzipped on /product/[id]** — the single most important guest route on the
  * storefront — and it went unnoticed for two features because the bundle gate only watched `/`
- * and `/browse`. The product page was never measured. (Both were fixed together: the gate now
- * covers all five guest routes.)
+ * and the (since-retired) `/browse`. The product page was never measured. (Both were fixed
+ * together: the gate now covers every guest route.)
  *
  * The import is now DYNAMIC and lives inside `initAnalytics()`, which already returns early
  * unless consent has been granted. The SDK therefore enters the network only for a customer who

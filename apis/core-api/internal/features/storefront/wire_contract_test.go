@@ -135,3 +135,67 @@ func TestEmptyBannerListSerialisesAsAnArrayNotNull(t *testing.T) {
 
 // All three fields are required — no omitempty anywhere. A place missing its state is two different
 // places on the wire (FR-008).
+
+// ── FACETS (043) ─────────────────────────────────────────────────────────────────────────────────
+//
+// FACET_SET_WIRE_JSON is the exact payload GET /v1/storefront/facets produces for one category facet,
+// one brand facet, and one boolean attribute facet, with a price bounds block.
+// ⚠ KEEP IN SYNC with FacetWireContractTest.kt in customer-mobile (regenerated from FacetSetDTO).
+//
+// `count` is an INT and must stay one — the same field shape 027 lost days to. `priceBounds` money is a
+// STRING (platform convention). `type` is a closed vocabulary string. A silently renamed tag here would
+// leave a client unable to read any facet with every unit test green — which is what this pins.
+const FACET_SET_WIRE_JSON = `{"priceBounds":{"min":"1.50","max":"89.00"},"facets":[` +
+	`{"key":"category","label":"Category","type":"single_select","options":[{"value":"dairy","label":"Dairy","count":12}]},` +
+	`{"key":"brand","label":"Brand","type":"multi_select","options":[{"value":"Acme","label":"Acme","count":3}]},` +
+	`{"key":"organic","label":"Organic","type":"multi_select","options":[{"value":"true","label":"Yes","count":4}]}]}`
+
+func TestFacetSetSerialisesToTheContract(t *testing.T) {
+	got, err := json.Marshal(facetSetDTO{
+		PriceBounds: &priceBoundsDTO{Min: "1.50", Max: "89.00"},
+		Facets: []facetDTO{
+			{Key: "category", Label: "Category", Type: "single_select", Options: []facetOptionDTO{{Value: "dairy", Label: "Dairy", Count: 12}}},
+			{Key: "brand", Label: "Brand", Type: "multi_select", Options: []facetOptionDTO{{Value: "Acme", Label: "Acme", Count: 3}}},
+			{Key: "organic", Label: "Organic", Type: "multi_select", Options: []facetOptionDTO{{Value: "true", Label: "Yes", Count: 4}}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if string(got) != FACET_SET_WIRE_JSON {
+		t.Fatalf("facet wire payload drifted.\n got: %s\nwant: %s", got, FACET_SET_WIRE_JSON)
+	}
+	if strings.Contains(string(got), `"count":4.0`) {
+		t.Fatal(`count serialised as a float — the generated Kotlin must read it as an Int`)
+	}
+}
+
+func TestFacetSetRoundTrips(t *testing.T) {
+	var dto facetSetDTO
+	if err := json.Unmarshal([]byte(FACET_SET_WIRE_JSON), &dto); err != nil {
+		t.Fatalf("Go cannot read its own facet payload: %v", err)
+	}
+	if dto.PriceBounds == nil || dto.PriceBounds.Min != "1.50" {
+		t.Fatalf("price bounds did not survive: %+v", dto.PriceBounds)
+	}
+	if len(dto.Facets) != 3 || dto.Facets[0].Type != "single_select" {
+		t.Fatalf("facets did not survive: %+v", dto.Facets)
+	}
+	if dto.Facets[2].Options[0].Count != 4 {
+		t.Errorf("count did not survive as an int: %+v", dto.Facets[2].Options)
+	}
+}
+
+// The empty facets list must serialise as [], never null (a client mapping over it would crash).
+func TestEmptyFacetsSerialiseAsArrayNotNull(t *testing.T) {
+	got, err := json.Marshal(facetSetDTO{PriceBounds: nil, Facets: make([]facetDTO, 0)})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(got), `"facets":[]`) {
+		t.Fatalf("empty facets must serialise as [] not null: %s", got)
+	}
+	if !strings.Contains(string(got), `"priceBounds":null`) {
+		t.Fatalf("empty set must carry priceBounds:null: %s", got)
+	}
+}

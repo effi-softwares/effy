@@ -145,7 +145,7 @@ export function Hero({
                   artwork (no asset yet) the ordinary inverting tokens are correct and are used. */}
               <div className="mt-7 flex flex-wrap items-center gap-3 sm:mt-8">
                 <ActionLink
-                  href="/browse"
+                  href="/search"
                   size="lg"
                   className={hasArt ? "bg-black text-white hover:bg-black/85" : undefined}
                 >

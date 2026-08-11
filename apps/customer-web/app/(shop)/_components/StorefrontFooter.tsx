@@ -2,7 +2,6 @@ import Link from "next/link"
 import { Headphones, PiggyBank, UserRound } from "lucide-react"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
-import { AppearanceControl } from "@/components/theme/AppearanceControl"
 
 /**
  * The storefront's closing blocks, structured from the tech-store reference (025 UI refresh).
@@ -59,16 +58,10 @@ export function StorefrontFooter() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/browse"
+              href="/search"
               className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              Browse the store
-            </Link>
-            <Link
-              href="/search"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-background/30 px-6 text-sm font-medium hover:bg-background/10"
-            >
-              Search products
+              Shop all products
             </Link>
           </div>
         </div>
@@ -81,8 +74,7 @@ export function StorefrontFooter() {
             <FooterColumn
               title="Shop"
               links={[
-                { label: "Browse categories", href: "/browse" },
-                { label: "Search", href: "/search" },
+                { label: "All products", href: "/search" },
                 { label: "On sale", href: "/search?saleOnly=true" },
                 { label: "Your cart", href: "/cart" },
               ]}
@@ -119,14 +111,9 @@ export function StorefrontFooter() {
           {/* No `new Date()` — under cacheComponents a non-deterministic call during prerender is a
               dynamic API, and a live copyright year would cost this layout its static shell on every
               page to render a number nobody reads. */}
+          {/* No appearance switcher: the customer storefront is light-only (operator decision). */}
           <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-background/15 pt-6 text-sm">
             <span>© Effy</span>
-            {/* ⚠ The appearance switcher lives HERE, not in the header (operator asked for a header
-                carrying only cart and account).
-                It cannot simply be deleted: constitution Principle V requires dark mode to be
-                REQUIRED and USER-SELECTABLE on every surface. Moving it satisfies both — the header
-                is clean, and the control remains reachable from every page. */}
-            <AppearanceControl />
           </div>
         </div>
       </footer>

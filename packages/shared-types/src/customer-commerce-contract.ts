@@ -22,6 +22,10 @@ import type {
   StorefrontCategoryDTO,
   ProductSort,
   ProductSearchResultDTO,
+  FacetType,
+  FacetOptionDTO,
+  FacetDTO,
+  FacetSetDTO,
   PromotionDTO,
 } from "./storefront";
 import type {
@@ -86,6 +90,10 @@ export type {
   StorefrontCategoryDTO,
   ProductSort,
   ProductSearchResultDTO,
+  FacetType,
+  FacetOptionDTO,
+  FacetDTO,
+  FacetSetDTO,
   PromotionDTO,
   CartLineDTO,
   CartNoticeDTO,
@@ -144,6 +152,10 @@ export interface CustomerCommerceContract {
   category: StorefrontCategoryDTO;
   searchResult: ProductSearchResultDTO;
   productSort: ProductSort;
+  facetSet: FacetSetDTO;
+  facet: FacetDTO;
+  facetOption: FacetOptionDTO;
+  facetType: FacetType;
   promotion: PromotionDTO;
   cart: CartDTO;
   cartLine: CartLineDTO;

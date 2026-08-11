@@ -24,7 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: `${base}/browse`,
+      url: `${base}/search`,
       changeFrequency: "daily",
       priority: 0.8,
     },

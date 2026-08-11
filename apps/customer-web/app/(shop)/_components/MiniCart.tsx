@@ -75,11 +75,11 @@ export function MiniCart() {
             <p className="text-sm text-muted-foreground">Your cart is empty.</p>
             {/* FR-044: a route back into the catalogue, never a dead end. */}
             <Link
-              href="/browse"
+              href="/search"
               onClick={() => dialogRef.current?.close()}
               className="mt-4 inline-flex h-10 items-center rounded-full border px-5 text-sm hover:bg-accent"
             >
-              Browse categories
+              Browse products
             </Link>
           </div>
         ) : (
