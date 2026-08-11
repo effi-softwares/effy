@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 
+import { siteUrl } from "@/lib/config"
 import { endSession } from "@/lib/sign-out"
 
 /**
@@ -42,7 +43,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   // route would let an attacker bounce a customer to a lookalike sign-in page at the exact moment
   // they expect to be asked for credentials (FR-031). The storefront already refuses open redirects
   // elsewhere; the same law applies here.
-  const home = new URL("/", request.url)
+  //
+  // ⚠ The ORIGIN is `siteUrl()`, never `request.url`. Behind Amplify's SSR proxy `request.url`
+  // carries the INTERNAL request origin (localhost), so a request-relative redirect sent a deployed
+  // customer to `localhost:3000` on sign-out. The public origin is configuration (NEXT_PUBLIC_SITE_URL,
+  // published by 042 as `/effy/dev/web/site_url`) — the same anchor every canonical URL already uses.
+  const home = new URL("/", siteUrl())
   home.searchParams.set("reason", allDevices ? "signed-out-everywhere" : "signed-out")
 
   // 303: turn the POST into a GET so a reload of the destination does not re-submit the sign-out.
