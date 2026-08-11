@@ -8,6 +8,7 @@ func Register(v1 *gin.RouterGroup, h *Handler) {
 	g := v1.Group("/storefront")
 	g.GET("/home", h.getHome)
 	g.GET("/categories", h.getCategories)
+	g.GET("/facets", h.getFacets)            // 043: available facets + per-option counts for a query+filters
 	g.GET("/products", h.getProducts)        // ?ids= now; full search/browse form in US4
 	g.GET("/products/:id", h.getProductByID) // product detail (US2)
 	// The detail behind a promotional banner tap. Public like the rest — an advertised promotion is by

@@ -5,6 +5,7 @@ import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.features.catalog.domain.GetPromotion
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.Category
+import com.effyshopping.customer.mobile.features.catalog.domain.FacetSet
 import com.effyshopping.customer.mobile.features.catalog.domain.HomeContent
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductPage
@@ -46,7 +47,21 @@ private class FakePromoCatalog(private val result: () -> Promotion) : CatalogRep
         categoryKey: String?,
         sort: ProductSortOption,
         cursor: String?,
+        brands: List<String>,
+        attributes: Map<String, List<String>>,
+        minPrice: String?,
+        maxPrice: String?,
     ): ProductPage = throw NotImplementedError()
+
+    override suspend fun facets(
+        query: String,
+        saleOnly: Boolean,
+        categoryKey: String?,
+        brands: List<String>,
+        attributes: Map<String, List<String>>,
+        minPrice: String?,
+        maxPrice: String?,
+    ): FacetSet = throw NotImplementedError()
 
     override suspend fun promotion(id: String): Promotion {
         reads++

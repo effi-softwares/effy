@@ -713,6 +713,106 @@
       ],
       "type": "object"
     },
+    "FacetDTO": {
+      "additionalProperties": false,
+      "description": "One refinable dimension: category, brand, an attribute-definition key, or `offers` (043).",
+      "properties": {
+        "key": {
+          "description": "`\"category\"`, `\"brand\"`, `\"offers\"`, or an attribute-definition key (e.g. `\"diet\"`).",
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/definitions/FacetOptionDTO"
+          },
+          "type": "array"
+        },
+        "type": {
+          "$ref": "#/definitions/FacetType"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "type",
+        "options"
+      ],
+      "type": "object"
+    },
+    "FacetOptionDTO": {
+      "additionalProperties": false,
+      "description": "One selectable value within a facet, carrying its count in the CURRENT result set (043 FR-008).\n\n⚠ Zero-count options are OMITTED by the server (FR-009) — an option that leads nowhere is not an option. `count` is therefore always ≥ 1 as delivered.",
+      "properties": {
+        "count": {
+          "$ref": "#/definitions/WireInt",
+          "description": "⚠ `WireInt` (`@asType integer`) so the generated Kotlin reads an Int, not a Double — the 027 `1.0`-into-an-int lesson, applied to the count field."
+        },
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "value",
+        "label",
+        "count"
+      ],
+      "type": "object"
+    },
+    "FacetSetDTO": {
+      "additionalProperties": false,
+      "description": "The facets available for a query + applied filters, with per-option counts (043 US2).\n\nComputed on filter-change, NOT per page — the product grid pages independently via `ProductSearchResultDTO`. `priceBounds` drives the price control's range and is null when the set is empty.",
+      "properties": {
+        "facets": {
+          "items": {
+            "$ref": "#/definitions/FacetDTO"
+          },
+          "type": "array"
+        },
+        "priceBounds": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "max": {
+                  "type": "string"
+                },
+                "min": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "min",
+                "max"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "priceBounds",
+        "facets"
+      ],
+      "type": "object"
+    },
+    "FacetType": {
+      "description": "The control a facet drives (043).\n\n`single_select` — pick one (category; reuses the `categoryKey` filter param). `multi_select`  — tick many, OR within (brand, single/multi-select + boolean attributes). `toggle`        — an on/off control (offers). Closed vocabulary: a client meeting an unknown value                  renders nothing for that facet (tolerant reader).",
+      "enum": [
+        "single_select",
+        "multi_select",
+        "toggle"
+      ],
+      "type": "string"
+    },
     "MediaDTO": {
       "additionalProperties": false,
       "description": "A product image (presigned GET URL + alt text).",
@@ -1841,6 +1941,18 @@
     "createCheckoutIntentResponse": {
       "$ref": "#/definitions/CreateCheckoutIntentResponse"
     },
+    "facet": {
+      "$ref": "#/definitions/FacetDTO"
+    },
+    "facetOption": {
+      "$ref": "#/definitions/FacetOptionDTO"
+    },
+    "facetSet": {
+      "$ref": "#/definitions/FacetSetDTO"
+    },
+    "facetType": {
+      "$ref": "#/definitions/FacetType"
+    },
     "home": {
       "$ref": "#/definitions/StorefrontHomeDTO"
     },
@@ -1931,6 +2043,10 @@
     "category",
     "searchResult",
     "productSort",
+    "facetSet",
+    "facet",
+    "facetOption",
+    "facetType",
     "promotion",
     "cart",
     "cartLine",

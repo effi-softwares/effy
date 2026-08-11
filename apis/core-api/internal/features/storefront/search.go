@@ -20,8 +20,12 @@ type SearchParams struct {
 	MinPrice    string
 	MaxPrice    string
 	SaleOnly    bool
-	Attributes  map[string]string
-	Sort        ProductSort
+	// Brands selected in the brand facet — OR within (043 FR-003). Empty means "any brand".
+	Brands []string
+	// Attributes keyed by attribute-definition key → selected value(s). OR within a key, AND across
+	// keys (043 FR-003).
+	Attributes map[string][]string
+	Sort       ProductSort
 	// Cursor is the decoded keyset position, or nil for the first page. Its Sort has already been
 	// checked against this query's Sort by the service — the repository trusts that.
 	Cursor *Cursor
@@ -100,15 +104,27 @@ func (r *Repository) filters(b *strings.Builder, p SearchParams, next func(any) 
 	if p.SaleOnly {
 		b.WriteString("\n  AND p.compare_at_amount IS NOT NULL AND p.compare_at_amount > p.price_amount")
 	}
-	for key, val := range p.Attributes {
+	if len(p.Brands) > 0 {
+		b.WriteString("\n  AND p.brand = ANY(" + next(p.Brands) + ")")
+	}
+	// Iterating a map is unordered, so the generated SQL is not byte-stable across calls — harmless
+	// here (each build is self-contained and its binds match its text), and the count/page share this
+	// same builder so they cannot disagree regardless of order.
+	for key, vals := range p.Attributes {
+		if len(vals) == 0 {
+			continue
+		}
 		kp := next(key)
-		vp := next(val)
+		vp := next(vals) // one text[] bind, reused three times below
+		// value_text covers single_select; value_options (overlap) covers multi_select;
+		// value_boolean::text covers boolean facets ('true'/'false'). One predicate, all three types.
 		b.WriteString(fmt.Sprintf(`
   AND EXISTS (
       SELECT 1 FROM public.product_attribute_value pav
       JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
       WHERE pav.product_id = p.id AND ad.key = %s
-        AND (pav.value_text = %s OR %s = ANY(pav.value_options)))`, kp, vp, vp))
+        AND (pav.value_text = ANY(%s) OR pav.value_options && %s OR pav.value_boolean::text = ANY(%s)))`,
+			kp, vp, vp, vp))
 	}
 }
 
