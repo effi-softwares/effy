@@ -12,7 +12,7 @@
  */
 export const ACCOUNT_LINKS = [
   { label: "Your account", href: "/account", testId: "menu-account" },
-  { label: "Your addresses", href: "/addresses", testId: "menu-addresses" },
+  { label: "Your addresses", href: "/account?tab=addresses", testId: "menu-addresses" },
   // 033 FR-055: a storefront entry point that does not require scrolling to the footer.
   { label: "Saved items", href: "/saved", testId: "menu-saved" },
 ] as const

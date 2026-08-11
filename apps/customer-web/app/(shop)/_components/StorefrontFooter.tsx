@@ -84,7 +84,7 @@ export function StorefrontFooter() {
               links={[
                 { label: "Account", href: "/account" },
                 { label: "Orders", href: "/orders" },
-                { label: "Addresses", href: "/addresses" },
+                { label: "Addresses", href: "/account?tab=addresses" },
                 { label: "Saved items", href: "/saved" },
               ]}
             />
