@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { Avatar } from "@/components/Avatar"
+import { AccountMenuAutoClose } from "@/components/header/AccountMenuAutoClose"
 import { ACCOUNT_LINKS } from "@/components/header/account-links"
 
 /**
@@ -40,6 +41,9 @@ export function AccountMenu({
 
   return (
     <details className="group relative" data-testid="account-menu">
+      {/* Restores dismiss-on-outside-click / Escape, which native <details> does not do on its own.
+          A signed-in-only client component, so the guest bundle is untouched. */}
+      <AccountMenuAutoClose />
       <summary
         aria-label={name}
         data-testid="account-menu-trigger"
