@@ -952,3 +952,44 @@ reaches `effyshopping.com` by re-instantiating the same Terraform module with pr
 pipeline rework). ⚠ **Machine-verified only** (module `terraform validate`, `fmt`, `amplify.yml`
 single-application invariant) — the live pipeline, apex cutover, and SC walk are operator-run; see
 [specs/042-customer-web-cicd/](../../specs/042-customer-web-cicd/).
+
+## §043 — Customer Advanced Search Filters
+
+Turns `/search` from a price-and-sale-only refinement into **faceted filtering** on both surfaces,
+over the catalogue data the platform already serves (no new catalogue capability, one index migration,
+one new hot-path read). Facet options carry live **result counts**; zero-result options are suppressed
+(no offered option leads to an empty page). Per-device presentation: a persistent **side panel** on
+large web / an inline **sheet** below `lg`, and a Compose **bottom sheet** on mobile.
+
+| # | Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- | --- |
+| 043.1 | **Category** facet (single-select) with counts | ✅ | 🚧 | reuses the existing `categoryKey` filter param |
+| 043.2 | **Brand** facet (multi-select, OR within) with counts | ✅ | 🚧 | first-class `product.brand` |
+| 043.3 | **Product characteristics** — every active single/multi-select + boolean attribute, catalogue-driven | ✅ | 🚧 | dev: dietary_labels, allergens, spice_level, storage; boolean → Yes/No |
+| 043.4 | **Price** band (min/max) with inverted-range correction | ✅ | 🚧 | FR-004; placeholder hints from the set's price bounds |
+| 043.5 | **On-sale** toggle | ✅ | 🚧 | fixed control, not a server facet |
+| 043.6 | **Per-option counts**, recomputed on every filter change | ✅ | 🚧 | own-selection excluded for multi-selects (FR-008/FR-010) |
+| 043.7 | **Zero-result options hidden**; no offered option is a dead end | ✅ | ✅ | server-enforced (`toFacetOptions` drops count≤0) + container test |
+| 043.8 | **"Show more"** progressive disclosure for large facets | ✅ | 🚧 | FR-011 |
+| 043.9 | **Removable chips** per applied filter + "Clear all" | ✅ | 🚧 | web done; mobile chip row is T028 (unbuilt) |
+| 043.10 | Applied-filter **count badge** on the panel trigger | ✅ | 🚧 | FR-014 |
+| 043.11 | Web: filter set **encoded in the URL** — shareable, back/forward, opens at page 1 | ✅ | ➖ | FR-015; mobile has no URL router |
+| 043.12 | Mobile: filter set **persists across a product round-trip** | ➖ | 🚧 | FR-016; ViewModel-held, needs device walk |
+| 043.13 | **Multi-value** search (OR within / AND across) on `/products` | ✅ | 🚧 | shared contract; Go↔Kotlin wire-contract pinned |
+| 043.14 | Desktop filter column **scrolls independently** of the results | ✅ | ➖ | fixed-height sticky column, heading pinned |
+| 043.15 | Rapid changes **coalesce to one refresh**; paging never recomputes facets | ✅ | 🚧 | FR-025; 250 ms debounce + abort-in-flight |
+
+Legend: ✅ built + machine-verified · 🚧 **code written, NOT compiled/walked** (mobile has never been
+through Gradle this slice) · ➖ n/a for that surface.
+
+**Excluded, with reason** (recorded in the spec): customer **rating/stars** (no review data),
+**seller/store** (single-brand, hidden fulfilment), **availability-at-address** (delivery zones were
+withdrawn — every address is deliverable, search already shows only purchasable products, so the facet
+would filter nothing).
+
+⚠ **Backend + web are DEPLOYED and LIVE on dev** (`/facets` and multi-value `/products` return `200`
+with counts at `core-api.dev.effyshopping.com`; the storefront filters at `dev.effyshopping.com`).
+⚠ **customer-mobile is machine-unverified** — the Kotlin (domain, data, `FilterSheet`, ViewModel) is
+written and `cm-guard`-clean, but has **never been compiled** (`:shared:testAndroidHostTest`,
+`iosSimulatorArm64Test`, `assembleDebug`) or seen on a device. See
+[specs/043-customer-search-filters/SIGNOFF.md](../../specs/043-customer-search-filters/SIGNOFF.md).
