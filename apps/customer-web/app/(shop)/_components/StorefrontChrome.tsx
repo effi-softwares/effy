@@ -98,7 +98,8 @@ export function StorefrontChrome({
 
           ⚠ Every line it cycles must be TRUE of this platform — see `InfoBar` for what that rules
           out and why each line is defensible. */}
-      <InfoBar />
+          {/* Temporarily removed the info bar because it was empty and the design team is rethinking its content. */}
+          {/* <InfoBar /> */}
 
       <header className={`sticky top-0 z-40 border-b ${pageSurface}`}>
         <div className="container flex h-16 items-center gap-4 lg:gap-6">
