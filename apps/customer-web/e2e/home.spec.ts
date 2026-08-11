@@ -40,7 +40,7 @@ test.describe("hero is in the served page, not gated on the catalogue (US1, FR-0
     const html = await res.text()
 
     expect(html).toContain("Everything you need, delivered")
-    expect(html).toContain('href="/browse"')
+    expect(html).toContain('href="/search"')
     expect(html).toContain('href="/search?saleOnly=true"')
   })
 
@@ -131,11 +131,11 @@ test.describe("category shortcuts (US2, SC-002)", () => {
     await expect(page.locator("h1")).toHaveCount(1)
   })
 
-  test("one more tap reaches the full category set", async ({ page }) => {
+  test("one more tap reaches the full product set", async ({ page }) => {
     test.skip(!(await categoryStripReady(page)), "no stocked categories in this environment")
 
-    await page.getByRole("link", { name: /view all categories/i }).click()
-    await page.waitForURL(/\/browse$/, { timeout: 30_000 })
+    await page.getByRole("link", { name: /shop all products/i }).click()
+    await page.waitForURL(/\/search$/, { timeout: 30_000 })
   })
 
   /**

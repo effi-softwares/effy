@@ -38,7 +38,7 @@ test.describe("keyboard and assistive technology (SC-009)", () => {
   })
 
   test("the mini-cart opens from the chrome without navigating away", async ({ page }) => {
-    await page.goto("/browse")
+    await page.goto("/search")
     const before = page.url()
 
     await page.getByRole("button", { name: /^Cart/i }).click()

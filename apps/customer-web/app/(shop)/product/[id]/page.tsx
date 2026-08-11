@@ -94,8 +94,8 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
         <span aria-hidden="true" className="text-muted-foreground">
           ›
         </span>
-        <Link href="/browse" className="text-muted-foreground hover:text-foreground">
-          Browse
+        <Link href="/search" className="text-muted-foreground hover:text-foreground">
+          All products
         </Link>
         {product.categoryPath.map((name, i) => (
           <span key={i} className="flex items-center gap-2">

@@ -115,7 +115,8 @@ const GUEST_LIMIT = 174 * KB
  *  five guest routes is a budget with three blind spots. */
 const GUEST_PAGES = [
   { route: "/", html: ".next/server/app/index.html" },
-  { route: "/browse", html: ".next/server/app/browse.html" },
+  // The standalone /browse category index was retired (operator decision) — the storefront now has
+  // ONE catalogue page, /search ("All products"), which category tiles funnel into via ?category=.
   { route: "/search", html: ".next/server/app/search.html" },
   { route: "/product/[id]", html: ".next/server/app/product/[id].html" },
   { route: "/cart", html: ".next/server/app/cart.html" },

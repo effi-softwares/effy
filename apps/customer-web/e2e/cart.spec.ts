@@ -21,9 +21,9 @@ import { expect, test } from "@playwright/test"
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
-/** Put the first product on /browse into the cart and return to the cart page. */
+/** Put the first product on /search into the cart and return to the cart page. */
 async function addFirstProduct(page: import("@playwright/test").Page): Promise<void> {
-  await page.goto("/browse")
+  await page.goto("/search")
   const add = page.getByRole("button", { name: /add to cart/i }).first()
   await add.click()
   await page.goto("/cart")

@@ -309,7 +309,7 @@ export function SearchExperience() {
                   label: "Clear all filters",
                   onClick: () => setParam({ category: null, saleOnly: null, minPrice: null, maxPrice: null }),
                 }
-              : { label: "Browse categories", href: "/browse" }
+              : { label: "Browse categories", href: "/" }
           }
         />
       ) : (

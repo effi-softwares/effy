@@ -58,16 +58,10 @@ export function StorefrontFooter() {
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              href="/browse"
+              href="/search"
               className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
             >
-              Browse the store
-            </Link>
-            <Link
-              href="/search"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-background/30 px-6 text-sm font-medium hover:bg-background/10"
-            >
-              Search products
+              Shop all products
             </Link>
           </div>
         </div>
@@ -80,8 +74,7 @@ export function StorefrontFooter() {
             <FooterColumn
               title="Shop"
               links={[
-                { label: "Browse categories", href: "/browse" },
-                { label: "Search", href: "/search" },
+                { label: "All products", href: "/search" },
                 { label: "On sale", href: "/search?saleOnly=true" },
                 { label: "Your cart", href: "/cart" },
               ]}

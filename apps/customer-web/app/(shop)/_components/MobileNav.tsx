@@ -51,7 +51,6 @@ import { cn } from "@/lib/utils"
 
 const LINKS = [
   { label: "Home", href: "/" },
-  { label: "Browse", href: "/browse" },
   { label: "All products", href: "/search" },
   { label: "On sale", href: "/search?saleOnly=true" },
 ] as const

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
  *
  * ⚠ `shrink-0` + `whitespace-nowrap` are load-bearing, not decoration. It shares one flex row with a
  * search field whose neighbour — the account island — is WIDER when signed in ("Hi, Janith" + menu)
- * than when a guest sees a "Sign in" button. Without these the four links are what gives way at the
+ * than when a guest sees a "Sign in" button. Without these the links are what gives way at the
  * tightest desktop width, and a nav that wraps onto a second line is the failure the merge exists to
  * avoid. The search field shrinks instead, which costs nothing but visible placeholder text.
  *
@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils"
 
 const LINKS = [
   { label: "Home", href: "/" },
-  { label: "Browse", href: "/browse" },
   { label: "All products", href: "/search" },
   { label: "On sale", href: "/search?saleOnly=true" },
 ] as const
@@ -50,8 +49,8 @@ export function PrimaryNav({ className }: { className?: string }) {
         return (
           <span key={link.href} className="flex items-center">
             {i > 0 && (
-              // The reference's pipe divider. Decorative — a screen reader should hear four links,
-              // not four links and three vertical bars.
+              // The reference's pipe divider. Decorative — a screen reader should hear the links,
+              // not the links and the vertical bars between them.
               <span aria-hidden="true" className="mx-3 h-4 w-px bg-border lg:mx-4" />
             )}
             <Link

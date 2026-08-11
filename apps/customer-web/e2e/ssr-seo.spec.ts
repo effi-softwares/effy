@@ -12,7 +12,7 @@ import { expect, test } from "@playwright/test"
  * a browser.
  */
 
-const PUBLIC_PAGES = ["/", "/browse"] as const
+const PUBLIC_PAGES = ["/", "/search"] as const
 
 test.describe("public pages are server-rendered (SC-004)", () => {
   for (const path of PUBLIC_PAGES) {
@@ -49,11 +49,6 @@ test.describe("public pages are server-rendered (SC-004)", () => {
     expect(html).toContain("Groceries, delivered")
   })
 
-  test("browse page content is genuinely present", async ({ request }) => {
-    const html = await (await request.get("/browse")).text()
-    expect(html).toContain("Browse the store")
-  })
-
   test("structured data is emitted as JSON-LD", async ({ request }) => {
     const html = await (await request.get("/")).text()
     expect(html).toContain('type="application/ld+json"')
@@ -78,7 +73,7 @@ test.describe("crawl directives (FR-004)", () => {
     const body = await (await request.get("/sitemap.xml")).text()
 
     expect(body).toContain("<urlset")
-    expect(body).toContain("/browse")
+    expect(body).toContain("/search")
 
     // Listing a page in the sitemap that robots.txt disallows is a contradiction.
     for (const path of ["/account", "/checkout", "/sign-in"]) {
@@ -107,7 +102,7 @@ test.describe("crawl directives (FR-004)", () => {
 test.describe("no cloaking (FR-008)", () => {
   const CONTENT_MARKERS: Record<(typeof PUBLIC_PAGES)[number], string[]> = {
     "/": ["Groceries, delivered.", "Why Effy", "Start browsing", "Sign in"],
-    "/browse": ["Browse the store", "guest", "Sign in"],
+    "/search": ["All products", "Sign in"],
   }
 
   for (const path of PUBLIC_PAGES) {
