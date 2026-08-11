@@ -67,6 +67,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* General Sans Regular (400) reads thin at body sizes. Bump the DEFAULT body weight to Medium
+     * (500) — one of the three self-hosted faces — so unmarked copy sits a notch heavier. Headings
+     * (font-semibold → 600) and anything already tagged `font-medium` are unaffected; this only
+     * shifts text that carried no explicit weight. Sample change scoped to customer-web. */
+    font-weight: 500;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
