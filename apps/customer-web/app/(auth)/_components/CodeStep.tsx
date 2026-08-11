@@ -7,7 +7,7 @@ import { OTP_LENGTH, OtpInput } from "@effy/design-system/ui"
 import { capture } from "@/lib/telemetry"
 
 import { useCodeResend } from "../_lib/use-code-resend"
-import { ErrorNote, StepShell, Submit, TextAction } from "./AuthKit"
+import { ErrorNote, InlineAction, StepShell, Submit } from "./AuthKit"
 
 /**
  * What the platform told us about a submitted code.
@@ -27,6 +27,8 @@ import { ErrorNote, StepShell, Submit, TextAction } from "./AuthKit"
  */
 /** The code form’s id — lets the bottom-anchored submit button live outside the <form>. */
 const FORM_ID = "code-step-form"
+/** The exhausted step's restart form — the action is bottom-anchored and so lives outside it. */
+const RESTART_FORM_ID = "code-restart-form"
 
 export type CodeOutcome = "accepted" | "rejected" | "exhausted" | "stale"
 
@@ -40,8 +42,19 @@ export function CodeStep({
   onBack,
   flow,
   distinguishableRefusals = false,
+  parentError = null,
   children,
 }: {
+  /**
+   * A message owned by the surrounding journey — a network failure, a stale session.
+   *
+   * ⚠ 044 FR-017 — IT IS PASSED IN RATHER THAN RENDERED OUTSIDE. `SignInForm`, `SignUpForm` and
+   * `ResetPasswordForm` each used to render their own `<ErrorNote>` ABOVE `<CodeStep>`, which put it
+   * outside the step shell entirely — above the back control, detached from the layout — while the
+   * step rendered a second one inside. Two regions, both `role="alert"`, both able to be true at
+   * once, both announced (defect D-05).
+   */
+  parentError?: string | null
   /** The address the code went to — masked by Cognito where it gives us a mask (FR-006). */
   destination: string
   submitLabel: string
@@ -68,6 +81,16 @@ export function CodeStep({
   const [pending, setPending] = React.useState(false)
   const [resendNote, setResendNote] = React.useState<string | null>(null)
   const [attempts, setAttempts] = React.useState(0)
+  /**
+   * What is still missing, said only once the shopper has asked for the action (044 FR-020).
+   *
+   * ⚠ NOT AN ERROR, and deliberately not in the error region. "You've typed four of six digits" is
+   * information about an unfinished task, not a refusal — dressing it in the destructive treatment
+   * would teach shoppers that the error colour means nothing much.
+   */
+  const [shortfall, setShortfall] = React.useState<string | null>(null)
+  /** Whether the shopper has pressed the (unavailable) restart action while at the send ceiling. */
+  const [ceilingNoticed, setCeilingNoticed] = React.useState(false)
   // ⚠ A ref, not `resend.sends`: that would reference `resend` inside its own `onSend` closure, before
   // the const is declared. The code that got us to this step is the first send.
   const sendOrdinal = React.useRef(1)
@@ -95,10 +118,21 @@ export function CodeStep({
   const onCodeChange = (raw: string) => {
     setCode(raw.replace(/\D/g, ""))
     setResendNote(null)
+    // ⚠ Clears as soon as the shopper acts on it (FR-013). A "you're two digits short" message that
+    // outlives the two digits is noise, and noise is how people learn to stop reading messages.
+    setShortfall(null)
   }
 
   const tooLong = code.length > OTP_LENGTH
   const complete = code.length === OTP_LENGTH
+
+  /**
+   * The single message this step shows (044 FR-017).
+   *
+   * The step's own refusal wins over the journey's: if both are true, the one about the code the
+   * shopper just typed is the more actionable of the two.
+   */
+  const message = error ?? parentError
 
   async function submit(event: React.FormEvent) {
     event.preventDefault()
@@ -148,24 +182,35 @@ export function CodeStep({
   if (exhausted) {
     return (
       <StepShell
+        anchor
         title="Let's start that again"
         subtitle="That code can't be used any more. We'll send you a fresh one."
         onBack={onBack}
         bottom={
           <>
-            <button
-              type="button"
-              data-testid="start-over"
-              disabled={resend.sending || resend.atCeiling}
-              onClick={() => void resend.resend()}
-              className="h-11 w-full rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-            >
-              {resend.sending ? "Please wait…" : "Send a new code"}
-            </button>
-            {resend.atCeiling && <CeilingNote />}
-            <TextAction onClick={onChangeEmail} testId="change-email">
-              Use a different email
-            </TextAction>
+            {/* ⚠ Also `aria-disabled` rather than `disabled` (044 FR-019/FR-020). This is a
+                committing action too, and at the send ceiling it is the ONE control that can explain
+                why nothing is happening — an inert button cannot. */}
+            <Submit
+              pending={resend.sending}
+              label="Send a new code"
+              testId="start-over"
+              blocked={resend.atCeiling}
+              onBlocked={() => setCeilingNoticed(true)}
+              form={RESTART_FORM_ID}
+            />
+            <form id={RESTART_FORM_ID} onSubmit={(e) => { e.preventDefault(); void resend.resend() }} />
+            {(resend.atCeiling || ceilingNoticed) && (
+              <p className="text-sm font-medium text-muted-foreground" role="status">
+                <CeilingNote />
+              </p>
+            )}
+            <p className="text-center text-sm font-medium text-muted-foreground">
+              Wrong email?{" "}
+              <InlineAction onClick={onChangeEmail} testId="change-email">
+                Use a different one
+              </InlineAction>
+            </p>
           </>
         }
       >
@@ -176,6 +221,7 @@ export function CodeStep({
 
   return (
     <StepShell
+        anchor
       title="Enter your code"
       subtitle={
         <>
@@ -195,20 +241,46 @@ export function CodeStep({
             pending={pending}
             label={submitLabel}
             testId={submitTestId}
-            disabled={!complete}
+            blocked={!complete}
+            // ⚠ FR-020 — pressing an unavailable action must SAY what is missing. Before 044 it was
+            // natively `disabled`: the press did nothing, said nothing, and could not even be
+            // reached by keyboard.
+            onBlocked={() =>
+              setShortfall(
+                code.length === 0
+                  ? `Enter the ${OTP_LENGTH}-digit code we emailed you.`
+                  : `That's ${code.length} of ${OTP_LENGTH} digits.`,
+              )
+            }
             form={FORM_ID}
           />
-          <TextAction onClick={onChangeEmail} testId="change-email">
-            Wrong email? Change it
-          </TextAction>
+          {/* ⚠ Reads as an ACTION, not as a caption (operator direction 2026-08-11). It was a
+              full-width muted `TextAction`, which at the foot of the screen looked like a closing
+              remark rather than the escape route it is — and it is the only way back to correct a
+              mistyped address without abandoning the flow. Same treatment as the resend, from the
+              same component, so the two cannot drift. */}
+          <p className="text-center text-sm font-medium text-muted-foreground">
+            Wrong email?{" "}
+            <InlineAction onClick={onChangeEmail} testId="change-email">
+              Change it
+            </InlineAction>
+          </p>
         </>
       }
     >
-      <form id={FORM_ID} className="space-y-4" onSubmit={submit}>
-        {error && <ErrorNote>{error}</ErrorNote>}
+      <form id={FORM_ID} className="space-y-4" onSubmit={submit} noValidate>
+        {/* ⚠ ONE ERROR REGION, and it is here — inside the shell, above the field it concerns
+            (FR-017). The journey's own message arrives as `parentError` rather than being rendered
+            outside this component by the caller (defect D-05). */}
+        {message && <ErrorNote>{message}</ErrorNote>}
 
-        <div className="space-y-2">
-          <label htmlFor="code" className="text-sm font-medium">
+        {/* ⚠ EXPLICIT MARGINS, NOT `space-y` (operator direction 2026-08-11 — the label sat too close
+            to the cells). `space-y` forces ONE gap for every sibling here, but the two gaps are doing
+            different jobs: the label needs room to read as a heading for a 56px-tall control, while
+            the message below needs to stay tight to the field it is about. One value cannot be right
+            for both. */}
+        <div>
+          <label htmlFor="code" className="mb-4 block text-sm font-medium">
             Your code
           </label>
           <OtpInput
@@ -219,17 +291,26 @@ export function CodeStep({
             // six-digit code — visually reproducing the very truncation FR-004 forbids. Changing shape
             // is the signal.
             variant={tooLong ? "plain" : "cells"}
-            aria-invalid={tooLong || error !== null}
-            aria-describedby={tooLong ? "code-too-long" : undefined}
+            aria-invalid={tooLong || message !== null}
+            aria-describedby={tooLong ? "code-too-long" : shortfall ? "code-shortfall" : undefined}
             autoFocus
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
-            required
           />
-          {tooLong && (
-            <p id="code-too-long" className="text-sm text-destructive">
+          {tooLong ? (
+            <p id="code-too-long" className="mt-2 text-sm text-destructive">
               That&apos;s {code.length} digits. An Effy code is always {OTP_LENGTH}.
             </p>
+          ) : (
+            shortfall && (
+              <p
+                id="code-shortfall"
+                role="status"
+                className="mt-2 text-sm font-medium text-muted-foreground"
+              >
+                {shortfall}
+              </p>
+            )
           )}
         </div>
 
@@ -249,10 +330,20 @@ function ResendControl({
   note: string | null
 }) {
   return (
-    <div className="space-y-2">
+    /*
+     * ⚠ 044 FR-025 / defect D-03 — LEFT-ALIGNED, LIKE EVERYTHING ELSE ON THE STEP. This block used
+     * to be centred while the heading, the label and the field were not, so a single screen carried
+     * three alignments and nothing established a reading order.
+     *
+     * ⚠ 044 US1 AC-9 / defect D-06 — AND IT IS SUBORDINATE. Countdown, resend, spam-folder note and
+     * support address used to be four separately-weighted lines that together out-massed the input
+     * they were advising about. They are now one `text-sm` line of recovery and one `text-xs` line of
+     * last resort.
+     */
+    <div className="space-y-1.5">
       {/* ⚠ `aria-live="polite"`, and the countdown lives in its own region so announcing it never
           moves focus off the code field (FR-015). A shopper mid-typing must not be interrupted. */}
-      <p className="text-center text-sm text-muted-foreground" aria-live="polite">
+      <p className="text-sm font-medium text-muted-foreground" aria-live="polite">
         {resend.atCeiling ? (
           <CeilingNote />
         ) : resend.remaining > 0 ? (
@@ -263,57 +354,26 @@ function ResendControl({
                 affordance, not a route through the flow — a bordered button gave it the same weight as
                 a credential choice and stacked a second full-width control above the committing one. */}
             Didn&apos;t get it?{" "}
-            <button
-              type="button"
-              data-testid="resend-code"
-              disabled={!resend.canResend}
+            {/* ⚠ `aria-disabled`, not `disabled` (044 FR-019), handled by `InlineAction`. While the
+                cooldown runs this branch is not rendered at all, so the only way to reach the
+                unavailable state is the send ceiling — exactly when the shopper most needs the
+                control to be reachable and to say something. */}
+            <InlineAction
+              testId="resend-code"
+              blocked={!resend.canResend}
               onClick={() => void resend.resend()}
-              className="min-h-11 font-medium text-foreground underline underline-offset-4 hover:opacity-80 disabled:opacity-60"
             >
               {resend.sending ? "Sending…" : "Send another code"}
-            </button>
+            </InlineAction>
           </>
         )}
       </p>
       {note && (
-        <p className="text-center text-sm text-muted-foreground" data-testid="resend-note">
+        <p className="text-sm font-medium text-muted-foreground" data-testid="resend-note">
           {note}
         </p>
       )}
-      {!resend.atCeiling && (
-        <p className="text-center text-xs text-muted-foreground">
-          Check your spam folder if it doesn&apos;t arrive.
-        </p>
-      )}
-      <StuckNote />
     </div>
-  )
-}
-
-/**
- * ⚠ THE UNIFORM ESCAPE HATCH (037 FR-030a). Shown to EVERYONE, always.
- *
- * The platform now knows when it cannot reach an address — a hard bounce is recorded against the
- * account, and the account page says so plainly (FR-030). This screen deliberately does NOT.
- *
- * ⚠ WHY NOT, EVEN THOUGH IT WOULD BE KINDER. This screen is unauthenticated, and delivery state is
- * only knowable for an address the platform has actually emailed — which implies an account exists.
- * Saying "we can't reach that address" to whoever typed it would therefore answer *"does this person
- * have an Effy account?"* to anyone who asks, spending the enumeration defence 035 built (phantom
- * sends to the mailbox simulator, timing parity) to improve a line of copy.
- *
- * So the honest statement moves to the surfaces where the person has PROVEN the account is theirs,
- * and this line gives everyone a way out without telling an attacker anything. It must never become
- * conditional — see the invariance test in CodeStep.enumeration.test.tsx.
- */
-function StuckNote() {
-  return (
-    <p className="text-center text-xs text-muted-foreground" data-testid="stuck-note">
-      Still not arriving?{" "}
-      <a className="underline underline-offset-2" href="mailto:hello@effyshopping.com">
-        hello@effyshopping.com
-      </a>
-    </p>
   )
 }
 
@@ -332,8 +392,7 @@ function StuckNote() {
 function CeilingNote() {
   return (
     <span data-testid="resend-ceiling">
-      We can&apos;t send another code to this address right now. Check your spam folder, or try again
-      later.
+      We can&apos;t send another code to this address right now. Please try again later.
     </span>
   )
 }

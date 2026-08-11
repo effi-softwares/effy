@@ -130,17 +130,23 @@ for (const [appName, set] of [
   }
 }
 
-// 4) ⚠ the monospace stack must stay monospace — the OTP cell geometry depends on it (036 R3a).
+// 4) ⚠ the monospace stack must stay monospace — one-time codes are read back character by character.
 //
-// `OtpInput`'s `variant="cells"` paints six character positions behind ONE input using a
-// `repeating-linear-gradient` whose period is `1ch + gap`. `1ch` is the advance width of "0", which
-// equals every other digit's advance ONLY in a monospace font. Today `--font-mono` is not declared,
-// so Tailwind's monospace default applies and the geometry holds.
+// ⚠ THIS GUARD'S REASON CHANGED IN 044, AND THE MESSAGE WAS REWRITTEN RATHER THAN THE GUARD DELETED.
 //
-// The failure this guards is silent: declaring `--font-mono` as a proportional family would slide
-// every cell out from under its digit, and NOTHING else would fail — not a type check, not a test,
-// not a contrast pair. It would simply look subtly wrong on the one screen where six characters have
-// to line up with six marks.
+// It was written for 036's cell GEOMETRY: six positions painted behind one input by a
+// `repeating-linear-gradient` whose period was `1ch + gap`, where `1ch` is the advance of "0" and
+// equals every other digit's advance only in a monospace font. 044 rebuilt the control — the digits
+// and the boxes are now the same grid cells and there is not a `ch` unit left in it — so that
+// geometry can no longer drift, and a message claiming it can would be asserting a reason that is no
+// longer true. A guard that states a false reason is worse than no guard: the next person deletes it
+// on the (correct) grounds that its justification does not hold, and takes the real requirement with
+// it.
+//
+// What remains true, and is what this now guards: a code is dictated over the phone, read back to
+// support, and compared digit by digit against an email. Proportional digits make 1/l, 0/O and 5/S
+// ambiguous at exactly the moment ambiguity is most expensive. The failure is still silent — nothing
+// else in the repository would fail if `--font-mono` became a proportional family.
 const MONO_HINTS = ["mono", "consol", "menlo", "courier", "sfmono"];
 const monoDecl = css.match(/--font-mono\s*:\s*([^;]+);/);
 if (monoDecl) {
@@ -148,9 +154,9 @@ if (monoDecl) {
   if (!MONO_HINTS.some((hint) => value.includes(hint))) {
     errors.push(
       `--font-mono is declared as "${monoDecl[1].trim()}", which does not look monospace. ` +
-        `OtpInput's cell variant measures cells in \`ch\` (the advance of "0") and needs every ` +
-        `digit to share that advance. Either keep --font-mono monospace, or rebuild the cells ` +
-        `without \`ch\` units (packages/design-system/src/ui/otp-input.tsx).`,
+        `OtpInput's cell variant sets each character position in tabular monospace so a code that ` +
+        `is read aloud, dictated or compared against an email is unambiguous (1/l, 0/O, 5/S). ` +
+        `Keep --font-mono monospace (packages/design-system/src/ui/otp-input.tsx).`,
     );
   }
 }

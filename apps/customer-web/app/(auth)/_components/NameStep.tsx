@@ -6,7 +6,8 @@ import { updateProfile } from "@/app/(account)/account/actions"
 import { capture } from "@/lib/telemetry"
 
 import { ensureCustomerRecord } from "../_lib/seed-actions"
-import { ErrorNote, Field, StepShell, Submit } from "./AuthKit"
+import { useFieldValidation, type FieldConfig } from "../_lib/validation"
+import { ErrorNote, Field, StepShell, Submit, TextAction } from "./AuthKit"
 
 /**
  * The LAST step of registration, on every route (036 FR-032 … FR-035a).
@@ -31,6 +32,22 @@ import { ErrorNote, Field, StepShell, Submit } from "./AuthKit"
  * refresh only became meaningful in this slice — see `customer-me-v1-patch.ts`, where `updateName()`
  * finally got a caller.
  */
+/**
+ * ⚠ THE MESSAGES MUST NOT IMPLY THE ACCOUNT IS BROKEN (044 FR-035, contract §6). By the time this
+ * step renders the account exists and the shopper is signed in; this form completes a profile, it
+ * does not gate anything.
+ */
+const FIELDS = {
+  given: {
+    id: "given-name",
+    rules: [{ kind: "required", message: "Enter your first name." }],
+  },
+  family: {
+    id: "family-name",
+    rules: [{ kind: "required", message: "Enter your last name." }],
+  },
+} satisfies Record<string, FieldConfig>
+
 export function NameStep({
   onDone,
   route,
@@ -42,6 +59,7 @@ export function NameStep({
   const [family, setFamily] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
   const [pending, setPending] = React.useState(false)
+  const validation = useFieldValidation(FIELDS)
   // Preserved rather than cleared: `updateProfile` writes all three fields, and passing `null` for a
   // phone the customer already has would silently wipe it on a return visit to this step.
   const [phone, setPhone] = React.useState<string | null>(null)
@@ -66,6 +84,9 @@ export function NameStep({
   async function submit(event: React.FormEvent) {
     event.preventDefault()
     if (pending) return
+    // ⚠ A whitespace-only name is EMPTY (FR-015, defect D-12) — the browser's own `required` accepts
+    // a single space, and a profile saved as " " is worse than one saved as nothing.
+    if (!validation.check([["given", given], ["family", family]])) return
     setError(null)
     setPending(true)
     try {
@@ -94,26 +115,49 @@ export function NameStep({
 
   return (
     <StepShell
+        anchor
       title="What should we call you?"
       subtitle="We'll use this when we say hello and when we hand over your order."
       bottom={
-        <Submit
-          pending={pending}
-          label="Finish"
-          testId="submit-name"
-          disabled={!complete}
-          form="name-step-form"
-        />
+        <>
+          <Submit
+            pending={pending}
+            label="Finish"
+            testId="submit-name"
+            blocked={!complete}
+            onBlocked={() => validation.check([["given", given], ["family", family]])}
+            form="name-step-form"
+          />
+          {/*
+            ⚠ 044 FR-035 / defect D-15 — A WAY PAST, BECAUSE THIS STEP MUST NEVER GATE ACCESS.
+            The account already exists by the time this renders and the shopper is already signed in;
+            036 wrote down that abandoning here "must never lock anyone out" and then gave them no way
+            to abandon except closing the tab. What was meant as a courtesy read as a wall.
+
+            ⚠ Subordinate to finishing, deliberately: a text action, not a second full-width button.
+            It calls the SAME `onDone` the finish path calls, so the guest cart and saved-list merges
+            still run and the shopper lands in the shop signed in — it skips the profile write, not
+            the journey.
+          */}
+          <TextAction tone="subtle" testId="skip-name" onClick={() => { capture({ name: "auth_name_step_skipped", props: { route } }); onDone() }}>
+            I&apos;ll do this later
+          </TextAction>
+        </>
       }
     >
-      <form id="name-step-form" className="space-y-4" onSubmit={submit}>
+      <form id="name-step-form" className="space-y-4" noValidate onSubmit={submit}>
         {error && <ErrorNote>{error}</ErrorNote>}
-        <div className="grid grid-cols-2 gap-3">
+        {/* ⚠ 044 FR-033 / defect D-19 — STACKED ON A PHONE. This was `grid-cols-2` at every width,
+            so on a 320px screen each name field got roughly half a cramped column. Two columns is
+            fine once there is room for them. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
             label="First name"
             id="given-name"
             value={given}
             onChange={setGiven}
+            onBlur={() => validation.blur("given", given)}
+            error={validation.show("given", given)}
             autoComplete="given-name"
             maxLength={60}
             autoFocus
@@ -124,6 +168,8 @@ export function NameStep({
             id="family-name"
             value={family}
             onChange={setFamily}
+            onBlur={() => validation.blur("family", family)}
+            error={validation.show("family", family)}
             autoComplete="family-name"
             maxLength={60}
             required

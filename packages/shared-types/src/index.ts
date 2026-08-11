@@ -17,3 +17,6 @@ export * from "./promotion";
 export * from "./banner";
 // 039-customer-home-redesign
 export * from "./newsletter";
+// 044-customer-auth-redesign — the shared input-shape rules (extracted from the newsletter service,
+// so the storefront refuses exactly what the backend refuses).
+export * from "./validation";

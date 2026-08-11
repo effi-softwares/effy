@@ -80,8 +80,98 @@ describe("OtpInput — the cells variant (036 FR-002, FR-004)", () => {
     // FR-045 — "six" has one definition per platform. Before 036 this file carried a bare `6` and
     // three mobile files carried a hardcoded "6-digit code" string: four places to change, and no way
     // to know if you missed one.
+    //
+    // ⚠ 044 REWROTE THIS ASSERTION, DELIBERATELY. It used to read the `--otp-n` custom property off
+    // the input's inline style, because 036 painted the positions as a background gradient sized in
+    // `ch` units. 044 replaced that mechanism (it was invisible, off-centre, and half-size above
+    // 768px — see BASELINE.md), so the property no longer exists and an assertion about it would be
+    // asserting the absence of a bug that is no longer possible. The requirement is unchanged; what
+    // it is measured against is now the thing a person actually sees: six boxes.
     render(<OtpInput aria-label="One-time code" variant="cells" defaultValue="" />)
-    const field = screen.getByLabelText("One-time code") as HTMLInputElement
-    expect(field.style.getPropertyValue("--otp-n")).toBe(String(OTP_LENGTH))
+    expect(document.querySelectorAll('[data-slot="otp-cell"]')).toHaveLength(OTP_LENGTH)
+  })
+})
+
+describe("OtpInput — the cells variant, rebuilt (044 US1)", () => {
+  it("⚠ renders each digit in its own position, in order", () => {
+    render(<OtpInput aria-label="One-time code" variant="cells" value="123" onChange={() => {}} />)
+    const cells = [...document.querySelectorAll('[data-slot="otp-cell"]')]
+    expect(cells.map((c) => c.textContent)).toEqual(["1", "2", "3", "", "", ""])
+  })
+
+  it("marks exactly the filled positions as filled", () => {
+    render(<OtpInput aria-label="One-time code" variant="cells" value="1234" onChange={() => {}} />)
+    const filled = document.querySelectorAll('[data-slot="otp-cell"][data-filled]')
+    expect(filled).toHaveLength(4)
+  })
+
+  it("⚠ indicates the position the next character lands in (FR-006)", () => {
+    // The native caret is transparent — the whole point of the overlay — so SOMETHING has to say
+    // where typing will go. Before 044 nothing did.
+    const { rerender } = render(
+      <OtpInput aria-label="One-time code" variant="cells" value="" onChange={() => {}} />,
+    )
+    expect(document.querySelector('[data-slot="otp-cell"][data-active]')).toHaveAttribute(
+      "data-index",
+      "0",
+    )
+    rerender(<OtpInput aria-label="One-time code" variant="cells" value="12" onChange={() => {}} />)
+    expect(document.querySelector('[data-slot="otp-cell"][data-active]')).toHaveAttribute(
+      "data-index",
+      "2",
+    )
+  })
+
+  it("⚠ clamps the indicator to the last position on a full code, rather than losing it", () => {
+    render(<OtpInput aria-label="One-time code" variant="cells" value="123456" onChange={() => {}} />)
+    expect(document.querySelector('[data-slot="otp-cell"][data-active]')).toHaveAttribute(
+      "data-index",
+      String(OTP_LENGTH - 1),
+    )
+  })
+
+  it("⚠ carries a refusal on the CELLS, not only in the message (FR-007)", () => {
+    // A refusal the shopper has to read to notice is a refusal they will retype into.
+    render(
+      <OtpInput
+        aria-label="One-time code"
+        variant="cells"
+        value="123456"
+        aria-invalid
+        onChange={() => {}}
+      />,
+    )
+    const cells = [...document.querySelectorAll('[data-slot="otp-cell"]')]
+    expect(cells).toHaveLength(OTP_LENGTH)
+    for (const cell of cells) expect(cell.className).toContain("border-destructive")
+  })
+
+  it("⚠ does NOT paint an over-length value as six cells", () => {
+    // Six positions can only display six characters, so an eight-digit paste rendered as cells would
+    // LOOK like a six-digit code — visually reproducing the exact truncation FR-004 forbids. The
+    // shape change IS the signal (C-11).
+    render(<OtpInput aria-label="One-time code" variant="cells" value="12345678" onChange={() => {}} />)
+    expect(document.querySelectorAll('[data-slot="otp-cell"]')).toHaveLength(0)
+    expect(screen.getByLabelText("One-time code")).toHaveValue("12345678")
+  })
+
+  it("⚠ the cell layer is scenery — hidden from assistive technology and not clickable", () => {
+    render(<OtpInput aria-label="One-time code" variant="cells" value="12" onChange={() => {}} />)
+    const layer = document.querySelector('[data-slot="otp-cell"]')!.parentElement!
+    expect(layer).toHaveAttribute("aria-hidden")
+    expect(layer.className).toContain("pointer-events-none")
+    // …and the invariant that follows from it, restated where it can fail:
+    expect(screen.getAllByLabelText("One-time code")).toHaveLength(1)
+  })
+
+  it("⚠ mirrors an UNCONTROLLED value, so the cells cannot sit empty over a field with text in it", () => {
+    render(<OtpInput aria-label="One-time code" variant="cells" defaultValue="99" />)
+    const cells = [...document.querySelectorAll('[data-slot="otp-cell"]')]
+    expect(cells.map((c) => c.textContent)).toEqual(["9", "9", "", "", "", ""])
+  })
+
+  it("⚠ renders NO cell layer on the plain variant — the consoles must be untouched (SC-011)", () => {
+    render(<OtpInput aria-label="One-time code" defaultValue="123" />)
+    expect(document.querySelectorAll('[data-slot="otp-cell"]')).toHaveLength(0)
   })
 })

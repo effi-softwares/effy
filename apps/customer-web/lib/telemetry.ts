@@ -158,6 +158,25 @@ export type StorefrontEvent =
   | { name: "auth_google_unavailable"; props: { flow: AuthFlow } }
   | { name: "auth_name_step_shown"; props: { route: CredentialRoute } }
   | { name: "auth_name_step_completed"; props: { route: CredentialRoute } }
+  /**
+   * 044 FR-035 — the shopper chose to complete their profile later.
+   *
+   * ⚠ NOT AN ABANDONMENT EVENT. The account exists and the session is live; this step completes a
+   * profile and never gates access. What it measures is how often the "later" route is taken, which
+   * is the evidence for whether the step belongs here at all.
+   */
+  | { name: "auth_name_step_skipped"; props: { route: CredentialRoute } }
+  /**
+   * 044 US2 — a field was refused before anything was sent.
+   *
+   * ⚠ THE VALUE IS NEVER CARRIED, only which field and which rule. The value is an email address —
+   * PII, and on this screen it is PII belonging to someone who is not yet authenticated (Principle
+   * VII: no PII in telemetry beyond the auth subject id).
+   */
+  | {
+      name: "auth_validation_failed"
+      props: { flow: "sign_in" | "sign_up" | "reset"; field: string; rule: string }
+    }
   | { name: "auth_name_step_abandoned"; props: { route: CredentialRoute } }
   // 019 commerce funnel (shared taxonomy — customer-mobile adopts these SAME names when its telemetry
   // lands; NO PII, product ids only). discover → product → cart → checkout → order.

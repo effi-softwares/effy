@@ -20,12 +20,14 @@ import {
 } from "../_lib/auth-actions"
 import { seedCredentialRoute } from "../_lib/seed-actions"
 import { useStepHistory } from "../_lib/step-history"
+import { messageFor, useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
 import { GoogleButton } from "../_components/GoogleButton"
 import { NameStep } from "../_components/NameStep"
 import {
   Divider,
   ErrorNote,
+  inlineActionClass,
   Field,
   PasswordField,
   StepShell,
@@ -51,6 +53,34 @@ type Route = "otp" | "password"
  * federated route. So nothing had to change in Terraform or SQL for this to become possible; it was
  * only ever a form.
  */
+/**
+ * ⚠ The password rule is built from `PASSWORD_MIN_LENGTH`, never a literal (044 FR-016).
+ *
+ * 036 already fixed this copy once: it read "at least 8 characters, with upper and lower case letters
+ * and a number" against a real policy of twelve characters with NO composition rules — both too short
+ * and falsely restrictive. Deriving the number from the shared constant is what stops it drifting a
+ * second time.
+ */
+const FIELDS = {
+  email: {
+    rules: [
+      { kind: "required", message: "Enter your email address." },
+      { kind: "emailShape", message: "That doesn't look like an email address. Mind checking it?" },
+    ],
+  },
+  password: {
+    trim: false,
+    rules: [
+      { kind: "required", message: "Choose a password." },
+      {
+        kind: "minLength",
+        min: PASSWORD_MIN_LENGTH,
+        message: `Use at least ${PASSWORD_MIN_LENGTH} characters.`,
+      },
+    ],
+  },
+} satisfies Record<string, FieldConfig>
+
 export function SignUpForm() {
   const router = useRouter()
   const params = useSearchParams()
@@ -61,6 +91,7 @@ export function SignUpForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  const validation = useFieldValidation(FIELDS)
 
   const accountExists = useRef(false)
 
@@ -150,12 +181,9 @@ export function SignUpForm() {
   }, [address])
 
   const signInLink = (
-    <p className="text-center text-sm text-muted-foreground">
+    <p className="text-center text-sm font-medium text-muted-foreground">
       Already have an account?{" "}
-      <Link
-        href={`/sign-in?next=${encodeURIComponent(next)}`}
-        className="font-medium text-foreground hover:text-primary"
-      >
+      <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className={inlineActionClass}>
         Sign in
       </Link>
     </p>
@@ -168,22 +196,24 @@ export function SignUpForm() {
 
   // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
   if (step === "code") {
+    // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
+    // step shell (above the back control, detached from the layout) while CodeStep rendered a second
+    // one inside it. Both were role="alert"; both could be true at once; both announced. The journey's
+    // message is now handed to the step, which owns the single region (defect D-05).
     return (
-      <>
-        {error && <ErrorNote>{error}</ErrorNote>}
-        <CodeStep
-          destination={address}
-          submitLabel="Create account"
-          submitTestId="submit-confirm"
-          onSubmit={submitCode}
-          onResend={sendCode}
-          onChangeEmail={back}
-          onBack={back}
-          flow="sign_up"
-          // ⚠ Managed flow → the refusals really are distinguishable here.
-          distinguishableRefusals
-        />
-      </>
+      <CodeStep
+        parentError={error}
+        destination={address}
+        submitLabel="Create account"
+        submitTestId="submit-confirm"
+        onSubmit={submitCode}
+        onResend={sendCode}
+        onChangeEmail={back}
+        onBack={back}
+        flow="sign_up"
+        // ⚠ Managed flow → the refusals really are distinguishable here.
+        distinguishableRefusals
+      />
     )
   }
 
@@ -212,8 +242,33 @@ export function SignUpForm() {
 
         <form
           className="space-y-4"
+          // ⚠ `noValidate` — the attributes stay for autofill and semantics; only the browser's own
+          // bubble is replaced (V-06).
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
+            // ⚠ NOTHING IS SENT UNTIL THIS PASSES. On the shipped build this step accepted
+            // `person@example`, dispatched a real request for it, and ADVANCED the shopper to the
+            // code step — to wait for an email that could not arrive (BASELINE.md, D-08).
+            if (
+              !validation.check(
+                onPassword
+                  ? [["email", address], ["password", password]]
+                  : [["email", address]],
+              )
+            ) {
+              // ⚠ THE MESSAGE HAS NOWHERE VISIBLE TO GO ON THE PASSWORD STEP. The email input is
+              // still mounted there (FR-040 — password managers pair it with the password to fill
+              // and to SAVE) but it is inside a hidden container, so its message renders hidden too.
+              // An invalid address at this point is a STEP-level problem, not a field-level one: go
+              // back to the step that asks for it, where the message is visible and actionable.
+              //
+              // ⚠ Found by the e2e, which reported "resolved to <p>Enter your email address.</p> —
+              // unexpected value hidden". Showing an invisible error is only marginally better than
+              // the "Something went wrong." this replaced.
+              if (onPassword && messageFor(FIELDS.email, address)) back()
+              return
+            }
             run(
               async () => {
                 if (onPassword) {
@@ -239,6 +294,8 @@ export function SignUpForm() {
               type="email"
               value={email}
               onChange={setEmail}
+              onBlur={() => validation.blur("email", email)}
+              error={validation.show("email", address)}
               autoComplete="username"
               required
               readOnly={onPassword}
@@ -251,6 +308,8 @@ export function SignUpForm() {
               id="password"
               value={password}
               onChange={setPassword}
+              onBlur={() => validation.blur("password", password)}
+              error={validation.show("password", password)}
               autoComplete="new-password"
               minLength={PASSWORD_MIN_LENGTH}
               required
@@ -261,7 +320,16 @@ export function SignUpForm() {
               // composition rules, so the old copy was BOTH too short and falsely restrictive — the
               // exact drift `authErrorMessage`'s own comment records ("The old text became a LIE the
               // moment the policy changed"). Built from the shared constant so it cannot drift again.
-              hint={`At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`}
+              // ⚠ FR-016 — THE RULE IS STATED BEFORE THEY TYPE, AND REFLECTED WHILE THEY TYPE.
+              // Before 044 the only signal that a password was too short was an action that stayed
+              // unavailable with nothing saying why. This is a count, not a strength meter: the
+              // policy is a length and nothing else, and a scored bar would imply a judgement the
+              // platform does not make (research R10).
+              hint={
+                password.length > 0 && password.length < PASSWORD_MIN_LENGTH
+                  ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
+                  : `At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`
+              }
             />
           )}
 
@@ -284,8 +352,18 @@ export function SignUpForm() {
             testId="toggle-route"
             onClick={() => {
               setError(null)
-              if (onPassword) back()
-              else go("password")
+              if (onPassword) {
+                validation.reset()
+                back()
+                return
+              }
+              // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
+              // without a usable address produces a screen that can refuse but cannot explain, and
+              // it is how the shopper ended up being told "Something went wrong." about an address
+              // they had never typed (BASELINE.md, D-11).
+              if (!validation.check([["email", address]])) return
+              validation.reset()
+              go("password")
             }}
           >
             {onPassword ? "Email me a code instead" : "Set a password instead"}

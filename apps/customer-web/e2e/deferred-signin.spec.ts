@@ -102,11 +102,25 @@ test.describe("the return destination cannot be weaponised", () => {
 test.describe("the credential routes on offer", () => {
   test.use({ storageState: { cookies: [], origins: [] } })
 
+  /**
+   * ⚠ 044 ADDED THE EMAIL TO BOTH OF THESE, AND THE ADDITION IS THE BEHAVIOUR CHANGE.
+   *
+   * These used to toggle straight to the password step with the email field empty. That worked, and
+   * it was the shape of a real defect: the email input is deliberately still mounted on the password
+   * step (FR-040 — password managers pair it with the password to fill and, more fragilely, to save)
+   * but inside a hidden container, so a step reached without an address could refuse and could not
+   * explain. Measured on the shipped build, submitting there produced "Something went wrong. Please
+   * try again." about an address the shopper had never typed (BASELINE.md, D-11).
+   *
+   * Identifier-first now means what it says: the address comes first. What these tests are really
+   * about — that a password route is on offer at all — is unchanged.
+   */
   test("sign-in offers email code and password", async ({ page }) => {
     await page.goto("/sign-in")
 
     await expect(page.getByTestId("submit-email")).toBeVisible() // route (b) — the default
 
+    await page.locator("#email").fill("shopper@example.com")
     await page.getByTestId("toggle-mode").click()
     await expect(page.getByTestId("submit-password")).toBeVisible() // route (a)
   })
@@ -118,6 +132,7 @@ test.describe("the credential routes on offer", () => {
     // path of least resistance, and the password is a deliberate opt-in.
     await expect(page.getByTestId("submit-email")).toBeVisible()
 
+    await page.locator("#email").fill("shopper@example.com")
     await page.getByTestId("toggle-route").click()
     await expect(page.getByTestId("submit-password")).toBeVisible()
   })
