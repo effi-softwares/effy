@@ -425,7 +425,13 @@ JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id AND a
 LEFT JOIN public.attribute_allowed_value aav ON aav.attribute_definition_id = ad.id AND aav.value = %s`,
 		valueExpr, valueExpr, kp, extraFrom, valueExpr)
 	r.filters(&b, p, next)
-	fmt.Fprintf(&b, "\n  AND %s IS NOT NULL\nGROUP BY value, aav.label\nORDER BY count(DISTINCT p.id) DESC, value ASC", valueExpr)
+	// ⚠ GROUP BY / ORDER BY the value EXPRESSION, never the `value` alias. `value` also appears inside
+	// coalesce(aav.label, <expr>) in the SELECT, and Postgres does not treat an output-alias in GROUP BY
+	// as covering that nested occurrence — it raises 42803 ("must appear in the GROUP BY clause"). This
+	// bug shipped because the facet tests faked the repository, so the SQL never ran against a real
+	// Postgres. Grouping by the expression makes the nested reference covered.
+	fmt.Fprintf(&b, "\n  AND %s IS NOT NULL\nGROUP BY %s, aav.label\nORDER BY count(DISTINCT p.id) DESC, %s ASC",
+		valueExpr, valueExpr, valueExpr)
 	return r.collectOptionCounts(ctx, b.String(), args)
 }
 

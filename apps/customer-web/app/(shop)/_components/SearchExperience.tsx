@@ -276,10 +276,13 @@ export function SearchExperience() {
   return (
     <div className="container py-6">
       <div className="mt-2 grid gap-8 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
-        {/* Desktop: a persistent filter side panel (FR-019). Below lg it is hidden — the sheet takes over. */}
-        <aside className="hidden rounded-2xl border p-5 lg:sticky lg:top-24 lg:block">
-          <h2 className="mb-4 text-lg font-bold">Filters</h2>
-          {controls}
+        {/* Desktop: a persistent filter side panel (FR-019). It pins to the viewport and scrolls
+            INDEPENDENTLY of the results — the heading stays put while a long facet list scrolls inside
+            the column, and the product grid scrolls the page as normal. Below lg it is hidden — the
+            sheet takes over. */}
+        <aside className="hidden rounded-2xl border lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col lg:overflow-hidden">
+          <h2 className="border-b px-5 py-4 text-lg font-bold">Filters</h2>
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">{controls}</div>
         </aside>
 
         <div className="min-w-0">
