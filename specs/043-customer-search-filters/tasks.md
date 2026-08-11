@@ -139,9 +139,9 @@ the set from page 1; mobile keeps filters after opening a product and returning.
 ## Phase 7: Polish & Cross-Cutting Concerns
 
 - [ ] T030 [P] Telemetry: emit `search_filter_applied` / `search_filter_removed` / `search_filters_cleared` / `search_facet_panel_opened` via the dynamic-import `capture()` convention (web); record the standing PostHog-init gap; mobile telemetry deferred.
-- [ ] T031 [P] Update the parity register `docs/audiences/customer-capabilities.md` §043 with the facet set + controls at web↔mobile parity (FR-021 / SC-004).
+- [X] T031 [P] Update the parity register `docs/audiences/customer-capabilities.md` §043 with the facet set + controls at web↔mobile parity (FR-021 / SC-004).
 - [ ] T032 [P] Accessibility: keyboard operability + screen-reader announcements for the panel, counts, and chips (web); Compose semantics + 48 dp touch targets in `FilterSheet.kt`/`SearchScreen.kt` (mobile) (SC-009).
-- [ ] T033 Bundle gate: run `pnpm --filter @effy/customer-web size` and confirm `/search` ≤ 174 KB (filter UI code-split); reclaim/adjust if over — do NOT raise the budget.
+- [X] T033 Bundle gate: run `pnpm --filter @effy/customer-web size` and confirm `/search` ≤ 174 KB (filter UI code-split); reclaim/adjust if over — do NOT raise the budget.
 - [ ] T034 [P] Full verification sweep: `pnpm -r typecheck`, web + edge tests, `go test ./... -race`, mobile `:shared:testAndroidHostTest` + `:shared:iosSimulatorArm64Test` + `:androidApp:assembleDebug`, `cm-guard`/`cm-tokens-check`/`cm-contract-check`, wire-contract.
 - [ ] T035 Run the `quickstart.md` validation walk (operator/data-gated): commit the migration + `make db-up ENV=dev`, seed a catalogue with ≥2 brands and a facetable attribute, then the web + device walks.
 

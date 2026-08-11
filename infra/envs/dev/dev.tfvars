@@ -138,3 +138,19 @@ custom_auth_lambda_arns = {
 # same apply. ⚠ Highest-risk apply; confirm `dig dev.effyshopping.com` + a valid cert afterwards, and
 # that api./core-api. are unchanged.
 amplify_domain_enabled = true
+
+# Browser origins allowed to call the hot path (core-api) — closes 040's open T048. The storefront
+# fetches /v1/storefront/products and /facets client-side from the deployed origin, so without these
+# every such fetch is CORS-blocked (403, no Access-Control-Allow-Origin). Native mobile and SSR need
+# no CORS; localhost:3000 stays for local dev. Exact-match, no trailing slash — www is a distinct
+# origin and must be listed separately. effyshopping.com (the reserved prod apex) is included ahead of
+# a prod storefront so its origin is already trusted when it ships.
+core_api_cors_origins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://dev.effyshopping.com",
+  "https://www.dev.effyshopping.com",
+  "https://effyshopping.com",
+  "https://www.effyshopping.com",
+]
