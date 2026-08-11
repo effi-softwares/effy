@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 
 import "./globals.css"
-import { ThemeScript } from "@/components/theme/ThemeScript"
 import { cn } from "@/lib/utils"
 import { siteUrl } from "@/lib/config"
 
@@ -58,18 +57,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={cn("antialiased", "font-sans")}
-    >
-      <body>
-        {/* ⚠ FIRST child of <body>, and it must stay first: it applies the stored appearance before
-            the browser paints anything below it. Move it lower and a dark-mode visitor gets a white
-            flash on every navigation to a fresh document. */}
-        <ThemeScript />
-        {children}
-      </body>
+    // ⚠ Customer storefront is LIGHT-ONLY (operator decision). Unlike the internal consoles, this
+    // public surface ships no appearance switcher and never applies the design system's `.dark`
+    // class, so every page renders on the light `:root` tokens. `color-scheme: light` is pinned in
+    // globals.css so form controls, scrollbars and the address bar stay light even on an OS set to
+    // dark — otherwise the browser would render native chrome dark over a light page.
+    <html lang="en" className={cn("antialiased", "font-sans")}>
+      <body>{children}</body>
     </html>
   )
 }

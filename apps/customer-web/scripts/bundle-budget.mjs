@@ -52,8 +52,10 @@ const KB = 1024
  *     only `react-dom` marker, on `/browse` — which at the time of measurement was a static
  *     placeholder with essentially no app content. That is 89.6% of the old budget spent before
  *     this app's own code runs.
- *   • 16.6 KB — the appearance switcher (`next-themes` + AppearanceControl). Principle V
- *     REQUIRES dark mode to be user-selectable, so this is not discretionary weight.
+ *   • 16.6 KB — the appearance switcher (`next-themes` + AppearanceControl), at the time of that
+ *     measurement. ⚠ REMOVED SINCE: the customer storefront is now LIGHT-ONLY (operator decision),
+ *     so it ships no appearance switcher at all — that weight, and the appearance store that later
+ *     replaced next-themes (the T102 note below), are both gone from the guest path.
  *   • 7.3 KB — RecentlyViewedRail, on `/` only. It is the entire difference between the routes.
  *
  * The floor 011 measured was ~136 KB, and 160 was set to leave ~24 KB of app headroom on top of

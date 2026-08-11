@@ -2,7 +2,6 @@ import Link from "next/link"
 import { Headphones, PiggyBank, UserRound } from "lucide-react"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
-import { AppearanceControl } from "@/components/theme/AppearanceControl"
 
 /**
  * The storefront's closing blocks, structured from the tech-store reference (025 UI refresh).
@@ -119,14 +118,9 @@ export function StorefrontFooter() {
           {/* No `new Date()` — under cacheComponents a non-deterministic call during prerender is a
               dynamic API, and a live copyright year would cost this layout its static shell on every
               page to render a number nobody reads. */}
+          {/* No appearance switcher: the customer storefront is light-only (operator decision). */}
           <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-background/15 pt-6 text-sm">
             <span>© Effy</span>
-            {/* ⚠ The appearance switcher lives HERE, not in the header (operator asked for a header
-                carrying only cart and account).
-                It cannot simply be deleted: constitution Principle V requires dark mode to be
-                REQUIRED and USER-SELECTABLE on every surface. Moving it satisfies both — the header
-                is clean, and the control remains reachable from every page. */}
-            <AppearanceControl />
           </div>
         </div>
       </footer>

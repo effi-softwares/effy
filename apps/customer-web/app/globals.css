@@ -74,6 +74,11 @@
   }
   html {
     @apply font-sans;
+    /* Customer storefront is LIGHT-ONLY (operator decision) — it never applies the design system's
+     * `.dark` class. Pinning the color-scheme keeps native form controls, scrollbars and the browser
+     * address bar light even when the OS is set to dark, so they can't render dark chrome over the
+     * light page. */
+    color-scheme: light;
     /* No elastic overscroll (operator decision).
      *
      * macOS and iOS rubber-band the page past its bounds by default. `overscroll-behavior: none`
