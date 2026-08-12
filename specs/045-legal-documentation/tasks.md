@@ -26,11 +26,11 @@ link-integrity, consistency, drift-guard and bundle-budget tests part of the del
 
 **Purpose**: Stand up the shared content package and the operator-collateral location.
 
-- [ ] T001 Create the `packages/legal-content` package (`@effy/legal-content`): `package.json`,
+- [x] T001 Create the `packages/legal-content` package (`@effy/legal-content`): `package.json`,
   `tsconfig.json`, `src/index.ts`, wire into the pnpm workspace + Turborepo (`turbo.json` pipeline)
-- [ ] T002 [P] Add `legal:gen` and `legal:check` npm scripts to `packages/legal-content/package.json`,
+- [x] T002 [P] Add `legal:gen` and `legal:check` npm scripts to `packages/legal-content/package.json`,
   and hook `legal:check` into the repo test gate (root `package.json` / turbo `test`) so it rides `pnpm -r test`
-- [ ] T003 [P] Create `docs/store-submission/` with stub files `app-privacy-mapping.md`,
+- [x] T003 [P] Create `docs/store-submission/` with stub files `app-privacy-mapping.md`,
   `data-safety-mapping.md`, `submission-checklist.md`, `review-notes.md`
 
 ---
@@ -42,22 +42,22 @@ prose (US1) and the store mappings (US2) derive from the inventory (T006), so th
 
 **⚠️ CRITICAL**: No user story work begins until this phase is complete.
 
-- [ ] T004 Define the constrained-Markdown subset + the document/version schema and the (empty) registry
+- [x] T004 Define the constrained-Markdown subset + the document/version schema and the (empty) registry
   in `packages/legal-content/src/manifest.ts` per [data-model.md](./data-model.md) (LegalDocument, DocumentVersion)
-- [ ] T005 [P] Create `packages/legal-content/src/identifiers.ts` — RealWorldIdentifiers as fail-loud
+- [x] T005 [P] Create `packages/legal-content/src/identifiers.ts` — RealWorldIdentifiers as fail-loud
   placeholder tokens (`[LEGAL_ENTITY_NAME]`, `[ABN]`, `[REGISTERED_ADDRESS]`, `[GOVERNING_LAW_STATE]`,
   privacy contact defaulting to an approved mailbox) per research R12
-- [ ] T006 Author the data-type / sub-processor inventory in `packages/legal-content/src/inventory.ts`
+- [x] T006 Author the data-type / sub-processor inventory in `packages/legal-content/src/inventory.ts`
   — the ONE spine feeding the Privacy Policy + Apple + Google mappings (SC-004), derived from research R10
   (Cognito, Stripe, AWS SES/RDS/S3, PostHog, Crashlytics, FCM/APNs, Google sign-in; RETAINED = completed
   orders, payment records, fraud signals)
-- [ ] T007 [P] Implement the web Markdown→React **server** renderer (subset only, zero client JS) in
+- [x] T007 [P] Implement the web Markdown→React **server** renderer (subset only, zero client JS) in
   `apps/customer-web/components/legal/MarkdownDocument.tsx` + `DocumentMeta.tsx` per research R2
 - [ ] T008 [P] Implement the mobile Markdown→Compose renderer (same subset) in
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/legal/presentation/MarkdownRender.kt` per research R3
-- [ ] T009 Implement `legal:gen` (canonical corpus → committed Kotlin content catalogue for mobile) in
+- [x] T009 Implement `legal:gen` (canonical corpus → committed Kotlin content catalogue for mobile) in
   `packages/legal-content/scripts/gen-compose.mjs`, deterministic per contract
-- [ ] T010 Implement `legal:check` in `packages/legal-content/scripts/check.mjs` — fails and names the
+- [x] T010 Implement `legal:check` in `packages/legal-content/scripts/check.mjs` — fails and names the
   cause on: drift, unresolved identifier placeholder, manifest integrity, subset violation, broken
   internal link (per [contracts/legal-content.contract.md](./contracts/legal-content.contract.md))
 - [ ] T011 [P] Add nav keys (`Terms`, `Refunds`, `Cookies`, `AcceptableUse`, `Eula`, `Licenses`,
@@ -78,42 +78,42 @@ placeholder; every factual claim traces to the built system (quickstart A–C).
 
 ### Tests for User Story 1
 
-- [ ] T012 [P] [US1] Web content-render test (every manifest document renders real prose + meta row, no
+- [x] T012 [P] [US1] Web content-render test (every manifest document renders real prose + meta row, no
   "being prepared") in `apps/customer-web/__tests__/legal-render.test.ts`
 - [ ] T013 [P] [US1] Mobile catalogue test (every document present and renders under the Compose
   renderer) in `apps/customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile/features/legal/LegalCatalogueTest.kt`
-- [ ] T014 [P] [US1] SC-002 honesty test: every data type / sub-processor / retained category named in
+- [x] T014 [P] [US1] SC-002 honesty test: every data type / sub-processor / retained category named in
   the Privacy Policy exists in `inventory.ts` (no untraced claim) in `apps/customer-web/__tests__/legal-honesty.test.ts`
 
 ### Implementation for User Story 1 (author the prose — drafts for legal review)
 
-- [ ] T015 [P] [US1] Author **Privacy Policy** in `packages/legal-content/src/documents/privacy-policy/v1.md`
+- [x] T015 [P] [US1] Author **Privacy Policy** in `packages/legal-content/src/documents/privacy-policy/v1.md`
   (APP 1/5/7/8/11/12–13, retention & deletion per R11, overseas disclosure, cookies, complaint path — R6–R11)
-- [ ] T016 [P] [US1] Author **Terms of Service** in `packages/legal-content/src/documents/terms-of-service/v1.md`
+- [x] T016 [P] [US1] Author **Terms of Service** in `packages/legal-content/src/documents/terms-of-service/v1.md`
   (accounts, ordering/pricing/GST/substitutions, delivery, cancellations, non-excludable ACL guarantees,
   acceptable-use ref, liability, disputes, governing law — R8/R9)
-- [ ] T017 [P] [US1] Author **Refund, Returns & Cancellations** in `packages/legal-content/src/documents/refunds-returns/v1.md`
+- [x] T017 [P] [US1] Author **Refund, Returns & Cancellations** in `packages/legal-content/src/documents/refunds-returns/v1.md`
   (grocery/perishable, missing/damaged/incorrect items, cancellation window, refund method/timing; includes the matrix table)
-- [ ] T018 [P] [US1] Author **Cookie & Tracking Notice** in `packages/legal-content/src/documents/cookies-tracking/v1.md`
+- [x] T018 [P] [US1] Author **Cookie & Tracking Notice** in `packages/legal-content/src/documents/cookies-tracking/v1.md`
   (web cookies/local storage + analytics/crash identifiers, purposes, controls)
-- [ ] T019 [P] [US1] Author **Acceptable Use Policy** in `packages/legal-content/src/documents/acceptable-use/v1.md`
-- [ ] T020 [P] [US1] Author **EULA posture** in `packages/legal-content/src/documents/eula/v1.md`
+- [x] T019 [P] [US1] Author **Acceptable Use Policy** in `packages/legal-content/src/documents/acceptable-use/v1.md`
+- [x] T020 [P] [US1] Author **EULA posture** in `packages/legal-content/src/documents/eula/v1.md`
   (adopt Apple Standard EULA + Google Play terms; Terms govern the service — research R9)
-- [ ] T021 [P] [US1] Author **About / Business Identity & Contact** in `packages/legal-content/src/documents/about/v1.md`
+- [x] T021 [P] [US1] Author **About / Business Identity & Contact** in `packages/legal-content/src/documents/about/v1.md`
   (entity, ABN, address, contact channels — all via identifier tokens)
-- [ ] T022 [US1] Generate **Open-Source Acknowledgements** in `packages/legal-content/src/documents/acknowledgements/v1.md`
+- [x] T022 [US1] Generate **Open-Source Acknowledgements** in `packages/legal-content/src/documents/acknowledgements/v1.md`
   from the distributed dependency set
-- [ ] T023 [US1] Register all documents in `packages/legal-content/src/manifest.ts`
+- [x] T023 [US1] Register all documents in `packages/legal-content/src/manifest.ts`
   (slug, title, version=v1, effectiveDate, category, order) and run `legal:gen` to emit the mobile content
-- [ ] T024 [US1] Web: implement `apps/customer-web/app/legal/[type]/page.tsx` to render any document by
+- [x] T024 [US1] Web: implement `apps/customer-web/app/legal/[type]/page.tsx` to render any document by
   slug from `@effy/legal-content` (sectioned typography, no cards — research R5)
-- [ ] T025 [US1] Web: replace the placeholder bodies in `apps/customer-web/app/legal/privacy/page.tsx`
+- [x] T025 [US1] Web: replace the placeholder bodies in `apps/customer-web/app/legal/privacy/page.tsx`
   and `apps/customer-web/app/legal/terms/page.tsx` with the real render (or redirect to the `[type]` slugs)
-- [ ] T026 [US1] Web: implement `apps/customer-web/app/about/page.tsx` (public)
+- [x] T026 [US1] Web: implement `apps/customer-web/app/about/page.tsx` (public)
 - [ ] T027 [US1] Mobile: implement `DocumentScreen` in
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/legal/presentation/LegalScreens.kt`
   and wire each nav key to render its document
-- [ ] T028 [US1] Web: add every new public route (`/legal`, `/legal/[type]` instances, `/about`) to
+- [x] T028 [US1] Web: add every new public route (`/legal`, `/legal/[type]` instances, `/about`) to
   `apps/customer-web/scripts/bundle-budget.mjs` GUEST_PAGES in the same change (FR-058c doctrine)
 
 **Checkpoint**: All documents exist, render on both surfaces, and are honest — MVP.
@@ -137,15 +137,15 @@ and the matching deletion URL (quickstart F).
 
 ### Implementation for User Story 2
 
-- [ ] T031 [P] [US2] Author `docs/store-submission/app-privacy-mapping.md` (Apple App Privacy details +
+- [x] T031 [P] [US2] Author `docs/store-submission/app-privacy-mapping.md` (Apple App Privacy details +
   privacy-manifest/ATT note) from `inventory.ts`
-- [ ] T032 [P] [US2] Author `docs/store-submission/data-safety-mapping.md` (Google Data safety, incl.
+- [x] T032 [P] [US2] Author `docs/store-submission/data-safety-mapping.md` (Google Data safety, incl.
   in-app + web deletion paths) from `inventory.ts`
-- [ ] T033 [P] [US2] Author `docs/store-submission/review-notes.md` — instruct the reviewer to register a
+- [x] T033 [P] [US2] Author `docs/store-submission/review-notes.md` — instruct the reviewer to register a
   throwaway account before testing deletion (FR-027; no special-cased account in code)
-- [ ] T034 [US2] Author `docs/store-submission/submission-checklist.md` (StoreSubmissionItems); mark the
+- [x] T034 [US2] Author `docs/store-submission/submission-checklist.md` (StoreSubmissionItems); mark the
   permanent-erasure claim **blocked-dependency** (R11) and the identifiers **operator-action** (FR-009)
-- [ ] T035 [US2] Reconcile the `apps/customer-web/app/delete-account/page.tsx` copy with the authored
+- [x] T035 [US2] Reconcile the `apps/customer-web/app/delete-account/page.tsx` copy with the authored
   Privacy Policy deletion language (honest current behaviour — R11), keeping the retained-category wording aligned
 
 **Checkpoint**: The apps are submittable; the only open items are recorded external/operator dependencies.
@@ -169,16 +169,16 @@ document (quickstart D).
 
 ### Implementation for User Story 3
 
-- [ ] T038 [US3] Web: add a "Legal & company" column to
+- [x] T038 [US3] Web: add a "Legal & company" column to
   `apps/customer-web/app/(shop)/_components/StorefrontFooter.tsx` (all legal docs + About + delete-account + `/legal`)
-- [ ] T039 [US3] Web: implement `apps/customer-web/app/legal/page.tsx` — the `/legal` index listing all documents
-- [ ] T040 [US3] Web: point the sign-up consent links in `apps/customer-web/app/(auth)/_components/AuthKit.tsx`
+- [x] T039 [US3] Web: implement `apps/customer-web/app/legal/page.tsx` — the `/legal` index listing all documents
+- [x] T040 [US3] Web: point the sign-up consent links in `apps/customer-web/app/(auth)/_components/AuthKit.tsx`
   at the current Terms + Privacy slugs
 - [ ] T041 [US3] Web: add Terms + Refund/Returns links at the checkout place-order point in
   `apps/customer-web/app/checkout/_components/` (and `CheckoutFooter.tsx` where appropriate)
 - [ ] T042 [US3] Web: reference the Privacy Policy with consent wording on the newsletter sign-up
   (`apps/customer-web/app/(shop)/newsletter/`)
-- [ ] T043 [US3] Web: ensure Account → Privacy & data links Privacy, Terms, Refunds, Acknowledgements,
+- [x] T043 [US3] Web: ensure Account → Privacy & data links Privacy, Terms, Refunds, Acknowledgements,
   delete in `apps/customer-web/app/(account)/account/page.tsx`
 - [ ] T044 [US3] Mobile: fix the Terms→Privacy mis-wire and add Refunds + Licenses rows in
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/account/presentation/AccountScreens.kt`
@@ -205,9 +205,9 @@ document (quickstart D).
 
 ### Implementation for User Story 4
 
-- [ ] T048 [US4] Web: implement `apps/customer-web/app/legal/[type]/versions/page.tsx` from the manifest
+- [x] T048 [US4] Web: implement `apps/customer-web/app/legal/[type]/versions/page.tsx` from the manifest
   `getVersions(slug)` (mark current; "This is the first version" when only v1)
-- [ ] T049 [US4] Confirm the meta row (version + effective date) renders on every document on both
+- [x] T049 [US4] Confirm the meta row (version + effective date) renders on every document on both
   surfaces (web `DocumentMeta`, mobile `DocumentScreen` header)
 
 **Checkpoint**: All four stories independently functional.
@@ -222,7 +222,7 @@ document (quickstart D).
 - [ ] T051 [P] Playwright e2e for the public legal routes + version history in `apps/customer-web/e2e/legal.spec.ts`
 - [ ] T052 Run the `legal:check` break-it proofs (drift / unresolved placeholder / manifest integrity)
   per quickstart §E and confirm each fails with a named cause
-- [ ] T053 Confirm the guest-bundle budget lists every new public route and passes (`pnpm --filter @effy/customer-web build` + budget)
+- [x] T053 Confirm the guest-bundle budget lists every new public route and passes (`pnpm --filter @effy/customer-web build` + budget)
 - [ ] T054 [P] Update the parity register `docs/audiences/customer-capabilities.md` §045
 - [ ] T055 Run the full quickstart.md A–F validation walk
 - [ ] T056 Verify the banned `techsupport+claudeone@phantm.com` appears nowhere (`git grep` clean);

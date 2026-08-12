@@ -1,0 +1,23 @@
+{
+  "name": "@effy/legal-content",
+  "version": "0.1.0",
+  "private": true,
+  "sideEffects": false,
+  "type": "module",
+  "description": "Effy legal & informational documents — the single source of truth (Principle II) for Privacy Policy, Terms, Refunds, Cookies, Acceptable Use, EULA, Acknowledgements and About. Canonical Markdown authored here; committed TS (web) + Kotlin (mobile) generated from it and drift-guarded.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/check.mjs && vitest run",
+    "legal:gen": "node scripts/gen.mjs",
+    "legal:check": "node scripts/check.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

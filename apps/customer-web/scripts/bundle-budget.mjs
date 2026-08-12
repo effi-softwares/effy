@@ -144,8 +144,16 @@ const GUEST_PAGES = [
   // guest-reachable route went unmeasured: /product/[id] sat 58.8 KB over budget for two features.
   { route: "/newsletter/confirm", html: ".next/server/app/newsletter/confirm.html" },
   { route: "/delete-account", html: ".next/server/app/delete-account.html" },
-  { route: "/legal/privacy", html: ".next/server/app/legal/privacy.html" },
-  { route: "/legal/terms", html: ".next/server/app/legal/terms.html" },
+  // ⚠ Added 2026-08-13 with the routes themselves (045). Legal documents are now rendered from
+  // @effy/legal-content on statically-generated public routes; /legal/privacy + /legal/terms are now
+  // redirect aliases (no measurable HTML), so the canonical document routes are measured instead.
+  // They are server-rendered, zero-client-JS pages — listed anyway, because the note above records
+  // what happens when a public route goes unmeasured (/product/[id] sat 58.8 KB over budget).
+  { route: "/legal", html: ".next/server/app/legal.html" },
+  { route: "/about", html: ".next/server/app/about.html" },
+  { route: "/legal/privacy-policy", html: ".next/server/app/legal/privacy-policy.html" },
+  { route: "/legal/terms-of-service", html: ".next/server/app/legal/terms-of-service.html" },
+  { route: "/legal/refunds-returns", html: ".next/server/app/legal/refunds-returns.html" },
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy

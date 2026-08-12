@@ -1,0 +1,10 @@
+[
+  { "slug": "privacy-policy", "category": "legal", "order": 1 },
+  { "slug": "terms-of-service", "category": "legal", "order": 2 },
+  { "slug": "refunds-returns", "category": "legal", "order": 3 },
+  { "slug": "cookies-tracking", "category": "legal", "order": 4 },
+  { "slug": "acceptable-use", "category": "legal", "order": 5 },
+  { "slug": "eula", "category": "legal", "order": 6 },
+  { "slug": "acknowledgements", "category": "info", "order": 7 },
+  { "slug": "about", "category": "info", "order": 8 }
+]

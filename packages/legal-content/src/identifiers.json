@@ -1,0 +1,12 @@
+{
+  "legalEntityName": "[LEGAL_ENTITY_NAME]",
+  "abn": "[ABN]",
+  "registeredAddress": "[REGISTERED_ADDRESS]",
+  "governingLawState": "[GOVERNING_LAW_STATE]",
+  "tradingName": "Effy",
+  "governingLawCountry": "Australia",
+  "privacyContactEmail": "hello@effyshopping.com",
+  "supportContactEmail": "support@effyshopping.com",
+  "websiteUrl": "https://effyshopping.com",
+  "canonicalHost": "effyshopping.com"
+}

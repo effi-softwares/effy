@@ -204,24 +204,23 @@ function PrivacySection() {
           Privacy &amp; data
         </h2>
         <ul className="mt-4 divide-y">
-          {/* ⚠ FR-052 — an in-app privacy policy link is required by BOTH stores. FR-052a — the
-              documents behind these links are operator-owned and legally reviewed. */}
-          <li>
-            <Link
-              href="/legal/privacy"
-              className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
-            >
-              Privacy policy
-            </Link>
-          </li>
-          <li>
-            <Link
-              href="/legal/terms"
-              className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
-            >
-              Terms of service
-            </Link>
-          </li>
+          {/* ⚠ An in-app privacy policy link is required by BOTH stores (Apple 5.1.1(i), Google User
+              Data policy). The documents behind these links come from @effy/legal-content (045). */}
+          {[
+            { label: "Privacy policy", href: "/legal/privacy-policy" },
+            { label: "Terms of service", href: "/legal/terms-of-service" },
+            { label: "Refunds & returns", href: "/legal/refunds-returns" },
+            { label: "Open-source acknowledgements", href: "/legal/acknowledgements" },
+          ].map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
         </ul>
       </section>
 

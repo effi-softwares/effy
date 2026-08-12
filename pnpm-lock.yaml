@@ -387,6 +387,9 @@ importers:
       '@effy/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@effy/legal-content':
+        specifier: workspace:*
+        version: link:../../packages/legal-content
       '@effy/shared-types':
         specifier: workspace:*
         version: link:../../packages/shared-types
@@ -668,6 +671,15 @@ importers:
       mjml:
         specifier: 4.15.3
         version: 4.15.3
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vitest:
+        specifier: ^3.0.0
+        version: 3.2.6(@types/node@22.20.0)(jiti@2.7.0)(jsdom@25.0.1)(lightningcss@1.32.0)(yaml@2.9.0)
+
+  packages/legal-content:
+    devDependencies:
       typescript:
         specifier: ~5.9.2
         version: 5.9.3

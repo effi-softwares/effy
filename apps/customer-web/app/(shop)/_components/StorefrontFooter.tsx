@@ -68,7 +68,7 @@ export function StorefrontFooter() {
       {/* ── 3. Dark footer ───────────────────────────────────────────────────────────────────── */}
       <footer className="bg-foreground text-background/80">
         <div className="container py-12">
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
             <FooterColumn
               title="Shop"
               links={[
@@ -92,6 +92,18 @@ export function StorefrontFooter() {
                 { label: "Sign in", href: "/sign-in" },
                 { label: "Create an account", href: "/sign-up" },
                 { label: "Reset password", href: "/reset-password" },
+              ]}
+            />
+            <FooterColumn
+              title="Legal & company"
+              links={[
+                { label: "About Effy", href: "/about" },
+                { label: "Privacy policy", href: "/legal/privacy-policy" },
+                { label: "Terms of service", href: "/legal/terms-of-service" },
+                { label: "Refunds & returns", href: "/legal/refunds-returns" },
+                { label: "Cookies & tracking", href: "/legal/cookies-tracking" },
+                { label: "All legal documents", href: "/legal" },
+                { label: "Delete your account", href: "/delete-account" },
               ]}
             />
             <div>
