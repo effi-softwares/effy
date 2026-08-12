@@ -66,19 +66,31 @@ export class CustomerRecordMissingError extends Error {
  * that developers cite the specific law behind a retention claim, and SC-010 requires every sentence
  * here to be true of the built system. It is deliberately short: claiming to retain something the
  * platform does not actually keep is as wrong as the reverse.
+ *
+ * ⚠ THE VOICE IS THE PRODUCT'S, NOT A COMPLIANCE REGISTER'S (rewritten 2026-08-12). These read to a
+ * person who has just decided to leave, which is the worst possible moment to sound like a filing
+ * cabinet. Each one says who it is about ("your"), what obliges us, and where that lands for them.
+ * The substance is unchanged: same three categories, same three obligations.
+ *
+ * ⚠ AND EACH ONE STILL SAYS "DELETE" WHERE IT NEEDS A VERB. Softening it to "close" or "remove" is
+ * the exact drift `deletion-copy.test.ts` exists to catch, and warm copy is how that drift usually
+ * arrives.
  */
 const RETAINED: RetainedCategoryDTO[] = [
   {
-    category: "Completed orders and their receipts",
-    reason: "Required for tax and accounting records.",
+    category: "Your orders and receipts",
+    reason:
+      "Tax and accounting rules require us to keep a record of every completed sale, even after you delete your account.",
   },
   {
-    category: "Payment records",
-    reason: "Required to resolve chargebacks and to meet financial record-keeping obligations.",
+    category: "Your payment records",
+    reason:
+      "Financial rules require us to hold on to proof of payments and refunds. It is also what lets us help you if a payment is ever disputed.",
   },
   {
-    category: "Fraud and security signals",
-    reason: "Required to protect the platform and other customers from abuse.",
+    category: "Security and fraud checks",
+    reason:
+      "A small amount of security information stays with us so we can keep Effy safe for everyone who shops here.",
   },
 ]
 

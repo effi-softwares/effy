@@ -108,12 +108,16 @@ export function DeleteAccountFlow() {
 
       {/* What is kept, and why (FR-045). Rendered from the contract so the two surfaces cannot
           drift, and so SC-010 can be checked against ONE list rather than two renderings. */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium">What we keep, and why</h3>
-        <ul className="space-y-1">
+      <div className="space-y-3">
+        <h3 className="text-sm font-medium">What we need to keep, and why</h3>
+        {/* ⚠ The category is its own line, not a lead-in joined by a dash. A label and a sentence do
+            different jobs, and running them together made each entry read as one long clause that a
+            skimming eye slides off. Stacked, the three categories can be scanned on their own. */}
+        <ul className="space-y-3">
           {preview.retained.map((r) => (
-            <li key={r.category} className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{r.category}</span> — {r.reason}
+            <li key={r.category}>
+              <p className="text-sm font-medium text-foreground">{r.category}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{r.reason}</p>
             </li>
           ))}
         </ul>
