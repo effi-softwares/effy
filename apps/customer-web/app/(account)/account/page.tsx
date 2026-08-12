@@ -229,8 +229,26 @@ function PrivacySection() {
         </ul>
       </section>
 
-      {/* The LAST item in the tab. */}
-      <section aria-labelledby="delete-heading">
+      {/*
+        The LAST item in the tab, and the one bordered container in the customer account area.
+
+        ⚠ A CARD HERE IS A DELIBERATE PRINCIPLE V EXCEPTION, not a lapse. The doctrine's objection is
+        to cards used as a LAYOUT device — a grid of equal-weight boxes that flattens hierarchy. This
+        is the opposite job: a border that QUARANTINES one irreversible action from the reversible
+        policy links above it, so the boundary itself carries the warning. It is the long-established
+        "danger zone" convention, and no sectioned-list alternative separates destructive from
+        non-destructive without it.
+
+        ⚠ The tint is `--destructive` — one of the platform's exactly two semantic colours — used as
+        a BORDER and a barely-there ground, never as a fill or a label. The heading stays neutral: the
+        border and the destructive confirm button are the signal, and a third red would spend the
+        colour's meaning on decoration.
+      */}
+      <section
+        aria-labelledby="delete-heading"
+        data-testid="danger-zone"
+        className="rounded-2xl border border-destructive/40 bg-destructive/[0.03] p-6"
+      >
         <h2 id="delete-heading" className="text-lg font-medium">
           Delete account
         </h2>
