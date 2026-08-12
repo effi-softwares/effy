@@ -9,10 +9,11 @@ import type { GuestCartLine } from "@/lib/cart-store"
 import {
   addItem,
   clearAll,
-  deleteSavedItem,
+  // Save-for-later (cart set-aside) TEMPORARILY HIDDEN — actions kept, UI commented out below.
+  // deleteSavedItem,
   removeItem,
-  restoreSavedItem,
-  setAsideItem,
+  // restoreSavedItem,
+  // setAsideItem,
   setItemQuantity,
 } from "@/lib/cart-actions"
 import { groupByPackage, useCartMirror } from "@/lib/cart-store"
@@ -75,94 +76,100 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container py-8">
-      <Display as="h1" size="section" className="mb-6">
+    <div className="container mt-6">
+      <Display as="h1" size="section" className="normal-case leading-tight text-left text-2xl sm:text-3xl">
         Your cart
       </Display>
 
-      {/* The reference's split: line items on the left, a bordered summary panel on the right that
+      {/* The reference's split: line items on the left, the order summary on the right that
           sticks as the list scrolls. Below `lg` they stack, summary last. */}
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
+      <div className="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div>
-
-      {split && (
-        <p className="mb-4 rounded-md bg-background px-4 py-3 text-sm text-muted-foreground">
-          Your order will arrive in {packages.length} packages. You’ll choose delivery for each at
-          checkout.
-        </p>
-      )}
-
-      {packages.map((pkg, i) => (
-        <section key={pkg.packageKey} className={i > 0 ? "mt-6" : undefined}>
           {split && (
-            <h2 className="mb-1 text-sm font-medium text-muted-foreground">Package {i + 1}</h2>
+            <p className="mb-4 rounded-md bg-background py-3 text-sm text-muted-foreground">
+              Your order will arrive in {packages.length} packages. You’ll choose delivery for each at
+              checkout.
+            </p>
           )}
-          <ul className="divide-y border-y">
-            {pkg.lines.map((line) => (
-              <CartLineRow key={line.productId} line={line} />
-            ))}
-          </ul>
-        </section>
-      ))}
 
+          {packages.map((pkg, i) => (
+            <section key={pkg.packageKey} className={i > 0 ? "mt-6" : undefined}>
+              {split && (
+                <h2 className="mb-4 font-semibold text-xl text-foreground">Package {i + 1}</h2>
+              )}
+              <ul className="divide-y space-y-2">
+                {pkg.lines.map((line) => (
+                  <CartLineRow key={line.productId} line={line} />
+                ))}
+              </ul>
+            </section>
+          ))}
+
+          {/* Save-for-later (cart set-aside) list TEMPORARILY HIDDEN — rendering commented out; data/API kept.
+          {cart.savedLines.length > 0 ? (
+            <section className="mt-8 border-t pt-6">
+              <h2 className="text-lg font-bold">Saved for later ({cart.savedLines.length})</h2>
+              <p className="text-xs text-muted-foreground">Not included in your total.</p>
+              <ul className="mt-4 divide-y">
+                {cart.savedLines.map((line) => (
+                  <li key={line.productId} className="flex items-center gap-4 py-4">
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">{line.name}</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {formatMoney(line.unitPriceAmount, line.currency)}
+                      </span>
+                      {line.available === false ? (
+                        <span className="block text-xs font-medium text-destructive">Unavailable</span>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      disabled={line.available === false}
+                      onClick={() => void restoreSavedItem(line.productId)}
+                      className="text-sm font-medium hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+                    >
+                      Move to cart
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteSavedItem(line.productId)}
+                      className="text-sm text-muted-foreground hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+          */}
+
+          {/* FR-032: emptying the cart is not recoverable, so it is confirmed — and it is given a heading
+              and an explanation so the action reads as deliberate rather than a stray link. */}
+          {lines.length > 0 ? (
+            <section className="mt-10 flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div>
+                <h2 className="text-base font-semibold">Empty your cart</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This removes every item you’ve added. It can’t be undone.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Empty your cart? This removes everything you’re about to buy.")) clearAll()
+                }}
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-destructive hover:underline"
+              >
+                <Trash2 className="size-4" /> Empty cart
+              </button>
+            </section>
+          ) : null}
         </div>
 
-        {/* FR-028..FR-031: set aside for later, BELOW the payable items and visually separate — the one
-            thing a shopper must never wonder is whether these are being bought. */}
-        {cart.savedLines.length > 0 ? (
-          <section className="mt-8 border-t pt-6">
-            <h2 className="text-lg font-bold">Saved for later ({cart.savedLines.length})</h2>
-            <p className="text-xs text-muted-foreground">Not included in your total.</p>
-            <ul className="mt-4 divide-y">
-              {cart.savedLines.map((line) => (
-                <li key={line.productId} className="flex items-center gap-4 py-4">
-                  <div className="flex-1">
-                    <span className="text-sm font-medium">{line.name}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {formatMoney(line.unitPriceAmount, line.currency)}
-                    </span>
-                    {line.available === false ? (
-                      <span className="block text-xs font-medium text-destructive">Unavailable</span>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    disabled={line.available === false}
-                    onClick={() => void restoreSavedItem(line.productId)}
-                    className="text-sm font-medium hover:underline disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
-                  >
-                    Move to cart
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void deleteSavedItem(line.productId)}
-                    className="text-sm text-muted-foreground hover:underline"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/* FR-032: emptying the cart is not recoverable, so it is confirmed. */}
-        {lines.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm("Empty your cart? Items you saved for later are kept.")) clearAll()
-            }}
-            className="mt-6 text-sm text-muted-foreground hover:underline"
-          >
-            Empty cart
-          </button>
-        ) : null}
-
-        {/* Order summary — the reference's bordered panel, made sticky so the amount payable stays
-            beside the list instead of scrolling away from it. */}
-        <aside className="rounded-2xl border p-6 lg:sticky lg:top-24">
-          <h2 className="text-xl font-bold">Order summary</h2>
+        {/* Order summary — a bordered card on the right beside the list. */}
+        <aside className="rounded-lg border p-6">
+          <h2 className="text-xl font-bold">Order Summary</h2>
           <dl className="mt-5 space-y-4">
             <div className="flex items-center justify-between">
               <dt className="text-muted-foreground">Items</dt>
@@ -226,7 +233,7 @@ export default function CartPage() {
             </>
           )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            You’ll sign in at checkout. Your cart is kept.
+            Secure checkout. Sign in to complete your order.
           </p>
         </aside>
       </div>
@@ -238,7 +245,7 @@ export default function CartPage() {
 function CartLineRow({ line }: { line: GuestCartLine }) {
   return (
     <li className="flex gap-4 py-4">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border bg-muted">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-md border bg-muted">
         {line.imageUrl ? (
           <Image src={line.imageUrl} alt={line.name} fill unoptimized sizes="5rem" className="object-cover" />
         ) : (
@@ -295,15 +302,16 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
               <Plus className="size-3.5" />
             </button>
           </div>
-          {/* FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this" has
-              only one answer — delete — and shoppers avoid that by abandoning the whole cart. */}
+          <div className="ml-4 flex items-center gap-4">
+          {/* Save for later (cart set-aside) TEMPORARILY HIDDEN — entry point commented out; action kept.
           <button
             type="button"
             onClick={() => void setAsideItem(line.productId)}
-            className="text-sm text-muted-foreground hover:underline"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
           >
-            Save for later
+            <Bookmark className="size-3.5" /> Save for later
           </button>
+          */}
           <button
             type="button"
             onClick={() => {
@@ -335,6 +343,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
           >
             <Trash2 className="size-3.5" /> Remove
           </button>
+          </div>
         </div>
       </div>
 

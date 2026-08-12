@@ -23,8 +23,10 @@ export const metadata: Metadata = {
  */
 export default function CheckoutPage() {
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
-      <Display as="h1" size="section">Checkout</Display>
+    <div className="container mt-6 space-y-4">
+      <Display as="h1" size="section" className="normal-case leading-tight text-left text-2xl sm:text-3xl">
+        Checkout
+      </Display>
       <Suspense fallback={<CheckoutSkeleton />}>
         <CheckoutGate />
       </Suspense>
@@ -53,7 +55,7 @@ async function CheckoutGate() {
 
 function CheckoutSkeleton() {
   return (
-    <div className="mt-6 space-y-4" aria-hidden="true">
+    <div className="space-y-4" aria-hidden="true">
       <div className="h-5 w-64 animate-pulse rounded bg-muted" />
       <div className="h-24 w-full animate-pulse rounded bg-muted" />
       <div className="h-11 w-full animate-pulse rounded bg-muted" />

@@ -347,9 +347,9 @@ export function MediaFrame({
         "relative w-full overflow-hidden bg-muted",
         ratio === "square" && "aspect-square",
         ratio === "video" && "aspect-video",
-        ratio === "wide" && "aspect-[3/2]",
-        ratio === "portrait" && "aspect-[4/5]",
-        ratio === "banner" && "aspect-[2/1]",
+        ratio === "wide" && "aspect-3/2",
+        ratio === "portrait" && "aspect-4/5",
+        ratio === "banner" && "aspect-2/1",
         rounded,
         className,
       )}
@@ -405,7 +405,7 @@ export function Scrim({
     <div
       aria-hidden="true"
       className={cn(
-        "absolute inset-0 bg-gradient-to-t",
+        "absolute inset-0 bg-linear-to-t",
         strength === "standard" && "from-black/70 to-black/10",
         strength === "strong" && "from-black/85 via-black/50 to-black/20",
         className,

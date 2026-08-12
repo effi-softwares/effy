@@ -53,7 +53,7 @@ export function CategoryStrip({ categories }: { categories: StorefrontCategoryDT
   return (
     <SectionShell title="Shop by category" href="/search" linkLabel="Shop all products">
       {stocked.length > 0 ? (
-        <ul className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:gap-8 sm:px-0 [&::-webkit-scrollbar]:hidden">
+        <ul className="-mx-4 flex gap-6 overflow-x-auto px-4 pb-2 scrollbar-none sm:mx-0 sm:gap-8 sm:px-0 [&::-webkit-scrollbar]:hidden">
           {stocked.map((category) => (
             <li key={category.key} className="shrink-0">
               <Link

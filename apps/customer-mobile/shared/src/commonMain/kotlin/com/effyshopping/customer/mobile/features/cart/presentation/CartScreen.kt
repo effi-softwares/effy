@@ -512,6 +512,8 @@ private fun CartRow(
                 onChange = { container.setCartQuantity(line.productId, it) },
             )
             Spacer(Modifier.weight(1f))
+            // Save for later (cart set-aside) TEMPORARILY HIDDEN — entry point commented out; container.setAside kept.
+            /*
             // FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this"
             // has only one answer — delete — and shoppers avoid that by abandoning the whole cart.
             //
@@ -524,6 +526,7 @@ private fun CartRow(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            */
             // ⚠ The only destructive-coloured thing on the screen. As a text button it read with exactly
             // the same weight as "Save for later" — two equal-looking words, one of which throws the item
             // away. Colour now says which is which before either is read; the two icons are also

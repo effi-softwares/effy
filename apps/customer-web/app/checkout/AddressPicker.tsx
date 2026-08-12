@@ -5,16 +5,16 @@ import { useState } from "react"
 import type { AddressDTO } from "@effy/shared-types"
 import { Badge, Button } from "@effy/design-system/ui"
 
-import { AddressFormModal } from "@/app/(account)/addresses/_components/AddressFormModal"
+import { AddressForm } from "@/app/(account)/addresses/_components/AddressForm"
 import { addressLines, type Address } from "@/lib/addresses/model"
 
 /**
  * The checkout saved-address picker (023 US1–US3). Reused verbatim for BOTH shipping and billing.
  *
  * Shows the selected address as a summary row (a LIST/picker, never a card — FR-022); "Change" reveals
- * the saved list as radio options with the default badged; "Add a new address" opens the shared 022
- * responsive form (dialog on large screens / drawer on small) and, on save, hands the created address
- * back to the parent to select for this order.
+ * the saved list as radio options with the default badged; "Add a new address" reveals the shared 022
+ * form INLINE on the page (no dialog) and, on save, hands the created address back to the parent to
+ * select for this order.
  *
  * The component is deliberately telemetry-free and identity-free: the list is the customer's own
  * (FR-021, resolved server-side from the token), and selection here is per-order — it NEVER mutates the
@@ -47,6 +47,7 @@ export function AddressPicker({
 
   function handleSaved(created: Address) {
     onAddressAdded(created)
+    setFormOpen(false)
     setExpanded(false)
   }
 
@@ -54,13 +55,18 @@ export function AddressPicker({
   if (addresses.length === 0) {
     return (
       <div>
-        <p className="text-sm text-muted-foreground" data-testid={`${idPrefix}-empty`}>
-          Add an address to continue.
-        </p>
-        <Button type="button" variant="outline" className="mt-3" onClick={() => setFormOpen(true)}>
-          Add an address
-        </Button>
-        <AddressFormModal open={formOpen} onOpenChange={setFormOpen} onSaved={handleSaved} />
+        {formOpen ? (
+          <AddressForm onSaved={handleSaved} onCancel={() => setFormOpen(false)} />
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground" data-testid={`${idPrefix}-empty`}>
+              Add an address to continue.
+            </p>
+            <Button type="button" variant="outline" className="mt-3" onClick={() => setFormOpen(true)}>
+              Add an address
+            </Button>
+          </>
+        )}
       </div>
     )
   }
@@ -106,13 +112,18 @@ export function AddressPicker({
               </li>
             ))}
           </ul>
-          <Button type="button" variant="outline" onClick={() => setFormOpen(true)}>
-            Add a new address
-          </Button>
+          {formOpen ? (
+            <div className="rounded-md border p-4">
+              <h3 className="mb-3 text-sm font-medium">Add a new address</h3>
+              <AddressForm onSaved={handleSaved} onCancel={() => setFormOpen(false)} />
+            </div>
+          ) : (
+            <Button type="button" variant="outline" onClick={() => setFormOpen(true)}>
+              Add a new address
+            </Button>
+          )}
         </div>
       )}
-
-      <AddressFormModal open={formOpen} onOpenChange={setFormOpen} onSaved={handleSaved} />
     </div>
   )
 }
