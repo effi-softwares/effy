@@ -20,10 +20,12 @@ import { edgeApiPublic } from "@/lib/api/edge"
  *
  * ⚠ WHY IT IS A SERVER ACTION AND NOT A CLIENT `fetch`.
  *
- * `EDGE_API_BASE_URL` deliberately carries NO `NEXT_PUBLIC_` prefix — the browser never learns the
- * backend's address (lib/config.ts says so, and means it). A client-side fetch would have read
- * `undefined` and posted to `undefined/customer/v1/...`. TypeScript cannot catch that; only reading the
- * config contract can.
+ * NOT because the browser cannot find the backend. It used to be: `EDGE_API_BASE_URL` carried no
+ * `NEXT_PUBLIC_` prefix, so a client-side fetch would have posted to `undefined/customer/v1/...`.
+ * That prefix now exists (lib/config.ts records why it had to), and with it the accident that used
+ * to enforce this rule. What remains is the reason that always mattered: the two defects above.
+ * Breach screening and the platform's `has_password` record are applied HERE, on the way through,
+ * and a call made from the browser would reach the same public route having skipped both.
  *
  * The backend route itself is PUBLIC (no authorizer), which is correct: the caller has no session —
  * that is the entire point of account recovery — and the Cognito API it wraps is unauthenticated too,

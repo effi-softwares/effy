@@ -39,9 +39,12 @@ export function edgeApi(session: { idToken: string; accessToken?: string | null 
  * completing "forgot password" has, by definition, no way in; they prove the INBOX instead, and Cognito
  * checks the emailed code. The backend route is public for the same reason.
  *
- * ⚠ IT MUST BE CALLED FROM THE SERVER. `EDGE_API_BASE_URL` deliberately carries no `NEXT_PUBLIC_`
- * prefix — the browser never learns the backend's address. So recovery goes through a Server Action,
- * not a client-side fetch.
+ * ⚠ IT MUST BE CALLED FROM THE SERVER — but no longer for the reason this comment used to give.
+ * The address moved to `NEXT_PUBLIC_EDGE_API_BASE_URL` (lib/config.ts records why it had to), so
+ * the browser CAN now see where the edge API lives. Recovery stays a Server Action because the work
+ * belongs on the server: breach screening and the platform's `has_password` record are enforced on
+ * the way through, and a call made from the browser goes around both — the two defects that moved
+ * it here in the first place. See app/(auth)/_lib/recovery-actions.ts.
  */
 export function edgeApiPublic() {
   return new ServerApiClient({ baseUrl: edgeApiBaseUrl(), token: null })

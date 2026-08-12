@@ -262,9 +262,10 @@ export async function startPasswordReset(email: string) {
  * page is a detour sign, not a rule), and it left the platform's `has_password` record permanently
  * WRONG — because the platform never found out that a password now existed.
  *
- * It is now a SERVER ACTION against a public backend route. That is not incidental: `EDGE_API_BASE_URL`
- * deliberately has no `NEXT_PUBLIC_` prefix, so the browser does not know the backend's address and a
- * client-side fetch could not have worked at all.
+ * It is now a SERVER ACTION against a public backend route — and it must stay one because of those
+ * two defects, not because of where the address lives. (The address is now
+ * `NEXT_PUBLIC_EDGE_API_BASE_URL`; lib/config.ts records why. A client-side fetch would no longer
+ * fail outright, which is exactly why the rule is written down here instead of being assumed.)
  */
 
 // ── Errors the customer can act on (FR-015) ────────────────────────────────────────────────────
