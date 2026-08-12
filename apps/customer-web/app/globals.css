@@ -301,6 +301,25 @@
     }
   }
 
+  /* The same drawer, hinged on the other edge — the cart.
+   *
+   * ⚠ Left and right are not interchangeable, and which side a panel comes from is a statement about
+   * what it is. The menu is where you are GOING (navigation reads from the left, with the mark); the
+   * cart is what you HAVE, and it lives under the control that opens it, in the header's right-hand
+   * cluster. A cart that flew in from the left would cross the whole viewport to arrive nowhere near
+   * the thing that summoned it. */
+  .fx-drawer-right {
+    translate: 100% 0;
+  }
+  .fx-drawer-right[open] {
+    translate: 0 0;
+  }
+  @starting-style {
+    .fx-drawer-right[open] {
+      translate: 100% 0;
+    }
+  }
+
   /* FR-025: motion is decoration, never information. Collapse the duration rather than removing the
    * transition — `allow-discrete` still has to run for the close to reach `display: none`. */
   @media (prefers-reduced-motion: reduce) {
