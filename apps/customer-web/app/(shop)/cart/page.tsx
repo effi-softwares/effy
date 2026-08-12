@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Bookmark, Minus, Plus, Trash2 } from "lucide-react"
+import { ArrowRight, Minus, Plus, Trash2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { useEffect } from "react"
@@ -9,10 +9,11 @@ import type { GuestCartLine } from "@/lib/cart-store"
 import {
   addItem,
   clearAll,
-  deleteSavedItem,
+  // Save-for-later (cart set-aside) TEMPORARILY HIDDEN — actions kept, UI commented out below.
+  // deleteSavedItem,
   removeItem,
-  restoreSavedItem,
-  setAsideItem,
+  // restoreSavedItem,
+  // setAsideItem,
   setItemQuantity,
 } from "@/lib/cart-actions"
 import { groupByPackage, useCartMirror } from "@/lib/cart-store"
@@ -104,8 +105,7 @@ export default function CartPage() {
             </section>
           ))}
 
-          {/* FR-028..FR-031: set aside for later, BELOW the payable items and visually separate — the one
-              thing a shopper must never wonder is whether these are being bought. */}
+          {/* Save-for-later (cart set-aside) list TEMPORARILY HIDDEN — rendering commented out; data/API kept.
           {cart.savedLines.length > 0 ? (
             <section className="mt-8 border-t pt-6">
               <h2 className="text-lg font-bold">Saved for later ({cart.savedLines.length})</h2>
@@ -142,6 +142,7 @@ export default function CartPage() {
               </ul>
             </section>
           ) : null}
+          */}
 
           {/* FR-032: emptying the cart is not recoverable, so it is confirmed. */}
           {lines.length > 0 ? (
@@ -293,8 +294,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
             </button>
           </div>
           <div className="ml-4 flex items-center gap-4">
-          {/* FR-028: the non-destructive alternative to Remove. Without it "I'm not sure about this" has
-              only one answer — delete — and shoppers avoid that by abandoning the whole cart. */}
+          {/* Save for later (cart set-aside) TEMPORARILY HIDDEN — entry point commented out; action kept.
           <button
             type="button"
             onClick={() => void setAsideItem(line.productId)}
@@ -302,6 +302,7 @@ function CartLineRow({ line }: { line: GuestCartLine }) {
           >
             <Bookmark className="size-3.5" /> Save for later
           </button>
+          */}
           <button
             type="button"
             onClick={() => {
