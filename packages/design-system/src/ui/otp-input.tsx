@@ -95,8 +95,12 @@ function OtpInput({
         // Codes are read back character by character far more often than prose is, so they get
         // tabular figures and a little tracking. This is the one place that is worth it.
         "font-mono tracking-[0.35em]",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+        // No focus halo, matching `input.tsx` — the plain variant IS an `Input` in every respect but
+        // its tracking, so a different focus treatment here would read as a bug. The `cells` variant
+        // below keeps its own ring: that one is 044's authored per-cell focus indicator, not the
+        // shadcn default, and it is the only thing marking which position is active.
+        "focus-visible:border-ring",
+        "aria-invalid:border-destructive",
         className
       )}
       {...props}
