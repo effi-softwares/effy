@@ -116,34 +116,31 @@ export function ChangePasswordDialog({
             </p>
           )}
 
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-foreground/80">
             Changing your password will sign you out on every device, including this one. We&rsquo;ll
             ask you to sign in again with the new one.
           </p>
         </form>
 
-        {/* ⚠ Submit first, Cancel BELOW it and de-weighted — the same order `FieldEditor` uses, for
-            the same reason: on a phone Cancel sits under the thumb's resting position, so two
-            equally-weighted filled buttons turn a mis-tap into a discarded form. */}
-        <ResponsiveModalFooter className="flex flex-col gap-2 sm:flex-col">
+        {/* Cancel on the LEFT, de-weighted as a ghost; the primary submit on the RIGHT. The ghost
+            weighting is what keeps a mis-tap from being a discarded form. */}
+        <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
           <Button
             type="submit"
             form="change-password-form"
             disabled={pending || !current || !next}
             aria-busy={pending}
             data-testid="submit-change-password"
-            className="w-full"
           >
             {pending ? "Changing…" : "Change password"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-            disabled={pending}
-            className="w-full"
-          >
-            Cancel
           </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>

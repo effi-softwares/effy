@@ -159,30 +159,26 @@ export function FieldEditor({
           ) : null}
         </form>
 
-        {/* ⚠ Save first, Cancel BELOW it and DE-WEIGHTED (FR-014 / FR-015).
-            Not decoration: Cancel sits directly under the thumb's resting position on a phone, so
-            two equally-weighted filled buttons turn a mis-tap into silent data loss. Save is the
-            action ~95% of opens end in; Cancel is a text action. */}
-        <ResponsiveModalFooter className="flex flex-col gap-2 sm:flex-col">
-          <Button
-            type="button"
-            onClick={submit}
-            disabled={pending}
-            aria-busy={pending}
-            data-testid="field-editor-save"
-            className="w-full"
-          >
-            {pending ? "Saving…" : "Save"}
-          </Button>
+        {/* Cancel on the LEFT and de-weighted as a ghost; Save (the action ~95% of opens end in) on
+            the RIGHT. The ghost weighting is what keeps a mis-tap off the destructive path. */}
+        <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
           <Button
             type="button"
             variant="ghost"
             onClick={attemptClose}
             disabled={pending}
             data-testid="field-editor-cancel"
-            className="w-full"
           >
             Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={submit}
+            disabled={pending}
+            aria-busy={pending}
+            data-testid="field-editor-save"
+          >
+            {pending ? "Saving…" : "Save"}
           </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>

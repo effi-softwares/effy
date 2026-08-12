@@ -150,7 +150,7 @@ async function AddressBook() {
 
   return (
     <section aria-labelledby="address-book-heading">
-      <h2 id="address-book-heading" className="mb-4 text-lg font-medium">
+      <h2 id="address-book-heading" className="mb-4 text-xl font-semibold">
         Address book
       </h2>
       <AddressList initial={addresses} />
@@ -174,12 +174,18 @@ function SecuritySection({
   passwordUpdatedAt: string | null
 }) {
   return (
-    <section aria-labelledby="security-heading" className="space-y-6">
-      <h2 id="security-heading" className="text-lg font-medium">
+    <section aria-labelledby="security-heading">
+      <h2 id="security-heading" className="text-xl font-semibold">
         Security
       </h2>
-      <PasswordCard hasPassword={hasPassword} passwordUpdatedAt={passwordUpdatedAt} />
-      <SessionCard />
+      <div className="mt-6 divide-y">
+        <div className="py-6 first:pt-0">
+          <PasswordCard hasPassword={hasPassword} passwordUpdatedAt={passwordUpdatedAt} />
+        </div>
+        <div className="py-6">
+          <SessionCard />
+        </div>
+      </div>
     </section>
   )
 }
@@ -192,12 +198,12 @@ function SecuritySection({
  */
 function PrivacySection() {
   return (
-    <div className="space-y-16">
+    <div className="space-y-8">
       <section aria-labelledby="privacy-heading">
-        <h2 id="privacy-heading" className="text-lg font-medium">
+        <h2 id="privacy-heading" className="text-xl font-semibold">
           Privacy &amp; data
         </h2>
-        <ul className="mt-2 divide-y border-y">
+        <ul className="mt-4 divide-y">
           {/* ⚠ FR-052 — an in-app privacy policy link is required by BOTH stores. FR-052a — the
               documents behind these links are operator-owned and legally reviewed. */}
           <li>
@@ -237,7 +243,7 @@ function PrivacySection() {
       <section
         aria-labelledby="delete-heading"
         data-testid="danger-zone"
-        className="rounded-2xl border border-destructive/40 bg-destructive/[0.03] p-6"
+        className="rounded-2xl border border-destructive/40 bg-destructive/3 p-6"
       >
         <h2 id="delete-heading" className="text-lg font-medium">
           Delete account
