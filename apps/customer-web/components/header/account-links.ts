@@ -1,7 +1,7 @@
 /**
  * The customer's account destinations — ONE list, rendered by two different controls.
  *
- * ⚠ It exists because the same four entries are now shown in two places that look nothing alike: the
+ * ⚠ It exists because the same entries are now shown in two places that look nothing alike: the
  * desktop `<details>` dropdown (`AccountMenu`) and the drawer's slide-in account panel on small
  * screens (`MobileNavIsland`). Written out twice, they drift — a link added for the desktop menu
  * simply never appears on a phone, and nothing fails.
@@ -12,7 +12,8 @@
  */
 export const ACCOUNT_LINKS = [
   { label: "Your account", href: "/account", testId: "menu-account" },
-  { label: "Your addresses", href: "/account?tab=addresses", testId: "menu-addresses" },
+  // Addresses are NOT listed here: they are a tab of the account page (`/account?tab=addresses`),
+  // so "Your account" already leads there. Existing links to `/addresses` still redirect.
   // 033 FR-055: a storefront entry point that does not require scrolling to the footer.
   { label: "Saved items", href: "/saved", testId: "menu-saved" },
 ] as const

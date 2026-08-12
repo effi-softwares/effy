@@ -68,12 +68,7 @@ export default function AccountPage({
   searchParams: Promise<{ tab?: string }>
 }) {
   return (
-    <div className="container py-6 sm:py-8">
-      <h1 className="text-3xl font-semibold tracking-tight">Your account</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Manage your details, addresses and how you sign in.
-      </p>
-
+    <div className="container py-3 sm:py-6">
       <Suspense fallback={<AccountSkeleton />}>
         <AccountBody searchParams={searchParams} />
       </Suspense>
