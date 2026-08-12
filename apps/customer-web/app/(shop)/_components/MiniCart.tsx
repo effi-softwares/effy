@@ -106,7 +106,10 @@ export function MiniCart() {
           `max-width: calc(100% - 6px - 2em)` box, or the panel stops short of the edge. */}
       <dialog
         ref={dialogRef}
-        className="fx-dialog fx-drawer-right ml-auto h-full max-h-none w-[min(26rem,92vw)] max-w-none border-l bg-card p-0 text-foreground backdrop:bg-foreground/40"
+        // ⚠ `backdrop:bg-black/50` matches the design-system overlays (Dialog/Sheet/Drawer). It was
+        // `bg-foreground/40`, which looks token-correct and is not: `--foreground` inverts by
+        // appearance, so that scrim rendered as a WHITE film on a dark surface. A scrim must darken.
+        className="fx-dialog fx-drawer-right ml-auto h-full max-h-none w-[min(26rem,92vw)] max-w-none border-l bg-card p-0 text-foreground backdrop:bg-black/50"
         aria-labelledby="mini-cart-title"
         // Light dismiss. A native <dialog> closes on Escape and NOTHING else — which on a phone,
         // where there is no Escape key, leaves the close button as the only way out. A click whose
