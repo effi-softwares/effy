@@ -94,7 +94,7 @@ export function PasswordField({
       {isNew && (
         <p
           id={hintId}
-          className={tooShort ? "text-sm text-destructive" : "text-sm text-muted-foreground"}
+          className={tooShort ? "text-sm text-destructive" : "text-sm text-foreground/80"}
         >
           At least {PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters
           required.

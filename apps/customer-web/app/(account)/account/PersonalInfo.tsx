@@ -53,11 +53,11 @@ export function PersonalInfo({
 
   return (
     <section aria-labelledby="personal-info-heading">
-      <h2 id="personal-info-heading" className="border-b pb-3 text-lg font-medium">
+      <h2 id="personal-info-heading" className="mb-4 text-xl font-semibold">
         Personal info
       </h2>
 
-      <ul className="divide-y border-b">
+      <ul className="divide-y">
         <Row
           label="First name"
           value={givenName}

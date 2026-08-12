@@ -59,7 +59,7 @@ export function DeleteAccountFlow() {
     return (
       <LoadingArea
         testId="closure-loading"
-        className="min-h-[140px]"
+        className="min-h-35"
         label="Checking whether your account can be deleted…"
       />
     )
@@ -84,7 +84,7 @@ export function DeleteAccountFlow() {
               </p>
               <Link
                 href={b.href}
-                className="mt-1 inline-flex min-h-[48px] items-center text-sm underline"
+                className="mt-1 inline-flex min-h-12 items-center text-sm underline"
               >
                 View order {b.reference}
               </Link>
@@ -130,7 +130,6 @@ export function DeleteAccountFlow() {
         </p>
         <Button
           type="button"
-          variant="outline"
           disabled={pending}
           aria-busy={pending}
           data-testid="closure-send-code"
@@ -279,9 +278,19 @@ function ConfirmCodeModal({
           </p>
         </form>
 
-        <ResponsiveModalFooter className="flex flex-col gap-2 sm:flex-col">
-          {/* The only destructive-styled control in the customer account area. Sign out gave up its
-              red so this one could have it (FR-030). */}
+        {/* Cancel on the LEFT and de-weighted as a ghost; the destructive confirm on the RIGHT — the
+            only destructive-styled control in the customer account area (sign out gave up its red so
+            this one could have it, FR-030). */}
+        <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={pending}
+            data-testid="closure-cancel"
+          >
+            Cancel
+          </Button>
           <Button
             type="submit"
             form="closure-code-form"
@@ -289,19 +298,8 @@ function ConfirmCodeModal({
             disabled={pending || !complete}
             aria-busy={pending}
             data-testid="closure-confirm"
-            className="w-full"
           >
             {pending ? "Deleting…" : "Delete my account"}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onClose}
-            disabled={pending}
-            data-testid="closure-cancel"
-            className="w-full"
-          >
-            Cancel
           </Button>
         </ResponsiveModalFooter>
       </ResponsiveModalContent>

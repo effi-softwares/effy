@@ -17,7 +17,7 @@
  */
 export function SessionCard() {
   return (
-    <section aria-labelledby="sessions-heading" className="rounded-2xl border p-6">
+    <section aria-labelledby="sessions-heading">
       <h2 id="sessions-heading" className="text-lg font-medium">
         Sessions
       </h2>

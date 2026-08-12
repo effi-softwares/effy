@@ -253,8 +253,8 @@ export function AddressFormModal({
             </p>
           )}
 
-          <ResponsiveModalFooter className="px-0">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
+          <ResponsiveModalFooter className="mt-6 flex flex-row justify-end gap-3 px-0">
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
               Cancel
             </Button>
             <Button type="submit" disabled={busy}>

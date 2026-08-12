@@ -44,7 +44,7 @@ export function DeleteAddressDialog({
                 can delete this one.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="mt-6 flex flex-row justify-end gap-3">
               <AlertDialogCancel>Got it</AlertDialogCancel>
             </AlertDialogFooter>
           </>
@@ -57,7 +57,7 @@ export function DeleteAddressDialog({
                 delivery address and are unaffected.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <AlertDialogFooter>
+            <AlertDialogFooter className="mt-6 flex flex-row justify-end gap-3">
               <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {

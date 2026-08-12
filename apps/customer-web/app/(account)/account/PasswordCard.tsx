@@ -36,54 +36,59 @@ export function PasswordCard({
       aria-labelledby="password-heading"
       data-testid="password-card"
       data-has-password={hasPassword}
-      className="rounded-2xl border p-6"
     >
-      <h2 id="password-heading" className="text-lg font-medium">
-        Password
-      </h2>
-
       {hasPassword ? (
-        <>
-          <p className="mt-1 text-sm text-muted-foreground">
-            <span aria-hidden="true">••••••••••••</span>
-            <span className="sr-only">A password is set on this account.</span>
-            {passwordUpdatedAt && (
-              <span className="ml-3">
-                Last changed{" "}
-                {new Date(passwordUpdatedAt).toLocaleDateString("en-AU", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </span>
-            )}
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="password-heading" className="text-lg font-medium">
+              Password
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span aria-hidden="true">••••••••••••</span>
+              <span className="sr-only">A password is set on this account.</span>
+              {passwordUpdatedAt && (
+                <span className="ml-3">
+                  Last changed{" "}
+                  {new Date(passwordUpdatedAt).toLocaleDateString("en-AU", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })}
+                </span>
+              )}
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => setOpen(true)}
             data-testid="change-password"
-            className="mt-4 h-11 rounded-full border px-6 text-sm font-medium hover:bg-accent"
+            className="h-11 shrink-0 rounded-full border px-6 text-sm font-medium hover:bg-accent"
           >
             Change password
           </button>
           <ChangePasswordDialog open={open} onOpenChange={setOpen} />
-        </>
+        </div>
       ) : (
-        <>
-          <p className="mt-1 text-sm text-muted-foreground">
-            You sign in with a code we email you — there&rsquo;s no password on this account. You can
-            add one if you&rsquo;d prefer to sign in that way.
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-prose">
+            <h2 id="password-heading" className="text-lg font-medium">
+              Password
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You sign in with a code we email you — there&rsquo;s no password on this account. You
+              can add one if you&rsquo;d prefer to sign in that way.
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => setOpen(true)}
             data-testid="set-password"
-            className="mt-4 h-11 rounded-full border px-6 text-sm font-medium hover:bg-accent"
+            className="h-11 shrink-0 rounded-full border px-6 text-sm font-medium hover:bg-accent"
           >
             Set a password
           </button>
           <SetPasswordDialog open={open} onOpenChange={setOpen} />
-        </>
+        </div>
       )}
     </section>
   )

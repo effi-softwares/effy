@@ -215,10 +215,12 @@ function OtpCells({
       {!overflowing && (
         <div
           aria-hidden
-          className="pointer-events-none grid gap-1.5 sm:gap-2"
-          // ⚠ The column count comes from the constant, not a `grid-cols-6` class. A literal here
-          // would be a fourth place "six" is written down (036 FR-045, 044 C-01).
-          style={{ gridTemplateColumns: `repeat(${OTP_LENGTH}, minmax(0, 1fr))` }}
+          // ⚠ FLEX, NOT A STRETCHING GRID. Each cell is a FIXED square (see `Cell`), so the row must
+          // not stretch them to fill the column — it lays them out left-aligned at their own size,
+          // still flush with the label above (the group stays `w-full`, so the transparent input
+          // overlay keeps covering the full field). The cell count still comes from `POSITIONS`
+          // (derived from `OTP_LENGTH`), so no literal "six" is written down here (044 C-01).
+          className="pointer-events-none flex gap-1.5 sm:gap-2"
         >
           {POSITIONS.map((i) => (
             <Cell
@@ -284,13 +286,16 @@ function Cell({
         // left to spend. Stroke weight is where the headroom actually is: half a pixel off reads
         // markedly lighter and costs no contrast at all.
         //
-        // ⚠ The width is UNIFORM across states on purpose. Varying it between empty and filled would
+        // ⚠ The size is UNIFORM across states on purpose. Varying it between empty and filled would
         // change each cell's box size as the shopper types, so the row would shift under their
         // fingers mid-code.
-        "flex h-14 items-center justify-center rounded-xl border-[1.5px] bg-background transition-colors sm:h-16",
-        // ⚠ The size is set HERE and nowhere else, so no responsive utility from an unrelated class
-        // string can halve it above a breakpoint the way `md:text-sm` did (defect D-01a).
-        "font-mono text-xl tabular-nums text-foreground sm:text-2xl",
+        //
+        // ⚠ A FIXED SQUARE: 44×44px below `sm`, 48×48px at/above it. `shrink-0` so the flex row can
+        // never compress them narrower than tall. The size is set HERE and nowhere else, so no
+        // responsive utility from an unrelated class string can halve it the way `md:text-sm` did
+        // (defect D-01a).
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-[1.5px] bg-background transition-colors sm:h-12 sm:w-12",
+        "font-mono text-lg tabular-nums text-foreground sm:text-xl",
         filled ? "border-foreground" : "border-ring",
         // ⚠ The ERROR IS ON THE CELLS, not only in the message beside them (044 C-06/FR-007). A
         // refusal the shopper has to read to notice is a refusal they will retype into.
@@ -308,7 +313,7 @@ function Cell({
       {active && !filled && (
         <span
           data-slot="otp-caret"
-          className="hidden h-6 w-0.5 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-7"
+          className="hidden h-5 w-0.5 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-6"
         />
       )}
     </div>

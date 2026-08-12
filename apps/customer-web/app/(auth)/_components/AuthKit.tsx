@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { Eye, EyeOff } from "lucide-react"
 
 import {
   Display,
@@ -112,11 +113,13 @@ export function PasswordField({
           onClick={() => setRevealed((r) => !r)}
           aria-pressed={revealed}
           aria-label={`${revealed ? "Hide" : "Show"} ${label.toLowerCase()}`}
-          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-full text-foreground hover:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="absolute inset-y-0 right-0 flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <span aria-hidden className="text-xs font-semibold underline underline-offset-2">
-            {revealed ? "Hide" : "Show"}
-          </span>
+          {revealed ? (
+            <EyeOff aria-hidden className="size-4" />
+          ) : (
+            <Eye aria-hidden className="size-4" />
+          )}
         </button>
       </div>
     </KitField>
