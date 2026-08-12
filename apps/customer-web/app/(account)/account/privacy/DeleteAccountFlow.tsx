@@ -16,6 +16,8 @@ import {
   ResponsiveModalTitle,
 } from "@effy/design-system/ui"
 
+import { LoadingArea } from "@/components/Spinner"
+
 import { closeAccount, loadClosurePreview, requestClosureCode } from "./actions"
 
 /**
@@ -55,18 +57,11 @@ export function DeleteAccountFlow() {
 
   if (!preview) {
     return (
-      <div
-        data-testid="closure-loading"
-        role="status"
-        className="flex min-h-[140px] items-center justify-center"
-      >
-        {/* `motion-reduce:animate-none` — the same spinner treatment `AuthKit`'s Submit uses. */}
-        <span
-          aria-hidden="true"
-          className="size-6 animate-spin rounded-full border-2 border-muted border-t-primary motion-reduce:animate-none"
-        />
-        <span className="sr-only">Checking whether your account can be deleted…</span>
-      </div>
+      <LoadingArea
+        testId="closure-loading"
+        className="min-h-[140px]"
+        label="Checking whether your account can be deleted…"
+      />
     )
   }
 

@@ -1,16 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { Suspense } from "react"
-import {
-  ChevronRight,
-  FileText,
-  Heart,
-  MapPin,
-  ShieldCheck,
-  ShoppingBag,
-  Tag,
-  User,
-} from "lucide-react"
+import { Heart, ShoppingBag, Tag } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import type { AddressDTO } from "@effy/shared-types"
@@ -19,30 +10,18 @@ import { AddressList } from "@/app/(account)/addresses/_components/AddressList"
 import { Avatar } from "@/components/Avatar"
 import { edgeApi } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
+import { AccountTabsProvider, SectionNav, TabContent } from "./AccountTabs"
 import { EmailDeliveryNotice } from "./EmailDeliveryNotice"
 import { PasswordCard } from "./PasswordCard"
 import { PersonalInfo } from "./PersonalInfo"
 import { SessionCard } from "./SessionCard"
+import { parseTab, tabHref } from "./tabs"
 import { DeleteAccountFlow } from "./privacy/DeleteAccountFlow"
 
 export const metadata: Metadata = {
   title: "Your account",
   // FR-036 — never indexed. An account page in a search index is a data leak with a URL.
   robots: { index: false, follow: false },
-}
-
-/** The tabs that live INSIDE the content area (not separate pages). */
-type AccountTab = "personal" | "addresses" | "security" | "privacy"
-
-const TABS: readonly AccountTab[] = ["personal", "addresses", "security", "privacy"]
-
-function parseTab(raw: string | undefined): AccountTab {
-  return (TABS as readonly string[]).includes(raw ?? "") ? (raw as AccountTab) : "personal"
-}
-
-/** The URL for a tab — `personal` is the bare page; the rest carry `?tab=`. */
-function tabHref(tab: AccountTab): string {
-  return tab === "personal" ? "/account" : `/account?tab=${tab}`
 }
 
 /**
@@ -85,55 +64,66 @@ async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: str
   const name = [customer.givenName, customer.familyName].filter(Boolean).join(" ")
 
   return (
-    <div className="mt-6 grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
-      {/* Sidebar — identity above, section navigation below. Sticks in view on desktop so the nav is
-          reachable no matter how far the main column scrolls; a normal block on phones. */}
-      <aside className="lg:sticky lg:top-24 lg:self-start">
-        <IdentityCard
-          name={name}
-          givenName={customer.givenName}
-          familyName={customer.familyName}
-          email={customer.email}
-          createdAt={customer.createdAt}
-        />
-        <SectionNav active={active} />
-      </aside>
-
-      <main className="min-w-0 space-y-6">
-        {active === "addresses" ? (
-          <AddressBook />
-        ) : active === "security" ? (
-          <SecuritySection
-            hasPassword={customer.hasPassword}
-            passwordUpdatedAt={customer.passwordUpdatedAt}
+    // ⚠ The provider wraps BOTH columns because the two halves of a tab switch live in different
+    // ones: the nav is what was pressed, the content is what is loading. Everything inside is
+    // server-rendered and passed straight through as `children`.
+    <AccountTabsProvider active={active}>
+      <div className="mt-6 grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]">
+        {/* Sidebar — identity above, section navigation below. Sticks in view on desktop so the nav
+            is reachable no matter how far the main column scrolls; a normal block on phones.
+            ⚠ It does NOT re-render on a tab switch: identity is the same on all four tabs, so
+            replacing it with a skeleton would be motion reporting a change that did not happen. */}
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <IdentityCard
+            name={name}
+            givenName={customer.givenName}
+            familyName={customer.familyName}
+            email={customer.email}
+            createdAt={customer.createdAt}
           />
-        ) : active === "privacy" ? (
-          <PrivacySection />
-        ) : (
-          <>
-            {/*
-              ⚠ FIRST, ABOVE EVERYTHING (037 FR-030). If the platform cannot email this person, that is
-              the most important thing on the page — it means their sign-in codes, receipts and security
-              notices are silently going nowhere. Renders nothing at all in the common case.
-            */}
-            <EmailDeliveryNotice state={customer.emailDelivery} email={customer.email} />
+          <SectionNav />
+        </aside>
 
-            {/* Shortcut tiles — things a customer opens their account to reach. Navigational only. */}
-            <QuickLinks />
+        <main className="min-w-0 space-y-6">
+          <TabContent>
+            {active === "addresses" ? (
+              <AddressBook />
+            ) : active === "security" ? (
+              <SecuritySection
+                hasPassword={customer.hasPassword}
+                passwordUpdatedAt={customer.passwordUpdatedAt}
+              />
+            ) : active === "privacy" ? (
+              <PrivacySection />
+            ) : (
+              <>
+                {/*
+                  ⚠ FIRST, ABOVE EVERYTHING (037 FR-030). If the platform cannot email this person,
+                  that is the most important thing on the page — it means their sign-in codes,
+                  receipts and security notices are silently going nowhere. Renders nothing at all in
+                  the common case.
+                */}
+                <EmailDeliveryNotice state={customer.emailDelivery} email={customer.email} />
 
-            {/* ⚠ 034 FR-007 — NO SIGN-OUT CONTROL ON THE PERSONAL TAB, and no password card either.
-                Both live under the Security tab, off the account root where a stray tap could reach
-                them while browsing. */}
-            <PersonalInfo
-              givenName={customer.givenName}
-              familyName={customer.familyName}
-              phone={customer.phone}
-              email={customer.email}
-            />
-          </>
-        )}
-      </main>
-    </div>
+                {/* Shortcut tiles — things a customer opens their account to reach. Navigational
+                    only. */}
+                <QuickLinks />
+
+                {/* ⚠ 034 FR-007 — NO SIGN-OUT CONTROL ON THE PERSONAL TAB, and no password card
+                    either. Both live under the Security tab, off the account root where a stray tap
+                    could reach them while browsing. */}
+                <PersonalInfo
+                  givenName={customer.givenName}
+                  familyName={customer.familyName}
+                  phone={customer.phone}
+                  email={customer.email}
+                />
+              </>
+            )}
+          </TabContent>
+        </main>
+      </div>
+    </AccountTabsProvider>
   )
 }
 
@@ -356,55 +346,13 @@ function IdentityCard({
 }
 
 /**
- * The account's sections (034 FR-006) — the primary navigation for this area.
+ * The FIRST-LOAD fallback, and only that.
  *
- * All four are TABS on this page: activating one sets `?tab=` and swaps the content area in place,
- * so managing addresses, security and privacy never leaves the account hub. `aria-current="page"`
- * marks whichever is showing.
+ * ⚠ It no longer stands in for a tab switch. Switching tabs is driven by a client transition that
+ * keeps this boundary resolved (see `AccountTabs.tsx`), so the sidebar survives and the spinner is
+ * scoped to the column that actually changed. This shape — the whole grid greyed out — is now
+ * reserved for arriving at the page cold, when none of it exists yet and all of it is honest.
  */
-function SectionNav({ active }: { active: AccountTab }) {
-  const items: {
-    tab: AccountTab
-    label: string
-    hint: string
-    Icon: LucideIcon
-  }[] = [
-    { tab: "personal", label: "Personal info", hint: "Name, phone, email", Icon: User },
-    { tab: "addresses", label: "Address book", hint: "Where we deliver", Icon: MapPin },
-    { tab: "security", label: "Security", hint: "Password, sign-out", Icon: ShieldCheck },
-    { tab: "privacy", label: "Privacy & data", hint: "Export, delete", Icon: FileText },
-  ]
-
-  return (
-    <nav aria-label="Account settings" className="mt-4">
-      <ul className="space-y-1">
-        {items.map(({ tab, label, hint, Icon }) => {
-          const current = active === tab
-          return (
-            <li key={tab}>
-              <Link
-                href={tabHref(tab)}
-                aria-current={current ? "page" : undefined}
-                className={
-                  "flex min-h-[56px] items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring " +
-                  (current ? "bg-muted font-medium" : "hover:bg-muted/60")
-                }
-              >
-                <Icon aria-hidden className="size-5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">{label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{hint}</span>
-                </span>
-                <ChevronRight aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-    </nav>
-  )
-}
-
 function AccountSkeleton() {
   return (
     <div className="mt-6 grid gap-8 lg:grid-cols-[300px_minmax(0,1fr)]" aria-hidden="true">
