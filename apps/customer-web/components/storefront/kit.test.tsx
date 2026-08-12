@@ -52,8 +52,8 @@ describe("MediaFrame — absence is a supported state (FR-011/FR-014)", () => {
     )
     const { container: without } = render(<MediaFrame src={null} alt="" ratio="banner" />)
 
-    expect(withArt.firstElementChild?.className).toContain("aspect-[2/1]")
-    expect(without.firstElementChild?.className).toContain("aspect-[2/1]")
+    expect(withArt.firstElementChild?.className).toContain("aspect-2/1")
+    expect(without.firstElementChild?.className).toContain("aspect-2/1")
   })
 
   it("keeps the placeholder out of the accessibility tree — the surrounding text names the thing", () => {
@@ -77,9 +77,9 @@ describe("Scrim — the one colour that must NOT invert (FR-007, 029's defect)",
   it("runs vertically, so it is strongest where bottom-anchored text sits", () => {
     const { container } = render(<Scrim />)
 
-    // 029's ran bottom-left→top-right (`bg-gradient-to-tr`), weakest exactly under the title.
-    expect(container.firstElementChild?.className).toContain("bg-gradient-to-t")
-    expect(container.firstElementChild?.className).not.toContain("bg-gradient-to-tr")
+    // 029's ran bottom-left→top-right (`bg-linear-to-tr`), weakest exactly under the title.
+    expect(container.firstElementChild?.className).toContain("bg-linear-to-t")
+    expect(container.firstElementChild?.className).not.toContain("bg-linear-to-tr")
   })
 
   it("introduces no hue — every colour is an end of the neutral ramp", () => {

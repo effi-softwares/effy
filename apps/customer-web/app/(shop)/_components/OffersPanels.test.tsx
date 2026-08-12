@@ -109,7 +109,7 @@ describe("OffersPanels — the message survives the artwork", () => {
   it("puts a scrim over every panel, whatever the image is", () => {
     const { container } = render(<OffersPanels banners={many(3)} />)
 
-    expect(container.querySelectorAll("[class*='bg-gradient']")).toHaveLength(3)
+    expect(container.querySelectorAll("[class*='bg-linear']")).toHaveLength(3)
   })
 
   it("renders a neutral tile instead of a broken frame when a promotion has no artwork", () => {

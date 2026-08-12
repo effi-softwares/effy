@@ -95,7 +95,7 @@ describe("Hero — the immediately-served banner (US1)", () => {
   it("renders NO veil over the artwork", () => {
     const { container } = render(<Hero imageSrcs={["/hero/hero-1.webp"]} />)
 
-    expect(container.querySelector("[class*='bg-gradient']")).toBeNull()
+    expect(container.querySelector("[class*='bg-linear']")).toBeNull()
     expect(container.innerHTML).not.toContain("from-white/")
     expect(container.innerHTML).not.toContain("from-black/")
   })
