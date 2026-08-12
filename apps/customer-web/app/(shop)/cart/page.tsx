@@ -76,7 +76,7 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container py-8">
+    <div className="container mt-6">
       <Display as="h1" size="section" className="normal-case leading-tight text-left text-2xl sm:text-3xl">
         Your cart
       </Display>
@@ -167,8 +167,8 @@ export default function CartPage() {
           ) : null}
         </div>
 
-        {/* Order summary — not a card; it sits open on the right beside the list. */}
-        <aside>
+        {/* Order summary — a bordered card on the right beside the list. */}
+        <aside className="rounded-lg border p-6">
           <h2 className="text-xl font-bold">Order Summary</h2>
           <dl className="mt-5 space-y-4">
             <div className="flex items-center justify-between">

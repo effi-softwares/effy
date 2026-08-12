@@ -1,6 +1,7 @@
 "use client"
 
 import { Elements } from "@stripe/react-stripe-js"
+import { ArrowLeft, CreditCard } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
@@ -165,7 +166,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
   if (step === "paying" && intent) {
     return (
-      <div className="mt-6">
+      <div>
         <OrderSummary currency={intent.currency} total={intent.grandTotalAmount} />
         <Elements stripe={getStripe()} options={{ clientSecret: intent.clientSecret }}>
           <PaymentForm
@@ -188,7 +189,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     // 025 FR-042: two columns above `lg`, with the summary STICKY. The amount payable used to scroll
     // away from the form it belongs to, so a shopper filling in an address could not see what they
     // were about to be charged — a well-documented cause of checkout abandonment.
-    <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+    <div className="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
     <div className="space-y-6">
       <section>
         <h2 className="mb-3 text-sm font-medium text-muted-foreground">Delivery address</h2>
@@ -211,37 +212,57 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
         onAddressAdded={onBillingAddressAdded}
       />
 
-      <div className="flex items-baseline justify-between border-y py-3">
-        <span className="text-sm text-muted-foreground">Items</span>
-        <span className="text-lg font-semibold">{formatMoney(estimate.itemSubtotal, currency)}</span>
-      </div>
-      <p className="-mt-3 text-xs text-muted-foreground">Delivery is calculated in the next step.</p>
-
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <ActionButton
-        type="button"
-        onClick={placeOrder}
-        disabled={busy || !canContinue}
-        size="lg"
-        className="w-full"
-      >
-        Continue to payment
-      </ActionButton>
+      <div className="flex items-center justify-between gap-4 pt-6">
+        <ActionButton
+          type="button"
+          variant="outline"
+          onClick={() => router.push("/cart")}
+          disabled={busy}
+          size="md"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back
+        </ActionButton>
+        <ActionButton
+          type="button"
+          onClick={placeOrder}
+          disabled={busy || !canContinue}
+          size="md"
+        >
+          <CreditCard className="size-4" aria-hidden="true" />
+          Continue to payment
+        </ActionButton>
+      </div>
     </div>
 
     {/* `position: sticky` in a grid — no scroll listener, no JavaScript, and it collapses to normal
         flow below `lg` where there is no second column and nothing to stick to. */}
-    <aside className="lg:sticky lg:top-24">
-      <h2 className="text-sm font-medium text-muted-foreground">Order Summary</h2>
-      <dl className="mt-3 space-y-2 rounded-2xl border p-4 text-sm">
-        <div className="flex justify-between">
+    {/* Order summary — same structure as the cart's (heading, item/delivery rows, a bordered total),
+        rendered as a bordered card. Delivery and the final total are only known once an address is
+        chosen, so the total shows the item subtotal with a "+ delivery" note, exactly as the cart does. */}
+    <aside className="rounded-lg border p-6 lg:sticky lg:top-24">
+      <h2 className="text-xl font-bold">Order Summary</h2>
+      <dl className="mt-5 space-y-4">
+        <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Items</dt>
-          <dd className="font-medium">{formatMoney(estimate.itemSubtotal, currency)}</dd>
+          <dd className="font-bold">{formatMoney(estimate.itemSubtotal, currency)}</dd>
         </div>
-        <div className="flex justify-between">
+        <div className="flex items-center justify-between">
           <dt className="text-muted-foreground">Delivery</dt>
-          <dd className="text-muted-foreground">Next step</dd>
+          <dd className="text-sm text-muted-foreground">Calculated next step</dd>
+        </div>
+        <div className="border-t pt-4">
+          <div className="flex items-center justify-between">
+            <dt className="text-lg">Total</dt>
+            <dd className="text-2xl font-bold">
+              {formatMoney(estimate.itemSubtotal, currency)}
+              <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">
+                + delivery
+              </span>
+            </dd>
+          </div>
         </div>
       </dl>
     </aside>
