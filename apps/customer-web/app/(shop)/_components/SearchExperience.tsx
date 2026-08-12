@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import type { FacetSetDTO, ProductSearchResultDTO, ProductSort, StorefrontProductCardDTO } from "@effy/shared-types"
 
+import { ActionButton } from "@/components/storefront/actions"
 import { coreApiBaseUrl } from "@/lib/config"
 
 import { ProductCard, productGridNarrow } from "./ProductCard"
@@ -406,13 +407,9 @@ export function SearchExperience() {
               </button>
             </div>
             {controls}
-            <button
-              type="button"
-              onClick={() => setSheetOpen(false)}
-              className="mt-5 flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
+            <ActionButton type="button" onClick={() => setSheetOpen(false)} size="md" className="mt-5 w-full">
               Show {total ?? ""} results
-            </button>
+            </ActionButton>
           </div>
         </div>
       )}

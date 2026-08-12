@@ -2,6 +2,8 @@
 
 import { useEffect } from "react"
 
+import { ActionButton } from "@/components/storefront/actions"
+
 /**
  * The recoverable degraded state (FR-030).
  *
@@ -35,12 +37,9 @@ export default function ShopError({
         This is our problem, not yours. Try again — and if it keeps happening, come back in a
         few minutes.
       </p>
-      <button
-        onClick={reset}
-        className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-      >
+      <ActionButton onClick={reset} type="button" size="md" className="mt-8">
         Try again
-      </button>
+      </ActionButton>
     </section>
   )
 }

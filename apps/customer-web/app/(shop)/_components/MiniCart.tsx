@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useCallback, useRef } from "react"
 
+import { ActionLink } from "@/components/storefront/actions"
 import { removeItem, setItemQuantity } from "@/lib/cart-actions"
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
@@ -239,13 +240,9 @@ export function MiniCart() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   Delivery calculated at checkout.
                 </p>
-                <Link
-                  href="/cart"
-                  onClick={goToCart}
-                  className="mt-4 flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
-                >
+                <ActionLink href="/cart" onClick={goToCart} size="lg" className="mt-4 w-full">
                   Go to cart
-                </Link>
+                </ActionLink>
                 <button
                   type="button"
                   onClick={close}

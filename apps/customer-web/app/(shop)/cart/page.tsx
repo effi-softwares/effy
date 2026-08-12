@@ -23,6 +23,7 @@ import { toast } from "@/lib/toast-store"
 import { formatMoney } from "@/lib/money"
 
 import { Display } from "../_components/Display"
+import { ActionLink } from "@/components/storefront/actions"
 
 /**
  * The cart. ONE unified Effy order that pays once — but now shown PACKAGE-AWARE (021 FR-005a): items are
@@ -66,12 +67,9 @@ export default function CartPage() {
       <div className="mx-auto w-full max-w-3xl px-4 py-16 text-center sm:px-6">
         <Display as="h1" size="section">Your cart is empty</Display>
         <p className="mt-2 text-muted-foreground">Browse the store and add something you like.</p>
-        <Link
-          href="/"
-          className="mt-6 inline-flex h-12 items-center rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <ActionLink href="/" size="lg" className="mt-6">
           Start shopping
-        </Link>
+        </ActionLink>
       </div>
     )
   }
@@ -206,13 +204,10 @@ export default function CartPage() {
           {/* FR-026/FR-054: checkout is offered only when the PLATFORM says so, and the reason is stated
               when it is not. The client never decides this itself — it is re-decided at intent (FR-056). */}
           {cart.checkout.allowed ? (
-            <Link
-              href="/checkout"
-              className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
+            <ActionLink href="/checkout" size="xl" className="mt-6 w-full">
               Go to checkout
               <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
+            </ActionLink>
           ) : (
             <>
               <span

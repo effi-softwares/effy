@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { ActionLink } from "@/components/storefront/actions"
 
 export default function NotFound() {
   return (
@@ -9,12 +9,9 @@ export default function NotFound() {
       <p className="mt-3 text-muted-foreground">
         It may have moved, or the link may be wrong.
       </p>
-      <Link
-        href="/"
-        className="mt-8 inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-      >
+      <ActionLink href="/" size="md" className="mt-8">
         Back to the store
-      </Link>
+      </ActionLink>
     </section>
   )
 }

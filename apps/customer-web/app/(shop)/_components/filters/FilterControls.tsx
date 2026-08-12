@@ -3,6 +3,8 @@
 import type { FacetDTO, FacetSetDTO } from "@effy/shared-types"
 import { useEffect, useState } from "react"
 
+import { ActionButton } from "@/components/storefront/actions"
+
 /**
  * The advanced filter controls (043 US1) — one presentational component rendered in BOTH the desktop
  * side panel (lg+) and the mobile/tablet filter sheet, so the two surfaces are the same controls.
@@ -118,13 +120,9 @@ export default function FilterControls({
       )}
 
       {activeCount > 0 && (
-        <button
-          type="button"
-          onClick={onClearAll}
-          className="flex h-11 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <ActionButton type="button" onClick={onClearAll} size="md" className="w-full">
           Clear all filters
-        </button>
+        </ActionButton>
       )}
     </div>
   )

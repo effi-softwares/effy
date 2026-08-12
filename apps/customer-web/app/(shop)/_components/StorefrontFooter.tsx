@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Headphones, PiggyBank, UserRound } from "lucide-react"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
+import { ActionLink } from "@/components/storefront/actions"
 
 /**
  * The storefront's closing blocks, structured from the tech-store reference (025 UI refresh).
@@ -57,12 +58,9 @@ export function StorefrontFooter() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/search"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
+            <ActionLink href="/search" size="md">
               Shop all products
-            </Link>
+            </ActionLink>
           </div>
         </div>
       </section>

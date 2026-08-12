@@ -9,6 +9,7 @@ import type {
   CreateCheckoutIntentResponse,
 } from "@effy/shared-types"
 
+import { ActionButton } from "@/components/storefront/actions"
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
@@ -218,14 +219,15 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
 
       {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <button
+      <ActionButton
         type="button"
         onClick={placeOrder}
         disabled={busy || !canContinue}
-        className="flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+        size="lg"
+        className="w-full"
       >
         Continue to payment
-      </button>
+      </ActionButton>
     </div>
 
     {/* `position: sticky` in a grid — no scroll listener, no JavaScript, and it collapses to normal

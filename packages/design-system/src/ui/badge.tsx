@@ -17,11 +17,16 @@ const badgeVariants = cva(
           "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
           "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-        // Semantic status tones — used to color a shop/user status by meaning.
+        // ⚠ MONOCHROME STATUS TONES. These carried `emerald`/`amber` fills, which are non-monochrome
+        // hues the constitution (Principle V, v1.13.0) forbids — feature 041 swept amber out of the
+        // platform and success is a non-text indicator only, so it may not colour a badge's text.
+        // Status is now told by WEIGHT, not hue, which is how a monochrome platform distinguishes
+        // meaning: solid = affirmative/current, outline = attention, muted = lowest emphasis. The
+        // three variant NAMES are kept so no call site changes.
         success:
-          "border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+          "border-transparent bg-primary text-primary-foreground",
         warning:
-          "border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300",
+          "border-foreground/30 bg-transparent text-foreground font-semibold",
         muted: "border-transparent bg-muted text-muted-foreground",
       },
     },
