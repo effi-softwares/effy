@@ -233,7 +233,7 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     {/* `position: sticky` in a grid — no scroll listener, no JavaScript, and it collapses to normal
         flow below `lg` where there is no second column and nothing to stick to. */}
     <aside className="lg:sticky lg:top-24">
-      <h2 className="text-sm font-medium text-muted-foreground">Order summary</h2>
+      <h2 className="text-sm font-medium text-muted-foreground">Order Summary</h2>
       <dl className="mt-3 space-y-2 rounded-2xl border p-4 text-sm">
         <div className="flex justify-between">
           <dt className="text-muted-foreground">Items</dt>
