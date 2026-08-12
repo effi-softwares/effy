@@ -235,7 +235,7 @@ export default function CartPage() {
 function CartLineRow({ line }: { line: GuestCartLine }) {
   return (
     <li className="flex gap-4 py-4">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border bg-muted">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-md border bg-muted">
         {line.imageUrl ? (
           <Image src={line.imageUrl} alt={line.name} fill unoptimized sizes="5rem" className="object-cover" />
         ) : (
