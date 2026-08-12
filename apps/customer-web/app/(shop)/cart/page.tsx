@@ -144,17 +144,26 @@ export default function CartPage() {
           ) : null}
           */}
 
-          {/* FR-032: emptying the cart is not recoverable, so it is confirmed. */}
+          {/* FR-032: emptying the cart is not recoverable, so it is confirmed — and it is given a heading
+              and an explanation so the action reads as deliberate rather than a stray link. */}
           {lines.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => {
-                if (window.confirm("Empty your cart? Items you saved for later are kept.")) clearAll()
-              }}
-              className="mt-6 text-sm text-muted-foreground hover:underline"
-            >
-              Empty cart
-            </button>
+            <section className="mt-10 flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div>
+                <h2 className="text-base font-semibold">Empty your cart</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  This removes every item you’ve added. It can’t be undone.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Empty your cart? This removes everything you’re about to buy.")) clearAll()
+                }}
+                className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-destructive hover:underline"
+              >
+                <Trash2 className="size-4" /> Empty cart
+              </button>
+            </section>
           ) : null}
         </div>
 
@@ -224,7 +233,7 @@ export default function CartPage() {
             </>
           )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            You’ll sign in at checkout. Your cart is kept.
+            Secure checkout. Sign in to complete your order.
           </p>
         </aside>
       </div>
