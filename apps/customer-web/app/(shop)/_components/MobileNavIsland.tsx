@@ -1,3 +1,4 @@
+import { LogOut } from "lucide-react"
 import Link from "next/link"
 
 import { Avatar } from "@/components/Avatar"
@@ -62,14 +63,17 @@ export async function MobileNavIsland() {
       accountPanel={
         <>
           <ul className="flex flex-col gap-1">
-            {ACCOUNT_LINKS.map((link) => (
-              <li key={link.href}>
+            {ACCOUNT_LINKS.map(({ href, label, testId, Icon }) => (
+              <li key={href}>
                 <Link
-                  href={link.href}
-                  data-testid={link.testId}
-                  className="flex h-12 items-center rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  href={href}
+                  data-testid={testId}
+                  className="flex h-12 items-center gap-3 rounded-md px-3 text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  {link.label}
+                  {/* The same glyph the desktop menu shows — it comes from the shared entry, so the
+                      two cannot disagree. `aria-hidden` because the label already says it. */}
+                  <Icon className="size-5 shrink-0" aria-hidden="true" />
+                  {label}
                 </Link>
               </li>
             ))}
@@ -83,8 +87,9 @@ export async function MobileNavIsland() {
             <button
               type="submit"
               data-testid="drawer-sign-out"
-              className="flex h-12 w-full items-center rounded-md px-3 text-left text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="flex h-12 w-full items-center gap-3 rounded-md px-3 text-left text-base text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
+              <LogOut className="size-5 shrink-0" aria-hidden="true" />
               Sign out
             </button>
           </form>

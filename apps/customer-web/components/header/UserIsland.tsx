@@ -52,23 +52,18 @@ export async function UserIsland() {
     )
   }
 
-  // Greet them by the name they gave us at registration (FR-009a) — not by the first half of their
-  // email address, which is a machine's idea of a name.
+  // ⚠ THE GREETING IS NO LONGER IN THIS ROW — it is the first section of the menu panel below.
+  // It sat here as a "Hi, <name>" link beside the avatar, and it was the one control in the header
+  // whose WIDTH depended on the customer: a two-character name and a twenty-character name gave the
+  // search field two different sizes, on a row that is already tight enough that the desktop
+  // threshold had to be raised to `lg`. The avatar keeps the identity visible; the name is one click
+  // away, where the panel's fixed width can hold it.
   //
-  // ⚠ This name comes from the ID TOKEN's claim, not the record — which is why `updateProfile`
+  // ⚠ The name still comes from the ID TOKEN's claim, not the record — which is why `updateProfile`
   // FORCES A TOKEN REFRESH after a name change. Without it, the customer edits their name, comes back
   // to the storefront, and is greeted by their OLD one for up to an hour (012 FR-008, research R11).
-  const label = session.givenName ?? "Account"
-
   return (
     <div className="flex items-center gap-3" data-testid="account-link">
-      <Link
-        href="/account"
-        className="hidden text-sm font-medium text-foreground hover:text-primary sm:inline"
-      >
-        Hi, {label}
-      </Link>
-
       {/* 012 FR-028 — sign-out reachable from EVERY page, not just the account page. A SERVER
           component: `<details>` for the disclosure and a `<form>` for sign-out, so it costs zero
           client JS and never acquires an import path to the auth SDK. */}

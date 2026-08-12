@@ -91,12 +91,21 @@ function OtpInput({
       data-slot="otp-input"
       data-variant="plain"
       className={cn(
-        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
+        // ⚠ PILL, h-11, px-4 — byte-for-byte `input.tsx`'s field base (minus the `file:` affordances
+        // an OTP field never uses). The plain variant IS an Input but for its tracking, so it takes
+        // the same pill shape; a shorter `rounded-md` box here would read as a different component in
+        // the same sign-in form. `OtpSignInCard.test.tsx` asserts `maxlength`/behaviour, not shape, so
+        // the consoles stay functionally identical — this is a visual unification only.
+        "h-11 w-full min-w-0 rounded-full border border-input bg-transparent px-4 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
         // Codes are read back character by character far more often than prose is, so they get
         // tabular figures and a little tracking. This is the one place that is worth it.
         "font-mono tracking-[0.35em]",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+        // No focus halo, matching `input.tsx` — the plain variant IS an `Input` in every respect but
+        // its tracking, so a different focus treatment here would read as a bug. The `cells` variant
+        // below keeps its own ring: that one is 044's authored per-cell focus indicator, not the
+        // shadcn default, and it is the only thing marking which position is active.
+        "focus-visible:border-ring",
+        "aria-invalid:border-destructive",
         className
       )}
       {...props}

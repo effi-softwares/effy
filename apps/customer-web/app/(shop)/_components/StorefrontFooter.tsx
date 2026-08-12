@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Headphones, PiggyBank, UserRound } from "lucide-react"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
+import { ActionLink } from "@/components/storefront/actions"
 
 /**
  * The storefront's closing blocks, structured from the tech-store reference (025 UI refresh).
@@ -27,7 +28,7 @@ export function StorefrontFooter() {
   return (
     <>
       {/* ── 1. Value props ───────────────────────────────────────────────────────────────────── */}
-      <section className="mt-16 border-t bg-background">
+      {/* <section className="mt-16 border-t bg-background">
         <div className="container grid gap-8 py-12 sm:grid-cols-3">
           <ValueProp
             icon={<Headphones className="size-5" aria-hidden="true" />}
@@ -45,10 +46,10 @@ export function StorefrontFooter() {
             body="Set your postcode and we'll tell you straight away whether we deliver to you."
           />
         </div>
-      </section>
+      </section> */}
 
       {/* ── 2. Closing CTA ───────────────────────────────────────────────────────────────────── */}
-      <section className="bg-foreground text-background">
+      <section className="bg-foreground text-background mt-16">
         <div className="container flex flex-col gap-5 py-10 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Start your first order</h2>
@@ -57,12 +58,9 @@ export function StorefrontFooter() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/search"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
+            <ActionLink href="/search" size="md">
               Shop all products
-            </Link>
+            </ActionLink>
           </div>
         </div>
       </section>

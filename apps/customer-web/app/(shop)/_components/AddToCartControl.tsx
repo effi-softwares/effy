@@ -4,6 +4,7 @@ import { Minus, Plus, ShoppingCart } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
+import { ActionButton } from "@/components/storefront/actions"
 import { addItem } from "@/lib/cart-actions"
 import { DEFAULT_PACKAGE_KEY } from "@/lib/cart-store"
 import { formatMoney } from "@/lib/money"
@@ -90,14 +91,10 @@ export function AddToCartControl({ product }: { product: AddToCartProduct }) {
         </button>
       </div>
 
-      <button
-        type="button"
-        onClick={add}
-        className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-primary px-8 text-sm font-medium text-primary-foreground hover:opacity-90 sm:flex-none"
-      >
+      <ActionButton type="button" onClick={add} size="lg" className="flex-1 sm:flex-none">
         <ShoppingCart className="size-4" />
         {added ? "Added" : "Add to cart"}
-      </button>
+      </ActionButton>
 
       {/* 025 FR-024: the line total, so choosing a quantity does not require mental arithmetic to
           know what is about to be added. Shown only when it differs from the unit price. */}

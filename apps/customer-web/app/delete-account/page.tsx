@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 
+import { ActionLink } from "@/components/storefront/actions"
 import { GuestDataControl } from "./GuestDataControl"
 
 export const metadata: Metadata = {
@@ -56,12 +57,9 @@ export default function DeleteAccountPage() {
           <li>3. Enter the code to confirm. Your account is closed straight away.</li>
         </ol>
 
-        <Link
-          href="/account?tab=privacy"
-          className="mt-6 inline-flex min-h-[48px] items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        <ActionLink href="/account?tab=privacy" size="md" className="mt-6">
           Delete my Effy account
-        </Link>
+        </ActionLink>
       </div>
 
       <section className="mt-8 space-y-3">
