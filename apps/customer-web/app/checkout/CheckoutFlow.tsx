@@ -2,6 +2,7 @@
 
 import { Elements } from "@stripe/react-stripe-js"
 import { ArrowLeft, CreditCard } from "lucide-react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
@@ -12,7 +13,7 @@ import type {
 
 import { ActionButton } from "@/components/storefront/actions"
 import { useCart } from "@/lib/cart-store"
-import { computeCartTotals } from "@/lib/cart-totals"
+import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
 import { getStripe } from "@/lib/stripe"
 import { capture } from "@/lib/telemetry"
@@ -190,31 +191,74 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     // away from the form it belongs to, so a shopper filling in an address could not see what they
     // were about to be charged — a well-documented cause of checkout abandonment.
     <div className="grid gap-x-16 gap-y-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
-    <div className="space-y-6">
-      <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Delivery address</h2>
-        <AddressPicker
+    <div className="space-y-12">
+      {/* Shipping + billing are ONE logical group — kept tight internally; the big `space-y-16`
+          separates this group from the order review and the buttons, not the fields within it. */}
+      <div className="space-y-6">
+        <section>
+          <h2 className="mb-3 text-xl font-semibold">Delivery address</h2>
+          <AddressPicker
+            addresses={addresses}
+            selectedId={selectedId}
+            onSelect={selectShipping}
+            onAddressAdded={onShippingAddressAdded}
+            idPrefix="shipping"
+            busy={busy}
+          />
+        </section>
+
+        <BillingSection
+          sameAsShipping={billingSameAsShipping}
+          onSameAsShippingChange={toggleBillingSame}
           addresses={addresses}
-          selectedId={selectedId}
-          onSelect={selectShipping}
-          onAddressAdded={onShippingAddressAdded}
-          idPrefix="shipping"
-          busy={busy}
+          billingId={billingId}
+          onBillingSelect={selectBilling}
+          onAddressAdded={onBillingAddressAdded}
         />
-      </section>
+      </div>
 
-      <BillingSection
-        sameAsShipping={billingSameAsShipping}
-        onSameAsShippingChange={toggleBillingSame}
-        addresses={addresses}
-        billingId={billingId}
-        onBillingSelect={selectBilling}
-        onAddressAdded={onBillingAddressAdded}
-      />
+      {/* Order review — a READ-ONLY recap of exactly what is being paid for, right before the pay
+          button. Compact rows on purpose (small thumb + name×qty + line total, no photos-as-hero) and no
+          steppers or remove: quantity and removal are the CART's job, and an editable control here would
+          make two screens own one number. "Edit cart" is the single escape hatch back to /cart. */}
+      {guestLines.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-xl font-semibold">Review your order</h2>
+          <ul className="">
+            {guestLines.map((line) => (
+              <li key={line.productId} className="flex items-center gap-4 py-2">
+                <div className="relative size-12 shrink-0 overflow-hidden rounded-md border bg-muted">
+                  {line.imageUrl ? (
+                    <Image
+                      src={line.imageUrl}
+                      alt=""
+                      fill
+                      unoptimized
+                      sizes="3rem"
+                      className="object-cover"
+                    />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1 ">
+                  <p className="truncate text-sm font-medium">{line.name}</p>
+                  <p className="text-xs text-muted-foreground">Qty {line.quantity}</p>
+                </div>
+                <span className="shrink-0 font-semibold">
+                  {formatMoney(
+                    formatCents(parseCents(line.unitPriceAmount) * line.quantity),
+                    line.currency,
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      <div className="space-y-4">
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-      <div className="flex items-center justify-between gap-4 pt-6">
+        <div className="flex items-center justify-between gap-4">
         <ActionButton
           type="button"
           variant="outline"
@@ -234,15 +278,14 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           <CreditCard className="size-4" aria-hidden="true" />
           Continue to payment
         </ActionButton>
+        </div>
       </div>
     </div>
 
-    {/* `position: sticky` in a grid — no scroll listener, no JavaScript, and it collapses to normal
-        flow below `lg` where there is no second column and nothing to stick to. */}
     {/* Order summary — same structure as the cart's (heading, item/delivery rows, a bordered total),
         rendered as a bordered card. Delivery and the final total are only known once an address is
         chosen, so the total shows the item subtotal with a "+ delivery" note, exactly as the cart does. */}
-    <aside className="rounded-lg border p-6 lg:sticky lg:top-24">
+    <aside className="rounded-lg border p-6">
       <h2 className="text-xl font-bold">Order Summary</h2>
       <dl className="mt-5 space-y-4">
         <div className="flex items-center justify-between">
