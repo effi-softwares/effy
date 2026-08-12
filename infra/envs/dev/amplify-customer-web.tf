@@ -26,7 +26,20 @@ data "aws_ssm_parameter" "stripe_publishable_key" {
 #
 # In-account platform facts come from Terraform references (no drift, no operator step). NEXT_PUBLIC_*
 # are inlined into the browser bundle at build and are all public-safe (a pool id, a client id, a
-# publishable key). EDGE_API_BASE_URL has NO NEXT_PUBLIC_ prefix — it is server-only (FR-016).
+# publishable key).
+#
+# ⚠ EVERY VARIABLE HERE MUST CARRY THE NEXT_PUBLIC_ PREFIX, INCLUDING THE EDGE API'S ADDRESS.
+# An Amplify environment variable is a BUILD-time variable: AWS states that "a Next.js server
+# component doesn't have access to those environment variables by default." Only NEXT_PUBLIC_
+# values survive the build, because Next inlines them into the output. This block previously set
+# `EDGE_API_BASE_URL` unprefixed on the reasoning that server-only config should stay server-only
+# (FR-016) — correct in principle, and the variable was simply ABSENT at runtime: every signed-in
+# customer on dev was redirected to /account/unavailable, with no failed request in the browser
+# because the code threw before it could make one.
+#
+# ⚠ Adding a server-only variable here in future does NOT work. It needs `.env.production` written
+# during the build (AWS: "Making environment variables accessible to server-side runtimes"), or it
+# will be silently undefined in production exactly as this one was.
 locals {
   storefront_url = "https://${module.dns.zone_name}"                           # https://dev.effyshopping.com
   core_api_url   = "https://${var.core_api_subdomain}.${module.dns.zone_name}" # https://core-api.dev.effyshopping.com
@@ -40,8 +53,10 @@ locals {
     NEXT_PUBLIC_COGNITO_CLIENT_ID      = module.customer_pool.app_client_id
     NEXT_PUBLIC_COGNITO_DOMAIN         = "" # set only when Google federation is enabled
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY = data.aws_ssm_parameter.stripe_publishable_key.value
-    # server-only (SSR runtime; never in the browser bundle)
-    EDGE_API_BASE_URL = local.edge_api_url
+    # The cold path. Public-SAFE (an address, not a credential — the gateway's per-pool JWT
+    # authorizer refuses an unauthenticated caller with a flat 401), but read ONLY from server code:
+    # the account routes relay the customer's tokens. See apps/customer-web/lib/config.ts.
+    NEXT_PUBLIC_EDGE_API_BASE_URL = local.edge_api_url
   }
 }
 

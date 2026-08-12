@@ -44,6 +44,14 @@ const nextConfig: NextConfig = {
 
   // Don't advertise the framework to the entire internet.
   poweredByHeader: false,
+
+  // `/browse` (the standalone category index) was retired by operator decision — the storefront
+  // now has ONE catalogue page, `/search` ("All products"), which category tiles already funnel
+  // into via `?category=`. This permanent redirect keeps any indexed or externally-linked
+  // `/browse` URL alive instead of 404-ing it, and tells search engines the page moved.
+  async redirects() {
+    return [{ source: "/browse", destination: "/search", permanent: true }]
+  },
 }
 
 export default nextConfig

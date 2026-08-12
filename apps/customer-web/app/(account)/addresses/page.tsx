@@ -1,43 +1,10 @@
-import type { Metadata } from "next"
-import { Suspense } from "react"
+import { redirect } from "next/navigation"
 
-import type { AddressDTO } from "@effy/shared-types"
-
-import { edgeApi } from "@/lib/api/edge"
-import { getSession, requireCustomer } from "@/lib/dal"
-
-import { AddressList } from "./_components/AddressList"
-import { Display } from "@/components/storefront/kit"
-
-export const metadata: Metadata = {
-  title: "Your addresses",
-  // An address is PII — an account page in a search index is a data leak with a URL (FR-005/FR-019).
-  robots: { index: false, follow: false },
-}
-
-/** The address book (022). Account-gated + per-customer → request-time read behind a Suspense boundary. */
+/**
+ * The address book moved INTO the account page as its `addresses` tab (2026-08-12) — managing
+ * addresses no longer leaves the account hub. This route is kept only so existing links and
+ * bookmarks (checkout's "manage addresses", the footer, older emails) land in the right place.
+ */
 export default function AddressesPage() {
-  return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6">
-      <Display as="h1" size="section" className="mb-6">Your addresses</Display>
-      <Suspense fallback={<div className="h-48 w-full animate-pulse rounded-lg bg-muted" />}>
-        <Addresses />
-      </Suspense>
-    </div>
-  )
-}
-
-async function Addresses() {
-  await requireCustomer("/addresses")
-  const session = await getSession()
-  let addresses: AddressDTO[] = []
-  if (session?.idToken) {
-    try {
-      // Cold path — customer profile management (022, routing law 011 FR-028). Per-customer → no cache.
-      addresses = await edgeApi(session).get<AddressDTO[]>("/customer/v1/addresses", { cache: "no-store" })
-    } catch {
-      addresses = []
-    }
-  }
-  return <AddressList initial={addresses} />
+  redirect("/account?tab=addresses")
 }

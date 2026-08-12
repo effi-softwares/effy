@@ -81,7 +81,7 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_CORE_API_BASE_URL: http://localhost:8080
-          EDGE_API_BASE_URL: http://localhost:4000
+          NEXT_PUBLIC_EDGE_API_BASE_URL: http://localhost:4000
 
       # GATE 2 — the bundle budget (FR-005 / SC-003). Next 16 no longer reports First Load JS at
       # all ("inaccurate in server-driven architectures using RSC"), so we compute it ourselves
@@ -114,4 +114,4 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_CORE_API_BASE_URL: http://localhost:8080
-          EDGE_API_BASE_URL: http://localhost:4000
+          NEXT_PUBLIC_EDGE_API_BASE_URL: http://localhost:4000

@@ -3,6 +3,9 @@ import { createHash, randomBytes } from "node:crypto"
 import { logger } from "@effy/edge-shared"
 import { sendEmail } from "@effy/email-kit/send"
 import type { NewsletterConfirmResult, NewsletterSubscribeResult } from "@effy/shared-types"
+// 044 — the email shape rule moved to the shared package so the storefront refuses EXACTLY what this
+// service refuses. Same values, same behaviour; this file's tests are the proof of that (044 V-03).
+import { EMAIL_MAX_LENGTH, EMAIL_SHAPE } from "@effy/shared-types"
 
 import { confirmSubscriber, upsertSubscriber } from "./repo"
 
@@ -22,19 +25,13 @@ const DEFAULT_TTL_HOURS = 24
 const DEFAULT_COOLDOWN_MINUTES = 60
 
 /**
- * ⚠ A LENGTH BOUND BEFORE ANY WORK. RFC 5321 caps a path at 254 octets; anything longer is not an
- * address, and accepting it would let a caller push arbitrary megabytes through the validator and into
- * a query parameter.
+ * ⚠ THE LENGTH BOUND AND THE SHAPE NOW LIVE IN `@effy/shared-types` (044).
+ *
+ * They were declared here, privately, which meant the storefront could not reach them — so the
+ * sign-in screen fell back to the browser's own rule, which accepts `person@example` and therefore
+ * emailed codes to addresses that cannot exist. Constitution Principle II: a cross-cutting rule has
+ * one definition. The values are unchanged; this file's existing tests are the proof of that.
  */
-const MAX_EMAIL_LENGTH = 254
-
-/**
- * ⚠ DELIBERATELY PERMISSIVE, and that is the correct trade for a newsletter. A strict RFC 5322 regex
- * is famously ~6 KB long, still wrong, and rejects addresses that genuinely exist. The real validation
- * is the confirmation email itself: an address that cannot receive mail never confirms and never
- * enters the list. This check exists to catch typing mistakes and obvious junk before we do any work.
- */
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/
 
 export interface NewsletterConfig {
   confirmBaseUrl: string
@@ -75,7 +72,7 @@ export async function subscribe(
   if (typeof rawEmail !== "string") return { status: "invalid" }
 
   const email = normaliseEmail(rawEmail)
-  if (email.length === 0 || email.length > MAX_EMAIL_LENGTH || !EMAIL_SHAPE.test(email)) {
+  if (email.length === 0 || email.length > EMAIL_MAX_LENGTH || !EMAIL_SHAPE.test(email)) {
     // ⚠ No DB call and no email for an invalid address — the one case that IS distinguishable, and
     // safely so: it says nothing about who is subscribed, only that what was typed is not an address.
     return { status: "invalid" }

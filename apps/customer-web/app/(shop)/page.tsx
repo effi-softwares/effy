@@ -256,8 +256,8 @@ function StoreUnavailable() {
     <div className="container my-16">
       <EmptyState
         title="We couldn&rsquo;t load the store just now"
-        description="This is on us, not you. Reloading usually sorts it — or browse the categories directly."
-        action={{ label: "Browse categories", href: "/browse" }}
+        description="This is on us, not you. Reloading usually sorts it — or browse all products directly."
+        action={{ label: "Browse products", href: "/search" }}
       />
     </div>
   )

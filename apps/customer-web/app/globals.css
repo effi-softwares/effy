@@ -67,6 +67,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* General Sans Regular (400) reads thin at body sizes. Bump the DEFAULT body weight to Medium
+     * (500) — one of the three self-hosted faces — so unmarked copy sits a notch heavier. Headings
+     * (font-semibold → 600) and anything already tagged `font-medium` are unaffected; this only
+     * shifts text that carried no explicit weight. Sample change scoped to customer-web. */
+    font-weight: 500;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
@@ -74,6 +79,11 @@
   }
   html {
     @apply font-sans;
+    /* Customer storefront is LIGHT-ONLY (operator decision) — it never applies the design system's
+     * `.dark` class. Pinning the color-scheme keeps native form controls, scrollbars and the browser
+     * address bar light even when the OS is set to dark, so they can't render dark chrome over the
+     * light page. */
+    color-scheme: light;
     /* No elastic overscroll (operator decision).
      *
      * macOS and iOS rubber-band the page past its bounds by default. `overscroll-behavior: none`
@@ -288,6 +298,25 @@
   @starting-style {
     .fx-drawer-left[open] {
       translate: -100% 0;
+    }
+  }
+
+  /* The same drawer, hinged on the other edge — the cart.
+   *
+   * ⚠ Left and right are not interchangeable, and which side a panel comes from is a statement about
+   * what it is. The menu is where you are GOING (navigation reads from the left, with the mark); the
+   * cart is what you HAVE, and it lives under the control that opens it, in the header's right-hand
+   * cluster. A cart that flew in from the left would cross the whole viewport to arrive nowhere near
+   * the thing that summoned it. */
+  .fx-drawer-right {
+    translate: 100% 0;
+  }
+  .fx-drawer-right[open] {
+    translate: 0 0;
+  }
+  @starting-style {
+    .fx-drawer-right[open] {
+      translate: 100% 0;
     }
   }
 

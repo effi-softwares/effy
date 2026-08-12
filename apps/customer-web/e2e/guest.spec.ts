@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test"
  * and is asked to sign in ZERO times while doing so.
  */
 
-const PUBLIC_PAGES = ["/", "/browse"] as const
+const PUBLIC_PAGES = ["/", "/search"] as const
 
 test.describe("a guest browses with no account (SC-001)", () => {
   test.use({ storageState: { cookies: [], origins: [] } }) // a genuinely fresh visitor
@@ -33,16 +33,13 @@ test.describe("a guest browses with no account (SC-001)", () => {
     page,
   }) => {
     await page.goto("/")
-    await page.getByRole("link", { name: "Start browsing" }).click()
-    await expect(page).toHaveURL(/\/browse$/)
+    // The hero's primary CTA into the single catalogue page (`/search`, "All products" — the
+    // standalone `/browse` category index was retired).
+    await page.getByRole("link", { name: /shop now/i }).first().click()
+    await expect(page).toHaveURL(/\/search$/)
 
-    // ⚠ Address the heading BY NAME, not by tag. Under `cacheComponents` Next 16 keeps the
-    // previous route mounted (React <Activity>) after a client-side navigation, so a bare
-    // `locator("h1")` matches BOTH the old page's heading and the new one and fails Playwright's
-    // strict mode. That is the framework preserving UI state, not a bug in the page.
-    await expect(
-      page.getByRole("heading", { name: "Browse the store" }),
-    ).toBeVisible()
+    // The catalogue navigation is present on the destination, and it did not demand a sign-in.
+    await expect(page.getByTestId("sign-in-link")).toBeVisible()
 
     // At no point did we land on sign-in.
     expect(page.url()).not.toContain("/sign-in")

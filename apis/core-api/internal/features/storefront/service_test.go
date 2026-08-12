@@ -2,6 +2,7 @@ package storefront
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -24,6 +25,20 @@ type fakeReader struct {
 	lastParams  SearchParams
 	promos      []advertisedPromoRow
 	promoErr    error
+
+	// Facet staging (043). The count reads run concurrently, so captures are mutex-guarded.
+	facetDefs      []attrDefRow
+	brandCounts    []optionCountRow
+	categoryCounts []optionCountRow
+	attrCounts     map[string][]optionCountRow
+	priceLo        *string
+	priceHi        *string
+
+	fmu                sync.Mutex
+	lastBrandParams    SearchParams
+	lastCategoryParams SearchParams
+	lastPriceParams    SearchParams
+	lastAttrParams     map[string]SearchParams
 }
 
 func (f *fakeReader) NewestCards(_ context.Context, _ int) ([]cardRow, error) { return f.newest, nil }
@@ -83,6 +98,41 @@ func (f *fakeReader) CountCards(_ context.Context, _ SearchParams) (int, error) 
 		return f.count, nil
 	}
 	return len(f.search), nil
+}
+
+func (f *fakeReader) FacetableAttributeDefs(_ context.Context) ([]attrDefRow, error) {
+	return f.facetDefs, nil
+}
+
+func (f *fakeReader) BrandCounts(_ context.Context, p SearchParams) ([]optionCountRow, error) {
+	f.fmu.Lock()
+	f.lastBrandParams = p
+	f.fmu.Unlock()
+	return f.brandCounts, nil
+}
+
+func (f *fakeReader) CategoryCounts(_ context.Context, p SearchParams) ([]optionCountRow, error) {
+	f.fmu.Lock()
+	f.lastCategoryParams = p
+	f.fmu.Unlock()
+	return f.categoryCounts, nil
+}
+
+func (f *fakeReader) AttributeCounts(_ context.Context, p SearchParams, def attrDefRow) ([]optionCountRow, error) {
+	f.fmu.Lock()
+	if f.lastAttrParams == nil {
+		f.lastAttrParams = map[string]SearchParams{}
+	}
+	f.lastAttrParams[def.Key] = p
+	f.fmu.Unlock()
+	return f.attrCounts[def.Key], nil
+}
+
+func (f *fakeReader) FacetPriceBounds(_ context.Context, p SearchParams) (*string, *string, error) {
+	f.fmu.Lock()
+	f.lastPriceParams = p
+	f.fmu.Unlock()
+	return f.priceLo, f.priceHi, nil
 }
 
 // fakePresign returns a deterministic signed URL and never errors.

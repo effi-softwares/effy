@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -206,13 +207,23 @@ fun DeleteAccountScreen(container: AppContainer) {
             )
 
             Spacer(Modifier.height(EffySpacing.s))
-            Text("What we keep, and why", style = MaterialTheme.typography.titleSmall)
+            Text("What we need to keep, and why", style = MaterialTheme.typography.titleSmall)
+            // ⚠ The category is its own line rather than a bulleted lead-in joined by a dash, matching
+            // the web surface. A label and a sentence do different jobs; run together they read as one
+            // long clause, and on a phone that clause wraps to four ragged lines per entry.
             preview.retained.forEach {
-                Text(
-                    "• ${it.category} — ${it.reason}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                Column(Modifier.padding(top = EffySpacing.s)) {
+                    Text(
+                        it.category,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                    )
+                    Text(
+                        it.reason,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             Spacer(Modifier.height(EffySpacing.md))

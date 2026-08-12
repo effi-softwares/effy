@@ -3,6 +3,8 @@
 import { PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js"
 import { useState } from "react"
 
+import { ActionButton } from "@/components/storefront/actions"
+
 /**
  * The Stripe Payment Element (US3). The server already created the PaymentIntent and passed its
  * client_secret via <Elements>; here we only confirm. `redirect: "if_required"` keeps card payments
@@ -43,13 +45,9 @@ export function PaymentForm({ orderId, onSuccess }: { orderId: string; onSuccess
     <form onSubmit={pay} className="space-y-4">
       <PaymentElement />
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <button
-        type="submit"
-        disabled={!stripe || busy}
-        className="flex h-12 w-full items-center justify-center rounded-full bg-primary text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-      >
+      <ActionButton type="submit" disabled={!stripe || busy} size="lg" className="w-full">
         {busy ? "Processing…" : "Pay now"}
-      </button>
+      </ActionButton>
     </form>
   )
 }

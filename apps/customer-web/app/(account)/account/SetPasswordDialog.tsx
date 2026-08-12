@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react"
 
+import { ActionButton } from "@/components/storefront/actions"
 import { PasswordField } from "./PasswordField"
 import { requestPasswordChallenge, writePassword } from "./actions"
 
@@ -88,16 +89,16 @@ export function SetPasswordDialog({
           </p>
           {error && <ErrorText>{error}</ErrorText>}
           <div className="mt-4 flex gap-3">
-            <button
+            <ActionButton
               type="button"
               onClick={send}
               disabled={pending}
               aria-busy={pending}
               data-testid="send-code"
-              className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              size="md"
             >
               {pending ? "Sending…" : "Email me a code"}
-            </button>
+            </ActionButton>
             <Cancel onCancel={() => onOpenChange(false)} />
           </div>
         </>
@@ -139,15 +140,15 @@ export function SetPasswordDialog({
           </p>
 
           <div className="flex gap-3">
-            <button
+            <ActionButton
               type="submit"
               disabled={pending || !code || !password}
               aria-busy={pending}
               data-testid="submit-set-password"
-              className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              size="md"
             >
               {pending ? "Setting…" : "Set password"}
-            </button>
+            </ActionButton>
             <Cancel onCancel={() => onOpenChange(false)} />
           </div>
         </form>

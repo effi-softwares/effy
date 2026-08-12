@@ -205,8 +205,11 @@ export interface ProductSearchQuery {
   minPrice?: string;
   maxPrice?: string;
   saleOnly?: boolean;
-  /** Attribute facets, keyed by attribute key → selected value(s). */
-  attributes?: Record<string, string>;
+  /** Selected brands — OR within the facet, e.g. `brand=Acme&brand=Beta` (043 FR-003). */
+  brands?: string[];
+  /** Attribute facets, keyed by attribute key → selected value(s). OR within a key, AND across keys
+   * (043 FR-003). On the wire: repeated `attr.<key>=<value>` params. */
+  attributes?: Record<string, string[]>;
   /** Defaults to `newest`, which is the pre-025 ordering. */
   sort?: ProductSort;
   cursor?: string;
@@ -226,6 +229,45 @@ export interface ProductSearchResultDTO {
   /** The ordering ACTUALLY applied — may differ from the request. Render the sort control from this,
    * not from what was asked for, or the control will misdescribe the list beneath it. */
   sort: ProductSort;
+}
+
+/** The control a facet drives (043).
+ *
+ * `single_select` — pick one (category; reuses the `categoryKey` filter param).
+ * `multi_select`  — tick many, OR within (brand, single/multi-select + boolean attributes).
+ * `toggle`        — an on/off control (offers). Closed vocabulary: a client meeting an unknown value
+ *                   renders nothing for that facet (tolerant reader). */
+export type FacetType = "single_select" | "multi_select" | "toggle";
+
+/** One selectable value within a facet, carrying its count in the CURRENT result set (043 FR-008).
+ *
+ * ⚠ Zero-count options are OMITTED by the server (FR-009) — an option that leads nowhere is not an
+ * option. `count` is therefore always ≥ 1 as delivered. */
+export interface FacetOptionDTO {
+  value: string;
+  label: string;
+  /** ⚠ `WireInt` (`@asType integer`) so the generated Kotlin reads an Int, not a Double — the 027
+   * `1.0`-into-an-int lesson, applied to the count field. */
+  count: WireInt;
+}
+
+/** One refinable dimension: category, brand, an attribute-definition key, or `offers` (043). */
+export interface FacetDTO {
+  /** `"category"`, `"brand"`, `"offers"`, or an attribute-definition key (e.g. `"diet"`). */
+  key: string;
+  label: string;
+  type: FacetType;
+  options: FacetOptionDTO[];
+}
+
+/** The facets available for a query + applied filters, with per-option counts (043 US2).
+ *
+ * Computed on filter-change, NOT per page — the product grid pages independently via
+ * `ProductSearchResultDTO`. `priceBounds` drives the price control's range and is null when the set
+ * is empty. */
+export interface FacetSetDTO {
+  priceBounds: { min: string; max: string } | null;
+  facets: FacetDTO[];
 }
 
 

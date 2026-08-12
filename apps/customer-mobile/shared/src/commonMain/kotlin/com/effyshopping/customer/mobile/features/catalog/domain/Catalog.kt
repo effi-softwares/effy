@@ -206,6 +206,45 @@ data class ProductPage(
 
 /** Whether Effy delivers to a postcode, answered before a cart exists (025 FR-014). */
 
+// ── Advanced filter facets (043) ─────────────────────────────────────────────────────────────────
+
+/**
+ * The control a facet drives (043) — maps the wire `FacetType`. Tolerant reader: an unknown wire value
+ * degrades to [MULTI_SELECT] rather than throwing, so a facet type added server-side never blanks the
+ * sheet.
+ */
+enum class FacetControl {
+    SINGLE_SELECT,
+    MULTI_SELECT,
+    TOGGLE,
+    ;
+
+    companion object {
+        fun fromWire(wire: String): FacetControl = when (wire) {
+            "single_select" -> SINGLE_SELECT
+            "toggle" -> TOGGLE
+            else -> MULTI_SELECT
+        }
+    }
+}
+
+/** One selectable value with its count in the current set (count ≥ 1 — zero-count options are omitted). */
+data class FacetOption(val value: String, val label: String, val count: Int)
+
+/** One refinable dimension: `category`, `brand`, or an attribute-definition key. */
+data class Facet(
+    val key: String,
+    val label: String,
+    val control: FacetControl,
+    val options: List<FacetOption>,
+)
+
+/** Min/max price of the current set, driving the price control's range. */
+data class PriceBounds(val min: String, val max: String)
+
+/** The facets available for a query + applied filters, with per-option counts (043 US2). */
+data class FacetSet(val priceBounds: PriceBounds?, val facets: List<Facet>)
+
 /** The catalog read port (hot path). Implemented by HttpCatalogRepository over the core client. */
 interface CatalogRepository {
     suspend fun home(): HomeContent
@@ -217,8 +256,24 @@ interface CatalogRepository {
         categoryKey: String?,
         sort: ProductSortOption,
         cursor: String?,
+        // 043: multi-value facets (OR within, AND across) + price band. Trailing + defaulted so the
+        // existing positional call sites are unaffected.
+        brands: List<String> = emptyList(),
+        attributes: Map<String, List<String>> = emptyMap(),
+        minPrice: String? = null,
+        maxPrice: String? = null,
     ): ProductPage
 
+    /** The available facets + per-option counts for a query + applied filters (043 US2). */
+    suspend fun facets(
+        query: String,
+        saleOnly: Boolean,
+        categoryKey: String?,
+        brands: List<String> = emptyList(),
+        attributes: Map<String, List<String>> = emptyMap(),
+        minPrice: String? = null,
+        maxPrice: String? = null,
+    ): FacetSet
 
     /** One advertised promotion in full — the destination of a banner tap. */
     suspend fun promotion(id: String): Promotion

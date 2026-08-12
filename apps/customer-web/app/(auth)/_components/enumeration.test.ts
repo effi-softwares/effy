@@ -76,18 +76,30 @@ describe("sign-in surfaces must not leak account existence", () => {
     ).toEqual([])
   })
 
-  it("⚠ the escape hatch is UNCONDITIONAL — rendered for everyone, not inside a branch", () => {
-    const src = readIfPresent("CodeStep.tsx")
-    expect(src, "CodeStep.tsx not found").not.toBeNull()
-
-    // It is rendered as a bare element, never guarded by `&&` or a ternary. If someone later wraps
-    // it in a condition, the condition is the oracle — regardless of what it tests.
-    expect(src).toContain("<StuckNote />")
-    expect(src).not.toMatch(/[&?]\s*<StuckNote/)
-  })
-
-  it("the escape hatch names a route to a human", () => {
-    const src = readIfPresent("CodeStep.tsx") ?? ""
-    expect(src).toContain("hello@effyshopping.com")
-  })
+  /**
+   * ⚠ TWO TESTS WERE REMOVED HERE ON 2026-08-11, AND THIS NOTE IS THEIR REPLACEMENT.
+   *
+   * They asserted 037 FR-030a: that the code step carries an UNCONDITIONAL escape hatch — a support
+   * address, shown to everyone, never behind a branch — and that it names a route to a human.
+   *
+   *   expect(src).toContain("<StuckNote />")
+   *   expect(src).not.toMatch(/[&?]\s*<StuckNote/)
+   *   expect(src).toContain("hello@effyshopping.com")
+   *
+   * ⚠ THE REQUIREMENT WAS WITHDRAWN BY THE OPERATOR (044), NOT THE TEST LOOSENED TO MAKE A CHANGE
+   * PASS. The support address and the spam-folder note were removed from the code step for visual
+   * reasons. These assertions became false statements about a requirement that no longer exists, and
+   * a guard that asserts a withdrawn requirement is worse than no guard: the next person deletes it on
+   * correct grounds and takes the live requirement with it.
+   *
+   * ⚠ WHAT WAS ACTUALLY GIVEN UP, recorded so it is a decision and not an accident. The hatch existed
+   * BECAUSE of the test above it: the platform deliberately cannot tell a shopper "we can't reach that
+   * address", since delivery state is only knowable for an address it has emailed — which would answer
+   * "does this person have an Effy account?" to anyone who asked. The support line was the one honest
+   * way out for someone whose code never arrives. There is now no route to a human from that screen.
+   *
+   * The FIRST test in this file — the one that matters most — is untouched and still passing: no
+   * unauthenticated auth component may vary its copy with delivery state. That is the enumeration
+   * defence itself. This was the mitigation for the cost of it.
+   */
 })

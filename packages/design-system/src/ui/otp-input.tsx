@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 
 import { cn } from "../cn"
@@ -12,12 +14,15 @@ import { cn } from "../cn"
  */
 export const OTP_LENGTH = 6
 
+/** The cell positions, derived — so no literal `6` appears anywhere below (044 C-01). */
+const POSITIONS = Array.from({ length: OTP_LENGTH }, (_, i) => i)
+
 /**
- * The platform's one-time-code field (035 FR-025, FR-026; 036 FR-002).
+ * The platform's one-time-code field (035 FR-025, FR-026; 036 FR-002; 044 US1).
  *
  * ⚠ ONE INPUT, NOT SIX BOXES — and that is a requirement, not a style preference.
  *
- * Three independent reasons converge on the plain field:
+ * Three independent reasons converge on the single field:
  *
  *  1. **Assistive technology.** FR-025 requires the control to present as a SINGLE logical field.
  *     Segmented per-digit widgets are several inputs wearing a costume; they are the reason screen
@@ -25,92 +30,82 @@ export const OTP_LENGTH = 6
  *     documents the same intent ("One logical email-code editor… a single accessibility/focus
  *     node") and has a test asserting exactly one such node.
  *  2. **The bundle.** shadcn's `InputOTP` wraps the `input-otp` npm package, which is not a
- *     dependency of this monorepo. `apps/customer-web` guest routes sit 2.0–5.9 KB under a 174 KB
- *     gate (`/search` and `/cart` are BOTH at 2.0 KB). A new dependency in this barrel risks that
- *     budget on routes that never render a code field, and the budget script's own instruction is
- *     "Do NOT raise the limit to make this pass."
+ *     dependency of this monorepo. `apps/customer-web` guest routes sit as little as 0.1 KB under a
+ *     174 KB gate. A new dependency in this barrel risks that budget on routes that never render a
+ *     code field, and the budget script's own instruction is "Do NOT raise the limit to make this
+ *     pass."
  *  3. It is less code.
  *
  * ⚠ KEEP THIS FILE FREE OF `aws-amplify` AND ANY DATA FETCHING. It is imported on guest paths, and
  * `apps/customer-web`'s dependency-cruiser quarantine matches transitively (`reachable: true`).
  * The sign-in call belongs in `app/(auth)/`, not here.
  *
- * ⚠ `maxLength` is `OTP_LENGTH` and is a UX affordance ONLY. The server refuses anything that is not
- * exactly six digits rather than reshaping it (FR-005) — trimming a longer paste down to six is
- * precisely the shipped defect this feature exists to fix, and must not be reintroduced here.
+ * ⚠ `maxLength` is a UX affordance ONLY, and only on the plain variant. The server refuses anything
+ * that is not exactly six digits rather than reshaping it (FR-005) — trimming a longer paste down to
+ * six is precisely the shipped defect 035 existed to fix, and must not be reintroduced here.
  *
- * ── 036: the `cells` variant ──────────────────────────────────────────────────────────────────────
+ * ── The `cells` variant, rebuilt in 044 ──────────────────────────────────────────────────────────
  *
  * ⚠ `variant` DEFAULTS TO `"plain"`, and that default is load-bearing. This component is shared with
  * `packages/web-kit`'s `OtpSignInCard`, which serves `apps/back-office` and `apps/shop-web` — both
- * OUT OF SCOPE for 036 (FR-044a). Those two consoles pass no `className` and opt into no variant, so
- * they keep today's rendering byte-for-byte. Four test files across three packages assert on this
- * component; they must pass UNMODIFIED as the proof the consoles were not disturbed.
+ * OUT OF SCOPE (044 FR-042). Those two consoles pass no variant, so they keep today's rendering
+ * byte-for-byte, and their emailed code is their ONLY credential: a regression there is a lockout,
+ * not a cosmetic bug. `OtpSignInCard.test.tsx` and the plain block of `otp-input.test.tsx` must pass
+ * UNMODIFIED as the proof.
  *
- * `"cells"` paints six character positions behind ONE input — it does not create six inputs. That is
- * GOV.UK's conclusion (they ship a single input with `letter-spacing` + tabular numerals) taken one
- * visual step further. `getAllByLabelText(/one-time code/i)` must still return exactly one node.
+ * ⚠ WHY THE 036 RENDERING WAS REPLACED RATHER THAN TOUCHED UP. It painted six positions as a
+ * `repeating-linear-gradient` behind text laid out with `letter-spacing` in `ch` units. Measured on
+ * the shipped build (044 BASELINE.md), that produced three defects at once:
+ *
+ *   • **Invisible** — the rule used `--input` (`#e5e5e5`), whose own token comment says it is
+ *     "deliberately not contrast-tested". At 1.24:1 on white it is not a boundary, it is a rumour.
+ *   • **Off-centre** — an inline `marginRight` overrode one half of `mx-auto`, leaving
+ *     `margin-left: auto` to shove the control against the right edge of its column. At 1440px it
+ *     began 270px into a 384px column and overflowed the far edge by 12px.
+ *   • **Half-size on desktop** — the base class string ends `md:text-sm` and the variant appended
+ *     `text-3xl`. `tailwind-merge` does not treat those as conflicting (different responsive
+ *     variants), so BOTH survived and `md:` won above 768px: a ~14px code field where 30px was
+ *     intended.
+ *
+ * The rebuild removes the whole class of problem. **The digits and the boxes are now the same
+ * elements**, laid out in one grid, so no font metric, no `ch` advance and no class-merge accident
+ * can slide one out from under the other. There are no `ch` units left, which is also what makes the
+ * control survive 200% zoom and text-only zoom (044 C-17).
  */
 function OtpInput({
   className,
   variant = "plain",
-  style,
   ...props
 }: React.ComponentProps<"input"> & { variant?: "plain" | "cells" }) {
+  if (variant === "cells") return <OtpCells className={className} {...props} />
   return (
     <input
-      // `text` with `inputMode="numeric"`, never `type="number"`: a number input strips leading
-      // zeros, exposes spinners, and silently accepts "1e5". Roughly one code in ten begins with a
-      // zero, so `type="number"` would break 10% of sign-ins.
-      type="text"
-      inputMode="numeric"
-      // The token both iOS and Android look for to offer the code from a message.
-      autoComplete="one-time-code"
-      // Codes are digits; a pattern keeps mobile keyboards numeric and helps native validation.
-      pattern="[0-9]*"
+      {...INPUT_SEMANTICS}
       // ⚠ 036 FR-004 — `maxLength` TRUNCATES, and truncation is the defect 035 existed to fix.
       //
-      // A native `maxLength` silently discards the 7th and 8th characters of a paste. On this
-      // platform that is exactly wrong: a code that is not six digits did not come from us, and the
-      // shopper needs to SEE that rather than have it quietly reshaped into something submittable.
-      //
-      // ⚠ It is dropped on the `cells` variant ONLY. The plain variant serves `back-office` and
-      // `shop-web` (FR-044a, out of scope), and `OtpSignInCard.test.tsx` asserts `maxlength="6"` —
-      // that test must keep passing UNMODIFIED as the proof those consoles were not disturbed. The
-      // consoles keep today's behaviour until their own slice; the customer surfaces get the rule.
-      maxLength={variant === "cells" ? undefined : OTP_LENGTH}
-      spellCheck={false}
-      autoCorrect="off"
-      autoCapitalize="off"
-      // ⚠ A code is LTR content even on an RTL page, and the cell geometry below is built from
-      // physical directions (`to right`, `background-position: 0 100%`). Under `dir="rtl"` the
-      // underlines would land under the wrong characters.
-      dir="ltr"
+      // It is kept on the PLAIN variant only. That variant serves `back-office` and `shop-web`
+      // (044 FR-042, out of scope), and `OtpSignInCard.test.tsx` asserts `maxlength="6"` — that test
+      // must keep passing UNMODIFIED as the proof those consoles were not disturbed. The consoles
+      // keep today's behaviour until their own slice; the customer surfaces get the rule.
+      maxLength={OTP_LENGTH}
       data-slot="otp-input"
-      data-variant={variant}
-      style={variant === "cells" ? { ...CELL_GEOMETRY, ...style } : style}
+      data-variant="plain"
       className={cn(
-        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
+        // ⚠ PILL, h-11, px-4 — byte-for-byte `input.tsx`'s field base (minus the `file:` affordances
+        // an OTP field never uses). The plain variant IS an Input but for its tracking, so it takes
+        // the same pill shape; a shorter `rounded-md` box here would read as a different component in
+        // the same sign-in form. `OtpSignInCard.test.tsx` asserts `maxlength`/behaviour, not shape, so
+        // the consoles stay functionally identical — this is a visual unification only.
+        "h-11 w-full min-w-0 rounded-full border border-input bg-transparent px-4 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
         // Codes are read back character by character far more often than prose is, so they get
         // tabular figures and a little tracking. This is the one place that is worth it.
         "font-mono tracking-[0.35em]",
-        // ⚠ The cell variant OWNS its box. It must beat the caller's `className`, which lands last in
-        // `cn()` — the three `app/(auth)/` call sites pass `px-3 rounded-full`, and BOTH would destroy
-        // the geometry: horizontal padding shifts every underline off its character, and a pill
-        // radius clips the first and last cell. So: no border, no fill, no padding, no radius, and
-        // `!` so a caller cannot re-add them by accident.
-        variant === "cells" &&
-          "!rounded-none !border-0 !bg-transparent !px-0 !shadow-none mx-auto block h-auto py-3 text-center !tracking-[var(--otp-gap)] text-3xl tabular-nums",
-        // ⚠ `--otp-rule` lives in the CLASS layer, not in `CELL_GEOMETRY`. An inline custom property
-        // wins on specificity, so setting it inline would make the invalid and focus states below
-        // silently dead — the cells would stay grey while the field was announcing an error.
-        variant === "cells" &&
-          "[--otp-rule:var(--input)] focus-visible:[--otp-rule:var(--ring)] aria-invalid:[--otp-rule:var(--destructive)]",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        // ⚠ The ring would trace the invisible box, not the cells. The cells carry the focus and
-        // error signal themselves via `--otp-rule` below.
-        variant === "cells" && "focus-visible:!ring-0 focus-visible:!border-0",
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+        // No focus halo, matching `input.tsx` — the plain variant IS an `Input` in every respect but
+        // its tracking, so a different focus treatment here would read as a bug. The `cells` variant
+        // below keeps its own ring: that one is 044's authored per-cell focus indicator, not the
+        // shadcn default, and it is the only thing marking which position is active.
+        "focus-visible:border-ring",
+        "aria-invalid:border-destructive",
         className
       )}
       {...props}
@@ -119,51 +114,205 @@ function OtpInput({
 }
 
 /**
- * Six character cells drawn as underlines behind one input.
- *
- * ⚠ WHY UNDERLINES AND NOT BOXES. The published "boxes behind a single input" technique needs
- * `clip-path`, a `conic-gradient` for the corners, and `attr(maxlength type(<integer>))` — which is
- * Chrome-only. Underlines need one `repeating-linear-gradient` and no clipping, so they survive
- * Safari, browser zoom and text-only zoom without a fallback path. The affordance is the same: six
- * visible positions.
- *
- * ⚠ WHY THIS IS AN INLINE STYLE AND NOT A CLASS IN `tokens.css`. `tokens.css` is PARSED by
- * `scripts/gen-compose-theme.mjs` — it reads `:root`/`.dark` blocks for colours and runs a whole-file
- * regex for `<name>: <number>rem` to pick up the radius scale. Adding unrelated rule blocks there
- * risks the `tokens:check` gate for no benefit, and this feature must leave that gate untouched
- * (SC-018). Nothing here is a token: every colour is an existing token variable.
- *
- * ⚠ SIZED TO BE SEEN, AND CENTRED RATHER THAN FULL-BLEED. The cells are driven by the font, so the
- * group's width is `6 × (1ch + gap)` — at a 30px monospace that is ≈250px inside a 384px column,
- * which is the published guidance: keep the digit group compact and centred, do not spread it across
- * a wide layout. (Mobile is the opposite case and DOES fill its column, because a phone's column IS
- * roughly that width — see `packages/mobile-kit/common/ui/OtpCells.kt`, which caps at 360dp for the
- * same reason.)
- *
- * ⚠ THE GEOMETRY. With `letter-spacing: g`, character *i* starts at `i × (1ch + g)` and is `1ch`
- * wide — so a gradient with period `1ch + g` that inks `[0, 1ch]` lands exactly under each character.
- * `1ch` is the advance of "0", which is only reliable in a monospace font; `--font-mono` is not
- * overridden in `tokens.css`, so Tailwind's monospace stack applies, and `tabular-nums` is belt and
- * braces. `scripts/check-tokens.mjs` asserts this (T013) — if `--font-mono` ever became proportional
- * the cells would drift out from under the digits with nothing failing.
- *
- * ⚠ THE TRAILING SPACE. `letter-spacing` is added after EVERY character including the last, so the
- * run is one gap wider than its ink. `marginRight` cancels it; without that the field is visibly
- * off-centre by one gap.
+ * Semantics shared by both variants. Every one of these is load-bearing behaviour rather than
+ * presentation, so neither variant may drift from the other on any of them.
  */
-const CELL_GEOMETRY = {
-  "--otp-n": OTP_LENGTH,
-  "--otp-cell": "1ch",
-  "--otp-gap": "1.5ch",
-  // ⚠ `--otp-rule` is deliberately NOT set here — see the class layer above. Inline custom
-  // properties beat classes, which would kill the focus and invalid states.
-  width: "calc(var(--otp-n) * (var(--otp-cell) + var(--otp-gap)))",
-  marginRight: "calc(-1 * var(--otp-gap))",
-  backgroundImage:
-    "repeating-linear-gradient(to right, var(--otp-rule) 0 var(--otp-cell), transparent var(--otp-cell) calc(var(--otp-cell) + var(--otp-gap)))",
-  backgroundSize: "calc(100% - var(--otp-gap)) 3px",
-  backgroundRepeat: "no-repeat",
-  backgroundPosition: "0 100%",
-} as React.CSSProperties
+const INPUT_SEMANTICS = {
+  // `text` with `inputMode="numeric"`, never `type="number"`: a number input strips leading
+  // zeros, exposes spinners, and silently accepts "1e5". Roughly one code in ten begins with a
+  // zero, so `type="number"` would break 10% of sign-ins.
+  type: "text",
+  inputMode: "numeric",
+  // The token both iOS and Android look for to offer the code from a message.
+  autoComplete: "one-time-code",
+  // Codes are digits; a pattern keeps mobile keyboards numeric and helps native validation.
+  pattern: "[0-9]*",
+  spellCheck: false,
+  autoCorrect: "off",
+  autoCapitalize: "off",
+  // ⚠ A code is LTR content even on an RTL page. The cells are laid out left-to-right by position
+  // index, and under `dir="rtl"` the first character typed would appear in the last box.
+  dir: "ltr",
+} as const
+
+/**
+ * Six character cells, and one input.
+ *
+ * ⚠ THE CELLS ARE `aria-hidden` SCENERY. Everything a person or a screen reader interacts with is
+ * the single `<input>` layered over them: it holds the value, takes the focus, receives the paste,
+ * and is what `getAllByLabelText` finds exactly one of. The boxes below it are drawn, not operated.
+ *
+ * ⚠ THE INPUT'S OWN TEXT AND CARET ARE TRANSPARENT, not hidden. Keeping a real, full-size,
+ * text-bearing input in place is what preserves paste, OS message-autofill, selection semantics and
+ * the browser's own autofill anchoring. The visible digits are rendered by the cells from the same
+ * value.
+ *
+ * **The accepted cost, recorded rather than discovered:** a text selection inside the field is not
+ * visible. A six-digit code is retyped, not partially selected, and the alternative (a visible
+ * selection) costs the per-cell rendering that fixes everything else.
+ */
+function OtpCells({
+  className,
+  value,
+  defaultValue,
+  onChange,
+  ...props
+}: React.ComponentProps<"input">) {
+  // Mirrors the value so the cells can render it whether the caller controls the input or not.
+  // Controlled is the norm (`CodeStep` owns the value); the fallback keeps an uncontrolled caller
+  // from rendering six permanently empty boxes over a field that has text in it.
+  const [mirror, setMirror] = React.useState(String(defaultValue ?? value ?? ""))
+  const shown = value !== undefined ? String(value) : mirror
+
+  const overflowing = shown.length > OTP_LENGTH
+  const invalid = props["aria-invalid"] === true || props["aria-invalid"] === "true"
+
+  return (
+    <div
+      className={cn(
+        // ⚠ NO `mx-auto`, NO NEGATIVE MARGIN, NO INTRINSIC WIDTH. The group fills its column and is
+        // therefore aligned with its own label by construction — there is no centring rule left for
+        // an inline style to half-override, which is what defect D-02 was (044 C-04).
+        //
+        // `group` + `:focus-within` is how the cells learn that the input has focus. It needs no
+        // state and no ordering assumption about which element comes first in the DOM.
+        "group relative w-full",
+        className
+      )}
+      data-slot="otp-cells"
+    >
+      <input
+        {...INPUT_SEMANTICS}
+        // ⚠ NO `maxLength` HERE. A native one silently discards the 7th and 8th characters of a
+        // paste; on this platform a code that is not six digits did not come from us, and the shopper
+        // must SEE that rather than have it quietly reshaped into something submittable (FR-004).
+        value={value}
+        defaultValue={defaultValue}
+        onChange={(e) => {
+          setMirror(e.target.value)
+          onChange?.(e)
+        }}
+        data-slot="otp-input"
+        data-variant="cells"
+        className={cn(
+          "absolute inset-0 z-10 h-full w-full rounded-md bg-transparent text-transparent caret-transparent outline-none",
+          // The focus indicator lives on the cells (below), which is where a person is looking.
+          "focus-visible:outline-none",
+          // ⚠ Text is transparent but SELECTION must not be — a selected-all state with an invisible
+          // highlight and invisible glyphs looks like an empty field.
+          "selection:bg-primary/20",
+          // ⚠ An over-length value is shown as PLAIN TEXT, in full. Six positions can only display
+          // six characters, so an eight-digit paste rendered as cells would LOOK like a six-digit
+          // code — visually reproducing the very truncation FR-004 forbids. Changing shape is the
+          // signal (044 C-11).
+          overflowing && "border-2 border-destructive bg-background px-3 text-center font-mono text-lg text-foreground caret-auto"
+        )}
+        {...props}
+      />
+
+      {/* The scenery. Skipped entirely while the value is too long — the input above is showing real
+          text at that point and boxes behind it would be nonsense. */}
+      {!overflowing && (
+        <div
+          aria-hidden
+          className="pointer-events-none grid gap-1.5 sm:gap-2"
+          // ⚠ The column count comes from the constant, not a `grid-cols-6` class. A literal here
+          // would be a fourth place "six" is written down (036 FR-045, 044 C-01).
+          style={{ gridTemplateColumns: `repeat(${OTP_LENGTH}, minmax(0, 1fr))` }}
+        >
+          {POSITIONS.map((i) => (
+            <Cell
+              key={i}
+              char={shown[i]}
+              index={i}
+              filled={i < shown.length}
+              invalid={invalid}
+              // The position the next character will land in. Clamped, so a full value keeps the
+              // indicator on the last cell rather than dropping it off the end.
+              active={i === Math.min(shown.length, OTP_LENGTH - 1)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * One character position.
+ *
+ * ⚠ EVERY STATE IS CARRIED BY SHAPE OR WEIGHT AS WELL AS COLOUR (044 FR-019, SC-010): an empty cell
+ * has a mid-weight boundary, a filled one a full-contrast boundary and a glyph, the active one an
+ * offset ring and a caret, an invalid one the destructive boundary *and* the error message beside
+ * the field. None of them is distinguishable by hue alone, which matters on a monochrome platform
+ * where there is no hue to spend.
+ *
+ * ⚠ THE BOUNDARY IS `border-ring`, NOT `border-input`. `--input` is `#e5e5e5` on white — 1.24:1, and
+ * its own token comment says it is "deliberately not contrast-tested". `--ring` is `#808080` light /
+ * `#737373` dark, both above the 3:1 WCAG 1.4.11 bar for a UI component boundary. Using the border
+ * token here is what made the field invisible (defect D-01).
+ */
+function Cell({
+  char,
+  index,
+  filled,
+  invalid,
+  active,
+}: {
+  char: string | undefined
+  index: number
+  filled: boolean
+  invalid: boolean
+  active: boolean
+}) {
+  return (
+    <div
+      data-slot="otp-cell"
+      data-index={index}
+      data-filled={filled || undefined}
+      data-active={active || undefined}
+      className={cn(
+        // ⚠ `bg-background`, NOT `bg-muted` (operator direction 2026-08-11). The muted fill read as
+        // a *filled* control — darker than the page — which made six empty boxes look like six
+        // disabled ones. The page-coloured fill puts the whole signal on the boundary, which is why
+        // that boundary is `border-ring` (3:1) and 2px rather than the untested hairline token.
+        // ⚠ 1.5px, DOWN FROM 2px (operator direction 2026-08-11 — "borders are too dark"). The weight
+        // is what was lightened, not the colour, and that is a measured constraint rather than a
+        // preference: `--ring` (#808080) is **3.95:1** on white, and WCAG 1.4.11 wants **3:1** for the
+        // visual boundary of a UI component. The lightest grey that still clears that bar is roughly
+        // #959595 — barely distinguishable from what is here — so there is almost no colour headroom
+        // left to spend. Stroke weight is where the headroom actually is: half a pixel off reads
+        // markedly lighter and costs no contrast at all.
+        //
+        // ⚠ The width is UNIFORM across states on purpose. Varying it between empty and filled would
+        // change each cell's box size as the shopper types, so the row would shift under their
+        // fingers mid-code.
+        "flex h-14 items-center justify-center rounded-xl border-[1.5px] bg-background transition-colors sm:h-16",
+        // ⚠ The size is set HERE and nowhere else, so no responsive utility from an unrelated class
+        // string can halve it above a breakpoint the way `md:text-sm` did (defect D-01a).
+        "font-mono text-xl tabular-nums text-foreground sm:text-2xl",
+        filled ? "border-foreground" : "border-ring",
+        // ⚠ The ERROR IS ON THE CELLS, not only in the message beside them (044 C-06/FR-007). A
+        // refusal the shopper has to read to notice is a refusal they will retype into.
+        invalid && "border-destructive",
+        // The active position, revealed only while the field actually has focus.
+        active &&
+          !invalid &&
+          "group-focus-within:border-foreground group-focus-within:ring-2 group-focus-within:ring-ring group-focus-within:ring-offset-2 group-focus-within:ring-offset-background"
+      )}
+    >
+      {char ?? ""}
+      {/* The caret's replacement, since the real one is transparent (044 C-05/C-15). Rendered for
+          every cell and revealed by CSS only on the active position while the field has focus, so
+          it costs no state and cannot disagree with the value. */}
+      {active && !filled && (
+        <span
+          data-slot="otp-caret"
+          className="hidden h-6 w-0.5 animate-pulse bg-foreground group-focus-within:block motion-reduce:animate-none sm:h-7"
+        />
+      )}
+    </div>
+  )
+}
 
 export { OtpInput }

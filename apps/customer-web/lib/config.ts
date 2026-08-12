@@ -39,14 +39,31 @@ export function coreApiBaseUrl(): string {
 /**
  * The COLD path (`edge-api`, serverless). Customer profile / account management only.
  *
- * Server-side only — it is never read in the browser, so it carries no NEXT_PUBLIC_ prefix.
+ * ⚠ IT CARRIES THE `NEXT_PUBLIC_` PREFIX, AND IT DID NOT USED TO. It was `EDGE_API_BASE_URL`,
+ * server-only by design — and that is precisely why every signed-in customer on dev landed on
+ * /account/unavailable. An Amplify Hosting environment variable is a BUILD variable; AWS states
+ * plainly that "a Next.js server component doesn't have access to those environment variables by
+ * default." `NEXT_PUBLIC_` is what carries a value past the build, because Next INLINES those into
+ * the output. Unprefixed, this threw "Missing required environment variable" at request time on
+ * the deployed runtime — and since the throw happened BEFORE the fetch, there was no failed
+ * request in the browser, no console error, and nothing in any log to find.
+ *
+ * The trade is that the edge API's hostname now ships in the client bundle. It is an address, not
+ * a credential: every route behind it is authorized by the customer pool's JWT authorizer at the
+ * gateway, and an unauthenticated caller gets a flat 401.
+ *
+ * ⚠ THAT IS NOT PERMISSION TO CALL IT FROM THE BROWSER. The account routes relay the customer's ID
+ * *and* access tokens (see lib/api/edge.ts), which must never leave the server, so every caller in
+ * this app stays server-side. What changed is the prefix — not the boundary. The boundary now
+ * rests on review rather than on the address being unguessable, so keep it where it belongs.
+ *
  * No commerce feature may be placed here (FR-028).
  */
 export function edgeApiBaseUrl(): string {
-  return required("EDGE_API_BASE_URL", process.env.EDGE_API_BASE_URL).replace(
-    /\/$/,
-    "",
-  )
+  return required(
+    "NEXT_PUBLIC_EDGE_API_BASE_URL",
+    process.env.NEXT_PUBLIC_EDGE_API_BASE_URL,
+  ).replace(/\/$/, "")
 }
 
 /** Cognito (customer pool). Values come from the SSM contract `/effy/<env>/auth/customer/*`. */

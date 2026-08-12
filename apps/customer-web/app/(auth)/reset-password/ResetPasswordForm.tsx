@@ -5,10 +5,20 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
+import { markCodeSent } from "@/lib/otp-cooldown"
+
 import { authErrorMessage, startPasswordReset } from "../_lib/auth-actions"
 import { useStepHistory } from "../_lib/step-history"
+import { useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
-import { ErrorNote, Field, PasswordField, StepShell, Submit } from "../_components/AuthKit"
+import {
+  ErrorNote,
+  Field,
+  inlineActionClass,
+  PasswordField,
+  StepShell,
+  Submit,
+} from "../_components/AuthKit"
 // 012 FR-022b — a SERVER ACTION, not an Amplify call. The backend screens the new password against
 // breach corpora (which the browser cannot be trusted to do) and records that a password now exists
 // (which Cognito cannot be asked). See _lib/recovery-actions.ts.
@@ -26,6 +36,26 @@ import { finishPasswordReset } from "../_lib/recovery-actions"
  * Until the spike settles it, a passwordless customer who lands here may hit a wall — which is why
  * the copy points them back to the code route rather than leaving them stranded (FR-015).
  */
+const FIELDS = {
+  email: {
+    rules: [
+      { kind: "required", message: "Enter your email address." },
+      { kind: "emailShape", message: "That doesn't look like an email address. Mind checking it?" },
+    ],
+  },
+  password: {
+    trim: false,
+    rules: [
+      { kind: "required", message: "Choose a new password." },
+      {
+        kind: "minLength",
+        min: PASSWORD_MIN_LENGTH,
+        message: `Use at least ${PASSWORD_MIN_LENGTH} characters.`,
+      },
+    ],
+  },
+} satisfies Record<string, FieldConfig>
+
 export function ResetPasswordForm() {
   const router = useRouter()
   const [email, setEmail] = useState("")
@@ -33,6 +63,7 @@ export function ResetPasswordForm() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  const validation = useFieldValidation(FIELDS)
 
   const codeSent = useRef(false)
   const { step, go, back } = useStepHistory<"email" | "code" | "password">("email", {
@@ -46,6 +77,19 @@ export function ResetPasswordForm() {
   const sendCode = useCallback(async () => {
     await startPasswordReset(address)
     codeSent.current = true
+    // ⚠ 044 D-22 — THIS LINE WAS MISSING, AND PASSWORD RESET HAD NO RESEND COOLDOWN AT ALL.
+    //
+    // Sign-in and sign-up both mark the send; this route never did. The cooldown clock therefore
+    // never started here, so the code step showed no countdown and offered "Send another code"
+    // immediately and repeatedly — against a platform budget of FIVE sends per address per clock
+    // hour, after which the trigger silently refuses while still returning a normal-looking
+    // challenge. A shopper tapping resend three times would spend their whole hour and then wait for
+    // a code that was never sent.
+    //
+    // ⚠ `e2e/otp-entry.spec.ts` HAS ASSERTED THE COUNTDOWN SINCE 035 and reaches the code step
+    // through THIS route. It never caught it because Playwright is not part of `pnpm test` — it
+    // needs a built server and this repo runs it by hand. The test was right the whole time.
+    markCodeSent()
   }, [address])
 
   /**
@@ -71,27 +115,30 @@ export function ResetPasswordForm() {
   )
 
   if (step === "code") {
+    // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
+    // step shell (above the back control, detached from the layout) while CodeStep rendered a second
+    // one inside it. Both were role="alert"; both could be true at once; both announced. The journey's
+    // message is now handed to the step, which owns the single region (defect D-05).
     return (
-      <>
-        {error && <ErrorNote>{error}</ErrorNote>}
-        <CodeStep
-          destination={address}
-          submitLabel="Continue"
-          submitTestId="submit-reset-code"
-          onSubmit={holdCode}
-          onResend={sendCode}
-          onChangeEmail={back}
-          onBack={back}
-          flow="reset"
-          distinguishableRefusals
-        />
-      </>
+      <CodeStep
+        parentError={error}
+        destination={address}
+        submitLabel="Continue"
+        submitTestId="submit-reset-code"
+        onSubmit={holdCode}
+        onResend={sendCode}
+        onChangeEmail={back}
+        onBack={back}
+        flow="reset"
+        distinguishableRefusals
+      />
     )
   }
 
   if (step === "password") {
     return (
       <StepShell
+        anchor
         title="Choose a new password"
         subtitle="Almost done — pick something you'll remember."
         onBack={back}
@@ -100,7 +147,9 @@ export function ResetPasswordForm() {
             pending={pending}
             label="Set new password"
             testId="submit-reset"
-            disabled={password.length < PASSWORD_MIN_LENGTH}
+            blocked={password.length < PASSWORD_MIN_LENGTH}
+            // ⚠ FR-020 — pressing an unavailable action must SAY what is missing.
+            onBlocked={() => validation.check([["password", password]])}
             form="reset-password-form"
           />
         }
@@ -109,9 +158,11 @@ export function ResetPasswordForm() {
         <form
           id="reset-password-form"
           className="space-y-4"
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
             setError(null)
+            if (!validation.check([["password", password]])) return
             start(async () => {
               // ⚠ Code AND password, together, in one request (012 FR-022b).
               const res = await finishPasswordReset(address, code, password)
@@ -129,10 +180,17 @@ export function ResetPasswordForm() {
             id="password"
             value={password}
             onChange={setPassword}
+            onBlur={() => validation.blur("password", password)}
+            error={validation.show("password", password)}
             autoComplete="new-password"
             minLength={PASSWORD_MIN_LENGTH}
             required
-            hint={`At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`}
+            // ⚠ FR-016 — reflected while they type, not only refused at the end.
+            hint={
+              password.length > 0 && password.length < PASSWORD_MIN_LENGTH
+                ? `${password.length} of ${PASSWORD_MIN_LENGTH} characters.`
+                : `At least ${PASSWORD_MIN_LENGTH} characters. Use anything you like — no special characters required.`
+            }
           />
         </form>
       </StepShell>
@@ -141,6 +199,7 @@ export function ResetPasswordForm() {
 
   return (
     <StepShell
+        anchor
       title="Reset your password"
       subtitle="Enter your email and we'll send you a code."
       bottom={
@@ -151,9 +210,12 @@ export function ResetPasswordForm() {
             testId="submit-reset-email"
             form="reset-email-form"
           />
-          <p className="text-center text-sm text-muted-foreground">
+          {/* ⚠ Load-bearing, not a footnote: a customer who registered by code has NEVER set a
+              password, and this is the line that stops them hammering a recovery flow that may not
+              be able to help them (036 FR-015). */}
+          <p className="text-center text-sm font-medium text-muted-foreground">
             Never set a password?{" "}
-            <Link href="/sign-in" className="font-medium text-foreground hover:text-primary">
+            <Link href="/sign-in" className={inlineActionClass}>
               Sign in with an email code instead
             </Link>
           </p>
@@ -164,9 +226,13 @@ export function ResetPasswordForm() {
       <form
         id="reset-email-form"
         className="space-y-4"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault()
           setError(null)
+          // ⚠ Nothing is sent until this passes. On the shipped build `person@example` reached
+          // Cognito from here and came back a 400 (BASELINE.md).
+          if (!validation.check([["email", address]])) return
           start(async () => {
             try {
               await sendCode()
@@ -183,6 +249,8 @@ export function ResetPasswordForm() {
           type="email"
           value={email}
           onChange={setEmail}
+          onBlur={() => validation.blur("email", email)}
+          error={validation.show("email", address)}
           autoComplete="username"
           required
         />

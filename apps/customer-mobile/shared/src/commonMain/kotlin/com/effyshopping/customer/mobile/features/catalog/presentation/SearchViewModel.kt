@@ -2,6 +2,8 @@ package com.effyshopping.customer.mobile.features.catalog.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.effyshopping.customer.mobile.features.catalog.domain.FacetSet
+import com.effyshopping.customer.mobile.features.catalog.domain.GetFacets
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductCard
 import com.effyshopping.customer.mobile.features.catalog.domain.ProductSortOption
 import com.effyshopping.customer.mobile.features.catalog.domain.SearchProducts
@@ -17,6 +19,12 @@ data class SearchUiState(
     val query: String = "",
     val saleOnly: Boolean = false,
     val categoryKey: String? = null,
+    /** Selected brands — OR within (043 FR-003). */
+    val brands: List<String> = emptyList(),
+    /** Selected attribute values, keyed by attribute key — OR within a key, AND across (043 FR-003). */
+    val attributes: Map<String, List<String>> = emptyMap(),
+    val minPrice: String? = null,
+    val maxPrice: String? = null,
     /** The ordering the SERVER applied — may differ from the request (see [applySort]). */
     val sort: ProductSortOption = ProductSortOption.NEWEST,
     val items: List<ProductCard> = emptyList(),
@@ -26,7 +34,18 @@ data class SearchUiState(
     val loading: Boolean = false,
     val exhausted: Boolean = false,
     val failed: Boolean = false,
-)
+    /** The available facets + counts for the current refinements (043 US2). Null until first load. */
+    val facetSet: FacetSet? = null,
+    val facetsLoading: Boolean = false,
+) {
+    /** How many filters are applied — drives the filter icon's badge (043 FR-014). */
+    val activeFilterCount: Int
+        get() = (if (categoryKey != null) 1 else 0) +
+            (if (saleOnly) 1 else 0) +
+            (if (minPrice != null || maxPrice != null) 1 else 0) +
+            brands.size +
+            attributes.values.sumOf { it.size }
+}
 
 /**
  * Search ViewModel (019 US4, extended by 025 US1).
@@ -38,12 +57,24 @@ data class SearchUiState(
  * 400 `cursor_sort_mismatch` (FR-016b), because honouring it would compare a price against a timestamp
  * and silently drop and repeat products.
  */
-class SearchViewModel(private val search: SearchProducts) : ViewModel() {
+class SearchViewModel(
+    private val search: SearchProducts,
+    // Optional so existing tests that only exercise search construct the VM with one argument. When
+    // absent, the filter sheet simply shows no facets (043).
+    private val getFacets: GetFacets? = null,
+) : ViewModel() {
 
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
 
     private var reloadJob: Job? = null
+    private var facetsJob: Job? = null
+
+    init {
+        // Load facets for the whole catalogue up front, so opening the filter sheet before typing shows
+        // real options + counts (043 US1).
+        refreshFacets(_state.value)
+    }
 
     fun onQueryChange(q: String) {
         val previous = _state.value
@@ -84,6 +115,33 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
         reload()
     }
 
+    /** Toggle one brand (OR within the brand facet — 043 FR-003). */
+    fun toggleBrand(value: String) {
+        val current = _state.value.brands
+        val next = if (value in current) current - value else current + value
+        _state.value = _state.value.copy(brands = next)
+        reload()
+    }
+
+    /** Toggle one attribute value under [key] (OR within, AND across — 043 FR-003). */
+    fun toggleAttribute(key: String, value: String) {
+        val current = _state.value.attributes[key].orEmpty()
+        val nextValues = if (value in current) current - value else current + value
+        val next = _state.value.attributes.toMutableMap()
+        if (nextValues.isEmpty()) next.remove(key) else next[key] = nextValues
+        _state.value = _state.value.copy(attributes = next)
+        reload()
+    }
+
+    /** Set the price band. Empty strings clear a bound (043 FR-004; min>max is corrected in the UI). */
+    fun applyPrice(min: String?, max: String?) {
+        _state.value = _state.value.copy(
+            minPrice = min?.takeIf { it.isNotBlank() },
+            maxPrice = max?.takeIf { it.isNotBlank() },
+        )
+        reload()
+    }
+
     fun applySort(sort: ProductSortOption) {
         if (_state.value.sort == sort) return
         _state.value = _state.value.copy(sort = sort)
@@ -92,14 +150,21 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
 
     /** Clear every refinement except the text query (FR-015's "clear all"). */
     fun clearRefinements() {
-        _state.value = _state.value.copy(saleOnly = false, categoryKey = null)
+        _state.value = _state.value.copy(
+            saleOnly = false,
+            categoryKey = null,
+            brands = emptyList(),
+            attributes = emptyMap(),
+            minPrice = null,
+            maxPrice = null,
+        )
         reload()
     }
 
     private fun reload() {
         reloadJob?.cancel()
         reloadJob = viewModelScope.launch {
-            delay(250) // debounce
+            delay(250) // debounce — a burst of ticks becomes ONE refresh (043 FR-025)
             _state.value = _state.value.copy(
                 loading = true,
                 failed = false,
@@ -108,9 +173,12 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
                 cursor = null,
                 exhausted = false,
             )
+            val s = _state.value
+            // Facets recompute on filter change, in parallel — never on the grid's critical path, and
+            // never on paginate ([loadMore] does not call this).
+            refreshFacets(s)
             try {
-                val s = _state.value
-                // ⚠ NAMED arguments, deliberately. `SearchProducts` takes four nullable-ish
+                // ⚠ NAMED arguments, deliberately. `SearchProducts` takes several nullable-ish
                 // parameters in a row, and passing the cursor positionally once bound it to
                 // `categoryKey` — same type, no compile error, pagination silently broken. The test
                 // caught it; naming them means the next person cannot reintroduce it.
@@ -120,6 +188,10 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
                     categoryKey = s.categoryKey,
                     sort = s.sort,
                     cursor = null,
+                    brands = s.brands,
+                    attributes = s.attributes,
+                    minPrice = s.minPrice,
+                    maxPrice = s.maxPrice,
                 )
                 _state.value = _state.value.copy(
                     items = page.items,
@@ -139,6 +211,31 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
         }
     }
 
+    /** Recompute the facets for the given refinements (043 US2). A no-op when no facets use case is wired. */
+    private fun refreshFacets(s: SearchUiState) {
+        val getFacets = getFacets ?: return
+        facetsJob?.cancel()
+        facetsJob = viewModelScope.launch {
+            _state.value = _state.value.copy(facetsLoading = true)
+            try {
+                val facetSet = getFacets(
+                    query = s.query,
+                    saleOnly = s.saleOnly,
+                    categoryKey = s.categoryKey,
+                    brands = s.brands,
+                    attributes = s.attributes,
+                    minPrice = s.minPrice,
+                    maxPrice = s.maxPrice,
+                )
+                _state.value = _state.value.copy(facetSet = facetSet, facetsLoading = false)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                _state.value = _state.value.copy(facetsLoading = false)
+            }
+        }
+    }
+
     fun loadMore() {
         val s = _state.value
         if (s.loading || s.cursor == null) return
@@ -151,6 +248,11 @@ class SearchViewModel(private val search: SearchProducts) : ViewModel() {
                     categoryKey = s.categoryKey,
                     sort = s.sort,
                     cursor = s.cursor,
+                    // ⚠ The next page must carry the SAME filters, or paging silently widens the set.
+                    brands = s.brands,
+                    attributes = s.attributes,
+                    minPrice = s.minPrice,
+                    maxPrice = s.maxPrice,
                 )
                 _state.value = _state.value.copy(
                     items = _state.value.items + page.items,

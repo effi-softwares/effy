@@ -30,5 +30,28 @@ class SearchProducts(private val repo: CatalogRepository) {
         categoryKey: String? = null,
         sort: ProductSortOption = ProductSortOption.NEWEST,
         cursor: String? = null,
-    ): ProductPage = repo.search(query, saleOnly, categoryKey, sort, cursor)
+        brands: List<String> = emptyList(),
+        attributes: Map<String, List<String>> = emptyMap(),
+        minPrice: String? = null,
+        maxPrice: String? = null,
+    ): ProductPage = repo.search(
+        query = query, saleOnly = saleOnly, categoryKey = categoryKey, sort = sort, cursor = cursor,
+        brands = brands, attributes = attributes, minPrice = minPrice, maxPrice = maxPrice,
+    )
+}
+
+/** The available facets + counts for a query + applied filters (043 US2). */
+class GetFacets(private val repo: CatalogRepository) {
+    suspend operator fun invoke(
+        query: String,
+        saleOnly: Boolean,
+        categoryKey: String? = null,
+        brands: List<String> = emptyList(),
+        attributes: Map<String, List<String>> = emptyMap(),
+        minPrice: String? = null,
+        maxPrice: String? = null,
+    ): FacetSet = repo.facets(
+        query = query, saleOnly = saleOnly, categoryKey = categoryKey,
+        brands = brands, attributes = attributes, minPrice = minPrice, maxPrice = maxPrice,
+    )
 }

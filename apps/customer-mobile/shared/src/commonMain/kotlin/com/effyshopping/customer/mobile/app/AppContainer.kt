@@ -51,6 +51,7 @@ import com.effyshopping.customer.mobile.features.addresses.domain.UpdateAddress
 import com.effyshopping.customer.mobile.features.catalog.data.HttpCatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.CatalogRepository
 import com.effyshopping.customer.mobile.features.catalog.domain.GetCategories
+import com.effyshopping.customer.mobile.features.catalog.domain.GetFacets
 import com.effyshopping.customer.mobile.features.catalog.domain.GetHome
 import com.effyshopping.customer.mobile.features.catalog.domain.GetProductDetail
 import com.effyshopping.customer.mobile.features.catalog.domain.GetPromotion
@@ -185,6 +186,7 @@ class AppContainer(
     val getProductDetail by lazy { GetProductDetail(catalog) }
     val getPromotion by lazy { GetPromotion(catalog) }
     val searchProducts by lazy { SearchProducts(catalog) }
+    val getFacets by lazy { GetFacets(catalog) }
     // Cart (027). Every mutation is: apply to the mirror, then submit to the coordinator — in that order,
     // so a tap never waits on the network.
     val addToCart by lazy { AddToCart(cart, cartSync) }

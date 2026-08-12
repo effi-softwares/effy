@@ -36,7 +36,27 @@ written, the edge-customer service must be redeployed to pick it up.
 | `NEXT_PUBLIC_COGNITO_CLIENT_ID` | `module.customer_pool.app_client_id` |
 | `NEXT_PUBLIC_SITE_URL` | `"https://${module.dns.zone_name}"` |
 | `NEXT_PUBLIC_CORE_API_BASE_URL` | `"https://${var.core_api_subdomain}.${module.dns.zone_name}"` |
-| `EDGE_API_BASE_URL` | `"https://${var.api_subdomain}.${module.dns.zone_name}"` |
+| `NEXT_PUBLIC_EDGE_API_BASE_URL` | `"https://${var.api_subdomain}.${module.dns.zone_name}"` |
+
+⚠ **AMENDED 2026-08-12 — `EDGE_API_BASE_URL` → `NEXT_PUBLIC_EDGE_API_BASE_URL`.** As originally
+contracted this variable carried no prefix, on the reasoning that the edge API's address is
+server-only config (011 FR-016). That is sound in principle and **did not work in practice**: an
+Amplify environment variable is a *build* variable, and AWS is explicit that "a Next.js server
+component doesn't have access to those environment variables by default." Only `NEXT_PUBLIC_`
+values survive the build, because Next inlines them into the output. Unprefixed, `edgeApiBaseUrl()`
+threw at request time on the deployed runtime and `requireCustomer` turned that into a redirect to
+`/account/unavailable` — for **every signed-in customer on dev**, with no failed request in the
+browser, because the throw preceded the fetch. Every edge-backed capability (account, addresses,
+password, sign-out, deletion, checkout's saved addresses, newsletter) was affected.
+
+The address is public-safe: the gateway's per-pool JWT authorizer answers an unauthenticated caller
+with a flat 401. ⚠ **The reader constraint is unchanged** — it is consumed only from server code
+(`lib/api/edge.ts`), because those routes relay the customer's ID and access tokens. The prefix
+moved; the boundary did not, and it now rests on review rather than on the address being unknown.
+
+⚠ **A future server-only variable cannot simply be added to this table.** It needs
+`.env.production` written during the build (AWS: *Making environment variables accessible to
+server-side runtimes*), or it will be silently undefined in production exactly as this one was.
 
 ## Portability contract (prod-by-configuration — FR-018/FR-019)
 

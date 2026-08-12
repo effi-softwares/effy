@@ -2,6 +2,7 @@ import Image from "next/image"
 import Link from "next/link"
 
 import { cn } from "@/lib/utils"
+import { ActionLink } from "./actions"
 
 /**
  * The storefront's shared visual vocabulary (025 UI refresh).
@@ -208,44 +209,6 @@ export function PageHeader({
 
 /* ── Surfaces ────────────────────────────────────────────────────────────────────────────────── */
 
-/**
- * A bordered panel — the reference's container for filter groups, summaries and forms.
- *
- * ⚠ Principle V's no-card doctrine bans cards as a GENERAL layout device; this is not one. It bounds
- * genuinely grouped content (a filter set, an order summary, a form), never tiles a page into a
- * dashboard of boxes. The doctrine's escape clause — "unless a card is demonstrably the right pattern
- * and no better layout exists" — is exactly this, recorded here rather than rediscovered per page.
- */
-export function Panel({
-  className,
-  children,
-  as: Tag = "div",
-}: {
-  className?: string
-  children: React.ReactNode
-  as?: "div" | "section" | "aside"
-}) {
-  return <Tag className={cn("rounded-2xl border bg-card", className)}>{children}</Tag>
-}
-
-/** A titled group inside the filter rail — collapsible in the reference, static here. */
-export function FilterGroup({
-  title,
-  children,
-  className,
-}: {
-  title: string
-  children: React.ReactNode
-  className?: string
-}) {
-  return (
-    <div className={cn("border-b px-4 py-4 last:border-b-0", className)}>
-      <h3 className="mb-3 text-sm font-semibold">{title}</h3>
-      {children}
-    </div>
-  )
-}
-
 export function Rule({ className }: { className?: string }) {
   return <hr className={cn("border-border", className)} />
 }
@@ -253,56 +216,25 @@ export function Rule({ className }: { className?: string }) {
 /* ── Actions ─────────────────────────────────────────────────────────────────────────────────── */
 
 /**
- * The reference's buttons are compact rectangles with a small radius — not pills. Its one rounded
- * element is the "Our Deals" nav CTA, which is deliberately the odd one out.
+ * The storefront button system lives in `./actions` (a `next/image`-free module) and is re-exported
+ * here so existing `from ".../kit"` imports keep working. ⚠ GUEST ROUTES MUST IMPORT FROM `./actions`
+ * DIRECTLY, not from here — importing a button through `kit` drags `MediaFrame`'s `next/image` into
+ * the chunk, which is exactly what pushed `/search` over the 174 KB gate. See the note in `actions.tsx`.
  */
-export const btn = {
-  base: "inline-flex items-center justify-center gap-2 rounded-full text-sm font-medium transition-opacity disabled:cursor-not-allowed disabled:opacity-50",
-  primary: "bg-primary text-primary-foreground hover:opacity-90",
-  outline: "border bg-transparent hover:bg-accent",
-  muted: "bg-muted/60 hover:bg-muted",
-  destructive: "bg-destructive text-destructive-foreground hover:opacity-90",
-  sm: "h-9 px-4",
-  md: "h-11 px-6",
-  lg: "h-12 px-8",
-  xl: "h-14 px-10",
-} as const
-
-export function btnClass(
-  variant: "primary" | "outline" | "muted" | "destructive",
-  size: "sm" | "md" | "lg" | "xl" = "md",
-  className?: string,
-) {
-  return cn(btn.base, btn[variant], btn[size], className)
-}
-
-export function ActionLink({
-  href,
-  variant = "primary",
-  size = "md",
-  className,
-  children,
-}: {
-  href: string
-  variant?: "primary" | "outline" | "muted" | "destructive"
-  size?: "sm" | "md" | "lg" | "xl"
-  className?: string
-  children: React.ReactNode
-}) {
-  return (
-    <Link href={href} className={btnClass(variant, size, className)}>
-      {children}
-    </Link>
-  )
-}
+export { btnClass, ActionLink, ActionButton } from "./actions"
+export type { BtnVariant, BtnSize } from "./actions"
 
 /* ── Form controls ───────────────────────────────────────────────────────────────────────────── */
 
+// ⚠ Focus is the BORDER changing to `--ring`, matching `@effy/design-system/ui` Input — NOT the old
+// `outline-primary` halo these carried, which was a third focus treatment on a platform whose shared
+// fields dropped the halo (operator direction). `bg-card` (not the shared Input's transparent) is
+// deliberate: the storefront page surface is white `--card`, so a field reads as inset on it.
 export const input =
-  "h-11 w-full rounded-full border bg-card px-4 text-sm placeholder:text-muted-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+  "h-11 w-full rounded-full border border-input bg-card px-4 text-sm placeholder:text-muted-foreground outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive"
 
 export const select =
-  "h-10 rounded-full border bg-card px-3 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+  "h-11 rounded-full border border-input bg-card px-4 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring aria-invalid:border-destructive"
 
 export function Field({
   label,
@@ -330,52 +262,6 @@ export function Field({
         </p>
       )}
     </div>
-  )
-}
-
-/* ── Signals ─────────────────────────────────────────────────────────────────────────────────── */
-
-/**
- * The reference marks every card with "✓ In stock" in green, above the image. It is the first thing
- * on the card, before the picture — for a store where availability decides the purchase, that
- * ordering is correct, and it is why Effy shows it too.
- *
- * ⚠ Meaning never rests on colour alone (FR-047): the tick and the words carry it, so it survives
- * grayscale and a screen reader.
- */
-export function StockSignal({ available }: { available: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs font-medium",
-        available ? "text-primary" : "text-muted-foreground",
-      )}
-    >
-      <span aria-hidden="true">{available ? "✓" : "✕"}</span>
-      {available ? "In stock" : "Unavailable"}
-    </span>
-  )
-}
-
-/** A small emphasis chip — the reference's "Free Shipping" / "On Sale" flags. */
-export function Flag({
-  tone = "muted",
-  children,
-}: {
-  tone?: "muted" | "primary" | "destructive"
-  children: React.ReactNode
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-        tone === "primary" && "bg-primary/10 text-primary",
-        tone === "destructive" && "bg-destructive/10 text-destructive",
-        tone === "muted" && "bg-muted text-muted-foreground",
-      )}
-    >
-      {children}
-    </span>
   )
 }
 

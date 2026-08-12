@@ -50,8 +50,8 @@ import { posthogConfig } from "@/lib/config"
  *
  * It cost **67.9 KB gzipped on /product/[id]** — the single most important guest route on the
  * storefront — and it went unnoticed for two features because the bundle gate only watched `/`
- * and `/browse`. The product page was never measured. (Both were fixed together: the gate now
- * covers all five guest routes.)
+ * and the (since-retired) `/browse`. The product page was never measured. (Both were fixed
+ * together: the gate now covers every guest route.)
  *
  * The import is now DYNAMIC and lives inside `initAnalytics()`, which already returns early
  * unless consent has been granted. The SDK therefore enters the network only for a customer who
@@ -158,6 +158,25 @@ export type StorefrontEvent =
   | { name: "auth_google_unavailable"; props: { flow: AuthFlow } }
   | { name: "auth_name_step_shown"; props: { route: CredentialRoute } }
   | { name: "auth_name_step_completed"; props: { route: CredentialRoute } }
+  /**
+   * 044 FR-035 — the shopper chose to complete their profile later.
+   *
+   * ⚠ NOT AN ABANDONMENT EVENT. The account exists and the session is live; this step completes a
+   * profile and never gates access. What it measures is how often the "later" route is taken, which
+   * is the evidence for whether the step belongs here at all.
+   */
+  | { name: "auth_name_step_skipped"; props: { route: CredentialRoute } }
+  /**
+   * 044 US2 — a field was refused before anything was sent.
+   *
+   * ⚠ THE VALUE IS NEVER CARRIED, only which field and which rule. The value is an email address —
+   * PII, and on this screen it is PII belonging to someone who is not yet authenticated (Principle
+   * VII: no PII in telemetry beyond the auth subject id).
+   */
+  | {
+      name: "auth_validation_failed"
+      props: { flow: "sign_in" | "sign_up" | "reset"; field: string; rule: string }
+    }
   | { name: "auth_name_step_abandoned"; props: { route: CredentialRoute } }
   // 019 commerce funnel (shared taxonomy — customer-mobile adopts these SAME names when its telemetry
   // lands; NO PII, product ids only). discover → product → cart → checkout → order.

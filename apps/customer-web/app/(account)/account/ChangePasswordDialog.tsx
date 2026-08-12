@@ -1,6 +1,16 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
+
+import {
+  Button,
+  ResponsiveModal,
+  ResponsiveModalContent,
+  ResponsiveModalDescription,
+  ResponsiveModalFooter,
+  ResponsiveModalHeader,
+  ResponsiveModalTitle,
+} from "@effy/design-system/ui"
 
 import { PasswordField } from "./PasswordField"
 import { writePassword } from "./actions"
@@ -17,6 +27,15 @@ import { writePassword } from "./actions"
  *
  * Here the current password IS the step-up factor, so no emailed code is needed. Cognito verifies it
  * server-side and refuses with `NotAuthorizedException` — we never compare passwords ourselves.
+ *
+ * ── The container ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Built on the EXISTING `ResponsiveModal` from the design system — a centred Dialog at/above the
+ * mobile breakpoint, a bottom Drawer below it — the same container `FieldEditor` and the address
+ * form already use, rather than growing a third overlay (Principle II). It replaces an inline panel
+ * that declared `role="dialog" aria-modal="true"` while being neither: it trapped no focus, closed
+ * on no Escape, and left the page behind it fully reachable, so the promise the markup made to a
+ * screen reader was one the DOM did not keep.
  */
 export function ChangePasswordDialog({
   open,
@@ -30,7 +49,15 @@ export function ChangePasswordDialog({
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
 
-  if (!open) return null
+  // ⚠ Clear on every open. The overlay now stays mounted across open/close, so without this a
+  // password typed and abandoned would still be sitting in the field — and in memory — next time.
+  useEffect(() => {
+    if (open) {
+      setCurrent("")
+      setNext("")
+      setError(null)
+    }
+  }, [open])
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -47,65 +74,79 @@ export function ChangePasswordDialog({
   }
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="change-password-title"
-      data-testid="change-password-dialog"
-      className="mt-4 rounded-2xl border bg-card p-6"
+    <ResponsiveModal
+      open={open}
+      // A dismissal mid-request would leave the customer with no idea whether the change landed.
+      onOpenChange={(nextOpen) => {
+        if (pending) return
+        onOpenChange(nextOpen)
+      }}
     >
-      <h3 id="change-password-title" className="text-base font-medium">
-        Change password
-      </h3>
+      <ResponsiveModalContent data-testid="change-password-dialog">
+        <ResponsiveModalHeader>
+          <ResponsiveModalTitle>Change password</ResponsiveModalTitle>
+          <ResponsiveModalDescription>
+            Enter your current password, then choose a new one.
+          </ResponsiveModalDescription>
+        </ResponsiveModalHeader>
 
-      <form onSubmit={submit} className="mt-4 space-y-4">
-        <PasswordField
-          name="currentPassword"
-          label="Current password"
-          autoComplete="current-password"
-          value={current}
-          onChange={setCurrent}
-        />
+        {/* The submit control lives in the footer, so the form is addressed by id — that keeps
+            Enter-to-submit working rather than making the button a bare onClick. */}
+        <form id="change-password-form" onSubmit={submit} className="space-y-4 px-4 sm:px-0">
+          <PasswordField
+            name="currentPassword"
+            label="Current password"
+            autoComplete="current-password"
+            value={current}
+            onChange={setCurrent}
+          />
 
-        <PasswordField
-          name="newPassword"
-          label="New password"
-          autoComplete="new-password"
-          value={next}
-          onChange={setNext}
-        />
+          <PasswordField
+            name="newPassword"
+            label="New password"
+            autoComplete="new-password"
+            value={next}
+            onChange={setNext}
+          />
 
-        {/* FR-027 — in the form, next to what went wrong. Never a toast the customer can miss. */}
-        {error && (
-          <p role="alert" data-testid="password-error" className="text-sm text-destructive">
-            {error}
+          {/* FR-027 — in the form, next to what went wrong. Never a toast the customer can miss. */}
+          {error && (
+            <p role="alert" data-testid="password-error" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <p className="text-sm text-muted-foreground">
+            Changing your password will sign you out on every device, including this one. We&rsquo;ll
+            ask you to sign in again with the new one.
           </p>
-        )}
+        </form>
 
-        <p className="text-sm text-muted-foreground">
-          Changing your password will sign you out on every device, including this one. We&rsquo;ll
-          ask you to sign in again with the new one.
-        </p>
-
-        <div className="flex gap-3">
-          <button
+        {/* ⚠ Submit first, Cancel BELOW it and de-weighted — the same order `FieldEditor` uses, for
+            the same reason: on a phone Cancel sits under the thumb's resting position, so two
+            equally-weighted filled buttons turn a mis-tap into a discarded form. */}
+        <ResponsiveModalFooter className="flex flex-col gap-2 sm:flex-col">
+          <Button
             type="submit"
+            form="change-password-form"
             disabled={pending || !current || !next}
             aria-busy={pending}
             data-testid="submit-change-password"
-            className="h-11 rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+            className="w-full"
           >
             {pending ? "Changing…" : "Change password"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
             onClick={() => onOpenChange(false)}
-            className="h-11 rounded-full px-6 text-sm font-medium text-muted-foreground hover:text-foreground"
+            disabled={pending}
+            className="w-full"
           >
             Cancel
-          </button>
-        </div>
-      </form>
-    </div>
+          </Button>
+        </ResponsiveModalFooter>
+      </ResponsiveModalContent>
+    </ResponsiveModal>
   )
 }

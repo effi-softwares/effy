@@ -2,7 +2,7 @@ import Link from "next/link"
 import { Headphones, PiggyBank, UserRound } from "lucide-react"
 
 import { BrandMark } from "@/components/storefront/BrandMark"
-import { AppearanceControl } from "@/components/theme/AppearanceControl"
+import { ActionLink } from "@/components/storefront/actions"
 
 /**
  * The storefront's closing blocks, structured from the tech-store reference (025 UI refresh).
@@ -28,7 +28,7 @@ export function StorefrontFooter() {
   return (
     <>
       {/* ── 1. Value props ───────────────────────────────────────────────────────────────────── */}
-      <section className="mt-16 border-t bg-background">
+      {/* <section className="mt-16 border-t bg-background">
         <div className="container grid gap-8 py-12 sm:grid-cols-3">
           <ValueProp
             icon={<Headphones className="size-5" aria-hidden="true" />}
@@ -46,10 +46,10 @@ export function StorefrontFooter() {
             body="Set your postcode and we'll tell you straight away whether we deliver to you."
           />
         </div>
-      </section>
+      </section> */}
 
       {/* ── 2. Closing CTA ───────────────────────────────────────────────────────────────────── */}
-      <section className="bg-foreground text-background">
+      <section className="bg-foreground text-background mt-16">
         <div className="container flex flex-col gap-5 py-10 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Start your first order</h2>
@@ -58,18 +58,9 @@ export function StorefrontFooter() {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/browse"
-              className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-            >
-              Browse the store
-            </Link>
-            <Link
-              href="/search"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-background/30 px-6 text-sm font-medium hover:bg-background/10"
-            >
-              Search products
-            </Link>
+            <ActionLink href="/search" size="md">
+              Shop all products
+            </ActionLink>
           </div>
         </div>
       </section>
@@ -81,8 +72,7 @@ export function StorefrontFooter() {
             <FooterColumn
               title="Shop"
               links={[
-                { label: "Browse categories", href: "/browse" },
-                { label: "Search", href: "/search" },
+                { label: "All products", href: "/search" },
                 { label: "On sale", href: "/search?saleOnly=true" },
                 { label: "Your cart", href: "/cart" },
               ]}
@@ -92,7 +82,7 @@ export function StorefrontFooter() {
               links={[
                 { label: "Account", href: "/account" },
                 { label: "Orders", href: "/orders" },
-                { label: "Addresses", href: "/addresses" },
+                { label: "Addresses", href: "/account?tab=addresses" },
                 { label: "Saved items", href: "/saved" },
               ]}
             />
@@ -119,14 +109,9 @@ export function StorefrontFooter() {
           {/* No `new Date()` — under cacheComponents a non-deterministic call during prerender is a
               dynamic API, and a live copyright year would cost this layout its static shell on every
               page to render a number nobody reads. */}
+          {/* No appearance switcher: the customer storefront is light-only (operator decision). */}
           <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-background/15 pt-6 text-sm">
             <span>© Effy</span>
-            {/* ⚠ The appearance switcher lives HERE, not in the header (operator asked for a header
-                carrying only cart and account).
-                It cannot simply be deleted: constitution Principle V requires dark mode to be
-                REQUIRED and USER-SELECTABLE on every surface. Moving it satisfies both — the header
-                is clean, and the control remains reachable from every page. */}
-            <AppearanceControl />
           </div>
         </div>
       </footer>

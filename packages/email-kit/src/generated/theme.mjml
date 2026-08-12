@@ -11,9 +11,9 @@
   <mj-class name="wordmark" font-size="22px" line-height="28px" font-weight="600" letter-spacing="-0.01em" color="#0a0a0a" />
   <mj-class name="h1" font-size="24px" line-height="32px" font-weight="600" letter-spacing="-0.01em" color="#0a0a0a" />
   <mj-class name="body" font-size="16px" line-height="24px" font-weight="400" color="#0a0a0a" />
-  <mj-class name="muted" font-size="16px" line-height="24px" font-weight="400" color="#6b6b6b" />
-  <mj-class name="small" font-size="14px" line-height="21px" font-weight="400" color="#6b6b6b" />
-  <mj-class name="footer" font-size="14px" line-height="21px" font-weight="400" color="#6b6b6b" />
+  <mj-class name="muted" font-size="16px" line-height="24px" font-weight="400" color="#525252" />
+  <mj-class name="small" font-size="14px" line-height="21px" font-weight="400" color="#525252" />
+  <mj-class name="footer" font-size="14px" line-height="21px" font-weight="400" color="#525252" />
   <mj-class name="code" font-size="36px" line-height="44px" font-weight="500" letter-spacing="0.15em" color="#0a0a0a" />
 </mj-attributes>
 
@@ -44,7 +44,7 @@
       .e-muted p,
       .e-muted span,
       .e-muted a,
-      .e-muted h1 { color: #a1a1a1 !important; }
+      .e-muted h1 { color: #b5b5b5 !important; }
       .e-rule p { border-top-color: #232323 !important; }
       .e-btn-bg td { background-color: #e5e5e5 !important; }
       .e-btn-fg,
@@ -83,7 +83,7 @@
     [data-ogsc] .e-muted p,
     [data-ogsc] .e-muted span,
     [data-ogsc] .e-muted a,
-    [data-ogsc] .e-muted h1 { color: #a1a1a1 !important; }
+    [data-ogsc] .e-muted h1 { color: #b5b5b5 !important; }
     [data-ogsc] .e-rule p { border-top-color: #232323 !important; }
     [data-ogsc] .e-btn-bg td,
     [data-ogsb] .e-btn-bg td { background-color: #e5e5e5 !important; }

@@ -13,9 +13,11 @@ import { edgeApiPublic, perCustomer } from "@/lib/api/edge"
  *      form component plus its state would spend a meaningful slice of that on a control most visitors
  *      never touch. 012 proved the pattern: converting sign-out to a plain form + server handler cost
  *      ZERO client JS and actually *dropped* the guest bundle.
- *   2. **The backend's address is not public.** `EDGE_API_BASE_URL` deliberately carries no
- *      `NEXT_PUBLIC_` prefix, so the browser never learns where the edge API lives. A client-side
- *      fetch could not reach it without publishing that.
+ *   2. ~~**The backend's address is not public.**~~ ⚠ NO LONGER TRUE — left visible rather than
+ *      quietly deleted, because it was load-bearing in this decision. The address moved to
+ *      `NEXT_PUBLIC_EDGE_API_BASE_URL` (lib/config.ts records why it had to), so the browser now
+ *      does know where the edge API lives. Reason 1 still decides this on its own, and the form
+ *      keeps working with JS disabled — which a client-side fetch cannot claim either way.
  *
  * ⚠ IT RE-VALIDATES. The form's `type="email" required` is a convenience that catches typos without a
  * round trip; it is not a control. Anything can POST to a Server Action, so the authoritative checks

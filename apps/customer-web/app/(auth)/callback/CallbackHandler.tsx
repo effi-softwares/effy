@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Hub } from "aws-amplify/utils"
 
+import { btnClass } from "@/components/storefront/actions"
 import { safeNextTarget } from "@/lib/next-target"
 import { mergeCartAfterSignIn } from "@/lib/cart-actions"
 import { mergeSavedAfterSignIn } from "@/lib/saved-merge"
@@ -113,10 +114,7 @@ export function CallbackHandler() {
         <p role="alert" data-testid="auth-error" className="text-sm text-muted-foreground">
           {error}
         </p>
-        <a
-          href="/sign-in"
-          className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground"
-        >
+        <a href="/sign-in" className={btnClass("primary", "md")}>
           Back to sign in
         </a>
       </div>

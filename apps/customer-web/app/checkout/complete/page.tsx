@@ -6,6 +6,7 @@ import { Suspense } from "react"
 import type { OrderDTO } from "@effy/shared-types"
 
 import { OrderAddresses } from "@/components/OrderAddresses"
+import { ActionLink } from "@/components/storefront/actions"
 import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
@@ -114,18 +115,12 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
       <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
 
       <div className="mt-8 flex gap-3">
-        <Link
-          href="/orders"
-          className="inline-flex h-11 items-center rounded-full border px-6 text-sm font-medium hover:bg-accent"
-        >
+        <ActionLink href="/orders" variant="outline" size="md">
           Your orders
-        </Link>
-        <Link
-          href="/"
-          className="inline-flex h-11 items-center rounded-full bg-primary px-6 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
+        </ActionLink>
+        <ActionLink href="/" size="md">
           Keep shopping
-        </Link>
+        </ActionLink>
       </div>
     </div>
   )

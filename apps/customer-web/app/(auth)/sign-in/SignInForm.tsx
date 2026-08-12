@@ -19,11 +19,14 @@ import {
   submitOtpCode,
 } from "../_lib/auth-actions"
 import { useStepHistory } from "../_lib/step-history"
+import { messageFor, useFieldValidation, type FieldConfig } from "../_lib/validation"
 import { CodeStep, type CodeOutcome } from "../_components/CodeStep"
 import { GoogleButton } from "../_components/GoogleButton"
+import { ReasonNotice } from "../_components/ReasonNotice"
 import {
   Divider,
   ErrorNote,
+  inlineActionClass,
   Field,
   PasswordField,
   StepShell,
@@ -44,6 +47,30 @@ type Step = "identifier" | "password" | "code"
  * state is memory-only, and splitting the email from the password across URLs is what breaks password
  * managers. See `_lib/step-history.ts` for the full reasoning.
  */
+/**
+ * ⚠ THE RULES ARE DECLARED HERE, BESIDE THE COPY THEY PRODUCE (044 US2).
+ *
+ * The email rule itself comes from `@effy/shared-types`; what is local is which fields exist on this
+ * screen and what this screen says when they are wrong. The wording is bound by two constraints that
+ * are easy to breach by accident:
+ *
+ *   • it must never say whether an address has an account (FR-044), so "we don't recognise that" is
+ *     not available no matter how much friendlier it reads; and
+ *   • the password message must not hint at what a correct password looks like.
+ */
+const FIELDS = {
+  email: {
+    rules: [
+      { kind: "required", message: "Enter your email address." },
+      { kind: "emailShape", message: "That doesn't look like an email address. Mind checking it?" },
+    ],
+  },
+  password: {
+    trim: false,
+    rules: [{ kind: "required", message: "Enter your password." }],
+  },
+} satisfies Record<string, FieldConfig>
+
 export function SignInForm() {
   const router = useRouter()
   const params = useSearchParams()
@@ -52,10 +79,21 @@ export function SignInForm() {
   // in a URL and is therefore attacker-controlled.
   const next = safeNextTarget(params.get("next"))
 
+  /**
+   * ⚠ Why the shopper is here, when something sent them (044 FR-034, defect D-14).
+   *
+   * Two places in the product have produced this parameter since 012 and NOTHING has ever read it,
+   * so a successful password change presented as an unexplained logout. `ReasonNotice` maps it
+   * through a closed vocabulary and never echoes the value — it arrives in a URL, and this is the
+   * one screen where arbitrary attacker-supplied text would be worth the most.
+   */
+  const reason = params.get("reason")
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [pending, start] = useTransition()
+  const validation = useFieldValidation(FIELDS)
 
   // ⚠ Whether a challenge is actually live. `popstate` can land on the code step after the session has
   // been spent or replaced; without this the shopper would sit on a code form with nothing behind it,
@@ -151,12 +189,9 @@ export function SignInForm() {
   }, [address])
 
   const joinLink = (
-    <p className="text-center text-sm text-muted-foreground">
+    <p className="text-center text-sm font-medium text-muted-foreground">
       Don&apos;t have an account?{" "}
-      <Link
-        href={`/sign-up?next=${encodeURIComponent(next)}`}
-        className="font-medium text-foreground hover:text-primary"
-      >
+      <Link href={`/sign-up?next=${encodeURIComponent(next)}`} className={inlineActionClass}>
         Join
       </Link>
     </p>
@@ -164,20 +199,22 @@ export function SignInForm() {
 
   // ── Step 3: the code ────────────────────────────────────────────────────────────────────────────
   if (step === "code") {
+    // ⚠ 044 FR-017 — ONE ERROR REGION. This used to render its own <ErrorNote> here, OUTSIDE the
+    // step shell (above the back control, detached from the layout) while CodeStep rendered a second
+    // one inside it. Both were role="alert"; both could be true at once; both announced. The journey's
+    // message is now handed to the step, which owns the single region (defect D-05).
     return (
-      <>
-        {error && <ErrorNote>{error}</ErrorNote>}
-        <CodeStep
-          destination={address}
-          submitLabel="Sign in"
-          submitTestId="submit-otp"
-          onSubmit={submitCode}
-          onResend={sendCode}
-          onChangeEmail={back}
-          onBack={back}
-          flow="sign_in"
-        />
-      </>
+      <CodeStep
+        parentError={error}
+        destination={address}
+        submitLabel="Sign in"
+        submitTestId="submit-otp"
+        onSubmit={submitCode}
+        onResend={sendCode}
+        onChangeEmail={back}
+        onBack={back}
+        flow="sign_in"
+      />
     )
   }
 
@@ -211,12 +248,42 @@ export function SignInForm() {
       // furthest from the thing the shopper came here to do.
       bottom={joinLink}
     >
+        <ReasonNotice reason={reason} />
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <form
           className="space-y-4"
+          // ⚠ `noValidate` — the ATTRIBUTES stay (autofill, semantics, mobile keyboards); only the
+          // browser's own bubble is suppressed, and replaced by a message beside the field in the
+          // platform's treatment (V-06). Removing the attributes instead would break password-manager
+          // pairing, which FR-040 forbids.
+          noValidate
           onSubmit={(e) => {
             e.preventDefault()
+            // ⚠ NOTHING IS SENT UNTIL THIS PASSES (FR-009, V-14). Before 044 the browser blocked an
+            // empty address on THIS step — but not on the password step, where the email input is
+            // `readOnly` and therefore barred from constraint validation entirely, so an empty
+            // address reached `signInWithPassword("")` and came back as "Something went wrong."
+            // (BASELINE.md, D-11). And `person@example` was never refused anywhere.
+            if (
+              !validation.check(
+                onPassword
+                  ? [["email", address], ["password", password]]
+                  : [["email", address]],
+              )
+            ) {
+              // ⚠ THE MESSAGE HAS NOWHERE VISIBLE TO GO ON THE PASSWORD STEP. The email input is
+              // still mounted there (FR-040 — password managers pair it with the password to fill
+              // and to SAVE) but it is inside a hidden container, so its message renders hidden too.
+              // An invalid address at this point is a STEP-level problem, not a field-level one: go
+              // back to the step that asks for it, where the message is visible and actionable.
+              //
+              // ⚠ Found by the e2e, which reported "resolved to <p>Enter your email address.</p> —
+              // unexpected value hidden". Showing an invisible error is only marginally better than
+              // the "Something went wrong." this replaced.
+              if (onPassword && messageFor(FIELDS.email, address)) back()
+              return
+            }
             run(
               async () => {
                 if (onPassword) {
@@ -240,6 +307,8 @@ export function SignInForm() {
               type="email"
               value={email}
               onChange={setEmail}
+              onBlur={() => validation.blur("email", email)}
+              error={validation.show("email", address)}
               // ⚠ `username`, not `email`. Managers key their stored credential on the field they
               // recognise as the username; `type="email"` alone is not that signal.
               autoComplete="username"
@@ -254,6 +323,8 @@ export function SignInForm() {
               id="password"
               value={password}
               onChange={setPassword}
+              onBlur={() => validation.blur("password", password)}
+              error={validation.show("password", password)}
               autoComplete="current-password"
               required
             />
@@ -269,8 +340,21 @@ export function SignInForm() {
             testId="toggle-mode"
             onClick={() => {
               setError(null)
-              if (onPassword) back()
-              else go("password")
+              if (onPassword) {
+                // A new step starts clean — carrying "enter your password" back onto the email step
+                // would shout about a field that is no longer the one being asked for.
+                validation.reset()
+                back()
+                return
+              }
+              // ⚠ IDENTIFIER-FIRST MEANS THE IDENTIFIER COMES FIRST. Advancing to a credential step
+              // without a usable address produces a screen that can refuse but cannot explain — the
+              // email input there is deliberately hidden (FR-040), so its message renders hidden
+              // too. This is how the shopper ended up being told "Something went wrong." about an
+              // address they had never typed (BASELINE.md, D-11).
+              if (!validation.check([["email", address]])) return
+              validation.reset()
+              go("password")
             }}
           >
             {onPassword ? "Email me a code instead" : "Use a password instead"}
@@ -293,10 +377,14 @@ export function SignInForm() {
           </>
         )}
 
-        {/* ⚠ FR-019 — reset lives on the password step, where the person who needs it is standing. */}
+        {/* ⚠ FR-019 — reset lives on the password step, where the person who needs it is standing.
+
+            ⚠ THE RECOVERY ROUTE, DRAWN AS ONE (operator direction 2026-08-11). It was thin muted text
+            and read as a caption — on the one screen where a person who cannot remember their
+            password is standing, that is the link that must not be missable. */}
         {onPassword && (
-          <p className="text-center text-sm">
-            <Link href="/reset-password" className="text-muted-foreground hover:text-foreground">
+          <p className="text-center text-sm font-medium text-muted-foreground">
+            <Link href="/reset-password" className={inlineActionClass}>
               Forgot your password?
             </Link>
           </p>

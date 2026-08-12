@@ -275,6 +275,7 @@ func (h *Handler) getProducts(c *gin.Context) {
 		MinPrice:    c.Query("minPrice"),
 		MaxPrice:    c.Query("maxPrice"),
 		SaleOnly:    c.Query("saleOnly") == "true",
+		Brands:      nonEmptyValues(c.Request.URL.Query()["brand"]),
 		Attributes:  attributeFacets(c),
 		Sort:        sort,
 		Cursor:      c.Query("cursor"),
@@ -299,18 +300,109 @@ func (h *Handler) getProducts(c *gin.Context) {
 	})
 }
 
-// attributeFacets collects `attr.<key>=<value>` query params (facets are query params, never a path).
-func attributeFacets(c *gin.Context) map[string]string {
-	facets := map[string]string{}
+// Facet wire DTOs (043, storefront.ts FacetSetDTO family). Counts are ints; money is a string.
+type facetOptionDTO struct {
+	Value string `json:"value"`
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
+
+type facetDTO struct {
+	Key     string           `json:"key"`
+	Label   string           `json:"label"`
+	Type    string           `json:"type"`
+	Options []facetOptionDTO `json:"options"`
+}
+
+type priceBoundsDTO struct {
+	Min string `json:"min"`
+	Max string `json:"max"`
+}
+
+type facetSetDTO struct {
+	PriceBounds *priceBoundsDTO `json:"priceBounds"`
+	Facets      []facetDTO      `json:"facets"`
+}
+
+// getFacets serves the available facets + per-option counts for a query + applied filters (043 US2).
+// Same filter params as getProducts, minus paging/sort. Public and cacheable.
+func (h *Handler) getFacets(c *gin.Context) {
+	minPrice := c.Query("minPrice")
+	maxPrice := c.Query("maxPrice")
+	if !validPrice(minPrice) || !validPrice(maxPrice) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid_price"})
+		return
+	}
+
+	fs, err := h.svc.Facets(c.Request.Context(), SearchQuery{
+		Q:           strings.TrimSpace(c.Query("q")),
+		CategoryKey: c.Query("categoryKey"),
+		MinPrice:    minPrice,
+		MaxPrice:    maxPrice,
+		SaleOnly:    c.Query("saleOnly") == "true",
+		Brands:      nonEmptyValues(c.Request.URL.Query()["brand"]),
+		Attributes:  attributeFacets(c),
+	})
+	if err != nil {
+		logger.FromContext(c.Request.Context()).Error("storefront: facets read failed", zap.Error(err))
+		httpx.Unavailable(c)
+		return
+	}
+
+	facets := make([]facetDTO, 0, len(fs.Facets))
+	for _, f := range fs.Facets {
+		opts := make([]facetOptionDTO, 0, len(f.Options))
+		for _, o := range f.Options {
+			opts = append(opts, facetOptionDTO{Value: o.Value, Label: o.Label, Count: o.Count})
+		}
+		facets = append(facets, facetDTO{Key: f.Key, Label: f.Label, Type: f.Type, Options: opts})
+	}
+	var pb *priceBoundsDTO
+	if fs.PriceBounds != nil {
+		pb = &priceBoundsDTO{Min: fs.PriceBounds.Min, Max: fs.PriceBounds.Max}
+	}
+	c.JSON(http.StatusOK, facetSetDTO{PriceBounds: pb, Facets: facets})
+}
+
+// validPrice accepts empty (no bound) or a parseable decimal; anything else is refused before it
+// reaches the SQL numeric cast (which would surface as a 503).
+func validPrice(s string) bool {
+	if s == "" {
+		return true
+	}
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
+}
+
+// attributeFacets collects `attr.<key>=<value>` query params, keeping ALL repeated values per key
+// (OR within a facet — 043 FR-003). Facets are query params, never a path.
+func attributeFacets(c *gin.Context) map[string][]string {
+	facets := map[string][]string{}
 	for key, vals := range c.Request.URL.Query() {
-		if after, ok := strings.CutPrefix(key, "attr."); ok && len(vals) > 0 && vals[0] != "" {
-			facets[after] = vals[0]
+		if after, ok := strings.CutPrefix(key, "attr."); ok {
+			if kept := nonEmptyValues(vals); len(kept) > 0 {
+				facets[after] = kept
+			}
 		}
 	}
 	if len(facets) == 0 {
 		return nil
 	}
 	return facets
+}
+
+// nonEmptyValues drops blank entries from a repeated query param, returning nil when none remain.
+func nonEmptyValues(vals []string) []string {
+	out := make([]string, 0, len(vals))
+	for _, v := range vals {
+		if t := strings.TrimSpace(v); t != "" {
+			out = append(out, t)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func toCardDTOs(cards []ProductCard) []productCardDTO {

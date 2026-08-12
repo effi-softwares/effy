@@ -43,8 +43,8 @@ describe("CategoryStrip — one shortcut per stocked category (FR-013)", () => {
   it("offers a way to the full set (SC-002's second tap)", () => {
     render(<CategoryStrip categories={[category()]} />)
 
-    expect(screen.getByRole("link", { name: /view all categories/i }).getAttribute("href")).toBe(
-      "/browse",
+    expect(screen.getByRole("link", { name: /shop all products/i }).getAttribute("href")).toBe(
+      "/search",
     )
   })
 

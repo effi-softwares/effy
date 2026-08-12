@@ -89,9 +89,11 @@
   --secondary: #f5f5f5;
   --secondary-foreground: #171717; /* 16.44:1 */
   --muted: #f5f5f5;
-  /* AA TUNING (041): adopted --muted-foreground #737373 measures 4.35:1 on #f5f5f5 (FAILS AA text);
-     tuned to #6b6b6b → ~4.99:1. */
-  --muted-foreground: #6b6b6b;
+  /* Body/secondary text colour. Darkened from #6b6b6b → #525252 (neutral-600): the previous value
+     read too grey for primary reading copy across the surfaces. #525252 on #f5f5f5 ≈ 7.06:1 (well
+     clear of AA text 4.5:1) and stays distinct from --foreground #0a0a0a so hierarchy survives.
+     History: 041 adopted #737373 (4.35:1, FAILED AA) → tuned to #6b6b6b (~4.99:1) → #525252. */
+  --muted-foreground: #525252;
   /* A hover state is a HINT, not a state change: ramp 50 reads as "this is interactive". */
   --accent: #f5f5f5;
   --accent-foreground: #171717;
@@ -155,7 +157,7 @@
   --secondary: #262626;
   --secondary-foreground: #fafafa;
   --muted: #262626;
-  --muted-foreground: #a1a1a1; /* 5.86:1 */
+  --muted-foreground: #b5b5b5; /* brightened from #a1a1a1 (5.86:1) → less washed-out in dark; #b5b5b5 on #262626 ≈ 7.36:1 */
   --accent: #262626;
   --accent-foreground: #fafafa;
 

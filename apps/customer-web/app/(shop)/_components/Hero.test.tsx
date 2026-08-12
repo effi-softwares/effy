@@ -17,7 +17,7 @@ describe("Hero — the immediately-served banner (US1)", () => {
     expect(screen.getByRole("heading", { name: /everything you need/i })).toBeTruthy()
     expect(screen.getByText(/fresh groceries and everyday essentials/i)).toBeTruthy()
 
-    expect(screen.getByRole("link", { name: /shop now/i }).getAttribute("href")).toBe("/browse")
+    expect(screen.getByRole("link", { name: /shop now/i }).getAttribute("href")).toBe("/search")
     expect(screen.getByRole("link", { name: /on sale/i }).getAttribute("href")).toBe(
       "/search?saleOnly=true",
     )
