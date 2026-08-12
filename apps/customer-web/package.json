@@ -20,6 +20,7 @@
     "@aws-amplify/adapter-nextjs": "^1.7.3",
     "@effy/api-client": "workspace:*",
     "@effy/design-system": "workspace:*",
+    "@effy/legal-content": "workspace:*",
     "@effy/shared-types": "workspace:*",
     "@stripe/react-stripe-js": "^6.8.0",
     "@stripe/stripe-js": "^9.10.0",

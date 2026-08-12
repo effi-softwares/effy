@@ -993,3 +993,32 @@ with counts at `core-api.dev.effyshopping.com`; the storefront filters at `dev.e
 written and `cm-guard`-clean, but has **never been compiled** (`:shared:testAndroidHostTest`,
 `iosSimulatorArm64Test`, `assembleDebug`) or seen on a device. See
 [specs/043-customer-search-filters/SIGNOFF.md](../../specs/043-customer-search-filters/SIGNOFF.md).
+
+---
+
+## §045 — Legal & Informational Documentation (Web + Mobile, Store-Ready)
+
+Eight authored legal/informational documents (Privacy Policy, Terms of Service, Refund/Returns/
+Cancellations, Cookie & Tracking Notice, Acceptable Use, EULA posture, Open-Source Acknowledgements,
+About) live in the shared SSOT `@effy/legal-content` — canonical Markdown → committed generated TS
+(web) + Kotlin (mobile), guarded by `legal:check` (drift · unresolved-identifier · integrity · links).
+
+| Capability | customer-web | customer-mobile |
+| --- | --- | --- |
+| Read all 8 legal documents | ✅ built + verified (`/legal/[type]`, `/legal`, `/about`) | 🚧 generated `LegalContent.kt` present; **screens not built/compiled** |
+| Version + effective date, version history | ✅ `/legal/[type]/versions` | 🚧 data present; screen pending |
+| In-app links (footer, sign-up consent, account, delete-account) | ✅ built | 🚧 Account rows exist but **Terms→Privacy mis-wire not yet fixed**; About screen pending |
+| Store collateral (Apple/Google mappings, checklist, review notes) | ✅ `docs/store-submission/` | (same, shared) |
+
+⚠ **Drafts pending legal review + operator identifiers.** Entity name, ABN, registered address and
+governing-law state are fail-loud placeholders in `packages/legal-content/src/identifiers.json`;
+`legal:check --release` blocks a release until they are supplied and a lawyer has reviewed.
+
+⚠ **Mobile is machine-unverified this slice** — the generated Kotlin content compiles as a standalone
+data file, but the Compose renderer, document/About screens, nav keys, and the Terms→Privacy fix are
+NOT built and customer-mobile has not been through Gradle. See
+[specs/045-legal-documentation/tasks.md](../../specs/045-legal-documentation/tasks.md) (20 open tasks).
+
+⚠ **Recorded dependencies** (not this slice): the iOS `PrivacyInfo.xcprivacy`, and the background
+erasure worker (034 Blocker 1) — the Privacy Policy is written to CURRENT deletion behaviour so no
+untrue claim ships.

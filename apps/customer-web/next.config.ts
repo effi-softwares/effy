@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
     "@effy/design-system",
     "@effy/shared-types",
     "@effy/api-client",
+    "@effy/legal-content",
   ],
 
   experimental: {
