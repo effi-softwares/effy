@@ -154,6 +154,9 @@ const GUEST_PAGES = [
   { route: "/legal/privacy-policy", html: ".next/server/app/legal/privacy-policy.html" },
   { route: "/legal/terms-of-service", html: ".next/server/app/legal/terms-of-service.html" },
   { route: "/legal/refunds-returns", html: ".next/server/app/legal/refunds-returns.html" },
+  { route: "/legal/delivery-policy", html: ".next/server/app/legal/delivery-policy.html" },
+  { route: "/legal/promotions-terms", html: ".next/server/app/legal/promotions-terms.html" },
+  { route: "/legal/food-safety-allergens", html: ".next/server/app/legal/food-safety-allergens.html" },
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy
