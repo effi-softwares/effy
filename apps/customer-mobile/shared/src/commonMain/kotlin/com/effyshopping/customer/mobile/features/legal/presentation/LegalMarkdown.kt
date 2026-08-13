@@ -9,8 +9,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.LinkInteractionListener
 import androidx.compose.ui.text.SpanStyle
@@ -172,6 +174,30 @@ internal fun LegalDocumentBody(
     Column(modifier) {
         blocks.forEach { block -> LegalBlockView(block, onLink) }
     }
+}
+
+/**
+ * A single line of inline markdown with clickable document links — for point-of-decision consent
+ * text (checkout, sign-up). Internal `/legal/<slug>` links navigate in-app; external open the browser.
+ */
+@Composable
+fun LegalLinksText(
+    markdown: String,
+    onNavigateSlug: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodySmall,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+) {
+    val uriHandler = LocalUriHandler.current
+    val runs = remember(markdown) { parseInline(markdown) }
+    val onLink: (String) -> Unit = { href ->
+        when {
+            href.startsWith("/legal/") -> href.removePrefix("/legal/").takeIf { it.isNotEmpty() }?.let(onNavigateSlug)
+            href.startsWith("http") -> uriHandler.openUri(href)
+            else -> {}
+        }
+    }
+    Text(inline(runs, onLink), style = style, color = color, modifier = modifier)
 }
 
 @Composable

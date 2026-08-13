@@ -184,7 +184,7 @@ document (quickstart D).
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/account/presentation/AccountScreens.kt`
 - [x] T045 [US3] Mobile: implement the **About** screen (app version, business identity, licenses, legal
   links) in `features/legal/presentation/LegalScreens.kt` and wire it into the Account section
-- [ ] T046 [US3] Mobile: add Terms + Refund/Returns links at checkout and Terms/Privacy on the sign-up
+- [x] T046 [US3] Mobile: add Terms + Refund/Returns links at checkout and Terms/Privacy on the sign-up
   consent (`features/auth/presentation/AuthScreens.kt`)
 
 **Checkpoint**: All links resolve correctly on both surfaces; the mobile defect is fixed.

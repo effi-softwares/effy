@@ -77,6 +77,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyOrDivider
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
+import com.effyshopping.customer.mobile.features.legal.presentation.LegalLinksText
 import com.effyshopping.mobile.design.EffySpacing
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -752,7 +753,7 @@ private fun SignUpScreen(container: AppContainer, vm: AuthViewModel) {
             placeholder = "Enter your email address",
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
         )
-        TermsNotice()
+        TermsNotice(onNavigateLegal = { container.navigator.push(CustomerNavKey.LegalDocument(it)) })
         EffyPrimaryButton(
             "Email me a code",
             onClick = { vm.registerPasswordless(email) },
@@ -791,7 +792,7 @@ private fun SignUpPasswordScreen(
         subtitle = "Creating an account for ${route.email}.",
         state = state,
         bottomBar = {
-            TermsNotice()
+            TermsNotice(onNavigateLegal = { container.navigator.push(CustomerNavKey.LegalDocument(it)) })
             EffyPrimaryButton(
                 "Create account",
                 onClick = { vm.registerWithPassword(route.email, password) },
@@ -966,10 +967,12 @@ private fun VerifyOtpScreen(container: AppContainer, vm: AuthViewModel, route: C
  * config key (or in-app legal routes) and is its own small task. Web links to the real routes.
  */
 @Composable
-private fun TermsNotice() {
-    Text(
-        "By continuing you agree to Effy's Terms of Service and acknowledge our Privacy Policy.",
-        style = MaterialTheme.typography.bodySmall,
+private fun TermsNotice(onNavigateLegal: (String) -> Unit) {
+    // 045 — the named documents now link to the real, rendered legal content.
+    LegalLinksText(
+        "By continuing you agree to our [Terms of Service](/legal/terms-of-service) and acknowledge " +
+            "our [Privacy Policy](/legal/privacy-policy).",
+        onNavigateSlug = onNavigateLegal,
         color = MaterialTheme.colorScheme.onSurface,
     )
 }
