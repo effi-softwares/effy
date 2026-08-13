@@ -13,7 +13,7 @@ class LegalCatalogueTest {
     private val requiredSlugs = listOf(
         "privacy-policy", "terms-of-service", "refunds-returns", "delivery-policy",
         "promotions-terms", "food-safety-allergens", "cookies-tracking", "acceptable-use",
-        "eula", "acknowledgements", "about",
+        "eula", "about",
     )
 
     @Test

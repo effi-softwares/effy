@@ -533,6 +533,9 @@ fun EffyNavRow(
     supporting: String? = null,
     destructive: Boolean = false,
     showChevron: Boolean = true,
+    // Bottom hairline. Default true keeps the row-separated list look; pass false on the LAST row of a
+    // screen so there is no trailing divider under nothing.
+    divider: Boolean = true,
 ) {
     val tint = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     Column(modifier = modifier.fillMaxWidth()) {
@@ -570,7 +573,7 @@ fun EffyNavRow(
                 )
             }
         }
-        EffyHairline()
+        if (divider) EffyHairline()
     }
 }
 

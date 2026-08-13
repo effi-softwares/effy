@@ -40,17 +40,16 @@ fun LegalIndexScreen(container: AppContainer) {
                 EffyNavRow(doc.title, onClick = { nav.push(CustomerNavKey.LegalDocument(doc.slug)) })
             }
             LegalSectionHeader("About")
-            documents.filter { it.category == "info" }.forEach { doc ->
-                EffyNavRow(doc.title, onClick = { nav.push(CustomerNavKey.LegalDocument(doc.slug)) })
+            val info = documents.filter { it.category == "info" }
+            info.forEachIndexed { i, doc ->
+                EffyNavRow(
+                    doc.title,
+                    onClick = { nav.push(CustomerNavKey.LegalDocument(doc.slug)) },
+                    divider = i < info.lastIndex, // no trailing divider under the last row
+                )
             }
-            Text(
-                "Delete your Effy account",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(EffySpacing.lg),
-            )
+            // ⚠ No "Delete account" here. Deletion is an ACTION, not a document — it lives in
+            // Account → Privacy & data → Delete account (which satisfies Apple 5.1.1(v) / Google).
         }
     }
 }

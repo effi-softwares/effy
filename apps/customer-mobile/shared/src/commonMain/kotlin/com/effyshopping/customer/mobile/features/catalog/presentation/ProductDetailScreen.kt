@@ -73,7 +73,9 @@ import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.DiscountChip
 import com.effyshopping.customer.mobile.core.presentation.DisplaySize
 import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
+import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
+import com.effyshopping.customer.mobile.features.legal.presentation.LegalLinksText
 import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
@@ -257,6 +259,15 @@ private fun ProductBody(
             EffyDisplay("Details", size = DisplaySize.Sub)
             product.attributes.forEach { group -> AttributeSection(group) }
         }
+
+        // 045 — a QUIET allergen line (grocery). No divider/heading; the physical label is the
+        // authoritative source, and this just points there. Small, muted, easy to pass over.
+        LegalLinksText(
+            "Always check the product label for allergens and ingredients. See our " +
+                "[Food Safety & Allergen Notice](/legal/food-safety-allergens).",
+            onNavigateSlug = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
+            modifier = Modifier.padding(top = EffySpacing.lg),
+        )
 
         // FR-026: more like this, from the product's own category. Omitted entirely when the category
         // yields nothing else — an empty rail is worse than no rail.

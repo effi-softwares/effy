@@ -157,36 +157,19 @@ export const documents: LegalDocument[] = [
     ]
   },
   {
-    "slug": "acknowledgements",
-    "title": "Open-Source Acknowledgements",
+    "slug": "about",
+    "title": "About Effy",
     "category": "info",
     "order": 10,
     "currentVersion": "v1",
     "effectiveDate": "2026-08-13",
-    "body": "The Effy website and mobile apps are built with open-source software. We are grateful to the\ncommunities behind these projects. This page acknowledges the major components; a complete,\nper-release list of components and their licences is compiled from the app's dependencies.\n\nThis is a draft prepared for legal review.\n\n## Web\n\n- **React** and **Next.js** — MIT License\n- **The TanStack suite** (Router, Query, Table, Form, Store, Virtual) — MIT License\n- **Tailwind CSS** and **Radix UI** — MIT License\n\n## Mobile\n\n- **Kotlin** and **Kotlin Multiplatform** — Apache License 2.0\n- **Compose Multiplatform** and **Jetpack Compose** — Apache License 2.0\n- **Ktor** — Apache License 2.0\n\n## Full attributions\n\nEach component is used under its own licence. The complete list of open-source components and their\nlicence texts for the version of the app you are using is available on request from\nsupport@effyshopping.com, and is maintained alongside the app's build.",
+    "body": "Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the\nthings you need, brought to your door. One brand, one basket, one delivery.\n\nThis is a draft prepared for legal review.\n\n## Who operates Effy\n\nEffy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].\n\n## Contact us\n\n- **Customer support** — support@effyshopping.com\n- **Privacy enquiries** — hello@effyshopping.com\n- **Website** — [effyshopping.com](https://effyshopping.com)\n\n## Legal\n\n- [Privacy Policy](/legal/privacy-policy)\n- [Terms of Service](/legal/terms-of-service)\n- [Refund, Returns & Cancellations Policy](/legal/refunds-returns)\n- [Delivery Policy](/legal/delivery-policy)\n- [Promotions & Discount Code Terms](/legal/promotions-terms)\n- [Food Safety & Allergen Notice](/legal/food-safety-allergens)\n- [Cookie & Tracking Notice](/legal/cookies-tracking)\n- [Acceptable Use Policy](/legal/acceptable-use)\n- [End User License Agreement](/legal/eula)\n\n## Open-source software\n\nEffy is built with open-source software, and we're grateful to the communities behind it. Major\ncomponents include React and Next.js (MIT), the TanStack suite (MIT), and Tailwind CSS with Radix UI\n(MIT) on the web, and Kotlin, Compose Multiplatform and Ktor (Apache License 2.0) in the apps. Each\ncomponent is used under its own licence; the complete list of components and their licence texts for\nthe version you are using is available on request from support@effyshopping.com.",
     "versions": [
       {
         "version": "v1",
         "effectiveDate": "2026-08-13",
         "status": "current",
-        "body": "The Effy website and mobile apps are built with open-source software. We are grateful to the\ncommunities behind these projects. This page acknowledges the major components; a complete,\nper-release list of components and their licences is compiled from the app's dependencies.\n\nThis is a draft prepared for legal review.\n\n## Web\n\n- **React** and **Next.js** — MIT License\n- **The TanStack suite** (Router, Query, Table, Form, Store, Virtual) — MIT License\n- **Tailwind CSS** and **Radix UI** — MIT License\n\n## Mobile\n\n- **Kotlin** and **Kotlin Multiplatform** — Apache License 2.0\n- **Compose Multiplatform** and **Jetpack Compose** — Apache License 2.0\n- **Ktor** — Apache License 2.0\n\n## Full attributions\n\nEach component is used under its own licence. The complete list of open-source components and their\nlicence texts for the version of the app you are using is available on request from\nsupport@effyshopping.com, and is maintained alongside the app's build."
-      }
-    ]
-  },
-  {
-    "slug": "about",
-    "title": "About Effy",
-    "category": "info",
-    "order": 11,
-    "currentVersion": "v1",
-    "effectiveDate": "2026-08-13",
-    "body": "Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the\nthings you need, brought to your door. One brand, one basket, one delivery.\n\nThis is a draft prepared for legal review.\n\n## Who operates Effy\n\nEffy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].\n\n## Contact us\n\n- **Customer support** — support@effyshopping.com\n- **Privacy enquiries** — hello@effyshopping.com\n- **Website** — [effyshopping.com](https://effyshopping.com)\n\n## Legal\n\n- [Privacy Policy](/legal/privacy-policy)\n- [Terms of Service](/legal/terms-of-service)\n- [Refund, Returns & Cancellations Policy](/legal/refunds-returns)\n- [Delivery Policy](/legal/delivery-policy)\n- [Promotions & Discount Code Terms](/legal/promotions-terms)\n- [Food Safety & Allergen Notice](/legal/food-safety-allergens)\n- [Cookie & Tracking Notice](/legal/cookies-tracking)\n- [Acceptable Use Policy](/legal/acceptable-use)\n- [End User License Agreement](/legal/eula)\n- [Open-Source Acknowledgements](/legal/acknowledgements)",
-    "versions": [
-      {
-        "version": "v1",
-        "effectiveDate": "2026-08-13",
-        "status": "current",
-        "body": "Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the\nthings you need, brought to your door. One brand, one basket, one delivery.\n\nThis is a draft prepared for legal review.\n\n## Who operates Effy\n\nEffy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].\n\n## Contact us\n\n- **Customer support** — support@effyshopping.com\n- **Privacy enquiries** — hello@effyshopping.com\n- **Website** — [effyshopping.com](https://effyshopping.com)\n\n## Legal\n\n- [Privacy Policy](/legal/privacy-policy)\n- [Terms of Service](/legal/terms-of-service)\n- [Refund, Returns & Cancellations Policy](/legal/refunds-returns)\n- [Delivery Policy](/legal/delivery-policy)\n- [Promotions & Discount Code Terms](/legal/promotions-terms)\n- [Food Safety & Allergen Notice](/legal/food-safety-allergens)\n- [Cookie & Tracking Notice](/legal/cookies-tracking)\n- [Acceptable Use Policy](/legal/acceptable-use)\n- [End User License Agreement](/legal/eula)\n- [Open-Source Acknowledgements](/legal/acknowledgements)"
+        "body": "Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the\nthings you need, brought to your door. One brand, one basket, one delivery.\n\nThis is a draft prepared for legal review.\n\n## Who operates Effy\n\nEffy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].\n\n## Contact us\n\n- **Customer support** — support@effyshopping.com\n- **Privacy enquiries** — hello@effyshopping.com\n- **Website** — [effyshopping.com](https://effyshopping.com)\n\n## Legal\n\n- [Privacy Policy](/legal/privacy-policy)\n- [Terms of Service](/legal/terms-of-service)\n- [Refund, Returns & Cancellations Policy](/legal/refunds-returns)\n- [Delivery Policy](/legal/delivery-policy)\n- [Promotions & Discount Code Terms](/legal/promotions-terms)\n- [Food Safety & Allergen Notice](/legal/food-safety-allergens)\n- [Cookie & Tracking Notice](/legal/cookies-tracking)\n- [Acceptable Use Policy](/legal/acceptable-use)\n- [End User License Agreement](/legal/eula)\n\n## Open-source software\n\nEffy is built with open-source software, and we're grateful to the communities behind it. Major\ncomponents include React and Next.js (MIT), the TanStack suite (MIT), and Tailwind CSS with Radix UI\n(MIT) on the web, and Kotlin, Compose Multiplatform and Ktor (Apache License 2.0) in the apps. Each\ncomponent is used under its own licence; the complete list of components and their licence texts for\nthe version you are using is available on request from support@effyshopping.com."
       }
     ]
   }

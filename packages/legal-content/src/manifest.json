@@ -8,6 +8,5 @@
   { "slug": "cookies-tracking", "category": "legal", "order": 7 },
   { "slug": "acceptable-use", "category": "legal", "order": 8 },
   { "slug": "eula", "category": "legal", "order": 9 },
-  { "slug": "acknowledgements", "category": "info", "order": 10 },
-  { "slug": "about", "category": "info", "order": 11 }
+  { "slug": "about", "category": "info", "order": 10 }
 ]

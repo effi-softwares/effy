@@ -210,7 +210,6 @@ function PrivacySection() {
             { label: "Privacy policy", href: "/legal/privacy-policy" },
             { label: "Terms of service", href: "/legal/terms-of-service" },
             { label: "Refunds & returns", href: "/legal/refunds-returns" },
-            { label: "Open-source acknowledgements", href: "/legal/acknowledgements" },
           ].map((item) => (
             <li key={item.href}>
               <Link

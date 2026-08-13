@@ -18,8 +18,7 @@ live on the Effy **development** site. Please review the content; nothing here h
 | 7 | Cookie & Tracking Notice | https://dev.effyshopping.com/legal/cookies-tracking |
 | 8 | Acceptable Use Policy | https://dev.effyshopping.com/legal/acceptable-use |
 | 9 | End User License Agreement (EULA) | https://dev.effyshopping.com/legal/eula |
-| 10 | Open-Source Acknowledgements | https://dev.effyshopping.com/legal/acknowledgements |
-| 11 | About Effy (business identity & contact) | https://dev.effyshopping.com/about |
+| 10 | About Effy (business identity & contact) | https://dev.effyshopping.com/about |
 | — | All documents (index) | https://dev.effyshopping.com/legal |
 | — | Delete your account (public page) | https://dev.effyshopping.com/delete-account |
 
