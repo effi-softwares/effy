@@ -356,6 +356,11 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
         EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
 
+        // 045 — the ONE entry to the full legal list (About is inside it). The Privacy & data screen
+        // additionally carries a Privacy Policy shortcut, which stores expect there.
+        AccountSectionHeader("Legal")
+        EffyNavRow("Legal & policies", onClick = { nav.push(CustomerNavKey.LegalIndex) }, divider = false)
+
         // ⚠ FR-007 — NO SIGN-OUT CONTROL ON THIS SCREEN.
         //
         // Both sign-out rows used to sit here, styled destructive, immediately below ordinary
@@ -484,6 +489,7 @@ private fun SecurityScreen(container: AppContainer, vm: AccountViewModel, custom
                 supporting = "Ends every session, including this one",
                 onClick = { confirmingSignOutAll = true },
                 showChevron = false,
+                divider = false,
             )
 
             state.error?.let {
@@ -541,14 +547,14 @@ private fun PrivacyScreen(container: AppContainer) {
                 modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
             )
 
-            // ⚠ FR-052/FR-052a — these links are required by BOTH stores, and the documents behind
-            // them do not exist yet. The content is legally reviewed and operator-owned; placeholder
-            // legal text would defeat SC-010, which requires every claim to be true of the built
-            // system. Tracked in SUBMISSION-BLOCKERS.md.
-            EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.Privacy) })
-            EffyNavRow("Terms of service", onClick = { nav.push(CustomerNavKey.Privacy) })
+            // ⚠ An in-app privacy policy link is required by BOTH stores (Apple 5.1.1(i), Google User
+            // Data policy) and belongs HERE, in the privacy area, where a reviewer looks for it. The
+            // full legal list lives in ONE place — Account → Legal & policies — not duplicated here.
+            EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.LegalDocument("privacy-policy")) })
 
-            Spacer(Modifier.height(EffySpacing.xxxl))
+            // A modest gap — enough to set the destructive Delete apart from the nav row above so a
+            // stray tap can't hit it, without the large void the earlier (longer) list left behind.
+            Spacer(Modifier.height(EffySpacing.xl))
 
             // The LAST item on the screen (FR-039).
             EffyNavRow(
@@ -556,6 +562,7 @@ private fun PrivacyScreen(container: AppContainer) {
                 supporting = "Permanently remove your account and personal data",
                 onClick = { nav.push(CustomerNavKey.DeleteAccount) },
                 destructive = true,
+                divider = false,
             )
             Spacer(Modifier.height(EffySpacing.xl))
         }

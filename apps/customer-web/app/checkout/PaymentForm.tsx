@@ -48,6 +48,22 @@ export function PaymentForm({ orderId, onSuccess }: { orderId: string; onSuccess
       <ActionButton type="submit" disabled={!stripe || busy} size="lg" className="w-full">
         {busy ? "Processing…" : "Pay now"}
       </ActionButton>
+      {/* Point-of-sale legal links — open in a new tab so the payment funnel is never lost. */}
+      <p className="text-center text-xs text-muted-foreground">
+        By placing your order you agree to our{" "}
+        <a href="/legal/terms-of-service" target="_blank" rel="noopener noreferrer" className="underline">
+          Terms of Service
+        </a>
+        ,{" "}
+        <a href="/legal/delivery-policy" target="_blank" rel="noopener noreferrer" className="underline">
+          Delivery Policy
+        </a>{" "}
+        and{" "}
+        <a href="/legal/refunds-returns" target="_blank" rel="noopener noreferrer" className="underline">
+          Refund &amp; Returns Policy
+        </a>
+        .
+      </p>
     </form>
   )
 }

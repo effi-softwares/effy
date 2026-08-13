@@ -146,12 +146,15 @@ private fun FaqRow(faq: Faq) {
 /** Help Center — topic rows, the source's pattern. */
 @Composable
 fun HelpCenterScreen(onTopic: (String) -> Unit = {}) = HelpScaffold("Help Center") {
-    listOf(
+    val topics = listOf(
         "Orders and delivery",
         "Payments and refunds",
         "Your account",
         "Privacy and data",
-    ).forEach { topic -> EffyNavRow(topic, onClick = { onTopic(topic) }) }
+    )
+    topics.forEachIndexed { i, topic ->
+        EffyNavRow(topic, onClick = { onTopic(topic) }, divider = i < topics.lastIndex)
+    }
 }
 
 /**
@@ -172,5 +175,6 @@ fun CustomerServiceScreen(onEmail: () -> Unit = {}) = HelpScaffold("Customer Ser
         "Email us",
         supporting = "support@effyshopping.com",
         onClick = onEmail,
+        divider = false,
     )
 }

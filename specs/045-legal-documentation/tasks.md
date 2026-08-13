@@ -53,14 +53,14 @@ prose (US1) and the store mappings (US2) derive from the inventory (T006), so th
   orders, payment records, fraud signals)
 - [x] T007 [P] Implement the web Markdown→React **server** renderer (subset only, zero client JS) in
   `apps/customer-web/components/legal/MarkdownDocument.tsx` + `DocumentMeta.tsx` per research R2
-- [ ] T008 [P] Implement the mobile Markdown→Compose renderer (same subset) in
+- [x] T008 [P] Implement the mobile Markdown→Compose renderer (same subset) in
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/legal/presentation/MarkdownRender.kt` per research R3
 - [x] T009 Implement `legal:gen` (canonical corpus → committed Kotlin content catalogue for mobile) in
   `packages/legal-content/scripts/gen-compose.mjs`, deterministic per contract
 - [x] T010 Implement `legal:check` in `packages/legal-content/scripts/check.mjs` — fails and names the
   cause on: drift, unresolved identifier placeholder, manifest integrity, subset violation, broken
   internal link (per [contracts/legal-content.contract.md](./contracts/legal-content.contract.md))
-- [ ] T011 [P] Add nav keys (`Terms`, `Refunds`, `Cookies`, `AcceptableUse`, `Eula`, `Licenses`,
+- [x] T011 [P] Add nav keys (`Terms`, `Refunds`, `Cookies`, `AcceptableUse`, `Eula`, `Licenses`,
   `About`, `LegalIndex`, `DocumentVersions`) to
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/core/nav/CustomerNavKey.kt`
 
@@ -80,7 +80,7 @@ placeholder; every factual claim traces to the built system (quickstart A–C).
 
 - [x] T012 [P] [US1] Web content-render test (every manifest document renders real prose + meta row, no
   "being prepared") in `apps/customer-web/__tests__/legal-render.test.ts`
-- [ ] T013 [P] [US1] Mobile catalogue test (every document present and renders under the Compose
+- [x] T013 [P] [US1] Mobile catalogue test (every document present and renders under the Compose
   renderer) in `apps/customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile/features/legal/LegalCatalogueTest.kt`
 - [x] T014 [P] [US1] SC-002 honesty test: every data type / sub-processor / retained category named in
   the Privacy Policy exists in `inventory.ts` (no untraced claim) in `apps/customer-web/__tests__/legal-honesty.test.ts`
@@ -110,7 +110,7 @@ placeholder; every factual claim traces to the built system (quickstart A–C).
 - [x] T025 [US1] Web: replace the placeholder bodies in `apps/customer-web/app/legal/privacy/page.tsx`
   and `apps/customer-web/app/legal/terms/page.tsx` with the real render (or redirect to the `[type]` slugs)
 - [x] T026 [US1] Web: implement `apps/customer-web/app/about/page.tsx` (public)
-- [ ] T027 [US1] Mobile: implement `DocumentScreen` in
+- [x] T027 [US1] Mobile: implement `DocumentScreen` in
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/legal/presentation/LegalScreens.kt`
   and wire each nav key to render its document
 - [x] T028 [US1] Web: add every new public route (`/legal`, `/legal/[type]` instances, `/about`) to
@@ -164,7 +164,7 @@ document (quickstart D).
 
 - [ ] T036 [P] [US3] Web link-integrity test over the contract table (footer, sign-up consent, checkout,
   newsletter, account privacy, delete-account, `/legal` index) in `apps/customer-web/__tests__/legal-links.test.ts`
-- [ ] T037 [P] [US3] Mobile link-integrity + **Terms→Privacy regression** test (FR-022) in
+- [x] T037 [P] [US3] Mobile link-integrity + **Terms→Privacy regression** test (FR-022) in
   `apps/customer-mobile/shared/src/commonTest/kotlin/com/effyshopping/customer/mobile/features/legal/LegalLinksTest.kt`
 
 ### Implementation for User Story 3
@@ -180,11 +180,11 @@ document (quickstart D).
   (`apps/customer-web/app/(shop)/newsletter/`)
 - [x] T043 [US3] Web: ensure Account → Privacy & data links Privacy, Terms, Refunds, Acknowledgements,
   delete in `apps/customer-web/app/(account)/account/page.tsx`
-- [ ] T044 [US3] Mobile: fix the Terms→Privacy mis-wire and add Refunds + Licenses rows in
+- [x] T044 [US3] Mobile: fix the Terms→Privacy mis-wire and add Refunds + Licenses rows in
   `apps/customer-mobile/shared/src/commonMain/kotlin/com/effyshopping/customer/mobile/features/account/presentation/AccountScreens.kt`
-- [ ] T045 [US3] Mobile: implement the **About** screen (app version, business identity, licenses, legal
+- [x] T045 [US3] Mobile: implement the **About** screen (app version, business identity, licenses, legal
   links) in `features/legal/presentation/LegalScreens.kt` and wire it into the Account section
-- [ ] T046 [US3] Mobile: add Terms + Refund/Returns links at checkout and Terms/Privacy on the sign-up
+- [x] T046 [US3] Mobile: add Terms + Refund/Returns links at checkout and Terms/Privacy on the sign-up
   consent (`features/auth/presentation/AuthScreens.kt`)
 
 **Checkpoint**: All links resolve correctly on both surfaces; the mobile defect is fixed.

@@ -44,15 +44,29 @@ standard (constitution: a plan MAY add a React/Go utility, it MUST NOT swap a lo
 **Alternatives considered**: MDX (heavier, compile-time route coupling, overkill for prose);
 hand-authoring each document as JSX (defeats the shared-source model and invites drift).
 
-## R3 — Mobile Markdown rendering
+## R3 — Mobile Markdown rendering (IMPLEMENTED)
 
-**Decision**: A **minimal Markdown→Compose renderer** over the same constrained subset, driven by the
-generated content. Blocks map to `Text`/`Column`/bullet rows using design-system typography; links open
-via the platform URL handler. Long ancillary documents (Acknowledgements) MAY fall back to an in-app
-browser to the canonical URL if native rendering is disproportionate.
+**Decision**: A **dependency-free Markdown→Compose renderer** over the same constrained subset, driven
+by the generated `LegalContent.kt`. A tiny Kotlin parser (mirror of `markdown.ts`) produces typed
+blocks; blocks map to `Text`/`Column`/rows using design-system typography; inline links use
+`AnnotatedString` + `LinkAnnotation.Clickable` (stable since Compose 1.7 / CMP 1.11) — internal
+`/legal/<slug>` links navigate in-app, external `http` links open via `LocalUriHandler`. Rendered in a
+`Column` + `verticalScroll` (docs are a few KB; no `LazyColumn` needed). `LegalMarkdown.kt` +
+`LegalScreens.kt`, package `features/legal/presentation`.
 
-**Rationale**: Keeps native feel (Principle V) and offline access; the subset is small and fully under
-test. Avoids a heavyweight Markdown dependency in the KMP graph.
+**Rationale**: Evaluated three options —
+- **`multiplatform-markdown-renderer` (mikepenz)** — mature, but adds a dependency (+ JetBrains-Markdown
+  + Coil) and parses full CommonMark when we ship a tiny controlled subset. Rejected: dependency/version
+  risk against the project's minimal-dependency doctrine.
+- **Compose Multiplatform resources (files)** — bundles static files, but we already bundle via the
+  drift-guarded generated Kotlin, which is a better single-source story. Rejected.
+- **✅ Dependency-free renderer** — no new KMP dependency, offline, bundled, negligible cost, and reuses
+  the one subset definition. Chosen.
+
+Native feel (Principle V) and offline access hold. Two commonTests cover it: every document parses to
+≥1 block, and every internal link resolves to a known document. ⚠ The `LinkAnnotation` text-link API is
+the one area a first Gradle compile may need a minor tweak (it cannot be compile-checked without the
+KMP toolchain).
 
 ## R4 — Versioning model
 

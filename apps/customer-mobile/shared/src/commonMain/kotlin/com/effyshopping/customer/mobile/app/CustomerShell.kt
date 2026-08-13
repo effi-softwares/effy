@@ -47,6 +47,8 @@ import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptSc
 import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
 import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
 import com.effyshopping.customer.mobile.features.help.presentation.HelpCenterScreen
+import com.effyshopping.customer.mobile.features.legal.presentation.LegalDocumentScreen
+import com.effyshopping.customer.mobile.features.legal.presentation.LegalIndexScreen
 import com.effyshopping.customer.mobile.features.notifications.presentation.NotificationsScreen
 import com.effyshopping.customer.mobile.resources.Res
 import com.effyshopping.customer.mobile.resources.ic_account_outlined
@@ -518,6 +520,10 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.PasswordReset> {
                     AccountRoutes(container, CustomerNavKey.PasswordReset, session)
                 }
+
+                // ── 045: Legal & informational documents (no session required — viewable by anyone) ──
+                entry<CustomerNavKey.LegalIndex> { LegalIndexScreen(container) }
+                entry<CustomerNavKey.LegalDocument> { key -> LegalDocumentScreen(container, key.slug) }
             },
         )
     }

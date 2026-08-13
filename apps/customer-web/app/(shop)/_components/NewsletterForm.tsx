@@ -100,6 +100,15 @@ export function NewsletterForm() {
           </form>
 
           {state && <NewsletterStatus result={state} />}
+
+          {/* Consent + privacy (Spam Act / APP 7): marketing is consent-based with an unsubscribe. */}
+          <p className="mt-3 text-xs text-muted-foreground">
+            By subscribing you agree to receive marketing emails and to our{" "}
+            <a href="/legal/privacy-policy" className="underline">
+              Privacy Policy
+            </a>
+            . You can unsubscribe at any time.
+          </p>
         </div>
       </div>
     </section>

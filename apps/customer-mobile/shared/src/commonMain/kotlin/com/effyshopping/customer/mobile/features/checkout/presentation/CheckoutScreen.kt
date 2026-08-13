@@ -21,6 +21,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
+import com.effyshopping.customer.mobile.features.legal.presentation.LegalLinksText
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
@@ -77,14 +79,18 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
             CheckoutUiState.Loading, is CheckoutUiState.Placed ->
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(Modifier.padding(32.dp)) }
 
-            is CheckoutUiState.Ready -> AddressAndPay(s, vm)
+            is CheckoutUiState.Ready -> AddressAndPay(
+                s,
+                vm,
+                onNavigateLegal = { container.navigator.push(CustomerNavKey.LegalDocument(it)) },
+            )
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
+private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNavigateLegal: (String) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(EffySpacing.lg),
         verticalArrangement = Arrangement.spacedBy(EffySpacing.md),
@@ -118,6 +124,12 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
             if (s.paying) "Processing…" else "Pay now",
             onClick = vm::payNow,
             enabled = payEnabled,
+        )
+        // Point-of-sale consent (045) — the purchase terms, at the moment of paying.
+        LegalLinksText(
+            "By placing your order you agree to our [Terms of Service](/legal/terms-of-service), " +
+                "[Delivery Policy](/legal/delivery-policy) and [Refund & Returns Policy](/legal/refunds-returns).",
+            onNavigateSlug = onNavigateLegal,
         )
     }
 

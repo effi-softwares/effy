@@ -1306,66 +1306,10 @@ inconsistency with this page about the service itself.
         ),
     ),
     LegalDocument(
-        slug = "acknowledgements",
-        title = "Open-Source Acknowledgements",
-        category = "info",
-        order = 10,
-        currentVersion = "v1",
-        effectiveDate = "2026-08-13",
-        body = """The Effy website and mobile apps are built with open-source software. We are grateful to the
-communities behind these projects. This page acknowledges the major components; a complete,
-per-release list of components and their licences is compiled from the app's dependencies.
-
-This is a draft prepared for legal review.
-
-## Web
-
-- **React** and **Next.js** — MIT License
-- **The TanStack suite** (Router, Query, Table, Form, Store, Virtual) — MIT License
-- **Tailwind CSS** and **Radix UI** — MIT License
-
-## Mobile
-
-- **Kotlin** and **Kotlin Multiplatform** — Apache License 2.0
-- **Compose Multiplatform** and **Jetpack Compose** — Apache License 2.0
-- **Ktor** — Apache License 2.0
-
-## Full attributions
-
-Each component is used under its own licence. The complete list of open-source components and their
-licence texts for the version of the app you are using is available on request from
-support@effyshopping.com, and is maintained alongside the app's build.""",
-        versions = listOf(
-        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """The Effy website and mobile apps are built with open-source software. We are grateful to the
-communities behind these projects. This page acknowledges the major components; a complete,
-per-release list of components and their licences is compiled from the app's dependencies.
-
-This is a draft prepared for legal review.
-
-## Web
-
-- **React** and **Next.js** — MIT License
-- **The TanStack suite** (Router, Query, Table, Form, Store, Virtual) — MIT License
-- **Tailwind CSS** and **Radix UI** — MIT License
-
-## Mobile
-
-- **Kotlin** and **Kotlin Multiplatform** — Apache License 2.0
-- **Compose Multiplatform** and **Jetpack Compose** — Apache License 2.0
-- **Ktor** — Apache License 2.0
-
-## Full attributions
-
-Each component is used under its own licence. The complete list of open-source components and their
-licence texts for the version of the app you are using is available on request from
-support@effyshopping.com, and is maintained alongside the app's build."""),
-        ),
-    ),
-    LegalDocument(
         slug = "about",
         title = "About Effy",
         category = "info",
-        order = 11,
+        order = 10,
         currentVersion = "v1",
         effectiveDate = "2026-08-13",
         body = """Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the
@@ -1394,7 +1338,14 @@ Effy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].
 - [Cookie & Tracking Notice](/legal/cookies-tracking)
 - [Acceptable Use Policy](/legal/acceptable-use)
 - [End User License Agreement](/legal/eula)
-- [Open-Source Acknowledgements](/legal/acknowledgements)""",
+
+## Open-source software
+
+Effy is built with open-source software, and we're grateful to the communities behind it. Major
+components include React and Next.js (MIT), the TanStack suite (MIT), and Tailwind CSS with Radix UI
+(MIT) on the web, and Kotlin, Compose Multiplatform and Ktor (Apache License 2.0) in the apps. Each
+component is used under its own licence; the complete list of components and their licence texts for
+the version you are using is available on request from support@effyshopping.com.""",
         versions = listOf(
         LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the
 things you need, brought to your door. One brand, one basket, one delivery.
@@ -1422,7 +1373,14 @@ Effy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].
 - [Cookie & Tracking Notice](/legal/cookies-tracking)
 - [Acceptable Use Policy](/legal/acceptable-use)
 - [End User License Agreement](/legal/eula)
-- [Open-Source Acknowledgements](/legal/acknowledgements)"""),
+
+## Open-source software
+
+Effy is built with open-source software, and we're grateful to the communities behind it. Major
+components include React and Next.js (MIT), the TanStack suite (MIT), and Tailwind CSS with Radix UI
+(MIT) on the web, and Kotlin, Compose Multiplatform and Ktor (Apache License 2.0) in the apps. Each
+component is used under its own licence; the complete list of components and their licence texts for
+the version you are using is available on request from support@effyshopping.com."""),
         ),
     ),
 )

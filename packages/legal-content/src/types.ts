@@ -13,7 +13,6 @@ export type DocumentSlug =
   | "cookies-tracking"
   | "acceptable-use"
   | "eula"
-  | "acknowledgements"
   | "about"
 
 /** `legal` = an agreement/notice; `info` = informational (about, acknowledgements). */

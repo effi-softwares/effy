@@ -101,7 +101,8 @@ export function StorefrontFooter() {
                 { label: "Privacy policy", href: "/legal/privacy-policy" },
                 { label: "Terms of service", href: "/legal/terms-of-service" },
                 { label: "Refunds & returns", href: "/legal/refunds-returns" },
-                { label: "Cookies & tracking", href: "/legal/cookies-tracking" },
+                { label: "Delivery", href: "/legal/delivery-policy" },
+                { label: "Food safety & allergens", href: "/legal/food-safety-allergens" },
                 { label: "All legal documents", href: "/legal" },
                 { label: "Delete your account", href: "/delete-account" },
               ]}
