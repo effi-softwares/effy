@@ -319,7 +319,10 @@ agree, please do not use the service.
 
 This is a draft prepared for legal review. Please also read our
 [Privacy Policy](/legal/privacy-policy), our
-[Refund, Returns & Cancellations Policy](/legal/refunds-returns), and our
+[Refund, Returns & Cancellations Policy](/legal/refunds-returns), our
+[Delivery Policy](/legal/delivery-policy), our
+[Promotions & Discount Code Terms](/legal/promotions-terms), our
+[Food Safety & Allergen Notice](/legal/food-safety-allergens), and our
 [Acceptable Use Policy](/legal/acceptable-use), which form part of these Terms.
 
 ## About Effy
@@ -330,9 +333,14 @@ scenes.
 
 ## Eligibility and your account
 
-You must be at least 18 years old and able to enter a binding contract to use Effy. You are responsible
-for keeping your account secure and for activity that happens under it. Tell us promptly at
-support@effyshopping.com if you think your account has been used without your permission.
+To hold an Effy account and place orders, you must be at least **18 years old** and able to enter into
+a legally binding contract. A person under 18 may use Effy only under the supervision of a parent or
+guardian who has an account, who agrees to these Terms, and who is responsible for all activity and
+orders placed. Some products may have a higher minimum age or require proof of age; where that applies
+it is shown at the point of sale and may be checked on delivery.
+
+You are responsible for keeping your account secure and for activity that happens under it. Tell us
+promptly at support@effyshopping.com if you think your account has been used without your permission.
 
 ## Placing an order
 
@@ -344,16 +352,32 @@ support@effyshopping.com if you think your account has been used without your pe
 ## Prices, availability and substitutions
 
 - Prices are shown in Australian dollars and, where applicable, include GST.
-- Delivery fees and any minimum order value are shown before you confirm.
-- Product availability can change. Where an item you ordered is unavailable, we will not charge you for
-  it, and where we offer a substitution we will make that clear so you can accept or decline it.
+- Goods are charged at the price shown when you submit your order. Delivery fees and any minimum order
+  value are shown before you confirm and pay.
+- **Goods sold by weight** (for example, fresh produce priced per kilogram) are estimated when you
+  order and adjusted to the actual weight when your order is prepared, so the final price may differ
+  slightly from the estimate.
+- Product availability can change, and we do not offer rainchecks. Where an item you ordered is
+  unavailable, we will not charge you for it.
+- **Substitutions.** If you allow substitutions, we may replace an unavailable item with a similar one.
+  A substitute is charged at the **lower** of the original item's price or the substitute's price, and
+  you can decline substitutions at checkout or refuse a substitute on delivery. Substitutes may not
+  meet the same dietary or allergen needs — see our
+  [Food Safety & Allergen Notice](/legal/food-safety-allergens).
 
 ## Delivery
 
-- We deliver only to addresses within our serviced areas. We will tell you whether we deliver to your
-  address before you order.
-- Delivery times are estimates, not guarantees.
-- You are responsible for giving accurate delivery details and for arranging safe receipt of your order.
+Delivery — where we deliver, timeframes, fees, unattended delivery, and who is responsible if something
+goes wrong — is set out in our [Delivery Policy](/legal/delivery-policy). In summary: delivery times are
+estimates, not guarantees; you are responsible for accurate delivery details and safe receipt; and until
+your order is delivered to you (or left as you have instructed), we are responsible for getting it to
+you.
+
+## Promotions and discount codes
+
+Promotional offers and discount codes are governed by our
+[Promotions & Discount Code Terms](/legal/promotions-terms). Discounts never reduce the consumer
+guarantees that apply to the goods you buy.
 
 ## Payment
 
@@ -423,7 +447,10 @@ agree, please do not use the service.
 
 This is a draft prepared for legal review. Please also read our
 [Privacy Policy](/legal/privacy-policy), our
-[Refund, Returns & Cancellations Policy](/legal/refunds-returns), and our
+[Refund, Returns & Cancellations Policy](/legal/refunds-returns), our
+[Delivery Policy](/legal/delivery-policy), our
+[Promotions & Discount Code Terms](/legal/promotions-terms), our
+[Food Safety & Allergen Notice](/legal/food-safety-allergens), and our
 [Acceptable Use Policy](/legal/acceptable-use), which form part of these Terms.
 
 ## About Effy
@@ -434,9 +461,14 @@ scenes.
 
 ## Eligibility and your account
 
-You must be at least 18 years old and able to enter a binding contract to use Effy. You are responsible
-for keeping your account secure and for activity that happens under it. Tell us promptly at
-support@effyshopping.com if you think your account has been used without your permission.
+To hold an Effy account and place orders, you must be at least **18 years old** and able to enter into
+a legally binding contract. A person under 18 may use Effy only under the supervision of a parent or
+guardian who has an account, who agrees to these Terms, and who is responsible for all activity and
+orders placed. Some products may have a higher minimum age or require proof of age; where that applies
+it is shown at the point of sale and may be checked on delivery.
+
+You are responsible for keeping your account secure and for activity that happens under it. Tell us
+promptly at support@effyshopping.com if you think your account has been used without your permission.
 
 ## Placing an order
 
@@ -448,16 +480,32 @@ support@effyshopping.com if you think your account has been used without your pe
 ## Prices, availability and substitutions
 
 - Prices are shown in Australian dollars and, where applicable, include GST.
-- Delivery fees and any minimum order value are shown before you confirm.
-- Product availability can change. Where an item you ordered is unavailable, we will not charge you for
-  it, and where we offer a substitution we will make that clear so you can accept or decline it.
+- Goods are charged at the price shown when you submit your order. Delivery fees and any minimum order
+  value are shown before you confirm and pay.
+- **Goods sold by weight** (for example, fresh produce priced per kilogram) are estimated when you
+  order and adjusted to the actual weight when your order is prepared, so the final price may differ
+  slightly from the estimate.
+- Product availability can change, and we do not offer rainchecks. Where an item you ordered is
+  unavailable, we will not charge you for it.
+- **Substitutions.** If you allow substitutions, we may replace an unavailable item with a similar one.
+  A substitute is charged at the **lower** of the original item's price or the substitute's price, and
+  you can decline substitutions at checkout or refuse a substitute on delivery. Substitutes may not
+  meet the same dietary or allergen needs — see our
+  [Food Safety & Allergen Notice](/legal/food-safety-allergens).
 
 ## Delivery
 
-- We deliver only to addresses within our serviced areas. We will tell you whether we deliver to your
-  address before you order.
-- Delivery times are estimates, not guarantees.
-- You are responsible for giving accurate delivery details and for arranging safe receipt of your order.
+Delivery — where we deliver, timeframes, fees, unattended delivery, and who is responsible if something
+goes wrong — is set out in our [Delivery Policy](/legal/delivery-policy). In summary: delivery times are
+estimates, not guarantees; you are responsible for accurate delivery details and safe receipt; and until
+your order is delivered to you (or left as you have instructed), we are responsible for getting it to
+you.
+
+## Promotions and discount codes
+
+Promotional offers and discount codes are governed by our
+[Promotions & Discount Code Terms](/legal/promotions-terms). Discounts never reduce the consumer
+guarantees that apply to the goods you buy.
 
 ## Payment
 
@@ -646,10 +694,406 @@ replacement is due, arrange it promptly.
         ),
     ),
     LegalDocument(
+        slug = "delivery-policy",
+        title = "Delivery Policy",
+        category = "legal",
+        order = 4,
+        currentVersion = "v1",
+        effectiveDate = "2026-08-13",
+        body = """This Delivery Policy explains how Effy delivers your orders — where we deliver, when, what it costs,
+and who is responsible if something goes wrong. It is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]),
+forms part of our [Terms of Service](/legal/terms-of-service), and works together with our
+[Refund, Returns & Cancellations Policy](/legal/refunds-returns). This is a draft prepared for legal
+review, and does not exclude your rights under the Australian Consumer Law.
+
+## Where we deliver
+
+Effy delivers to addresses within its serviced areas. Before you place an order, we will tell you
+whether we deliver to your address. If we do not yet deliver to you, you will not be able to complete
+an order for delivery there.
+
+## Delivery times
+
+- Delivery times and windows shown at checkout are **estimates**, not guarantees, and can be affected
+  by weather, traffic, demand, and other factors outside our reasonable control.
+- Under the Australian Consumer Law, we will make your order available within a reasonable time. If we
+  cannot, you may be entitled to a remedy — see "If your order does not arrive" below.
+
+## Delivery fees and minimum orders
+
+- Any delivery fee and any minimum order value are shown **before you confirm and pay**. If they are
+  not shown, they do not apply to that order.
+- Fees may vary by area, order size, or time of delivery. The fee shown at checkout is the fee that
+  applies to that order.
+
+## Receiving your order
+
+- You are responsible for providing accurate delivery details and for arranging safe, lawful receipt
+  of your order.
+- **Perishable and chilled/frozen items** are delivered under normal handling; once delivered, please
+  refrigerate or freeze them promptly. See our
+  [Food Safety & Allergen Notice](/legal/food-safety-allergens).
+- **Unattended delivery ("safe drop").** If you ask us to leave an order without someone present, or
+  give delivery instructions to that effect, you accept that the order is left at your direction and
+  that responsibility for it passes to you once it is left as instructed. We may decline to leave an
+  order unattended where it is unsafe or unlawful to do so.
+- **Age-restricted items.** Where an order contains an item with a minimum age or ID requirement, the
+  person receiving it may be required to show valid identification, and we may refuse to hand it over
+  if that requirement is not met. Any such requirement is shown at the point of sale.
+
+## Who is responsible for delivery
+
+Until your order is delivered to you (or left as you have instructed for an unattended delivery), **we
+are responsible for getting it to you** — not the delivery driver or any third party. If there is a
+problem with delivery, you deal with Effy, and we sort out the rest.
+
+## If your order does not arrive, or arrives late or incomplete
+
+- If your order does not arrive within a reasonable time, or arrives incomplete, contact us at
+  support@effyshopping.com with your order number.
+- Depending on what happened, you may be entitled to re-delivery, a replacement, or a refund. Missing,
+  damaged, spoiled or incorrect items are handled under our
+  [Refund, Returns & Cancellations Policy](/legal/refunds-returns).
+- Where delivery is affected by something outside our reasonable control, our obligations are as set by
+  the Australian Consumer Law.
+
+## Failed delivery through no fault of ours
+
+If a delivery cannot be completed because the address was wrong, no one was available to receive an
+order that required a person to be present, or access was not possible, we will try to contact you.
+Additional attempts or re-delivery may incur a further fee, which we will make clear before charging.
+
+## Changes to this policy
+
+We may update this policy from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com""",
+        versions = listOf(
+        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """This Delivery Policy explains how Effy delivers your orders — where we deliver, when, what it costs,
+and who is responsible if something goes wrong. It is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]),
+forms part of our [Terms of Service](/legal/terms-of-service), and works together with our
+[Refund, Returns & Cancellations Policy](/legal/refunds-returns). This is a draft prepared for legal
+review, and does not exclude your rights under the Australian Consumer Law.
+
+## Where we deliver
+
+Effy delivers to addresses within its serviced areas. Before you place an order, we will tell you
+whether we deliver to your address. If we do not yet deliver to you, you will not be able to complete
+an order for delivery there.
+
+## Delivery times
+
+- Delivery times and windows shown at checkout are **estimates**, not guarantees, and can be affected
+  by weather, traffic, demand, and other factors outside our reasonable control.
+- Under the Australian Consumer Law, we will make your order available within a reasonable time. If we
+  cannot, you may be entitled to a remedy — see "If your order does not arrive" below.
+
+## Delivery fees and minimum orders
+
+- Any delivery fee and any minimum order value are shown **before you confirm and pay**. If they are
+  not shown, they do not apply to that order.
+- Fees may vary by area, order size, or time of delivery. The fee shown at checkout is the fee that
+  applies to that order.
+
+## Receiving your order
+
+- You are responsible for providing accurate delivery details and for arranging safe, lawful receipt
+  of your order.
+- **Perishable and chilled/frozen items** are delivered under normal handling; once delivered, please
+  refrigerate or freeze them promptly. See our
+  [Food Safety & Allergen Notice](/legal/food-safety-allergens).
+- **Unattended delivery ("safe drop").** If you ask us to leave an order without someone present, or
+  give delivery instructions to that effect, you accept that the order is left at your direction and
+  that responsibility for it passes to you once it is left as instructed. We may decline to leave an
+  order unattended where it is unsafe or unlawful to do so.
+- **Age-restricted items.** Where an order contains an item with a minimum age or ID requirement, the
+  person receiving it may be required to show valid identification, and we may refuse to hand it over
+  if that requirement is not met. Any such requirement is shown at the point of sale.
+
+## Who is responsible for delivery
+
+Until your order is delivered to you (or left as you have instructed for an unattended delivery), **we
+are responsible for getting it to you** — not the delivery driver or any third party. If there is a
+problem with delivery, you deal with Effy, and we sort out the rest.
+
+## If your order does not arrive, or arrives late or incomplete
+
+- If your order does not arrive within a reasonable time, or arrives incomplete, contact us at
+  support@effyshopping.com with your order number.
+- Depending on what happened, you may be entitled to re-delivery, a replacement, or a refund. Missing,
+  damaged, spoiled or incorrect items are handled under our
+  [Refund, Returns & Cancellations Policy](/legal/refunds-returns).
+- Where delivery is affected by something outside our reasonable control, our obligations are as set by
+  the Australian Consumer Law.
+
+## Failed delivery through no fault of ours
+
+If a delivery cannot be completed because the address was wrong, no one was available to receive an
+order that required a person to be present, or access was not possible, we will try to contact you.
+Additional attempts or re-delivery may incur a further fee, which we will make clear before charging.
+
+## Changes to this policy
+
+We may update this policy from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com"""),
+        ),
+    ),
+    LegalDocument(
+        slug = "promotions-terms",
+        title = "Promotions & Discount Code Terms",
+        category = "legal",
+        order = 5,
+        currentVersion = "v1",
+        effectiveDate = "2026-08-13",
+        body = """These terms apply to promotional offers, discount codes, vouchers and special prices offered by Effy,
+operated by [LEGAL_ENTITY_NAME] (ABN [ABN]). They form part of our
+[Terms of Service](/legal/terms-of-service). Where a specific promotion has its own terms shown when it
+is offered, those specific terms apply in addition to these. This is a draft prepared for legal review,
+and nothing in it excludes your rights under the Australian Consumer Law.
+
+## Using a discount code or offer
+
+- A code or offer is valid only for the period, products and conditions stated when it is offered, and
+  only while stocks last.
+- Unless stated otherwise, **one code applies per order**, and codes **cannot be combined** with other
+  codes or offers.
+- Any minimum spend, eligible products, usage limit, and expiry are shown when the offer is made. If an
+  expiry is shown, the code cannot be used after it.
+
+## Codes are personal and have no cash value
+
+- Discount codes are **personal to the person they are issued to** and **cannot be transferred, sold,
+  or published** for others to use, unless we say they are shared.
+- Codes and offers have **no cash value**, cannot be exchanged for cash, and are not gift cards.
+
+## Honest pricing
+
+- Advertised savings are genuine. We do not inflate a price before a promotion in order to advertise a
+  larger discount, and any "was"/"now" or "save" claim reflects a real prior price.
+- Prices and offers shown online may differ from those in any other channel, and promotional prices
+  apply only where and when stated.
+
+## When we can withdraw or cancel an offer
+
+- We may change, suspend, or withdraw a promotion at any time before you place an order.
+- We may cancel or refuse a code, or cancel an order that used it, where we reasonably believe there
+  has been an **error, fraud, abuse, or a breach of these terms** (for example, a code obtained or used
+  in a way it was not intended). Where we do this after an order, we will refund any amount you have
+  paid for goods not supplied.
+- If a promotion is published because of an obvious error (for example, a clear pricing mistake), we
+  may correct it and decline or cancel affected orders, refunding you in full.
+
+## Your consumer rights are not affected
+
+Nothing in these terms limits the consumer guarantees that apply to goods you buy under the Australian
+Consumer Law, whether or not a discount was applied. A discounted item carries the same guarantees as a
+full-price one.
+
+## Changes to these terms
+
+We may update these terms from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com""",
+        versions = listOf(
+        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """These terms apply to promotional offers, discount codes, vouchers and special prices offered by Effy,
+operated by [LEGAL_ENTITY_NAME] (ABN [ABN]). They form part of our
+[Terms of Service](/legal/terms-of-service). Where a specific promotion has its own terms shown when it
+is offered, those specific terms apply in addition to these. This is a draft prepared for legal review,
+and nothing in it excludes your rights under the Australian Consumer Law.
+
+## Using a discount code or offer
+
+- A code or offer is valid only for the period, products and conditions stated when it is offered, and
+  only while stocks last.
+- Unless stated otherwise, **one code applies per order**, and codes **cannot be combined** with other
+  codes or offers.
+- Any minimum spend, eligible products, usage limit, and expiry are shown when the offer is made. If an
+  expiry is shown, the code cannot be used after it.
+
+## Codes are personal and have no cash value
+
+- Discount codes are **personal to the person they are issued to** and **cannot be transferred, sold,
+  or published** for others to use, unless we say they are shared.
+- Codes and offers have **no cash value**, cannot be exchanged for cash, and are not gift cards.
+
+## Honest pricing
+
+- Advertised savings are genuine. We do not inflate a price before a promotion in order to advertise a
+  larger discount, and any "was"/"now" or "save" claim reflects a real prior price.
+- Prices and offers shown online may differ from those in any other channel, and promotional prices
+  apply only where and when stated.
+
+## When we can withdraw or cancel an offer
+
+- We may change, suspend, or withdraw a promotion at any time before you place an order.
+- We may cancel or refuse a code, or cancel an order that used it, where we reasonably believe there
+  has been an **error, fraud, abuse, or a breach of these terms** (for example, a code obtained or used
+  in a way it was not intended). Where we do this after an order, we will refund any amount you have
+  paid for goods not supplied.
+- If a promotion is published because of an obvious error (for example, a clear pricing mistake), we
+  may correct it and decline or cancel affected orders, refunding you in full.
+
+## Your consumer rights are not affected
+
+Nothing in these terms limits the consumer guarantees that apply to goods you buy under the Australian
+Consumer Law, whether or not a discount was applied. A discounted item carries the same guarantees as a
+full-price one.
+
+## Changes to these terms
+
+We may update these terms from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com"""),
+        ),
+    ),
+    LegalDocument(
+        slug = "food-safety-allergens",
+        title = "Food Safety & Allergen Notice",
+        category = "legal",
+        order = 6,
+        currentVersion = "v1",
+        effectiveDate = "2026-08-13",
+        body = """Your health and safety matter to us. This notice explains how to use the product information Effy shows
+online, and how to handle food safely once it is delivered. Effy is operated by [LEGAL_ENTITY_NAME]
+(ABN [ABN]). This is a draft prepared for legal review, and nothing in it excludes your rights under
+the Australian Consumer Law or affects any obligation under the Food Standards Code.
+
+## ⚠ Always check the physical product label
+
+The ingredient, allergen, nutritional and dietary information shown on the Effy website and app is
+provided to help you choose, **but it may not always be complete or up to date**. Manufacturers can
+change a product's ingredients or packaging at any time, and there may be a delay before the online
+information is updated.
+
+**If you have a food allergy, intolerance, or a specific dietary requirement, always read the label on
+the physical product before you consume it, and do not rely solely on the information shown online.**
+If precise information matters and the label does not answer your question, contact the manufacturer
+using the details on the packaging.
+
+## Allergens
+
+Allergen labelling in Australia follows the Food Standards Code (FSANZ Standard 1.2.3) and the Plain
+English Allergen Labelling requirements, under which declarable allergens are shown clearly on the
+product label. The label on the product you receive is the authoritative source for allergen
+information. Any "may contain" or precautionary statement on a label reflects the manufacturer's
+assessment of cross-contamination risk.
+
+## Substitutions
+
+If you allow substitutions and an item is out of stock, a substitute we select **may not meet the same
+dietary or allergen requirements** as your original choice. Please check the label of any substituted
+item before consuming it. You can decline substitutions at checkout, and you are not charged for a
+substitute you do not accept — see our
+[Refund, Returns & Cancellations Policy](/legal/refunds-returns).
+
+## Handling your food safely after delivery
+
+- **Refrigerate or freeze promptly.** Put chilled and frozen items away as soon as your order arrives.
+- **Check on arrival.** If a perishable item arrives damaged, spoiled, or not at a safe temperature,
+  do not consume it — contact us at support@effyshopping.com and we will make it right under our
+  [Refund, Returns & Cancellations Policy](/legal/refunds-returns).
+- **Follow storage and use-by guidance** shown on each product's packaging.
+
+## Product recalls
+
+If a product is recalled, follow the instructions in the recall notice (for example, from the
+manufacturer or Food Standards Australia New Zealand). If you have bought a recalled product through
+Effy, contact us at support@effyshopping.com and we will help with a refund or replacement.
+
+## Age-restricted products
+
+Some products are not suitable for or may not be sold to people under a certain age. Where an age
+restriction applies, it is shown at the point of sale, and proof of age may be required on delivery.
+
+## Changes to this notice
+
+We may update this notice from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com""",
+        versions = listOf(
+        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """Your health and safety matter to us. This notice explains how to use the product information Effy shows
+online, and how to handle food safely once it is delivered. Effy is operated by [LEGAL_ENTITY_NAME]
+(ABN [ABN]). This is a draft prepared for legal review, and nothing in it excludes your rights under
+the Australian Consumer Law or affects any obligation under the Food Standards Code.
+
+## ⚠ Always check the physical product label
+
+The ingredient, allergen, nutritional and dietary information shown on the Effy website and app is
+provided to help you choose, **but it may not always be complete or up to date**. Manufacturers can
+change a product's ingredients or packaging at any time, and there may be a delay before the online
+information is updated.
+
+**If you have a food allergy, intolerance, or a specific dietary requirement, always read the label on
+the physical product before you consume it, and do not rely solely on the information shown online.**
+If precise information matters and the label does not answer your question, contact the manufacturer
+using the details on the packaging.
+
+## Allergens
+
+Allergen labelling in Australia follows the Food Standards Code (FSANZ Standard 1.2.3) and the Plain
+English Allergen Labelling requirements, under which declarable allergens are shown clearly on the
+product label. The label on the product you receive is the authoritative source for allergen
+information. Any "may contain" or precautionary statement on a label reflects the manufacturer's
+assessment of cross-contamination risk.
+
+## Substitutions
+
+If you allow substitutions and an item is out of stock, a substitute we select **may not meet the same
+dietary or allergen requirements** as your original choice. Please check the label of any substituted
+item before consuming it. You can decline substitutions at checkout, and you are not charged for a
+substitute you do not accept — see our
+[Refund, Returns & Cancellations Policy](/legal/refunds-returns).
+
+## Handling your food safely after delivery
+
+- **Refrigerate or freeze promptly.** Put chilled and frozen items away as soon as your order arrives.
+- **Check on arrival.** If a perishable item arrives damaged, spoiled, or not at a safe temperature,
+  do not consume it — contact us at support@effyshopping.com and we will make it right under our
+  [Refund, Returns & Cancellations Policy](/legal/refunds-returns).
+- **Follow storage and use-by guidance** shown on each product's packaging.
+
+## Product recalls
+
+If a product is recalled, follow the instructions in the recall notice (for example, from the
+manufacturer or Food Standards Australia New Zealand). If you have bought a recalled product through
+Effy, contact us at support@effyshopping.com and we will help with a refund or replacement.
+
+## Age-restricted products
+
+Some products are not suitable for or may not be sold to people under a certain age. Where an age
+restriction applies, it is shown at the point of sale, and proof of age may be required on delivery.
+
+## Changes to this notice
+
+We may update this notice from time to time. The current version and effective date are shown at the
+top, and previous versions are available from the version history.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com"""),
+        ),
+    ),
+    LegalDocument(
         slug = "cookies-tracking",
         title = "Cookie & Tracking Notice",
         category = "legal",
-        order = 4,
+        order = 7,
         currentVersion = "v1",
         effectiveDate = "2026-08-13",
         body = """This notice explains the cookies and similar technologies Effy uses on its website and in its mobile
@@ -735,7 +1179,7 @@ top."""),
         slug = "acceptable-use",
         title = "Acceptable Use Policy",
         category = "legal",
-        order = 5,
+        order = 8,
         currentVersion = "v1",
         effectiveDate = "2026-08-13",
         body = """This Acceptable Use Policy sets out what you may and may not do when using Effy. It forms part of our
@@ -795,7 +1239,7 @@ If you see misuse of Effy, tell us at support@effyshopping.com."""),
         slug = "eula",
         title = "End User License Agreement",
         category = "legal",
-        order = 6,
+        order = 9,
         currentVersion = "v1",
         effectiveDate = "2026-08-13",
         body = """This page explains the licence under which you may use the Effy mobile apps. This is a draft prepared
@@ -865,7 +1309,7 @@ inconsistency with this page about the service itself.
         slug = "acknowledgements",
         title = "Open-Source Acknowledgements",
         category = "info",
-        order = 7,
+        order = 10,
         currentVersion = "v1",
         effectiveDate = "2026-08-13",
         body = """The Effy website and mobile apps are built with open-source software. We are grateful to the
@@ -921,7 +1365,7 @@ support@effyshopping.com, and is maintained alongside the app's build."""),
         slug = "about",
         title = "About Effy",
         category = "info",
-        order = 8,
+        order = 11,
         currentVersion = "v1",
         effectiveDate = "2026-08-13",
         body = """Effy is a grocery and everyday-essentials shopping and delivery service — fresh groceries and the
@@ -944,6 +1388,9 @@ Effy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].
 - [Privacy Policy](/legal/privacy-policy)
 - [Terms of Service](/legal/terms-of-service)
 - [Refund, Returns & Cancellations Policy](/legal/refunds-returns)
+- [Delivery Policy](/legal/delivery-policy)
+- [Promotions & Discount Code Terms](/legal/promotions-terms)
+- [Food Safety & Allergen Notice](/legal/food-safety-allergens)
 - [Cookie & Tracking Notice](/legal/cookies-tracking)
 - [Acceptable Use Policy](/legal/acceptable-use)
 - [End User License Agreement](/legal/eula)
@@ -969,6 +1416,9 @@ Effy is operated by [LEGAL_ENTITY_NAME] (ABN [ABN]), of [REGISTERED_ADDRESS].
 - [Privacy Policy](/legal/privacy-policy)
 - [Terms of Service](/legal/terms-of-service)
 - [Refund, Returns & Cancellations Policy](/legal/refunds-returns)
+- [Delivery Policy](/legal/delivery-policy)
+- [Promotions & Discount Code Terms](/legal/promotions-terms)
+- [Food Safety & Allergen Notice](/legal/food-safety-allergens)
 - [Cookie & Tracking Notice](/legal/cookies-tracking)
 - [Acceptable Use Policy](/legal/acceptable-use)
 - [End User License Agreement](/legal/eula)
