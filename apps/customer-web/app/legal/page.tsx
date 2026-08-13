@@ -22,12 +22,6 @@ export default function LegalIndexPage() {
 
       <Section title="Policies & agreements" docs={legal} />
       <Section title="About" docs={info} />
-
-      <section className="mt-10 border-t pt-6">
-        <Link href="/delete-account" className="text-sm underline">
-          Delete your Effy account
-        </Link>
-      </section>
     </main>
   )
 }
