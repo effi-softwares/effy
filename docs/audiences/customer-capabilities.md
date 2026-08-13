@@ -1005,9 +1005,9 @@ About) live in the shared SSOT `@effy/legal-content` — canonical Markdown → 
 
 | Capability | customer-web | customer-mobile |
 | --- | --- | --- |
-| Read all 8 legal documents | ✅ built + verified (`/legal/[type]`, `/legal`, `/about`) | 🚧 generated `LegalContent.kt` present; **screens not built/compiled** |
-| Version + effective date, version history | ✅ `/legal/[type]/versions` | 🚧 data present; screen pending |
-| In-app links (footer, sign-up consent, account, delete-account) | ✅ built | 🚧 Account rows exist but **Terms→Privacy mis-wire not yet fixed**; About screen pending |
+| Read all **11** legal documents | ✅ built + verified (`/legal/[type]`, `/legal`, `/about`) | 🚧 **built**, native render from `LegalContent.kt` (`LegalScreens.kt` + dependency-free `LegalMarkdown.kt`); **not yet Gradle-compiled** |
+| Version + effective date | ✅ `/legal/[type]/versions` | 🚧 shown on each document screen |
+| In-app links (footer, checkout, newsletter, product, account) | ✅ built | 🚧 Account → Privacy & data + Legal section; **Terms→Privacy mis-wire FIXED** |
 | Store collateral (Apple/Google mappings, checklist, review notes) | ✅ `docs/store-submission/` | (same, shared) |
 
 ⚠ **Drafts pending legal review + operator identifiers.** Entity name, ABN, registered address and

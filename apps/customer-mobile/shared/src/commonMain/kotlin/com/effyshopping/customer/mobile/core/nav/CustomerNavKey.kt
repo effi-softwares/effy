@@ -159,6 +159,17 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable
     data class Password(val setFirst: Boolean) : CustomerNavKey
+
+    // ── 045: Legal & informational documents ────────────────────────────────────────────────────
+    /** The `/legal` index — lists every document. */
+    @Serializable data object LegalIndex : CustomerNavKey
+
+    /**
+     * Any one legal/informational document, by slug (privacy-policy, terms-of-service, …). One route
+     * renders all 11 from the generated `LEGAL_DOCUMENTS`, so About = `LegalDocument("about")` and
+     * Licenses = `LegalDocument("acknowledgements")` need no keys of their own.
+     */
+    @Serializable data class LegalDocument(val slug: String) : CustomerNavKey
 }
 
 /** What an emailed code is for — so the verify screen knows which flow to complete. */
@@ -225,6 +236,8 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.DeleteAccount::class, CustomerNavKey.DeleteAccount.serializer())
             subclass(CustomerNavKey.PasswordReset::class, CustomerNavKey.PasswordReset.serializer())
             subclass(CustomerNavKey.Password::class, CustomerNavKey.Password.serializer())
+            subclass(CustomerNavKey.LegalIndex::class, CustomerNavKey.LegalIndex.serializer())
+            subclass(CustomerNavKey.LegalDocument::class, CustomerNavKey.LegalDocument.serializer())
         }
     }
 }
@@ -261,4 +274,6 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.DeleteAccount,
     CustomerNavKey.PasswordReset,
     CustomerNavKey.Password(setFirst = true),
+    CustomerNavKey.LegalIndex,
+    CustomerNavKey.LegalDocument("privacy-policy"),
 )

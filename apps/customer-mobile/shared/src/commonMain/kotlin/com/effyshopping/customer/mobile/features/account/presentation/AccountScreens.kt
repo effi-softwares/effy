@@ -356,6 +356,11 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
         EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
 
+        // 045 — legal & informational documents, rendered natively from @effy/legal-content.
+        AccountSectionHeader("Legal")
+        EffyNavRow("Legal & policies", onClick = { nav.push(CustomerNavKey.LegalIndex) })
+        EffyNavRow("About Effy", onClick = { nav.push(CustomerNavKey.LegalDocument("about")) })
+
         // ⚠ FR-007 — NO SIGN-OUT CONTROL ON THIS SCREEN.
         //
         // Both sign-out rows used to sit here, styled destructive, immediately below ordinary
@@ -541,12 +546,13 @@ private fun PrivacyScreen(container: AppContainer) {
                 modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
             )
 
-            // ⚠ FR-052/FR-052a — these links are required by BOTH stores, and the documents behind
-            // them do not exist yet. The content is legally reviewed and operator-owned; placeholder
-            // legal text would defeat SC-010, which requires every claim to be true of the built
-            // system. Tracked in SUBMISSION-BLOCKERS.md.
-            EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.Privacy) })
-            EffyNavRow("Terms of service", onClick = { nav.push(CustomerNavKey.Privacy) })
+            // ⚠ In-app privacy policy + terms links are required by BOTH stores (Apple 5.1.1(i),
+            // Google User Data policy). The documents are rendered natively from @effy/legal-content
+            // (045). ⚠ Each row opens its OWN document — a prior version wired BOTH to the Privacy
+            // screen, so "Terms of service" silently opened the privacy page.
+            EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.LegalDocument("privacy-policy")) })
+            EffyNavRow("Terms of service", onClick = { nav.push(CustomerNavKey.LegalDocument("terms-of-service")) })
+            EffyNavRow("All legal documents", onClick = { nav.push(CustomerNavKey.LegalIndex) })
 
             Spacer(Modifier.height(EffySpacing.xxxl))
 
