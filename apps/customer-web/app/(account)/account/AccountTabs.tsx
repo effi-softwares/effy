@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react"
-import { ChevronRight, FileText, MapPin, ShieldCheck, User } from "lucide-react"
+import { ChevronRight, FileText, MapPin, Scale, ShieldCheck, User } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { LoadingArea } from "@/components/Spinner"
@@ -92,6 +92,7 @@ const ITEMS: { tab: AccountTab; label: string; hint: string; Icon: LucideIcon }[
   { tab: "addresses", label: "Address book", hint: "Where we deliver", Icon: MapPin },
   { tab: "security", label: "Security", hint: "Password, sign-out", Icon: ShieldCheck },
   { tab: "privacy", label: "Privacy & data", hint: "Export, delete", Icon: FileText },
+  { tab: "legal", label: "Legal", hint: "Policies & terms", Icon: Scale },
 ]
 
 /**

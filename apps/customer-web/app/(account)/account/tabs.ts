@@ -7,9 +7,9 @@
  */
 
 /** The tabs that live INSIDE the content area (not separate pages). */
-export type AccountTab = "personal" | "addresses" | "security" | "privacy"
+export type AccountTab = "personal" | "addresses" | "security" | "privacy" | "legal"
 
-export const TABS: readonly AccountTab[] = ["personal", "addresses", "security", "privacy"]
+export const TABS: readonly AccountTab[] = ["personal", "addresses", "security", "privacy", "legal"]
 
 export function parseTab(raw: string | undefined): AccountTab {
   return (TABS as readonly string[]).includes(raw ?? "") ? (raw as AccountTab) : "personal"

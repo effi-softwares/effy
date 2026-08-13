@@ -4,6 +4,7 @@ import { Suspense } from "react"
 import { Heart, ShoppingBag, Tag } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
+import { allDocuments } from "@effy/legal-content"
 import type { AddressDTO } from "@effy/shared-types"
 
 import { AddressList } from "@/app/(account)/addresses/_components/AddressList"
@@ -95,6 +96,8 @@ async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: str
               />
             ) : active === "privacy" ? (
               <PrivacySection />
+            ) : active === "legal" ? (
+              <LegalSection />
             ) : (
               <>
                 {/*
@@ -205,21 +208,16 @@ function PrivacySection() {
         </h2>
         <ul className="mt-4 divide-y">
           {/* ⚠ An in-app privacy policy link is required by BOTH stores (Apple 5.1.1(i), Google User
-              Data policy). The documents behind these links come from @effy/legal-content (045). */}
-          {[
-            { label: "Privacy policy", href: "/legal/privacy-policy" },
-            { label: "Terms of service", href: "/legal/terms-of-service" },
-            { label: "Refunds & returns", href: "/legal/refunds-returns" },
-          ].map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
-              >
-                {item.label}
-              </Link>
-            </li>
-          ))}
+              Data policy) and belongs HERE, in the privacy area. The full list of documents lives in
+              the Legal tab, not duplicated here. */}
+          <li>
+            <Link
+              href="/legal/privacy-policy"
+              className="flex min-h-[48px] items-center py-3 text-sm hover:text-foreground/70"
+            >
+              Privacy policy
+            </Link>
+          </li>
         </ul>
       </section>
 
@@ -246,8 +244,70 @@ function PrivacySection() {
         <h2 id="delete-heading" className="text-lg font-medium">
           Delete account
         </h2>
-        <DeleteAccountFlow />
+
+        {/* The good explanation that used to live only on the public /delete-account page — shown
+            here too, where a signed-in customer actually deletes. */}
+        <p className="mt-2 text-sm text-muted-foreground">
+          Deleting removes your account, your saved items, your saved addresses and your personal
+          details. We keep completed orders and payment records, because tax and accounting rules
+          require it, and fraud and security signals that protect other customers — as set out in our{" "}
+          <Link href="/legal/privacy-policy" className="underline">
+            privacy policy
+          </Link>
+          . If you have an order in progress, you&rsquo;ll be asked to wait until it&rsquo;s complete.
+        </p>
+
+        <div className="mt-4">
+          <DeleteAccountFlow />
+        </div>
       </section>
+    </div>
+  )
+}
+
+/**
+ * The Legal tab (045) — every legal & informational document in one place, from @effy/legal-content
+ * (the single source shared with mobile). Contextual links still live where the decision is made
+ * (checkout, sign-up, product, footer); this is the canonical "browse them all" home.
+ */
+function LegalSection() {
+  const legal = allDocuments().filter((d) => d.category === "legal")
+  const info = allDocuments().filter((d) => d.category === "info")
+
+  return (
+    <section aria-labelledby="legal-heading" className="space-y-8">
+      <div>
+        <h2 id="legal-heading" className="text-xl font-semibold">
+          Legal
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The documents that govern your use of Effy, and how we handle your information.
+        </p>
+      </div>
+
+      <LegalGroup title="Policies & agreements" docs={legal} />
+      <LegalGroup title="About" docs={info} />
+    </section>
+  )
+}
+
+function LegalGroup({ title, docs }: { title: string; docs: ReturnType<typeof allDocuments> }) {
+  return (
+    <div>
+      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      <ul className="mt-2 divide-y">
+        {docs.map((doc) => (
+          <li key={doc.slug}>
+            <Link
+              href={`/legal/${doc.slug}`}
+              className="flex min-h-[48px] items-center justify-between py-3 text-sm hover:text-foreground/70"
+            >
+              <span>{doc.title}</span>
+              <span className="text-xs text-muted-foreground">Updated {doc.effectiveDate}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
