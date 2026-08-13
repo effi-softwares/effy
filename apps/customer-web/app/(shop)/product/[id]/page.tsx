@@ -182,6 +182,16 @@ async function ProductDetail({ params }: { params: Promise<{ id: string }> }) {
       {/* The reference's tabbed block, carrying only what Effy actually has. */}
       <ProductSections product={product} />
 
+      {/* Grocery allergen safety line — always shown; the label on the product is authoritative. */}
+      <p className="mt-8 text-xs text-muted-foreground">
+        Allergen &amp; ingredient information: always read the label on the physical product — online
+        information may not be complete or current. See our{" "}
+        <Link href="/legal/food-safety-allergens" className="underline">
+          Food Safety &amp; Allergen Notice
+        </Link>
+        .
+      </p>
+
       {product.categoryKey && (
         // Its OWN Suspense boundary: a slow related query must never delay the buy box.
         <Suspense fallback={<div className="mt-12 h-72" aria-hidden="true" />}>
