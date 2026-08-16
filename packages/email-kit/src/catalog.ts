@@ -280,6 +280,51 @@ export const CATALOG = {
      */
     onSendFailure: "throw",
   },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // 046 — customer feedback. Two platform-sent transactional messages with OPPOSITE failure policies,
+  // which is exactly the discriminator this catalogue exists to carry.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  "feedback-received": {
+    vars: { referenceCode: "string", category: "string" },
+    subject: (_v, p) => `We got your feedback — ${p.productName}`,
+    // ⚠ States the purpose; carries no secret; does not repeat the subject.
+    preheader: () => "Thanks for taking the time. Here's your reference.",
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    category: "transactional",
+
+    /**
+     * ⚠ SWALLOW. The submission is ALREADY stored and the shopper's on-screen confirmation already
+     * said "received" (FR-015). A thrown failure here would contradict a true fact — the same reason
+     * `account-password-changed` swallows, and the mirror image of `newsletter-confirmation`'s throw
+     * (there the row is written before a send whose whole point is the recipient acting on it).
+     */
+    onSendFailure: "swallow",
+  },
+
+  "feedback-reply": {
+    vars: {
+      replyBody: "string",
+      originalMessage: "string",
+      category: "string",
+      referenceCode: "string",
+    },
+    subject: (v, p) => `Re: your ${p.productName} feedback (${v.referenceCode})`,
+    preheader: () => "A reply from the Effy team.",
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+    category: "transactional",
+
+    /**
+     * ⚠ THROW. Nothing irreversible has happened yet, and the whole point of the action is that the
+     * shopper receives it. A swallowed failure would let the console mark the submission `replied`
+     * while the shopper got nothing (FR-030). The service writes the reply row + flips status ONLY
+     * after this send succeeds; the throw is what guarantees that ordering.
+     */
+    onSendFailure: "throw",
+  },
 } as const satisfies Record<string, MessageEntry>;
 
 export type TemplateId = keyof typeof CATALOG;

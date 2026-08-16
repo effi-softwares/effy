@@ -324,6 +324,14 @@ submission's status becomes replied, and confirm the reply is listed in the subm
   (admin/manager for state-changing actions), decided from the staff record, not the token claim.
 - **Feedback is separate from support/returns/order issues.** This is a general listening channel;
   order-specific problems, returns, and account recovery remain their own flows.
+- **Reply failure means send-time failure (v1).** "Staff see that delivery did not succeed" covers a
+  synchronous send failure at reply time. An **asynchronous hard-bounce** arriving hours later is out
+  of scope for this slice — the platform already tracks per-address delivery health in the
+  deliverability path (037), and reconciling a feedback reply against that signal is a later
+  enhancement, not part of v1.
+- **Message/reply/note lengths have fixed defaults** (message and reply 5000 characters, internal
+  note 2000), defined once as shared constants so the form, the service, and the stored bound cannot
+  disagree; the operator can adjust them.
 
 ## Dependencies
 

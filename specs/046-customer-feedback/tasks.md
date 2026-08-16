@@ -34,9 +34,9 @@ Gates require verification against acceptance criteria, so tests are first-class
 
 **Purpose**: The cross-story scaffolding every story builds on.
 
-- [ ] T001 [P] Create the migration `db/migrations/<ts>_customer_feedback.sql` (via `make db-new NAME=customer_feedback`) defining `public.feedback_submission`, `public.feedback_reply`, `public.feedback_note` with all CHECK constraints, indexes (created_at DESC, status/category, `pg_trgm` on message, citext email, source_key window), FKs, and the immutable-vs-mutable column comment — per [data-model.md](data-model.md). Forward-only; dev-only Down drops the tables.
-- [ ] T002 [P] Add `packages/shared-types/src/feedback.ts`: the `FeedbackCategory` / `FeedbackStatus` / `FeedbackSource` / `FeedbackPlatform` unions, human label maps, `SubmitFeedbackRequest` / `SubmitFeedbackResult`, and the admin `FeedbackListItemDTO` / `FeedbackDetailDTO` / `FeedbackReplyDTO` / `FeedbackNoteDTO`; export from `packages/shared-types/src/index.ts`.
-- [ ] T003 Scaffold the two domain dirs (`apis/edge-api/customer/src/feedback/`, `apis/edge-api/admin/src/feedback/`) and wire required env keys into each `serverless.yml` — reuse `email-kit`'s `MAIL_ENV_KEYS` and add the feedback rate-limit config keys (window + quota) with no literals buried in queries.
+- [X] T001 [P] Create the migration `db/migrations/<ts>_customer_feedback.sql` (via `make db-new NAME=customer_feedback`) defining `public.feedback_submission`, `public.feedback_reply`, `public.feedback_note` with all CHECK constraints, indexes (created_at DESC, status/category, `pg_trgm` on message, citext email, source_key window), FKs, and the immutable-vs-mutable column comment — per [data-model.md](data-model.md). Forward-only; dev-only Down drops the tables.
+- [X] T002 [P] Add `packages/shared-types/src/feedback.ts`: the `FeedbackCategory` / `FeedbackStatus` / `FeedbackSource` / `FeedbackPlatform` unions, human label maps, the length constants `FEEDBACK_MESSAGE_MAX=5000` / `FEEDBACK_REPLY_MAX=5000` / `FEEDBACK_NOTE_MAX=2000` (U1 — the single source the DB CHECK, services, form, and mobile all import), `SubmitFeedbackRequest` / `SubmitFeedbackResult`, and the admin `FeedbackListItemDTO` / `FeedbackDetailDTO` / `FeedbackReplyDTO` / `FeedbackNoteDTO`; export from `packages/shared-types/src/index.ts`.
+- [X] T003 Scaffold the two domain dirs (`apis/edge-api/customer/src/feedback/`, `apis/edge-api/admin/src/feedback/`) and wire required env keys into each `serverless.yml` — reuse `email-kit`'s `MAIL_ENV_KEYS` and add the feedback rate-limit config keys with recorded defaults (**window = 60 min, quota = 5 submissions per source per window** — A1; overridable by env, no literal buried in a query).
 
 ---
 
@@ -48,10 +48,10 @@ authored together here even though `feedback-received` is exercised by US1 and `
 
 **⚠️ CRITICAL**: No user-story work begins until this phase is complete.
 
-- [ ] T004 Add the `feedback-received` and `feedback-reply` entries to `packages/email-kit/src/catalog.ts` (vars, subject, preheader, `audiences: ["customer"]`, `sentBy: "platform"`, `category: "transactional"`, and the opposite `onSendFailure` — `swallow` for received, `throw` for reply) per [feedback-email.contract.md](contracts/feedback-email.contract.md).
-- [ ] T005 [P] Author `packages/email-kit/src/templates/feedback-received.mjml` + `packages/email-kit/src/text/feedback-received.txt.hbs` (monochrome tokens; reference code + category; no third-party asset).
-- [ ] T006 [P] Author `packages/email-kit/src/templates/feedback-reply.mjml` + `packages/email-kit/src/text/feedback-reply.txt.hbs` (staff reply prominent + quoted original; approved reply identity only).
-- [ ] T007 Regenerate the committed `email-kit` artifacts and run `make email-check` (drift/size/missing-text/contrast in light·dark·invert/banned-techniques/no-3p-asset) to green.
+- [X] T004 Add the `feedback-received` and `feedback-reply` entries to `packages/email-kit/src/catalog.ts` (vars, subject, preheader, `audiences: ["customer"]`, `sentBy: "platform"`, `category: "transactional"`, and the opposite `onSendFailure` — `swallow` for received, `throw` for reply) per [feedback-email.contract.md](contracts/feedback-email.contract.md).
+- [X] T005 [P] Author `packages/email-kit/src/templates/feedback-received.mjml` + `packages/email-kit/src/text/feedback-received.txt.hbs` (monochrome tokens; reference code + category; no third-party asset).
+- [X] T006 [P] Author `packages/email-kit/src/templates/feedback-reply.mjml` + `packages/email-kit/src/text/feedback-reply.txt.hbs` (staff reply prominent + quoted original; approved reply identity only).
+- [X] T007 Regenerate the committed `email-kit` artifacts and run `make email-check` (drift/size/missing-text/contrast in light·dark·invert/banned-techniques/no-3p-asset) to green. Add a render assertion that `feedback-reply` / `feedback-received` output contains only whitelisted vars — no internal-note or internal-id field can appear (G2 — a mechanical proof of FR-038, since the templates already take only whitelisted vars).
 
 **Checkpoint**: Schema, DTOs, and both email templates ready — stories can begin.
 
@@ -68,22 +68,22 @@ on-screen confirmation, and a `feedback-received` email when an email was provid
 
 ### Tests for User Story 1
 
-- [ ] T008 [P] [US1] `apis/edge-api/customer/src/feedback/service.test.ts` — valid submit; missing/whitespace message refused; invalid email refused (shared `EMAIL_SHAPE`); rate-limit refusal without threshold disclosure; inert-text preserved raw; thank-you send failure does NOT lose the submission (FR-015); uniform success reveals no account existence.
-- [ ] T009 [P] [US1] `apis/edge-api/customer/src/feedback/repo.container.test.ts` — insert returns reference code; the rate-limit window COUNT is keyed on `source_key`; authenticated path sets `customer_id` + `email_verified=true`, public path does not.
-- [ ] T010 [P] [US1] `apis/edge-api/customer/src/feedback/config.contract.test.ts` — reads the real `serverless.yml` and asserts every env key the service reads (incl. `MAIL_ENV_KEYS` + rate-limit keys) is declared (035/038 guard).
+- [X] T008 [P] [US1] `apis/edge-api/customer/src/feedback/service.test.ts` — valid submit; missing/whitespace message refused; invalid email refused (shared `EMAIL_SHAPE`); rate-limit refusal without threshold disclosure; inert-text preserved raw; thank-you send failure does NOT lose the submission (FR-015); uniform success reveals no account existence.
+- [X] T009 [P] [US1] `apis/edge-api/customer/src/feedback/repo.container.test.ts` — insert returns reference code; the rate-limit window COUNT is keyed on `source_key`; authenticated path sets `customer_id` + `email_verified=true`, public path does not.
+- [X] T010 [P] [US1] `apis/edge-api/customer/src/feedback/config.contract.test.ts` — reads the real `serverless.yml` and asserts every env key the service reads (incl. `MAIL_ENV_KEYS` + rate-limit keys) is declared (035/038 guard).
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] `apis/edge-api/customer/src/feedback/lib.ts` — opaque `FB-XXXXXX` reference-code generator (not sequential/guessable) and the `source_key` hashing (sub → hashed sourceIp), with unit tests.
-- [ ] T012 [US1] `apis/edge-api/customer/src/feedback/repo.ts` — raw-SQL insert + the in-statement rate-limit window (research D5); explicit row→domain mapping.
-- [ ] T013 [US1] `apis/edge-api/customer/src/feedback/service.ts` — validate (message, email shape/length, category, rating, source, platform), decide rate limit, insert, send `feedback-received` when an email is available, return the uniform result; log WITHOUT the address.
-- [ ] T014 [P] [US1] `apis/edge-api/customer/src/functions/feedback-submit-v1-post.ts` — authenticated handler: verified `sub` → `customer.id`, trusted profile email, `email_verified=true`.
-- [ ] T015 [P] [US1] `apis/edge-api/customer/src/functions/feedback-submit-public-v1-post.ts` — public handler: body email/name unverified, `source_ip` from `requestContext.http.sourceIp`.
-- [ ] T016 [US1] Wire both functions in `apis/edge-api/customer/serverless.yml` — `/customer/v1/feedback` behind the customer authorizer, `/customer/v1/feedback/public` with no authorizer.
-- [ ] T017 [P] [US1] `apps/customer-web/app/feedback/page.tsx` (server component; prefill name/email from session for signed-in customers) + `apps/customer-web/app/feedback/_components/FeedbackForm.tsx` (single client island: category, message, optional rating, email; success + reference-code confirmation; inline validation preserving typed text) + the API call selecting the authed vs public route by session.
-- [ ] T018 [US1] Confirm the checkout header "Give us feedback" link resolves to `/feedback` (SC-004) and add a stable footer/nav entry; re-run `apps/customer-web` bundle-budget (`/feedback` within the 174 KB guest gate).
+- [X] T011 [P] [US1] `apis/edge-api/customer/src/feedback/lib.ts` — opaque `FB-XXXXXX` reference-code generator (not sequential/guessable) and the `source_key` hashing (sub → hashed sourceIp), with unit tests.
+- [X] T012 [US1] `apis/edge-api/customer/src/feedback/repo.ts` — raw-SQL insert + the in-statement rate-limit window (research D5); explicit row→domain mapping.
+- [X] T013 [US1] `apis/edge-api/customer/src/feedback/service.ts` — validate (message, email shape/length, category, rating, source, platform), decide rate limit, insert, send `feedback-received` when an email is available, return the uniform result; log WITHOUT the address.
+- [X] T014 [P] [US1] `apis/edge-api/customer/src/functions/feedback-submit-v1-post.ts` — authenticated handler: verified `sub` → `customer.id`, trusted profile email, `email_verified=true`.
+- [X] T015 [P] [US1] `apis/edge-api/customer/src/functions/feedback-submit-public-v1-post.ts` — public handler: body email/name unverified, `source_ip` from `requestContext.http.sourceIp`.
+- [X] T016 [US1] Wire both functions in `apis/edge-api/customer/serverless.yml` — `/customer/v1/feedback` behind the customer authorizer, `/customer/v1/feedback/public` with no authorizer.
+- [X] T017 [P] [US1] `apps/customer-web/app/feedback/page.tsx` (server component; prefill name/email from session for signed-in customers) + `apps/customer-web/app/feedback/_components/FeedbackForm.tsx` (single client island: category, message, optional rating, email; success + reference-code confirmation; inline validation preserving typed text) + the API call selecting the authed vs public route by session.
+- [X] T018 [US1] Confirm the checkout header "Give us feedback" link resolves to `/feedback` (SC-004) and add a stable footer/nav entry; re-run `apps/customer-web` bundle-budget (`/feedback` within the 174 KB guest gate).
 - [ ] T019 [P] [US1] `apps/customer-mobile/.../features/feedback/` — domain (`Feedback` model + `SubmitFeedbackUseCase`), data (`HttpFeedbackRepository` + DTO mapping to `contract`), presentation (`FeedbackViewModel` immutable UI state + `FeedbackScreen`), a nav entry (Account/Help), and `commonTest` (validation + submit) compiling on Android + iOS.
-- [ ] T020 [US1] Telemetry: declare + wire `feedback_submitted` (props: category, hasRating, hasEmail, source, platform — no PII) in the web/mobile taxonomy; add the submission metric and the thank-you send-failure alarm; verify no `submitter_email` in logs. ⚠ Record the PostHog-not-yet-initialised-on-customer-web carry-forward (039).
+- [ ] T020 [US1] Telemetry: declare + wire `feedback_submitted` (props: category, hasRating, hasEmail, source, platform — no PII) in the **web** taxonomy now; add the submission metric and the thank-you send-failure alarm; verify no `submitter_email` in logs. ⚠ The **mobile** taxonomy is deferred consistent with prior mobile slices (research D9) — declare the event name but do not block on wiring it. ⚠ Record the PostHog-not-yet-initialised-on-customer-web carry-forward (039), so the web event is wired but a no-op until that lands.
 
 **Checkpoint**: US1 fully functional — the checkout link is live, submissions are stored and thanked, on web and mobile.
 
@@ -100,19 +100,19 @@ submitter-visible).
 
 ### Tests for User Story 2
 
-- [ ] T021 [P] [US2] `apis/edge-api/admin/src/feedback/service.test.ts` — list/search/filter shaping; detail includes replies+notes; status change persists; note insert; read allowed for any active staff incl. csa; fail-closed on authz error.
-- [ ] T022 [P] [US2] `apis/edge-api/admin/src/feedback/repository.container.test.ts` — pagination + newest-first ordering; combinable category/status/rating/date filters; text search over message + email; status update; note insert.
-- [ ] T023 [P] [US2] `apis/edge-api/admin/src/feedback/config.contract.test.ts` — real `serverless.yml` env coverage.
+- [X] T021 [P] [US2] `apis/edge-api/admin/src/feedback/service.test.ts` — list/search/filter shaping; detail includes replies+notes; status change persists; note insert; read allowed for any active staff incl. csa; fail-closed on authz error.
+- [X] T022 [P] [US2] `apis/edge-api/admin/src/feedback/repository.container.test.ts` — pagination + newest-first ordering; combinable category/status/rating/date filters; text search over message + email; status update; note insert.
+- [X] T023 [P] [US2] `apis/edge-api/admin/src/feedback/config.contract.test.ts` — real `serverless.yml` env coverage.
 
 ### Implementation for User Story 2
 
-- [ ] T024 [P] [US2] `apis/edge-api/admin/src/feedback/types.ts` — internal row/param types + mappers to the shared DTOs.
-- [ ] T025 [P] [US2] `apis/edge-api/admin/src/feedback/authz.ts` — `isActiveStaff` (read: any active staff incl. csa), mirroring `deliverability/authz.ts`; fail-closed.
-- [ ] T026 [US2] `apis/edge-api/admin/src/feedback/repository.ts` — raw-SQL list (filters + `pg_trgm` search + keyset/offset pagination + total), detail (submission + ordered replies + notes), status update, note insert.
-- [ ] T027 [US2] `apis/edge-api/admin/src/feedback/service.ts` — read/search/filter, `changeStatus` (rejecting a direct set to `replied`), `addNote`; authz-gated.
-- [ ] T028 [P] [US2] Handlers `feedback-list-v1-get.ts`, `feedback-detail-v1-get.ts`, `feedback-status-v1-post.ts`, `feedback-note-v1-post.ts` in `apis/edge-api/admin/src/functions/` + `serverless.yml` wiring (back-office authorizer).
-- [ ] T029 [P] [US2] `apps/back-office/src/features/feedback/` — `model.ts`, `queries.ts`, `repo.ts`, `access.ts`, and `FeedbackListScreen.tsx` (shared `DataTable` + search box + category/status/rating/date filters + count).
-- [ ] T030 [US2] `apps/back-office/src/features/feedback/FeedbackDetailScreen.tsx` (full message + context: customer-vs-guest, source, platform, timestamps; notes list + add-note; status control) + `apps/back-office/src/routes/feedback.tsx` (index + `$referenceCode` detail) + a nav entry in `components/layout/nav.ts` with NO `requiredRole` (csa-visible, like Deliverability).
+- [X] T024 [P] [US2] `apis/edge-api/admin/src/feedback/types.ts` — internal row/param types + mappers to the shared DTOs.
+- [X] T025 [P] [US2] `apis/edge-api/admin/src/feedback/authz.ts` — `isActiveStaff` (read: any active staff incl. csa), mirroring `deliverability/authz.ts`; fail-closed.
+- [X] T026 [US2] `apis/edge-api/admin/src/feedback/repository.ts` — raw-SQL list (filters + `pg_trgm` search + keyset/offset pagination + total), detail (submission + ordered replies + notes), status update, note insert.
+- [X] T027 [US2] `apis/edge-api/admin/src/feedback/service.ts` — read/search/filter, `changeStatus` (rejecting a direct set to `replied`), `addNote`; authz-gated.
+- [X] T028 [P] [US2] Handlers `feedback-list-v1-get.ts`, `feedback-detail-v1-get.ts`, `feedback-status-v1-post.ts`, `feedback-note-v1-post.ts` in `apis/edge-api/admin/src/functions/` + `serverless.yml` wiring (back-office authorizer).
+- [X] T029 [P] [US2] `apps/back-office/src/features/feedback/` — `model.ts`, `queries.ts`, `repo.ts`, `access.ts`, and `FeedbackListScreen.tsx` (shared `DataTable` + search box + category/status/rating/date filters + count).
+- [X] T030 [US2] `apps/back-office/src/features/feedback/FeedbackDetailScreen.tsx` (full message + context: customer-vs-guest, source, platform, timestamps; notes list + add-note; status control) + `apps/back-office/src/routes/feedback.tsx` (index + `$referenceCode` detail) + a nav entry in `components/layout/nav.ts` with NO `requiredRole` (csa-visible, like Deliverability).
 
 **Checkpoint**: US1 + US2 both work — feedback is collected AND staff can read/search/triage it.
 
@@ -130,16 +130,16 @@ unavailable. On a submission with no email, reply is disabled.
 
 ### Tests for User Story 3
 
-- [ ] T031 [P] [US3] `apis/edge-api/admin/src/feedback/service.test.ts` (reply cases) — role gate admin/manager (csa refused); `no_reply_address` when no email; send-success writes the reply row AND sets `status='replied'`; send-failure (throw) writes nothing and does not change status (FR-030); reply text stored raw/rendered inert.
-- [ ] T032 [P] [US3] `apis/edge-api/admin/src/feedback/repository.container.test.ts` (reply) — the reply insert + status→`replied` happen in one transaction; multiple replies accumulate (FR-031).
+- [X] T031 [P] [US3] `apis/edge-api/admin/src/feedback/service.test.ts` (reply cases) — role gate admin/manager (csa refused); `no_reply_address` when no email; send-success writes the reply row AND sets `status='replied'`; send-failure (throw) writes nothing and does not change status (FR-030); reply text stored raw/rendered inert.
+- [X] T032 [P] [US3] `apis/edge-api/admin/src/feedback/repository.container.test.ts` (reply) — the reply insert + status→`replied` happen in one transaction; multiple replies accumulate (FR-031).
 
 ### Implementation for User Story 3
 
-- [ ] T033 [US3] Extend `apis/edge-api/admin/src/feedback/authz.ts` with `canReplyFeedback` (active AND role ∈ {admin, manager}); fail-closed.
-- [ ] T034 [US3] Extend `apis/edge-api/admin/src/feedback/repository.ts` with the transactional reply write (insert `feedback_reply` + set submission `status='replied'`) invoked only after a successful send.
-- [ ] T035 [US3] Extend `apis/edge-api/admin/src/feedback/service.ts` `reply` — require a submitter email (else `no_reply_address`), send `feedback-reply` via `@effy/email-kit/send`, write the row only on send success, propagate a send failure as `reply_send_failed`; snapshot `staff_name`.
-- [ ] T036 [P] [US3] Handler `feedback-reply-v1-post.ts` in `apis/edge-api/admin/src/functions/` (403 for non-admin/manager, 409 `no_reply_address`, 502 `reply_send_failed`) + `serverless.yml` wiring.
-- [ ] T037 [US3] Extend `apps/back-office/src/features/feedback/FeedbackDetailScreen.tsx` — reply composer (bounded length), replies history, disabled-with-reason state when no submitter email, and the reply action hidden for csa (role-gated in `access.ts`).
+- [X] T033 [US3] Extend `apis/edge-api/admin/src/feedback/authz.ts` with `canReplyFeedback` (active AND role ∈ {admin, manager}); fail-closed.
+- [X] T034 [US3] Extend `apis/edge-api/admin/src/feedback/repository.ts` with the transactional reply write (insert `feedback_reply` + set submission `status='replied'`) invoked only after a successful send.
+- [X] T035 [US3] Extend `apis/edge-api/admin/src/feedback/service.ts` `reply` — validate the reply body server-side against `FEEDBACK_REPLY_MAX` (U2 — the bound must hold for a non-web/direct-API caller, not only the UI composer), require a submitter email (else `no_reply_address`), send `feedback-reply` via `@effy/email-kit/send`, write the row only on send success, propagate a send failure as `reply_send_failed`; snapshot `staff_name`.
+- [X] T036 [P] [US3] Handler `feedback-reply-v1-post.ts` in `apis/edge-api/admin/src/functions/` (403 for non-admin/manager, 409 `no_reply_address`, 502 `reply_send_failed`) + `serverless.yml` wiring.
+- [X] T037 [US3] Extend `apps/back-office/src/features/feedback/FeedbackDetailScreen.tsx` — reply composer (bounded length), replies history, disabled-with-reason state when no submitter email, and the reply action hidden for csa (role-gated in `access.ts`).
 - [ ] T038 [US3] Telemetry: declare + wire `feedback_reply_sent` (prop: category) and the reply-count metric; the reply send-failure feeds the same alarm as T020.
 
 **Checkpoint**: All three stories independently functional — the feedback loop is closed end to end.

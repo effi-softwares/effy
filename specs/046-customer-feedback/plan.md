@@ -134,16 +134,16 @@ packages/
     ├── text/feedback-reply.txt.hbs
     └── generated/…                            # regenerated committed artifacts
 
-apis/edge-api/customer/src/feedback/
-├── repo.ts        repo.container.test.ts
-├── service.ts     service.test.ts
-├── config.contract.test.ts
-└── (functions)    feedback-submit-v1-post.ts (authenticated) + feedback-submit-public-v1-post.ts
+apis/edge-api/customer/src/
+├── feedback/      repo.ts · service.ts · lib.ts · repo.container.test.ts ·
+│                  service.test.ts · config.contract.test.ts
+└── functions/     feedback-submit-v1-post.ts (authenticated) ·
+                   feedback-submit-public-v1-post.ts        # handlers live in src/functions/ (existing convention)
 
-apis/edge-api/admin/src/feedback/
-├── authz.ts       repository.ts    service.ts   types.ts
-├── service.test.ts  repository.container.test.ts  config.contract.test.ts
-└── (functions)    feedback-list / feedback-detail / feedback-status /
+apis/edge-api/admin/src/
+├── feedback/      authz.ts · repository.ts · service.ts · types.ts ·
+│                  service.test.ts · repository.container.test.ts · config.contract.test.ts
+└── functions/     feedback-list / feedback-detail / feedback-status /
                    feedback-note / feedback-reply  (v1 handlers)
 
 apps/customer-web/app/feedback/

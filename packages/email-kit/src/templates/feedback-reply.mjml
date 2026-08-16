@@ -1,0 +1,62 @@
+<!-- feedback-reply — a staff reply to a shopper's feedback (046 US3).
+
+     ⚠ The staff message is the whole point, so it leads and is set in the primary ink. The shopper's
+     original is quoted UNDER a hairline, in muted ink, so they have context without it competing with
+     the reply.
+
+     ⚠ Identifies Effy via the approved customer-facing reply identity ({{effySupportEmail}} → hello@)
+     and NEVER a staff member's personal contact (FR-032). Carries no internal notes or ids (FR-038):
+     only the reply body, a quote of what the shopper themselves sent, the category, and the reference.
+
+     ⚠ TRANSACTIONAL — a direct reply to the shopper, no unsubscribe footer.
+
+     ⚠ Both `replyBody` and `originalMessage` are shopper/staff free text: the render path escapes them,
+     so pasted markup renders as inert text (FR-017). newlines are preserved by the muted block styling. -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>A reply to your {{effyProductName}} feedback</mj-title>
+    <mj-preview>A reply from the {{effyProductName}} team.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 8px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">
+          A reply to your feedback
+        </mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          Thanks again for writing in about &ldquo;{{category}}&rdquo; (reference {{referenceCode}}).
+          Here&rsquo;s our reply:
+        </mj-text>
+
+        <mj-text mj-class="body" css-class="e-ink" padding="16px 0 0 0">
+          {{replyBody}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/divider.mjml" />
+
+    <mj-section padding="8px 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="small" css-class="e-muted">
+          You wrote:
+        </mj-text>
+        <mj-text mj-class="small" css-class="e-muted" padding="8px 0 0 0">
+          {{originalMessage}}
+        </mj-text>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="20px 0 0 0">
+          Want to add something? Just reply to this email.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

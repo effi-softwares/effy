@@ -74,6 +74,16 @@ provider:
     NEWSLETTER_CONFIRM_BASE_URL: ${ssm:/effy/${sls:stage}/web/site_url, 'http://localhost:3000'}/newsletter/confirm
     NEWSLETTER_TOKEN_TTL_HOURS: "24"
     NEWSLETTER_RESEND_COOLDOWN_MINUTES: "60"
+    # ── 046: customer feedback ─────────────────────────────────────────────────────────────────────
+    #
+    # ⚠ DECLARED HERE OR THE SERVICE MISBEHAVES SILENTLY (035's defect verbatim). A config-contract test
+    # (src/feedback/config.contract.test.ts) reads THIS FILE and fails if a key the service reads is
+    # missing. The rate-limit window + quota are the whole of FR-016's abuse resistance (research D5);
+    # both are env, not literals in a query. The salt only keeps the stored source_key from being the
+    # raw IP (PII) — it is not a security secret, so it carries a safe empty default.
+    FEEDBACK_RATE_WINDOW_MINUTES: "60"
+    FEEDBACK_RATE_MAX: "5"
+    FEEDBACK_SOURCE_SALT: ${ssm:/effy/${sls:stage}/feedback/source_salt, ''}
     # 035 — auto-confirm self-registrations in the pre-sign-up trigger.
     # ⚠ OFF until spike T003(a) shows Cognito refuses an UNCONFIRMED user before the custom-auth
     # triggers fire. Turning it on early buys an email-squatting risk for no benefit; see the note
@@ -225,6 +235,35 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  # ── 046: customer feedback (US1) ───────────────────────────────────────────────────────────────
+  #
+  # ⚠ TWO ROUTES, ONE SERVICE — because API Gateway authorizers are per-route and all-or-nothing
+  # (research D2). The authenticated route links the verified sub → customer and uses the trusted
+  # profile email; the public route is for guests (no account required to be heard) and treats a body
+  # email as UNVERIFIED. Same split healthz/newsletter already establish on this service.
+  #
+  # ⚠ Per-source rate limiting is buildable HERE (unlike 035's Cognito trigger): the HTTP API v2 event
+  # carries requestContext.http.sourceIp. The public route keys the cooldown on it; the authed route on
+  # the sub. No per-stage throttle is set here (the stage is Terraform-owned — see the newsletter note).
+  customerFeedbackV1Post:
+    handler: src/functions/feedback-submit-v1-post.handler
+    description: Submit feedback (signed-in) — linked to the customer, trusted profile email (046 US1)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/feedback
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerFeedbackPublicV1Post:
+    handler: src/functions/feedback-submit-public-v1-post.handler
+    description: PUBLIC — submit feedback (guest); unverified email, IP-keyed rate limit (046 US1)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/feedback/public
 
   # ── 012: password & sessions ────────────────────────────────────────────────────────────────
 

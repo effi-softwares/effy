@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, MailWarning, Shield, Store, Tags } from "lucide-react";
+import { BadgePercent, LayoutDashboard, MailWarning, MessageSquare, Shield, Store, Tags } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -28,5 +28,9 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // the backend) — it re-enables mail to an address that hard-failed, and a fresh bounce spends the
   // sending reputation every audience's sign-in depends on.
   { label: "Deliverability", to: "/deliverability", icon: MailWarning },
+  // Feedback has NO requiredRole: every back-office role sees it, csa included — feedback is
+  // diagnostic and a CSA is exactly who fields the shopper contact it represents. Only the REPLY is
+  // admin/manager (gated in-screen, enforced by the backend) — an outward, brand-facing email.
+  { label: "Feedback", to: "/feedback", icon: MessageSquare },
   { label: "Admin", to: "/admin", icon: Shield, requiredRole: "admin" },
 ];

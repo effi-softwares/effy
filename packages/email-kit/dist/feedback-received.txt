@@ -1,0 +1,12 @@
+Thanks for your feedback
+
+We've received what you sent us about "{{category}}" and a real person will read it. You don't need to do anything else.
+
+Your reference is {{referenceCode}} — keep it in case you ever want to mention this feedback to us.
+
+If it needs a reply, we'll email you back at this address.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

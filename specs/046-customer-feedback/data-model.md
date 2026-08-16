@@ -4,6 +4,21 @@ One forward-only Goose migration (`<ts>_customer_feedback.sql`) adds three `publ
 SQL, no ORM (Principle VI). Rows are mapped explicitly to domain models in each repository; wire shapes
 never leak past the data layer.
 
+## Shared length constants (U1 — one source of truth)
+
+The maximum lengths are defined ONCE in `packages/shared-types/src/feedback.ts` and consumed by the DB
+CHECK, the service validators, the web form, and the mobile screen (Principle II — no drift):
+
+| Constant | Value | Applies to |
+|---|---|---|
+| `FEEDBACK_MESSAGE_MAX` | 5000 | `feedback_submission.message` |
+| `FEEDBACK_REPLY_MAX` | 5000 | `feedback_reply.body` |
+| `FEEDBACK_NOTE_MAX` | 2000 | `feedback_note.body` |
+
+These are sensible defaults (a long paragraph of feedback / reply, a shorter internal note); adjust in
+`feedback.ts` and the migration together if the operator prefers different bounds. Below, `<MAX>` in a
+CHECK means the corresponding constant's value.
+
 ## Entities
 
 ### `public.feedback_submission`
@@ -53,7 +68,7 @@ A message Effy sent back to the submitter. Append-only; multiple per submission 
 | `staff_sub` | `text` NOT NULL | the replying back-office `sub` (no cross-schema FK — D4) |
 | `staff_name` | `text` NULL | snapshot of the staff display name at send time |
 | `sent_at` | `timestamptz` NOT NULL DEFAULT `now()` | recorded only on successful send |
-| `delivery_ok` | `boolean` NOT NULL DEFAULT true | a reply row exists only when the email send succeeded (FR-030); false reserved for future partial states |
+| `delivery_ok` | `boolean` NOT NULL DEFAULT true | a reply row exists only when the SEND (synchronous) succeeded (FR-030). ⚠ An **asynchronous hard-bounce** arriving later is out of scope for this table (G1) — bounce visibility lives in the 037 deliverability path, which already tracks per-address delivery health; this column is a hook for a later slice to reconcile against it, not a claim that async bounces are surfaced here |
 
 **Index**: (`submission_id`, `sent_at`) for the per-submission history view.
 
@@ -107,3 +122,8 @@ admin.staff  ⋯ (by sub string, NOT a FK) ⋯ reply.staff_sub / note.staff_sub
 - Immutable context vs mutable staff-owned fields: the migration comment records which columns may
   change (`status`, and the child `reply`/`note` rows) and which never do (category, message, rating,
   submitter identity as recorded, source, platform, `customer_id`, `email_verified`).
+- ⚠ **Immutability is enforced by repository discipline (C1), not by a DB constraint or trigger.**
+  The repositories expose no UPDATE path for the context columns — the only writes are the insert, the
+  status change, and the append-only child rows. This is a deliberate choice consistent with the
+  platform's other tables (no update-guard triggers elsewhere); if FR-040 must be mechanical later, a
+  `BEFORE UPDATE` trigger rejecting changes to the frozen columns is the escalation.
