@@ -355,6 +355,8 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         EffyNavRow("FAQs", onClick = { nav.push(CustomerNavKey.Faqs) })
         EffyNavRow("Help Center", onClick = { nav.push(CustomerNavKey.HelpCenter) })
         EffyNavRow("Customer Service", onClick = { nav.push(CustomerNavKey.CustomerService) })
+        // 046 — give feedback (guest or signed-in). The screen picks the authed vs public route.
+        EffyNavRow("Give feedback", onClick = { nav.push(CustomerNavKey.Feedback) })
 
         // 045 — the ONE entry to the full legal list (About is inside it). The Privacy & data screen
         // additionally carries a Privacy Policy shortcut, which stores expect there.

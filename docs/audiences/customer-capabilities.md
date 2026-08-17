@@ -1022,3 +1022,40 @@ NOT built and customer-mobile has not been through Gradle. See
 ⚠ **Recorded dependencies** (not this slice): the iOS `PrivacyInfo.xcprivacy`, and the background
 erasure worker (034 Blocker 1) — the Privacy Policy is written to CURRENT deletion behaviour so no
 untrue claim ships.
+
+## §046 — Customer Feedback (046-customer-feedback)
+
+A listening channel: a shopper (guest or signed-in) sends categorised feedback with an optional
+rating and reply email; it is stored, acknowledged with a thank-you email when an address was given,
+and back-office staff can read, search, filter, triage, note, and reply — a reply is delivered to the
+submitter as an email. **Cold path both sides** (public submit → `edge-api/customer`; console →
+`edge-api/admin` with RBAC from `admin.staff`). Two new `@effy/email-kit` templates (`feedback-received`
+swallow-on-fail, `feedback-reply` throw-on-fail). One migration adds `public.feedback_{submission,reply,note}`.
+
+| Capability | customer-web | customer-mobile |
+| --- | --- | --- |
+| Submit feedback (category · message · optional rating · optional name/email) | ✅ built + verified (`/feedback`, PPR: static shell + Suspense form island; 163 KB / 174) | ✅ built + verified (`features/feedback`, MVVM; Account → "Give feedback"; Android+iOS compile, 5 VM tests) |
+| Guest **and** signed-in submission | ✅ session-selected route (authed vs `/public`); signed-in uses trusted profile email | ✅ same — `isSignedIn` read at submit time |
+| On-screen confirmation + reference code | ✅ `FB-XXXXXX` | ✅ `FB-XXXXXX` |
+| Thank-you email when an address is given | ✅ `feedback-received` (server, swallow-on-fail — never loses the submission) | ✅ same server path |
+| From the checkout header | ✅ `/feedback?from=checkout` → `source=checkout` recorded | (n/a — mobile submits `source=general`) |
+| `feedback_submitted` telemetry (no PII) | ⚠ declared + wired via dynamic import; **no-op until PostHog inits on customer-web (039)** | ⚠ deferred (mobile taxonomy, research D9) |
+
+**Back-office console** (single register; not a customer surface): list/search/filter (message+email,
+category, status, rating, date range), detail (full message + context + replies + notes), status
+change + internal notes (any active staff incl. **csa**), and **reply** (admin/manager only; disabled
+without a submitter email). Nav "Feedback", no `requiredRole`.
+
+**Verified**: `pnpm -r typecheck` (14/14) · `pnpm -r test` (edge-customer 160/+23 skipped ·
+edge-admin 161/+5 skipped · customer-web 366 · back-office 79 · email-kit 61) · `make email-check`
+(10 templates) · customer-mobile `:shared:testAndroidHostTest` 265 + `compileKotlinIosSimulatorArm64`
++ `compileTestKotlinIosSimulatorArm64` · `cm-guard`/`cm-tokens-check`/`mobile-assets:check` clean ·
+`/feedback` bundle 163.1 KB / 174.
+
+⚠ **Open (operator)**: commit + `make db-up ENV=dev` (the migration); `make edge-deploy
+SERVICE=customer ENV=dev` and `SERVICE=admin ENV=dev`; the live SC walk (US1–US3 across web/mobile/
+console, the rate-limit + reply-send-failure negative proofs, the inert-text proof, the no-PII-in-logs
+sweep); an on-device mobile walk; `/effy/dev/feedback/source_salt` may be set (optional; empty default).
+The reply send-failure metric filter/alarm (Prometheus/CloudWatch) is deferred like 038's telemetry —
+the service already logs `feedback.reply_send_failed`. Spec/artifacts:
+[specs/046-customer-feedback/](../../specs/046-customer-feedback/).

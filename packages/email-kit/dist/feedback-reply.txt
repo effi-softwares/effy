@@ -1,0 +1,17 @@
+A reply to your feedback
+
+Thanks again for writing in about "{{category}}" (reference {{referenceCode}}). Here's our reply:
+
+{{replyBody}}
+
+--
+You wrote:
+
+{{originalMessage}}
+
+Want to add something? Just reply to this email.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

@@ -36,6 +36,9 @@ importers:
       '@effy/edge-shared':
         specifier: workspace:*
         version: link:../shared
+      '@effy/email-kit':
+        specifier: workspace:*
+        version: link:../../../packages/email-kit
       '@effy/shared-types':
         specifier: workspace:*
         version: link:../../../packages/shared-types

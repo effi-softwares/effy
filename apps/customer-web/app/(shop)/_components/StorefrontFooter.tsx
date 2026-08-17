@@ -98,6 +98,7 @@ export function StorefrontFooter() {
               title="Legal & company"
               links={[
                 { label: "About Effy", href: "/about" },
+                { label: "Give feedback", href: "/feedback" },
                 { label: "Privacy policy", href: "/legal/privacy-policy" },
                 { label: "Terms of service", href: "/legal/terms-of-service" },
                 { label: "Refunds & returns", href: "/legal/refunds-returns" },

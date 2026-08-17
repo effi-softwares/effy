@@ -51,6 +51,17 @@ provider:
     # literal (contracts/ssm-mail.contract.md).
     MAIL_SENDING_DOMAIN: ${sls:stage}.effyshopping.com
     MAIL_ALERTS_TOPIC_ARN: ${ssm:/effy/${sls:stage}/alerts/topic_arn}
+    # ── 046: feedback reply email (US3) ────────────────────────────────────────────────────────────
+    #
+    # ⚠ email-kit's send path reads exactly these keys (its exported MAIL_ENV_KEYS); a config-contract
+    # test (src/feedback/config.contract.test.ts) fails if one is missing. The values are the SAME SSM
+    # contract edge-customer uses (037/038) — the customer-facing reply-to is hello@; internal falls
+    # back to it until workspace-admin@ is published.
+    MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
+    MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
+    MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
+    MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
   iam:
     role:
       statements:
@@ -94,6 +105,16 @@ provider:
           Condition:
             StringEquals:
               cloudwatch:namespace: Effy/Mail
+        # ── 046: feedback reply email (US3) ─────────────────────────────────────────────────────────
+        #
+        # ⚠ ses:SendEmail authorizes against EVERY resource the request touches, and 037 made every send
+        # name a configuration set — so BOTH the identity AND the configuration set, or the send is
+        # denied (the same fix edge-customer needed). Scoped to this environment's identity, never "*".
+        - Effect: Allow
+          Action: ses:SendEmail
+          Resource:
+            - ${ssm:/effy/${sls:stage}/ses/identity_arn}
+            - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). An in-VPC
@@ -646,6 +667,65 @@ functions:
       - httpApi:
           method: POST
           path: /admin/v1/deliverability/{address}/repair
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── 046: customer feedback console (US2/US3) ─────────────────────────────────────────────────────
+  #
+  # All behind the back-office authorizer. RBAC is decided from the admin.staff record inside each
+  # handler (read = any active staff incl. csa; reply = admin/manager) — the claim never decides.
+  feedbackListV1:
+    handler: src/functions/feedback-list-v1-get.handler
+    description: List/search/filter feedback — any active staff (046 US2)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/feedback
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  feedbackDetailV1:
+    handler: src/functions/feedback-detail-v1-get.handler
+    description: One submission with its replies and internal notes — any active staff (046 US2)
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/feedback/{referenceCode}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  feedbackStatusV1:
+    handler: src/functions/feedback-status-v1-post.handler
+    description: Change a submission's triage status — any active staff (046 US2)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/feedback/{referenceCode}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  feedbackNoteV1:
+    handler: src/functions/feedback-note-v1-post.handler
+    description: Add a staff-only internal note — any active staff (046 US2)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/feedback/{referenceCode}/notes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  feedbackReplyV1:
+    handler: src/functions/feedback-reply-v1-post.handler
+    description: Reply to the submitter by email — admin/manager only (046 US3)
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/feedback/{referenceCode}/reply
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

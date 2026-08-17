@@ -41,6 +41,20 @@
     "htmlSha": "85cb8652d6df88c5",
     "textSha": "8d4d518a448e81dd"
   },
+  "feedback-received": {
+    "htmlBytes": 15712,
+    "htmlChars": 15704,
+    "textBytes": 453,
+    "htmlSha": "b7400621991089dc",
+    "textSha": "0012b86952b08d2e"
+  },
+  "feedback-reply": {
+    "htmlBytes": 20748,
+    "htmlChars": 20740,
+    "textBytes": 368,
+    "htmlSha": "0a55c5c4b82d785a",
+    "textSha": "f3258476fdfd8bd4"
+  },
   "newsletter-confirmation": {
     "htmlBytes": 16860,
     "htmlChars": 16852,
