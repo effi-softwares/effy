@@ -30,7 +30,7 @@ export default function FeedbackPage({
   searchParams: Promise<{ from?: string }>
 }) {
   return (
-    <div className="container py-10 sm:py-14">
+    <div className="container py-8 sm:py-6">
       <Display size="page">Give us feedback</Display>
       <p className="mt-3 text-sm text-muted-foreground sm:text-base">
         Found a bug, have an idea, or just want to tell us how we&rsquo;re doing? Send it our way — a
