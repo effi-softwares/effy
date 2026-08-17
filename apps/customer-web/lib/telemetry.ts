@@ -235,6 +235,22 @@ export type StorefrontEvent =
   // enumeration oracle FR-032 removes from the response.
   | { name: "newsletter_submitted"; props: { outcome: "ok" | "invalid" | "error" } }
 
+  // ── 046: customer feedback ────────────────────────────────────────────────────────────────────
+  //
+  // ⚠ NO PII. The category, whether a rating/email was given, the source and the outcome — never the
+  // message and never the address (Principle VII). Like everything in this taxonomy it is a no-op
+  // until PostHog is initialised on customer-web (the 039 carry-forward).
+  | {
+      name: "feedback_submitted"
+      props: {
+        category: string
+        hasRating: boolean
+        hasEmail: boolean
+        source: string
+        outcome: "ok" | "invalid" | "rate_limited" | "error"
+      }
+    }
+
 // ⚠⚠ NOTHING IN THIS FILE CAPTURES ANYTHING TODAY, AND 039 DID NOT CHANGE THAT ⚠⚠
 //
 // `initAnalytics()` returns early unless consent has been granted, and `setConsent()` is the only

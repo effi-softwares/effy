@@ -8,6 +8,10 @@ import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.features.cart.data.HttpCartRepository
 import com.effyshopping.customer.mobile.features.saved.data.HttpSavedRepository
+import com.effyshopping.customer.mobile.features.feedback.data.HttpFeedbackRepository
+import com.effyshopping.customer.mobile.features.feedback.domain.FeedbackRepository
+import com.effyshopping.customer.mobile.features.feedback.domain.SubmitFeedback
+import com.effyshopping.customer.mobile.features.feedback.presentation.FeedbackViewModel
 import com.effyshopping.customer.mobile.core.storage.nowIsoTimestamp
 import com.effyshopping.customer.mobile.features.saved.data.SavedLocalStore
 import com.effyshopping.customer.mobile.features.saved.domain.GuestPersistence
@@ -226,6 +230,12 @@ class AppContainer(
     val listSaved by lazy { ListSaved(savedRepository) }
     val removeSaved by lazy { RemoveSaved(savedRepository, savedStore) }
     val undoRemoveSaved by lazy { UndoRemoveSaved(savedRepository, savedStore) }
+
+    // Feedback (046 US1) → the COLD path (edge-api/customer). The ViewModel reads `signedIn` at submit
+    // time to choose the authed vs public route.
+    private val feedbackRepository: FeedbackRepository by lazy { HttpFeedbackRepository(edgeClient) }
+    val submitFeedback by lazy { SubmitFeedback(feedbackRepository) }
+    fun feedbackViewModel(): FeedbackViewModel = FeedbackViewModel(submitFeedback, isSignedIn = signedIn)
 
 
     // Checkout (019 US3) — create intent → native PaymentSheet (paymentDriver) → confirm → receipt.

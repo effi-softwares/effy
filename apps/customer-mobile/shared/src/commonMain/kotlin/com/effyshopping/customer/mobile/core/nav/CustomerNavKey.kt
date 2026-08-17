@@ -136,6 +136,9 @@ sealed interface CustomerNavKey : NavKey {
     @Serializable data object HelpCenter : CustomerNavKey
     @Serializable data object CustomerService : CustomerNavKey
 
+    /** Give feedback (046 US1) — reachable from the Account tab, guest or signed-in. */
+    @Serializable data object Feedback : CustomerNavKey
+
     @Serializable data object MyDetails : CustomerNavKey
 
     // ── 034: the account centre's new destinations ────────────────────────────────────────────
@@ -230,6 +233,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Faqs::class, CustomerNavKey.Faqs.serializer())
             subclass(CustomerNavKey.HelpCenter::class, CustomerNavKey.HelpCenter.serializer())
             subclass(CustomerNavKey.CustomerService::class, CustomerNavKey.CustomerService.serializer())
+            subclass(CustomerNavKey.Feedback::class, CustomerNavKey.Feedback.serializer())
             subclass(CustomerNavKey.MyDetails::class, CustomerNavKey.MyDetails.serializer())
             subclass(CustomerNavKey.Security::class, CustomerNavKey.Security.serializer())
             subclass(CustomerNavKey.Privacy::class, CustomerNavKey.Privacy.serializer())
@@ -268,6 +272,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Faqs,
     CustomerNavKey.HelpCenter,
     CustomerNavKey.CustomerService,
+    CustomerNavKey.Feedback,
     CustomerNavKey.MyDetails,
     CustomerNavKey.Security,
     CustomerNavKey.Privacy,

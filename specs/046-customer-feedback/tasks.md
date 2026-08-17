@@ -82,8 +82,8 @@ on-screen confirmation, and a `feedback-received` email when an email was provid
 - [X] T016 [US1] Wire both functions in `apis/edge-api/customer/serverless.yml` — `/customer/v1/feedback` behind the customer authorizer, `/customer/v1/feedback/public` with no authorizer.
 - [X] T017 [P] [US1] `apps/customer-web/app/feedback/page.tsx` (server component; prefill name/email from session for signed-in customers) + `apps/customer-web/app/feedback/_components/FeedbackForm.tsx` (single client island: category, message, optional rating, email; success + reference-code confirmation; inline validation preserving typed text) + the API call selecting the authed vs public route by session.
 - [X] T018 [US1] Confirm the checkout header "Give us feedback" link resolves to `/feedback` (SC-004) and add a stable footer/nav entry; re-run `apps/customer-web` bundle-budget (`/feedback` within the 174 KB guest gate).
-- [ ] T019 [P] [US1] `apps/customer-mobile/.../features/feedback/` — domain (`Feedback` model + `SubmitFeedbackUseCase`), data (`HttpFeedbackRepository` + DTO mapping to `contract`), presentation (`FeedbackViewModel` immutable UI state + `FeedbackScreen`), a nav entry (Account/Help), and `commonTest` (validation + submit) compiling on Android + iOS.
-- [ ] T020 [US1] Telemetry: declare + wire `feedback_submitted` (props: category, hasRating, hasEmail, source, platform — no PII) in the **web** taxonomy now; add the submission metric and the thank-you send-failure alarm; verify no `submitter_email` in logs. ⚠ The **mobile** taxonomy is deferred consistent with prior mobile slices (research D9) — declare the event name but do not block on wiring it. ⚠ Record the PostHog-not-yet-initialised-on-customer-web carry-forward (039), so the web event is wired but a no-op until that lands.
+- [X] T019 [P] [US1] `apps/customer-mobile/.../features/feedback/` — domain (`Feedback` model + `SubmitFeedbackUseCase`), data (`HttpFeedbackRepository` + DTO mapping to `contract`), presentation (`FeedbackViewModel` immutable UI state + `FeedbackScreen`), a nav entry (Account/Help), and `commonTest` (validation + submit) compiling on Android + iOS.
+- [X] T020 [US1] Telemetry: declare + wire `feedback_submitted` (props: category, hasRating, hasEmail, source, platform — no PII) in the **web** taxonomy now; add the submission metric and the thank-you send-failure alarm; verify no `submitter_email` in logs. ⚠ The **mobile** taxonomy is deferred consistent with prior mobile slices (research D9) — declare the event name but do not block on wiring it. ⚠ Record the PostHog-not-yet-initialised-on-customer-web carry-forward (039), so the web event is wired but a no-op until that lands.
 
 **Checkpoint**: US1 fully functional — the checkout link is live, submissions are stored and thanked, on web and mobile.
 
@@ -140,7 +140,7 @@ unavailable. On a submission with no email, reply is disabled.
 - [X] T035 [US3] Extend `apis/edge-api/admin/src/feedback/service.ts` `reply` — validate the reply body server-side against `FEEDBACK_REPLY_MAX` (U2 — the bound must hold for a non-web/direct-API caller, not only the UI composer), require a submitter email (else `no_reply_address`), send `feedback-reply` via `@effy/email-kit/send`, write the row only on send success, propagate a send failure as `reply_send_failed`; snapshot `staff_name`.
 - [X] T036 [P] [US3] Handler `feedback-reply-v1-post.ts` in `apis/edge-api/admin/src/functions/` (403 for non-admin/manager, 409 `no_reply_address`, 502 `reply_send_failed`) + `serverless.yml` wiring.
 - [X] T037 [US3] Extend `apps/back-office/src/features/feedback/FeedbackDetailScreen.tsx` — reply composer (bounded length), replies history, disabled-with-reason state when no submitter email, and the reply action hidden for csa (role-gated in `access.ts`).
-- [ ] T038 [US3] Telemetry: declare + wire `feedback_reply_sent` (prop: category) and the reply-count metric; the reply send-failure feeds the same alarm as T020.
+- [X] T038 [US3] Telemetry: declare + wire `feedback_reply_sent` (prop: category) and the reply-count metric; the reply send-failure feeds the same alarm as T020.
 
 **Checkpoint**: All three stories independently functional — the feedback loop is closed end to end.
 
@@ -148,11 +148,11 @@ unavailable. On a submission with no email, reply is disabled.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T039 [P] Update the parity register `docs/audiences/customer-capabilities.md` §046 (web ↔ mobile feedback parity) and note the console capability.
-- [ ] T040 Full machine sweep: `pnpm -r typecheck`, `pnpm -r test`, `make email-check`, customer-mobile `:shared:testAndroidHostTest` + `:shared:iosSimulatorArm64Test` + `assembleDebug`, and the customer-web bundle budget — all green.
+- [X] T039 [P] Update the parity register `docs/audiences/customer-capabilities.md` §046 (web ↔ mobile feedback parity) and note the console capability.
+- [X] T040 Full machine sweep: `pnpm -r typecheck`, `pnpm -r test`, `make email-check`, customer-mobile `:shared:testAndroidHostTest` + `:shared:iosSimulatorArm64Test` + `assembleDebug`, and the customer-web bundle budget — all green.
 - [ ] T041 Operator: commit the migration then `make db-up ENV=dev`; `make edge-deploy SERVICE=customer ENV=dev` and `SERVICE=admin ENV=dev`.
 - [ ] T042 Operator: live SC walk per [quickstart.md](quickstart.md) — US1–US3 across web/mobile/console, the rate-limit + send-failure negative proofs, the inert-text proof, and the no-PII-in-logs sweep.
-- [ ] T043 Write `specs/046-customer-feedback/SIGNOFF.md` recording what was machine-verified vs what remains an operator device/live walk.
+- [X] T043 Write `specs/046-customer-feedback/SIGNOFF.md` recording what was machine-verified vs what remains an operator device/live walk.
 
 ---
 

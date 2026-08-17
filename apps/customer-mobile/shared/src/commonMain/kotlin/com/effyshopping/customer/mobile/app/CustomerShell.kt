@@ -38,6 +38,7 @@ import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
 import com.effyshopping.customer.mobile.features.catalog.presentation.HomeScreen
 import com.effyshopping.customer.mobile.features.saved.presentation.SavedScreen
+import com.effyshopping.customer.mobile.features.feedback.presentation.FeedbackScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDetailScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.PromotionScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
@@ -490,6 +491,10 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Faqs> { FaqsScreen() }
                 entry<CustomerNavKey.HelpCenter> { HelpCenterScreen() }
                 entry<CustomerNavKey.CustomerService> { CustomerServiceScreen() }
+                entry<CustomerNavKey.Feedback> {
+                    val vm = remember { container.feedbackViewModel() }
+                    FeedbackScreen(viewModel = vm, onBack = { navState.pop() })
+                }
                 entry<CustomerNavKey.MyDetails> {
                     AccountRoutes(container, CustomerNavKey.MyDetails, session)
                 }

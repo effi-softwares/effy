@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 
 import {
   FEEDBACK_CATEGORIES,
@@ -46,6 +46,28 @@ export function FeedbackForm({
   const [rating, setRating] = useState("")
   const [name, setName] = useState(prefillName ?? "")
   const [email, setEmail] = useState(prefillEmail ?? "")
+
+  // ⚠ Telemetry through a DYNAMIC import so it never lands in the guest bundle (the 027 pattern), and
+  // fired once per outcome. No PII: category/flags/source/outcome only. A no-op until PostHog inits (039).
+  const lastReported = useRef<string | null>(null)
+  useEffect(() => {
+    if (!state) return
+    const key = state.status === "ok" ? `ok:${state.referenceCode}` : state.status
+    if (lastReported.current === key) return
+    lastReported.current = key
+    void import("@/lib/telemetry").then(({ capture }) =>
+      capture({
+        name: "feedback_submitted",
+        props: {
+          category: category || "unknown",
+          hasRating: rating !== "",
+          hasEmail: signedIn || email.trim().length > 0,
+          source,
+          outcome: state.status,
+        },
+      }),
+    )
+  }, [state, category, rating, email, signedIn, source])
 
   if (state?.status === "ok") {
     return <FeedbackConfirmation referenceCode={state.referenceCode} />
