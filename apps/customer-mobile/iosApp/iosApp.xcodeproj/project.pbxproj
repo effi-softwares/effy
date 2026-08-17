@@ -144,6 +144,7 @@
 				067A701A30077C7100CEE238 /* AWSPredictionsPlugin */,
 				067A701C30077C7100CEE238 /* AWSS3StoragePlugin */,
 				067A701E30077C7100CEE238 /* CoreMLPredictionsPlugin */,
+				57A19E02000000000000BEEF /* StripePaymentSheet */,
 			);
 			productName = iosApp;
 			productReference = 682F1C166E0AD1A147C2786A /* customer-mobile.app */;
@@ -175,6 +176,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */,
+				57A19E01000000000000FEED /* XCRemoteSwiftPackageReference "stripe-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5251AB4807B23F90069732A9 /* Products */;
@@ -440,6 +442,14 @@
 				minimumVersion = 2.58.4;
 			};
 		};
+		57A19E01000000000000FEED /* XCRemoteSwiftPackageReference "stripe-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stripe/stripe-ios-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 24.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -522,6 +532,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
 			productName = CoreMLPredictionsPlugin;
+		};
+		57A19E02000000000000BEEF /* StripePaymentSheet */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 57A19E01000000000000FEED /* XCRemoteSwiftPackageReference "stripe-ios-spm" */;
+			productName = StripePaymentSheet;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
