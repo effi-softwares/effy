@@ -1,23 +1,60 @@
 package com.effyshopping.customer.mobile.core.payment
 
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.coroutines.resume
+
 /**
- * ⚠ OPERATOR-GATED PLACEHOLDER (019 US3). The real Android payment path uses the Stripe Android
- * **PaymentSheet**, which must be registered against an Activity's `ActivityResultRegistry` — it cannot
- * be constructed from the Application-scoped [AppContainer]. Wiring it is a device task:
- *   1. add `com.stripe:stripe-android` (paymentsheet) to `shared/build.gradle.kts` androidMain (T003),
- *   2. in `MainActivity`, create the sheet (`rememberPaymentSheet { result -> … }` or
- *      `PaymentSheet(activity, callback)`) with `STRIPE_PUBLISHABLE_KEY` from `AppConfig`,
- *   3. bridge its result callback to this `suspend` contract via a `CancellableContinuation` (exactly as
- *      [IosPaymentDriver] adapts the Swift bridge).
+ * The Android side of the payment boundary (019 US3), mirroring [IosPaymentDriver]. Stripe's Android
+ * `PaymentSheet` cannot be built from the Application-scoped [AppContainer] — it must be registered
+ * against an Activity's `ActivityResultRegistry` in `onCreate`. So `MainActivity` owns the real sheet
+ * and [attach]es a [PaymentPresenter] that presents it; THIS class adapts that callback-based presenter
+ * back to the common [PaymentDriver] `suspend` contract, and stays free of any Stripe type (the Stripe
+ * dependency lives in the app module, not `shared`).
  *
- * Until wired, this returns [PaymentResult.Failed] so the Android app compiles and runs.
- *
- * ⚠ CORRECTED 2026-07-26: this comment previously claimed the iOS Swift bridge "IS implemented". It was
- * not — `SwiftPaymentBridge.swift` did not exist, and the Xcode target had not compiled since 019 added
- * the `paymentBridge` parameter to `MainViewController`. iOS now ships the SAME honest placeholder.
- * **Neither mobile platform can take a card payment yet; web checkout is the live path on both.**
+ * Lifecycle: the Activity calls [attach] in `onCreate` and [detach] in `onDestroy`. If a payment is
+ * requested while nothing is attached (no foreground Activity), it fails cleanly rather than hanging.
+ * The publishable key is a NAME, not a secret (R3) — the Stripe SECRET never leaves core-api.
  */
 class AndroidPaymentDriver : PaymentDriver {
+
+    private val presenter = AtomicReference<PaymentPresenter?>(null)
+
+    /** The in-flight continuation resolver; [PaymentResult] is delivered here by the Activity callback. */
+    private val pending = AtomicReference<((PaymentResult) -> Unit)?>(null)
+
+    /** Called by MainActivity once its ActivityResult-registered PaymentSheet exists. */
+    fun attach(paymentPresenter: PaymentPresenter) {
+        presenter.set(paymentPresenter)
+    }
+
+    /** Called by MainActivity in onDestroy — a stale Activity must not receive later presentations. */
+    fun detach(paymentPresenter: PaymentPresenter) {
+        presenter.compareAndSet(paymentPresenter, null)
+    }
+
+    /** Called by the Activity's Stripe PaymentSheet result callback. Resolves at most one waiter. */
+    fun deliverResult(result: PaymentResult) {
+        pending.getAndSet(null)?.invoke(result)
+    }
+
     override suspend fun presentPaymentSheet(clientSecret: String, publishableKey: String): PaymentResult =
-        PaymentResult.Failed("Card payment on Android is being enabled — please use the web checkout for now.")
+        suspendCancellableCoroutine { cont ->
+            val active = presenter.get()
+            if (active == null) {
+                cont.resume(PaymentResult.Failed("Payment is not ready — please try again."))
+                return@suspendCancellableCoroutine
+            }
+            pending.set { result -> if (cont.isActive) cont.resume(result) }
+            cont.invokeOnCancellation { pending.set(null) }
+            active.present(clientSecret, publishableKey)
+        }
+}
+
+/**
+ * Bridges the shared driver to the Activity-owned Stripe PaymentSheet. Implemented in `androidApp`,
+ * where the Stripe SDK lives; the result comes back via [AndroidPaymentDriver.deliverResult].
+ */
+fun interface PaymentPresenter {
+    fun present(clientSecret: String, publishableKey: String)
 }

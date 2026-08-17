@@ -10,6 +10,10 @@ androidx-core = "1.19.0"
 # library is the documented way to configure it, and it backports the same API to API 21 — so one
 # mechanism covers the whole minSdk 24 … targetSdk 36 range (spec FR-012).
 androidx-splashscreen = "1.0.1"
+# 019 US3 — Stripe Android SDK (PaymentSheet). Pinned to a known-good major; bump in Android Studio
+# if it will not resolve. The publishable key is a NAME, not a secret (R3) — the Stripe SECRET never
+# leaves core-api.
+stripe-android = "21.6.0"
 androidx-espresso = "3.7.0"
 # 013 D19: pinned DOWN from 2.11.0-beta01 — no beta lifecycle under a stable Compose runtime.
 androidx-lifecycle = "2.10.0"
@@ -36,6 +40,7 @@ kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.
 junit = { module = "junit:junit", version.ref = "junit" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidx-core" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidx-splashscreen" }
+stripe-android = { module = "com.stripe:stripe-android", version.ref = "stripe-android" }
 androidx-testExt-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-testExt" }
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidx-espresso" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
