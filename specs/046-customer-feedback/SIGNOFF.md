@@ -1,7 +1,9 @@
 # Sign-off: 046-customer-feedback
 
-**Status**: 🚧 Code-complete + fully machine-verified across all surfaces. Operator deploy + live/
-device walk + commit pending. Not deployed, not committed.
+**Status**: ✅ **CONCLUDED (PARTIAL BY DESIGN) — 2026-08-17.** Code-complete + fully machine-verified
+across all six surfaces. Concluding closes the slice's build work; it does not make the open operator
+items done — the deploy, the live SC walk, the on-device mobile walk, and the commit remain, and are
+exactly the steps only the operator runs (migrations, `edge-deploy`, live AWS).
 
 ## What was built
 

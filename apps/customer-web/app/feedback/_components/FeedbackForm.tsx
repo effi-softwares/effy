@@ -76,7 +76,7 @@ export function FeedbackForm({
   const invalidField = state?.status === "invalid" ? state.field : undefined
 
   return (
-    <form action={formAction} className="mt-8 flex max-w-xl flex-col gap-5">
+    <form action={formAction} className="mt-8 flex flex-col gap-5">
       {/* Source travels as a hidden field so the server records where the feedback came from (FR-011). */}
       <input type="hidden" name="source" value={source} />
 
@@ -245,7 +245,7 @@ function FeedbackError({ result }: { result: Exclude<SubmitFeedbackResult, { sta
 
 function FeedbackConfirmation({ referenceCode }: { referenceCode: string }) {
   return (
-    <div className="mt-8 max-w-xl rounded-2xl border border-dashed px-6 py-12 text-center" role="status">
+    <div className="mt-8 rounded-2xl border border-dashed px-6 py-12 text-center" role="status">
       <h2 className="text-lg font-semibold">Thanks — we've got it</h2>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
         A real person will read what you sent. If it needs a reply, we'll email you back.

@@ -30,9 +30,9 @@ export default function FeedbackPage({
   searchParams: Promise<{ from?: string }>
 }) {
   return (
-    <main className="container py-10 sm:py-14">
+    <div className="container py-10 sm:py-14">
       <Display size="page">Give us feedback</Display>
-      <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
+      <p className="mt-3 text-sm text-muted-foreground sm:text-base">
         Found a bug, have an idea, or just want to tell us how we&rsquo;re doing? Send it our way — a
         real person reads every message, and we&rsquo;ll reply if it needs one.
       </p>
@@ -40,7 +40,7 @@ export default function FeedbackPage({
       <Suspense fallback={<FormFallback />}>
         <FeedbackFormSection searchParams={searchParams} />
       </Suspense>
-    </main>
+    </div>
   )
 }
 
@@ -80,7 +80,7 @@ async function FeedbackFormSection({
 /** A quiet placeholder while the session/prefill resolves — no layout shift beyond the form area. */
 function FormFallback() {
   return (
-    <div className="mt-8 max-w-xl space-y-5" aria-hidden>
+    <div className="mt-8 space-y-5" aria-hidden>
       <div className="h-11 w-full animate-pulse rounded-full bg-muted" />
       <div className="h-40 w-full animate-pulse rounded-2xl bg-muted" />
       <div className="h-11 w-40 animate-pulse rounded-full bg-muted" />

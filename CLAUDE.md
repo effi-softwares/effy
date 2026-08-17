@@ -241,6 +241,57 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**046-customer-feedback — Customer Feedback (listening channel).** ✅ **CONCLUDED (PARTIAL BY DESIGN)
+2026-08-17 — 41/43 tasks. Code-complete + fully machine-verified across all six surfaces; NOT deployed,
+NOT committed, NOT walked by a person.** Sign-off:
+[specs/046-customer-feedback/SIGNOFF.md](specs/046-customer-feedback/SIGNOFF.md).
+
+Makes the checkout header's existing "Give us feedback" link real, end to end. A shopper (guest or
+signed-in) sends categorised feedback + optional rating + reply email; it is stored, acknowledged with
+a thank-you email when an address is given, and back-office staff read/search/filter/triage/note and
+**reply** — a reply is emailed to the submitter. **Cold path both sides** (the user's instruction and
+the correct path — low-frequency, async-email work; hot path explicitly NOT used).
+- **Two submit routes, one service** (research D2) — API Gateway authorizers are per-route, so authed
+  `/customer/v1/feedback` (links the verified sub, trusted profile email) and public
+  `/customer/v1/feedback/public` (guest, unverified email) are separate. The client picks by session.
+- **⚠ Rate limiting is buildable HERE, unlike 035** — the HTTP API v2 event carries
+  `requestContext.http.sourceIp`, so a per-source cooldown is a real SQL predicate (an atomic
+  count-inside-the-INSERT, the newsletter check-then-write lesson). Stored as a HASHED `source_key`,
+  never the raw IP (PII). 60 min / 5 per source, env-overridable.
+- **Two email templates, OPPOSITE failure policies** — exactly the discriminator `@effy/email-kit`
+  exists to carry: `feedback-received` **swallows** (the submission is already stored — a thrown
+  failure would contradict a true fact, the `account-password-changed` pattern) and `feedback-reply`
+  **throws** (a submission must never be marked replied while the shopper got nothing, the
+  `newsletter-confirmation` pattern; the reply row + `status='replied'` are written ONLY after a
+  successful send, in one transaction).
+- **Console RBAC from `admin.staff`** (never the claim, mirrors deliverability): read/search/status/
+  notes = any active staff **incl. csa** (triage is CSA work); **reply = admin/manager only** (an
+  outward brand-facing email). No cross-schema FK — staff attribution is a `staff_sub` snapshot.
+- **Data**: one migration `20260816221653_customer_feedback.sql` — `public.feedback_{submission,reply,
+  note}`; `pg_trgm` + `citext`; immutable context vs mutable status/child rows (FR-040, enforced by
+  repository discipline not a trigger — C1). **Storefront**: `/feedback` PPR (static shell + Suspense
+  form island; 163.1 KB / 174; registered in the bundle gate); checkout link carries `?from=checkout`.
+  **Mobile**: KMP Clean-Arch/MVVM `features/feedback` reached from Account; `platformTag()` expect/actual.
+- **⚠ Corrected a PRE-EXISTING drift in passing**: `ScreenInventoryTest` asserted **30** customer
+  routes while `ALL_CUSTOMER_ROUTES` already held 32 (a 045-era omission that would have failed the
+  next mobile run regardless); now **33** with the Feedback route.
+- **Verified**: `pnpm -r typecheck` 14/14 · `pnpm -r test` (edge-customer **160**/+23 skipped ·
+  edge-admin **161**/+5 · customer-web **366** · back-office **79** · email-kit **61**) · `make
+  email-check` (10 templates, inert-text + whitelist-vars proofs) · customer-mobile
+  `:shared:testAndroidHostTest` **265** (+5 new) + iOS main & test compile · `cm-guard`/`cm-tokens-check`
+  · `/feedback` bundle within gate. Config-contract tests pin env + route wiring (035/038 guard).
+- **⚠ Open (operator)**: commit + `make db-up ENV=dev`; `make edge-deploy SERVICE=customer ENV=dev`
+  **and** `SERVICE=admin ENV=dev` (the admin deploy adds a scoped `ses:SendEmail` grant + `MAIL_*`
+  env); the live SC walk (US1–US3 across web/mobile/console, the rate-limit + reply-send-failure
+  negatives, inert-text, the no-PII-in-logs sweep); an on-device mobile walk.
+- **Carry-forwards**: `feedback_submitted` telemetry is wired on web (dynamic import) but a **no-op
+  until PostHog inits on customer-web** (039); mobile telemetry deferred (D9). **Async hard-bounce** on
+  a reply is out of scope (G1) — only send-time failure is caught; `feedback_reply.delivery_ok` is a
+  hook for later reconciliation against the 037 deliverability path. The reply send-failure metric
+  filter/alarm is deferred like 038's (the service already logs `feedback.reply_send_failed`).
+  Spec/artifacts: [specs/046-customer-feedback/](specs/046-customer-feedback/); parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §046.
+
 **042-customer-web-cicd — Customer Storefront Continuous Deployment (dev).** ✅ **DEPLOYED & LIVE at
 `https://dev.effyshopping.com`** (HTTPS, valid cert; auto-builds from the `dev` branch;
 Terraform-managed). Commit + formal SC walk pending. Gives `apps/customer-web` (Next 16 SSR, previously local-only)

@@ -4,6 +4,10 @@ description: "Task list for 046-customer-feedback implementation"
 
 # Tasks: Customer Feedback
 
+> ✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-17 — 41/43.** All build tasks done and machine-verified.
+> The only two open are operator-run and by design: **T041** (commit + `db-up` + `edge-deploy`
+> customer & admin) and **T042** (the live SC walk + on-device mobile walk). See [SIGNOFF.md](SIGNOFF.md).
+
 **Input**: Design documents from `/specs/046-customer-feedback/`
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),
