@@ -83,16 +83,21 @@ export interface TodayDTO {
 }
 
 // ── Phase 1 — collection run ─────────────────────────────────────────────────────────────────────
+//
+// A STOP is a shop within a run — it may hold several packages (one per order at that shop). The stop
+// is the unit the driver collects in one action. `stopId` is the shop id scoped to the run.
+// ⚠ The `shop` table stores no street address (deliberately minimal, 007), so a stop shows the shop
+// NAME + CODE only; a `shop.address` column is a recorded follow-up (FR-013's "address").
 
-export type CollectionTaskStatus = "assigned" | "en_route" | "collected" | "short";
+export type CollectionStopStatus = "assigned" | "en_route" | "collected" | "short";
 
 export interface CollectionStopSummary {
-  taskId: string;
+  stopId: string; // the shop id within this run
   sequence: WireInt;
   shopName: string;
-  shopAddress: string;
+  shopCode: string;
   packageCount: WireInt;
-  status: CollectionTaskStatus;
+  status: CollectionStopStatus;
 }
 
 /** GET /driver/v1/collection/runs/{runId} (driver-facing; distinct from 047's admin CollectionRunDTO) */
@@ -110,22 +115,22 @@ export interface ManifestLine {
 }
 
 export interface CollectionPackage {
-  ref: string;
+  ref: string; // the order number the package belongs to
   destinationSuburb: string;
   method: PackageMethod;
   items: ManifestLine[];
 }
 
-/** GET /driver/v1/collection/tasks/{taskId} */
-export interface CollectionTaskDTO {
-  taskId: string;
+/** GET /driver/v1/collection/runs/{runId}/stops/{stopId} — a shop stop and its packages. */
+export interface CollectionStopDTO {
+  stopId: string;
   shopName: string;
-  shopAddress: string;
+  shopCode: string;
   packages: CollectionPackage[];
-  status: CollectionTaskStatus;
+  status: CollectionStopStatus;
 }
 
-/** POST /driver/v1/collection/tasks/{taskId}/collect */
+/** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect all this shop's packages. */
 export interface CollectRequest {
   changeId: string;
 }
@@ -133,9 +138,9 @@ export interface CollectResponse {
   status: "collected";
 }
 
-/** POST /driver/v1/collection/tasks/{taskId}/issue */
+/** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue — report a missing/short package. */
 export interface CollectionIssueRequest {
-  orderItemId?: string;
+  shopFulfillmentId?: string; // the specific package (order at this shop); optional
   kind: "missing" | "short";
   note?: string;
   changeId: string;
@@ -211,6 +216,7 @@ export type ProofMethod = "photo" | "code" | "signature" | "contactless";
 /** POST /driver/v1/delivery/drops/{dropId}/proof/presign */
 export interface ProofPresignRequest {
   contentType: string;
+  fileSize: WireInt;
   changeId: string;
 }
 export interface ProofPresignResponse {

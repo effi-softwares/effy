@@ -18,7 +18,7 @@ import type {
   TodayItemRef,
   DriverCollectionRunDTO,
   CollectionStopSummary,
-  CollectionTaskDTO,
+  CollectionStopDTO,
   CollectionPackage,
   ManifestLine,
   CollectRequest,
@@ -64,7 +64,7 @@ export interface DriverContract {
   todayItem: TodayItemRef;
   collectionRun: DriverCollectionRunDTO;
   collectionStop: CollectionStopSummary;
-  collectionTask: CollectionTaskDTO;
+  collectionStopDetail: CollectionStopDTO;
   collectionPackage: CollectionPackage;
   manifestLine: ManifestLine;
   collectRequest: CollectRequest;

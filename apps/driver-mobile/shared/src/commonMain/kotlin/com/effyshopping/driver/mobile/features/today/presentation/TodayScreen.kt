@@ -39,6 +39,7 @@ fun TodayScreen(
     state: TodayUiState,
     onToggleDuty: () -> Unit,
     onRefresh: () -> Unit,
+    onOpenRun: (runId: String, phase: Phase) -> Unit = { _, _ -> },
 ) {
     Column(
         modifier = Modifier
@@ -65,6 +66,21 @@ fun TodayScreen(
             state.isLoading -> Centered { CircularProgressIndicator() }
             state.today == null || state.today.phase == Phase.IDLE -> IdleBody()
             else -> OnDutyBody(state)
+        }
+
+        val today = state.today
+        if (state.dutyStatus == DutyStatus.ON_DUTY && today != null && today.activeRunId != null && today.phase != Phase.IDLE) {
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = { onOpenRun(today.activeRunId, today.phase) },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Text(
+                    if (today.phase == Phase.COLLECTION) "Open collection run" else "Open delivery run",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
         }
 
         Spacer(Modifier.weight(1f))

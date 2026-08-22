@@ -45,7 +45,8 @@ data class ActivityReadRequest (
 )
 
 /**
- * POST /driver/v1/collection/tasks/{taskId}/collect
+ * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect all this shop's
+ * packages.
  */
 @Serializable
 data class CollectRequest (
@@ -64,7 +65,8 @@ enum class CollectResponseStatus(val value: String) {
 }
 
 /**
- * POST /driver/v1/collection/tasks/{taskId}/issue
+ * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue — report a missing/short
+ * package.
  */
 @Serializable
 data class CollectionIssueRequest (
@@ -74,8 +76,8 @@ data class CollectionIssueRequest (
     val kind: CollectionIssueKind,
     val note: String? = null,
 
-    @SerialName("orderItemId")
-    val orderItemID: String? = null
+    @SerialName("shopFulfillmentId")
+    val shopFulfillmentID: String? = null
 )
 
 @Serializable
@@ -121,34 +123,34 @@ data class DriverCollectionRunDTO (
 data class CollectionStopSummary (
     val packageCount: Long,
     val sequence: Long,
-    val shopAddress: String,
+    val shopCode: String,
     val shopName: String,
-    val status: CollectionTaskStatus,
+    val status: CollectionStopStatus,
 
-    @SerialName("taskId")
-    val taskID: String
+    @SerialName("stopId")
+    val stopID: String
 )
 
 @Serializable
-enum class CollectionTaskStatus(val value: String) {
+enum class CollectionStopStatus(val value: String) {
     @SerialName("assigned") Assigned("assigned"),
     @SerialName("collected") Collected("collected"),
-    @SerialName("short") CollectionTaskStatusShort("short"),
+    @SerialName("short") CollectionStopStatusShort("short"),
     @SerialName("en_route") EnRoute("en_route");
 }
 
 /**
- * GET /driver/v1/collection/tasks/{taskId}
+ * GET /driver/v1/collection/runs/{runId}/stops/{stopId} — a shop stop and its packages.
  */
 @Serializable
-data class CollectionTaskDTO (
+data class CollectionStopDTO (
     val packages: List<CollectionPackage>,
-    val shopAddress: String,
+    val shopCode: String,
     val shopName: String,
-    val status: CollectionTaskStatus,
+    val status: CollectionStopStatus,
 
-    @SerialName("taskId")
-    val taskID: String
+    @SerialName("stopId")
+    val stopID: String
 )
 
 /**
@@ -503,7 +505,8 @@ data class ProofPresignRequest (
     @SerialName("changeId")
     val changeID: String,
 
-    val contentType: String
+    val contentType: String,
+    val fileSize: Long
 )
 
 @Serializable

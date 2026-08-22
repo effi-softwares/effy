@@ -17,22 +17,24 @@ import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
 
-import { eligibleDriverIds, releaseIneligibleWork } from "./repository";
+import { assignCollectionWork, eligibleDriverIds, releaseIneligibleWork } from "./repository";
+import { assignDeliveryWork } from "../delivery/assignment";
 
 export const handler: ScheduledHandler = async () => {
   const log = logger.child({ worker: "assignment-sweep" });
 
   try {
     const released = await releaseIneligibleWork();
+    const collectionAssigned = await assignCollectionWork(); // T017/US1
+    const dropsAssigned = await assignDeliveryWork(); // T025/US2
     const eligible = await eligibleDriverIds();
 
-    // TODO(T017/US1): assign ready collection work to `eligible` drivers (zone-scoped, nearest-by-
-    //                 snapshot else load-balanced), FOR UPDATE SKIP LOCKED.
-    // TODO(T025/US2): group checked-in same-day packages into drops and assign.
     // TODO(T061/US1): flag same-day packages past their collection cutoff.
-    // TODO(T046/US6): write driver_activity for each new assignment.
 
-    log.info({ released, eligibleDrivers: eligible.length }, "assignment sweep complete");
+    log.info(
+      { released, collectionAssigned, dropsAssigned, eligibleDrivers: eligible.length },
+      "assignment sweep complete",
+    );
   } catch (err) {
     // A failed sweep must not crash the schedule; the next tick retries. Surfaced for the
     // unassigned-work alarm (Principle VII / T055).

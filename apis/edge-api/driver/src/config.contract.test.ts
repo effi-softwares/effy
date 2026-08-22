@@ -29,13 +29,16 @@ function functionBlock(fn: string): string {
 }
 
 describe("driver deployment contract — serverless.yml declares what the service needs", () => {
-  it("carries the DRIVER authorizer on every authenticated /driver/v1 route", () => {
-    for (const fn of ["driverMeV1", "driverDutyV1", "driverLocationV1", "driverTodayV1"]) {
+  it("carries the DRIVER authorizer on the core authenticated /driver/v1 routes", () => {
+    for (const fn of [
+      "driverMeV1", "driverDutyV1", "driverLocationV1", "driverTodayV1",
+      "collectionRunV1", "collectionStopV1", "collectionStopCollectV1", "hubCheckinV1",
+      "deliveryRunV1", "deliveryDropV1", "deliveryDropStatusV1", "proofPresignV1", "proofV1",
+      "deliveryDropFailV1",
+    ]) {
       const block = functionBlock(fn);
       expect(block, `${fn} must be authenticated`).toContain("authorizer");
-      expect(block, `${fn} must use the DRIVER authorizer`).toContain(
-        "/edge/authorizer/driver_id",
-      );
+      expect(block, `${fn} must use the DRIVER authorizer`).toContain("/edge/authorizer/driver_id");
     }
   });
 

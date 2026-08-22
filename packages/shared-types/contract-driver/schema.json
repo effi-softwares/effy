@@ -73,7 +73,7 @@
     },
     "CollectRequest": {
       "additionalProperties": false,
-      "description": "POST /driver/v1/collection/tasks/{taskId}/collect",
+      "description": "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect all this shop's packages.",
       "properties": {
         "changeId": {
           "type": "string"
@@ -99,7 +99,7 @@
     },
     "CollectionIssueRequest": {
       "additionalProperties": false,
-      "description": "POST /driver/v1/collection/tasks/{taskId}/issue",
+      "description": "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/issue — report a missing/short package.",
       "properties": {
         "changeId": {
           "type": "string"
@@ -114,7 +114,7 @@
         "note": {
           "type": "string"
         },
-        "orderItemId": {
+        "shopFulfillmentId": {
           "type": "string"
         }
       },
@@ -151,6 +151,47 @@
       ],
       "type": "object"
     },
+    "CollectionStopDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/collection/runs/{runId}/stops/{stopId} — a shop stop and its packages.",
+      "properties": {
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/CollectionPackage"
+          },
+          "type": "array"
+        },
+        "shopCode": {
+          "type": "string"
+        },
+        "shopName": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/CollectionStopStatus"
+        },
+        "stopId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "stopId",
+        "shopName",
+        "shopCode",
+        "packages",
+        "status"
+      ],
+      "type": "object"
+    },
+    "CollectionStopStatus": {
+      "enum": [
+        "assigned",
+        "en_route",
+        "collected",
+        "short"
+      ],
+      "type": "string"
+    },
     "CollectionStopSummary": {
       "additionalProperties": false,
       "properties": {
@@ -160,69 +201,28 @@
         "sequence": {
           "$ref": "#/definitions/WireInt"
         },
-        "shopAddress": {
+        "shopCode": {
           "type": "string"
         },
         "shopName": {
           "type": "string"
         },
         "status": {
-          "$ref": "#/definitions/CollectionTaskStatus"
+          "$ref": "#/definitions/CollectionStopStatus"
         },
-        "taskId": {
+        "stopId": {
           "type": "string"
         }
       },
       "required": [
-        "taskId",
+        "stopId",
         "sequence",
         "shopName",
-        "shopAddress",
+        "shopCode",
         "packageCount",
         "status"
       ],
       "type": "object"
-    },
-    "CollectionTaskDTO": {
-      "additionalProperties": false,
-      "description": "GET /driver/v1/collection/tasks/{taskId}",
-      "properties": {
-        "packages": {
-          "items": {
-            "$ref": "#/definitions/CollectionPackage"
-          },
-          "type": "array"
-        },
-        "shopAddress": {
-          "type": "string"
-        },
-        "shopName": {
-          "type": "string"
-        },
-        "status": {
-          "$ref": "#/definitions/CollectionTaskStatus"
-        },
-        "taskId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "taskId",
-        "shopName",
-        "shopAddress",
-        "packages",
-        "status"
-      ],
-      "type": "object"
-    },
-    "CollectionTaskStatus": {
-      "enum": [
-        "assigned",
-        "en_route",
-        "collected",
-        "short"
-      ],
-      "type": "string"
     },
     "ContactRequest": {
       "additionalProperties": false,
@@ -974,10 +974,14 @@
         },
         "contentType": {
           "type": "string"
+        },
+        "fileSize": {
+          "$ref": "#/definitions/WireInt"
         }
       },
       "required": [
         "contentType",
+        "fileSize",
         "changeId"
       ],
       "type": "object"
@@ -1197,8 +1201,8 @@
     "collectionStop": {
       "$ref": "#/definitions/CollectionStopSummary"
     },
-    "collectionTask": {
-      "$ref": "#/definitions/CollectionTaskDTO"
+    "collectionStopDetail": {
+      "$ref": "#/definitions/CollectionStopDTO"
     },
     "contactRequest": {
       "$ref": "#/definitions/ContactRequest"
@@ -1309,7 +1313,7 @@
     "todayItem",
     "collectionRun",
     "collectionStop",
-    "collectionTask",
+    "collectionStopDetail",
     "collectionPackage",
     "manifestLine",
     "collectRequest",

@@ -2,7 +2,7 @@
 // The active stop/drop refs and the up-next queue are populated by the collection/delivery slices
 // (US1/US2); the foundation returns the phase and a counts-only remaining total.
 
-import type { TodayDTO } from "@effy/shared-types";
+import type { TodayDTO, TodayItemRef } from "@effy/shared-types";
 
 import * as repo from "./repository";
 
@@ -12,15 +12,30 @@ export async function loadToday(driverId: string): Promise<TodayDTO> {
     return { phase: "idle", activeRunId: null, active: null, upNext: [], remainingCount: 0 };
   }
 
-  const remainingCount =
-    run.type === "collection"
-      ? await repo.countRemainingCollectionStops(run.run_id)
-      : await repo.countRemainingDrops(run.run_id);
+  const isCollection = run.type === "collection";
+  const remainingCount = isCollection
+    ? await repo.countRemainingCollectionStops(run.run_id)
+    : await repo.countRemainingDrops(run.run_id);
+
+  const activeRow = isCollection
+    ? await repo.activeCollectionStop(run.run_id)
+    : await repo.activeDrop(run.run_id);
+
+  const active: TodayItemRef | null = activeRow
+    ? {
+        kind: isCollection ? "collection_stop" : "delivery_drop",
+        id: activeRow.id,
+        runId: run.run_id,
+        title: activeRow.title,
+        subtitle: activeRow.subtitle,
+        status: activeRow.status,
+      }
+    : null;
 
   return {
-    phase: run.type === "collection" ? "collection" : "same_day_delivery",
+    phase: isCollection ? "collection" : "same_day_delivery",
     activeRunId: run.run_id,
-    active: null, // active stop/drop ref populated by US1/US2
+    active,
     upNext: [],
     remainingCount,
   };

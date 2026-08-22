@@ -63,13 +63,13 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 **Independent Test**: Provision a driver; two shops' portions `ready_for_pickup` in a served zone (mixed methods); sign in → on duty → run auto-assigned ≤30 s → verify+collect each shop → hub check-in shows the split and stages standard.
 
-- [ ] T017 [US1] Assignment worker: collection-work detection in `apis/edge-api/driver/src/assignment/` — find `ready_for_pickup` `shop_fulfillment` portions with no open `collection_task`, group into a `driver_run(type=collection)` per zone, assign to an eligible driver (nearest by snapshot else load-balanced) (FR-007/008/009).
-- [ ] T018 [P] [US1] Collection reads in `apis/edge-api/driver/src/collection/`: `GET /collection/runs/{id}` (ordered shop stops + counts) and `GET /collection/tasks/{id}` (package manifest: ref, destination suburb, method, items) (FR-013/014).
-- [ ] T019 [US1] Collection writes in `apis/edge-api/driver/src/collection/`: `POST /collection/tasks/{id}/collect` (advance the package `shop_fulfillment`→`collected`, idempotent by `changeId`) (FR-014).
-- [ ] T020 [US1] Hub check-in in `apis/edge-api/driver/src/hubcheckin/`: `POST /hub/checkin` — require every collection task terminal, end the run (`checked_in`), compute + return the scanned total and same-day/standard split, stage standard packages for the external carrier and drop them from active work (FR-016/017).
-- [ ] T021 [P] [US1] Mobile collection run overview in `features/collection/` — ordered shop stops with package counts, progress, pull-to-refresh (FR-013).
-- [ ] T022 [P] [US1] Mobile shop stop verify+collect in `features/collection/` — package manifest as a tick list, swipe-to-collect (FR-014); phase-1 "Today" home wiring (active stop).
-- [ ] T023 [US1] Mobile hub check-in screen in `features/hubcheckin/` — scanned total + same-day/standard split, "nothing same-day" variant, swipe to end the run and unlock phase 2 (FR-016).
+- [X] T017 [US1] Assignment worker: collection-work detection in `apis/edge-api/driver/src/assignment/` — find `ready_for_pickup` `shop_fulfillment` portions with no open `collection_task`, group into a `driver_run(type=collection)` per zone, assign to an eligible driver (nearest by snapshot else load-balanced) (FR-007/008/009).
+- [X] T018 [P] [US1] Collection reads in `apis/edge-api/driver/src/collection/`: `GET /collection/runs/{id}` (ordered shop stops + counts) and `GET /collection/tasks/{id}` (package manifest: ref, destination suburb, method, items) (FR-013/014).
+- [X] T019 [US1] Collection writes in `apis/edge-api/driver/src/collection/`: `POST /collection/tasks/{id}/collect` (advance the package `shop_fulfillment`→`collected`, idempotent by `changeId`) (FR-014).
+- [X] T020 [US1] Hub check-in in `apis/edge-api/driver/src/hubcheckin/`: `POST /hub/checkin` — require every collection task terminal, end the run (`checked_in`), compute + return the scanned total and same-day/standard split, stage standard packages for the external carrier and drop them from active work (FR-016/017).
+- [X] T021 [P] [US1] Mobile collection run overview in `features/collection/` — ordered shop stops with package counts, progress, pull-to-refresh (FR-013).
+- [X] T022 [P] [US1] Mobile shop stop verify+collect in `features/collection/` — package manifest as a tick list, swipe-to-collect (FR-014); phase-1 "Today" home wiring (active stop).
+- [X] T023 [US1] Mobile hub check-in screen in `features/hubcheckin/` — scanned total + same-day/standard split, "nothing same-day" variant, swipe to end the run and unlock phase 2 (FR-016).
 - [ ] T024 [P] [US1] Tests: edge-driver collection + hub-checkin suites (assign→collect→checkin, double-assign refused, idempotent re-collect); mobile collection/hubcheckin ViewModel+UseCase `commonTest`.
 - [ ] T061 [US1] **Missed-collection-cutoff flag** in `apis/edge-api/driver/src/assignment/` + `src/hubcheckin/`: detect a same-day package still uncollected past its collection run's derived cutoff (047 `delivery_collection_run` + prep buffer, Australia/Melbourne) and flag it (surfaced at hub check-in / activity) so the same-day promise is not silently broken; not delivered late without a signal (spec "late package / missed collection cutoff" edge case).
 
@@ -83,13 +83,13 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 **Independent Test**: With same-day packages checked in (seeded or via US1), a delivery run of ordered drops appears; complete a drop with each proof method; a two-shop customer shows as one drop; order/fulfilment → `delivered` (retires the 020 stub).
 
-- [ ] T025 [US2] Assignment worker: delivery-work detection in `apis/edge-api/driver/src/assignment/` — find checked-in **same-day** packages not in a `delivery_task`, group by order/`customer_address` into drops (one drop per order, SC-006), create a `driver_run(type=same_day_delivery)` + `delivery_task` + `delivery_task_package`, assign to an eligible driver.
-- [ ] T026 [P] [US2] Delivery reads in `apis/edge-api/driver/src/delivery/`: `GET /delivery/runs/{id}` (ordered drops) and `GET /delivery/drops/{id}` (customer, address+instructions, aggregated packages) (FR-018/020).
-- [ ] T027 [US2] Delivery status writes in `apis/edge-api/driver/src/delivery/`: `POST /delivery/drops/{id}/status` (`out_for_delivery`/`en_route`/`arrived`, idempotent) (FR-019).
-- [ ] T028 [US2] Proof media presign in `apis/edge-api/driver/src/proof/`: `POST /delivery/drops/{id}/proof/presign` (presigned PUT to the private media bucket via edge-shared) + S3 IAM on the driver `serverless.yml` (R7).
-- [ ] T029 [US2] Complete-with-proof in `apis/edge-api/driver/src/proof/`: `POST /delivery/drops/{id}/proof` — verify `code` server-side when method=code; write `proof_of_delivery` and advance every package `shop_fulfillment`→`delivered` in **one transaction**; refuse `delivered` without a proof (FR-024/025/026/027).
-- [ ] T030 [P] [US2] Mobile delivery run overview + drop detail in `features/delivery/` (ordered drops; customer/address/instructions/packages); phase-2 "Today" home wiring (FR-018/020/021).
-- [ ] T031 [US2] Mobile lifecycle + proof in `features/delivery/`: out-for-delivery/en-route/arrived, proof method picker + photo (capture/review/retake) + delivery-code (valid/invalid) + signature (draw/clear) + contactless + note, success state + "Next" (FR-019/024–027).
+- [X] T025 [US2] Assignment worker: delivery-work detection in `apis/edge-api/driver/src/assignment/` — find checked-in **same-day** packages not in a `delivery_task`, group by order/`customer_address` into drops (one drop per order, SC-006), create a `driver_run(type=same_day_delivery)` + `delivery_task` + `delivery_task_package`, assign to an eligible driver.
+- [X] T026 [P] [US2] Delivery reads in `apis/edge-api/driver/src/delivery/`: `GET /delivery/runs/{id}` (ordered drops) and `GET /delivery/drops/{id}` (customer, address+instructions, aggregated packages) (FR-018/020).
+- [X] T027 [US2] Delivery status writes in `apis/edge-api/driver/src/delivery/`: `POST /delivery/drops/{id}/status` (`out_for_delivery`/`en_route`/`arrived`, idempotent) (FR-019).
+- [X] T028 [US2] Proof media presign in `apis/edge-api/driver/src/proof/`: `POST /delivery/drops/{id}/proof/presign` (presigned PUT to the private media bucket via edge-shared) + S3 IAM on the driver `serverless.yml` (R7).
+- [X] T029 [US2] Complete-with-proof in `apis/edge-api/driver/src/proof/`: `POST /delivery/drops/{id}/proof` — verify `code` server-side when method=code; write `proof_of_delivery` and advance every package `shop_fulfillment`→`delivered` in **one transaction**; refuse `delivered` without a proof (FR-024/025/026/027).
+- [X] T030 [P] [US2] Mobile delivery run overview + drop detail in `features/delivery/` (ordered drops; customer/address/instructions/packages); phase-2 "Today" home wiring (FR-018/020/021).
+- [X] T031 [US2] Mobile lifecycle + proof in `features/delivery/`: out-for-delivery/en-route/arrived, proof method picker + photo (capture/review/retake) + delivery-code (valid/invalid) + signature (draw/clear) + contactless + note, success state + "Next" (FR-019/024–027).
 - [ ] T032 [P] [US2] Tests: edge-driver delivery+proof suites (grouping to one drop, no-proof→no-delivered, code verify, idempotent proof); mobile delivery ViewModel+UseCase `commonTest`.
 
 **Checkpoint**: US1+US2 = the MVP loop; a paid order is collected and same-day-delivered with proof, order→`delivered`.
@@ -102,10 +102,10 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 **Independent Test**: On a collection stop report a missing item and still collect the rest; mark a drop undeliverable with a reason and confirm it leaves the active run in a failed state recorded for back-office.
 
-- [ ] T033 [US3] `POST /collection/tasks/{id}/issue` in `apis/edge-api/driver/src/collection/` (write `collection_task_issue`, mark `short`, non-blocking) (FR-015).
-- [ ] T034 [US3] `POST /delivery/drops/{id}/fail` in `apis/edge-api/driver/src/delivery/` (write `delivery_failure` + `failed`, remove from active run) (FR-028).
-- [ ] T035 [P] [US3] Mobile report missing/short package UI in `features/collection/` (affected item + reason) (FR-015).
-- [ ] T036 [P] [US3] Mobile mark-undeliverable reason picker + confirm in `features/delivery/` (nobody home/wrong address/refused/access blocked/other+note) (FR-028).
+- [X] T033 [US3] `POST /collection/tasks/{id}/issue` in `apis/edge-api/driver/src/collection/` (write `collection_task_issue`, mark `short`, non-blocking) (FR-015).
+- [X] T034 [US3] `POST /delivery/drops/{id}/fail` in `apis/edge-api/driver/src/delivery/` (write `delivery_failure` + `failed`, remove from active run) (FR-028).
+- [X] T035 [P] [US3] Mobile report missing/short package UI in `features/collection/` (affected item + reason) (FR-015).
+- [X] T036 [P] [US3] Mobile mark-undeliverable reason picker + confirm in `features/delivery/` (nobody home/wrong address/refused/access blocked/other+note) (FR-028).
 - [ ] T037 [P] [US3] Tests: edge-driver issue + fail suites; mobile exception ViewModel `commonTest`.
 
 **Checkpoint**: happy paths (US1/US2) plus the problem/fail branches.

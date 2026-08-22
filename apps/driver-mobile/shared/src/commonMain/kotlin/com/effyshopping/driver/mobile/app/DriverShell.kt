@@ -26,15 +26,28 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.driver.mobile.core.nav.AccountRoot
+import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
+import com.effyshopping.driver.mobile.core.nav.DeliveryRunRoute
 import com.effyshopping.driver.mobile.core.nav.DriverTab
+import com.effyshopping.driver.mobile.core.nav.DropRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryRoot
+import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
 import com.effyshopping.driver.mobile.core.nav.MapRoot
+import com.effyshopping.driver.mobile.core.nav.ShopStopRoute
 import com.effyshopping.driver.mobile.core.nav.TodayRoot
 import com.effyshopping.driver.mobile.core.nav.driverNavJson
 import com.effyshopping.driver.mobile.core.nav.driverStartRoute
 import com.effyshopping.driver.mobile.core.session.SessionState
 import com.effyshopping.driver.mobile.features.account.AccountScreen
 import com.effyshopping.driver.mobile.features.placeholder.ComingSoonScreen
+import com.effyshopping.driver.mobile.features.collection.presentation.CollectionRunScreen
+import com.effyshopping.driver.mobile.features.collection.presentation.CollectionViewModel
+import com.effyshopping.driver.mobile.features.collection.presentation.HubCheckinScreen
+import com.effyshopping.driver.mobile.features.collection.presentation.ShopStopScreen
+import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryRunScreen
+import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryViewModel
+import com.effyshopping.driver.mobile.features.delivery.presentation.DropDetailScreen
+import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.presentation.TodayScreen
 import com.effyshopping.driver.mobile.features.today.presentation.TodayViewModel
 import com.effyshopping.mobile.kit.nav.rememberTabBackStacks
@@ -104,8 +117,70 @@ fun DriverShell(
                         state = state,
                         onToggleDuty = vm::toggleDuty,
                         onRefresh = vm::refresh,
+                        onOpenRun = { runId, phase ->
+                            tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
+                        },
                     )
                 }
+
+                is CollectionRunRoute -> {
+                    val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
+                    CollectionRunScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onOpenStop = { stopId -> tabs.push(ShopStopRoute(route.runId, stopId)) },
+                        onCheckIn = { tabs.push(HubCheckinRoute(route.runId)) },
+                    )
+                }
+                is ShopStopRoute -> {
+                    val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
+                    ShopStopScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onCollect = { vm.collect(route.stopId) { tabs.pop() } },
+                        onReport = { kind -> vm.report(route.stopId, kind, null) },
+                    )
+                }
+                is HubCheckinRoute -> {
+                    val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    HubCheckinScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onCheckIn = { vm.checkIn() },
+                        onDone = { while (tabs.canGoBack) tabs.pop() },
+                    )
+                }
+                is DeliveryRunRoute -> {
+                    val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.runId) { vm.loadRun() }
+                    DeliveryRunScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onOpenDrop = { dropId -> tabs.push(DropRoute(route.runId, dropId)) },
+                    )
+                }
+                is DropRoute -> {
+                    val vm = viewModel(key = "del-${route.runId}") { newDeliveryVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.dropId) { vm.loadDrop(route.dropId) }
+                    DropDetailScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onNavigate = { /* external maps hand-off (US4/T041) */ },
+                        onAdvance = { to -> vm.advance(route.dropId, to) },
+                        onDeliverCode = { code, note -> vm.deliverWithCode(route.dropId, code, note) },
+                        onDeliverContactless = { note -> vm.deliverContactless(route.dropId, note) },
+                        onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
+                        onNext = { tabs.pop() },
+                    )
+                }
+
                 MapRoot -> ComingSoonScreen("Map", "Your run route and stops will appear here.")
                 HistoryRoot -> ComingSoonScreen("History", "Completed runs and deliveries will appear here.")
                 AccountRoot -> AccountScreen(
@@ -145,6 +220,27 @@ private fun RailAvatar(initials: String) {
         Text(initials, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
     }
 }
+
+private fun newCollectionVm(container: AppContainer, runId: String) = CollectionViewModel(
+    runId = runId,
+    getRun = container.getCollectionRun,
+    getStop = container.getShopStop,
+    collectStop = container.collectStop,
+    reportIssue = container.reportCollectionIssue,
+    checkInHub = container.checkInHub,
+    newChangeId = container::newChangeId,
+)
+
+private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryViewModel(
+    runId = runId,
+    getRun = container.getDeliveryRun,
+    getDrop = container.getDrop,
+    advanceDrop = container.advanceDrop,
+    completeWithCode = container.completeWithCode,
+    completeContactless = container.completeContactless,
+    failDrop = container.failDrop,
+    newChangeId = container::newChangeId,
+)
 
 private fun com.effyshopping.driver.mobile.features.driver.domain.Driver.railInitials(): String {
     val source = name.trim().ifBlank { workEmail.substringBefore("@") }

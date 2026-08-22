@@ -14,6 +14,21 @@ import com.effyshopping.driver.mobile.features.driver.domain.SetDuty
 import com.effyshopping.driver.mobile.features.today.data.HttpTodayRepository
 import com.effyshopping.driver.mobile.features.today.domain.GetToday
 import com.effyshopping.driver.mobile.features.today.domain.TodayRepository
+import com.effyshopping.driver.mobile.features.collection.data.HttpCollectionRepository
+import com.effyshopping.driver.mobile.features.collection.domain.CheckInHub
+import com.effyshopping.driver.mobile.features.collection.domain.CollectStop
+import com.effyshopping.driver.mobile.features.collection.domain.CollectionRepository
+import com.effyshopping.driver.mobile.features.collection.domain.GetCollectionRun
+import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
+import com.effyshopping.driver.mobile.features.collection.domain.ReportCollectionIssue
+import com.effyshopping.driver.mobile.features.delivery.data.HttpDeliveryRepository
+import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
+import com.effyshopping.driver.mobile.features.delivery.domain.CompleteContactless
+import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithCode
+import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
+import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
+import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
+import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +54,8 @@ class AppContainer(
     }
     private val driver: DriverRepository by lazy { HttpDriverRepository(driverClient) }
     private val today: TodayRepository by lazy { HttpTodayRepository(driverClient) }
+    private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient) }
+    private val delivery: DeliveryRepository by lazy { HttpDeliveryRepository(driverClient) }
 
     val appearance: AppearancePreferenceStore by lazy { AppearancePreferenceStore(Settings()) }
 
@@ -48,6 +65,21 @@ class AppContainer(
     val getDriverIdentity by lazy { GetDriverIdentity(driver) }
     val setDuty by lazy { SetDuty(driver) }
     val getToday by lazy { GetToday(today) }
+
+    // collection (US1)
+    val getCollectionRun by lazy { GetCollectionRun(collection) }
+    val getShopStop by lazy { GetShopStop(collection) }
+    val collectStop by lazy { CollectStop(collection) }
+    val reportCollectionIssue by lazy { ReportCollectionIssue(collection) }
+    val checkInHub by lazy { CheckInHub(collection) }
+
+    // same-day delivery (US2)
+    val getDeliveryRun by lazy { GetDeliveryRun(delivery) }
+    val getDrop by lazy { GetDrop(delivery) }
+    val advanceDrop by lazy { AdvanceDrop(delivery) }
+    val completeWithCode by lazy { CompleteWithCode(delivery) }
+    val completeContactless by lazy { CompleteContactless(delivery) }
+    val failDrop by lazy { FailDrop(delivery) }
 
     // ── app services / presentation wiring ───────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getDriverIdentity, appScope) }
