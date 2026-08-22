@@ -241,6 +241,49 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**047-delivery-shipping-engine — Delivery Zones & Shipping-Fee Engine.** ✅ **CONCLUDED (PARTIAL BY
+DESIGN) 2026-08-22 — 56/57 tasks. Code-complete + machine-verified across the hot path, both cold-path
+services, the back-office console, customer-web AND customer-mobile; DEPLOYED TO DEV AND PROVEN LIVE on
+web + mobile.** Sign-off: [specs/047-delivery-shipping-engine/SIGNOFF.md](specs/047-delivery-shipping-engine/SIGNOFF.md).
+
+Reintroduces delivery after the four-slice build (021 zones + rate grid, 030 locality lookup, 031 area
+decisions, 032 banded pricing + a shop-proposes/admin-approves same-day workflow) was **withdrawn whole**
+on 2026-08-02 for having too many independent refusal terms. The rebuild is governed by **one rule
+(FR-001): serviceability is one fact — is the postcode in a served zone — and a served zone can never
+fail to produce a standard fee.** One decision, one legible refusal.
+- **The fee engine has exactly one home** — a pure Go function in `apis/core-api/internal/platform/delivery`
+  (`fee = clamp(roundUp(factor × (ring_price + weight_add), step), floor, cap)`): the delivery **method**
+  (same-day factor a ≥ standard factor b), the destination zone's **distance ring**, and the package
+  **weight in slabs** (stepped, never linear); snapped **up** (never down), a **floor** ("never lose money
+  on a delivery") and a **cap**. The back-office console **validates** a plan but never recomputes a fee.
+- **Zones → rings, priced by the active plan.** Serviceability is `postcode ∈ active delivery_zone`
+  (`UNIQUE(postcode)` = one zone). Each zone sits in a distance **ring** (INNER/MIDDLE/OUTER/EXTENDED),
+  auto-**suggested** by Haversine from a configurable hub and admin-overridable; the plan prices rings, so
+  a farther area pays more without leaking which shop fulfils. **Multiple fee plans, exactly one active**
+  (partial-unique); activation is **refused** unless every ring is priced + ≥1 weight slab (SC-016).
+- **Same-day = a zone eligibility flag + per-(shop,zone) exceptions, back-office ONLY** (the 032
+  propose/approve workflow is gone), gated by a cutoff **derived** from a configurable **collection
+  schedule** (1..n runs + a prep buffer), judged in **Australia/Melbourne** wall-clock. Per-package: a
+  two-shop basket can offer same-day on one package and standard on the other (SC-011).
+- ⚠ **Legal (researched first)**: fees GST-inclusive; the exact snapped-up fee shown **before payment**
+  and charged unchanged (no drip pricing, unlawful under ACL s18); rounding up is Effy's own fee and
+  lawful. No distance / ring / shop identity ever enters a customer DTO (FR-018/033); money crosses as a
+  2-dp decimal string, pinned by a Go↔Kotlin wire test (027 R13).
+- **Data**: one forward-only migration `20260822001858_delivery_shipping_engine.sql` (+ re-adds
+  `product.weight_grams` measured/assumed). Reference data = a committed G-NAF-derived `au-localities.csv`
+  loaded by `make load-localities`. Realistic dev seed: `db/seeds/047_delivery_dev.sql`.
+- **Surfaces**: hot path (`core-api` storefront + checkout); cold path (`edge-api/admin` delivery domain;
+  `edge-api/shop` product weight + isolation guard); back-office Delivery console (Zones/Rings/Fee
+  plans/Same-day/Settings); customer-web + customer-mobile checkout. Operator guide:
+  [docs/delivery-console-guide.md](docs/delivery-console-guide.md).
+- **Verified**: Go 14 pkgs/0 fails · edge-admin 191 · edge-shop 172 · back-office 79 · customer-web 366 ·
+  customer-mobile Android 272 + iOS compile + `cm-guard` · no-PII sweep · bundle within 174 KB.
+- **⚠ Open (operator)**: `make edge-deploy SERVICE=shop` (if not already), the full formal SC-001…SC-017
+  table walk, and the commit (nothing committed). ⚠ Deploy **core-api before customer-web** (a reversed
+  order briefly blocked dev checkout). Carry-forwards: the "same-day unavailable" note doesn't yet
+  distinguish past-cutoff from not-eligible; the committed locality CSV is a 17-row sample (load full
+  G-NAF to widen coverage); mobile telemetry deferred; PostHog still not initialised on customer-web (039).
+
 **046-customer-feedback — Customer Feedback (listening channel).** ✅ **CONCLUDED (PARTIAL BY DESIGN)
 2026-08-17 — 41/43 tasks. Code-complete + fully machine-verified across all six surfaces; NOT deployed,
 NOT committed, NOT walked by a person.** Sign-off:
