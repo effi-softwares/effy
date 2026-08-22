@@ -1069,14 +1069,11 @@ before the collection cutoff. One serviceability rule (postcode ∈ active zone)
 
 | Capability | customer-web | customer-mobile | Notes |
 |---|---|---|---|
-| Serviceability read ("do we deliver here?") | ✅ | ⏳ mobile pending | `GET /v1/storefront/serviceability`, public + cacheable |
+| Serviceability read ("do we deliver here?") | ✅ | ✅ | `GET /v1/storefront/serviceability`, public + cacheable |
 | Locality typeahead | ✅ (endpoint) | ⏳ | `GET /v1/storefront/localities` |
 | Standard delivery fee at checkout | ✅ | ⏳ | server-computed, captured, shown before pay |
 | Same-day choice at checkout | ✅ (order-level when all packages qualify) | ⏳ | `deliveryMethod` on intent; per-package on the server (SC-011) |
 | Not-serviceable refusal (one reason) | ✅ | ⏳ | pay blocked; "we don't deliver here yet" |
 
-⚠ **Open**: **customer-mobile** serviceability + fee display (T031/T039 — needs the KMP Gradle
-toolchain, not built in this session); the Go↔Kotlin wire test's **Kotlin half** (the Go half is green);
-operator deploy of `edge-admin` + the live SC walk (T057); Playwright storefront path (T055, needs a
-live core-api). Backend, back-office console, and customer-web are code-complete and machine-verified.
+⚠ **Open**: only the operator deploy of the delivery services + the live SC walk (T057). Backend, back-office console, customer-web AND customer-mobile (Android 272 tests + iOS compile) are code-complete and machine-verified; the Go↔Kotlin wire contract is green on both sides.
 Spec/artifacts: [specs/047-delivery-shipping-engine/](../../specs/047-delivery-shipping-engine/).

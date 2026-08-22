@@ -9,9 +9,12 @@ import com.effyshopping.customer.mobile.features.addresses.presentation.AddressF
 import com.effyshopping.customer.mobile.features.addresses.presentation.toDraft
 import com.effyshopping.customer.mobile.features.addresses.presentation.validate
 import com.effyshopping.customer.mobile.features.cart.domain.CartStore
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.PayOutcome
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -52,10 +55,21 @@ sealed interface CheckoutUiState {
         val sheet: CheckoutAddressSheet? = null,
         val paying: Boolean = false,
         val error: String? = null,
+        // 047: the delivery quote for the selected address (null while none/loading), whether it is being
+        // fetched, and the shopper's method choice. serviced=false ⇒ "we don't deliver there yet".
+        val quote: DeliveryQuote? = null,
+        val quoting: Boolean = false,
+        val method: DeliveryMethod = DeliveryMethod.STANDARD,
     ) : CheckoutUiState {
         /** The billing id to SEND (023): only when diverged AND different from shipping; else null. */
         val effectiveBillingId: String?
             get() = billingSelectedId?.takeIf { !billingSameAsShipping && it != selectedId }
+
+        /** Serviced ⇔ a quote came back for a served address. Pay is blocked otherwise (047 FR-002). */
+        val serviced: Boolean get() = quote?.serviced == true
+
+        /** Same-day is choosable only when the whole order qualifies (FR-044 order-level presentation). */
+        val sameDayOfferable: Boolean get() = quote?.sameDayAvailable == true
     }
 
     data class Placed(val orderId: String) : CheckoutUiState
@@ -79,6 +93,7 @@ class CheckoutViewModel(
     private val listAddresses: ListAddresses,
     private val addAddress: AddAddress,
     private val pay: PayForOrder,
+    private val quoteDelivery: QuoteDelivery,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<CheckoutUiState>(CheckoutUiState.Loading)
@@ -99,6 +114,7 @@ class CheckoutViewModel(
             // Pre-select the default; deterministic to the first saved address when none is default (FR-002).
             val selectedId = addresses.firstOrNull { it.isDefault }?.id ?: addresses.firstOrNull()?.id
             _state.value = CheckoutUiState.Ready(addresses = addresses, selectedId = selectedId)
+            if (selectedId != null) refreshQuote(selectedId)
         }
     }
 
@@ -106,7 +122,35 @@ class CheckoutViewModel(
     fun select(id: String) {
         val s = ready() ?: return
         if (s.selectedId == id) return
-        _state.value = s.copy(selectedId = id, error = null)
+        // A new address re-prices delivery (FR-004): reset the method to standard until the quote returns.
+        _state.value = s.copy(selectedId = id, quote = null, method = DeliveryMethod.STANDARD, error = null)
+        refreshQuote(id)
+    }
+
+    /** Choose standard vs same-day (047 US2). Only meaningful when the whole order can do same-day. */
+    fun setMethod(method: DeliveryMethod) {
+        val s = ready() ?: return
+        if (method == DeliveryMethod.SAME_DAY && !s.sameDayOfferable) return
+        _state.value = s.copy(method = method)
+    }
+
+    /**
+     * 047: fetch the delivery quote for [addressId] and fold it into state. A stale response for an
+     * address the shopper has since moved past is discarded (the selected id no longer matches).
+     */
+    private fun refreshQuote(addressId: String) {
+        _state.value = (ready() ?: return).copy(quoting = true)
+        viewModelScope.launch {
+            val q = runCatching { quoteDelivery(addressId) }.getOrNull()
+            val cur = ready() ?: return@launch
+            if (cur.selectedId != addressId) return@launch // moved on — ignore this answer
+            _state.value = cur.copy(
+                quote = q,
+                quoting = false,
+                // If same-day is no longer offerable for this address, fall back to standard.
+                method = if (q?.sameDayAvailable == true) cur.method else DeliveryMethod.STANDARD,
+            )
+        }
     }
 
     // ── Billing (023 US4) ────────────────────────────────────────────────────────────────────────────
@@ -186,8 +230,16 @@ class CheckoutViewModel(
         if (!s.billingSameAsShipping && s.billingSelectedId == null) {
             _state.value = s.copy(error = "Choose a billing address."); return
         }
+        // 047 FR-002: never let a shopper pay for an address we can't deliver to.
+        if (!s.serviced) {
+            _state.value = s.copy(error = "We don’t deliver to this address yet. Choose another address."); return
+        }
 
-        val order = PlaceOrder(addressId = addressId, billingAddressId = s.effectiveBillingId)
+        val order = PlaceOrder(
+            addressId = addressId,
+            billingAddressId = s.effectiveBillingId,
+            deliveryMethod = s.method,
+        )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
             val outcome = try {

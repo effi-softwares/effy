@@ -82,12 +82,44 @@ data class PlaceOrder(
     val addressId: String,
     /** Set only when the shopper diverged from shipping (023). Null means "same as shipping". */
     val billingAddressId: String? = null,
+    /**
+     * 047: the shopper's order-level delivery preference. Applied per package where same-day is offered,
+     * standard elsewhere (FR-044). The client never sends a fee — the server prices the method (SC-004).
+     */
+    val deliveryMethod: DeliveryMethod = DeliveryMethod.STANDARD,
 )
+
+/** The two delivery methods (047). Same-day is always priced ≥ standard. */
+enum class DeliveryMethod { STANDARD, SAME_DAY }
+
+/**
+ * The delivery quote for a chosen address (047 US1/US2), shown BEFORE payment. When [serviced] is false
+ * there are no packages and one reason — we don't deliver there yet (FR-002). [sameDayAvailable] is true
+ * only when EVERY package can do same-day, so the shopper — who never sees packages (hidden fulfilment) —
+ * is offered one honest order-level choice. Fees are GST-inclusive, snapped-up 2-dp decimal strings.
+ */
+data class DeliveryQuote(
+    val serviced: Boolean,
+    val sameDayAvailable: Boolean,
+    val standardTotalAmount: String,
+    val sameDayTotalAmount: String?,
+) {
+    companion object {
+        val Unserviced = DeliveryQuote(serviced = false, sameDayAvailable = false, standardTotalAmount = "0.00", sameDayTotalAmount = null)
+    }
+}
 
 interface CheckoutRepository {
     /** Create/locate the pending order + PaymentIntent for the chosen address. */
     suspend fun createIntent(order: PlaceOrder): CheckoutIntent
     suspend fun confirm(orderId: String): Boolean
+    /** 047: quote delivery (serviceability + fee + same-day availability) for a chosen address. */
+    suspend fun quote(addressId: String): DeliveryQuote
+}
+
+/** QuoteDelivery (047) — the use case the ViewModel calls when the shipping address is chosen/changed. */
+class QuoteDelivery(private val checkout: CheckoutRepository) {
+    suspend operator fun invoke(addressId: String): DeliveryQuote = checkout.quote(addressId)
 }
 
 data class OrderSummary(

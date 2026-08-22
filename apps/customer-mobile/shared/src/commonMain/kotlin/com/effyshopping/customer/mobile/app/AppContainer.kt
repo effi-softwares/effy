@@ -29,6 +29,7 @@ import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepos
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.core.storage.devicePreferences
@@ -243,6 +244,7 @@ class AppContainer(
     // saved addresses the account page manages, on the cold path.
     // The client carries its OWN publishable key (019 R3) — not the backend echo on the intent.
     val payForOrder by lazy { PayForOrder(checkoutRepo, paymentDriver, AppConfig.stripePublishableKey) }
+    val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) } // 047: delivery quote at checkout
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 
