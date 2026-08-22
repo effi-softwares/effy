@@ -25,6 +25,14 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
+  # ⚠ 049 — the admin service has grown to 94 functions; with a Lambda Version per function the stack
+  # hit CloudFormation's hard 500-resource limit (511) when the driver-management routes landed. We
+  # publish no aliases and use no provisioned concurrency, and every httpApi integration invokes the
+  # unqualified ($LATEST) ARN — so per-deploy Versions are dead weight. Turning them off removes ~94
+  # resources with zero runtime change (routing is unaffected; existing Version resources are cleaned
+  # up on the next deploy). The real long-term lever if it grows again is nested stacks
+  # (serverless-plugin-split-stacks), deferred until needed.
+  versionFunctions: false
   tags:
     project: effy
     slice: 004-backend-bootstrap
