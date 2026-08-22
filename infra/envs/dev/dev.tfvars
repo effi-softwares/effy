@@ -139,6 +139,13 @@ custom_auth_lambda_arns = {
 # that api./core-api. are unchanged.
 amplify_domain_enabled = true
 
+# ⚠ Internal console cutover (048, quickstart §2). Stage A (false) built both consoles on their
+# …​.amplifyapp.com hostnames successfully; flip to true for STAGE B — attaches shop.dev.effyshopping.com
+# and back-office.dev.effyshopping.com (Amplify creates + verifies the Route53 records + us-east-1
+# certs; the apply BLOCKS on wait_for_verification). No apex/email cutover — these are fresh subdomains.
+# Afterwards confirm each subdomain resolves + serves its own console over a valid cert.
+amplify_consoles_domain_enabled = true
+
 # Browser origins allowed to call the hot path (core-api) — closes 040's open T048. The storefront
 # fetches /v1/storefront/products and /facets client-side from the deployed origin, so without these
 # every such fetch is CORS-blocked (403, no Access-Control-Allow-Origin). Native mobile and SSR need
