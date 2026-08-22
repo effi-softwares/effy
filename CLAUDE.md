@@ -10,6 +10,26 @@ it **spec-first** using **GitHub Spec Kit**. Read this before doing anything.
 - **Drivers and back-office staff are Effy employees**, working in internal apps (no public signup).
 - Four audiences, each with its own trust level: **customer, driver, shop/operator, admin/back-office.**
 
+### Driver logistics model (hub-and-spoke — settled 2026-08-22, feature 049)
+Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one-drop flow). They run a
+**hub-and-spoke** operation built on 047's collection-run + operating-hub concepts:
+- **Collection run (shops → hub):** an on-duty driver is assigned **packages to collect** and drives a
+  round of fulfillment shops, picking up **all** assigned packages (both same-day and standard), then
+  **checks them in at a single central Effy hub/warehouse**. Collection runs follow the **configurable
+  collection schedule** 047 already defines (e.g. a 2 pm cutoff), which is what gates same-day
+  eligibility at checkout.
+- **Sortation is a known fact, not a manual step:** each package's method (**same-day vs standard**) is
+  already chosen at **checkout** (047). The hub check-in surfaces the split; the driver does not
+  classify anything.
+- **Same-day delivery run (hub → customers):** the driver takes the **same-day** packages and does a
+  multi-drop delivery round, completing each drop with proof.
+- **Standard delivery is (mostly) an external carrier's job.** This **evolves 047's "Effy does all
+  delivery"**: Effy drivers own **collection + same-day delivery**; a **standard** package's driver-app
+  lifecycle **ends at "checked in at hub"**, after which it is handed to a third-party delivery company.
+- **Work is typed tasks, not driver roles** (`collection` / `same_day_delivery`); one driver typically
+  does a collection run then a same-day round in one shift, but neither is a hard-coded role.
+- **One hub for now** (matches 047's single operating-hub point); multi-hub is deferred.
+
 ## Platform shape (the vision)
 The full platform is **six client surfaces + two backends + DB migrations + infrastructure**. The
 customer and shop audiences each get **two surfaces kept at parity** (a native mobile build and a
@@ -1538,5 +1558,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/048-console-web-cicd/plan.md
+at specs/049-driver-mobile-app/plan.md
 <!-- SPECKIT END -->

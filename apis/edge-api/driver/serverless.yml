@@ -1,0 +1,154 @@
+# edge-driver — Effy cold-path driver service (049-driver-mobile-app).
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
+# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
+# under /driver/. Authenticated routes use the Terraform-owned DRIVER JWT authorizer (by id from
+# SSM). The driver mobile app client is registered in that authorizer's audience (edge-gateway.tf).
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-driver
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+    # Assignment sweep cadence — how often the worker looks for assignable work (research R2). Env-
+    # configurable so it can tighten (or become event-driven) when the event backbone lands.
+    assignmentSchedule: rate(1 minute)
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  tags:
+    project: effy
+    slice: 049-driver-mobile-app
+    service: driver
+  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # Proof-of-delivery media (private): photo/signature uploaded via presigned PUT, read via signed
+    # GET. Reuses the platform media bucket (media.tf; name at /effy/<env>/media/bucket).
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Proof media: read/write objects under the driver-proof prefix only — never a wildcard.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/driver-proof/*
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as edge-shop/admin:
+  # no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev DB is reachable on its
+  # public endpoint. DEV ONLY — see infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the driver service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the driver service serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/readyz
+
+  driverMeV1:
+    handler: src/functions/driver-me-v1-get.handler
+    description: Driver identity read — the provisioned driver record; refuses if absent/disabled (049).
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/me
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDutyV1:
+    handler: src/functions/driver-duty-v1-post.handler
+    description: Go on/off duty — opens/closes a duty session; gates assignment (049).
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/duty
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverLocationV1:
+    handler: src/functions/driver-location-v1-post.handler
+    description: Optional point-in-time location snapshot for nearest-driver preference (049). Never streamed.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/location
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverTodayV1:
+    handler: src/functions/driver-today-v1-get.handler
+    description: Phase-aware home — active run/stop/drop + queue + counts-only remaining (049).
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/today
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  # The auto-assignment sweep worker (research R2). Scheduled, not event-driven — the SNS/SQS event
+  # backbone does not exist yet. Idempotent: re-running assigns only still-unassigned work, and
+  # releases ineligible drivers' not-yet-collected work back to the pool (FR-011, T060).
+  assignmentSweep:
+    handler: src/assignment/handler.handler
+    description: Auto-assign ready collection work + checked-in same-day drops to eligible on-duty drivers (049).
+    timeout: 60
+    events:
+      - schedule: ${param:assignmentSchedule}

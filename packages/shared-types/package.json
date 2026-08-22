@@ -17,6 +17,8 @@
     "contract:check": "node scripts/gen-kotlin-contract.mjs && git diff --exit-code contract/Dto.kt contract/schema.json",
     "shop-contract:gen": "node scripts/gen-kotlin-shop-contract.mjs",
     "shop-contract:check": "node scripts/gen-kotlin-shop-contract.mjs && git diff --exit-code contract-shop/",
+    "driver-contract:gen": "node scripts/gen-kotlin-driver-contract.mjs",
+    "driver-contract:check": "node scripts/gen-kotlin-driver-contract.mjs && git diff --exit-code contract-driver/",
     "commerce-contract:gen": "node scripts/gen-kotlin-commerce-contract.mjs",
     "commerce-contract:check": "node scripts/gen-kotlin-commerce-contract.mjs && git diff --exit-code contract/CommerceDto.kt contract/commerce-schema.json"
   },

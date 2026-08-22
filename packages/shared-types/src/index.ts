@@ -25,3 +25,5 @@ export * from "./feedback";
 // 047-delivery-shipping-engine
 export * from "./delivery";
 export * from "./delivery-admin";
+// 049-driver-mobile-app
+export * from "./driver";

@@ -1,0 +1,1349 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": false,
+  "definitions": {
+    "ActivityItem": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "dropId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "runId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "$ref": "#/definitions/ActivityType"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "body",
+        "createdAt",
+        "read",
+        "runId",
+        "dropId"
+      ],
+      "type": "object"
+    },
+    "ActivityReadRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/activity/read",
+      "properties": {
+        "ids": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ids"
+      ],
+      "type": "object"
+    },
+    "ActivityType": {
+      "enum": [
+        "run_assigned",
+        "packages_ready",
+        "sameday_window",
+        "reminder",
+        "issue_ack",
+        "cutoff_missed"
+      ],
+      "type": "string"
+    },
+    "CollectRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/collection/tasks/{taskId}/collect",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "CollectResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "collected",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "CollectionIssueRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/collection/tasks/{taskId}/issue",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "missing",
+            "short"
+          ],
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "orderItemId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "CollectionPackage": {
+      "additionalProperties": false,
+      "properties": {
+        "destinationSuburb": {
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/definitions/ManifestLine"
+          },
+          "type": "array"
+        },
+        "method": {
+          "$ref": "#/definitions/PackageMethod"
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "destinationSuburb",
+        "method",
+        "items"
+      ],
+      "type": "object"
+    },
+    "CollectionStopSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "packageCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "sequence": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "shopAddress": {
+          "type": "string"
+        },
+        "shopName": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/CollectionTaskStatus"
+        },
+        "taskId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "taskId",
+        "sequence",
+        "shopName",
+        "shopAddress",
+        "packageCount",
+        "status"
+      ],
+      "type": "object"
+    },
+    "CollectionTaskDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/collection/tasks/{taskId}",
+      "properties": {
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/CollectionPackage"
+          },
+          "type": "array"
+        },
+        "shopAddress": {
+          "type": "string"
+        },
+        "shopName": {
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/definitions/CollectionTaskStatus"
+        },
+        "taskId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "taskId",
+        "shopName",
+        "shopAddress",
+        "packages",
+        "status"
+      ],
+      "type": "object"
+    },
+    "CollectionTaskStatus": {
+      "enum": [
+        "assigned",
+        "en_route",
+        "collected",
+        "short"
+      ],
+      "type": "string"
+    },
+    "ContactRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/delivery/drops/{dropId}/contact — masked relay (capability-flagged, R6).",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "call",
+            "message"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "ContactResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "maskedChannel": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "maskedChannel"
+      ],
+      "type": "object"
+    },
+    "DeliveryDropDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/delivery/drops/{dropId}",
+      "properties": {
+        "addressFull": {
+          "type": "string"
+        },
+        "customerName": {
+          "type": "string"
+        },
+        "dropId": {
+          "type": "string"
+        },
+        "instructions": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "orderRef": {
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/DropPackageRef"
+          },
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/definitions/DeliveryDropStatus"
+        }
+      },
+      "required": [
+        "dropId",
+        "orderRef",
+        "customerName",
+        "addressFull",
+        "instructions",
+        "packages",
+        "status"
+      ],
+      "type": "object"
+    },
+    "DeliveryDropStatus": {
+      "enum": [
+        "staged",
+        "out_for_delivery",
+        "en_route",
+        "arrived",
+        "delivered",
+        "failed"
+      ],
+      "type": "string"
+    },
+    "DeliveryDropSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "customerSuburb": {
+          "type": "string"
+        },
+        "dropId": {
+          "type": "string"
+        },
+        "orderRef": {
+          "type": "string"
+        },
+        "packageCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "sequence": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "status": {
+          "$ref": "#/definitions/DeliveryDropStatus"
+        },
+        "window": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "dropId",
+        "sequence",
+        "orderRef",
+        "customerSuburb",
+        "packageCount",
+        "window",
+        "status"
+      ],
+      "type": "object"
+    },
+    "DeliveryFailureReason": {
+      "enum": [
+        "nobody_home",
+        "wrong_address",
+        "customer_refused",
+        "access_blocked",
+        "other"
+      ],
+      "type": "string"
+    },
+    "DeliveryRunDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/delivery/runs/{runId}",
+      "properties": {
+        "drops": {
+          "items": {
+            "$ref": "#/definitions/DeliveryDropSummary"
+          },
+          "type": "array"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "status",
+        "drops"
+      ],
+      "type": "object"
+    },
+    "DriverCollectionRunDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/collection/runs/{runId} (driver-facing; distinct from 047's admin CollectionRunDTO)",
+      "properties": {
+        "runId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "stops": {
+          "items": {
+            "$ref": "#/definitions/CollectionStopSummary"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "runId",
+        "status",
+        "stops"
+      ],
+      "type": "object"
+    },
+    "DriverDutyStatus": {
+      "enum": [
+        "on_duty",
+        "off_duty"
+      ],
+      "type": "string"
+    },
+    "DriverMeDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/me — the record-backed identity read. Display strings only; no currency.",
+      "properties": {
+        "dutyStatus": {
+          "$ref": "#/definitions/DriverDutyStatus"
+        },
+        "hub": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "vehicle": {
+          "$ref": "#/definitions/DriverVehicle"
+        },
+        "workEmail": {
+          "type": "string"
+        },
+        "zone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "workEmail",
+        "zone",
+        "hub",
+        "vehicle",
+        "dutyStatus"
+      ],
+      "type": "object"
+    },
+    "DriverPhase": {
+      "enum": [
+        "collection",
+        "same_day_delivery",
+        "idle"
+      ],
+      "type": "string"
+    },
+    "DriverVehicle": {
+      "additionalProperties": false,
+      "properties": {
+        "plate": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "plate"
+      ],
+      "type": "object"
+    },
+    "DropFailRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/delivery/drops/{dropId}/fail",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/definitions/DeliveryFailureReason"
+        }
+      },
+      "required": [
+        "reason",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "DropFailResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "failed",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "DropPackageRef": {
+      "additionalProperties": false,
+      "properties": {
+        "fromShopCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "ref",
+        "fromShopCount"
+      ],
+      "type": "object"
+    },
+    "DropStatusRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/delivery/drops/{dropId}/status",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "to": {
+          "enum": [
+            "out_for_delivery",
+            "en_route",
+            "arrived"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "to",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "DropStatusResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "$ref": "#/definitions/DeliveryDropStatus"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "DutyRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/duty",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "onDuty": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "onDuty",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "DutyResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "dutyStatus": {
+          "$ref": "#/definitions/DriverDutyStatus"
+        },
+        "since": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "dutyStatus",
+        "since"
+      ],
+      "type": "object"
+    },
+    "HistoryDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/history",
+      "properties": {
+        "days": {
+          "items": {
+            "$ref": "#/definitions/HistoryDay"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "days"
+      ],
+      "type": "object"
+    },
+    "HistoryDay": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "type": "string"
+        },
+        "drops": {
+          "items": {
+            "$ref": "#/definitions/HistoryDropRow"
+          },
+          "type": "array"
+        },
+        "runs": {
+          "items": {
+            "$ref": "#/definitions/HistoryRunRow"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "date",
+        "runs",
+        "drops"
+      ],
+      "type": "object"
+    },
+    "HistoryDetailDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/history/{kind}/{id}",
+      "properties": {
+        "addressFull": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/DropPackageRef"
+          },
+          "type": "array"
+        },
+        "proof": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "capturedAt": {
+                  "type": "string"
+                },
+                "mediaUrl": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "method": {
+                  "$ref": "#/definitions/ProofMethod"
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "method",
+                "mediaUrl",
+                "note",
+                "capturedAt"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeline": {
+          "items": {
+            "$ref": "#/definitions/TimelineEntry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "timeline",
+        "proof",
+        "addressFull",
+        "packages"
+      ],
+      "type": "object"
+    },
+    "HistoryDropRow": {
+      "additionalProperties": false,
+      "properties": {
+        "completedAt": {
+          "type": "string"
+        },
+        "customerSuburb": {
+          "type": "string"
+        },
+        "dropId": {
+          "type": "string"
+        },
+        "orderRef": {
+          "type": "string"
+        },
+        "proofCaptured": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "dropId",
+        "orderRef",
+        "customerSuburb",
+        "completedAt",
+        "proofCaptured"
+      ],
+      "type": "object"
+    },
+    "HistoryRunRow": {
+      "additionalProperties": false,
+      "properties": {
+        "completedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "runId": {
+          "type": "string"
+        },
+        "stopCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "type": {
+          "enum": [
+            "collection",
+            "same_day_delivery"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "type",
+        "completedAt",
+        "stopCount"
+      ],
+      "type": "object"
+    },
+    "HubCheckinRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/hub/checkin",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "runId",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "HubCheckinResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "sameDayCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "scannedTotal": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "standardCount": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "scannedTotal",
+        "sameDayCount",
+        "standardCount"
+      ],
+      "type": "object"
+    },
+    "LocationRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/location — optional point-in-time snapshot (never streamed).",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lng",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "ManifestLine": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "qty": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "name",
+        "qty"
+      ],
+      "type": "object"
+    },
+    "MapPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lng"
+      ],
+      "type": "object"
+    },
+    "MapStop": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "shop",
+            "drop",
+            "hub"
+          ],
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        },
+        "sequence": {
+          "$ref": "#/definitions/WireInt"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "lat",
+        "lng",
+        "sequence"
+      ],
+      "type": "object"
+    },
+    "PackageMethod": {
+      "enum": [
+        "same_day",
+        "standard"
+      ],
+      "type": "string"
+    },
+    "ProblemFieldIssue": {
+      "additionalProperties": false,
+      "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
+      "properties": {
+        "field": {
+          "description": "The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE CODE.\n\n⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`, `bands_required`, …). \"Please check the fields and try again\" tells an operator nothing about which of five rules they broke, and every one of those rules fails SILENTLY in production if it is not understood — a cap below the floor makes every delivery cost the cap, forever.",
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "message"
+      ],
+      "type": "object"
+    },
+    "ProblemJSON": {
+      "additionalProperties": {},
+      "properties": {
+        "detail": {
+          "type": "string"
+        },
+        "fields": {
+          "items": {
+            "$ref": "#/definitions/ProblemFieldIssue"
+          },
+          "type": "array"
+        },
+        "instance": {
+          "type": "string"
+        },
+        "status": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "title",
+        "status"
+      ],
+      "type": "object"
+    },
+    "ProofMethod": {
+      "enum": [
+        "photo",
+        "code",
+        "signature",
+        "contactless"
+      ],
+      "type": "string"
+    },
+    "ProofPresignRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/delivery/drops/{dropId}/proof/presign",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "contentType": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "contentType",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "ProofPresignResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "mediaKey": {
+          "type": "string"
+        },
+        "uploadUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "uploadUrl",
+        "mediaKey"
+      ],
+      "type": "object"
+    },
+    "ProofRequest": {
+      "additionalProperties": false,
+      "description": "POST /driver/v1/delivery/drops/{dropId}/proof",
+      "properties": {
+        "changeId": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "mediaKey": {
+          "type": "string"
+        },
+        "method": {
+          "$ref": "#/definitions/ProofMethod"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "changeId"
+      ],
+      "type": "object"
+    },
+    "ProofResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "const": "delivered",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "type": "object"
+    },
+    "RunMapDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/runs/{runId}/map",
+      "properties": {
+        "currentLocation": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/MapPoint"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "hub": {
+          "$ref": "#/definitions/MapPoint"
+        },
+        "stops": {
+          "items": {
+            "$ref": "#/definitions/MapStop"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "hub",
+        "stops",
+        "currentLocation"
+      ],
+      "type": "object"
+    },
+    "TimelineEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "at"
+      ],
+      "type": "object"
+    },
+    "TodayDTO": {
+      "additionalProperties": false,
+      "description": "GET /driver/v1/today",
+      "properties": {
+        "active": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TodayItemRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "activeRunId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phase": {
+          "$ref": "#/definitions/DriverPhase"
+        },
+        "remainingCount": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "upNext": {
+          "items": {
+            "$ref": "#/definitions/TodayItemRef"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "phase",
+        "activeRunId",
+        "active",
+        "upNext",
+        "remainingCount"
+      ],
+      "type": "object"
+    },
+    "TodayItemRef": {
+      "additionalProperties": false,
+      "description": "A compact reference to the active/queued work item shown on the home.",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "collection_stop",
+            "delivery_drop"
+          ],
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "runId",
+        "title",
+        "subtitle",
+        "status"
+      ],
+      "type": "object"
+    },
+    "WireInt": {
+      "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",
+      "type": "integer"
+    }
+  },
+  "description": "Aggregator — codegen entry only. Every field forces a type into the schema.",
+  "properties": {
+    "activityItem": {
+      "$ref": "#/definitions/ActivityItem"
+    },
+    "activityRead": {
+      "$ref": "#/definitions/ActivityReadRequest"
+    },
+    "collectRequest": {
+      "$ref": "#/definitions/CollectRequest"
+    },
+    "collectResponse": {
+      "$ref": "#/definitions/CollectResponse"
+    },
+    "collectionIssue": {
+      "$ref": "#/definitions/CollectionIssueRequest"
+    },
+    "collectionPackage": {
+      "$ref": "#/definitions/CollectionPackage"
+    },
+    "collectionRun": {
+      "$ref": "#/definitions/DriverCollectionRunDTO"
+    },
+    "collectionStop": {
+      "$ref": "#/definitions/CollectionStopSummary"
+    },
+    "collectionTask": {
+      "$ref": "#/definitions/CollectionTaskDTO"
+    },
+    "contactRequest": {
+      "$ref": "#/definitions/ContactRequest"
+    },
+    "contactResponse": {
+      "$ref": "#/definitions/ContactResponse"
+    },
+    "deliveryDrop": {
+      "$ref": "#/definitions/DeliveryDropDTO"
+    },
+    "deliveryDropSummary": {
+      "$ref": "#/definitions/DeliveryDropSummary"
+    },
+    "deliveryRun": {
+      "$ref": "#/definitions/DeliveryRunDTO"
+    },
+    "dropFailRequest": {
+      "$ref": "#/definitions/DropFailRequest"
+    },
+    "dropFailResponse": {
+      "$ref": "#/definitions/DropFailResponse"
+    },
+    "dropPackage": {
+      "$ref": "#/definitions/DropPackageRef"
+    },
+    "dropStatusRequest": {
+      "$ref": "#/definitions/DropStatusRequest"
+    },
+    "dropStatusResponse": {
+      "$ref": "#/definitions/DropStatusResponse"
+    },
+    "dutyRequest": {
+      "$ref": "#/definitions/DutyRequest"
+    },
+    "dutyResponse": {
+      "$ref": "#/definitions/DutyResponse"
+    },
+    "history": {
+      "$ref": "#/definitions/HistoryDTO"
+    },
+    "historyDay": {
+      "$ref": "#/definitions/HistoryDay"
+    },
+    "historyDetail": {
+      "$ref": "#/definitions/HistoryDetailDTO"
+    },
+    "historyDrop": {
+      "$ref": "#/definitions/HistoryDropRow"
+    },
+    "historyRun": {
+      "$ref": "#/definitions/HistoryRunRow"
+    },
+    "hubCheckinRequest": {
+      "$ref": "#/definitions/HubCheckinRequest"
+    },
+    "hubCheckinResponse": {
+      "$ref": "#/definitions/HubCheckinResponse"
+    },
+    "locationRequest": {
+      "$ref": "#/definitions/LocationRequest"
+    },
+    "manifestLine": {
+      "$ref": "#/definitions/ManifestLine"
+    },
+    "mapPoint": {
+      "$ref": "#/definitions/MapPoint"
+    },
+    "mapStop": {
+      "$ref": "#/definitions/MapStop"
+    },
+    "me": {
+      "$ref": "#/definitions/DriverMeDTO"
+    },
+    "problem": {
+      "$ref": "#/definitions/ProblemJSON"
+    },
+    "proofPresignRequest": {
+      "$ref": "#/definitions/ProofPresignRequest"
+    },
+    "proofPresignResponse": {
+      "$ref": "#/definitions/ProofPresignResponse"
+    },
+    "proofRequest": {
+      "$ref": "#/definitions/ProofRequest"
+    },
+    "proofResponse": {
+      "$ref": "#/definitions/ProofResponse"
+    },
+    "runMap": {
+      "$ref": "#/definitions/RunMapDTO"
+    },
+    "timelineEntry": {
+      "$ref": "#/definitions/TimelineEntry"
+    },
+    "today": {
+      "$ref": "#/definitions/TodayDTO"
+    },
+    "todayItem": {
+      "$ref": "#/definitions/TodayItemRef"
+    }
+  },
+  "required": [
+    "me",
+    "dutyRequest",
+    "dutyResponse",
+    "locationRequest",
+    "today",
+    "todayItem",
+    "collectionRun",
+    "collectionStop",
+    "collectionTask",
+    "collectionPackage",
+    "manifestLine",
+    "collectRequest",
+    "collectResponse",
+    "collectionIssue",
+    "hubCheckinRequest",
+    "hubCheckinResponse",
+    "deliveryRun",
+    "deliveryDropSummary",
+    "deliveryDrop",
+    "dropPackage",
+    "dropStatusRequest",
+    "dropStatusResponse",
+    "proofPresignRequest",
+    "proofPresignResponse",
+    "proofRequest",
+    "proofResponse",
+    "dropFailRequest",
+    "dropFailResponse",
+    "runMap",
+    "mapPoint",
+    "mapStop",
+    "contactRequest",
+    "contactResponse",
+    "history",
+    "historyDay",
+    "historyRun",
+    "historyDrop",
+    "historyDetail",
+    "timelineEntry",
+    "activityItem",
+    "activityRead",
+    "problem"
+  ],
+  "type": "object",
+  "title": "DriverContract"
+}
