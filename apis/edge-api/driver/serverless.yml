@@ -148,69 +148,144 @@ functions:
     handler: src/functions/collection-run-v1-get.handler
     description: Collection run — ordered shop stops (049 US1)
     events:
-      - httpApi: { method: GET, path: /driver/v1/collection/runs/{runId}, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: GET
+          path: /driver/v1/collection/runs/{runId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   collectionStopV1:
     handler: src/functions/collection-stop-v1-get.handler
     description: Collection shop stop — packages + manifest (049 US1)
     events:
-      - httpApi: { method: GET, path: /driver/v1/collection/runs/{runId}/stops/{stopId}, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: GET
+          path: /driver/v1/collection/runs/{runId}/stops/{stopId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   collectionStopCollectV1:
     handler: src/functions/collection-stop-collect-v1-post.handler
     description: Collect all packages at a shop stop (049 US1)
     events:
-      - httpApi: { method: POST, path: /driver/v1/collection/runs/{runId}/stops/{stopId}/collect, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/collection/runs/{runId}/stops/{stopId}/collect
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   collectionStopIssueV1:
     handler: src/functions/collection-stop-issue-v1-post.handler
     description: Report a missing/short package at a shop (049 US3)
     events:
-      - httpApi: { method: POST, path: /driver/v1/collection/runs/{runId}/stops/{stopId}/issue, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/collection/runs/{runId}/stops/{stopId}/issue
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   hubCheckinV1:
     handler: src/functions/hub-checkin-v1-post.handler
     description: Hub check-in — end the collection run, return the same-day/standard split (049 US1)
     events:
-      - httpApi: { method: POST, path: /driver/v1/hub/checkin, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/hub/checkin
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   # ── Phase 2 — same-day delivery run (US2) ───────────────────────────────────────────────────────
   deliveryRunV1:
     handler: src/functions/delivery-run-v1-get.handler
     description: Same-day delivery run — ordered drops (049 US2)
     events:
-      - httpApi: { method: GET, path: /driver/v1/delivery/runs/{runId}, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: GET
+          path: /driver/v1/delivery/runs/{runId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   deliveryDropV1:
     handler: src/functions/delivery-drop-v1-get.handler
     description: Drop detail — customer, address, packages (049 US2)
     events:
-      - httpApi: { method: GET, path: /driver/v1/delivery/drops/{dropId}, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: GET
+          path: /driver/v1/delivery/drops/{dropId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   deliveryDropStatusV1:
     handler: src/functions/delivery-drop-status-v1-post.handler
     description: Advance a drop (out_for_delivery/en_route/arrived) (049 US2)
     events:
-      - httpApi: { method: POST, path: /driver/v1/delivery/drops/{dropId}/status, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   proofPresignV1:
     handler: src/functions/proof-presign-v1-post.handler
     description: Presigned PUT for photo/signature proof (049 US2)
     events:
-      - httpApi: { method: POST, path: /driver/v1/delivery/drops/{dropId}/proof/presign, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/proof/presign
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   proofV1:
     handler: src/functions/proof-v1-post.handler
     description: Complete a drop with proof — writes proof + delivered (049 US2)
     events:
-      - httpApi: { method: POST, path: /driver/v1/delivery/drops/{dropId}/proof, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/proof
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   deliveryDropFailV1:
     handler: src/functions/delivery-drop-fail-v1-post.handler
     description: Mark a drop undeliverable with a reason (049 US3)
     events:
-      - httpApi: { method: POST, path: /driver/v1/delivery/drops/{dropId}/fail, authorizer: { type: jwt, id: "${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}" } }
-
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/fail
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+  deliveryDropContactV1:
+    handler: src/functions/delivery-drop-contact-v1-post.handler
+    description: Masked customer contact — capability-flagged 503 until the relay exists (049 US4)
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/contact
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+  # ── History (US5) ───────────────────────────────────────────────────────────────────────────────
+  historyV1:
+    handler: src/functions/history-v1-get.handler
+    description: Completed runs + drops grouped by day (049 US5)
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/history
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+  historyDetailV1:
+    handler: src/functions/history-detail-v1-get.handler
+    description: A run/drop timeline + captured proof, read-only (049 US5)
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/history/{kind}/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
   # The auto-assignment sweep worker (research R2). Scheduled, not event-driven — the SNS/SQS event
   # backbone does not exist yet. Idempotent: re-running assigns only still-unassigned work, and
   # releases ineligible drivers' not-yet-collected work back to the pool (FR-011, T060).

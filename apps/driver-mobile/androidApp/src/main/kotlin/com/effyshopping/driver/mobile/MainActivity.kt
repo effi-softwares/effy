@@ -8,6 +8,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.effyshopping.driver.mobile.app.App
+import com.effyshopping.driver.mobile.core.platform.AndroidMapLauncher
 import com.effyshopping.driver.mobile.core.platform.AndroidPlatformUiController
 
 class MainActivity : ComponentActivity() {
@@ -26,7 +27,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as EffyApp).container
         platformUiController = AndroidPlatformUiController(this, window)
         setContent {
-            App(container, platformUiController)
+            App(container, platformUiController, AndroidMapLauncher(applicationContext))
         }
     }
 

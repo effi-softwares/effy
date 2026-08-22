@@ -3,6 +3,29 @@
 Phase 0 decisions. Each: **Decision · Rationale · Alternatives rejected.** All spec-level unknowns are
 resolved here; open items are recorded as bounded carry-forwards, not blockers.
 
+## R13 — US4 map: no geodata exists; navigate hand-off is the deliverable (found during implementation)
+
+**Finding**: the data model has **coordinates for the hub only** (047 `delivery_settings.hub_latitude/longitude`).
+The `shop` table is deliberately minimal (007) — it stores **no address and no coordinates at all** — and a
+customer order's destination is an **immutable jsonb address snapshot** (`order.delivery_address`) with **no
+lat/lng**. So an interactive **pinned map canvas cannot plot shops or customer drops** — there is nothing to
+plot them from.
+
+**Decision**: build the genuinely useful, buildable part of US4 and record the rest as blocked-on-geodata:
+- ✅ **External navigate hand-off (FR-022)** — a customer drop *has* an address string, so
+  `MapLauncher` (`expect/actual`: Android `geo:` intent, iOS `maps.apple.com`) opens the device maps app to
+  the drop address. This is the operational essence of "get me there" and is wired into the drop detail.
+- ✅ **Masked contact (FR-023)** — endpoint built, **capability-flagged 503 `contact_unavailable`** (the
+  relay does not exist, R6); the client hides/disables the affordance.
+- ⛔ **Pinned in-app map + MapLibre canvas (T038/T040, FR-029/030)** — **deferred, blocked on geodata**:
+  shops need an address/coordinates column and orders need a geocoded destination before a map can plot
+  them. Recorded, not faked (a map with no real positions would mislead).
+- ⚠ **Navigate-to-shop is also blocked** — shops have no address, so the collection run cannot hand off to
+  maps for a shop stop until `shop.address` exists. Navigate works for customer drops only.
+
+**Carry-forward**: add `shop.address` (+ optional coords) and geocode `order.delivery_address`; then the
+map-data endpoint (`GET /runs/{id}/map`) and the MapLibre canvas become buildable against real positions.
+
 ## R1 — Backend path: cold path for the whole driver backend
 
 **Decision**: Put the entire driver backend on the **cold path** — a new `apis/edge-api/driver` service

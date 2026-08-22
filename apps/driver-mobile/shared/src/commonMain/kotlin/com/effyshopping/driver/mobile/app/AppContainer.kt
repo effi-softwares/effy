@@ -29,6 +29,10 @@ import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepositor
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDrop
+import com.effyshopping.driver.mobile.features.history.data.HttpHistoryRepository
+import com.effyshopping.driver.mobile.features.history.domain.GetHistory
+import com.effyshopping.driver.mobile.features.history.domain.GetHistoryDetail
+import com.effyshopping.driver.mobile.features.history.domain.HistoryRepository
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +60,7 @@ class AppContainer(
     private val today: TodayRepository by lazy { HttpTodayRepository(driverClient) }
     private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient) }
     private val delivery: DeliveryRepository by lazy { HttpDeliveryRepository(driverClient) }
+    private val historyRepo: HistoryRepository by lazy { HttpHistoryRepository(driverClient) }
 
     val appearance: AppearancePreferenceStore by lazy { AppearancePreferenceStore(Settings()) }
 
@@ -80,6 +85,10 @@ class AppContainer(
     val completeWithCode by lazy { CompleteWithCode(delivery) }
     val completeContactless by lazy { CompleteContactless(delivery) }
     val failDrop by lazy { FailDrop(delivery) }
+
+    // history (US5)
+    val getHistory by lazy { GetHistory(historyRepo) }
+    val getHistoryDetail by lazy { GetHistoryDetail(historyRepo) }
 
     // ── app services / presentation wiring ───────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getDriverIdentity, appScope) }

@@ -30,6 +30,7 @@ import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
 import com.effyshopping.driver.mobile.core.nav.DeliveryRunRoute
 import com.effyshopping.driver.mobile.core.nav.DriverTab
 import com.effyshopping.driver.mobile.core.nav.DropRoute
+import com.effyshopping.driver.mobile.core.nav.HistoryDetailRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryRoot
 import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
 import com.effyshopping.driver.mobile.core.nav.MapRoot
@@ -47,6 +48,9 @@ import com.effyshopping.driver.mobile.features.collection.presentation.ShopStopS
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryRunScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryViewModel
 import com.effyshopping.driver.mobile.features.delivery.presentation.DropDetailScreen
+import com.effyshopping.driver.mobile.features.history.presentation.HistoryDetailScreen
+import com.effyshopping.driver.mobile.features.history.presentation.HistoryScreen
+import com.effyshopping.driver.mobile.features.history.presentation.HistoryViewModel
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.presentation.TodayScreen
 import com.effyshopping.driver.mobile.features.today.presentation.TodayViewModel
@@ -65,6 +69,8 @@ import kotlinx.coroutines.launch
 fun DriverShell(
     container: AppContainer,
     session: SessionState.SignedIn,
+    mapLauncher: com.effyshopping.driver.mobile.core.platform.MapLauncher =
+        com.effyshopping.driver.mobile.core.platform.NoOpMapLauncher(),
 ) {
     val tabs = rememberTabBackStacks(
         tabs = DriverTab.entries.toList(),
@@ -172,7 +178,7 @@ fun DriverShell(
                     DropDetailScreen(
                         state = st,
                         onBack = { tabs.pop() },
-                        onNavigate = { /* external maps hand-off (US4/T041) */ },
+                        onNavigate = { address -> mapLauncher.navigateTo(address) },
                         onAdvance = { to -> vm.advance(route.dropId, to) },
                         onDeliverCode = { code, note -> vm.deliverWithCode(route.dropId, code, note) },
                         onDeliverContactless = { note -> vm.deliverContactless(route.dropId, note) },
@@ -181,8 +187,23 @@ fun DriverShell(
                     )
                 }
 
-                MapRoot -> ComingSoonScreen("Map", "Your run route and stops will appear here.")
-                HistoryRoot -> ComingSoonScreen("History", "Completed runs and deliveries will appear here.")
+                MapRoot -> ComingSoonScreen("Map", "Open a delivery drop to navigate. A route map is coming soon.")
+                HistoryRoot -> {
+                    val vm = viewModel(key = "history") { HistoryViewModel(container.getHistory, container.getHistoryDetail) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(Unit) { vm.load() }
+                    HistoryScreen(
+                        state = st,
+                        onOpenDrop = { dropId -> tabs.push(HistoryDetailRoute("drop", dropId, "Delivery")) },
+                        onOpenRun = { runId -> tabs.push(HistoryDetailRoute("run", runId, "Run")) },
+                    )
+                }
+                is HistoryDetailRoute -> {
+                    val vm = viewModel(key = "history") { HistoryViewModel(container.getHistory, container.getHistoryDetail) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.id) { vm.loadDetail(route.kind, route.id) }
+                    HistoryDetailScreen(state = st, title = route.title, onBack = { tabs.pop() })
+                }
                 AccountRoot -> AccountScreen(
                     driver = session.driver,
                     appearanceMode = appearanceMode,

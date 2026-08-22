@@ -261,6 +261,29 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**049-driver-mobile-app — Driver Delivery App (the 6th & final client surface).** 🚧 **P1 MVP LOOP LIVE
+ON DEVICE + US4/US5 built — 40/61 tasks (2 deferred).** The platform's **hub-and-spoke** driver operation:
+a KMP app (`apps/driver-mobile`, Android+iOS) + a new cold-path service (`apis/edge-api/driver`) + a
+scheduled auto-assignment worker + minimal back-office provisioning (`edge-api/admin/src/drivers`) + one
+migration. Closes the **commerce→fulfilment→delivery loop** — retires the 020 dev-only `collected`/
+`delivered` stubs.
+- **Model** (settled, see "Driver logistics model" above): collection run (shops→hub) → **hub check-in**
+  (same-day/standard split, standard→external carrier) → same-day delivery run (hub→customers) with proof.
+- **Live & walked (P1)**: sign in (passwordless 6-digit, driver pool + new `driver_mobile` client) → on
+  duty → **worker auto-assigns** a collection run → collect each shop → hub check-in → delivery run →
+  deliver each drop with **proof (delivery-code + contactless)** → order reaches `delivered`.
+- **US4 (partial)**: external **Navigate** hand-off works (device maps, customer address); **masked contact**
+  is a capability-flagged 503 + disabled affordance (relay unbuilt, R6). ⛔ **In-app pinned map DEFERRED —
+  blocked on geodata**: shops have NO address/coords and orders carry an un-geocoded jsonb address, so
+  nothing can be plotted (research R13; add `shop.address` + geocode to unblock). **US5 history** built
+  (both record types, timeline + proof, read-only).
+- **Verified**: iOS + Android compile & host tests · edge-driver Vitest · full workspace typecheck ·
+  mobile-guard · contract drift-guard · terraform validate. **Deployed to dev by the operator; P1 walked.**
+- **⚠ Open**: photo/signature proof capture (camera — platform-specific), permission priming (T009),
+  offline queue (T015), cutoff flag (T061), mobile ViewModel tests (T024/T032/T045), US6 notifications,
+  polish (T053–T059). ⚠ **admin `versionFunctions:false`** was needed — the driver routes tipped the
+  admin CloudFormation stack past the 500-resource limit. Spec/artifacts: [specs/049-driver-mobile-app/](specs/049-driver-mobile-app/).
+
 **048-console-web-cicd — Internal Console Continuous Deployment (Shop-Web & Back-Office).** ✅
 **CONCLUDED 2026-08-22 — 35/41 tasks. DEPLOYED TO DEV AND LIVE ON BOTH SURFACES.** Sign-off:
 [specs/048-console-web-cicd/SIGNOFF.md](specs/048-console-web-cicd/SIGNOFF.md).

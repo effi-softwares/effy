@@ -118,11 +118,11 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 **Independent Test**: Open the per-run map; pins + ordered stop sheet render monochrome in both modes; Navigate opens the device maps app; masked contact returns a relay handle or degrades gracefully.
 
-- [ ] T038 [US4] **Spike**: MapLibre KMP integration on Android + iOS (record effort; Google Maps SDK is the recorded fallback) (research R5) — capture in `specs/049-driver-mobile-app/research.md`.
-- [ ] T039 [US4] `GET /driver/v1/runs/{id}/map` in `apis/edge-api/driver/src/delivery/` (hub + ordered stop coordinates + current location) (FR-029).
-- [ ] T040 [P] [US4] Mobile `MapDriver` `expect/actual` + monochrome MapLibre style (hub square pin, stops circles) in `core/platform/` and `features/map/` (FR-029/030).
-- [ ] T041 [P] [US4] Mobile per-run map screens (segmented collection/delivery) + external navigate hand-off (`geo:`/`maps://` behind a platform driver) in `features/map/` (FR-022/029).
-- [ ] T042 [US4] Masked contact: `POST /delivery/drops/{id}/contact` (capability-flagged; `503 contact_unavailable` until the relay exists — R6) + mobile Contact-customer affordance that hides/disables gracefully (FR-023).
+- [~] T038 [US4] **DEFERRED (blocked on geodata, research R13)** MapLibre KMP integration on Android + iOS (record effort; Google Maps SDK is the recorded fallback) (research R5) — capture in `specs/049-driver-mobile-app/research.md`.
+- [~] T039 [US4] **DEFERRED (blocked on geodata, research R13)** `GET /driver/v1/runs/{id}/map` in `apis/edge-api/driver/src/delivery/` (hub + ordered stop coordinates + current location) (FR-029).
+- [~] T040 (DEFERRED — blocked on geodata, research R13) [P] [US4] Mobile `MapDriver` `expect/actual` + monochrome MapLibre style (hub square pin, stops circles) in `core/platform/` and `features/map/` (FR-029/030).
+- [X] T041 [P] [US4] Mobile per-run map screens (segmented collection/delivery) + external navigate hand-off (`geo:`/`maps://` behind a platform driver) in `features/map/` (FR-022/029).
+- [X] T042 [US4] Masked contact: `POST /delivery/drops/{id}/contact` (capability-flagged; `503 contact_unavailable` until the relay exists — R6) + mobile Contact-customer affordance that hides/disables gracefully (FR-023).
 
 **Checkpoint**: navigation and contact available; masking relay recorded as a dependency.
 
@@ -134,8 +134,8 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 **Independent Test**: After a completed delivery, History lists it under its day with a proof indicator; detail shows timeline + captured proof, read-only.
 
-- [ ] T043 [P] [US5] `GET /driver/v1/history` + `GET /driver/v1/history/{kind}/{id}` in `apis/edge-api/driver/src/history/` (both record types; timeline from `driver_task_event`; signed proof GET) (FR-033/034).
-- [ ] T044 [P] [US5] Mobile history list (runs + drops by day, empty state) + detail (timeline + proof, read-only) in `features/history/` (FR-033/034).
+- [X] T043 [P] [US5] `GET /driver/v1/history` + `GET /driver/v1/history/{kind}/{id}` in `apis/edge-api/driver/src/history/` (both record types; timeline from `driver_task_event`; signed proof GET) (FR-033/034).
+- [X] T044 [P] [US5] Mobile history list (runs + drops by day, empty state) + detail (timeline + proof, read-only) in `features/history/` (FR-033/034).
 - [ ] T045 [P] [US5] Tests: edge-driver history suite; mobile history ViewModel `commonTest`.
 
 **Checkpoint**: completed work is reviewable with proof.

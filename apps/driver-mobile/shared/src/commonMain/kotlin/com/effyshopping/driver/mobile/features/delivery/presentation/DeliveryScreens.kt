@@ -105,9 +105,16 @@ fun DropDetailScreen(
                     Text("${drop.packages.size} package(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
-            OutlinedButton(onClick = { onNavigate(drop.addressFull) }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(50.dp)) {
-                Text("Navigate")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = { onNavigate(drop.addressFull) }, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f).height(50.dp)) {
+                    Text("Navigate")
+                }
+                // Masked contact — the relay is not built yet (R6), so this is disabled with a clear reason.
+                OutlinedButton(onClick = {}, enabled = false, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f).height(50.dp)) {
+                    Text("Contact")
+                }
             }
+            Text("Masked contact is coming soon.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             state.message?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 

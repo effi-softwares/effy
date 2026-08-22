@@ -5,6 +5,7 @@ import com.effyshopping.driver.mobile.app.App
 import com.effyshopping.driver.mobile.app.AppContainer
 import com.effyshopping.driver.mobile.core.auth.IosAuthBridge
 import com.effyshopping.driver.mobile.core.auth.IosAuthDriver
+import com.effyshopping.driver.mobile.core.platform.IosMapLauncher
 import com.effyshopping.driver.mobile.core.platform.IosPlatformUiController
 import platform.UIKit.UIViewController
 
@@ -16,7 +17,7 @@ fun MainViewController(authBridge: IosAuthBridge): UIViewController {
     val platformUiController = IosPlatformUiController()
     val container = AppContainer(authDriver = IosAuthDriver(authBridge))
     val viewController = ComposeUIViewController {
-        App(container, platformUiController)
+        App(container, platformUiController, IosMapLauncher())
     }
     platformUiController.attach(viewController)
     return viewController

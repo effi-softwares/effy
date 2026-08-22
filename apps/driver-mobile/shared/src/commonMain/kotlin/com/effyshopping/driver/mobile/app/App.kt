@@ -21,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.driver.mobile.core.platform.MapLauncher
+import com.effyshopping.driver.mobile.core.platform.NoOpMapLauncher
 import com.effyshopping.driver.mobile.core.platform.NoOpPlatformUiController
 import com.effyshopping.driver.mobile.core.platform.PlatformUiController
 import com.effyshopping.driver.mobile.core.session.SessionState
@@ -37,6 +39,7 @@ import kotlinx.coroutines.launch
 fun App(
     container: AppContainer,
     platformUiController: PlatformUiController = NoOpPlatformUiController(),
+    mapLauncher: MapLauncher = NoOpMapLauncher(),
 ) {
     val platformState by platformUiController.state.collectAsState()
     val appearanceMode by container.appearance.mode.collectAsState()
@@ -81,7 +84,7 @@ fun App(
                     }
                 }
 
-                is SessionState.SignedIn -> DriverShell(container, s)
+                is SessionState.SignedIn -> DriverShell(container, s, mapLauncher)
             }
         }
     }
