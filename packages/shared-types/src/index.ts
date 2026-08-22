@@ -22,3 +22,6 @@ export * from "./newsletter";
 export * from "./validation";
 // 046-customer-feedback
 export * from "./feedback";
+// 047-delivery-shipping-engine
+export * from "./delivery";
+export * from "./delivery-admin";

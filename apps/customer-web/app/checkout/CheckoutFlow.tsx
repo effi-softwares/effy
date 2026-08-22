@@ -9,6 +9,7 @@ import { useEffect, useMemo, useState } from "react"
 import type {
   AddressDTO,
   CreateCheckoutIntentResponse,
+  DeliveryQuoteDTO,
 } from "@effy/shared-types"
 
 import { ActionButton } from "@/components/storefront/actions"
@@ -65,6 +66,72 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // 047: the delivery quote for the chosen address — serviceability + the standard fee, shown BEFORE
+  // pay (no drip). The server owns the fee; this display never sends one. Re-fetched when the shipping
+  // address changes (FR-004/033/036).
+  const [quote, setQuote] = useState<DeliveryQuoteDTO | null>(null)
+  const [quoting, setQuoting] = useState(false)
+  // 047 US2: the shopper's delivery-method choice. Same-day is offered only when EVERY package can do it
+  // (single-shop is the common case); a mixed basket falls back to standard here rather than surface
+  // hidden fulfilment. The server applies the preference per package and prices it (FR-044).
+  const [method, setMethod] = useState<"standard" | "same_day">("standard")
+
+  useEffect(() => {
+    if (!selectedId) {
+      setQuote(null)
+      return
+    }
+    let cancelled = false
+    setQuoting(true)
+    setQuote(null)
+    void (async () => {
+      try {
+        const res = await fetch("/api/checkout/quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ addressId: selectedId }),
+        })
+        const data = (await res.json().catch(() => null)) as DeliveryQuoteDTO | null
+        if (!cancelled && res.ok && data) setQuote(data)
+      } finally {
+        if (!cancelled) setQuoting(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId])
+
+  // Same-day is offerable only when the quote gives EVERY package a same_day option (so the customer,
+  // who never sees packages, is offered one honest order-level choice). Otherwise standard only.
+  const sameDayOfferable = useMemo(
+    () =>
+      quote?.serviced === true &&
+      quote.packages.length > 0 &&
+      quote.packages.every((pkg) => pkg.options.some((o) => o.method === "same_day")),
+    [quote],
+  )
+
+  // Reset the choice to standard whenever a new quote arrives (a new address may not offer same-day).
+  useEffect(() => {
+    if (!sameDayOfferable) setMethod("standard")
+  }, [sameDayOfferable])
+
+  // The delivery fee is the sum of each package's option for the chosen method (falling back to standard
+  // per package). GST-inclusive, already snapped up by the server. Distance / shop identity never appear
+  // here (FR-018/033).
+  const deliveryCents = useMemo(() => {
+    if (!quote?.serviced) return 0
+    return quote.packages.reduce((sum, pkg) => {
+      const chosen = pkg.options.find((o) => o.method === method)
+      const std = pkg.options.find((o) => o.method === "standard") ?? pkg.options[0]
+      const opt = chosen ?? std
+      return sum + (opt ? parseCents(opt.feeAmount) : 0)
+    }, 0)
+  }, [quote, method])
+
+  const serviced = quote?.serviced === true
+  const totalCents = parseCents(estimate.itemSubtotal) + deliveryCents
 
   // ⚠ 027: the checkout-entry cart snapshot is GONE, and its route with it.
   //
@@ -117,14 +184,15 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   // Pay is blocked until shipping is set (FR-007) and, when billing diverges, a billing address is
   // chosen (FR-012). Enforced at the review → delivery gate, before any payment.
   const canContinue =
-    !!selectedId && (billingSameAsShipping || !!billingId) && guestLines.length > 0
+    !!selectedId && (billingSameAsShipping || !!billingId) && guestLines.length > 0 && serviced
 
   /**
    * Place the order.
    *
-   * ⚠ THERE IS NO DELIVERY STEP. This used to quote the address, walk the shopper through
-   * per-package options, and send a captured quote id with their selections. Delivery zones, quotes
-   * and fees were withdrawn from the platform, so checkout is: choose an address, pay.
+   * 047: delivery is back, but standard-only for US1 — there is no per-package method choice yet, so the
+   * shopper picks an address and pays. The server computes + captures the delivery fee at intent from the
+   * destination zone + package weights (SC-004); the grand total it returns already includes it. A
+   * not-serviceable address is refused server-side (ErrNotServiceable) and blocked here (canContinue).
    */
   async function placeOrder() {
     if (!selectedId) {
@@ -144,6 +212,9 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       const body: Record<string, unknown> = { addressId: selectedId }
       if (!billingSameAsShipping && billingId && billingId !== selectedId) {
         body.billingAddressId = billingId
+      }
+      if (method === "same_day" && sameDayOfferable) {
+        body.deliveryMethod = "same_day"
       }
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
@@ -292,25 +363,82 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
           <dt className="text-muted-foreground">Items</dt>
           <dd className="font-bold">{formatMoney(estimate.itemSubtotal, currency)}</dd>
         </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-muted-foreground">Delivery</dt>
-          <dd className="text-sm text-muted-foreground">Calculated next step</dd>
-        </div>
+        {/* 047 US2: when same-day is available for the whole order, the shopper chooses their speed. The
+            fee updates live; the server re-prices and never trusts a client fee. */}
+        {serviced && sameDayOfferable ? (
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-muted-foreground">Delivery speed</legend>
+            {(["standard", "same_day"] as const).map((m) => (
+              <label key={m} className="flex cursor-pointer items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name="delivery-method"
+                    value={m}
+                    checked={method === m}
+                    onChange={() => setMethod(m)}
+                  />
+                  {m === "same_day" ? "Same-day delivery" : "Standard delivery"}
+                </span>
+                <span className="font-medium">{formatMoney(formatCents(methodTotalCents(quote, m)), currency)}</span>
+              </label>
+            ))}
+          </fieldset>
+        ) : (
+          <div className="flex items-center justify-between">
+            <dt className="text-muted-foreground">Delivery</dt>
+            <dd className="text-sm">
+              {!selectedId ? (
+                <span className="text-muted-foreground">Select an address</span>
+              ) : quoting ? (
+                <span className="text-muted-foreground">Calculating…</span>
+              ) : quote && !serviced ? (
+                <span className="text-destructive">Not available</span>
+              ) : serviced ? (
+                <span className="font-medium">{formatMoney(formatCents(deliveryCents), currency)}</span>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
+            </dd>
+          </div>
+        )}
         <div className="border-t pt-4">
           <div className="flex items-center justify-between">
             <dt className="text-lg">Total</dt>
             <dd className="text-2xl font-bold">
-              {formatMoney(estimate.itemSubtotal, currency)}
-              <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">
-                + delivery
-              </span>
+              {serviced ? (
+                formatMoney(formatCents(totalCents), currency)
+              ) : (
+                <>
+                  {formatMoney(estimate.itemSubtotal, currency)}
+                  <span className="ml-1 align-middle text-xs font-normal text-muted-foreground">
+                    + delivery
+                  </span>
+                </>
+              )}
             </dd>
           </div>
+          {quote && !serviced ? (
+            <p className="mt-3 text-sm text-destructive">
+              We don’t deliver to this address yet. Try a different address above.
+            </p>
+          ) : null}
         </div>
       </dl>
     </aside>
     </div>
   )
+}
+
+// methodTotalCents sums a quote's per-package fee for one method (falling back to standard per package).
+function methodTotalCents(quote: DeliveryQuoteDTO | null, method: "standard" | "same_day"): number {
+  if (!quote?.serviced) return 0
+  return quote.packages.reduce((sum, pkg) => {
+    const chosen = pkg.options.find((o) => o.method === method)
+    const std = pkg.options.find((o) => o.method === "standard") ?? pkg.options[0]
+    const opt = chosen ?? std
+    return sum + (opt ? parseCents(opt.feeAmount) : 0)
+  }, 0)
 }
 
 function OrderSummary({ currency, total }: { currency: string; total: string }) {

@@ -4,7 +4,7 @@ import "github.com/gin-gonic/gin"
 
 // Register mounts the storefront reads on the v1 group. These are deliberately PUBLIC (no auth) and
 // cacheable — the guest-first storefront (011). Facets are query params, never path segments (FR-017).
-func Register(v1 *gin.RouterGroup, h *Handler) {
+func Register(v1 *gin.RouterGroup, h *Handler, dr *DeliveryReads) {
 	g := v1.Group("/storefront")
 	g.GET("/home", h.getHome)
 	g.GET("/categories", h.getCategories)
@@ -15,9 +15,10 @@ func Register(v1 *gin.RouterGroup, h *Handler) {
 	// definition public, and requiring a session to read one would hide it from exactly the guests the
 	// storefront exists to convert.
 	g.GET("/promotions/:id", h.getPromotion)
-	// 025 US1: "do we deliver to you?" answered BEFORE a cart exists. Public and cacheable like the
-	// rest — it discloses nothing about the caller and nothing about where Effy fulfils from.
-	// 030 US1: "which places could you mean?" — the other half of the same interaction, which is why
-	// it is mounted here rather than anywhere else. It fires while the shopper is typing, so it is
-	// hot-path work by definition. ⚠ Its results never reflect delivery coverage (FR-011).
+	// 047 US1: "do we deliver to you?" answered BEFORE a cart exists, and "which places could you mean?"
+	// — two halves of one interaction. Public and cacheable: they disclose nothing about the caller or
+	// where Effy fulfils. The serviceability predicate is the SAME one the checkout quote uses (FR-004);
+	// ⚠ the locality list never reflects delivery coverage (it must not hint the verdict).
+	g.GET("/serviceability", dr.getServiceability)
+	g.GET("/localities", dr.getLocalities)
 }

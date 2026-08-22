@@ -351,3 +351,12 @@ accent, never surfaced to the mobile themes.
 walk (Light/Dark/Follow-System) are the operator's step; the change is a pure token regen (guards
 `sm-tokens-check`/`sm-guard` green), so risk is low. The overview chart data on both consoles is
 **illustrative sample data**, explicitly labelled — live metrics are a later slice.
+
+## §047 — Product shipping weight (delivery engine)
+
+Delivery fees are priced from package weight (047), so every product carries a weight. A shop operator
+records a product's **real** weight in shop-web (Catalog → product edit → "Shipping weight (grams)");
+supplying one marks it **measured**, otherwise the platform prices on a stated **assumed** default —
+never weightless, never free (FR-053/054/055). ⚠ Fees, zones and same-day are **back-office only**; the
+shop service exposes **no** delivery-config route (SC-008/SC-009, guarded by
+`delivery-isolation.contract.test.ts`). shop-mobile weight entry is a deferred parity item.

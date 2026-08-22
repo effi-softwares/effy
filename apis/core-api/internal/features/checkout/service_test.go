@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 )
 
 // ── Checkout service tests ─────────────────────────────────────────────────────────────────────
@@ -31,12 +32,16 @@ type fakeStore struct {
 	billingSet  bool
 	payment     int64
 	upsertErr   error
+
+	captureCalled bool
+	capturedPkgs  []PackageDelivery
+	capturedQuote []byte
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{address: map[string][]byte{
-		addrID:    []byte(`{"line1":"1 Test St"}`),
-		otherAddr: []byte(`{"line1":"9 Other Rd"}`),
+		addrID:    []byte(`{"line1":"1 Test St","postalCode":"3121"}`),
+		otherAddr: []byte(`{"line1":"9 Other Rd","postalCode":"3550"}`),
 	}}
 }
 
@@ -57,6 +62,13 @@ func (f *fakeStore) UpsertPendingOrder(_ context.Context, _ string, a OrderAmoun
 
 func (f *fakeStore) SetOrderBilling(_ context.Context, _ string, billingJSON []byte) error {
 	f.billingSet, f.billingJSON = true, billingJSON
+	return nil
+}
+
+func (f *fakeStore) CaptureDelivery(_ context.Context, _ string, quoteJSON []byte, _ time.Time, pkgs []PackageDelivery) error {
+	f.captureCalled = true
+	f.capturedQuote = quoteJSON
+	f.capturedPkgs = pkgs
 	return nil
 }
 
@@ -100,6 +112,25 @@ type fakePromos struct{ discount int64 }
 
 func (p fakePromos) DiscountForCustomer(context.Context, string, int64, time.Time) (int64, string, string, error) {
 	return p.discount, "promo-1", "SAVE", nil
+}
+
+// fakeQuoter is a stand-in delivery engine (047): it returns a fixed quote so the checkout wiring can be
+// tested without a database.
+type fakeQuoter struct {
+	res delivery.QuoteResult
+	err error
+}
+
+func (q fakeQuoter) Quote(context.Context, string, []delivery.PackageInput, time.Time) (delivery.QuoteResult, error) {
+	return q.res, q.err
+}
+
+// stdOnly builds a serviced quote with one standard-only package at the given fee.
+func stdOnly(shopID string, feeCents int64) delivery.QuoteResult {
+	return delivery.QuoteResult{
+		Serviced: true,
+		Packages: []delivery.PackageQuote{{ShopID: shopID, Options: []delivery.Option{{Method: "standard", FeeCents: feeCents}}}},
+	}
 }
 
 const (
@@ -225,4 +256,105 @@ func TestIntent_PropagatesAStoreFailureRatherThanCharging(t *testing.T) {
 
 	require.Error(t, err)
 	require.Zero(t, gw.amount, "no PaymentIntent may be created when the order could not be written")
+}
+
+// ── Delivery (047) ─────────────────────────────────────────────────────────────────────────────
+
+func svcWithDelivery(store *fakeStore, gw *fakeGateway, q delivery.QuoteResult) *Service {
+	return svcWith(store, gw).WithDelivery(fakeQuoter{res: q})
+}
+
+func TestIntent_ChargesAndCapturesDeliveryWhenWired(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{} // items: 2 × $5.00 = $10.00
+	store.lines[0].WeightGrams = 800
+	svc := svcWithDelivery(store, gw, stdOnly("s1", 600)) // $6.00 delivery
+
+	res, err := intent(svc, IntentInput{AddressID: addrID})
+	require.NoError(t, err)
+
+	require.Equal(t, int64(600), store.amounts.DeliveryFeeCents)
+	require.Equal(t, int64(1600), store.amounts.GrandTotalCents, "items 1000 + delivery 600")
+	require.Equal(t, int64(1600), gw.amount, "the shopper is charged the total incl. delivery")
+	require.Equal(t, "16.00", res.GrandTotal)
+	require.True(t, store.captureCalled, "the quote must be captured")
+	require.Len(t, store.capturedPkgs, 1)
+	require.Equal(t, "standard", store.capturedPkgs[0].Method)
+	require.Equal(t, int64(600), store.capturedPkgs[0].FeeCents)
+}
+
+func TestIntent_RefusesAnUnserviceableAddress(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWithDelivery(store, gw, delivery.QuoteResult{Serviced: false})
+
+	_, err := intent(svc, IntentInput{AddressID: addrID})
+
+	require.ErrorIs(t, err, ErrNotServiceable)
+	require.Zero(t, gw.amount, "no charge for an address we cannot deliver to")
+	require.False(t, store.captureCalled)
+}
+
+func TestIntent_NoQuoterMeansNoDeliveryFee(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	_, err := intent(svcWith(store, gw), IntentInput{AddressID: addrID}) // no WithDelivery
+	require.NoError(t, err)
+	require.Zero(t, store.amounts.DeliveryFeeCents)
+	require.False(t, store.captureCalled, "nothing captured when delivery is not configured")
+}
+
+func TestQuoteForCheckout_ReturnsOpaqueStandardOption(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWithDelivery(store, gw, stdOnly("s1", 600))
+
+	q, err := svc.QuoteForCheckout(context.Background(), custID, addrID, time.Now())
+	require.NoError(t, err)
+	require.True(t, q.Serviced)
+	require.Len(t, q.Packages, 1)
+	require.Equal(t, "pkg-1", q.Packages[0].ShopRef, "shopRef is opaque — never a shop id (FR-033)")
+	require.Len(t, q.Packages[0].Options, 1)
+	require.Equal(t, "standard", q.Packages[0].Options[0].Method)
+	require.Equal(t, int64(600), q.Packages[0].Options[0].FeeCents)
+}
+
+// US4/FR-036: the captured quote is what a later charge is built from. The fee is captured at intent
+// (order.delivery_quote + order_package_delivery); a plan change afterwards cannot re-price a captured
+// order because finalize reads the captured rows, never the live plan. This proves the capture happens
+// with the fee that was quoted — the mechanism SC-013 rests on.
+func TestIntent_CapturesTheQuotedFee(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWithDelivery(store, gw, stdOnly("s1", 850)) // quoted $8.50
+
+	_, err := intent(svc, IntentInput{AddressID: addrID})
+	require.NoError(t, err)
+
+	require.True(t, store.captureCalled)
+	require.Len(t, store.capturedPkgs, 1)
+	require.Equal(t, int64(850), store.capturedPkgs[0].FeeCents, "the captured fee is exactly what was quoted")
+	require.Equal(t, int64(850), store.amounts.DeliveryFeeCents)
+	// The captured quote JSON is persisted (order.delivery_quote) so intent honours it, not the live plan.
+	require.NotEmpty(t, store.capturedQuote)
+	require.Contains(t, string(store.capturedQuote), "8.50")
+}
+
+// US2/US3: an order-level same-day preference is applied per package where offered, standard elsewhere.
+func TestIntent_SameDayPreferenceAppliedPerPackage(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{} // items 2 × $5.00 = $10.00
+	svc := svcWithDelivery(store, gw, delivery.QuoteResult{
+		Serviced: true,
+		Packages: []delivery.PackageQuote{
+			// shop s1 offers same-day (1100) + standard (600); s2 offers standard only (700).
+			{ShopID: "s1", Options: []delivery.Option{{Method: "standard", FeeCents: 600}, {Method: "same_day", FeeCents: 1100}}},
+			{ShopID: "s2", Options: []delivery.Option{{Method: "standard", FeeCents: 700}}},
+		},
+	})
+
+	_, err := intent(svc, IntentInput{AddressID: addrID, DeliveryMethod: "same_day"})
+	require.NoError(t, err)
+
+	// s1 → same-day 1100; s2 → standard 700 (no same-day offered). Fee = 1800.
+	require.Len(t, store.capturedPkgs, 2)
+	require.Equal(t, "same_day", store.capturedPkgs[0].Method)
+	require.Equal(t, int64(1100), store.capturedPkgs[0].FeeCents)
+	require.Equal(t, "standard", store.capturedPkgs[1].Method)
+	require.Equal(t, int64(1800), store.amounts.DeliveryFeeCents)
+	require.Equal(t, int64(2800), store.amounts.GrandTotalCents, "items 1000 + delivery 1800")
 }

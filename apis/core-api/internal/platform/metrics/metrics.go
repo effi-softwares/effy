@@ -21,6 +21,13 @@ type Metrics struct {
 	registry *prometheus.Registry
 	requests *prometheus.CounterVec
 	duration *prometheus.HistogramVec
+
+	// 047 delivery. ⚠ Labels are deliberately LOW-CARDINALITY and carry NO PII: `serviced` is a boolean
+	// string and the quote/outcome labels are a small closed set — never a postcode, suburb or coordinate
+	// (Principle VII; research R12).
+	serviceabilityChecks *prometheus.CounterVec // labels: serviced ∈ {true,false}
+	deliveryQuotes       *prometheus.CounterVec // labels: outcome ∈ {same_day_and_standard,standard_only,unserviced}
+	deliveryQuoteFailure prometheus.Counter     // the invariant alarm: a served zone that failed to price
 }
 
 func New() *Metrics {
@@ -35,16 +42,45 @@ func New() *Metrics {
 			Help:    "HTTP request latency, by method, route template and status.",
 			Buckets: prometheus.DefBuckets,
 		}, []string{"method", "route", "status"}),
+		serviceabilityChecks: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "delivery_serviceability_checks_total",
+			Help: "Serviceability checks, by outcome. NO postcode label (PII/cardinality).",
+		}, []string{"serviced"}),
+		deliveryQuotes: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "delivery_quotes_total",
+			Help: "Delivery quotes, by outcome (same_day_and_standard | standard_only | unserviced).",
+		}, []string{"outcome"}),
+		deliveryQuoteFailure: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "delivery_quote_failures_total",
+			Help: "⚠ INVARIANT ALARM: a served zone that failed to produce a fee. Must stay at 0 (FR-029).",
+		}),
 	}
 
 	m.registry.MustRegister(
 		m.requests,
 		m.duration,
+		m.serviceabilityChecks,
+		m.deliveryQuotes,
+		m.deliveryQuoteFailure,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
 	return m
 }
+
+// ServiceabilityChecked records one serviceability read by outcome (047). ⚠ NEVER pass a postcode.
+func (m *Metrics) ServiceabilityChecked(serviced bool) {
+	m.serviceabilityChecks.WithLabelValues(strconv.FormatBool(serviced)).Inc()
+}
+
+// DeliveryQuoted records one quote by outcome (047). `outcome` is a small closed set only.
+func (m *Metrics) DeliveryQuoted(outcome string) {
+	m.deliveryQuotes.WithLabelValues(outcome).Inc()
+}
+
+// DeliveryQuoteFailed records the invariant alarm — a served zone that could not be priced (FR-029). This
+// must never fire; a non-zero value is a paging alert, not a metric to watch idly.
+func (m *Metrics) DeliveryQuoteFailed() { m.deliveryQuoteFailure.Inc() }
 
 // Middleware records the RED pair for every handled request.
 func (m *Metrics) Middleware() gin.HandlerFunc {

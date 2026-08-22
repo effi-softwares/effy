@@ -13,6 +13,7 @@ import {
   deliverabilityDetailRoute,
   deliverabilityIndexRoute,
 } from "./routes/deliverability";
+import { deliveryIndexRoute } from "./routes/delivery";
 import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
@@ -33,6 +34,7 @@ const routeTree = rootRoute.addChildren([
     promotionsIndexRoute,
     orderRulesRoute,
     promotionDetailRoute,
+    deliveryIndexRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ]);
