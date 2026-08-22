@@ -360,3 +360,17 @@ supplying one marks it **measured**, otherwise the platform prices on a stated *
 never weightless, never free (FR-053/054/055). ⚠ Fees, zones and same-day are **back-office only**; the
 shop service exposes **no** delivery-config route (SC-008/SC-009, guarded by
 `delivery-isolation.contract.test.ts`). shop-mobile weight entry is a deferred parity item.
+
+## §048 — Shop-web continuous deployment (Amplify)
+
+`apps/shop-web` (Vite SPA, previously local-only) gains the same managed Git-driven pipeline the
+storefront got in 042: a push/merge to `dev` auto-builds **only** the shop-web app root and serves it
+at **`shop.dev.effyshopping.com`** over HTTPS (prod → `shop.effyshopping.com` by configuration). Static
+`platform = WEB` (no SSR service role); an SPA rewrite (unknown path → `/index.html` 200) so client-side
+deep links survive a refresh; `noindex` + `robots.txt` because it is an internal console (Cognito login
+is the real gate); its deployed origin is added to the shared gateway CORS allowlist so `/shop/v1/*`
+calls succeed. **Code-complete + machine-verified** (Terraform validate/fmt; shop-web 139 tests +
+typecheck green). **⚠ Open (operator)**: the two-stage `terraform apply` (stage A on the Amplify
+hostname → stage B attaches the subdomain), the live SC walk (auto-deploy, SPA deep link, sign-in +
+data-load via the gateway, `noindex`, secret sweep), and the commit. Back-office ships in the same slice
+(048) at `back-office.dev.effyshopping.com`. Spec/artifacts: [specs/048-console-web-cicd/](../../specs/048-console-web-cicd/).

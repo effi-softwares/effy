@@ -373,3 +373,34 @@ variable "amplify_service_role_arn" {
   type        = string
   default     = ""
 }
+
+# ── Internal console CI/CD (048-console-web-cicd) ─────────────────────────────────────────────
+# Two Vite SPA consoles on subdomains of this env's namespace. Prod portability (FR-020/FR-021):
+# producing shop.effyshopping.com / back-office.effyshopping.com is these values changed in a prod
+# .tfvars, not a code edit. The GitHub connection + deploy branch are reused from 042 above.
+
+variable "shop_web_subdomain" {
+  description = "Single label the shop console is served under within this env's zone → shop.dev.effyshopping.com. A variable, never a literal (FR-010/FR-020). Also composed into the gateway CORS allowlist."
+  type        = string
+  default     = "shop"
+}
+
+variable "back_office_subdomain" {
+  description = "Single label the back-office console is served under within this env's zone → back-office.dev.effyshopping.com. A variable, never a literal (FR-010/FR-020). Also composed into the gateway CORS allowlist."
+  type        = string
+  default     = "back-office"
+}
+
+variable "amplify_consoles_domain_enabled" {
+  description = <<-EOT
+    Two-stage custom-domain cutover for the two consoles (048, quickstart §1–2), same shape as
+    amplify_domain_enabled.
+
+    false → STAGE A: both Amplify apps + the dev branch are created and build on the Amplify default
+            hostname (…​.amplifyapp.com). Verify the first builds there.
+    true  → STAGE B: attach shop.<zone> and back-office.<zone> (Amplify creates + verifies the Route53
+            records + us-east-1 certs). No apex/email cutover — these are fresh subdomains (research D4).
+  EOT
+  type        = bool
+  default     = false
+}

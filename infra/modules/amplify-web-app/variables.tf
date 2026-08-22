@@ -36,9 +36,49 @@ variable "app_root" {
 }
 
 variable "framework" {
-  description = "Amplify framework hint for the branch. Next.js SSR."
+  description = "Amplify framework hint for the branch. Next.js SSR (storefront) or Web (Vite SPA consoles, 048)."
   type        = string
   default     = "Next.js - SSR"
+}
+
+variable "platform" {
+  description = <<-EOT
+    Amplify app platform. Default WEB_COMPUTE (Next SSR, 042). The Vite SPA consoles (048) pass "WEB"
+    (static): a static app has no server runtime, so the module creates NO service role and sets no
+    iam_service_role_arn — 042's "Unable to assume specified IAM Role at CreateApp" hazard is a
+    WEB_COMPUTE-only concern and cannot arise for WEB (research D2).
+  EOT
+  type        = string
+  default     = "WEB_COMPUTE"
+
+  validation {
+    condition     = contains(["WEB", "WEB_COMPUTE"], var.platform)
+    error_message = "platform must be WEB (static SPA) or WEB_COMPUTE (SSR)."
+  }
+}
+
+variable "subdomain_prefix" {
+  description = <<-EOT
+    Label the app is served under within domain_name. "" = the zone apex (storefront, 042). The
+    consoles (048) pass "shop" / "back-office" → shop.<domain_name> / back-office.<domain_name>. A
+    variable, never a literal (FR-010/FR-020, research D4).
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "custom_rules" {
+  description = <<-EOT
+    Amplify custom rewrite/redirect rules on the app. Default [] (the storefront needs none — Next
+    routes server-side). A Vite SPA (048) passes the single-page-app rewrite (unknown non-asset path →
+    /index.html, status 200) so client-side deep links survive a refresh (FR-011, research D3).
+  EOT
+  type = list(object({
+    source = string
+    target = string
+    status = string
+  }))
+  default = []
 }
 
 variable "stage" {

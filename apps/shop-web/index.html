@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 048 — internal operator console: never search-discoverable. Cognito login is the real gate;
+         this keeps the console out of search results (paired with public/robots.txt). -->
+    <meta name="robots" content="noindex, nofollow" />
     <!-- 024 — Vite injects NO favicon links of its own; without these tags the files in public/ are
          never referenced and the tab falls back to the browser's blank-page icon. Blue colourway,
          shared with shop-mobile so one audience has one mark across both its surfaces (FR-016). -->

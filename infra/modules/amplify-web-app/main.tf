@@ -11,17 +11,25 @@ locals {
   })
 }
 
-# ── Amplify service role (required for WEB_COMPUTE / SSR) ───────────────────────────────────────
+# ── Amplify service role (required for WEB_COMPUTE / SSR ONLY) ──────────────────────────────────
 #
 # Amplify assumes this role to run the SSR build/compute and write its logs. The only permission it
 # needs for a hosting-only SSR app is CloudWatch Logs under /aws/amplify/*. (No Gen2 backend here, so
 # no broad AmplifyBackendDeployFullAccess.)
 #
-# ⚠ TRUST MUST INCLUDE BOTH `amplify.amazonaws.com` AND `lambda.amazonaws.com`. The SSR runtime is
-# Lambda-backed, so a role trusted only by amplify fails to be assumed and the build dies at step 0
-# with "Unable to assume specified IAM Role" (AWS SSR-compute-role docs; found live 2026-08-09).
-# Created ONLY when var.service_role_arn is empty. See that variable's warning: an Amplify-created
-# role is the reliable path, so the recommended flow passes an external ARN and this block is inert.
+# ⚠ STATIC (WEB) APPS NEED NO ROLE AT ALL (048, research D2). A Vite SPA has no server runtime, so
+# `needs_managed_role` is false for platform == "WEB" and this whole block is inert — the app sets
+# iam_service_role_arn = null. The "Unable to assume specified IAM Role" failure is a WEB_COMPUTE-only
+# concern.
+#
+# ⚠ TRUST MUST INCLUDE BOTH `amplify.amazonaws.com` AND `lambda.amazonaws.com` (SSR runtime is
+# Lambda-backed). Created ONLY when WEB_COMPUTE and var.service_role_arn is empty. See that variable's
+# warning: an Amplify-created role is the reliable path, so the recommended SSR flow passes an external
+# ARN and this block is inert.
+locals {
+  needs_managed_role = var.platform == "WEB_COMPUTE" && var.service_role_arn == ""
+}
+
 data "aws_iam_policy_document" "amplify_assume" {
   statement {
     effect  = "Allow"
@@ -34,7 +42,7 @@ data "aws_iam_policy_document" "amplify_assume" {
 }
 
 resource "aws_iam_role" "amplify" {
-  count              = var.service_role_arn == "" ? 1 : 0
+  count              = local.needs_managed_role ? 1 : 0
   name               = "${var.name}-amplify"
   assume_role_policy = data.aws_iam_policy_document.amplify_assume.json
   tags               = var.tags
@@ -55,14 +63,19 @@ data "aws_iam_policy_document" "amplify_logs" {
 }
 
 resource "aws_iam_role_policy" "amplify_logs" {
-  count  = var.service_role_arn == "" ? 1 : 0
+  count  = local.needs_managed_role ? 1 : 0
   name   = "ssr-compute-logs"
   role   = aws_iam_role.amplify[0].id
   policy = data.aws_iam_policy_document.amplify_logs.json
 }
 
 locals {
-  service_role_arn = var.service_role_arn != "" ? var.service_role_arn : aws_iam_role.amplify[0].arn
+  # WEB (static): no role at all → null. WEB_COMPUTE: an external ARN if given, else the created role.
+  service_role_arn = (
+    var.platform == "WEB" ? null :
+    var.service_role_arn != "" ? var.service_role_arn :
+    aws_iam_role.amplify[0].arn
+  )
 }
 
 resource "aws_amplify_app" "this" {
@@ -73,19 +86,32 @@ resource "aws_amplify_app" "this" {
   # webhook + read-only deploy key.
   access_token = var.access_token
 
-  # ⚠ REQUIRED for Next.js 14+ (customer-web is Next 16 SSR/PPR). "WEB" (static) cannot detect or
-  # run the SSR app (research D3).
-  platform = "WEB_COMPUTE"
+  # WEB_COMPUTE for Next.js 14+ SSR (storefront, 042); WEB for the static Vite SPA consoles (048).
+  # "WEB" cannot detect or run an SSR app, and WEB_COMPUTE would demand a service role a static app
+  # does not need — so this is a per-caller choice (research D2/D3).
+  platform = var.platform
 
-  # ⚠ REQUIRED for WEB_COMPUTE: an SSR app cannot build/run without a service role Amplify can assume
-  # — without it the build fails at the first step with "Unable to assume specified IAM Role". The
-  # role's job is to let the SSR compute write its logs (research D3 / implementation 2026-08-09).
+  # WEB_COMPUTE: the SSR compute needs a role Amplify can assume to write its logs, else the build
+  # fails at step 0 with "Unable to assume specified IAM Role". WEB (static): null — no role exists
+  # or is needed (local.service_role_arn resolves to null for WEB).
   iam_service_role_arn = local.service_role_arn
 
   # The repo-root amplify.yml is the source of truth for the build; it overrides anything set here.
-  # It declares exactly ONE application, which is what confines the pipeline to apps/customer-web.
+  # Each Amplify app builds ONLY the applications[] entry matching its AMPLIFY_MONOREPO_APP_ROOT.
 
   environment_variables = local.environment_variables
+
+  # ── SPA rewrite (custom rules) — 048 consoles pass the single-page-app rule; default [] (storefront)
+  # A client-router SPA on static hosting must serve /index.html (status 200, a rewrite not a redirect)
+  # for any non-asset path, or a deep-link refresh 404s (FR-011, research D3).
+  dynamic "custom_rule" {
+    for_each = var.custom_rules
+    content {
+      source = custom_rule.value.source
+      target = custom_rule.value.target
+      status = custom_rule.value.status
+    }
+  }
 
   enable_branch_auto_build    = var.enable_auto_build
   enable_branch_auto_deletion = false
@@ -129,13 +155,15 @@ resource "aws_amplify_domain_association" "this" {
   wait_for_verification  = true
   enable_auto_sub_domain = false
 
-  # Apex → the deploy branch (FR-009).
+  # subdomain_prefix → the deploy branch. "" = the zone apex (storefront, 042); "shop" /
+  # "back-office" for the consoles (048, FR-010/FR-012).
   sub_domain {
     branch_name = aws_amplify_branch.this.branch_name
-    prefix      = ""
+    prefix      = var.subdomain_prefix
   }
 
   # www → the deploy branch; Amplify serves it and redirects to the canonical apex (FR-010).
+  # Apex-only concept — the consoles pass enable_www = false.
   dynamic "sub_domain" {
     for_each = var.enable_www ? [1] : []
     content {

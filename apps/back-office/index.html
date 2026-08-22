@@ -3,6 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- 048 — internal admin console: never search-discoverable. Cognito login is the real gate;
+         this keeps the console out of search results (paired with public/robots.txt). -->
+    <meta name="robots" content="noindex, nofollow" />
     <!-- 024 — Vite injects NO favicon links of its own. Neutral colourway (FR-016a): the internal
          admin console is deliberately the one surface with no brand hue, so an admin with all three
          consoles pinned can tell them apart, and back-office is never mistaken for the storefront. -->

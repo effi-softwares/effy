@@ -19,6 +19,10 @@ output "branch_name" {
 }
 
 output "storefront_url" {
-  description = "The public storefront URL once the custom domain is attached, else the Amplify default hostname."
-  value       = var.domain_name == "" ? "https://${aws_amplify_app.this.default_domain}" : "https://${var.domain_name}"
+  description = "The public URL once the custom domain is attached (apex or subdomain per subdomain_prefix), else the Amplify default hostname."
+  value = (
+    var.domain_name == ""
+    ? "https://${aws_amplify_app.this.default_domain}"
+    : "https://${var.subdomain_prefix != "" ? "${var.subdomain_prefix}." : ""}${var.domain_name}"
+  )
 }

@@ -1,17 +1,22 @@
-# Amplify Hosting monorepo build spec — 042-customer-web-cicd.
+# Amplify Hosting monorepo build spec.
 #
 # ⚠ THIS FILE OVERRIDES the console build settings. Amplify applies console settings to all branches
 # UNLESS an amplify.yml is present at the repo root, in which case this wins. That is deliberate: the
 # build is code-reviewed here, not clicked into a console.
 #
-# ⚠ EXACTLY ONE application is declared. This is the mechanical guarantee of FR-006/FR-021 — the
-# pipeline structurally cannot build shop-web, back-office, or any mobile app, because they are never
-# declared. DO NOT add a second `applications[]` entry to deploy another surface; give it its own
-# Amplify app instead. (contracts/amplify-build.contract.md — "applications has length 1".)
+# ⚠ MONOREPO MODE — one entry per hosted surface (042 + 048). Amplify builds, for each Amplify app,
+# ONLY the single `applications[]` entry whose `appRoot` equals that app's `AMPLIFY_MONOREPO_APP_ROOT`
+# env var. Adding an entry here does NOT change what any other app builds. This per-app-root selection
+# is the mechanical guarantee of FR-006/FR-009 (048) and FR-006/FR-021 (042): a surface can only build
+# from its own appRoot, and a mis-set AMPLIFY_MONOREPO_APP_ROOT fails loudly ("Invalid monorepo spec,
+# no appRoot matching path found") rather than cross-building. Each new surface = a new Amplify app
+# (its own module instance) PLUS its own entry below.
+# (specs/048-console-web-cicd/contracts/amplify-build.contract.md — "Corrected invariant".)
 version: 1
 applications:
+  # ── Customer storefront (042) — Next.js 16 SSR, WEB_COMPUTE ─────────────────────────────────────
   # appRoot MUST equal the AMPLIFY_MONOREPO_APP_ROOT env var on the Amplify app, or the build fails
-  # with "Invalid monorepo spec, no appRoot matching path found" (research D2).
+  # with "Invalid monorepo spec, no appRoot matching path found" (042 research D2).
   - appRoot: apps/customer-web
     frontend:
       # Install AND build from the monorepo root so pnpm resolves the @effy/* workspace packages
@@ -46,3 +51,52 @@ applications:
         paths:
           - node_modules/**/*
           - apps/customer-web/.next/cache/**/*
+
+  # ── Shop operator console (048) — Vite + React SPA, static WEB ──────────────────────────────────
+  # NO `size` gate (that is the storefront's 174 KB budget; the consoles have none). Vite emits to
+  # `dist/`, not `.next`. The SPA rewrite rule lives on the Amplify app (Terraform custom_rule), not
+  # here. (specs/048-console-web-cicd/contracts/amplify-build.contract.md.)
+  - appRoot: apps/shop-web
+    frontend:
+      buildPath: '/'
+      phases:
+        preBuild:
+          commands:
+            - corepack enable
+            - corepack prepare pnpm@10.28.2 --activate
+            - pnpm install --frozen-lockfile
+        build:
+          commands:
+            - pnpm --filter @effy/shop-web typecheck
+            - pnpm --filter @effy/shop-web test
+            - pnpm --filter @effy/shop-web build
+      artifacts:
+        baseDirectory: apps/shop-web/dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+
+  # ── Back-office admin console (048) — Vite + React SPA, static WEB ──────────────────────────────
+  - appRoot: apps/back-office
+    frontend:
+      buildPath: '/'
+      phases:
+        preBuild:
+          commands:
+            - corepack enable
+            - corepack prepare pnpm@10.28.2 --activate
+            - pnpm install --frozen-lockfile
+        build:
+          commands:
+            - pnpm --filter @effy/back-office typecheck
+            - pnpm --filter @effy/back-office test
+            - pnpm --filter @effy/back-office build
+      artifacts:
+        baseDirectory: apps/back-office/dist
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
