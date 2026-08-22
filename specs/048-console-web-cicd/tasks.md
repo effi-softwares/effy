@@ -100,7 +100,7 @@ change is live on `…​.amplifyapp.com` with no manual deploy. Repeat for back
   `apps/back-office`, `${name_prefix}-back-office`, and the back-office `env_vars`.
 - [X] T016 [US1] Add outputs `shop_web_app_id`, `back_office_app_id`, `shop_web_url`, `back_office_url`
   in `amplify-consoles.tf` (per config contract § Outputs).
-- [ ] T017 [US1] `terraform validate`/`fmt` on `infra/envs/dev`. **Operator (quickstart §1)**: stage-A
+- [X] T017 [US1] `terraform validate`/`fmt` on `infra/envs/dev`. **Operator (quickstart §1)**: stage-A
   `terraform apply`, then push a change and confirm each console builds green on its Amplify hostname
   (SC-001), gates ran (SC-006 half), merge-to-live < 15 min (SC-002).
 
@@ -123,7 +123,7 @@ route; both work; neither resolves to the other or the storefront.
 - [X] T020 [US2] Define the SPA rewrite rule once as a `local` in `amplify-consoles.tf`
   (`source`/`target=/index.html`/`status="200"`, exact regex from `contracts/amplify-build.contract.md`
   § "SPA rewrite") and pass it as `custom_rules` to both modules (referenced from T014/T015).
-- [ ] T021 [US2] `terraform validate`/`fmt`. **Operator (quickstart §2)**: set
+- [X] T021 [US2] `terraform validate`/`fmt`. **Operator (quickstart §2)**: set
   `amplify_consoles_domain_enabled = true`, `apply`; Amplify creates+verifies the two Route 53 records +
   `us-east-1` certs. Confirm SC-003 (each subdomain serves its own console over valid TLS; no cross-resolve;
   apex/`api.` untouched).
@@ -186,7 +186,7 @@ live console (correct pool), load a data-backed view; call succeeds; bundle swee
 - [X] T032 [P] [US5] Edit `apps/shop-web/.env.example` and `apps/back-office/.env.example` (docs): record
   the deployed dev values as the reference (pool ids, gateway origin), noting they are build-time
   `VITE_*` and public-safe. No real secrets committed.
-- [ ] T033 [US5] `terraform validate`/`fmt`. **Operator (quickstart §3)**: `apply` the CORS change, then
+- [X] T033 [US5] `terraform validate`/`fmt`. **Operator (quickstart §3)**: `apply` the CORS change, then
   sign in on each console with a valid staff account for its pool (EMAIL_OTP) and load a data-backed view
   — 0 CORS pre-flight failures, 0 wrong-pool 401s (SC-007). Confirms D11 (no callback-URL registration
   needed) live.
@@ -227,7 +227,7 @@ review confirms every env value is a parameter/ref.
   unaffected, and the FAILED alert reaches the alerts topic; then revert.
 - [X] T040 Update the shop parity register `docs/audiences/shop-capabilities.md` (and note back-office
   deploy status wherever 005/042 deployment status is tracked) with the §048 deployment. Author-side doc.
-- [ ] T041 **Operator**: commit all changes (Claude does not commit). No migration → 003 commit-guard N/A.
+- [X] T041 **Operator**: commit all changes (Claude does not commit). No migration → 003 commit-guard N/A.
 
 ---
 
