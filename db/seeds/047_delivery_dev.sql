@@ -86,9 +86,12 @@ ON CONFLICT (id) DO UPDATE
       updated_at = now();
 
 -- ── 6. Collection runs (drivers collect from shops; Australia/Melbourne wall clock) ────────────────
--- Two runs: with the 120-min buffer, same-day is offered until 10:00 (midday run) and 14:00 (afternoon).
+-- Three runs: with the 120-min buffer, the cutoffs are 10:00, 14:00 and 19:00. Same-day is offered while
+-- the latest still-makeable cutoff is in the future — i.e. up to 19:00 (via the evening run). ⚠ The
+-- evening run keeps same-day testable into the evening; drop it for a stricter afternoon-only cutoff.
 INSERT INTO public.delivery_collection_run (run_time, label, status, updated_by) VALUES
   ('12:00', 'Midday run',    'active', 'seed:047'),
-  ('16:00', 'Afternoon run', 'active', 'seed:047');
+  ('16:00', 'Afternoon run', 'active', 'seed:047'),
+  ('21:00', 'Evening run',   'active', 'seed:047');
 
 COMMIT;

@@ -385,21 +385,32 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             ))}
           </fieldset>
         ) : (
-          <div className="flex items-center justify-between">
-            <dt className="text-muted-foreground">Delivery</dt>
-            <dd className="text-sm">
-              {!selectedId ? (
-                <span className="text-muted-foreground">Select an address</span>
-              ) : quoting ? (
-                <span className="text-muted-foreground">Calculating…</span>
-              ) : quote && !serviced ? (
-                <span className="text-destructive">Not available</span>
-              ) : serviced ? (
-                <span className="font-medium">{formatMoney(formatCents(deliveryCents), currency)}</span>
-              ) : (
-                <span className="text-muted-foreground">—</span>
-              )}
-            </dd>
+          <div>
+            <div className="flex items-center justify-between">
+              <dt className="text-muted-foreground">Delivery</dt>
+              <dd className="text-sm">
+                {!selectedId ? (
+                  <span className="text-muted-foreground">Select an address</span>
+                ) : quoting ? (
+                  <span className="text-muted-foreground">Calculating…</span>
+                ) : quote && !serviced ? (
+                  <span className="text-destructive">Not available</span>
+                ) : serviced ? (
+                  <span className="font-medium">
+                    Standard · {formatMoney(formatCents(deliveryCents), currency)}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </dd>
+            </div>
+            {/* 047: when the order is serviced but same-day isn't offered, say so — a shopper should know
+                same-day was considered, not silently omitted. */}
+            {serviced && !sameDayOfferable ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Same-day delivery isn’t available for this address.
+              </p>
+            ) : null}
           </div>
         )}
         <div className="border-t pt-4">

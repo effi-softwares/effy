@@ -195,12 +195,20 @@ private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
                 onSelect = { vm.setMethod(DeliveryMethod.SAME_DAY) },
             )
         }
-        else -> Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
-            Text("$${quote.standardTotalAmount}", style = MaterialTheme.typography.bodyMedium)
+        else -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
+                Text("$${quote.standardTotalAmount}", style = MaterialTheme.typography.bodyMedium)
+            }
+            // 047: say when same-day isn't available, rather than silently omitting it.
+            Text(
+                "Same-day delivery isn’t available for this address.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

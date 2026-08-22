@@ -4,6 +4,11 @@ description: "Task list for Delivery Zones & Shipping-Fee Engine (047)"
 
 # Tasks: Delivery Zones & Shipping-Fee Engine
 
+> ✅ **CONCLUDED (PARTIAL BY DESIGN) 2026-08-22 — 56/57.** Build work complete + machine-verified; deployed
+> to dev and proven live on web + mobile. See [SIGNOFF.md](SIGNOFF.md). The one open task (**T057**) is the
+> operator residual: `edge-deploy SERVICE=shop` (if not already), the full formal SC-001…SC-017 table walk,
+> and the commit. Nothing is committed (operator does that).
+
 **Input**: Design documents from `/specs/047-delivery-shipping-engine/`
 
 **Prerequisites**: [plan.md](plan.md), [spec.md](spec.md), [research.md](research.md),
