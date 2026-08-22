@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.driver.mobile.core.nav.AccountRoot
+import com.effyshopping.driver.mobile.core.nav.ActivityRoute
 import com.effyshopping.driver.mobile.core.nav.CollectionRunRoute
 import com.effyshopping.driver.mobile.core.nav.DeliveryRunRoute
 import com.effyshopping.driver.mobile.core.nav.DriverTab
@@ -48,6 +49,8 @@ import com.effyshopping.driver.mobile.features.collection.presentation.ShopStopS
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryRunScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryViewModel
 import com.effyshopping.driver.mobile.features.delivery.presentation.DropDetailScreen
+import com.effyshopping.driver.mobile.features.activity.presentation.ActivityScreen
+import com.effyshopping.driver.mobile.features.activity.presentation.ActivityViewModel
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryDetailScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryScreen
 import com.effyshopping.driver.mobile.features.history.presentation.HistoryViewModel
@@ -115,6 +118,7 @@ fun DriverShell(
                             getToday = container.getToday,
                             setDuty = container.setDuty,
                             newChangeId = container::newChangeId,
+                            syncFlush = { container.syncCoordinator.flush() },
                         )
                     }
                     val state by vm.state.collectAsState()
@@ -125,6 +129,22 @@ fun DriverShell(
                         onRefresh = vm::refresh,
                         onOpenRun = { runId, phase ->
                             tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
+                        },
+                        onOpenActivity = { tabs.push(ActivityRoute) },
+                    )
+                }
+                ActivityRoute -> {
+                    val vm = viewModel(key = "activity") { ActivityViewModel(container.getActivity, container.markActivityRead) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(Unit) { vm.load() }
+                    ActivityScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onOpen = { item ->
+                            when {
+                                item.dropId != null && item.runId != null -> tabs.push(DropRoute(item.runId, item.dropId))
+                                item.runId != null -> tabs.push(CollectionRunRoute(item.runId))
+                            }
                         },
                     )
                 }
@@ -182,6 +202,8 @@ fun DriverShell(
                         onAdvance = { to -> vm.advance(route.dropId, to) },
                         onDeliverCode = { code, note -> vm.deliverWithCode(route.dropId, code, note) },
                         onDeliverContactless = { note -> vm.deliverContactless(route.dropId, note) },
+                        onDeliverPhoto = { bytes, note -> vm.deliverWithPhoto(route.dropId, bytes, note) },
+                        onDeliverSignature = { bytes, note -> vm.deliverWithSignature(route.dropId, bytes, note) },
                         onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
                         onNext = { tabs.pop() },
                     )
@@ -259,6 +281,7 @@ private fun newDeliveryVm(container: AppContainer, runId: String) = DeliveryView
     advanceDrop = container.advanceDrop,
     completeWithCode = container.completeWithCode,
     completeContactless = container.completeContactless,
+    completeWithMedia = container.completeWithMedia,
     failDrop = container.failDrop,
     newChangeId = container::newChangeId,
 )

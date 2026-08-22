@@ -7,6 +7,8 @@ import com.effyshopping.driver.mobile.core.presentation.userMessage
 import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteContactless
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithCode
+import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
+import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
@@ -35,6 +37,7 @@ class DeliveryViewModel(
     private val advanceDrop: AdvanceDrop,
     private val completeWithCode: CompleteWithCode,
     private val completeContactless: CompleteContactless,
+    private val completeWithMedia: CompleteWithMedia,
     private val failDrop: FailDrop,
     private val newChangeId: () -> String,
 ) : ViewModel() {
@@ -83,6 +86,14 @@ class DeliveryViewModel(
 
     fun deliverContactless(dropId: String, note: String?) = complete {
         completeContactless(dropId, note, newChangeId())
+    }
+
+    fun deliverWithPhoto(dropId: String, bytes: ByteArray, note: String?) = complete {
+        completeWithMedia(dropId, ProofMethod.PHOTO, bytes, note, newChangeId())
+    }
+
+    fun deliverWithSignature(dropId: String, bytes: ByteArray, note: String?) = complete {
+        completeWithMedia(dropId, ProofMethod.SIGNATURE, bytes, note, newChangeId())
     }
 
     private fun complete(action: suspend () -> Unit) {

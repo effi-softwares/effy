@@ -43,13 +43,13 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 - [X] T006 [P] Implement the driver-service pg layer + repositories base in `apis/edge-api/driver/src/lib/` (pgx-equivalent pool via edge-shared, RDS CA, raw SQL repository pattern).
 - [X] T007 [P] Mobile core: `core/auth/AuthDriver.kt` (commonMain interface — strictly passwordless EMAIL_OTP, **no** password/sign-up/recovery; single access-token bearer), Android Amplify actual + iOS bridge; `core/http` Ktor client sending the single access token to `/driver/v1/*`; `core/session`, `core/config`, `core/error/AppError.kt` (incl. `NotFound`).
 - [X] T008 [P] Mobile sign-in flow in `features/auth/`: work-email screen (no sign-up path), 6-digit OTP screen with entering/verifying/invalid/expired/locked states (FR-001/003); wire to `AuthDriver`.
-- [ ] T009 [P] Mobile permission priming in `features/auth/` for location, notifications, camera with per-permission rationale before the OS prompt (FR-004).
+- [X] T009 [P] Mobile permission priming in `features/auth/` for location, notifications, camera with per-permission rationale before the OS prompt (FR-004).
 - [X] T010 Mobile app shell in `app/` + `core/nav/`: adaptive nav (mobile-kit) with tabs Today / Map / History / Account; explicit container wiring (no DI framework); session gate → sign-in when signed out.
 - [X] T011 `GET /driver/v1/me` in `apis/edge-api/driver/src/me/` — **reads the existing back-office-provisioned `driver` record** by `sub` and **refuses with 404/403 when none exists** (drivers are admin-provisioned per FR-002 — NO JIT upsert that would create a zone-less record; assignment needs a zone from the record). Returns zone/hub (from `delivery_settings`)/vehicle/dutyStatus, and **refuses a disabled driver (uniform 403)** (Principle IV, I2 resolution); mobile identity read.
 - [X] T012 Duty: `POST /driver/v1/duty` + `POST /driver/v1/location` in `apis/edge-api/driver/src/duty/` (open/close `driver_duty_session`, optional location snapshot), and the phase-aware "Today" home shell + on/off-duty control in `features/duty/` (FR-005/006, offduty + on-duty-empty states).
 - [X] T013 Assignment worker scaffold in `apis/edge-api/driver/src/assignment/`: EventBridge-scheduled handler (cadence from env), the sweep loop, driver eligibility (on-duty + zone), candidate selection `FOR UPDATE SKIP LOCKED`, and idempotent task creation + `driver_task_event` writes (R2/R10). (Per-type detection added in US1/US2.)
 - [X] T014 [P] Minimal provisioning domain `apis/edge-api/admin/src/drivers/` per contracts/admin-drivers.contract.md (Cognito-first→`driver` record, 006/009 pattern; RBAC read=any active staff, mutate=admin/manager; audit to `admin.audit_log`); add scoped `cognito-idp` IAM on the **driver pool ARN** to the admin `serverless.yml`.
-- [ ] T015 [P] Mobile offline sync coordinator in `core/` (debounce/drain/backoff + persisted queue; every write carries a per-action `changeId`) — the 027 pattern reused for driver writes (FR-039).
+- [X] T015 [P] Mobile offline sync coordinator in `core/` (debounce/drain/backoff + persisted queue; every write carries a per-action `changeId`) — the 027 pattern reused for driver writes (FR-039).
 - [X] T016 [P] Config-contract test in `apis/edge-api/driver/` reading the real `serverless.yml` against the service's required env keys (035 defect guard); shared-types↔Kotlin **contract-drift** guard + a serialization test proving counts round-trip as integers (not `1.0`).
 - [X] T060 **Reassignment / return-to-pool** (FR-011) in `apis/edge-api/driver/src/assignment/` + `src/duty/`: on duty-close and on every worker sweep, release the **not-yet-collected** `collection_task` rows and **not-yet-started** `delivery_task` rows of ineligible drivers (off-duty/unreachable) back to the pool so the next sweep re-assigns them — idempotent, `FOR UPDATE SKIP LOCKED`, guarded by current owner so an **in-progress step is never yanked mid-action**; and enforce the off-duty-mid-run guard on `POST /duty` (refuse, or release remaining stops — never abandon silently). Covers the "going off duty mid-run" edge case.
 
@@ -70,8 +70,8 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 - [X] T021 [P] [US1] Mobile collection run overview in `features/collection/` — ordered shop stops with package counts, progress, pull-to-refresh (FR-013).
 - [X] T022 [P] [US1] Mobile shop stop verify+collect in `features/collection/` — package manifest as a tick list, swipe-to-collect (FR-014); phase-1 "Today" home wiring (active stop).
 - [X] T023 [US1] Mobile hub check-in screen in `features/hubcheckin/` — scanned total + same-day/standard split, "nothing same-day" variant, swipe to end the run and unlock phase 2 (FR-016).
-- [ ] T024 [P] [US1] Tests: edge-driver collection + hub-checkin suites (assign→collect→checkin, double-assign refused, idempotent re-collect); mobile collection/hubcheckin ViewModel+UseCase `commonTest`.
-- [ ] T061 [US1] **Missed-collection-cutoff flag** in `apis/edge-api/driver/src/assignment/` + `src/hubcheckin/`: detect a same-day package still uncollected past its collection run's derived cutoff (047 `delivery_collection_run` + prep buffer, Australia/Melbourne) and flag it (surfaced at hub check-in / activity) so the same-day promise is not silently broken; not delivered late without a signal (spec "late package / missed collection cutoff" edge case).
+- [X] T024 [P] [US1] Tests: edge-driver collection + hub-checkin suites (assign→collect→checkin, double-assign refused, idempotent re-collect); mobile collection/hubcheckin ViewModel+UseCase `commonTest`.
+- [X] T061 [US1] **Missed-collection-cutoff flag** in `apis/edge-api/driver/src/assignment/` + `src/hubcheckin/`: detect a same-day package still uncollected past its collection run's derived cutoff (047 `delivery_collection_run` + prep buffer, Australia/Melbourne) and flag it (surfaced at hub check-in / activity) so the same-day promise is not silently broken; not delivered late without a signal (spec "late package / missed collection cutoff" edge case).
 
 **Checkpoint**: US1 fully functional — a collection run runs end to end and ends at the hub with the split; missed-cutoff same-day packages are flagged, not silently late.
 
@@ -90,7 +90,8 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 - [X] T029 [US2] Complete-with-proof in `apis/edge-api/driver/src/proof/`: `POST /delivery/drops/{id}/proof` — verify `code` server-side when method=code; write `proof_of_delivery` and advance every package `shop_fulfillment`→`delivered` in **one transaction**; refuse `delivered` without a proof (FR-024/025/026/027).
 - [X] T030 [P] [US2] Mobile delivery run overview + drop detail in `features/delivery/` (ordered drops; customer/address/instructions/packages); phase-2 "Today" home wiring (FR-018/020/021).
 - [X] T031 [US2] Mobile lifecycle + proof in `features/delivery/`: out-for-delivery/en-route/arrived, proof method picker + photo (capture/review/retake) + delivery-code (valid/invalid) + signature (draw/clear) + contactless + note, success state + "Next" (FR-019/024–027).
-- [ ] T032 [P] [US2] Tests: edge-driver delivery+proof suites (grouping to one drop, no-proof→no-delivered, code verify, idempotent proof); mobile delivery ViewModel+UseCase `commonTest`.
+  - ✅ Proof capture complete: **signature** (Compose canvas → PNG, both platforms), **delivery code**, **contactless**, and **photo** (Android camera via ActivityResult). ⚠ **iOS photo capture deferred** — returns null (option hidden); needs a Swift UIImagePicker/PHPicker bridge. Upload pipeline: presign → PUT to S3 → complete.
+- [X] T032 [P] [US2] Tests: edge-driver delivery+proof suites (grouping to one drop, no-proof→no-delivered, code verify, idempotent proof); mobile delivery ViewModel+UseCase `commonTest`.
 
 **Checkpoint**: US1+US2 = the MVP loop; a paid order is collected and same-day-delivered with proof, order→`delivered`.
 
@@ -106,7 +107,7 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 - [X] T034 [US3] `POST /delivery/drops/{id}/fail` in `apis/edge-api/driver/src/delivery/` (write `delivery_failure` + `failed`, remove from active run) (FR-028).
 - [X] T035 [P] [US3] Mobile report missing/short package UI in `features/collection/` (affected item + reason) (FR-015).
 - [X] T036 [P] [US3] Mobile mark-undeliverable reason picker + confirm in `features/delivery/` (nobody home/wrong address/refused/access blocked/other+note) (FR-028).
-- [ ] T037 [P] [US3] Tests: edge-driver issue + fail suites; mobile exception ViewModel `commonTest`.
+- [X] T037 [P] [US3] Tests: edge-driver issue + fail suites; mobile exception ViewModel `commonTest`.
 
 **Checkpoint**: happy paths (US1/US2) plus the problem/fail branches.
 
@@ -136,7 +137,7 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 - [X] T043 [P] [US5] `GET /driver/v1/history` + `GET /driver/v1/history/{kind}/{id}` in `apis/edge-api/driver/src/history/` (both record types; timeline from `driver_task_event`; signed proof GET) (FR-033/034).
 - [X] T044 [P] [US5] Mobile history list (runs + drops by day, empty state) + detail (timeline + proof, read-only) in `features/history/` (FR-033/034).
-- [ ] T045 [P] [US5] Tests: edge-driver history suite; mobile history ViewModel `commonTest`.
+- [X] T045 [P] [US5] Tests: edge-driver history suite; mobile history ViewModel `commonTest`.
 
 **Checkpoint**: completed work is reviewable with proof.
 
@@ -148,10 +149,10 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 **Independent Test**: An assignment writes an activity item; the feed lists it chronologically (empty state otherwise); tapping opens the run/stop.
 
-- [ ] T046 [US6] Populate `driver_activity` from the assignment worker + lifecycle events (run assigned, packages ready, same-day window, reminders) in `apis/edge-api/driver/src/assignment/` and service handlers (FR-031 back-end half).
-- [ ] T047 [P] [US6] `GET /driver/v1/activity` + `POST /driver/v1/activity/read` in `apis/edge-api/driver/src/activity/` (FR-032).
-- [ ] T048 [P] [US6] Mobile activity feed + empty state in `features/notifications/`, tap-through to the run/stop (FR-032); push registration deferred to the notifications path (recorded).
-- [ ] T049 [P] [US6] Tests: edge-driver activity suite; mobile feed ViewModel `commonTest`.
+- [X] T046 [US6] Populate `driver_activity` from the assignment worker + lifecycle events (run assigned, packages ready, same-day window, reminders) in `apis/edge-api/driver/src/assignment/` and service handlers (FR-031 back-end half).
+- [X] T047 [P] [US6] `GET /driver/v1/activity` + `POST /driver/v1/activity/read` in `apis/edge-api/driver/src/activity/` (FR-032).
+- [X] T048 [P] [US6] Mobile activity feed + empty state in `features/notifications/`, tap-through to the run/stop (FR-032); push registration deferred to the notifications path (recorded).
+- [X] T049 [P] [US6] Tests: edge-driver activity suite; mobile feed ViewModel `commonTest`.
 
 **Checkpoint**: drivers see new work in-app without polling.
 
@@ -173,13 +174,13 @@ run) + US2 (same-day delivery run)** together form the MVP loop that closes comm
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T053 [P] Cross-cutting mobile states: loading skeletons (Today + drop detail), failed-load error+retry, persistent offline banner, permission-denied recovery in `core/presentation/` + relevant features (FR-038/039).
-- [ ] T054 Wire the offline queue (T015) through every write path and prove exactly-once apply on reconnect (FR-039, SC-007).
-- [ ] T055 [P] Telemetry: Crashlytics via `core/platform/`; declare the driver PostHog event taxonomy (duty toggled, run started, stop collected, hub checked in, drop delivered, drop failed) with emission deferred (recorded); backend metrics (`assignment_latency`, `unassigned_work` gauge, `proof_upload_failed`) + a stale-unassigned-work alarm in `apis/edge-api/driver/` + `infra/envs/dev/` (Principle VII).
-- [ ] T056 [P] Verify monochrome/design compliance: `compose-driver` tokens check + `mobile-guard` for driver-mobile; every screen light+dark AA; 48dp targets; and a **non-goals sweep covering the full FR-044 list** (no earnings/tips/pay/cash-out, no offer/accept-decline, no ratings/gamification, no storefront/catalog/cart/checkout — not just currency) (SC-008/009/010/012, FR-044, Principle V).
-- [ ] T057 [P] Create the parity register `docs/audiences/driver-capabilities.md` (single mobile column — no driver web) and record §049.
-- [ ] T058 `terraform validate`/`fmt`; banned-address + source secret sweeps; `pnpm -r typecheck` + `pnpm -r test` green.
-- [ ] T059 Operator/live run of `quickstart.md` (⚙ `make db-up`, `make edge-deploy SERVICE=driver` + admin redeploy, provision a driver, worker schedule on, on-device Android + iOS walk of US1→US2, offline + isolation + no-currency proofs).
+- [~] T053 (DEFERRED — polish, out of conclusion per operator) [P] Cross-cutting mobile states: loading skeletons (Today + drop detail), failed-load error+retry, persistent offline banner, permission-denied recovery in `core/presentation/` + relevant features (FR-038/039).
+- [X] T054 Wire the offline queue (T015) through every write path and prove exactly-once apply on reconnect (FR-039, SC-007).
+- [~] T055 (DEFERRED — polish, out of conclusion per operator) [P] Telemetry: Crashlytics via `core/platform/`; declare the driver PostHog event taxonomy (duty toggled, run started, stop collected, hub checked in, drop delivered, drop failed) with emission deferred (recorded); backend metrics (`assignment_latency`, `unassigned_work` gauge, `proof_upload_failed`) + a stale-unassigned-work alarm in `apis/edge-api/driver/` + `infra/envs/dev/` (Principle VII).
+- [~] T056 (DEFERRED — polish, out of conclusion per operator) [P] Verify monochrome/design compliance: `compose-driver` tokens check + `mobile-guard` for driver-mobile; every screen light+dark AA; 48dp targets; and a **non-goals sweep covering the full FR-044 list** (no earnings/tips/pay/cash-out, no offer/accept-decline, no ratings/gamification, no storefront/catalog/cart/checkout — not just currency) (SC-008/009/010/012, FR-044, Principle V).
+- [X] T057 [P] Create the parity register `docs/audiences/driver-capabilities.md` (single mobile column — no driver web) and record §049.
+- [X] T058 `terraform validate`/`fmt`; banned-address + source secret sweeps; `pnpm -r typecheck` + `pnpm -r test` green.
+- [~] T059 (DEFERRED — polish, out of conclusion per operator) Operator/live run of `quickstart.md` (⚙ `make db-up`, `make edge-deploy SERVICE=driver` + admin redeploy, provision a driver, worker schedule on, on-device Android + iOS walk of US1→US2, offline + isolation + no-currency proofs).
 
 ---
 

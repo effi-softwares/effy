@@ -57,6 +57,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
+            // 049 photo proof — the camera ActivityResult launcher (rememberLauncherForActivityResult).
+            implementation(libs.androidx.activity.compose)
             implementation(libs.ktor.client.android)
             // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
             implementation(libs.amplify.auth.cognito)
@@ -90,6 +92,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.compose.uiTest)
+            implementation(libs.multiplatform.settings.test)
         }
     }
 }

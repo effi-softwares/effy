@@ -33,6 +33,8 @@ class TodayViewModel(
     private val getToday: GetToday,
     private val setDuty: SetDuty,
     private val newChangeId: () -> String,
+    /** Flush the offline write queue — called on refresh, the natural "back online" moment (FR-040). */
+    private val syncFlush: suspend () -> Unit = {},
 ) : ViewModel() {
     private val _state = MutableStateFlow(TodayUiState(dutyStatus = initialDuty))
     val state = _state.asStateFlow()
@@ -45,6 +47,7 @@ class TodayViewModel(
         if (_state.value.dutyStatus != DutyStatus.ON_DUTY) return
         _state.update { it.copy(isLoading = true, message = null) }
         viewModelScope.launch {
+            runCatching { syncFlush() } // drain any queued offline writes before re-reading (FR-040)
             try {
                 _state.update { it.copy(today = getToday(), isLoading = false) }
             } catch (e: AppException) {

@@ -43,6 +43,10 @@ data class DropRoute(val runId: String, val dropId: String) : AppNavKey
 @Serializable
 data class HistoryDetailRoute(val kind: String, val id: String, val title: String) : AppNavKey
 
+// The in-app activity feed, pushed within the Today tab (049 US6).
+@Serializable
+data object ActivityRoute : AppNavKey
+
 /**
  * The driver app's primary tabs (spec §4 IA). Today is the phase-aware home (collection run / same-day
  * run). Map/History are their own feature slices (US4/US5) — placeholders in this foundation.
@@ -70,5 +74,6 @@ val driverNavJson: Json = Json {
         subclass(DeliveryRunRoute::class, DeliveryRunRoute.serializer())
         subclass(DropRoute::class, DropRoute.serializer())
         subclass(HistoryDetailRoute::class, HistoryDetailRoute.serializer())
+        subclass(ActivityRoute::class, ActivityRoute.serializer())
     }
 }

@@ -286,6 +286,28 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+  # ── Activity feed (US6). In-app only; push (FCM/APNs) is a later platform-wide notifications slice. ─
+  activityV1:
+    handler: src/functions/activity-v1-get.handler
+    description: In-app activity feed — chronological driver_activity (049 US6)
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+  activityReadV1:
+    handler: src/functions/activity-read-v1-post.handler
+    description: Mark activity items read (049 US6)
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/activity/read
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
   # The auto-assignment sweep worker (research R2). Scheduled, not event-driven — the SNS/SQS event
   # backbone does not exist yet. Idempotent: re-running assigns only still-unassigned work, and
   # releases ineligible drivers' not-yet-collected work back to the pool (FR-011, T060).

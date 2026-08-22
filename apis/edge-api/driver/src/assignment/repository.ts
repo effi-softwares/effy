@@ -89,6 +89,37 @@ export async function assignCollectionWork(): Promise<number> {
 }
 
 /**
+ * T061 — flag same-day packages still uncollected past their collection cutoff, so the same-day promise
+ * is not silently broken (spec edge case). The cutoff is 047's rule: the last active collection run's
+ * time minus the prep buffer, in Australia/Melbourne wall-clock. Writes ONE `cutoff_missed` activity per
+ * affected run (deduped), for the assigned driver. Returns the number of runs newly flagged.
+ */
+export async function flagMissedCutoffs(): Promise<number> {
+  const res = await query<{ run_id: string }>(
+    `WITH cutoff AS (
+       SELECT (SELECT max(cr.run_time) FROM public.delivery_collection_run cr WHERE cr.status = 'active')
+              - make_interval(mins => COALESCE((SELECT sameday_prep_buffer_min FROM public.delivery_settings WHERE id = 1), 0)) AS t
+     )
+     INSERT INTO public.driver_activity (driver_id, type, run_id, body)
+     SELECT DISTINCT r.driver_id, 'cutoff_missed', r.id,
+            'Same-day cutoff passed — some packages are still uncollected'
+       FROM public.collection_task ct
+       JOIN public.driver_run r ON r.id = ct.run_id AND r.type = 'collection' AND r.status IN ('assigned', 'active')
+       JOIN public.shop_fulfillment sf ON sf.id = ct.shop_fulfillment_id
+       JOIN public.order_package_delivery opd
+            ON opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND opd.method = 'same_day'
+      WHERE ct.status IN ('assigned', 'en_route')
+        AND (SELECT t FROM cutoff) IS NOT NULL
+        AND (now() AT TIME ZONE 'Australia/Melbourne')::time > (SELECT t FROM cutoff)
+        AND NOT EXISTS (
+          SELECT 1 FROM public.driver_activity a WHERE a.type = 'cutoff_missed' AND a.run_id = r.id
+        )
+     RETURNING run_id`,
+  );
+  return res.rowCount ?? 0;
+}
+
+/**
  * FR-011 / T060 — release the not-yet-collected work of INELIGIBLE drivers back to the pool.
  *
  * A driver is ineligible when they have no open duty session (went off duty) or their record is

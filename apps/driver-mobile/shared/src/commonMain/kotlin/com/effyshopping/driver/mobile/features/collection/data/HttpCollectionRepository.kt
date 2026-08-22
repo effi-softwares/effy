@@ -12,6 +12,9 @@ import com.effyshopping.driver.mobile.contract.PackageMethod as DtoMethod
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
+import com.effyshopping.driver.mobile.core.offline.OfflineQueue
+import com.effyshopping.driver.mobile.core.offline.withReplay
+import kotlinx.serialization.json.Json
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionPackage
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRepository
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
@@ -30,7 +33,11 @@ import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
-class HttpCollectionRepository(private val api: HttpClient) : CollectionRepository {
+class HttpCollectionRepository(
+    private val api: HttpClient,
+    private val offline: OfflineQueue,
+    private val json: Json = Json { encodeDefaults = true },
+) : CollectionRepository {
 
     override suspend fun getRun(runId: String): CollectionRun = request {
         api.get("driver/v1/collection/runs/$runId").ensureSuccess().body<DriverCollectionRunDTO>().toDomain()
@@ -40,24 +47,36 @@ class HttpCollectionRepository(private val api: HttpClient) : CollectionReposito
         api.get("driver/v1/collection/runs/$runId/stops/$stopId").ensureSuccess().body<CollectionStopDTO>().toDomain()
     }
 
-    override suspend fun collect(runId: String, stopId: String, changeId: String) = request {
-        api.post("driver/v1/collection/runs/$runId/stops/$stopId/collect") { setBody(CollectRequest(changeID = changeId)) }
-            .ensureSuccess()
-        Unit
+    override suspend fun collect(runId: String, stopId: String, changeId: String) {
+        val path = "driver/v1/collection/runs/$runId/stops/$stopId/collect"
+        val body = CollectRequest(changeID = changeId)
+        request {
+            offline.withReplay(path, json.encodeToString(CollectRequest.serializer(), body), changeId, "Collect a shop stop") {
+                api.post(path) { setBody(body) }.ensureSuccess()
+            }
+        }
     }
 
-    override suspend fun reportIssue(runId: String, stopId: String, kind: String, note: String?, changeId: String) = request {
+    override suspend fun reportIssue(runId: String, stopId: String, kind: String, note: String?, changeId: String) {
         val k = if (kind == "missing") CollectionIssueKind.Missing else CollectionIssueKind.KindShort
-        api.post("driver/v1/collection/runs/$runId/stops/$stopId/issue") {
-            setBody(CollectionIssueRequest(changeID = changeId, kind = k, note = note, shopFulfillmentID = null))
-        }.ensureSuccess()
-        Unit
+        val path = "driver/v1/collection/runs/$runId/stops/$stopId/issue"
+        val body = CollectionIssueRequest(changeID = changeId, kind = k, note = note, shopFulfillmentID = null)
+        request {
+            offline.withReplay(path, json.encodeToString(CollectionIssueRequest.serializer(), body), changeId, "Report a package issue") {
+                api.post(path) { setBody(body) }.ensureSuccess()
+            }
+        }
     }
 
-    override suspend fun checkIn(runId: String, changeId: String): HubSplit = request {
-        val r = api.post("driver/v1/hub/checkin") { setBody(HubCheckinRequest(changeID = changeId, runID = runId)) }
-            .ensureSuccess().body<HubCheckinResponse>()
-        HubSplit(r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt())
+    override suspend fun checkIn(runId: String, changeId: String): HubSplit {
+        val path = "driver/v1/hub/checkin"
+        val body = HubCheckinRequest(changeID = changeId, runID = runId)
+        return request {
+            offline.withReplay(path, json.encodeToString(HubCheckinRequest.serializer(), body), changeId, "Hub check-in") {
+                val r = api.post(path) { setBody(body) }.ensureSuccess().body<HubCheckinResponse>()
+                HubSplit(r.scannedTotal.toInt(), r.sameDayCount.toInt(), r.standardCount.toInt())
+            }
+        }
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

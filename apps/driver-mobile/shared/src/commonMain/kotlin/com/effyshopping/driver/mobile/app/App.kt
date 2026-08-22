@@ -28,6 +28,10 @@ import com.effyshopping.driver.mobile.core.platform.PlatformUiController
 import com.effyshopping.driver.mobile.core.session.SessionState
 import com.effyshopping.driver.mobile.core.theme.EffyTheme
 import com.effyshopping.driver.mobile.features.auth.presentation.SignInFlow
+import com.effyshopping.driver.mobile.features.onboarding.PermissionPrimingScreen
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 
 /**
@@ -47,7 +51,11 @@ fun App(
         val session by container.session.state.collectAsState()
         val scope = rememberCoroutineScope()
 
-        LaunchedEffect(Unit) { container.session.bootstrap() }
+        LaunchedEffect(Unit) {
+            container.session.bootstrap()
+            // Flush any writes queued while offline on a previous run (FR-040).
+            runCatching { container.syncCoordinator.flush() }
+        }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = session) {
@@ -84,7 +92,18 @@ fun App(
                     }
                 }
 
-                is SessionState.SignedIn -> DriverShell(container, s, mapLauncher)
+                is SessionState.SignedIn -> {
+                    // One-time permission priming (FR-004), then the shell.
+                    var primed by remember { mutableStateOf(container.hasPrimedPermissions()) }
+                    if (!primed) {
+                        PermissionPrimingScreen(onContinue = {
+                            container.markPermissionsPrimed()
+                            primed = true
+                        })
+                    } else {
+                        DriverShell(container, s, mapLauncher)
+                    }
+                }
             }
         }
     }

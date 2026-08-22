@@ -26,6 +26,20 @@ plot them from.
 **Carry-forward**: add `shop.address` (+ optional coords) and geocode `order.delivery_address`; then the
 map-data endpoint (`GET /runs/{id}/map`) and the MapLibre canvas become buildable against real positions.
 
+## R14 — US6 push is a platform-wide FCM slice, not a driver-app feature (operator direction, 2026-08-23)
+
+**Decision**: US6 ships the **in-app activity feed only**. Push delivery (FCM + APNs) is deliberately NOT
+built here — it becomes its **own platform-wide notifications slice** covering customer, driver AND shop
+apps, per constitution Principle VII ("push goes through the platform notifications path, **never ad hoc
+per feature**"). Wiring FCM into just the driver app now would be exactly the anti-pattern the constitution
+forbids, and would be rebuilt three times.
+
+**The clean seam**: the `public.driver_activity` rows (written by the assignment worker + lifecycle events)
+are the payload source. When the FCM slice lands it adds device-token registration (via the hot path) and a
+send worker that consumes these same rows — **nothing built in US6 is thrown away or rebuilt**; push simply
+becomes a second delivery channel for events the feed already shows. FR-031 is worded to match: it requires
+the events be recorded + surfaced in-app now, with push delivery a recorded dependency on that slice.
+
 ## R1 — Backend path: cold path for the whole driver backend
 
 **Decision**: Put the entire driver backend on the **cold path** — a new `apis/edge-api/driver` service

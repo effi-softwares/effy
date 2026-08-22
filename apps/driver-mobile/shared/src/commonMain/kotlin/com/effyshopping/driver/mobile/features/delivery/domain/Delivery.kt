@@ -35,6 +35,8 @@ interface DeliveryRepository {
     suspend fun advance(dropId: String, to: String, changeId: String): DropStatus
     suspend fun completeWithCode(dropId: String, code: String, note: String?, changeId: String)
     suspend fun completeContactless(dropId: String, note: String?, changeId: String)
+    /** Presign → upload the image bytes → complete with method photo|signature. Throws on failure. */
+    suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String)
     suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String)
 }
 
@@ -54,6 +56,10 @@ class CompleteWithCode(private val repo: DeliveryRepository) {
 class CompleteContactless(private val repo: DeliveryRepository) {
     suspend operator fun invoke(dropId: String, note: String?, changeId: String) =
         repo.completeContactless(dropId, note, changeId)
+}
+class CompleteWithMedia(private val repo: DeliveryRepository) {
+    suspend operator fun invoke(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) =
+        repo.completeWithMedia(dropId, method, bytes, note, changeId)
 }
 class FailDrop(private val repo: DeliveryRepository) {
     suspend operator fun invoke(dropId: String, reason: FailureReason, note: String?, changeId: String) =

@@ -8,10 +8,17 @@ import com.effyshopping.driver.mobile.contract.DropFailRequest
 import com.effyshopping.driver.mobile.contract.DropStatusRequest
 import com.effyshopping.driver.mobile.contract.ProofMethod as DtoProofMethod
 import com.effyshopping.driver.mobile.contract.ProofRequest
+import com.effyshopping.driver.mobile.contract.ProofPresignRequest
+import com.effyshopping.driver.mobile.contract.ProofPresignResponse
 import com.effyshopping.driver.mobile.contract.To
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
+import com.effyshopping.driver.mobile.core.platform.uploadBytes
+import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
+import com.effyshopping.driver.mobile.core.offline.OfflineQueue
+import com.effyshopping.driver.mobile.core.offline.withReplay
+import kotlinx.serialization.json.Json
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRun
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
@@ -28,7 +35,11 @@ import io.ktor.util.network.UnresolvedAddressException
 import kotlinx.coroutines.CancellationException
 import kotlinx.io.IOException
 
-class HttpDeliveryRepository(private val api: HttpClient) : DeliveryRepository {
+class HttpDeliveryRepository(
+    private val api: HttpClient,
+    private val offline: OfflineQueue,
+    private val json: Json = Json { encodeDefaults = true },
+) : DeliveryRepository {
 
     override suspend fun getRun(runId: String): DeliveryRun = request {
         api.get("driver/v1/delivery/runs/$runId").ensureSuccess().body<DeliveryRunDTO>().toDomain()
@@ -38,37 +49,69 @@ class HttpDeliveryRepository(private val api: HttpClient) : DeliveryRepository {
         api.get("driver/v1/delivery/drops/$dropId").ensureSuccess().body<DeliveryDropDTO>().toDomain()
     }
 
-    override suspend fun advance(dropId: String, to: String, changeId: String): DropStatus = request {
+    override suspend fun advance(dropId: String, to: String, changeId: String): DropStatus {
         val toEnum = when (to) {
             "out_for_delivery" -> To.OutForDelivery
             "en_route" -> To.EnRoute
             else -> To.Arrived
         }
-        val r = api.post("driver/v1/delivery/drops/$dropId/status") {
-            setBody(DropStatusRequest(changeID = changeId, to = toEnum))
-        }.ensureSuccess().body<StatusResp>()
-        dropStatus(r.status)
+        val path = "driver/v1/delivery/drops/$dropId/status"
+        val body = DropStatusRequest(changeID = changeId, to = toEnum)
+        return request {
+            offline.withReplay(path, json.encodeToString(DropStatusRequest.serializer(), body), changeId, "Advance a drop") {
+                val r = api.post(path) { setBody(body) }.ensureSuccess().body<StatusResp>()
+                dropStatus(r.status)
+            }
+        }
     }
 
-    override suspend fun completeWithCode(dropId: String, code: String, note: String?, changeId: String) = request {
-        api.post("driver/v1/delivery/drops/$dropId/proof") {
-            setBody(ProofRequest(changeID = changeId, method = DtoProofMethod.Code, code = code, note = note))
-        }.ensureSuccess()
-        Unit
+    override suspend fun completeWithCode(dropId: String, code: String, note: String?, changeId: String) {
+        val path = "driver/v1/delivery/drops/$dropId/proof"
+        val body = ProofRequest(changeID = changeId, method = DtoProofMethod.Code, code = code, note = note)
+        request {
+            offline.withReplay(path, json.encodeToString(ProofRequest.serializer(), body), changeId, "Complete a delivery") {
+                api.post(path) { setBody(body) }.ensureSuccess()
+            }
+        }
     }
 
-    override suspend fun completeContactless(dropId: String, note: String?, changeId: String) = request {
-        api.post("driver/v1/delivery/drops/$dropId/proof") {
-            setBody(ProofRequest(changeID = changeId, method = DtoProofMethod.Contactless, note = note))
-        }.ensureSuccess()
-        Unit
+    override suspend fun completeContactless(dropId: String, note: String?, changeId: String) {
+        val path = "driver/v1/delivery/drops/$dropId/proof"
+        val body = ProofRequest(changeID = changeId, method = DtoProofMethod.Contactless, note = note)
+        request {
+            offline.withReplay(path, json.encodeToString(ProofRequest.serializer(), body), changeId, "Complete a delivery") {
+                api.post(path) { setBody(body) }.ensureSuccess()
+            }
+        }
     }
 
-    override suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String) = request {
-        api.post("driver/v1/delivery/drops/$dropId/fail") {
-            setBody(DropFailRequest(changeID = changeId, reason = failureReason(reason), note = note))
-        }.ensureSuccess()
-        Unit
+    override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) {
+        // 1. Presign (driver-authed). 2. PUT bytes to S3 (no bearer). 3. Complete the proof with the key.
+        // NOT offline-queueable (the bytes can't be replayed cheaply) — a media proof needs connectivity.
+        val contentType = "image/png"
+        val presign = request {
+            api.post("driver/v1/delivery/drops/$dropId/proof/presign") {
+                setBody(ProofPresignRequest(changeID = changeId, contentType = contentType, fileSize = bytes.size.toLong()))
+            }.ensureSuccess().body<ProofPresignResponse>()
+        }
+        val uploaded = uploadBytes(presign.uploadURL, bytes, contentType)
+        if (!uploaded) throw AppException(AppError.Network)
+        val dtoMethod = if (method == ProofMethod.PHOTO) DtoProofMethod.Photo else DtoProofMethod.Signature
+        request {
+            api.post("driver/v1/delivery/drops/$dropId/proof") {
+                setBody(ProofRequest(changeID = changeId, method = dtoMethod, mediaKey = presign.mediaKey, note = note))
+            }.ensureSuccess()
+        }
+    }
+
+    override suspend fun fail(dropId: String, reason: FailureReason, note: String?, changeId: String) {
+        val path = "driver/v1/delivery/drops/$dropId/fail"
+        val body = DropFailRequest(changeID = changeId, reason = failureReason(reason), note = note)
+        request {
+            offline.withReplay(path, json.encodeToString(DropFailRequest.serializer(), body), changeId, "Mark a drop undeliverable") {
+                api.post(path) { setBody(body) }.ensureSuccess()
+            }
+        }
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

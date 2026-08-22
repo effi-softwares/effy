@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ fun TodayScreen(
     onToggleDuty: () -> Unit,
     onRefresh: () -> Unit,
     onOpenRun: (runId: String, phase: Phase) -> Unit = { _, _ -> },
+    onOpenActivity: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -47,17 +49,22 @@ fun TodayScreen(
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(20.dp),
     ) {
-        Text(
-            "Morning, ${driver.display}",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            if (state.dutyStatus == DutyStatus.ON_DUTY) "On duty" else "Off duty",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+            Column {
+                Text(
+                    "Morning, ${driver.display}",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (state.dutyStatus == DutyStatus.ON_DUTY) "On duty" else "Off duty",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = onOpenActivity) { Text("Activity") }
+        }
 
         Spacer(Modifier.height(24.dp))
 

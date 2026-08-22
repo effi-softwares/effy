@@ -17,7 +17,7 @@ import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
 
-import { assignCollectionWork, eligibleDriverIds, releaseIneligibleWork } from "./repository";
+import { assignCollectionWork, eligibleDriverIds, flagMissedCutoffs, releaseIneligibleWork } from "./repository";
 import { assignDeliveryWork } from "../delivery/assignment";
 
 export const handler: ScheduledHandler = async () => {
@@ -27,12 +27,11 @@ export const handler: ScheduledHandler = async () => {
     const released = await releaseIneligibleWork();
     const collectionAssigned = await assignCollectionWork(); // T017/US1
     const dropsAssigned = await assignDeliveryWork(); // T025/US2
+    const cutoffFlagged = await flagMissedCutoffs(); // T061/US1
     const eligible = await eligibleDriverIds();
 
-    // TODO(T061/US1): flag same-day packages past their collection cutoff.
-
     log.info(
-      { released, collectionAssigned, dropsAssigned, eligibleDrivers: eligible.length },
+      { released, collectionAssigned, dropsAssigned, cutoffFlagged, eligibleDrivers: eligible.length },
       "assignment sweep complete",
     );
   } catch (err) {

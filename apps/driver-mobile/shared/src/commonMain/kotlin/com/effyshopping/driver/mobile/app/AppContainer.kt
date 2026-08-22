@@ -3,6 +3,8 @@ package com.effyshopping.driver.mobile.app
 import com.effyshopping.driver.mobile.core.auth.AuthDriver
 import com.effyshopping.driver.mobile.core.config.AppConfig
 import com.effyshopping.driver.mobile.core.http.createHttpClient
+import com.effyshopping.driver.mobile.core.offline.OfflineQueue
+import com.effyshopping.driver.mobile.core.offline.SyncCoordinator
 import com.effyshopping.driver.mobile.core.session.SessionManager
 import com.effyshopping.driver.mobile.core.theme.AppearancePreferenceStore
 import com.effyshopping.driver.mobile.features.auth.domain.ConfirmSignIn
@@ -25,6 +27,7 @@ import com.effyshopping.driver.mobile.features.delivery.data.HttpDeliveryReposit
 import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteContactless
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithCode
+import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
 import com.effyshopping.driver.mobile.features.delivery.domain.GetDeliveryRun
@@ -33,6 +36,10 @@ import com.effyshopping.driver.mobile.features.history.data.HttpHistoryRepositor
 import com.effyshopping.driver.mobile.features.history.domain.GetHistory
 import com.effyshopping.driver.mobile.features.history.domain.GetHistoryDetail
 import com.effyshopping.driver.mobile.features.history.domain.HistoryRepository
+import com.effyshopping.driver.mobile.features.activity.data.HttpActivityRepository
+import com.effyshopping.driver.mobile.features.activity.domain.ActivityRepository
+import com.effyshopping.driver.mobile.features.activity.domain.GetActivity
+import com.effyshopping.driver.mobile.features.activity.domain.MarkActivityRead
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,11 +63,16 @@ class AppContainer(
     private val driverClient by lazy {
         createHttpClient(AppConfig.driverApiBaseUrl, sessionProvider = { authDriver.currentSession() }, debug = debugLogging)
     }
+    // Offline write queue + drain coordinator (US6, FR-039/040). Persisted; survives process death.
+    val offlineQueue: OfflineQueue by lazy { OfflineQueue(Settings()) }
+    val syncCoordinator: SyncCoordinator by lazy { SyncCoordinator(driverClient, offlineQueue) }
+
     private val driver: DriverRepository by lazy { HttpDriverRepository(driverClient) }
     private val today: TodayRepository by lazy { HttpTodayRepository(driverClient) }
-    private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient) }
-    private val delivery: DeliveryRepository by lazy { HttpDeliveryRepository(driverClient) }
+    private val collection: CollectionRepository by lazy { HttpCollectionRepository(driverClient, offlineQueue) }
+    private val delivery: DeliveryRepository by lazy { HttpDeliveryRepository(driverClient, offlineQueue) }
     private val historyRepo: HistoryRepository by lazy { HttpHistoryRepository(driverClient) }
+    private val activityRepo: ActivityRepository by lazy { HttpActivityRepository(driverClient) }
 
     val appearance: AppearancePreferenceStore by lazy { AppearancePreferenceStore(Settings()) }
 
@@ -84,11 +96,16 @@ class AppContainer(
     val advanceDrop by lazy { AdvanceDrop(delivery) }
     val completeWithCode by lazy { CompleteWithCode(delivery) }
     val completeContactless by lazy { CompleteContactless(delivery) }
+    val completeWithMedia by lazy { CompleteWithMedia(delivery) }
     val failDrop by lazy { FailDrop(delivery) }
 
     // history (US5)
     val getHistory by lazy { GetHistory(historyRepo) }
     val getHistoryDetail by lazy { GetHistoryDetail(historyRepo) }
+
+    // activity feed (US6)
+    val getActivity by lazy { GetActivity(activityRepo) }
+    val markActivityRead by lazy { MarkActivityRead(activityRepo) }
 
     // ── app services / presentation wiring ───────────────────────────────────────────────────────────
     val session: SessionManager by lazy { SessionManager(authDriver, getDriverIdentity, appScope) }
@@ -96,4 +113,9 @@ class AppContainer(
     /** A per-action idempotency id for driver writes (offline queue + retries, research R10). */
     @OptIn(ExperimentalUuidApi::class)
     fun newChangeId(): String = Uuid.random().toString()
+
+    // Permission priming shown once (FR-004). Persisted so it does not re-appear every launch.
+    private val prefs by lazy { Settings() }
+    fun hasPrimedPermissions(): Boolean = prefs.getBoolean("driver.permissions.primed", false)
+    fun markPermissionsPrimed() = prefs.putBoolean("driver.permissions.primed", true)
 }

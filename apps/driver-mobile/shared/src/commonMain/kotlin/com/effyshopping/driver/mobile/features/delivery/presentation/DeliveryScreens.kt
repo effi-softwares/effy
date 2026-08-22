@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.driver.mobile.core.platform.rememberPhotoCapture
 import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 
@@ -78,6 +79,8 @@ fun DropDetailScreen(
     onAdvance: (String) -> Unit,
     onDeliverCode: (String, String?) -> Unit,
     onDeliverContactless: (String?) -> Unit,
+    onDeliverPhoto: (ByteArray, String?) -> Unit,
+    onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
     onNext: () -> Unit,
 ) {
@@ -121,7 +124,7 @@ fun DropDetailScreen(
             when (drop.status) {
                 DropStatus.STAGED, DropStatus.OUT_FOR_DELIVERY, DropStatus.EN_ROUTE ->
                     AdvanceControls(drop.status, state.isWorking, onAdvance)
-                DropStatus.ARRIVED -> ProofControls(state.isWorking, onDeliverCode, onDeliverContactless, onFail)
+                DropStatus.ARRIVED -> ProofControls(state.isWorking, onDeliverCode, onDeliverContactless, onDeliverPhoto, onDeliverSignature, onFail)
                 else -> {}
             }
         }
@@ -145,20 +148,33 @@ private fun ProofControls(
     working: Boolean,
     onDeliverCode: (String, String?) -> Unit,
     onDeliverContactless: (String?) -> Unit,
+    onDeliverPhoto: (ByteArray, String?) -> Unit,
+    onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
 ) {
     var mode by remember { mutableStateOf("pick") }
     var code by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
 
+    // Camera capture — null on platforms without it (iOS today); the Photo option is hidden then.
+    val takePhoto = rememberPhotoCapture { bytes -> onDeliverPhoto(bytes, null) }
+
     when (mode) {
         "pick" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Complete with proof", style = MaterialTheme.typography.titleMedium)
             Button(onClick = { mode = "code" }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Delivery code") }
+            Button(onClick = { mode = "signature" }, enabled = !working, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Signature") }
+            if (takePhoto != null) {
+                Button(onClick = { takePhoto() }, enabled = !working, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Photo") }
+            }
             Button(onClick = { mode = "contactless" }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Contactless (leave at door)") }
-            OutlinedButton(onClick = {}, enabled = false, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Photo / signature — coming soon") }
             TextButton(onClick = { mode = "fail" }) { Text("Can't deliver") }
         }
+        "signature" -> SignaturePad(
+            working = working,
+            onConfirm = { bytes -> onDeliverSignature(bytes, null) },
+            onBack = { mode = "pick" },
+        )
         "code" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             OutlinedTextField(value = code, onValueChange = { code = it.filter { c -> c.isDigit() }.take(4) },
                 label = { Text("Delivery code") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),

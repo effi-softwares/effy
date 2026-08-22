@@ -79,6 +79,7 @@ navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui",
 lifecycle-viewmodel-navigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "lifecycleViewmodelNav3" }
 # 013 — non-sensitive prefs ONLY (tokens live in Amplify's secure stores — D11/FR-020)
 multiplatform-settings = { module = "com.russhwolf:multiplatform-settings-no-arg", version.ref = "multiplatformSettings" }
+multiplatform-settings-test = { module = "com.russhwolf:multiplatform-settings-test", version.ref = "multiplatformSettings" }
 # 013 — Amplify Android (auth) + the Kotlin coroutines facade (com.amplifyframework.kotlin.core.Amplify).
 # iOS uses Amplify SWIFT, injected via the AuthDriver interface (D5).
 amplify-auth-cognito = { module = "com.amplifyframework:aws-auth-cognito", version.ref = "amplify" }

@@ -261,8 +261,10 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**049-driver-mobile-app — Driver Delivery App (the 6th & final client surface).** 🚧 **P1 MVP LOOP LIVE
-ON DEVICE + US4/US5 built — 40/61 tasks (2 deferred).** The platform's **hub-and-spoke** driver operation:
+**049-driver-mobile-app — Driver Delivery App (the 6th & final client surface).** ✅ **CONCLUDED (PARTIAL
+BY DESIGN) 2026-08-23 — 54/61 tasks (7 deferred). All 7 user stories built; DEPLOYED TO DEV; P1 loop WALKED
+LIVE.** Sign-off: [specs/049-driver-mobile-app/SIGNOFF.md](specs/049-driver-mobile-app/SIGNOFF.md); parity
+register: [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md). The platform's **hub-and-spoke** driver operation:
 a KMP app (`apps/driver-mobile`, Android+iOS) + a new cold-path service (`apis/edge-api/driver`) + a
 scheduled auto-assignment worker + minimal back-office provisioning (`edge-api/admin/src/drivers`) + one
 migration. Closes the **commerce→fulfilment→delivery loop** — retires the 020 dev-only `collected`/
