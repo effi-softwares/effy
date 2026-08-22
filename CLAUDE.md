@@ -241,6 +241,57 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**048-console-web-cicd — Internal Console Continuous Deployment (Shop-Web & Back-Office).** ✅
+**CONCLUDED 2026-08-22 — 35/41 tasks. DEPLOYED TO DEV AND LIVE ON BOTH SURFACES.** Sign-off:
+[specs/048-console-web-cicd/SIGNOFF.md](specs/048-console-web-cicd/SIGNOFF.md).
+
+Applies 042's Amplify monorepo CI/CD to the two internal **Vite SPA** consoles that were local-only:
+`apps/shop-web` (007, shop pool) is **LIVE at `shop.dev.effyshopping.com`** and `apps/back-office` (005,
+admin pool) at **`back-office.dev.effyshopping.com`** — each auto-builds on a push/merge to `dev`,
+serves over TLS, and prod is a second instantiation (`shop.effyshopping.com` /
+`back-office.effyshopping.com`) by values, not rework (FR-020/FR-021). Amplify app ids: shop-web
+`djjaj6nj4se6`, back-office `d3cu4od3kgw5sk`.
+- **The 042 module was GENERALISED, not forked** (Principle II) — `infra/modules/amplify-web-app` gained
+  `platform` (default `WEB_COMPUTE`; consoles pass **`WEB`**), `subdomain_prefix` (default `""`=apex;
+  consoles pass `shop`/`back-office`), and `custom_rules` (default `[]`). Every default keeps the
+  customer-web app byte-identical (SC-010). New env root `infra/envs/dev/amplify-consoles.tf`
+  instantiates it twice.
+- **⚠ Static `WEB` designs OUT 042's worst hazard.** A Vite SPA has no server runtime, so the module
+  creates **no** SSR service role and sets no `iam_service_role_arn` — the "Unable to assume specified
+  IAM Role at CreateApp" failure that dogged 042 is a `WEB_COMPUTE`-only concern and cannot arise here.
+- **⚠ SPA rewrite is mandatory or deep links 404.** A client-router (TanStack Router) SPA on static
+  hosting must serve `/index.html` with **status 200** (a rewrite, not a redirect) for any non-asset
+  path, or a refresh/direct-visit of `/orders/123` hits a host 404. Carried by the module's
+  `custom_rule` (FR-011).
+- **⚠ Subdomains, not the apex — no email-record cutover.** The apex is the storefront's (042); the
+  consoles take fresh `shop.`/`back-office.` subdomains of the in-account zone, so 042's highest-risk
+  task (reconciling the apex A/AAAA email-sender records with no resolution gap) **does not recur**.
+  Two-stage cutover (`amplify_consoles_domain_enabled`): stage A on the `…amplifyapp.com` hostname →
+  stage B attaches the subdomains + Amplify-managed Route53 records + `us-east-1` certs.
+- **⚠ One `amplify.yml`, THREE applications now.** 042's "exactly one application" invariant is
+  superseded: Amplify monorepo mode selects, per app, the single `applications[]` entry whose `appRoot`
+  equals that app's `AMPLIFY_MONOREPO_APP_ROOT`. Adding the two console entries does **not** change what
+  customer-web builds — the isolation guarantee (FR-006/FR-009) is per-app-root, not per-file.
+- **⚠ Gateway CORS had to learn the deployed origins.** The consoles call the shared edge gateway from
+  the browser (`/shop/v1/*`, `/admin/v1/*`); the Terraform-owned `allow_origins` gained
+  `https://shop.dev…` + `https://back-office.dev…` **config-derived** from the zone + subdomain vars —
+  without them every authenticated console call fails at the OPTIONS pre-flight (FR-017).
+- **Internal ⇒ not discoverable**: `noindex` meta + disallow-all `robots.txt` in each console's own
+  source; **Cognito login is the real gate** (an Amplify HTTP basic-auth gate was deferred as
+  values-only). Confirmed live: Cognito **EMAIL_OTP needs no callback/allowed-origin registration** for
+  the new subdomains (SDK custom-auth, not Hosted UI). Build failures for both apps route to the
+  existing alerts SNS via one EventBridge FAILED rule (FR-023).
+- **The consoles carry NO secret** — every `VITE_*` value (correct pool per console: `shop_pool` vs
+  `back_office_pool`, plus the gateway address) is build-time-inlined and public-safe. No new operator
+  secret; the 042 GitHub token is reused.
+- **Verified**: `terraform validate`/`fmt` · shop-web **139 tests + typecheck** · back-office **79 +
+  typecheck** · banned-address + source secret sweeps clean. Committed to `dev` (`bd79e5f` + `7e49856`).
+- **⚠ Open (optional live walks, 6/41 — none blocks the conclusion)**: deep-link refresh (SC-004),
+  touch-one-console scope negative (SC-005), customer-web-unchanged (SC-010), `noindex`/`robots` fetch
+  (SC-008), deployed-bundle secret sweep, and the deliberate-fail-alert proof (SC-006). Spec/artifacts:
+  [specs/048-console-web-cicd/](specs/048-console-web-cicd/); parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §048.
+
 **047-delivery-shipping-engine — Delivery Zones & Shipping-Fee Engine.** ✅ **CONCLUDED (PARTIAL BY
 DESIGN) 2026-08-22 — 56/57 tasks. Code-complete + machine-verified across the hot path, both cold-path
 services, the back-office console, customer-web AND customer-mobile; DEPLOYED TO DEV AND PROVEN LIVE on
