@@ -77,6 +77,16 @@ import type {
   SavedAddToCartRequest,
   SavedAddToCartResultDTO,
 } from "./saved-item";
+import type {
+  DeliveryMethod,
+  AustralianState,
+  ServiceabilityDTO,
+  LocalityDTO,
+  LocalitiesResultDTO,
+  DeliveryOptionDTO,
+  DeliveryPackageDTO,
+  DeliveryQuoteDTO,
+} from "./delivery";
 
 export type {
   ProductBadge,
@@ -138,6 +148,14 @@ export type {
   SavedMergeResultDTO,
   SavedAddToCartRequest,
   SavedAddToCartResultDTO,
+  DeliveryMethod,
+  AustralianState,
+  ServiceabilityDTO,
+  LocalityDTO,
+  LocalitiesResultDTO,
+  DeliveryOptionDTO,
+  DeliveryPackageDTO,
+  DeliveryQuoteDTO,
 };
 
 /** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
@@ -200,4 +218,12 @@ export interface CustomerCommerceContract {
   savedMergeResult: SavedMergeResultDTO;
   savedAddToCartRequest: SavedAddToCartRequest;
   savedAddToCartResult: SavedAddToCartResultDTO;
+  // ⚠ 047 delivery. Referencing them here is what makes them EXIST in Kotlin (same rule as saved-item
+  // above). DeliveryMethod / AustralianState are reached transitively; the rest each need a field.
+  serviceability: ServiceabilityDTO;
+  locality: LocalityDTO;
+  localitiesResult: LocalitiesResultDTO;
+  deliveryOption: DeliveryOptionDTO;
+  deliveryPackage: DeliveryPackageDTO;
+  deliveryQuote: DeliveryQuoteDTO;
 }

@@ -43,6 +43,7 @@ import com.effyshopping.mobile.kit.ui.EffyPrimaryAction
 import com.effyshopping.mobile.kit.ui.EffyTopBar
 import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressFormSheet
 import com.effyshopping.customer.mobile.features.cart.domain.formatCents
 import com.effyshopping.customer.mobile.features.cart.domain.parseCents
@@ -62,6 +63,7 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
             listAddresses = container.listSavedAddresses,
             addAddress = container.addSavedAddress,
             pay = container.payForOrder,
+            quoteDelivery = container.quoteDelivery,
         )
     }
     val state by vm.state.collectAsState()
@@ -111,15 +113,17 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
         }
         EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
 
-        // ⚠ THERE IS NO DELIVERY STEP. A quote, a method preference, per-package options and a
-        // set-aside confirmation used to sit here. Delivery zones, quotes and fees were withdrawn from
-        // the platform, so checkout is: choose an address, pay.
+        // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip), and the
+        // standard/same-day choice when the whole order qualifies. The server owns every fee (SC-004).
+        DeliverySection(s, vm)
+
         BillingSection(s, vm)
 
         s.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 
         val billingReady = s.billingSameAsShipping || s.billingSelectedId != null
-        val payEnabled = !s.paying && s.selectedId != null && billingReady
+        // 047 FR-002: pay is blocked until delivery is confirmed for the address.
+        val payEnabled = !s.paying && s.selectedId != null && billingReady && s.serviced
         EffyPrimaryAction(
             if (s.paying) "Processing…" else "Pay now",
             onClick = vm::payNow,
@@ -151,6 +155,68 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
                 onChange = vm::onSheetFormChange,
             )
         }
+    }
+}
+
+/**
+ * Delivery (047): serviceability + fee + the standard/same-day choice. ⚠ No distance, ring, or shop is
+ * ever shown (FR-018/033) — only the method and its GST-inclusive fee.
+ */
+@Composable
+private fun DeliverySection(s: CheckoutUiState.Ready, vm: CheckoutViewModel) {
+    if (s.selectedId == null) return
+    HorizontalDivider()
+    Text("Delivery", style = MaterialTheme.typography.titleSmall)
+
+    val quote = s.quote
+    when {
+        s.quoting || quote == null -> Text(
+            "Checking delivery…",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        !quote.serviced -> Text(
+            "We don’t deliver to this address yet. Choose another address above.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
+        s.sameDayOfferable -> {
+            // A whole-order choice (the shopper never sees packages). Fees update the row labels live.
+            DeliveryOptionRow(
+                label = "Standard delivery",
+                fee = quote.standardTotalAmount,
+                selected = s.method == DeliveryMethod.STANDARD,
+                onSelect = { vm.setMethod(DeliveryMethod.STANDARD) },
+            )
+            DeliveryOptionRow(
+                label = "Same-day delivery",
+                fee = quote.sameDayTotalAmount ?: quote.standardTotalAmount,
+                selected = s.method == DeliveryMethod.SAME_DAY,
+                onSelect = { vm.setMethod(DeliveryMethod.SAME_DAY) },
+            )
+        }
+        else -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("Standard delivery", style = MaterialTheme.typography.bodyMedium)
+            Text("$${quote.standardTotalAmount}", style = MaterialTheme.typography.bodyMedium)
+        }
+    }
+}
+
+@Composable
+private fun DeliveryOptionRow(label: String, fee: String, selected: Boolean, onSelect: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = onSelect)
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+        }
+        Text("$$fee", style = MaterialTheme.typography.bodyMedium)
     }
 }
 

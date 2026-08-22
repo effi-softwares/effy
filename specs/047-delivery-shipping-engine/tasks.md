@@ -77,7 +77,7 @@ story depends on.
 - [X] T008 Add the loader `apis/core-api/cmd/load-localities/main.go` + `internal/platform/delivery/localityload.go`
   — idempotent upsert on the `(name,state,postcode)` triple from `db/reference/au-localities.csv` (the
   `create-first-admin` pattern); wire `make load-localities ENV=…` in the Makefile
-- [ ] T009 [P] Generate the Kotlin customer DTOs from `@effy/shared-types` into
+- [X] T009 [P] Generate the Kotlin customer DTOs from `@effy/shared-types` into
   `apps/customer-mobile/.../contract/DeliveryDto.kt` via the existing generator; confirm `cm-contract-check`
   covers them
 - [X] T010 [P] Write the Go↔Kotlin wire-contract test skeletons — `apis/core-api/internal/features/checkout/wire_contract_test.go`
@@ -162,12 +162,12 @@ an unserved shopper is told plainly Effy doesn't deliver there.
   (+`_expires_at`), validate the client selection against it (client never sends a fee), sum into
   `order.delivery_fee_amount`, copy per-package into `order_package_delivery` + `shop_fulfillment` inside
   the 019 finalize transaction (FR-036; data-model §8)
-- [ ] T029 [US1] Fill the wire-contract literal (T010) with a real `DeliveryQuoteDTO` and make both sides green
+- [X] T029 [US1] Fill the wire-contract literal (T010) with a real `DeliveryQuoteDTO` and make both sides green
 - [X] T030 [P] [US1] customer-web: show serviceability in the delivery affordance and the standard fee in
   the checkout summary (reuse existing islands; GST-inclusive total before pay; no distance/shop shown).
   Keep the guest bundle within **174 KB** (`apps/customer-web`). Emit the `delivery_serviceability_checked`
   product event ⚠ (no-op until PostHog inits on customer-web, 039 — wired + recorded, not hidden)
-- [ ] T031 [P] [US1] customer-mobile: serviceability + standard fee in the checkout flow, Clean-Arch/MVVM
+- [X] T031 [P] [US1] customer-mobile: serviceability + standard fee in the checkout flow, Clean-Arch/MVVM
   `features/delivery/` (ViewModel → immutable state); no fee sent from the client. Product events
   (`delivery_serviceability_checked`, `delivery_method_selected`) ⚠ deferred with mobile telemetry (recorded)
 - [X] T032 [US1] Hot-path metrics: a serviceability counter labelled `serviced` only, and a quote counter by
@@ -204,7 +204,7 @@ its higher fee; everyone else gets standard only, with no dead-end.
   remains available whenever same-day is not** (SC-012 — losing same-day never costs a shopper standard)
 - [X] T038 [P] [US2] Back-office collection-schedule + settings + zone same-day-eligible controls in
   `apps/back-office/src/features/delivery/{schedule,zones}/`
-- [ ] T039 [P] [US2] customer-web + customer-mobile: present same-day vs standard choice with fees and the
+- [X] T039 [P] [US2] customer-web + customer-mobile: present same-day vs standard choice with fees and the
   cutoff/windows; standard-only shows no refusal (`apps/customer-web`, `apps/customer-mobile`). Emit the
   `delivery_method_selected` event on web (⚠ no-op until PostHog inits, 039); mobile deferred (recorded)
 - [X] T040 [US2] Quote metric: same_day/standard/unserviced outcome + chosen method (extend T032; no PII)
@@ -288,7 +288,7 @@ marks it measured and the quote reflects it.
   weight) + a short delivery ops note
 - [X] T054 [P] customer-web bundle check within **174 KB** across all guest routes (`pnpm size`); mobile
   `cm-guard`/`cm-tokens-check`; `tokens:check` unchanged (no token added)
-- [ ] T055 [P] Playwright storefront path in `apps/customer-web/e2e/delivery.spec.ts` — serviceability
+- [X] T055 [P] Playwright storefront path in `apps/customer-web/e2e/delivery.spec.ts` — serviceability
   answer, standard + same-day quote display, GST-inclusive total before pay (needs live `core-api` + seed)
 - [X] T056 Full machine sweep: `go test ./...` (engine + container-backed, `-short` split) · `pnpm -r
   typecheck` · `pnpm -r test` (admin delivery + config-contract) · the Go↔Kotlin wire contract · mobile

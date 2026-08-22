@@ -10,7 +10,10 @@ import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
 import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutRepository
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.core.payment.PaymentResult
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
@@ -62,12 +65,22 @@ class CheckoutViewModelTest {
         override suspend fun delete(id: String) = Unit
     }
 
-    private class FakeCheckout : CheckoutRepository {
-        override suspend fun createIntent(order: PlaceOrder) = CheckoutIntent(
-            orderId = "o1", orderNumber = "EFY-1", clientSecret = "cs",
-            publishableKey = "pk", grandTotalAmount = "10.00", currency = "AUD",
-        )
+    private class FakeCheckout(
+        // 047: the quote the fake returns. Serviced by default so the existing pay tests still pass.
+        private val quote: DeliveryQuote = DeliveryQuote(
+            serviced = true, sameDayAvailable = false, standardTotalAmount = "6.00", sameDayTotalAmount = null,
+        ),
+    ) : CheckoutRepository {
+        var lastOrder: PlaceOrder? = null
+        override suspend fun createIntent(order: PlaceOrder): CheckoutIntent {
+            lastOrder = order
+            return CheckoutIntent(
+                orderId = "o1", orderNumber = "EFY-1", clientSecret = "cs",
+                publishableKey = "pk", grandTotalAmount = "10.00", currency = "AUD",
+            )
+        }
         override suspend fun confirm(orderId: String) = true
+        override suspend fun quote(addressId: String) = quote
     }
 
     private class FakePaymentDriver : PaymentDriver {
@@ -75,13 +88,17 @@ class CheckoutViewModelTest {
             PaymentResult.Completed
     }
 
-    private fun vm(addresses: List<SavedAddress>): CheckoutViewModel {
+    private fun vm(
+        addresses: List<SavedAddress>,
+        checkout: FakeCheckout = FakeCheckout(),
+    ): CheckoutViewModel {
         val repo = FakeAddresses(addresses)
         return CheckoutViewModel(
             cart = CartStore(CartLocalStore(InMemoryDevicePreferences()), CoroutineScope(UnconfinedTestDispatcher())),
             listAddresses = ListAddresses(repo),
             addAddress = AddAddress(repo),
-            pay = PayForOrder(FakeCheckout(), FakePaymentDriver(), "pk_test"),
+            pay = PayForOrder(checkout, FakePaymentDriver(), "pk_test"),
+            quoteDelivery = QuoteDelivery(checkout),
         )
     }
 
@@ -169,5 +186,53 @@ class CheckoutViewModelTest {
         vm.payNow()
 
         assertEquals("Add a delivery address to continue.", ready(vm)?.error)
+    }
+
+    // ── Delivery quote (047) ─────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `the selected address is quoted on entry`() = runTest {
+        val vm = vm(listOf(addr("a", isDefault = true)))
+        val s = ready(vm)!!
+        assertTrue(s.serviced)
+        assertEquals("6.00", s.quote?.standardTotalAmount)
+    }
+
+    @Test
+    fun `an unserviceable address blocks pay with one reason`() = runTest {
+        val unserviced = FakeCheckout(quote = DeliveryQuote.Unserviced)
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = unserviced)
+
+        assertFalse(ready(vm)!!.serviced)
+        vm.payNow()
+
+        assertFalse(ready(vm)!!.paying)
+        assertTrue(ready(vm)?.error?.contains("don’t deliver") == true)
+        assertNull(unserviced.lastOrder) // never reached placement
+    }
+
+    @Test
+    fun `same-day is offerable only when the whole order qualifies - and is sent on pay`() = runTest {
+        val sameDay = FakeCheckout(
+            quote = DeliveryQuote(
+                serviced = true, sameDayAvailable = true,
+                standardTotalAmount = "6.00", sameDayTotalAmount = "10.00",
+            ),
+        )
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout = sameDay)
+        assertTrue(ready(vm)!!.sameDayOfferable)
+
+        vm.setMethod(DeliveryMethod.SAME_DAY)
+        assertEquals(DeliveryMethod.SAME_DAY, ready(vm)?.method)
+
+        vm.payNow()
+        assertEquals(DeliveryMethod.SAME_DAY, sameDay.lastOrder?.deliveryMethod)
+    }
+
+    @Test
+    fun `same-day cannot be chosen when it is not offerable`() = runTest {
+        val vm = vm(listOf(addr("a", isDefault = true))) // default fake: standard only
+        vm.setMethod(DeliveryMethod.SAME_DAY)
+        assertEquals(DeliveryMethod.STANDARD, ready(vm)?.method) // ignored — not offerable
     }
 }

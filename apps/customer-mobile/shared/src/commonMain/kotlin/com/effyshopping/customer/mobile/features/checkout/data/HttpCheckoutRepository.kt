@@ -1,8 +1,10 @@
 package com.effyshopping.customer.mobile.features.checkout.data
 
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderSummaryDTO
+import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
@@ -36,6 +38,11 @@ class HttpCheckoutRepository(private val core: HttpClient) : CheckoutRepository,
         core.post("v1/checkout/confirm") {
             setBody(mapOf("orderId" to orderId))
         }.ensureSuccess().body<ConfirmResponse>().paid
+    }
+
+    override suspend fun quote(addressId: String): DeliveryQuote = request {
+        core.post("v1/checkout/quote") { setBody(mapOf("addressId" to addressId)) }
+            .ensureSuccess().body<DeliveryQuoteDTO>().toDomain()
     }
 
     override suspend fun get(orderId: String): Receipt = request {

@@ -101,6 +101,20 @@
       ],
       "type": "object"
     },
+    "AustralianState": {
+      "description": "Australian state / territory — the closed set the place record uses.",
+      "enum": [
+        "ACT",
+        "NSW",
+        "NT",
+        "QLD",
+        "SA",
+        "TAS",
+        "VIC",
+        "WA"
+      ],
+      "type": "string"
+    },
     "BannerDTO": {
       "additionalProperties": false,
       "description": "A promotional banner on Home — the shopper-facing face of an advertised promotion (028).\n\n⚠ Every field added in 028 is OPTIONAL, so `customer-web`'s existing consumer keeps typechecking without an edit. What is NOT backward compatible is the LIST: this used to always contain one derived \"welcome\" stub and is now empty whenever no promotion is advertised. Any layout that assumed at least one banner has to handle `[]`.",
@@ -673,6 +687,13 @@
             "string",
             "null"
           ]
+        },
+        "deliveryMethod": {
+          "description": "047: the shopper's order-level delivery preference — \"same_day\" or \"standard\" (absent = standard). Applied per package where that method is offered, standard elsewhere (FR-044). The server prices the chosen method from the captured quote; the client NEVER sends a fee (SC-004).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -710,6 +731,100 @@
         "publishableKey",
         "grandTotalAmount",
         "currency"
+      ],
+      "type": "object"
+    },
+    "DeliveryMethod": {
+      "description": "The two delivery methods. same-day is always priced ≥ standard (FR-022).",
+      "enum": [
+        "same_day",
+        "standard"
+      ],
+      "type": "string"
+    },
+    "DeliveryOptionDTO": {
+      "additionalProperties": false,
+      "description": "One offered method for one package, at its GST-inclusive, snapped-up fee (FR-024/032/034). `feeAmount` is a 2-dp decimal string (e.g. \"6.00\"). The delivery window is advisory copy.",
+      "properties": {
+        "feeAmount": {
+          "type": "string"
+        },
+        "method": {
+          "$ref": "#/definitions/DeliveryMethod"
+        },
+        "promisedFrom": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "promisedTo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "feeAmount",
+        "promisedFrom",
+        "promisedTo"
+      ],
+      "type": "object"
+    },
+    "DeliveryPackageDTO": {
+      "additionalProperties": false,
+      "description": "The per-shop portion of the order, priced independently (FR-030). `shopRef` is an OPAQUE handle — never a shop id, so nothing here identifies the fulfilling shop (FR-033). A served package ALWAYS carries a `standard` option (FR-029); `same_day` appears only where the fulfilling shop does same-day in this zone and it is before the cutoff (FR-044).",
+      "properties": {
+        "options": {
+          "items": {
+            "$ref": "#/definitions/DeliveryOptionDTO"
+          },
+          "type": "array"
+        },
+        "shopRef": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "shopRef",
+        "options"
+      ],
+      "type": "object"
+    },
+    "DeliveryQuoteDTO": {
+      "additionalProperties": false,
+      "description": "The delivery quote shown at checkout, captured server-side so the order is honoured at the quoted fee — the client never sends a fee (FR-036). When `serviced` is false there are NO packages and one reason: the postcode is in no served zone (FR-002).",
+      "properties": {
+        "expiresAt": {
+          "type": "string"
+        },
+        "packages": {
+          "items": {
+            "$ref": "#/definitions/DeliveryPackageDTO"
+          },
+          "type": "array"
+        },
+        "postcode": {
+          "type": "string"
+        },
+        "sameDayAvailableUntil": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "serviced": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "postcode",
+        "serviced",
+        "sameDayAvailableUntil",
+        "packages",
+        "expiresAt"
       ],
       "type": "object"
     },
@@ -812,6 +927,43 @@
         "toggle"
       ],
       "type": "string"
+    },
+    "LocalitiesResultDTO": {
+      "additionalProperties": false,
+      "description": "The locality typeahead result (030): ≤ 8, alphabetical, never ordered by serviceability.",
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/definitions/LocalityDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "type": "object"
+    },
+    "LocalityDTO": {
+      "additionalProperties": false,
+      "description": "One place, fully identified — the only selectable unit (FR-007).",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "postcode": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/AustralianState"
+        }
+      },
+      "required": [
+        "name",
+        "state",
+        "postcode"
+      ],
+      "type": "object"
     },
     "MediaDTO": {
       "additionalProperties": false,
@@ -1572,6 +1724,23 @@
       ],
       "type": "string"
     },
+    "ServiceabilityDTO": {
+      "additionalProperties": false,
+      "description": "The single serviceability decision (FR-001), answered before a cart exists and again at checkout by the SAME predicate (FR-004). ⚠ Frozen two-field shape — no zone id, name, fee, or window may be added.",
+      "properties": {
+        "postcode": {
+          "type": "string"
+        },
+        "serviced": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "postcode",
+        "serviced"
+      ],
+      "type": "object"
+    },
     "StorefrontCategoryDTO": {
       "additionalProperties": false,
       "description": "A browse/filter category, customer projection (GET /v1/storefront/categories). Distinct from the admin/shop `CategoryDTO` in catalog.ts — this carries no internal id/status/order.",
@@ -1941,6 +2110,15 @@
     "createCheckoutIntentResponse": {
       "$ref": "#/definitions/CreateCheckoutIntentResponse"
     },
+    "deliveryOption": {
+      "$ref": "#/definitions/DeliveryOptionDTO"
+    },
+    "deliveryPackage": {
+      "$ref": "#/definitions/DeliveryPackageDTO"
+    },
+    "deliveryQuote": {
+      "$ref": "#/definitions/DeliveryQuoteDTO"
+    },
     "facet": {
       "$ref": "#/definitions/FacetDTO"
     },
@@ -1955,6 +2133,12 @@
     },
     "home": {
       "$ref": "#/definitions/StorefrontHomeDTO"
+    },
+    "localitiesResult": {
+      "$ref": "#/definitions/LocalitiesResultDTO"
+    },
+    "locality": {
+      "$ref": "#/definitions/LocalityDTO"
     },
     "media": {
       "$ref": "#/definitions/MediaDTO"
@@ -2025,6 +2209,9 @@
     "searchResult": {
       "$ref": "#/definitions/ProductSearchResultDTO"
     },
+    "serviceability": {
+      "$ref": "#/definitions/ServiceabilityDTO"
+    },
     "updateAddress": {
       "$ref": "#/definitions/UpdateAddressRequest"
     },
@@ -2084,7 +2271,13 @@
     "savedMergeRequest",
     "savedMergeResult",
     "savedAddToCartRequest",
-    "savedAddToCartResult"
+    "savedAddToCartResult",
+    "serviceability",
+    "locality",
+    "localitiesResult",
+    "deliveryOption",
+    "deliveryPackage",
+    "deliveryQuote"
   ],
   "type": "object",
   "title": "CustomerCommerceContract"

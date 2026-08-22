@@ -26,6 +26,12 @@ export interface CreateCheckoutIntentRequest {
    * amount.
    */
   billingAddressId?: string | null;
+  /**
+   * 047: the shopper's order-level delivery preference — "same_day" or "standard" (absent = standard).
+   * Applied per package where that method is offered, standard elsewhere (FR-044). The server prices the
+   * chosen method from the captured quote; the client NEVER sends a fee (SC-004).
+   */
+  deliveryMethod?: string | null;
 }
 
 export interface CreateCheckoutIntentResponse {
