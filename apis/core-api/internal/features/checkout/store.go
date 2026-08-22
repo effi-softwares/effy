@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -15,11 +16,22 @@ import (
 
 // CheckoutLine is a payable cart line resolved for checkout (active products only). Amounts in cents.
 type CheckoutLine struct {
-	ProductID string
-	ShopID    string
-	Name      string
-	UnitCents int64
-	Quantity  int
+	ProductID   string
+	ShopID      string
+	Name        string
+	UnitCents   int64
+	Quantity    int
+	WeightGrams int // 047: per-unit logistics weight; the package weight is Σ(WeightGrams × Quantity) per shop.
+}
+
+// PackageDelivery is the captured per-package delivery outcome, written at intent and copied into
+// shop_fulfillment at finalize (047). PromisedFrom/To are nil for US1 (the window arrives with same-day).
+type PackageDelivery struct {
+	ShopID       string
+	Method       string
+	FeeCents     int64
+	PromisedFrom *time.Time
+	PromisedTo   *time.Time
 }
 
 // ShopPortion is one shop's slice of the fan-out (for the outbox payload / SC-005).
@@ -45,6 +57,10 @@ type Store interface {
 	// "billing is the same as shipping" (FR-009); a value is a divergent, immutable billing snapshot.
 	// Idempotent: called on every intent, so toggling "same as shipping" back ON clears a prior value.
 	SetOrderBilling(ctx context.Context, orderID string, billingJSON []byte) error
+	// CaptureDelivery writes the captured per-package delivery quote (047): the order's delivery_quote JSON
+	// + expiry and a fresh set of order_package_delivery rows (delete+reinsert, like order_item). Called on
+	// every intent so a re-quote overwrites cleanly. The client never sends a fee — this is the server's.
+	CaptureDelivery(ctx context.Context, orderID string, quoteJSON []byte, expiresAt time.Time, pkgs []PackageDelivery) error
 	// UpsertPayment records/updates the payment (one per order) with the intent id + status.
 	UpsertPayment(ctx context.Context, orderID, intentID string, amountCents int64, status string) error
 	// FindOrderByIntent resolves a PaymentIntent id to its order.
@@ -92,11 +108,12 @@ func NewStore(pool *pgxpool.Pool) Store {
 }
 
 type checkoutLineRow struct {
-	ProductID string `db:"product_id"`
-	ShopID    string `db:"shop_id"`
-	Name      string `db:"name"`
-	UnitPrice string `db:"unit_price_amount"`
-	Quantity  int    `db:"quantity"`
+	ProductID   string `db:"product_id"`
+	ShopID      string `db:"shop_id"`
+	Name        string `db:"name"`
+	UnitPrice   string `db:"unit_price_amount"`
+	Quantity    int    `db:"quantity"`
+	WeightGrams int    `db:"weight_grams"`
 }
 
 func (s *pgStore) CartLines(ctx context.Context, customerID string) ([]CheckoutLine, error) {
@@ -105,7 +122,8 @@ SELECT ci.product_id::text AS product_id,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
        p.price_amount::text AS unit_price_amount,
-       ci.quantity         AS quantity
+       ci.quantity         AS quantity,
+       p.weight_grams      AS weight_grams
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
@@ -126,7 +144,7 @@ ORDER BY ci.added_at ASC`, customerID)
 		}
 		out = append(out, CheckoutLine{
 			ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name,
-			UnitCents: cents, Quantity: r.Quantity,
+			UnitCents: cents, Quantity: r.Quantity, WeightGrams: r.WeightGrams,
 		})
 	}
 	return out, nil
@@ -182,14 +200,15 @@ func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amo
 		if err := tx.QueryRow(ctx, `
 INSERT INTO public."order"
     (customer_id, order_number, status, currency, item_subtotal_amount,
-     discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address)
+     discount_amount, promo_code_id, promo_code, grand_total_amount, delivery_address, delivery_fee_amount)
 VALUES ($1, $2, 'pending_payment', $3, $4::numeric,
-        $7::numeric, NULLIF($8, '')::uuid, NULLIF($9, ''), $5::numeric, $6::jsonb)
+        $7::numeric, NULLIF($8, '')::uuid, NULLIF($9, ''), $5::numeric, $6::jsonb, $10::numeric)
 RETURNING id::text`,
 			customerID, orderNumber, amounts.Currency,
 			money.FormatCents(amounts.ItemSubtotalCents),
 			money.FormatCents(amounts.GrandTotalCents), string(addressJSON),
-			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode).Scan(&orderID); err != nil {
+			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode,
+			money.FormatCents(amounts.DeliveryFeeCents)).Scan(&orderID); err != nil {
 			return "", "", fmt.Errorf("checkout: insert order: %w", err)
 		}
 	case err != nil:
@@ -199,10 +218,12 @@ RETURNING id::text`,
 UPDATE public."order" SET item_subtotal_amount=$2::numeric,
     grand_total_amount=$3::numeric, delivery_address=$4::jsonb,
     discount_amount=$5::numeric, promo_code_id=NULLIF($6, '')::uuid, promo_code=NULLIF($7, ''),
+    delivery_fee_amount=$8::numeric,
     updated_at=now() WHERE id=$1`,
 			orderID, money.FormatCents(amounts.ItemSubtotalCents),
 			money.FormatCents(amounts.GrandTotalCents), string(addressJSON),
-			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode); err != nil {
+			money.FormatCents(amounts.DiscountCents), amounts.PromoCodeID, amounts.PromoCode,
+			money.FormatCents(amounts.DeliveryFeeCents)); err != nil {
 			return "", "", fmt.Errorf("checkout: update order: %w", err)
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM public.order_item WHERE order_id = $1`, orderID); err != nil {
@@ -225,6 +246,39 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric)`,
 		return "", "", fmt.Errorf("checkout: commit order: %w", err)
 	}
 	return orderID, orderNumber, nil
+}
+
+// CaptureDelivery writes the captured delivery quote (047): the order's delivery_quote JSON + expiry, and
+// a fresh set of order_package_delivery rows (delete+reinsert, mirroring order_item's intent-time
+// lifecycle). All in one tx. The fee is always the SERVER's — the client never supplies one (FR-036).
+func (s *pgStore) CaptureDelivery(ctx context.Context, orderID string, quoteJSON []byte, expiresAt time.Time, pkgs []PackageDelivery) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("checkout: begin capture delivery: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `
+UPDATE public."order" SET delivery_quote = $2::jsonb, delivery_quote_expires_at = $3, updated_at = now()
+WHERE id = $1`, orderID, string(quoteJSON), expiresAt); err != nil {
+		return fmt.Errorf("checkout: set delivery quote: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM public.order_package_delivery WHERE order_id = $1`, orderID); err != nil {
+		return fmt.Errorf("checkout: clear package delivery: %w", err)
+	}
+	for _, p := range pkgs {
+		if _, err := tx.Exec(ctx, `
+INSERT INTO public.order_package_delivery
+    (order_id, shop_id, method, delivery_fee_amount, promised_from, promised_to)
+VALUES ($1, $2, $3, $4::numeric, $5, $6)`,
+			orderID, p.ShopID, p.Method, money.FormatCents(p.FeeCents), p.PromisedFrom, p.PromisedTo); err != nil {
+			return fmt.Errorf("checkout: insert package delivery: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("checkout: commit capture delivery: %w", err)
+	}
+	return nil
 }
 
 func (s *pgStore) UpsertPayment(ctx context.Context, orderID, intentID string, amountCents int64, status string) error {
@@ -300,9 +354,6 @@ func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (bool, 
 
 	// 2. Fan-out — one shop_fulfillment per distinct order_item.shop_id (item_count = Σ quantity).
 	if _, err := tx.Exec(ctx, `
--- ⚠ No JOIN to order_package_delivery. That table carried the per-package delivery capture and was
--- dropped with delivery; the fan-out is now purely "one fulfilment per distinct shop in the order",
--- which is what it was before 021.
 INSERT INTO public.shop_fulfillment
     (order_id, shop_id, item_count, subtotal_amount)
 SELECT oi.order_id, oi.shop_id, SUM(oi.quantity)::int, SUM(oi.line_subtotal_amount)
@@ -311,6 +362,20 @@ WHERE oi.order_id = $1
 GROUP BY oi.order_id, oi.shop_id
 ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
 		return false, fmt.Errorf("checkout: fan-out: %w", err)
+	}
+
+	// 2b. Copy the captured per-package delivery (047) onto each fulfilment. Absent for pre-047 orders
+	// (no order_package_delivery rows) → columns stay NULL, which is valid. ⚠ delivery_fee_amount is
+	// NEVER shown to the shop; it is recorded for the customer receipt and future payout slices.
+	if _, err := tx.Exec(ctx, `
+UPDATE public.shop_fulfillment sf
+SET delivery_method     = opd.method,
+    delivery_fee_amount = opd.delivery_fee_amount,
+    promised_ready_at   = opd.promised_to,
+    updated_at          = now()
+FROM public.order_package_delivery opd
+WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = $1`, orderID); err != nil {
+		return false, fmt.Errorf("checkout: copy package delivery: %w", err)
 	}
 
 	// 3. Outbox — one order.placed with the per-shop breakdown (dedup_key makes it exactly-once).

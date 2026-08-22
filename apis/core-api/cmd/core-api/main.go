@@ -33,6 +33,7 @@ import (
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/config"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/customeridentity"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/health"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
@@ -138,7 +139,7 @@ func run() error {
 		cart:       cartSvc,
 		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
-		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc),
+		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m),
 		orders:   orders.NewService(orders.NewRepository(pool)),
 	}
 
@@ -222,7 +223,7 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 
 	// 019 customer commerce. Storefront reads are public; customer-scoped features mount behind
 	// auth.Middleware + customeridentity.Middleware (the resolved customer id scopes every query).
-	storefront.Register(v1, storefront.NewHandler(deps.storefront))
+	storefront.Register(v1, storefront.NewHandler(deps.storefront), storefront.NewDeliveryReads(deps.pool, deps.metrics))
 	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
 	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))
 	saveditems.Register(v1, deps.customerVerifier, deps.customer, saveditems.NewHandler(deps.savedItems))

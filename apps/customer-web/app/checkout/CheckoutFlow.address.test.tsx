@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -62,6 +62,16 @@ beforeEach(() => {
         addressWrites += 1
         return jsonRes(addr({ id: "new1", recipientName: "New Person", isDefault: false }))
       }
+      if (u.endsWith("/api/checkout/quote")) {
+        // 047: serviceability + the standard fee for the chosen address. Serviced with one $5 package.
+        return jsonRes({
+          postcode: "3000",
+          serviced: true,
+          sameDayAvailableUntil: null,
+          packages: [{ shopRef: "pkg-1", options: [{ method: "standard", feeAmount: "5.00", promisedFrom: null, promisedTo: null }] }],
+          expiresAt: "2026-08-22T12:00:00+10:00",
+        })
+      }
       if (u.endsWith("/api/checkout/intent")) {
         intentBodies.push(body)
         return jsonRes({ orderId: "o1", orderNumber: "E-1", clientSecret: "cs", publishableKey: "pk", grandTotalAmount: "15.00", currency: "AUD" })
@@ -84,6 +94,10 @@ afterEach(() => {
  * zones, quotes and fees were withdrawn from the platform, so checkout is: choose an address, pay.
  */
 async function placeOrder(user: ReturnType<typeof userEvent.setup>) {
+  // 047: the pay button gates on a serviced delivery quote, fetched async when the address is set.
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled(),
+  )
   await user.click(screen.getByRole("button", { name: /continue to payment/i }))
 }
 
@@ -94,10 +108,13 @@ describe("CheckoutFlow shipping (US1/US2)", () => {
     expect(screen.getByRole("button", { name: /continue to payment/i })).toBeDisabled()
   })
 
-  it("pre-selects the default and lets you pay without touching the address (SC-001)", () => {
+  it("pre-selects the default and lets you pay once the address is serviced (SC-001)", async () => {
     render(<CheckoutFlow initialAddresses={[addr()]} />)
     expect(screen.getByText("Pat")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled()
+    // 047: pay enables only after the delivery quote confirms the address is serviced.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /continue to payment/i })).toBeEnabled(),
+    )
   })
 
   it("switching the shipping address never changes the saved default (FR-006)", async () => {

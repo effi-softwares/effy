@@ -1059,3 +1059,24 @@ sweep); an on-device mobile walk; `/effy/dev/feedback/source_salt` may be set (o
 The reply send-failure metric filter/alarm (Prometheus/CloudWatch) is deferred like 038's telemetry —
 the service already logs `feedback.reply_send_failed`. Spec/artifacts:
 [specs/046-customer-feedback/](../../specs/046-customer-feedback/).
+
+## §047 — Delivery Zones & Shipping-Fee Engine
+
+Reintroduces delivery after the 2026-08-02 withdrawal. The shopper learns whether Effy delivers to
+their address (serviceability), and at checkout is quoted a **single, GST-inclusive, snapped-up** fee
+before paying — standard always, same-day where the fulfilling shop is eligible in their zone and it is
+before the collection cutoff. One serviceability rule (postcode ∈ active zone), one refusal.
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Serviceability read ("do we deliver here?") | ✅ | ⏳ mobile pending | `GET /v1/storefront/serviceability`, public + cacheable |
+| Locality typeahead | ✅ (endpoint) | ⏳ | `GET /v1/storefront/localities` |
+| Standard delivery fee at checkout | ✅ | ⏳ | server-computed, captured, shown before pay |
+| Same-day choice at checkout | ✅ (order-level when all packages qualify) | ⏳ | `deliveryMethod` on intent; per-package on the server (SC-011) |
+| Not-serviceable refusal (one reason) | ✅ | ⏳ | pay blocked; "we don't deliver here yet" |
+
+⚠ **Open**: **customer-mobile** serviceability + fee display (T031/T039 — needs the KMP Gradle
+toolchain, not built in this session); the Go↔Kotlin wire test's **Kotlin half** (the Go half is green);
+operator deploy of `edge-admin` + the live SC walk (T057); Playwright storefront path (T055, needs a
+live core-api). Backend, back-office console, and customer-web are code-complete and machine-verified.
+Spec/artifacts: [specs/047-delivery-shipping-engine/](../../specs/047-delivery-shipping-engine/).

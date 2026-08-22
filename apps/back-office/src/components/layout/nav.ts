@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, MailWarning, MessageSquare, Shield, Store, Tags } from "lucide-react";
+import { BadgePercent, LayoutDashboard, MailWarning, MessageSquare, Shield, Store, Tags, Truck } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -22,6 +22,10 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // answering "is this code still live?" is support work. admin/manager get the mutating controls
   // (gated in-screen, enforced by the backend).
   { label: "Promotions", to: "/promotions", icon: BadgePercent },
+  // Delivery has NO requiredRole: every back-office role sees zones/rings/plans read-only (csa
+  // included — "do we deliver to X?" is support work). Mutating controls (create/activate/settings)
+  // are gated in-screen and enforced by the backend (admin/manager, FR-046).
+  { label: "Delivery", to: "/delivery", icon: Truck },
   // Deliverability has NO requiredRole: every back-office role sees it, csa included. A CSA is
   // exactly who is on the phone to the person who cannot sign in, and "we can't reach your address"
   // is the whole answer to that call. Only the REPAIR is admin/manager (gated in-screen, enforced by

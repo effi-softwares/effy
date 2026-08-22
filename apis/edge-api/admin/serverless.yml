@@ -730,6 +730,227 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── Delivery configuration (047): distance rings + shipping-fee plans ──────────────────────────────
+  deliveryRingsListV1:
+    handler: src/functions/delivery-rings-list-v1-get.handler
+    description: List distance rings — 047
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/rings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryRingsCreateV1:
+    handler: src/functions/delivery-rings-create-v1-post.handler
+    description: Create a distance ring — 047
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/rings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryPlansListV1:
+    handler: src/functions/delivery-plans-list-v1-get.handler
+    description: List shipping-fee plans (one active) — 047 FR-048
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/plans
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryPlansCreateV1:
+    handler: src/functions/delivery-plans-create-v1-post.handler
+    description: Create an inactive shipping-fee plan — 047 FR-047
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/plans
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryPlanActivateV1:
+    handler: src/functions/delivery-plan-activate-v1-post.handler
+    description: Activate a plan; refused if it cannot price every served zone — 047 FR-049/FR-051
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/plans/{planId}/activate
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonesListV1:
+    handler: src/functions/delivery-zones-list-v1-get.handler
+    description: List served zones — 047
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/zones
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonesCreateV1:
+    handler: src/functions/delivery-zones-create-v1-post.handler
+    description: Create a served zone — 047 FR-006
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/zones
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonesPatchV1:
+    handler: src/functions/delivery-zones-patch-v1-patch.handler
+    description: Rename / set ring / same-day eligibility / status of a zone — 047
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/delivery/zones/{zoneId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryPostcodeCheckV1:
+    handler: src/functions/delivery-postcode-check-v1-get.handler
+    description: Disclosure before adding a postcode — 047 FR-008/009/010
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/postcode-check
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonePostcodeAddV1:
+    handler: src/functions/delivery-zone-postcode-add-v1-post.handler
+    description: Add a postcode to a zone (refuses in-another-zone; confirm for unknown) — 047 FR-009/010
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/zones/{zoneId}/postcodes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZonePostcodeRemoveV1:
+    handler: src/functions/delivery-zone-postcode-remove-v1-delete.handler
+    description: Remove a postcode; states which places stop being serviceable — 047 FR-011
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery/zones/{zoneId}/postcodes/{postcode}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryZoneSuggestRingV1:
+    handler: src/functions/delivery-zone-suggest-ring-v1-post.handler
+    description: Compute + persist a zone's suggested distance ring — 047 FR-015
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/zones/{zoneId}/suggest-ring
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliverySettingsGetV1:
+    handler: src/functions/delivery-settings-get-v1-get.handler
+    description: Read the operating hub + same-day prep buffer — 047
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliverySettingsPutV1:
+    handler: src/functions/delivery-settings-put-v1-put.handler
+    description: Set the operating hub + same-day prep buffer — 047
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryCollectionRunsListV1:
+    handler: src/functions/delivery-collection-runs-list-v1-get.handler
+    description: List daily collection runs — 047 US2
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/collection-runs
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryCollectionRunsCreateV1:
+    handler: src/functions/delivery-collection-runs-create-v1-post.handler
+    description: Add a daily collection run — 047 US2/FR-040
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/delivery/collection-runs
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryCollectionRunDeleteV1:
+    handler: src/functions/delivery-collection-run-delete-v1-delete.handler
+    description: Remove a collection run — 047 US2
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery/collection-runs/{runId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryExceptionsListV1:
+    handler: src/functions/delivery-exceptions-list-v1-get.handler
+    description: List a zone's per-shop same-day exceptions — 047 US3
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryExceptionPutV1:
+    handler: src/functions/delivery-exception-put-v1-put.handler
+    description: Force a shop on/off for same-day in a zone — 047 US3/FR-043
+    events:
+      - httpApi:
+          method: PUT
+          path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  deliveryExceptionDeleteV1:
+    handler: src/functions/delivery-exception-delete-v1-delete.handler
+    description: Remove a shop's same-day exception (revert to zone default) — 047 US3
+    events:
+      - httpApi:
+          method: DELETE
+          path: /admin/v1/delivery/zones/{zoneId}/sameday-exceptions/{shopId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
 resources:
   Resources:
     # healthz does no work, so it can essentially only fail on a broken bundle or a runtime init
