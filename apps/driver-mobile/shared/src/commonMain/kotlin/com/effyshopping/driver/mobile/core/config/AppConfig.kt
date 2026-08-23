@@ -16,6 +16,11 @@ object AppConfig {
 
     /** `edge-api/driver` — the ONLY backend this app calls (cross-pool isolation, Principle IV). */
     val driverApiBaseUrl: String get() = BuildKonfig.DRIVER_API_BASE_URL
+
+    // ── 050 telemetry (OPTIONAL — empty '' ⇒ no-op, FR-027) ──────────────────────────────────
+    val posthogKey: String get() = BuildKonfig.POSTHOG_KEY
+    val posthogHost: String get() = BuildKonfig.POSTHOG_HOST
+    val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
 }
 
 /**

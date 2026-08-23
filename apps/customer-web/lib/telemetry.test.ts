@@ -11,7 +11,8 @@ vi.mock("posthog-js", () => ({
 }))
 
 vi.mock("@/lib/config", () => ({
-  posthogConfig: () => ({ key: "phc_test", host: "https://ph.test" }),
+  posthogConfig: () => ({ key: "phc_test", host: "https://ph.test", ingestPath: "/rc" }),
+  telemetryEnabled: () => true,
 }))
 
 import posthog from "posthog-js"

@@ -24,7 +24,7 @@ type AuthCodeOutcome =
   | "code_expired"
   | "limit_exceeded"
 
-import { posthogConfig } from "@/lib/config"
+import { posthogConfig, telemetryEnabled } from "@/lib/config"
 
 /**
  * Product analytics for the storefront (constitution Principle VII).
@@ -93,9 +93,10 @@ let loading: Promise<void> | null = null
  */
 export function initAnalytics() {
   if (started || loading || typeof window === "undefined") return
+  if (!telemetryEnabled()) return // 050 FR-026 — kill switch, before any SDK loads
   if (getConsent() !== "granted") return
 
-  const { key, host } = posthogConfig()
+  const { key, host, ingestPath } = posthogConfig()
   if (!key) return
 
   // DYNAMIC import — this is the line that keeps ~68 KB off the guest critical path. Do not
@@ -103,9 +104,12 @@ export function initAnalytics() {
   loading = import("posthog-js")
     .then(({ default: posthog }) => {
       posthog.init(key, {
-        api_host: host,
+        // 050 FR-028 — send through our own origin (next.config.ts rewrites it), so blockers can't
+        // drop it; the real host stays as ui_host for the SDK's toolbar links.
+        api_host: ingestPath,
+        ui_host: host,
         capture_pageview: true,
-        // Never fingerprint or record inputs on a public storefront.
+        // Never fingerprint or record inputs on a public storefront. Session replay OFF (R11).
         autocapture: false,
         disable_session_recording: true,
         persistence: "localStorage",

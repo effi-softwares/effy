@@ -5,6 +5,10 @@ import android.util.Log
 import com.effyshopping.shop.mobile.app.AppContainer
 import com.effyshopping.shop.mobile.core.auth.AmplifyAuthDriver
 import com.effyshopping.shop.mobile.core.auth.AmplifyBootstrap
+import com.effyshopping.shop.mobile.core.config.AppConfig
+import com.effyshopping.shop.mobile.core.observability.AndroidCrashReporter
+import com.effyshopping.shop.mobile.core.observability.PostHogAnalyticsDriver
+import com.effyshopping.shop.mobile.core.push.FirebasePushTokenProvider
 
 /**
  * The Android application. Configures Amplify ONCE (from the in-code config string — no
@@ -13,7 +17,20 @@ import com.effyshopping.shop.mobile.core.auth.AmplifyBootstrap
  */
 class EffyApp : Application() {
 
-    val container: AppContainer by lazy { AppContainer(authDriver = AmplifyAuthDriver()) }
+    val container: AppContainer by lazy {
+        AppContainer(
+            authDriver = AmplifyAuthDriver(),
+            // 050 — Android observability/push drivers. Fail-open: empty PostHog key ⇒ analytics no-op;
+            // Firebase auto-inits from google-services resources.
+            crashReporter = AndroidCrashReporter(),
+            analyticsDriver = PostHogAnalyticsDriver(
+                context = applicationContext,
+                apiKey = AppConfig.posthogKey,
+                host = AppConfig.posthogHost,
+            ),
+            pushTokenProvider = FirebasePushTokenProvider(applicationContext),
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -24,5 +41,8 @@ class EffyApp : Application() {
             // currentSession() returns null, so the app lands on SignedOut. Never log tokens (FR-036).
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }
+        // 050 — crash reporting on (independent of analytics consent, Q1); analytics ON by default for this
+        // INTERNAL audience (employees, disclosed — clarification Q4; no opt-out UI this slice). Off-thread.
+        container.startObservability(analyticsConsented = true)
     }
 }

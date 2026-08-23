@@ -374,3 +374,18 @@ typecheck green). **⚠ Open (operator)**: the two-stage `terraform apply` (stag
 hostname → stage B attaches the subdomain), the live SC walk (auto-deploy, SPA deep link, sign-in +
 data-load via the gateway, `noindex`, secret sweep), and the commit. Back-office ships in the same slice
 (048) at `back-office.dev.effyshopping.com`. Spec/artifacts: [specs/048-console-web-cicd/](../../specs/048-console-web-cicd/).
+
+## §050 — Observability & Push Notification Foundation
+
+Adds the platform's crash reporting (Crashlytics), product analytics (PostHog), and push (FCM) to the
+shop app. Status:
+- **Contract + wiring**: the `core/observability` (CrashReporter, AnalyticsDriver, typed AnalyticsEvent
+  taxonomy) and `core/push` (PushTokenProvider, DeviceRepository) boundaries exist in `commonMain`
+  with fail-open NoOp defaults; a `commonTest` drift check pins the taxonomy to `docs/telemetry`.
+- **Backend**: device registration (`POST/DELETE /shop/v1/devices`) and the cold-path notifications
+  worker (drains `notification_request` → FCM, idempotent, prunes dead tokens) are built and verified.
+- **⚠ Native SDK wiring is Firebase-account-gated**: the Android Firebase/PostHog actuals, the iOS
+  Swift bridges, and the Gradle plugins land once the operator creates the Firebase project and drops
+  in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
+  NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
+- **No PII** beyond the auth subject id; analytics consent-gated (shop); push OS-permission only.

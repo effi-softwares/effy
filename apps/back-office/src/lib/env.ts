@@ -25,4 +25,6 @@ export const config = {
   apiBaseUrl: (): string => cfg.require("VITE_API_BASE_URL"),
   posthogKey: (): string | undefined => cfg.optional("VITE_POSTHOG_KEY"),
   posthogHost: (): string | undefined => cfg.optional("VITE_POSTHOG_HOST"),
+  // 050 FR-026 — analytics kill switch. Anything but the string "false" (incl. unset) = enabled.
+  telemetryEnabled: (): boolean => cfg.optional("VITE_TELEMETRY_ENABLED") !== "false",
 };

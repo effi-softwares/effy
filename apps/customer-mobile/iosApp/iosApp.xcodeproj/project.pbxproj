@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		064B75CB303AC7610069336C /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = 57A19E02000000000000BEEF /* StripePaymentSheet */; };
 		067A700130077C7100CEE238 /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700030077C7100CEE238 /* Amplify */; };
 		067A700330077C7100CEE238 /* AmplifyFirehoseClient in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700230077C7100CEE238 /* AmplifyFirehoseClient */; };
 		067A700530077C7100CEE238 /* AmplifyFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 067A700430077C7100CEE238 /* AmplifyFoundation */; };
@@ -60,6 +61,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				064B75CB303AC7610069336C /* StripePaymentSheet in Frameworks */,
 				067A700B30077C7100CEE238 /* AWSAPIPlugin in Frameworks */,
 				067A700130077C7100CEE238 /* Amplify in Frameworks */,
 				067A700730077C7100CEE238 /* AmplifyFoundationBridge in Frameworks */,
@@ -177,6 +179,7 @@
 			packageReferences = (
 				067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */,
 				57A19E01000000000000FEED /* XCRemoteSwiftPackageReference "stripe-ios-spm" */,
+				064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5251AB4807B23F90069732A9 /* Products */;
@@ -434,6 +437,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.18.0;
+			};
+		};
 		067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/aws-amplify/amplify-swift";

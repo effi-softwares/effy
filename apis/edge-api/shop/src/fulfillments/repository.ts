@@ -325,6 +325,24 @@ export async function transition(
       fromStatus: from,
       toStatus: to,
     });
+
+    // 050 — push intent: the customer's order portion is ready for handoff. Same tx as the
+    // transition, so it is enqueued exactly once (dedupe on the fulfilment id). No PII — order id +
+    // deep link only (FR-021). The notifications worker resolves the customer's device tokens.
+    if (to === "ready_for_pickup") {
+      await client.query(
+        `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
+         SELECT c.cognito_sub, 'customer', 'order_ready',
+                jsonb_build_object('entityId', o.id::text, 'deepLink', 'effy://order/' || o.id::text),
+                'order_ready:' || c.cognito_sub || ':' || sf.id::text
+           FROM public.shop_fulfillment sf
+           JOIN public."order" o ON o.id = sf.order_id
+           JOIN public.customer c ON c.id = o.customer_id
+          WHERE sf.id = $1
+         ON CONFLICT (dedupe_key) DO NOTHING`,
+        [fulfillmentId],
+      );
+    }
     return true;
   });
 }

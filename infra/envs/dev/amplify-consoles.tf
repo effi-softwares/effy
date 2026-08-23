@@ -29,17 +29,25 @@ locals {
   # ── Per-console VITE_* env (build-time, inlined by Vite, all public-safe — contracts/config.contract.md)
   # ⚠ Principle IV: shop-web MUST take the SHOP pool, back-office the ADMIN pool. A swap makes sign-in
   # succeed and every backend call 401 from the mismatched authorizer.
-  shop_web_env = {
+  # 050 — PostHog is shared across the consoles; the project key is public-safe (build-inlined), same
+  # source as the SSM record so one dev.tfvars value fans out to SSM + both console builds.
+  telemetry_env = {
+    VITE_POSTHOG_KEY       = var.posthog_project_key
+    VITE_POSTHOG_HOST      = var.posthog_host
+    VITE_TELEMETRY_ENABLED = var.telemetry_enabled ? "true" : "false"
+  }
+
+  shop_web_env = merge({
     VITE_COGNITO_USER_POOL_ID = module.shop_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.shop_pool.app_client_id
     VITE_API_BASE_URL         = local.console_api_base_url
-  }
+  }, local.telemetry_env)
 
-  back_office_env = {
+  back_office_env = merge({
     VITE_COGNITO_USER_POOL_ID = module.back_office_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.back_office_pool.app_client_id
     VITE_API_BASE_URL         = local.console_api_base_url
-  }
+  }, local.telemetry_env)
 }
 
 # ── Shop operator console → shop.dev.effyshopping.com ──────────────────────────────────────────

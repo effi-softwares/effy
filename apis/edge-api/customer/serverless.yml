@@ -437,3 +437,25 @@ functions:
   preSignUp:
     handler: src/functions/pre-sign-up.handler
     description: Cognito pre-sign-up — links a federated identity into the NATIVE profile (011 FR-011/FR-012)
+
+  customerDevicesV1Post:
+    handler: src/functions/customer-devices-v1-post.handler
+    description: Register/refresh this device's FCM push token for the signed-in customer (050)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/devices
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
+  customerDevicesV1IdDelete:
+    handler: src/functions/customer-devices-v1-id-delete.handler
+    description: Unregister a device token (sign-out / shared-device safety); only the caller's own (050 FR-020)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /customer/v1/devices/{token}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}

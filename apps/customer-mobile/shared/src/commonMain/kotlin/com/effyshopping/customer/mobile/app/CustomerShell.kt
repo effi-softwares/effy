@@ -69,6 +69,15 @@ import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
 /** The label for each tab root, in bar order. */
+// 050 T025 — a stable, low-cardinality screen key for analytics (never a display label, never PII).
+private fun CustomerNavKey.telemetryScreenName(): String = when (this) {
+    CustomerNavKey.Home -> "home"
+    CustomerNavKey.Search -> "search"
+    CustomerNavKey.Orders -> "orders"
+    CustomerNavKey.Account -> "account"
+    else -> "other"
+}
+
 private fun tabLabel(key: CustomerNavKey): String = when (key) {
     CustomerNavKey.Home -> "Home"
     CustomerNavKey.Search -> "Search"
@@ -102,6 +111,13 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
 
     // Bind the ViewModels' navigation handle to the composable-owned stacks (see CustomerNavigator).
     LaunchedEffect(navState) { container.navigator.bindTo(navState) }
+
+    // 050 T025 — emit a screen view whenever the active tab changes. One call-site for the four primary
+    // destinations; a no-op until analytics is consented + initialised (the driver guards on `ready`).
+    // The name is a stable low-cardinality key, never PII (docs/telemetry/platform-events.md).
+    LaunchedEffect(navState.activeTab) {
+        container.analyticsDriver.screen(navState.activeTab.telemetryScreenName())
+    }
 
     /**
      * Reconcile the cart whenever the session changes (027 FR-008).

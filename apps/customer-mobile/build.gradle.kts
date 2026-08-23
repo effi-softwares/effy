@@ -10,6 +10,9 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.buildkonfig) apply false
+    // 050 — declared here so the plugin classpath is shared; applied only in :androidApp.
+    alias(libs.plugins.googleServices) apply false
+    alias(libs.plugins.firebaseCrashlytics) apply false
 }
 
 // ── Build-time configuration contract (013 FR-039..FR-042, research D14) ───────────────────────────
@@ -65,5 +68,18 @@ if (missingKeys.isNotEmpty()) {
     )
 }
 
-// Exposed to the :shared module's BuildKonfig block (shared/build.gradle.kts, still to be wired).
-extra["effyConfig"] = requiredKeys.associateWith { configValue(it)!! }
+// 050 — OPTIONAL telemetry/push config. Unlike requiredKeys, a missing value here does NOT fail the
+// build: it bakes in "" so the app runs with analytics/push as a no-op (FR-027). The PostHog PROJECT
+// key + host are non-secret (client-embeddable, like the Cognito ids); the FCM project id is non-secret.
+// Values: SSM /effy/<env>/telemetry/* and /effy/<env>/notifications/fcm_project_id (make output ENV=dev).
+val optionalKeys = listOf(
+    "POSTHOG_KEY",        // phc_… — non-secret PostHog project key
+    "POSTHOG_HOST",       // https://us.i.posthog.com | https://eu.i.posthog.com
+    "TELEMETRY_ENABLED",  // "true" | "false" — analytics kill switch (FR-026)
+)
+
+// Exposed to the :shared module's BuildKonfig block. Required keys must be present (checked above);
+// optional keys default to "" so telemetry stays a no-op until configured.
+extra["effyConfig"] =
+    requiredKeys.associateWith { configValue(it)!! } +
+        optionalKeys.associateWith { configValue(it) ?: "" }

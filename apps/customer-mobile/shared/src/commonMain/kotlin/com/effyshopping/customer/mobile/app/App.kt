@@ -28,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.effyshopping.customer.mobile.core.observability.AnalyticsConsentBanner
+import com.effyshopping.customer.mobile.core.observability.ConsentState
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.platformMotionLevel
 import com.effyshopping.customer.mobile.core.session.SessionState
@@ -66,6 +68,10 @@ fun App(container: AppContainer) {
         var onboardingSeen by remember {
             mutableStateOf(prefs.getBoolean(PreferenceKeys.ONBOARDING_SEEN))
         }
+
+        // 050 T031 — the analytics-consent choice. `mutableStateOf` so accepting/declining re-renders
+        // the shell (dismissing the banner) immediately, not only on the next launch.
+        var consent by remember { mutableStateOf(container.analyticsConsent()) }
 
         LaunchedEffect(Unit) {
             container.session.bootstrap()
@@ -184,7 +190,22 @@ fun App(container: AppContainer) {
                 // who skipped it never sees it again. The flag is device-local and never syncs.
                 is SessionState.Authenticated, SessionState.Guest ->
                     if (onboardingSeen) {
-                        Inset { CustomerShell(container, s) }
+                        // 050 T031 — the shell, with the analytics-consent banner overlaid at the
+                        // bottom only while the choice is UNKNOWN (non-blocking; the app is fully usable
+                        // behind it). Accept loads analytics; decline records the refusal. No SDK loads
+                        // until accept (Principle VII). Shown after onboarding so the two don't stack.
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            Inset { CustomerShell(container, s) }
+                            if (consent == ConsentState.UNKNOWN) {
+                                AnalyticsConsentBanner(
+                                    onAccept = { container.setAnalyticsConsent(true); consent = ConsentState.GRANTED },
+                                    onDecline = { container.setAnalyticsConsent(false); consent = ConsentState.DENIED },
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                                )
+                            }
+                        }
                     } else {
                         // ⚠ DELIBERATELY NOT [Inset]. The introduction is a full-bleed photograph, and
                         // insetting it here stopped the image at the safe area — leaving a bar of page

@@ -1,13 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { createQueryClient } from "@effy/web-kit";
+import { createQueryClient, wireGlobalErrorReporting } from "@effy/web-kit";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 
 import { configureAmplify } from "./lib/amplify";
 import { assertConfig } from "./lib/env";
-import { initTelemetry } from "./lib/telemetry";
+import { initTelemetry, reportError } from "./lib/telemetry";
 import { applyTheme, uiStore } from "./lib/ui-store";
 import { createAppRouter } from "./router";
 // Typeface: General Sans arrives via @font-face in @effy/design-system tokens.css (Principle II).
@@ -22,6 +22,7 @@ try {
   assertConfig();
   configureAmplify();
   initTelemetry();
+  wireGlobalErrorReporting(reportError);
   applyTheme(uiStore.state.theme);
 
   const queryClient = createQueryClient();

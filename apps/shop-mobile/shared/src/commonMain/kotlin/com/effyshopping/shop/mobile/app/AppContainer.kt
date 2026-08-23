@@ -5,7 +5,19 @@ import com.effyshopping.shop.mobile.core.config.AppConfig
 import com.effyshopping.shop.mobile.core.draft.DraftStore
 import com.effyshopping.shop.mobile.core.draft.SettingsDraftStore
 import com.effyshopping.shop.mobile.core.http.createHttpClient
+import com.effyshopping.shop.mobile.core.observability.AnalyticsDriver
+import com.effyshopping.shop.mobile.core.observability.CrashReporter
+import com.effyshopping.shop.mobile.core.observability.NoOpAnalyticsDriver
+import com.effyshopping.shop.mobile.core.observability.NoOpCrashReporter
+import com.effyshopping.shop.mobile.core.platform.platformTag
+import com.effyshopping.shop.mobile.core.push.DeviceRepository
+import com.effyshopping.shop.mobile.core.push.HttpDeviceRepository
+import com.effyshopping.shop.mobile.core.push.NoOpPushTokenProvider
+import com.effyshopping.shop.mobile.core.push.PushTokenProvider
 import com.effyshopping.shop.mobile.core.session.SessionManager
+import com.effyshopping.shop.mobile.core.session.SessionState
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import com.effyshopping.shop.mobile.core.theme.AppearancePreferenceStore
 import com.effyshopping.shop.mobile.features.auth.domain.ConfirmSignIn
 import com.effyshopping.shop.mobile.features.auth.domain.RequestSignInCode
@@ -48,6 +60,10 @@ import kotlinx.coroutines.SupervisorJob
  */
 class AppContainer(
     val authDriver: AuthDriver,
+    // 050 — observability + push, injected per platform (Android real, iOS NoOp until Swift bridges).
+    val crashReporter: CrashReporter = NoOpCrashReporter,
+    val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
+    val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
 ) {
@@ -96,4 +112,60 @@ class AppContainer(
     val session: SessionManager by lazy { SessionManager(authDriver, getOperator, appScope) }
     // Navigation state (per-tab back stacks) lives in the composition via `rememberTabBackStacks` (015),
     // not here — so it is saveable across configuration change and process death.
+
+    // ── observability & push (050) ──────────────────────────────────────────────────────────────
+    private val devices: DeviceRepository by lazy { HttpDeviceRepository(shopClient) }
+
+    /**
+     * Start crash reporting (always on — independent of analytics consent, clarification Q1) and, when
+     * [analyticsConsented], product analytics. Also observes the session: on sign-in it identifies the
+     * operator (by subject — non-PII) + registers this device; on sign-out it resets + unregisters,
+     * so a shared shop tablet never delivers the previous operator's notifications (FR-020). Called by
+     * the Android entry point after first frame; all work is off the main thread + best-effort.
+     */
+    fun startObservability(analyticsConsented: Boolean) {
+        appScope.launch { runCatching { crashReporter.init() } }
+        if (analyticsConsented && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        pushTokenProvider.onTokenRefresh { token ->
+            if (session.state.value is SessionState.SignedIn) {
+                appScope.launch { runCatching { devices.register(token, platformTag()) } }
+            }
+        }
+        appScope.launch {
+            var lastSubject: String? = null
+            session.state.collectLatest { state ->
+                when (state) {
+                    is SessionState.SignedIn -> {
+                        val sub = state.operator.subject
+                        if (sub != lastSubject) {
+                            lastSubject = sub
+                            runCatching { analyticsDriver.identify(sub) }
+                            runCatching { crashReporter.setSubject(sub) }
+                            pushTokenProvider.currentToken()?.let { token ->
+                                runCatching { devices.register(token, platformTag()) }
+                            }
+                        }
+                    }
+                    SessionState.SignedOut, SessionState.Refused -> {
+                        if (lastSubject != null) {
+                            lastSubject = null
+                            runCatching { analyticsDriver.reset() }
+                            runCatching { crashReporter.setSubject(null) }
+                            pushTokenProvider.currentToken()?.let { token ->
+                                runCatching { devices.unregister(token) }
+                            }
+                            runCatching { pushTokenProvider.deleteToken() }
+                        }
+                    }
+                    SessionState.Restoring -> Unit
+                }
+            }
+        }
+    }
+
+    /** Grant/withdraw analytics consent at runtime; crash reporting is unaffected (FR-023). */
+    fun setAnalyticsConsent(granted: Boolean) {
+        if (granted && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        else runCatching { analyticsDriver.optOut() }
+    }
 }

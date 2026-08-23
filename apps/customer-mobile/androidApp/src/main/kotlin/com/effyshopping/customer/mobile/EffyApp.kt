@@ -5,7 +5,11 @@ import android.util.Log
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.auth.AmplifyAuthDriver
 import com.effyshopping.customer.mobile.core.auth.AmplifyBootstrap
+import com.effyshopping.customer.mobile.core.config.AppConfig
+import com.effyshopping.customer.mobile.core.observability.AndroidCrashReporter
+import com.effyshopping.customer.mobile.core.observability.PostHogAnalyticsDriver
 import com.effyshopping.customer.mobile.core.payment.AndroidPaymentDriver
+import com.effyshopping.customer.mobile.core.push.FirebasePushTokenProvider
 import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
 
 /**
@@ -16,7 +20,19 @@ import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
 class EffyApp : Application() {
 
     val container: AppContainer by lazy {
-        AppContainer(authDriver = AmplifyAuthDriver(), paymentDriver = AndroidPaymentDriver())
+        AppContainer(
+            authDriver = AmplifyAuthDriver(),
+            paymentDriver = AndroidPaymentDriver(),
+            // 050 — the Android observability/push drivers. All fail-open: empty PostHog key ⇒ analytics
+            // no-op; Firebase auto-inits from google-services resources.
+            crashReporter = AndroidCrashReporter(),
+            analyticsDriver = PostHogAnalyticsDriver(
+                context = applicationContext,
+                apiKey = AppConfig.posthogKey,
+                host = AppConfig.posthogHost,
+            ),
+            pushTokenProvider = FirebasePushTokenProvider(applicationContext),
+        )
     }
 
     override fun onCreate() {
@@ -31,5 +47,9 @@ class EffyApp : Application() {
             // driver's currentSession() returns null, landing on Guest. Never log tokens (FR-038).
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }
+        // 050 — crash reporting always on (independent of analytics consent, Q1); analytics inits only
+        // if the customer has GRANTED consent (startObservability reads the ConsentStore). The consent
+        // banner + Account toggle drive the choice. Off the main thread (R11).
+        container.startObservability()
     }
 }

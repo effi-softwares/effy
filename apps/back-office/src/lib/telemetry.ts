@@ -30,6 +30,7 @@ const telemetry = createTelemetry<AnalyticsEvent>({
   key: config.posthogKey(),
   host: config.posthogHost(),
   surface: "back-office",
+  enabled: config.telemetryEnabled(),
 });
 
 export const initTelemetry = telemetry.init;

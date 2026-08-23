@@ -317,3 +317,25 @@ functions:
     timeout: 60
     events:
       - schedule: ${param:assignmentSchedule}
+
+  driverDevicesV1Post:
+    handler: src/functions/driver-devices-v1-post.handler
+    description: Register/refresh this device's FCM push token for the signed-in driver (050)
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/devices
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDevicesV1IdDelete:
+    handler: src/functions/driver-devices-v1-id-delete.handler
+    description: Unregister a device token (sign-out / shared-device safety); only the caller's own (050 FR-020)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /driver/v1/devices/{token}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}

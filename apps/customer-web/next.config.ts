@@ -53,6 +53,20 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: "/browse", destination: "/search", permanent: true }]
   },
+
+  // 050 FR-028 — first-party reverse proxy for PostHog. Analytics + error tracking send to `/rc/*` on
+  // our own origin (see lib/config.ts `ingestPath`), which Next rewrites to the PostHog host, so
+  // tracking blockers can't drop the calls and no third-party host appears in the network tab. The
+  // host is region config (us | eu), never a literal — matching NEXT_PUBLIC_POSTHOG_HOST.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com"
+    const assets = host.replace(/^https:\/\/(us|eu)\./, "https://$1-assets.")
+    return [
+      { source: "/rc/static/:path*", destination: `${assets}/static/:path*` },
+      { source: "/rc/:path*", destination: `${host}/:path*` },
+    ]
+  },
 }
 
 export default nextConfig

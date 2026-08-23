@@ -84,6 +84,16 @@ export async function assignCollectionWork(): Promise<number> {
        VALUES ($1, 'run_assigned', $2, $3)`,
       [driverId, runId, `Collection run assigned — ${ready.rowCount} package(s) to collect`],
     );
+    // 050 — push intent: a collection run is assigned to this driver. Same tx; deduped on run id.
+    await tx.query(
+      `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
+       SELECT d.cognito_sub, 'driver', 'run_assigned',
+              jsonb_build_object('entityId', $2::text, 'deepLink', 'effy://run/' || $2::text),
+              'run_assigned:' || d.cognito_sub || ':' || $2::text
+         FROM public.driver d WHERE d.id = $1
+       ON CONFLICT (dedupe_key) DO NOTHING`,
+      [driverId, runId],
+    );
     return ready.rowCount ?? 0;
   });
 }

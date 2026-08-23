@@ -404,3 +404,34 @@ variable "amplify_consoles_domain_enabled" {
   type        = bool
   default     = false
 }
+
+# --- Telemetry & push (050-observability-push-foundation) ---
+
+variable "posthog_host" {
+  description = "PostHog ingest host for the region matching the platform's jurisdiction (FR-029): https://us.i.posthog.com or https://eu.i.posthog.com. Operator-supplied; empty = clients no-op."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.posthog_host == "" || can(regex("^https://(us|eu)\\.i\\.posthog\\.com$", var.posthog_host))
+    error_message = "posthog_host must be empty or one of https://us.i.posthog.com | https://eu.i.posthog.com."
+  }
+}
+
+variable "posthog_project_key" {
+  description = "PostHog PROJECT API key (phc_...). Client-embeddable/public-safe, not a secret. Operator-supplied; empty = analytics no-op."
+  type        = string
+  default     = ""
+}
+
+variable "telemetry_enabled" {
+  description = "Platform-wide analytics kill switch (FR-026). Scope is analytics ONLY — crash reporting and push are unaffected."
+  type        = bool
+  default     = true
+}
+
+variable "fcm_project_id" {
+  description = "Firebase project id the notifications worker targets. Operator-supplied; empty = push send no-ops."
+  type        = string
+  default     = ""
+}
