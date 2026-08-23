@@ -16,6 +16,11 @@ object AppConfig {
 
     /** `edge-api/shop` — the ONLY backend this app calls (cross-pool isolation, FR-029). */
     val shopApiBaseUrl: String get() = BuildKonfig.SHOP_API_BASE_URL
+
+    // ── 050 telemetry (OPTIONAL — empty '' ⇒ no-op, FR-027) ──────────────────────────────────
+    val posthogKey: String get() = BuildKonfig.POSTHOG_KEY
+    val posthogHost: String get() = BuildKonfig.POSTHOG_HOST
+    val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
 }
 
 /**

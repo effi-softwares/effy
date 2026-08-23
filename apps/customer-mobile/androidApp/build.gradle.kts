@@ -5,6 +5,11 @@ plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    // 050 — google-services reads androidApp/google-services.json and generates the Firebase config
+    // resources; crashlytics uploads the R8 mapping on release builds. The Firebase SDKs themselves
+    // are declared in :shared/androidMain (where the expect/actual implementations live), not here.
+    alias(libs.plugins.googleServices)
+    alias(libs.plugins.firebaseCrashlytics)
 }
 
 // ── DEV release signing (shareable dev APK) ────────────────────────────────────────────────────────

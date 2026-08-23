@@ -1,0 +1,25 @@
+{
+  "name": "@effy/edge-notifications",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Effy cold-path notifications worker (050-observability-push-foundation) — drains the notification_request outbox and sends push via FCM (HTTP v1).",
+  "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@effy/edge-shared": "workspace:*",
+    "firebase-admin": "13.6.0",
+    "pg": "8.22.0",
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "8.10.162",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "esbuild": "0.28.1",
+    "serverless": "3.40.0",
+    "serverless-esbuild": "1.57.2",
+    "serverless-offline": "13.10.1",
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
+  }
+}

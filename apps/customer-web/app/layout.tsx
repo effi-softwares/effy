@@ -3,6 +3,10 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { cn } from "@/lib/utils"
 import { siteUrl } from "@/lib/config"
+// 050 — the telemetry client island (consent + analytics + error tracking). It imports NO auth SDK and
+// NO analytics SDK at module scope (both are dynamically imported), so it is safe here per the two
+// rules above: it never drags aws-amplify into the shared chunk and needs no request API.
+import { TelemetryBootClient } from "@/app/_components/TelemetryBootClient"
 
 /*  ⚠⚠  TWO RULES GOVERN THIS FILE. BREAKING EITHER IS SILENT AND EXPENSIVE.  ⚠⚠
 
@@ -63,7 +67,10 @@ export default function RootLayout({
     // globals.css so form controls, scrollbars and the address bar stay light even on an OS set to
     // dark — otherwise the browser would render native chrome dark over a light page.
     <html lang="en" className={cn("antialiased", "font-sans")}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <TelemetryBootClient />
+      </body>
     </html>
   )
 }

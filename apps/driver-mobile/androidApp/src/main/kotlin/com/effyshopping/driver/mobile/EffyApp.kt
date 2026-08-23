@@ -5,6 +5,10 @@ import android.util.Log
 import com.effyshopping.driver.mobile.app.AppContainer
 import com.effyshopping.driver.mobile.core.auth.AmplifyAuthDriver
 import com.effyshopping.driver.mobile.core.auth.AmplifyBootstrap
+import com.effyshopping.driver.mobile.core.config.AppConfig
+import com.effyshopping.driver.mobile.core.observability.AndroidCrashReporter
+import com.effyshopping.driver.mobile.core.observability.PostHogAnalyticsDriver
+import com.effyshopping.driver.mobile.core.push.FirebasePushTokenProvider
 
 /**
  * The Android application (049). Configures Amplify ONCE from the in-code config string (no
@@ -13,7 +17,20 @@ import com.effyshopping.driver.mobile.core.auth.AmplifyBootstrap
  */
 class EffyApp : Application() {
 
-    val container: AppContainer by lazy { AppContainer(authDriver = AmplifyAuthDriver()) }
+    val container: AppContainer by lazy {
+        AppContainer(
+            authDriver = AmplifyAuthDriver(),
+            // 050 — Android observability/push drivers. Fail-open: empty PostHog key ⇒ analytics no-op;
+            // Firebase auto-inits from google-services resources.
+            crashReporter = AndroidCrashReporter(),
+            analyticsDriver = PostHogAnalyticsDriver(
+                context = applicationContext,
+                apiKey = AppConfig.posthogKey,
+                host = AppConfig.posthogHost,
+            ),
+            pushTokenProvider = FirebasePushTokenProvider(applicationContext),
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -24,5 +41,7 @@ class EffyApp : Application() {
             // currentSession() returns null, so the app lands on SignedOut. Never log tokens.
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }
+        // 050 — crash reporting on (independent of analytics consent, Q1); analytics OFF until consent.
+        container.startObservability(analyticsConsented = false)
     }
 }

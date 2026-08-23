@@ -37,3 +37,26 @@ export async function getDbPassword(): Promise<string> {
 export function invalidateDbPassword(): void {
   memo = undefined;
 }
+
+// Generic secret-string fetch via the same extension (050 — the notifications worker's FCM
+// service-account JSON). Returns the raw SecretString; the caller parses it. Memoized per ARN.
+const secretMemo = new Map<string, string>();
+
+export async function getSecretString(arn: string): Promise<string> {
+  const cached = secretMemo.get(arn);
+  if (cached !== undefined) return cached;
+
+  const token = process.env.AWS_SESSION_TOKEN;
+  if (!token) throw new Error("secrets: AWS_SESSION_TOKEN missing (extension auth header)");
+
+  const res = await fetch(`${EXTENSION_URL}?secretId=${encodeURIComponent(arn)}`, {
+    headers: { "X-Aws-Parameters-Secrets-Token": token },
+  });
+  if (!res.ok) throw new Error(`secrets: extension returned ${res.status}`);
+
+  const payload = (await res.json()) as { SecretString?: string };
+  if (!payload.SecretString) throw new Error("secrets: empty SecretString");
+
+  secretMemo.set(arn, payload.SecretString);
+  return payload.SecretString;
+}

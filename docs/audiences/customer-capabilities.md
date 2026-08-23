@@ -1077,3 +1077,18 @@ before the collection cutoff. One serviceability rule (postcode ∈ active zone)
 
 ⚠ **Open**: only the operator deploy of the delivery services + the live SC walk (T057). Backend, back-office console, customer-web AND customer-mobile (Android 272 tests + iOS compile) are code-complete and machine-verified; the Go↔Kotlin wire contract is green on both sides.
 Spec/artifacts: [specs/047-delivery-shipping-engine/](../../specs/047-delivery-shipping-engine/).
+
+## §050 — Observability & Push Notification Foundation
+
+Adds the platform's crash reporting (Crashlytics), product analytics (PostHog), and push (FCM) to the
+customer app. Status:
+- **Contract + wiring**: the `core/observability` (CrashReporter, AnalyticsDriver, typed AnalyticsEvent
+  taxonomy) and `core/push` (PushTokenProvider, DeviceRepository) boundaries exist in `commonMain`
+  with fail-open NoOp defaults; a `commonTest` drift check pins the taxonomy to `docs/telemetry`.
+- **Backend**: device registration (`POST/DELETE /customer/v1/devices`) and the cold-path notifications
+  worker (drains `notification_request` → FCM, idempotent, prunes dead tokens) are built and verified.
+- **⚠ Native SDK wiring is Firebase-account-gated**: the Android Firebase/PostHog actuals, the iOS
+  Swift bridges, and the Gradle plugins land once the operator creates the Firebase project and drops
+  in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
+  NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
+- **No PII** beyond the auth subject id; analytics consent-gated (customer); push OS-permission only.

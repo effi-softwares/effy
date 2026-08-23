@@ -30,6 +30,14 @@ object AppConfig {
      * rather than depending on the backend echo (which config.go marks a mere convenience).
      */
     val stripePublishableKey: String get() = BuildKonfig.STRIPE_PUBLISHABLE_KEY
+
+    // ── 050 telemetry/push (OPTIONAL — empty ⇒ the capability is a no-op, FR-027) ────────────────────
+    /** PostHog PROJECT key (phc_…). Non-secret/client-embeddable. Empty ⇒ analytics off. */
+    val posthogKey: String get() = BuildKonfig.POSTHOG_KEY
+    /** PostHog ingest host (us|eu). */
+    val posthogHost: String get() = BuildKonfig.POSTHOG_HOST
+    /** Analytics kill switch (FR-026). Anything but the literal "false" (incl. empty) ⇒ enabled. */
+    val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
 }
 
 /**

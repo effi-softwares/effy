@@ -389,6 +389,29 @@ functions:
 
 # Per-function CloudWatch alarms (Errors>0, Throttles>0, Duration p95). The API-level 5xx
 # alarm lives in Terraform (A3 — the API's owner), not here.
+
+  shopDevicesV1Post:
+    handler: src/functions/shop-devices-v1-post.handler
+    description: Register/refresh this device's FCM push token for the signed-in shop operator (050)
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/devices
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopDevicesV1IdDelete:
+    handler: src/functions/shop-devices-v1-id-delete.handler
+    description: Unregister a device token (sign-out / shared-device safety); only the caller's own (050 FR-020)
+    events:
+      - httpApi:
+          method: DELETE
+          path: /shop/v1/devices/{token}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
 resources:
   Resources:
     # healthz does no work, so it can essentially only fail on a broken bundle or a runtime init

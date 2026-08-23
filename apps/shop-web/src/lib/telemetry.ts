@@ -45,6 +45,7 @@ const telemetry = createTelemetry<ShopAnalyticsEvent>({
   key: config.posthogKey(),
   host: config.posthogHost(),
   surface: "shop-web",
+  enabled: config.telemetryEnabled(),
 });
 
 export const initTelemetry = telemetry.init;

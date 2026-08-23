@@ -1,0 +1,96 @@
+# edge-notifications — Effy cold-path NOTIFICATIONS worker (050-observability-push-foundation).
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md) only for healthz; the
+# real work is a SCHEDULED worker (EventBridge rate) that drains public.notification_request and sends
+# push via FCM HTTP v1 (firebase-admin). Scheduled, not event-driven — the SNS/SQS event backbone does
+# not exist yet (research R6; the 049 assignmentSweep sets the precedent). Idempotent: dedupe_key +
+# status make a re-run a no-op. Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-notifications
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+    # How often the worker drains the outbox. rate(1 minute) is EventBridge's floor; SC-003's <=90s p95
+    # reflects it. Tightens (or becomes event-driven) when the SNS/SQS backbone lands.
+    drainSchedule: rate(1 minute)
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 512
+  timeout: 60
+  logRetentionInDays: 30
+  tags:
+    project: effy
+    slice: 050-observability-push-foundation
+    service: notifications
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # 050 — FCM sender config. The service-account JSON is fetched at runtime from Secrets Manager via
+    # the extension (never in the template/env); only its ARN is here. Empty/absent → the worker
+    # no-ops (fail-open, FR-027) and leaves rows pending until the operator seeds the secret.
+    FCM_SERVICE_ACCOUNT_ARN: ${ssm:/effy/${sls:stage}/notifications/fcm_service_account_arn}
+    FCM_PROJECT_ID: ${ssm:/effy/${sls:stage}/notifications/fcm_project_id}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource:
+            - ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+            - ${ssm:/effy/${sls:stage}/notifications/fcm_service_account_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — same dev posture as the other edge services (no NAT; the dev DB is reachable on
+  # its public endpoint, and the worker must reach public AWS + FCM). DEV ONLY — infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the notifications service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /notifications/healthz
+
+  # The outbox drain worker (research R6). Scheduled, idempotent; off every user path.
+  drain:
+    handler: src/worker/handler.handler
+    description: Drain public.notification_request → resolve device tokens → send via FCM → mark sent/skipped/failed; prune dead tokens (050).
+    timeout: 60
+    events:
+      - schedule: ${param:drainSchedule}

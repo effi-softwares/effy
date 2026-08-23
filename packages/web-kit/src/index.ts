@@ -13,6 +13,7 @@ export { getAccessToken, getEmail, getGroups, getSubject } from "./runtime/auth-
 export { createQueryClient } from "./runtime/query-client";
 export {
   createTelemetry,
+  wireGlobalErrorReporting,
   type Telemetry,
   type TelemetryConfig,
   type TelemetryEvent,

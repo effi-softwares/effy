@@ -43,3 +43,18 @@ retires the 020 dev-only `collected`/`delivered` stubs.
 
 **Provisioning** (back-office, `apis/edge-api/admin/src/drivers`): create/list/update/disable a driver —
 Cognito-first → `public.driver` record; RBAC read=any active staff, mutate=admin/manager.
+
+## §050 — Observability & Push Notification Foundation
+
+Adds the platform's crash reporting (Crashlytics), product analytics (PostHog), and push (FCM) to the
+driver app. Status:
+- **Contract + wiring**: the `core/observability` (CrashReporter, AnalyticsDriver, typed AnalyticsEvent
+  taxonomy) and `core/push` (PushTokenProvider, DeviceRepository) boundaries exist in `commonMain`
+  with fail-open NoOp defaults; a `commonTest` drift check pins the taxonomy to `docs/telemetry`.
+- **Backend**: device registration (`POST/DELETE /driver/v1/devices`) and the cold-path notifications
+  worker (drains `notification_request` → FCM, idempotent, prunes dead tokens) are built and verified.
+- **⚠ Native SDK wiring is Firebase-account-gated**: the Android Firebase/PostHog actuals, the iOS
+  Swift bridges, and the Gradle plugins land once the operator creates the Firebase project and drops
+  in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
+  NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
+- **No PII** beyond the auth subject id; analytics consent-gated (driver); push OS-permission only.

@@ -71,3 +71,9 @@ override.tf.json
 *_override.tf.json
 *.tfplan
 .turbo
+
+# --- Firebase client config (050-observability-push-foundation) ---
+# Per-app, per-env build inputs supplied by the operator — NOT committed (FR-031).
+# A missing file makes the mobile build fail loudly rather than ship a wrong default.
+**/androidApp/google-services.json
+**/iosApp/GoogleService-Info.plist

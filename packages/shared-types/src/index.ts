@@ -27,3 +27,5 @@ export * from "./delivery";
 export * from "./delivery-admin";
 // 049-driver-mobile-app
 export * from "./driver";
+// 050-observability-push-foundation
+export * from "./device";

@@ -161,3 +161,14 @@ core_api_cors_origins = [
   "https://effyshopping.com",
   "https://www.effyshopping.com",
 ]
+
+# --- Telemetry & push (050-observability-push-foundation) ---
+# PostHog PROJECT key — client-embeddable/public-safe (ships in every client build, like the Cognito
+# client id + Stripe pk). Terraform writes it to SSM (/effy/dev/telemetry/*) AND injects it into the
+# three Amplify web builds, so this ONE place is the source of truth. Mobile reads it from each app's
+# git-ignored secrets.properties (a device build cannot read SSM). Region MUST match the host.
+posthog_project_key = "phc_spcqvxVGBz2zp3hNaS4ENXXrddGJovCJqgn4i4yGFUeb"
+posthog_host        = "https://us.i.posthog.com"
+telemetry_enabled   = true
+# fcm_project_id — set to your Firebase project ID when wiring backend push (see quickstart §A1).
+# fcm_project_id    = "effy-dev-xxxxx"

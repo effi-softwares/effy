@@ -88,7 +88,19 @@ export function posthogConfig() {
   return {
     key: process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "",
     host: process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com",
+    // 050 FR-028 — first-party ingest path (next.config.ts rewrites it to the PostHog host), so
+    // tracking blockers can't drop it and no third-party host appears in the network tab. The real
+    // host stays as `ui_host` for the SDK's toolbar links.
+    ingestPath: "/rc",
   }
+}
+
+/**
+ * 050 FR-026 — platform-wide analytics kill switch. Anything but the string "false" (incl. unset) is
+ * enabled. Gates analytics AND error-tracking init before any SDK loads, without an app release.
+ */
+export function telemetryEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_TELEMETRY_ENABLED !== "false"
 }
 
 /**

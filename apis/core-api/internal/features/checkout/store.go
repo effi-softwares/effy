@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/features/notifications"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/events"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
@@ -378,6 +379,21 @@ WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = 
 		return false, fmt.Errorf("checkout: copy package delivery: %w", err)
 	}
 
+	// 2c. Push intents — one shop_new_order per active staff member of each fulfilling shop (050).
+	// The fan-out that creates shop_fulfillment lives here, so the "new order to pick" intent does too.
+	// One row per (staff sub, fulfilment); dedupe_key makes it exactly-once. No PII (routing ids only).
+	if _, err := tx.Exec(ctx, `
+INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
+SELECT ss.cognito_sub, 'shop', 'shop_new_order',
+       jsonb_build_object('entityId', sf.id::text, 'deepLink', 'effy://queue/' || sf.id::text),
+       'shop_new_order:' || ss.cognito_sub || ':' || sf.id::text
+FROM public.shop_fulfillment sf
+JOIN public.shop_staff ss ON ss.shop_id = sf.shop_id AND ss.status = 'active'
+WHERE sf.order_id = $1
+ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
+		return false, fmt.Errorf("checkout: shop_new_order intents: %w", err)
+	}
+
 	// 3. Outbox — one order.placed with the per-shop breakdown (dedup_key makes it exactly-once).
 	portions, err := shopBreakdownTx(ctx, tx, orderID)
 	if err != nil {
@@ -396,6 +412,25 @@ WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = 
 			"orderId": orderID, "orderNumber": number, "currency": currency,
 			"grandTotal": money.FormatCents(grand), "shops": portions,
 		},
+	}); err != nil {
+		return false, err
+	}
+
+	// 3b. Push notification intent — the customer's order is paid (050). Same tx as the fact, so it is
+	// enqueued exactly once (the dedupe_key is a second guarantee). Recipient is the order's customer
+	// sub. No PII in the payload — the deep link + order id only (FR-021).
+	var customerSub string
+	if err := tx.QueryRow(ctx,
+		`SELECT c.cognito_sub FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
+		orderID).Scan(&customerSub); err != nil {
+		return false, fmt.Errorf("checkout: resolve customer sub: %w", err)
+	}
+	if err := notifications.Append(ctx, tx, notifications.Request{
+		RecipientSub: customerSub,
+		Audience:     "customer",
+		Type:         "order_paid",
+		EntityID:     orderID,
+		DeepLink:     "effy://order/" + orderID,
 	}); err != nil {
 		return false, err
 	}

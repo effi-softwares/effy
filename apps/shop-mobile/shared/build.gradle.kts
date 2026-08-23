@@ -68,6 +68,11 @@ kotlin {
             // Amplify ANDROID (Kotlin/JVM) + the Kotlin coroutines facade. iOS uses Amplify SWIFT (D5).
             implementation(libs.amplify.auth.cognito)
             implementation(libs.amplify.core.kotlin)
+            // 050 — Firebase (FCM + Crashlytics) + PostHog: the Android actuals for the observability/push drivers.
+            implementation(project.dependencies.platform(libs.firebase.bom))
+            implementation(libs.firebase.messaging)
+            implementation(libs.firebase.crashlytics)
+            implementation(libs.posthog.android)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)

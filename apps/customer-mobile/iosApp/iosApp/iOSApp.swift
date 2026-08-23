@@ -1,5 +1,6 @@
 import SwiftUI
 import Shared
+import FirebaseCore
 import Amplify
 import AWSCognitoAuthPlugin
 
@@ -11,15 +12,26 @@ struct iOSApp: App {
     /// Compose a fresh driver mid-session.
     private let authBridge = SwiftAuthBridge()
     private let paymentBridge = SwiftPaymentBridge()
+    // 050 — one observability bridge each for the app's lifetime; the Kotlin side wraps them.
+    private let crashBridge = SwiftCrashBridge()
+    private let analyticsBridge = SwiftAnalyticsBridge()
 
     init() {
+        // 050 — connect Firebase (Crashlytics + FCM). Safe to call once; must run before any Firebase
+        // use. Requires the firebase-ios-sdk SPM package (see setup notes) or this will not compile.
+        FirebaseApp.configure()
         configureAmplify()
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(authBridge: authBridge, paymentBridge: paymentBridge)
-                .ignoresSafeArea()
+            ContentView(
+                authBridge: authBridge,
+                paymentBridge: paymentBridge,
+                crashBridge: crashBridge,
+                analyticsBridge: analyticsBridge
+            )
+            .ignoresSafeArea()
         }
     }
 

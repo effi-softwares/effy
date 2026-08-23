@@ -4,6 +4,16 @@ import com.effyshopping.customer.mobile.core.auth.AuthDriver
 import com.effyshopping.customer.mobile.core.config.AppConfig
 import com.effyshopping.customer.mobile.core.http.BearerToken
 import com.effyshopping.customer.mobile.core.http.createHttpClient
+import com.effyshopping.customer.mobile.core.observability.AnalyticsDriver
+import com.effyshopping.customer.mobile.core.observability.CrashReporter
+import com.effyshopping.customer.mobile.core.observability.NoOpAnalyticsDriver
+import com.effyshopping.customer.mobile.core.observability.NoOpCrashReporter
+import com.effyshopping.customer.mobile.core.platform.platformTag
+import com.effyshopping.customer.mobile.core.push.DeviceRepository
+import com.effyshopping.customer.mobile.core.push.HttpDeviceRepository
+import com.effyshopping.customer.mobile.core.push.NoOpPushTokenProvider
+import com.effyshopping.customer.mobile.core.push.PushTokenProvider
+import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
 import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.features.cart.data.HttpCartRepository
@@ -107,6 +117,12 @@ class AppContainer(
     // The payment capability (019 US3) — injected per platform, like [authDriver]: Android provides the
     // Stripe PaymentSheet driver, iOS a Swift bridge over StripePaymentSheet.
     val paymentDriver: PaymentDriver,
+    // Observability + push (050) — injected per platform like the drivers above. Android provides the
+    // Firebase/PostHog implementations; iOS defaults to no-ops until its Swift bridges land. NoOp
+    // defaults keep every capability fail-open when unconfigured (FR-005/FR-027).
+    val crashReporter: CrashReporter = NoOpCrashReporter,
+    val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
+    val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
 ) {
@@ -293,6 +309,14 @@ class AppContainer(
             onAuthenticated = {
                 mergeCartOnSignIn()
                 runCatching { mergeSavedOnSignIn() }
+                // 050 — associate telemetry with the subject and register this device for push. The
+                // record id is a stable, opaque, non-PII identifier (Principle VII). Best-effort:
+                // failures must never break sign-in (FR-024/FR-027).
+                (session.state as? SessionState.Authenticated)?.customer?.id?.let { id ->
+                    runCatching { analyticsDriver.identify(id) }
+                    runCatching { crashReporter.setSubject(id) }
+                }
+                runCatching { registerDeviceToken() }
             },
             // ⚠ SIGN-OUT CLEARS EVERYTHING THIS DEVICE HOLDS FOR THE SHOPPER (FR-031, 034).
             //
@@ -308,8 +332,55 @@ class AppContainer(
                 cart.reset()
                 savedStore.reset()
                 preferences.clearGuestData()
+                // 050 — clear telemetry identity and this device's push token so a shared device does
+                // not deliver the previous user's notifications (FR-020). Best-effort.
+                runCatching { analyticsDriver.reset() }
+                runCatching { crashReporter.setSubject(null) }
+                appScope.launch { runCatching { unregisterDeviceToken() } }
             },
         )
+    }
+
+    // ── observability & push (050) ──────────────────────────────────────────────────────────────
+    private val devices: DeviceRepository by lazy { HttpDeviceRepository(edgeClient) }
+
+    /**
+     * Start crash reporting (always on — independent of analytics consent, clarification Q1) and, when
+     * [analyticsConsented], product analytics. Called by each platform entry point after first frame.
+     * All init runs off the main thread (performance, R11).
+     */
+    fun startObservability(analyticsConsented: Boolean) {
+        appScope.launch { runCatching { crashReporter.init() } }
+        if (analyticsConsented && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        // Re-register the device whenever FCM rotates its token, but only for a signed-in session
+        // (the endpoint is authenticated; a guest post would 401). Best-effort (FR-024/FR-027).
+        pushTokenProvider.onTokenRefresh { token ->
+            if (session.state is SessionState.Authenticated) {
+                appScope.launch { runCatching { devices.register(token, platformTag()) } }
+            }
+        }
+    }
+
+    /**
+     * Grant/withdraw analytics consent at runtime (customer opt-in, FR-023). Granting initialises the
+     * SDK; withdrawing opts out. Crash reporting is unaffected.
+     */
+    fun setAnalyticsConsent(granted: Boolean) {
+        if (granted && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        else runCatching { analyticsDriver.optOut() }
+    }
+
+    /** Register this device's push token (if one/permission exists). Best-effort. */
+    private suspend fun registerDeviceToken() {
+        val token = pushTokenProvider.currentToken() ?: return
+        devices.register(token, platformTag())
+    }
+
+    /** Remove this device's token on sign-out. Best-effort. */
+    private suspend fun unregisterDeviceToken() {
+        val token = pushTokenProvider.currentToken() ?: return
+        runCatching { devices.unregister(token) }
+        pushTokenProvider.deleteToken()
     }
 
     val navigator: CustomerNavigator = CustomerNavigator()

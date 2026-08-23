@@ -9,8 +9,9 @@
 #   /effy/dev/amplify/github_access_token   (SecureString)  — the Amplify→GitHub connection token.
 #         Create via the Amplify GitHub App (preferred) or a fine-grained PAT; see quickstart §0.
 #   /effy/dev/stripe/publishable_key        (String)        — the PUBLIC, browser-safe Stripe test key.
-# PostHog is intentionally NOT wired here — customer-web has never initialised it (039); a blank key
-# is honest, not a gap this slice must close.
+# 050 — PostHog IS wired now (env vars below, from var.posthog_project_key / var.posthog_host in
+# dev.tfvars). The project key is client-embeddable/public-safe; an empty value leaves analytics a
+# no-op. This closes the long-standing "customer-web never initialised PostHog" carry-forward (039).
 
 # ── Operator-supplied inputs (read, never written by this slice) ───────────────────────────────
 data "aws_ssm_parameter" "amplify_github_token" {
@@ -57,6 +58,12 @@ locals {
     # authorizer refuses an unauthenticated caller with a flat 401), but read ONLY from server code:
     # the account routes relay the customer's tokens. See apps/customer-web/lib/config.ts.
     NEXT_PUBLIC_EDGE_API_BASE_URL = local.edge_api_url
+    # 050 — PostHog (analytics + web error tracking). The PROJECT key is client-embeddable/public-safe
+    # (like the Cognito client id above); inlined at build. Same source as the SSM record (var.*), so
+    # setting it once in dev.tfvars fans out to SSM AND this build. Empty ⇒ analytics no-ops.
+    NEXT_PUBLIC_POSTHOG_KEY       = var.posthog_project_key
+    NEXT_PUBLIC_POSTHOG_HOST      = var.posthog_host
+    NEXT_PUBLIC_TELEMETRY_ENABLED = var.telemetry_enabled ? "true" : "false"
   }
 }
 

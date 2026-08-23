@@ -3,9 +3,21 @@ package com.effyshopping.driver.mobile.app
 import com.effyshopping.driver.mobile.core.auth.AuthDriver
 import com.effyshopping.driver.mobile.core.config.AppConfig
 import com.effyshopping.driver.mobile.core.http.createHttpClient
+import com.effyshopping.driver.mobile.core.observability.AnalyticsDriver
+import com.effyshopping.driver.mobile.core.observability.CrashReporter
+import com.effyshopping.driver.mobile.core.observability.NoOpAnalyticsDriver
+import com.effyshopping.driver.mobile.core.observability.NoOpCrashReporter
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
 import com.effyshopping.driver.mobile.core.offline.SyncCoordinator
+import com.effyshopping.driver.mobile.core.platform.platformTag
+import com.effyshopping.driver.mobile.core.push.DeviceRepository
+import com.effyshopping.driver.mobile.core.push.HttpDeviceRepository
+import com.effyshopping.driver.mobile.core.push.NoOpPushTokenProvider
+import com.effyshopping.driver.mobile.core.push.PushTokenProvider
 import com.effyshopping.driver.mobile.core.session.SessionManager
+import com.effyshopping.driver.mobile.core.session.SessionState
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import com.effyshopping.driver.mobile.core.theme.AppearancePreferenceStore
 import com.effyshopping.driver.mobile.features.auth.domain.ConfirmSignIn
 import com.effyshopping.driver.mobile.features.auth.domain.RequestSignInCode
@@ -56,6 +68,10 @@ import kotlin.uuid.Uuid
  */
 class AppContainer(
     val authDriver: AuthDriver,
+    // 050 — observability + push, injected per platform (Android real, iOS NoOp until Swift bridges).
+    val crashReporter: CrashReporter = NoOpCrashReporter,
+    val analyticsDriver: AnalyticsDriver = NoOpAnalyticsDriver,
+    val pushTokenProvider: PushTokenProvider = NoOpPushTokenProvider,
     private val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     debugLogging: Boolean = false,
 ) {
@@ -118,4 +134,59 @@ class AppContainer(
     private val prefs by lazy { Settings() }
     fun hasPrimedPermissions(): Boolean = prefs.getBoolean("driver.permissions.primed", false)
     fun markPermissionsPrimed() = prefs.putBoolean("driver.permissions.primed", true)
+
+    // ── observability & push (050) ──────────────────────────────────────────────────────────────
+    private val devices: DeviceRepository by lazy { HttpDeviceRepository(driverClient) }
+
+    /**
+     * Start crash reporting (always on — independent of analytics consent, Q1) and, when
+     * [analyticsConsented], product analytics. Observes the session: on sign-in it identifies the
+     * driver (by record id — non-PII) + registers this device; on sign-out it resets + unregisters
+     * (shared-device safety, FR-020). Called by the Android entry point; off the main thread; best-effort.
+     */
+    fun startObservability(analyticsConsented: Boolean) {
+        appScope.launch { runCatching { crashReporter.init() } }
+        if (analyticsConsented && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        pushTokenProvider.onTokenRefresh { token ->
+            if (session.state.value is SessionState.SignedIn) {
+                appScope.launch { runCatching { devices.register(token, platformTag()) } }
+            }
+        }
+        appScope.launch {
+            var lastSubject: String? = null
+            session.state.collectLatest { state ->
+                when (state) {
+                    is SessionState.SignedIn -> {
+                        val sub = state.driver.id
+                        if (sub != lastSubject) {
+                            lastSubject = sub
+                            runCatching { analyticsDriver.identify(sub) }
+                            runCatching { crashReporter.setSubject(sub) }
+                            pushTokenProvider.currentToken()?.let { token ->
+                                runCatching { devices.register(token, platformTag()) }
+                            }
+                        }
+                    }
+                    SessionState.SignedOut, SessionState.Refused -> {
+                        if (lastSubject != null) {
+                            lastSubject = null
+                            runCatching { analyticsDriver.reset() }
+                            runCatching { crashReporter.setSubject(null) }
+                            pushTokenProvider.currentToken()?.let { token ->
+                                runCatching { devices.unregister(token) }
+                            }
+                            runCatching { pushTokenProvider.deleteToken() }
+                        }
+                    }
+                    SessionState.Restoring -> Unit
+                }
+            }
+        }
+    }
+
+    /** Grant/withdraw analytics consent at runtime; crash reporting is unaffected (FR-023). */
+    fun setAnalyticsConsent(granted: Boolean) {
+        if (granted && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        else runCatching { analyticsDriver.optOut() }
+    }
 }

@@ -155,6 +155,23 @@ export async function advanceStatus(
       `INSERT INTO public.driver_task_event (delivery_task_id, status, change_id) VALUES ($1, $2, $3)`,
       [dropId, to, changeId],
     );
+
+    // 050 — push intent: the customer's order is out for delivery. Same tx as the transition; deduped
+    // on the drop id, so re-entry is a no-op. No PII (order id + deep link only, FR-021).
+    if (to === "out_for_delivery") {
+      await tx.query(
+        `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
+         SELECT c.cognito_sub, 'customer', 'order_out_for_delivery',
+                jsonb_build_object('entityId', o.id::text, 'deepLink', 'effy://order/' || o.id::text),
+                'order_out_for_delivery:' || c.cognito_sub || ':' || dt.id::text
+           FROM public.delivery_task dt
+           JOIN public."order" o ON o.id = dt.order_id
+           JOIN public.customer c ON c.id = o.customer_id
+          WHERE dt.id = $1
+         ON CONFLICT (dedupe_key) DO NOTHING`,
+        [dropId],
+      );
+    }
     return to;
   });
 }
@@ -206,6 +223,20 @@ export async function completeWithProof(
       `UPDATE public.shop_fulfillment SET status = 'delivered', updated_at = now()
         WHERE id IN (SELECT shop_fulfillment_id FROM public.delivery_task_package WHERE delivery_task_id = $1)
           AND status = 'collected'`,
+      [dropId],
+    );
+    // 050 — push intent: the customer's order is delivered. Same tx as the delivered transition;
+    // deduped on the drop id. No PII (order id + deep link only, FR-021).
+    await tx.query(
+      `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
+       SELECT c.cognito_sub, 'customer', 'order_delivered',
+              jsonb_build_object('entityId', o.id::text, 'deepLink', 'effy://order/' || o.id::text),
+              'order_delivered:' || c.cognito_sub || ':' || dt.id::text
+         FROM public.delivery_task dt
+         JOIN public."order" o ON o.id = dt.order_id
+         JOIN public.customer c ON c.id = o.customer_id
+        WHERE dt.id = $1
+       ON CONFLICT (dedupe_key) DO NOTHING`,
       [dropId],
     );
     await tx.query(

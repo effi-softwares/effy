@@ -10,6 +10,8 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.buildkonfig) apply false
+    alias(libs.plugins.googleServices) apply false
+    alias(libs.plugins.firebaseCrashlytics) apply false
 }
 
 // ── Build-time configuration contract (013 FR-039..FR-042, research D14) ───────────────────────────
@@ -60,4 +62,9 @@ if (missingKeys.isNotEmpty()) {
 }
 
 // Exposed to the :shared module's BuildKonfig block (shared/build.gradle.kts, still to be wired).
-extra["effyConfig"] = requiredKeys.associateWith { configValue(it)!! }
+val optionalKeys = listOf("POSTHOG_KEY", "POSTHOG_HOST", "TELEMETRY_ENABLED")
+
+// 050 — OPTIONAL telemetry config; missing values bake in "" so telemetry stays a no-op (FR-027).
+extra["effyConfig"] =
+    requiredKeys.associateWith { configValue(it)!! } +
+        optionalKeys.associateWith { configValue(it) ?: "" }
