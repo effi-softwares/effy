@@ -1,5 +1,7 @@
 package com.effyshopping.shop.mobile
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color
 import android.os.Bundle
@@ -7,12 +9,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.effyshopping.shop.mobile.app.App
 import com.effyshopping.shop.mobile.core.platform.AndroidPlatformUiController
 
 class MainActivity : ComponentActivity() {
     private lateinit var platformUiController: AndroidPlatformUiController
+
+    // 050 T046 — Android 13+ notification permission (registered before STARTED). Result ignored:
+    // denial just means no push shown (FR-019); the FCM token still registers.
+    private val requestNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 024 FR-010/FR-011 — MUST be called before super.onCreate() and before setContent.
@@ -39,6 +48,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val container = (application as EffyApp).container
         platformUiController = AndroidPlatformUiController(this, window)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         setContent {
             App(container, platformUiController)
         }

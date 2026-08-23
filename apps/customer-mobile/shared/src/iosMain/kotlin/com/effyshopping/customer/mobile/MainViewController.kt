@@ -40,6 +40,6 @@ fun MainViewController(
                 // pushTokenProvider defaults to NoOp on iOS (APNs is Apple-account-gated).
             )
         }
-        container.startObservability(analyticsConsented = false)
+        container.startObservability()
         App(container)
     }

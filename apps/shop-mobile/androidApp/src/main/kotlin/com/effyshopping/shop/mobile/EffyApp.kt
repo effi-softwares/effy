@@ -41,8 +41,8 @@ class EffyApp : Application() {
             // currentSession() returns null, so the app lands on SignedOut. Never log tokens (FR-036).
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }
-        // 050 — crash reporting on (independent of analytics consent, Q1); analytics OFF until consent
-        // (the internal consent posture + toggle is the follow-up). Off the main thread.
-        container.startObservability(analyticsConsented = false)
+        // 050 — crash reporting on (independent of analytics consent, Q1); analytics ON by default for this
+        // INTERNAL audience (employees, disclosed — clarification Q4; no opt-out UI this slice). Off-thread.
+        container.startObservability(analyticsConsented = true)
     }
 }

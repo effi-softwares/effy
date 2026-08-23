@@ -47,10 +47,9 @@ class EffyApp : Application() {
             // driver's currentSession() returns null, landing on Guest. Never log tokens (FR-038).
             Log.e("EffyApp", "Amplify configuration failed: ${e.message}")
         }
-        // 050 — start crash reporting (always on, independent of analytics consent — clarification Q1).
-        // Analytics stays OFF until the customer consents via the consent UI (setAnalyticsConsent) —
-        // that UI is the follow-up (T031); starting it false here means no analytics is collected
-        // without opt-in, which is the safe default (Principle VII). All init runs off the main thread.
-        container.startObservability(analyticsConsented = false)
+        // 050 — crash reporting always on (independent of analytics consent, Q1); analytics inits only
+        // if the customer has GRANTED consent (startObservability reads the ConsentStore). The consent
+        // banner + Account toggle drive the choice. Off the main thread (R11).
+        container.startObservability()
     }
 }

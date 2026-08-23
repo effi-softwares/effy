@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.graphics.Color
 import android.os.Bundle
@@ -7,6 +9,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.effyshopping.customer.mobile.app.App
 import com.effyshopping.customer.mobile.core.payment.AndroidPaymentDriver
@@ -24,6 +28,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var paymentSheet: PaymentSheet
     private lateinit var paymentDriver: AndroidPaymentDriver
     private lateinit var paymentPresenter: PaymentPresenter
+
+    // 050 T046 — the Android 13+ runtime notification permission. Registered before STARTED (field
+    // initializer). The result is intentionally ignored: a denial just means no push is shown (FR-019),
+    // and the FCM token still registers (token generation does not need this permission).
+    private val requestNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* granted or not — no-op */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // 024 FR-010/FR-011 — MUST be called before super.onCreate() and before setContent.
@@ -63,6 +73,15 @@ class MainActivity : ComponentActivity() {
             )
         }
         paymentDriver.attach(paymentPresenter)
+
+        // 050 T046 — ask for notification permission on Android 13+ (older versions grant it at
+        // install). Pre-33 devices need no prompt; the check keeps it silent there.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         setContent {
             App(container)

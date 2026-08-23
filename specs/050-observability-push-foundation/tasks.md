@@ -79,7 +79,7 @@ description: "Task list for 050-observability-push-foundation"
 - [X] T022 [P] [US2] Same `AnalyticsDriver` (common + android + ios) in `apps/driver-mobile/.../core/observability/`
 - [X] T023 [P] [US2] `sealed class AnalyticsEvent` mirroring the documented taxonomy in each app's `core/observability/AnalyticsEvent.kt` (customer: commerce funnel; shop: fulfilment; driver: workflow — [contracts/telemetry-taxonomy](contracts/telemetry-taxonomy.contract.md))
 - [X] T024 [P] [US2] Taxonomy **drift-check** host test per app: emitted event names ⊆ documented set (research R8; fails and names the offender)
-- [ ] T025 [US2] Wire `AnalyticsDriver` into each `AppContainer`; `identify(sub)` on sign-in / `reset()` on sign-out; emit `screen_viewed` on each screen + the app's key funnel events (depends on T020–T023)
+- [X] T025 [US2] Wire `AnalyticsDriver` into each `AppContainer`; `identify(sub)` on sign-in / `reset()` on sign-out; emit `screen_viewed` on each screen + the app's key funnel events (depends on T020–T023)
 - [X] T026 [US2] customer-web: wire the consent affordance to call the existing `initAnalytics()` (never called today) + add pageview/screen + `notification_opened`; keep the **dynamic import** (protects the 174 KB gate, research R9). **Assert client-side navigation produces exactly one view event per route change — no missed/duplicated views (FR-011)**, mirrored in the mobile `screen_viewed` host test (T024/T025)
 - [X] T027 [P] [US2] Consoles: emit their existing fulfilment/admin taxonomy through `telemetry.track` now that `init()` is called (T017); analytics **on by default** (internal, clarification Q4)
 - [X] T028 [US2] Reverse proxy: add a first-party PostHog ingest rewrite under a non-obvious path in `apps/customer-web/next.config.ts` (FR-028, research R9); decide/console proxy in the same task
@@ -95,8 +95,8 @@ description: "Task list for 050-observability-push-foundation"
 
 **Independent Test**: PII audit finds zero leaks; cold-start delta ≤50 ms and bundle gate unchanged; decline-consent stops customer analytics; kill switch stops analytics live (SC-004/005/006).
 
-- [ ] T030 [US4] Mobile consent state: a device-pref `ConsentStore` (customer app) gating `AnalyticsDriver.init`; crash reporting stays independent (clarification Q1); internal apps on-by-default, no opt-out UI (Q4)
-- [ ] T031 [US4] customer-web + customer-mobile consent affordance (accept/decline) that on decline never loads the analytics SDK, and a customer opt-out control (FR-023)
+- [X] T030 [US4] Mobile consent state: a device-pref `ConsentStore` (customer app) gating `AnalyticsDriver.init`; crash reporting stays independent (clarification Q1); internal apps on-by-default, no opt-out UI (Q4)
+- [X] T031 [US4] customer-web + customer-mobile consent affordance (accept/decline) that on decline never loads the analytics SDK, and a customer opt-out control (FR-023)
 - [X] T032 [P] [US4] No-PII source sweep: a `scripts/` check (+ CI wire) asserting no analytics/crash/notification payload references email/name/phone/address/postcode/total/query/token fields (FR-022, SC-004)
 - [ ] T033 [US4] Performance: confirm all mobile drivers init off-main-thread + async/batched flush; capture cold-start delta (telemetry on vs off) → ≤50 ms (SC-005)
 - [X] T034 [P] [US4] Re-run the customer-web bundle gate; confirm `/` and guest routes stay ≤174 KB with analytics initialised (SC-005, research R9/R11)
@@ -127,7 +127,7 @@ description: "Task list for 050-observability-push-foundation"
 - [X] T043 [P] [US3] Same `PushTokenProvider` (common + android + ios + service) in `apps/shop-mobile/.../core/push/`
 - [X] T044 [P] [US3] Same `PushTokenProvider` (common + android + ios + service) in `apps/driver-mobile/.../core/push/`
 - [X] T045 [US3] `RegisterDeviceToken` use case per app + wire into `AppContainer`; register on sign-in/permission-grant + on token refresh; `DELETE` on sign-out (shared-device safety, FR-020)
-- [ ] T046 [US3] Permission priming + OS prompt per app; emit `push_permission_prompted/_granted/_denied`; **no push attempted without permission/token** (FR-019). OS-level only — no preferences table (clarification Q2)
+- [X] T046 [US3] Permission priming + OS prompt per app; emit `push_permission_prompted/_granted/_denied`; **no push attempted without permission/token** (FR-019). OS-level only — no preferences table (clarification Q2)
 - [ ] T047 [US3] Notification-tap deep-link handling per app: resolve `data.deepLink`/`entityId` → route to order / pick queue / assigned run; emit `notification_opened { type }` (FR-017)
 
 ### Backend sending

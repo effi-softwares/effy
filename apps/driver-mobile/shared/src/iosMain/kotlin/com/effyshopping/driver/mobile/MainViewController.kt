@@ -31,7 +31,7 @@ fun MainViewController(
         crashReporter = IosCrashReporter(crashBridge),
         analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
     )
-    container.startObservability(analyticsConsented = false)
+    container.startObservability(analyticsConsented = true)
     val viewController = ComposeUIViewController {
         App(container, platformUiController, IosMapLauncher())
     }

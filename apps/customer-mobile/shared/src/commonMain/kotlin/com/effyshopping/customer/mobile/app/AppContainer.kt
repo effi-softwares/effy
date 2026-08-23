@@ -312,7 +312,7 @@ class AppContainer(
                 // 050 — associate telemetry with the subject and register this device for push. The
                 // record id is a stable, opaque, non-PII identifier (Principle VII). Best-effort:
                 // failures must never break sign-in (FR-024/FR-027).
-                (session.state as? SessionState.Authenticated)?.customer?.id?.let { id ->
+                (session.state.value as? SessionState.Authenticated)?.customer?.id?.let { id ->
                     runCatching { analyticsDriver.identify(id) }
                     runCatching { crashReporter.setSubject(id) }
                 }
@@ -344,28 +344,38 @@ class AppContainer(
     // ── observability & push (050) ──────────────────────────────────────────────────────────────
     private val devices: DeviceRepository by lazy { HttpDeviceRepository(edgeClient) }
 
+    /** The customer's persisted analytics-consent choice (T030). Public audience → consent-gated. */
+    val consentStore: ConsentStore by lazy { ConsentStore(preferences) }
+
+    /** The current consent state, for the Account toggle + the first-run banner. */
+    fun analyticsConsent(): ConsentState = consentStore.state()
+
     /**
-     * Start crash reporting (always on — independent of analytics consent, clarification Q1) and, when
-     * [analyticsConsented], product analytics. Called by each platform entry point after first frame.
-     * All init runs off the main thread (performance, R11).
+     * Start crash reporting (always on — independent of analytics consent, clarification Q1) and, if
+     * the customer has GRANTED consent, product analytics. Called by each platform entry point after
+     * first frame; all init runs off the main thread (performance, R11).
      */
-    fun startObservability(analyticsConsented: Boolean) {
+    fun startObservability() {
         appScope.launch { runCatching { crashReporter.init() } }
-        if (analyticsConsented && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
+        if (consentStore.state() == ConsentState.GRANTED && AppConfig.telemetryEnabled) {
+            appScope.launch { runCatching { analyticsDriver.init() } }
+        }
         // Re-register the device whenever FCM rotates its token, but only for a signed-in session
         // (the endpoint is authenticated; a guest post would 401). Best-effort (FR-024/FR-027).
         pushTokenProvider.onTokenRefresh { token ->
-            if (session.state is SessionState.Authenticated) {
+            if (session.state.value is SessionState.Authenticated) {
                 appScope.launch { runCatching { devices.register(token, platformTag()) } }
             }
         }
     }
 
     /**
-     * Grant/withdraw analytics consent at runtime (customer opt-in, FR-023). Granting initialises the
-     * SDK; withdrawing opts out. Crash reporting is unaffected.
+     * Grant/withdraw analytics consent at runtime (customer opt-in + opt-out, FR-023). Persists the
+     * choice, then grants → initialises the SDK (unless the kill switch is off); withdraws → opts out.
+     * Crash reporting is unaffected (Q1).
      */
     fun setAnalyticsConsent(granted: Boolean) {
+        consentStore.set(if (granted) ConsentState.GRANTED else ConsentState.DENIED)
         if (granted && AppConfig.telemetryEnabled) appScope.launch { runCatching { analyticsDriver.init() } }
         else runCatching { analyticsDriver.optOut() }
     }
