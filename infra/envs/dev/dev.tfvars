@@ -171,4 +171,4 @@ posthog_project_key = "phc_spcqvxVGBz2zp3hNaS4ENXXrddGJovCJqgn4i4yGFUeb"
 posthog_host        = "https://us.i.posthog.com"
 telemetry_enabled   = true
 # fcm_project_id — set to your Firebase project ID when wiring backend push (see quickstart §A1).
-# fcm_project_id    = "effy-dev-xxxxx"
+fcm_project_id    = "effy-dev-bbd5a"

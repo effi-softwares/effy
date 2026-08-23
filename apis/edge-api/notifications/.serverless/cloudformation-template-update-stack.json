@@ -1,0 +1,451 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "ServerlessDeploymentBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "ServerlessDeploymentBucket"
+        },
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "s3:*",
+              "Effect": "Deny",
+              "Principal": "*",
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      },
+                      "/*"
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:",
+                      {
+                        "Ref": "AWS::Partition"
+                      },
+                      ":s3:::",
+                      {
+                        "Ref": "ServerlessDeploymentBucket"
+                      }
+                    ]
+                  ]
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "HealthzLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/effy-edge-notifications-dev-healthz",
+        "RetentionInDays": 30
+      }
+    },
+    "DrainLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/effy-edge-notifications-dev-drain",
+        "RetentionInDays": 30
+      }
+    },
+    "IamRoleLambdaExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  "effy-edge-notifications",
+                  "dev",
+                  "lambda"
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup",
+                    "logs:TagResource"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/effy-edge-notifications-dev*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/effy-edge-notifications-dev*:*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue"
+                  ],
+                  "Resource": [
+                    "arn:aws:secretsmanager:ap-southeast-2:724289623101:secret:rds!db-576bc103-90da-471b-89ce-9f931acebaa1-1o5lQR",
+                    "arn:aws:secretsmanager:ap-southeast-2:724289623101:secret:effy-dev-fcm-service-account-WlsJCl"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              "effy-edge-notifications",
+              "dev",
+              {
+                "Ref": "AWS::Region"
+              },
+              "lambdaRole"
+            ]
+          ]
+        }
+      }
+    },
+    "HealthzLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/effy-edge-notifications/dev/1787471172647-2026-08-23T07:46:12.647Z/healthz.zip"
+        },
+        "Handler": "src/functions/healthz-get.handler",
+        "Runtime": "nodejs22.x",
+        "FunctionName": "effy-edge-notifications-dev-healthz",
+        "MemorySize": 512,
+        "Timeout": 60,
+        "Architectures": [
+          "arm64"
+        ],
+        "Description": "Liveness — is the notifications service deployed and executing? Touches nothing. Public.",
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "effy"
+          },
+          {
+            "Key": "slice",
+            "Value": "050-observability-push-foundation"
+          },
+          {
+            "Key": "service",
+            "Value": "notifications"
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "EFFY_ENV": "dev",
+            "LOG_LEVEL": "debug",
+            "DB_HOST": "effy-dev-db.c3eys08cyzg1.ap-southeast-2.rds.amazonaws.com",
+            "DB_PORT": "5432",
+            "DB_NAME": "effy",
+            "DB_USER": "effy_admin",
+            "DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-2:724289623101:secret:rds!db-576bc103-90da-471b-89ce-9f931acebaa1-1o5lQR",
+            "FCM_SERVICE_ACCOUNT_ARN": "arn:aws:secretsmanager:ap-southeast-2:724289623101:secret:effy-dev-fcm-service-account-WlsJCl",
+            "FCM_PROJECT_ID": "effy-dev-bbd5a"
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        },
+        "Layers": [
+          "arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90"
+        ]
+      },
+      "DependsOn": [
+        "HealthzLogGroup"
+      ]
+    },
+    "DrainLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/effy-edge-notifications/dev/1787471172647-2026-08-23T07:46:12.647Z/drain.zip"
+        },
+        "Handler": "src/worker/handler.handler",
+        "Runtime": "nodejs22.x",
+        "FunctionName": "effy-edge-notifications-dev-drain",
+        "MemorySize": 512,
+        "Timeout": 60,
+        "Architectures": [
+          "arm64"
+        ],
+        "Description": "Drain public.notification_request → resolve device tokens → send via FCM → mark sent/skipped/failed; prune dead tokens (050).",
+        "Tags": [
+          {
+            "Key": "project",
+            "Value": "effy"
+          },
+          {
+            "Key": "slice",
+            "Value": "050-observability-push-foundation"
+          },
+          {
+            "Key": "service",
+            "Value": "notifications"
+          }
+        ],
+        "Environment": {
+          "Variables": {
+            "EFFY_ENV": "dev",
+            "LOG_LEVEL": "debug",
+            "DB_HOST": "effy-dev-db.c3eys08cyzg1.ap-southeast-2.rds.amazonaws.com",
+            "DB_PORT": "5432",
+            "DB_NAME": "effy",
+            "DB_USER": "effy_admin",
+            "DB_SECRET_ARN": "arn:aws:secretsmanager:ap-southeast-2:724289623101:secret:rds!db-576bc103-90da-471b-89ce-9f931acebaa1-1o5lQR",
+            "FCM_SERVICE_ACCOUNT_ARN": "arn:aws:secretsmanager:ap-southeast-2:724289623101:secret:effy-dev-fcm-service-account-WlsJCl",
+            "FCM_PROJECT_ID": "effy-dev-bbd5a"
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        },
+        "Layers": [
+          "arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90"
+        ]
+      },
+      "DependsOn": [
+        "DrainLogGroup"
+      ]
+    },
+    "HealthzLambdaVersion1viYGlNV6dOCVjy1YSHnN0OhMLUORCbJY4z2abNM5Y": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "HealthzLambdaFunction"
+        },
+        "CodeSha256": "8+dgs4rnSROKhpRwMm2EFjnwBySnquXWhBFLnMuqQlo=",
+        "Description": "Liveness — is the notifications service deployed and executing? Touches nothing. Public."
+      }
+    },
+    "DrainLambdaVersionZu5yNapQifXobkfsnjOIfpQ2QHYeBpOyXPi2p31lp0A": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "DrainLambdaFunction"
+        },
+        "CodeSha256": "JDDMRjUxJb5L5DuTsLZ0pXxV850bIJ0U0VUJUv5iftQ=",
+        "Description": "Drain public.notification_request → resolve device tokens → send via FCM → mark sent/skipped/failed; prune dead tokens (050)."
+      }
+    },
+    "DrainEventsRuleSchedule1": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "rate(1 minute)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "DrainLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "drainSchedule"
+          }
+        ]
+      }
+    },
+    "DrainLambdaPermissionEventsRuleSchedule1": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "DrainLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "DrainEventsRuleSchedule1",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "HealthzLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "HealthzLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              "mbjuqrl5ui",
+              "/*"
+            ]
+          ]
+        }
+      }
+    },
+    "HttpApiIntegrationHealthz": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": "mbjuqrl5ui",
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "HealthzLambdaFunction",
+            "Arn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      }
+    },
+    "HttpApiRouteGetNotificationsHealthz": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": "mbjuqrl5ui",
+        "RouteKey": "GET /notifications/healthz",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationHealthz"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": "HttpApiIntegrationHealthz"
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      },
+      "Export": {
+        "Name": "sls-effy-edge-notifications-dev-ServerlessDeploymentBucketName"
+      }
+    },
+    "HealthzLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "HealthzLambdaVersion1viYGlNV6dOCVjy1YSHnN0OhMLUORCbJY4z2abNM5Y"
+      },
+      "Export": {
+        "Name": "sls-effy-edge-notifications-dev-HealthzLambdaFunctionQualifiedArn"
+      }
+    },
+    "DrainLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "DrainLambdaVersionZu5yNapQifXobkfsnjOIfpQ2QHYeBpOyXPi2p31lp0A"
+      },
+      "Export": {
+        "Name": "sls-effy-edge-notifications-dev-DrainLambdaFunctionQualifiedArn"
+      }
+    }
+  }
+}
