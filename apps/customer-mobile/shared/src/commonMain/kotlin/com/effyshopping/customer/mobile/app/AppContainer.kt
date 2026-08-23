@@ -5,6 +5,8 @@ import com.effyshopping.customer.mobile.core.config.AppConfig
 import com.effyshopping.customer.mobile.core.http.BearerToken
 import com.effyshopping.customer.mobile.core.http.createHttpClient
 import com.effyshopping.customer.mobile.core.observability.AnalyticsDriver
+import com.effyshopping.customer.mobile.core.observability.ConsentState
+import com.effyshopping.customer.mobile.core.observability.ConsentStore
 import com.effyshopping.customer.mobile.core.observability.CrashReporter
 import com.effyshopping.customer.mobile.core.observability.NoOpAnalyticsDriver
 import com.effyshopping.customer.mobile.core.observability.NoOpCrashReporter
