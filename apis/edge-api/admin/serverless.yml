@@ -25,6 +25,14 @@ provider:
   memorySize: 256
   timeout: 10
   logRetentionInDays: 30
+  # ⚠ 049 — the admin service has grown to 94 functions; with a Lambda Version per function the stack
+  # hit CloudFormation's hard 500-resource limit (511) when the driver-management routes landed. We
+  # publish no aliases and use no provisioned concurrency, and every httpApi integration invokes the
+  # unqualified ($LATEST) ARN — so per-deploy Versions are dead weight. Turning them off removes ~94
+  # resources with zero runtime change (routing is unaffected; existing Version resources are cleaned
+  # up on the next deploy). The real long-term lever if it grows again is nested stacks
+  # (serverless-plugin-split-stacks), deferred until needed.
+  versionFunctions: false
   tags:
     project: effy
     slice: 004-backend-bootstrap
@@ -42,6 +50,9 @@ provider:
     # Shop-pool provisioning (009): the pool id the shops slice creates users in. Resolved from
     # the auth contract at deploy time — never hard-coded (R3).
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
+    # Driver-pool provisioning (049): the pool id the drivers slice creates users in. Resolved from
+    # the auth contract at deploy time — never hard-coded (R9). The driver pool defines NO groups.
+    DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
     # Promotional banner artwork (028). The SAME bucket product media uses — banners live under a
     # `promotions/` prefix rather than in a bucket of their own, so one bucket policy and one
     # lifecycle rule cover all operator-uploaded imagery.
@@ -88,6 +99,15 @@ provider:
             - cognito-idp:AdminDisableUser
             - cognito-idp:AdminEnableUser
           Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
+        # Driver provisioning (049): the SAME scoped Admin actions, on the DRIVER pool ARN ONLY. No
+        # AddUserToGroup — the driver pool defines no RBAC groups (Principle IV).
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminDisableUser
+            - cognito-idp:AdminEnableUser
+          Resource: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_arn}
         # Email deliverability (037). Three reads and ONE delete, all scoped to this environment's
         # SES identity — never "*". ⚠ There is deliberately no PutSuppressedDestination: nothing in
         # the product needs to make a person unreachable by hand, and a button that can silently
@@ -287,6 +307,63 @@ functions:
       - httpApi:
           method: PATCH
           path: /admin/v1/shops/{shopId}/users/{userId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── Driver management (049). Minimal provisioning adjunct so the driver app has accounts to sign
+  #    in as; read = any active staff, mutate = admin/manager. Cognito-first → public.driver record.
+  driversListV1:
+    handler: src/functions/drivers-list-v1-get.handler
+    description: List drivers — 049
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/drivers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverGetV1:
+    handler: src/functions/driver-get-v1-get.handler
+    description: One driver — 049
+    events:
+      - httpApi:
+          method: GET
+          path: /admin/v1/drivers/{driverId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverCreateV1:
+    handler: src/functions/driver-create-v1-post.handler
+    description: Provision a driver (driver-pool Cognito user + record) — 049
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/drivers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverUpdateV1:
+    handler: src/functions/driver-update-v1-patch.handler
+    description: Update a driver's name/zone/vehicle — 049
+    events:
+      - httpApi:
+          method: PATCH
+          path: /admin/v1/drivers/{driverId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverStatusV1:
+    handler: src/functions/driver-status-v1-post.handler
+    description: Activate/disable a driver — 049
+    events:
+      - httpApi:
+          method: POST
+          path: /admin/v1/drivers/{driverId}/status
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

@@ -77,3 +77,55 @@ output "driver_user_pool_endpoint" {
   description = "Driver pool issuer host."
   value       = module.driver_pool.user_pool_endpoint
 }
+
+# --- 049-driver-mobile-app: dedicated MOBILE app client ------------------------------------------
+# The driver KMP app (Android + iOS) signs in against its own public client, mirroring shop_mobile
+# (014): passwordless 6-digit EMAIL_OTP only (035 custom challenge), 30-day refresh for the shared
+# work device, no SRP, no client secret, COGNITO only. Registered in the driver JWT authorizer's
+# audience via edge-gateway.tf so a token from this client is accepted at /driver/v1/*.
+resource "aws_cognito_user_pool_client" "driver_mobile" {
+  name         = "${module.shared.name_prefix}-driver-mobile-app"
+  user_pool_id = module.driver_pool.user_pool_id
+
+  # ⚠ Derived from the ARNs exactly like the module-owned client (see the two-stage note above):
+  # offering CUSTOM_AUTH before the challenge triggers exist would leave drivers with no working
+  # sign-in between the two applies.
+  explicit_auth_flows = var.custom_auth_lambda_arns != null ? [
+    "ALLOW_CUSTOM_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"
+    ] : [
+    "ALLOW_USER_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"
+  ]
+
+  # Public client: PKCE, NO client secret (a secret in a published mobile binary is a leaked secret).
+  generate_secret = false
+
+  # Don't leak whether an email is a provisioned driver.
+  prevent_user_existence_errors = "ENABLED"
+
+  # COGNITO only — the driver audience has no federation, ever.
+  supported_identity_providers = ["COGNITO"]
+
+  # 60-minute access/ID tokens (platform default); 30-DAY refresh — shared-device posture (matches
+  # shop_mobile, not the customer app's 90). No hosted-UI callbacks: native EMAIL_OTP uses none.
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 30
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+}
+
+resource "aws_ssm_parameter" "driver_mobile_app_client_id" {
+  name        = "/effy/${var.env}/auth/driver/mobile_app_client_id"
+  description = "Driver MOBILE public app client id (049). Separate from the module-owned client so the shared work device holds a 30-day session. EMAIL_OTP only, no SRP."
+  type        = "String"
+  value       = aws_cognito_user_pool_client.driver_mobile.id
+}
+
+output "driver_mobile_app_client_id" {
+  description = "Driver MOBILE public app client id (049) — the value for the app's COGNITO_APP_CLIENT_ID."
+  value       = aws_cognito_user_pool_client.driver_mobile.id
+}

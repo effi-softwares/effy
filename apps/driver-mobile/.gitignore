@@ -17,3 +17,6 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
+
+# 049 — build-time config & secrets NEVER committed (secrets.properties.example IS committed).
+secrets.properties

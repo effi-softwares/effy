@@ -10,6 +10,26 @@ it **spec-first** using **GitHub Spec Kit**. Read this before doing anything.
 - **Drivers and back-office staff are Effy employees**, working in internal apps (no public signup).
 - Four audiences, each with its own trust level: **customer, driver, shop/operator, admin/back-office.**
 
+### Driver logistics model (hub-and-spoke — settled 2026-08-22, feature 049)
+Effy's own drivers are **not per-delivery couriers** (no Uber-Eats one-order-one-drop flow). They run a
+**hub-and-spoke** operation built on 047's collection-run + operating-hub concepts:
+- **Collection run (shops → hub):** an on-duty driver is assigned **packages to collect** and drives a
+  round of fulfillment shops, picking up **all** assigned packages (both same-day and standard), then
+  **checks them in at a single central Effy hub/warehouse**. Collection runs follow the **configurable
+  collection schedule** 047 already defines (e.g. a 2 pm cutoff), which is what gates same-day
+  eligibility at checkout.
+- **Sortation is a known fact, not a manual step:** each package's method (**same-day vs standard**) is
+  already chosen at **checkout** (047). The hub check-in surfaces the split; the driver does not
+  classify anything.
+- **Same-day delivery run (hub → customers):** the driver takes the **same-day** packages and does a
+  multi-drop delivery round, completing each drop with proof.
+- **Standard delivery is (mostly) an external carrier's job.** This **evolves 047's "Effy does all
+  delivery"**: Effy drivers own **collection + same-day delivery**; a **standard** package's driver-app
+  lifecycle **ends at "checked in at hub"**, after which it is handed to a third-party delivery company.
+- **Work is typed tasks, not driver roles** (`collection` / `same_day_delivery`); one driver typically
+  does a collection run then a same-day round in one shift, but neither is a hard-coded role.
+- **One hub for now** (matches 047's single operating-hub point); multi-hub is deferred.
+
 ## Platform shape (the vision)
 The full platform is **six client surfaces + two backends + DB migrations + infrastructure**. The
 customer and shop audiences each get **two surfaces kept at parity** (a native mobile build and a
@@ -240,6 +260,31 @@ Everything gets built **slice by slice**, each driven by its own spec → plan �
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**049-driver-mobile-app — Driver Delivery App (the 6th & final client surface).** ✅ **CONCLUDED (PARTIAL
+BY DESIGN) 2026-08-23 — 54/61 tasks (7 deferred). All 7 user stories built; DEPLOYED TO DEV; P1 loop WALKED
+LIVE.** Sign-off: [specs/049-driver-mobile-app/SIGNOFF.md](specs/049-driver-mobile-app/SIGNOFF.md); parity
+register: [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md). The platform's **hub-and-spoke** driver operation:
+a KMP app (`apps/driver-mobile`, Android+iOS) + a new cold-path service (`apis/edge-api/driver`) + a
+scheduled auto-assignment worker + minimal back-office provisioning (`edge-api/admin/src/drivers`) + one
+migration. Closes the **commerce→fulfilment→delivery loop** — retires the 020 dev-only `collected`/
+`delivered` stubs.
+- **Model** (settled, see "Driver logistics model" above): collection run (shops→hub) → **hub check-in**
+  (same-day/standard split, standard→external carrier) → same-day delivery run (hub→customers) with proof.
+- **Live & walked (P1)**: sign in (passwordless 6-digit, driver pool + new `driver_mobile` client) → on
+  duty → **worker auto-assigns** a collection run → collect each shop → hub check-in → delivery run →
+  deliver each drop with **proof (delivery-code + contactless)** → order reaches `delivered`.
+- **US4 (partial)**: external **Navigate** hand-off works (device maps, customer address); **masked contact**
+  is a capability-flagged 503 + disabled affordance (relay unbuilt, R6). ⛔ **In-app pinned map DEFERRED —
+  blocked on geodata**: shops have NO address/coords and orders carry an un-geocoded jsonb address, so
+  nothing can be plotted (research R13; add `shop.address` + geocode to unblock). **US5 history** built
+  (both record types, timeline + proof, read-only).
+- **Verified**: iOS + Android compile & host tests · edge-driver Vitest · full workspace typecheck ·
+  mobile-guard · contract drift-guard · terraform validate. **Deployed to dev by the operator; P1 walked.**
+- **⚠ Open**: photo/signature proof capture (camera — platform-specific), permission priming (T009),
+  offline queue (T015), cutoff flag (T061), mobile ViewModel tests (T024/T032/T045), US6 notifications,
+  polish (T053–T059). ⚠ **admin `versionFunctions:false`** was needed — the driver routes tipped the
+  admin CloudFormation stack past the 500-resource limit. Spec/artifacts: [specs/049-driver-mobile-app/](specs/049-driver-mobile-app/).
 
 **048-console-web-cicd — Internal Console Continuous Deployment (Shop-Web & Back-Office).** ✅
 **CONCLUDED 2026-08-22 — 35/41 tasks. DEPLOYED TO DEV AND LIVE ON BOTH SURFACES.** Sign-off:
@@ -1538,5 +1583,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/048-console-web-cicd/plan.md
+at specs/049-driver-mobile-app/plan.md
 <!-- SPECKIT END -->

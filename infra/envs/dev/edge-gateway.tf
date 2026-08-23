@@ -23,7 +23,7 @@ locals {
       client_id        = module.shop_pool.app_client_id
       extra_client_ids = [aws_cognito_user_pool_client.shop_mobile.id]
     }
-    driver        = { pool_id = module.driver_pool.user_pool_id, client_id = module.driver_pool.app_client_id, extra_client_ids = [] }
+    driver        = { pool_id = module.driver_pool.user_pool_id, client_id = module.driver_pool.app_client_id, extra_client_ids = [aws_cognito_user_pool_client.driver_mobile.id] }
     "back-office" = { pool_id = module.back_office_pool.user_pool_id, client_id = module.back_office_pool.app_client_id, extra_client_ids = [] }
   }
 }
