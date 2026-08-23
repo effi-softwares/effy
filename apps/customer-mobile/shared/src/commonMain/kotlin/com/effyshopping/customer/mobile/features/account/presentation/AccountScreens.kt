@@ -20,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,6 +56,10 @@ import com.effyshopping.customer.mobile.core.presentation.EffyField
 import com.effyshopping.customer.mobile.core.presentation.EffyDetailRow
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 import com.effyshopping.customer.mobile.core.presentation.EffySecondaryButton
+import com.effyshopping.customer.mobile.core.config.AppConfig
+import com.effyshopping.customer.mobile.core.observability.AnalyticsEvent
+import com.effyshopping.customer.mobile.core.observability.ConsentState
+import com.effyshopping.customer.mobile.core.observability.analyticsConsentSubtitle
 import com.effyshopping.customer.mobile.core.presentation.EffyNavRow
 import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
 import com.effyshopping.customer.mobile.features.help.presentation.FaqsScreen
@@ -553,6 +558,54 @@ private fun PrivacyScreen(container: AppContainer) {
             // Data policy) and belongs HERE, in the privacy area, where a reviewer looks for it. The
             // full legal list lives in ONE place — Account → Legal & policies — not duplicated here.
             EffyNavRow("Privacy policy", onClick = { nav.push(CustomerNavKey.LegalDocument("privacy-policy")) })
+
+            // 050 FR-023 — the standing analytics opt-in/out control. Toggling persists the choice and
+            // starts/stops PostHog immediately; crash reporting is unaffected (Q1).
+            var analyticsOn by remember {
+                mutableStateOf(container.analyticsConsent() == ConsentState.GRANTED)
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = EffySpacing.lg, vertical = EffySpacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Share usage analytics", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        analyticsConsentSubtitle(if (analyticsOn) ConsentState.GRANTED else ConsentState.DENIED),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = analyticsOn,
+                    onCheckedChange = { on ->
+                        analyticsOn = on
+                        container.setAnalyticsConsent(on)
+                    },
+                )
+            }
+
+            // 050 T015 — DEBUG-ONLY observability test panel (shown only when DEBUG_TOOLS=true, never in
+            // prod). Verifies Crashlytics (fatal + non-fatal) and PostHog end to end.
+            if (AppConfig.debugTools) {
+                AccountSectionHeader("Developer — observability test")
+                Button(
+                    onClick = { container.analyticsDriver.capture(AnalyticsEvent.ScreenViewed("debug_test")) },
+                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xs),
+                ) { Text("Fire test analytics event") }
+                Button(
+                    onClick = {
+                        container.crashReporter.logNonFatal(RuntimeException("Effy test non-fatal (050)"))
+                    },
+                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xs),
+                ) { Text("Log non-fatal error") }
+                Button(
+                    onClick = { throw RuntimeException("Effy test crash (050)") },
+                    modifier = Modifier.padding(horizontal = EffySpacing.lg, vertical = EffySpacing.xs),
+                ) { Text("Force crash") }
+            }
 
             // A modest gap — enough to set the destructive Delete apart from the nav row above so a
             // stray tap can't hit it, without the large void the earlier (longer) list left behind.

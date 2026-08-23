@@ -58,7 +58,7 @@ description: "Task list for 050-observability-push-foundation"
 - [X] T012 [P] [US1] Same `CrashReporter` (common + android + ios) in `apps/shop-mobile/.../core/observability/`
 - [X] T013 [P] [US1] Same `CrashReporter` (common + android + ios) in `apps/driver-mobile/.../core/observability/`
 - [X] T014 [US1] Wire `CrashReporter` into each app's `AppContainer.kt`; init off-main-thread after first frame; call `setSubject(sub)` on session change and clear on sign-out (depends on T011–T013)
-- [ ] T015 [P] [US1] Debug-only "force crash" + "log non-fatal" affordance in each app's Account/settings (validation of SC-001; excluded from release builds)
+- [X] T015 [P] [US1] Debug-only "force crash" + "log non-fatal" affordance in each app's Account/settings (validation of SC-001; excluded from release builds)
 - [X] T016 [US1] Web error tracking: ensure `apps/customer-web/lib/telemetry.ts` `reportError`/`$exception` path is reachable (wire the `(shop)/error.tsx` + a top-level error boundary to it) and initialised for error capture independent of analytics consent (clarification Q1)
 - [X] T017 [P] [US1] Consoles: call `telemetry.init()` + route runtime errors to `reportError` in `apps/shop-web/src/main.tsx` and `apps/back-office/src/main.tsx` (`@effy/web-kit createTelemetry`, `surface` stamped)
 - [ ] T018 [P] [US1] Host test: crash keys/breadcrumbs carry only `sub` + technical fields — **no PII** (FR-003/022); one per app under `commonTest`

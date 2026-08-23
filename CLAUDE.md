@@ -261,42 +261,31 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**050-observability-push-foundation — Platform Observability & Push Notification Foundation.** 🚧
-**Backend + web BUILT and machine-verified; mobile contract in place; native SDK wiring is
-Firebase-account-gated; not deployed, not committed.** Turns on the three long-deferred client
-capabilities (constitution Principle VII): **Crashlytics** (mobile crash), **PostHog** (analytics +
-web error tracking, finally initialised — closes the "PostHog never initialised" carry-forward), and
-**FCM push** to customer/shop/driver.
-- **Model**: device tokens registered per-audience on the **cold path** (`/{audience}/v1/devices`, shared
-  `@effy/edge-shared` logic) → `public.device_token`; producers append a **`notification_request`
-  transactional-outbox** row in the same tx as the fact (core-api `order_paid` + `shop_new_order`
-  fan-out; edge-shop `order_ready`; edge-driver `run_assigned`/`out_for_delivery`/`delivered`); a new
-  cold-path **`edge-api/notifications`** scheduled worker (`rate(1 minute)`, `firebase-admin`) drains it,
-  sends via FCM HTTP v1, is **idempotent** (dedupe_key) and **self-prunes dead tokens** (FR-018).
-  ⚠ **No SNS/SQS backbone yet** — the polled outbox is the interim (research R6); SC-003 relaxed to
-  **≤90 s p95** (analyze F1). One migration `20260823120000_observability_push.sql`.
-- **Web (verified)**: consoles already init PostHog — added the **kill switch** (`telemetry/enabled`) +
-  global-error→`reportError` routing (`@effy/web-kit wireGlobalErrorReporting`); **customer-web** now
-  wires a **consent affordance** (analytics loads only on consent, dynamic import — bundle gate still
-  green ≤174 KB), **error tracking independent of consent** via a separate named PostHog instance (Q1),
-  and a **first-party reverse proxy** (`/rc`, FR-028).
-- **Mobile (contract only)**: all three apps get `core/observability` (CrashReporter, AnalyticsDriver,
-  typed `AnalyticsEvent` mirroring `docs/telemetry/*`) + `core/push` (PushTokenProvider, DeviceRepository)
-  in `commonMain` with **fail-open NoOp defaults** + a **drift-check** host test; **customer-mobile** is
-  fully DI-wired (`AppContainer` identify/setSubject/register on auth, reset/unregister on sign-out,
-  `startObservability`/`setAnalyticsConsent`). ⚠ **Firebase/PostHog Android actuals, iOS Swift bridges,
-  and the Gradle plugins are NOT built** — they cannot compile without the operator's Firebase config
-  (FR-031), so they are the account-gated last mile (like 019's Android-payment placeholder).
-- **Clarifications**: crash reporting independent of analytics consent (Q1); OS-level push only, no
-  prefs table (Q2); kill switch = analytics only, crash/push stay on (Q3); no internal opt-out UI (Q4).
-- **Verified**: `pnpm -r typecheck` **16/16** · edge-shared 49 · edge-shop 172 · edge-customer 160 ·
-  edge-driver 9 · edge-notifications 9 · web-kit 48 · Go build/vet/test (checkout) · `terraform validate` ·
-  customer-web depcruise + **bundle gate green** · **`scripts/check-no-telemetry-pii.sh`** (proven by
-  injecting a leak). **Mobile compilation UNVERIFIED** (no Gradle/Firebase toolchain here).
-- **⚠ Open (operator)**: create the **Firebase + PostHog accounts** and drop in the config files
-  (quickstart §A); `make apply` (telemetry.tf + notifications.tf); commit + `make db-up`;
-  `make edge-deploy SERVICE={notifications,customer,shop,driver}`; then the native mobile SDK wiring +
-  device walks. Spec/artifacts: [specs/050-observability-push-foundation/](specs/050-observability-push-foundation/).
+**050-observability-push-foundation — Platform Observability & Push Notification Foundation.** ✅
+**CONCLUDED (PARTIAL BY DESIGN) 2026-08-23 — 53/60 tasks. DEPLOYED TO DEV; Crashlytics + PostHog
+CONFIRMED WORKING; push wired+deployed but delivery unconfirmed (carried to the order-flow slice).**
+Sign-off: [specs/050-observability-push-foundation/SIGNOFF.md](specs/050-observability-push-foundation/SIGNOFF.md).
+Turns on the three long-deferred client capabilities (constitution Principle VII): **Crashlytics**
+(mobile crash), **PostHog** (analytics + web error tracking, finally initialised — closes the "PostHog
+never initialised" carry-forward), and **FCM push** to customer/shop/driver.
+- **Confirmed live**: Crashlytics (customer-mobile Android — fatal + non-fatal) and PostHog analytics
+  (customer-mobile Android consent-gated + web consoles on-by-default). **Mobile compiles verified** for
+  all 3 apps (customer full APK + host tests + iOS Kotlin; shop/driver shared Android).
+- **⚠ Push delivery UNCONFIRMED** — the chain (order `paid` → `order_paid` outbox row → notifications
+  worker → FCM → device) is built + deployed (migration, edge services, worker, core-api producers, FCM
+  service-account secret) but a live push has not been observed; to be debugged with the order-flow
+  slice (which produces the event). Triage: `notification_request.status` (no row=not paid · skipped=no
+  token · failed=FCM · sent=delivered).
+- **⛔ iOS push** deferred (Apple Developer account — APNs + the unwritten `SwiftPushBridge`;
+  `docs/observability-apple-blockers.md`). iOS crash+analytics bridges ARE written; iOS Kotlin compiles;
+  iOS builds need the SPM packages added in Xcode.
+- **GCP note**: creating the FCM service-account key required lifting the managed org policy
+  `iam.managed.disableServiceAccountKeyCreation` for `effy-dev-bbd5a` (can be re-enforced now).
+- **Clarifications**: crash independent of analytics consent (Q1); OS-level push only (Q2); kill switch
+  = analytics only (Q3); no internal opt-out UI (Q4). SC-003 relaxed to ≤90 s p95 (polled outbox; F1).
+- Carry-forwards: push delivery debugging, iOS push + iOS builds, shop/driver device walks, T047
+  notification-tap deep-link, the full SC/perf/kill-switch walks. Spec/artifacts:
+  [specs/050-observability-push-foundation/](specs/050-observability-push-foundation/).
 
 **049-driver-mobile-app — Driver Delivery App (the 6th & final client surface).** ✅ **CONCLUDED (PARTIAL
 BY DESIGN) 2026-08-23 — 54/61 tasks (7 deferred). All 7 user stories built; DEPLOYED TO DEV; P1 loop WALKED

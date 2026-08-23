@@ -38,6 +38,8 @@ object AppConfig {
     val posthogHost: String get() = BuildKonfig.POSTHOG_HOST
     /** Analytics kill switch (FR-026). Anything but the literal "false" (incl. empty) ⇒ enabled. */
     val telemetryEnabled: Boolean get() = BuildKonfig.TELEMETRY_ENABLED != "false"
+    /** 050 T015 — show the in-app observability test panel (Privacy screen). Debug builds only. */
+    val debugTools: Boolean get() = BuildKonfig.DEBUG_TOOLS == "true"
 }
 
 /**

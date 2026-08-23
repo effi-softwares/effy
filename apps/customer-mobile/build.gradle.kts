@@ -76,6 +76,7 @@ val optionalKeys = listOf(
     "POSTHOG_KEY",        // phc_… — non-secret PostHog project key
     "POSTHOG_HOST",       // https://us.i.posthog.com | https://eu.i.posthog.com
     "TELEMETRY_ENABLED",  // "true" | "false" — analytics kill switch (FR-026)
+    "DEBUG_TOOLS",        // "true" shows the in-app observability test panel (050 T015). NEVER in prod.
 )
 
 // Exposed to the :shared module's BuildKonfig block. Required keys must be present (checked above);
