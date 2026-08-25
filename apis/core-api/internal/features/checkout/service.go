@@ -28,6 +28,10 @@ var (
 	// ErrNotServiceable means the destination postcode is in no active delivery zone (047 FR-002): the
 	// single "we don't deliver there yet" outcome. Standard and same-day alike are simply unavailable.
 	ErrNotServiceable = errors.New("checkout: address is not in a delivery zone")
+	// ErrPaymentMethodNotFound covers BOTH "no such card" and "not this shopper's card" (051). They are
+	// deliberately indistinguishable: separating them would turn the route into an oracle for whether a
+	// payment-method id exists on the platform.
+	ErrPaymentMethodNotFound = errors.New("checkout: payment method not found")
 )
 
 // IntentResult is returned to the client (client_secret only — the secret key never leaves core-api).
@@ -38,6 +42,37 @@ type IntentResult struct {
 	PublishableKey string
 	GrandTotal     string
 	Currency       string
+	// 051 — additive. Every field above keeps its name and meaning.
+	//
+	// CustomerSessionSecret authorizes a provider-owned payment-method list, and is minted ONLY for a
+	// client that renders one (mobile). Empty for web, which renders Effy's own list and confirms with a
+	// payment-method id — minting a session there would be an unused provider round trip on a path 027
+	// already found latency-sensitive (spike S2).
+	CustomerSessionSecret string
+	// BillingDetails is what the client passes back at confirmation, because the payment step no longer
+	// asks the shopper for a country, a postcode or a name (FR-014/FR-015).
+	BillingDetails BillingDetails
+}
+
+// BillingDetails is what Effy supplies on the shopper's behalf at confirmation.
+//
+// ⚠ DERIVED FROM THE ORDER, NEVER FROM THE REQUEST. It is the address the shopper confirmed one screen
+// earlier plus the platform's own record of their name — which is what stops the provider guessing a
+// country from the shopper's IP, the cause of "Country: Sri Lanka" on an Australia-only storefront.
+type BillingDetails struct {
+	Name    string
+	Email   string
+	Address BillingAddress
+}
+
+// BillingAddress mirrors the order's stored address snapshot. Country is ISO-3166 alpha-2.
+type BillingAddress struct {
+	Line1      string
+	Line2      string
+	City       string
+	State      string
+	PostalCode string
+	Country    string
 }
 
 // ConfirmResult is the fallback-finalizer ack; the client reads the full receipt from GET /v1/orders/{id}.
@@ -151,6 +186,12 @@ type IntentInput struct {
 	// package where it is not (FR-044/SC-011) — so a mixed basket charges same-day only where possible.
 	// The client never sends a fee; the server prices the chosen method from the captured quote (FR-036).
 	DeliveryMethod string
+	// WantsProviderMethodList asks for a customer session, and is set ONLY by a client that renders a
+	// provider-owned payment-method list — the mobile embedded element (051, spike S2).
+	//
+	// ⚠ This is a capability request, not an authorization: the session is always minted for the
+	// AUTHENTICATED subject, so a client asking for one can only ever get its own.
+	WantsProviderMethodList bool
 }
 
 // CreateCheckoutIntent writes the pending order and creates ONE PaymentIntent with a DETERMINISTIC
@@ -276,19 +317,69 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	// Billing (023): snapshot the billing address onto the order when the customer diverged from
 	// shipping; otherwise NULL ("same as shipping"). Billing never affects the amount. Idempotent —
 	// re-running the intent after toggling "same as shipping" back ON clears a prior divergent value.
-	if err := s.applyBilling(ctx, customerID, orderID, addressID, in.BillingAddressID); err != nil {
+	// 051: applyBilling now also hands back the snapshot it settled on — the SAME bytes the order stores —
+	// so the billing details Effy sends at confirmation cannot drift from the billing address it recorded.
+	billingSnapshot, err := s.applyBilling(ctx, customerID, orderID, addressID, in.BillingAddressID, addressJSON)
+	if err != nil {
 		return IntentResult{}, err
 	}
 
+	// 051 — the provider customer, resolved before the intent so a saved card can attach to it.
+	// Idempotent: an existing reference short-circuits, and the write is first-wins (store.go).
+	providerCustomerID, profileEmail, profileName, err := s.store.PaymentProfile(ctx, customerID)
+	if err != nil {
+		return IntentResult{}, err
+	}
+	resolved, err := s.gateway.EnsureCustomer(ctx, EnsureCustomerInput{
+		Existing:   providerCustomerID,
+		Email:      profileEmail,
+		Name:       profileName,
+		CustomerID: customerID,
+	})
+	if err != nil {
+		return IntentResult{}, err
+	}
+	if resolved != providerCustomerID {
+		if err := s.store.SetProviderCustomerID(ctx, customerID, resolved); err != nil {
+			return IntentResult{}, err
+		}
+	}
+
+	// ⚠ The session is minted CONCURRENTLY with the intent, and only when the caller renders a
+	// provider-owned method list. 027 measured a Sydney round trip at ~135 ms and found this path
+	// latency-sensitive; a serial mint spends another one for nothing.
+	type sessionResult struct {
+		secret string
+		err    error
+	}
+	sessionCh := make(chan sessionResult, 1)
+	if in.WantsProviderMethodList {
+		go func() {
+			sess, sErr := s.gateway.CreateCustomerSession(ctx, resolved)
+			sessionCh <- sessionResult{secret: sess.ClientSecret, err: sErr}
+		}()
+	} else {
+		sessionCh <- sessionResult{}
+	}
+
+	// ⚠ `Customer` is what lets a kept card attach. `SetupFutureUsage` is deliberately NOT set here:
+	// whether the card is kept is the shopper's choice, made at confirmation, and setting it server-side
+	// would keep a card they declined (FR-020, research R5).
 	pi, err := s.gateway.CreatePaymentIntent(ctx, CreateIntentInput{
 		AmountMinor:    grandTotalCents,
 		Currency:       pricing.Currency,
 		IdempotencyKey: idempotencyKey(orderID, grandTotalCents),
 		OrderID:        orderID,
 		OrderNumber:    orderNumber,
+		CustomerID:     resolved,
 	})
 	if err != nil {
 		return IntentResult{}, err
+	}
+
+	session := <-sessionCh
+	if session.err != nil {
+		return IntentResult{}, session.err
 	}
 
 	if err := s.store.UpsertPayment(ctx, orderID, pi.ID, grandTotalCents, paymentStatusFor(pi.Status)); err != nil {
@@ -296,33 +387,89 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	}
 
 	return IntentResult{
-		OrderID:        orderID,
-		OrderNumber:    orderNumber,
-		ClientSecret:   pi.ClientSecret,
-		PublishableKey: s.publishableKey,
-		GrandTotal:     moneyStr(grandTotalCents),
-		Currency:       pricing.Currency,
+		OrderID:               orderID,
+		OrderNumber:           orderNumber,
+		ClientSecret:          pi.ClientSecret,
+		PublishableKey:        s.publishableKey,
+		GrandTotal:            moneyStr(grandTotalCents),
+		Currency:              pricing.Currency,
+		CustomerSessionSecret: session.secret,
+		BillingDetails:        billingDetailsFrom(billingSnapshot, profileName, profileEmail),
 	}, nil
+}
+
+// billingDetailsFrom maps the order's stored address snapshot to what the client passes back at
+// confirmation (051 FR-016).
+//
+// ⚠ The snapshot is the ONLY source. A client-supplied billing object is ignored upstream, because
+// honouring one would let it contradict the address the shopper confirmed one screen earlier.
+func billingDetailsFrom(snapshot []byte, name, email string) BillingDetails {
+	out := BillingDetails{Name: name, Email: email}
+	out.Address.Country = "AU" // Effy sells in one country; the snapshot may predate the field.
+	if len(snapshot) == 0 {
+		return out
+	}
+	var snap struct {
+		RecipientName string `json:"recipientName"`
+		Line1         string `json:"line1"`
+		Line2         string `json:"line2"`
+		City          string `json:"city"`
+		Region        string `json:"region"`
+		PostalCode    string `json:"postalCode"`
+		Country       string `json:"country"`
+	}
+	if err := json.Unmarshal(snapshot, &snap); err != nil {
+		// A malformed snapshot must not block a payment: the provider tolerates partial billing details,
+		// and the shopper losing their basket over a mapping failure would be the worse outcome.
+		return out
+	}
+	out.Address = BillingAddress{
+		Line1:      snap.Line1,
+		Line2:      snap.Line2,
+		City:       snap.City,
+		State:      snap.Region,
+		PostalCode: snap.PostalCode,
+		Country:    snap.Country,
+	}
+	if out.Address.Country == "" {
+		out.Address.Country = "AU"
+	}
+	// The recipient on the order is a better name for a receipt than a profile display name, which may
+	// be empty on the OTP and federated routes (011).
+	if snap.RecipientName != "" {
+		out.Name = snap.RecipientName
+	}
+	return out
 }
 
 // applyBilling writes the order's billing snapshot (023). Empty or same-as-shipping → NULL. A distinct
 // billing id is validated (customer-scoped via AddressSnapshot) and snapshotted; a foreign/unknown id is
 // refused so a client cannot bill against an address that is not the customer's (FR-021).
-func (s *Service) applyBilling(ctx context.Context, customerID, orderID, shippingAddressID, billingAddressID string) error {
+// It returns the snapshot that EFFECTIVELY governs billing — the shipping snapshot when the shopper did
+// not diverge, the divergent one when they did — so the caller can derive the billing details it sends at
+// confirmation from the same bytes the order stores (051 FR-016). The order still records NULL for
+// "same as shipping"; only the returned value differs.
+func (s *Service) applyBilling(ctx context.Context, customerID, orderID, shippingAddressID, billingAddressID string, shippingJSON []byte) ([]byte, error) {
 	if billingAddressID == "" || billingAddressID == shippingAddressID {
-		return s.store.SetOrderBilling(ctx, orderID, nil) // NULL — same as shipping
+		if err := s.store.SetOrderBilling(ctx, orderID, nil); err != nil { // NULL — same as shipping
+			return nil, err
+		}
+		return shippingJSON, nil
 	}
 	if _, err := uuid.Parse(billingAddressID); err != nil {
-		return ErrAddressNotFound
+		return nil, ErrAddressNotFound
 	}
 	billingJSON, found, err := s.store.AddressSnapshot(ctx, customerID, billingAddressID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !found {
-		return ErrAddressNotFound
+		return nil, ErrAddressNotFound
 	}
-	return s.store.SetOrderBilling(ctx, orderID, billingJSON)
+	if err := s.store.SetOrderBilling(ctx, orderID, billingJSON); err != nil {
+		return nil, err
+	}
+	return billingJSON, nil
 }
 
 // HandleWebhook is the AUTHORITATIVE finalizer. It verifies the signature, dedups the event, resolves
@@ -562,4 +709,102 @@ func marshalCapturedQuote(q delivery.QuoteResult) []byte {
 	}
 	b, _ := json.Marshal(payload)
 	return b
+}
+
+// ── 051 payment methods ───────────────────────────────────────────────────────────────────────────
+
+// KeptCard is one of the shopper's saved cards as a surface sees it.
+//
+// ⚠ Usable and UnusableReason are computed HERE, not by the client. The rules for what counts as
+// unusable belong in one place; a client that decides for itself will disagree with the server the
+// moment those rules change (FR-023).
+type KeptCard struct {
+	ID             string
+	Brand          string
+	Last4          string
+	ExpMonth       int64
+	ExpYear        int64
+	IsDefault      bool
+	Usable         bool
+	UnusableReason string
+}
+
+// ListKeptCards returns the shopper's saved cards.
+//
+// ⚠ A shopper who has never paid has no provider record, and that is NOT an error: they simply have no
+// cards, and the empty slice says so. A provider FAILURE, by contrast, propagates — "you have no cards"
+// and "we could not ask" are different facts, and answering the second with the first is the FR-036
+// failure mode (contract § 2).
+func (s *Service) ListKeptCards(ctx context.Context, customerID string, now time.Time) ([]KeptCard, error) {
+	providerCustomerID, _, _, err := s.store.PaymentProfile(ctx, customerID)
+	if err != nil {
+		return nil, err
+	}
+	if providerCustomerID == "" {
+		return []KeptCard{}, nil
+	}
+	cards, err := s.gateway.ListSavedCards(ctx, providerCustomerID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]KeptCard, 0, len(cards))
+	for _, c := range cards {
+		k := KeptCard{
+			ID: c.ID, Brand: c.Brand, Last4: c.Last4,
+			ExpMonth: c.ExpMonth, ExpYear: c.ExpYear, IsDefault: c.IsDefault,
+			Usable: true,
+		}
+		if cardExpired(c.ExpMonth, c.ExpYear, now) {
+			k.Usable = false
+			k.UnusableReason = "This card has expired."
+		}
+		out = append(out, k)
+	}
+	return out, nil
+}
+
+// cardExpired reports whether a card is past its expiry.
+//
+// ⚠ A card is valid through the LAST DAY of its expiry month, not up to the first — treating the 1st as
+// expired would refuse a perfectly good card for up to 30 days. Compared in the shopper's own month
+// rather than by day-of-month arithmetic, which is what makes it correct in every timezone the
+// comparison could be made in.
+func cardExpired(expMonth, expYear int64, now time.Time) bool {
+	y := int64(now.Year())
+	m := int64(now.Month())
+	if expYear < y {
+		return true
+	}
+	if expYear > y {
+		return false
+	}
+	return expMonth < m
+}
+
+// RemoveKeptCard detaches a saved card.
+//
+// ⚠ OWNERSHIP IS VERIFIED HERE, and it must be. The id arrives from the client, so detaching what it
+// names without checking whose it is would be a cross-customer write — one shopper able to remove
+// another's card by guessing an id (FR-026). The check is a membership test against the shopper's own
+// list, which is the only source that can answer it.
+func (s *Service) RemoveKeptCard(ctx context.Context, customerID, paymentMethodID string) error {
+	providerCustomerID, _, _, err := s.store.PaymentProfile(ctx, customerID)
+	if err != nil {
+		return err
+	}
+	if providerCustomerID == "" {
+		return ErrPaymentMethodNotFound
+	}
+	cards, err := s.gateway.ListSavedCards(ctx, providerCustomerID)
+	if err != nil {
+		return err
+	}
+	for _, c := range cards {
+		if c.ID == paymentMethodID {
+			return s.gateway.DetachPaymentMethod(ctx, paymentMethodID)
+		}
+	}
+	// ⚠ Not found and not-yours are answered IDENTICALLY on purpose. Distinguishing them would make this
+	// route an oracle for whether a payment-method id exists on the platform.
+	return ErrPaymentMethodNotFound
 }

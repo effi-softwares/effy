@@ -29,3 +29,5 @@ export * from "./delivery-admin";
 export * from "./driver";
 // 050-observability-push-foundation
 export * from "./device";
+// 051-customer-payment-experience
+export * from "./payment";

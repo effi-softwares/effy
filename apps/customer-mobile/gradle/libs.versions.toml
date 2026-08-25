@@ -10,10 +10,14 @@ androidx-core = "1.19.0"
 # library is the documented way to configure it, and it backports the same API to API 21 — so one
 # mechanism covers the whole minSdk 24 … targetSdk 36 range (spec FR-012).
 androidx-splashscreen = "1.0.1"
-# 019 US3 — Stripe Android SDK (PaymentSheet). Pinned to a known-good major; bump in Android Studio
-# if it will not resolve. The publishable key is a NAME, not a secret (R3) — the Stripe SECRET never
-# leaves core-api.
-stripe-android = "21.6.0"
+# 019 US3 — Stripe Android SDK. The publishable key is a NAME, not a secret (R3) — the Stripe SECRET
+# never leaves core-api.
+#
+# ⚠ 051 T006: bumped 21.6.0 → 23.17.0 for `com.stripe.android.paymentelement.EmbeddedPaymentElement`,
+# which is what lets the payment method list render INSIDE an Effy screen instead of inside Stripe's
+# own modal sheet (FR-028, research R8). This is the one non-additive dependency change in 051 — it
+# crosses two majors, so `:androidApp:assembleDebug` is the gate, not the resolution alone.
+stripe-android = "23.17.0"
 androidx-espresso = "3.7.0"
 # 013 D19: pinned DOWN from 2.11.0-beta01 — no beta lifecycle under a stable Compose runtime.
 androidx-lifecycle = "2.10.0"

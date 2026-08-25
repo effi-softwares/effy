@@ -179,6 +179,43 @@ enum class Kind(val value: String) {
     @SerialName("search") Search("search");
 }
 
+@Serializable
+data class BillingAddressDTO (
+    val city: String,
+
+    /**
+     * ISO-3166 alpha-2, capitalised. Always "AU" while Effy sells in one country (spec §
+     * Assumptions).
+     */
+    val country: String,
+
+    val line1: String,
+    val line2: String? = null,
+    val postalCode: String,
+    val state: String
+)
+
+/**
+ * The billing details Effy supplies on the shopper's behalf at confirmation.
+ *
+ * ⚠ This is why the payment step no longer asks for a country, a postcode or a name. The
+ * platform already holds a verified billing address (the order's snapshot — the delivery
+ * address where the shopper did not diverge, the chosen billing address where they did) and
+ * the profile name, so it sends them itself instead of letting the provider guess a country
+ * from the shopper's IP — which is exactly where the reported "Country: Sri Lanka" on an
+ * Australia-only storefront came from (research R4).
+ *
+ * ⚠ DERIVED, NEVER ACCEPTED. A `billingDetails` key in a REQUEST must be ignored: honouring
+ * one would let a client contradict the address it confirmed one screen earlier (contract §
+ * 1).
+ */
+@Serializable
+data class BillingDetailsDTO (
+    val address: BillingAddressDTO,
+    val email: String? = null,
+    val name: String? = null
+)
+
 /**
  * The full cart — returned by GET /v1/cart AND by every mutating response, so a client
  * never has to guess the outcome of a change or issue a follow-up read (FR-007).
@@ -480,11 +517,39 @@ data class CreateCheckoutIntentRequest (
 @Serializable
 data class CreateCheckoutIntentResponse (
     /**
+     * 051 — the billing details the CLIENT must pass back at confirmation, because the payment
+     * step no longer asks the shopper for them (FR-014/FR-015).
+     *
+     * ⚠ DERIVED FROM THE ORDER, NEVER FROM THE REQUEST. This is the address the shopper already
+     * confirmed one screen earlier — the delivery address where they did not diverge, the
+     * chosen billing address where they did — plus the profile name. Sending it means the
+     * provider stops guessing a country from the shopper's IP, which is where "Country: Sri
+     * Lanka" on an Australia-only storefront came from.
+     *
+     * ⚠ Removing the fields does NOT weaken authorization: the same data still reaches the
+     * bank, sourced from Effy instead of from the shopper's keyboard (research R4).
+     */
+    val billingDetails: BillingDetailsDTO? = null,
+
+    /**
      * Authorizes confirming exactly this PaymentIntent from the client. Never a secret key.
      */
     val clientSecret: String,
 
     val currency: String,
+
+    /**
+     * 051 — authorizes a provider-owned payment-method list for THIS shopper only.
+     *
+     * ⚠ MOBILE ONLY, and null everywhere else. The mobile embedded element renders the
+     * saved-card list itself and needs a session to do it; the web card route renders that list
+     * from `GET /v1/payment-methods` and confirms with a payment-method id, so minting a
+     * session there would be an unused provider round trip on a path 027 already found
+     * latency-sensitive. Spike S2 — see specs/051-customer-payment-experience/research.md § R5
+     * AMENDED.
+     */
+    val customerSessionSecret: String? = null,
+
     val grandTotalAmount: String,
 
     @SerialName("orderId")
@@ -658,6 +723,74 @@ enum class ProductBadge(val value: String) {
     @SerialName("new") New("new"),
     @SerialName("on_sale") OnSale("on_sale");
 }
+
+/**
+ * GET /v1/payment-methods — the shopper's kept cards.
+ */
+@Serializable
+data class ListPaymentMethodsResponse (
+    /**
+     * ⚠ An empty array means "this shopper has no kept cards" and NOTHING ELSE. A provider
+     * outage MUST surface as an error rather than as `[]` — "you have no cards" and "we could
+     * not ask" are different facts, and conflating them is the FR-036 failure mode (contract §
+     * 2).
+     */
+    val paymentMethods: List<PaymentMethodDTO>
+)
+
+/**
+ * A card the shopper explicitly chose to keep.
+ *
+ * ⚠ NEVER PERSISTED BY EFFY. This is read live from the provider at the moment it is
+ * needed, because a mirrored copy rots: a card removed at the provider, expired, or
+ * replaced by the issuer's auto-updater would keep being offered from a stale row
+ * (data-model § 2).
+ */
+@Serializable
+data class PaymentMethodDTO (
+    /**
+     * Network, for the mark and the label (e.g. "visa", "mastercard", "amex").
+     */
+    val brand: String,
+
+    /**
+     * ⚠ WireInt, not number. Kotlin serialises a plain `number` as `Double`, so the wire
+     * carries `4.0` and Go's encoding/json refuses it into an `int` — the defect that silently
+     * rejected every mobile cart write in 019 and took three stacked fixes to find (027 R13).
+     * The `@asType integer` annotation is what makes the generated Kotlin an `Int`.
+     */
+    val expMonth: Long,
+
+    val expYear: Long,
+
+    /**
+     * Provider payment-method reference. Opaque — never parse it.
+     */
+    val id: String,
+
+    /**
+     * Which card the payment step pre-selects (FR-022).
+     */
+    val isDefault: Boolean,
+
+    /**
+     * The ONLY part of a card number that may leave the provider.
+     */
+    val last4: String,
+
+    /**
+     * Why the card cannot be used, when it cannot. Stated, never left for the shopper to work
+     * out.
+     */
+    val unusableReason: String? = null,
+
+    /**
+     * ⚠ SERVER-COMPUTED (FR-023). The client must NOT infer this from the expiry — the rules
+     * for what counts as unusable belong in one place, and a client that decides for itself
+     * will disagree with the server the moment those rules change.
+     */
+    val usable: Boolean
+)
 
 /**
  * The locality typeahead result (030): ≤ 8, alphabetical, never ordered by serviceability.

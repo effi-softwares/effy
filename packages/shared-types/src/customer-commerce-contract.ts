@@ -58,6 +58,12 @@ import type {
   ConfirmCheckoutRequest,
 } from "./checkout";
 import type {
+  PaymentMethodDTO,
+  ListPaymentMethodsResponse,
+  BillingDetailsDTO,
+  BillingAddressDTO,
+} from "./payment";
+import type {
   OrderStatus,
   PaymentStatus,
   OrderSummaryDTO,
@@ -132,6 +138,10 @@ export type {
   CreateCheckoutIntentRequest,
   CreateCheckoutIntentResponse,
   ConfirmCheckoutRequest,
+  PaymentMethodDTO,
+  ListPaymentMethodsResponse,
+  BillingDetailsDTO,
+  BillingAddressDTO,
   OrderStatus,
   PaymentStatus,
   OrderSummaryDTO,
@@ -226,4 +236,14 @@ export interface CustomerCommerceContract {
   deliveryOption: DeliveryOptionDTO;
   deliveryPackage: DeliveryPackageDTO;
   deliveryQuote: DeliveryQuoteDTO;
+  // ⚠ 051 payment. Same rule as saved-item and delivery above: referencing them HERE is what makes
+  // them exist in Kotlin. PaymentMethodDTO and ListPaymentMethodsResponse are reachable from nothing
+  // else in this contract, so without these two fields they would silently never be generated and
+  // `commerce-contract:check` would pass trivially — both files equally missing them. BillingDetails
+  // is reached transitively through the intent response, and is named anyway so a later refactor of
+  // that response cannot quietly drop it.
+  paymentMethod: PaymentMethodDTO;
+  listPaymentMethods: ListPaymentMethodsResponse;
+  billingDetails: BillingDetailsDTO;
+  billingAddress: BillingAddressDTO;
 }

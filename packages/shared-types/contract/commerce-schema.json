@@ -277,6 +277,69 @@
       ],
       "description": "Where a promotional banner leads (028).\n\n⚠ A CLOSED vocabulary, deliberately. `href` below is a WEB PATH, and mobile has no URL router — inventing one to serve a banner would be the tail wagging the dog. A closed set the server promises and each client maps exhaustively means a new target shows up as a gap in a `when`/`switch` at compile time, and at runtime an unrecognised value renders the banner NON-TAPPABLE. A tap that does nothing is worse than no tap.\n\n⚠ `promotion` was ADDED after every banner shipped targeting `search`, which sent every tap to the unfiltered store — the Search tab by another name, carrying none of the promotion's facts. FR-034 (no banner-only destinations) was read as forbidding a promotion screen; it does not. That rule protects shoppers from CONTENT reachable only via a carousel slide, and a promotion detail contains nothing the banner face does not already announce — it is the banner's own message, stated in full. See `PromotionDTO`."
     },
+    "BillingAddressDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "type": "string"
+        },
+        "country": {
+          "description": "ISO-3166 alpha-2, capitalised. Always \"AU\" while Effy sells in one country (spec § Assumptions).",
+          "type": "string"
+        },
+        "line1": {
+          "type": "string"
+        },
+        "line2": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "line1",
+        "line2",
+        "city",
+        "state",
+        "postalCode",
+        "country"
+      ],
+      "type": "object"
+    },
+    "BillingDetailsDTO": {
+      "additionalProperties": false,
+      "description": "The billing details Effy supplies on the shopper's behalf at confirmation.\n\n⚠ This is why the payment step no longer asks for a country, a postcode or a name. The platform already holds a verified billing address (the order's snapshot — the delivery address where the shopper did not diverge, the chosen billing address where they did) and the profile name, so it sends them itself instead of letting the provider guess a country from the shopper's IP — which is exactly where the reported \"Country: Sri Lanka\" on an Australia-only storefront came from (research R4).\n\n⚠ DERIVED, NEVER ACCEPTED. A `billingDetails` key in a REQUEST must be ignored: honouring one would let a client contradict the address it confirmed one screen earlier (contract § 1).",
+      "properties": {
+        "address": {
+          "$ref": "#/definitions/BillingAddressDTO"
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "email",
+        "address"
+      ],
+      "type": "object"
+    },
     "CartBlockedReason": {
       "description": "Why checkout is unavailable, when it is.",
       "enum": [
@@ -704,12 +767,30 @@
     "CreateCheckoutIntentResponse": {
       "additionalProperties": false,
       "properties": {
+        "billingDetails": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/BillingDetailsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "051 — the billing details the CLIENT must pass back at confirmation, because the payment step no longer asks the shopper for them (FR-014/FR-015).\n\n⚠ DERIVED FROM THE ORDER, NEVER FROM THE REQUEST. This is the address the shopper already confirmed one screen earlier — the delivery address where they did not diverge, the chosen billing address where they did — plus the profile name. Sending it means the provider stops guessing a country from the shopper's IP, which is where \"Country: Sri Lanka\" on an Australia-only storefront came from.\n\n⚠ Removing the fields does NOT weaken authorization: the same data still reaches the bank, sourced from Effy instead of from the shopper's keyboard (research R4)."
+        },
         "clientSecret": {
           "description": "Authorizes confirming exactly this PaymentIntent from the client. Never a secret key.",
           "type": "string"
         },
         "currency": {
           "type": "string"
+        },
+        "customerSessionSecret": {
+          "description": "051 — authorizes a provider-owned payment-method list for THIS shopper only.\n\n⚠ MOBILE ONLY, and null everywhere else. The mobile embedded element renders the saved-card list itself and needs a session to do it; the web card route renders that list from `GET /v1/payment-methods` and confirms with a payment-method id, so minting a session there would be an unused provider round trip on a path 027 already found latency-sensitive. Spike S2 — see specs/051-customer-payment-experience/research.md § R5 AMENDED.",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "grandTotalAmount": {
           "type": "string"
@@ -927,6 +1008,23 @@
         "toggle"
       ],
       "type": "string"
+    },
+    "ListPaymentMethodsResponse": {
+      "additionalProperties": false,
+      "description": "GET /v1/payment-methods — the shopper's kept cards.",
+      "properties": {
+        "paymentMethods": {
+          "description": "⚠ An empty array means \"this shopper has no kept cards\" and NOTHING ELSE. A provider outage MUST surface as an error rather than as `[]` — \"you have no cards\" and \"we could not ask\" are different facts, and conflating them is the FR-036 failure mode (contract § 2).",
+          "items": {
+            "$ref": "#/definitions/PaymentMethodDTO"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "paymentMethods"
+      ],
+      "type": "object"
     },
     "LocalitiesResultDTO": {
       "additionalProperties": false,
@@ -1275,6 +1373,57 @@
         "itemCount",
         "grandTotalAmount",
         "currency"
+      ],
+      "type": "object"
+    },
+    "PaymentMethodDTO": {
+      "additionalProperties": false,
+      "description": "A card the shopper explicitly chose to keep.\n\n⚠ NEVER PERSISTED BY EFFY. This is read live from the provider at the moment it is needed, because a mirrored copy rots: a card removed at the provider, expired, or replaced by the issuer's auto-updater would keep being offered from a stale row (data-model § 2).",
+      "properties": {
+        "brand": {
+          "description": "Network, for the mark and the label (e.g. \"visa\", \"mastercard\", \"amex\").",
+          "type": "string"
+        },
+        "expMonth": {
+          "$ref": "#/definitions/WireInt",
+          "description": "⚠ WireInt, not number. Kotlin serialises a plain `number` as `Double`, so the wire carries `4.0` and Go's encoding/json refuses it into an `int` — the defect that silently rejected every mobile cart write in 019 and took three stacked fixes to find (027 R13). The `@asType integer` annotation is what makes the generated Kotlin an `Int`."
+        },
+        "expYear": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "id": {
+          "description": "Provider payment-method reference. Opaque — never parse it.",
+          "type": "string"
+        },
+        "isDefault": {
+          "description": "Which card the payment step pre-selects (FR-022).",
+          "type": "boolean"
+        },
+        "last4": {
+          "description": "The ONLY part of a card number that may leave the provider.",
+          "type": "string"
+        },
+        "unusableReason": {
+          "description": "Why the card cannot be used, when it cannot. Stated, never left for the shopper to work out.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "usable": {
+          "description": "⚠ SERVER-COMPUTED (FR-023). The client must NOT infer this from the expiry — the rules for what counts as unusable belong in one place, and a client that decides for itself will disagree with the server the moment those rules change.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "brand",
+        "last4",
+        "expMonth",
+        "expYear",
+        "isDefault",
+        "usable",
+        "unusableReason"
       ],
       "type": "object"
     },
@@ -2059,6 +2208,12 @@
     "banner": {
       "$ref": "#/definitions/BannerDTO"
     },
+    "billingAddress": {
+      "$ref": "#/definitions/BillingAddressDTO"
+    },
+    "billingDetails": {
+      "$ref": "#/definitions/BillingDetailsDTO"
+    },
     "cart": {
       "$ref": "#/definitions/CartDTO"
     },
@@ -2134,6 +2289,9 @@
     "home": {
       "$ref": "#/definitions/StorefrontHomeDTO"
     },
+    "listPaymentMethods": {
+      "$ref": "#/definitions/ListPaymentMethodsResponse"
+    },
     "localitiesResult": {
       "$ref": "#/definitions/LocalitiesResultDTO"
     },
@@ -2160,6 +2318,9 @@
     },
     "orderSummary": {
       "$ref": "#/definitions/OrderSummaryDTO"
+    },
+    "paymentMethod": {
+      "$ref": "#/definitions/PaymentMethodDTO"
     },
     "productCard": {
       "$ref": "#/definitions/StorefrontProductCardDTO"
@@ -2277,7 +2438,11 @@
     "localitiesResult",
     "deliveryOption",
     "deliveryPackage",
-    "deliveryQuote"
+    "deliveryQuote",
+    "paymentMethod",
+    "listPaymentMethods",
+    "billingDetails",
+    "billingAddress"
   ],
   "type": "object",
   "title": "CustomerCommerceContract"

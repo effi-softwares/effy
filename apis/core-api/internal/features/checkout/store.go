@@ -75,6 +75,19 @@ type Store interface {
 	FinalizeSucceeded(ctx context.Context, orderID string) (applied bool, err error)
 	// FinalizeFailed marks the order + payment failed (no fan-out, no outbox, cart preserved).
 	FinalizeFailed(ctx context.Context, orderID string) error
+
+	// ── 051 ──────────────────────────────────────────────────────────────────────────────────────
+
+	// PaymentProfile returns what the provider needs to identify this shopper: the reference already
+	// stored (empty when they have never paid), plus the platform's own email and display name.
+	//
+	// ⚠ The email and name come from the PLATFORM RECORD, never from a token claim or a request body —
+	// they are what the provider will show on a receipt, and a client must not be able to set them.
+	PaymentProfile(ctx context.Context, customerID string) (providerCustomerID, email, name string, err error)
+
+	// SetProviderCustomerID persists the reference. Idempotent: writing the same value twice is a no-op,
+	// which is what keeps a retried intent from tripping the UNIQUE constraint.
+	SetProviderCustomerID(ctx context.Context, customerID, providerCustomerID string) error
 }
 
 // OrderDiscount is the platform's own discount computation at the moment of payment (027 FR-049). Carried
@@ -169,6 +182,45 @@ FROM public.customer_address WHERE id = $1 AND customer_id = $2`, addressID, cus
 		return nil, false, fmt.Errorf("checkout: scan address: %w", err)
 	}
 	return []byte(snap), true, nil
+}
+
+// PaymentProfile reads the provider reference plus the platform's own contact fields (051).
+func (s *pgStore) PaymentProfile(ctx context.Context, customerID string) (string, string, string, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT COALESCE(stripe_customer_id, ''), COALESCE(email::text, ''), COALESCE(display_name, '')
+FROM public.customer WHERE id = $1`, customerID)
+	if err != nil {
+		return "", "", "", fmt.Errorf("checkout: payment profile: %w", err)
+	}
+	type row struct {
+		Provider string
+		Email    string
+		Name     string
+	}
+	r, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByPos[row])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", "", "", nil
+		}
+		return "", "", "", fmt.Errorf("checkout: scan payment profile: %w", err)
+	}
+	return r.Provider, r.Email, r.Name, nil
+}
+
+// SetProviderCustomerID persists the provider reference (051).
+//
+// ⚠ `WHERE stripe_customer_id IS NULL` is load-bearing, not defensive. Two concurrent first-payments for
+// one shopper would otherwise race to overwrite each other, and the loser's provider customer — the one
+// its PaymentIntent was created against — would be stranded with its cards unreachable. First write wins;
+// the caller re-reads.
+func (s *pgStore) SetProviderCustomerID(ctx context.Context, customerID, providerCustomerID string) error {
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE public.customer SET stripe_customer_id = $2, updated_at = now()
+		 WHERE id = $1 AND stripe_customer_id IS NULL`,
+		customerID, providerCustomerID); err != nil {
+		return fmt.Errorf("checkout: set provider customer id: %w", err)
+	}
+	return nil
 }
 
 // SetOrderBilling writes the order's billing snapshot; nil → NULL ("same as shipping", 023 FR-009).

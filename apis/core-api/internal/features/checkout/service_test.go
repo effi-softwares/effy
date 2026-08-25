@@ -36,16 +36,37 @@ type fakeStore struct {
 	captureCalled bool
 	capturedPkgs  []PackageDelivery
 	capturedQuote []byte
+
+	// 051 — the provider reference and the platform's own contact fields.
+	providerCustomerID string
+	email              string
+	name               string
+	// providerWrites counts SetProviderCustomerID calls, which is how a test proves the reference is
+	// written once and not on every retry.
+	providerWrites int
 }
 
 func newFakeStore() *fakeStore {
-	return &fakeStore{address: map[string][]byte{
+	return &fakeStore{email: "shopper@example.com", name: "Test Shopper", address: map[string][]byte{
 		addrID:    []byte(`{"line1":"1 Test St","postalCode":"3121"}`),
 		otherAddr: []byte(`{"line1":"9 Other Rd","postalCode":"3550"}`),
 	}}
 }
 
 func (f *fakeStore) CartLines(context.Context, string) ([]CheckoutLine, error) { return f.lines, nil }
+
+func (f *fakeStore) PaymentProfile(context.Context, string) (string, string, string, error) {
+	return f.providerCustomerID, f.email, f.name, nil
+}
+
+func (f *fakeStore) SetProviderCustomerID(_ context.Context, _, providerCustomerID string) error {
+	f.providerWrites++
+	// Mirrors the real store's `WHERE stripe_customer_id IS NULL`: first write wins.
+	if f.providerCustomerID == "" {
+		f.providerCustomerID = providerCustomerID
+	}
+	return nil
+}
 
 func (f *fakeStore) AddressSnapshot(_ context.Context, _, addressID string) ([]byte, bool, error) {
 	j, ok := f.address[addressID]
@@ -87,10 +108,23 @@ func (f *fakeStore) OrderIntentForCustomer(context.Context, string, string) (str
 func (f *fakeStore) FinalizeSucceeded(context.Context, string) (bool, error) { return true, nil }
 func (f *fakeStore) FinalizeFailed(context.Context, string) error            { return nil }
 
-type fakeGateway struct{ amount int64 }
+type fakeGateway struct {
+	amount int64
+	// 051 — what the fake was asked to do, so a test can assert the SHAPE of the calls and not just
+	// their result. `customerCreates` is what proves EnsureCustomer is idempotent.
+	customerCreates int
+	sessions        int
+	detached        []string
+	cards           []SavedCard
+	// listErr forces the provider-unreachable path, which must never look like an empty list.
+	listErr error
+	// What the intent was actually built with — the only way to assert the provider customer is attached.
+	intentCustomer string
+}
 
 func (g *fakeGateway) CreatePaymentIntent(_ context.Context, in CreateIntentInput) (PaymentIntent, error) {
 	g.amount = in.AmountMinor
+	g.intentCustomer = in.CustomerID
 	return PaymentIntent{ID: "pi_1", ClientSecret: "cs_1", Status: "requires_payment_method"}, nil
 }
 
@@ -100,6 +134,33 @@ func (g *fakeGateway) RetrievePaymentIntent(_ context.Context, id string) (Payme
 
 func (g *fakeGateway) ConstructWebhookEvent([]byte, string) (WebhookEvent, error) {
 	return WebhookEvent{}, nil
+}
+
+// ── 051 ───────────────────────────────────────────────────────────────────────────────────────────
+
+func (g *fakeGateway) EnsureCustomer(_ context.Context, in EnsureCustomerInput) (string, error) {
+	if in.Existing != "" {
+		return in.Existing, nil
+	}
+	g.customerCreates++
+	return "cus_fake", nil
+}
+
+func (g *fakeGateway) CreateCustomerSession(context.Context, string) (CustomerSession, error) {
+	g.sessions++
+	return CustomerSession{ClientSecret: "cuss_fake"}, nil
+}
+
+func (g *fakeGateway) ListSavedCards(context.Context, string) ([]SavedCard, error) {
+	if g.listErr != nil {
+		return nil, g.listErr
+	}
+	return g.cards, nil
+}
+
+func (g *fakeGateway) DetachPaymentMethod(_ context.Context, id string) error {
+	g.detached = append(g.detached, id)
+	return nil
 }
 
 type fakePolicy struct{ minimum int64 }

@@ -25,6 +25,16 @@ type createIntentRequest struct {
 	// 047: the order-level delivery preference ("same_day" or "standard", default standard). Applied per
 	// package where offered; the server prices it and never takes a fee from the client (FR-036/044).
 	DeliveryMethod string `json:"deliveryMethod"`
+	// 051: set by a client that renders a PROVIDER-OWNED payment-method list (the mobile embedded
+	// element) and needs a customer session to do it. Web renders Effy's own list and leaves this false.
+	//
+	// ⚠ Asking for a session is not authorization to get someone else's: the session is always minted for
+	// the AUTHENTICATED subject, so the worst a hostile client achieves is a session for itself.
+	//
+	// ⚠ There is deliberately NO `billingDetails` field on this request. The billing details are derived
+	// from the order's own snapshot; accepting one here would let a client contradict the address it
+	// confirmed one screen earlier (contract § 1, FR-016).
+	WantsProviderMethodList bool `json:"wantsProviderMethodList"`
 }
 
 type createIntentResponse struct {
@@ -34,6 +44,46 @@ type createIntentResponse struct {
 	PublishableKey   string `json:"publishableKey"`
 	GrandTotalAmount string `json:"grandTotalAmount"`
 	Currency         string `json:"currency"`
+	// 051 — additive. `omitempty` on the session keeps the web response byte-identical to before.
+	//
+	// ⚠ The provider CUSTOMER id is absent by design and must stay absent: no surface has any use for it
+	// (data-model § 1).
+	CustomerSessionSecret string              `json:"customerSessionSecret,omitempty"`
+	BillingDetails        *billingDetailsBody `json:"billingDetails,omitempty"`
+}
+
+// billingDetailsBody is what the client passes back at confirmation, because the payment step no longer
+// asks the shopper for a country, a postcode or a name (051 FR-014/FR-015).
+type billingDetailsBody struct {
+	Name    string             `json:"name"`
+	Email   string             `json:"email"`
+	Address billingAddressBody `json:"address"`
+}
+
+type billingAddressBody struct {
+	Line1      string `json:"line1"`
+	Line2      string `json:"line2"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	PostalCode string `json:"postalCode"`
+	Country    string `json:"country"`
+}
+
+// paymentMethodBody is one kept card. ⚠ These are the ONLY fields permitted to leave the provider:
+// no card number, no security code, no cardholder name (FR-025 / SC-012).
+type paymentMethodBody struct {
+	ID             string `json:"id"`
+	Brand          string `json:"brand"`
+	Last4          string `json:"last4"`
+	ExpMonth       int64  `json:"expMonth"`
+	ExpYear        int64  `json:"expYear"`
+	IsDefault      bool   `json:"isDefault"`
+	Usable         bool   `json:"usable"`
+	UnusableReason string `json:"unusableReason,omitempty"`
+}
+
+type listPaymentMethodsResponse struct {
+	PaymentMethods []paymentMethodBody `json:"paymentMethods"`
 }
 
 type quoteRequest struct {
@@ -81,7 +131,12 @@ func (h *Handler) createIntent(c *gin.Context) {
 	}
 	cust, _ := customeridentity.FromContext(c.Request.Context())
 	res, err := h.svc.CreateCheckoutIntent(c.Request.Context(), cust.ID,
-		IntentInput{AddressID: req.AddressID, BillingAddressID: req.BillingAddressID, DeliveryMethod: req.DeliveryMethod}, time.Now())
+		IntentInput{
+			AddressID:               req.AddressID,
+			BillingAddressID:        req.BillingAddressID,
+			DeliveryMethod:          req.DeliveryMethod,
+			WantsProviderMethodList: req.WantsProviderMethodList,
+		}, time.Now())
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrEmptyCart):
@@ -108,7 +163,60 @@ func (h *Handler) createIntent(c *gin.Context) {
 	c.JSON(http.StatusOK, createIntentResponse{
 		OrderID: res.OrderID, OrderNumber: res.OrderNumber, ClientSecret: res.ClientSecret,
 		PublishableKey: res.PublishableKey, GrandTotalAmount: res.GrandTotal, Currency: res.Currency,
+		CustomerSessionSecret: res.CustomerSessionSecret,
+		BillingDetails: &billingDetailsBody{
+			Name:  res.BillingDetails.Name,
+			Email: res.BillingDetails.Email,
+			Address: billingAddressBody{
+				Line1:      res.BillingDetails.Address.Line1,
+				Line2:      res.BillingDetails.Address.Line2,
+				City:       res.BillingDetails.Address.City,
+				State:      res.BillingDetails.Address.State,
+				PostalCode: res.BillingDetails.Address.PostalCode,
+				Country:    res.BillingDetails.Address.Country,
+			},
+		},
 	})
+}
+
+// listPaymentMethods returns the shopper's kept cards (051 US3/US6).
+func (h *Handler) listPaymentMethods(c *gin.Context) {
+	cust, _ := customeridentity.FromContext(c.Request.Context())
+	cards, err := h.svc.ListKeptCards(c.Request.Context(), cust.ID, time.Now())
+	if err != nil {
+		// ⚠ A provider failure is a 500, NEVER an empty list. "You have no cards" and "we could not ask"
+		// are different facts, and a client cannot tell them apart from a 200 with `[]` (FR-036).
+		logger.FromContext(c.Request.Context()).Error("checkout: list payment methods failed", zap.Error(err))
+		httpx.Internal(c)
+		return
+	}
+	body := make([]paymentMethodBody, 0, len(cards))
+	for _, k := range cards {
+		body = append(body, paymentMethodBody{
+			ID: k.ID, Brand: k.Brand, Last4: k.Last4,
+			ExpMonth: k.ExpMonth, ExpYear: k.ExpYear, IsDefault: k.IsDefault,
+			Usable: k.Usable, UnusableReason: k.UnusableReason,
+		})
+	}
+	c.JSON(http.StatusOK, listPaymentMethodsResponse{PaymentMethods: body})
+}
+
+// removePaymentMethod detaches a kept card (051 FR-024).
+func (h *Handler) removePaymentMethod(c *gin.Context) {
+	cust, _ := customeridentity.FromContext(c.Request.Context())
+	err := h.svc.RemoveKeptCard(c.Request.Context(), cust.ID, c.Param("id"))
+	switch {
+	case err == nil:
+		c.Status(http.StatusNoContent)
+	case errors.Is(err, ErrPaymentMethodNotFound):
+		// ⚠ 404 for both "no such card" and "not yours" — see ErrPaymentMethodNotFound. Removal is also
+		// idempotent from the shopper's point of view: removing a card twice is not an error worth
+		// showing them.
+		httpx.NotFound(c)
+	default:
+		logger.FromContext(c.Request.Context()).Error("checkout: detach payment method failed", zap.Error(err))
+		httpx.Internal(c)
+	}
 }
 
 func (h *Handler) confirm(c *gin.Context) {
@@ -193,6 +301,13 @@ func Register(v1 *gin.RouterGroup, verifier *auth.PoolVerifier, identity *custom
 	g.POST("/quote", h.quote) // 047: delivery preview before payment
 	g.POST("/intent", h.createIntent)
 	g.POST("/confirm", h.confirm)
+
+	// 051 — kept cards. Scoped to the authenticated subject: there is no customer parameter and no admin
+	// form of these routes. HOT PATH by the 011 routing law ("payment"), and because the provider secret
+	// never leaves this package — a cold-path implementation would need a second copy of it (research R9).
+	pm := v1.Group("/payment-methods", auth.Middleware(verifier), customeridentity.Middleware(identity))
+	pm.GET("", h.listPaymentMethods)
+	pm.DELETE("/:id", h.removePaymentMethod)
 
 	// Stripe → server-to-server, no Cognito token; authenticated by the Stripe signature (raw body).
 	v1.POST("/stripe/webhook", h.webhook)
