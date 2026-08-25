@@ -61,6 +61,15 @@ data class BridgeElementSelection(
     val heightPoints: Double,
 )
 
+/**
+ * A flat payment result the Swift bridge returns. [outcome] is `completed` | `canceled` | `failed`.
+ *
+ * ⚠ Kotlin/Native cannot receive a sealed [PaymentResult] from Swift, so the bridge speaks strings and
+ * the Kotlin side maps them back — the same shape the retired `IosPaymentBridge` used, which is where
+ * this type lived until the modal sheet was removed.
+ */
+data class BridgePaymentResult(val outcome: String, val message: String? = null)
+
 /** Billing details Effy supplies on the shopper's behalf — the element collects none of this. */
 data class BridgeBillingDetails(
     val name: String?,
@@ -74,7 +83,7 @@ data class BridgeBillingDetails(
 )
 
 /**
- * Set once by Swift at startup, the way `IosPaymentDriver` is handed to `MainViewController`.
+ * Set once by Swift at startup, the way the auth bridge is handed to `MainViewController`.
  *
  * ⚠ A factory rather than a single instance: each payment screen needs its OWN element (a new
  * PaymentIntent means a new element), and sharing one across screens would confirm the wrong intent.

@@ -135,6 +135,24 @@ paid; the fields asked for are exactly three; no basket line, address or deliver
 - [X] T055 [US1] ⚠ Send the **access** token, not the id token, on every new `core-api` call in `apps/customer-mobile/shared/src/commonMain/kotlin/.../core/network/EffyHttpClient.kt` — this is 019/027 R12a, the defect that silently rejected every mobile cart write
 - [X] T056 [P] [US1] Add `PaymentViewModel` tests in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/payment/PaymentViewModelTest.kt` — ⚠ **no comma in a backtick test name**: Kotlin/Native rejects it and the iOS test compilation fails while Android stays green (033)
 
+#### ⚠ T056a–T056e — THE WIRING THIS PHASE FORGOT (added 2026-08-25, after the operator found the provider's modal sheet still appearing on both platforms)
+
+**The screen was built and nothing routed to it.** T053/T054 produced `PaymentViewModel` + `PaymentScreen`
+and T049/T050 produced both platform elements — and every one of them was **unreachable**: `CustomerNavKey`
+had no `Payment` route, `CustomerShell` had no `entry<>`, `AppContainer` never constructed the ViewModel, and
+`CheckoutScreen` still called `PayForOrder` → `PaymentDriver.presentPaymentSheet`. The only references to
+`PaymentScreen`/`PaymentViewModel` anywhere in the app were their own files and their own unit test. Every
+gate stayed green — 297 tests, both compiles, `cm-guard` — because a screen nobody navigates to is not a
+compile error and `cm-guard`'s reachability check only reads the routes that exist. **There was no task in
+this phase for the call site**, which is why the phase could be ticked complete with the shopper still seeing
+Stripe's sheet.
+
+- [X] T056a [US1] Add `CustomerNavKey.Payment` (+ polymorphic registration, `ALL_CUSTOMER_ROUTES`, the count in `ScreenInventoryTest`) and an `entry<CustomerNavKey.Payment>` in `CustomerShell` — ⚠ the route carries **no arguments**: keys are serialized and persisted, and the payment intent holds a client secret
+- [X] T056b [US1] Split the checkout call site: `PayForOrder` (create intent + present sheet + confirm, in one call) is **retired** in favour of `CreateIntent`; `CheckoutViewModel.payNow` creates the intent, offers it to a new in-memory `PaymentHandoff`, and raises a **one-shot** `handedOffToPayment` — ⚠ a sticky state would re-fire the moment the shopper backed out of payment and trap them
+- [X] T056c [US1] Move the cart-mirror clear from `CheckoutViewModel` to `PaymentViewModel` — checkout no longer completes a payment, so clearing there would empty a basket that has not been paid for
+- [X] T056d [US1] ⚠ **DEFECT FIXED — Android could not have worked.** Nothing called `PaymentConfiguration.init`, which the SDK resolves through a process-wide singleton on every element and every confirm; the **only** caller was the retired PaymentSheet presenter in `MainActivity`. `rememberPaymentElement` now initialises it from `config.publishableKey`. ⚠ `init` also **persists** the key, so a device that had paid through the old sheet would have masked this — working on a used device and throwing `IllegalStateException: PaymentConfiguration was not initialized` on a fresh install
+- [X] T056e [US1] Retire the whole legacy path so two live payment routes cannot coexist: `PaymentDriver`, `AndroidPaymentDriver`, `IosPaymentDriver`, `PaymentPresenter`, `SwiftPaymentBridge.swift`, the `paymentDriver` container parameter, MainActivity's `PaymentSheet` registration and the app module's Stripe dependency. `PaymentResult` survives in its own file — every payment still ends one of those three ways
+
 **Checkpoint**: US1 is a complete, releasable improvement on both surfaces.
 
 ---

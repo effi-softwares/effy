@@ -3,14 +3,20 @@ package com.effyshopping.customer.mobile.features.payment
 import com.effyshopping.customer.mobile.core.payment.PaymentElementHandle
 import com.effyshopping.customer.mobile.core.payment.PaymentElementState
 import com.effyshopping.customer.mobile.core.payment.PaymentResult
+import com.effyshopping.customer.mobile.core.storage.InMemoryDevicePreferences
+import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
+import com.effyshopping.customer.mobile.features.cart.domain.CartStore
+import com.effyshopping.customer.mobile.features.cart.domain.GuestCartLine
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutBillingDetails
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.ConfirmOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
+import com.effyshopping.customer.mobile.features.payment.domain.PaymentHandoff
 import com.effyshopping.customer.mobile.features.payment.presentation.PaymentViewModel
 import com.effyshopping.customer.mobile.features.payment.presentation.minorUnits
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,9 +72,18 @@ class PaymentViewModelTest {
         override suspend fun quote(addressId: String) = DeliveryQuote.Unserviced
     }
 
-    private fun viewModel(repo: FakeCheckout = FakeCheckout()) = PaymentViewModel(
+    private fun cartStore() =
+        CartStore(CartLocalStore(InMemoryDevicePreferences()), CoroutineScope(UnconfinedTestDispatcher()))
+
+    private fun viewModel(
+        repo: FakeCheckout = FakeCheckout(),
+        cart: CartStore = cartStore(),
+        handoff: PaymentHandoff = PaymentHandoff(),
+    ) = PaymentViewModel(
         intent = intent(),
         confirmOrder = ConfirmOrder(repo),
+        cart = cart,
+        handoff = handoff,
         publishableKey = "pk_test",
         merchantName = "Effy",
     )
@@ -236,6 +251,51 @@ class PaymentViewModelTest {
         vm.pay(hanging)
         vm.pay(hanging)
         assertEquals(1, hanging.attempts, "a second press started another payment")
+    }
+
+    /**
+     * ⚠ THE CART MIRROR IS THIS SCREEN'S JOB NOW. Checkout used to clear it when its own pay call
+     * returned, but checkout no longer takes the payment — so without this the badge would still show a
+     * basket the shopper has just bought and paid for.
+     */
+    @Test
+    fun `a completed payment empties the device cart mirror`() = runTest {
+        val cart = cartStore()
+        cart.add(
+            GuestCartLine(
+                productId = "p1",
+                name = "Milk",
+                imageUrl = null,
+                unitPriceAmount = "3.50",
+                currency = "AUD",
+                quantity = 2,
+            ),
+        )
+        assertEquals(1, cart.snapshot().lines.size)
+
+        viewModel(cart = cart).pay(FakeElement(PaymentResult.Completed))
+
+        assertTrue(cart.snapshot().lines.isEmpty())
+    }
+
+    /** A failed payment must NOT empty the cart — the shopper still has to be able to try again. */
+    @Test
+    fun `a failed payment leaves the cart alone`() = runTest {
+        val cart = cartStore()
+        cart.add(
+            GuestCartLine(
+                productId = "p1",
+                name = "Milk",
+                imageUrl = null,
+                unitPriceAmount = "3.50",
+                currency = "AUD",
+                quantity = 2,
+            ),
+        )
+
+        viewModel(cart = cart).pay(FakeElement(PaymentResult.Failed("card declined")))
+
+        assertEquals(1, cart.snapshot().lines.size)
     }
 
     private companion object {

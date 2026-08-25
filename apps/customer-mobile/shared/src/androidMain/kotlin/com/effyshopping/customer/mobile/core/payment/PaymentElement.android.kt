@@ -5,8 +5,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.effyshopping.customer.mobile.shared.R
 import com.effyshopping.customer.mobile.design.payment.EffyPaymentAppearance
+import com.stripe.android.PaymentConfiguration
 import com.stripe.android.paymentelement.EmbeddedPaymentElement
 import com.stripe.android.paymentelement.rememberEmbeddedPaymentElement
 import com.stripe.android.paymentsheet.CreateIntentResult
@@ -56,6 +58,18 @@ private class AndroidPaymentElementHandle(
 
 @Composable
 actual fun rememberPaymentElement(config: PaymentElementConfig): PaymentElementHandle? {
+    // ⚠ THE SDK READS THE PUBLISHABLE KEY FROM A PROCESS-WIDE SINGLETON, NOT FROM THE CONFIGURATION.
+    // Every element and every confirm call resolves it through `PaymentConfiguration.getInstance`,
+    // which throws `IllegalStateException: PaymentConfiguration was not initialized` when nothing has
+    // called `init`. Until 051 the only caller was the retired PaymentSheet presenter in `MainActivity`
+    // — so with that gone, this is the one place that establishes the key. `init` also persists it, so
+    // a device that had paid before would have masked the omission: it would have worked in testing on
+    // a used device and thrown on a fresh install.
+    val context = LocalContext.current
+    remember(config.publishableKey) {
+        PaymentConfiguration.init(context.applicationContext, config.publishableKey)
+    }
+
     // The builder's result callback fires before `handle` exists, so it reads through this reference
     // rather than capturing a value that is not yet constructed.
     val handleRef = remember { AtomicReference<AndroidPaymentElementHandle?>(null) }

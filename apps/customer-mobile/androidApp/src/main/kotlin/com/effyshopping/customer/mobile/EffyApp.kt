@@ -8,7 +8,6 @@ import com.effyshopping.customer.mobile.core.auth.AmplifyBootstrap
 import com.effyshopping.customer.mobile.core.config.AppConfig
 import com.effyshopping.customer.mobile.core.observability.AndroidCrashReporter
 import com.effyshopping.customer.mobile.core.observability.PostHogAnalyticsDriver
-import com.effyshopping.customer.mobile.core.payment.AndroidPaymentDriver
 import com.effyshopping.customer.mobile.core.push.FirebasePushTokenProvider
 import com.effyshopping.customer.mobile.core.storage.initDevicePreferences
 
@@ -22,7 +21,6 @@ class EffyApp : Application() {
     val container: AppContainer by lazy {
         AppContainer(
             authDriver = AmplifyAuthDriver(),
-            paymentDriver = AndroidPaymentDriver(),
             // 050 — the Android observability/push drivers. All fail-open: empty PostHog key ⇒ analytics
             // no-op; Firebase auto-inits from google-services resources.
             crashReporter = AndroidCrashReporter(),

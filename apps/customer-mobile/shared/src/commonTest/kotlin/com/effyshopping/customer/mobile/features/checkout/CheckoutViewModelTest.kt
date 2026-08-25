@@ -1,25 +1,20 @@
 package com.effyshopping.customer.mobile.features.checkout
 
-import com.effyshopping.customer.mobile.core.storage.InMemoryDevicePreferences
 import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
 import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
-import com.effyshopping.customer.mobile.features.cart.data.CartLocalStore
-import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
-import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
-import com.effyshopping.customer.mobile.core.payment.PaymentDriver
-import com.effyshopping.customer.mobile.core.payment.PaymentResult
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
+import com.effyshopping.customer.mobile.features.payment.domain.PaymentHandoff
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutUiState
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutViewModel
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -83,21 +78,17 @@ class CheckoutViewModelTest {
         override suspend fun quote(addressId: String) = quote
     }
 
-    private class FakePaymentDriver : PaymentDriver {
-        override suspend fun presentPaymentSheet(clientSecret: String, publishableKey: String) =
-            PaymentResult.Completed
-    }
-
     private fun vm(
         addresses: List<SavedAddress>,
         checkout: FakeCheckout = FakeCheckout(),
+        handoff: PaymentHandoff = PaymentHandoff(),
     ): CheckoutViewModel {
         val repo = FakeAddresses(addresses)
         return CheckoutViewModel(
-            cart = CartStore(CartLocalStore(InMemoryDevicePreferences()), CoroutineScope(UnconfinedTestDispatcher())),
             listAddresses = ListAddresses(repo),
             addAddress = AddAddress(repo),
-            pay = PayForOrder(checkout, FakePaymentDriver(), "pk_test"),
+            createIntent = CreateIntent(checkout),
+            handoff = handoff,
             quoteDelivery = QuoteDelivery(checkout),
         )
     }
@@ -177,6 +168,42 @@ class CheckoutViewModelTest {
 
         assertFalse(ready(vm)!!.paying)
         assertEquals("Choose a billing address.", ready(vm)?.error)
+    }
+
+    /**
+     * ⚠ THE DEFECT THIS PINS. Checkout used to create the intent AND present the provider's modal sheet
+     * in one call. 051 built an Effy-drawn payment screen to replace that sheet and never routed to it,
+     * so the modal kept appearing with every test green — the new screen was unreachable, not broken.
+     * This asserts the handoff actually happens.
+     */
+    @Test
+    fun `paying hands the created intent to the payment screen`() = runTest {
+        val handoff = PaymentHandoff()
+        val vm = vm(listOf(addr("a", isDefault = true)), handoff = handoff)
+
+        vm.payNow()
+
+        assertEquals("o1", handoff.pending?.orderId)
+        assertEquals("cs", handoff.pending?.clientSecret)
+        assertTrue(ready(vm)!!.handedOffToPayment)
+        // ⚠ The busy state is cleared on the way out. Leaving it set means a shopper who backs out of
+        // payment returns to a checkout whose pay button is stuck spinning.
+        assertFalse(ready(vm)!!.paying)
+    }
+
+    /**
+     * ⚠ The one-shot must disarm, or backing out of payment re-fires it and bounces the shopper straight
+     * back in — with no way out but the app switcher.
+     */
+    @Test
+    fun `the handoff signal is consumed once`() = runTest {
+        val vm = vm(listOf(addr("a", isDefault = true)))
+        vm.payNow()
+        assertTrue(ready(vm)!!.handedOffToPayment)
+
+        vm.handoffConsumed()
+
+        assertFalse(ready(vm)!!.handedOffToPayment)
     }
 
     @Test

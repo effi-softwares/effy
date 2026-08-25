@@ -7,7 +7,7 @@ import UIKit
 ///
 /// Swift conforms to the Kotlin `IosPaymentElementBridge` protocol and owns Stripe's
 /// `EmbeddedPaymentElement`; the Kotlin `actual` embeds the element's `view` in Compose through
-/// `UIKitView` and drives confirmation. Same shape as `SwiftPaymentBridge`/`IosPaymentDriver` (019) and
+/// `UIKitView` and drives confirmation. Same shape as the retired `SwiftPaymentBridge` (019) and
 /// `SwiftAuthBridge`/`IosAuthDriver` (013).
 ///
 /// ⚠ WHY AN EMBEDDED ELEMENT RATHER THAN `PaymentSheet`. The sheet is a modal that owns its own chrome,

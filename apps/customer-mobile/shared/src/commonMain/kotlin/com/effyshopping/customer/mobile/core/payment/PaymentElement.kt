@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * The IN-APP payment element (051 US1) — the payment method list rendered INSIDE an Effy screen.
  *
- * ⚠ WHY THIS REPLACES [PaymentDriver.presentPaymentSheet]. That call presents the provider's full modal
+ * ⚠ WHY THIS REPLACED THE RETIRED `PaymentDriver.presentPaymentSheet`. That call presented the full modal
  * sheet: its chrome, its amount, its button, its layout. Nothing about it can be made to look like Effy
  * beyond colours and a corner radius, so FR-028 ("every part of the payment step that Effy is permitted
  * to draw MUST be drawn by Effy") is unmeetable with it. The embedded element renders only the method

@@ -1,7 +1,27 @@
 # Sign-off: 051 — Customer Payment Experience
 
-**Date**: 2026-08-25 · **Status**: 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED ON WEB + ANDROID.
-NOT DEPLOYED. NOT WALKED BY A PERSON. iOS UNVERIFIED.**
+**Date**: 2026-08-25 · **Status**: 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED ON WEB + ANDROID + iOS.
+NOT DEPLOYED. NOT WALKED BY A PERSON.**
+
+> ⚠ **AMENDED 2026-08-25 — THE MOBILE PAYMENT SCREEN WAS NEVER REACHABLE.** The operator ran both mobile
+> apps and saw the **provider's modal payment sheet**, unchanged. Everything in the table below was built;
+> **nothing routed to it**. `CustomerNavKey` had no `Payment` route, `CustomerShell` had no `entry<>`,
+> `AppContainer` never built the ViewModel, and `CheckoutScreen` still called the 019 `PayForOrder` →
+> `presentPaymentSheet` path. The only references to `PaymentScreen`/`PaymentViewModel` in the whole app
+> were their own files and their own test. **Every gate was green throughout** — 297 tests, both compiles,
+> `cm-guard` — because an unreferenced screen is not a compile error and the reachability guard only reads
+> routes that exist. The mobile ✅s below meant "built and unit-tested", not "reachable", and this document
+> did not distinguish the two. Wired up as **T056a–T056e**; see [tasks.md](./tasks.md).
+>
+> Two things fell out of the wiring that no test could have caught:
+> - ⚠ **Android could not have worked at all.** Nothing called `PaymentConfiguration.init`, which the SDK
+>   resolves through a process-wide singleton for every element and every confirm. The only caller was the
+>   retired PaymentSheet presenter in `MainActivity`. ⚠ `init` also **persists** the key, so a device that
+>   had paid through the old sheet would have hidden this — working in testing and throwing
+>   `IllegalStateException: PaymentConfiguration was not initialized` on a fresh install.
+> - ✅ **Carried gap 1 below is CLOSED.** `xcodebuild` now reports **BUILD SUCCEEDED**: the Firebase/PostHog
+>   SPM blocker from 050 is resolved in the operator's project, so `SwiftPaymentElementBridge.swift`
+>   compiles. The iOS Swift half is no longer unproven.
 
 **91 / 108 tasks.** Every user story is built. What remains is 3 operator gates, 13 operator walks,
 and 1 task of mine that those gates block.
@@ -17,11 +37,11 @@ All six user stories, on both customer surfaces:
 
 | | Web | Android | iOS |
 |---|---|---|---|
-| US1 — payment step carries the amount and nothing else | ✅ | ✅ | ⚠ unverified |
-| US2 — wallets (Apple Pay, Google Pay, Link) | ✅ | ✅ | ⚠ unverified |
-| US3 — saved cards + save consent | ✅ | ✅ | ⚠ unverified |
-| US4 — pay over time (Klarna, Zip) | ✅ | ✅ | ⚠ unverified |
-| US5 — failure states | ✅ | ✅ | ⚠ unverified |
+| US1 — payment step carries the amount and nothing else | ✅ | ✅ | ✅ |
+| US2 — wallets (Apple Pay, Google Pay, Link) | ✅ | ✅ | ✅ |
+| US3 — saved cards + save consent | ✅ | ✅ | ✅ |
+| US4 — pay over time (Klarna, Zip) | ✅ | ✅ | ✅ |
+| US5 — failure states | ✅ | ✅ | ✅ |
 | US6 — payment methods in the account | ✅ | ✅ | ✅ |
 
 **The shopper-visible change**: the payment step no longer restates the order, asks for three card
@@ -89,7 +109,9 @@ a reversed order briefly blocked dev checkout in 047), then:
 
 ## ⚠ Carried gaps that this feature could not close
 
-**1. iOS payments are unverified, and the blocker predates 051.**
+**1. ~~iOS payments are unverified~~ — CLOSED 2026-08-25.** `xcodebuild -scheme iosApp` reports **BUILD
+SUCCEEDED**, so the Swift bridge compiles and the SPM blocker below is resolved. The original entry, kept
+because its lesson stands (a Kotlin `actual` compiling proves nothing about the Swift it bridges to):
 The Swift bridge and its Kotlin `actual` are written, and the Kotlin half compiles for iOS (main and
 test). The Swift half has **never compiled**, because ⚑ **the iOS app has not built since feature 050**:
 `xcodebuild` dies on `Unable to resolve module dependency: FirebaseCore / FirebaseCrashlytics /

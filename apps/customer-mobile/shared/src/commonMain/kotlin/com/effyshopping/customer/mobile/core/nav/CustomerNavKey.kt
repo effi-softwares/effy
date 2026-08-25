@@ -82,6 +82,17 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable data object Checkout : CustomerNavKey
 
+    /**
+     * Paying (051 US1) — Effy's own payment screen around the provider's in-app element.
+     *
+     * ⚠ IT CARRIES NO ARGUMENTS ON PURPOSE. Every route here is `@Serializable` and persisted across
+     * process death, and the thing this screen needs is a payment intent holding a client secret.
+     * Persisting that to device storage would be a durable secret written for no reason, so the intent
+     * travels in memory through `PaymentHandoff` and this key is a bare marker. No handoff ⇒ the screen
+     * says so and sends the shopper back to checkout, which is the correct outcome after a process kill.
+     */
+    @Serializable data object Payment : CustomerNavKey
+
     @Serializable
     data class Receipt(val orderId: String) : CustomerNavKey
 
@@ -228,6 +239,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Promotion::class, CustomerNavKey.Promotion.serializer())
             subclass(CustomerNavKey.Cart::class, CustomerNavKey.Cart.serializer())
             subclass(CustomerNavKey.Checkout::class, CustomerNavKey.Checkout.serializer())
+            subclass(CustomerNavKey.Payment::class, CustomerNavKey.Payment.serializer())
             subclass(CustomerNavKey.Receipt::class, CustomerNavKey.Receipt.serializer())
             subclass(CustomerNavKey.OrderDetail::class, CustomerNavKey.OrderDetail.serializer())
             subclass(CustomerNavKey.SignIn::class, CustomerNavKey.SignIn.serializer())
@@ -268,6 +280,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Promotion("promo1"),
     CustomerNavKey.Cart,
     CustomerNavKey.Checkout,
+    CustomerNavKey.Payment,
     CustomerNavKey.Receipt("o1"),
     CustomerNavKey.OrderDetail("o1"),
     CustomerNavKey.SignIn(),

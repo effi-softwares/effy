@@ -17,7 +17,6 @@ import com.effyshopping.customer.mobile.core.push.NoOpPushTokenProvider
 import com.effyshopping.customer.mobile.core.push.PushTokenProvider
 import kotlinx.coroutines.launch
 import com.effyshopping.customer.mobile.core.nav.CustomerNavigator
-import com.effyshopping.customer.mobile.core.payment.PaymentDriver
 import com.effyshopping.customer.mobile.features.cart.data.HttpCartRepository
 import com.effyshopping.customer.mobile.features.saved.data.HttpSavedRepository
 import com.effyshopping.customer.mobile.features.feedback.data.HttpFeedbackRepository
@@ -40,7 +39,11 @@ import com.effyshopping.customer.mobile.features.saved.domain.UndoRemoveSaved
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
-import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
+import com.effyshopping.customer.mobile.features.checkout.domain.ConfirmOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
+import com.effyshopping.customer.mobile.features.payment.domain.PaymentHandoff
+import com.effyshopping.customer.mobile.features.payment.presentation.PaymentViewModel
 import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import com.effyshopping.customer.mobile.core.session.SessionManager
 import com.effyshopping.customer.mobile.core.session.SessionState
@@ -119,9 +122,10 @@ import com.effyshopping.customer.mobile.core.storage.clearGuestData
  */
 class AppContainer(
     val authDriver: AuthDriver,
-    // The payment capability (019 US3) — injected per platform, like [authDriver]: Android provides the
-    // Stripe PaymentSheet driver, iOS a Swift bridge over StripePaymentSheet.
-    val paymentDriver: PaymentDriver,
+    // ⚠ THERE IS NO PAYMENT DRIVER HERE ANY MORE (051). 019 injected one per platform because paying
+    // meant asking the platform to PRESENT the provider's modal sheet. Paying now happens inside Effy's
+    // own screen, through a Compose-scoped element that cannot be built from a container at all — so the
+    // seam moved to an `expect`/`actual` composable (`rememberPaymentElement`) and this parameter went.
     // Observability + push (050) — injected per platform like the drivers above. Android provides the
     // Firebase/PostHog implementations; iOS defaults to no-ops until its Swift bridges land. NoOp
     // defaults keep every capability fail-open when unconfigured (FR-005/FR-027).
@@ -260,11 +264,40 @@ class AppContainer(
     fun feedbackViewModel(): FeedbackViewModel = FeedbackViewModel(submitFeedback, isSignedIn = signedIn)
 
 
-    // Checkout (019 US3) — create intent → native PaymentSheet (paymentDriver) → confirm → receipt.
-    // The address picker + add-new reuse the 022 Address Book use cases below (023 US1–US4) — the same
-    // saved addresses the account page manages, on the cold path.
-    // The client carries its OWN publishable key (019 R3) — not the backend echo on the intent.
-    val payForOrder by lazy { PayForOrder(checkoutRepo, paymentDriver, AppConfig.stripePublishableKey) }
+    // Checkout (019 US3, reshaped by 051) — create the intent → hand off → Effy's own payment screen
+    // confirms it → receipt. The address picker + add-new reuse the 022 Address Book use cases below
+    // (023 US1–US4) — the same saved addresses the account page manages, on the cold path.
+    //
+    // ⚠ THERE IS NO LONGER A "PAY" USE CASE HERE. 019's `PayForOrder` created the intent AND presented
+    // the provider's modal sheet AND confirmed, in one call. 051 splits it: checkout creates, the
+    // payment screen confirms — because the element is now drawn inside a screen Effy owns.
+    val createIntent by lazy { CreateIntent(checkoutRepo) }
+    val confirmOrder by lazy { ConfirmOrder(checkoutRepo) }
+
+    /**
+     * The in-memory carrier for an intent awaiting payment (051).
+     *
+     * ⚠ ONE instance, like the cart mirror: the checkout screen writes it and the payment screen reads
+     * it, and two of these would be two shoppers' worth of state disagreeing about one payment.
+     */
+    val paymentHandoff by lazy { PaymentHandoff() }
+
+    /**
+     * The payment screen's ViewModel. A FACTORY, not a `by lazy` singleton — each one is bound to one
+     * intent, and reusing an instance across orders would confirm the wrong one.
+     *
+     * The client carries its OWN publishable key (019 R3) — not the backend echo on the intent.
+     */
+    fun paymentViewModel(intent: CheckoutIntent): PaymentViewModel = PaymentViewModel(
+        intent = intent,
+        confirmOrder = confirmOrder,
+        cart = cart,
+        handoff = paymentHandoff,
+        publishableKey = AppConfig.stripePublishableKey,
+        // The payee name wallet sheets show. The same literal the retired PaymentSheet configuration
+        // carried on both platforms — one brand, not a per-shop name (hidden fulfilment).
+        merchantName = MERCHANT_DISPLAY_NAME,
+    )
     val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) } // 047: delivery quote at checkout
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
@@ -406,3 +439,6 @@ class AppContainer(
 
     val navigator: CustomerNavigator = CustomerNavigator()
 }
+
+/** The single brand a shopper pays (hidden fulfilment — never a shop's name). */
+private const val MERCHANT_DISPLAY_NAME = "Effy"

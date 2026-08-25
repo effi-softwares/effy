@@ -11,17 +11,18 @@ import com.effyshopping.customer.mobile.core.observability.IosAnalyticsBridge
 import com.effyshopping.customer.mobile.core.observability.IosAnalyticsDriver
 import com.effyshopping.customer.mobile.core.observability.IosCrashBridge
 import com.effyshopping.customer.mobile.core.observability.IosCrashReporter
-import com.effyshopping.customer.mobile.core.payment.IosPaymentBridge
-import com.effyshopping.customer.mobile.core.payment.IosPaymentDriver
 
 /**
- * The iOS entry point. Swift builds a [IosAuthBridge] (over Amplify Swift) and a [IosPaymentBridge]
- * (over StripePaymentSheet) — neither callable from Kotlin/Native (D5) — and hands them in; this wraps
- * each in its common driver contract. See `iosApp/`.
+ * The iOS entry point. Swift builds the bridges Kotlin/Native cannot call directly (D5) and hands them
+ * in; this wraps each in its common driver contract. See `iosApp/`.
+ *
+ * ⚠ NO PAYMENT BRIDGE (051). Paying used to be "present the provider's modal sheet", which Swift had to
+ * do — so a payment bridge came in here beside the auth one. The in-app element is embedded in Effy's
+ * own screen instead, and Swift supplies it through `IosPaymentElementRegistry` at startup rather than
+ * through this entry point.
  */
 fun MainViewController(
     authBridge: IosAuthBridge,
-    paymentBridge: IosPaymentBridge,
     // 050 — observability bridges (Firebase Crashlytics + PostHog iOS). Push stays NoOp on iOS until
     // APNs is set up (Apple Developer account — see docs/observability-apple-blockers.md).
     crashBridge: IosCrashBridge,
@@ -34,7 +35,6 @@ fun MainViewController(
         val container = remember {
             AppContainer(
                 authDriver = IosAuthDriver(authBridge),
-                paymentDriver = IosPaymentDriver(paymentBridge),
                 crashReporter = IosCrashReporter(crashBridge),
                 analyticsDriver = IosAnalyticsDriver(analyticsBridge, AppConfig.posthogKey, AppConfig.posthogHost),
                 // pushTokenProvider defaults to NoOp on iOS (APNs is Apple-account-gated).

@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.effyshopping.customer.mobile.core.payment.PaymentElementContent
 import com.effyshopping.customer.mobile.core.payment.PaymentElementHandle
 import com.effyshopping.customer.mobile.core.payment.rememberPaymentElement
+import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
 
 /**
@@ -50,15 +51,23 @@ fun PaymentScreen(
         state.paidOrderId?.let(onPaid)
     }
 
-    // ⚠ Branch OUTSIDE the composable body rather than returning early from the middle of it. An early
-    // `return` past a `collectAsState` call makes the slot table's shape depend on a nullable value,
-    // which is the kind of subtlety that produces a recomposition bug nobody can reproduce — on a
-    // payment screen, of all places. Two explicit branches cost four lines and cannot do that.
-    if (element == null) {
-        PreparingPayment(modifier)
-        return
+    Column(modifier = modifier.fillMaxSize()) {
+        // ⚠ The back arrow is NOT passed: `EffyAppBar` reads it from the stack position (026), so this
+        // screen gets one because it sits above checkout — and correctly loses it if it ever becomes a
+        // stack root. Backing out here abandons an UNPAID order, which is a supported outcome: nothing
+        // has been charged, and paying again creates a fresh intent for the same order.
+        EffyAppBar(title = "Payment")
+
+        // ⚠ Branch OUTSIDE the composable body rather than returning early from the middle of it. An
+        // early `return` past a `collectAsState` call makes the slot table's shape depend on a nullable
+        // value, which is the kind of subtlety that produces a recomposition bug nobody can reproduce —
+        // on a payment screen, of all places. Two explicit branches cost four lines and cannot do that.
+        if (element == null) {
+            PreparingPayment(Modifier)
+        } else {
+            PaymentContent(viewModel, element, state, Modifier)
+        }
     }
-    PaymentContent(viewModel, element, state, modifier)
 }
 
 @Composable

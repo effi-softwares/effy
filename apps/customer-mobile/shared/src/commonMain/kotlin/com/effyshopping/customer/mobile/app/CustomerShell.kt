@@ -44,6 +44,7 @@ import com.effyshopping.customer.mobile.features.catalog.presentation.ProductDet
 import com.effyshopping.customer.mobile.features.catalog.presentation.PromotionScreen
 import com.effyshopping.customer.mobile.features.catalog.presentation.SearchScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.CheckoutScreen
+import com.effyshopping.customer.mobile.features.payment.presentation.PaymentRoute
 import com.effyshopping.customer.mobile.features.checkout.presentation.OrdersScreen
 import com.effyshopping.customer.mobile.features.checkout.presentation.ReceiptScreen
 import com.effyshopping.customer.mobile.features.help.presentation.CustomerServiceScreen
@@ -443,8 +444,27 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 entry<CustomerNavKey.Checkout> {
                     CheckoutScreen(
                         container = container,
-                        onPlaced = { orderId -> navState.resetTo(CustomerNavKey.Receipt(orderId)) },
+                        // ⚠ 051: checkout ends UNPAID. It creates the order and its intent and pushes
+                        // the payment screen; the receipt is reached from there, not from here.
+                        onProceedToPayment = { navState.push(CustomerNavKey.Payment) },
                         onBack = { navState.pop() },
+                    )
+                }
+
+                // Effy's own payment screen, around the provider's in-app element (051 US1).
+                //
+                // ⚠ The intent is read from the in-memory handoff, NOT from the route — the route is a
+                // bare marker precisely so a payment client secret is never persisted (see
+                // `CustomerNavKey.Payment`). A null handoff means the process was killed mid-payment;
+                // the order still exists unpaid, so the honest answer is to say so and send them back
+                // to checkout rather than render a payment screen that cannot charge anything.
+                entry<CustomerNavKey.Payment> {
+                    PaymentRoute(
+                        container = container,
+                        // resetTo, like the checkout receipt below — the order is paid and there is
+                        // nothing behind it to go back to.
+                        onPaid = { orderId -> navState.resetTo(CustomerNavKey.Receipt(orderId)) },
+                        onBackToCheckout = { navState.pop() },
                     )
                 }
 

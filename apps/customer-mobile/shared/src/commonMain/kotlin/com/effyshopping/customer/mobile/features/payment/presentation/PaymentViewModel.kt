@@ -8,8 +8,10 @@ import com.effyshopping.customer.mobile.core.payment.PaymentBillingDetails
 import com.effyshopping.customer.mobile.core.payment.PaymentElementConfig
 import com.effyshopping.customer.mobile.core.payment.PaymentElementHandle
 import com.effyshopping.customer.mobile.core.payment.PaymentResult
+import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.ConfirmOrder
+import com.effyshopping.customer.mobile.features.payment.domain.PaymentHandoff
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +38,8 @@ data class PaymentUiState(
 class PaymentViewModel(
     private val intent: CheckoutIntent,
     private val confirmOrder: ConfirmOrder,
+    private val cart: CartStore,
+    private val handoff: PaymentHandoff,
     private val publishableKey: String,
     private val merchantName: String,
 ) : ViewModel() {
@@ -88,6 +92,10 @@ class PaymentViewModel(
             try {
                 when (val result = handle.confirm()) {
                     PaymentResult.Completed -> {
+                        // The device MIRROR of the cart. The platform empties the real one inside the
+                        // webhook finaliser's transaction (019); this is what stops the badge showing a
+                        // basket the shopper has just bought.
+                        cart.clear()
                         // ⚠ Best-effort, and a failure here is deliberately swallowed. The webhook is
                         // authoritative; a shopper who has paid must never be shown a failure because a
                         // fallback confirmation call did not land (FR-039).
@@ -109,6 +117,19 @@ class PaymentViewModel(
 
     fun dismissError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    /**
+     * Release the handoff when this ViewModel is cleared.
+     *
+     * ⚠ THIS IS THE TIDY-UP, NOT THE GUARANTEE. ViewModels here are scoped to the host store, so this
+     * may not run the moment the shopper leaves the screen. What actually keeps a stale intent from ever
+     * being confirmed is that [PaymentHandoff.offer] OVERWRITES: the next pay press replaces it, and this
+     * ViewModel is keyed by order so a new order never reuses an old one.
+     */
+    override fun onCleared() {
+        handoff.clear()
+        super.onCleared()
     }
 
     /**

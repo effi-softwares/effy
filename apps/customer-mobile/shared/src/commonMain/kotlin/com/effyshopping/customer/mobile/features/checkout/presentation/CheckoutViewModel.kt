@@ -8,12 +8,11 @@ import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressForm
 import com.effyshopping.customer.mobile.features.addresses.presentation.toDraft
 import com.effyshopping.customer.mobile.features.addresses.presentation.validate
-import com.effyshopping.customer.mobile.features.cart.domain.CartStore
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
-import com.effyshopping.customer.mobile.features.checkout.domain.PayForOrder
-import com.effyshopping.customer.mobile.features.checkout.domain.PayOutcome
+import com.effyshopping.customer.mobile.features.checkout.domain.CreateIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
+import com.effyshopping.customer.mobile.features.payment.domain.PaymentHandoff
 import com.effyshopping.customer.mobile.features.checkout.domain.QuoteDelivery
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +54,15 @@ sealed interface CheckoutUiState {
         val sheet: CheckoutAddressSheet? = null,
         val paying: Boolean = false,
         val error: String? = null,
+        /**
+         * 051 — a ONE-SHOT signal that the intent exists and the payment screen should open. Consumed
+         * by the screen via [CheckoutViewModel.handoffConsumed].
+         *
+         * ⚠ A one-shot, and not a terminal `Placed`-style state, because payment is now a screen the
+         * shopper can come BACK from. A sticky flag would re-fire the moment they returned and bounce
+         * them into payment again, with no way out but the app switcher.
+         */
+        val handedOffToPayment: Boolean = false,
         // 047: the delivery quote for the selected address (null while none/loading), whether it is being
         // fetched, and the shopper's method choice. serviced=false ⇒ "we don't deliver there yet".
         val quote: DeliveryQuote? = null,
@@ -72,7 +80,6 @@ sealed interface CheckoutUiState {
         val sameDayOfferable: Boolean get() = quote?.sameDayAvailable == true
     }
 
-    data class Placed(val orderId: String) : CheckoutUiState
 }
 
 /**
@@ -89,10 +96,10 @@ sealed interface CheckoutUiState {
  * MVVM: immutable [CheckoutUiState] over a `MutableStateFlow`; the View calls functions, never mutates.
  */
 class CheckoutViewModel(
-    private val cart: CartStore,
     private val listAddresses: ListAddresses,
     private val addAddress: AddAddress,
-    private val pay: PayForOrder,
+    private val createIntent: CreateIntent,
+    private val handoff: PaymentHandoff,
     private val quoteDelivery: QuoteDelivery,
 ) : ViewModel() {
 
@@ -242,22 +249,32 @@ class CheckoutViewModel(
         )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
-            val outcome = try {
-                pay(order)
+            // ⚠ THIS CREATES THE INTENT AND STOPS. It used to create it AND present the provider's modal
+            // sheet AND confirm the order, because the sheet was something the app asked for rather than
+            // something it drew. The in-app element is drawn by Effy's own payment screen, so the intent
+            // has to exist before that screen does — and the confirmation belongs to the pay button on it.
+            val intent = try {
+                createIntent(order)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {
-                PayOutcome.Failed("We couldn’t start payment. Please try again.")
+                _state.value = (ready() ?: return@launch).copy(
+                    paying = false,
+                    error = "We couldn’t start payment. Please try again.",
+                )
+                return@launch
             }
-            when (outcome) {
-                is PayOutcome.Placed -> {
-                    cart.clear()
-                    _state.value = CheckoutUiState.Placed(outcome.orderId)
-                }
-                PayOutcome.Canceled -> _state.value = (ready() ?: return@launch).copy(paying = false)
-                is PayOutcome.Failed -> _state.value = (ready() ?: return@launch).copy(paying = false, error = outcome.message)
-            }
+            // In memory only, never in the route — the intent carries a payment client secret.
+            handoff.offer(intent)
+            _state.value = (ready() ?: return@launch).copy(paying = false, handedOffToPayment = true)
         }
+    }
+
+    /** The screen has opened the payment destination; disarm the one-shot so returning is stable. */
+    fun handoffConsumed() {
+        val s = ready() ?: return
+        if (!s.handedOffToPayment) return
+        _state.value = s.copy(handedOffToPayment = false)
     }
 
     private fun ready(): CheckoutUiState.Ready? = _state.value as? CheckoutUiState.Ready

@@ -2,12 +2,11 @@ package com.effyshopping.customer.mobile.features.checkout.domain
 
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
-import com.effyshopping.customer.mobile.core.payment.PaymentDriver
-import com.effyshopping.customer.mobile.core.payment.PaymentResult
 
 /**
- * Checkout domain (019 US3). The server owns the amount + the PaymentIntent; the app creates the intent,
- * presents the native PaymentSheet via the [PaymentDriver], and reads the webhook-authoritative receipt.
+ * Checkout domain (019 US3, reshaped by 051). The server owns the amount + the PaymentIntent; checkout
+ * creates the intent and STOPS. Paying is the payment screen's job, and the receipt is
+ * webhook-authoritative.
  */
 
 data class CheckoutIntent(
@@ -15,7 +14,7 @@ data class CheckoutIntent(
     val orderNumber: String,
     val clientSecret: String,
     // The backend's publishable-key echo (config.go marks it a convenience). Retained to mirror the wire,
-    // but the pay flow uses the client's OWN key (AppConfig.stripePublishableKey) — see [PayForOrder].
+    // but the pay flow uses the client's OWN key (AppConfig.stripePublishableKey) — see `PaymentViewModel`.
     val publishableKey: String,
     val grandTotalAmount: String,
     val currency: String,
@@ -151,7 +150,7 @@ interface CheckoutRepository {
 /**
  * CreateIntent (051) — create the pending order + PaymentIntent, and STOP.
  *
- * ⚠ This is what [PayForOrder] used to fuse into one call. It cannot stay fused: the in-app element
+ * ⚠ This is what the retired `PayForOrder` fused into one call. It could not stay fused: the in-app element
  * renders inside Effy's own screen, so the intent must exist BEFORE that screen draws, and confirmation
  * happens later when the shopper presses Effy's pay button. One call that created an intent and
  * presented a sheet was only possible while the sheet was a modal the app did not own.
@@ -189,44 +188,6 @@ data class OrderSummary(
 interface OrdersRepository {
     suspend fun get(orderId: String): Receipt
     suspend fun list(): List<OrderSummary>
-}
-
-/** The outcome of the pay flow surfaced to the ViewModel. */
-sealed interface PayOutcome {
-    data class Placed(val orderId: String) : PayOutcome
-    data object Canceled : PayOutcome
-    data class Failed(val message: String) : PayOutcome
-}
-
-/**
- * PayForOrder (T056, extended 021 T045) — the checkout orchestration: create the intent from the
- * per-package [PlaceOrder], present the native sheet, and on completion best-effort confirm (the webhook
- * is authoritative; confirm covers local-dev lag). A stale quote (409) surfaces as [PayOutcome.Requote].
- *
- * [publishableKey] is the client's OWN build-time Stripe publishable key (AppConfig.stripePublishableKey),
- * not the server's echo on the intent — each client carries its own (019 R3; config.go marks the backend
- * echo a convenience). The `sk_…` secret never reaches the client; this key only presents the sheet.
- */
-class PayForOrder(
-    private val checkout: CheckoutRepository,
-    private val payments: PaymentDriver,
-    private val publishableKey: String,
-) {
-    suspend operator fun invoke(order: PlaceOrder): PayOutcome {
-        val intent = try {
-            checkout.createIntent(order)
-        } catch (e: AppException) {
-            throw e
-        }
-        return when (val result = payments.presentPaymentSheet(intent.clientSecret, publishableKey)) {
-            PaymentResult.Completed -> {
-                runCatching { checkout.confirm(intent.orderId) }
-                PayOutcome.Placed(intent.orderId)
-            }
-            PaymentResult.Canceled -> PayOutcome.Canceled
-            is PaymentResult.Failed -> PayOutcome.Failed(result.message)
-        }
-    }
 }
 
 class GetReceipt(private val orders: OrdersRepository) {

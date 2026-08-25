@@ -7,11 +7,11 @@ import AWSCognitoAuthPlugin
 @main
 struct iOSApp: App {
 
-    /// One bridge each for the app's lifetime; the Kotlin side wraps them in the AuthDriver and
-    /// PaymentDriver. Both are held here (not rebuilt per view) so a SwiftUI re-render cannot hand
-    /// Compose a fresh driver mid-session.
+    /// One bridge each for the app's lifetime; the Kotlin side wraps them in their driver contracts.
+    /// Held here (not rebuilt per view) so a SwiftUI re-render cannot hand Compose a fresh driver
+    /// mid-session. The payment element is NOT one of these — it is registered as a factory below,
+    /// because each payment screen needs its own.
     private let authBridge = SwiftAuthBridge()
-    private let paymentBridge = SwiftPaymentBridge()
     // 050 — one observability bridge each for the app's lifetime; the Kotlin side wraps them.
     private let crashBridge = SwiftCrashBridge()
     private let analyticsBridge = SwiftAnalyticsBridge()
@@ -37,7 +37,6 @@ struct iOSApp: App {
         WindowGroup {
             ContentView(
                 authBridge: authBridge,
-                paymentBridge: paymentBridge,
                 crashBridge: crashBridge,
                 analyticsBridge: analyticsBridge
             )

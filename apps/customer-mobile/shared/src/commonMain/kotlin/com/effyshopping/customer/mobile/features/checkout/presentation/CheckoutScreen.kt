@@ -53,23 +53,33 @@ import com.effyshopping.customer.mobile.core.presentation.EffySheet
  * Checkout (019 US3, extended 021 delivery + 023 shipping/billing). Reached only when signed in.
  * Pre-selects the default saved address as SHIPPING (023 US1), lets the customer switch to another saved
  * address or add a new one inline (US2/US3) → per-package ANONYMOUS delivery options → a "Billing same as
- * shipping" toggle (US4) → pay. On success [onPlaced] navigates to the receipt.
+ * shipping" toggle (US4) → pay.
+ *
+ * ⚠ 051: THIS SCREEN NO LONGER TAKES A PAYMENT. Pressing pay creates the order and its intent and then
+ * hands over to Effy's own payment screen through [onProceedToPayment]; the provider's modal sheet is
+ * gone. Checkout ends unpaid, which is why there is no receipt callback here any more.
  */
 @Composable
-fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: () -> Unit) {
+fun CheckoutScreen(container: AppContainer, onProceedToPayment: () -> Unit, onBack: () -> Unit) {
     val vm = viewModel {
         CheckoutViewModel(
-            cart = container.cart,
             listAddresses = container.listSavedAddresses,
             addAddress = container.addSavedAddress,
-            pay = container.payForOrder,
+            createIntent = container.createIntent,
+            handoff = container.paymentHandoff,
             quoteDelivery = container.quoteDelivery,
         )
     }
     val state by vm.state.collectAsState()
 
-    LaunchedEffect(state) {
-        (state as? CheckoutUiState.Placed)?.let { onPlaced(it.orderId) }
+    val handedOff = (state as? CheckoutUiState.Ready)?.handedOffToPayment == true
+    LaunchedEffect(handedOff) {
+        if (handedOff) {
+            // Disarm FIRST. Navigating first and disarming second leaves the flag set for however long
+            // the transition takes, and a shopper who backs out inside that window is sent straight back.
+            vm.handoffConsumed()
+            onProceedToPayment()
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -78,7 +88,7 @@ fun CheckoutScreen(container: AppContainer, onPlaced: (String) -> Unit, onBack: 
         EffyAppBar(title = "Checkout", onBack = onBack)
 
         when (val s = state) {
-            CheckoutUiState.Loading, is CheckoutUiState.Placed ->
+            CheckoutUiState.Loading ->
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) { CircularProgressIndicator(Modifier.padding(32.dp)) }
 
             is CheckoutUiState.Ready -> AddressAndPay(

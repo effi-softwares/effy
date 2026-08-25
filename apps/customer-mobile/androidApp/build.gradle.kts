@@ -49,10 +49,9 @@ dependencies {
     // 013 — Amplify Android requires core library desugaring (enabled in compileOptions below).
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)
 
-    // 019 US3 — Stripe PaymentSheet. Lives in the app module (not shared) because it must be
-    // registered against MainActivity's ActivityResultRegistry; the shared AndroidPaymentDriver
-    // stays Stripe-free and talks to the Activity through a PaymentPresenter bridge.
-    implementation(libs.stripe.android)
+    // ⚠ NO STRIPE DEPENDENCY HERE (051). 019 put it in the app module because `PaymentSheet` had to be
+    // registered against MainActivity's ActivityResultRegistry. The embedded element is Compose-scoped
+    // and lives in `shared`'s androidMain with the payment screen, so the app module no longer needs it.
 }
 
 android {

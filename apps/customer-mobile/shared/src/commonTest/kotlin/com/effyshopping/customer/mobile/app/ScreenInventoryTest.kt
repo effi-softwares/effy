@@ -55,8 +55,8 @@ class CustomerNavKeySerializationTest {
         // ALL_CUSTOMER_ROUTES is what the serializers module is kept in step with. If a route is
         // added to CustomerNavKey and forgotten here, this count drifts and the failure is loud.
         assertEquals(
-            // 051 US6 adds PaymentMethods (33 → 34).
-            34,
+            // 051 US6 adds PaymentMethods (33 → 34); wiring the payment screen adds Payment (34 → 35).
+            35,
             ALL_CUSTOMER_ROUTES.size,
             "A route was added or removed — update ALL_CUSTOMER_ROUTES *and* customerNavSavedState.",
         )
