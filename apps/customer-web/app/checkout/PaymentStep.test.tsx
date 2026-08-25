@@ -15,6 +15,13 @@ vi.mock("@stripe/react-stripe-js", () => ({
   CardNumberElement: () => <div data-testid="card-number" />,
   CardExpiryElement: () => <div data-testid="card-expiry" />,
   CardCvcElement: () => <div data-testid="card-cvc" />,
+  // 051 US2: the wallet row shares this module. A mock missing it makes every PaymentStep test throw
+  // — the same stale-mock failure `CheckoutFlow.address.test.tsx` hit when PaymentForm was replaced.
+  // Reports no wallet, which is the branch this suite wants: US1's assertions are about the card path.
+  ExpressCheckoutElement: ({ onReady }: { onReady: (e: unknown) => void }) => {
+    onReady({})
+    return null
+  },
 }))
 
 function intent(over: Partial<CreateCheckoutIntentResponse> = {}): CreateCheckoutIntentResponse {

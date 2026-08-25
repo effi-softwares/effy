@@ -789,6 +789,13 @@
         "currency": {
           "type": "string"
         },
+        "customerId": {
+          "description": "051 — the provider customer the session belongs to. Present ONLY beside `customerSessionSecret`, i.e. only for a client that renders a provider-owned method list (mobile).\n\n⚠ REQUIRED BY THE MOBILE SDKs, which take the id and the secret together (`createWithCustomerSession(id, clientSecret)`); a session without its id cannot be attached. The SECRET is the credential — this id alone reaches no API, because every call that reads a customer needs a secret key that never leaves core-api. Absent from the web response, never logged, never in telemetry, and never accepted as request input (data-model § 1, amended).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "customerSessionSecret": {
           "description": "051 — authorizes a provider-owned payment-method list for THIS shopper only.\n\n⚠ MOBILE ONLY, and null everywhere else. The mobile embedded element renders the saved-card list itself and needs a session to do it; the web card route renders that list from `GET /v1/payment-methods` and confirms with a payment-method id, so minting a session there would be an unused provider round trip on a path 027 already found latency-sensitive. Spike S2 — see specs/051-customer-payment-experience/research.md § R5 AMENDED.",
           "type": [

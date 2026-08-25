@@ -43,6 +43,15 @@ data class PaymentElementConfig(
      * shown — which is correct for a shopper who has never paid, and wrong for one who has.
      */
     val customerSessionSecret: String?,
+    /**
+     * The provider customer the session belongs to (051 US3).
+     *
+     * ⚠ Required ALONGSIDE the secret — the provider's `createWithCustomerSession(id, clientSecret)`
+     * takes both, and a session without its id cannot be attached. Null whenever
+     * [customerSessionSecret] is null: a shopper who has never paid has no provider record, which is
+     * not an error.
+     */
+    val customerId: String?,
 )
 
 // ⚠ There is deliberately NO font-resource id on this config. A font resource is an Android concept,

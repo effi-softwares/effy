@@ -21,6 +21,16 @@ struct iOSApp: App {
         // use. Requires the firebase-ios-sdk SPM package (see setup notes) or this will not compile.
         FirebaseApp.configure()
         configureAmplify()
+
+        // 051 — the in-app payment element.
+        //
+        // ⚠ A FACTORY, not a single shared instance, unlike the bridges above. Each payment screen needs
+        // its OWN element because each carries a live PaymentIntent; sharing one across screens would
+        // confirm the wrong intent — which is a shopper being charged for the wrong order, not a glitch.
+        //
+        // ⚠ If this registration is ever removed, the Kotlin side falls back to a handle that refuses
+        // honestly and says payments are unavailable. It does NOT silently do nothing.
+        IosPaymentElementRegistry.shared.factory = { SwiftPaymentElementBridge() }
     }
 
     var body: some Scene {

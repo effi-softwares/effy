@@ -1,4 +1,4 @@
-import type { Stripe, StripeCardNumberElement } from "@stripe/stripe-js"
+import type { Stripe, StripeCardNumberElement, StripeElements } from "@stripe/stripe-js"
 
 import type { BillingDetailsDTO } from "@effy/shared-types"
 
@@ -121,4 +121,56 @@ function outcomeFor(status: string | undefined): ConfirmOutcome {
       // Never a failure. The receipt reads the webhook-authoritative order state and will resolve it.
       return { kind: "processing" }
   }
+}
+
+/**
+ * Confirm a payment the shopper authorised in a wallet sheet (051 US2).
+ *
+ * ⚠ A DIFFERENT CALL FROM THE CARD ROUTE, and it has to be. The wallet's own sheet has already
+ * collected the payment method, so there is no element to hand over — `confirmPayment` reads what the
+ * Express Checkout Element captured from the shared Elements group. Passing a card element here would
+ * confirm the wrong thing.
+ *
+ * ⚠ `redirect: "if_required"` keeps the common case inline. A wallet payment that needs the bank's
+ * approval redirects to `returnUrl`, which is why one must be supplied even though most never use it —
+ * omitting it makes 3DS fail with no way back.
+ */
+export async function confirmWalletPayment(input: {
+  stripe: Stripe
+  elements: StripeElements
+  clientSecret: string
+  billingDetails: BillingDetailsDTO | null
+  returnUrl: string
+}): Promise<ConfirmOutcome> {
+  const { error, paymentIntent } = await input.stripe.confirmPayment({
+    elements: input.elements,
+    clientSecret: input.clientSecret,
+    confirmParams: {
+      return_url: input.returnUrl,
+      ...(input.billingDetails
+        ? {
+            payment_method_data: {
+              billing_details: {
+                name: input.billingDetails.name ?? undefined,
+                email: input.billingDetails.email ?? undefined,
+                address: {
+                  line1: input.billingDetails.address.line1,
+                  line2: input.billingDetails.address.line2 ?? undefined,
+                  city: input.billingDetails.address.city,
+                  state: input.billingDetails.address.state,
+                  postal_code: input.billingDetails.address.postalCode,
+                  country: input.billingDetails.address.country,
+                },
+              },
+            },
+          }
+        : {}),
+    },
+    redirect: "if_required",
+  })
+
+  if (error) {
+    return { kind: "failed", message: error.message ?? GENERIC_FAILURE }
+  }
+  return outcomeFor(paymentIntent?.status)
 }

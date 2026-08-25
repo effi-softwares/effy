@@ -53,7 +53,11 @@ The existing endpoint. Same request. **Response gains two fields; nothing is rem
 - The server MUST NOT set `setup_future_usage` on the intent. Whether the card is kept is the shopper's
   choice, expressed through the save checkbox the customer session enables (research R5). Setting both
   is an integration error and would keep a card the shopper declined — FR-020.
-- ⚠ `stripe_customer_id` MUST NOT appear in this or any response.
+- ⚠ **`stripe_customer_id` reaches the client ONLY beside a session secret, and only for mobile.** Both
+  mobile SDKs require the id alongside the secret to attach a customer session (`createWithCustomerSession(id,
+  clientSecret)`), so `customerId` ships in the same response as `customerSessionSecret` and is `null`
+  whenever that is. It is absent from the web response entirely, never logged, never in telemetry, and
+  never accepted as request input. See data-model § 1 (amended 2026-08-25).
 
 ---
 

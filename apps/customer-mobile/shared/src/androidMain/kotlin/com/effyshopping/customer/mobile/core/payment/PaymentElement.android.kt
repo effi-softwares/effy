@@ -158,6 +158,25 @@ private fun paymentConfiguration(config: PaymentElementConfig): EmbeddedPaymentE
                     ),
                 )
             }
+            // 051 US3 — the shopper's kept cards, rendered by the element's own list.
+            //
+            // ⚠ `payment_method_save` on the SESSION is what renders the element's save checkbox and
+            // lets the provider set `allow_redisplay` from what the shopper actually ticked. That is
+            // why the intent must NOT also carry `setup_future_usage`: combining them is a documented
+            // integration error and would keep a card the shopper declined (research R5, FR-020).
+            //
+            // ⚠ Both halves or neither. A secret without its customer id cannot be attached, so this
+            // is deliberately a single guarded block rather than two independent lets.
+            val session = config.customerSessionSecret
+            val customerId = config.customerId
+            if (session != null && customerId != null) {
+                customer(
+                    PaymentSheet.CustomerConfiguration.createWithCustomerSession(
+                        id = customerId,
+                        clientSecret = session,
+                    ),
+                )
+            }
         }
         // ⚠ Effy draws the mandate text itself, beside its own pay button. Turning this off WITHOUT
         // rendering it in the screen would be a compliance failure, not a style choice (T078).

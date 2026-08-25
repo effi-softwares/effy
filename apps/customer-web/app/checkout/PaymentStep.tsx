@@ -4,15 +4,17 @@ import { useElements, useStripe } from "@stripe/react-stripe-js"
 import { CardNumberElement } from "@stripe/react-stripe-js"
 import { ArrowLeft, Lock } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
-import type { CreateCheckoutIntentResponse } from "@effy/shared-types"
+import type { CreateCheckoutIntentResponse, PaymentMethodDTO } from "@effy/shared-types"
 
 import { ActionButton } from "@/components/storefront/actions"
 import { formatMoney } from "@/lib/money"
 
 import { CardFields, useCardFieldState } from "./_payment/CardFields"
-import { confirmCardPayment } from "./_payment/confirm"
+import { NEW_CARD, SaveCardConsent, SavedCards } from "./_payment/SavedCards"
+import { WalletDivider, WalletRow } from "./_payment/WalletRow"
+import { confirmCardPayment, confirmSavedCard, confirmWalletPayment } from "./_payment/confirm"
 
 /**
  * THE PAYMENT STEP (051 US1).
@@ -42,25 +44,90 @@ export function PaymentStep({
   const [saveCard, setSaveCard] = useState(true)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  // Whether a wallet actually rendered. Only then is the "or pay another way" rule meaningful — a rule
+  // with nothing above it is a divider dividing one thing.
+  const [walletShown, setWalletShown] = useState(false)
+
+  // 051 US3 — the shopper's kept cards. Read once when the step opens.
+  //
+  // ⚠ An empty list means "no kept cards"; a FAILED read means "we could not ask", and the two must not
+  // look the same. On failure the list stays empty and the card form is shown — the shopper can still
+  // pay, which is the outcome that matters — but nothing claims they have no cards (FR-036).
+  const [cards, setCards] = useState<PaymentMethodDTO[]>([])
+  const [selectedCard, setSelectedCard] = useState<string>(NEW_CARD)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch("/api/payment-methods", { cache: "no-store" })
+        if (!res.ok) return
+        const data = (await res.json()) as { paymentMethods?: PaymentMethodDTO[] }
+        if (cancelled || !data.paymentMethods?.length) return
+        setCards(data.paymentMethods)
+        // ⚠ Pre-select the default, but only if it can actually be used — pre-selecting an expired
+        // card would put the shopper one tap from a refusal (FR-022/FR-023).
+        const preferred =
+          data.paymentMethods.find((c) => c.isDefault && c.usable) ??
+          data.paymentMethods.find((c) => c.usable)
+        setSelectedCard(preferred?.id ?? NEW_CARD)
+      } catch {
+        // Silent: the card form is already the fallback, and an error about a list the shopper never
+        // asked for is noise at the worst moment.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const usingNewCard = selectedCard === NEW_CARD
+
+  async function removeCard(id: string) {
+    const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
+    // 404 is success from the shopper's point of view: the card is gone either way.
+    if (!res.ok && res.status !== 404) {
+      setNotice("We couldn't remove that card. Please try again.")
+      return
+    }
+    setCards((prev) => {
+      const next = prev.filter((c) => c.id !== id)
+      // ⚠ FR-024b — removing the selected card must leave a usable selection behind, not a dead one.
+      if (id === selectedCard) {
+        setSelectedCard(next.find((c) => c.usable)?.id ?? NEW_CARD)
+      }
+      return next
+    })
+  }
 
   const amount = formatMoney(intent.grandTotalAmount, intent.currency)
-  const ready = Boolean(stripe && elements) && card.complete
+  // A kept card is ready as soon as it is selected — there is nothing to fill in.
+  const ready = Boolean(stripe && elements) && (usingNewCard ? card.complete : true)
 
   async function pay() {
     if (!stripe || !elements || busy) return
+    // Only the new-card route needs the element; a kept card confirms by id.
     const cardNumberElement = elements.getElement(CardNumberElement)
-    if (!cardNumberElement) return
+    if (usingNewCard && !cardNumberElement) return
 
     setBusy(true)
     setNotice(null)
     try {
-      const outcome = await confirmCardPayment({
-        stripe,
-        clientSecret: intent.clientSecret,
-        cardNumberElement,
-        billingDetails: intent.billingDetails ?? null,
-        saveCard,
-      })
+      // A kept card needs nothing typed, so it confirms by id; a new one confirms from the element.
+      const outcome = usingNewCard
+        ? await confirmCardPayment({
+            stripe,
+            clientSecret: intent.clientSecret,
+            // Non-null by the guard above: the new-card route returns early without an element.
+            cardNumberElement: cardNumberElement!,
+            billingDetails: intent.billingDetails ?? null,
+            saveCard,
+          })
+        : await confirmSavedCard({
+            stripe,
+            clientSecret: intent.clientSecret,
+            paymentMethodId: selectedCard,
+          })
 
       switch (outcome.kind) {
         case "succeeded":
@@ -99,22 +166,55 @@ export function PaymentStep({
 
       <div className="mt-6 grid items-start gap-16 lg:grid-cols-[minmax(0,1fr)_448px]">
         <div className="flex flex-col gap-6">
-          <section aria-labelledby="pay-by-card">
-            <h2 id="pay-by-card" className="sr-only">
-              Pay by card
-            </h2>
-            <CardFields state={card} />
-          </section>
+          {/* ⚠ ABOVE the card form, and that ordering is the requirement (FR-008). A wallet is one tap
+              against sixteen typed digits; putting it below the form it replaces would bury it. */}
+          <WalletRow
+            disabled={busy}
+            onRendered={setWalletShown}
+            onError={setNotice}
+            onConfirm={async () => {
+              setBusy(true)
+              setNotice(null)
+              try {
+                const outcome = await confirmWalletPayment({
+                  stripe: stripe!,
+                  elements: elements!,
+                  clientSecret: intent.clientSecret,
+                  billingDetails: intent.billingDetails ?? null,
+                  returnUrl: `${window.location.origin}/checkout/complete?order=${intent.orderId}`,
+                })
+                if (outcome.kind === "failed") {
+                  setNotice(outcome.message)
+                  return
+                }
+                if (outcome.kind === "succeeded" || outcome.kind === "processing") {
+                  router.push(`/checkout/complete?order=${intent.orderId}`)
+                }
+              } finally {
+                setBusy(false)
+              }
+            }}
+          />
 
-          <label className="flex w-fit cursor-pointer items-center gap-2.5">
-            <input
-              type="checkbox"
-              checked={saveCard}
-              onChange={(e) => setSaveCard(e.target.checked)}
-              className="size-[18px] rounded-[5px] accent-foreground"
-            />
-            <span className="text-[13px]">Save this card for next time</span>
-          </label>
+          {walletShown ? <WalletDivider /> : null}
+
+          <SavedCards
+            cards={cards}
+            selectedId={selectedCard}
+            onSelect={setSelectedCard}
+            onRemove={removeCard}
+            busy={busy}
+          />
+
+          {usingNewCard ? (
+            <section aria-labelledby="pay-by-card" className="flex flex-col gap-6">
+              <h2 id="pay-by-card" className="sr-only">
+                Pay by card
+              </h2>
+              <CardFields state={card} />
+              <SaveCardConsent checked={saveCard} onChange={setSaveCard} disabled={busy} />
+            </section>
+          ) : null}
         </div>
 
         {/* The pay rail. A border-left and space hold it — not a card (Principle V). */}
@@ -148,7 +248,7 @@ export function PaymentStep({
               size="lg"
               className="h-14 w-full text-base"
             >
-              {busy ? "Paying…" : `Pay ${amount}`}
+                      {busy ? "Paying…" : `Pay ${amount}`}
             </ActionButton>
             <p className="mt-3.5 flex items-center justify-center gap-2 text-center text-[13px] leading-relaxed text-muted-foreground">
               <Lock className="size-3.5 shrink-0" aria-hidden="true" />

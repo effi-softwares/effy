@@ -63,6 +63,16 @@ Apple Merchant ID or CSR is needed.
 **Consequence**: an operator task, sequenced before any wallet acceptance walk. Until it is done, US2 is
 untestable and no amount of client work will change that.
 
+**✅ RESOLVED 2026-08-25** — `dev.effyshopping.com` registered as `pmd_1U8Fa4LCcnBe97EEswqHo4x7`,
+`enabled: true`.
+
+⚠ **The response is a per-DOMAIN statement and must not be read as account eligibility.** It reports
+`paypal` and `amazon_pay` as `"status": "active"` — yet both are `null` in the account's payment method
+configuration, i.e. not offered to an AU business at all (R1). It reports `google_pay` active while the
+account still says `available: false`. **Two independent gates; a method needs both.** Re-checked after
+registration, the methods that now pass BOTH are: card, **apple_pay**, **link**, **klarna**, zip.
+Google Pay and Afterpay remain blocked on account activation (T009).
+
 ---
 
 ## R3 — BECS Direct Debit is excluded on fulfilment grounds, not availability
@@ -430,3 +440,59 @@ Reversing that inside a payment slice would be the wrong place for it. It is now
 **Why this matters beyond the wording**: the design canvas published for this feature shows a dark
 payment page. Anyone reading it would reasonably expect dark mode on the web storefront. It is not
 coming from this slice.
+
+
+---
+
+## R17 — ⚠ CORRECTION to R8/T050: iOS IS verifiable and IS buildable ⚑
+
+**I was wrong, and this corrects it.** T050 was recorded as "cannot be verified from a command line, so
+writing the Swift bridge would be guessing". That premise was false. `xcodebuild
+-resolvePackageDependencies` resolves SPM outside Xcode, and the checked-out source then sits under
+`~/Library/Developer/Xcode/DerivedData/<project>/SourcePackages/checkouts/`. I had not tried it.
+
+**What the resolution shows** ⚑ — the project's `upToNextMajorVersion` 24.0.0 pin resolves to
+**Stripe iOS 24.25.0**, and it carries the embedded element in full:
+
+| Needed | Present at 24.25.0 |
+|---|---|
+| The element | `public final class EmbeddedPaymentElement` |
+| Construction | `static func create(intentConfiguration:configuration:) async throws` |
+| Confirmation | `public func confirm() async -> EmbeddedPaymentElementResult` |
+| Selection | `public var paymentOption: PaymentOptionDisplayData?` |
+| **A view for Compose interop** | **`public var view: UIView`** |
+| Change notifications | `EmbeddedPaymentElementDelegate` (height, selection, will-present) |
+
+`public var view: UIView` is the decisive one: Compose Multiplatform's `UIKitView` interop takes a
+`UIView`, so the element can be embedded in the SAME `PaymentElementContent` slot the Android side uses.
+There is no architectural obstacle — the shape mirrors Android's.
+
+**Remaining real complications** (work, not unknowns): the element's height changes as the shopper
+selects methods, so `embeddedPaymentElementDidUpdateHeight` must drive the interop view's measured
+height or the list will clip; and `presentingViewController` must be set for the form sheet to appear.
+
+**✅ BUILT 2026-08-25.** `SwiftPaymentElementBridge.swift` + `PaymentElement.ios.kt`, mirroring the
+Android actual. Both complications are handled explicitly:
+
+- **Height** — the bridge reports `view.systemLayoutSizeFitting(...)` on create AND on every
+  `didUpdateHeight` / `didUpdatePaymentOption`, and the Kotlin side sizes the `UIKitView` box from it.
+  ⚠ A Compose interop view keeps the height it was measured at, so without this the card form that
+  expands under a selected method renders below the visible box and **the shopper simply cannot reach
+  it**, with nothing on screen suggesting anything is wrong. `wrapContentHeight()` does not help — a
+  UIKit view does not self-size inside Compose.
+- **Presentation** — `configuration.presentingViewController` and the element's own
+  `presentingViewController` are both set from a top-of-stack walk (the Compose host controller may
+  itself be presented). Without it a shopper taps a method and nothing happens at all.
+- **Confirmation** — the completion-handler `confirm(completion:)` variant, not `async`, because
+  Kotlin/Native cannot call Swift `async`. Guarded so the callback fires exactly once: the Kotlin side
+  resumes a `CancellableContinuation`, and resuming twice traps.
+- **Teardown** — `DisposableEffect` calls `dispose()`. The element holds a live PaymentIntent and a view
+  controller reference; leaving the screen without tearing it down leaks both and the next payment would
+  build a second element over the first.
+
+**Fallback retained**: if Swift never registers the factory, Kotlin falls back to a handle that refuses
+honestly and says payments are unavailable — it does not silently do nothing.
+
+**The lesson, since it is the second time in this slice**: "I cannot verify X" is a claim that needs
+testing like any other. The Android answer came from unzipping an AAR and reading bytecode; the iOS
+answer was available the same way and I asserted an impossibility instead of spending one command on it.

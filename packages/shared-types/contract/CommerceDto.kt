@@ -553,6 +553,21 @@ data class CreateCheckoutIntentResponse (
     val currency: String,
 
     /**
+     * 051 — the provider customer the session belongs to. Present ONLY beside
+     * `customerSessionSecret`, i.e. only for a client that renders a provider-owned method list
+     * (mobile).
+     *
+     * ⚠ REQUIRED BY THE MOBILE SDKs, which take the id and the secret together
+     * (`createWithCustomerSession(id, clientSecret)`); a session without its id cannot be
+     * attached. The SECRET is the credential — this id alone reaches no API, because every call
+     * that reads a customer needs a secret key that never leaves core-api. Absent from the web
+     * response, never logged, never in telemetry, and never accepted as request input
+     * (data-model § 1, amended).
+     */
+    @SerialName("customerId")
+    val customerID: String? = null,
+
+    /**
      * 051 — authorizes a provider-owned payment-method list for THIS shopper only.
      *
      * ⚠ MOBILE ONLY, and null everywhere else. The mobile embedded element renders the

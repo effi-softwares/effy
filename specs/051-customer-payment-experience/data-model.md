@@ -30,7 +30,25 @@ the provider-side record and its cards are deleted by an explicit call, because 
 another system — see § 5.
 
 **⚠ It is a reference, not a credential.** It identifies a provider record; it grants nothing on its own
-and is not a secret. It must still never appear in a client payload — no surface has any use for it.
+and is not a secret.
+
+**⚠ AMENDED 2026-08-25 — it DOES reach the mobile client, and it has to.** This section originally said
+"no response carries it", written before the mobile SDKs were read. Both require the id *alongside* the
+session secret: Android `CustomerConfiguration.createWithCustomerSession(id, clientSecret)`, iOS
+`CustomerConfiguration(id:customerSessionClientSecret:)`. Without it a customer session cannot be
+attached and mobile saved cards are unbuildable.
+
+Why this is acceptable rather than a hole:
+
+- **The session secret is the credential; the id is not.** The id alone reaches no API — every Stripe
+  call that reads a customer needs a secret key, which never leaves `core-api` (SC-012).
+- **It is scoped to its own owner.** The session is minted server-side for the authenticated subject, so
+  a client only ever receives the id of the customer it already is.
+- **It is Stripe's own documented mobile integration**, not a workaround.
+
+**The rule that survives**: it goes to a client ONLY where the SDK requires it — i.e. only in the mobile
+intent response, and only beside a session secret. It is NOT in the web response (spike S2 removed the
+need), never logged, never in telemetry, and never accepted as *input* on any route.
 
 ---
 
