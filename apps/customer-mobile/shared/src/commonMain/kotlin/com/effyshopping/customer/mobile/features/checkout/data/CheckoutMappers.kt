@@ -97,6 +97,7 @@ internal fun CreateCheckoutIntentResponse.toDomain(): CheckoutIntent = CheckoutI
     // 019's order line lost its `productId`. Without `billingDetails` here the element collects nothing
     // and the provider refuses the payment — the failure is loud, but the cause would look like Stripe.
     customerSessionSecret = customerSessionSecret,
+    customerId = customerID,
     billingDetails = billingDetails?.toDomain(),
 )
 

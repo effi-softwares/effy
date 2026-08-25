@@ -25,6 +25,11 @@ data class CheckoutIntent(
      */
     val customerSessionSecret: String? = null,
     /**
+     * 051 US3 — the provider customer the session belongs to. Required BESIDE the secret: both mobile
+     * SDKs take them together, and a session without its id cannot be attached.
+     */
+    val customerId: String? = null,
+    /**
      * 051 — the billing details the CLIENT attaches at confirmation, because the payment screen no
      * longer asks the shopper for a country, a postcode or a name (FR-014/FR-015).
      *

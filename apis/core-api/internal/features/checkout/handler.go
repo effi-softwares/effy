@@ -49,6 +49,7 @@ type createIntentResponse struct {
 	// ⚠ The provider CUSTOMER id is absent by design and must stay absent: no surface has any use for it
 	// (data-model § 1).
 	CustomerSessionSecret string              `json:"customerSessionSecret,omitempty"`
+	CustomerID            string              `json:"customerId,omitempty"`
 	BillingDetails        *billingDetailsBody `json:"billingDetails,omitempty"`
 }
 
@@ -164,6 +165,7 @@ func (h *Handler) createIntent(c *gin.Context) {
 		OrderID: res.OrderID, OrderNumber: res.OrderNumber, ClientSecret: res.ClientSecret,
 		PublishableKey: res.PublishableKey, GrandTotalAmount: res.GrandTotal, Currency: res.Currency,
 		CustomerSessionSecret: res.CustomerSessionSecret,
+		CustomerID:            res.ProviderCustomerID,
 		BillingDetails: &billingDetailsBody{
 			Name:  res.BillingDetails.Name,
 			Email: res.BillingDetails.Email,

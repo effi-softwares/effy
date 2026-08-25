@@ -20,9 +20,17 @@ import { confirmCardPayment } from "./confirm"
  * always something being sent when it should not be. The unticked case is the real assertion.
  */
 describe("save-card consent (051 FR-020/FR-021)", () => {
+  type ConfirmOptions = {
+    setup_future_usage?: string
+    payment_method: {
+      allow_redisplay?: string
+      billing_details?: { address: { country: string; postal_code: string } }
+    }
+  }
+
   function fakeStripe() {
     return {
-      confirmCardPayment: vi.fn(async () => ({
+      confirmCardPayment: vi.fn(async (_secret: string, _options: ConfirmOptions) => ({
         paymentIntent: { status: "succeeded" },
         error: undefined,
       })),
@@ -89,8 +97,8 @@ describe("save-card consent (051 FR-020/FR-021)", () => {
         },
       })
       const [, options] = stripe.confirmCardPayment.mock.calls[0]!
-      expect(options.payment_method.billing_details.address.country).toBe("AU")
-      expect(options.payment_method.billing_details.address.postal_code).toBe("3121")
+      expect(options.payment_method.billing_details?.address.country).toBe("AU")
+      expect(options.payment_method.billing_details?.address.postal_code).toBe("3121")
     }
   })
 })

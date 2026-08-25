@@ -164,15 +164,15 @@ details; on a device without one, see no wallet affordance and no gap where it w
 **Independent test**: Pay with a new card and agree to keep it; return in a new session and pay again
 without retyping anything.
 
-- [ ] T063 [US3] ⚠ **Amended by S2 — no customer session on web.** Render the kept cards from `GET /v1/payment-methods` in `apps/customer-web/app/checkout/_payment/SavedCards.tsx` with network, last four and expiry, and confirm a chosen card with `payment_method: '<pm_id>'` (FR-019). This is *more* of Effy's own UI than the session route, so it serves FR-028 better
-- [ ] T064 [US3] Pre-select the default kept card and allow switching to a new card and back, in `SavedCards.tsx` (FR-022)
-- [ ] T065 [US3] Render Effy's own save-this-card consent control in plain words in `apps/customer-web/app/checkout/_payment/CardFields.tsx`, driving `setup_future_usage: 'off_session'` **and** an explicit `payment_method_data.allow_redisplay: 'always'` at confirm when ticked, and neither when not (FR-020). ⚠ **Amended by S2**: enforcement moved from the provider's checkbox to ours, which is exactly why T068 exists
-- [ ] T066 [US3] Show an unusable kept card with its reason and make it unselectable, in `SavedCards.tsx` (FR-023)
-- [ ] T067 [US3] Add inline removal of a kept card at the payment step in `SavedCards.tsx` (FR-024)
-- [ ] T068 [P] [US3] ⚠ Test that a card paid with **unticked** is absent on a later session — the negative that matters, and the one a happy-path walk misses, in `apps/customer-web/app/checkout/_payment/SavedCards.test.tsx` (SC-013, FR-020/FR-021)
-- [ ] T069 [P] [US3] Test that an expired kept card is unselectable and states its reason, in `SavedCards.test.tsx` (FR-023)
-- [ ] T070 [US3] Wire the customer session and the save consent into the mobile element configuration in `apps/customer-mobile/.../features/payment/`
-- [ ] T071 [P] [US3] Test the mobile saved-card and consent paths in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/payment/`
+- [X] T063 [US3] ⚠ **Amended by S2 — no customer session on web.** Render the kept cards from `GET /v1/payment-methods` in `apps/customer-web/app/checkout/_payment/SavedCards.tsx` with network, last four and expiry, and confirm a chosen card with `payment_method: '<pm_id>'` (FR-019). This is *more* of Effy's own UI than the session route, so it serves FR-028 better
+- [X] T064 [US3] Pre-select the default kept card and allow switching to a new card and back, in `SavedCards.tsx` (FR-022)
+- [X] T065 [US3] Render Effy's own save-this-card consent control in plain words in `apps/customer-web/app/checkout/_payment/CardFields.tsx`, driving `setup_future_usage: 'off_session'` **and** an explicit `payment_method_data.allow_redisplay: 'always'` at confirm when ticked, and neither when not (FR-020). ⚠ **Amended by S2**: enforcement moved from the provider's checkbox to ours, which is exactly why T068 exists
+- [X] T066 [US3] Show an unusable kept card with its reason and make it unselectable, in `SavedCards.tsx` (FR-023)
+- [X] T067 [US3] Add inline removal of a kept card at the payment step in `SavedCards.tsx` (FR-024)
+- [X] T068 [P] [US3] ⚠ Test that a card paid with **unticked** is absent on a later session — the negative that matters, and the one a happy-path walk misses, in `apps/customer-web/app/checkout/_payment/SavedCards.test.tsx` (SC-013, FR-020/FR-021)
+- [X] T069 [P] [US3] Test that an expired kept card is unselectable and states its reason, in `SavedCards.test.tsx` (FR-023)
+- [X] T070 [US3] Wire the customer session and the save consent into the mobile element configuration in `apps/customer-mobile/.../features/payment/`
+- [X] T071 [P] [US3] Test the mobile saved-card and consent paths in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/payment/`
 
 ---
 

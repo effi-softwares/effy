@@ -49,6 +49,12 @@ type IntentResult struct {
 	// payment-method id — minting a session there would be an unused provider round trip on a path 027
 	// already found latency-sensitive (spike S2).
 	CustomerSessionSecret string
+	// ProviderCustomerID accompanies the session, and ONLY the session (051 US3).
+	//
+	// ⚠ Both mobile SDKs take the id and the secret together — a session without its id cannot be
+	// attached. Empty whenever no session is minted, which is every web request. The secret is the
+	// credential; this id alone reaches no API (data-model § 1, amended).
+	ProviderCustomerID string
 	// BillingDetails is what the client passes back at confirmation, because the payment step no longer
 	// asks the shopper for a country, a postcode or a name (FR-014/FR-015).
 	BillingDetails BillingDetails
@@ -394,8 +400,20 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		GrandTotal:            moneyStr(grandTotalCents),
 		Currency:              pricing.Currency,
 		CustomerSessionSecret: session.secret,
+		ProviderCustomerID:    providerIDFor(in.WantsProviderMethodList, resolved),
 		BillingDetails:        billingDetailsFrom(billingSnapshot, profileName, profileEmail),
 	}, nil
+}
+
+// providerIDFor returns the provider customer id ONLY when a session was minted for it.
+//
+// ⚠ Guarded rather than returned unconditionally: the id has no purpose without the session, and
+// leaking it into every web response would break the rule that it travels only where an SDK needs it.
+func providerIDFor(wantsSession bool, providerCustomerID string) string {
+	if !wantsSession {
+		return ""
+	}
+	return providerCustomerID
 }
 
 // billingDetailsFrom maps the order's stored address snapshot to what the client passes back at

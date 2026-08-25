@@ -71,6 +71,7 @@ class PaymentViewModel(
             )
         },
         customerSessionSecret = intent.customerSessionSecret,
+        customerId = intent.customerId,
     )
 
     /**

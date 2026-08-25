@@ -167,9 +167,17 @@ class PaymentViewModelTest {
         assertEquals("AU", billing.country)
     }
 
+    /**
+     * ⚠ BOTH HALVES OR NEITHER (051 US3). The mobile SDKs take the session secret and the provider
+     * customer id together — `createWithCustomerSession(id, clientSecret)` — so a config carrying one
+     * without the other attaches no session at all and renders an EMPTY saved-card list, with nothing
+     * erroring anywhere. A shopper with kept cards would simply be asked to type one in again.
+     */
     @Test
-    fun `the element config carries the customer session so saved cards can appear`() {
-        assertEquals("cuss_1", viewModel().elementConfig.customerSessionSecret)
+    fun `the element config carries the customer session AND its customer id`() {
+        val config = viewModel().elementConfig
+        assertEquals("cuss_1", config.customerSessionSecret)
+        assertEquals("cus_1", config.customerId)
     }
 
     /**
@@ -196,6 +204,7 @@ class PaymentViewModelTest {
             grandTotalAmount = "14.60",
             currency = "AUD",
             customerSessionSecret = "cuss_1",
+            customerId = "cus_1",
             billingDetails = CheckoutBillingDetails(
                 name = "Test Shopper",
                 email = "shopper@example.com",

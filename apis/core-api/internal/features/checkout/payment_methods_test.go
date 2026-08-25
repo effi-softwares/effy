@@ -263,3 +263,38 @@ func TestRemoveKeptCard_NeverPaidIsNotFound(t *testing.T) {
 		t.Fatalf("err = %v, want ErrPaymentMethodNotFound", err)
 	}
 }
+
+// ── 051 US3 — the provider customer id travels ONLY where an SDK needs it ────────────────────────────
+//
+// ⚠ data-model § 1 originally said this id never reaches a client. Reading the mobile SDKs corrected
+// that — both require it beside the session secret — so the rule became "only beside a session". These
+// two tests are what stop that narrower rule eroding into "always".
+
+func TestCreateIntent_WebResponseCarriesNoProviderCustomerID(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWith(store, gw)
+
+	res, err := intent(svc, IntentInput{AddressID: addrID}) // web: wants no provider method list
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ProviderCustomerID != "" {
+		t.Fatalf("web response carried provider customer id %q; it has no purpose without a session", res.ProviderCustomerID)
+	}
+}
+
+func TestCreateIntent_MobileResponseCarriesTheIDBesideTheSession(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWith(store, gw)
+
+	res, err := intent(svc, IntentInput{AddressID: addrID, WantsProviderMethodList: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ⚠ Both or neither. A session without its id cannot be attached, so a response carrying one and
+	// not the other would render an empty saved-card list with no error anywhere.
+	if res.CustomerSessionSecret == "" || res.ProviderCustomerID == "" {
+		t.Fatalf("session=%q id=%q — both are required to attach a customer session",
+			res.CustomerSessionSecret, res.ProviderCustomerID)
+	}
+}
