@@ -72,7 +72,7 @@ export function MethodList({
           title="Pay over time"
           subtitle="Split your order into instalments"
         >
-          <div className="px-[18px] pb-5 pt-1">
+          <div className="px-4.5 pb-5 pt-1">
             <div className="mb-4 h-px bg-border" />
             {/*
               The provider's own rows, carrying the provider's own terms. `accordion` so each option
@@ -110,11 +110,11 @@ function Row({
   return (
     <div
       className={cn(
-        "rounded-[14px] bg-card transition-shadow",
+        "rounded-xl bg-card transition-shadow",
         // Selection reads as a doubled border rather than a fill, so it looks the same in either
         // appearance — the monochrome accent inverts, a fill would not (Principle V).
         selected
-          ? "border border-foreground shadow-[0_0_0_1px_var(--foreground)]"
+          ? "border"
           : "border border-input",
       )}
     >
@@ -123,7 +123,7 @@ function Row({
         onClick={onSelect}
         disabled={disabled}
         aria-pressed={selected}
-        className="flex h-[74px] w-full items-center gap-3.5 px-[18px] text-left disabled:opacity-60"
+        className="flex h-18.5 w-full items-center gap-3.5 px-4.5 text-left disabled:opacity-60"
       >
         <span
           className={cn(
@@ -133,7 +133,7 @@ function Row({
         >
           <span className={cn("size-2.5 rounded-full", selected && "bg-foreground")} />
         </span>
-        <span className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] bg-secondary">
+        <span className="flex size-9.5 shrink-0 items-center justify-center rounded-lg bg-secondary">
           {icon}
         </span>
         <span className="min-w-0 flex-1">

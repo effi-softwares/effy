@@ -294,7 +294,7 @@ export function PaymentStep({
             laterAvailable={laterAvailable}
             busy={busy}
           >
-            <div className="flex flex-col gap-5 px-[18px] pb-5 pt-1">
+            <div className="flex flex-col gap-5 px-4.5 pb-5 pt-1">
               <div className="h-px bg-border" />
               <SavedCards
                 cards={cards}
@@ -317,7 +317,7 @@ export function PaymentStep({
         </div>
 
         {/* The pay rail. A border-left and space hold it — not a card (Principle V). */}
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-[88px] lg:border-l lg:pl-12">
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-22 lg:border-l lg:pl-12">
           <div>
             <span className="block text-xs font-medium uppercase tracking-[0.09em] text-muted-foreground">
               Total due
