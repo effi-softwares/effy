@@ -2,7 +2,7 @@
 // Source of truth: packages/design-system/src/tokens.css. Run `pnpm --filter @effy/design-system tokens:gen`.
 // Guarded by tokens:check — a hand edit here fails the build and names this file.
 
-package com.effyshopping.customer.mobile.payment
+package com.effyshopping.customer.mobile.design.payment
 
 import androidx.compose.ui.graphics.Color
 import com.stripe.android.paymentsheet.PaymentSheet
@@ -49,9 +49,9 @@ object EffyPaymentAppearance {
     )
 
     /**
-     * @param generalSansFontResId R.font.general_sans from the host app module. ⚠ REQUIRED, not
-     *   nullable, on purpose: a null renders the payment form in the system font beside Effy's own
-     *   type and nothing errors, so the type system refuses the mistake instead.
+     * @param generalSansFontResId the General Sans font resource. ⚠ REQUIRED, not nullable, on
+     *   purpose: a null renders the payment form in the system font beside Effy's own type and nothing
+     *   errors, so the type system refuses the mistake instead.
      */
     fun of(generalSansFontResId: Int): PaymentSheet.Appearance = PaymentSheet.Appearance(
         colorsLight = Light,

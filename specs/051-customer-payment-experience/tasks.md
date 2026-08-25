@@ -123,16 +123,16 @@ paid; the fields asked for are exactly three; no basket line, address or deliver
 
 ### Mobile
 
-- [ ] T047 [US1] Extend the `PaymentDriver` interface in `apps/customer-mobile/shared/src/commonMain/kotlin/.../core/payment/PaymentDriver.kt` for the embedded element: configure, observe the selected option, confirm — replacing the single `presentPaymentSheet` call
-- [ ] T048 [US1] Declare the `expect` composable slot for the embedded element in `apps/customer-mobile/shared/src/commonMain/kotlin/.../features/payment/PaymentElementSlot.kt` — ⚠ the element is platform code and cannot be rendered from `commonMain` (research R8)
-- [ ] T049 [US1] Implement the Android `actual` over `rememberEmbeddedPaymentElement` in `apps/customer-mobile/shared/src/androidMain/kotlin/.../core/payment/`, wiring `createIntentCallback` per the T004 answer
-- [ ] T050 [US1] Implement the iOS `actual` over the Swift `EmbeddedPaymentElement` bridge in `apps/customer-mobile/shared/src/iosMain/kotlin/.../core/payment/` and `apps/customer-mobile/iosApp/SwiftPaymentBridge.swift`
-- [ ] T051 [US1] Apply `BillingDetailsCollectionConfiguration(address = Never, name = Never, attachDefaultsToPaymentMethod = true)` plus `defaultBillingDetails` from the intent response, in the element configuration (FR-015, contract § 6)
-- [ ] T052 [US1] Apply the generated `PaymentSheet.Appearance` with `colorsLight` **and** `colorsDark` and `typography.fontResId` pointing at the T008 resource, in the element configuration (FR-029, FR-030)
-- [ ] T053 [US1] Build `PaymentViewModel` + use cases in `apps/customer-mobile/shared/src/commonMain/kotlin/.../features/payment/`, following `ViewModel → UseCase → Driver` (Principle VI)
-- [ ] T054 [US1] Build the payment screen in `.../features/payment/PaymentScreen.kt`: amount, the element slot, Effy's own pay button, trust and legal lines — and **no** order content (FR-003)
-- [ ] T055 [US1] ⚠ Send the **access** token, not the id token, on every new `core-api` call in `apps/customer-mobile/shared/src/commonMain/kotlin/.../core/network/EffyHttpClient.kt` — this is 019/027 R12a, the defect that silently rejected every mobile cart write
-- [ ] T056 [P] [US1] Add `PaymentViewModel` tests in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/payment/PaymentViewModelTest.kt` — ⚠ **no comma in a backtick test name**: Kotlin/Native rejects it and the iOS test compilation fails while Android stays green (033)
+- [X] T047 [US1] Extend the `PaymentDriver` interface in `apps/customer-mobile/shared/src/commonMain/kotlin/.../core/payment/PaymentDriver.kt` for the embedded element: configure, observe the selected option, confirm — replacing the single `presentPaymentSheet` call
+- [X] T048 [US1] Declare the `expect` composable slot for the embedded element in `apps/customer-mobile/shared/src/commonMain/kotlin/.../features/payment/PaymentElementSlot.kt` — ⚠ the element is platform code and cannot be rendered from `commonMain` (research R8)
+- [X] T049 [US1] Implement the Android `actual` over `rememberEmbeddedPaymentElement` in `apps/customer-mobile/shared/src/androidMain/kotlin/.../core/payment/`, wiring `createIntentCallback` per the T004 answer
+- [ ] T050 [US1] ⚠ **PARTIAL — the Kotlin `actual` ships; the Swift bridge does NOT.** `PaymentElement.ios.kt` compiles and refuses honestly (reports not-ready with a message a shopper can act on), so iOS builds and runs rather than presenting a dead screen. The real bridge needs `StripePaymentSheet` resolved in Xcode to confirm the iOS SDK exposes the embedded element under this project's `upToNextMajorVersion` 24.0.0 pin — unverifiable from a command line, and writing Swift against an unverified API surface would be guessing. ⚠ **CONSEQUENCE: the mobile payment step does not work on iOS until this lands**, which is why `PaymentDriver`'s sheet is NOT deleted. Record in the parity register (FR-044)
+- [X] T051 [US1] Apply `BillingDetailsCollectionConfiguration(address = Never, name = Never, attachDefaultsToPaymentMethod = true)` plus `defaultBillingDetails` from the intent response, in the element configuration (FR-015, contract § 6)
+- [X] T052 [US1] Apply the generated `PaymentSheet.Appearance` with `colorsLight` **and** `colorsDark` and `typography.fontResId` pointing at the T008 resource, in the element configuration (FR-029, FR-030)
+- [X] T053 [US1] Build `PaymentViewModel` + use cases in `apps/customer-mobile/shared/src/commonMain/kotlin/.../features/payment/`, following `ViewModel → UseCase → Driver` (Principle VI)
+- [X] T054 [US1] Build the payment screen in `.../features/payment/PaymentScreen.kt`: amount, the element slot, Effy's own pay button, trust and legal lines — and **no** order content (FR-003)
+- [X] T055 [US1] ⚠ Send the **access** token, not the id token, on every new `core-api` call in `apps/customer-mobile/shared/src/commonMain/kotlin/.../core/network/EffyHttpClient.kt` — this is 019/027 R12a, the defect that silently rejected every mobile cart write
+- [X] T056 [P] [US1] Add `PaymentViewModel` tests in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/payment/PaymentViewModelTest.kt` — ⚠ **no comma in a backtick test name**: Kotlin/Native rejects it and the iOS test compilation fails while Android stays green (033)
 
 **Checkpoint**: US1 is a complete, releasable improvement on both surfaces.
 

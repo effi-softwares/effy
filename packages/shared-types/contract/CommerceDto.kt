@@ -511,7 +511,21 @@ data class CreateCheckoutIntentRequest (
      * The server prices the chosen method from the captured quote; the client NEVER sends a fee
      * (SC-004).
      */
-    val deliveryMethod: String? = null
+    val deliveryMethod: String? = null,
+
+    /**
+     * 051 — set by a client that renders a PROVIDER-OWNED payment-method list (the mobile
+     * in-app element) and therefore needs a customer session. Web renders Effy's own list and
+     * leaves this unset.
+     *
+     * ⚠ Asking is not authorization to get someone else's: the session is always minted for the
+     * AUTHENTICATED subject, so the worst a hostile client achieves is a session for itself.
+     *
+     * ⚠ There is deliberately NO `billingDetails` on this request. Billing details are DERIVED
+     * from the order's own snapshot; accepting them here would let a client contradict the
+     * address it confirmed one screen earlier (contract § 1, FR-016).
+     */
+    val wantsProviderMethodList: Boolean? = null
 )
 
 @Serializable

@@ -57,6 +57,10 @@ kotlin {
         // split common/android/ios; each half is srcDir'd into the matching source set.
         androidMain {
             kotlin.srcDir(rootProject.file("../../packages/mobile-kit/android"))
+            // 051 — the GENERATED payment-provider Appearance, derived from tokens.css (Principle II).
+            // ⚠ Android-only: it imports com.stripe.android, so it must NOT go in the commonMain
+            // `compose/` directory, which has to compile for iOS.
+            kotlin.srcDir(rootProject.file("../../packages/design-system/compose-payment-android"))
         }
         iosMain {
             kotlin.srcDir(rootProject.file("../../packages/mobile-kit/ios"))
@@ -65,6 +69,13 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.ktor.client.android)
+            // 051 — the in-app payment element. ⚠ This is a DEPARTURE from 019's "Stripe lives in the
+            // app module, not shared", and the reason 019 gave no longer applies: `PaymentSheet` had to
+            // be registered against MainActivity's ActivityResultRegistry in onCreate, which shared
+            // could not do. The EMBEDDED element is Compose-scoped and has no such requirement — and it
+            // has to live here, because this is where the payment screen is. Same shape as Amplify and
+            // Firebase below: a platform-only SDK in the Android half of the shared module.
+            implementation(libs.stripe.android)
             // CIO engine — Coil's image loader ONLY (not the data client). Avoids the platform-okhttp
             // "Unbalanced enter/exit" crash when Coil cancels an image job on LazyGrid scroll reuse.
             implementation(libs.ktor.client.cio)

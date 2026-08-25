@@ -23,12 +23,12 @@ const CSS = resolve(here, "../src/tokens.css");
 const WEB_OUT = resolve(here, "../stripe/appearance.ts");
 // ⚠ ANDROID-ONLY OUTPUT, and it must stay out of ../compose/.
 //
-// `packages/design-system/compose/` is srcDir'd into the KMP module's commonMain, which is
-// deliberately Stripe-free (AndroidPaymentDriver: "the Stripe dependency lives in the app module,
-// not `shared`") and must compile for iOS. A file importing com.stripe.android.paymentsheet there
-// would break the iOS build. This directory is srcDir'd into androidApp ONLY.
+// `packages/design-system/compose/` is srcDir'd into the KMP module's commonMain, which must compile
+// for iOS; a file importing com.stripe.android.paymentsheet there would break the iOS build. This
+// directory is srcDir'd into `shared/androidMain` instead — the same source set that already carries
+// Amplify, Firebase and PostHog, i.e. the platform-only SDKs the shared module's Android half needs.
 const KT_OUT = resolve(here, "../compose-payment-android/EffyPaymentAppearance.kt");
-const KT_PKG = "com.effyshopping.customer.mobile.payment";
+const KT_PKG = "com.effyshopping.customer.mobile.design.payment";
 
 // The tokens the provider's Appearance API actually consumes. Anything not listed here has no slot to
 // go in — adding a token to tokens.css does NOT silently change the payment form.
@@ -184,9 +184,9 @@ ${ktColors("Light", light)}
 ${ktColors("Dark", dark)}
 
     /**
-     * @param generalSansFontResId R.font.general_sans from the host app module. ⚠ REQUIRED, not
-     *   nullable, on purpose: a null renders the payment form in the system font beside Effy's own
-     *   type and nothing errors, so the type system refuses the mistake instead.
+     * @param generalSansFontResId the General Sans font resource. ⚠ REQUIRED, not nullable, on
+     *   purpose: a null renders the payment form in the system font beside Effy's own type and nothing
+     *   errors, so the type system refuses the mistake instead.
      */
     fun of(generalSansFontResId: Int): PaymentSheet.Appearance = PaymentSheet.Appearance(
         colorsLight = Light,

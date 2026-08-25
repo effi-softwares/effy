@@ -19,6 +19,32 @@ data class CheckoutIntent(
     val publishableKey: String,
     val grandTotalAmount: String,
     val currency: String,
+    /**
+     * 051 — authorizes the provider-owned saved-card list for this shopper. Null for a shopper who has
+     * never paid (they have no provider record yet), which is not an error.
+     */
+    val customerSessionSecret: String? = null,
+    /**
+     * 051 — the billing details the CLIENT attaches at confirmation, because the payment screen no
+     * longer asks the shopper for a country, a postcode or a name (FR-014/FR-015).
+     *
+     * ⚠ Derived by the server from the address the shopper already confirmed. Null only for an order
+     * placed before 051; the element then collects nothing and the provider refuses, which is loud and
+     * correct rather than silently charging against a guessed address.
+     */
+    val billingDetails: CheckoutBillingDetails? = null,
+)
+
+/** The billing details Effy attaches on the shopper's behalf (051 FR-016). */
+data class CheckoutBillingDetails(
+    val name: String?,
+    val email: String?,
+    val line1: String,
+    val line2: String?,
+    val city: String,
+    val state: String,
+    val postalCode: String,
+    val country: String,
 )
 
 data class ReceiptItem(
@@ -115,6 +141,30 @@ interface CheckoutRepository {
     suspend fun confirm(orderId: String): Boolean
     /** 047: quote delivery (serviceability + fee + same-day availability) for a chosen address. */
     suspend fun quote(addressId: String): DeliveryQuote
+}
+
+/**
+ * CreateIntent (051) — create the pending order + PaymentIntent, and STOP.
+ *
+ * ⚠ This is what [PayForOrder] used to fuse into one call. It cannot stay fused: the in-app element
+ * renders inside Effy's own screen, so the intent must exist BEFORE that screen draws, and confirmation
+ * happens later when the shopper presses Effy's pay button. One call that created an intent and
+ * presented a sheet was only possible while the sheet was a modal the app did not own.
+ */
+class CreateIntent(private val checkout: CheckoutRepository) {
+    suspend operator fun invoke(order: PlaceOrder): CheckoutIntent = checkout.createIntent(order)
+}
+
+/**
+ * ConfirmOrder (051) — the idempotent fallback finaliser, called the moment the element reports a
+ * completed payment.
+ *
+ * ⚠ The WEBHOOK is authoritative (019 R4); this covers its lag, and a failure here is deliberately
+ * swallowed by the caller. A shopper who has paid must never be shown a failure because a best-effort
+ * confirmation call did not land (FR-039).
+ */
+class ConfirmOrder(private val checkout: CheckoutRepository) {
+    suspend operator fun invoke(orderId: String): Boolean = checkout.confirm(orderId)
 }
 
 /** QuoteDelivery (047) — the use case the ViewModel calls when the shipping address is chosen/changed. */
