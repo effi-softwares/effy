@@ -6,6 +6,7 @@ import { useState } from "react"
 import type { PaymentMethodDTO } from "@effy/shared-types"
 
 import { NetworkMark, brandLabel } from "@/app/checkout/_payment/BrandMarks"
+import { capture } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
 
 /**
@@ -41,6 +42,7 @@ export function PaymentMethodList({
         setError("We couldn't remove that card. Your cards are unchanged — try again in a moment.")
         return
       }
+      capture({ name: "card_removed", props: { from: "account" } })
       setCards((prev) => prev.filter((c) => c.id !== id))
     } catch {
       setError("We couldn't reach the server. Your cards are unchanged — try again in a moment.")

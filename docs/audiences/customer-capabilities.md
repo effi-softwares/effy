@@ -1092,3 +1092,79 @@ customer app. Status:
   in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
   NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
 - **No PII** beyond the auth subject id; analytics consent-gated (customer); push OS-permission only.
+
+## §051 — Customer Payment Experience
+
+Rebuilds the checkout payment step on both surfaces: a focused screen that carries the amount and
+nothing else, three card fields instead of six, every payment option an Australian Effy can actually
+accept, cards a shopper chose to keep, and Effy's own interface in place of the provider's default UI.
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Payment step carries no order content | ✅ | ✅ | amount only; no basket lines, address or delivery row (FR-003) |
+| Card payment | ✅ | ⚠ Android only | web: split card elements in Effy's own field shells; mobile: in-app element |
+| Three fields, no country/postcode/name | ✅ | ✅ | Effy supplies billing details at confirm (FR-014/FR-015) |
+| Apple Pay / Google Pay / Link | ✅ | ⚠ Android only | Express Checkout Element above the card form |
+| Pay over time (Klarna, Zip) | ✅ | ⚠ Android only | provider-authored terms; Afterpay awaits account activation |
+| Saved cards | ✅ | ⚠ Android only | web renders Effy's own list; mobile uses the element's, via a customer session |
+| Save-this-card consent | ✅ | ⚠ Android only | web: Effy's checkbox → `setup_future_usage`; mobile: the element's |
+| Remove a card at the payment step | ✅ | ➖ | mobile removal is in the account screen only |
+| Payment methods in the account | ✅ (tab) | ✅ (screen) | beside the address book on both |
+| Refusals name a cause | ✅ | ✅ | 12 decline codes mapped on web; coarse mapping on mobile |
+| Light appearance | ✅ | ✅ | |
+| Dark appearance | ➖ **N/A** | ✅ | see the first gap below |
+
+### ⚠ Parity gaps, and why (FR-044)
+
+**1. iOS payments do not work yet — and the blocker is not this feature's.**
+The Swift bridge (`SwiftPaymentElementBridge.swift`) and its Kotlin `actual` are written, and the
+Kotlin half compiles for iOS (main and test). The Swift half is **unverified**, because ⚠ **the iOS app
+has not built since feature 050**: `xcodebuild` dies on `Unable to resolve module dependency:
+FirebaseCore / FirebaseCrashlytics / PostHog`. PostHog is not even a package reference in the project.
+`CLAUDE.md:281` records it — *"iOS builds need the SPM packages added in Xcode."*
+`SwiftPaymentElementBridge.swift` produced **zero errors of its own**, but the module never finished
+compiling, so nothing about it is proven. A fallback handle ships that refuses honestly ("payments
+aren't available in this build") rather than presenting a dead screen.
+**Closes when**: the operator adds the Firebase + PostHog SPM packages in Xcode (050's carry-forward)
+and an iOS build reports SUCCEEDED.
+
+**2. Dark mode is a mobile-only capability, and that predates this feature.**
+⚠ `apps/customer-web` is **light-only by operator decision**: its root layout never applies the design
+system's `.dark` class and `globals.css` pins `color-scheme: light`, so there is no appearance choice
+for the payment step to follow. FR-030 was originally written assuming otherwise and was **amended
+during implementation** (research R16). The dark palette IS generated and shipped, so the day the
+storefront gains a switcher this becomes a one-line change.
+⚠ **This leaves a standing conflict with Principle V**, which requires dark mode on every surface and
+requires it to be user-selectable. The conflict is not created by 051 and is not 051's to resolve — but
+it is now written down, which it was not before.
+
+**3. Removing a card at the payment step is web-only.**
+Mobile removal lives in the account screen. Not a limitation of the platform — the mobile payment
+screen uses the provider's own method list, which draws its own rows, so an Effy-drawn remove control
+would have to sit beside a list Effy does not own. The account screen is the better home for it anyway
+(a trust action taken when *not* shopping), and it exists on both surfaces.
+
+### ⚠ Not met, and blocked outside this feature
+
+**FR-027** ("deleting or barring an account removes that shopper's kept cards") **cannot be satisfied**.
+⚑ The platform has **no account-erasure job**: 034 writes a 30-day `erase_after` and explicitly defers
+the worker that acts on it, calling it a blocking dependency for store submission. `grep -rn
+"erase_after"` finds three files and nothing reads it. So a closed account's kept cards survive at the
+provider indefinitely. 051 deliberately did **not** improvise a fix — the hook sits on the cold path, on
+the wrong side of the payment secret's custody boundary, and deleting cards at the closure *request*
+would make closure partially irreversible, which belongs to whoever owns erasure. What 051 contributes
+is the **ordering rule** that job must follow: provider records first, local reference second.
+Recorded in research R15.
+
+### Operator gates (not code)
+
+- **Google Pay and Afterpay** are AU-supported and offered in the code, but report `available: false`
+  until the Stripe account is activated. They ship dark under FR-013 rather than being shown before
+  they work (FR-010).
+- **PayPal and Amazon Pay are permanently absent** — Stripe's business-location rules exclude an
+  AU-domiciled business, and both come back `null` on the account. Not a gap; an impossibility.
+- **Payment marks are monochrome** until Principle V's third-party exception is widened from *sign-in
+  marks* to third-party marks generally (research R13). The current marks are also **stand-ins** and
+  must be replaced with each provider's official asset kit before release.
+
+Spec/artifacts: [specs/051-customer-payment-experience/](../../specs/051-customer-payment-experience/).

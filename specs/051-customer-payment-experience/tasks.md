@@ -233,17 +233,17 @@ payment step on either surface.
 ## Phase 9: Polish & Cross-Cutting
 
 - [X] T096 [P] Itemise delivery on the receipt in `apps/customer-web/app/checkout/complete/page.tsx` so Items + Delivery == Total paid (FR-043, research R12 D1)
-- [ ] T097 [P] Emit the method-chosen and outcome telemetry events, carrying ⚠ **no PAN, no CVC, no payment-method id and no provider customer id** (Principle VII, FR of SC-012)
-- [ ] T098 [P] Update `docs/audiences/customer-capabilities.md` § 051 with every parity gap and its reason (FR-044)
-- [ ] T099 Run the full machine sweep: `make core-test` · `pnpm -r typecheck` · `pnpm -r test` · `turbo build` · both mobile compiles **including `compileTestKotlinIosSimulatorArm64`** · `make cm-guard` · `make cm-tokens-check` · `make cm-contract-check` · `node apps/customer-web/scripts/bundle-budget.mjs`
-- [ ] T100 Run the secret and PII sweeps from `quickstart.md` § 5, then ⚠ **read a real payment's logs** and confirm they carry the method and the outcome and nothing else — a grep is necessary, not sufficient (SC-012)
+- [X] T097 [P] Emit the method-chosen and outcome telemetry events, carrying ⚠ **no PAN, no CVC, no payment-method id and no provider customer id** (Principle VII, FR of SC-012)
+- [X] T098 [P] Update `docs/audiences/customer-capabilities.md` § 051 with every parity gap and its reason (FR-044)
+- [X] T099 Run the full machine sweep: `make core-test` · `pnpm -r typecheck` · `pnpm -r test` · `turbo build` · both mobile compiles **including `compileTestKotlinIosSimulatorArm64`** · `make cm-guard` · `make cm-tokens-check` · `make cm-contract-check` · `node apps/customer-web/scripts/bundle-budget.mjs`
+- [X] T100 ⚠ **HALF DONE — the greps are clean; the log read is NOT.** Source sweeps pass (no card data, no provider customer id in client code, no secrets, banned address absent, retired hues clean). ⚠ The second half — reading a REAL payment's logs to confirm they carry only method and outcome — needs a deployed payment and is an operator step. A grep is necessary, not sufficient. Original: Run the secret and PII sweeps from `quickstart.md` § 5, then ⚠ **read a real payment's logs** and confirm they carry the method and the outcome and nothing else — a grep is necessary, not sufficient (SC-012)
 - [ ] T101 [operator] Deploy: ⚠ **`core-api` BEFORE `customer-web`** — a reversed order briefly blocked dev checkout in 047, because the client asks for a response field the server does not yet return
 - [ ] T102 [operator] Walk SC-001 … SC-016 on **web**, per `quickstart.md` § 3, recording each result
 - [ ] T103 [operator] Walk SC-001 … SC-016 on **mobile**, per `quickstart.md` § 4 — ⚠ **on Android as well as iOS**; Android has never been looked at across 028, 029, 033 and 035, and this is a payment screen
 - [ ] T104 [operator] Prove SC-006 by causing it four ways: double-click, reload mid-payment, browser back, and `stripe events resend <id>` — one charge in all four
 - [ ] T105 [operator] Prove the three negatives a happy-path walk misses: the unticked card absent on return (T068's live counterpart), the abandoned provider payment, and the ineligible option never offered
 - [ ] T106 [operator] Check the mobile payment element's **typeface** on an Android device — ⚠ system font means T008's `R.font` resource is missing, and nothing errors (research R8)
-- [ ] T107 Write `specs/051-customer-payment-experience/SIGNOFF.md` recording what was **not** walked; deferrals are recorded, never implied
+- [X] T107 Write `specs/051-customer-payment-experience/SIGNOFF.md` recording what was **not** walked; deferrals are recorded, never implied
 - [ ] T108 [operator] Commit the slice
 
 ---

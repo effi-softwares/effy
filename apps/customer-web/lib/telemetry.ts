@@ -3,6 +3,23 @@
 import type { PostHog } from "posthog-js"
 import type { CredentialRoute, ProductSort } from "@effy/shared-types"
 
+/**
+ * How the shopper chose to pay (051).
+ *
+ * ⚠ A FAMILY, never a provider. "Klarna at 11pm by this subject id" is a record of someone's credit
+ * decision; "instalments" answers the product question without it.
+ */
+type PaymentMethodFamily = "card" | "saved_card" | "wallet" | "pay_over_time"
+
+/**
+ * Why a payment did not complete, in EFFY'S OWN words (051).
+ *
+ * ⚠ NOT the provider's `decline_code`. `insufficient_funds` against a subject id is a fact about that
+ * person's bank balance, and an analytics store is not where it belongs. These four answer the only
+ * question the platform needs — is the payment path working — and no more.
+ */
+type PaymentFailureReason = "declined" | "needs_action" | "network" | "unknown"
+
 /** Which auth journey an `auth_*` event belongs to. */
 type AuthFlow = "sign_in" | "sign_up" | "reset"
 
@@ -205,6 +222,26 @@ export type StorefrontEvent =
   | { name: "checkout_address_changed"; props?: Record<string, never> }
   | { name: "checkout_address_added"; props?: Record<string, never> }
   | { name: "checkout_billing_diverged"; props?: Record<string, never> }
+  // 051 payment experience.
+  //
+  // ⚠ WHAT THESE MAY NEVER CARRY, and the type is what enforces it: no card number (not even the last
+  // four), no security code, no payment-method id, no provider customer id, no amount. The product
+  // questions worth asking are "which way do people choose to pay" and "does it work" — neither needs
+  // a value that identifies a card or a person's money (Principle VII, SC-012).
+  //
+  // ⚠ `method` is a FAMILY, not a provider-specific identifier: knowing that instalments were chosen
+  // is the insight; knowing which shopper used Klarna at what hour is surveillance of a credit
+  // decision, and it is not ours to collect.
+  | { name: "payment_method_selected"; props: { method: PaymentMethodFamily } }
+  | { name: "payment_succeeded"; props: { method: PaymentMethodFamily } }
+  // ⚠ `reason` is EFFY'S OWN vocabulary, never the provider's `decline_code`. A raw code would be a
+  // fact about the shopper's bank relationship sitting in an analytics store; the coarse reason
+  // answers "is our payment path broken" without holding that.
+  | { name: "payment_failed"; props: { method: PaymentMethodFamily; reason: PaymentFailureReason } }
+  | { name: "payment_abandoned_at_provider"; props: { method: PaymentMethodFamily } }
+  | { name: "saved_card_used"; props?: Record<string, never> }
+  | { name: "card_saved"; props?: Record<string, never> }
+  | { name: "card_removed"; props: { from: "checkout" | "account" } }
   // 025 customer experience refresh.
   //
   // ⚠ `delivery_location_set` carries the ANSWER, never the postcode. A postcode is location data

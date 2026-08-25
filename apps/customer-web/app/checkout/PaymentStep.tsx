@@ -10,6 +10,7 @@ import type { CreateCheckoutIntentResponse, PaymentMethodDTO } from "@effy/share
 
 import { ActionButton } from "@/components/storefront/actions"
 import { formatMoney } from "@/lib/money"
+import { capture } from "@/lib/telemetry"
 
 import { CardFields, useCardFieldState } from "./_payment/CardFields"
 import { BANK_APPROVAL_REQUIRED, failureFor, type PaymentFailure } from "./_payment/failures"
@@ -147,6 +148,7 @@ export function PaymentStep({
       })
       return
     }
+    capture({ name: "card_removed", props: { from: "checkout" } })
     setCards((prev) => {
       const next = prev.filter((c) => c.id !== id)
       // ⚠ FR-024b — removing the selected card must leave a usable selection behind, not a dead one.
@@ -197,15 +199,23 @@ export function PaymentStep({
             paymentMethodId: selectedCard,
           })
 
+      // ⚠ The FAMILY only — never which provider, never an amount, never a card reference.
+      const family =
+        method === "later" ? "pay_over_time" : usingNewCard ? "card" : "saved_card"
+
       switch (outcome.kind) {
         case "succeeded":
         case "processing":
           // ⚠ `processing` goes to the receipt too, and that is correct: the receipt reads the
           // webhook-authoritative order state and can say "we're confirming your payment". What it must
           // NOT do is announce success here (FR-040).
+          capture({ name: "payment_succeeded", props: { method: family } })
+          if (family === "card" && saveCard) capture({ name: "card_saved" })
+          if (family === "saved_card") capture({ name: "saved_card_used" })
           router.push(`/checkout/complete?order=${intent.orderId}`)
           return
         case "requires_action":
+          capture({ name: "payment_failed", props: { method: family, reason: "needs_action" } })
           // ⚠ The provider drives the bank's challenge and returns to `return_url`. Saying so is the
           // point: this is the moment a shopper most often panics and closes the tab, and being told
           // in advance that their bank will ask — and that they will be brought back — is what stops
@@ -261,6 +271,7 @@ export function PaymentStep({
                   return
                 }
                 if (outcome.kind === "succeeded" || outcome.kind === "processing") {
+                  capture({ name: "payment_succeeded", props: { method: "wallet" } })
                   router.push(`/checkout/complete?order=${intent.orderId}`)
                 }
               } finally {
@@ -273,7 +284,13 @@ export function PaymentStep({
 
           <MethodList
             selected={method}
-            onSelect={setMethod}
+            onSelect={(next) => {
+              setMethod(next)
+              capture({
+                name: "payment_method_selected",
+                props: { method: next === "later" ? "pay_over_time" : "card" },
+              })
+            }}
             laterAvailable={laterAvailable}
             busy={busy}
           >
