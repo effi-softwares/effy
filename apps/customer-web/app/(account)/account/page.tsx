@@ -5,15 +5,17 @@ import { Heart, ShoppingBag, Tag } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { allDocuments } from "@effy/legal-content"
-import type { AddressDTO } from "@effy/shared-types"
+import type { AddressDTO, PaymentMethodDTO } from "@effy/shared-types"
 
 import { AddressList } from "@/app/(account)/addresses/_components/AddressList"
 import { Avatar } from "@/components/Avatar"
+import { coreApi, uncached } from "@/lib/api/core"
 import { edgeApi } from "@/lib/api/edge"
 import { getSession, requireCustomer } from "@/lib/dal"
 import { AccountTabsProvider, SectionNav, TabContent } from "./AccountTabs"
 import { EmailDeliveryNotice } from "./EmailDeliveryNotice"
 import { PasswordCard } from "./PasswordCard"
+import { PaymentMethodList } from "./PaymentMethodList"
 import { PersonalInfo } from "./PersonalInfo"
 import { SessionCard } from "./SessionCard"
 import { parseTab, tabHref } from "./tabs"
@@ -89,6 +91,8 @@ async function AccountBody({ searchParams }: { searchParams: Promise<{ tab?: str
           <TabContent>
             {active === "addresses" ? (
               <AddressBook />
+            ) : active === "payment" ? (
+              <PaymentMethods />
             ) : active === "security" ? (
               <SecuritySection
                 hasPassword={customer.hasPassword}
@@ -157,6 +161,44 @@ async function AddressBook() {
         Address book
       </h2>
       <AddressList initial={addresses} />
+    </section>
+  )
+}
+
+/**
+ * Payment methods (051 US6) — the cards a shopper chose to keep.
+ *
+ * ⚠ HOT PATH, unlike the address book above it. That is not an inconsistency: 011's routing law puts
+ * *payment* on the hot path, and the provider secret's custody boundary settles it — listing a card is
+ * a provider call, and a cold-path route would need a second copy of that secret (research R9). Two
+ * neighbouring tabs, two paths, for the reason the doctrine gives.
+ *
+ * ⚠ A FAILED READ IS NOT AN EMPTY LIST. Falling back to `[]` here would tell a shopper with saved cards
+ * that they have none — a false statement about their own account, and exactly the FR-036 failure mode.
+ * The flag keeps the two apart.
+ */
+async function PaymentMethods() {
+  const session = await getSession()
+  let cards: PaymentMethodDTO[] = []
+  let loadFailed = false
+  if (session?.accessToken) {
+    try {
+      const res = await coreApi(session.accessToken).get<{ paymentMethods: PaymentMethodDTO[] }>(
+        "/v1/payment-methods",
+        uncached(),
+      )
+      cards = res.paymentMethods ?? []
+    } catch {
+      loadFailed = true
+    }
+  }
+
+  return (
+    <section aria-labelledby="payment-methods-heading">
+      <h2 id="payment-methods-heading" className="mb-4 text-xl font-semibold">
+        Payment methods
+      </h2>
+      <PaymentMethodList initial={cards} loadFailed={loadFailed} />
     </section>
   )
 }

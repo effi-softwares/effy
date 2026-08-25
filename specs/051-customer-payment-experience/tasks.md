@@ -219,14 +219,14 @@ four distinct actionable messages and that the basket survives all four.
 **Independent test**: Remove a card from the account area and confirm it is no longer offered at the
 payment step on either surface.
 
-- [ ] T088 [US6] Build `apps/customer-web/app/(account)/payment-methods/page.tsx` modelled on `app/(account)/addresses` — the sibling a shopper will compare it to
-- [ ] T089 [US6] Add the payment-methods entry to the account navigation in `apps/customer-web/app/(account)/account/` alongside Addresses and Orders (FR-024a)
-- [ ] T090 [US6] Render an honest empty state explaining that cards are kept while paying, with no dead controls (US6 scenario 4) — ⚠ and distinguish it from a read failure (FR-036)
-- [ ] T091 [US6] Implement removal with confirmation in `app/(account)/payment-methods/`, leaving a usable default selected where one remains (FR-024b)
-- [ ] T092 [P] [US6] Test the empty, populated, unusable-card and read-failure states in `apps/customer-web/app/(account)/payment-methods/page.test.tsx`
-- [ ] T093 [US6] Build `apps/customer-mobile/shared/src/commonMain/kotlin/.../features/paymentmethods/` mirroring `features/addresses`, reachable from Account
-- [ ] T094 [US6] Register the new mobile route and ⚠ update the expected route count in `ScreenInventoryTest` — 046 found this assertion silently stale and it fails the next run regardless of who broke it
-- [ ] T095 [P] [US6] Add mobile payment-methods ViewModel tests in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/paymentmethods/`
+- [X] T088 [US6] Build `apps/customer-web/app/(account)/payment-methods/page.tsx` modelled on `app/(account)/addresses` — the sibling a shopper will compare it to
+- [X] T089 [US6] Add the payment-methods entry to the account navigation in `apps/customer-web/app/(account)/account/` alongside Addresses and Orders (FR-024a)
+- [X] T090 [US6] Render an honest empty state explaining that cards are kept while paying, with no dead controls (US6 scenario 4) — ⚠ and distinguish it from a read failure (FR-036)
+- [X] T091 [US6] Implement removal with confirmation in `app/(account)/payment-methods/`, leaving a usable default selected where one remains (FR-024b)
+- [X] T092 [P] [US6] Test the empty, populated, unusable-card and read-failure states in `apps/customer-web/app/(account)/payment-methods/page.test.tsx`
+- [X] T093 [US6] Build `apps/customer-mobile/shared/src/commonMain/kotlin/.../features/paymentmethods/` mirroring `features/addresses`, reachable from Account
+- [X] T094 [US6] Register the new mobile route and ⚠ update the expected route count in `ScreenInventoryTest` — 046 found this assertion silently stale and it fails the next run regardless of who broke it
+- [X] T095 [P] [US6] Add mobile payment-methods ViewModel tests in `apps/customer-mobile/shared/src/commonTest/kotlin/.../features/paymentmethods/`
 
 ---
 

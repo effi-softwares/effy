@@ -351,6 +351,10 @@ private fun AccountScreen(container: AppContainer, vm: AccountViewModel, custome
         // gap doing the grouping. SC-004 bounds this at ≤4 groups of ≤6 items.
         AccountSectionHeader("Shopping")
         EffyNavRow("Address book", onClick = { nav.push(CustomerNavKey.AddressBook) })
+        // 051 US6 — beside the address book, because that is where a shopper looks for it and because
+        // the two are the same kind of thing: saved details Effy uses on their behalf. Keeps the
+        // "Shopping" group within SC-004's ≤6 items.
+        EffyNavRow("Payment methods", onClick = { nav.push(CustomerNavKey.PaymentMethods) })
 
         AccountSectionHeader("Account")
         EffyNavRow("Security", onClick = { nav.push(CustomerNavKey.Security) })

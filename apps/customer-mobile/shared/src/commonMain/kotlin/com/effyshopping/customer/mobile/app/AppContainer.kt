@@ -63,6 +63,9 @@ import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
 import com.effyshopping.customer.mobile.features.addresses.domain.DeleteAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.ListAddresses as ListSavedAddresses
+import com.effyshopping.customer.mobile.features.paymentmethods.data.HttpPaymentMethodsRepository
+import com.effyshopping.customer.mobile.features.paymentmethods.domain.ListPaymentMethods
+import com.effyshopping.customer.mobile.features.paymentmethods.domain.RemovePaymentMethod
 import com.effyshopping.customer.mobile.features.addresses.domain.SetDefault
 import com.effyshopping.customer.mobile.features.addresses.domain.UpdateAddress
 import com.effyshopping.customer.mobile.features.catalog.data.HttpCatalogRepository
@@ -268,6 +271,12 @@ class AppContainer(
 
     // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.
     val listSavedAddresses by lazy { ListSavedAddresses(addressBookRepo) }
+
+    // 051 US6 — payment methods. ⚠ HOT path, unlike the address book above: 011's routing law puts
+    // *payment* there, and a cold-path route would need a second copy of the provider secret (R9).
+    private val paymentMethodsRepo by lazy { HttpPaymentMethodsRepository(coreClient) }
+    val listPaymentMethods by lazy { ListPaymentMethods(paymentMethodsRepo) }
+    val removePaymentMethod by lazy { RemovePaymentMethod(paymentMethodsRepo) }
 
     val addSavedAddress by lazy { AddAddress(addressBookRepo) }
     val updateSavedAddress by lazy { UpdateAddress(addressBookRepo) }

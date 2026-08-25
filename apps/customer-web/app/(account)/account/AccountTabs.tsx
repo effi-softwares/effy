@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react"
-import { ChevronRight, FileText, MapPin, Scale, ShieldCheck, User } from "lucide-react"
+import { ChevronRight, CreditCard, FileText, MapPin, Scale, ShieldCheck, User } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
 import { LoadingArea } from "@/components/Spinner"
@@ -90,6 +90,7 @@ export function TabContent({ children }: { children: ReactNode }) {
 const ITEMS: { tab: AccountTab; label: string; hint: string; Icon: LucideIcon }[] = [
   { tab: "personal", label: "Personal info", hint: "Name, phone, email", Icon: User },
   { tab: "addresses", label: "Address book", hint: "Where we deliver", Icon: MapPin },
+  { tab: "payment", label: "Payment methods", hint: "Cards you've saved", Icon: CreditCard },
   { tab: "security", label: "Security", hint: "Password, sign-out", Icon: ShieldCheck },
   { tab: "privacy", label: "Privacy & data", hint: "Export, delete", Icon: FileText },
   { tab: "legal", label: "Legal", hint: "Policies & terms", Icon: Scale },

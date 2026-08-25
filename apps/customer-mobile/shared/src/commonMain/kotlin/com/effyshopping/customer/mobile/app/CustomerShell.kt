@@ -33,6 +33,7 @@ import com.effyshopping.customer.mobile.core.nav.rememberCustomerNavState
 import com.effyshopping.customer.mobile.core.session.SessionState
 import com.effyshopping.customer.mobile.features.account.presentation.AccountRoutes
 import com.effyshopping.customer.mobile.features.addresses.presentation.AddressBookScreen
+import com.effyshopping.customer.mobile.features.paymentmethods.presentation.PaymentMethodsScreen
 import com.effyshopping.customer.mobile.features.auth.presentation.AuthRoutes
 import com.effyshopping.customer.mobile.features.cart.presentation.CartScreen
 import com.effyshopping.customer.mobile.features.catalog.domain.BannerTarget
@@ -502,6 +503,9 @@ fun CustomerShell(container: AppContainer, session: SessionState) {
                 }
                 entry<CustomerNavKey.AddressBook> {
                     AddressBookScreen(container, onBack = { navState.pop() })
+                }
+                entry<CustomerNavKey.PaymentMethods> {
+                    PaymentMethodsScreen(container, onBack = { navState.pop() })
                 }
                 entry<CustomerNavKey.Notifications> { NotificationsScreen() }
                 entry<CustomerNavKey.Faqs> { FaqsScreen() }

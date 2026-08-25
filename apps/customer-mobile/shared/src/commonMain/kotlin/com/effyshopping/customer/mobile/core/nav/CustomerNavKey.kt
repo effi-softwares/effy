@@ -131,6 +131,16 @@ sealed interface CustomerNavKey : NavKey {
 
     @Serializable data object Saved : CustomerNavKey
     @Serializable data object AddressBook : CustomerNavKey
+
+    /**
+     * Payment methods (051 US6) — the cards a shopper chose to keep.
+     *
+     * ⚠ Beside the address book, because that is where a shopper looks for them and because the two are
+     * the same kind of thing: saved details Effy uses on their behalf. Removal is also reachable at the
+     * payment step, but that means starting a checkout to remove a card — and card removal is a trust
+     * action people take precisely when they are NOT shopping (Clarification Q1, FR-024a).
+     */
+    @Serializable data object PaymentMethods : CustomerNavKey
     @Serializable data object Notifications : CustomerNavKey
     @Serializable data object Faqs : CustomerNavKey
     @Serializable data object HelpCenter : CustomerNavKey
@@ -229,6 +239,7 @@ val customerNavSavedState: SavedStateConfiguration = SavedStateConfiguration {
             subclass(CustomerNavKey.Recovery::class, CustomerNavKey.Recovery.serializer())
             subclass(CustomerNavKey.Saved::class, CustomerNavKey.Saved.serializer())
             subclass(CustomerNavKey.AddressBook::class, CustomerNavKey.AddressBook.serializer())
+            subclass(CustomerNavKey.PaymentMethods::class, CustomerNavKey.PaymentMethods.serializer())
             subclass(CustomerNavKey.Notifications::class, CustomerNavKey.Notifications.serializer())
             subclass(CustomerNavKey.Faqs::class, CustomerNavKey.Faqs.serializer())
             subclass(CustomerNavKey.HelpCenter::class, CustomerNavKey.HelpCenter.serializer())
@@ -268,6 +279,7 @@ val ALL_CUSTOMER_ROUTES: List<CustomerNavKey> = listOf(
     CustomerNavKey.Recovery,
     CustomerNavKey.Saved,
     CustomerNavKey.AddressBook,
+    CustomerNavKey.PaymentMethods,
     CustomerNavKey.Notifications,
     CustomerNavKey.Faqs,
     CustomerNavKey.HelpCenter,
