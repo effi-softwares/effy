@@ -51,9 +51,14 @@ type Store interface {
 	CartLines(ctx context.Context, customerID string) ([]CheckoutLine, error)
 	// AddressSnapshot returns the JSON snapshot of an address scoped to the customer; found=false if absent.
 	AddressSnapshot(ctx context.Context, customerID, addressID string) ([]byte, bool, error)
-	// UpsertPendingOrder locates/creates the single pending order, sets amounts + address snapshot, and
+	// UpsertPendingOrder locates/creates the pending order, sets amounts + address snapshot, and
 	// replaces its order_items (the intent-time snapshot that fixes the charge amount).
-	UpsertPendingOrder(ctx context.Context, customerID string, amounts OrderAmounts, addressJSON []byte, lines []CheckoutLine) (orderID, orderNumber string, err error)
+	//
+	// ⚠ `reusePending` IS A SAFETY DECISION, AND IT IS NOT THE STORE'S TO MAKE. Recycling the customer's
+	// open order is right only while that order's payment attempt is still LIVE; recycling one whose
+	// intent has already settled is what makes a second checkout resolve to the FIRST one's payment.
+	// Only the service can decide, because only the provider knows. See `mayReusePendingOrder`.
+	UpsertPendingOrder(ctx context.Context, customerID string, amounts OrderAmounts, addressJSON []byte, lines []CheckoutLine, reusePending bool) (orderID, orderNumber string, err error)
 	// SetOrderBilling sets the order's billing_address snapshot (023). A nil billingJSON writes NULL —
 	// "billing is the same as shipping" (FR-009); a value is a divergent, immutable billing snapshot.
 	// Idempotent: called on every intent, so toggling "same as shipping" back ON clears a prior value.
@@ -88,6 +93,11 @@ type Store interface {
 	// SetProviderCustomerID persists the reference. Idempotent: writing the same value twice is a no-op,
 	// which is what keeps a retried intent from tripping the UNIQUE constraint.
 	SetProviderCustomerID(ctx context.Context, customerID, providerCustomerID string) error
+
+	// PendingOrderIntent returns the customer's lingering `pending_payment` order and the provider
+	// intent recorded against it, if any. Used to settle an order that was paid without the database
+	// ever being told — see `settleStalePendingOrder`.
+	PendingOrderIntent(ctx context.Context, customerID string) (orderID, intentID string, found bool, err error)
 }
 
 // OrderDiscount is the platform's own discount computation at the moment of payment (027 FR-049). Carried
@@ -248,7 +258,7 @@ func (s *pgStore) SetOrderBilling(ctx context.Context, orderID string, billingJS
 	return nil
 }
 
-func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amounts OrderAmounts, addressJSON []byte, lines []CheckoutLine) (string, string, error) {
+func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amounts OrderAmounts, addressJSON []byte, lines []CheckoutLine, reusePending bool) (string, string, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("checkout: begin: %w", err)
@@ -256,8 +266,23 @@ func (s *pgStore) UpsertPendingOrder(ctx context.Context, customerID string, amo
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	var orderID, orderNumber string
-	err = tx.QueryRow(ctx, `SELECT id::text, order_number FROM public."order" WHERE customer_id = $1 AND status = 'pending_payment' LIMIT 1`, customerID).
-		Scan(&orderID, &orderNumber)
+	// No reuse ⇒ take the insert branch, exactly as if the customer had no open order.
+	err = pgx.ErrNoRows
+	if reusePending {
+		// ⚠ `ORDER BY created_at DESC` is load-bearing now that a customer CAN hold more than one
+		// pending order: a row that could not be safely recycled is left behind rather than reused, so
+		// "the pending order" is no longer unique and a bare `LIMIT 1` is a coin toss between rows.
+		//
+		// ⚠ `FOR UPDATE` serialises two concurrent checkouts for one shopper. Without it both read the
+		// same row and both rewrite its items, and which basket survives is a race.
+		err = tx.QueryRow(ctx, `
+SELECT id::text, order_number FROM public."order"
+WHERE customer_id = $1 AND status = 'pending_payment'
+ORDER BY created_at DESC
+LIMIT 1
+FOR UPDATE`, customerID).
+			Scan(&orderID, &orderNumber)
+	}
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
 		orderNumber = genOrderNumber()
@@ -397,6 +422,42 @@ WHERE o.id = $1 AND o.customer_id = $2 AND pay.stripe_payment_intent_id IS NOT N
 		return "", false, fmt.Errorf("checkout: scan order intent: %w", err)
 	}
 	return intentID, true, nil
+}
+
+// PendingOrderIntent reads the customer's lingering pending order and its recorded intent.
+//
+// ⚠ IT RETURNS THE NEWEST, because a customer can hold MORE than one pending order. A row that could
+// not be safely recycled is left behind by design — an abandoned pending order is harmless and
+// sweepable, a wrongly-recycled one charges for the wrong thing — so "the pending order" is the latest.
+//
+// The intent may be absent (an order whose intent creation failed still exists). That is reported as
+// found=false rather than as an error: there is nothing to settle, and nothing that can collide.
+func (s *pgStore) PendingOrderIntent(ctx context.Context, customerID string) (string, string, bool, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT o.id::text, COALESCE(pay.stripe_payment_intent_id, '')
+FROM public."order" o
+LEFT JOIN public.payment pay ON pay.order_id = o.id
+WHERE o.customer_id = $1 AND o.status = 'pending_payment'
+ORDER BY o.created_at DESC
+LIMIT 1`, customerID)
+	if err != nil {
+		return "", "", false, fmt.Errorf("checkout: pending order intent: %w", err)
+	}
+	type row struct {
+		OrderID  string
+		IntentID string
+	}
+	r, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByPos[row])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", "", false, nil
+		}
+		return "", "", false, fmt.Errorf("checkout: scan pending order intent: %w", err)
+	}
+	if r.IntentID == "" {
+		return r.OrderID, "", false, nil
+	}
+	return r.OrderID, r.IntentID, true, nil
 }
 
 // FinalizeSucceeded is the idempotent paid-transition (R5 #2/#3, SC-005/006), all in ONE tx.

@@ -305,6 +305,14 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	}
 	grandTotalCents += deliveryFeeCents
 
+	// ⚠ MAY THIS CHECKOUT RECYCLE THE CUSTOMER'S OPEN ORDER? Asked before the upsert, because recycling
+	// a row whose payment attempt has already settled is what makes a second order become the first.
+	// The full reasoning is on `mayReusePendingOrder`.
+	reusePending, err := s.mayReusePendingOrder(ctx, customerID)
+	if err != nil {
+		return IntentResult{}, err
+	}
+
 	orderID, orderNumber, err := s.store.UpsertPendingOrder(ctx, customerID, OrderAmounts{
 		ItemSubtotalCents: itemSubtotalCents,
 		DeliveryFeeCents:  deliveryFeeCents,
@@ -313,7 +321,7 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		PromoCode:         promoCode,
 		GrandTotalCents:   grandTotalCents,
 		Currency:          pricing.Currency,
-	}, addressJSON, lines)
+	}, addressJSON, lines, reusePending)
 	if err != nil {
 		return IntentResult{}, err
 	}
@@ -586,6 +594,81 @@ func (s *Service) Confirm(ctx context.Context, customerID, orderID string) (Conf
 		}
 	}
 	return ConfirmResult{OrderID: orderID, Paid: false}, nil
+}
+
+// mayReusePendingOrder answers whether this checkout can write into the customer's open order, and
+// settles that order when the provider says it is finished.
+//
+// ── The rule, in one line ───────────────────────────────────────────────────────────────────────
+//
+// An order row may be recycled ONLY while its payment attempt is still LIVE. Settled, cancelled, or
+// unknown — it is released, and this checkout starts a fresh order.
+//
+// ── Why recycling a settled order is a real defect and not an edge case ─────────────────────────
+//
+// `UpsertPendingOrder` reuses the customer's open order rather than making a second one, which keeps
+// abandoned checkouts from piling up. The recycled row keeps its ID — and the idempotency key is
+// derived from (order, amount, customer), so a second checkout for the SAME basket computes the FIRST
+// attempt's key and the provider hands back that attempt's already-succeeded PaymentIntent. What the
+// shopper sees is the payment screen flashing up and replacing itself with a receipt for the previous
+// order. Seen in dev on 2026-08-25; the receipt page had guarded this since 019, but only for a shopper
+// who actually reaches the receipt — not for one who closes the tab or whose webhook lags.
+//
+// ⚠ NO KEY DERIVED FROM CONTENT CAN FIX THIS, which is why the fix is here and not in the key. The
+// failing case is buying the SAME basket twice: same order row, same amount, same customer. Nothing
+// about the request differs, so nothing hashed from the request can differ either.
+//
+// ── Why a live attempt MUST still be reused ─────────────────────────────────────────────────────
+//
+// ⚠ Reusing a live attempt is a DOUBLE-CHARGE GUARD, not an optimisation. Two tabs on one checkout
+// resolve to the same key and therefore the same PaymentIntent, so paying in both pays once. Rotating
+// the key per request — the obvious "just make it unique" fix — would give those tabs two payable
+// intents for one order and charge the shopper twice. That is why this asks about the ATTEMPT's state
+// instead of simply making every attempt distinct.
+//
+// ── Why unknown means "do not reuse" ────────────────────────────────────────────────────────────
+//
+// ⚠ FAIL-SAFE, DELIBERATELY. If the provider cannot be reached, the two outcomes are not symmetric: an
+// extra abandoned pending order is harmless and sweepable, while a wrongly-recycled one shows the wrong
+// receipt or hands over a dead intent. A read failure against our OWN database is different — that is
+// returned, because it means we cannot trust anything we are about to write.
+func (s *Service) mayReusePendingOrder(ctx context.Context, customerID string) (bool, error) {
+	orderID, intentID, found, err := s.store.PendingOrderIntent(ctx, customerID)
+	if err != nil {
+		return false, err
+	}
+	// No open order, or one that never got as far as an intent: nothing exists that could collide.
+	if !found || orderID == "" || intentID == "" {
+		return true, nil
+	}
+
+	pi, err := s.gateway.RetrievePaymentIntent(ctx, intentID)
+	if err != nil {
+		return false, nil
+	}
+
+	switch pi.Status {
+	case IntentSucceeded:
+		// Paid, and nothing told the database. Settle it here so it reaches order history and the shop
+		// fan-out — a paid order stuck in `pending_payment` is wrong on its own terms, quite apart from
+		// this bug. Idempotent; a webhook that arrives later changes nothing.
+		if _, err := s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+			return false, err
+		}
+		return false, nil
+	case IntentFailed, IntentCanceled:
+		// ⚠ A cancelled intent can never be paid, so recycling this row would hand the shopper a dead
+		// intent and a pay button that cannot work — a different bug with the same cause. Release it.
+		if err := s.store.FinalizeFailed(ctx, orderID); err != nil {
+			return false, err
+		}
+		return false, nil
+	default:
+		// Live (`requires_payment_method`, `requires_action`, `processing`). The shopper is still in the
+		// middle of this attempt: same order, same key, same intent — which is exactly what the
+		// double-charge guard above depends on.
+		return true, nil
+	}
 }
 
 // idempotencyKey is DETERMINISTIC over EVERY PARAMETER THE REQUEST CARRIES — the order, the amount and

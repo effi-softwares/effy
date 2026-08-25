@@ -49,8 +49,17 @@ type fakeStore struct {
 	// so its idempotency deserves a test rather than an assumption.
 	finalizeSucceeded int
 	alreadyFinalized  bool
-	orderIntent       string
-	orderNotFound     bool
+
+	// The customer's lingering pending order, if any — what `mayReusePendingOrder` reads.
+	pendingOrderID  string
+	pendingIntentID string
+	// Whether the service allowed the open order to be recycled.
+	reuseAsked bool
+	// finalizeFailed counts the release of an order whose intent can never be paid.
+	finalizeFailed int
+	pendingReadErr error
+	orderIntent    string
+	orderNotFound  bool
 }
 
 func newFakeStore() *fakeStore {
@@ -80,11 +89,14 @@ func (f *fakeStore) AddressSnapshot(_ context.Context, _, addressID string) ([]b
 	return j, ok, nil
 }
 
-func (f *fakeStore) UpsertPendingOrder(_ context.Context, _ string, a OrderAmounts, _ []byte, _ []CheckoutLine) (string, string, error) {
+func (f *fakeStore) UpsertPendingOrder(_ context.Context, _ string, a OrderAmounts, _ []byte, _ []CheckoutLine, reusePending bool) (string, string, error) {
 	if f.upsertErr != nil {
 		return "", "", f.upsertErr
 	}
 	f.amounts = a
+	// What the service DECIDED — the whole point of the parameter, and the only thing a test can assert
+	// about it from here.
+	f.reuseAsked = reusePending
 	return "order-1", "EFY-TEST01", nil
 }
 
@@ -109,6 +121,16 @@ func (f *fakeStore) FindOrderByIntent(context.Context, string) (string, bool, er
 	return "order-1", true, nil
 }
 func (f *fakeStore) MarkEventSeen(context.Context, string, string) (bool, error) { return true, nil }
+func (f *fakeStore) PendingOrderIntent(context.Context, string) (string, string, bool, error) {
+	if f.pendingReadErr != nil {
+		return "", "", false, f.pendingReadErr
+	}
+	if f.pendingOrderID == "" || f.pendingIntentID == "" {
+		return f.pendingOrderID, "", false, nil
+	}
+	return f.pendingOrderID, f.pendingIntentID, true, nil
+}
+
 func (f *fakeStore) OrderIntentForCustomer(context.Context, string, string) (string, bool, error) {
 	if f.orderNotFound {
 		return "", false, nil
@@ -124,7 +146,10 @@ func (f *fakeStore) FinalizeSucceeded(context.Context, string) (bool, error) {
 	f.alreadyFinalized = true
 	return applied, nil
 }
-func (f *fakeStore) FinalizeFailed(context.Context, string) error { return nil }
+func (f *fakeStore) FinalizeFailed(context.Context, string) error {
+	f.finalizeFailed++
+	return nil
+}
 
 type fakeGateway struct {
 	amount int64
@@ -140,6 +165,10 @@ type fakeGateway struct {
 	intentCustomer string
 	// What the provider reports as usable for this intent (051 US4).
 	availableMethods []string
+	// What RetrievePaymentIntent reports, and whether it can be reached at all. Empty status keeps the
+	// long-standing default ("succeeded"), which the confirm-fallback tests depend on.
+	retrieveStatus IntentStatus
+	retrieveErr    error
 }
 
 func (g *fakeGateway) CreatePaymentIntent(_ context.Context, in CreateIntentInput) (PaymentIntent, error) {
@@ -152,7 +181,14 @@ func (g *fakeGateway) CreatePaymentIntent(_ context.Context, in CreateIntentInpu
 }
 
 func (g *fakeGateway) RetrievePaymentIntent(_ context.Context, id string) (PaymentIntent, error) {
-	return PaymentIntent{ID: id, Status: "succeeded"}, nil
+	if g.retrieveErr != nil {
+		return PaymentIntent{}, g.retrieveErr
+	}
+	status := g.retrieveStatus
+	if status == "" {
+		status = IntentSucceeded
+	}
+	return PaymentIntent{ID: id, Status: status}, nil
 }
 
 func (g *fakeGateway) ConstructWebhookEvent([]byte, string) (WebhookEvent, error) {
@@ -476,5 +512,125 @@ func TestIdempotencyKey_CoversEveryRequestParameter(t *testing.T) {
 		if got == base {
 			t.Errorf("%s reused the key — the provider refuses a key replayed with changed parameters", name)
 		}
+	}
+}
+
+// Whether a checkout may recycle the customer's open order, across every state that order can be in.
+//
+// ⚠ THE SYMPTOM THIS TABLE EXISTS FOR, seen in dev on 2026-08-25: the shopper places an order, starts a
+// second one, and the payment screen flashes up and replaces itself with a RECEIPT FOR THE PREVIOUS
+// ORDER. Three individually-correct steps produce it:
+//
+//  1. `UpsertPendingOrder` RECYCLES the customer's open order instead of making a second.
+//  2. A missed or lagging webhook, plus a shopper who never lands on the receipt, leaves an order
+//     `pending_payment` after it has actually been paid.
+//  3. The recycled row keeps its id, so the deterministic key over (order, amount, customer) resolves
+//     to that order's ALREADY-SUCCEEDED PaymentIntent — and the client's "is this already paid?" check
+//     then answers yes, truthfully, about the wrong order.
+//
+// ⚠ THE `live` ROW IS THE ONE THAT CONSTRAINS THE FIX. Reusing a live attempt is a DOUBLE-CHARGE GUARD:
+// two tabs on one checkout resolve to the same intent, so paying in both pays once. The obvious fix —
+// rotate the key every request — would give those tabs two payable intents for one order. Any change
+// here that makes this row expect `false` has reintroduced that.
+func TestCreateIntent_ReusesTheOpenOrderOnlyWhileItsPaymentIsLive(t *testing.T) {
+	cases := []struct {
+		name string
+		// The lingering order's intent, as the provider reports it.
+		status      IntentStatus
+		providerErr error
+		// Nothing lingering at all.
+		noPendingOrder bool
+		// A lingering order that never got as far as an intent.
+		noIntent bool
+
+		wantReuse    bool
+		wantSettled  int
+		wantReleased int
+	}{
+		{
+			name:        "paid but still pending — settle it and start a fresh order",
+			status:      IntentSucceeded,
+			wantReuse:   false,
+			wantSettled: 1,
+		},
+		{
+			name:      "live attempt — reuse, or two tabs become two charges",
+			status:    IntentRequiresPaymentMethod,
+			wantReuse: true,
+		},
+		{
+			name:      "awaiting the shopper's bank — still live, still one attempt",
+			status:    IntentRequiresAction,
+			wantReuse: true,
+		},
+		{
+			name:         "cancelled — reusing it would hand over an intent that can never be paid",
+			status:       IntentCanceled,
+			wantReuse:    false,
+			wantReleased: 1,
+		},
+		{
+			name:         "failed — same: released rather than recycled",
+			status:       IntentFailed,
+			wantReuse:    false,
+			wantReleased: 1,
+		},
+		{
+			name:        "provider unreachable — fail safe, an extra abandoned order beats a wrong receipt",
+			providerErr: errors.New("stripe unreachable"),
+			wantReuse:   false,
+		},
+		{
+			name:           "nothing open — nothing that could collide",
+			noPendingOrder: true,
+			wantReuse:      true,
+		},
+		{
+			name:      "open but never reached an intent — nothing that could collide",
+			noIntent:  true,
+			wantReuse: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			store := storeWithMilk()
+			switch {
+			case tc.noPendingOrder:
+			case tc.noIntent:
+				store.pendingOrderID = "11111111-1111-1111-1111-111111111111"
+			default:
+				store.pendingOrderID = "11111111-1111-1111-1111-111111111111"
+				store.pendingIntentID = "pi_from_a_previous_attempt"
+			}
+
+			svc := svcWith(store, &fakeGateway{retrieveStatus: tc.status, retrieveErr: tc.providerErr})
+			if _, err := svc.CreateCheckoutIntent(context.Background(), custID, IntentInput{AddressID: addrID}, time.Now()); err != nil {
+				t.Fatalf("create intent: %v", err)
+			}
+
+			if store.reuseAsked != tc.wantReuse {
+				t.Errorf("reuse = %v, want %v", store.reuseAsked, tc.wantReuse)
+			}
+			if store.finalizeSucceeded != tc.wantSettled {
+				t.Errorf("settled %d orders, want %d", store.finalizeSucceeded, tc.wantSettled)
+			}
+			if store.finalizeFailed != tc.wantReleased {
+				t.Errorf("released %d orders, want %d", store.finalizeFailed, tc.wantReleased)
+			}
+		})
+	}
+}
+
+// ⚠ A DATABASE read failure is NOT the provider being unreachable, and must not be swallowed with it.
+// Not knowing what the provider thinks is survivable — we fail safe and open a new order. Not being
+// able to read our own order table means we cannot trust anything we are about to write to it.
+func TestCreateIntent_PropagatesAFailureToReadTheOpenOrder(t *testing.T) {
+	store := storeWithMilk()
+	store.pendingReadErr = errors.New("connection refused")
+
+	svc := svcWith(store, &fakeGateway{})
+	if _, err := svc.CreateCheckoutIntent(context.Background(), custID, IntentInput{AddressID: addrID}, time.Now()); err == nil {
+		t.Fatal("a failed read of the customer's open order was swallowed — checkout continued on an unknown order state")
 	}
 }
