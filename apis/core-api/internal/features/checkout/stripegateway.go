@@ -99,9 +99,10 @@ func (g *StripeGateway) ConstructWebhookEvent(payload []byte, signatureHeader st
 // toPaymentIntent normalizes a Stripe PaymentIntent to our provider-neutral shape.
 func toPaymentIntent(pi *stripe.PaymentIntent) PaymentIntent {
 	return PaymentIntent{
-		ID:           pi.ID,
-		ClientSecret: pi.ClientSecret,
-		Status:       mapIntentStatus(pi.Status),
+		ID:               pi.ID,
+		ClientSecret:     pi.ClientSecret,
+		Status:           mapIntentStatus(pi.Status),
+		AvailableMethods: pi.PaymentMethodTypes,
 	}
 }
 

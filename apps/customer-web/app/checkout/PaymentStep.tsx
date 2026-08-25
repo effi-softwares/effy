@@ -12,9 +12,15 @@ import { ActionButton } from "@/components/storefront/actions"
 import { formatMoney } from "@/lib/money"
 
 import { CardFields, useCardFieldState } from "./_payment/CardFields"
+import { MethodList, type MethodKind } from "./_payment/MethodList"
 import { NEW_CARD, SaveCardConsent, SavedCards } from "./_payment/SavedCards"
 import { WalletDivider, WalletRow } from "./_payment/WalletRow"
-import { confirmCardPayment, confirmSavedCard, confirmWalletPayment } from "./_payment/confirm"
+import {
+  confirmCardPayment,
+  confirmPayOverTime,
+  confirmSavedCard,
+  confirmWalletPayment,
+} from "./_payment/confirm"
 
 /**
  * THE PAYMENT STEP (051 US1).
@@ -81,7 +87,12 @@ export function PaymentStep({
     }
   }, [])
 
-  const usingNewCard = selectedCard === NEW_CARD
+  // 051 US4 — which family of payment the shopper is using. Card and pay-over-time are mutually
+  // exclusive, and only one element is ever mounted (see MethodList).
+  const [method, setMethod] = useState<MethodKind>("card")
+  // ⚠ Straight from the server's read of the intent — never inferred here. See the DTO's note.
+  const laterAvailable = intent.payOverTimeAvailable === true
+  const usingNewCard = selectedCard === NEW_CARD && method === "card"
 
   async function removeCard(id: string) {
     const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
@@ -101,7 +112,8 @@ export function PaymentStep({
   }
 
   const amount = formatMoney(intent.grandTotalAmount, intent.currency)
-  // A kept card is ready as soon as it is selected — there is nothing to fill in.
+  // A kept card and a pay-over-time option are both ready as soon as they are selected: there is
+  // nothing for Effy to validate, because the provider's own form does it.
   const ready = Boolean(stripe && elements) && (usingNewCard ? card.complete : true)
 
   async function pay() {
@@ -113,8 +125,17 @@ export function PaymentStep({
     setBusy(true)
     setNotice(null)
     try {
-      // A kept card needs nothing typed, so it confirms by id; a new one confirms from the element.
-      const outcome = usingNewCard
+      // Three routes, one for each family. Pay-over-time redirects to the provider; a kept card needs
+      // nothing typed and confirms by id; a new card confirms from the element.
+      const outcome = method === "later"
+        ? await confirmPayOverTime({
+            stripe,
+            elements: elements!,
+            clientSecret: intent.clientSecret,
+            billingDetails: intent.billingDetails ?? null,
+            returnUrl: `${window.location.origin}/checkout/complete?order=${intent.orderId}`,
+          })
+        : usingNewCard
         ? await confirmCardPayment({
             stripe,
             clientSecret: intent.clientSecret,
@@ -198,23 +219,32 @@ export function PaymentStep({
 
           {walletShown ? <WalletDivider /> : null}
 
-          <SavedCards
-            cards={cards}
-            selectedId={selectedCard}
-            onSelect={setSelectedCard}
-            onRemove={removeCard}
+          <MethodList
+            selected={method}
+            onSelect={setMethod}
+            laterAvailable={laterAvailable}
             busy={busy}
-          />
-
-          {usingNewCard ? (
-            <section aria-labelledby="pay-by-card" className="flex flex-col gap-6">
-              <h2 id="pay-by-card" className="sr-only">
-                Pay by card
-              </h2>
-              <CardFields state={card} />
-              <SaveCardConsent checked={saveCard} onChange={setSaveCard} disabled={busy} />
-            </section>
-          ) : null}
+          >
+            <div className="flex flex-col gap-5 px-[18px] pb-5 pt-1">
+              <div className="h-px bg-border" />
+              <SavedCards
+                cards={cards}
+                selectedId={selectedCard}
+                onSelect={setSelectedCard}
+                onRemove={removeCard}
+                busy={busy}
+              />
+              {usingNewCard ? (
+                <section aria-labelledby="pay-by-card" className="flex flex-col gap-5">
+                  <h2 id="pay-by-card" className="sr-only">
+                    Pay by card
+                  </h2>
+                  <CardFields state={card} />
+                  <SaveCardConsent checked={saveCard} onChange={setSaveCard} disabled={busy} />
+                </section>
+              ) : null}
+            </div>
+          </MethodList>
         </div>
 
         {/* The pay rail. A border-left and space hold it — not a card (Principle V). */}

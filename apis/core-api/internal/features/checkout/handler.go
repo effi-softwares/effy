@@ -50,6 +50,7 @@ type createIntentResponse struct {
 	// (data-model § 1).
 	CustomerSessionSecret string              `json:"customerSessionSecret,omitempty"`
 	CustomerID            string              `json:"customerId,omitempty"`
+	PayOverTimeAvailable  bool                `json:"payOverTimeAvailable"`
 	BillingDetails        *billingDetailsBody `json:"billingDetails,omitempty"`
 }
 
@@ -166,6 +167,7 @@ func (h *Handler) createIntent(c *gin.Context) {
 		PublishableKey: res.PublishableKey, GrandTotalAmount: res.GrandTotal, Currency: res.Currency,
 		CustomerSessionSecret: res.CustomerSessionSecret,
 		CustomerID:            res.ProviderCustomerID,
+		PayOverTimeAvailable:  res.PayOverTimeAvailable,
 		BillingDetails: &billingDetailsBody{
 			Name:  res.BillingDetails.Name,
 			Email: res.BillingDetails.Email,

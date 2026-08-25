@@ -82,7 +82,11 @@ func TestWireContract_IntentResponseCarriesNoProviderCustomerID(t *testing.T) {
 		OrderID: "o1", OrderNumber: "EFY-1", ClientSecret: "cs_1",
 		PublishableKey: "pk_test", GrandTotalAmount: "14.60", Currency: "AUD",
 	})
-	want := `{"orderId":"o1","orderNumber":"EFY-1","clientSecret":"cs_1","publishableKey":"pk_test","grandTotalAmount":"14.60","currency":"AUD"}`
+	// ⚠ `payOverTimeAvailable` has no `omitempty` ON PURPOSE: `false` is a real answer ("the provider
+	// offers no instalment option for this basket") and must be transmitted, not elided. An absent
+	// field and a false one would be indistinguishable to a client that has to decide whether to
+	// render the row at all.
+	want := `{"orderId":"o1","orderNumber":"EFY-1","clientSecret":"cs_1","publishableKey":"pk_test","grandTotalAmount":"14.60","currency":"AUD","payOverTimeAvailable":false}`
 	if got != want {
 		t.Errorf("intent response wire drift:\n got  %s\n want %s\n(a new field here needs a reason; stripe_customer_id never does)", got, want)
 	}

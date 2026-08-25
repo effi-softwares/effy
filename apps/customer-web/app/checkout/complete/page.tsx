@@ -24,7 +24,21 @@ export const metadata: Metadata = {
  * browser payment result. ONE Effy order itemized by product, with NO shop identity (FR-029). Gated +
  * request-time, so it lives inside <Suspense>.
  */
-export default function CompletePage({ searchParams }: { searchParams: Promise<{ order?: string }> }) {
+type ReturnParams = {
+  order?: string
+  /**
+   * 051 US4 — appended by the provider when a shopper returns from a redirect (Klarna, Zip, Afterpay,
+   * or a bank's 3DS challenge).
+   *
+   * ⚠ IT IS A HINT, NOT THE TRUTH. It is a query parameter on a URL the shopper's browser followed, so
+   * it can be edited, replayed or stale. The order state below is read from the platform, which reads
+   * the webhook — that is authoritative (019 R4, FR-039). This value only decides which WORDS to use
+   * while the authoritative answer is still settling.
+   */
+  redirect_status?: string
+}
+
+export default function CompletePage({ searchParams }: { searchParams: Promise<ReturnParams> }) {
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
       <Suspense fallback={<ReceiptSkeleton />}>
@@ -34,8 +48,8 @@ export default function CompletePage({ searchParams }: { searchParams: Promise<{
   )
 }
 
-async function Receipt({ searchParams }: { searchParams: Promise<{ order?: string }> }) {
-  const { order } = await searchParams
+async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }) {
+  const { order, redirect_status: redirectStatus } = await searchParams
   if (!order) notFound()
 
   await requireCustomer(`/checkout/complete?order=${order}`)
@@ -63,12 +77,28 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
   }
 
   if (!dto) {
+    // ⚠ 051 US4 — a shopper who ABANDONED at the provider must not be told their payment is being
+    // confirmed. Nothing was charged and their basket is intact; saying "confirming" would leave them
+    // waiting for an order that is never coming (US4 scenario 5, FR-036).
+    const abandoned = redirectStatus === "failed" || redirectStatus === "canceled"
     return (
       <div className="rounded-2xl border border-dashed p-12 text-center">
-        <h1 className="text-lg font-medium">We’re confirming your payment</h1>
+        <h1 className="text-lg font-medium">
+          {abandoned ? "Your payment wasn’t completed" : "We’re confirming your payment"}
+        </h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          This can take a moment. Your order will appear in your order history shortly.
+          {abandoned
+            ? "Nothing has been charged and your basket is still here. You can go back and try again, or pay another way."
+            : "This can take a moment. Your order will appear in your order history shortly."}
         </p>
+        {abandoned ? (
+          <Link
+            href="/checkout"
+            className="mt-4 inline-block text-sm font-medium text-primary hover:underline"
+          >
+            Back to checkout
+          </Link>
+        ) : null}
         <Link href="/orders" className="mt-4 inline-block text-sm font-medium text-primary hover:underline">
           View your orders
         </Link>
@@ -104,6 +134,14 @@ async function Receipt({ searchParams }: { searchParams: Promise<{ order?: strin
         </ul>
         <dl className="space-y-1 border-t p-4 text-sm">
           <Row label="Items" value={formatMoney(dto.itemSubtotalAmount, dto.currency)} />
+          {/*
+            ⚠ 051 FR-043 — delivery was inside the total and shown nowhere. A receipt whose lines do
+            not add up to its total is not a receipt a shopper can check, and for a GST-inclusive
+            Australian sale that is a real gap rather than a cosmetic one.
+          */}
+          {dto.deliveryFeeAmount ? (
+            <Row label="Delivery" value={formatMoney(dto.deliveryFeeAmount, dto.currency)} />
+          ) : null}
           <div className="flex justify-between border-t pt-2 text-base font-semibold">
             <dt>Total paid</dt>
             <dd>{formatMoney(dto.grandTotalAmount, dto.currency)}</dd>

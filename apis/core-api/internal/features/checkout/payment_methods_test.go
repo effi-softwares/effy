@@ -298,3 +298,61 @@ func TestCreateIntent_MobileResponseCarriesTheIDBesideTheSession(t *testing.T) {
 			res.CustomerSessionSecret, res.ProviderCustomerID)
 	}
 }
+
+// ── 051 US4 — pay-over-time availability comes from the PROVIDER, never a guess ──────────────────────
+//
+// ⚠ FR-010/FR-011. A client cannot know whether an instalment option is offerable: it depends on the
+// basket total and on account eligibility. Guessing produces exactly the two failures the spec forbids
+// — an option offered and then refused after the shopper commits, or one that vanishes unexplained.
+
+func TestHasPayOverTime_ReadsTheProvidersAnswer(t *testing.T) {
+	cases := []struct {
+		name      string
+		available []string
+		want      bool
+	}{
+		{"card only", []string{"card"}, false},
+		{"klarna offered", []string{"card", "klarna"}, true},
+		{"zip offered", []string{"card", "zip"}, true},
+		// ⚠ Afterpay is AU-supported and merely awaits account activation, so it is in the map already:
+		// the day it activates, the row appears with no code change (FR-013).
+		{"afterpay offered", []string{"card", "afterpay_clearpay"}, true},
+		// ⚠ A wallet is not an instalment plan. Treating one as pay-over-time would render a row that
+		// then offers nothing.
+		{"wallets are not instalments", []string{"card", "link", "apple_pay"}, false},
+		{"nothing at all", nil, false},
+	}
+	for _, tc := range cases {
+		if got := hasPayOverTime(tc.available); got != tc.want {
+			t.Errorf("%s: hasPayOverTime(%v) = %v, want %v", tc.name, tc.available, got, tc.want)
+		}
+	}
+}
+
+func TestCreateIntent_ReportsPayOverTimeFromTheIntent(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{availableMethods: []string{"card", "klarna"}}
+	svc := svcWith(store, gw)
+
+	res, err := intent(svc, IntentInput{AddressID: addrID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.PayOverTimeAvailable {
+		t.Fatal("provider offered klarna but the response says pay-over-time is unavailable")
+	}
+}
+
+func TestCreateIntent_ReportsNoPayOverTimeWhenTheProviderOffersNone(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{availableMethods: []string{"card"}}
+	svc := svcWith(store, gw)
+
+	res, err := intent(svc, IntentInput{AddressID: addrID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// ⚠ The row must be ABSENT rather than present-and-empty. An empty "Pay over time" row is the
+	// unexplained-disappearance failure wearing a different hat (FR-011).
+	if res.PayOverTimeAvailable {
+		t.Fatal("no instalment option was offered, but the response says one is available")
+	}
+}

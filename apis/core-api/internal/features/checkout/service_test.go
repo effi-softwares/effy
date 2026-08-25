@@ -120,12 +120,17 @@ type fakeGateway struct {
 	listErr error
 	// What the intent was actually built with — the only way to assert the provider customer is attached.
 	intentCustomer string
+	// What the provider reports as usable for this intent (051 US4).
+	availableMethods []string
 }
 
 func (g *fakeGateway) CreatePaymentIntent(_ context.Context, in CreateIntentInput) (PaymentIntent, error) {
 	g.amount = in.AmountMinor
 	g.intentCustomer = in.CustomerID
-	return PaymentIntent{ID: "pi_1", ClientSecret: "cs_1", Status: "requires_payment_method"}, nil
+	return PaymentIntent{
+		ID: "pi_1", ClientSecret: "cs_1", Status: "requires_payment_method",
+		AvailableMethods: g.availableMethods,
+	}, nil
 }
 
 func (g *fakeGateway) RetrievePaymentIntent(_ context.Context, id string) (PaymentIntent, error) {

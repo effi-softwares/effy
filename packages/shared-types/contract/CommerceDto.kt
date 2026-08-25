@@ -585,6 +585,20 @@ data class CreateCheckoutIntentResponse (
     val orderID: String,
 
     val orderNumber: String,
+
+    /**
+     * 051 US4 — whether the provider offers any instalment option for THIS intent.
+     *
+     * ⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on
+     * account eligibility, neither of which a client knows. A guess produces exactly what
+     * FR-010/FR-011 forbid: an option offered and then refused after the shopper commits, or
+     * one that vanishes unexplained.
+     *
+     * ⚠ A boolean, not the list — which providers appear is the payment element's business, and
+     * sending the raw list would leak account configuration to a client with no use for it.
+     */
+    val payOverTimeAvailable: Boolean? = null,
+
     val publishableKey: String
 )
 
@@ -900,6 +914,16 @@ data class OrderDTO (
      * The SHIPPING address snapshot (the main one — where the order is delivered).
      */
     val deliveryAddress: OrderAddressDTO,
+
+    /**
+     * 051 FR-043 — the delivery fee as charged.
+     *
+     * ⚠ The column has existed since 019 and the receipt read never selected it, so delivery
+     * sat inside the total and appeared nowhere. A receipt whose lines do not add up to its
+     * total is not one a shopper can check — and for a GST-inclusive Australian sale that is a
+     * real gap, not a cosmetic one.
+     */
+    val deliveryFeeAmount: String? = null,
 
     /**
      * The promotional discount applied at payment (027 FR-049). The platform's own computation

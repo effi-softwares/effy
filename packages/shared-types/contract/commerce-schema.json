@@ -812,6 +812,10 @@
         "orderNumber": {
           "type": "string"
         },
+        "payOverTimeAvailable": {
+          "description": "051 US4 — whether the provider offers any instalment option for THIS intent.\n\n⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on account eligibility, neither of which a client knows. A guess produces exactly what FR-010/FR-011 forbid: an option offered and then refused after the shopper commits, or one that vanishes unexplained.\n\n⚠ A boolean, not the list — which providers appear is the payment element's business, and sending the raw list would leak account configuration to a client with no use for it.",
+          "type": "boolean"
+        },
         "publishableKey": {
           "type": "string"
         }
@@ -1184,6 +1188,10 @@
         "deliveryAddress": {
           "$ref": "#/definitions/OrderAddressDTO",
           "description": "The SHIPPING address snapshot (the main one — where the order is delivered)."
+        },
+        "deliveryFeeAmount": {
+          "description": "051 FR-043 — the delivery fee as charged.\n\n⚠ The column has existed since 019 and the receipt read never selected it, so delivery sat inside the total and appeared nowhere. A receipt whose lines do not add up to its total is not one a shopper can check — and for a GST-inclusive Australian sale that is a real gap, not a cosmetic one.",
+          "type": "string"
         },
         "discountAmount": {
           "description": "The promotional discount applied at payment (027 FR-049). The platform's own computation at that moment, stored on the order — so a receipt stays explainable years later even if the code has since been changed or disabled. \"0.00\" (or absent, on a pre-027 order) when no code was used. Invariant: grandTotal = itemSubtotal − discount. (There is no delivery fee on this platform.)",

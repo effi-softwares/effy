@@ -183,13 +183,13 @@ without retyping anything.
 **Independent test**: Complete a Klarna payment on a qualifying basket and confirm the order is paid for
 the full amount; abandon one and confirm nothing was charged.
 
-- [ ] T072 [US4] Build the method list rows in `apps/customer-web/app/checkout/_payment/MethodList.tsx`, each stating the number of payments, the amount of each and whether interest applies **before** selection (FR-012)
-- [ ] T073 [US4] Confine a Payment Element to the redirect-based methods in `MethodList.tsx` — split card elements are card-only (research R7)
-- [ ] T074 [US4] Omit an ineligible option, or show it unavailable **with the reason** — never offer then refuse (FR-011, US4 scenario 2)
-- [ ] T075 [US4] Handle the redirect return in `apps/customer-web/app/checkout/complete/page.tsx`: paid, abandoned, or not yet known, each distinctly (FR-040, US4 scenario 5)
-- [ ] T076 [P] [US4] Test that an ineligible option is never offered as selectable, in `apps/customer-web/app/checkout/_payment/MethodList.test.tsx` (FR-010/FR-011)
-- [ ] T077 [US4] Confirm the mobile element offers the same set and honours the same eligibility, in `apps/customer-mobile/.../features/payment/`
-- [ ] T078 [US4] Render the provider mandate text where the mobile element is configured not to (`embeddedViewDisplaysMandateText(false)`) — ⚠ a compliance requirement, and URLs must render as links
+- [X] T072 [US4] Build the method list rows in `apps/customer-web/app/checkout/_payment/MethodList.tsx`, each stating the number of payments, the amount of each and whether interest applies **before** selection (FR-012)
+- [X] T073 [US4] Confine a Payment Element to the redirect-based methods in `MethodList.tsx` — split card elements are card-only (research R7)
+- [X] T074 [US4] Omit an ineligible option, or show it unavailable **with the reason** — never offer then refuse (FR-011, US4 scenario 2)
+- [X] T075 [US4] Handle the redirect return in `apps/customer-web/app/checkout/complete/page.tsx`: paid, abandoned, or not yet known, each distinctly (FR-040, US4 scenario 5)
+- [X] T076 [P] [US4] Test that an ineligible option is never offered as selectable, in `apps/customer-web/app/checkout/_payment/MethodList.test.tsx` (FR-010/FR-011)
+- [X] T077 [US4] Confirm the mobile element offers the same set and honours the same eligibility, in `apps/customer-mobile/.../features/payment/`
+- [X] T078 [US4] Render the provider mandate text where the mobile element is configured not to (`embeddedViewDisplaysMandateText(false)`) — ⚠ a compliance requirement, and URLs must render as links
 
 ---
 
@@ -232,7 +232,7 @@ payment step on either surface.
 
 ## Phase 9: Polish & Cross-Cutting
 
-- [ ] T096 [P] Itemise delivery on the receipt in `apps/customer-web/app/checkout/complete/page.tsx` so Items + Delivery == Total paid (FR-043, research R12 D1)
+- [X] T096 [P] Itemise delivery on the receipt in `apps/customer-web/app/checkout/complete/page.tsx` so Items + Delivery == Total paid (FR-043, research R12 D1)
 - [ ] T097 [P] Emit the method-chosen and outcome telemetry events, carrying ⚠ **no PAN, no CVC, no payment-method id and no provider customer id** (Principle VII, FR of SC-012)
 - [ ] T098 [P] Update `docs/audiences/customer-capabilities.md` § 051 with every parity gap and its reason (FR-044)
 - [ ] T099 Run the full machine sweep: `make core-test` · `pnpm -r typecheck` · `pnpm -r test` · `turbo build` · both mobile compiles **including `compileTestKotlinIosSimulatorArm64`** · `make cm-guard` · `make cm-tokens-check` · `make cm-contract-check` · `node apps/customer-web/scripts/bundle-budget.mjs`

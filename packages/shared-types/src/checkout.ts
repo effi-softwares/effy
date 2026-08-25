@@ -80,6 +80,17 @@ export interface CreateCheckoutIntentResponse {
    */
   customerId?: string | null;
   /**
+   * 051 US4 — whether the provider offers any instalment option for THIS intent.
+   *
+   * ⚠ ANSWERED BY THE PROVIDER, NOT GUESSED. Availability depends on the basket total and on account
+   * eligibility, neither of which a client knows. A guess produces exactly what FR-010/FR-011 forbid:
+   * an option offered and then refused after the shopper commits, or one that vanishes unexplained.
+   *
+   * ⚠ A boolean, not the list — which providers appear is the payment element's business, and sending
+   * the raw list would leak account configuration to a client with no use for it.
+   */
+  payOverTimeAvailable?: boolean;
+  /**
    * 051 — the billing details the CLIENT must pass back at confirmation, because the payment step no
    * longer asks the shopper for them (FR-014/FR-015).
    *

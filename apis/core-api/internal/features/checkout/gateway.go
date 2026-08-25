@@ -40,6 +40,14 @@ type PaymentIntent struct {
 	ID           string
 	ClientSecret string
 	Status       IntentStatus
+	// AvailableMethods is what the provider says can actually be used for THIS intent — its amount,
+	// its currency, this account's activation state, all accounted for (051 US4).
+	//
+	// ⚠ THE CLIENT CANNOT WORK THIS OUT. Whether a pay-over-time option is offerable depends on the
+	// basket total and on account eligibility, neither of which a browser knows. Guessing produces
+	// exactly the two failures FR-010/FR-011 forbid: an option offered and then refused after the
+	// shopper commits, or one that vanishes with no explanation.
+	AvailableMethods []string
 }
 
 // WebhookEvent is the verified, provider-neutral event the webhook handler acts on.

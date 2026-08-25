@@ -174,3 +174,55 @@ export async function confirmWalletPayment(input: {
   }
   return outcomeFor(paymentIntent?.status)
 }
+
+/**
+ * Confirm a pay-over-time payment (051 US4) — Klarna, Zip, Afterpay.
+ *
+ * ⚠ ALWAYS A REDIRECT. Every BNPL provider takes the shopper to its own site to assess and approve
+ * them, so `return_url` is not optional here the way it is for a card: without it the shopper leaves
+ * Effy and has no route back. `redirect: "if_required"` still applies — it means "redirect only when
+ * the method needs it", and these always do.
+ *
+ * ⚠ NO `setup_future_usage`. Afterpay and Zip do not support it at all, and Klarna's support excludes
+ * the saved-card flow. Sending it turns a working payment into an API error, so the save-card consent
+ * deliberately does not reach this path (research R1).
+ */
+export async function confirmPayOverTime(input: {
+  stripe: Stripe
+  elements: StripeElements
+  clientSecret: string
+  billingDetails: BillingDetailsDTO | null
+  returnUrl: string
+}): Promise<ConfirmOutcome> {
+  const { error, paymentIntent } = await input.stripe.confirmPayment({
+    elements: input.elements,
+    clientSecret: input.clientSecret,
+    confirmParams: {
+      return_url: input.returnUrl,
+      ...(input.billingDetails
+        ? {
+            payment_method_data: {
+              billing_details: {
+                name: input.billingDetails.name ?? undefined,
+                email: input.billingDetails.email ?? undefined,
+                address: {
+                  line1: input.billingDetails.address.line1,
+                  line2: input.billingDetails.address.line2 ?? undefined,
+                  city: input.billingDetails.address.city,
+                  state: input.billingDetails.address.state,
+                  postal_code: input.billingDetails.address.postalCode,
+                  country: input.billingDetails.address.country,
+                },
+              },
+            },
+          }
+        : {}),
+    },
+    redirect: "if_required",
+  })
+
+  if (error) {
+    return { kind: "failed", message: error.message ?? GENERIC_FAILURE }
+  }
+  return outcomeFor(paymentIntent?.status)
+}

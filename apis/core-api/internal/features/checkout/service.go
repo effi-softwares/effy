@@ -55,6 +55,12 @@ type IntentResult struct {
 	// attached. Empty whenever no session is minted, which is every web request. The secret is the
 	// credential; this id alone reaches no API (data-model § 1, amended).
 	ProviderCustomerID string
+	// PayOverTimeAvailable reports whether the provider offers any instalment option for this intent.
+	//
+	// ⚠ A BOOLEAN, not the list. Which providers are offered is the payment element's business; all
+	// Effy needs to know is whether the row is worth rendering at all. Sending the raw list would leak
+	// account configuration to a client that has no use for it.
+	PayOverTimeAvailable bool
 	// BillingDetails is what the client passes back at confirmation, because the payment step no longer
 	// asks the shopper for a country, a postcode or a name (FR-014/FR-015).
 	BillingDetails BillingDetails
@@ -401,8 +407,31 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		Currency:              pricing.Currency,
 		CustomerSessionSecret: session.secret,
 		ProviderCustomerID:    providerIDFor(in.WantsProviderMethodList, resolved),
+		PayOverTimeAvailable:  hasPayOverTime(pi.AvailableMethods),
 		BillingDetails:        billingDetailsFrom(billingSnapshot, profileName, profileEmail),
 	}, nil
+}
+
+// payOverTimeMethods are the instalment providers Effy can accept.
+//
+// ⚠ Australia only, and that is what bounds this list. PayPal and Amazon Pay are absent because an
+// AU-domiciled business cannot offer them at all (research R1); Afterpay is present because it IS
+// AU-supported and simply awaits account activation, so the day it activates this needs no code change
+// (FR-013).
+var payOverTimeMethods = map[string]bool{
+	"klarna":            true,
+	"zip":               true,
+	"afterpay_clearpay": true,
+}
+
+// hasPayOverTime reports whether the provider offered any instalment option for this intent.
+func hasPayOverTime(available []string) bool {
+	for _, m := range available {
+		if payOverTimeMethods[m] {
+			return true
+		}
+	}
+	return false
 }
 
 // providerIDFor returns the provider customer id ONLY when a session was minted for it.

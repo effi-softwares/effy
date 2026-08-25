@@ -123,6 +123,14 @@ export interface OrderDTO {
    */
   discountAmount?: string;
   /**
+   * 051 FR-043 — the delivery fee as charged.
+   *
+   * ⚠ The column has existed since 019 and the receipt read never selected it, so delivery sat inside
+   * the total and appeared nowhere. A receipt whose lines do not add up to its total is not one a
+   * shopper can check — and for a GST-inclusive Australian sale that is a real gap, not a cosmetic one.
+   */
+  deliveryFeeAmount?: string;
+  /**
    * The literal code used, denormalised beside the discount so the receipt can still say "SPRING20"
    * independently of the promotion record. Null/absent when no code was used.
    */
