@@ -10,6 +10,7 @@
     "./ui": "./src/ui/index.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./tokens.css": "./src/tokens.css",
+    "./stripe-appearance": "./stripe/appearance.ts",
     "./banner-template.svg": "./banner/banner-template.svg"
   },
   "types": "./src/index.ts",
@@ -18,7 +19,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/check-tokens.mjs && node scripts/check-banner-canvas.mjs && node scripts/check-banner-template.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
-    "tokens:gen": "node scripts/gen-compose-theme.mjs",
+    "tokens:gen": "node scripts/gen-compose-theme.mjs && node scripts/gen-stripe-appearance.mjs",
     "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs && node scripts/check-banner-template.mjs",
     "mobile-assets:sync": "node scripts/sync-mobile-assets.mjs",
     "mobile-assets:check": "node scripts/check-mobile-assets.mjs",

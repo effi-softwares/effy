@@ -66,6 +66,16 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    // 051 — the GENERATED payment-provider Appearance, derived from tokens.css (Principle II).
+    //
+    // ⚠ Android-only, and deliberately NOT under packages/design-system/compose/. That directory is
+    // srcDir'd into the KMP module's commonMain, which is Stripe-free by design and must compile for
+    // iOS; a file importing com.stripe.android.paymentsheet there would break the iOS build. Stripe
+    // lives in this module, so its generated theme does too.
+    sourceSets["main"].kotlin.srcDir(
+        rootProject.file("../../packages/design-system/compose-payment-android")
+    )
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

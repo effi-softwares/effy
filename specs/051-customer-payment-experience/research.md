@@ -360,3 +360,73 @@ variants. A redrawn mark breaches all of them, and payment marks are the marks m
 The design canvas deliberately uses simplified stand-ins; those must not reach production.
 
 **Not our problem**: the network marks *inside* Stripe's card field are Stripe's own and need nothing.
+
+
+---
+
+## R15 — FR-027 has no deletion path to attach to, and 051 cannot build one ⚑
+
+**Finding**: **The platform has no account-erasure job.** Account closure (034) writes a
+`customer_closure_request` with an `erase_after` 30 days out and flips `public.customer.closure_state`
+to `'closing'`. ⚑ `grep -rn "erase_after"` finds exactly three files — the closure repo, its service and
+their tests. **Nothing reads it.** 034's own spec is explicit: *"Permanent erasure at day 30 is
+explicitly NOT built here"*, and it records the job as a **blocking dependency for store submission**.
+
+**Consequence for this feature**: FR-027 ("deleting or barring a customer account MUST remove that
+shopper's kept cards") cannot be fully satisfied by 051, because the deletion it hangs off does not
+exist yet. This is not a gap 051 introduced and not one it can close.
+
+**What is true today**:
+
+- **Barring** — a barred customer is refused at the identity gate, so their cards become *unreachable*.
+  Unreachable is not deleted, and FR-027 asks for deleted.
+- **Closure** — the account enters `closing`; the cards stay at the provider indefinitely, because
+  nothing ever runs the erasure.
+
+**Decision**: do NOT improvise a deletion path inside this slice. Two things make that the wrong call
+rather than the lazy one:
+
+1. **The obvious hook is on the wrong side of the secret boundary.** Closure is a cold-path service
+   (`apis/edge-api/customer/src/closure/`), and detaching a card is a provider call. Wiring it there
+   needs either the Stripe secret in a second backend — which R9 rejected outright — or a new
+   cold→hot service call, which is a cross-service authorisation surface invented on the way past.
+2. **Deleting cards at the closure *request* would be a design decision, not an implementation
+   detail.** It is defensible (cards are useless during the grace period, and a restored account can
+   re-add one), but it makes closure partially irreversible in a way 034 deliberately made reversible.
+   That belongs to whoever owns the erasure job.
+
+**Recorded instead**: the ORDERING RULE, so that whoever builds the erasure job inherits it rather than
+rediscovering it. **Provider cards and the provider customer must be deleted BEFORE the local
+`stripe_customer_id` is cleared.** Reverse the order and the reference needed to find them is gone, and
+the cards survive at the provider with nothing in Effy able to reach them — a retention breach that
+leaves no trace in our own data (data-model § 5).
+
+**⚠ This must be carried into the spec as an open dependency, not left in a research file**, because a
+spec that claims FR-027 is met when no erasure exists is worse than one that says it is blocked.
+
+
+---
+
+## R16 — customer-web is light-only, and FR-030 was written without checking ⚑
+
+**Finding**: ⚑ `apps/customer-web/app/layout.tsx` records that the public storefront is **LIGHT-ONLY by
+operator decision** — it "ships no appearance switcher and never applies the design system's `.dark`
+class" — and `globals.css` pins `color-scheme: light` so browser chrome cannot go dark over it.
+
+**Impact on this feature**: FR-030 as originally written ("MUST follow the shopper's Light / Dark /
+Follow-System choice, changing with it live") is **unbuildable on web**, because there is no such choice
+to follow. The requirement was written from the design canvas — which shows a dark artboard — without
+checking the surface it targets. That is a spec defect, and it is mine.
+
+**Resolution** (spec amended in place, not patched in code): the payment step follows its surface. Mobile
+has the switcher and gets both appearances plus live switching. Web gets the light appearance, and the
+generated dark half ships unused so the storefront gaining a switcher later is a zero-work change for
+the payment step.
+
+**⚠ The larger conflict is recorded, not resolved.** Principle V requires dark mode on EVERY surface and
+requires it to be user-selectable; customer-web has neither, by an operator decision that predates 051.
+Reversing that inside a payment slice would be the wrong place for it. It is now written down.
+
+**Why this matters beyond the wording**: the design canvas published for this feature shows a dark
+payment page. Anyone reading it would reasonably expect dark mode on the web storefront. It is not
+coming from this slice.

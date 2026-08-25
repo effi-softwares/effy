@@ -303,7 +303,24 @@ actionable message and that the basket survives all four.
   match the platform's design language as closely as that provider allows, and MUST follow the
   shopper's appearance setting.
 - **FR-030**: The payment step MUST render correctly in light and dark appearance and MUST follow the
-  shopper's Light / Dark / Follow-System choice, changing with it live.
+  shopper's appearance choice where the surface offers one, changing with it live.
+
+  ⚠ **AMENDED 2026-08-25 during implementation — the original wording was unbuildable on web, and the
+  reason predates this feature.** `apps/customer-web` is **light-only by operator decision**: its root
+  layout never applies the design system's `.dark` class and `globals.css` pins `color-scheme: light`
+  so native chrome cannot render dark over a light page. There is no appearance switcher on the public
+  storefront to follow. Requiring the payment step to follow one would have meant either reversing that
+  operator decision inside a payment slice, or writing a requirement that quietly failed.
+
+  **What holds instead**: the payment step follows its surface. On **mobile**, which has the Light /
+  Dark / Follow-System switcher (013/017), both appearances are required and live-switching is required.
+  On **web**, the light appearance is required and correct, and the dark one is **generated and shipped
+  but unused** — so the day the storefront gains an appearance switcher, the payment step already
+  follows it with no further work.
+
+  ⚠ **This leaves a standing conflict with the constitution**, which requires dark mode on *every*
+  surface and requires it to be user-selectable. That conflict is NOT created by this feature and is
+  not 051's to resolve — but it is now written down, which it was not before.
 - **FR-031**: Payment-provider brand marks (card networks, wallets, pay-over-time providers) MAY be
   shown in their own brand colours. This is an asset role, not a UI accent: Effy's own controls, icons,
   text and surfaces on this step MUST remain monochrome. **This requires the design principle's
@@ -440,6 +457,14 @@ actionable message and that the basket survives all four.
   operator action, not a build task.
 - **Provider brand asset kits** are required for FR-032 and must be obtained rather than drawn.
 - **The customer parity register** must be updated for FR-044.
+- ⚠ **FR-027 is BLOCKED on a job that does not exist.** The platform has no account-erasure worker:
+  034 wrote the 30-day `erase_after` and explicitly deferred the job that acts on it, calling it a
+  blocking dependency for store submission. Until that job is built, a closed account's kept cards
+  survive at the payment provider. 051 cannot close this — the hook is on the cold path, on the wrong
+  side of the payment secret's custody boundary (research R9/R15) — and deleting cards at the closure
+  *request* instead would make closure partially irreversible, which is a decision for whoever owns
+  erasure. What 051 contributes is the **ordering rule** the erasure job must follow: provider records
+  first, local reference second.
 
 ## Out of Scope
 
