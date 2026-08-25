@@ -16,12 +16,12 @@ import { ActionButton } from "@/components/storefront/actions"
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
-import { getStripe } from "@/lib/stripe"
+import { getStripe, paymentElementsOptions } from "@/lib/stripe"
 import { capture } from "@/lib/telemetry"
 
 import { AddressPicker } from "./AddressPicker"
 import { BillingSection } from "./BillingSection"
-import { PaymentForm } from "./PaymentForm"
+import { PaymentStep } from "./PaymentStep"
 
 type Step = "review" | "paying"
 
@@ -237,23 +237,13 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   }
 
   if (step === "paying" && intent) {
+    // ⚠ 051: the payment step carries the amount and NOTHING else — no basket recap, no address, no
+    // delivery row (FR-003). The `OrderSummary` strip that used to sit above the form is gone with it,
+    // along with `PaymentForm`; the amount now lives in the step's own pay rail.
     return (
-      <div>
-        <OrderSummary currency={intent.currency} total={intent.grandTotalAmount} />
-        <Elements stripe={getStripe()} options={{ clientSecret: intent.clientSecret }}>
-          <PaymentForm
-            orderId={intent.orderId}
-            onSuccess={() => router.push(`/checkout/complete?order=${intent.orderId}`)}
-          />
-        </Elements>
-        <button
-          type="button"
-          onClick={() => setStep("review")}
-          className="mt-4 text-sm text-muted-foreground hover:text-foreground"
-        >
-          ← Back
-        </button>
-      </div>
+      <Elements stripe={getStripe()} options={paymentElementsOptions(intent.clientSecret)}>
+        <PaymentStep intent={intent} onBack={() => setStep("review")} />
+      </Elements>
     )
   }
 
@@ -450,13 +440,4 @@ function methodTotalCents(quote: DeliveryQuoteDTO | null, method: "standard" | "
     const opt = chosen ?? std
     return sum + (opt ? parseCents(opt.feeAmount) : 0)
   }, 0)
-}
-
-function OrderSummary({ currency, total }: { currency: string; total: string }) {
-  return (
-    <div className="flex items-baseline justify-between border-y py-3">
-      <span className="text-sm text-muted-foreground">Total</span>
-      <span className="text-lg font-semibold">{formatMoney(total, currency)}</span>
-    </div>
-  )
 }

@@ -105,14 +105,14 @@ paid; the fields asked for are exactly three; no basket line, address or deliver
 
 - [X] T033 [US1] Create the field shell, label and error primitives in `apps/customer-web/app/checkout/_payment/Field.tsx` — pill, h-11, `rounded-full`, border-only focus (no halo), matching `packages/design-system/src/ui/input.tsx` exactly
 - [X] T034 [US1] Mount `CardNumberElement` / `CardExpiryElement` / `CardCvcElement` inside those shells in `apps/customer-web/app/checkout/_payment/CardFields.tsx`, driving each element's `style` object from the generated appearance (research R7)
-- [ ] T035 [US1] Confirm the card route with `stripe.confirmCardPayment(clientSecret, { payment_method: { card: cardNumberElement, billing_details } })`, taking `billing_details` from the intent response, in `apps/customer-web/app/checkout/_payment/confirm.ts` — ⚠ **amended by S2**: the split card elements have **no billing fields to suppress**, so there is no `fields.billingDetails` to set here; `never` applies only to T073's redirect-method Payment Element
-- [ ] T036 [US1] Build the payment step shell in `apps/customer-web/app/checkout/PaymentStep.tsx`: the amount stated once, the back link, the pay button, the trust line and the legal line — and **no** basket line, address or delivery row (FR-003)
-- [ ] T037 [US1] Lay the page out with the repo's `container` utility in `PaymentStep.tsx` — no `max-w`, no `mx-auto` on the content; the measure comes from the grid (the operator's direction, and the design canvas)
-- [ ] T038 [US1] Rewire `apps/customer-web/app/checkout/CheckoutFlow.tsx` to render `PaymentStep` and **delete** `apps/customer-web/app/checkout/PaymentForm.tsx`
-- [ ] T039 [US1] Wire the generated Appearance into the `<Elements>` options in `apps/customer-web/lib/stripe.ts` and make it follow the live appearance setting, re-creating the Elements group on change (FR-030)
-- [ ] T040 [P] [US1] Test that the payment step renders no basket line, address or delivery control, in `apps/customer-web/app/checkout/PaymentStep.test.tsx` (SC-004)
-- [ ] T041 [P] [US1] Test that exactly three card inputs are requested and that no country, postcode or name field exists, in `PaymentStep.test.tsx` (SC-001, FR-014/FR-015)
-- [ ] T042 [P] [US1] Test that the amount rendered equals the amount from the intent response, in `PaymentStep.test.tsx` (SC-005)
+- [X] T035 [US1] Confirm the card route with `stripe.confirmCardPayment(clientSecret, { payment_method: { card: cardNumberElement, billing_details } })`, taking `billing_details` from the intent response, in `apps/customer-web/app/checkout/_payment/confirm.ts` — ⚠ **amended by S2**: the split card elements have **no billing fields to suppress**, so there is no `fields.billingDetails` to set here; `never` applies only to T073's redirect-method Payment Element
+- [X] T036 [US1] Build the payment step shell in `apps/customer-web/app/checkout/PaymentStep.tsx`: the amount stated once, the back link, the pay button, the trust line and the legal line — and **no** basket line, address or delivery row (FR-003)
+- [X] T037 [US1] Lay the page out with the repo's `container` utility in `PaymentStep.tsx` — no `max-w`, no `mx-auto` on the content; the measure comes from the grid (the operator's direction, and the design canvas)
+- [X] T038 [US1] Rewire `apps/customer-web/app/checkout/CheckoutFlow.tsx` to render `PaymentStep` and **delete** `apps/customer-web/app/checkout/PaymentForm.tsx`
+- [X] T039 [US1] Wire the generated Appearance into the `<Elements>` options in `apps/customer-web/lib/stripe.ts` and make it follow the live appearance setting, re-creating the Elements group on change (FR-030)
+- [X] T040 [P] [US1] Test that the payment step renders no basket line, address or delivery control, in `apps/customer-web/app/checkout/PaymentStep.test.tsx` (SC-004)
+- [X] T041 [P] [US1] Test that exactly three card inputs are requested and that no country, postcode or name field exists, in `PaymentStep.test.tsx` (SC-001, FR-014/FR-015)
+- [X] T042 [P] [US1] Test that the amount rendered equals the amount from the intent response, in `PaymentStep.test.tsx` (SC-005)
 - [ ] T043 [US1] Add a Playwright walk of the card payment against a production build in `apps/customer-web/e2e/payment.spec.ts`
 
 ### Brand marks (skip if T002 was declined)

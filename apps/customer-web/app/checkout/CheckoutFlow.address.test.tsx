@@ -8,12 +8,18 @@ import { CheckoutFlow } from "./CheckoutFlow"
 
 // Never reach the real Stripe SDK; pin the responsive form to Dialog; silence telemetry.
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
-vi.mock("@/lib/stripe", () => ({ getStripe: () => Promise.resolve(null) }))
+vi.mock("@/lib/stripe", () => ({
+  getStripe: () => Promise.resolve(null),
+  // 051: the flow now asks lib/stripe for the Elements options (which carry the generated appearance),
+  // so a mock that omits it makes the paying step throw rather than render.
+  paymentElementsOptions: (clientSecret: string) => ({ clientSecret }),
+}))
 vi.mock("@stripe/react-stripe-js", () => ({
   Elements: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 // The paying step is out of scope here — stub the Stripe form so placement succeeds without the SDK.
-vi.mock("./PaymentForm", () => ({ PaymentForm: () => <div>Payment form</div> }))
+// 051: PaymentForm is gone — the payment step is PaymentStep, and it carries no order content.
+vi.mock("./PaymentStep", () => ({ PaymentStep: () => <div>Payment step</div> }))
 vi.mock("@effy/design-system/hooks/use-mobile", () => ({ useIsMobile: () => false }))
 vi.mock("@/lib/telemetry", () => ({ capture: vi.fn() }))
 
