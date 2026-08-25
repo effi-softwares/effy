@@ -442,3 +442,39 @@ func TestIntent_SameDayPreferenceAppliedPerPackage(t *testing.T) {
 	require.Equal(t, int64(1800), store.amounts.DeliveryFeeCents)
 	require.Equal(t, int64(2800), store.amounts.GrandTotalCents, "items 1000 + delivery 1800")
 }
+
+// The idempotency key must cover EVERY parameter the intent request carries (051).
+//
+// ⚠ THE DEFECT THIS PINS DOWN. 051 added `Customer` to the PaymentIntent parameters and left the key
+// derived from (order, amount). Orders created by the previous build had already burned that key on a
+// request with no customer, so replaying it with one made Stripe refuse:
+//
+//	Keys for idempotent requests can only be used with the same parameters they were first used with.
+//
+// It 500'd every checkout intent for those orders, permanently, and no local test could have seen it —
+// a fresh Stripe account has no burned keys. The invariant is cheap to state and is stated here.
+func TestIdempotencyKey_CoversEveryRequestParameter(t *testing.T) {
+	const (
+		order    = "11111111-1111-1111-1111-111111111111"
+		otherOrd = "22222222-2222-2222-2222-222222222222"
+		cents    = int64(2770)
+		customer = "cus_A"
+	)
+	base := idempotencyKey(order, cents, customer)
+
+	// Same request ⇒ same key. This is what makes a retry a retry rather than a second charge.
+	if got := idempotencyKey(order, cents, customer); got != base {
+		t.Fatalf("an unchanged retry produced a different key: %s != %s", got, base)
+	}
+
+	for name, got := range map[string]string{
+		"a different customer": idempotencyKey(order, cents, "cus_B"),
+		"no customer at all":   idempotencyKey(order, cents, ""),
+		"a different amount":   idempotencyKey(order, 2771, customer),
+		"a different order":    idempotencyKey(otherOrd, cents, customer),
+	} {
+		if got == base {
+			t.Errorf("%s reused the key — the provider refuses a key replayed with changed parameters", name)
+		}
+	}
+}

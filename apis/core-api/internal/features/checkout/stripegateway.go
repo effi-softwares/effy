@@ -212,6 +212,17 @@ func (g *StripeGateway) ListSavedCards(ctx context.Context, providerCustomerID s
 		if pm.Card == nil {
 			continue
 		}
+		// ⚠ CONSENT IS A FIELD ON THE CARD, AND THIS LIST MUST HONOUR IT (FR-020).
+		//
+		// `allow_redisplay` is the provider's record of what the shopper ticked: `always` when they
+		// chose to keep the card, `limited` when the save control was shown and left UNTICKED, and
+		// `unspecified` (the API default) for anything attached without asking. The provider's own
+		// element filters on this; a raw `paymentmethod.List` does not — so without this test Effy's
+		// list would show cards the shopper declined while the element correctly hid them. Two views
+		// of one question, disagreeing, with ours being the wrong one.
+		if pm.AllowRedisplay != stripe.PaymentMethodAllowRedisplayAlways {
+			continue
+		}
 		out = append(out, SavedCard{
 			ID:        pm.ID,
 			Brand:     string(pm.Card.Brand),

@@ -380,7 +380,7 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	pi, err := s.gateway.CreatePaymentIntent(ctx, CreateIntentInput{
 		AmountMinor:    grandTotalCents,
 		Currency:       pricing.Currency,
-		IdempotencyKey: idempotencyKey(orderID, grandTotalCents),
+		IdempotencyKey: idempotencyKey(orderID, grandTotalCents, resolved),
 		OrderID:        orderID,
 		OrderNumber:    orderNumber,
 		CustomerID:     resolved,
@@ -588,10 +588,25 @@ func (s *Service) Confirm(ctx context.Context, customerID, orderID string) (Conf
 	return ConfirmResult{OrderID: orderID, Paid: false}, nil
 }
 
-// idempotencyKey is DETERMINISTIC over (order, amount): an unchanged retry returns the same intent; a
-// changed total mints a new one (R5 #1).
-func idempotencyKey(orderID string, amountCents int64) string {
-	sum := sha256.Sum256(fmt.Appendf(nil, "pi:%s:%d", orderID, amountCents))
+// idempotencyKey is DETERMINISTIC over EVERY PARAMETER THE REQUEST CARRIES — the order, the amount and
+// the provider customer. An unchanged retry returns the same intent; any change mints a new one (R5 #1).
+//
+// ⚠ THE CUSTOMER IS IN HERE BECAUSE LEAVING IT OUT BROKE CHECKOUT IN DEV. 051 added `Customer` to the
+// intent parameters and left this key over (order, amount) alone. Every order created by the previous
+// build had already burned its key on a request with NO customer — so the moment the new build replayed
+// that same key WITH one, Stripe refused it outright:
+//
+//	Keys for idempotent requests can only be used with the same parameters they were first used with.
+//
+// That is a 400 from the provider, surfacing as a 500 on `POST /v1/checkout/intent`, and it is
+// PERMANENT for the affected order: the key never changes, so the shopper can never pay for that
+// basket again. It cannot be reproduced locally against a fresh Stripe account or a fresh order — it
+// needs a key burned by the older parameter set, which is exactly what a deploy creates.
+//
+// The rule this encodes: an idempotency key must cover everything that determines the request. Adding
+// a parameter without extending the key is a breaking change disguised as an additive one.
+func idempotencyKey(orderID string, amountCents int64, providerCustomerID string) string {
+	sum := sha256.Sum256(fmt.Appendf(nil, "pi:%s:%d:%s", orderID, amountCents, providerCustomerID))
 	return hex.EncodeToString(sum[:])
 }
 

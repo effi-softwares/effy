@@ -186,8 +186,19 @@ FROM public.customer_address WHERE id = $1 AND customer_id = $2`, addressID, cus
 
 // PaymentProfile reads the provider reference plus the platform's own contact fields (051).
 func (s *pgStore) PaymentProfile(ctx context.Context, customerID string) (string, string, string, error) {
+	// ⚠ THE NAME IS TWO COLUMNS, NOT ONE. `public.customer.display_name` was DROPPED by
+	// `20260715090000_customer_name_parts.sql` and replaced with `given_name` + `family_name`, because a
+	// single free-text name cannot be split back into parts reliably. Selecting the old column compiled
+	// fine, passed every test (the fakes return strings, and the container tests build their own table),
+	// and failed only against the real schema — as `column "display_name" does not exist`, which 500s
+	// EVERY checkout intent, not just the saving of a card.
+	//
+	// `NULLIF(TRIM(...), '')` collapses "no name at all" to the empty string rather than to a stray
+	// space, and COALESCE turns that back into '' — the provider must be given a real name or none.
 	rows, err := s.pool.Query(ctx, `
-SELECT COALESCE(stripe_customer_id, ''), COALESCE(email::text, ''), COALESCE(display_name, '')
+SELECT COALESCE(stripe_customer_id, ''),
+       COALESCE(email::text, ''),
+       COALESCE(NULLIF(TRIM(CONCAT_WS(' ', given_name, family_name)), ''), '')
 FROM public.customer WHERE id = $1`, customerID)
 	if err != nil {
 		return "", "", "", fmt.Errorf("checkout: payment profile: %w", err)
