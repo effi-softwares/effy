@@ -24,6 +24,9 @@
 		067A701B30077C7100CEE238 /* AWSPredictionsPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701A30077C7100CEE238 /* AWSPredictionsPlugin */; };
 		067A701D30077C7100CEE238 /* AWSS3StoragePlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701C30077C7100CEE238 /* AWSS3StoragePlugin */; };
 		067A701F30077C7100CEE238 /* CoreMLPredictionsPlugin in Frameworks */ = {isa = PBXBuildFile; productRef = 067A701E30077C7100CEE238 /* CoreMLPredictionsPlugin */; };
+		06CDBDB5303DF56100B0DC9A /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDB4303DF56100B0DC9A /* PostHog */; };
+		06CDBDC9303DF59300B0DC9A /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDC8303DF59300B0DC9A /* FirebaseCore */; };
+		06CDBDCB303DF59300B0DC9A /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 06CDBDCA303DF59300B0DC9A /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -74,8 +77,11 @@
 				067A701B30077C7100CEE238 /* AWSPredictionsPlugin in Frameworks */,
 				067A701730077C7100CEE238 /* AWSPinpointPushNotificationsPlugin in Frameworks */,
 				067A701530077C7100CEE238 /* AWSPinpointAnalyticsPlugin in Frameworks */,
+				06CDBDC9303DF59300B0DC9A /* FirebaseCore in Frameworks */,
 				067A701F30077C7100CEE238 /* CoreMLPredictionsPlugin in Frameworks */,
 				067A700D30077C7100CEE238 /* AWSCloudWatchLoggingPlugin in Frameworks */,
+				06CDBDB5303DF56100B0DC9A /* PostHog in Frameworks */,
+				06CDBDCB303DF59300B0DC9A /* FirebaseCrashlytics in Frameworks */,
 				067A700530077C7100CEE238 /* AmplifyFoundation in Frameworks */,
 				067A700930077C7100CEE238 /* AmplifyKinesisClient in Frameworks */,
 			);
@@ -147,6 +153,9 @@
 				067A701C30077C7100CEE238 /* AWSS3StoragePlugin */,
 				067A701E30077C7100CEE238 /* CoreMLPredictionsPlugin */,
 				57A19E02000000000000BEEF /* StripePaymentSheet */,
+				06CDBDB4303DF56100B0DC9A /* PostHog */,
+				06CDBDC8303DF59300B0DC9A /* FirebaseCore */,
+				06CDBDCA303DF59300B0DC9A /* FirebaseCrashlytics */,
 			);
 			productName = iosApp;
 			productReference = 682F1C166E0AD1A147C2786A /* customer-mobile.app */;
@@ -180,6 +189,7 @@
 				067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */,
 				57A19E01000000000000FEED /* XCRemoteSwiftPackageReference "stripe-ios-spm" */,
 				064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				06CDBDB3303DF56100B0DC9A /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 5251AB4807B23F90069732A9 /* Products */;
@@ -453,6 +463,14 @@
 				minimumVersion = 2.58.4;
 			};
 		};
+		06CDBDB3303DF56100B0DC9A /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.69.12;
+			};
+		};
 		57A19E01000000000000FEED /* XCRemoteSwiftPackageReference "stripe-ios-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/stripe/stripe-ios-spm";
@@ -543,6 +561,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 067A6FFE300779DC00CEE238 /* XCRemoteSwiftPackageReference "amplify-swift" */;
 			productName = CoreMLPredictionsPlugin;
+		};
+		06CDBDB4303DF56100B0DC9A /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 06CDBDB3303DF56100B0DC9A /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+		06CDBDC8303DF59300B0DC9A /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		06CDBDCA303DF59300B0DC9A /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 064B75E0303ACBCB0069336C /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 		57A19E02000000000000BEEF /* StripePaymentSheet */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -50,13 +50,16 @@ final class SwiftPaymentElementBridge: NSObject, IosPaymentElementBridge {
             // ⚠ COLLECT NOTHING WE ALREADY HOLD (FR-014/FR-015). `attachDefaultsToPaymentMethod = true`
             // is what makes this lossless rather than merely shorter: the address still reaches the
             // bank for authorisation, sourced from Effy's record instead of the shopper's keyboard.
-            var billingCollection = PaymentSheet.BillingDetailsCollectionConfiguration()
-            billingCollection.name = .never
-            billingCollection.email = .never
-            billingCollection.phone = .never
-            billingCollection.address = .never
-            billingCollection.attachDefaultsToPaymentMethod = true
-            configuration.billingDetailsCollectionConfiguration = billingCollection
+            //
+            // ⚠ MUTATED IN PLACE, never constructed. `BillingDetailsCollectionConfiguration` is a public
+            // struct that declares no public initializer, so its memberwise init is internal to
+            // StripePaymentSheet and unreachable from here. The default instance already sitting on the
+            // configuration is the only one we can get hold of.
+            configuration.billingDetailsCollectionConfiguration.name = .never
+            configuration.billingDetailsCollectionConfiguration.email = .never
+            configuration.billingDetailsCollectionConfiguration.phone = .never
+            configuration.billingDetailsCollectionConfiguration.address = .never
+            configuration.billingDetailsCollectionConfiguration.attachDefaultsToPaymentMethod = true
 
             if let billing {
                 var details = PaymentSheet.BillingDetails()
@@ -186,6 +189,10 @@ extension SwiftPaymentElementBridge: EmbeddedPaymentElementDelegate {
         publishSelection(from: embeddedPaymentElement)
     }
 
+    /// ⚠ `@MainActor` because `EmbeddedPaymentElement` is. The delegate methods above inherit that
+    /// isolation from the `@MainActor` protocol they witness; this helper is not a witness, so it would
+    /// otherwise be nonisolated and unable to touch `paymentOption` or `view`.
+    @MainActor
     private func publishSelection(from element: EmbeddedPaymentElement) {
         let option = element.paymentOption
         onChange?(

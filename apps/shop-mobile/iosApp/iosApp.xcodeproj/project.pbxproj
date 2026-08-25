@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0FB0000000000000000000B2 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB0000000000000000000B1 /* FirebaseCore */; };
+		0FB0000000000000000000C2 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB0000000000000000000C1 /* FirebaseCrashlytics */; };
+		0FB0000000000000000000D2 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 0FB0000000000000000000D1 /* PostHog */; };
 		063AE3313007DC4800503360 /* Amplify in Frameworks */ = {isa = PBXBuildFile; productRef = 063AE3303007DC4800503360 /* Amplify */; };
 		063AE3333007DC4800503360 /* AmplifyFirehoseClient in Frameworks */ = {isa = PBXBuildFile; productRef = 063AE3323007DC4800503360 /* AmplifyFirehoseClient */; };
 		063AE3353007DC4800503360 /* AmplifyFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 063AE3343007DC4800503360 /* AmplifyFoundation */; };
@@ -60,6 +63,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0FB0000000000000000000B2 /* FirebaseCore in Frameworks */,
+				0FB0000000000000000000C2 /* FirebaseCrashlytics in Frameworks */,
+				0FB0000000000000000000D2 /* PostHog in Frameworks */,
 				063AE33B3007DC4800503360 /* AWSAPIPlugin in Frameworks */,
 				063AE3313007DC4800503360 /* Amplify in Frameworks */,
 				063AE3373007DC4800503360 /* AmplifyFoundationBridge in Frameworks */,
@@ -128,6 +134,9 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				0FB0000000000000000000B1 /* FirebaseCore */,
+				0FB0000000000000000000C1 /* FirebaseCrashlytics */,
+				0FB0000000000000000000D1 /* PostHog */,
 				063AE3303007DC4800503360 /* Amplify */,
 				063AE3323007DC4800503360 /* AmplifyFirehoseClient */,
 				063AE3343007DC4800503360 /* AmplifyFoundation */,
@@ -174,6 +183,8 @@
 			mainGroup = B2ABDBFE19B1E8DB57A6EC7A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				0FB0000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				0FB0000000000000000000A2 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 				06AB31E73007DB3800E034E0 /* XCRemoteSwiftPackageReference "amplify-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -440,6 +451,22 @@
 				minimumVersion = 2.58.4;
 			};
 		};
+		0FB0000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.18.0;
+			};
+		};
+		0FB0000000000000000000A2 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.69.12;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -522,6 +549,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 06AB31E73007DB3800E034E0 /* XCRemoteSwiftPackageReference "amplify-swift" */;
 			productName = CoreMLPredictionsPlugin;
+		};
+		0FB0000000000000000000B1 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB0000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		0FB0000000000000000000C1 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB0000000000000000000A1 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		0FB0000000000000000000D1 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0FB0000000000000000000A2 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
