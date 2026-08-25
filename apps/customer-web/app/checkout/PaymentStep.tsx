@@ -12,7 +12,9 @@ import { ActionButton } from "@/components/storefront/actions"
 import { formatMoney } from "@/lib/money"
 
 import { CardFields, useCardFieldState } from "./_payment/CardFields"
+import { BANK_APPROVAL_REQUIRED, failureFor, type PaymentFailure } from "./_payment/failures"
 import { MethodList, type MethodKind } from "./_payment/MethodList"
+import { PaymentNotice } from "./_payment/PaymentNotice"
 import { NEW_CARD, SaveCardConsent, SavedCards } from "./_payment/SavedCards"
 import { WalletDivider, WalletRow } from "./_payment/WalletRow"
 import {
@@ -49,7 +51,12 @@ export function PaymentStep({
 
   const [saveCard, setSaveCard] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [notice, setNotice] = useState<string | null>(null)
+  // ⚠ A structured failure, not a string. The words the shopper reads are chosen from the provider's
+  // decline code where there is one, so the message can name a cause rather than echo a sentence
+  // written for a developer (FR-036).
+  const [failure, setFailure] = useState<PaymentFailure | null>(null)
+  // Set while the bank has the shopper. NOT a failure, and must not read like one (FR-040).
+  const [awaitingBank, setAwaitingBank] = useState(false)
   // Whether a wallet actually rendered. Only then is the "or pay another way" rule meaningful — a rule
   // with nothing above it is a divider dividing one thing.
   const [walletShown, setWalletShown] = useState(false)
@@ -94,11 +101,50 @@ export function PaymentStep({
   const laterAvailable = intent.payOverTimeAvailable === true
   const usingNewCard = selectedCard === NEW_CARD && method === "card"
 
+  /**
+   * ⚠ FR-042 — an order that has ALREADY been paid for must not be payable again.
+   *
+   * A shopper reaches this screen with a stale intent more easily than it sounds: the browser back
+   * button from the receipt, a tab left open, a re-opened notification. The server refuses a second
+   * charge (FR-038), but showing the form at all invites the attempt and the confusion that follows.
+   *
+   * ⚠ ASKED, NOT ASSUMED. The confirm endpoint is the idempotent fallback finaliser: calling it for a
+   * pending order reports `paid: false` and changes nothing, and for a paid one reports `paid: true`
+   * without applying anything twice. That makes it the honest way to ask "is this already done?" —
+   * far better than trusting a flag the client happens to be holding.
+   */
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch("/api/checkout/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: intent.orderId }),
+        })
+        if (!res.ok) return
+        const data = (await res.json()) as { paid?: boolean }
+        if (!cancelled && data.paid) {
+          router.replace(`/checkout/complete?order=${intent.orderId}`)
+        }
+      } catch {
+        // Best-effort. A failed check must never block a shopper who genuinely needs to pay.
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [intent.orderId, router])
+
   async function removeCard(id: string) {
     const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
     // 404 is success from the shopper's point of view: the card is gone either way.
     if (!res.ok && res.status !== 404) {
-      setNotice("We couldn't remove that card. Please try again.")
+      setFailure({
+        title: "We couldn't remove that card.",
+        detail: "Your cards are unchanged. Try again in a moment.",
+        retryable: true,
+      })
       return
     }
     setCards((prev) => {
@@ -123,7 +169,8 @@ export function PaymentStep({
     if (usingNewCard && !cardNumberElement) return
 
     setBusy(true)
-    setNotice(null)
+    setFailure(null)
+    setAwaitingBank(false)
     try {
       // Three routes, one for each family. Pay-over-time redirects to the provider; a kept card needs
       // nothing typed and confirms by id; a new card confirms from the element.
@@ -159,10 +206,14 @@ export function PaymentStep({
           router.push(`/checkout/complete?order=${intent.orderId}`)
           return
         case "requires_action":
-          // The provider drives the bank's challenge and returns to `return_url`; nothing to do.
+          // ⚠ The provider drives the bank's challenge and returns to `return_url`. Saying so is the
+          // point: this is the moment a shopper most often panics and closes the tab, and being told
+          // in advance that their bank will ask — and that they will be brought back — is what stops
+          // that (FR-040).
+          setAwaitingBank(true)
           return
         case "failed":
-          setNotice(outcome.message)
+          setFailure(failureFor({ declineCode: outcome.declineCode, providerMessage: outcome.message }))
           return
       }
     } finally {
@@ -192,10 +243,11 @@ export function PaymentStep({
           <WalletRow
             disabled={busy}
             onRendered={setWalletShown}
-            onError={setNotice}
+            onError={(message) => setFailure(failureFor({ providerMessage: message }))}
             onConfirm={async () => {
               setBusy(true)
-              setNotice(null)
+              setFailure(null)
+    setAwaitingBank(false)
               try {
                 const outcome = await confirmWalletPayment({
                   stripe: stripe!,
@@ -205,7 +257,7 @@ export function PaymentStep({
                   returnUrl: `${window.location.origin}/checkout/complete?order=${intent.orderId}`,
                 })
                 if (outcome.kind === "failed") {
-                  setNotice(outcome.message)
+                  setFailure(failureFor({ declineCode: outcome.declineCode, providerMessage: outcome.message }))
                   return
                 }
                 if (outcome.kind === "succeeded" || outcome.kind === "processing") {
@@ -264,10 +316,9 @@ export function PaymentStep({
             </p>
           </div>
 
-          {notice ? (
-            <p role="alert" className="text-sm text-destructive">
-              {notice}
-            </p>
+          {failure ? <PaymentNotice failure={failure} /> : null}
+          {awaitingBank && !failure ? (
+            <PaymentNotice failure={BANK_APPROVAL_REQUIRED} kind="waiting" />
           ) : null}
 
           <div>

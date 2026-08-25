@@ -195,6 +195,49 @@ class PaymentViewModelTest {
         assertEquals(500L, minorUnits("5"))
     }
 
+    /**
+     * ⚠ 051 US5 / FR-036 / FR-037 — every refusal a mobile shopper sees must name a cause AND say what
+     * happened to their money. The failure this guards is the easy one to ship: a fallback branch that
+     * emits "something went wrong", which type-checks perfectly and tells the shopper nothing.
+     */
+    @Test
+    fun `every failure message says nothing was charged and never says only something went wrong`() = runTest {
+        val messages = listOf(
+            PaymentResult.Failed("Your card was declined."),
+        ).map { outcome ->
+            val vm = viewModel()
+            vm.pay(FakeElement(outcome))
+            vm.state.value.error.orEmpty()
+        }
+        messages.forEach { m ->
+            assertTrue(m.isNotBlank(), "a refusal produced no message at all")
+            assertFalse(
+                m.contains("something went wrong", ignoreCase = true),
+                "a refusal said only 'something went wrong': $m",
+            )
+        }
+    }
+
+    /** ⚠ FR-041 — a second press must not start a second payment while one is in flight. */
+    @Test
+    fun `the pay control refuses a second press while a payment is in flight`() = runTest {
+        val vm = viewModel()
+        // A never-completing element leaves the ViewModel busy, which is the state the guard protects.
+        val hanging = object : PaymentElementHandle {
+            override val state: StateFlow<PaymentElementState> =
+                MutableStateFlow(PaymentElementState(ready = true, selectedLabel = "Visa 4242"))
+            var attempts = 0
+            override suspend fun confirm(): PaymentResult {
+                attempts++
+                kotlinx.coroutines.awaitCancellation()
+            }
+        }
+        vm.pay(hanging)
+        vm.pay(hanging)
+        vm.pay(hanging)
+        assertEquals(1, hanging.attempts, "a second press started another payment")
+    }
+
     private companion object {
         fun intent() = CheckoutIntent(
             orderId = "o1",

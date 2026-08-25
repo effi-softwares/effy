@@ -112,16 +112,22 @@ class PaymentViewModel(
     }
 
     /**
-     * ⚠ Every message is OURS, and every one of them says what the shopper can do next (FR-036). None
-     * of them is "something went wrong" — a shopper told only that has no way to decide whether to wait,
-     * try another card, or give up. The `else` branch still names the consequence that matters most:
-     * nothing was charged.
+     * ⚠ Every message is OURS, and every one says what the shopper can do next (FR-036). None is
+     * "something went wrong" — a shopper told only that has no way to decide whether to wait, try
+     * another card, or give up, so they abandon the basket.
+     *
+     * ⚠ EVERY MESSAGE NAMES WHAT HAPPENED TO THE MONEY. "Nothing has been charged" is the single most
+     * useful fact after a failed payment, and it is true on every path here (FR-037). Mirrors the web
+     * surface's `failures.ts`; the two are kept in step by hand, and the parity register records it.
      */
     private fun message(e: AppError): String = when (e) {
         is AppError.Validation -> e.message
-        AppError.Network -> "No connection. Nothing has been charged — check your network and try again."
-        AppError.Unavailable -> "We're having trouble taking payments right now. Nothing has been charged; try again shortly."
-        else -> "We couldn't take that payment. Nothing has been charged — try again, or use a different payment method."
+        AppError.Network ->
+            "No connection. Nothing has been charged and your basket is still here — check your network and try again."
+        AppError.Unavailable ->
+            "We're having trouble taking payments right now. Nothing has been charged; try again shortly."
+        else ->
+            "We couldn't take that payment. Nothing has been charged and your basket is still here — try again, or use a different payment method."
     }
 }
 

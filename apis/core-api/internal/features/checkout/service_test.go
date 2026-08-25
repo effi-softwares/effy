@@ -44,6 +44,13 @@ type fakeStore struct {
 	// providerWrites counts SetProviderCustomerID calls, which is how a test proves the reference is
 	// written once and not on every retry.
 	providerWrites int
+
+	// 051 T087 — the confirm fallback now carries every redirect return (Klarna, Zip, Afterpay, 3DS),
+	// so its idempotency deserves a test rather than an assumption.
+	finalizeSucceeded int
+	alreadyFinalized  bool
+	orderIntent       string
+	orderNotFound     bool
 }
 
 func newFakeStore() *fakeStore {
@@ -103,10 +110,21 @@ func (f *fakeStore) FindOrderByIntent(context.Context, string) (string, bool, er
 }
 func (f *fakeStore) MarkEventSeen(context.Context, string, string) (bool, error) { return true, nil }
 func (f *fakeStore) OrderIntentForCustomer(context.Context, string, string) (string, bool, error) {
+	if f.orderNotFound {
+		return "", false, nil
+	}
 	return "pi_1", true, nil
 }
-func (f *fakeStore) FinalizeSucceeded(context.Context, string) (bool, error) { return true, nil }
-func (f *fakeStore) FinalizeFailed(context.Context, string) error            { return nil }
+
+// 051 T087: count the paid transitions. `applied` mirrors the real store, where the transition runs
+// only for an order still in pending_payment — so a repeat confirm reports false, not a second apply.
+func (f *fakeStore) FinalizeSucceeded(context.Context, string) (bool, error) {
+	f.finalizeSucceeded++
+	applied := !f.alreadyFinalized
+	f.alreadyFinalized = true
+	return applied, nil
+}
+func (f *fakeStore) FinalizeFailed(context.Context, string) error { return nil }
 
 type fakeGateway struct {
 	amount int64

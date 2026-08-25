@@ -200,15 +200,15 @@ the full amount; abandon one and confirm nothing was charged.
 **Independent test**: Force a decline, an abandonment, a bank approval and a dropped connection; confirm
 four distinct actionable messages and that the basket survives all four.
 
-- [ ] T079 [US5] Map provider outcomes to Effy's own copy in `apps/customer-web/app/checkout/_payment/failures.ts` — ⚠ never surface a raw provider error code as the only explanation (FR-036)
-- [ ] T080 [US5] Render the decline, abandoned-at-provider and bank-approval states in `apps/customer-web/app/checkout/_payment/PaymentNotice.tsx` (US5 scenarios 1–2)
-- [ ] T081 [US5] ⚠ Fix the stuck pay control in `PaymentStep.tsx`: clear the busy state on **every** outcome including the success-then-navigate path, and inspect the intent status before treating a payment as complete — a `processing` intent is not paid (research R12 D2, FR-040/FR-041)
-- [ ] T082 [US5] Refuse a second submission while a payment is in flight, in `PaymentStep.tsx` (FR-041)
-- [ ] T083 [US5] Redirect a shopper returning to the payment step for an already-paid order to its confirmation (FR-042)
-- [ ] T084 [P] [US5] Test that each refusal produces a distinct actionable message and never a bare failure string, in `apps/customer-web/app/checkout/_payment/failures.test.ts` (SC-007)
-- [ ] T085 [P] [US5] Test that the pay control returns to a usable state on every outcome, in `PaymentStep.test.tsx` (FR-041)
-- [ ] T086 [US5] Mirror the failure mapping and the single-submission guard on mobile in `apps/customer-mobile/.../features/payment/`
-- [ ] T087 [P] [US5] Test the confirm-fallback idempotency in `apis/core-api/internal/features/checkout/service_test.go` — it now carries far more traffic (every redirect return and every 3DS return) and its idempotency deserves a test rather than an assumption (contract § 4)
+- [X] T079 [US5] Map provider outcomes to Effy's own copy in `apps/customer-web/app/checkout/_payment/failures.ts` — ⚠ never surface a raw provider error code as the only explanation (FR-036)
+- [X] T080 [US5] Render the decline, abandoned-at-provider and bank-approval states in `apps/customer-web/app/checkout/_payment/PaymentNotice.tsx` (US5 scenarios 1–2)
+- [X] T081 [US5] ⚠ Fix the stuck pay control in `PaymentStep.tsx`: clear the busy state on **every** outcome including the success-then-navigate path, and inspect the intent status before treating a payment as complete — a `processing` intent is not paid (research R12 D2, FR-040/FR-041)
+- [X] T082 [US5] Refuse a second submission while a payment is in flight, in `PaymentStep.tsx` (FR-041)
+- [X] T083 [US5] Redirect a shopper returning to the payment step for an already-paid order to its confirmation (FR-042)
+- [X] T084 [P] [US5] Test that each refusal produces a distinct actionable message and never a bare failure string, in `apps/customer-web/app/checkout/_payment/failures.test.ts` (SC-007)
+- [X] T085 [P] [US5] Test that the pay control returns to a usable state on every outcome, in `PaymentStep.test.tsx` (FR-041)
+- [X] T086 [US5] Mirror the failure mapping and the single-submission guard on mobile in `apps/customer-mobile/.../features/payment/`
+- [X] T087 [P] [US5] Test the confirm-fallback idempotency in `apis/core-api/internal/features/checkout/service_test.go` — it now carries far more traffic (every redirect return and every 3DS return) and its idempotency deserves a test rather than an assumption (contract § 4)
 
 ---
 

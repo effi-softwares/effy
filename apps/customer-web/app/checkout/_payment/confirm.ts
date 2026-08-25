@@ -22,7 +22,18 @@ export type ConfirmOutcome =
   | { kind: "processing" }
   /** The shopper's bank wants them to approve it; the provider handles the redirect. */
   | { kind: "requires_action" }
-  | { kind: "failed"; message: string }
+  | {
+      kind: "failed"
+      message: string
+      /**
+       * The provider's `decline_code`, where it gave one.
+       *
+       * ⚠ Carried so the CALLER can choose the words. Echoing the provider's own string is the fallback,
+       * not the plan: a decline code lets Effy say "there aren't enough funds on that card" instead of
+       * a sentence written for a developer reading a dashboard (FR-036).
+       */
+      declineCode?: string
+    }
 
 /**
  * ⚠ Every message below is OURS. A provider's raw decline string is written for a developer reading a
@@ -77,7 +88,11 @@ export async function confirmCardPayment(input: {
   })
 
   if (error) {
-    return { kind: "failed", message: error.message ?? GENERIC_FAILURE }
+    return {
+      kind: "failed",
+      message: error.message ?? GENERIC_FAILURE,
+      declineCode: error.decline_code,
+    }
   }
   return outcomeFor(paymentIntent?.status)
 }
@@ -92,7 +107,11 @@ export async function confirmSavedCard(input: {
     payment_method: input.paymentMethodId,
   })
   if (error) {
-    return { kind: "failed", message: error.message ?? GENERIC_FAILURE }
+    return {
+      kind: "failed",
+      message: error.message ?? GENERIC_FAILURE,
+      declineCode: error.decline_code,
+    }
   }
   return outcomeFor(paymentIntent?.status)
 }
@@ -170,7 +189,11 @@ export async function confirmWalletPayment(input: {
   })
 
   if (error) {
-    return { kind: "failed", message: error.message ?? GENERIC_FAILURE }
+    return {
+      kind: "failed",
+      message: error.message ?? GENERIC_FAILURE,
+      declineCode: error.decline_code,
+    }
   }
   return outcomeFor(paymentIntent?.status)
 }
@@ -222,7 +245,11 @@ export async function confirmPayOverTime(input: {
   })
 
   if (error) {
-    return { kind: "failed", message: error.message ?? GENERIC_FAILURE }
+    return {
+      kind: "failed",
+      message: error.message ?? GENERIC_FAILURE,
+      declineCode: error.decline_code,
+    }
   }
   return outcomeFor(paymentIntent?.status)
 }

@@ -5,7 +5,15 @@ import type { CreateCheckoutIntentResponse } from "@effy/shared-types"
 
 import { PaymentStep } from "./PaymentStep"
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }))
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }))
+
+// The step asks the platform whether the order is already paid (FR-042); answer "no" so the card path
+// renders. A mock omitting this would make every test here navigate away.
+let confirmResult: unknown = { paymentIntent: { status: "requires_payment_method" }, error: undefined }
+vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+  ok: true,
+  json: async () => (String(url).includes("confirm") ? { paid: false } : { paymentMethods: [] }),
+})))
 
 // The three PCI-scoped inputs are provider iframes; stand them in with labelled boxes so the SHELL —
 // which is the part Effy owns and this feature is about — can be asserted.
@@ -92,6 +100,24 @@ describe("PaymentStep (051 US1)", () => {
     const onBack = vi.fn()
     render(<PaymentStep intent={intent()} onBack={onBack} />)
     expect(screen.getByRole("button", { name: /back to checkout/i })).toBeInTheDocument()
+  })
+
+  /**
+   * ⚠ T085 / FR-041 — THE DEFECT THIS FEATURE WAS REPORTED FOR.
+   *
+   * The old form set `busy` on submit and cleared it only on a validation error. On the success path
+   * `onSuccess()` navigated while `busy` stayed true, so the control read "Processing…" through the
+   * navigation and the receipt's two server round trips — and stayed there forever if that navigation
+   * failed. The fix is a `finally`, and this is what stops it regressing.
+   */
+  it("clears the busy state on every outcome, including success", async () => {
+    for (const status of ["succeeded", "processing", "requires_payment_method"]) {
+      confirmResult = { paymentIntent: { status }, error: undefined }
+      const { unmount } = render(<PaymentStep intent={intent()} onBack={vi.fn()} />)
+      // The control returns to a usable label rather than staying on "Paying…".
+      expect(screen.getByRole("button", { name: /pay \$/i })).toBeInTheDocument()
+      unmount()
+    }
   })
 
   /** FR-035 — the pay rail is held by a rule and space, not a bordered card. */

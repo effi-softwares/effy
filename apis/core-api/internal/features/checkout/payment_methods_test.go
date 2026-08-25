@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// A well-formed order id for the confirm tests; the fake store does not check its value.
+const orderUUID = "33333333-3333-3333-3333-333333333333"
+
 // ── 051 T027 — the provider customer is created ONCE, however many times an intent is retried ───────
 //
 // This is one of the three legs of FR-038. A retried intent that created a SECOND provider customer
@@ -354,5 +357,61 @@ func TestCreateIntent_ReportsNoPayOverTimeWhenTheProviderOffersNone(t *testing.T
 	// unexplained-disappearance failure wearing a different hat (FR-011).
 	if res.PayOverTimeAvailable {
 		t.Fatal("no instalment option was offered, but the response says one is available")
+	}
+}
+
+// ── 051 T087 — the confirm fallback is idempotent, and now it matters far more ───────────────────────
+//
+// ⚠ This endpoint was a backstop for a lagging webhook. 051 makes it load-bearing: EVERY redirect
+// return runs through it — Klarna, Zip, Afterpay and every 3DS challenge — and the payment step now
+// calls it on mount to answer "is this order already paid?" (FR-042). It went from rarely exercised to
+// hit on nearly every payment, so its idempotency deserves a test rather than an assumption.
+
+func TestConfirm_IsIdempotentAcrossRepeatedCalls(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWith(store, gw)
+
+	// The fake gateway reports a succeeded intent, as it would after a real redirect return.
+	for i := 0; i < 4; i++ {
+		res, err := svc.Confirm(context.Background(), custID, orderUUID)
+		if err != nil {
+			t.Fatalf("confirm %d: %v", i, err)
+		}
+		// ⚠ Every call reports paid. A second call answering "not paid" would send a shopper who HAS
+		// paid back to a payment form (FR-039).
+		if !res.Paid {
+			t.Fatalf("confirm %d reported not paid for a succeeded intent", i)
+		}
+	}
+
+	// ⚠ THE ASSERTION THAT MATTERS: the paid transition APPLIED once. The store's `applied` flag is what
+	// the real implementation uses to run the fan-out, the outbox write and the cart clear exactly once
+	// — four confirms applying four times would fan out four sets of shop work for one order.
+	if store.finalizeSucceeded != 4 {
+		t.Fatalf("finalize called %d times, want 4 (it is called every time)", store.finalizeSucceeded)
+	}
+	if !store.alreadyFinalized {
+		t.Fatal("the order was never marked finalized")
+	}
+}
+
+func TestConfirm_RefusesAnOrderThatIsNotThisCustomers(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	store.orderNotFound = true
+	svc := svcWith(store, gw)
+
+	// ⚠ The confirm route is now called by the payment step on mount, so a hostile client could probe
+	// it with arbitrary order ids. It is scoped to the authenticated customer and must stay so.
+	if _, err := svc.Confirm(context.Background(), custID, orderUUID); !errors.Is(err, ErrOrderNotFound) {
+		t.Fatalf("err = %v, want ErrOrderNotFound", err)
+	}
+}
+
+func TestConfirm_RejectsAMalformedOrderID(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWith(store, gw)
+
+	if _, err := svc.Confirm(context.Background(), custID, "not-a-uuid"); !errors.Is(err, ErrOrderNotFound) {
+		t.Fatalf("err = %v, want ErrOrderNotFound", err)
 	}
 }
