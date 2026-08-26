@@ -12,6 +12,7 @@ import { getSession, requireCustomer } from "@/lib/dal"
 import { formatMoney } from "@/lib/money"
 
 import { ClearCart } from "./ClearCart"
+import { completionState, mayClearCart } from "./state"
 import { Display } from "@/components/storefront/kit"
 
 export const metadata: Metadata = {
@@ -76,11 +77,32 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
     }
   }
 
-  if (!dto) {
+  // ⚠ ONE decision, made in a pure function so the cart rule is testable (`state.ts`). It used to be
+  // an unconditional `<ClearCart>` inside the JSX, where nothing could assert it.
+  const state = completionState(dto, redirectStatus)
+
+  // ⚠ AN UNPAID ORDER IS NOT A RECEIPT, AND MUST NOT EMPTY A BASKET.
+  //
+  // The order row is created at INTENT time, so it exists from the moment the shopper reaches the
+  // payment step — long before any money moves. `GET /v1/orders/{id}` has no status filter, so a
+  // `pending_payment` order comes back like any other. This page used to branch only on whether the
+  // order could be FETCHED, which meant every unpaid-but-existing order fell through to the receipt:
+  //
+  //   • it read "Thank you … Total paid $X" for a payment that had not happened, and
+  //   • `<ClearCart>` rendered unconditionally, so a shopper who ABANDONED at Klarna, Zip, Afterpay or
+  //     a 3DS challenge came back to an emptied basket.
+  //
+  // The second is the serious one: nothing was charged, so the basket is the shopper's only way to try
+  // again, and the copy in the abandoned branch below *promises* it is still there. Clearing it made
+  // that promise false.
+  //
+  // So the receipt is gated on the payment, not on the fetch. Everything else is a waiting-or-failed
+  // state that keeps the basket.
+  if (!dto || state !== "receipt") {
     // ⚠ 051 US4 — a shopper who ABANDONED at the provider must not be told their payment is being
     // confirmed. Nothing was charged and their basket is intact; saying "confirming" would leave them
     // waiting for an order that is never coming (US4 scenario 5, FR-036).
-    const abandoned = redirectStatus === "failed" || redirectStatus === "canceled"
+    const abandoned = state === "abandoned"
     return (
       <div className="rounded-2xl border border-dashed p-12 text-center">
         <h1 className="text-lg font-medium">
@@ -106,14 +128,15 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
     )
   }
 
-  const paid = dto.paymentStatus === "succeeded" || dto.status === "paid"
+
 
   return (
     <div>
-      <ClearCart orderId={dto.id} />
+      {/* Paid, and only paid — see `state.ts`. */}
+      {mayClearCart(state) ? <ClearCart orderId={dto.id} /> : null}
 
       <div className="mb-6 text-center">
-        <p className="text-sm font-medium text-primary">{paid ? "Payment received" : "Order received"}</p>
+        <p className="text-sm font-medium text-primary">Payment received</p>
         <Display as="h1" size="section" className="mt-1">Thank you</Display>
         <p className="mt-1 text-sm text-muted-foreground">
           Order <span className="font-medium text-foreground">{dto.orderNumber}</span>
