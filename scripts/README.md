@@ -28,6 +28,25 @@ Both settings prove the gate. What changes is which side of it there is data for
 not a weaker check — a `shop_manager` holding the role in `cognito:groups` and still being refused
 is the clearest possible demonstration that the **platform record, not the token, decides**.
 
+## Maintenance
+
+| Script | `make` target | Does |
+|---|---|---|
+| `purge-orders.sh` | `purge-orders` | Deletes every order and everything derived from it — fulfilment, payments, delivery packages, driver work, the order half of the event ledgers |
+
+`purge-orders` is here for the same reason as the rest: it cannot be a product feature. An order is a
+financial record and nothing in the platform may erase one, so clearing dev's accumulated test orders
+is an operator action or it does not exist.
+
+⚠ Two chains are `ON DELETE RESTRICT` (driver tasks → fulfilments/orders, and promo redemptions), so a
+plain `DELETE FROM "order"` **fails** rather than cascading. The script deletes in dependency order,
+inside one transaction. Preview first: `make purge-orders DRY_RUN=1` — it runs the whole delete and
+rolls back.
+
+It refuses any environment but `dev` unless `PURGE_ALLOW_NON_DEV=1`, and it does **not** touch
+customers, carts, products, shops, `customer.stripe_customer_id` (the link to a shopper's saved cards),
+or anything at Stripe.
+
 ## Why these are scripts and not tests
 
 Two of this platform's most important guarantees live outside application code:

@@ -26,7 +26,7 @@ TF_ROOTS := $(BOOTSTRAP_DIR) $(GLOBAL_DIR) $(INFRA_DIR)/envs/dev $(INFRA_DIR)/en
 .PHONY: help bootstrap-init bootstrap-apply init plan apply destroy output fmt validate lint preflight \
         global-init global-plan global-apply global-output dns-verify mail-verify mail-events-verify edge-health \
         db-new db-status db-up db-down check-goose \
-        core-run core-test core-lint core-build core-ecr-login core-image-push core-deploy create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
+        core-run core-test core-lint core-build core-ecr-login core-image-push core-deploy purge-orders create-first-admin load-localities delete-admin edge-install edge-offline edge-test edge-deploy edge-remove \
         verify-naming verify-pool-credentials \
         bo-dev bo-build bo-lint bo-test \
         shop-dev shop-build shop-lint shop-test \
@@ -149,6 +149,10 @@ db-new: check-goose ## Scaffold a SQL migration: make db-new name=snake_case_tit
 db-status: check-goose ## Applied vs pending migrations (read-only): make db-status ENV=dev
 	@DSN="$$($(DB_DSN_CMD))" || exit 1; \
 	$(GOOSE_ENV) GOOSE_DBSTRING="$$DSN" goose status
+
+purge-orders: ## OPERATOR: delete every order + all order-derived data (ENV=dev; DRY_RUN=1 to preview)
+	@ENV=$(ENV) AWS_PROFILE=$(AWS_PROFILE) AWS_REGION=$(AWS_REGION) \
+		bash scripts/purge-orders.sh $(if $(DRY_RUN),--dry-run,)
 
 db-up: check-goose ## OPERATOR: apply pending migrations (confirm; FORCE=1 skips the commit guard for private dev iteration)
 	@if [ -z "$(FORCE)" ] && [ -n "$$(git status --porcelain $(MIGRATIONS_DIR))" ]; then \
