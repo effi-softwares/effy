@@ -197,6 +197,10 @@ invoice" wording appear anywhere — absent, not blank, not placeholder.
 
 **⚠ Nothing here is Claude's to run.** These provision, deploy, or need a human eye.
 
+> ✅ **The slice was CONCLUDED on 2026-08-26 with all six of these still open**, on the operator's
+> direction. They remain the accurate list of what has not happened — see
+> [SIGNOFF.md](./SIGNOFF.md). Deployment steps are in [quickstart.md](./quickstart.md) §1–§2.
+
 - [ ] T063 🧑‍💻 Commit the migration, then `make db-status ENV=dev` and `make db-up ENV=dev` (the 003 commit-guard refuses an uncommitted migration).
 - [ ] T064 🧑‍💻 Deploy in this order: `core-api`, then `make edge-deploy SERVICE=customer ENV=dev`, then `SERVICE=notifications ENV=dev`, then customer-web. ⚠ `core-api` BEFORE customer-web — 047 recorded that reversing it briefly broke dev checkout.
 - [ ] T065 🧑‍💻 Walk, per `specs/052-order-confirmation-invoice/quickstart.md` §4: SC-001 (five observers), SC-005 (the mail-client matrix incl. Outlook's Word engine — nothing open-source substitutes for it), SC-009 (dark mode, largest text, screen reader on both surfaces).

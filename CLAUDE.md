@@ -261,6 +261,70 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**052-order-confirmation-invoice — Order Confirmation & Emailed Receipt.** ✅ **CONCLUDED (PARTIAL BY
+DESIGN) 2026-08-26 — 62/68 tasks. CODE-COMPLETE + MACHINE-VERIFIED on web, Android, iOS and email.
+NOT DEPLOYED. ⚠ NO RECEIPT HAS EVER BEEN SENT.** Sign-off:
+[specs/052-order-confirmation-invoice/SIGNOFF.md](specs/052-order-confirmation-invoice/SIGNOFF.md).
+
+Turns the thank-you page into a **document-grade receipt** on both customer surfaces, and **emails it**
+— closing the gap where a shopper who closed the tab had no record of their purchase at all.
+- **Data**: one migration `20260826122449_order_receipt.sql` — three nullable `payment.method_*`
+  columns + `public.receipt_dispatch` (simultaneously the outbox, the rate-limit ledger and the audit
+  trail). ⚠ **Exactly-once is a PARTIAL UNIQUE INDEX**, not code: `receipt_dispatch_auto_uq` on
+  `(order_id) WHERE reason='order_paid'`, leaving the `customer_request` arm unconstrained so a resend
+  stays representable. That asymmetry is why `notification_request` (050) could NOT carry this — its
+  `UNIQUE(dedupe_key)` is exactly what makes push exactly-once and exactly what would forbid a resend.
+- **Paths**: receipt READ = hot (`core-api/orders`, already there); receipt SEND = cold (a new
+  scheduled `receiptDrain` in `edge-api/notifications`); RESEND = cold (`edge-api/customer/receipts`).
+  An SES call on the paid path would make a payment's success depend on a mail service being up.
+- ⚠ **THE DELIVERY PROMISE IS DATE-GRANULAR.** `promised_from`/`promised_to` are `date` columns; the
+  platform has no delivery time window and cannot derive one. The design canvas drew "Today, 5:00–8:00
+  pm" — a promise the business has not made, on the one document a customer treats as a record.
+  Corrected to a date across all three surfaces (research R4).
+- ⚠ **The stage is SERVER-DERIVED** (`orders/stage.go`) and it is a **ROLLUP, NOT A MAX**: a two-shop
+  order with one portion delivered and one still picking is `packing`. customer-web's own
+  `summarizeFulfillment` was DELETED for being a second implementation of one rule — 029's banner
+  target and 033's `available` flag, where both surfaces keep rendering something so divergence is
+  silent. Proven by breaking it: a `max` makes exactly one test fail.
+- ⚠ **The resend takes NO address.** The recipient is resolved from the authenticated subject; an
+  `email` in the body would make it an open relay for a document carrying a person's name, delivery
+  address and purchase history. Its rate limit is an **atomic count-inside-the-INSERT** (039's
+  newsletter lesson), and "not yours" / "no such order" are **byte-identical** refusals or the route
+  becomes an oracle for which order ids are real.
+- **Colour**: a **bounded status palette** (a recorded Principle V exception — the amber same-day badge
+  is a genuine third hue). Component-local on BOTH surfaces, deliberately duplicated rather than shared,
+  because the shared package for colour IS the design system and that is exactly where it must not go.
+  The hue is never text (a dot carries it, the label stays on the ramp). ⚠ `tokens:check` **unchanged**
+  is the mechanical proof; also proven by deletion — removing one file breaks 3 imports and nothing else.
+- ⚠ **NOT A TAX INVOICE, and that is two gaps not one** (research R13): the **ABN is unsupplied**
+  (operator input; the constitution forbids inferring it) AND **per-item GST treatment is unmodelled** —
+  basic food is GST-free in Australia, so a grocery basket is a **mixed supply** and "total price
+  includes GST" is FALSE for most orders. `canIssueTaxInvoice()` stays false until BOTH land. The tax
+  fields are **absent, not placeholder** (FR-031); the block's position is reserved and commented at all
+  three render sites.
+- **⚠ SIX PRE-EXISTING DEFECTS FOUND, five fixed**: (1) the **mobile receipt's lines did not add up** —
+  `deliveryFeeAmount` was never mapped, so it showed Items − Discount = Total while delivery had been
+  charged; 051's FR-043 recorded this exact defect and fixed it **on web only**. (2) `packages/brand`
+  was **RED before this slice began** (048's console `robots.txt` unexempted), aborting `pnpm -r test`
+  at **4 packages of 17**. (3) `MethodList.test.tsx` **had been asserting nothing** — 051's styling
+  commit moved the class its selector matched. (4) 050's `NOTIF_*` env vars were **undeclared**.
+  (5) ⚠ `apis/edge-api/notifications` had **no `.gitignore`** — the only edge service missing it — so
+  **1.7 MB of build artifacts** were committed, including a `serverless-state.json` carrying resolved
+  DB hostname, username and secret ARNs. Untracked; ⚠ **still in history**.
+- **Verified**: `pnpm -r typecheck` **17/17** · `pnpm -r test` **17/17** · Go build/vet/gofmt clean ·
+  customer-web **433** · email-kit **71** · edge-notifications **22** · edge-customer **170** ·
+  customer-mobile **306** + iOS main/test compile + `assembleDebug` · `email-check` · `brand-check` ·
+  `tokens:check` unchanged · `terraform validate` · guest bundle within budget.
+- **⚠ Open (6, all operator)**: the commit, `make db-up ENV=dev`, `make apply ENV=dev` (one new alarm),
+  `core-image-push`+`core-deploy`, `edge-deploy SERVICE=customer` and `SERVICE=notifications`, then the
+  live SC walk. ⚠ **Deploy `core-api` BEFORE pushing to `dev`** — Amplify auto-deploys customer-web on
+  push, and 047 recorded that the reverse order briefly broke dev checkout. ⚠ **Docker was down all
+  session**, so every container-backed test — including the exactly-once and resend-concurrency proofs —
+  **skipped**. ⚠ **Nobody has looked at any of this**: 039 shipped four live defects with a fully green
+  suite, because layout, contrast and hierarchy are not properties a DOM assertion can see. Triage:
+  [docs/receipt-triage.md](docs/receipt-triage.md). Parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §052.
+
 **050-observability-push-foundation — Platform Observability & Push Notification Foundation.** ✅
 **CONCLUDED (PARTIAL BY DESIGN) 2026-08-23 — 53/60 tasks. DEPLOYED TO DEV; Crashlytics + PostHog
 CONFIRMED WORKING; push wired+deployed but delivery unconfirmed (carried to the order-flow slice).**
