@@ -2,7 +2,7 @@
 // packages. The drop address comes from order.delivery_address (jsonb snapshot). Every read/write is
 // scoped to the driver's own run (FR-012, SC-008). No currency ever crosses this layer (FR-013).
 
-import { query, withTransaction } from "@effy/edge-shared";
+import { enqueueOrderDeliveredIfComplete, query, withTransaction } from "@effy/edge-shared";
 import type pg from "pg";
 
 import type {
@@ -225,20 +225,42 @@ export async function completeWithProof(
           AND status = 'collected'`,
       [dropId],
     );
-    // 050 — push intent: the customer's order is delivered. Same tx as the delivered transition;
-    // deduped on the drop id. No PII (order id + deep link only, FR-021).
+
+    // 053 — the attributable arrival record, for EVERY package this drop delivered.
+    //
+    // ⚠ WHY A DRIVER-SIDE WRITE BELONGS TO 053 (research R6). Before this, a same-day arrival was
+    // evidenced only by proof_of_delivery + delivery_task.status. If only the new back-office route
+    // wrote package_arrival, then every same-day arrival — the ONLY kind the platform had ever
+    // recorded — would be unattributable, and SC-010 ("every arrival can be attributed, after the
+    // fact, to the person or mechanism that recorded it") would be false on the day it shipped.
+    //
+    // `recorded_by_sub` stays NULL: the driver is already attributable through this drop's
+    // proof_of_delivery and driver_task_event rows, which carry more than a subject id would.
     await tx.query(
-      `INSERT INTO public.notification_request (recipient_sub, audience, type, payload, dedupe_key)
-       SELECT c.cognito_sub, 'customer', 'order_delivered',
-              jsonb_build_object('entityId', o.id::text, 'deepLink', 'effy://order/' || o.id::text),
-              'order_delivered:' || c.cognito_sub || ':' || dt.id::text
-         FROM public.delivery_task dt
-         JOIN public."order" o ON o.id = dt.order_id
-         JOIN public.customer c ON c.id = o.customer_id
-        WHERE dt.id = $1
-       ON CONFLICT (dedupe_key) DO NOTHING`,
+      `INSERT INTO public.package_arrival
+           (shop_fulfillment_id, arrived_at, source, delivery_task_id)
+       SELECT dtp.shop_fulfillment_id, now(), 'driver_proof', $1
+         FROM public.delivery_task_package dtp
+        WHERE dtp.delivery_task_id = $1
+       ON CONFLICT (shop_fulfillment_id) DO NOTHING`,
       [dropId],
     );
+
+    // 050/053 — the customer's "your order arrived" intents, push AND email.
+    //
+    // ⚠ THIS REPLACES A PER-DROP NOTIFICATION, AND THAT WAS A LIVE DEFECT. The previous code
+    // enqueued `order_delivered` deduped on the DROP id, so a mixed order — one shop same-day,
+    // another standard — told the customer "Your order has been delivered" while the standard half
+    // was still with a carrier. An order is finished only when EVERY package has arrived
+    // (053 FR-007), which is the rollup this shared helper applies. It also adds the email channel,
+    // so a shopper who never installed the app is told at all (FR-019).
+    const orderId = await tx.query<{ order_id: string }>(
+      `SELECT order_id FROM public.delivery_task WHERE id = $1`,
+      [dropId],
+    );
+    if (orderId.rows[0]) {
+      await enqueueOrderDeliveredIfComplete(tx, orderId.rows[0].order_id);
+    }
     await tx.query(
       `INSERT INTO public.driver_task_event (delivery_task_id, status, change_id) VALUES ($1, 'delivered', $2)
        ON CONFLICT (change_id) DO NOTHING`,

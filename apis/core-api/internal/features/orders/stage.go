@@ -24,11 +24,22 @@ const (
 // rank orders the per-portion fulfilment statuses along the customer's journey. A status this map
 // does not know scores 0 — the safest answer, because "we have it" is never a claim that can mislead
 // a shopper into thinking their order has moved further than it has.
+// ⚠ `ready_for_pickup` SCORES 1, NOT 2, AND THAT WAS A CORRECTION (053 FR-016).
+//
+// It shipped at 2 — "on the way" — in the 020 era, when `collected` meant "handed to a courier" and
+// being packed was the last step before departure. 049 changed the operation underneath this map:
+// under hub-and-spoke, `ready_for_pickup` means PACKED AND SITTING ON A SHELF AT THE SHOP, waiting
+// for the next scheduled collection round — which can be the following day. The order has not left,
+// and telling a shopper it is on its way is a claim the business has not earned.
+//
+// `collected` stays at 2: a driver has it and the shop does not, which is genuinely departed —
+// whether it is en route to the hub, sitting at the hub, or already with a carrier. Those are all
+// the same fact to a customer, which is also why 053 added no new fulfilment status (research R3).
 var rank = map[string]int{
 	"pending":          0,
 	"received":         1,
 	"picking":          1,
-	"ready_for_pickup": 2,
+	"ready_for_pickup": 1,
 	"collected":        2,
 	"delivered":        3,
 }

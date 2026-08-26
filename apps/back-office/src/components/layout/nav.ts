@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, MailWarning, MessageSquare, Shield, Store, Tags, Truck } from "lucide-react";
+import { BadgePercent, LayoutDashboard, MailWarning, MessageSquare, Package, Shield, Store, Tags, Truck } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -14,6 +14,11 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // Shops has NO requiredRole: every back-office role sees it. csa gets a read-only register
   // (mutating controls are gated in-screen and enforced by the backend); admin/manager can write.
   { label: "Shops", to: "/shops", icon: Store },
+  // Orders has NO requiredRole: every back-office role sees it, csa MOST OF ALL. Until 053 nobody at
+  // Effy could look up a single order, so a customer told "contact support and we'll sort it out"
+  // reached people who could not see what they were being asked about. Only RECORDING a handover or
+  // an arrival is admin/manager (gated in-screen, enforced by the backend).
+  { label: "Orders", to: "/orders", icon: Package },
   // Catalog has NO requiredRole: every back-office role sees the schema read-only (csa included);
   // admin/manager get the mutating controls (gated in-screen, enforced by the backend).
   { label: "Catalog", to: "/catalog", icon: Tags },

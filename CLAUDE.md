@@ -261,6 +261,70 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**053-order-lifecycle-completion — Order Lifecycle Completion.** 🚧 **70/88 tasks — CODE-COMPLETE +
+MACHINE-VERIFIED across the new service, the console, both corrections and the email channel. NOT
+DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Spec/artifacts:
+[specs/053-order-lifecycle-completion/](specs/053-order-lifecycle-completion/).
+
+Makes an order capable of **finishing**, and gives Effy somewhere to finish it from.
+- ⚠ **THE DEFECT: a STANDARD order could never terminate.** Since 049, a same-day package goes hub →
+  delivery run → proof; a standard one **stops at the hub** and nothing could record it going further.
+  The only writer of `shop_fulfillment='delivered'` was the driver's delivery task, created **only** for
+  `same_day`. So most orders sat at `collected` forever, `stage.go` mapped that to **"on the way"
+  forever**, `order_delivered` never fired on the majority path, and the order never left the customer's
+  active list.
+- **Data**: one migration `20260826232728_order_lifecycle_completion.sql` — `public.carrier_handoff` +
+  `public.package_arrival` (both `UNIQUE(shop_fulfillment_id)`), and `notification_request` gains
+  **`channel`** (`push|email`) + a snapshotted `recipient_email`. ⚠ **`shop_fulfillment.status` is
+  UNCHANGED** — no `handed_over` state. A package in a carrier's van and one on the hub floor are the
+  same fact to a shopper, so the status would exist only to be mapped; the handoff row's **existence**
+  is the precondition (research R3).
+- ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/orders`**, on a **measured** constraint (T001):
+  `effy-edge-admin` packages to **434/500** CloudFormation resources and already carries
+  `versionFunctions: false` (049 was forced into it). ~6 routes ≈ 30 resources would leave ~1 feature of
+  runway in the domain where refunds/cancellation/returns are queued next. Attaches to the shared
+  gateway + the **existing** back-office authorizer — no new pool.
+- **Back-office → Orders** (`apps/back-office`, 2 screens): find an order, read packages/items/payment/
+  destination and a four-way **history projection** (`fulfillment_event` + `driver_task_event` +
+  `carrier_handoff` + `package_arrival`). ⚠ **Nobody at Effy could look up an order before this**, which
+  is why 020's "contact support and we'll sort it out" reached people who could not see it. Read = any
+  active staff **incl. csa**; record = **admin/manager** (FR-015 — with no carrier signal, "arrived" is
+  an *assertion* about a package nobody saw, and it finishes a financial record + emails the customer).
+- **⚠ FOUR PRE-EXISTING DEFECTS FOUND AND FIXED**: (1) the **account-closure blocker was wrong in BOTH
+  directions** — `f.status <> 'collected'` meant a **delivered** order blocked closure while an order
+  **genuinely in transit** did not; written before the lifecycle existed, promising to "become correct
+  automatically", and 049 landed it with a *different* terminal state. (2) A **mixed order announced
+  itself delivered while half was still out** — the driver enqueued `order_delivered` deduped on the
+  DROP id, and a drop covers only the *same-day* packages. (3) **Every same-day arrival was
+  unattributable**; the driver path now writes `package_arrival` too, or SC-010 was false on day one.
+  (4) An unconfigured FCM **halted the whole drain**, which with email on the same outbox would let a
+  push misconfiguration silently suppress the only message a web-only shopper gets.
+- **Email**: 11th template `order-delivered` + a `channel` fan-out in the notifications worker. ⚠ It
+  carries **no package count and no shop reference** (FR-021) — the catalogue gives it no var to say it
+  with, and a test pins that. ⚠ Scope boundary: `order_ready`/`order_out_for_delivery` stay push-only,
+  and `order_paid` **must not** gain one (052's receipt already exists).
+- ⚠ **NO CUSTOMER-FACING TRACKING REFERENCE** (FR-022, settled): references are per-package and packages
+  are per-shop, so listing them discloses how many shops served the order. Recorded for staff only.
+- **Both customer surfaces gained NOTHING** — no screen, no route, no contract change. `ready_for_pickup`
+  rank 2→1 in `orders/stage.go` fixes web + mobile in **one line**, which is the return on 052 deleting
+  `summarizeFulfillment`. **Proven by reverting**: 3 tests fail.
+- **Verified**: `pnpm -r typecheck` **18/18** · `pnpm -r test` **18/18** · edge-orders **31** (incl. **20
+  container-backed**, Docker UP — concurrency, 5× idempotency, mixed-order rollup, every refusal) ·
+  edge-customer **200** (closure container both directions) · edge-notifications **28** · email-kit **81**
+  · back-office **89** · `make email-check` **11 templates** · `brand-check` · `tokens:check` **unchanged**
+  · `terraform validate`. **Drift guard proven by drifting** (console↔Go stage map).
+- **⚠ Open (18)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=orders|driver|customer|
+  notifications`; `core-deploy` (**before** pushing to `dev`); `make apply` (one new alarm); then the
+  quickstart walks — ⚠ **§4, a standard order end-to-end to `delivered`, is the one thing that has never
+  happened on this platform**. Also: gateway-401 negatives, the web/app wording comparison, and **looking
+  at the console** (039 shipped four live defects with a fully green suite).
+- **⚠ Two PRE-EXISTING red gates, verified at clean HEAD, NOT caused by this slice**: Go
+  `platform/delivery` container tests (`z.sameday_eligible does not exist`) and `features/saveditems`
+  (`public.delivery_pricing_rule does not exist` — 033 already records this). `make check-no-phantm`
+  also fails on specs 042/045/050 prose. Register: [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md); operator
+  guide: [docs/order-console-guide.md](docs/order-console-guide.md); parity:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §053.
+
 **052-order-confirmation-invoice — Order Confirmation & Emailed Receipt.** ✅ **CONCLUDED (PARTIAL BY
 DESIGN) 2026-08-26 — 62/68 tasks. CODE-COMPLETE + MACHINE-VERIFIED on web, Android, iOS and email.
 NOT DEPLOYED. ⚠ NO RECEIPT HAS EVER BEEN SENT.** Sign-off:
@@ -1673,5 +1737,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/052-order-confirmation-invoice/plan.md
+at specs/053-order-lifecycle-completion/plan.md
 <!-- SPECKIT END -->

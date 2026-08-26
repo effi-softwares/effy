@@ -20,12 +20,12 @@ func TestStageFor(t *testing.T) {
 		{"a single pending portion is confirmed", f("pending"), StageConfirmed},
 		{"received is packing", f("received"), StagePacking},
 		{"picking is packing", f("picking"), StagePacking},
-		{"ready_for_pickup is on the way", f("ready_for_pickup"), StageOnTheWay},
+		{"ready_for_pickup is still packing", f("ready_for_pickup"), StagePacking},
 		{"collected is on the way", f("collected"), StageOnTheWay},
 		{"delivered is delivered", f("delivered"), StageDelivered},
 
 		{"every portion delivered is delivered", f("delivered", "delivered"), StageDelivered},
-		{"every portion ready is on the way", f("ready_for_pickup", "collected"), StageOnTheWay},
+		{"a packed portion holds the order at packing", f("ready_for_pickup", "collected"), StagePacking},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -50,6 +50,34 @@ func TestStageFor_IsTheLeastAdvancedPortionNotTheMost(t *testing.T) {
 	// The same rule one step earlier: a delivered portion must not mask an unstarted one.
 	if got := StageFor(f("delivered", "pending")); got != StageConfirmed {
 		t.Fatalf("one portion delivered + one not started = %q, want %q", got, StageConfirmed)
+	}
+}
+
+// ⚠ THE CORRECTION 053 MADE, PINNED SO IT CANNOT BE UNDONE SILENTLY (FR-016).
+//
+// `ready_for_pickup` means PACKED AND WAITING ON A SHELF AT THE SHOP for the next scheduled
+// collection round — under 049's hub-and-spoke operation, possibly until tomorrow. The order has not
+// departed, and a customer must not be told it has.
+//
+// This map entry shipped as rank 2 ("on the way") in the 020 era, when `collected` meant "handed to
+// a courier" and being packed really was the last step before departure. 049 changed the operation
+// underneath it and nothing here failed, because a lookup table has no way to notice that the world
+// moved. Restoring `"ready_for_pickup": 2` makes exactly this test fail.
+func TestStageFor_PackedAtTheShopHasNotDeparted(t *testing.T) {
+	if got := StageFor(f("ready_for_pickup")); got != StagePacking {
+		t.Fatalf("a packed portion still at its shop = %q, want %q — it has not left the shop, so the customer must not be told it is on the way", got, StagePacking)
+	}
+
+	// A mixed order is held back by the portion still at its shop, not carried forward by the one
+	// that has left — the rollup rule applied to this same correction.
+	if got := StageFor(f("ready_for_pickup", "collected")); got != StagePacking {
+		t.Fatalf("one portion packed at its shop + one collected = %q, want %q", got, StagePacking)
+	}
+
+	// The boundary the correction draws: `collected` IS departure. A driver has it and the shop does
+	// not — whether it is en route to the hub, at the hub, or already with a carrier.
+	if got := StageFor(f("collected")); got != StageOnTheWay {
+		t.Fatalf("a collected portion = %q, want %q — it has left the shop", got, StageOnTheWay)
 	}
 }
 
