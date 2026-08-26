@@ -2,8 +2,8 @@
 
 import { useElements, useStripe } from "@stripe/react-stripe-js"
 import { CardNumberElement } from "@stripe/react-stripe-js"
+import Link from "next/link"
 import { ArrowLeft, Lock } from "lucide-react"
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 
 import type { CreateCheckoutIntentResponse, PaymentMethodDTO } from "@effy/shared-types"
@@ -45,7 +45,6 @@ export function PaymentStep({
   intent: CreateCheckoutIntentResponse
   onBack: () => void
 }) {
-  const router = useRouter()
   const stripe = useStripe()
   const elements = useElements()
   const card = useCardFieldState()
@@ -113,7 +112,20 @@ export function PaymentStep({
    * pending order reports `paid: false` and changes nothing, and for a paid one reports `paid: true`
    * without applying anything twice. That makes it the honest way to ask "is this already done?" —
    * far better than trusting a flag the client happens to be holding.
+   *
+   * ⚠⚠ IT SAYS SO. IT DOES NOT NAVIGATE. This used to `router.replace` straight to the receipt, and
+   * that silent teleport was a live bug in dev on 2026-08-26: a shopper who pressed "Continue to
+   * payment" for a SECOND order had the payment screen flash up and replace itself with the receipt
+   * for their FIRST one. Proven from the two sides — the redirect went to `?order=<first order>` at
+   * 05:19:55, while the second order was not created until 05:22:14, so the screen was rendering an
+   * intent that belonged to a finished attempt.
+   *
+   * The redirect was never the requirement; not being able to pay twice was. So this states the fact
+   * and hands over the two ways out. A shopper is never moved somewhere they did not ask to go, and
+   * can never be shown one order's receipt while believing they are buying another.
    */
+  const [alreadyPaidOrder, setAlreadyPaidOrder] = useState<string | null>(null)
+
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -122,11 +134,12 @@ export function PaymentStep({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderId: intent.orderId }),
+          cache: "no-store",
         })
         if (!res.ok) return
         const data = (await res.json()) as { paid?: boolean }
         if (!cancelled && data.paid) {
-          router.replace(`/checkout/complete?order=${intent.orderId}`)
+          setAlreadyPaidOrder(intent.orderId)
         }
       } catch {
         // Best-effort. A failed check must never block a shopper who genuinely needs to pay.
@@ -135,7 +148,7 @@ export function PaymentStep({
     return () => {
       cancelled = true
     }
-  }, [intent.orderId, router])
+  }, [intent.orderId])
 
   async function removeCard(id: string) {
     const res = await fetch(`/api/payment-methods/${id}`, { method: "DELETE" })
@@ -212,7 +225,12 @@ export function PaymentStep({
           capture({ name: "payment_succeeded", props: { method: family } })
           if (family === "card" && saveCard) capture({ name: "card_saved" })
           if (family === "saved_card") capture({ name: "saved_card_used" })
-          router.push(`/checkout/complete?order=${intent.orderId}`)
+          // ⚠ A FULL PAGE LOAD, NOT `router.push`. Checkout is finished, and every scrap of client
+          // state that belongs to it must die with it. A soft navigation leaves this flow's React
+          // state in the client router's cache, where a later checkout can render a FINISHED
+          // attempt's intent — which is precisely the defect the already-paid notice above records.
+          // The cost is one page load at the terminal step of the flow, which is not a cost.
+          window.location.assign(`/checkout/complete?order=${intent.orderId}`)
           return
         case "requires_action":
           capture({ name: "payment_failed", props: { method: family, reason: "needs_action" } })
@@ -232,6 +250,39 @@ export function PaymentStep({
       // round trips — and forever if that navigation failed (research R12 D2, FR-041).
       setBusy(false)
     }
+  }
+
+  // ⚠ AN ALREADY-PAID ORDER TAKES OVER THE WHOLE SCREEN, rather than sitting as a notice beside a pay
+  // button that cannot work. A form the shopper is invited to fill in and then refused is worse than no
+  // form; and the two things they might actually want — see what they paid for, or buy this basket —
+  // are the only two controls here.
+  if (alreadyPaidOrder) {
+    return (
+      <div className="container pt-10">
+        <div className="mx-auto max-w-lg py-16 text-center">
+          <h1 className="text-lg font-medium">This order has already been paid</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+            Nothing further has been charged. You can view its receipt, or go back to checkout to
+            place a new order.
+          </p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <Link
+              href={`/checkout/complete?order=${alreadyPaidOrder}`}
+              className="rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground"
+            >
+              View receipt
+            </Link>
+            <button
+              type="button"
+              onClick={onBack}
+              className="rounded-full border px-5 py-2.5 text-sm font-medium"
+            >
+              Back to checkout
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -272,7 +323,8 @@ export function PaymentStep({
                 }
                 if (outcome.kind === "succeeded" || outcome.kind === "processing") {
                   capture({ name: "payment_succeeded", props: { method: "wallet" } })
-                  router.push(`/checkout/complete?order=${intent.orderId}`)
+                  // A full load, for the same reason as the card route above.
+                  window.location.assign(`/checkout/complete?order=${intent.orderId}`)
                 }
               } finally {
                 setBusy(false)
