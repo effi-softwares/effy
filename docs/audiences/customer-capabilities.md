@@ -1168,3 +1168,64 @@ Recorded in research R15.
   must be replaced with each provider's official asset kit before release.
 
 Spec/artifacts: [specs/051-customer-payment-experience/](../../specs/051-customer-payment-experience/).
+
+---
+
+## §052 — Order confirmation & emailed receipt
+
+The thank-you page becomes a **document-grade receipt**, and the platform emails it. Both customer
+surfaces carry the same fact set; a third rendering of it arrives in the inbox.
+
+| Capability | customer-web | customer-mobile | Email |
+|---|---|---|---|
+| Itemised receipt with **unit price** per line | ✅ | ✅ | ✅ |
+| Product imagery on each line | ✅ | ⚠ placeholder tile only | ➖ (not embedded) |
+| Totals that reconcile to the amount charged | ✅ | ✅ | ✅ |
+| **Payment method** ("Visa ending 4242") | ✅ | ✅ | ✅ |
+| Placed date + time | ✅ | ✅ | ✅ |
+| Arrival estimate + delivery method | ✅ | ✅ | ✅ |
+| Order progress (4 customer-facing stages) | ✅ vertical track | ✅ one line | ➖ |
+| Seller identity block | ✅ | ✅ | ✅ |
+| "What this document is" note | ✅ | ✅ | ✅ |
+| Send the receipt again | ✅ | ✅ | n/a |
+| Automatic send on payment | n/a | n/a | ✅ |
+
+### Rules a later slice must not undo
+
+- **The stage is SERVER-DERIVED** (`OrderDTO.stage`, from `orders/stage.go`). Neither client recomputes
+  it; customer-web's own `summarizeFulfillment` was deleted for being a second implementation of one
+  rule. It is a **rollup, not a max** — one portion delivered and one still picking is `packing`.
+- **The arrival is a DATE, never a time.** `promised_from`/`promised_to` are `date` columns; the
+  platform has no delivery window and must not appear to promise one.
+- **Exactly-once is a partial unique index**, not code — `receipt_dispatch_auto_uq` on
+  `(order_id) WHERE reason = 'order_paid'`. The `customer_request` arm is deliberately unconstrained so
+  a resend stays possible.
+- **The resend takes no address.** The recipient is resolved from the authenticated subject; an `email`
+  in the request body would make it an open relay for a personalised document.
+- **"Not yours" and "no such order" are byte-identical refusals.** Any difference makes the route an
+  oracle for which order ids are real.
+- **The bounded status palette is component-local on both surfaces**, deliberately duplicated rather
+  than shared — the shared package for colour *is* the design system, and that is exactly where it must
+  not go (plan § Complexity Tracking).
+
+### Not built, and why
+
+- **No tax invoice.** Two prerequisites, neither engineering work: the **ABN is unsupplied**
+  (operator input), and **per-item GST treatment is unmodelled** — basic food is GST-free in Australia,
+  so a grocery basket is a *mixed supply* and "total price includes GST" is false for most orders.
+  `canIssueTaxInvoice()` stays false until **both** land. The block's position is reserved and
+  commented at all three render sites.
+- **No PDF and no print stylesheet** (spec, Out of Scope). The keepable copy is the email.
+- **The payment-method line is absent on pre-052 orders**, and on any order whose post-commit capture
+  failed. Absence is data, not a gap.
+
+### Defects this slice found in earlier work
+
+- ⚠ **The mobile receipt's lines did not add up.** `deliveryFeeAmount` was never mapped in
+  `CheckoutMappers.kt`, so the screen showed Items − Discount = Total while delivery had been charged.
+  051's FR-043 recorded this exact defect and fixed it on **web only**.
+- ⚠ **`brand-check` and a customer-web test were red before this slice began**, each aborting
+  `pnpm -r test` early enough that the run reported 4 packages instead of 17. Both fixed; see the
+  Baseline section of [quickstart.md](../../specs/052-order-confirmation-invoice/quickstart.md).
+
+Spec/artifacts: [specs/052-order-confirmation-invoice/](../../specs/052-order-confirmation-invoice/).

@@ -206,6 +206,18 @@ export type StorefrontEvent =
   | { name: "cart_viewed"; props?: Record<string, never> }
   | { name: "checkout_started"; props?: Record<string, never> }
   | { name: "order_placed"; props: { orderId: string } }
+  /**
+   * 052 — the receipt. ⚠ `stage` is the CUSTOMER-FACING word, and there is deliberately no amount, no
+   * address and no email here: the taxonomy's standing rule is no PII beyond the auth subject id, and
+   * 051 records a payment FAMILY rather than a provider decline code for the same reason.
+   */
+  | { name: "receipt_viewed"; props: { surface: "checkout" | "history"; stage: string } }
+  | { name: "receipt_resend_requested"; props?: Record<string, never> }
+  /** Why a resend was refused — Effy's own vocabulary, never the transport's. */
+  | {
+      name: "receipt_resend_refused"
+      props: { reason: "rate_limited" | "unavailable" | "failed" }
+    }
   | { name: "search_performed"; props?: Record<string, never> }
   // 022 address book. ⚠ NO PII — an address is PII (FR-019, SC-008), so these carry NO address
   // fields at all, only the subject id already attached by `identifyCustomer`. Props is deliberately

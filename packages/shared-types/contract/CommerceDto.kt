@@ -902,6 +902,16 @@ data class MergeCartRequest (
 @Serializable
 data class OrderDTO (
     /**
+     * 052 — when the order is expected to arrive (FR-007), one entry per package.
+     *
+     * ⚠ More than one entry means the order arrives in more than one delivery — a fact about
+     * the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference
+     * of any kind (FR-009), and the entries are deliberately unordered with respect to any
+     * internal grouping.
+     */
+    val arrivalEstimates: List<ArrivalEstimateDTO>,
+
+    /**
      * The BILLING address snapshot (023). `null` means "same as shipping" — the client renders
      * "Billing: same as shipping" rather than repeating the address. A value is a divergent
      * billing address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders.
@@ -940,6 +950,14 @@ data class OrderDTO (
     val items: List<OrderItemDTO>,
     val itemSubtotalAmount: String,
     val orderNumber: String,
+
+    /**
+     * 052 — how the order was paid, in a form safe to display (FR-006). Null when not captured:
+     * a pre-052 order, or an order whose post-commit capture failed. The receipt omits the line
+     * rather than showing a blank.
+     */
+    val paymentMethod: PaymentMethodSummaryDTO? = null,
+
     val paymentStatus: PaymentStatus,
     val placedAt: String? = null,
 
@@ -949,8 +967,57 @@ data class OrderDTO (
      */
     val promoCode: String? = null,
 
+    /**
+     * 052 — the customer-facing progress stage (FR-008).
+     *
+     * ⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`.
+     * Two clients deriving one answer independently is 029's banner target and 033's
+     * `available` flag, and the failure is silent because both surfaces still render
+     * *something*.
+     *
+     * ⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still
+     * being picked is `packing`. The customer has not received their order.
+     */
+    val stage: OrderStage,
+
     val status: OrderStatus
 )
+
+/**
+ * 052 — when one package is expected to ARRIVE, as the customer was shown at checkout.
+ *
+ * ⚠ NOT `DeliveryPromiseDTO`, which already exists in `shop-order.ts` and is a DIFFERENT
+ * FACT FOR A DIFFERENT AUDIENCE: that one carries `readyBy`, the time this shop must have
+ * the package ready at the fulfilment node. Research R4 records that the ready-by must
+ * never reach the customer — it means something else, and it is fulfilment structure
+ * (FR-009). The names are kept apart deliberately so the two can never be swapped by
+ * autocomplete.
+ *
+ * ⚠ DATES, NOT TIMES. `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd) because the
+ * underlying `order_package_delivery.promised_from`/`.promised_to` are `date` columns — the
+ * platform has no delivery time window and cannot derive one. A client MUST NOT render a
+ * time here.
+ */
+@Serializable
+data class ArrivalEstimateDTO (
+    /**
+     * The method the customer chose for this package.
+     */
+    val method: Method,
+
+    val promisedFrom: String? = null,
+    val promisedTo: String? = null
+)
+
+/**
+ * The method the customer chose for this package.
+ */
+@Serializable
+enum class Method(val value: String) {
+    @SerialName("same_day") SameDay("same_day"),
+    @SerialName("scheduled") Scheduled("scheduled"),
+    @SerialName("standard") Standard("standard");
+}
 
 /**
  * The snapshotted delivery address on the receipt.
@@ -1020,6 +1087,18 @@ data class OrderShortfallDTO (
  */
 @Serializable
 data class OrderItemDTO (
+    /**
+     * 052 — a short-lived presigned URL for the product's primary image, or null.
+     *
+     * ⚠ DECORATION ONLY, and never a carrier of meaning (FR-003). A line renders complete
+     * without it, and a client MUST NOT gate any fact on its presence. It is resolved by a LEFT
+     * JOIN to the live `product_media`; every other field on this line comes from the order's
+     * own immutable snapshot, which is why a renamed or re-photographed product still shows
+     * what was actually bought (FR-011).
+     */
+    @SerialName("imageUrl")
+    val imageURL: String? = null,
+
     val lineSubtotalAmount: String,
 
     @SerialName("productId")
@@ -1031,6 +1110,43 @@ data class OrderItemDTO (
 )
 
 /**
+ * 052 — a short, non-sensitive description of how an order was paid.
+ *
+ * ⚠ NO CARD DATA BEYOND `last4`, ever (051 `payment.ts`). There is no field for a card
+ * number, an expiry, or a cardholder name, and none may be added.
+ */
+@Serializable
+data class PaymentMethodSummaryDTO (
+    /**
+     * Network or wallet for the label ("visa", "apple_pay"). Null when the family carries no
+     * brand.
+     */
+    val brand: String? = null,
+
+    /**
+     * The ONLY part of a card number permitted to leave the provider. Null for non-card
+     * families.
+     */
+    val last4: String? = null,
+
+    /**
+     * Effy's own family, never the provider's string.
+     */
+    val type: Type
+)
+
+/**
+ * Effy's own family, never the provider's string.
+ */
+@Serializable
+enum class Type(val value: String) {
+    @SerialName("card") Card("card"),
+    @SerialName("other") Other("other"),
+    @SerialName("pay_over_time") PayOverTime("pay_over_time"),
+    @SerialName("wallet") Wallet("wallet");
+}
+
+/**
  * Payment outcome mirrored from the Stripe PaymentIntent.
  */
 @Serializable
@@ -1040,6 +1156,29 @@ enum class PaymentStatus(val value: String) {
     @SerialName("requires_action") RequiresAction("requires_action"),
     @SerialName("requires_payment") RequiresPayment("requires_payment"),
     @SerialName("succeeded") Succeeded("succeeded");
+}
+
+/**
+ * 052 — the customer-facing progress stage (FR-008).
+ *
+ * ⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`.
+ * Two clients deriving one answer independently is 029's banner target and 033's
+ * `available` flag, and the failure is silent because both surfaces still render
+ * *something*.
+ *
+ * ⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still
+ * being picked is `packing`. The customer has not received their order.
+ *
+ * 052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived
+ * server-side from every `shop_fulfillment.status` on the order. See
+ * `apis/core-api/internal/features/orders/stage.go` for the single rollup that produces it.
+ */
+@Serializable
+enum class OrderStage(val value: String) {
+    @SerialName("confirmed") Confirmed("confirmed"),
+    @SerialName("delivered") Delivered("delivered"),
+    @SerialName("on_the_way") OnTheWay("on_the_way"),
+    @SerialName("packing") Packing("packing");
 }
 
 /**

@@ -4,6 +4,7 @@ import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentRe
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
 import com.effyshopping.customer.mobile.commerce.contract.OrderAddressDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
+import com.effyshopping.customer.mobile.commerce.contract.OrderStage as DtoOrderStage
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryMethod as DeliveryMethodDTO
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
@@ -12,6 +13,9 @@ import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ReceiptItem
+import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
+import com.effyshopping.customer.mobile.features.checkout.domain.OrderStage
+import com.effyshopping.customer.mobile.features.checkout.domain.PaymentMethodSummary
 
 // ── Delivery quote (021) ────────────────────────────────────────────────────────────────────────────
 // DTO → domain: `quantity` is a codegen Double narrowed to Int (contract note); DTOs never escape here.
@@ -131,6 +135,21 @@ private fun OrderAddressDTO.formatLine(): String = buildString {
     append(", ").append(country)
 }
 
+/**
+ * The wire stage → the domain stage.
+ *
+ * ⚠ A `when` over the generated enum with NO `else` that guesses. If a later slice adds a fifth stage,
+ * this build's generated enum will not know it — and a receipt must degrade to [OrderStage.Unknown]
+ * rather than assert a stage it cannot justify. An unrecognised value must never ADVANCE the
+ * customer's view of their order.
+ */
+private fun DtoOrderStage.toDomainStage(): OrderStage = when (this) {
+    DtoOrderStage.Confirmed -> OrderStage.Confirmed
+    DtoOrderStage.Packing -> OrderStage.Packing
+    DtoOrderStage.OnTheWay -> OrderStage.OnTheWay
+    DtoOrderStage.Delivered -> OrderStage.Delivered
+}
+
 internal fun OrderDTO.toReceipt(): Receipt {
     val addr = deliveryAddress
     // 023 US5: `billingAddress` null → "same as shipping" (both billing fields stay null); a value →
@@ -147,6 +166,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
                 quantity = it.quantity.toInt(),
                 unitPriceAmount = it.unitPriceAmount,
                 lineSubtotalAmount = it.lineSubtotalAmount,
+                imageUrl = it.imageURL,
             )
         },
         recipientName = addr.recipientName,
@@ -156,7 +176,22 @@ internal fun OrderDTO.toReceipt(): Receipt {
         discountAmount = discountAmount,
         promoCode = promoCode,
         itemSubtotalAmount = itemSubtotalAmount,
+        // ⚠ 052 — previously UNMAPPED, so the receipt's lines did not add up whenever delivery was
+        // charged (051 FR-043 fixed this on web and never here).
+        deliveryFeeAmount = deliveryFeeAmount,
         grandTotalAmount = grandTotalAmount,
         currency = currency,
+        placedAt = placedAt.orEmpty(),
+        stage = stage.toDomainStage(),
+        paymentMethod = paymentMethod?.let {
+            PaymentMethodSummary(type = it.type.value, brand = it.brand, last4 = it.last4)
+        },
+        arrivalEstimates = arrivalEstimates.map {
+            ArrivalEstimate(
+                method = it.method.value,
+                promisedFrom = it.promisedFrom,
+                promisedTo = it.promisedTo,
+            )
+        },
     )
 }

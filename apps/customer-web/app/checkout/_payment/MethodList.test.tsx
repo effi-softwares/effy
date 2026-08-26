@@ -78,9 +78,20 @@ describe("MethodList (051 US4)", () => {
         <div>card fields</div>
       </MethodList>,
     )
-    const rows = container.querySelectorAll("[class*='rounded-[14px]']")
+    // ⚠ Queries `rounded-xl`, not the arbitrary `rounded-[14px]` this once used. Commit 5a540f4
+    // (051's styling refinement) moved the component onto the token class; the two are the SAME
+    // 14px, because 041 pins `--radius-xl: 0.875rem`. So nothing about the rendered row changed —
+    // only this selector went stale, and it had been silently matching zero rows ever since.
+    // Found by 052's baseline sweep; it is not 052's file and not 052's defect.
+    const rows = container.querySelectorAll("[class*='rounded-xl']")
     expect(rows.length).toBeGreaterThan(0)
-    expect(rows[0]!.className).toMatch(/border-foreground/)
+    // The container must NOT be filled — that is the half of this test about appearance-independence
+    // (a monochrome accent inverts; a fill would not).
     expect(rows[0]!.className).not.toMatch(/bg-(primary|foreground)\b/)
+    // ⚠ `border-foreground` now lives on the RADIO INDICATOR, not the row container. Commit 5a540f4
+    // moved it there; the selected container is a bare `border`. Asserting it on the container would
+    // be asserting a fact about the old markup.
+    const marked = container.querySelector("[class*='border-foreground']")
+    expect(marked).not.toBeNull()
   })
 })

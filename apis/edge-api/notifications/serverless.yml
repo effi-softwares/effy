@@ -19,6 +19,10 @@ params:
     # How often the worker drains the outbox. rate(1 minute) is EventBridge's floor; SC-003's <=90s p95
     # reflects it. Tightens (or becomes event-driven) when the SNS/SQS backbone lands.
     drainSchedule: rate(1 minute)
+    notifMaxAttempts: "5"
+    notifBatchSize: "100"
+    receiptMaxAttempts: "5"
+    receiptBatchSize: "50"
   dev:
     logLevel: debug
 
@@ -50,6 +54,25 @@ provider:
     # no-ops (fail-open, FR-027) and leaves rows pending until the operator seeds the secret.
     FCM_SERVICE_ACCOUNT_ARN: ${ssm:/effy/${sls:stage}/notifications/fcm_service_account_arn}
     FCM_PROJECT_ID: ${ssm:/effy/${sls:stage}/notifications/fcm_project_id}
+    # 052 — the receipt-email drain. ⚠ EVERY KEY IN email-kit's MAIL_ENV_KEYS MUST BE DECLARED HERE,
+    # and src/receipts/config.contract.test.ts reads THIS FILE to prove it. That guard exists because
+    # 035 shipped four env vars the template never declared: every pool resolved "unknown", no email
+    # was ever sent, and 100 passing tests missed it because they set the variables themselves.
+    MAIL_SENDER: ${ssm:/effy/${sls:stage}/ses/sender}
+    MAIL_REPLY_TO: ${ssm:/effy/${sls:stage}/ses/reply_to}
+    MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
+    MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
+    MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
+    # The storefront origin for the receipt's "View your order" link (published by 042).
+    WEB_SITE_URL: ${ssm:/effy/${sls:stage}/web/site_url, ''}
+    # Drain tuning. ⚠ These carry code-side defaults, so an undeclared value is not fatal the way 035's
+    # four were — but declaring them is the point of the config-contract guard: the deployment states
+    # what it runs with, rather than leaving it to a literal buried in a handler.
+    # ⚠ NOTIF_* were UNDECLARED until 052 added this block; 050's worker read them all along.
+    NOTIF_MAX_ATTEMPTS: ${param:notifMaxAttempts}
+    NOTIF_BATCH_SIZE: ${param:notifBatchSize}
+    RECEIPT_MAX_ATTEMPTS: ${param:receiptMaxAttempts}
+    RECEIPT_BATCH_SIZE: ${param:receiptBatchSize}
   iam:
     role:
       statements:
@@ -58,6 +81,15 @@ provider:
           Resource:
             - ${ssm:/effy/${sls:stage}/db/master_secret_arn}
             - ${ssm:/effy/${sls:stage}/notifications/fcm_service_account_arn}
+        # 052 — the receipt email. ⚠ BOTH the identity AND the configuration set, or the send is
+        # DENIED: ses:SendEmail authorizes against every resource the request touches, and 037 made
+        # every send name a configuration set. Granting the identity alone does not tighten this —
+        # it breaks it. (The same defect edge-auth and edge-customer each hit.)
+        - Effect: Allow
+          Action: ses:SendEmail
+          Resource:
+            - ${ssm:/effy/${sls:stage}/ses/identity_arn}
+            - ${ssm:/effy/${sls:stage}/ses/configuration_set_arn}
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — same dev posture as the other edge services (no NAT; the dev DB is reachable on
@@ -86,6 +118,16 @@ functions:
       - httpApi:
           method: GET
           path: /notifications/healthz
+
+  # 052 — the RECEIPT-EMAIL drain. Its own outbox (public.receipt_dispatch), its own schedule, its own
+  # idempotency (status + FOR UPDATE SKIP LOCKED). A sibling of `drain`, deliberately not a reuse of
+  # it: push is exactly-once forever, while a receipt can be RE-SENT on purpose (research R2).
+  receiptDrain:
+    handler: src/receipts/handler.handler
+    description: Drain public.receipt_dispatch → render the order receipt → send via SES; mark sent/skipped/failed (052).
+    timeout: 60
+    events:
+      - schedule: ${param:drainSchedule}
 
   # The outbox drain worker (research R6). Scheduled, idempotent; off every user path.
   drain:

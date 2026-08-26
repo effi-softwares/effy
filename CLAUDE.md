@@ -1609,5 +1609,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/051-customer-payment-experience/plan.md
+at specs/052-order-confirmation-invoice/plan.md
 <!-- SPECKIT END -->

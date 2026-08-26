@@ -30,6 +30,29 @@ type itemDTO struct {
 	UnitPriceAmount    string `json:"unitPriceAmount"`
 	Quantity           int    `json:"quantity"`
 	LineSubtotalAmount string `json:"lineSubtotalAmount"`
+	// 052 — decoration only. `omitempty` keeps the key off the wire entirely when there is no image,
+	// so a client cannot mistake an empty string for a url.
+	ImageURL *string `json:"imageUrl,omitempty"`
+}
+
+// 052 — how the order was paid (FR-006).
+//
+// ⚠ THE ONLY CARD FIELD HERE IS `last4`, and no other may be added. This struct is the boundary 051's
+// payment.ts describes: a card number, an expiry or a cardholder name must never be representable.
+type paymentMethodDTO struct {
+	Type  string  `json:"type"`
+	Brand *string `json:"brand"`
+	Last4 *string `json:"last4"`
+}
+
+// 052 — one package's expected arrival (FR-007).
+//
+// ⚠ NO SHOP REFERENCE, and DATES not times. The underlying columns are `date`; the platform has no
+// delivery time window and must not appear to promise one (research R4).
+type arrivalEstimateDTO struct {
+	Method       string  `json:"method"`
+	PromisedFrom *string `json:"promisedFrom"`
+	PromisedTo   *string `json:"promisedTo"`
 }
 
 // A shortfall the customer is being told about — product name and quantity only, NO shop (FR-018c).
@@ -63,6 +86,13 @@ type orderDTO struct {
 	Currency           string           `json:"currency"`
 	PaymentStatus      string           `json:"paymentStatus"`
 	Fulfillments       []fulfillmentDTO `json:"fulfillments"`
+
+	// 052 — the customer-facing progress word. SERVER-DERIVED; no client computes it (FR-008).
+	Stage string `json:"stage"`
+	// 052 — nil on a pre-052 order or a failed capture. The client omits the line rather than blanking.
+	PaymentMethod *paymentMethodDTO `json:"paymentMethod"`
+	// 052 — one entry per package. Always present (possibly empty) so a client has no undefined branch.
+	ArrivalEstimates []arrivalEstimateDTO `json:"arrivalEstimates"`
 }
 
 type Handler struct {
@@ -109,6 +139,7 @@ func (h *Handler) get(c *gin.Context) {
 		items = append(items, itemDTO{
 			ProductID: it.ProductID, ProductName: it.ProductName, UnitPriceAmount: it.UnitPriceAmount,
 			Quantity: it.Quantity, LineSubtotalAmount: it.LineSubtotalAmount,
+			ImageURL: it.ImageURL,
 		})
 	}
 	ful := make([]fulfillmentDTO, 0, len(order.Fulfillments))
@@ -133,6 +164,21 @@ func (h *Handler) get(c *gin.Context) {
 		billing = order.BillingAddress
 	}
 
+	// 052 — the arrival estimates. Always an array, never null: a client with no undefined branch is
+	// one fewer place a receipt can render half-formed.
+	arrivals := make([]arrivalEstimateDTO, 0, len(order.ArrivalEstimates))
+	for _, a := range order.ArrivalEstimates {
+		arrivals = append(arrivals, arrivalEstimateDTO{
+			Method: a.Method, PromisedFrom: a.PromisedFrom, PromisedTo: a.PromisedTo,
+		})
+	}
+	var method *paymentMethodDTO
+	if order.PaymentMethod != nil {
+		method = &paymentMethodDTO{
+			Type: order.PaymentMethod.Type, Brand: order.PaymentMethod.Brand, Last4: order.PaymentMethod.Last4,
+		}
+	}
+
 	c.JSON(http.StatusOK, orderDTO{
 		ID: order.ID, OrderNumber: order.OrderNumber, Status: order.Status, PlacedAt: order.PlacedAt,
 		Items: items, DeliveryAddress: address, BillingAddress: billing,
@@ -140,6 +186,8 @@ func (h *Handler) get(c *gin.Context) {
 		DeliveryFeeAmount: order.DeliveryFeeAmount,
 		GrandTotalAmount:  order.GrandTotalAmount, Currency: order.Currency,
 		PaymentStatus: order.PaymentStatus, Fulfillments: ful,
+		Stage:         string(order.Stage),
+		PaymentMethod: method, ArrivalEstimates: arrivals,
 	})
 }
 

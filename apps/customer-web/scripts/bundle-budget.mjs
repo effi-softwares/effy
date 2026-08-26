@@ -163,6 +163,12 @@ const GUEST_PAGES = [
   { route: "/legal/delivery-policy", html: ".next/server/app/legal/delivery-policy.html" },
   { route: "/legal/promotions-terms", html: ".next/server/app/legal/promotions-terms.html" },
   { route: "/legal/food-safety-allergens", html: ".next/server/app/legal/food-safety-allergens.html" },
+  // ⚠ `/checkout/complete` is DELIBERATELY ABSENT, and so is every other checkout/account route.
+  // This gate measures the GUEST bundle — what someone who has never signed in must download. Those
+  // routes sit behind `requireCustomer()` and outside the `(shop)` group, so neither this budget nor
+  // the dependency-cruiser Amplify quarantine applies to them. Adding one here would not tighten
+  // anything; it would measure a page no guest can reach and fail the build on a signed-in-only cost
+  // this budget was never written to govern. (052 research R7.)
 ]
 
 /** Every <script src> the browser will actually fetch. `noModule` scripts are the legacy

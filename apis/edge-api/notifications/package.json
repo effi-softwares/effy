@@ -3,10 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy cold-path notifications worker (050-observability-push-foundation) — drains the notification_request outbox and sends push via FCM (HTTP v1).",
-  "scripts": { "lint": "tsc --noEmit", "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "description": "Effy cold-path notifications worker \u2014 drains the notification_request outbox and sends push via FCM (050), and drains the receipt_dispatch outbox and sends the order receipt via SES (052).",
+  "scripts": {
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "3.1086.0",
     "@effy/edge-shared": "workspace:*",
+    "@effy/email-kit": "workspace:*",
     "firebase-admin": "13.6.0",
     "pg": "8.22.0",
     "pino": "10.3.1"

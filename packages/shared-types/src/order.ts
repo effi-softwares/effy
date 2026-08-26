@@ -55,6 +55,15 @@ export interface OrderItemDTO {
   unitPriceAmount: string;
   quantity: number;
   lineSubtotalAmount: string;
+  /**
+   * 052 — a short-lived presigned URL for the product's primary image, or null.
+   *
+   * ⚠ DECORATION ONLY, and never a carrier of meaning (FR-003). A line renders complete without it,
+   * and a client MUST NOT gate any fact on its presence. It is resolved by a LEFT JOIN to the live
+   * `product_media`; every other field on this line comes from the order's own immutable snapshot,
+   * which is why a renamed or re-photographed product still shows what was actually bought (FR-011).
+   */
+  imageUrl?: string | null;
 }
 
 /** The snapshotted delivery address on the receipt. */
@@ -139,6 +148,82 @@ export interface OrderDTO {
   currency: string;
   paymentStatus: PaymentStatus;
   fulfillments: OrderFulfillmentDTO[];
+
+  /**
+   * 052 — the customer-facing progress stage (FR-008).
+   *
+   * ⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`. Two
+   * clients deriving one answer independently is 029's banner target and 033's `available` flag, and
+   * the failure is silent because both surfaces still render *something*.
+   *
+   * ⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still being
+   * picked is `packing`. The customer has not received their order.
+   */
+  stage: OrderStage;
+
+  /**
+   * 052 — how the order was paid, in a form safe to display (FR-006). Null when not captured: a
+   * pre-052 order, or an order whose post-commit capture failed. The receipt omits the line rather
+   * than showing a blank.
+   */
+  paymentMethod?: PaymentMethodSummaryDTO | null;
+
+  /**
+   * 052 — when the order is expected to arrive (FR-007), one entry per package.
+   *
+   * ⚠ More than one entry means the order arrives in more than one delivery — a fact about the
+   * CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference of any kind
+   * (FR-009), and the entries are deliberately unordered with respect to any internal grouping.
+   */
+  arrivalEstimates: ArrivalEstimateDTO[];
+}
+
+/**
+ * 052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived server-side from
+ * every `shop_fulfillment.status` on the order. See `apis/core-api/internal/features/orders/stage.go`
+ * for the single rollup that produces it.
+ */
+export type OrderStage = "confirmed" | "packing" | "on_the_way" | "delivered";
+export const ORDER_STAGES: readonly OrderStage[] = [
+  "confirmed",
+  "packing",
+  "on_the_way",
+  "delivered",
+];
+
+/**
+ * 052 — a short, non-sensitive description of how an order was paid.
+ *
+ * ⚠ NO CARD DATA BEYOND `last4`, ever (051 `payment.ts`). There is no field for a card number, an
+ * expiry, or a cardholder name, and none may be added.
+ */
+export interface PaymentMethodSummaryDTO {
+  /** Effy's own family, never the provider's string. */
+  type: "card" | "wallet" | "pay_over_time" | "other";
+  /** Network or wallet for the label ("visa", "apple_pay"). Null when the family carries no brand. */
+  brand: string | null;
+  /** The ONLY part of a card number permitted to leave the provider. Null for non-card families. */
+  last4: string | null;
+}
+
+/**
+ * 052 — when one package is expected to ARRIVE, as the customer was shown at checkout.
+ *
+ * ⚠ NOT `DeliveryPromiseDTO`, which already exists in `shop-order.ts` and is a DIFFERENT FACT FOR A
+ * DIFFERENT AUDIENCE: that one carries `readyBy`, the time this shop must have the package ready at
+ * the fulfilment node. Research R4 records that the ready-by must never reach the customer — it means
+ * something else, and it is fulfilment structure (FR-009). The names are kept apart deliberately so
+ * the two can never be swapped by autocomplete.
+ *
+ * ⚠ DATES, NOT TIMES. `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd) because the underlying
+ * `order_package_delivery.promised_from`/`.promised_to` are `date` columns — the platform has no
+ * delivery time window and cannot derive one. A client MUST NOT render a time here.
+ */
+export interface ArrivalEstimateDTO {
+  /** The method the customer chose for this package. */
+  method: "same_day" | "scheduled" | "standard";
+  promisedFrom: string | null;
+  promisedTo: string | null;
 }
 
 /** Receipt is the same shape as the full order detail. */

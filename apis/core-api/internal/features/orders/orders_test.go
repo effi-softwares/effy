@@ -15,6 +15,9 @@ type fakeRepo struct {
 	fulfillment []fulfillmentRow
 	shortfalls  []shortfallRow
 	shortCalls  int
+	// 052
+	arrivals []arrivalRow
+	method   methodRow
 }
 
 func (f *fakeRepo) List(context.Context, string) ([]summaryRow, error) { return nil, nil }
@@ -28,6 +31,10 @@ func (f *fakeRepo) Fulfillments(context.Context, string) ([]fulfillmentRow, erro
 func (f *fakeRepo) Shortfalls(context.Context, string) ([]shortfallRow, error) {
 	f.shortCalls++
 	return f.shortfalls, nil
+}
+func (f *fakeRepo) Arrivals(context.Context, string) ([]arrivalRow, error) { return f.arrivals, nil }
+func (f *fakeRepo) PaymentMethod(context.Context, string) (methodRow, error) {
+	return f.method, nil
 }
 
 const orderID = "3f1c0b6e-7a7e-4a1a-9f2e-2b6c9a5d4e31"
@@ -51,7 +58,7 @@ func baseRepo() *fakeRepo {
 // "Billing: same as shipping".
 func TestGet_BillingSameAsShippingIsEmpty(t *testing.T) {
 	repo := baseRepo() // order.Billing left nil
-	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -65,7 +72,7 @@ func TestGet_BillingSameAsShippingIsEmpty(t *testing.T) {
 func TestGet_DivergentBillingIsReturned(t *testing.T) {
 	repo := baseRepo()
 	repo.order.Billing = []byte(`{"city":"Sydney"}`)
-	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -81,7 +88,7 @@ func TestGet_DivergentBillingIsReturned(t *testing.T) {
 // slice every portion was permanently `pending` because nothing could change it.
 func TestGet_ExposesRicherFulfillmentStates(t *testing.T) {
 	repo := baseRepo()
-	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -101,7 +108,7 @@ func TestGet_AttachesShortfallsToTheirOwnPortion(t *testing.T) {
 		{FulfillmentID: "portion-a", ProductName: "Barilla Spaghetti", Quantity: 1},
 	}
 
-	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -122,7 +129,7 @@ func TestGet_NoShortfallWhileStillPicking(t *testing.T) {
 	repo := baseRepo()
 	repo.fulfillment = []fulfillmentRow{{ID: "portion-b", Status: "picking", Count: 1, Subtotal: "10.00"}}
 
-	got, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -138,7 +145,7 @@ func TestOrderDTO_CarriesNoShopIdentity(t *testing.T) {
 	repo.shortfalls = []shortfallRow{
 		{FulfillmentID: "portion-a", ProductName: "Barilla Spaghetti", Quantity: 1},
 	}
-	order, err := NewService(repo).Get(context.Background(), "cust-1", orderID)
+	order, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
@@ -182,3 +189,138 @@ func TestFulfillmentDTO_OmitsShortfallKeyWhenAbsent(t *testing.T) {
 		t.Fatalf("want the key omitted, got %s", blob)
 	}
 }
+
+// ── 052 ─────────────────────────────────────────────────────────────────────────────────────────
+
+// The receipt's key set, asserted against the CONTRACT — specs/052-order-confirmation-invoice/
+// contracts/receipt.contract.md §1 — and deliberately NOT against `orderDTO`.
+//
+// ⚠ THIS IS THE 033 LESSON. That slice wrote its key-set expectation from its own Go struct, so the
+// test agreed with the code instead of with the world and passed while the contract was violated. The
+// literal below is transcribed from the contract by hand; if someone renames a field in `orderDTO`,
+// this fails, which is the entire point. An assertion that cannot fail is not an assertion.
+func TestOrderDTO_KeySetMatchesTheContract(t *testing.T) {
+	want := map[string]bool{
+		"id": true, "orderNumber": true, "status": true, "placedAt": true, "items": true,
+		"deliveryAddress": true, "itemSubtotalAmount": true, "discountAmount": true,
+		"deliveryFeeAmount": true, "promoCode": true, "grandTotalAmount": true, "currency": true,
+		"paymentStatus": true, "fulfillments": true,
+		// 052 additions
+		"stage": true, "paymentMethod": true, "arrivalEstimates": true,
+		// `billingAddress` is omitempty — absent means "same as shipping" (FR-016), so it is not
+		// required here and its ABSENCE is asserted by TestGet_BillingSameAsShippingIsEmpty.
+	}
+
+	blob, err := json.Marshal(orderDTO{})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(blob, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	for k := range want {
+		if _, ok := got[k]; !ok {
+			t.Errorf("contract requires key %q and the response does not carry it", k)
+		}
+	}
+	for k := range got {
+		if !want[k] && k != "billingAddress" {
+			t.Errorf("response carries key %q which the contract does not declare", k)
+		}
+	}
+}
+
+// FR-006 / data-model §1: absence is normal. A pre-052 order, or one whose post-commit capture
+// failed, carries no method — and the client must be able to tell that apart from a blank.
+func TestGet_PaymentMethodIsNilWhenNeverCaptured(t *testing.T) {
+	repo := &fakeRepo{order: orderRow{ID: orderID, Currency: "AUD"}}
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.PaymentMethod != nil {
+		t.Fatalf("PaymentMethod = %+v, want nil when nothing was captured", got.PaymentMethod)
+	}
+
+	blob, _ := json.Marshal(orderDTO{PaymentMethod: nil})
+	if !strings.Contains(string(blob), `"paymentMethod":null`) {
+		t.Fatalf("an uncaptured method must serialise as null, got %s", blob)
+	}
+}
+
+// FR-006: only `last4` may describe the card. This pins the SHAPE — if someone adds an expiry or a
+// cardholder name to the DTO, it fails here rather than at a privacy review.
+func TestPaymentMethodDTO_CarriesNothingButTheFamilyBrandAndLast4(t *testing.T) {
+	blob, err := json.Marshal(paymentMethodDTO{Type: "card"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(blob, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	allowed := map[string]bool{"type": true, "brand": true, "last4": true}
+	for k := range got {
+		if !allowed[k] {
+			t.Errorf("paymentMethodDTO carries %q — no card field beyond last4 may exist here (051)", k)
+		}
+	}
+}
+
+// FR-007 / research R4: the arrival estimate is a DATE RANGE. Nothing on this struct may carry a
+// time, because the platform has none to give.
+func TestArrivalEstimates_AreAlwaysAnArrayAndCarryNoShopReference(t *testing.T) {
+	repo := &fakeRepo{
+		order: orderRow{ID: orderID, Currency: "AUD"},
+		arrivals: []arrivalRow{
+			{Method: "same_day", PromisedFrom: strptr("2026-08-26"), PromisedTo: strptr("2026-08-26")},
+		},
+	}
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.ArrivalEstimates) != 1 || got.ArrivalEstimates[0].Method != "same_day" {
+		t.Fatalf("ArrivalEstimates = %+v", got.ArrivalEstimates)
+	}
+
+	blob, _ := json.Marshal(arrivalEstimateDTO{Method: "same_day"})
+	for _, banned := range []string{"shop", "Shop", "ring", "distance", "readyBy"} {
+		if strings.Contains(string(blob), banned) {
+			t.Fatalf("arrivalEstimateDTO leaks %q — no fulfilment structure may cross this boundary (FR-009)", banned)
+		}
+	}
+
+	// An order with no packages still serialises an ARRAY, never null.
+	empty := &fakeRepo{order: orderRow{ID: orderID, Currency: "AUD"}}
+	e, _ := NewService(empty, nil).Get(context.Background(), "cust-1", orderID)
+	if e.ArrivalEstimates == nil {
+		t.Fatal("ArrivalEstimates must be an empty slice, never nil — the client has no undefined branch")
+	}
+}
+
+// FR-003: the image is decoration. No presigner, or no media row, must still produce a whole line.
+func TestItems_RenderCompleteWithoutAnImage(t *testing.T) {
+	repo := &fakeRepo{
+		order: orderRow{ID: orderID, Currency: "AUD"},
+		items: []itemRow{{ProductID: "p1", ProductName: "Milk", UnitPrice: "3.10", Quantity: 2, LineSubtotal: "6.20"}},
+	}
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.Items) != 1 {
+		t.Fatalf("items = %+v", got.Items)
+	}
+	if got.Items[0].ImageURL != nil {
+		t.Fatalf("ImageURL = %v, want nil with no presigner", *got.Items[0].ImageURL)
+	}
+	// The facts that matter survive regardless.
+	if got.Items[0].UnitPriceAmount != "3.10" || got.Items[0].LineSubtotalAmount != "6.20" {
+		t.Fatalf("a line missing its picture must still carry its money: %+v", got.Items[0])
+	}
+}
+
+func strptr(s string) *string { return &s }
