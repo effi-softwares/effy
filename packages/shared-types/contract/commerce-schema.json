@@ -101,6 +101,39 @@
       ],
       "type": "object"
     },
+    "ArrivalEstimateDTO": {
+      "additionalProperties": false,
+      "description": "052 — when one package is expected to ARRIVE, as the customer was shown at checkout.\n\n⚠ NOT `DeliveryPromiseDTO`, which already exists in `shop-order.ts` and is a DIFFERENT FACT FOR A DIFFERENT AUDIENCE: that one carries `readyBy`, the time this shop must have the package ready at the fulfilment node. Research R4 records that the ready-by must never reach the customer — it means something else, and it is fulfilment structure (FR-009). The names are kept apart deliberately so the two can never be swapped by autocomplete.\n\n⚠ DATES, NOT TIMES. `promisedFrom`/`promisedTo` are ISO dates (yyyy-mm-dd) because the underlying `order_package_delivery.promised_from`/`.promised_to` are `date` columns — the platform has no delivery time window and cannot derive one. A client MUST NOT render a time here.",
+      "properties": {
+        "method": {
+          "description": "The method the customer chose for this package.",
+          "enum": [
+            "same_day",
+            "scheduled",
+            "standard"
+          ],
+          "type": "string"
+        },
+        "promisedFrom": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "promisedTo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "method",
+        "promisedFrom",
+        "promisedTo"
+      ],
+      "type": "object"
+    },
     "AustralianState": {
       "description": "Australian state / territory — the closed set the place record uses.",
       "enum": [
@@ -1171,6 +1204,13 @@
       "additionalProperties": false,
       "description": "Full order / receipt (GET /v1/orders/{id}).",
       "properties": {
+        "arrivalEstimates": {
+          "description": "052 — when the order is expected to arrive (FR-007), one entry per package.\n\n⚠ More than one entry means the order arrives in more than one delivery — a fact about the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference of any kind (FR-009), and the entries are deliberately unordered with respect to any internal grouping.",
+          "items": {
+            "$ref": "#/definitions/ArrivalEstimateDTO"
+          },
+          "type": "array"
+        },
         "billingAddress": {
           "anyOf": [
             {
@@ -1221,6 +1261,17 @@
         "orderNumber": {
           "type": "string"
         },
+        "paymentMethod": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PaymentMethodSummaryDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "052 — how the order was paid, in a form safe to display (FR-006). Null when not captured: a pre-052 order, or an order whose post-commit capture failed. The receipt omits the line rather than showing a blank."
+        },
         "paymentStatus": {
           "$ref": "#/definitions/PaymentStatus"
         },
@@ -1237,6 +1288,10 @@
             "null"
           ]
         },
+        "stage": {
+          "$ref": "#/definitions/OrderStage",
+          "description": "052 — the customer-facing progress stage (FR-008).\n\n⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`. Two clients deriving one answer independently is 029's banner target and 033's `available` flag, and the failure is silent because both surfaces still render *something*.\n\n⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still being picked is `packing`. The customer has not received their order."
+        },
         "status": {
           "$ref": "#/definitions/OrderStatus"
         }
@@ -1252,7 +1307,9 @@
         "grandTotalAmount",
         "currency",
         "paymentStatus",
-        "fulfillments"
+        "fulfillments",
+        "stage",
+        "arrivalEstimates"
       ],
       "type": "object"
     },
@@ -1296,6 +1353,13 @@
       "additionalProperties": false,
       "description": "A line on the receipt (product snapshot — never a shop).",
       "properties": {
+        "imageUrl": {
+          "description": "052 — a short-lived presigned URL for the product's primary image, or null.\n\n⚠ DECORATION ONLY, and never a carrier of meaning (FR-003). A line renders complete without it, and a client MUST NOT gate any fact on its presence. It is resolved by a LEFT JOIN to the live `product_media`; every other field on this line comes from the order's own immutable snapshot, which is why a renamed or re-photographed product still shows what was actually bought (FR-011).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "lineSubtotalAmount": {
           "type": "string"
         },
@@ -1337,6 +1401,16 @@
         "quantity"
       ],
       "type": "object"
+    },
+    "OrderStage": {
+      "description": "052 — the customer-facing progress vocabulary (FR-008). A CLOSED union, derived server-side from every `shop_fulfillment.status` on the order. See `apis/core-api/internal/features/orders/stage.go` for the single rollup that produces it.",
+      "enum": [
+        "confirmed",
+        "packing",
+        "on_the_way",
+        "delivered"
+      ],
+      "type": "string"
     },
     "OrderStatus": {
       "description": "Order lifecycle mirrored to the client (payment-driven).",
@@ -1443,6 +1517,42 @@
         "isDefault",
         "usable",
         "unusableReason"
+      ],
+      "type": "object"
+    },
+    "PaymentMethodSummaryDTO": {
+      "additionalProperties": false,
+      "description": "052 — a short, non-sensitive description of how an order was paid.\n\n⚠ NO CARD DATA BEYOND `last4`, ever (051 `payment.ts`). There is no field for a card number, an expiry, or a cardholder name, and none may be added.",
+      "properties": {
+        "brand": {
+          "description": "Network or wallet for the label (\"visa\", \"apple_pay\"). Null when the family carries no brand.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last4": {
+          "description": "The ONLY part of a card number permitted to leave the provider. Null for non-card families.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "type": {
+          "description": "Effy's own family, never the provider's string.",
+          "enum": [
+            "card",
+            "wallet",
+            "pay_over_time",
+            "other"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "brand",
+        "last4"
       ],
       "type": "object"
     },

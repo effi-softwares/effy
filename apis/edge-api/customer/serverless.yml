@@ -19,6 +19,9 @@ params:
     logLevel: info
     # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
     secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+    # 052 — receipt resend rate limit (FR-028).
+    receiptResendWindowMinutes: "60"
+    receiptResendMaxPerWindow: "3"
   dev:
     logLevel: debug
 
@@ -61,6 +64,10 @@ provider:
     MAIL_REPLY_TO_INTERNAL: ${ssm:/effy/${sls:stage}/ses/reply_to_internal, ''}
     MAIL_CONFIGURATION_SET: ${ssm:/effy/${sls:stage}/ses/configuration_set}
     MAIL_POSTAL_ADDRESS: ${ssm:/effy/${sls:stage}/mail/postal_address, ''}
+    # 052 — the resend rate limit (FR-028). Generous to a person, useless to a script. Declared here
+    # rather than left as a literal so the deployment states what it enforces.
+    RECEIPT_RESEND_WINDOW_MINUTES: ${param:receiptResendWindowMinutes}
+    RECEIPT_RESEND_MAX_PER_WINDOW: ${param:receiptResendMaxPerWindow}
     # ── 039: newsletter double opt-in (US6) ──────────────────────────────────────────────────────
     #
     # ⚠ DECLARED HERE OR THE SERVICE SENDS NOTHING. This is 035's defect verbatim — four env vars the
@@ -354,6 +361,22 @@ functions:
   # Erasure runs automatically thereafter — NO human step, and no support agent, stands between the
   # customer's confirmation and it. Both documented App Review rejections in this area were
   # deactivation flows with a person in the loop; that is the specific shape that fails.
+  # 052 US4 — send the receipt for a paid order again.
+  #
+  # ⚠ NO REQUEST BODY. The recipient is resolved server-side from the authenticated subject; an
+  # `email` field would make this an open relay for a personalised document (contract § 2).
+  # ⚠ It ENQUEUES only — `edge-notifications` sends — so a shopper never waits on SES.
+  customerOrdersV1IDReceiptPost:
+    handler: src/functions/customer-orders-v1-id-receipt-post.handler
+    description: Enqueue a resend of a paid order's receipt to the account address (052 US4)
+    events:
+      - httpApi:
+          method: POST
+          path: /customer/v1/orders/{id}/receipt
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/customer_id}
+
   customerClosureV1Post:
     handler: src/functions/customer-closure-v1-post.handler
     description: Close the account — verifies a fresh code, then closes and revokes all sessions (034 US3)

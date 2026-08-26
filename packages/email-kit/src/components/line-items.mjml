@@ -2,23 +2,31 @@
      ⚠ A REAL mj-include, unlike most content blocks: the `{{#each items}}` loop is RENDER-TIME
      Handlebars, not a compile-time parameter, so the enclosing template supplies `items` at send time
      and the include needs no arguments. Any template that declares
-     `items: { of: { name: "string", quantity: "string", lineTotal: "string" } }` can use it.
+     `items: { of: { name, quantity, unitPrice, lineTotal } }` can use it.
 
      ⚠ TABLE-BASED (mj-table → a real <table>), which is what survives the Word engine — a receipt is
      the one place a data table is genuinely the right structure, and it holds up where a div grid
      would not. ⚠ Money and quantity arrive PRE-FORMATTED as strings (FR-048): "2", "$7.80". The
      template never formats a number.
 
-     ⚠ Every cell carries `class="e-ink"` so the dark-mode restatement reaches it — the dark rules
-     target `.e-ink` (the element itself), and a bare <td> would stay light-mode near-black on a dark
-     ground. Each cell also states its own colour inline, so the message is correct with no stylesheet
-     at all (contract §4). -->
+     ⚠ Every cell carries `class="e-ink"`/`"e-muted"` so the dark-mode restatement reaches it — the
+     dark rules target the ELEMENT, and a bare <td> would stay light-mode near-black on a dark ground.
+     Each cell also states its own colour inline, so the message is correct with no stylesheet at all
+     (contract §4).
+
+     ⚠ 052 ADDED THE UNIT PRICE, on its own line under the name rather than in a third column. Three
+     money columns at 600px wraps the product name to two or three ragged lines on a phone, which is
+     where most of these are read; stacking keeps one row per item at every width. It is what makes a
+     line CHECKABLE — "$9.50 each × 2 = $19.00" — rather than merely stated (FR-003). -->
 <mj-table role="presentation" cellpadding="0" cellspacing="0" width="100%" css-class="e-ink"
           font-family="'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   {{#each items}}
   <tr>
-    <td class="e-ink" style="padding:8px 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{quantity}} &times; {{name}}</td>
-    <td class="e-ink" align="right" valign="top" style="padding:8px 0 8px 16px;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;white-space:nowrap;">{{lineTotal}}</td>
+    <td class="e-ink" style="padding:10px 0 2px 0;color:#1a1a1a;font-size:16px;line-height:22px;mso-line-height-rule:exactly;">{{name}}</td>
+    <td class="e-ink" align="right" valign="top" style="padding:10px 0 2px 16px;color:#1a1a1a;font-size:16px;line-height:22px;mso-line-height-rule:exactly;white-space:nowrap;font-weight:600;">{{lineTotal}}</td>
+  </tr>
+  <tr>
+    <td class="e-muted" colspan="2" style="padding:0 0 10px 0;color:#666666;font-size:14px;line-height:20px;mso-line-height-rule:exactly;">{{unitPrice}} each &middot; Qty {{quantity}}</td>
   </tr>
   {{/each}}
 </mj-table>

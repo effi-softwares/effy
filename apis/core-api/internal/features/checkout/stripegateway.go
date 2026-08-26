@@ -64,6 +64,55 @@ func (g *StripeGateway) RetrievePaymentIntent(ctx context.Context, intentID stri
 	return toPaymentIntent(pi), nil
 }
 
+// DescribePaymentMethod reads how the intent was actually paid (052 FR-006).
+//
+// ⚠ THE EXPAND IS THE WHOLE POINT. `latest_charge` on a PaymentIntent is an ID STRING; without asking
+// Stripe to expand it (and the payment-method details inside it) there is no brand and no last4 to
+// read. That is why this is a separate call rather than something the webhook payload already carried.
+//
+// ⚠ Everything here degrades to a zero value rather than erroring on shape. A receipt with no payment
+// line is a supported state; a receipt read that fails because a provider changed a nested field is
+// not. The caller additionally ignores the error entirely (see store.go) — this signature returns one
+// only so a caller COULD log it.
+func (g *StripeGateway) DescribePaymentMethod(ctx context.Context, intentID string) (PaymentMethodSummary, error) {
+	params := &stripe.PaymentIntentParams{}
+	params.Context = ctx
+	params.AddExpand("latest_charge.payment_method_details")
+	pi, err := paymentintent.Get(intentID, params)
+	if err != nil {
+		return PaymentMethodSummary{}, fmt.Errorf("checkout: stripe describe method: %w", err)
+	}
+	if pi == nil || pi.LatestCharge == nil || pi.LatestCharge.PaymentMethodDetails == nil {
+		return PaymentMethodSummary{}, nil
+	}
+
+	d := pi.LatestCharge.PaymentMethodDetails
+	switch {
+	case d.Card != nil:
+		// ⚠ A card paid through a wallet still arrives as `card`, with the wallet named inside it.
+		// Reporting "Apple Pay" where the shopper used Apple Pay is the honest answer; falling back to
+		// "Visa" when there is no wallet is equally honest. Both read correctly on a receipt.
+		if d.Card.Wallet != nil && d.Card.Wallet.Type != "" {
+			return PaymentMethodSummary{
+				Type:  "wallet",
+				Brand: string(d.Card.Wallet.Type),
+				Last4: d.Card.Last4,
+			}, nil
+		}
+		return PaymentMethodSummary{Type: "card", Brand: string(d.Card.Brand), Last4: d.Card.Last4}, nil
+	case d.Klarna != nil:
+		return PaymentMethodSummary{Type: "pay_over_time", Brand: "klarna"}, nil
+	case d.AfterpayClearpay != nil:
+		return PaymentMethodSummary{Type: "pay_over_time", Brand: "afterpay"}, nil
+	case d.Zip != nil:
+		return PaymentMethodSummary{Type: "pay_over_time", Brand: "zip"}, nil
+	default:
+		// ⚠ `other`, NOT an error and NOT a guess. An unrecognised method still deserves a receipt;
+		// inventing a brand for it would put a false fact on a financial record.
+		return PaymentMethodSummary{Type: "other", Brand: string(d.Type)}, nil
+	}
+}
+
 // ConstructWebhookEvent verifies the Stripe signature over the RAW body (HMAC + timestamp tolerance)
 // and extracts the PaymentIntent id + status. A bad signature is an error (the handler 400s).
 func (g *StripeGateway) ConstructWebhookEvent(payload []byte, signatureHeader string) (WebhookEvent, error) {

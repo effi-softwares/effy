@@ -222,24 +222,63 @@ export const CATALOG = {
   // object-array spec. ⚠ Every money value and quantity is a PRE-FORMATTED string (FR-048).
   // ─────────────────────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * ⚠ 052 WIRED THIS UP. It is no longer template-only: `edge-notifications` renders and sends it when
+   * an order becomes paid, and the customer can request it again (FR-019/FR-027).
+   *
+   * ⚠ THE ID IS KEPT, and that is a deliberate reading of the rule at the top of this file. An id is
+   * permanent once shipped because it is written into delivery records and renaming one orphans every
+   * historical row. There are NO such rows: this message had no call site until now, so nothing
+   * references it. A new id would strand the artifacts and guards already built for it (research R8).
+   */
   "order-confirmation": {
     vars: {
       orderNumber: "string",
+      placedAt: "string",
+      /** ⚠ A DATE OR DATE RANGE, never a time — the platform has no delivery window (research R4). */
       deliveryEstimate: "string",
-      items: { of: { name: "string", quantity: "string", lineTotal: "string" } },
+      deliveryMethod: "string",
+      /** ⚠ Money and quantity arrive PRE-FORMATTED (FR-048). `unitPrice` is 052's addition. */
+      items: {
+        of: { name: "string", quantity: "string", unitPrice: "string", lineTotal: "string" },
+      },
       subtotal: "string",
+      /** `hasDiscount` gates the row; a zero discount is OMITTED, never rendered as a dash. */
+      hasDiscount: "boolean",
+      discountLabel: "string",
+      discountAmount: "string",
+      hasDeliveryFee: "boolean",
       deliveryFee: "string",
       total: "string",
+      /** Absent on a pre-052 order, or where the post-commit capture failed (data-model §1). */
+      hasPaymentMethod: "boolean",
+      paymentMethod: "string",
       deliveryAddress: "string",
+      billingSameAsDelivery: "boolean",
+      billingAddress: "string",
       orderUrl: "string",
     },
     subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} is confirmed`,
+    // ⚠ Does not repeat the subject and does not restate the amount (FR-025).
     preheader: (v) => `Arriving ${v.deliveryEstimate}.`,
     audiences: CUSTOMER_ONLY,
     sentBy: "platform",
+
+    /**
+     * ⚠ `transactional`, AND IT IS LOAD-BEARING. The `Category` union gives the transactional arm no
+     * field to put an unsubscribe URL in, so an unsubscribable receipt is a COMPILE ERROR rather than
+     * a review catch (FR-024). A customer must never be able to opt out of their own proof of
+     * purchase — and unlike a newsletter, there is no argument that they should be able to.
+     */
     category: "transactional",
-    // An order confirmation is informational — the order is already placed — so if a future slice
-    // wires it, swallow fits. Inert today (no call site).
+
+    /**
+     * ⚠ `swallow`, and for the `account-password-changed` reason rather than the
+     * `newsletter-confirmation` one. THE ORDER IS ALREADY PAID and the write cannot be unwound; a
+     * throw would propagate into a caller that would then report a failure for something that
+     * demonstrably succeeded (FR-023). The dispatch row records the failure instead, so it is loud in
+     * the place an operator actually looks (`receipt_dispatch.status = 'failed'`) rather than silent.
+     */
     onSendFailure: "swallow",
   },
 

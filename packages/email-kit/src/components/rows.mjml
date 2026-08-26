@@ -1,31 +1,47 @@
-<!-- KEY-VALUE DETAIL ROWS — the totals block of a receipt (subtotal / delivery / total).
+<!-- KEY-VALUE DETAIL ROWS — the totals block of a receipt.
      ⚠ A REAL mj-include (same mechanism as line-items.mjml): the values are render-time Handlebars,
-     so no parameters are needed. A template that declares `subtotal`, `deliveryFee` and `total` as
-     pre-formatted strings can use it.
+     so no parameters are needed.
 
      ⚠ NOT a generic "any label/value" component — that would need per-use parameters mj-include does
-     not have. This is the ONE recurring totals shape. A template with different detail rows (an
-     address block, an order date) authors those inline; this covers the money summary that every
-     receipt shares.
+     not have. This is the ONE recurring totals shape.
 
      The total row is heavier (weight 600) and separated by a hairline `<td>` (a bordered/bg cell, not
      a CSS border — the Word engine's border support is unreliable). `e-ink`/`e-muted` carry dark
-     mode; each cell states its colour inline for the no-stylesheet case. -->
+     mode; each cell states its colour inline for the no-stylesheet case.
+
+     ── ⚠ 052: EVERY LINE MUST ADD UP, AND A ZERO LINE IS OMITTED ────────────────────────────────
+     `hasDiscount`/`hasDeliveryFee` gate their rows. A component that is genuinely zero is left OUT
+     rather than printed as "$0.00" or a dash: on a financial record "nothing" and "unknown" are
+     different claims, and a dash reads as the second. The invariant the shopper can check is
+     subtotal − discount + delivery = total = what was charged (FR-004). -->
 <mj-table role="presentation" cellpadding="0" cellspacing="0" width="100%" css-class="e-ink"
           font-family="'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <tr>
-    <td class="e-muted" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">Subtotal</td>
+    <td class="e-muted" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">Items subtotal</td>
     <td class="e-muted" align="right" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{subtotal}}</td>
   </tr>
+  {{#if hasDiscount}}
+  <tr>
+    <td class="e-muted" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{discountLabel}}</td>
+    <td class="e-muted" align="right" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">&minus;{{discountAmount}}</td>
+  </tr>
+  {{/if}}
+  {{#if hasDeliveryFee}}
   <tr>
     <td class="e-muted" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">Delivery</td>
     <td class="e-muted" align="right" style="padding:6px 0;color:#666666;font-size:16px;line-height:24px;mso-line-height-rule:exactly;">{{deliveryFee}}</td>
   </tr>
+  {{/if}}
   <tr>
     <td class="e-rule" colspan="2" height="1" style="height:1px;line-height:1px;font-size:1px;padding:8px 0 0 0;"><span style="font-size:1px;">&nbsp;</span></td>
   </tr>
   <tr>
-    <td class="e-ink" style="padding:8px 0 0 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;font-weight:600;">Total</td>
+    <td class="e-ink" style="padding:8px 0 0 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;font-weight:600;">Total paid</td>
     <td class="e-ink" align="right" style="padding:8px 0 0 0;color:#1a1a1a;font-size:16px;line-height:24px;mso-line-height-rule:exactly;font-weight:600;">{{total}}</td>
   </tr>
+  {{#if hasPaymentMethod}}
+  <tr>
+    <td class="e-muted" colspan="2" style="padding:10px 0 0 0;color:#666666;font-size:14px;line-height:20px;mso-line-height-rule:exactly;">Paid with {{paymentMethod}}</td>
+  </tr>
+  {{/if}}
 </mj-table>

@@ -6,14 +6,17 @@ import { Suspense } from "react"
 import type { OrderDTO } from "@effy/shared-types"
 
 import { OrderAddresses } from "@/components/OrderAddresses"
+import { ArrivalPanel } from "@/components/receipt/ArrivalPanel"
+import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
+import { ReceiptDocument } from "@/components/receipt/ReceiptDocument"
+import { ResendReceipt } from "@/components/receipt/ResendReceipt"
 import { ActionLink } from "@/components/storefront/actions"
+import { Display } from "@/components/storefront/kit"
 import { coreApi, uncached } from "@/lib/api/core"
 import { getSession, requireCustomer } from "@/lib/dal"
-import { formatMoney } from "@/lib/money"
 
 import { ClearCart } from "./ClearCart"
 import { completionState, mayClearCart } from "./state"
-import { Display } from "@/components/storefront/kit"
 
 export const metadata: Metadata = {
   title: "Order confirmation",
@@ -21,9 +24,9 @@ export const metadata: Metadata = {
 }
 
 /**
- * The receipt (US3). Reads the WEBHOOK-AUTHORITATIVE order state from the hot path (R4) — never the
- * browser payment result. ONE Effy order itemized by product, with NO shop identity (FR-029). Gated +
- * request-time, so it lives inside <Suspense>.
+ * The receipt (019 US3, redesigned by 052 US1). Reads the WEBHOOK-AUTHORITATIVE order state from the
+ * hot path (R4) — never the browser payment result. ONE Effy order itemized by product, with NO shop
+ * identity (FR-029/FR-009). Gated + request-time, so it lives inside <Suspense>.
  */
 type ReturnParams = {
   order?: string
@@ -41,7 +44,13 @@ type ReturnParams = {
 
 export default function CompletePage({ searchParams }: { searchParams: Promise<ReturnParams> }) {
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
+    // ⚠ `container`, not a per-page `mx-auto max-w-*` (052 FR-018a). The storefront defines ONE content
+    // column in app/globals.css and its comment records why: the four decisions (centring, full width,
+    // the cap, the gutter) had been written out twenty-four times. That is 80rem — far wider than the
+    // 42rem this page used — so the layout below is built FOR the width as two columns rather than
+    // constrained back down. A single column at 80rem puts the width of the page between an item's
+    // name and its price.
+    <div className="container py-10">
       <Suspense fallback={<ReceiptSkeleton />}>
         <Receipt searchParams={searchParams} />
       </Suspense>
@@ -96,15 +105,12 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
   // again, and the copy in the abandoned branch below *promises* it is still there. Clearing it made
   // that promise false.
   //
-  // So the receipt is gated on the payment, not on the fetch. Everything else is a waiting-or-failed
-  // state that keeps the basket.
+  // ⚠ 052 PRESERVES THIS UNCHANGED (FR-017). The redesign is everything BELOW this gate; the gate
+  // itself is untouched, because it is the thing standing between a redesign and a re-introduced bug.
   if (!dto || state !== "receipt") {
-    // ⚠ 051 US4 — a shopper who ABANDONED at the provider must not be told their payment is being
-    // confirmed. Nothing was charged and their basket is intact; saying "confirming" would leave them
-    // waiting for an order that is never coming (US4 scenario 5, FR-036).
     const abandoned = state === "abandoned"
     return (
-      <div className="rounded-2xl border border-dashed p-12 text-center">
+      <div className="mx-auto max-w-xl rounded-2xl border border-dashed p-12 text-center">
         <h1 className="text-lg font-medium">
           {abandoned ? "Your payment wasn’t completed" : "We’re confirming your payment"}
         </h1>
@@ -128,79 +134,87 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
     )
   }
 
-
-
   return (
     <div>
       {/* Paid, and only paid — see `state.ts`. */}
       {mayClearCart(state) ? <ClearCart orderId={dto.id} /> : null}
 
-      <div className="mb-6 text-center">
-        <p className="text-sm font-medium text-primary">Payment received</p>
-        <Display as="h1" size="section" className="mt-1">Thank you</Display>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Order <span className="font-medium text-foreground">{dto.orderNumber}</span>
-        </p>
+      {/* ── Confirmation band ──────────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-center sm:gap-5">
+        <div
+          aria-hidden="true"
+          className="flex size-13 shrink-0 items-center justify-center rounded-full bg-[#eef7ee] dark:bg-[#12220f]"
+        >
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M5 12.6l4.4 4.4L19 7.4"
+              className="stroke-[#0c9409] dark:stroke-[#22c55e]"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+        <div className="flex flex-1 flex-col gap-1.5">
+          <p className="text-[11px] font-medium uppercase tracking-[0.07em] text-muted-foreground">
+            Payment received
+          </p>
+          <Display as="h1" size="section">
+            Thank you
+          </Display>
+        </div>
       </div>
 
-      <section className="rounded-2xl border">
-        <ul className="divide-y">
-          {dto.items.map((item) => (
-            <li key={item.productId} className="flex justify-between gap-4 p-4 text-sm">
-              <span>
-                {item.productName}
-                <span className="text-muted-foreground"> × {item.quantity}</span>
-              </span>
-              <span className="font-medium">{formatMoney(item.lineSubtotalAmount, dto.currency)}</span>
-            </li>
-          ))}
-        </ul>
-        <dl className="space-y-1 border-t p-4 text-sm">
-          <Row label="Items" value={formatMoney(dto.itemSubtotalAmount, dto.currency)} />
-          {/*
-            ⚠ 051 FR-043 — delivery was inside the total and shown nowhere. A receipt whose lines do
-            not add up to its total is not a receipt a shopper can check, and for a GST-inclusive
-            Australian sale that is a real gap rather than a cosmetic one.
-          */}
-          {dto.deliveryFeeAmount ? (
-            <Row label="Delivery" value={formatMoney(dto.deliveryFeeAmount, dto.currency)} />
-          ) : null}
-          <div className="flex justify-between border-t pt-2 text-base font-semibold">
-            <dt>Total paid</dt>
-            <dd>{formatMoney(dto.grandTotalAmount, dto.currency)}</dd>
+      {/* ── The document, and a rail for what changes ──────────────────────────────────────── */}
+      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <ReceiptDocument order={dto} />
+
+          <section className="rounded-xl border p-6">
+            <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
+          </section>
+
+          <DocumentStatusNote />
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} />
+
+          {/* One primary action, then the alternatives (FR-012). */}
+          <div className="flex flex-col gap-2.5">
+            <ActionLink href={`/orders/${dto.id}`} size="md" className="w-full">
+              Track this order
+            </ActionLink>
+            <ActionLink href="/orders" variant="outline" size="md" className="w-full">
+              Your orders
+            </ActionLink>
+            <ActionLink href="/" variant="outline" size="md" className="w-full">
+              Keep shopping
+            </ActionLink>
           </div>
-        </dl>
-      </section>
 
+          <ResendReceipt orderId={dto.id} />
 
-      <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
-
-      <div className="mt-8 flex gap-3">
-        <ActionLink href="/orders" variant="outline" size="md">
-          Your orders
-        </ActionLink>
-        <ActionLink href="/" size="md">
-          Keep shopping
-        </ActionLink>
+          <p className="text-[13px] text-muted-foreground">
+            Something wrong with this order?{" "}
+            <Link href="/feedback?from=checkout" className="font-medium text-primary hover:underline">
+              Get help
+            </Link>
+          </p>
+        </div>
       </div>
-    </div>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd>{value}</dd>
     </div>
   )
 }
 
 function ReceiptSkeleton() {
   return (
-    <div className="space-y-4" aria-hidden="true">
-      <div className="mx-auto h-6 w-40 animate-pulse rounded bg-muted" />
-      <div className="h-40 w-full animate-pulse rounded bg-muted" />
+    <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]" aria-hidden="true">
+      <div className="flex flex-col gap-5">
+        <div className="h-96 w-full animate-pulse rounded-xl bg-muted" />
+        <div className="h-32 w-full animate-pulse rounded-xl bg-muted" />
+      </div>
+      <div className="h-72 w-full animate-pulse rounded-xl bg-muted" />
     </div>
   )
 }

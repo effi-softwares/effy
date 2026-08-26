@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 
 import type { OrderFulfillmentDTO } from "@effy/shared-types"
 
-import { summarizeFulfillment } from "./fulfillment-progress"
+import { shortfallsFrom } from "./fulfillment-progress"
 
 const portion = (
   status: OrderFulfillmentDTO["status"],
@@ -14,70 +14,65 @@ const portion = (
   ...(unavailableItems ? { unavailableItems } : {}),
 })
 
-describe("summarizeFulfillment", () => {
-  it("returns null when there is nothing to report", () => {
-    expect(summarizeFulfillment([])).toBeNull()
+/**
+ * ⚠ THE STAGE CASES THAT USED TO LIVE HERE ARE GONE, DELIBERATELY (052 FR-008).
+ *
+ * They tested a client-side four-value rollup that duplicated, in TypeScript, the rule the server now
+ * applies in `apis/core-api/internal/features/orders/stage.go`. That rule is still tested — harder,
+ * with its own negative proof — in `stage_test.go`. Keeping a second copy here would mean two
+ * implementations of one rule with two test suites agreeing with each other and possibly with nothing
+ * else, which is exactly 029's and 033's failure mode.
+ *
+ * What remains is the part that is genuinely the client's: flattening shortfalls without leaking the
+ * fan-out.
+ */
+describe("shortfallsFrom", () => {
+  it("returns nothing when there are no portions", () => {
+    expect(shortfallsFrom([])).toEqual([])
   })
 
-  it("reports confirmed while every portion is still untouched", () => {
-    expect(summarizeFulfillment([portion("pending"), portion("received")])?.stage).toBe("confirmed")
-  })
-
-  it("reports preparing once any portion is being picked", () => {
-    expect(summarizeFulfillment([portion("pending"), portion("picking")])?.stage).toBe("preparing")
-  })
-
-  it("reports ready only when every portion is terminal", () => {
-    expect(summarizeFulfillment([portion("ready_for_pickup"), portion("collected")])?.stage).toBe(
-      "ready",
-    )
-  })
-
-  it("reports delivered only when EVERY portion is delivered", () => {
-    // A partially-delivered multi-shop order must not claim delivered (keeps the fan-out hidden).
-    expect(summarizeFulfillment([portion("delivered"), portion("collected")])?.stage).toBe("ready")
-    expect(summarizeFulfillment([portion("delivered"), portion("delivered")])?.stage).toBe(
-      "delivered",
-    )
-  })
-
-  // US5 scenario 3 / SC-009: a partially-ready multi-shop order must not claim completion. Saying
-  // "ready" while a portion is still being picked would be misleading about what is on its way.
-  it("does not claim ready while one portion is still outstanding", () => {
-    expect(summarizeFulfillment([portion("ready_for_pickup"), portion("picking")])?.stage).toBe(
-      "preparing",
-    )
-  })
-
-  // The privacy guarantee: nothing the customer receives may imply HOW MANY places are involved.
-  // A count, an index, or a per-portion grouping would disclose the fan-out as surely as a name.
-  it("exposes no portion count, index, or grouping", () => {
-    const result = summarizeFulfillment([
-      portion("ready_for_pickup", [{ productName: "Spaghetti", quantity: 1 }]),
-      portion("ready_for_pickup", [{ productName: "Olive Oil", quantity: 2 }]),
-      portion("ready_for_pickup"),
-    ])
-
-    expect(Object.keys(result ?? {}).sort()).toEqual(["shortfalls", "stage"])
-    // Flattened, not grouped — the shape itself must not reveal that three portions existed.
-    expect(result?.shortfalls).toEqual([
-      { productName: "Spaghetti", quantity: 1 },
-      { productName: "Olive Oil", quantity: 2 },
-    ])
-    expect(JSON.stringify(result)).not.toMatch(/shop|portion|fulfillmentId/i)
+  it("reports no shortfall when the backend sent none", () => {
+    expect(shortfallsFrom([portion("picking"), portion("received")])).toEqual([])
   })
 
   it("flattens shortfalls across portions", () => {
-    const result = summarizeFulfillment([
-      portion("ready_for_pickup", [{ productName: "Rice", quantity: 1 }]),
-      portion("collected", [{ productName: "Oats", quantity: 3 }]),
+    const got = shortfallsFrom([
+      portion("delivered", [{ productName: "Milk", quantity: 1 }]),
+      portion("collected", [{ productName: "Bread", quantity: 2 }]),
     ])
-    expect(result?.shortfalls).toHaveLength(2)
+    expect(got).toEqual([
+      { productName: "Milk", quantity: 1 },
+      { productName: "Bread", quantity: 2 },
+    ])
   })
 
-  // The backend omits shortfalls on non-terminal portions, so a flag later undone never arrives.
-  // This asserts the client does not invent one either.
-  it("reports no shortfall when the backend sent none", () => {
-    expect(summarizeFulfillment([portion("picking"), portion("received")])?.shortfalls).toEqual([])
+  /**
+   * ⚠ THE DISCLOSURE RULE (FR-018, SC-009). A flat list is not a stylistic choice: grouping the items
+   * by portion — or reporting how many portions there were — would tell the customer their order was
+   * split and into how many parts, which is exactly the fulfilment structure Effy's single-brand model
+   * hides. The output shape must carry no count, index, or grouping.
+   */
+  it("exposes no portion count, index, or grouping", () => {
+    const got = shortfallsFrom([
+      portion("delivered", [{ productName: "Milk", quantity: 1 }]),
+      portion("delivered", [{ productName: "Bread", quantity: 2 }]),
+      portion("delivered", [{ productName: "Eggs", quantity: 1 }]),
+    ])
+    // A flat array of items and nothing else — no wrapper object that could carry a count.
+    expect(Array.isArray(got)).toBe(true)
+    expect(got).toHaveLength(3)
+    for (const s of got) {
+      expect(Object.keys(s).sort()).toEqual(["productName", "quantity"])
+    }
+    // The number of PORTIONS (3) must not be recoverable from the output — three portions here happen
+    // to yield three items, so prove it with an uneven split too.
+    const uneven = shortfallsFrom([
+      portion("delivered", [
+        { productName: "Milk", quantity: 1 },
+        { productName: "Bread", quantity: 1 },
+      ]),
+      portion("delivered", [{ productName: "Eggs", quantity: 1 }]),
+    ])
+    expect(uneven).toHaveLength(3)
   })
 })

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 )
 
 var ErrNotFound = errors.New("orders: not found")
@@ -35,6 +36,9 @@ type Item struct {
 	UnitPriceAmount    string
 	Quantity           int
 	LineSubtotalAmount string
+	// 052 — a presigned GET url for the product's primary image, or nil. DECORATION ONLY: the line
+	// renders complete without it, and nothing on the receipt may be gated on its presence.
+	ImageURL *string
 }
 
 // Shortfall is an item the customer paid for and will NOT receive (020 FR-018b).
@@ -76,6 +80,33 @@ type Order struct {
 	Currency         string
 	PaymentStatus    string
 	Fulfillments     []Fulfillment
+
+	// 052 — the customer-facing progress word, derived from Fulfillments by StageFor (FR-008).
+	Stage Stage
+	// 052 — how it was paid. nil when never captured (pre-052 order, or a failed post-commit capture).
+	PaymentMethod *PaymentMethod
+	// 052 — when each package is expected to arrive. Dates only; never a time (research R4).
+	ArrivalEstimates []ArrivalEstimate
+}
+
+// PaymentMethod is the receipt-safe description of how an order was paid (052 FR-006).
+//
+// ⚠ NO CARD DATA BEYOND Last4, ever. There is no field here for a card number, an expiry or a
+// cardholder name, and none may be added — 051's rule, restated where the next person will read it.
+type PaymentMethod struct {
+	// Effy's own family: card | wallet | pay_over_time | other. Never the provider's own string.
+	Type  string
+	Brand *string
+	Last4 *string
+}
+
+// ArrivalEstimate is one package's expected arrival, as the customer was shown at checkout.
+//
+// ⚠ Dates, not times, and it carries no shop reference (FR-009).
+type ArrivalEstimate struct {
+	Method       string
+	PromisedFrom *string
+	PromisedTo   *string
 }
 
 // ── Repository ──────────────────────────────────────────────────────────────────────────────────
@@ -169,14 +200,49 @@ type itemRow struct {
 	UnitPrice    string `db:"unit_price_amount"`
 	Quantity     int    `db:"quantity"`
 	LineSubtotal string `db:"line_subtotal_amount"`
+	// 052 — the primary media object key, or nil. Presigned in the service; never emitted raw.
+	ImageKey *string `db:"image_key"`
+}
+
+// 052 — one package's arrival estimate, as captured at checkout (FR-007).
+//
+// ⚠ NOTE WHAT IS NOT SELECTED: `shop_id`. This table is keyed by it, and the customer must never learn
+// which node handles which package (FR-009). The service aggregates these into an ordered list and the
+// id never enters a struct that can reach a DTO.
+//
+// ⚠ promised_from/promised_to are `date` columns. The platform has no delivery TIME window and cannot
+// derive one (research R4) — scanning them as strings keeps that honest all the way to the wire.
+type arrivalRow struct {
+	Method       string  `db:"method"`
+	PromisedFrom *string `db:"promised_from"`
+	PromisedTo   *string `db:"promised_to"`
+}
+
+// 052 — how the order was paid (FR-006). All three nullable: they are captured best-effort AFTER the
+// finalize transaction commits, so NULL means "not captured" — a pre-052 order, or a failed follow-up.
+type methodRow struct {
+	Type  *string `db:"method_type"`
+	Brand *string `db:"method_brand"`
+	Last4 *string `db:"method_last4"`
 }
 
 func (r *Repository) Items(ctx context.Context, orderID string) ([]itemRow, error) {
+	// 052 — the line image comes from the LIVE catalogue by product_id, while every other column on
+	// this row is the order's own immutable snapshot (019). That asymmetry is deliberate: a renamed or
+	// re-priced product must still show what was actually bought (FR-011), but a photograph is
+	// DECORATION and the current one is the useful one.
+	//
+	// ⚠ LEFT JOIN, never INNER. A product with no media, or whose primary flag was cleared, must still
+	// produce its line — the receipt is the record of a purchase, not a gallery. `order_item.product_id`
+	// is ON DELETE RESTRICT so the product row itself always survives.
 	rows, err := r.db.Query(ctx, `
-SELECT product_id::text AS product_id, product_name AS product_name,
-       unit_price_amount::text AS unit_price_amount, quantity AS quantity,
-       line_subtotal_amount::text AS line_subtotal_amount
-FROM public.order_item WHERE order_id = $1 ORDER BY created_at ASC`, orderID)
+SELECT oi.product_id::text AS product_id, oi.product_name AS product_name,
+       oi.unit_price_amount::text AS unit_price_amount, oi.quantity AS quantity,
+       oi.line_subtotal_amount::text AS line_subtotal_amount,
+       pm.storage_key AS image_key
+FROM public.order_item oi
+LEFT JOIN public.product_media pm ON pm.product_id = oi.product_id AND pm.is_primary
+WHERE oi.order_id = $1 ORDER BY oi.created_at ASC`, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("orders: items: %w", err)
 	}
@@ -249,6 +315,48 @@ ORDER BY oi.product_name ASC`, orderID)
 	return out, nil
 }
 
+// Arrivals returns one row per package: the method the customer chose and the DATE RANGE they were
+// shown at checkout (052 FR-007).
+//
+// ⚠ `shop_id` is neither selected nor ordered by. The rows are ordered by the promise itself so the
+// output is stable and says nothing about internal grouping (FR-009).
+func (r *Repository) Arrivals(ctx context.Context, orderID string) ([]arrivalRow, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT method AS method,
+       promised_from::text AS promised_from,
+       promised_to::text   AS promised_to
+FROM public.order_package_delivery
+WHERE order_id = $1
+ORDER BY promised_from ASC NULLS LAST, promised_to ASC NULLS LAST, method ASC`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("orders: arrivals: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[arrivalRow])
+	if err != nil {
+		return nil, fmt.Errorf("orders: scan arrivals: %w", err)
+	}
+	return out, nil
+}
+
+// PaymentMethod returns the captured method summary for an order, or a zero row when none was
+// captured (052 FR-006). Absence is normal, not an error — see methodRow.
+func (r *Repository) PaymentMethod(ctx context.Context, orderID string) (methodRow, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT method_type AS method_type, method_brand AS method_brand, method_last4 AS method_last4
+FROM public.payment WHERE order_id = $1`, orderID)
+	if err != nil {
+		return methodRow{}, fmt.Errorf("orders: payment method: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[methodRow])
+	if err != nil {
+		return methodRow{}, fmt.Errorf("orders: scan payment method: %w", err)
+	}
+	if len(out) == 0 {
+		return methodRow{}, nil
+	}
+	return out[0], nil
+}
+
 // ── Service ─────────────────────────────────────────────────────────────────────────────────────
 
 type Repo interface {
@@ -257,14 +365,21 @@ type Repo interface {
 	Items(ctx context.Context, orderID string) ([]itemRow, error)
 	Fulfillments(ctx context.Context, orderID string) ([]fulfillmentRow, error)
 	Shortfalls(ctx context.Context, orderID string) ([]shortfallRow, error)
+	Arrivals(ctx context.Context, orderID string) ([]arrivalRow, error)
+	PaymentMethod(ctx context.Context, orderID string) (methodRow, error)
 }
 
 type Service struct {
 	repo Repo
+	// 052 — mints the short-lived image urls on the receipt. Optional: nil presigner means every line
+	// renders without a picture, which is a supported state rather than a failure.
+	presign media.Presigner
 }
 
-func NewService(repo Repo) *Service {
-	return &Service{repo: repo}
+// NewService wires the receipt read. `presign` MAY be nil — every line then renders without a
+// picture, which is a supported state (052 FR-003: imagery is decoration, never a carrier of meaning).
+func NewService(repo Repo, presign media.Presigner) *Service {
+	return &Service{repo: repo, presign: presign}
 }
 
 func (s *Service) List(ctx context.Context, customerID string) ([]Summary, error) {
@@ -304,6 +419,7 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		domainItems = append(domainItems, Item{
 			ProductID: it.ProductID, ProductName: it.ProductName, UnitPriceAmount: it.UnitPrice,
 			Quantity: it.Quantity, LineSubtotalAmount: it.LineSubtotal,
+			ImageURL: s.imageURL(ctx, it.ImageKey),
 		})
 	}
 	short, err := s.repo.Shortfalls(ctx, orderID)
@@ -330,6 +446,24 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		payment = *row.PaymentStatus
 	}
 
+	// 052 — the arrival estimates the customer was shown. A read failure must not cost them their
+	// receipt: the promise is supporting detail, while the money and the items are the record.
+	arrivals := make([]ArrivalEstimate, 0)
+	if rows, err := s.repo.Arrivals(ctx, orderID); err == nil {
+		for _, a := range rows {
+			arrivals = append(arrivals, ArrivalEstimate{
+				Method: a.Method, PromisedFrom: a.PromisedFrom, PromisedTo: a.PromisedTo,
+			})
+		}
+	}
+
+	// 052 — how it was paid. Absence is normal (pre-052 order, or a failed post-commit capture), so a
+	// missing summary is nil and the client omits the line rather than showing a blank.
+	var method *PaymentMethod
+	if m, err := s.repo.PaymentMethod(ctx, orderID); err == nil && m.Type != nil {
+		method = &PaymentMethod{Type: *m.Type, Brand: m.Brand, Last4: m.Last4}
+	}
+
 	return Order{
 		ID: row.ID, OrderNumber: row.OrderNumber, Status: row.Status, PlacedAt: row.PlacedAt,
 		Items: domainItems, DeliveryAddress: json.RawMessage(row.Address), BillingAddress: json.RawMessage(row.Billing),
@@ -337,5 +471,26 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		DeliveryFeeAmount: row.DeliveryFee,
 		GrandTotalAmount:  row.GrandTotal, Currency: row.Currency,
 		PaymentStatus: payment, Fulfillments: domainFul,
+		// ⚠ Derived HERE, from the portions, and put on the wire — never left for a client to work out
+		// (052 FR-008, research R5).
+		Stage:            StageFor(domainFul),
+		PaymentMethod:    method,
+		ArrivalEstimates: arrivals,
 	}, nil
+}
+
+// imageURL mints a short-lived GET url for a media key, or returns nil.
+//
+// ⚠ A presign failure is SWALLOWED on purpose. The alternative is failing a receipt read because a
+// photograph could not be signed, and this platform has already learned that lesson the expensive way:
+// 029's storefront intermittently 503'd because a supporting read sat on the critical path.
+func (s *Service) imageURL(ctx context.Context, key *string) *string {
+	if key == nil || *key == "" || s.presign == nil {
+		return nil
+	}
+	url, err := s.presign.PresignGet(ctx, *key)
+	if err != nil || url == "" {
+		return nil
+	}
+	return &url
 }

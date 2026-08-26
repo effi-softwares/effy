@@ -27,6 +27,10 @@ type fakeStore struct {
 	lines   []CheckoutLine
 	address map[string][]byte
 
+	// 052 — what the receipt would show, and a way to make saving it fail.
+	savedMethod          *PaymentMethodSummary
+	savePaymentMethodErr error
+
 	amounts     OrderAmounts
 	billingJSON []byte
 	billingSet  bool
@@ -151,8 +155,24 @@ func (f *fakeStore) FinalizeFailed(context.Context, string) error {
 	return nil
 }
 
+// 052 — records what the receipt would show, and whether saving it was even attempted.
+func (f *fakeStore) SavePaymentMethod(_ context.Context, _ string, m PaymentMethodSummary) error {
+	f.savedMethod = &m
+	if f.savePaymentMethodErr != nil {
+		return f.savePaymentMethodErr
+	}
+	return nil
+}
+
 type fakeGateway struct {
 	amount int64
+
+	// 052 — the payment summary the provider reports, how many times it was asked, and a way to make
+	// the provider unreachable.
+	describe      PaymentMethodSummary
+	describeCalls int
+	describeErr   error
+
 	// 051 — what the fake was asked to do, so a test can assert the SHAPE of the calls and not just
 	// their result. `customerCreates` is what proves EnsureCustomer is idempotent.
 	customerCreates int
@@ -193,6 +213,15 @@ func (g *fakeGateway) RetrievePaymentIntent(_ context.Context, id string) (Payme
 
 func (g *fakeGateway) ConstructWebhookEvent([]byte, string) (WebhookEvent, error) {
 	return WebhookEvent{}, nil
+}
+
+// 052 — the receipt's payment summary. `describeErr` simulates the provider being unreachable.
+func (g *fakeGateway) DescribePaymentMethod(context.Context, string) (PaymentMethodSummary, error) {
+	g.describeCalls++
+	if g.describeErr != nil {
+		return PaymentMethodSummary{}, g.describeErr
+	}
+	return g.describe, nil
 }
 
 // ── 051 ───────────────────────────────────────────────────────────────────────────────────────────
@@ -632,5 +661,86 @@ func TestCreateIntent_PropagatesAFailureToReadTheOpenOrder(t *testing.T) {
 	svc := svcWith(store, &fakeGateway{})
 	if _, err := svc.CreateCheckoutIntent(context.Background(), custID, IntentInput{AddressID: addrID}, time.Now()); err == nil {
 		t.Fatal("a failed read of the customer's open order was swallowed — checkout continued on an unknown order state")
+	}
+}
+
+// ── 052 — the payment-method capture (FR-006, research R3) ──────────────────────────────────────
+
+// ⚠ THE POINT OF THIS TEST IS THE ORDER'S SAFETY, NOT THE CAPTURE'S SUCCESS.
+//
+// The capture costs a Stripe round trip and therefore sits OUTSIDE the finalize transaction. This
+// pins the consequence: when the provider is unreachable, the paid transition has still happened
+// exactly once and the caller is told the order is paid. A receipt without a payment line is a
+// supported state; a paid order stranded because a photograph of a card could not be fetched is not.
+func TestConfirm_AFailingMethodCaptureStillLeavesTheOrderPaid(t *testing.T) {
+	store := storeWithMilk()
+	gw := &fakeGateway{retrieveStatus: IntentSucceeded, describeErr: errors.New("stripe unreachable")}
+
+	got, err := svcWith(store, gw).Confirm(context.Background(), "cust-1", "11111111-1111-4111-8111-111111111111")
+	if err != nil {
+		t.Fatalf("Confirm returned an error when only the METHOD capture failed: %v", err)
+	}
+	if !got.Paid {
+		t.Fatal("Paid = false — a provider hiccup on a cosmetic read must not unmake a payment")
+	}
+	if store.finalizeSucceeded != 1 {
+		t.Fatalf("finalizeSucceeded = %d, want exactly 1", store.finalizeSucceeded)
+	}
+	if store.savedMethod != nil {
+		t.Fatalf("savedMethod = %+v, want nothing written when the provider could not be read", store.savedMethod)
+	}
+}
+
+// A SAVE failure is equally harmless — the columns are nullable precisely so this can fail.
+func TestConfirm_AFailingMethodSaveStillLeavesTheOrderPaid(t *testing.T) {
+	store := storeWithMilk()
+	store.savePaymentMethodErr = errors.New("db busy")
+	gw := &fakeGateway{
+		retrieveStatus: IntentSucceeded,
+		describe:       PaymentMethodSummary{Type: "card", Brand: "visa", Last4: "4242"},
+	}
+
+	got, err := svcWith(store, gw).Confirm(context.Background(), "cust-1", "11111111-1111-4111-8111-111111111111")
+	if err != nil {
+		t.Fatalf("Confirm returned an error when only the METHOD save failed: %v", err)
+	}
+	if !got.Paid || store.finalizeSucceeded != 1 {
+		t.Fatalf("Paid=%v finalizeSucceeded=%d — the paid transition must be untouched", got.Paid, store.finalizeSucceeded)
+	}
+}
+
+// The happy path: what the provider reports is what the receipt will show.
+func TestConfirm_CapturesTheMethodAfterTheOrderIsPaid(t *testing.T) {
+	store := storeWithMilk()
+	gw := &fakeGateway{
+		retrieveStatus: IntentSucceeded,
+		describe:       PaymentMethodSummary{Type: "card", Brand: "visa", Last4: "4242"},
+	}
+
+	if _, err := svcWith(store, gw).Confirm(context.Background(), "cust-1", "11111111-1111-4111-8111-111111111111"); err != nil {
+		t.Fatalf("Confirm: %v", err)
+	}
+	if store.savedMethod == nil {
+		t.Fatal("no method saved")
+	}
+	if store.savedMethod.Type != "card" || store.savedMethod.Brand != "visa" || store.savedMethod.Last4 != "4242" {
+		t.Fatalf("savedMethod = %+v", *store.savedMethod)
+	}
+}
+
+// ⚠ An UNPAID intent must not trigger the capture at all. Beyond being wasted work, a method summary
+// on an unpaid order is a fact about a payment that did not happen.
+func TestConfirm_DoesNotCaptureAMethodForAnUnpaidIntent(t *testing.T) {
+	store := storeWithMilk()
+	gw := &fakeGateway{retrieveStatus: IntentRequiresAction}
+
+	if _, err := svcWith(store, gw).Confirm(context.Background(), "cust-1", "11111111-1111-4111-8111-111111111111"); err != nil {
+		t.Fatalf("Confirm: %v", err)
+	}
+	if gw.describeCalls != 0 {
+		t.Fatalf("describeCalls = %d, want 0 for an unpaid intent", gw.describeCalls)
+	}
+	if store.savedMethod != nil {
+		t.Fatalf("savedMethod = %+v, want nothing for an unpaid intent", store.savedMethod)
 	}
 }

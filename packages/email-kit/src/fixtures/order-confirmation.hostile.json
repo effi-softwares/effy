@@ -1,13 +1,23 @@
 {
   "orderNumber": "EFY-<b>HAX</b>",
+  "placedAt": "26 Aug 2026 \"><script>alert(1)</script>",
   "deliveryEstimate": "soon\"><script>alert(1)</script>",
+  "deliveryMethod": "</td></tr><script>alert(1)</script>",
   "items": [
-    { "name": "<script>alert('xss')</script> Bananas", "quantity": "1", "lineTotal": "$3.50" },
-    { "name": "Eggs \"><img src=x onerror=alert(1)>", "quantity": "2", "lineTotal": "$9.00" }
+    { "name": "<script>alert('xss')</script> Bananas", "quantity": "1", "unitPrice": "$3.50", "lineTotal": "$3.50" },
+    { "name": "Eggs \"><img src=x onerror=alert(1)>", "quantity": "2", "unitPrice": "$4.50", "lineTotal": "$9.00" }
   ],
   "subtotal": "$12.50",
+  "hasDiscount": true,
+  "discountLabel": "Discount <img src=x onerror=alert(1)>",
+  "discountAmount": "$1.00",
+  "hasDeliveryFee": true,
   "deliveryFee": "$7.90",
-  "total": "$20.40",
+  "total": "$19.40",
+  "hasPaymentMethod": true,
+  "paymentMethod": "Visa</td><script>alert(1)</script>",
   "deliveryAddress": "1 Test St </td></tr><script>alert(1)</script>",
+  "billingSameAsDelivery": false,
+  "billingAddress": "2 Test St \"><script>alert(1)</script>",
   "orderUrl": "https://effyshopping.com/orders/x"
 }
