@@ -161,11 +161,39 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     ).toHaveLength(0)
   })
 
-  it("does not block on a completed fulfilment even inside the window", async () => {
+  /**
+   * ⚠ ATTEMPT 3's DEFECT — and the reason this test is now TWO tests.
+   *
+   * Until 053 the predicate read `f.status <> 'collected'`, written before the delivery lifecycle
+   * existed with a comment promising it would "become correct automatically when the delivery
+   * lifecycle lands". It landed in 049 with `delivered` as the terminal state — a DIFFERENT value —
+   * and the predicate inverted itself in both directions without anything failing:
+   *
+   *   • a DELIVERED package satisfied `<> 'collected'`, so an ARRIVED order kept blocking;
+   *   • a COLLECTED package did not, so an order genuinely IN TRANSIT did not block at all.
+   *
+   * ⚠ And this test asserted the second half of that defect. It seeded `collected` and demanded zero
+   * blockers, which is 029's failure mode exactly: the test agreed with the code instead of with the
+   * world. A test covering only one direction would leave the other live, so both are pinned.
+   */
+  it("does not block once every package has ARRIVED, even inside the window", async () => {
+    const c = await seedCustomer()
+    await seedOrder(c, "paid", 1, "delivered")
+
+    expect(
+      await blockersFor(c),
+      "an order that has arrived must release the customer immediately, not after the 7-day backstop",
+    ).toHaveLength(0)
+  })
+
+  it("DOES block on a package that is collected but not yet delivered", async () => {
     const c = await seedCustomer()
     await seedOrder(c, "paid", 1, "collected")
 
-    expect(await blockersFor(c)).toHaveLength(0)
+    expect(
+      await blockersFor(c),
+      "a collected package is with a driver or a carrier — genuinely in transit — so it must block",
+    ).toHaveLength(1)
   })
 
   it("never blocks on a failed or cancelled order", async () => {

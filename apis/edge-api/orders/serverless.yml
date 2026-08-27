@@ -1,0 +1,146 @@
+# edge-orders — Effy cold-path orders service (053-order-lifecycle-completion).
+#
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
+# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
+# under /orders/. Authenticated routes use the Terraform-owned BACK-OFFICE JWT authorizer (by id
+# from SSM) — this is a new ATTACHMENT to an existing authorizer, not a new pool (Principle IV).
+#
+# ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R7, measured in T001):
+# `effy-edge-admin` packages to 434 of CloudFormation's 500 resources. A route costs ~5 (log group +
+# function + permission + integration + route). These routes would land admin at ~465 — about one
+# more feature of runway, in the domain where refunds, cancellation and returns are all queued next.
+# The cheap mitigation is already spent: admin carries `versionFunctions: false`, which 049 was
+# forced to add when the driver routes hit the ceiling. A3's decomposition exists for exactly this.
+#
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-orders
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # ⚠ Set from the START, not when it is needed. admin reached the CFN limit before anyone noticed
+  # and had to add this under pressure (049). Nothing here publishes aliases or uses provisioned
+  # concurrency, and every httpApi integration invokes the unqualified ($LATEST) ARN, so per-deploy
+  # Versions are dead weight from the first deploy onward.
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 053-order-lifecycle-completion
+    service: orders
+  # Attach to the shared HTTP API (A3). external id → no API/stage/CORS/authorizers here.
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
+  # edge-shop/admin/driver: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and the dev
+  # DB is reachable on its public endpoint. DEV ONLY — see infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the orders service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the orders service serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/readyz
+
+  ordersListV1:
+    handler: src/functions/orders-v1-get.handler
+    description: Back-office order list/search — by reference or customer, filterable by status and by what the order is awaiting (053 US1). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/orders
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  orderDetailV1:
+    handler: src/functions/order-v1-get.handler
+    description: Back-office order detail — progress, packages, items, payment, destination and a chronological history (053 US1). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /orders/v1/orders/{orderId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  fulfillmentHandoffV1:
+    handler: src/functions/fulfillment-handoff-v1-post.handler
+    description: Record a standard package's handover to an outside carrier (053 US2, FR-002). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/fulfillments/{fulfillmentId}/handoff
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  fulfillmentArrivalV1:
+    handler: src/functions/fulfillment-arrival-v1-post.handler
+    description: Record that a handed-over package arrived; completes the order when it is the last one (053 US2, FR-004). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/fulfillments/{fulfillmentId}/arrival
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

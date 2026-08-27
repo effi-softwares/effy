@@ -1,0 +1,60 @@
+<!-- order-delivered — the order arrived (053 US3).
+
+     ⚠ THE ONLY MESSAGE A WEB-ONLY SHOPPER GETS ABOUT THEIR DELIVERY. Until 053 the three
+     post-payment lifecycle events (ready, out for delivery, delivered) were PUSH ONLY, so a customer
+     who shops on the website and never installed the app heard nothing after the receipt.
+
+     ⚠ IT NAMES NO SHOP AND NO PACKAGE COUNT (FR-021). Effy's fulfilment nodes are hidden by the
+     product model: a customer buys from one brand and never learns which shops served them, nor how
+     many. "Your 2 parcels have arrived" is the single easiest way to leak that, which is why the
+     catalogue entry gives this template no `items` var to make the mistake with.
+
+     ⚠ IT DOES NOT RESTATE THE RECEIPT. That document was sent at payment and does a different job.
+     Repeating the total here would invite the reader to reconcile two documents that were produced at
+     different moments — and would put an amount in a message whose subject is arrival.
+
+     ⚠ NO CONDITION CLAIM. The platform knows a package was handed over and that someone recorded it
+     arriving. It does not know the contents were correct or undamaged, so nothing here says so — and
+     the help line below is the honest counterweight. -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>Your {{effyProductName}} order {{orderNumber}} has arrived</mj-title>
+    <mj-preview>Everything in your order has been delivered.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">
+          Your order has arrived
+        </mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          Order {{orderNumber}} was delivered on {{deliveredOn}}. Thanks for shopping with
+          {{effyProductName}}.
+        </mj-text>
+
+        <!-- Both dark classes named so the label inverts with the fill — 038 shipped a receipt button
+             that was invisible in dark mode because the class landed on the wrapping <td> while the
+             colour sat on an inner element. -->
+        <mj-button href="{{orderUrl}}" css-class="e-btn-bg e-btn-fg" align="left" padding="24px 0 0 0">
+          View your order
+        </mj-button>
+
+        <!-- ⚠ The counterweight to a message that asserts a delivery nobody at Effy witnessed. With
+             no carrier integration, "arrived" is recorded by a person; if it did not arrive, the
+             customer needs somewhere to say so, and it must not read as an apology in advance. -->
+        <mj-text mj-class="small" css-class="e-muted" padding="20px 0 0 0">
+          Something not right? Reply to this email or write to {{effySupportEmail}} and we&rsquo;ll
+          sort it out.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -261,6 +261,144 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**053-order-lifecycle-completion — Order Lifecycle Completion.** 🚧 **70/88 tasks — CODE-COMPLETE +
+MACHINE-VERIFIED across the new service, the console, both corrections and the email channel. NOT
+DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Spec/artifacts:
+[specs/053-order-lifecycle-completion/](specs/053-order-lifecycle-completion/).
+
+Makes an order capable of **finishing**, and gives Effy somewhere to finish it from.
+- ⚠ **THE DEFECT: a STANDARD order could never terminate.** Since 049, a same-day package goes hub →
+  delivery run → proof; a standard one **stops at the hub** and nothing could record it going further.
+  The only writer of `shop_fulfillment='delivered'` was the driver's delivery task, created **only** for
+  `same_day`. So most orders sat at `collected` forever, `stage.go` mapped that to **"on the way"
+  forever**, `order_delivered` never fired on the majority path, and the order never left the customer's
+  active list.
+- **Data**: one migration `20260826232728_order_lifecycle_completion.sql` — `public.carrier_handoff` +
+  `public.package_arrival` (both `UNIQUE(shop_fulfillment_id)`), and `notification_request` gains
+  **`channel`** (`push|email`) + a snapshotted `recipient_email`. ⚠ **`shop_fulfillment.status` is
+  UNCHANGED** — no `handed_over` state. A package in a carrier's van and one on the hub floor are the
+  same fact to a shopper, so the status would exist only to be mapped; the handoff row's **existence**
+  is the precondition (research R3).
+- ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/orders`**, on a **measured** constraint (T001):
+  `effy-edge-admin` packages to **434/500** CloudFormation resources and already carries
+  `versionFunctions: false` (049 was forced into it). ~6 routes ≈ 30 resources would leave ~1 feature of
+  runway in the domain where refunds/cancellation/returns are queued next. Attaches to the shared
+  gateway + the **existing** back-office authorizer — no new pool.
+- **Back-office → Orders** (`apps/back-office`, 2 screens): find an order, read packages/items/payment/
+  destination and a four-way **history projection** (`fulfillment_event` + `driver_task_event` +
+  `carrier_handoff` + `package_arrival`). ⚠ **Nobody at Effy could look up an order before this**, which
+  is why 020's "contact support and we'll sort it out" reached people who could not see it. Read = any
+  active staff **incl. csa**; record = **admin/manager** (FR-015 — with no carrier signal, "arrived" is
+  an *assertion* about a package nobody saw, and it finishes a financial record + emails the customer).
+- **⚠ FOUR PRE-EXISTING DEFECTS FOUND AND FIXED**: (1) the **account-closure blocker was wrong in BOTH
+  directions** — `f.status <> 'collected'` meant a **delivered** order blocked closure while an order
+  **genuinely in transit** did not; written before the lifecycle existed, promising to "become correct
+  automatically", and 049 landed it with a *different* terminal state. (2) A **mixed order announced
+  itself delivered while half was still out** — the driver enqueued `order_delivered` deduped on the
+  DROP id, and a drop covers only the *same-day* packages. (3) **Every same-day arrival was
+  unattributable**; the driver path now writes `package_arrival` too, or SC-010 was false on day one.
+  (4) An unconfigured FCM **halted the whole drain**, which with email on the same outbox would let a
+  push misconfiguration silently suppress the only message a web-only shopper gets.
+- **Email**: 11th template `order-delivered` + a `channel` fan-out in the notifications worker. ⚠ It
+  carries **no package count and no shop reference** (FR-021) — the catalogue gives it no var to say it
+  with, and a test pins that. ⚠ Scope boundary: `order_ready`/`order_out_for_delivery` stay push-only,
+  and `order_paid` **must not** gain one (052's receipt already exists).
+- ⚠ **NO CUSTOMER-FACING TRACKING REFERENCE** (FR-022, settled): references are per-package and packages
+  are per-shop, so listing them discloses how many shops served the order. Recorded for staff only.
+- **Both customer surfaces gained NOTHING** — no screen, no route, no contract change. `ready_for_pickup`
+  rank 2→1 in `orders/stage.go` fixes web + mobile in **one line**, which is the return on 052 deleting
+  `summarizeFulfillment`. **Proven by reverting**: 3 tests fail.
+- **⚠ THREE DEFECTS OF MY OWN, found by reading the code back — all green until then.** (1) Paging
+  **re-showed rows**: the list ordered/filtered on `created_at` but minted the cursor from `placed_at`,
+  always the later instant. ⚠ **And the first test written for it PASSED with the defect in place** —
+  it called the repository directly and supplied its own cursor, never touching the service where the
+  cursor is minted. (2) **Every console refusal collapsed to one generic sentence**: the screen used
+  `e instanceof Error`, but the api-client throws a **plain object**, so FR-006's named refusal was
+  discarded after the server got it right. (3) A `nextCursor` **no UI consumed**, capping the console
+  at the newest 25 orders. Also found (NOT fixed, latent): `problem()` emits field errors as `errors`
+  while `toDomainError` reads `fields`, so **`DomainError.fields` is always undefined** platform-wide.
+- **Verified**: `pnpm -r typecheck` **18/18** · `pnpm -r test` **18/18** · edge-orders **33** (incl. **22
+  container-backed**, Docker UP — concurrency, 5× idempotency, mixed-order rollup, paging, every refusal)
+  · edge-customer **200** (closure container both directions) · edge-notifications **28** · email-kit **81**
+  · back-office **96** · `make email-check` **11 templates** · `brand-check` · `tokens:check` **unchanged**
+  · `terraform validate`. **Four things proven by breaking them** — the stage correction (3 tests), the
+  console↔Go drift guard, the authz extraction (admin's 199 pass unmodified), and the paging cursor.
+- **⚠ Open (18)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=orders|driver|customer|
+  notifications`; `core-deploy` (**before** pushing to `dev`); `make apply` (one new alarm); then the
+  quickstart walks — ⚠ **§4, a standard order end-to-end to `delivered`, is the one thing that has never
+  happened on this platform**. Also: gateway-401 negatives, the web/app wording comparison, and **looking
+  at the console** (039 shipped four live defects with a fully green suite).
+- **⚠ Two PRE-EXISTING red gates, verified at clean HEAD, NOT caused by this slice**: Go
+  `platform/delivery` container tests (`z.sameday_eligible does not exist`) and `features/saveditems`
+  (`public.delivery_pricing_rule does not exist` — 033 already records this). `make check-no-phantm`
+  also fails on specs 042/045/050 prose. Register: [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md); operator
+  guide: [docs/order-console-guide.md](docs/order-console-guide.md); parity:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §053.
+
+**052-order-confirmation-invoice — Order Confirmation & Emailed Receipt.** ✅ **CONCLUDED (PARTIAL BY
+DESIGN) 2026-08-26 — 62/68 tasks. CODE-COMPLETE + MACHINE-VERIFIED on web, Android, iOS and email.
+NOT DEPLOYED. ⚠ NO RECEIPT HAS EVER BEEN SENT.** Sign-off:
+[specs/052-order-confirmation-invoice/SIGNOFF.md](specs/052-order-confirmation-invoice/SIGNOFF.md).
+
+Turns the thank-you page into a **document-grade receipt** on both customer surfaces, and **emails it**
+— closing the gap where a shopper who closed the tab had no record of their purchase at all.
+- **Data**: one migration `20260826122449_order_receipt.sql` — three nullable `payment.method_*`
+  columns + `public.receipt_dispatch` (simultaneously the outbox, the rate-limit ledger and the audit
+  trail). ⚠ **Exactly-once is a PARTIAL UNIQUE INDEX**, not code: `receipt_dispatch_auto_uq` on
+  `(order_id) WHERE reason='order_paid'`, leaving the `customer_request` arm unconstrained so a resend
+  stays representable. That asymmetry is why `notification_request` (050) could NOT carry this — its
+  `UNIQUE(dedupe_key)` is exactly what makes push exactly-once and exactly what would forbid a resend.
+- **Paths**: receipt READ = hot (`core-api/orders`, already there); receipt SEND = cold (a new
+  scheduled `receiptDrain` in `edge-api/notifications`); RESEND = cold (`edge-api/customer/receipts`).
+  An SES call on the paid path would make a payment's success depend on a mail service being up.
+- ⚠ **THE DELIVERY PROMISE IS DATE-GRANULAR.** `promised_from`/`promised_to` are `date` columns; the
+  platform has no delivery time window and cannot derive one. The design canvas drew "Today, 5:00–8:00
+  pm" — a promise the business has not made, on the one document a customer treats as a record.
+  Corrected to a date across all three surfaces (research R4).
+- ⚠ **The stage is SERVER-DERIVED** (`orders/stage.go`) and it is a **ROLLUP, NOT A MAX**: a two-shop
+  order with one portion delivered and one still picking is `packing`. customer-web's own
+  `summarizeFulfillment` was DELETED for being a second implementation of one rule — 029's banner
+  target and 033's `available` flag, where both surfaces keep rendering something so divergence is
+  silent. Proven by breaking it: a `max` makes exactly one test fail.
+- ⚠ **The resend takes NO address.** The recipient is resolved from the authenticated subject; an
+  `email` in the body would make it an open relay for a document carrying a person's name, delivery
+  address and purchase history. Its rate limit is an **atomic count-inside-the-INSERT** (039's
+  newsletter lesson), and "not yours" / "no such order" are **byte-identical** refusals or the route
+  becomes an oracle for which order ids are real.
+- **Colour**: a **bounded status palette** (a recorded Principle V exception — the amber same-day badge
+  is a genuine third hue). Component-local on BOTH surfaces, deliberately duplicated rather than shared,
+  because the shared package for colour IS the design system and that is exactly where it must not go.
+  The hue is never text (a dot carries it, the label stays on the ramp). ⚠ `tokens:check` **unchanged**
+  is the mechanical proof; also proven by deletion — removing one file breaks 3 imports and nothing else.
+- ⚠ **NOT A TAX INVOICE, and that is two gaps not one** (research R13): the **ABN is unsupplied**
+  (operator input; the constitution forbids inferring it) AND **per-item GST treatment is unmodelled** —
+  basic food is GST-free in Australia, so a grocery basket is a **mixed supply** and "total price
+  includes GST" is FALSE for most orders. `canIssueTaxInvoice()` stays false until BOTH land. The tax
+  fields are **absent, not placeholder** (FR-031); the block's position is reserved and commented at all
+  three render sites.
+- **⚠ SIX PRE-EXISTING DEFECTS FOUND, five fixed**: (1) the **mobile receipt's lines did not add up** —
+  `deliveryFeeAmount` was never mapped, so it showed Items − Discount = Total while delivery had been
+  charged; 051's FR-043 recorded this exact defect and fixed it **on web only**. (2) `packages/brand`
+  was **RED before this slice began** (048's console `robots.txt` unexempted), aborting `pnpm -r test`
+  at **4 packages of 17**. (3) `MethodList.test.tsx` **had been asserting nothing** — 051's styling
+  commit moved the class its selector matched. (4) 050's `NOTIF_*` env vars were **undeclared**.
+  (5) ⚠ `apis/edge-api/notifications` had **no `.gitignore`** — the only edge service missing it — so
+  **1.7 MB of build artifacts** were committed, including a `serverless-state.json` carrying resolved
+  DB hostname, username and secret ARNs. Untracked; ⚠ **still in history**.
+- **Verified**: `pnpm -r typecheck` **17/17** · `pnpm -r test` **17/17** · Go build/vet/gofmt clean ·
+  customer-web **433** · email-kit **71** · edge-notifications **22** · edge-customer **170** ·
+  customer-mobile **306** + iOS main/test compile + `assembleDebug` · `email-check` · `brand-check` ·
+  `tokens:check` unchanged · `terraform validate` · guest bundle within budget.
+- **⚠ Open (6, all operator)**: the commit, `make db-up ENV=dev`, `make apply ENV=dev` (one new alarm),
+  `core-image-push`+`core-deploy`, `edge-deploy SERVICE=customer` and `SERVICE=notifications`, then the
+  live SC walk. ⚠ **Deploy `core-api` BEFORE pushing to `dev`** — Amplify auto-deploys customer-web on
+  push, and 047 recorded that the reverse order briefly broke dev checkout. ⚠ **Docker was down all
+  session**, so every container-backed test — including the exactly-once and resend-concurrency proofs —
+  **skipped**. ⚠ **Nobody has looked at any of this**: 039 shipped four live defects with a fully green
+  suite, because layout, contrast and hierarchy are not properties a DOM assertion can see. Triage:
+  [docs/receipt-triage.md](docs/receipt-triage.md). Parity register:
+  [docs/audiences/customer-capabilities.md](docs/audiences/customer-capabilities.md) §052.
+
 **050-observability-push-foundation — Platform Observability & Push Notification Foundation.** ✅
 **CONCLUDED (PARTIAL BY DESIGN) 2026-08-23 — 53/60 tasks. DEPLOYED TO DEV; Crashlytics + PostHog
 CONFIRMED WORKING; push wired+deployed but delivery unconfirmed (carried to the order-flow slice).**
@@ -1609,5 +1747,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/052-order-confirmation-invoice/plan.md
+at specs/053-order-lifecycle-completion/plan.md
 <!-- SPECKIT END -->

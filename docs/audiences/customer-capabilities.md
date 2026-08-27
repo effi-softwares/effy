@@ -1229,3 +1229,50 @@ surfaces carry the same fact set; a third rendering of it arrives in the inbox.
   Baseline section of [quickstart.md](../../specs/052-order-confirmation-invoice/quickstart.md).
 
 Spec/artifacts: [specs/052-order-confirmation-invoice/](../../specs/052-order-confirmation-invoice/).
+
+---
+
+## §053 — Order Lifecycle Completion
+
+Spec/artifacts: [specs/053-order-lifecycle-completion/](../../specs/053-order-lifecycle-completion/).
+**Code-complete + machine-verified; NOT deployed.**
+
+### What changed for the customer
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|:--:|:--:|---|
+| An order can reach **Delivered** | ✅ | ✅ | Previously impossible for a **standard** order — the majority path. |
+| Progress wording is truthful | ✅ | ✅ | `ready_for_pickup` now reads **Packing**, not "On the way". |
+| Told when the order arrives — **by email** | ✅ | ✅ | New `order-delivered` template. The first lifecycle message that reaches a shopper with no app. |
+| Told when the order arrives — by push | ✅ | ✅ | Existing `order_delivered`; now fires **once per ORDER**, not per drop. |
+| An arrived order stops blocking account closure | ✅ | ✅ | Immediately, rather than after the 7-day backstop. |
+
+⚠ **Neither surface gained a screen, a route, or a contract change.** Both corrections are
+server-side and single-source: the progress rule is `core-api`'s `orders/stage.go`, and both surfaces
+render what the server sends. That is the return on 052 having deleted customer-web's
+`summarizeFulfillment` — this correction was one line for both surfaces instead of two that could
+disagree.
+
+### Defects this slice found in earlier work
+
+- ⚠ **The account-closure blocker was wrong in BOTH directions.** `f.status <> 'collected'` meant an
+  **arrived** order blocked closure until the 7-day backstop, while an order **genuinely in transit**
+  did not block at all. Written before the delivery lifecycle existed, with a comment promising it
+  would "become correct automatically" — 049 landed it with a *different* terminal state, and a
+  predicate pinned to a specific value cannot notice that the vocabulary moved.
+- ⚠ **A mixed order announced itself delivered while half of it was still out.** The driver service
+  enqueued `order_delivered` deduped on the DROP id, and a drop covers only an order's *same-day*
+  packages. Now a rollup over every package, in one shared rule both writers call.
+- ⚠ **Every same-day arrival was unattributable.** Arrival was evidenced only by `proof_of_delivery`;
+  the driver path now writes `package_arrival` too, or SC-010 would have been false on day one.
+
+### Not built, and why
+
+- **No customer-facing tracking reference.** Recorded for staff only. References are per-package and
+  packages are per-shop, so listing them would tell a customer how many shops served them — the
+  invariant the product model has held since 007. Revisit when a real carrier contract exists.
+- **`order_ready` and `order_out_for_delivery` are still push-only.** 053 built the email channel and
+  used it for the arrival alone; extending it is a values change, deliberately out of scope.
+- ⚠ **A failed same-day delivery still strands its order** — after this slice, the only remaining way
+  an order gets permanently stuck. Named in the spec's Assumptions so its absence is not read as
+  coverage.

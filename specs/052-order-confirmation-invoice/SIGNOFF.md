@@ -1,10 +1,16 @@
 # Sign-off: 052 — Order Confirmation & Emailed Receipt
 
-**Date**: 2026-08-26 · **Status**: 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED ON WEB + ANDROID + iOS +
-EMAIL. NOT DEPLOYED. NOT WALKED BY A PERSON. NO RECEIPT HAS EVER BEEN SENT.**
+**Date**: 2026-08-26 · **Status**: ✅ **CONCLUDED (PARTIAL BY DESIGN) — 62 / 68 tasks.
+CODE-COMPLETE AND MACHINE-VERIFIED ON WEB + ANDROID + iOS + EMAIL. NOT DEPLOYED. NOT WALKED BY A
+PERSON. ⚠ NO RECEIPT HAS EVER BEEN SENT.**
 
-**62 / 68 tasks.** All five user stories are built. The six that remain are **operator gates** — a
-migration, three deploys, the live walks, and the commit.
+**Concluded on the operator's direction with all six remaining tasks open.** They are operator gates —
+a migration, four deploys, the live walks, and the commit — and every one is listed below rather than
+implied. Deployment steps: [quickstart.md](./quickstart.md) §1–§2.
+
+⚠ **"Concluded" closes the slice; it does not make the six open tasks true.** The single most important
+one is that **no receipt has ever been delivered to a person** — the whole premise of the feature is
+unproven until one is.
 
 ⚠ **This document exists to record what was NOT done.** A sign-off that lists only achievements is a
 press release.
@@ -119,7 +125,18 @@ Recorded so they are not mistaken for 052's own.
    elements**.
 4. **`NOTIF_MAX_ATTEMPTS`/`NOTIF_BATCH_SIZE` were undeclared** in 050's `serverless.yml`. Not fatal
    (they have code-side defaults, unlike 035's four) but the same shape. Now declared.
-5. **Raised, NOT fixed** — 051's call: the selected payment row is `border` and the unselected
+5. ⚠ **`apis/edge-api/notifications` had NO `.gitignore`, and 1.7 MB of build artifacts were
+   committed.** Found by the operator at hand-over. It was the ONLY edge service missing the
+   three-line file every other one carries, so 050's `drain.zip` (1.4 MB), `healthz.zip`, both
+   CloudFormation templates and `serverless-state.json` were all tracked — and this slice's own
+   `receiptDrain.zip` (1.3 MB) would have joined them on the next commit. ⚠ `serverless-state.json`
+   carries RESOLVED SSM VALUES: the DB hostname, the DB username, and the RDS + FCM secret ARNs. Not a
+   credential leak (ARNs are references; the secrets stay in Secrets Manager) but live infrastructure
+   metadata, and exactly what the other six services deliberately keep out. Fixed: `.gitignore` added
+   to match, and the five files `git rm --cached`. ⚠ **They remain in HISTORY** — scrubbing that needs
+   a rewrite of `dev`, which is the operator's call; for dev-environment infra metadata, rotating the
+   DB endpoint would be the cheaper response than a rewrite.
+6. **Raised, NOT fixed** — 051's call: the selected payment row is `border` and the unselected
    `border border-input`, which resolve to the **same `#e5e5e5`** in light mode, under a comment
    claiming a "doubled border". Selection is still unambiguous via the radio, so it is a stale comment
    rather than a usability defect.

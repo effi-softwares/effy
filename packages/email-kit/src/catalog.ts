@@ -283,6 +283,57 @@ export const CATALOG = {
   },
 
   // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // 053 — the order arrived.
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * ⚠ THE ONLY MESSAGE A WEB-ONLY SHOPPER GETS ABOUT THEIR DELIVERY (053 FR-019).
+   *
+   * Before this, the three post-payment lifecycle events — ready, out for delivery, delivered — were
+   * PUSH ONLY. A customer who shops on the website and has never installed the app received the
+   * receipt and then complete silence for the rest of the order's life. Push is not a channel that
+   * audience has.
+   *
+   * ⚠ IT NAMES NO SHOP AND NO PACKAGE COUNT (FR-021). "Your 2 parcels have arrived" would disclose
+   * the fulfilment structure the whole product model hides — the customer buys from Effy, and never
+   * learns how many shops served them. There is deliberately no `items` var here to make that
+   * mistake with.
+   *
+   * ⚠ IT DOES NOT RESTATE THE RECEIPT. That is a different document with a different job, already
+   * sent at payment. This one says the thing arrived and links to it.
+   */
+  "order-delivered": {
+    vars: {
+      orderNumber: "string",
+      /** ⚠ A DATE, never a time-of-day — the platform has no delivery window (052 research R4). */
+      deliveredOn: "string",
+      orderUrl: "string",
+    },
+    subject: (v, p) => `Your ${p.productName} order ${v.orderNumber} has arrived`,
+    // ⚠ Does not repeat the subject, and makes no claim about condition or completeness — the
+    // platform knows the package was handed over, not what was in it.
+    preheader: () => "Everything in your order has been delivered.",
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+
+    /**
+     * ⚠ `transactional`. A delivery notice is the completion of a purchase the customer made, not
+     * marketing, so it carries no unsubscribe — and the `Category` union makes an unsubscribable one
+     * a COMPILE ERROR rather than a review catch.
+     */
+    category: "transactional",
+
+    /**
+     * ⚠ `swallow`, for `order-confirmation`'s reason. THE PACKAGE HAS ALREADY ARRIVED and the
+     * arrival is already committed; a throw would propagate into a caller that would then report a
+     * failure for something that demonstrably happened. The notification row records the failure
+     * instead (`notification_request.status = 'failed'`, with `last_error`), which is loud in the
+     * place an operator actually looks.
+     */
+    onSendFailure: "swallow",
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
   // 039 — newsletter double opt-in.
   // ─────────────────────────────────────────────────────────────────────────────────────────────
 

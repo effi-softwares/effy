@@ -278,12 +278,13 @@ edge-install: ## Install the JS/TS workspace dependencies (pnpm)
 edge-test: ## typecheck + vitest for every cold-path service (edge-shared + admin + shop)
 	@pnpm --filter "@effy/edge-*" run typecheck && pnpm --filter "@effy/edge-*" run test
 
-edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop; needs the ef profile)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop ENV=dev"; exit 1; }
+edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop|customer|driver|notifications|orders; needs the ef profile)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders ENV=dev"; exit 1; }
+	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (attaches to the shared HTTP API, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \
 	cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless deploy --stage $(ENV) --verbose
