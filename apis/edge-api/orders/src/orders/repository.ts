@@ -11,6 +11,18 @@ export interface OrderSummaryRow {
   order_number: string;
   status: string;
   placed_at: Date | null;
+  /**
+   * ⚠ THE PAGINATION KEY, and it must stay the SAME COLUMN the query orders and filters on.
+   *
+   * An earlier draft ordered by `created_at` but minted the cursor from `placed_at`. Those are
+   * different instants — `created_at` is when the pending order row was written, `placed_at` is when
+   * the payment webhook confirmed it — and `placed_at` is always the LATER one. So `created_at <
+   * <a placed_at>` matched rows that had already been shown, and page 2 repeated part of page 1.
+   *
+   * It is also nullable, which would have silently ended pagination on any order that never reached
+   * `paid`. `created_at` is NOT NULL.
+   */
+  created_at: Date;
   customer_email: string;
   item_count: number;
   package_count: number;
@@ -85,6 +97,7 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
             o.order_number,
             o.status,
             o.placed_at,
+            o.created_at,
             c.email::text AS customer_email,
             o.grand_total_amount::text,
             o.currency,

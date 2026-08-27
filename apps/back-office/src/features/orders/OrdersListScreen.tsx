@@ -5,6 +5,7 @@ import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import {
+  Button,
   Input,
   Select,
   SelectContent,
@@ -94,13 +95,23 @@ const columns: ColumnDef<OrderSummary>[] = [
 export function OrdersListScreen() {
   const [search, setSearch] = useState("");
   const [awaiting, setAwaiting] = useState<string>(ALL);
+  /**
+   * Keyset paging, so a stack rather than a page number.
+   *
+   * ⚠ A cursor list cannot jump to "page 5" — that is the trade for never showing an operator the
+   * same order twice while new ones arrive. The stack is what makes Back possible; its length is the
+   * only page number there is. Changing a filter resets it, because a cursor minted under one filter
+   * means nothing under another.
+   */
+  const [cursors, setCursors] = useState<string[]>([]);
 
   const params = useMemo(
     () => ({
       q: search.trim() || undefined,
       awaiting: awaiting === ALL ? undefined : (awaiting as "handover" | "arrival"),
+      cursor: cursors[cursors.length - 1],
     }),
-    [search, awaiting],
+    [search, awaiting, cursors],
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(ordersListQuery(params));
@@ -118,10 +129,19 @@ export function OrdersListScreen() {
         <Input
           placeholder="Search by order reference or customer email…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCursors([]);
+          }}
           className="max-w-sm"
         />
-        <Select value={awaiting} onValueChange={setAwaiting}>
+        <Select
+          value={awaiting}
+          onValueChange={(v) => {
+            setAwaiting(v);
+            setCursors([]);
+          }}
+        >
           <SelectTrigger className="w-52">
             <SelectValue />
           </SelectTrigger>
@@ -139,11 +159,40 @@ export function OrdersListScreen() {
       ) : isPending ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : (
-        <DataTable
-          columns={columns}
-          data={data.items}
-          emptyMessage="No orders match your filter."
-        />
+        <>
+          <DataTable
+            columns={columns}
+            data={data.items}
+            emptyMessage="No orders match your filter."
+          />
+          {/* Rendered only when there is somewhere to go — no dead controls on a single page. */}
+          {cursors.length > 0 || data.nextCursor ? (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                {data.items.length} order{data.items.length === 1 ? "" : "s"}
+                {cursors.length > 0 ? ` · page ${cursors.length + 1}` : ""}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  disabled={cursors.length === 0}
+                  onClick={() => setCursors((c) => c.slice(0, -1))}
+                >
+                  Back
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!data.nextCursor}
+                  onClick={() =>
+                    setCursors((c) => (data.nextCursor ? [...c, data.nextCursor] : c))
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );

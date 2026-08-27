@@ -7,6 +7,7 @@ import { ErrorState } from "@effy/web-kit/console";
 import { sessionQuery } from "@/features/auth/queries";
 
 import { canRecordOrderProgress } from "./access";
+import { orderActionError } from "./errorText";
 import { PackageRows } from "./components/PackageRows";
 import { STAGE_LABEL, type OrderDetail } from "./model";
 import { orderDetailQuery, useRecordArrival, useRecordHandoff } from "./queries";
@@ -74,7 +75,7 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
     setActionError(null);
     handoff.mutate(
       { fulfillmentId, body: { reference, carrierName, changeId: newChangeId() } },
-      { onError: (e) => setActionError(e instanceof Error ? e.message : "Could not record that.") },
+      { onError: (e) => setActionError(orderActionError(e, "handoff")) },
     );
   };
 
@@ -82,7 +83,7 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
     setActionError(null);
     arrival.mutate(
       { fulfillmentId, body: { changeId: newChangeId() } },
-      { onError: (e) => setActionError(e instanceof Error ? e.message : "Could not record that.") },
+      { onError: (e) => setActionError(orderActionError(e, "arrival")) },
     );
   };
 

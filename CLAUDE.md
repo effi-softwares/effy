@@ -308,11 +308,21 @@ Makes an order capable of **finishing**, and gives Effy somewhere to finish it f
 - **Both customer surfaces gained NOTHING** — no screen, no route, no contract change. `ready_for_pickup`
   rank 2→1 in `orders/stage.go` fixes web + mobile in **one line**, which is the return on 052 deleting
   `summarizeFulfillment`. **Proven by reverting**: 3 tests fail.
-- **Verified**: `pnpm -r typecheck` **18/18** · `pnpm -r test` **18/18** · edge-orders **31** (incl. **20
-  container-backed**, Docker UP — concurrency, 5× idempotency, mixed-order rollup, every refusal) ·
-  edge-customer **200** (closure container both directions) · edge-notifications **28** · email-kit **81**
-  · back-office **89** · `make email-check` **11 templates** · `brand-check` · `tokens:check` **unchanged**
-  · `terraform validate`. **Drift guard proven by drifting** (console↔Go stage map).
+- **⚠ THREE DEFECTS OF MY OWN, found by reading the code back — all green until then.** (1) Paging
+  **re-showed rows**: the list ordered/filtered on `created_at` but minted the cursor from `placed_at`,
+  always the later instant. ⚠ **And the first test written for it PASSED with the defect in place** —
+  it called the repository directly and supplied its own cursor, never touching the service where the
+  cursor is minted. (2) **Every console refusal collapsed to one generic sentence**: the screen used
+  `e instanceof Error`, but the api-client throws a **plain object**, so FR-006's named refusal was
+  discarded after the server got it right. (3) A `nextCursor` **no UI consumed**, capping the console
+  at the newest 25 orders. Also found (NOT fixed, latent): `problem()` emits field errors as `errors`
+  while `toDomainError` reads `fields`, so **`DomainError.fields` is always undefined** platform-wide.
+- **Verified**: `pnpm -r typecheck` **18/18** · `pnpm -r test` **18/18** · edge-orders **33** (incl. **22
+  container-backed**, Docker UP — concurrency, 5× idempotency, mixed-order rollup, paging, every refusal)
+  · edge-customer **200** (closure container both directions) · edge-notifications **28** · email-kit **81**
+  · back-office **96** · `make email-check` **11 templates** · `brand-check` · `tokens:check` **unchanged**
+  · `terraform validate`. **Four things proven by breaking them** — the stage correction (3 tests), the
+  console↔Go drift guard, the authz extraction (admin's 199 pass unmodified), and the paging cursor.
 - **⚠ Open (18)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=orders|driver|customer|
   notifications`; `core-deploy` (**before** pushing to `dev`); `make apply` (one new alarm); then the
   quickstart walks — ⚠ **§4, a standard order end-to-end to `delivered`, is the one thing that has never

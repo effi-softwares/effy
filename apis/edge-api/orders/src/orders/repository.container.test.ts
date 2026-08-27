@@ -24,6 +24,7 @@ vi.mock("@effy/edge-shared", () => ({
 }));
 
 import { history, list, packages } from "./repository";
+import { listOrders } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -277,6 +278,72 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       expect(await list({ awaiting: "arrival", limit: 10 })).toHaveLength(0);
       const all = await list({ limit: 10 });
       expect(all[0]!.awaiting_arrival).toBe(0);
+    });
+  });
+
+  /**
+   * ⚠ THE DEFECT THIS CATCHES, found by reading the code back rather than by any gate.
+   *
+   * The list ORDERS and FILTERS on `created_at`, but an earlier draft minted the cursor from
+   * `placed_at`. Those are different instants — `created_at` is when the pending order row was
+   * written, `placed_at` is when the payment webhook confirmed it — and `placed_at` is ALWAYS the
+   * later one. So `created_at < <a placed_at>` still matched rows that had already been shown, and
+   * page 2 repeated part of page 1.
+   *
+   * ⚠ It is invisible to a single-page test, and to any test where the two timestamps are seeded
+   * equal. This one seeds them deliberately APART — which is what production does, by however long
+   * the payment took.
+   */
+  describe("keyset pagination", () => {
+    async function seedAged(n: number) {
+      const c = await pool.query<{ id: string }>(
+        `INSERT INTO public.customer (email) VALUES ('pager@example.com') RETURNING id`,
+      );
+      for (let i = 0; i < n; i++) {
+        await pool.query(
+          `INSERT INTO public."order" (customer_id, order_number, status, created_at, placed_at)
+           VALUES ($1, $2, 'paid',
+                   now() - ($3 || ' hours')::interval,
+                   -- ⚠ placed_at is LATER than created_at, as it always is in production.
+                   now() - ($3 || ' hours')::interval + interval '20 minutes')`,
+          [c.rows[0]!.id, `EFY-P${i}`, String(n - i)],
+        );
+      }
+    }
+
+    /**
+     * ⚠ GOES THROUGH `listOrders`, NOT `list`, AND THAT IS THE WHOLE POINT.
+     *
+     * A first version of this test called the repository directly and computed the cursor itself —
+     * so it passed with the defect still in place, because the broken line lives in the SERVICE,
+     * where the cursor is MINTED. A test that supplies its own correct cursor can never catch a
+     * wrong one. Proven by reverting: restore `placed_at` in `listOrders` and this fails.
+     */
+    it("pages without repeating or skipping an order", async () => {
+      await seedAged(6);
+
+      const page1 = await listOrders({ limit: 3 });
+      expect(page1.items).toHaveLength(3);
+      expect(page1.nextCursor, "there is a second page, so a cursor must be offered").not.toBeNull();
+
+      const page2 = await listOrders({ cursor: page1.nextCursor!, limit: 3 });
+
+      const first = page1.items.map((r) => r.orderNumber);
+      const second = page2.items.map((r) => r.orderNumber);
+
+      expect(second).toHaveLength(3);
+      expect(
+        second.filter((n) => first.includes(n)),
+        "page 2 repeated an order from page 1 — the minted cursor and the ORDER BY column disagree",
+      ).toEqual([]);
+      expect(new Set([...first, ...second]).size).toBe(6);
+    });
+
+    it("stops offering a cursor on the last page", async () => {
+      await seedAged(4);
+      const page = await listOrders({ limit: 4 });
+      expect(page.items).toHaveLength(4);
+      expect(page.nextCursor).toBeNull();
     });
   });
 

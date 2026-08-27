@@ -82,9 +82,12 @@ export async function listOrders(params: repo.ListParams): Promise<{
   // Ask for one more than the page so "is there another page?" needs no second query.
   const rows = await repo.list({ ...params, limit: params.limit + 1 });
   const page = rows.slice(0, params.limit);
+  // ⚠ The cursor is `created_at` — the SAME column the query orders and filters on. Minting it from
+  // `placed_at` (an earlier draft did) makes page 2 repeat rows from page 1, because `placed_at` is
+  // always the later instant. See the note on `OrderSummaryRow.created_at`.
   const nextCursor =
     rows.length > params.limit && page.length > 0
-      ? (page[page.length - 1]!.placed_at?.toISOString() ?? null)
+      ? page[page.length - 1]!.created_at.toISOString()
       : null;
   return { items: page.map(toSummary), nextCursor };
 }

@@ -30,17 +30,17 @@ indefinitely, and the delivered notification could not fire on the majority path
 |---|---|
 | `pnpm -r typecheck` | **18/18** (was 17 — the new service reports) |
 | `pnpm -r test` | **18/18** |
-| `edge-orders` | **31** tests, **20 container-backed** ⚠ **Docker was UP** |
+| `edge-orders` | **33** tests, **22 container-backed** ⚠ **Docker was UP** |
 | `edge-customer` | **200** (closure container proves both directions) |
 | `edge-notifications` | **28** |
 | `email-kit` | **81** · `make email-check` **11 templates** |
-| `back-office` | **89** (was 79) |
+| `back-office` | **96** (was 79) |
 | Go | build/vet/gofmt clean; `orders` + `checkout` green |
 | `terraform validate` / `fmt` | clean |
 | `brand-check`, `tokens:check` | clean; **`tokens:check` unchanged** — this feature added no design token |
 | Secret/PII sweep, build-artifact tracking | clean |
 
-### Three things proven by breaking them
+### Four things proven by breaking them
 
 1. **The stage correction** — restoring `ready_for_pickup: 2` fails **3 tests**, naming the shop-shelf
    case. A correction that passes both ways is not covered.
@@ -49,6 +49,8 @@ indefinitely, and the delivered notification could not fire on the majority path
    change on either side.
 3. **The authz extraction** — admin's **199** feedback tests pass **unmodified** after `isActiveStaff`
    moved to `@effy/edge-shared`. If a test had to change, the behaviour did (the 028 proof).
+4. **The pagination cursor** — restoring `placed_at` fails the paging test, naming the repeated order.
+   ⚠ The first version of that test did NOT fail; see the defects section below.
 
 ---
 
@@ -68,6 +70,40 @@ indefinitely, and the delivered notification could not fire on the majority path
    kind of arrival the platform had ever recorded.
 4. **An unconfigured FCM halted the entire drain.** Correct while the outbox carried push only; with
    email on it, a push misconfiguration would silently suppress the one message a web-only shopper gets.
+
+---
+
+## ⚠ Three defects found in MY OWN work, by reading it back
+
+None of these was caught by a gate. All three were green.
+
+1. **Pagination re-showed rows.** The list ordered and filtered on `created_at` but minted the cursor
+   from `placed_at` — different instants, and `placed_at` is always the later one, so `created_at <
+   <a placed_at>` still matched rows already shown. Page 2 repeated part of page 1. `placed_at` is
+   also nullable, which would have silently ended paging on any order that never reached `paid`.
+   ⚠ **And the first test I wrote for it PASSED with the defect still in place** — it called the
+   repository directly and computed the cursor itself, so it never exercised the service where the
+   cursor is minted. A test that supplies its own correct cursor cannot catch a wrong one. Rewritten
+   through `listOrders`, then **proven by reverting**: it now fails naming the repeated order.
+2. **Every console refusal collapsed to one generic sentence.** The screen mapped errors with
+   `e instanceof Error ? e.message : "Could not record that."` — but `@effy/api-client` throws a
+   `DomainError`, a **plain object**, so that branch never ran. FR-006 requires the refusal to name
+   the missing handover; the server said so correctly and the console threw it away. Fixed with a
+   console-owned `errorText.ts` (005 FR-008 forbids rendering the server's raw `detail`) plus the
+   tests that were missing when it shipped.
+3. **The list offered a `nextCursor` no UI consumed**, so an operator could only ever see the newest
+   25 orders. Search met FR-011 either way, which is exactly why nothing failed. Keyset Back/Next
+   added, rendered only when there is somewhere to go.
+
+## ⚠ A latent platform defect found in passing (NOT fixed)
+
+`@effy/edge-shared`'s `problem()` serialises field errors under **`errors`**, while
+`ProblemJSON`/`toDomainError` read **`fields`**. So `DomainError.fields` is **always undefined**, and
+the stable-refusal-code mechanism 032 documented cannot work as written.
+
+Latent rather than live: no console reads `err.fields` today (verified by grep). Left alone
+deliberately — it is not this slice's to change, and fixing it alters what every console receives.
+It is why this feature's error copy keys off the attempted action rather than a server code.
 
 ---
 
