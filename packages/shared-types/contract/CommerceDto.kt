@@ -61,11 +61,11 @@ data class ApplyPromoRequest (
 @Serializable
 data class ProductAttributeGroupDTO (
     val groupLabel: String,
-    val items: List<Item>
+    val items: List<AttributeGroupItem>
 )
 
 @Serializable
-data class Item (
+data class AttributeGroupItem (
     val label: String,
     val value: String
 )
@@ -214,6 +214,11 @@ data class BillingDetailsDTO (
     val address: BillingAddressDTO,
     val email: String? = null,
     val name: String? = null
+)
+
+@Serializable
+data class CancelOrderBody (
+    val reason: String? = null
 )
 
 /**
@@ -603,6 +608,46 @@ data class CreateCheckoutIntentResponse (
 )
 
 /**
+ * ⚠ NO DESTINATION FIELD, AND THERE MUST NEVER BE ONE. The refund goes to the payment
+ * method on the order (FR-006). A request that could name where the money goes would be a
+ * way to redirect somebody else's (A4).
+ */
+@Serializable
+data class CreateRefundRequestBody (
+    val items: List<CreateRefundRequestItem>,
+    val message: String
+)
+
+@Serializable
+data class CreateRefundRequestItem (
+    @SerialName("orderItemId")
+    val orderItemID: String,
+
+    val quantity: Long
+)
+
+/**
+ * One refund, as the CUSTOMER sees it.
+ *
+ * ⚠ THREE states, not five, and no failure text. "Your bank rejected the refund" invites a
+ * shopper to argue with a message they cannot act on, and the difference between
+ * `submitting` and `submitted` is a fact about our integration.
+ */
+@Serializable
+data class CustomerRefundDTO (
+    val amount: String,
+    val refundedAt: String? = null,
+    val state: State
+)
+
+@Serializable
+enum class State(val value: String) {
+    @SerialName("completed") Completed("completed"),
+    @SerialName("on_its_way") OnItsWay("on_its_way"),
+    @SerialName("there_was_a_problem") ThereWasAProblem("there_was_a_problem");
+}
+
+/**
  * One offered method for one package, at its GST-inclusive, snapped-up fee
  * (FR-024/032/034). `feeAmount` is a 2-dp decimal string (e.g. "6.00"). The delivery window
  * is advisory copy.
@@ -902,6 +947,15 @@ data class MergeCartRequest (
 @Serializable
 data class OrderDTO (
     /**
+     * What the shopper is out of pocket after refunds.
+     *
+     * ⚠ NOT A CORRECTION TO `grandTotalAmount` (FR-024). That figure is what was CHARGED — a
+     * historical record. A receipt that silently rewrote itself after a refund could not be
+     * reconciled against a bank statement, which is the one thing a receipt is for.
+     */
+    val amountPaidAfterRefunds: String? = null,
+
+    /**
      * 052 — when the order is expected to arrive (FR-007), one entry per package.
      *
      * ⚠ More than one entry means the order arrives in more than one delivery — a fact about
@@ -917,6 +971,24 @@ data class OrderDTO (
      * billing address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders.
      */
     val billingAddress: OrderAddressDTO? = null,
+
+    /**
+     * 055 — may the SHOPPER still cancel this order themselves? (FR-012)
+     *
+     * ⚠ SERVER-DERIVED, for exactly the reason `stage` above is: a client computing it from
+     * `fulfillments` would be a second implementation of one rule, and the divergence would be
+     * silent because both surfaces still render *something*. Here the cost is a shopper shown a
+     * cancel button that refuses, or denied one that would have worked.
+     *
+     * ⚠ ADVISORY, NOT THE GATE. It was true when the page loaded; a shop may have begun picking
+     * since, and the server re-decides inside a row lock when the cancel actually arrives
+     * (FR-017).
+     *
+     * ⚠ `false` DOES NOT MEAN "this order can never be cancelled" — staff can cancel at any
+     * pre-departure stage (FR-018). Any wording built on this must leave that door open, or a
+     * shopper who would have rung up simply gives up.
+     */
+    val cancellable: Boolean,
 
     val currency: String,
 
@@ -945,6 +1017,14 @@ data class OrderDTO (
     val discountAmount: String? = null,
 
     val fulfillments: List<OrderFulfillmentDTO>,
+
+    /**
+     * ⚠ DERIVED FROM THE TOTALS, never a stored flag — so reaching it line by line and reaching
+     * it in one act are the same fact. A flag could be true while the numbers disagreed, and
+     * then nobody knows which to believe.
+     */
+    val fullyRefunded: Boolean? = null,
+
     val grandTotalAmount: String,
     val id: String,
     val items: List<OrderItemDTO>,
@@ -966,6 +1046,23 @@ data class OrderDTO (
      * "SPRING20" independently of the promotion record. Null/absent when no code was used.
      */
     val promoCode: String? = null,
+
+    /**
+     * What has actually been returned or is on its way. Absent when there are no refunds.
+     */
+    val refundedTotal: String? = null,
+
+    /**
+     * 055 — every refund on this order, newest first (FR-023).
+     *
+     * ⚠ ABSENT ENTIRELY when nothing was refunded — not an empty array (FR-028, SC-011). An
+     * order with no refunds serialises byte-identically to its pre-055 self, so a client that
+     * has never seen one cannot tell this slice shipped, and renders nothing rather than an
+     * empty section.
+     *
+     * ⚠ NO FAILURE REASON, NO KIND, NO PROVIDER REFERENCE. See [CustomerRefundDTO].
+     */
+    val refunds: List<CustomerRefundDTO>? = null,
 
     /**
      * 052 — the customer-facing progress stage (FR-008).
@@ -1100,6 +1197,21 @@ data class OrderItemDTO (
     val imageURL: String? = null,
 
     val lineSubtotalAmount: String,
+
+    /**
+     * 055 — this LINE's own id.
+     *
+     * ⚠ NOT INTERCHANGEABLE WITH `productId`, and the difference is load-bearing. `order_item`
+     * has no uniqueness on (order, product), so two lines of the same product cannot be told
+     * apart by product id. A refund request that named a product where a line was expected
+     * would not error — the join would simply match nothing, and every item the shopper named
+     * would be SILENTLY DROPPED.
+     *
+     * ⚠ It discloses nothing: a row id on the shopper's own order, carrying no shop and no
+     * fulfilment structure. The back-office contract already speaks this language.
+     */
+    @SerialName("orderItemId")
+    val orderItemID: String,
 
     @SerialName("productId")
     val productID: String,
@@ -1306,6 +1418,41 @@ data class PromotionDTO (
      */
     val validity: String? = null
 )
+
+/**
+ * A customer's ask.
+ *
+ * ⚠ IT IS NOT A REFUND. It carries no amount and no provider reference, and it moves no
+ * money (FR-005r). It replaces "email support and hope" — today "Get help" opens a generic
+ * feedback form with no order reference attached. ⚠ Deliberately NOT a message thread: one
+ * statement, one outcome.
+ */
+@Serializable
+data class RefundRequestDTO (
+    val createdAt: String,
+    val decidedAt: String? = null,
+    val id: String,
+    val items: List<RefundRequestItem>,
+    val message: String,
+    val outcomeNote: String? = null,
+    val status: RefundRequestStatus
+)
+
+@Serializable
+data class RefundRequestItem (
+    @SerialName("orderItemId")
+    val orderItemID: String,
+
+    val productName: String,
+    val quantity: Long
+)
+
+@Serializable
+enum class RefundRequestStatus(val value: String) {
+    @SerialName("declined") Declined("declined"),
+    @SerialName("open") Open("open"),
+    @SerialName("refunded") Refunded("refunded");
+}
 
 /**
  * POST /v1/cart/reorder — put a past order's items back in the cart (FR-034).

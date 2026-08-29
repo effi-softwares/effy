@@ -53,16 +53,36 @@ module "core_api" {
 
   # ── Non-secret runtime config (plain task-def env) ──
   environment = {
-    EFFY_ENV             = var.env
-    PORT                 = "8080"
-    AWS_REGION           = var.aws_region
-    LOG_LEVEL            = "info"
-    CORS_ALLOWED_ORIGINS = join(",", var.core_api_cors_origins)
-    AWS_MEDIA_BUCKET     = aws_s3_bucket.product_media.bucket
+    EFFY_ENV   = var.env
+    PORT       = "8080"
+    AWS_REGION = var.aws_region
+    LOG_LEVEL  = "info"
+    # ⚠ 055: the DEPLOYED back-office origin is appended here rather than hard-coded in tfvars, so it
+    # is derived from the same zone + subdomain the console is actually served from. A hand-typed
+    # origin that drifts from the real one fails only at a browser pre-flight, which is the hardest
+    # kind of failure to recognise.
+    CORS_ALLOWED_ORIGINS = join(",", concat(
+      var.core_api_cors_origins,
+      ["https://${var.back_office_subdomain}.${module.dns.zone_name}"],
+    ))
+    AWS_MEDIA_BUCKET = aws_s3_bucket.product_media.bucket
 
     # Customer pool + BOTH app clients (web,mobile) — a token from either is valid (027).
     AUTH_CUSTOMER_POOL_ID   = module.customer_pool.user_pool_id
     AUTH_CUSTOMER_CLIENT_ID = "${module.customer_pool.app_client_id},${aws_cognito_user_pool_client.customer_mobile.id}"
+
+    # ⚠ 055: the SECOND pool this service verifies, and the first that is not the customer.
+    #
+    # Refunds are issued by core-api because the payment secret lives here and nowhere else
+    # (019 SC-012). This service therefore has to identify a back-office staff member, and it does so
+    # ITSELF, against this pool's own issuer and client id — per-pool validation, the shape
+    # Principle IV sanctions. It is NOT an auth proxy: the rejected alternative was the cold path
+    # forwarding an operator's token here, which is brokering by definition (055 research R1).
+    #
+    # ⚠ Both are `required` in the app's config, so a missing value fails the service CLOSED at boot
+    # rather than mounting the money routes unauthenticated.
+    AUTH_BACK_OFFICE_POOL_ID   = module.back_office_pool.user_pool_id
+    AUTH_BACK_OFFICE_CLIENT_ID = module.back_office_pool.app_client_id
 
     # DB connection PARTS — the app composes the DSN from these + the injected password (040).
     DB_HOST = module.db.endpoint

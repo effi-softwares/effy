@@ -53,6 +53,15 @@ data class CheckoutBillingDetails(
 
 data class ReceiptItem(
     /**
+     * ⚠ ADDED BY 055 — THIS LINE's own id, and the SAME omission 033 records below for `productId`.
+     * The wire has never carried it until now; the domain model has never asked for it.
+     *
+     * ⚠ NOT INTERCHANGEABLE WITH [productId]. An order can carry the same product on two lines, so a
+     * product id cannot identify one — and naming a product where a line is expected does not error:
+     * the server's join matches nothing and every item the shopper named is SILENTLY DROPPED.
+     */
+    val orderItemId: String,
+    /**
      * ⚠ ADDED BY 033 so a shopper can save a product from a past order (FR-008).
      *
      * The wire has carried this since 019 — `OrderItemDTO.productId` — and this domain model simply
@@ -160,10 +169,57 @@ data class Receipt(
     val paymentMethod: PaymentMethodSummary? = null,
     /** 052 — one entry per package. More than one means the order arrives in more than one delivery. */
     val arrivalEstimates: List<ArrivalEstimate> = emptyList(),
+    /**
+     * 055 — may the SHOPPER still cancel this themselves? (FR-012)
+     *
+     * ⚠ SERVER-DERIVED, like [stage] beside it, and for the same reason: a second implementation of
+     * one rule diverges silently because both sides still render something. This screen never works
+     * it out from [stage] or the portions.
+     *
+     * ⚠ `false` DOES NOT MEAN "never cancellable" — staff can, right up until the order leaves the
+     * shop. Any wording built on this must leave that door open.
+     */
+    val cancellable: Boolean = false,
+    /**
+     * 055 US5 — every refund on this order, newest first (FR-023).
+     *
+     * ⚠ EMPTY MEANS RENDER NOTHING (FR-028), not an empty section. The server omits the fields
+     * entirely when there are no refunds, so an unrefunded order looks exactly as it did before 055.
+     */
+    val refunds: List<CustomerRefund> = emptyList(),
+    /** What has actually been returned or is on its way. "0.00" when none. */
+    val refundedTotal: String = "0.00",
+    /**
+     * What the shopper is out of pocket after refunds.
+     *
+     * ⚠ NOT a correction to [grandTotalAmount] (FR-024) — that is what was CHARGED, a historical
+     * record. A receipt that rewrote itself after a refund could not be reconciled against a bank
+     * statement, which is the one thing a receipt is for.
+     */
+    val amountPaidAfterRefunds: String = "",
+    /** ⚠ Derived by the server from the totals, never a stored flag. */
+    val fullyRefunded: Boolean = false,
 ) {
     /** True when billing == shipping (the common case) → "Billing: same as shipping" (FR-016). */
     val billingSameAsShipping: Boolean get() = billingAddressLine == null
 }
+
+/**
+ * One refund, as the SHOPPER sees it (055 FR-025).
+ *
+ * ⚠ THREE STATES AND NO FAILURE TEXT. Five internal states collapse to three because a shopper
+ * cannot act on the difference between "we have not heard from the provider" and "the provider has
+ * it", and whether a refund was *refused* rather than *failed* is a fact about our integration. The
+ * provider's own reason is not on the wire at all — the server never selects the column.
+ */
+data class CustomerRefund(
+    val amount: String,
+    val state: CustomerRefundState,
+    /** When the money actually landed. Null until it has — never a promise of when it will. */
+    val refundedAt: String? = null,
+)
+
+enum class CustomerRefundState { OnItsWay, Completed, ThereWasAProblem }
 
 /**
  * What placement needs.
@@ -281,3 +337,72 @@ fun interface ResendReceipt {
  */
 enum class ResendReceiptResult { Queued, RateLimited, Unavailable, Failed }
 
+
+
+/**
+ * Cancelling an order (055 US2, FR-012).
+ *
+ * ⚠ CANCELLING *IS* REFUNDING on this platform (research R3). The money was captured when the order
+ * was paid, so there is no "cancel before we charge you" — there is only returning what was taken.
+ * The wording on the screen has to say that, because a shopper who thinks nothing was charged will
+ * not look for a refund that has not arrived.
+ */
+fun interface CancelOrder {
+    suspend operator fun invoke(orderId: String): CancelOrderResult
+}
+
+sealed interface CancelOrderResult {
+    /** Cancelled, and the money is on its way back. ⚠ NOT "refunded" — the bank has not moved it yet. */
+    data class Cancelled(val amount: String) : CancelOrderResult
+
+    /**
+     * Somebody has already started preparing it.
+     *
+     * ⚠ This is a FACT ABOUT THE ORDER, not a failure of the request, and the difference is the whole
+     * of the wording: staff can still cancel it, so the screen must point at a human rather than say
+     * the order can never be cancelled (FR-018).
+     */
+    data object AlreadyBeingPrepared : CancelOrderResult
+
+    /** The session expired, or this is not the caller's order. */
+    data object NotAllowed : CancelOrderResult
+
+    data object Failed : CancelOrderResult
+}
+
+
+/**
+ * Asking for a refund (055 US3, FR-005r).
+ *
+ * ⚠ IT MOVES NO MONEY AND MUST NOT READ AS A DECISION. A form that withdrew money on submission would
+ * let anyone refund their own order by describing a problem. This records an ASK; a person decides it.
+ *
+ * ⚠ IT REPLACES "Get help" pointing at the generic 046 feedback form WITH NO ORDER ATTACHED — a
+ * shopper describing a missing item landed in an inbox where nobody could see which order they meant.
+ */
+fun interface RequestRefund {
+    suspend operator fun invoke(orderId: String, input: RefundRequestInput): RefundRequestResult
+}
+
+data class RefundRequestInput(
+    val message: String,
+    /**
+     * ⚠ OPTIONAL, and they are LINE ids rather than product ids. An order can carry the same product
+     * on two lines, so a product id cannot identify one — and passing one where the other is expected
+     * does not error: the server's join matches nothing and every named item is silently dropped.
+     */
+    val items: List<RefundRequestItem> = emptyList(),
+)
+
+data class RefundRequestItem(val orderItemId: String, val quantity: Int)
+
+sealed interface RefundRequestResult {
+    /** ⚠ Received, NOT granted. Nothing here may be rendered as a promise of money. */
+    data object Received : RefundRequestResult
+
+    /** They have already asked about this order and nobody has answered yet. */
+    data object AlreadyOpen : RefundRequestResult
+
+    data object NotAllowed : RefundRequestResult
+    data object Failed : RefundRequestResult
+}

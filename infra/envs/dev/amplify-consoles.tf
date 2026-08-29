@@ -47,6 +47,17 @@ locals {
     VITE_COGNITO_USER_POOL_ID = module.back_office_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.back_office_pool.app_client_id
     VITE_API_BASE_URL         = local.console_api_base_url
+
+    # ⚠ 055: the back office is the ONLY console that talks to a second backend.
+    #
+    # Refunds are issued by core-api because the payment secret lives there and nowhere else
+    # (019 SC-012). Reading an order still comes from the shared gateway above; only the money moves
+    # through here. See 055 research R1 for why the alternatives — duplicating the secret into a
+    # Lambda, or forwarding an operator's token between services — were both rejected.
+    #
+    # ⚠ This origin must ALSO be in core-api's CORS allowlist (`cors_allowed_origins`), or every
+    # refund call fails at the pre-flight with an error that looks nothing like a permissions problem.
+    VITE_CORE_API_BASE_URL = "https://${var.core_api_subdomain}.${module.dns.zone_name}"
   }, local.telemetry_env)
 }
 

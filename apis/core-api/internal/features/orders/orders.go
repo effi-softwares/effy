@@ -8,12 +8,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/features/refunds"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 var ErrNotFound = errors.New("orders: not found")
@@ -31,6 +35,9 @@ type Summary struct {
 }
 
 type Item struct {
+	// 055 — the LINE's own id, needed so a customer can name an item in a refund request. See the
+	// note on `itemDTO.OrderItemID`: two lines of the same product are indistinguishable by product id.
+	OrderItemID        string
 	ProductID          string
 	ProductName        string
 	UnitPriceAmount    string
@@ -87,6 +94,32 @@ type Order struct {
 	PaymentMethod *PaymentMethod
 	// 052 — when each package is expected to arrive. Dates only; never a time (research R4).
 	ArrivalEstimates []ArrivalEstimate
+
+	// 055 — may the SHOPPER still cancel this themselves? Derived from the portions, never left for a
+	// client to work out (FR-012, T050). Advisory: the server re-decides under the row lock.
+	Cancellable bool
+
+	// 055 US5 — what has happened to this shopper's money (FR-023). Empty when nothing was refunded,
+	// and the client then renders NOTHING (FR-028) rather than an empty section.
+	Refunds []CustomerRefund
+	// The sum of every refund not in a terminal failure, as a 2-dp string. "0.00" when none.
+	RefundedTotal string
+	// What the shopper is actually out of pocket: grand total minus RefundedTotal.
+	AmountPaidAfterRefunds string
+	// ⚠ DERIVED FROM THE TOTALS, never a stored flag — so reaching it line by line and reaching it in
+	// one act are the same fact (FR-023). A flag could be true while the numbers disagreed.
+	FullyRefunded bool
+}
+
+// CustomerRefund is one refund as the SHOPPER sees it (055 FR-025).
+//
+// ⚠ THREE STATES AND NO FAILURE TEXT. See `refunds.CustomerState` for why five become three; the
+// provider's reason is not carried here because it is not selected from the database at all.
+type CustomerRefund struct {
+	Amount string
+	State  string
+	// When the money actually landed. Null until it has — never a promise of when it will.
+	RefundedAt *string
 }
 
 // PaymentMethod is the receipt-safe description of how an order was paid (052 FR-006).
@@ -195,6 +228,7 @@ WHERE o.id = $1 AND o.customer_id = $2`, orderID, customerID)
 }
 
 type itemRow struct {
+	OrderItemID  string `db:"order_item_id"`
 	ProductID    string `db:"product_id"`
 	ProductName  string `db:"product_name"`
 	UnitPrice    string `db:"unit_price_amount"`
@@ -236,7 +270,8 @@ func (r *Repository) Items(ctx context.Context, orderID string) ([]itemRow, erro
 	// produce its line — the receipt is the record of a purchase, not a gallery. `order_item.product_id`
 	// is ON DELETE RESTRICT so the product row itself always survives.
 	rows, err := r.db.Query(ctx, `
-SELECT oi.product_id::text AS product_id, oi.product_name AS product_name,
+SELECT oi.id::text AS order_item_id,
+       oi.product_id::text AS product_id, oi.product_name AS product_name,
        oi.unit_price_amount::text AS unit_price_amount, oi.quantity AS quantity,
        oi.line_subtotal_amount::text AS line_subtotal_amount,
        pm.storage_key AS image_key
@@ -338,6 +373,42 @@ ORDER BY promised_from ASC NULLS LAST, promised_to ASC NULLS LAST, method ASC`, 
 	return out, nil
 }
 
+// refundRow is one refund on the order, as the CUSTOMER's read needs it.
+//
+// ⚠ NO `failure_reason` COLUMN IS SELECTED, and that is a deliberate omission rather than an
+// oversight. The provider's own words are staff information; a shopper cannot act on "your bank
+// rejected the refund" and surfacing it invites them to argue with a message that will not change
+// (FR-026). Not selecting it means no later mapper can leak it by accident.
+type refundRow struct {
+	Amount    string  `db:"amount"`
+	Status    string  `db:"status"`
+	SettledAt *string `db:"settled_at"`
+}
+
+// Refunds returns every refund on an order, newest first (055 FR-023).
+//
+// ⚠ `submitting` IS INCLUDED, unlike in the CEILING. The ceiling asks "how much may still be
+// returned", and an unaccepted attempt must not hold that down. This asks "what has happened to your
+// money", and a refund we asked for and cannot confirm is something the shopper should see — as
+// "on its way", which is exactly what it is.
+func (r *Repository) Refunds(ctx context.Context, orderID string) ([]refundRow, error) {
+	rows, err := r.db.Query(ctx, `
+SELECT amount::text        AS amount,
+       status              AS status,
+       settled_at::text    AS settled_at
+FROM public.refund
+WHERE order_id = $1
+ORDER BY created_at DESC, id DESC`, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("orders: refunds: %w", err)
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByName[refundRow])
+	if err != nil {
+		return nil, fmt.Errorf("orders: scan refunds: %w", err)
+	}
+	return out, nil
+}
+
 // PaymentMethod returns the captured method summary for an order, or a zero row when none was
 // captured (052 FR-006). Absence is normal, not an error — see methodRow.
 func (r *Repository) PaymentMethod(ctx context.Context, orderID string) (methodRow, error) {
@@ -367,6 +438,7 @@ type Repo interface {
 	Shortfalls(ctx context.Context, orderID string) ([]shortfallRow, error)
 	Arrivals(ctx context.Context, orderID string) ([]arrivalRow, error)
 	PaymentMethod(ctx context.Context, orderID string) (methodRow, error)
+	Refunds(ctx context.Context, orderID string) ([]refundRow, error)
 }
 
 type Service struct {
@@ -417,7 +489,7 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 	domainItems := make([]Item, 0, len(items))
 	for _, it := range items {
 		domainItems = append(domainItems, Item{
-			ProductID: it.ProductID, ProductName: it.ProductName, UnitPriceAmount: it.UnitPrice,
+			OrderItemID: it.OrderItemID, ProductID: it.ProductID, ProductName: it.ProductName, UnitPriceAmount: it.UnitPrice,
 			Quantity: it.Quantity, LineSubtotalAmount: it.LineSubtotal,
 			ImageURL: s.imageURL(ctx, it.ImageKey),
 		})
@@ -464,7 +536,7 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		method = &PaymentMethod{Type: *m.Type, Brand: m.Brand, Last4: m.Last4}
 	}
 
-	return Order{
+	order := Order{
 		ID: row.ID, OrderNumber: row.OrderNumber, Status: row.Status, PlacedAt: row.PlacedAt,
 		Items: domainItems, DeliveryAddress: json.RawMessage(row.Address), BillingAddress: json.RawMessage(row.Billing),
 		ItemSubtotalAmount: row.ItemSubtotal, DiscountAmount: row.Discount, PromoCode: row.PromoCode,
@@ -476,7 +548,16 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 		Stage:            StageFor(domainFul),
 		PaymentMethod:    method,
 		ArrivalEstimates: arrivals,
-	}, nil
+		Cancellable:      CustomerCancellable(row.Status, domainFul),
+	}
+
+	// ⚠ 055 US5 — READ AFTER, AND A FAILURE IS SWALLOWED. A refund read failing must not fail the
+	// whole receipt: the order and its lines are the document, and the refund block is an addition to
+	// it. The same reasoning as the payment-method read above, which 052 settled.
+	if refundRows, err := s.repo.Refunds(ctx, orderID); err == nil {
+		applyRefunds(&order, refundRows)
+	}
+	return order, nil
 }
 
 // imageURL mints a short-lived GET url for a media key, or returns nil.
@@ -493,4 +574,62 @@ func (s *Service) imageURL(ctx context.Context, key *string) *string {
 		return nil
 	}
 	return &url
+}
+
+// applyRefunds folds the refund rows onto the order the shopper reads (055 FR-023).
+//
+// ⚠ THE ARITHMETIC IS IN INTEGER CENTS AND FORMATTED ONCE. 051 and 052 each shipped a receipt whose
+// lines did not add up, and a refund puts a SECOND set of figures on the same document — so the one
+// place they are computed had better not accumulate 2-dp strings as floats, where `0.1 + 0.2` reaches
+// a shopper's order page as `0.30000000000000004`.
+//
+// ⚠ THE RECEIPT ITSELF IS UNCHANGED (FR-024). `ItemSubtotalAmount`, `DeliveryFeeAmount`,
+// `DiscountAmount` and `GrandTotalAmount` are what was CHARGED — a historical record. A refund is a
+// later event shown alongside it, never folded back into it. An order whose receipt silently rewrote
+// itself after a refund would be a document nobody could reconcile against their bank statement.
+func applyRefunds(order *Order, rows []refundRow) {
+	order.RefundedTotal = money.FormatCents(0)
+	order.AmountPaidAfterRefunds = order.GrandTotalAmount
+	if len(rows) == 0 {
+		// ⚠ FR-028 — nothing at all, not an empty section. `Refunds` stays nil so the client renders
+		// no block, and SC-011 (an unrefunded order is byte-identical to its pre-slice self) holds.
+		return
+	}
+
+	var refundedCents int64
+	out := make([]CustomerRefund, 0, len(rows))
+	for _, r := range rows {
+		state := refunds.CustomerState(r.Status)
+		// ⚠ COUNTED BY THE SAME RULE AS THE CEILING, which excludes `submitting`: money we asked to
+		// return and could not confirm has not left, so it must not be subtracted from what the
+		// shopper paid. It still APPEARS in the list, as "on its way" — which is what it is.
+		if r.Status != refunds.StatusSubmitting && state != refunds.CustomerProblem {
+			refundedCents += cents(r.Amount)
+		}
+		out = append(out, CustomerRefund{Amount: r.Amount, State: state, RefundedAt: r.SettledAt})
+	}
+
+	paidCents := cents(order.GrandTotalAmount)
+	order.Refunds = out
+	order.RefundedTotal = money.FormatCents(refundedCents)
+	order.AmountPaidAfterRefunds = money.FormatCents(max64(0, paidCents-refundedCents))
+	// ⚠ DERIVED FROM THE TOTALS, never a stored flag — so reaching it line by line and reaching it in
+	// one act are the same fact. `> 0` guards the degenerate free order, which is not "fully refunded".
+	order.FullyRefunded = paidCents > 0 && refundedCents >= paidCents
+}
+
+// cents parses a 2-dp decimal string. `round`, because `12.34 * 100` is `1233.9999…` in binary.
+func cents(amount string) int64 {
+	v, err := strconv.ParseFloat(amount, 64)
+	if err != nil {
+		return 0
+	}
+	return int64(math.Round(v * 100))
+}
+
+func max64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
 }

@@ -3,6 +3,7 @@ package orders
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -10,6 +11,9 @@ import (
 // fakeRepo records what the service asks for and returns canned rows. Hand-written, matching the
 // core-api test posture (no mocking library).
 type fakeRepo struct {
+	// 055 — the refund block on the customer's order read.
+	refunds     []refundRow
+	refundsErr  error
 	order       orderRow
 	items       []itemRow
 	fulfillment []fulfillmentRow
@@ -35,6 +39,10 @@ func (f *fakeRepo) Shortfalls(context.Context, string) ([]shortfallRow, error) {
 func (f *fakeRepo) Arrivals(context.Context, string) ([]arrivalRow, error) { return f.arrivals, nil }
 func (f *fakeRepo) PaymentMethod(context.Context, string) (methodRow, error) {
 	return f.method, nil
+}
+
+func (f *fakeRepo) Refunds(context.Context, string) ([]refundRow, error) {
+	return f.refunds, f.refundsErr
 }
 
 const orderID = "3f1c0b6e-7a7e-4a1a-9f2e-2b6c9a5d4e31"
@@ -207,6 +215,8 @@ func TestOrderDTO_KeySetMatchesTheContract(t *testing.T) {
 		"paymentStatus": true, "fulfillments": true,
 		// 052 additions
 		"stage": true, "paymentMethod": true, "arrivalEstimates": true,
+		// 055 — whether the SHOPPER may still cancel it themselves (FR-012). Server-derived.
+		"cancellable": true,
 		// `billingAddress` is omitempty — absent means "same as shipping" (FR-016), so it is not
 		// required here and its ABSENCE is asserted by TestGet_BillingSameAsShippingIsEmpty.
 	}
@@ -324,3 +334,201 @@ func TestItems_RenderCompleteWithoutAnImage(t *testing.T) {
 }
 
 func strptr(s string) *string { return &s }
+
+// ── 055 US5 — what happened to the shopper's money ──────────────────────────────────────────────
+
+// ⚠ SC-011 / T065 — AN ORDER WITH NO REFUNDS MUST BE BYTE-IDENTICAL TO ITS PRE-SLICE SELF.
+//
+// Every 055 field is `omitempty` for exactly this reason. A client that has never seen a refund must
+// not be able to tell this slice shipped: no empty array, no "0.00" totals, no `fullyRefunded:false`.
+// Adding three keys to every order response on the platform to say nothing happened is not free —
+// it is bytes on every read, and a shape every client must now branch on.
+func TestOrderDTO_AnUnrefundedOrderCarriesNoRefundKeysAtAll(t *testing.T) {
+	blob, err := json.Marshal(orderDTO{})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	for _, key := range []string{"refunds", "refundedTotal", "amountPaidAfterRefunds", "fullyRefunded"} {
+		if strings.Contains(string(blob), key) {
+			t.Fatalf("an unrefunded order must not carry %q: %s", key, blob)
+		}
+	}
+}
+
+// ⚠ T063 — THE NUMBERS MUST ADD UP. 051 and 052 EACH SHIPPED A RECEIPT WHOSE LINES DID NOT, and a
+// refund puts a second set of figures on the same document.
+func TestGet_RefundArithmeticAddsUp(t *testing.T) {
+	repo := baseRepo() // grand total 50.00
+	repo.refunds = []refundRow{
+		{Amount: "10.00", Status: "succeeded"},
+		{Amount: "5.50", Status: "submitted"},
+	}
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.RefundedTotal != "15.50" {
+		t.Fatalf("RefundedTotal = %q, want 15.50", got.RefundedTotal)
+	}
+	if got.AmountPaidAfterRefunds != "34.50" {
+		t.Fatalf("AmountPaidAfterRefunds = %q, want 34.50", got.AmountPaidAfterRefunds)
+	}
+	// ⚠ THE RECEIPT IS UNCHANGED (FR-024). What was CHARGED is a historical record; a document that
+	// silently rewrote itself after a refund could not be reconciled against a bank statement.
+	if got.GrandTotalAmount != "50.00" {
+		t.Fatalf("the charged total must not move: %q", got.GrandTotalAmount)
+	}
+}
+
+// ⚠ Accumulating 2-dp strings as floats is how `0.1 + 0.2` reaches a shopper's order page as
+// `0.30000000000000004`. Ten ten-cent refunds must come to exactly one dollar.
+func TestGet_RefundTotalsDoNotDriftAcrossManySmallAmounts(t *testing.T) {
+	repo := baseRepo()
+	for i := 0; i < 10; i++ {
+		repo.refunds = append(repo.refunds, refundRow{Amount: "0.10", Status: "succeeded"})
+	}
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.RefundedTotal != "1.00" {
+		t.Fatalf("RefundedTotal = %q, want exactly 1.00", got.RefundedTotal)
+	}
+	if got.AmountPaidAfterRefunds != "49.00" {
+		t.Fatalf("AmountPaidAfterRefunds = %q, want 49.00", got.AmountPaidAfterRefunds)
+	}
+}
+
+// ⚠ AN UNACCEPTED ATTEMPT AND A FAILED ONE MUST NOT REDUCE WHAT THE SHOPPER PAID. Both still APPEAR
+// in the list — a shopper should see we tried — but neither has left our hands.
+func TestGet_UnsettledAndFailedRefundsAreShownButNotSubtracted(t *testing.T) {
+	repo := baseRepo()
+	repo.refunds = []refundRow{
+		{Amount: "10.00", Status: "submitting"},
+		{Amount: "8.00", Status: "failed"},
+		{Amount: "2.00", Status: "succeeded"},
+	}
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got.Refunds) != 3 {
+		t.Fatalf("all three must be visible, got %d", len(got.Refunds))
+	}
+	if got.RefundedTotal != "2.00" {
+		t.Fatalf("only the settled one counts: %q", got.RefundedTotal)
+	}
+	if got.AmountPaidAfterRefunds != "48.00" {
+		t.Fatalf("AmountPaidAfterRefunds = %q, want 48.00", got.AmountPaidAfterRefunds)
+	}
+}
+
+// ⚠ FR-023 — REACHING IT PIECE BY PIECE AND REACHING IT IN ONE ACT MUST BE THE SAME FACT. That is
+// why it is derived from the totals rather than stored: a flag could be true while the numbers said
+// otherwise, and then nobody knows which to believe.
+func TestGet_FullyRefundedIsDerivedNotFlagged(t *testing.T) {
+	pieceByPiece := baseRepo()
+	pieceByPiece.refunds = []refundRow{
+		{Amount: "20.00", Status: "succeeded"},
+		{Amount: "20.00", Status: "succeeded"},
+		{Amount: "10.00", Status: "succeeded"},
+	}
+	inOneAct := baseRepo()
+	inOneAct.refunds = []refundRow{{Amount: "50.00", Status: "succeeded"}}
+
+	for name, repo := range map[string]*fakeRepo{"piece by piece": pieceByPiece, "in one act": inOneAct} {
+		got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if !got.FullyRefunded {
+			t.Fatalf("%s: want fully refunded", name)
+		}
+		if got.AmountPaidAfterRefunds != "0.00" {
+			t.Fatalf("%s: AmountPaidAfterRefunds = %q, want 0.00", name, got.AmountPaidAfterRefunds)
+		}
+	}
+
+	partial := baseRepo()
+	partial.refunds = []refundRow{{Amount: "49.99", Status: "succeeded"}}
+	got, _ := NewService(partial, nil).Get(context.Background(), "cust-1", orderID)
+	if got.FullyRefunded {
+		t.Fatal("one cent short is not fully refunded")
+	}
+}
+
+// ⚠ T059 / SC-009 — NO PROVIDER FAILURE REASON MAY REACH A CUSTOMER, and the strongest form of that
+// guarantee is that the column is never selected. This asserts the DTO has nowhere to put one.
+func TestCustomerRefundDTO_HasNoPlaceForAProviderFailureReason(t *testing.T) {
+	blob, err := json.Marshal(customerRefundDTO{Amount: "10.00", State: "there_was_a_problem"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	wire := strings.ToLower(string(blob))
+	for _, leak := range []string{"failure", "reason", "decline", "bank", "kind", "note"} {
+		if strings.Contains(wire, leak) {
+			t.Fatalf("customer refund payload must not carry %q: %s", leak, wire)
+		}
+	}
+}
+
+// ⚠ A refund read that fails must not fail the whole receipt. The order and its lines are the
+// document; the refund block is an addition to it.
+func TestGet_AFailedRefundReadStillReturnsTheOrder(t *testing.T) {
+	repo := baseRepo()
+	repo.refundsErr = errors.New("database unavailable")
+	got, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("the receipt must survive a refund read failure: %v", err)
+	}
+	if got.OrderNumber != "EFY-1" {
+		t.Fatal("the order itself must still be there")
+	}
+	if len(got.Refunds) != 0 {
+		t.Fatal("and no refunds are claimed")
+	}
+}
+
+// ⚠ T066 / SC-009 — SWEEP THE WHOLE CUSTOMER ORDER PAYLOAD, not just the refund block.
+//
+// The refund fields were added to a response that already had a no-shop-identity guarantee, and a
+// new nested struct is exactly where such a guarantee quietly stops holding. This renders a fully
+// populated order — refunds included — and sweeps the serialised bytes.
+func TestOrderDTO_WithRefundsStillLeaksNothing(t *testing.T) {
+	repo := baseRepo()
+	repo.shortfalls = []shortfallRow{
+		{FulfillmentID: "portion-a", ProductName: "Barilla Spaghetti", Quantity: 1},
+	}
+	repo.refunds = []refundRow{
+		{Amount: "10.00", Status: "failed"},
+		{Amount: "5.00", Status: "succeeded"},
+	}
+	order, err := NewService(repo, nil).Get(context.Background(), "cust-1", orderID)
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+
+	blob, err := json.Marshal(orderDTO{
+		ID: order.ID, OrderNumber: order.OrderNumber, Status: order.Status,
+		Refunds:                refundDTOs(order.Refunds),
+		RefundedTotal:          order.RefundedTotal,
+		AmountPaidAfterRefunds: order.AmountPaidAfterRefunds,
+		FullyRefunded:          order.FullyRefunded,
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	wire := strings.ToLower(string(blob))
+	// ⚠ `shop` is checked as a bare token here rather than as a substring — this payload has no
+	// domain in it, but the same sweep in email-kit had to learn that `effyshopping.com` contains it.
+	for _, leak := range []string{
+		"shop", "portion-a", "fulfillmentid",
+		// 055 — the provider's own vocabulary must not reach a shopper.
+		"failurereason", "declined", "stripe", "provider", "idempotency", "goodwill", "cancellation",
+	} {
+		if strings.Contains(wire, leak) {
+			t.Fatalf("customer order payload leaks %q: %s", leak, wire)
+		}
+	}
+}

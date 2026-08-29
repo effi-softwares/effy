@@ -111,6 +111,24 @@ type Service struct {
 	// Delivery telemetry (047). Nil-able; a no-op when unwired.
 	deliveryMetrics DeliveryMetrics
 	stockMetrics    StockMetrics
+	// The refund side of the provider's webhook (055). Nil-able like the others: unwired, refund
+	// events are ignored, which is the platform's pre-055 behaviour.
+	//
+	// ⚠ AN INTERFACE, AND THE DIRECTION IS FORCED. `refunds` imports `checkout` for the gateway and
+	// the event type, so `checkout` cannot import `refunds` back. Injecting the behaviour keeps the
+	// one signature-verified endpoint in one place without a cycle.
+	refunds RefundEvents
+}
+
+// RefundEvents applies a verified `refund.*` event. Implemented by the refunds service (055 US4).
+type RefundEvents interface {
+	HandleRefundEvent(ctx context.Context, evt WebhookEvent) error
+}
+
+// WithRefundEvents wires the refund half of the webhook.
+func (s *Service) WithRefundEvents(r RefundEvents) *Service {
+	s.refunds = r
+	return s
 }
 
 // StockMetrics is the checkout's telemetry sink for stock (054). Nil-able; low-cardinality labels
@@ -581,8 +599,12 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 	if err != nil {
 		return err // handler → 400
 	}
-	if evt.PaymentIntentID == "" {
-		return nil // not a payment_intent event we act on
+	// ⚠ THE DEDUP MUST COME BEFORE THE ROUTING, NOT AFTER IT. An earlier shape returned early on
+	// `PaymentIntentID == ""`, which is every `refund.*` event — so refund events were DISCARDED
+	// before they were ever deduped or dispatched, and a bank rejecting a refund thirty days later
+	// would have reached a platform that had already stopped listening.
+	if evt.PaymentIntentID == "" && evt.RefundID == "" {
+		return nil // an event this platform does not act on
 	}
 
 	firstTime, err := s.store.MarkEventSeen(ctx, evt.ID, evt.Type)
@@ -591,6 +613,18 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 	}
 	if !firstTime {
 		return nil // already processed (redelivery)
+	}
+
+	// ⚠ FR-010's idempotency comes from THIS TABLE, which is why the refund path rides the same
+	// endpoint rather than getting its own. A redelivered `refund.failed` never reaches the handler.
+	if evt.RefundID != "" {
+		if s.refunds == nil {
+			return nil
+		}
+		return s.refunds.HandleRefundEvent(ctx, evt)
+	}
+	if evt.PaymentIntentID == "" {
+		return nil
 	}
 
 	orderID, found, err := s.store.FindOrderByIntent(ctx, evt.PaymentIntentID)

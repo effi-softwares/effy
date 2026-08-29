@@ -75,5 +75,12 @@
     "textBytes": 417,
     "htmlSha": "20a7ae4ea8525a7b",
     "textSha": "ee243f5dd0e7c10d"
+  },
+  "order-refunded": {
+    "htmlBytes": 16959,
+    "htmlChars": 16951,
+    "textBytes": 582,
+    "htmlSha": "e25b0e261ff37f7e",
+    "textSha": "0063d83b9b858a84"
   }
 }

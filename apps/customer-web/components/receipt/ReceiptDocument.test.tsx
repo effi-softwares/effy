@@ -17,6 +17,7 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
     placedAt: "2026-08-26T04:14:00Z",
     items: [
       {
+        orderItemId: "oi1",
         productId: "p1",
         productName: "Barilla Spaghetti No.5 500g",
         unitPriceAmount: "3.60",
@@ -24,6 +25,7 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
         lineSubtotalAmount: "3.60",
       },
       {
+        orderItemId: "oi2",
         productId: "p2",
         productName: "Quilton 3 Ply Toilet Tissue 12 Pack",
         unitPriceAmount: "9.50",
@@ -53,6 +55,8 @@ function order(over: Partial<OrderDTO> = {}): OrderDTO {
     stage: "confirmed",
     paymentMethod: null,
     arrivalEstimates: [],
+    // 055 — a delivered order is long past cancellable; the receipt never renders the control anyway.
+    cancellable: false,
     ...over,
   }
 }
@@ -84,6 +88,7 @@ describe("ReceiptDocument — the lines add up (FR-004, SC-002)", () => {
         order={order({
           items: [
             {
+              orderItemId: "oi3",
               productId: "p1",
               productName: "Milk",
               unitPriceAmount: "3.10",

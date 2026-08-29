@@ -574,8 +574,8 @@ Email: support@effyshopping.com"""),
         title = "Refund, Returns & Cancellations Policy",
         category = "legal",
         order = 3,
-        currentVersion = "v1",
-        effectiveDate = "2026-08-13",
+        currentVersion = "v2",
+        effectiveDate = "2026-08-30",
         body = """This policy explains how refunds, returns and cancellations work at Effy, operated by
 [LEGAL_ENTITY_NAME] (ABN [ABN]). It forms part of our [Terms of Service](/legal/terms-of-service) and
 is in addition to your rights under the Australian Consumer Law, which cannot be excluded.
@@ -594,18 +594,28 @@ rights — it does not replace them.
 Groceries are perishable, so we deal with problems quickly. If your order arrives with an item that is:
 
 - **missing** — we refund that item;
-- **damaged or spoiled** — we refund or replace that item; or
-- **incorrect** — we refund or replace that item,
+- **damaged or spoiled** — we refund that item; or
+- **incorrect** — we refund that item,
 
 contact us within a reasonable time of delivery (for perishable goods, as soon as possible) at
 support@effyshopping.com with your order number and, where you can, a photo. We may not need the item
 returned.
 
+Where the Australian Consumer Law entitles you to a replacement instead of a refund, contact us and we
+will arrange it with you directly.
+
 ## Cancelling an order
 
-You may be able to cancel an order **before it is dispatched**. Once an order is being prepared or is
-out for delivery, it may no longer be possible to cancel it. To cancel, use the app or contact
-support@effyshopping.com as soon as possible.
+You can cancel an order yourself **until a shop starts preparing it**. Until then, the cancel option is
+available on your order in the app and on the website, and cancelling returns the full amount you paid,
+including any delivery fee.
+
+Once a shop has started preparing your order, the cancel option is no longer available to you. Contact
+us at support@effyshopping.com as soon as possible — we can usually still cancel an order that has not
+yet left the shop, and we will return the full amount if we can.
+
+Once your order has left the shop for delivery, it can no longer be cancelled. If something is wrong
+when it arrives, the sections above apply.
 
 ## Change of mind on perishable goods
 
@@ -618,23 +628,98 @@ unsafe, or not as described.
 | What happened | What you get | How |
 | --- | --- | --- |
 | Item missing | Refund of that item | To your original payment method |
-| Item damaged, spoiled or incorrect | Refund or replacement | Refund to original payment method, or replacement on a future order |
-| Order cancelled before dispatch | Full refund | To your original payment method |
-| Major failure (ACL) | Refund or replacement, your choice | To your original payment method |
+| Item damaged, spoiled or incorrect | Refund of that item | To your original payment method |
+| Order cancelled before it leaves the shop | Full refund, including delivery | To your original payment method |
+| Major failure (ACL) | Refund or replacement, your choice | To your original payment method, or arranged with you directly |
 
-Refunds are made to your original payment method and are usually processed within a few business days,
-though the time to appear depends on your bank or card provider.
+Refunds always go back to the card or payment method you paid with. We cannot send a refund anywhere
+else.
+
+We send refunds to your bank or card provider as soon as the refund is approved. How long it takes to
+appear on your statement is up to them, and is usually a few business days. If a refund does not reach
+you, contact us and we will chase it.
 
 ## How to contact us
 
-Email support@effyshopping.com with your order number. We will help you and, where a refund or
-replacement is due, arrange it promptly.
+Email support@effyshopping.com with your order number. We will help you and, where a refund is due,
+arrange it promptly.
 
 ## Contact
 
 [LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com""",
         versions = listOf(
-        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "current", body = """This policy explains how refunds, returns and cancellations work at Effy, operated by
+        LegalDocumentVersion(version = "v2", effectiveDate = "2026-08-30", status = "current", body = """This policy explains how refunds, returns and cancellations work at Effy, operated by
+[LEGAL_ENTITY_NAME] (ABN [ABN]). It forms part of our [Terms of Service](/legal/terms-of-service) and
+is in addition to your rights under the Australian Consumer Law, which cannot be excluded.
+
+This is a draft prepared for legal review.
+
+## Your rights under the Australian Consumer Law
+
+Our goods come with guarantees that cannot be excluded under the Australian Consumer Law. If a product
+has a **major problem**, you are entitled to a refund or replacement. If a product has a **minor
+problem** that can be fixed, we may offer to replace or refund it. This policy sits alongside those
+rights — it does not replace them.
+
+## Missing, damaged or incorrect items
+
+Groceries are perishable, so we deal with problems quickly. If your order arrives with an item that is:
+
+- **missing** — we refund that item;
+- **damaged or spoiled** — we refund that item; or
+- **incorrect** — we refund that item,
+
+contact us within a reasonable time of delivery (for perishable goods, as soon as possible) at
+support@effyshopping.com with your order number and, where you can, a photo. We may not need the item
+returned.
+
+Where the Australian Consumer Law entitles you to a replacement instead of a refund, contact us and we
+will arrange it with you directly.
+
+## Cancelling an order
+
+You can cancel an order yourself **until a shop starts preparing it**. Until then, the cancel option is
+available on your order in the app and on the website, and cancelling returns the full amount you paid,
+including any delivery fee.
+
+Once a shop has started preparing your order, the cancel option is no longer available to you. Contact
+us at support@effyshopping.com as soon as possible — we can usually still cancel an order that has not
+yet left the shop, and we will return the full amount if we can.
+
+Once your order has left the shop for delivery, it can no longer be cancelled. If something is wrong
+when it arrives, the sections above apply.
+
+## Change of mind on perishable goods
+
+Because fresh and perishable groceries cannot be resold once delivered, we are not always able to accept
+returns for change of mind on those items. This does not affect your rights where a product is faulty,
+unsafe, or not as described.
+
+## How refunds are made
+
+| What happened | What you get | How |
+| --- | --- | --- |
+| Item missing | Refund of that item | To your original payment method |
+| Item damaged, spoiled or incorrect | Refund of that item | To your original payment method |
+| Order cancelled before it leaves the shop | Full refund, including delivery | To your original payment method |
+| Major failure (ACL) | Refund or replacement, your choice | To your original payment method, or arranged with you directly |
+
+Refunds always go back to the card or payment method you paid with. We cannot send a refund anywhere
+else.
+
+We send refunds to your bank or card provider as soon as the refund is approved. How long it takes to
+appear on your statement is up to them, and is usually a few business days. If a refund does not reach
+you, contact us and we will chase it.
+
+## How to contact us
+
+Email support@effyshopping.com with your order number. We will help you and, where a refund is due,
+arrange it promptly.
+
+## Contact
+
+[LEGAL_ENTITY_NAME], ABN [ABN] — support@effyshopping.com"""),
+        LegalDocumentVersion(version = "v1", effectiveDate = "2026-08-13", status = "superseded", body = """This policy explains how refunds, returns and cancellations work at Effy, operated by
 [LEGAL_ENTITY_NAME] (ABN [ABN]). It forms part of our [Terms of Service](/legal/terms-of-service) and
 is in addition to your rights under the Australian Consumer Law, which cannot be excluded.
 

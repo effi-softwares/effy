@@ -67,12 +67,86 @@ type WebhookEvent struct {
 	Type            string
 	PaymentIntentID string
 	IntentStatus    IntentStatus
+
+	// ── 055 refund events ────────────────────────────────────────────────────────────────────────
+	// Populated only for `refund.*`. ⚠ RefundID may name a refund this platform has no record of —
+	// a refund issued from the provider's own dashboard is a real thing that happens, and the caller
+	// must RECORD it rather than discard it (FR-010), or the order goes on claiming money it no
+	// longer holds.
+	RefundID      string
+	RefundStatus  RefundStatus
+	FailureReason string
+	// ⚠ Integer minor units, and it matters for the UNATTRIBUTED case only: a refund the platform
+	// issued already knows its own amount. One issued in the provider's dashboard is known ONLY from
+	// the event, so without this the platform could record that money left and not how much.
+	RefundAmountCents int64
+	// The intent the refund was taken against — how an unattributed refund is resolved to an order.
+	RefundPaymentIntentID string
 }
+
+// RefundStatus mirrors the provider's own refund lifecycle.
+//
+// ⚠ A REFUND IS NOT A CALL, IT IS A STATE MACHINE. The provider accepting the request means only that
+// it was SUBMITTED: the bank can reject it up to THIRTY DAYS later, with a failure reason. A platform
+// that records "refunded" when the API returns will tell customers their money is on its way and never
+// find out it was wrong — which is the single most-skipped property of refund integrations.
+type RefundStatus string
+
+const (
+	RefundPending   RefundStatus = "pending"
+	RefundSucceeded RefundStatus = "succeeded"
+	RefundFailed    RefundStatus = "failed"
+	RefundCanceled  RefundStatus = "canceled"
+	// ⚠ Some payment methods need bank details from the customer before the money can move; the
+	// provider emails them. Modelled because ignoring it would leave a refund silently unfinished.
+	RefundRequiresAction RefundStatus = "requires_action"
+)
+
+// CreateRefundInput is one refund request to the provider.
+type CreateRefundInput struct {
+	PaymentIntentID string
+	// Integer minor units, which is what the provider expects and what the platform computes in.
+	AmountCents int64
+	// ⚠ The PROVIDER's vocabulary, mapped from Effy's on the way out (research R5). Only ever
+	// `requested_by_customer` or empty: `fraudulent` blocklists the payer's card and email — a
+	// consequence for a person beyond this order — and `duplicate` is a claim we cannot substantiate.
+	Reason string
+	// ⚠ THE SAME KEY the platform stored, so an ambiguous retry cannot create a second refund HERE
+	// either. This is what makes FR-005d's automatic retry safe.
+	IdempotencyKey string
+	// Low-cardinality routing only; never PII.
+	Metadata map[string]string
+}
+
+// Refund is what the provider said back.
+type Refund struct {
+	ID            string
+	Status        RefundStatus
+	FailureReason string
+}
+
+// RefusedError marks a refusal the provider will never accept, however many times it is asked.
+//
+// ⚠ THE WHOLE POINT IS THE DISTINCTION (FR-005d). A timeout leaves us not knowing whether a refund
+// exists, so the only safe response is a retry the provider recognises as the same request. A refusal
+// is a DECISION, and retrying a decision fills a queue with attempts that can never succeed.
+type RefusedError struct {
+	Reason string
+}
+
+func (e *RefusedError) Error() string { return "refund refused: " + e.Reason }
 
 // Webhook event types we act on.
 const (
 	EventPaymentSucceeded = "payment_intent.succeeded"
 	EventPaymentFailed    = "payment_intent.payment_failed"
+
+	// 055. ⚠ `refund.failed` is the one that matters: it is how the platform learns a refund it
+	// believes it made did not happen. Without handling it, the order claims money was returned and
+	// nobody ever discovers otherwise.
+	EventRefundUpdated = "refund.updated"
+	EventRefundFailed  = "refund.failed"
+	EventRefundCreated = "refund.created"
 )
 
 // ── 051 payment-method types ──────────────────────────────────────────────────────────────────────
@@ -113,6 +187,19 @@ type PaymentGateway interface {
 	RetrievePaymentIntent(ctx context.Context, intentID string) (PaymentIntent, error)
 	// ConstructWebhookEvent verifies the provider signature over the raw body and returns the event.
 	ConstructWebhookEvent(payload []byte, signatureHeader string) (WebhookEvent, error)
+
+	// ── 055 ──────────────────────────────────────────────────────────────────────────────────────
+
+	// CreateRefund returns money for a payment, in whole or in part.
+	//
+	// ⚠ SUCCESS HERE MEANS SUBMITTED, NOT REFUNDED. The returned status is the provider's, and it is
+	// usually `pending`: the bank has not moved anything yet and may refuse weeks later. The caller
+	// MUST NOT record the money as returned on the strength of this call (FR-007).
+	//
+	// ⚠ AND THE ERROR MUST BE CLASSIFIED, NOT JUST RETURNED. A *RefusedError is a decision and must
+	// never be retried; anything else is ambiguous — the refund may or may not exist — and must be
+	// retried under the SAME idempotency key (FR-005d).
+	CreateRefund(ctx context.Context, in CreateRefundInput) (Refund, error)
 
 	// ── 052 ──────────────────────────────────────────────────────────────────────────────────────
 

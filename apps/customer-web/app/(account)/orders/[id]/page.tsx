@@ -5,6 +5,10 @@ import { Suspense } from "react"
 
 import type { OrderDTO } from "@effy/shared-types"
 
+import { CancelOrder } from "./CancelOrder"
+import { RefundBlock } from "./RefundBlock"
+import { RequestRefund } from "./RequestRefund"
+
 import { OrderAddresses } from "@/components/OrderAddresses"
 import { ArrivalPanel } from "@/components/receipt/ArrivalPanel"
 import { DocumentStatusNote } from "@/components/receipt/DocumentStatusNote"
@@ -80,20 +84,56 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
               lib/fulfillment-progress.ts for why that is gone (052 FR-008). */}
           <ArrivalPanel stage={dto.stage} arrivals={dto.arrivalEstimates ?? []} />
 
+          {/* ⚠ NOTHING AT ALL when there are no refunds (FR-028) — the server omits the fields, so an
+              unrefunded order renders exactly as it did before 055 (SC-011). */}
+          {dto.refunds?.length ? (
+            <RefundBlock
+              refunds={dto.refunds}
+              refundedTotal={dto.refundedTotal ?? "0.00"}
+              amountPaidAfterRefunds={dto.amountPaidAfterRefunds ?? dto.grandTotalAmount}
+              fullyRefunded={dto.fullyRefunded ?? false}
+            />
+          ) : null}
+
           <div className="flex flex-col gap-2.5">
             <ActionLink href="/" size="md" className="w-full">
               Keep shopping
             </ActionLink>
           </div>
 
+          {/* ⚠ Present ONLY when the server says so (FR-012). When it is absent the page must not
+              imply the order can never be cancelled — staff still can, right up until it leaves the
+              shop — which is what the "Get help" line below is for. */}
+          {dto.cancellable ? <CancelOrder orderId={dto.id} /> : null}
+
           <ResendReceipt orderId={dto.id} />
 
-          <p className="text-[13px] text-muted-foreground">
-            Something wrong with this order?{" "}
-            <Link href="/feedback" className="font-medium text-primary hover:underline">
-              Get help
-            </Link>
-          </p>
+          {/* ⚠ 055 US3 — REPLACES "Get help" pointing at the generic 046 feedback form with NO ORDER
+              REFERENCE ATTACHED. A shopper describing a missing item landed in an inbox where nobody
+              could see which order they meant; the ask now arrives attached to it.
+
+              ⚠ Only on a PAID order. There is nothing to refund on one that never went through, and
+              the request would sit in the queue with no possible outcome. */}
+          {dto.status === "paid" ? (
+            <RequestRefund
+              orderId={dto.id}
+              items={dto.items.map((i) => ({
+                // ⚠ THE LINE's id, never `productId`. Two lines of the same product are
+                // indistinguishable by product id, and passing one for the other does not error —
+                // the server's join matches nothing and every named item is silently dropped.
+                orderItemId: i.orderItemId,
+                productName: i.productName,
+                quantity: i.quantity,
+              }))}
+            />
+          ) : (
+            <p className="text-[13px] text-muted-foreground">
+              Something wrong with this order?{" "}
+              <Link href="/feedback" className="font-medium text-primary hover:underline">
+                Get help
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -103,8 +143,14 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
 /**
  * Items the customer paid for and will not receive (020 FR-018b).
  *
- * ⚠ Deliberately NO refund promise: no money moves in this slice (FR-018a) and the platform cannot yet
- * honour one. Point at a human instead of saying something untrue on a financial record.
+ * ⚠ 055 CHANGED WHAT THIS MAY SAY. 020 wrote "contact support and we'll sort it out" because no money
+ * could move and pointing at a human was the only honest option on a financial record. The platform
+ * now PROPOSES a refund for every recorded shortfall automatically (FR-004a), so the honest sentence
+ * is that we owe them and are dealing with it — telling a shopper to chase money we already know we
+ * owe is the failure gap G3 describes.
+ *
+ * ⚠ BUT IT STILL PROMISES NO TIMING AND NO AMOUNT. A person decides each proposal (A5b), and a
+ * proposal is not a refund: the refund block above appears when one actually exists.
  */
 function Unavailable({ shortfalls }: { shortfalls: { productName: string; quantity: number }[] }) {
   return (
@@ -129,7 +175,12 @@ function Unavailable({ shortfalls }: { shortfalls: { productName: string; quanti
         ))}
       </ul>
       <p className="mt-2.5 text-sm text-muted-foreground">
-        Contact support about this order and we&apos;ll sort it out.
+        You won&apos;t be charged for {shortfalls.length === 1 ? "it" : "these"} — we&apos;ll refund
+        {shortfalls.length === 1 ? " it" : " them"} to your original payment method.{" "}
+        <Link href="/feedback" className="font-medium text-primary hover:underline">
+          Get help
+        </Link>{" "}
+        if something doesn&apos;t look right.
       </p>
     </section>
   )

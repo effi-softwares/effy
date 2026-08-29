@@ -19,6 +19,15 @@
  */
 
 import type { OrderStage, OrderStatus } from "./order";
+// ⚠ 055 — the refund vocabulary is SHARED with the customer contract, deliberately. A refund's
+// states and reasons are one set of facts; what differs per audience is how much of it is shown,
+// which is `RefundDTO` vs `CustomerRefundDTO`, not a second set of names.
+import type {
+  ProposedRefundDTO,
+  RefundDTO,
+  RefundRequestDTO,
+} from "./refund";
+import type { WireInt } from "./cart";
 
 /** How an arrival came to be known (spec FR-008; `public.package_arrival.source`). */
 export type ArrivalSource = "driver_proof" | "staff_recorded" | "carrier_signal";
@@ -146,7 +155,49 @@ export interface AdminOrderDetailDTO {
   /** True when every package has arrived (FR-007 — a rollup, never a max). */
   finished: boolean;
   awaiting: OrderAwaiting | null;
+
+  /**
+   * 055 — the refund picture, for staff (FR-020).
+   *
+   * ⚠ THE OPERATOR VIEW, NOT THE CUSTOMER'S. It carries all five states including `failed` and
+   * `refused`, and their `failureReason`. `CustomerRefundDTO` collapses to three and carries no
+   * reason at all: a shopper told "your bank refused it" can do nothing with that, and it reads as
+   * an accusation. Staff need the distinction precisely because it decides whether retrying helps.
+   */
+  refunds: RefundDTO[];
+  /** Sum of every refund not in a terminal failure. */
+  refundedAmount: string;
+  /**
+   * What could still be refunded — the ceiling, computed once by the server.
+   *
+   * ⚠ ADVISORY, NEVER THE GATE. `core-api` recomputes it inside the row lock at issue time (FR-008);
+   * this figure was true when the page loaded and another operator may have spent it since. It exists
+   * so the console can show a number, not so it can decide.
+   */
+  refundableAmount: string;
+  /** Per-line remaining units, so the console never offers a unit that is already refunded. */
+  refundableLines: RefundableLineDTO[];
+  /**
+   * Refunds the platform believes are owed but nobody has issued (FR-004a).
+   *
+   * ⚠ DERIVED ON EVERY READ, never stored (data-model §4). A stored proposal goes stale the moment a
+   * picker corrects a shortfall, and then the console asks staff to refund something already right.
+   * Only the DISMISSAL — the exception — is a row.
+   */
+  proposedRefunds: ProposedRefundDTO[];
+  /** An open customer request, if there is one (FR-004c). */
+  refundRequest: RefundRequestDTO | null;
 }
+
+/** A line with units still available to refund. */
+export interface RefundableLineDTO {
+  orderItemId: string;
+  productName: string;
+  unitPriceAmount: string;
+  /** ⚠ REMAINING units, not ordered units — ordered minus already refunded. */
+  quantity: WireInt;
+}
+
 
 /** A line on the order, for the operator. */
 export interface AdminOrderItemDTO {

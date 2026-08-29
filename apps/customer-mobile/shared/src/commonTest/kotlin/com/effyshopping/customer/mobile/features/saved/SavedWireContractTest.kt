@@ -7,6 +7,7 @@ import com.effyshopping.customer.mobile.commerce.contract.SavedVerdict
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -159,11 +160,19 @@ class SavedWireContractTest {
     @Test
     fun `an order line carries the product id a save needs`() {
         val orderItemJson =
-            """{"productId":"9f2c1d4e-0000-0000-0000-000000000001","productName":"Free Range Eggs 12pk","unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00"}"""
+            """{"orderItemId":"1a2b3c4d-0000-0000-0000-000000000009","productId":"9f2c1d4e-0000-0000-0000-000000000001","productName":"Free Range Eggs 12pk","unitPriceAmount":"6.50","quantity":2,"lineSubtotalAmount":"13.00"}"""
 
         val dto = json.decodeFromString<OrderItemDTO>(orderItemJson)
 
         assertEquals("9f2c1d4e-0000-0000-0000-000000000001", dto.productID)
         assertTrue(dto.productID.isNotBlank(), "a product you cannot identify is a product you cannot save")
+
+        // ⚠ 055 — THE TWO IDS ARE DIFFERENT THINGS AND BOTH ARE ON THE WIRE. `productId` is what a
+        // SAVE needs (033); `orderItemId` is what a REFUND REQUEST needs, because an order can carry
+        // the same product on two lines and a product id cannot tell them apart. Naming one where the
+        // other is expected does not error — the server's join matches nothing and the item is
+        // silently dropped.
+        assertEquals("1a2b3c4d-0000-0000-0000-000000000009", dto.orderItemID)
+        assertNotEquals(dto.productID, dto.orderItemID, "a line id is not a product id")
     }
 }

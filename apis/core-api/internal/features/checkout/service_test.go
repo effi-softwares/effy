@@ -24,8 +24,11 @@ import (
 // never takes one from the client.
 
 type fakeStore struct {
-	lines   []CheckoutLine
-	address map[string][]byte
+	// 055 — what the webhook deduped, and whether it reports a redelivery.
+	seenEvents       []string
+	eventAlreadySeen bool
+	lines            []CheckoutLine
+	address          map[string][]byte
 
 	// 052 — what the receipt would show, and a way to make saving it fail.
 	savedMethod          *PaymentMethodSummary
@@ -125,7 +128,10 @@ func (f *fakeStore) UpsertPayment(_ context.Context, _, _ string, cents int64, _
 func (f *fakeStore) FindOrderByIntent(context.Context, string) (string, bool, error) {
 	return "order-1", true, nil
 }
-func (f *fakeStore) MarkEventSeen(context.Context, string, string) (bool, error) { return true, nil }
+func (f *fakeStore) MarkEventSeen(_ context.Context, id, typ string) (bool, error) {
+	f.seenEvents = append(f.seenEvents, id+":"+typ)
+	return !f.eventAlreadySeen, nil
+}
 func (f *fakeStore) PendingOrderIntent(context.Context, string) (string, string, bool, error) {
 	if f.pendingReadErr != nil {
 		return "", "", false, f.pendingReadErr
@@ -167,7 +173,11 @@ func (f *fakeStore) SavePaymentMethod(_ context.Context, _ string, m PaymentMeth
 }
 
 type fakeGateway struct {
-	amount int64
+	// 055 — the event ConstructWebhookEvent hands back.
+	webhookEvent WebhookEvent
+	refundCalls  []CreateRefundInput
+	refundErr    error
+	amount       int64
 
 	// 052 — the payment summary the provider reports, how many times it was asked, and a way to make
 	// the provider unreachable.
@@ -213,8 +223,20 @@ func (g *fakeGateway) RetrievePaymentIntent(_ context.Context, id string) (Payme
 	return PaymentIntent{ID: id, Status: status}, nil
 }
 
+// 055. Records what was asked so a test can assert the idempotency key reached the provider — the
+// property that makes an ambiguous retry safe. `refundErr` lets a test drive both failure kinds.
+func (g *fakeGateway) CreateRefund(_ context.Context, in CreateRefundInput) (Refund, error) {
+	g.refundCalls = append(g.refundCalls, in)
+	if g.refundErr != nil {
+		return Refund{}, g.refundErr
+	}
+	// ⚠ `pending`, not `succeeded` — mirroring the provider. A fake that returned success would let
+	// the code under test record money as returned at submission, which is the defect US4 exists for.
+	return Refund{ID: "re_fake", Status: RefundPending}, nil
+}
+
 func (g *fakeGateway) ConstructWebhookEvent([]byte, string) (WebhookEvent, error) {
-	return WebhookEvent{}, nil
+	return g.webhookEvent, nil
 }
 
 // 052 — the receipt's payment summary. `describeErr` simulates the provider being unreachable.

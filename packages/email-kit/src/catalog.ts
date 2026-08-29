@@ -333,6 +333,49 @@ export const CATALOG = {
     onSendFailure: "swallow",
   },
 
+  /**
+   * A refund was issued (055 US5, FR-027).
+   *
+   * ⚠ IT IS SENT WHEN THE MONEY IS ON ITS WAY, NOT WHEN IT ARRIVES, and the copy has to carry that
+   * distinction. The provider accepting a refund is not the bank moving it — that can take days and
+   * can still fail. "Your refund is complete" would be a claim the platform cannot make, and it is
+   * the one claim that stops a shopper looking for money that never turned up.
+   *
+   * ⚠ IT NAMES NO SHOP, NO PROVIDER AND NO FAILURE REASON — the catalogue gives it no var to make
+   * those mistakes with, the same mechanism that makes a package count unrepresentable above.
+   *
+   * ⚠ AND NO `reason` VAR. Whether this was item-derived, goodwill or a cancellation is Effy's own
+   * vocabulary; a shopper needs the amount, the order, and where to look for it.
+   */
+  "order-refunded": {
+    vars: {
+      orderNumber: "string",
+      /** A 2-dp decimal string with no currency symbol — the template supplies the presentation. */
+      refundAmount: "string",
+      orderUrl: "string",
+    },
+    subject: (v) => `Your refund for order ${v.orderNumber} is on its way`,
+    // ⚠ Does not repeat the subject, and does not say "refunded" — see the note above.
+    preheader: () => "We've sent the money back to your original payment method.",
+    audiences: CUSTOMER_ONLY,
+    sentBy: "platform",
+
+    /**
+     * ⚠ `transactional`. A refund notice is the completion of a purchase the customer made — money
+     * leaving Effy's hands — not marketing, so it carries no unsubscribe. The `Category` union makes
+     * an unsubscribable one a COMPILE ERROR.
+     */
+    category: "transactional",
+
+    /**
+     * ⚠ `swallow`. THE REFUND HAS ALREADY BEEN SUBMITTED and that transaction is committed; a throw
+     * would propagate into a caller that would then report a failure for something that demonstrably
+     * happened — and a retry could issue the refund again. The notification row records the send
+     * failure instead, which is loud where an operator actually looks.
+     */
+    onSendFailure: "swallow",
+  },
+
   // ─────────────────────────────────────────────────────────────────────────────────────────────
   // 039 — newsletter double opt-in.
   // ─────────────────────────────────────────────────────────────────────────────────────────────

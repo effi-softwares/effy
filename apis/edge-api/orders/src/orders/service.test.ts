@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { stageFor } from "./service";
+import { COUNTED_REFUND_STATUSES, stageFor } from "./service";
 
 /**
  * ⚠ THIS FILE EXISTS BECAUSE `stageFor` IS A SECOND IMPLEMENTATION OF A RULE, AND THAT IS A HAZARD.
@@ -86,5 +86,44 @@ describe("stageFor", () => {
   it("never lets an unknown status advance the order", () => {
     expect(stageFor(["teleported"])).toBe("confirmed");
     expect(stageFor(["delivered", "teleported"])).toBe("confirmed");
+  });
+});
+
+/**
+ * ⚠ THE SECOND GO CONSTANT THIS SERVICE MIRRORS (055).
+ *
+ * `refundedAmount`/`refundableAmount` are a DISPLAY of a rule that `core-api` enforces inside a row
+ * lock. If the two status sets drift, the console shows staff a ceiling the server will not honour —
+ * and they would find out by having a refund refused for a reason the screen said was impossible.
+ * Same mechanism as the stage guard above: read the Go source, compare, fail naming the mismatch.
+ */
+describe("COUNTED_REFUND_STATUSES mirrors core-api's refundedCents", () => {
+  const REFUNDS_GO = resolve(
+    here,
+    "../../../../core-api/internal/features/refunds/repository.go",
+  );
+
+  function goCountedStatuses(): string[] {
+    const src = readFileSync(REFUNDS_GO, "utf8");
+    const block = /const refundedCents = `([\s\S]*?)`/.exec(src);
+    if (!block) throw new Error(`could not find refundedCents in ${REFUNDS_GO}`);
+    const inClause = /r\.status IN \(([^)]*)\)/.exec(block[1]!);
+    if (!inClause) throw new Error("refundedCents no longer filters on r.status IN (...)");
+    return [...inClause[1]!.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]!).sort();
+  }
+
+  it("counts exactly the statuses the authority counts", () => {
+    expect(
+      [...COUNTED_REFUND_STATUSES].sort(),
+      "the console's ceiling disagrees with the one core-api enforces",
+    ).toEqual(goCountedStatuses());
+  });
+
+  it("never counts an unsettled attempt", () => {
+    // Stated separately from the set comparison: if someone changes BOTH sides to include
+    // `submitting`, the guard above still passes and this one still fails. A failed attempt to
+    // return money must not hold the ceiling down.
+    expect(COUNTED_REFUND_STATUSES).not.toContain("submitting");
+    expect(COUNTED_REFUND_STATUSES).not.toContain("refused");
   });
 });

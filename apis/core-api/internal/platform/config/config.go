@@ -69,8 +69,23 @@ type Stripe struct {
 // (constitution Principle IV; ARCHITECTURE.md reject-all rule).
 type Auth struct {
 	Customer Pool `envPrefix:"CUSTOMER_"`
-	// driver / shop / back-office pools are added here (same shape, required tags)
-	// by the first slice that mounts routes for those audiences.
+
+	// ⚠ 055 IS "the first slice that mounts routes for those audiences", and it is the back office.
+	//
+	// Refunds are issued here because the payment secret lives here and nowhere else (019 SC-012), so
+	// this service must be able to identify a back-office staff member. It does that ITSELF, against
+	// the back-office pool's own issuer and client ids — which is per-pool validation, the shape
+	// Principle IV sanctions. It is NOT the auth proxy that principle forbids: the rejected
+	// alternative was the cold path forwarding an operator's token here, which is brokering by
+	// definition (research R1).
+	//
+	// ⚠ A token issued for one pool is still structurally rejected by a route scoped to the other,
+	// and that is proven in BOTH directions (T009, T053a) — this is new attack surface on the service
+	// that holds the platform's most dangerous secret.
+	//
+	// driver / shop pools are added here (same shape, required tags) by the first slice that mounts
+	// routes for those audiences.
+	BackOffice Pool `envPrefix:"BACK_OFFICE_"`
 }
 
 type Pool struct {

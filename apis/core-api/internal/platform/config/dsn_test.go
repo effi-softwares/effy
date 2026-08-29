@@ -36,6 +36,9 @@ func TestLoad_DSNOverridesParts(t *testing.T) {
 	t.Setenv("AWS_REGION", "ap-southeast-2")
 	t.Setenv("AWS_MEDIA_BUCKET", "effy-dev-product-media")
 	t.Setenv("AUTH_CUSTOMER_POOL_ID", "pool-1")
+	// 055: core-api now verifies a second pool (the back office), because refunds are issued here.
+	t.Setenv("AUTH_BACK_OFFICE_POOL_ID", "pool-bo")
+	t.Setenv("AUTH_BACK_OFFICE_CLIENT_ID", "client-bo")
 	t.Setenv("AUTH_CUSTOMER_CLIENT_ID", "web,mobile")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
 	t.Setenv("STRIPE_SECRET_KEY", "sk_test_x")
