@@ -82,7 +82,7 @@ type Store interface {
 	OrderIntentForCustomer(ctx context.Context, customerID, orderID string) (intentID string, found bool, err error)
 	// FinalizeSucceeded runs the idempotent paid-transition in ONE tx (mark paid + fan-out + outbox +
 	// payment succeeded + empty cart). applied=false when the order was not pending (already finalized).
-	FinalizeSucceeded(ctx context.Context, orderID string) (applied bool, err error)
+	FinalizeSucceeded(ctx context.Context, orderID string) (FinalizeOutcome, error)
 	// FinalizeFailed marks the order + payment failed (no fan-out, no outbox, cart preserved).
 	FinalizeFailed(ctx context.Context, orderID string) error
 
@@ -480,21 +480,32 @@ LIMIT 1`, customerID)
 	return r.OrderID, r.IntentID, true, nil
 }
 
+// FinalizeOutcome is what the paid transition did, for the caller to meter (054).
+type FinalizeOutcome struct {
+	// False when the order was already paid — a redelivered webhook. Everything below ran zero times.
+	Applied bool
+	// ⚠ TRUE IS AN OVERSELL: the order asked for more of something than the shop had, so a shopper has
+	// paid for units that do not exist. The shop is told at once (the pick line is pre-flagged), and
+	// the service raises the metric the alert watches.
+	StockShortfall bool
+}
+
 // FinalizeSucceeded is the idempotent paid-transition (R5 #2/#3, SC-005/006), all in ONE tx.
-func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (bool, error) {
+func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (FinalizeOutcome, error) {
+	var result FinalizeOutcome
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return false, fmt.Errorf("checkout: begin finalize: %w", err)
+		return result, fmt.Errorf("checkout: begin finalize: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 1. Status-guarded transition — 0 rows means already finalized (idempotent no-op).
 	tag, err := tx.Exec(ctx, `UPDATE public."order" SET status='paid', placed_at=now() WHERE id=$1 AND status='pending_payment'`, orderID)
 	if err != nil {
-		return false, fmt.Errorf("checkout: mark paid: %w", err)
+		return result, fmt.Errorf("checkout: mark paid: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return false, nil
+		return result, nil
 	}
 
 	// 2. Fan-out — one shop_fulfillment per distinct order_item.shop_id (item_count = Σ quantity).
@@ -506,7 +517,7 @@ FROM public.order_item oi
 WHERE oi.order_id = $1
 GROUP BY oi.order_id, oi.shop_id
 ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: fan-out: %w", err)
+		return result, fmt.Errorf("checkout: fan-out: %w", err)
 	}
 
 	// 2b. Copy the captured per-package delivery (047) onto each fulfilment. Absent for pre-047 orders
@@ -520,7 +531,7 @@ SET delivery_method     = opd.method,
     updated_at          = now()
 FROM public.order_package_delivery opd
 WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = $1`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: copy package delivery: %w", err)
+		return result, fmt.Errorf("checkout: copy package delivery: %w", err)
 	}
 
 	// ── 2d. THE OVERSELL, FLAGGED BEFORE ANYTHING IS DEDUCTED (054 FR-022a) ─────────────────────
@@ -541,7 +552,7 @@ WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = 
 	//
 	// ⚠ One order_item per (order, product) is assumed, which the cart guarantees: `cart_item` is
 	// unique per product, so a line is never split across two rows.
-	if _, err := tx.Exec(ctx, `
+	flagged, err := tx.Exec(ctx, `
 INSERT INTO public.fulfillment_item
     (shop_fulfillment_id, order_item_id, ordered_quantity, unavailable_quantity)
 SELECT sf.id, oi.id, oi.quantity,
@@ -552,9 +563,16 @@ SELECT sf.id, oi.id, oi.quantity,
  WHERE oi.order_id = $1
    AND p.stock_tracked
    AND oi.quantity > COALESCE(p.stock_on_hand, 0)
-ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: flag stock shortfall: %w", err)
+ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`, orderID)
+	if err != nil {
+		return result, fmt.Errorf("checkout: flag stock shortfall: %w", err)
 	}
+	// ⚠ ONE INCREMENT PER ORDER, not per line. The question this answers is "how often does a shopper
+	// pay for something that is not there", and a twenty-line basket short on three of them is ONE
+	// occurrence of that, not three. `partial` is the oversell and the thing the alert watches.
+	// ⚠ REPORTED, NOT COUNTED HERE. The repository is SQL only (Principle VI); a Prometheus counter in
+	// it would put telemetry in the data layer. The fact travels out and the service meters it.
+	result.StockShortfall = flagged.RowsAffected() > 0
 
 	// ── 2e. STOCK (054 FR-021/FR-022) ───────────────────────────────────────────────────────────
 	//
@@ -597,7 +615,7 @@ INSERT INTO public.stock_movement
     (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub, order_id)
 SELECT id, shop_id, after - before, before, after, 'order_paid', 'system', NULL, $1
   FROM moved`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: reduce stock: %w", err)
+		return result, fmt.Errorf("checkout: reduce stock: %w", err)
 	}
 
 	// 2c. Push intents — one shop_new_order per active staff member of each fulfilling shop (050).
@@ -613,17 +631,17 @@ FROM public.shop_fulfillment sf
 JOIN public.shop_staff ss ON ss.shop_id = sf.shop_id AND ss.status = 'active'
 WHERE sf.order_id = $1
 ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: shop_new_order intents: %w", err)
+		return result, fmt.Errorf("checkout: shop_new_order intents: %w", err)
 	}
 
 	// 3. Outbox — one order.placed with the per-shop breakdown (dedup_key makes it exactly-once).
 	portions, err := shopBreakdownTx(ctx, tx, orderID)
 	if err != nil {
-		return false, err
+		return result, err
 	}
 	number, currency, grand, err := orderMetaTx(ctx, tx, orderID)
 	if err != nil {
-		return false, err
+		return result, err
 	}
 	if err := events.Append(ctx, tx, events.Envelope{
 		EventType:     "order.placed",
@@ -635,7 +653,7 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 			"grandTotal": money.FormatCents(grand), "shops": portions,
 		},
 	}); err != nil {
-		return false, err
+		return result, err
 	}
 
 	// 3b. Push notification intent — the customer's order is paid (050). Same tx as the fact, so it is
@@ -645,7 +663,7 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 	if err := tx.QueryRow(ctx,
 		`SELECT c.cognito_sub FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
 		orderID).Scan(&customerSub); err != nil {
-		return false, fmt.Errorf("checkout: resolve customer sub: %w", err)
+		return result, fmt.Errorf("checkout: resolve customer sub: %w", err)
 	}
 	if err := notifications.Append(ctx, tx, notifications.Request{
 		RecipientSub: customerSub,
@@ -654,7 +672,7 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 		EntityID:     orderID,
 		DeepLink:     "effy://order/" + orderID,
 	}); err != nil {
-		return false, err
+		return result, err
 	}
 
 	// 3c. Receipt-email intent (052 FR-019/FR-020).
@@ -676,12 +694,12 @@ SELECT o.id, 'order_paid', c.email
 FROM public."order" o JOIN public.customer c ON c.id = o.customer_id
 WHERE o.id = $1
 ON CONFLICT DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: enqueue receipt: %w", err)
+		return result, fmt.Errorf("checkout: enqueue receipt: %w", err)
 	}
 
 	// 4. Payment succeeded.
 	if _, err := tx.Exec(ctx, `UPDATE public.payment SET status='succeeded', updated_at=now() WHERE order_id=$1`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: payment succeeded: %w", err)
+		return result, fmt.Errorf("checkout: payment succeeded: %w", err)
 	}
 
 	// 5. Record the promotional redemption (027 FR-048).
@@ -696,7 +714,7 @@ SELECT o.promo_code_id, o.customer_id, o.id, o.discount_amount
 FROM public."order" o
 WHERE o.id = $1 AND o.promo_code_id IS NOT NULL
 ON CONFLICT (order_id) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: record promo redemption: %w", err)
+		return result, fmt.Errorf("checkout: record promo redemption: %w", err)
 	}
 
 	// 6. Empty the customer's cart.
@@ -704,13 +722,14 @@ ON CONFLICT (order_id) DO NOTHING`, orderID); err != nil {
 DELETE FROM public.cart_item WHERE cart_id = (
     SELECT c.id FROM public.cart c JOIN public."order" o ON o.customer_id = c.customer_id WHERE o.id = $1
 )`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: empty cart: %w", err)
+		return result, fmt.Errorf("checkout: empty cart: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return false, fmt.Errorf("checkout: commit finalize: %w", err)
+		return result, fmt.Errorf("checkout: commit finalize: %w", err)
 	}
-	return true, nil
+	result.Applied = true
+	return result, nil
 }
 
 // SavePaymentMethod writes the receipt-safe payment summary (052 FR-006).

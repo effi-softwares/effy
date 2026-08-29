@@ -116,7 +116,25 @@ type Service struct {
 // StockMetrics is the checkout's telemetry sink for stock (054). Nil-able; low-cardinality labels
 // only (Principle VII).
 type StockMetrics interface {
-	StockBlocked(stage string) // add | checkout
+	StockBlocked(stage string)    // add | checkout
+	StockDeducted(outcome string) // full | partial — ⚠ `partial` is the oversell
+}
+
+// meterStock records what the paid transition did to stock (054).
+//
+// ⚠ `partial` IS THE OVERSELL — a shopper charged for units the shop did not have — and it is what
+// `infra/observability/alerts/054-product-inventory.yml` watches. Called only when the transition
+// actually APPLIED: a redelivered webhook does nothing, and counting it would inflate both series and
+// make the oversell rate meaningless.
+func (s *Service) meterStock(out FinalizeOutcome) {
+	if s.stockMetrics == nil || !out.Applied {
+		return
+	}
+	if out.StockShortfall {
+		s.stockMetrics.StockDeducted("partial")
+		return
+	}
+	s.stockMetrics.StockDeducted("full")
 }
 
 // WithStockMetrics wires the stock telemetry sink.
@@ -585,7 +603,9 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 
 	switch evt.IntentStatus {
 	case IntentSucceeded:
-		if _, err = s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+		out, ferr := s.store.FinalizeSucceeded(ctx, orderID)
+		s.meterStock(out)
+		if err = ferr; err != nil {
 			return err
 		}
 		// 052 — AFTER the commit, best-effort. See capturePaymentMethod.
@@ -645,7 +665,9 @@ func (s *Service) Confirm(ctx context.Context, customerID, orderID string) (Conf
 		return ConfirmResult{}, err
 	}
 	if pi.Status == IntentSucceeded {
-		if _, err := s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+		out, err := s.store.FinalizeSucceeded(ctx, orderID)
+		s.meterStock(out)
+		if err != nil {
 			return ConfirmResult{}, err
 		}
 		// 052 — AFTER the commit, best-effort. See capturePaymentMethod.
@@ -716,7 +738,9 @@ func (s *Service) mayReusePendingOrder(ctx context.Context, customerID string) (
 		// Paid, and nothing told the database. Settle it here so it reaches order history and the shop
 		// fan-out — a paid order stuck in `pending_payment` is wrong on its own terms, quite apart from
 		// this bug. Idempotent; a webhook that arrives later changes nothing.
-		if _, err := s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+		out, err := s.store.FinalizeSucceeded(ctx, orderID)
+		s.meterStock(out)
+		if err != nil {
 			return false, err
 		}
 		return false, nil

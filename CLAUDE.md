@@ -261,6 +261,79 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**054-product-inventory — Product Inventory (Shop-Managed Stock).** 🚧 **75/93 tasks — US1–US5 all
+BUILT and machine-verified across 5 surfaces. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON, and
+⚠ SC-003 HAS NEVER EXECUTED.** Spec/artifacts: [specs/054-product-inventory/](specs/054-product-inventory/).
+
+Closes gap **G2** — the top item in [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) after 053.
+- ⚠ **THE DEFECT: nothing on the platform knew how much of anything a shop had.** `public.product`
+  carried `status` and nothing else; a repo-wide search for stock/inventory/on_hand returned only
+  prose. So a shopper could buy 20 of something a shop had 2 of, and the sole discovery mechanism was
+  a picker at an empty shelf hours later — routing straight into G3, which has no money path.
+  `20260710050004_shop_staff_rbac.sql:22` said it outright: "no address, hours, capacity, **or
+  inventory** — those arrive with the slice that needs them." This is that slice.
+- **Data**: one migration `<ts>_product_inventory.sql` — three columns on `public.product`
+  (`stock_tracked` / `stock_on_hand` / `low_stock_threshold`), `public.stock_movement` (append-only),
+  `public.shop_stock_settings`. ⚠ **COLUMNS, NOT A SIDE TABLE** (research R8): the availability rule is
+  evaluated in 14 hot-path places incl. the storefront home read 029 rescued from a 3-second timeout,
+  so a join would be added everywhere to learn one integer. ⚠ A `CHECK` makes **"tracked with no
+  count" unrepresentable**, so FR-003 is the database's rule, not a service's.
+- ⚠ **TRACKING IS OPT-IN PER PRODUCT.** An untracked product behaves *exactly* as before 054 existed —
+  which is what makes this non-breaking for the entire existing catalogue on day one. **Proven, not
+  asserted**: every pre-054 cart/storefront test passes with its expectations unmodified, and
+  `TestUntrackedIsExactlyThePreviousRule` states the equivalence directly.
+- ⚠ **ONE AVAILABILITY RULE, IN ONE PLACE** (`internal/platform/availability`). It was the literal
+  `p.status = 'active'` written by hand in 14 spots across four features; adding stock meant changing
+  the answer in all of them, and missing one leaves a surface quietly selling what a shop does not
+  have — no error, no log line, no failing test. `guard_test.go` greps the hot path and **fails naming
+  the file**; each legitimate non-product site carries an `availability-exempt: <table>` marker, so an
+  exemption justifies itself where it lives instead of in an allow-list nobody reads while editing.
+- ⚠ **THE SAME RULE DOES THREE DIFFERENT JOBS, and conflating them was a defect I shipped into Phase 2
+  and caught in Phase 4**: **cart/checkout REFUSE** (money moves); **search/product page PROJECT**
+  `available` (FR-013/A10 — an out-of-stock product stays listed, or saved lists, shared links and
+  search results all break); **home rails FILTER** (FR-023, required since 025 — merchandising must not
+  offer what cannot be bought). Making it a filter everywhere made sold-out products *vanish*.
+- ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/inventory`**, carrying **both** audiences' routes behind
+  **two authorizers** (8 shop + 6 back-office). `edge-api/admin` declares 77 functions at **434/500**
+  CloudFormation resources with `versionFunctions: false` already spent, so the assisted path had
+  nowhere to go — 053 made the same call. One service means ONE stock service and repository instead of
+  two that drift; API Gateway authorizers are per-ROUTE, so Principle IV holds structurally.
+- **Stock reduces inside `FinalizeSucceeded`** — no dedupe key, because the status-guarded transition
+  at the top already makes everything below it exactly-once. ⚠ **The shortfall is flagged BEFORE the
+  deduction**: afterwards the shelf reads 0, so the deficit would report the whole line as short. ⚠ A
+  **pick shortfall empties the shelf** (the picker has better information than the count did), but
+  **un-flagging does not** — "it turned up after all" says nothing about how many more are there.
+- ⚠ **A RESIDUAL OVERSELL WINDOW IS ACCEPTED, NOT CLOSED** (A6). Between creating a payment and it
+  succeeding, another shopper can take the last unit. Reservations would need an abandoned-checkout
+  sweep the platform lacks. Instead the pick line is **pre-flagged before picking begins**, moving
+  discovery from "a picker at a shelf hours later" to "the moment the order arrives".
+- **⚠ FOUR PRE-EXISTING DEFECTS FOUND AND FIXED**: (1) `toDomainError` in `@effy/api-client` read
+  `problem.fields` while the wire carries **`errors`** — so `DomainError.fields` was `undefined` on
+  **every refusal, on every surface, since the type existed**; 053 recorded it as latent, and FR-016
+  could not be met around it. The package had **no tests at all**. (2) shop-mobile's product detail
+  tabs were **decorative** — `DetailTabs()` hard-coded index 0. (3) A comment in `edge-api/shop`
+  asserting pick rows "do not exist until picking begins", now false. (4) `TestRailsCarryOnlyAvailable
+  Products` passed **vacuously** once rails emptied.
+- **⚠ FIVE DEFECTS OF MY OWN, each caught by a test or a read-back**: the storefront filter/projection
+  confusion above; the shortfall computed after the deduction; `run { … }` in a ViewModel resolving to
+  **Kotlin's stdlib `run`**, so `load()` never published state; the pick correction firing on un-flag;
+  and a metric declared with label `outcome` but called with `stage` — which does **not** panic, it
+  silently emits a series every alert querying `{stage=…}` misses.
+- ⚠ **027's R13 RECURRING, caught before shipping**: the first contract draft used bare `number` and
+  the generator emitted `val delta: Double`. The drift guard would never have caught it — the generated
+  file matched its source exactly. Only reading the Kotlin back does. Now `WireInt` → `Long`.
+- **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **1,711**, zero failures ·
+  `go test -short ./...` **16/16 packages** · shop-mobile **107** Android host tests + **iOS main AND
+  test compile** · `sm-guard` · `mobile-assets:check` · `tokens:check` **unchanged** (this slice adds
+  no token). **TEN negative proofs**, each done by breaking the thing.
+- **⚠ Open (18)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=inventory|shop`;
+  `core-deploy` (**before** pushing to `dev`); the quickstart walks. ⚠ **DOCKER WAS DOWN ALL SESSION**,
+  so `stock_container_test.go` — which contains **SC-003, two concurrent payments for the last unit,
+  the case this whole feature exists for** — is written, compiles, and has **never executed**. Same
+  failure mode as 052. ⚠ **Nobody has looked at any screen**: 039 shipped four live defects with a
+  fully green suite. Parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §054.
+
 **053-order-lifecycle-completion — Order Lifecycle Completion.** 🚧 **70/88 tasks — CODE-COMPLETE +
 MACHINE-VERIFIED across the new service, the console, both corrections and the email channel. NOT
 DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Spec/artifacts:

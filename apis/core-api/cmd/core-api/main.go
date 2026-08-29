@@ -121,7 +121,10 @@ func run() error {
 
 	// 027: checkout re-computes the promotional discount through the cart service, so the two can never
 	// disagree about what a code is worth. Built before deps so both can reference it.
-	cartSvc := cart.NewService(cart.NewRepository(pool), presign, cartpolicy.NewStore(pool))
+	// 054: the stock telemetry sink. `m` satisfies both services' one-method interfaces — a metric
+	// that is declared but never wired reads as coverage and is worth nothing (the analysis pass
+	// found exactly that in this feature's first draft).
+	cartSvc := cart.NewService(cart.NewRepository(pool), presign, cartpolicy.NewStore(pool)).WithStockMetrics(m)
 
 	deps := dependencies{
 		status:           platformstatus.NewService(platformstatus.NewRepository(pool), cfg.Env),
@@ -139,7 +142,7 @@ func run() error {
 		cart:       cartSvc,
 		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
-		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m),
+		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m).WithStockMetrics(m),
 		orders:   orders.NewService(orders.NewRepository(pool), presign),
 	}
 

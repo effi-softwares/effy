@@ -30,3 +30,4 @@ slice provisions Prometheus and points it at these rules, every threshold below 
 | File | Feature | Status |
 |---|---|---|
 | `alerts/032-delivery-pricing.yml` | 032 — delivery pricing & same-day | ⚠ written, not loaded |
+| `alerts/054-product-inventory.yml` | 054 — product inventory (oversell) | ⚠ written, not loaded |

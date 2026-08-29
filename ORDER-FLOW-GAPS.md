@@ -62,7 +62,7 @@ the system can ever be complete.
 > 053 also found that G5's premise was half-wrong in the platform's favour and half-wrong against it —
 > see below.
 
-### G2. There is no inventory model — anywhere
+### ~~G2. There is no inventory model — anywhere~~ — 🚧 CLOSED by 054 (not deployed, not committed)
 
 `public.product` (`db/migrations/20260716092105_product_catalog.sql:86`) carries `status`
 (`draft | active | unavailable | archived`) and nothing else. No stock count, no reservation, no
@@ -79,6 +79,26 @@ per-line **policy cap**, not availability.
 
 **Consequence.** Overselling is unbounded. A shopper can buy 20 of something the shop has 2 of, and the
 sole discovery mechanism is a picker finding an empty shelf hours later — which routes straight into G3.
+
+> 🚧 **Built by 054** ([specs/054-product-inventory/](specs/054-product-inventory/)), with three things
+> worth knowing:
+>
+> * **Tracking is OPT-IN per product.** An untracked product behaves exactly as before, so nothing in
+>   the existing catalogue changes until a shop chooses to count it. That is what makes this shippable
+>   without a data migration — and it means **G2 is only closed for products a shop actually tracks**.
+> * **⚠ A residual oversell window is ACCEPTED, not closed** (spec A6). Stock is reduced when an order
+>   is PAID, not held during checkout, so between creating a payment and that payment succeeding another
+>   shopper can take the last unit. Reservations with expiry would close it and need an
+>   abandoned-checkout sweep the platform does not have (Tier 4). Instead the deficit is recorded at
+>   payment and the pick line is **pre-flagged before picking begins**, moving discovery from "a picker
+>   at a shelf, hours later" to "the moment the order arrives".
+> * **G3 IS STILL OPEN, and 054 does not touch it.** Fewer shortfalls, found earlier, is progress
+>   toward the money half — not a substitute for it. A shopper who is oversold is still charged in
+>   full, and there is still no refund capability on the platform.
+>
+> ⚠ **NOT DEPLOYED, NOT COMMITTED, and SC-003 — two concurrent payments for the last unit — has never
+> been executed** (Docker was down for the implementation session). Until that runs, the concurrency
+> guarantee is reasoned, not demonstrated.
 
 ### G3. Shortfall has no money path
 
@@ -221,8 +241,9 @@ life. iOS push is deferred entirely on the Apple Developer account blocker
 > **Updated after 053.** Items 2 and 4 are done (code-complete, not deployed). **Inventory (G2) is now
 > the top item**, and the failed same-day delivery has taken G1's old place as the structural blocker.
 
-1. **Inventory (G2)** — it is the root cause of the shortfall → refund → support chain. Everything in
-   G3 and most of Tier 2 is downstream of the platform not knowing what it has.
+1. ~~**Inventory (G2)**~~ — 🚧 built by 054, not deployed. ⚠ **Its completion makes G3 more urgent, not
+   less**: shortfalls become rarer and visible earlier, which means the ones that remain are the real
+   ones, and there is still no way to give anybody their money back.
 2. **Standard-delivery completion + carrier handoff (G1)** — without it no standard order can ever
    reach a terminal state, and the delivered notification is unreachable for the majority path.
 3. **Refunds and cancellation (G3, Tier 2)** — the money half of the post-purchase story.
