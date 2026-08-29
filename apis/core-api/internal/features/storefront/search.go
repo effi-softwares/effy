@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-
-	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 )
 
 // SearchParams is the repository-level query (cursor already decoded, limit already +1 for lookahead).
@@ -88,7 +86,9 @@ func cursorPredicate(p SearchParams, next func(any) string) string {
 // drift the first time a filter was added to one of them, and the shopper would see "48 results" above
 // a list of 31 — a number that is wrong in a way nobody can debug from the outside (FR-016a).
 func (r *Repository) filters(b *strings.Builder, p SearchParams, next func(any) string) {
-	b.WriteString("\nWHERE " + availability.Predicate("p"))
+	// availability-exempt: public.product — a LISTING filter (see cardColumns in repository.go). Search
+	// results keep an out-of-stock product visible and mark it unavailable (FR-013, A10).
+	b.WriteString("\nWHERE p.status = 'active'")
 
 	if p.Q != "" {
 		q := next("%" + p.Q + "%")

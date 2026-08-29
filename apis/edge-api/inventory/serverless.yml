@@ -184,3 +184,85 @@ functions:
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  lowStockGetV1:
+    handler: src/functions/low-stock-v1-get.handler
+    description: The caller's own shop's restock list — everything out of stock or at/below its threshold (054 US5, FR-029).
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/low-stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  # ── Back-office routes — BACK-OFFICE authorizer, acting on a shop's behalf (054 US4) ──────────
+  # ⚠ The shop comes from the PATH here, and the tier decides what may be done: reading is open to any
+  # active staff incl. `csa` (triage is CSA work); writing is admin/manager, because it changes another
+  # organisation's records for them. Both are decided from the `admin.staff` RECORD, never the claim.
+
+  adminStockGetV1:
+    handler: src/functions/admin-stock-v1-get.handler
+    description: Read any shop's product stock and movement history (054 US4, FR-025). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  adminLowStockGetV1:
+    handler: src/functions/admin-low-stock-v1-get.handler
+    description: Read any shop's restock list (054 US4/US5, FR-025). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/admin/shops/{shopId}/low-stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  adminStockPutV1:
+    handler: src/functions/admin-stock-v1-put.handler
+    description: Set a product's count on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  adminStockTrackingPutV1:
+    handler: src/functions/admin-stock-tracking-v1-put.handler
+    description: Turn stock tracking on or off on a shop's behalf (054 US4, FR-026 full parity). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/tracking
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  adminStockThresholdPutV1:
+    handler: src/functions/admin-stock-threshold-v1-put.handler
+    description: Set a product's own low-stock threshold on a shop's behalf (054 US4, FR-026). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/threshold
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  adminSettingsPutV1:
+    handler: src/functions/admin-settings-v1-put.handler
+    description: Set a shop's default low-stock threshold on their behalf (054 US4, FR-026). Write = admin/manager only.
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/admin/shops/{shopId}/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}

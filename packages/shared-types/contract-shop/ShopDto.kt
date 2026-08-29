@@ -15,7 +15,7 @@ data class AdjustStockRequest (
     /**
      * Signed. Never zero — a movement that moves nothing is a record with no fact behind it.
      */
-    val delta: Double,
+    val delta: Long,
 
     val note: String? = null,
     val reason: OperatorStockReason
@@ -418,9 +418,9 @@ enum class ShopLifecycleStatus(val value: String) {
 
 @Serializable
 data class LowStockRowDTO (
-    val effectiveThreshold: Double? = null,
+    val effectiveThreshold: Long? = null,
     val name: String,
-    val onHand: Double,
+    val onHand: Long,
 
     @SerialName("productId")
     val productID: String,
@@ -492,6 +492,15 @@ data class CreatePresignedUploadResponse (
 @Serializable
 data class ProblemJSON (
     val detail: String? = null,
+
+    /**
+     * ⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field
+     * issues under `errors`; `fields` was the name only this type used, so every reader keying
+     * off it saw nothing. Both are declared so the mismatch is visible here rather than
+     * rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).
+     */
+    val errors: List<ProblemFieldIssue>? = null,
+
     val fields: List<ProblemFieldIssue>? = null,
     val instance: String? = null,
     val status: Double,
@@ -646,7 +655,7 @@ data class ProductStockDTO (
     /**
      * Product threshold, else shop default, else null — null meaning nothing counts as low.
      */
-    val effectiveThreshold: Double? = null,
+    val effectiveThreshold: Long? = null,
 
     /**
      * tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold. ⚠
@@ -659,7 +668,7 @@ data class ProductStockDTO (
     /**
      * null exactly when untracked — the database makes "tracked with no count" unrepresentable.
      */
-    val onHand: Double? = null,
+    val onHand: Long? = null,
 
     /**
      * tracked && onHand === 0.
@@ -672,7 +681,7 @@ data class ProductStockDTO (
     /**
      * This product's own threshold, or null to fall back to the shop default.
      */
-    val threshold: Double? = null,
+    val threshold: Long? = null,
 
     /**
      * false = unlimited, and identical to how the product behaved before 054 existed (FR-002).
@@ -709,9 +718,9 @@ data class StockMovementDTO (
      */
     val orderNumber: String? = null,
 
-    val quantityAfter: Double,
-    val quantityBefore: Double,
-    val quantityDelta: Double,
+    val quantityAfter: Long,
+    val quantityBefore: Long,
+    val quantityDelta: Long,
     val reason: StockMovementReason
 )
 
@@ -731,6 +740,16 @@ enum class StockActorKind(val value: String) {
 }
 
 /**
+ * ⚠ EVERY COUNT ON THIS CONTRACT IS A `WireInt`, NOT A BARE `number`.
+ *
+ * 027's R13: Kotlin serialises a bare `number` field as `Double`, so the wire carried `1.0`
+ * where the backend expected an integer, and every mobile cart write was silently rejected.
+ * The fix was made AT THE CONTRACT — a `WireInt` alias carrying `@asType integer` —
+ * precisely so the generated Kotlin cannot regress. The first draft of this file used bare
+ * `number` and the generator duly emitted `Double` for `onHand`, `delta` and `threshold`;
+ * caught by reading the generated Kotlin back, which is the only place that mistake is
+ * visible.
+ *
  * Why a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` —
  * the database and this union are one contract, and a value in either that the other lacks
  * is a defect.
@@ -799,13 +818,13 @@ data class SetShopStockSettingsRequest (
     /**
      * null clears the shop default.
      */
-    val defaultThreshold: Double? = null
+    val defaultThreshold: Long? = null
 )
 
 @Serializable
 data class SetStockRequest (
     val note: String? = null,
-    val onHand: Double,
+    val onHand: Long,
     val reason: OperatorStockReason
 )
 
@@ -814,7 +833,7 @@ data class SetThresholdRequest (
     /**
      * null clears this product's own threshold, falling back to the shop default.
      */
-    val threshold: Double? = null
+    val threshold: Long? = null
 )
 
 @Serializable
@@ -822,7 +841,7 @@ data class SetTrackingRequest (
     /**
      * REQUIRED when enabling (FR-003), ignored when disabling.
      */
-    val onHand: Double? = null,
+    val onHand: Long? = null,
 
     val tracked: Boolean
 )
@@ -843,7 +862,7 @@ data class ShopStockSettingsDTO (
      * null = no default, so nothing counts as low; zero stock is still reported as out
      * (FR-005a).
      */
-    val defaultThreshold: Double? = null
+    val defaultThreshold: Long? = null
 )
 
 /**

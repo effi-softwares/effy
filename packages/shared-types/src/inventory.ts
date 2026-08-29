@@ -10,7 +10,18 @@
  * Consumed by shop-web, back-office, and shop-mobile through the generated `contract-shop/` Kotlin.
  */
 
+import type { WireInt } from "./cart"
+
 /**
+ * ⚠ EVERY COUNT ON THIS CONTRACT IS A `WireInt`, NOT A BARE `number`.
+ *
+ * 027's R13: Kotlin serialises a bare `number` field as `Double`, so the wire carried `1.0` where the
+ * backend expected an integer, and every mobile cart write was silently rejected. The fix was made AT
+ * THE CONTRACT — a `WireInt` alias carrying `@asType integer` — precisely so the generated Kotlin
+ * cannot regress. The first draft of this file used bare `number` and the generator duly emitted
+ * `Double` for `onHand`, `delta` and `threshold`; caught by reading the generated Kotlin back, which
+ * is the only place that mistake is visible.
+ *
  * Why a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` — the
  * database and this union are one contract, and a value in either that the other lacks is a defect.
  *
@@ -53,11 +64,11 @@ export interface ProductStockDTO {
   /** false = unlimited, and identical to how the product behaved before 054 existed (FR-002). */
   tracked: boolean
   /** null exactly when untracked — the database makes "tracked with no count" unrepresentable. */
-  onHand: number | null
+  onHand: WireInt | null
   /** This product's own threshold, or null to fall back to the shop default. */
-  threshold: number | null
+  threshold: WireInt | null
   /** Product threshold, else shop default, else null — null meaning nothing counts as low. */
-  effectiveThreshold: number | null
+  effectiveThreshold: WireInt | null
   /** tracked && onHand === 0. */
   outOfStock: boolean
   /**
@@ -70,9 +81,9 @@ export interface ProductStockDTO {
 
 export interface StockMovementDTO {
   id: string
-  quantityDelta: number
-  quantityBefore: number
-  quantityAfter: number
+  quantityDelta: WireInt
+  quantityBefore: WireInt
+  quantityAfter: WireInt
   reason: StockMovementReason
   actorKind: StockActorKind
   /** A display name where the platform holds one. ⚠ Never an email address (no PII in an audit read). */
@@ -93,15 +104,15 @@ export interface LowStockRowDTO {
   productId: string
   name: string
   sku: string | null
-  onHand: number
-  effectiveThreshold: number | null
+  onHand: WireInt
+  effectiveThreshold: WireInt | null
   /** "out" sorts above "low" — an empty shelf is not the same problem as a thin one. */
   severity: "out" | "low"
 }
 
 export interface ShopStockSettingsDTO {
   /** null = no default, so nothing counts as low; zero stock is still reported as out (FR-005a). */
-  defaultThreshold: number | null
+  defaultThreshold: WireInt | null
 }
 
 // ── Write bodies ────────────────────────────────────────────────────────────────────────────────
@@ -109,14 +120,14 @@ export interface ShopStockSettingsDTO {
 // own reason implicitly, so it does not ask for one.
 
 export interface SetStockRequest {
-  onHand: number
+  onHand: WireInt
   reason: OperatorStockReason
   note?: string
 }
 
 export interface AdjustStockRequest {
   /** Signed. Never zero — a movement that moves nothing is a record with no fact behind it. */
-  delta: number
+  delta: WireInt
   reason: OperatorStockReason
   note?: string
 }
@@ -124,15 +135,15 @@ export interface AdjustStockRequest {
 export interface SetTrackingRequest {
   tracked: boolean
   /** REQUIRED when enabling (FR-003), ignored when disabling. */
-  onHand?: number
+  onHand?: WireInt
 }
 
 export interface SetThresholdRequest {
   /** null clears this product's own threshold, falling back to the shop default. */
-  threshold: number | null
+  threshold: WireInt | null
 }
 
 export interface SetShopStockSettingsRequest {
   /** null clears the shop default. */
-  defaultThreshold: number | null
+  defaultThreshold: WireInt | null
 }

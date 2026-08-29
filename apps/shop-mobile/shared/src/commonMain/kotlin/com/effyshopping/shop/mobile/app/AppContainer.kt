@@ -22,8 +22,17 @@ import com.effyshopping.shop.mobile.core.theme.AppearancePreferenceStore
 import com.effyshopping.shop.mobile.features.auth.domain.ConfirmSignIn
 import com.effyshopping.shop.mobile.features.auth.domain.RequestSignInCode
 import com.effyshopping.shop.mobile.features.catalog.data.HttpCatalogRepository
+import com.effyshopping.shop.mobile.features.catalog.data.HttpStockRepository
 import com.effyshopping.shop.mobile.features.catalog.domain.AssignSections
+import com.effyshopping.shop.mobile.features.catalog.domain.AdjustStock
 import com.effyshopping.shop.mobile.features.catalog.domain.CatalogRepository
+import com.effyshopping.shop.mobile.features.catalog.domain.GetLowStock
+import com.effyshopping.shop.mobile.features.catalog.domain.GetProductStock
+import com.effyshopping.shop.mobile.features.catalog.domain.SetStockCount
+import com.effyshopping.shop.mobile.features.catalog.domain.SetStockThreshold
+import com.effyshopping.shop.mobile.features.catalog.domain.SetStockTracking
+import com.effyshopping.shop.mobile.features.catalog.domain.StockRepository
+import com.effyshopping.shop.mobile.features.catalog.domain.StockUseCases
 import com.effyshopping.shop.mobile.features.catalog.domain.ChangeProductStatus
 import com.effyshopping.shop.mobile.features.catalog.domain.CreateProduct
 import com.effyshopping.shop.mobile.features.catalog.domain.DeleteProduct
@@ -76,6 +85,10 @@ class AppContainer(
     // The catalog repository reuses the SAME shop client (single bearer, cross-pool isolation) — private,
     // reached only through the use cases below (Principle VI).
     private val catalog: CatalogRepository by lazy { HttpCatalogRepository(shopClient) }
+    // Stock (054) reuses the SAME shop client. It talks to `edge-api/inventory` rather than
+    // `edge-api/shop` — a different service behind the same gateway, the same bearer and the SAME
+    // Cognito pool, so cross-pool isolation (FR-029) is untouched. Only the path prefix differs.
+    private val stock: StockRepository by lazy { HttpStockRepository(shopClient) }
     // Order fulfillment (020) reuses the SAME shop client — the shop is resolved server-side from the
     // bearer, so nothing here can name a shop even by accident (FR-019).
     private val orders: OrderRepository by lazy { HttpOrderRepository(shopClient) }
@@ -95,6 +108,18 @@ class AppContainer(
     val getCatalogSchema by lazy { GetCatalogSchema(catalog) }
     val listProducts by lazy { ListProducts(catalog) }
     val getProduct by lazy { GetProduct(catalog) }
+
+    // stock (054 US1)
+    val stockUseCases by lazy {
+        StockUseCases(
+            getProductStock = GetProductStock(stock),
+            setStockCount = SetStockCount(stock),
+            adjustStock = AdjustStock(stock),
+            setStockTracking = SetStockTracking(stock),
+            setStockThreshold = SetStockThreshold(stock),
+            getLowStock = GetLowStock(stock),
+        )
+    }
     val createProduct by lazy { CreateProduct(catalog) }
     val updateProduct by lazy { UpdateProduct(catalog) }
     val changeProductStatus by lazy { ChangeProductStatus(catalog) }

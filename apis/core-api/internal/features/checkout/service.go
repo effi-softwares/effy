@@ -110,6 +110,19 @@ type Service struct {
 	delivery DeliveryQuoter
 	// Delivery telemetry (047). Nil-able; a no-op when unwired.
 	deliveryMetrics DeliveryMetrics
+	stockMetrics    StockMetrics
+}
+
+// StockMetrics is the checkout's telemetry sink for stock (054). Nil-able; low-cardinality labels
+// only (Principle VII).
+type StockMetrics interface {
+	StockBlocked(stage string) // add | checkout
+}
+
+// WithStockMetrics wires the stock telemetry sink.
+func (s *Service) WithStockMetrics(m StockMetrics) *Service {
+	s.stockMetrics = m
+	return s
 }
 
 // DeliveryQuoter computes the delivery quote (standard + same-day options) for a destination postcode +
@@ -231,9 +244,23 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		return IntentResult{}, ErrAddressNotFound
 	}
 
+	// ⚠ 054: lines whose product is out of stock have already dropped out of `CartLines` (the shared
+	// availability predicate is in that query), and a partially-supplied line arrives with its
+	// quantity already CAPPED at what the shop has. So the subtotal below — and therefore the
+	// PaymentIntent — can only ever cover units the platform believes exist (FR-018, FR-020).
 	itemSubtotalCents := int64(0)
+	shortfall := false
 	for _, l := range lines {
 		itemSubtotalCents += l.UnitCents * int64(l.Quantity)
+		if l.RequestedQuantity > l.Quantity {
+			shortfall = true
+		}
+	}
+	if shortfall && s.stockMetrics != nil {
+		// One increment per checkout that had to be trimmed, not one per line — the question this
+		// answers is "how often does stock change what a shopper pays", and a 20-line basket is one
+		// occurrence of that, not twenty.
+		s.stockMetrics.StockBlocked("checkout")
 	}
 
 	// ⚠ FR-056: the minimum is re-decided HERE, not trusted from the cart's `checkout.allowed`. A client

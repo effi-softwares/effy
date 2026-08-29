@@ -13,7 +13,7 @@
  */
 
 import { query, withTransaction } from "@effy/edge-shared";
-import type { StockMovementReason } from "@effy/shared-types";
+import type { LowStockRowDTO, StockMovementReason } from "@effy/shared-types";
 
 import { notFound, type Actor, type MovementRow, type StockRow } from "./types";
 
@@ -288,4 +288,61 @@ export async function writeSettings(
             updated_at = now()`,
     [shopId, defaultThreshold, updatedBy],
   );
+}
+
+/**
+ * The restock list (054 US5, FR-029): everything at zero, and everything at or below its EFFECTIVE
+ * threshold — the product's own if set, else the shop's default.
+ *
+ * ⚠ `out` SORTS ABOVE `low`, and they are separate values rather than one "needs attention" flag. An
+ * empty shelf and a thin one are different problems needing different actions — restock now versus
+ * restock soon — and a row claiming both would sort into two places at once. `low` therefore
+ * EXCLUDES zero (`p.stock_on_hand > 0`).
+ *
+ * ⚠ A product with NO threshold anywhere is never "low", but IS reported when it hits zero
+ * (FR-005a): a missing threshold means "I have no opinion about running low", not "never tell me
+ * about this product".
+ *
+ * Rides the partial index `product_low_stock_idx (shop_id, stock_on_hand) WHERE stock_tracked`.
+ */
+const SELECT_LOW_STOCK = `
+SELECT p.id::text AS product_id,
+       p.name     AS name,
+       p.sku      AS sku,
+       p.stock_on_hand AS on_hand,
+       COALESCE(p.low_stock_threshold, s.default_low_stock_threshold) AS effective_threshold,
+       CASE WHEN p.stock_on_hand <= 0 THEN 'out' ELSE 'low' END AS severity
+  FROM public.product p
+  LEFT JOIN public.shop_stock_settings s ON s.shop_id = p.shop_id
+ WHERE p.shop_id = $1
+   AND p.stock_tracked
+   AND p.status <> 'archived'
+   AND (
+         p.stock_on_hand <= 0
+      OR (COALESCE(p.low_stock_threshold, s.default_low_stock_threshold) IS NOT NULL
+          AND p.stock_on_hand <= COALESCE(p.low_stock_threshold, s.default_low_stock_threshold))
+       )
+ ORDER BY (p.stock_on_hand <= 0) DESC, p.stock_on_hand ASC, p.name ASC
+ LIMIT 500
+`;
+
+interface LowStockDbRow {
+  product_id: string;
+  name: string;
+  sku: string | null;
+  on_hand: number;
+  effective_threshold: number | null;
+  severity: "out" | "low";
+}
+
+export async function readLowStock(shopId: string): Promise<LowStockRowDTO[]> {
+  const res = await query<LowStockDbRow>(SELECT_LOW_STOCK, [shopId]);
+  return res.rows.map((r) => ({
+    productId: r.product_id,
+    name: r.name,
+    sku: r.sku,
+    onHand: r.on_hand,
+    effectiveThreshold: r.effective_threshold,
+    severity: r.severity,
+  }));
 }

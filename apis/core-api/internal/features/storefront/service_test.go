@@ -154,7 +154,19 @@ func card(id, name string, compareAt *string, ageDays int, key *string) cardRow 
 		CompareAtAmount: compareAt,
 		StorageKey:      key,
 		CreatedAt:       time.Now().Add(-time.Duration(ageDays) * 24 * time.Hour),
+		// ⚠ 054: the REAL rail queries filter on the shared availability rule and project this column,
+		// so a row that comes back from them is available by construction. The fixture must say what
+		// the world says — a fake that disagrees with its query is how 027 R13, 028 and 033 each shipped
+		// a defect past a green suite.
+		Available: true,
 	}
+}
+
+// unavailableCard is what a rail must never carry (FR-023).
+func unavailableCard(id, name string) cardRow {
+	c := card(id, name, nil, 1, nil)
+	c.Available = false
+	return c
 }
 
 func strptr(s string) *string { return &s }

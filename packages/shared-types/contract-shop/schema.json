@@ -6,8 +6,8 @@
       "additionalProperties": false,
       "properties": {
         "delta": {
-          "description": "Signed. Never zero — a movement that moves nothing is a record with no fact behind it.",
-          "type": "number"
+          "$ref": "#/definitions/WireInt",
+          "description": "Signed. Never zero — a movement that moves nothing is a record with no fact behind it."
         },
         "note": {
           "type": "string"
@@ -623,16 +623,20 @@
       "additionalProperties": false,
       "properties": {
         "effectiveThreshold": {
-          "type": [
-            "number",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "name": {
           "type": "string"
         },
         "onHand": {
-          "type": "number"
+          "$ref": "#/definitions/WireInt"
         },
         "productId": {
           "type": "string"
@@ -709,7 +713,15 @@
         "detail": {
           "type": "string"
         },
+        "errors": {
+          "description": "⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues under `errors`; `fields` was the name only this type used, so every reader keying off it saw nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).",
+          "items": {
+            "$ref": "#/definitions/ProblemFieldIssue"
+          },
+          "type": "array"
+        },
         "fields": {
+          "deprecated": "The wire uses `errors`. Kept so older readers still compile.",
           "items": {
             "$ref": "#/definitions/ProblemFieldIssue"
           },
@@ -1077,22 +1089,30 @@
       "description": "A product's stock, as one operator screen needs it.",
       "properties": {
         "effectiveThreshold": {
-          "description": "Product threshold, else shop default, else null — null meaning nothing counts as low.",
-          "type": [
-            "number",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Product threshold, else shop default, else null — null meaning nothing counts as low."
         },
         "low": {
           "description": "tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold. ⚠ Mutually exclusive with `outOfStock`: an empty shelf and a thin one are different problems needing different actions, and collapsing them tells the operator nothing to act on.",
           "type": "boolean"
         },
         "onHand": {
-          "description": "null exactly when untracked — the database makes \"tracked with no count\" unrepresentable.",
-          "type": [
-            "number",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null exactly when untracked — the database makes \"tracked with no count\" unrepresentable."
         },
         "outOfStock": {
           "description": "tracked && onHand === 0.",
@@ -1102,11 +1122,15 @@
           "type": "string"
         },
         "threshold": {
-          "description": "This product's own threshold, or null to fall back to the shop default.",
-          "type": [
-            "number",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "This product's own threshold, or null to fall back to the shop default."
         },
         "tracked": {
           "description": "false = unlimited, and identical to how the product behaved before 054 existed (FR-002).",
@@ -1324,11 +1348,15 @@
       "additionalProperties": false,
       "properties": {
         "defaultThreshold": {
-          "description": "null clears the shop default.",
-          "type": [
-            "number",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null clears the shop default."
         }
       },
       "required": [
@@ -1343,7 +1371,7 @@
           "type": "string"
         },
         "onHand": {
-          "type": "number"
+          "$ref": "#/definitions/WireInt"
         },
         "reason": {
           "$ref": "#/definitions/OperatorStockReason"
@@ -1359,11 +1387,15 @@
       "additionalProperties": false,
       "properties": {
         "threshold": {
-          "description": "null clears this product's own threshold, falling back to the shop default.",
-          "type": [
-            "number",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null clears this product's own threshold, falling back to the shop default."
         }
       },
       "required": [
@@ -1375,8 +1407,8 @@
       "additionalProperties": false,
       "properties": {
         "onHand": {
-          "description": "REQUIRED when enabling (FR-003), ignored when disabling.",
-          "type": "number"
+          "$ref": "#/definitions/WireInt",
+          "description": "REQUIRED when enabling (FR-003), ignored when disabling."
         },
         "tracked": {
           "type": "boolean"
@@ -1510,11 +1542,15 @@
       "additionalProperties": false,
       "properties": {
         "defaultThreshold": {
-          "description": "null = no default, so nothing counts as low; zero stock is still reported as out (FR-005a).",
-          "type": [
-            "number",
-            "null"
-          ]
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null = no default, so nothing counts as low; zero stock is still reported as out (FR-005a)."
         }
       },
       "required": [
@@ -1589,13 +1625,13 @@
           ]
         },
         "quantityAfter": {
-          "type": "number"
+          "$ref": "#/definitions/WireInt"
         },
         "quantityBefore": {
-          "type": "number"
+          "$ref": "#/definitions/WireInt"
         },
         "quantityDelta": {
-          "type": "number"
+          "$ref": "#/definitions/WireInt"
         },
         "reason": {
           "$ref": "#/definitions/StockMovementReason"
@@ -1616,7 +1652,7 @@
       "type": "object"
     },
     "StockMovementReason": {
-      "description": "Why a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` — the database and this union are one contract, and a value in either that the other lacks is a defect.\n\n⚠ There is deliberately NO `cancellation` or `refund` member. Neither capability exists on the platform (order-flow gap register, Tier 2), and a value nothing can produce implies one that does. The set grows when the slice that needs it lands.",
+      "description": "⚠ EVERY COUNT ON THIS CONTRACT IS A `WireInt`, NOT A BARE `number`.\n\n027's R13: Kotlin serialises a bare `number` field as `Double`, so the wire carried `1.0` where the backend expected an integer, and every mobile cart write was silently rejected. The fix was made AT THE CONTRACT — a `WireInt` alias carrying `@asType integer` — precisely so the generated Kotlin cannot regress. The first draft of this file used bare `number` and the generator duly emitted `Double` for `onHand`, `delta` and `threshold`; caught by reading the generated Kotlin back, which is the only place that mistake is visible.\n\nWhy a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` — the database and this union are one contract, and a value in either that the other lacks is a defect.\n\n⚠ There is deliberately NO `cancellation` or `refund` member. Neither capability exists on the platform (order-flow gap register, Tier 2), and a value nothing can produce implies one that does. The set grows when the slice that needs it lands.",
       "enum": [
         "received",
         "correction",
@@ -1742,6 +1778,10 @@
         }
       },
       "type": "object"
+    },
+    "WireInt": {
+      "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",
+      "type": "integer"
     }
   },
   "description": "Aggregator — codegen entry only. Every field forces a type into the schema. The catalog block is the shop-facing subset (016) the mobile app consumes; admin-only schema-authoring request DTOs are deliberately NOT here.",

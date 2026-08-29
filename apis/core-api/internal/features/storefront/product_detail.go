@@ -29,6 +29,7 @@ type detailRow struct {
 	// public search the rest of discovery uses — no new endpoint, no recommendation engine.
 	CategoryKey string `db:"primary_category_key"`
 	IsNew       bool   `db:"is_new"`
+	Available   bool   `db:"available"`
 }
 
 type mediaRow struct {
@@ -61,9 +62,14 @@ SELECT p.id::text                  AS id,
        p.created_at::text          AS created_at,
        p.primary_category_id::text AS primary_category_id,
        (SELECT c.key FROM public.category c WHERE c.id = p.primary_category_id) AS primary_category_key,
-       (p.created_at >= now() - interval '14 days') AS is_new
+       (p.created_at >= now() - interval '14 days') AS is_new,
+       -- ⚠ 054: PROJECTED, not filtered. A product page that 404'd the moment stock ran out would
+       -- break every shared link and every saved item, and would tell a shopper "gone" when the
+       -- truth is "back soon" — the distinction FR-014/A10 exist to preserve.
+       (`+availability.Predicate("p")+`) AS available
 FROM public.product p
-WHERE p.id = $1 AND `+availability.Predicate("p")+``, id)
+-- availability-exempt: public.product — a VISIBILITY filter. Purchasability is the column above.
+WHERE p.id = $1 AND p.status = 'active'`, id)
 	if err != nil {
 		return detailRow{}, false, fmt.Errorf("storefront: query detail: %w", err)
 	}

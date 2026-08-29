@@ -90,9 +90,19 @@ describe("inventory service deployment contract", () => {
   it("puts every admin route behind the BACK-OFFICE authorizer and never the shop one", () => {
     // Derived, not listed: any function whose path contains /v1/admin/ must be back-office gated.
     // Written this way so a route added later is covered without anyone remembering to list it here.
-    const adminFns = [...yaml.matchAll(/^ {2}([a-zA-Z0-9]+):\n(?:.*\n)*?.*?path: (\/inventory\/v1\/admin\/[^\n]*)/gm)];
-    for (const [, fn] of adminFns) {
-      if (!fn) continue;
+    //
+    // ⚠ Walk the `functions:` section only. A regex spanning arbitrary lines from an anchor matched
+    // back into `params.default:` on the first run — it "found" a function called `default` and then
+    // reported a real route as unauthorized. A guard that misfires is worse than none: it trains the
+    // next person to ignore it.
+    const fnSection = yaml.slice(yaml.indexOf("\nfunctions:\n"));
+    const adminFns = [...fnSection.matchAll(/^ {2}([a-zA-Z][a-zA-Z0-9]*):$/gm)]
+      .map(([, name]) => name!)
+      .filter((name) => blockFor(name).includes("/inventory/v1/admin/"));
+
+    expect(adminFns.length, "no admin routes found — the derivation above is broken").toBeGreaterThan(0);
+
+    for (const fn of adminFns) {
       const block = blockFor(fn);
       expect(block, `${fn} must use the back-office authorizer`).toContain(
         "/edge/authorizer/back-office_id",

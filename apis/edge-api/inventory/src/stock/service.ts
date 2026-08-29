@@ -99,6 +99,11 @@ export async function getStock(actor: Actor, productId: string): Promise<Product
   };
 }
 
+/** The restock list for the actor's shop (FR-029). */
+export async function listLowStock(actor: Actor): Promise<LowStockRowDTO[]> {
+  return repo.readLowStock(actor.shopId);
+}
+
 export async function getSettings(actor: Actor) {
   return { defaultThreshold: await repo.readSettings(actor.shopId) };
 }

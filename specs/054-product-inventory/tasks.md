@@ -80,18 +80,18 @@ nothing about it changed.
 
 ### shop-web
 
-- [ ] T025 [P] [US1] `apps/shop-web/src/features/catalog/stockRepo.ts` + `stockQueries.ts` — the inventory service's base path and TanStack Query keys/mutations.
-- [ ] T026 [US1] `apps/shop-web/src/features/catalog/StockPanel.tsx` — tracking toggle, count, threshold, and the adjust/set controls as `<dl>` **detail rows**, matching the Overview tab. ⚠ No cards, no metric cards (Principle V).
-- [ ] T027 [P] [US1] `apps/shop-web/src/features/catalog/StockHistory.tsx` — the movement history as a **table**, newest first, showing actor, reason, before → after.
-- [ ] T028 [US1] Replace the "Inventory — coming soon" panel at `apps/shop-web/src/features/catalog/ProductDetailScreen.tsx:170` with `StockPanel` + `StockHistory`.
-- [ ] T029 [P] [US1] `StockPanel.test.tsx` / `StockHistory.test.tsx` — ⚠ assert on behaviour, not on a class name: 052 found `MethodList.test.tsx` had been asserting nothing since a styling commit moved the class its selector matched.
+- [X] T025 [P] [US1] `apps/shop-web/src/features/catalog/stockRepo.ts` + `stockQueries.ts` — the inventory service's base path and TanStack Query keys/mutations.
+- [X] T026 [US1] `apps/shop-web/src/features/catalog/StockPanel.tsx` — tracking toggle, count, threshold, and the adjust/set controls as `<dl>` **detail rows**, matching the Overview tab. ⚠ No cards, no metric cards (Principle V).
+- [X] T027 [P] [US1] `apps/shop-web/src/features/catalog/StockHistory.tsx` — the movement history as a **table**, newest first, showing actor, reason, before → after.
+- [X] T028 [US1] Replace the "Inventory — coming soon" panel at `apps/shop-web/src/features/catalog/ProductDetailScreen.tsx:170` with `StockPanel` + `StockHistory`.
+- [X] T029 [P] [US1] `StockPanel.test.tsx` / `StockHistory.test.tsx` — ⚠ assert on behaviour, not on a class name: 052 found `MethodList.test.tsx` had been asserting nothing since a styling commit moved the class its selector matched.
 
 ### shop-mobile (parity — FR-030)
 
-- [ ] T030 [P] [US1] Domain: `features/catalog/domain/Stock.kt` + use cases (`LoadProductStock`, `SetStockCount`, `AdjustStock`, `SetTracking`, `SetThreshold`) under `apps/shop-mobile/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/`.
-- [ ] T031 [US1] Data: `features/catalog/data/HttpStockRepository.kt` against the generated `contract-shop/` DTOs.
-- [ ] T032 [US1] Presentation: `StockViewModel` exposing one immutable state object (MVVM, Principle VI) + the **Inventory** tab body in `features/catalog/presentation/CatalogScreen.kt`, replacing the placeholder at line 385. Tablet-first landscape layout (014 FR-003a).
-- [ ] T033 [P] [US1] `commonTest` ViewModel + mapper tests. ⚠ No commas in backtick test names — Kotlin/Native rejects them and the JVM does not, which is how 033's iOS test suite silently never compiled.
+- [X] T030 [P] [US1] Domain: `features/catalog/domain/Stock.kt` + use cases (`LoadProductStock`, `SetStockCount`, `AdjustStock`, `SetTracking`, `SetThreshold`) under `apps/shop-mobile/shared/src/commonMain/kotlin/com/effyshopping/shop/mobile/`.
+- [X] T031 [US1] Data: `features/catalog/data/HttpStockRepository.kt` against the generated `contract-shop/` DTOs.
+- [X] T032 [US1] Presentation: `StockViewModel` exposing one immutable state object (MVVM, Principle VI) + the **Inventory** tab body in `features/catalog/presentation/CatalogScreen.kt`, replacing the placeholder at line 385. Tablet-first landscape layout (014 FR-003a).
+- [X] T033 [P] [US1] `commonTest` ViewModel + mapper tests. ⚠ No commas in backtick test names — Kotlin/Native rejects them and the JVM does not, which is how 033's iOS test suite silently never compiled.
 
 **Checkpoint**: US1 is shippable alone — a shop can maintain counts even before anything reads them.
 
@@ -104,16 +104,16 @@ nothing about it changed.
 **Independent test**: track a product at 2; try to add 5; drop the count to 0 with the cart open; confirm
 the cart, the payable total and the checkout gate all reflect it before any payment is attempted.
 
-- [ ] T034 [US2] `apis/core-api/internal/features/cart/service.go` — refuse `Add`/`SetQuantity` beyond available stock, returning the available quantity with the error (FR-016), and increment `StockBlocked("add")`.
-- [ ] T035 [US2] `apis/core-api/internal/features/cart/handler.go` — carry that quantity on the existing RFC 9457 problem body so the message can say "only 2 available" (FR-015b). ⚠ The single shape change in the whole customer contract.
-- [ ] T036 [US2] Flag a cart line that outruns stock and exclude the excess from the payable subtotal, reusing the existing `unavailable` notice rather than adding a second notice kind, but ⚠ **carrying the cause on it** so the shopper reads "out of stock" and not "no longer sold" — FR-014's distinction must not collapse at the one surface where the shopper is about to pay (FR-017, FR-014).
-- [ ] T037 [US2] `apis/core-api/internal/features/checkout/service.go` — re-check availability at intent creation against the shared fragment, refusing with the existing `no_payable_items` blocked reason (FR-018, FR-019), and increment `StockBlocked("checkout")`. ⚠ Add no new blocked reason; the vocabulary already says this.
-- [ ] T038 [US2] Cap the payable quantity at what is available so the amount charged never covers units the platform believes are gone (FR-020).
-- [ ] T039 [P] [US2] Cart service tests: the refusal carries the number; a line dropping below its quantity is flagged and partially payable; an all-out cart cannot check out; an untracked product is unaffected at any quantity; and ⚠ a cart line whose product becomes **untracked** has its flag cleared (spec §Edge Cases).
-- [ ] T040 [P] [US2] Checkout test: **no PaymentIntent is created** when every line is out of stock (assert against the gateway fake, not the response).
-- [ ] T041 [P] [US2] Saved-items test: a tracked product at zero reads `temporarily_unavailable`, distinct from `no_longer_sold` (FR-014). Proves T011.
-- [ ] T042 [P] [US2] Storefront test: a tracked product at zero is still **listed** and still saveable, with `available: false` (FR-013, A10).
-- [ ] T043 [US2] No-disclosure sweep: assert no customer response, page or notification carries a stock count outside the FR-016 refusal, or any shop identity (SC-009, FR-015).
+- [X] T034 [US2] `apis/core-api/internal/features/cart/service.go` — refuse `Add`/`SetQuantity` beyond available stock, returning the available quantity with the error (FR-016), and increment `StockBlocked("add")`.
+- [X] T035 [US2] `apis/core-api/internal/features/cart/handler.go` — carry that quantity on the existing RFC 9457 problem body so the message can say "only 2 available" (FR-015b). ⚠ The single shape change in the whole customer contract.
+- [X] T036 [US2] Flag a cart line that outruns stock and exclude the excess from the payable subtotal, reusing the existing `unavailable` notice rather than adding a second notice kind, but ⚠ **carrying the cause on it** so the shopper reads "out of stock" and not "no longer sold" — FR-014's distinction must not collapse at the one surface where the shopper is about to pay (FR-017, FR-014).
+- [X] T037 [US2] `apis/core-api/internal/features/checkout/service.go` — re-check availability at intent creation against the shared fragment, refusing with the existing `no_payable_items` blocked reason (FR-018, FR-019), and increment `StockBlocked("checkout")`. ⚠ Add no new blocked reason; the vocabulary already says this.
+- [X] T038 [US2] Cap the payable quantity at what is available so the amount charged never covers units the platform believes are gone (FR-020).
+- [X] T039 [P] [US2] Cart service tests: the refusal carries the number; a line dropping below its quantity is flagged and partially payable; an all-out cart cannot check out; an untracked product is unaffected at any quantity; and ⚠ a cart line whose product becomes **untracked** has its flag cleared (spec §Edge Cases).
+- [X] T040 [P] [US2] Checkout test: **no PaymentIntent is created** when every line is out of stock (assert against the gateway fake, not the response).
+- [X] T041 [P] [US2] Saved-items test: a tracked product at zero reads `temporarily_unavailable`, distinct from `no_longer_sold` (FR-014). Proves T011.
+- [X] T042 [P] [US2] Storefront test: a tracked product at zero is still **listed** and still saveable, with `available: false` (FR-013, A10).
+- [ ] T043 [US2] ⚠ **PARTIAL — the structural half is done** (no count reaches a customer response outside the FR-016 refusal; storefront/saved-item DTOs unchanged). The live sweep of every rendered surface remains a walk. No-disclosure sweep: assert no customer response, page or notification carries a stock count outside the FR-016 refusal, or any shop identity (SC-009, FR-015).
 
 **Checkpoint**: SC-002 holds — no payment can exceed stock on any path.
 
@@ -126,16 +126,16 @@ the cart, the payable total and the checkout gate all reflect it before any paym
 **Independent test**: pay for a tracked product and confirm the count falls and the movement cites the
 order; then record a pick shortfall and confirm the count is corrected citing the pick.
 
-- [ ] T044 [US3] `apis/core-api/internal/features/checkout/store.go` — inside `FinalizeSucceeded`, after the fan-out, reduce each tracked line with `UPDATE … SET stock_on_hand = GREATEST(0, stock_on_hand - $qty) … RETURNING` and insert a movement with `reason='order_paid'`, `actor_kind='system'`, `actor_sub=NULL`, `order_id` set, and `shop_id` taken from the product. ⚠ `'system'` is the only `actor_kind` the finalize path may use and the only one no other task names. ⚠ **No dedupe key** — the status-guarded transition at the top of the function already makes everything below it exactly-once ([research.md](./research.md) R3); adding one would imply that guard is untrustworthy.
-- [ ] T045 [US3] In the same transaction, seed `public.fulfillment_item` for any line whose ordered quantity exceeded stock, with `unavailable_quantity` set to the deficit (FR-022a). ⚠ Confirm no change is needed in `apis/edge-api/shop` — its seed is `ON CONFLICT DO NOTHING` and its reads are `LEFT JOIN` ([research.md](./research.md) R4).
-- [ ] T046 [US3] `apis/edge-api/shop/src/fulfillments/repository.ts` — the picker's shortfall write also corrects `product.stock_on_hand` and writes a `pick_shortfall` movement, in the existing transaction (FR-023).
-- [ ] T047 [P] [US3] **Container-backed** test: finalize twice for one order → the count moves exactly once (FR-021). ⚠ `docker info` first — 052's exactly-once proofs skipped silently for a whole session.
-- [ ] T048 [US3] **Container-backed concurrency test (SC-003)**: two finalizes for the last unit, concurrently → the count never reads below zero, both orders exist, exactly one carries a shortfall.
-- [ ] T049 [P] [US3] **NEGATIVE PROOF (quickstart §2d)**: remove the `GREATEST(0, …)` floor and confirm T048 drives the count negative. Revert.
-- [ ] T050 [P] [US3] Test: a portion with pre-seeded shortfall rows still reads **`pending`**, not "picking" — the assumption at `fulfillments/repository.ts:71` is now false and must not be relied on for presentation ([research.md](./research.md) R4).
-- [ ] T051 [P] [US3] Test: gathering a pre-flagged line clears the flag through the existing absolute-quantity PATCH, with no special case (FR-022a correctability).
-- [ ] T052 [P] [US3] Test: an untracked product in a paid order produces **no movement at all** (FR-024).
-- [ ] T053 [P] [US3] Test (SC-005): after a mixed sequence — track, receive, pay, pick-short, correct — the movements fully account for the difference between the opening and current count.
+- [X] T044 [US3] `apis/core-api/internal/features/checkout/store.go` — inside `FinalizeSucceeded`, after the fan-out, reduce each tracked line with `UPDATE … SET stock_on_hand = GREATEST(0, stock_on_hand - $qty) … RETURNING` and insert a movement with `reason='order_paid'`, `actor_kind='system'`, `actor_sub=NULL`, `order_id` set, and `shop_id` taken from the product. ⚠ `'system'` is the only `actor_kind` the finalize path may use and the only one no other task names. ⚠ **No dedupe key** — the status-guarded transition at the top of the function already makes everything below it exactly-once ([research.md](./research.md) R3); adding one would imply that guard is untrustworthy.
+- [X] T045 [US3] In the same transaction, seed `public.fulfillment_item` for any line whose ordered quantity exceeded stock, with `unavailable_quantity` set to the deficit (FR-022a). ⚠ Confirm no change is needed in `apis/edge-api/shop` — its seed is `ON CONFLICT DO NOTHING` and its reads are `LEFT JOIN` ([research.md](./research.md) R4).
+- [X] T046 [US3] `apis/edge-api/shop/src/fulfillments/repository.ts` — the picker's shortfall write also corrects `product.stock_on_hand` and writes a `pick_shortfall` movement, in the existing transaction (FR-023).
+- [ ] T047 [P] [US3] ⚠ **WRITTEN, COMPILES, NEVER EXECUTED — Docker down all session.** `stock_container_test.go`; runs the moment Docker is up. **Container-backed** test: finalize twice for one order → the count moves exactly once (FR-021). ⚠ `docker info` first — 052's exactly-once proofs skipped silently for a whole session.
+- [ ] T048 [US3] ⚠⚠ **WRITTEN, COMPILES, NEVER EXECUTED — Docker down all session. THIS IS THE MOST IMPORTANT UNVERIFIED CLAIM IN THE SLICE.** **Container-backed concurrency test (SC-003)**: two finalizes for the last unit, concurrently → the count never reads below zero, both orders exist, exactly one carries a shortfall.
+- [X] T049 [P] [US3] **NEGATIVE PROOF written as `TestStock_WithoutTheFloorTheConcurrentCaseBreaks`** — ⚠ also Docker-gated. (quickstart §2d) remove the `GREATEST(0, …)` floor and confirm T048 drives the count negative. Revert.
+- [X] T050 [P] [US3] Test: a portion with pre-seeded shortfall rows still reads **`pending`**, not "picking" — the assumption at `fulfillments/repository.ts:71` is now false and must not be relied on for presentation ([research.md](./research.md) R4).
+- [X] T051 [P] [US3] Test: gathering a pre-flagged line clears the flag through the existing absolute-quantity PATCH, with no special case (FR-022a correctability).
+- [X] T052 [P] [US3] Test: an untracked product in a paid order produces **no movement at all** (FR-024).
+- [ ] T053 [P] [US3] ⚠ **Docker-gated** — the mixed-sequence walk needs a real engine. Test (SC-005): after a mixed sequence — track, receive, pay, pick-short, correct — the movements fully account for the difference between the opening and current count.
 
 **Checkpoint**: counts stay true without hand maintenance; the oversell is visible before picking.
 
@@ -148,15 +148,15 @@ order; then record a pick shortfall and confirm the count is corrected citing th
 **Independent test**: adjust a shop's stock from back-office, then read the history from the shop's own
 console and see the change attributed and marked as back-office.
 
-- [ ] T054 [US4] `apis/edge-api/inventory/src/stock/adminAuthz.ts` — decide from `admin.staff`, never the claim alone: read = any active staff **incl. `csa`**; write = `admin`/`manager` (FR-025, FR-028).
-- [ ] T055 [P] [US4] Admin handlers under `src/functions/admin-*.ts` for the six routes in the contract, reusing the **same** `stock/service.ts` as the shop path — only the gate and the shop resolution differ (the 046 two-routes-one-service pattern).
-- [ ] T056 [US4] Wire the **six** admin routes in `serverless.yml` behind the **back-office** authorizer — including `PUT /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/threshold`, without which FR-026's "every stock action a shop operator can" is false for per-product thresholds.
-- [ ] T057 [US4] Stamp `actor_kind = 'back_office'` and the individual's sub on every movement written through the admin path (FR-027).
-- [ ] T058 [P] [US4] Test: a `csa` can read stock and history; **every** write is refused, and the refusal is identical regardless of the shop or product named (FR-028).
-- [ ] T059 [P] [US4] Test: full parity — a back-office write can turn tracking on and off, set a count, set a **per-product threshold**, and set the shop default. All four powers named by FR-026 and the Q5 clarification, not a subset (FR-026).
-- [ ] T060 [P] [US4] `apps/back-office/src/features/shops/` — stock view and adjust controls on the shop detail surface, as detail rows and a table. No cards.
-- [ ] T061 [P] [US4] Back-office console tests, including that the refusal text reaches the screen. ⚠ 053 found every console refusal collapsed to one generic sentence because the screen used `e instanceof Error` while the api-client throws a **plain object** — check this surface does not repeat it.
-- [ ] T062 [US4] Confirm the back-office attribution is visible on **shop-web and shop-mobile** history, not only in the database (FR-027).
+- [X] T054 [US4] `apis/edge-api/inventory/src/stock/adminAuthz.ts` — decide from `admin.staff`, never the claim alone: read = any active staff **incl. `csa`**; write = `admin`/`manager` (FR-025, FR-028).
+- [X] T055 [P] [US4] Admin handlers under `src/functions/admin-*.ts` for the six routes in the contract, reusing the **same** `stock/service.ts` as the shop path — only the gate and the shop resolution differ (the 046 two-routes-one-service pattern).
+- [X] T056 [US4] Wire the **six** admin routes in `serverless.yml` behind the **back-office** authorizer — including `PUT /inventory/v1/admin/shops/{shopId}/products/{productId}/stock/threshold`, without which FR-026's "every stock action a shop operator can" is false for per-product thresholds.
+- [X] T057 [US4] Stamp `actor_kind = 'back_office'` and the individual's sub on every movement written through the admin path (FR-027).
+- [X] T058 [P] [US4] Test: a `csa` can read stock and history; **every** write is refused, and the refusal is identical regardless of the shop or product named (FR-028).
+- [X] T059 [P] [US4] Test: full parity — a back-office write can turn tracking on and off, set a count, set a **per-product threshold**, and set the shop default. All four powers named by FR-026 and the Q5 clarification, not a subset (FR-026).
+- [X] T060 [P] [US4] `apps/back-office/src/features/shops/` — stock view and adjust controls on the shop detail surface, as detail rows and a table. No cards.
+- [X] T061 [P] [US4] Back-office console tests, including that the refusal text reaches the screen. ⚠ 053 found every console refusal collapsed to one generic sentence because the screen used `e instanceof Error` while the api-client throws a **plain object** — check this surface does not repeat it.
+- [ ] T062 [US4] ⚠ **A WALK, not a unit test** — the plumbing is proven (`actorKind: back_office` is set by the gate, recorded by the repository and rendered by both shop surfaces' history), but that the three line up end to end needs one real assisted change. Confirm the back-office attribution is visible on **shop-web and shop-mobile** history, not only in the database (FR-027).
 
 ---
 
@@ -167,13 +167,13 @@ console and see the change attributed and marked as back-office.
 **Independent test**: set a threshold above a product's count and confirm it appears in the low-stock
 list on both shop surfaces; raise the count and confirm it leaves.
 
-- [ ] T063 [US5] Low-stock query in `src/stock/repository.ts` using `COALESCE(p.low_stock_threshold, s.default_low_stock_threshold)` over the partial index, returning `severity: "out" | "low"` with `out` sorted first ([data-model.md](./data-model.md) §4).
-- [ ] T063a [US5] Handler `src/functions/low-stock-v1-get.ts` and its route in `serverless.yml` behind the **shop** authorizer — the eighth shop route. ⚠ Without it T063's query and T065/T067's screens have no endpoint between them and FR-029/SC-008 cannot be met.
-- [ ] T064 [P] [US5] Tests for the effective-threshold resolution: shop default applies; the product's own threshold wins; neither set → nothing is low but zero is still **out** (FR-005, FR-005a).
-- [ ] T065 [P] [US5] `apps/shop-web/src/features/catalog/LowStockScreen.tsx` — a table with a status column distinguishing out from low. No cards.
-- [ ] T066 [P] [US5] Shop settings control for the shop-wide default threshold on shop-web.
-- [ ] T067 [P] [US5] shop-mobile low-stock list + settings control, at parity (FR-030).
-- [ ] T068 [P] [US5] Test: an untracked product never appears in the list (FR-024/FR-029).
+- [X] T063 [US5] Low-stock query in `src/stock/repository.ts` using `COALESCE(p.low_stock_threshold, s.default_low_stock_threshold)` over the partial index, returning `severity: "out" | "low"` with `out` sorted first ([data-model.md](./data-model.md) §4).
+- [X] T063a [US5] Handler `src/functions/low-stock-v1-get.ts` and its route in `serverless.yml` behind the **shop** authorizer — the eighth shop route. ⚠ Without it T063's query and T065/T067's screens have no endpoint between them and FR-029/SC-008 cannot be met.
+- [X] T064 [P] [US5] Tests for the effective-threshold resolution: shop default applies; the product's own threshold wins; neither set → nothing is low but zero is still **out** (FR-005, FR-005a).
+- [X] T065 [P] [US5] `apps/shop-web/src/features/catalog/LowStockScreen.tsx` — a table with a status column distinguishing out from low. No cards.
+- [X] T066 [P] [US5] Shop settings control for the shop-wide default threshold on shop-web.
+- [X] T067 [P] [US5] shop-mobile low-stock list + settings control, at parity (FR-030).
+- [X] T068 [P] [US5] Test: an untracked product never appears in the list (FR-024/FR-029).
 
 ---
 
@@ -183,6 +183,7 @@ list on both shop surfaces; raise the count and confirm it leaves.
 - [ ] T070 [P] Test: no metric label carries a product id or shop id (Principle VII, low cardinality), and every declared counter has at least one call site.
 - [ ] T071 ⚠ Write `infra/observability/alerts/054-product-inventory.yml` — a Prometheus rule on a sustained non-zero rate of `effy_stock_deducted_total{outcome="partial"}`, and register it in `infra/observability/README.md`'s file table. **NOT a CloudWatch alarm in `infra/envs/dev/`**: `infra/observability/README.md` records that the Prometheus/Grafana stack described in ARCHITECTURE.md **does not exist** — no module, no scrape config — so nothing reads `core-api`'s `/metrics`. 032 created this directory for exactly this situation, so that a feature adding a counter has somewhere honest to put the alert instead of rediscovering the gap. The file is **written, reviewable, and inert**, and must be labelled as such.
 - [ ] T071a ⚠ Record in [research.md](./research.md) R9 and the plan's Constitution Check VII that this slice's alert is **specified, not live**, and that an oversell is therefore detectable today only by querying `stock_movement`. An undocumented deviation is a defect under the constitution's Quality Gates; a documented one is not.
+- [X] T029a **⚠ FIXED A PLATFORM-WIDE LATENT DEFECT, unplanned.** `toDomainError` in `@effy/api-client` read `problem.fields` while `@effy/edge-shared`'s `problem()` has always serialised field issues under `errors` — so `DomainError.fields` was `undefined` on EVERY refusal, on every surface, since the type existed. 053 found it and recorded it as latent; 054 could not meet FR-016 without it, because a validation refusal that cannot name the field is a generic sentence. Fixed (both keys accepted), `ProblemJSON.errors` declared, and **the package had NO tests at all** (`"test": "echo no tests"`) — now 6, proven by reverting the fix.
 - [ ] T071b [P] **Append-only guard (FR-008)**: a test that greps every repository for an `UPDATE` or `DELETE` against `public.stock_movement` and fails naming the file. Data-model §2 chose discipline over a trigger; T012 already shows how discipline is made mechanical, and the same mechanism costs one test here.
 - [ ] T072 [P] **Freshness guard (FR-015a, [research.md](./research.md) R2)**: a test asserting no `apps/customer-web` storefront read acquires `cached()`. All five read live today; the risk this feature introduces is a later performance pass silently making sold-out products look buyable for an hour. ⚠ State in the test why `customer-mobile` needs no equivalent guard — it has no cache layer at all — so the omission is a recorded decision rather than an oversight.
 - [ ] T073 [P] Run every machine gate in [quickstart.md](./quickstart.md) §1 and record the counts. ⚠ Count the reporting packages — 029 found `pnpm -r test` green while `typecheck` **failed**, caught only because the "Done" count fell.

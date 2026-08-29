@@ -256,14 +256,19 @@ func (s *Service) Home(ctx context.Context) (Home, error) {
 	// ⚠ Assembly uses `ctx`, never `gctx` — errgroup cancels its derived context once Wait returns,
 	// so presigning against it would fail on a context that is already dead.
 	var home Home
-	if cards := s.toCards(ctx, featured); len(cards) > 0 {
+	// ⚠ FR-023 (025): a RAIL never offers a product that cannot be bought. The rail queries already
+	// filter on the shared rule, so this drops nothing in production — it is here because the rule is
+	// worth stating once at the seam that assembles merchandising, and because a future rail added
+	// with the wrong query would otherwise put an unbuyable product in front of every shopper.
+	// Search results and product pages deliberately do NOT do this (FR-013, A10).
+	if cards := onlyAvailable(s.toCards(ctx, featured)); len(cards) > 0 {
 		home.Rails = append(home.Rails, Rail{Key: "featured", Title: "Featured", Products: cards})
 	}
-	if cards := s.toCards(ctx, onSale); len(cards) > 0 {
+	if cards := onlyAvailable(s.toCards(ctx, onSale)); len(cards) > 0 {
 		home.Rails = append(home.Rails, Rail{Key: "on_sale", Title: "On sale", Products: cards})
 	}
 	for i, cat := range candidates {
-		if cards := s.toCards(ctx, categoryRows[i]); len(cards) > 0 {
+		if cards := onlyAvailable(s.toCards(ctx, categoryRows[i])); len(cards) > 0 {
 			home.Rails = append(home.Rails, Rail{Key: "category:" + cat.Key, Title: cat.Name, Products: cards})
 		}
 	}
@@ -327,7 +332,9 @@ func (s *Service) ProductDetail(ctx context.Context, id string) (ProductDetail, 
 			Currency:        row.Currency,
 			CompareAtAmount: row.CompareAtAmount,
 			Badges:          badges,
-			Available:       true,
+			// ⚠ 054: computed, not assumed. The page renders for an out-of-stock product and says so
+			// (FR-013, A10); only the buy action is refused.
+			Available: row.Available,
 		},
 		LongDescription: descriptionOrShort(row),
 		Gallery:         gallery,
@@ -591,6 +598,17 @@ func (s *Service) CardsByIDs(ctx context.Context, ids []string) ([]ProductCard, 
 
 // toCards maps rows → domain cards, deriving badges and presigning images. A presign failure drops the
 // image (empty URL) rather than failing the whole rail — a missing image must never blank the store.
+// onlyAvailable keeps a rail to what a shopper can actually buy (FR-023).
+func onlyAvailable(cards []ProductCard) []ProductCard {
+	out := cards[:0]
+	for _, c := range cards {
+		if c.Available {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 func (s *Service) toCards(ctx context.Context, rows []cardRow) []ProductCard {
 	cards := make([]ProductCard, 0, len(rows))
 	for _, row := range rows {
@@ -609,7 +627,11 @@ func (s *Service) toCards(ctx context.Context, rows []cardRow) []ProductCard {
 			Currency:        row.Currency,
 			CompareAtAmount: row.CompareAtAmount,
 			Badges:          deriveBadges(row),
-			Available:       true, // only active products are read
+			// ⚠ 054: no longer a constant. The listing keeps an out-of-stock product VISIBLE (FR-013,
+			// A10 — removing it would break saved lists, shared links and search) and marks it
+			// unavailable here. The value is computed by the one shared rule, in SQL, alongside the
+			// row it describes.
+			Available: row.Available,
 		})
 	}
 	return cards

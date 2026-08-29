@@ -90,9 +90,14 @@ CREATE TABLE public.stock_movement (
     order_id        uuid REFERENCES public."order" (id) ON DELETE SET NULL,
     note            text,
     created_at      timestamptz NOT NULL DEFAULT now(),
-    -- The platform is the only actor with no person behind it; everything else must name one.
-    CONSTRAINT stock_movement_actor_ck
-        CHECK ((actor_kind = 'system') = (actor_sub IS NULL))
+    -- ⚠ ONE-WAY, DELIBERATELY: the platform must never CLAIM a person, but a human action with no
+    -- resolvable identity is still recorded. The symmetric version of this check (`= (actor_sub IS
+    -- NULL)`) would abort a shop-floor pick whose operator record could not be resolved — failing a
+    -- real warehouse action for an audit nicety, which is precisely backwards. 020 made the same call
+    -- for `fulfillment_event.actor_staff_id`, which is nullable "so an audit row survives a missing
+    -- operator record".
+    CONSTRAINT stock_movement_system_is_anonymous_ck
+        CHECK (actor_kind <> 'system' OR actor_sub IS NULL)
 );
 
 COMMENT ON TABLE public.stock_movement IS

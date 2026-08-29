@@ -35,6 +35,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.effyshopping.shop.mobile.features.catalog.domain.StockUseCases
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.shop.mobile.features.catalog.domain.GetProduct
 import com.effyshopping.shop.mobile.features.catalog.domain.ListProducts
@@ -67,6 +69,8 @@ import org.jetbrains.compose.resources.decodeToImageBitmap
 fun CatalogRoute(
     listProducts: ListProducts,
     getProduct: GetProduct,
+    stockUseCases: StockUseCases,
+    onOpenRestock: () -> Unit = {},
 ) {
     val viewModel = viewModel { CatalogViewModel(listProducts, getProduct) }
     val state by viewModel.state.collectAsState()
@@ -77,6 +81,43 @@ fun CatalogRoute(
         onRetry = viewModel::refresh,
         onNewProduct = {},
         onEditDetails = {},
+        onOpenRestock = onOpenRestock,
+        stockPane = { productId -> StockPane(productId, stockUseCases) },
+    )
+}
+
+/**
+ * The Inventory tab's own MVVM island (054).
+ *
+ * ⚠ ITS OWN ViewModel, keyed on the product. Folding stock into `CatalogViewModel` would make every
+ * product selection re-fetch stock the operator may never look at, and would put two independent
+ * server resources behind one loading flag — so a slow stock read would blank the product details.
+ */
+@Composable
+private fun StockPane(productId: String, useCases: StockUseCases) {
+    val viewModel = viewModel(key = "stock-$productId") {
+        StockViewModel(
+            useCases.getProductStock,
+            useCases.setStockCount,
+            useCases.adjustStock,
+            useCases.setStockTracking,
+            useCases.setStockThreshold,
+        )
+    }
+    val state by viewModel.state.collectAsState()
+    LaunchedEffect(productId) { viewModel.load(productId) }
+    StockSection(
+        state = state,
+        onEnableTracking = viewModel::enableTracking,
+        onDisableTracking = viewModel::disableTracking,
+        onOpeningCountChange = viewModel::setOpeningCount,
+        onModeChange = viewModel::setMode,
+        onAmountChange = viewModel::setAmount,
+        onReasonChange = viewModel::setReason,
+        onSubmitAmount = viewModel::submitAmount,
+        onThresholdChange = viewModel::setThresholdInput,
+        onSubmitThreshold = viewModel::submitThreshold,
+        onClearThreshold = viewModel::clearThreshold,
     )
 }
 
@@ -88,6 +129,8 @@ fun CatalogScreen(
     onRetry: () -> Unit,
     onNewProduct: () -> Unit,
     onEditDetails: () -> Unit,
+    stockPane: @Composable (productId: String) -> Unit,
+    onOpenRestock: () -> Unit = {},
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -97,7 +140,7 @@ fun CatalogScreen(
     ) {
         val wide = maxWidth >= 840.dp
         Column(Modifier.fillMaxSize()) {
-            CatalogHeader(onNewProduct)
+            CatalogHeader(onNewProduct, onOpenRestock)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
@@ -120,6 +163,7 @@ fun CatalogScreen(
                         onEditDetails = onEditDetails,
                         scrollable = true,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
+                        stockPane = stockPane,
                     )
                 }
             } else {
@@ -138,6 +182,7 @@ fun CatalogScreen(
                         onEditDetails = onEditDetails,
                         scrollable = false,
                         modifier = Modifier.fillMaxWidth(),
+                        stockPane = stockPane,
                     )
                 }
             }
@@ -146,7 +191,7 @@ fun CatalogScreen(
 }
 
 @Composable
-private fun CatalogHeader(onNewProduct: () -> Unit) {
+private fun CatalogHeader(onNewProduct: () -> Unit, onOpenRestock: () -> Unit = {}) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.xl, vertical = EffySpacing.lg),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -160,6 +205,11 @@ private fun CatalogHeader(onNewProduct: () -> Unit) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md), verticalAlignment = Alignment.CenterVertically) {
             Text("Search", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            // ⚠ Restock lives INSIDE Catalog, not as a fifth tab: the bar carries four and that is the
+            // ceiling on a phone, and every row in that list leads back to a product's Inventory tab.
+            TextButton(onClick = onOpenRestock, modifier = Modifier.heightIn(min = 52.dp)) {
+                Text("Restock", style = MaterialTheme.typography.labelLarge)
+            }
             Button(
                 onClick = onNewProduct,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -265,6 +315,7 @@ private fun CatalogDetailPane(
     onEditDetails: () -> Unit,
     scrollable: Boolean,
     modifier: Modifier,
+    stockPane: @Composable (productId: String) -> Unit,
 ) {
     val paneModifier = modifier
         .background(MaterialTheme.colorScheme.background)
@@ -277,7 +328,7 @@ private fun CatalogDetailPane(
     ) {
         when {
             state.isLoadingDetail -> LoadingBlock("Loading product details")
-            state.detail != null -> ProductDetailContent(state.detail, onEditDetails)
+            state.detail != null -> ProductDetailContent(state.detail, onEditDetails, stockPane)
             state.products.isEmpty() -> EmptyBlock("Select a product once the catalog has items.")
             else -> EmptyBlock("Select a product to view its details.")
         }
@@ -285,7 +336,11 @@ private fun CatalogDetailPane(
 }
 
 @Composable
-private fun ProductDetailContent(detail: ProductDetail, onEditDetails: () -> Unit) {
+private fun ProductDetailContent(
+    detail: ProductDetail,
+    onEditDetails: () -> Unit,
+    stockPane: @Composable (productId: String) -> Unit,
+) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val stackHeaderActions = maxWidth < 620.dp
         if (stackHeaderActions) {
@@ -305,8 +360,14 @@ private fun ProductDetailContent(detail: ProductDetail, onEditDetails: () -> Uni
         }
     }
     MediaStrip(detail.media)
-    DetailTabs()
-    ProductDetails(detail)
+
+    var tab by remember(detail.id) { mutableStateOf(ProductDetailTab.OVERVIEW) }
+    DetailTabs(tab) { tab = it }
+    when (tab) {
+        ProductDetailTab.INVENTORY -> stockPane(detail.id)
+        // Attributes and Media have always shown the overview — see the note on DetailTabs.
+        else -> ProductDetails(detail)
+    }
 }
 
 @Composable
@@ -379,25 +440,43 @@ private fun MediaStrip(media: List<ProductMedia>) {
     }
 }
 
+/**
+ * ⚠ THESE TABS WERE DECORATIVE UNTIL 054. `DetailTabs()` took no parameters, hard-coded index 0 as
+ * selected, and the pane below it always rendered the same content — so tapping "Attributes", "Media"
+ * or "Inventory" did nothing at all, silently. This is a PRE-EXISTING gap that 054 did not introduce;
+ * it makes **Inventory** real because that is the tab this slice owns, and leaves the other two
+ * showing the overview exactly as they always have. Making Attributes and Media real is their own
+ * slice's work, and pretending otherwise here would hide the gap rather than record it.
+ */
+internal enum class ProductDetailTab(val label: String) {
+    OVERVIEW("Overview"),
+    ATTRIBUTES("Attributes"),
+    MEDIA("Media"),
+    INVENTORY("Inventory"),
+}
+
 @Composable
-private fun DetailTabs() {
+private fun DetailTabs(selected: ProductDetailTab, onSelect: (ProductDetailTab) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth()) {
-        listOf("Overview", "Attributes", "Media", "Inventory").forEachIndexed { index, label ->
+        ProductDetailTab.entries.forEach { tab ->
+            val isSelected = tab == selected
             Column(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { onSelect(tab) },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    label,
+                    tab.label,
                     style = MaterialTheme.typography.labelLarge,
-                    color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = EffySpacing.s),
                 )
                 Box(
                     Modifier
                         .height(2.dp)
                         .fillMaxWidth()
-                        .background(if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
+                        .background(if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant),
                 )
             }
         }

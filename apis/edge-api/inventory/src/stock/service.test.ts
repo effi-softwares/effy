@@ -9,6 +9,7 @@ vi.mock("./repository", () => ({
   setThreshold: vi.fn(),
   readSettings: vi.fn(),
   writeSettings: vi.fn(),
+  readLowStock: vi.fn(),
 }));
 
 import * as repo from "./repository";
@@ -183,5 +184,70 @@ describe("a product that is not this shop's", () => {
     // read, and it would turn this route into an oracle for which product ids are real.
     expect(missing.kind).toBe(foreign.kind);
     expect(missing.message).toBe(foreign.message);
+  });
+});
+
+// ── 054 US4: back-office acts on a shop's behalf, with FULL parity (FR-026, the Q5 clarification) ──
+describe("the assisted path", () => {
+  const boActor: Actor = { sub: "sub-admin", shopId: "shop-1", kind: "back_office" };
+
+  // ⚠ FOUR POWERS, NOT A SUBSET. FR-026 and the Q5 answer both say "every stock action a shop
+  // operator can". A support call that cannot do the thing a shop is ringing up to ask for is not an
+  // assisted path — and "turn tracking off, we can't keep it accurate right now" is exactly the kind
+  // of call support takes. The safety here is attribution and visibility (FR-027), not a narrower set
+  // of actions.
+  it("can do everything a shop operator can", async () => {
+    await expect(
+      service.setTracking(boActor, "p1", { tracked: true, onHand: 5 }),
+    ).resolves.toBeDefined();
+    await expect(
+      service.setTracking(boActor, "p1", { tracked: false }),
+    ).resolves.toBeDefined();
+    await expect(
+      service.setCount(boActor, "p1", { onHand: 9, reason: "correction" }),
+    ).resolves.toBeDefined();
+    await expect(
+      service.setThreshold(boActor, "p1", { threshold: 5 }),
+    ).resolves.toBeDefined();
+    await expect(
+      service.setSettings(boActor, { defaultThreshold: 3 }),
+    ).resolves.toBeDefined();
+  });
+
+  // ⚠ ONE SERVICE, TWO AUDIENCES (research R6). Two copies of "what a valid stock change is" would
+  // drift, and the drift would surface as back-office being able to write something a shop cannot.
+  it("applies the SAME validation to back-office as to a shop", async () => {
+    const shopErr = await refusal(() =>
+      service.setCount(shopActor, "p1", { onHand: -1, reason: "correction" }),
+    );
+    const boErr = await refusal(() =>
+      service.setCount(boActor, "p1", { onHand: -1, reason: "correction" }),
+    );
+    expect(boErr.kind).toBe(shopErr.kind);
+    expect(boErr.message).toBe(shopErr.message);
+  });
+
+  it("still requires a count to turn tracking on, even for back-office (FR-003)", async () => {
+    vi.mocked(repo.setTracking).mockClear();
+    const err = await refusal(() => service.setTracking(boActor, "p1", { tracked: true }));
+    expect(err.kind).toBe("validation");
+    // The refusal happens before the repository is reached — nothing is written, by either audience.
+    expect(repo.setTracking).not.toHaveBeenCalled();
+  });
+
+  it("passes the actor through so every movement is attributed to the individual (FR-027)", async () => {
+    await service.setCount(boActor, "p1", { onHand: 9, reason: "correction" });
+    expect(repo.setCount).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: "back_office", sub: "sub-admin" }),
+      "p1", 9, "correction", null,
+    );
+  });
+});
+
+describe("the restock list (FR-029)", () => {
+  it("reads the caller's own shop", async () => {
+    vi.mocked(repo.readLowStock).mockResolvedValue([]);
+    await service.listLowStock(shopActor);
+    expect(repo.readLowStock).toHaveBeenCalledWith("shop-1");
   });
 });
