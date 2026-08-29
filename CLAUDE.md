@@ -1825,5 +1825,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/054-product-inventory/plan.md
+at specs/055-refunds-cancellation/plan.md
 <!-- SPECKIT END -->
