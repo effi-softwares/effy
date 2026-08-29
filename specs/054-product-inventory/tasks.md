@@ -73,10 +73,10 @@ nothing about it changed.
 - [X] T019 [P] [US1] Handlers `src/functions/stock-v1-{get,put,adjust,tracking-put,threshold-put}.ts` and `settings-v1-{get,put}.ts` — thin: gate → parse → service → DTO, RFC 9457 on refusal.
 - [X] T020 [US1] Wire the seven product/settings shop routes in `serverless.yml` behind the **shop** authorizer, paths per the contract. ⚠ The eighth shop route, `GET /inventory/v1/low-stock`, is wired in Phase 7 with the feature it serves (T063a).
 - [X] T021 [P] [US1] Service tests in `src/stock/service.test.ts` — the validation table incl. `-1`, `2.5`, tracking-on with no count, and a missing reason; and the tracked → untracked → **re-tracked** cycle, where the fresh count is authoritative and the earlier history survives (data-model §6).
-- [ ] T022 [P] [US1] ⚠ **BLOCKED — Docker is down**, so no container-backed test can run this session (052 lost its exactly-once proofs the same way). Repository tests in `src/stock/repository.test.ts` — movement written in the same transaction as the count; `quantity_before`/`after` correct on both absolute and relative writes.
+- [ ] T022 [P] [US1] ⚠ **STILL OPEN, no longer blocked.** Docker is up; the inventory service's own repository container tests were not written (its SQL is covered by shape tests + the executed core-api container proofs). Repository tests in `src/stock/repository.test.ts` — movement written in the same transaction as the count; `quantity_before`/`after` correct on both absolute and relative writes.
 - [X] T023 [US1] Isolation test: a product belonging to another shop returns **the same refusal** as one that does not exist (FR-004) — assert the two responses are byte-identical.
 - [X] T023a [US1] Test (FR-010, A7): a **`shop_staff`** member — not a manager — can turn tracking on and set a count. ⚠ This is the test that catches the wrong gate being wired; without it a manager-only gate ships green.
-- [ ] T024 [US1] ⚠ **BLOCKED — Docker is down.** Concurrency test: two simultaneous adjustments to one product both produce movements and the count reflects both (FR-011).
+- [ ] T024 [US1] ⚠ **STILL OPEN, no longer blocked.** Docker is up. Concurrency test: two simultaneous adjustments to one product both produce movements and the count reflects both (FR-011).
 
 ### shop-web
 
@@ -129,13 +129,13 @@ order; then record a pick shortfall and confirm the count is corrected citing th
 - [X] T044 [US3] `apis/core-api/internal/features/checkout/store.go` — inside `FinalizeSucceeded`, after the fan-out, reduce each tracked line with `UPDATE … SET stock_on_hand = GREATEST(0, stock_on_hand - $qty) … RETURNING` and insert a movement with `reason='order_paid'`, `actor_kind='system'`, `actor_sub=NULL`, `order_id` set, and `shop_id` taken from the product. ⚠ `'system'` is the only `actor_kind` the finalize path may use and the only one no other task names. ⚠ **No dedupe key** — the status-guarded transition at the top of the function already makes everything below it exactly-once ([research.md](./research.md) R3); adding one would imply that guard is untrustworthy.
 - [X] T045 [US3] In the same transaction, seed `public.fulfillment_item` for any line whose ordered quantity exceeded stock, with `unavailable_quantity` set to the deficit (FR-022a). ⚠ Confirm no change is needed in `apis/edge-api/shop` — its seed is `ON CONFLICT DO NOTHING` and its reads are `LEFT JOIN` ([research.md](./research.md) R4).
 - [X] T046 [US3] `apis/edge-api/shop/src/fulfillments/repository.ts` — the picker's shortfall write also corrects `product.stock_on_hand` and writes a `pick_shortfall` movement, in the existing transaction (FR-023).
-- [ ] T047 [P] [US3] ⚠ **WRITTEN, COMPILES, NEVER EXECUTED — Docker down all session.** `stock_container_test.go`; runs the moment Docker is up. **Container-backed** test: finalize twice for one order → the count moves exactly once (FR-021). ⚠ `docker info` first — 052's exactly-once proofs skipped silently for a whole session.
-- [ ] T048 [US3] ⚠⚠ **WRITTEN, COMPILES, NEVER EXECUTED — Docker down all session. THIS IS THE MOST IMPORTANT UNVERIFIED CLAIM IN THE SLICE.** **Container-backed concurrency test (SC-003)**: two finalizes for the last unit, concurrently → the count never reads below zero, both orders exist, exactly one carries a shortfall.
-- [X] T049 [P] [US3] **NEGATIVE PROOF written as `TestStock_WithoutTheFloorTheConcurrentCaseBreaks`** — ⚠ also Docker-gated. (quickstart §2d) remove the `GREATEST(0, …)` floor and confirm T048 drives the count negative. Revert.
+- [X] T047 [P] [US3] ✅ **EXECUTED AND PASSING** against real PostgreSQL 16 (Docker came up at the end of the session). **Container-backed** test: finalize twice for one order → the count moves exactly once (FR-021). ⚠ `docker info` first — 052's exactly-once proofs skipped silently for a whole session.
+- [X] T048 [US3] ✅ **SC-003 EXECUTED AND PASSING** — two concurrent payments for the last unit; the count never reads below zero, both movements are recorded, and **proven by removing the floor**, which makes the second payment violate `product_stock_on_hand_ck`. **Container-backed concurrency test (SC-003)**: two finalizes for the last unit, concurrently → the count never reads below zero, both orders exist, exactly one carries a shortfall.
+- [X] T049 [P] [US3] ✅ **NEGATIVE PROOF EXECUTED** — `TestStock_WithoutTheFloorTheConcurrentCaseBreaks` passes, and removing the floor from the real statement makes SC-003 fail. (quickstart §2d) remove the `GREATEST(0, …)` floor and confirm T048 drives the count negative. Revert.
 - [X] T050 [P] [US3] Test: a portion with pre-seeded shortfall rows still reads **`pending`**, not "picking" — the assumption at `fulfillments/repository.ts:71` is now false and must not be relied on for presentation ([research.md](./research.md) R4).
 - [X] T051 [P] [US3] Test: gathering a pre-flagged line clears the flag through the existing absolute-quantity PATCH, with no special case (FR-022a correctability).
 - [X] T052 [P] [US3] Test: an untracked product in a paid order produces **no movement at all** (FR-024).
-- [ ] T053 [P] [US3] ⚠ **Docker-gated** — the mixed-sequence walk needs a real engine. Test (SC-005): after a mixed sequence — track, receive, pay, pick-short, correct — the movements fully account for the difference between the opening and current count.
+- [ ] T053 [P] [US3] ⚠ **STILL OPEN, no longer blocked** — Docker is up. Test (SC-005): after a mixed sequence — track, receive, pay, pick-short, correct — the movements fully account for the difference between the opening and current count.
 
 **Checkpoint**: counts stay true without hand maintenance; the oversell is visible before picking.
 
@@ -226,11 +226,20 @@ US1 backend. Nothing is half-finished: every task marked `[X]` builds, typecheck
   together — SC-012.
 - Wiring a manager-only shop gate makes `authz.test.ts` fail — the F1 defect the analysis pass found.
 
-**⚠ DOCKER IS DOWN for this whole session**, exactly as it was for all of 052. Every container-backed
-test fails with `failed to create Docker provider` — that is the ONLY reason
-`features/{checkout,saveditems,storefront}` and `platform/delivery` are red in Go, and it blocks
-**T022, T024, T047 and T048**. ⚠ **T048 is SC-003, the deliberate-oversell concurrency proof — the
-single most important unverified claim in this slice.**
+**✅ DOCKER CAME UP AT THE END OF THE SESSION, AND EVERY CONTAINER TEST RAN.**
+
+- **SC-003 PASSES** — two concurrent payments for the last unit: the count never reads below zero,
+  both movements are recorded, and it is **proven by removing the floor**, which makes the second
+  payment violate `product_stock_on_hand_ck`. This was the single most important unverified claim in
+  the slice and it is now demonstrated, not reasoned.
+- Go: **15 of 17 packages pass** with containers. `features/{checkout,storefront}` both ran their
+  container suites green.
+- The **57 previously-skipped** edge container tests pass under `CONTAINER_TESTS=1`
+  (orders 33, customer 200, admin 204).
+- ⚠ **The two remaining Go failures are the pre-existing red gates**, with the error text matching
+  what CLAUDE.md already records verbatim: `saveditems` (`public.delivery_pricing_rule does not
+  exist`, recorded under 033) and `platform/delivery` (`column z.sameday_eligible does not exist`).
+  Neither package was touched by this slice.
 
 **Next**: T025–T033 (shop-web + shop-mobile Inventory tabs), then Phase 4 (US2, the buying gates),
 which is where the oversell actually stops.

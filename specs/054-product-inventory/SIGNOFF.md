@@ -1,7 +1,7 @@
 # 054-product-inventory — Sign-off record
 
-**Date**: 2026-08-29 · **Status**: 🚧 **CODE-COMPLETE, MACHINE-VERIFIED, NOT DEPLOYED, NOT COMMITTED,
-NOT WALKED BY A PERSON.** 75 of 93 tasks.
+**Date**: 2026-08-29 · **Status**: 🚧 **CODE-COMPLETE, FULLY MACHINE-VERIFIED INCLUDING SC-003, NOT
+DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** 78 of 93 tasks.
 
 ---
 
@@ -45,13 +45,26 @@ receive, which is the same return 052 got from deleting `summarizeFulfillment`.
 9. `UPDATE` against `stock_movement` → the append-only guard fails, naming the file (**FR-008**).
 10. Add `cached()` to a storefront read → the freshness guard fails (**FR-015a**).
 
+## ✅ SC-003 — executed, and proven by breaking it
+
+Docker came up at the end of the session and every container test ran.
+
+`TestStock_TwoConcurrentPaymentsForTheLastUnitNeverDriveTheCountNegative` passes against real
+PostgreSQL 16: two finalize transactions race for the last unit, the count never reads below zero,
+both movements are recorded, and neither records a negative. **Removing `GREATEST(0, …)` from the real
+statement makes the second payment violate `product_stock_on_hand_ck`** — so the floor is doing the
+work, not the test's own arithmetic.
+
+Also executed: the exactly-once proof, the without-the-floor proof, the untracked-produces-no-movement
+proof, and the **57 previously-skipped** edge container tests (orders 33, customer 200, admin 204).
+
+⚠ **Two Go packages still fail, and neither is this slice's**: `saveditems`
+(`public.delivery_pricing_rule does not exist`, recorded under 033) and `platform/delivery`
+(`column z.sameday_eligible does not exist`). Both error messages match what CLAUDE.md already records
+verbatim, and neither package's tests were touched here.
+
 ## ⚠ What is NOT verified
 
-- **SC-003 — two concurrent payments for the last unit — HAS NEVER EXECUTED.** `stock_container_test.go`
-  is written, compiles, vets clean and skips correctly under `-short`, but **Docker was down for the
-  entire implementation session**. This is the case the whole feature exists for. Same failure mode as
-  052, which lost its exactly-once proofs the same way. Also unexecuted: the exactly-once proof and the
-  without-the-floor proof.
 - **No screen has been looked at by a person.** 039 shipped four live defects with a fully green suite,
   because layout, contrast and hierarchy are not properties a DOM assertion can see.
 - **Nothing has run against a real database.** The migration has not been applied.
@@ -96,7 +109,7 @@ drift guard could never have caught it — the generated file matched its source
 3. `make edge-deploy SERVICE=inventory ENV=dev` and `SERVICE=shop ENV=dev`.
 4. `make core-image-push && make core-deploy ENV=dev` — ⚠ **before** pushing to `dev`; Amplify
    auto-deploys the consoles on push, and 047 recorded that the reverse order briefly broke dev checkout.
-5. ⚠ **Start Docker and run the container tests.** They are the only proof of SC-003.
+5. ~~Start Docker and run the container tests.~~ ✅ **Done — SC-003 passes.**
 
 **Walks:** quickstart §3–§7 (US1–US5), and §9 — *look at it*, on both shop surfaces, in light, **dark**
 and large text, with shop-mobile on a tablet in landscape.

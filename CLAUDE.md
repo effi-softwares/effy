@@ -261,9 +261,9 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**054-product-inventory — Product Inventory (Shop-Managed Stock).** 🚧 **75/93 tasks — US1–US5 all
-BUILT and machine-verified across 5 surfaces. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON, and
-⚠ SC-003 HAS NEVER EXECUTED.** Spec/artifacts: [specs/054-product-inventory/](specs/054-product-inventory/).
+**054-product-inventory — Product Inventory (Shop-Managed Stock).** 🚧 **78/93 tasks — US1–US5 all BUILT
+and FULLY machine-verified, ✅ INCLUDING SC-003 AGAINST REAL POSTGRESQL. NOT DEPLOYED, NOT COMMITTED,
+NOT WALKED BY A PERSON.** Spec/artifacts: [specs/054-product-inventory/](specs/054-product-inventory/).
 
 Closes gap **G2** — the top item in [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) after 053.
 - ⚠ **THE DEFECT: nothing on the platform knew how much of anything a shop had.** `public.product`
@@ -326,12 +326,17 @@ Closes gap **G2** — the top item in [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) a
   `go test -short ./...` **16/16 packages** · shop-mobile **107** Android host tests + **iOS main AND
   test compile** · `sm-guard` · `mobile-assets:check` · `tokens:check` **unchanged** (this slice adds
   no token). **TEN negative proofs**, each done by breaking the thing.
-- **⚠ Open (18)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=inventory|shop`;
-  `core-deploy` (**before** pushing to `dev`); the quickstart walks. ⚠ **DOCKER WAS DOWN ALL SESSION**,
-  so `stock_container_test.go` — which contains **SC-003, two concurrent payments for the last unit,
-  the case this whole feature exists for** — is written, compiles, and has **never executed**. Same
-  failure mode as 052. ⚠ **Nobody has looked at any screen**: 039 shipped four live defects with a
-  fully green suite. Parity register:
+- ✅ **SC-003 IS PROVEN.** Two concurrent payments for the last unit, against real PostgreSQL: the count
+  never reads below zero, both movements are recorded — and **removing the `GREATEST(0, …)` floor makes
+  the second payment violate the CHECK constraint**, so the floor is doing the work. The **57
+  previously-skipped** edge container tests pass too (`CONTAINER_TESTS=1`). ⚠ The two Go packages still
+  red are the **pre-existing** gates, error text matching this file verbatim.
+- **⚠ Open (15)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=inventory|shop`;
+  `core-deploy` (**before** pushing to `dev`); the quickstart walks. ⚠ **Nobody has looked at any
+  screen**: 039 shipped four live defects with a fully green suite. ⚠ **`make core-image-push` never
+  logged in to ECR** (found 2026-08-29 when a 12-hour token expired and the push 403'd while
+  `core-deploy` cheerfully redeployed a two-day-old image) — the target now authenticates first.
+  Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §054.
 
 **053-order-lifecycle-completion — Order Lifecycle Completion.** 🚧 **70/88 tasks — CODE-COMPLETE +

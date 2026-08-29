@@ -96,9 +96,9 @@ sole discovery mechanism is a picker finding an empty shelf hours later — whic
 >   toward the money half — not a substitute for it. A shopper who is oversold is still charged in
 >   full, and there is still no refund capability on the platform.
 >
-> ⚠ **NOT DEPLOYED, NOT COMMITTED, and SC-003 — two concurrent payments for the last unit — has never
-> been executed** (Docker was down for the implementation session). Until that runs, the concurrency
-> guarantee is reasoned, not demonstrated.
+> ✅ **SC-003 is proven** — two concurrent payments for the last unit, against real PostgreSQL: the
+> count never reads below zero, and removing the floor makes the second payment violate the CHECK
+> constraint. ⚠ **NOT DEPLOYED, NOT COMMITTED, and no screen has been looked at by a person.**
 
 ### G3. Shortfall has no money path
 

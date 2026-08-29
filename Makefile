@@ -234,9 +234,28 @@ core-ecr-login: ## OPERATOR: docker login to the core-api ECR repo (ENV=dev)
 
 core-image-push: ## OPERATOR: build core-api for linux/arm64 and push (TAG=latest ENV=dev)
 	@ACCOUNT="$$(AWS_PROFILE=$(AWS_PROFILE) aws sts get-caller-identity --query Account --output text)" || exit 1; \
-	REPO="$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com/$(CORE_ECR_REPO)"; \
+	REGISTRY="$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com"; \
+	REPO="$$REGISTRY/$(CORE_ECR_REPO)"; \
+	echo "authenticating to ECR ($$REGISTRY)"; \
+	AWS_PROFILE=$(AWS_PROFILE) aws ecr get-login-password --region $(AWS_REGION) \
+	  | docker login --username AWS --password-stdin "$$REGISTRY" >/dev/null || exit 1; \
 	echo "building linux/arm64 → $$REPO:$(TAG)"; \
 	docker buildx build --platform linux/arm64 --target runtime -t "$$REPO:$(TAG)" $(CORE_DIR) --push
+
+# ⚠ WHY THE LOGIN IS PART OF THIS TARGET (added 054, after it bit).
+# An ECR authorization token lasts 12 HOURS. Without the login above, `buildx --push` uses whatever
+# credentials Docker happens to still hold and fails with a bare `403 Forbidden` on a blob HEAD
+# request — which reads like a permissions problem with the IAM role, not an expired token, and sends
+# you looking in the wrong place entirely.
+#
+# ⚠ AND THE FAILURE IS WORSE THAN IT LOOKS WHEN THE TWO TARGETS ARE RUN TOGETHER. `core-image-push`
+# exits non-zero, but `core-deploy` is a separate invocation: it runs anyway, force-deploys whatever
+# `:latest` already points at, waits for the service to stabilise, and prints "deployed." Nothing is
+# wrong with the deployment — it is simply the PREVIOUS build. Check the pushed date before believing
+# a deploy shipped your code:
+#   AWS_PROFILE=ef aws ecr describe-images --region ap-southeast-2 \
+#     --repository-name effy-dev-core-api --query 'imageDetails[?contains(imageTags,`latest`)].imagePushedAt'
+
 
 core-deploy: ## OPERATOR: force a new core-api ECS deployment + wait for stable (TAG=latest ENV=dev)
 	@printf 'ECS force-new-deployment  →  cluster/service=%s stage=%s (live AWS)\nContinue? [y/N] ' "$(CORE_SERVICE)" "$(ENV)"; \
