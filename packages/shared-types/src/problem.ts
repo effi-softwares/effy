@@ -20,6 +20,14 @@ export interface ProblemJSON {
   status: number;
   detail?: string;
   instance?: string;
+  /**
+   * ⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues
+   * under `errors`; `fields` was the name only this type used, so every reader keying off it saw
+   * nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface
+   * (053 found it; 054 fixed the reader in `@effy/api-client`).
+   */
+  errors?: ProblemFieldIssue[];
+  /** @deprecated The wire uses `errors`. Kept so older readers still compile. */
   fields?: ProblemFieldIssue[];
   [key: string]: unknown;
 }

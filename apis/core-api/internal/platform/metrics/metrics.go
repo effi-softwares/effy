@@ -28,6 +28,11 @@ type Metrics struct {
 	serviceabilityChecks *prometheus.CounterVec // labels: serviced ∈ {true,false}
 	deliveryQuotes       *prometheus.CounterVec // labels: outcome ∈ {same_day_and_standard,standard_only,unserviced}
 	deliveryQuoteFailure prometheus.Counter     // the invariant alarm: a served zone that failed to price
+
+	// 054 stock. ⚠ Labels are a small closed set — never a product id or a shop id, which would make
+	// the series unbounded AND disclose shop identity into a metrics store (Principle VII, FR-015).
+	stockDeducted *prometheus.CounterVec // labels: outcome ∈ {full,partial}
+	stockBlocked  *prometheus.CounterVec // labels: stage   ∈ {add,checkout}
 }
 
 func New() *Metrics {
@@ -54,6 +59,16 @@ func New() *Metrics {
 			Name: "delivery_quote_failures_total",
 			Help: "⚠ INVARIANT ALARM: a served zone that failed to produce a fee. Must stay at 0 (FR-029).",
 		}),
+		stockDeducted: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_stock_deducted_total",
+			Help: "⚠ Paid orders that reduced stock. outcome=partial IS AN OVERSELL — a customer was " +
+				"charged for units that did not exist (054 FR-022). NO product/shop label.",
+		}, []string{"outcome"}),
+		stockBlocked: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_stock_blocked_total",
+			Help: "Purchases stopped by stock, by stage (add | checkout). A RISING count is the " +
+				"feature working, not a fault (054 FR-016/FR-018).",
+		}, []string{"stage"}),
 	}
 
 	m.registry.MustRegister(
@@ -62,6 +77,8 @@ func New() *Metrics {
 		m.serviceabilityChecks,
 		m.deliveryQuotes,
 		m.deliveryQuoteFailure,
+		m.stockDeducted,
+		m.stockBlocked,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
@@ -81,6 +98,26 @@ func (m *Metrics) DeliveryQuoted(outcome string) {
 // DeliveryQuoteFailed records the invariant alarm — a served zone that could not be priced (FR-029). This
 // must never fire; a non-zero value is a paging alert, not a metric to watch idly.
 func (m *Metrics) DeliveryQuoteFailed() { m.deliveryQuoteFailure.Inc() }
+
+// StockDeducted records one paid order's effect on stock (054).
+//
+// ⚠ `outcome="partial"` IS THE OVERSELL. It means a shopper paid for more units than the shop had —
+// the exact harm this whole feature exists to prevent, arriving through the residual window between
+// creating a payment and that payment succeeding (spec A6). A sustained non-zero rate is the alert in
+// `infra/observability/alerts/054-product-inventory.yml`, and it should never be discovered from a
+// support ticket.
+func (m *Metrics) StockDeducted(outcome string) {
+	m.stockDeducted.WithLabelValues(outcome).Inc()
+}
+
+// StockBlocked records one purchase stopped by stock, by stage (054).
+//
+// ⚠ A RISING COUNT HERE IS THE FEATURE WORKING. Each increment is one shopper who would previously
+// have been charged in full for something that did not exist. It is the number that says whether
+// shops are maintaining their counts at all.
+func (m *Metrics) StockBlocked(stage string) {
+	m.stockBlocked.WithLabelValues(stage).Inc()
+}
 
 // Middleware records the RED pair for every handled request.
 func (m *Metrics) Middleware() gin.HandlerFunc {

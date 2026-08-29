@@ -36,6 +36,7 @@ import com.effyshopping.mobile.kit.ui.MotionRole
 import com.effyshopping.shop.mobile.app.AppContainer
 import com.effyshopping.shop.mobile.core.nav.AccountRoot
 import com.effyshopping.shop.mobile.core.nav.CatalogRoot
+import com.effyshopping.shop.mobile.core.nav.RestockList
 import com.effyshopping.shop.mobile.core.nav.HomeRoot
 import com.effyshopping.shop.mobile.core.nav.ManagerArea
 import com.effyshopping.shop.mobile.core.nav.OrderDetail
@@ -45,6 +46,7 @@ import com.effyshopping.shop.mobile.core.nav.shopNavJson
 import com.effyshopping.shop.mobile.core.nav.shopStartRoute
 import com.effyshopping.shop.mobile.core.session.SessionState
 import com.effyshopping.shop.mobile.features.catalog.presentation.CatalogRoute
+import com.effyshopping.shop.mobile.features.catalog.presentation.LowStockRoute
 import com.effyshopping.shop.mobile.features.orders.presentation.OrdersRoute
 import com.effyshopping.shop.mobile.resources.Res
 import com.effyshopping.shop.mobile.resources.ic_account_outlined
@@ -119,6 +121,14 @@ fun ShopShell(
                 CatalogRoot -> CatalogRoute(
                     listProducts = container.listProducts,
                     getProduct = container.getProduct,
+                    stockUseCases = container.stockUseCases,
+                    onOpenRestock = { tabs.push(RestockList) },
+                )
+                RestockList -> LowStockRoute(
+                    getLowStock = container.stockUseCases.getLowStock,
+                    // Tapping a row returns to the catalog, where the product's Inventory tab is —
+                    // the list exists to be acted on, not read.
+                    onOpenProduct = { tabs.pop() },
                 )
                 OrdersRoot -> OrdersRoute(
                     listFulfillments = container.listFulfillments,

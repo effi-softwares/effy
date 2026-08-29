@@ -1,0 +1,80 @@
+# Alerting rules for 054-product-inventory.
+#
+# ⚠ NOT LOADED BY ANYTHING. See ../README.md — the Prometheus/Grafana stack these are written for does
+# not exist: no module, no scrape config, and nothing reads core-api's `/metrics`. These are
+# specifications, not live alerts, and this slice inherits that gap rather than introducing it.
+#
+# ⚠ A CloudWatch alarm was the obvious alternative and is wrong here. All 14 existing alarms sit on
+# SES or CloudWatch-native data, there is NO log metric filter anywhere in the repository (038
+# deferred its own), and inventing one would put this slice's alert on a different mechanism from
+# every hot-path metric it sits beside. Recorded as a deviation in the plan's Complexity Tracking.
+#
+# ⚠ UNTIL THE STACK EXISTS, an oversell is detectable only by querying `public.stock_movement` —
+# a movement whose `quantity_after` is 0 while the order asked for more. Say so to whoever asks.
+#
+# Metrics referenced here are declared in
+# apis/core-api/internal/platform/metrics/metrics.go and emitted from the cart, checkout and
+# finalize paths.
+groups:
+  - name: product-inventory
+    rules:
+      # ⚠ THE ONE THAT MATTERS. An oversell means a customer has been CHARGED IN FULL for units the
+      # shop did not have. The shop is told at once — the pick line is pre-flagged before picking
+      # begins (FR-022a) — but nobody at Effy is, and there is still no money path to put it right
+      # (order-flow gap register G3). It should never be discovered from a support ticket.
+      #
+      # Not paging on a single occurrence: the residual window between creating a payment and that
+      # payment succeeding is accepted by design (spec A6), so an occasional one is the system
+      # behaving as specified. A sustained RATE means stock is drifting badly or a shop has stopped
+      # maintaining its counts.
+      - alert: StockOversellRate
+        expr: |
+          sum(rate(effy_stock_deducted_total{outcome="partial"}[30m]))
+            /
+          clamp_min(sum(rate(effy_stock_deducted_total[30m])), 0.0001)
+            > 0.02
+        for: 30m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 2% of paid orders are overselling"
+          description: >-
+            Orders are being paid for stock that is not there. Each one is a customer charged in
+            full for units they will not receive, with no refund capability on the platform to put
+            it right. Check whether a shop has stopped maintaining its counts, and whether the
+            reduction inside FinalizeSucceeded is still running.
+
+      # ⚠ AN OVERSELL AT ALL, however rare, is worth seeing. Ticket rather than page: one is the
+      # accepted residual window, and paging on it would train people to ignore the page above.
+      - alert: StockOversellOccurred
+        expr: sum(increase(effy_stock_deducted_total{outcome="partial"}[1h])) > 0
+        for: 5m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "A paid order oversold stock in the last hour"
+          description: >-
+            Expected occasionally (spec A6 accepts the window between creating a payment and it
+            succeeding). Worth reading the affected order's pick lines — they are already flagged
+            short — and confirming the shop has been told.
+
+      # ⚠ NOT AN ALERT ABOUT A FAULT. `stock_blocked` rising is the FEATURE WORKING: each increment
+      # is one shopper who would previously have been charged for something that did not exist.
+      # This fires on the opposite — the counter going FLAT while orders keep flowing, which is what
+      # it would look like if the availability rule stopped being applied. It is the closest thing
+      # to a "did anyone break FR-012" signal that a metric can give.
+      - alert: StockGateSilent
+        expr: |
+          sum(increase(effy_stock_blocked_total[24h])) == 0
+            and
+          sum(increase(effy_stock_deducted_total[24h])) > 100
+        for: 2h
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Stock has stopped blocking any purchase while orders keep flowing"
+          description: >-
+            Either every tracked product is comfortably in stock, or the availability rule has
+            stopped being applied on the cart/checkout path. Check that
+            availability.Predicate is still in the cart and checkout queries — the guard test in
+            internal/platform/availability names any site that drifts.

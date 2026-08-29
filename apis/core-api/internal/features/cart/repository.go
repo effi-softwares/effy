@@ -33,15 +33,19 @@ import (
 // cartLineRow is the wire shape of a cart read (cart_item ⋈ product ⋈ primary media). The same shape
 // serves set-aside lines, because they are the same thing shown in a different place.
 type cartLineRow struct {
-	ID              string  `db:"id"`
-	ProductID       string  `db:"product_id"`
-	ShopID          string  `db:"shop_id"`
-	Quantity        int     `db:"quantity"`
-	Name            string  `db:"name"`
-	UnitPriceAmount string  `db:"unit_price_amount"`
-	Currency        string  `db:"currency"`
-	Status          string  `db:"status"`
-	StorageKey      *string `db:"storage_key"`
+	ID              string `db:"id"`
+	ProductID       string `db:"product_id"`
+	ShopID          string `db:"shop_id"`
+	Quantity        int    `db:"quantity"`
+	Name            string `db:"name"`
+	UnitPriceAmount string `db:"unit_price_amount"`
+	Currency        string `db:"currency"`
+	Status          string `db:"status"`
+	// 054: the two columns availability.Purchasable needs alongside Status. `StockOnHand` is NULL
+	// exactly when the product is untracked, which the database enforces the other way round too.
+	StockTracked bool    `db:"stock_tracked"`
+	StockOnHand  *int    `db:"stock_on_hand"`
+	StorageKey   *string `db:"storage_key"`
 	// The price when the line was added — NULL for a line predating 027, and NULL is not "unchanged",
 	// it is "unknown" (the service must not fabricate a price-change notice from it).
 	UnitPriceAtAdd *string   `db:"unit_price_at_add"`
@@ -71,6 +75,10 @@ type CartMeta struct {
 type productStatusRow struct {
 	Status      string `db:"status"`
 	PriceAmount string `db:"price_amount"`
+	// 054: the add/set-quantity guard decides purchasability, not just lifecycle status, and it also
+	// needs the count itself so the refusal can say how many are available (FR-016/FR-015b).
+	StockTracked bool `db:"stock_tracked"`
+	StockOnHand  *int `db:"stock_on_hand"`
 }
 
 type Repository struct {
@@ -94,6 +102,8 @@ const lineProjection = `
        p.price_amount::text   AS unit_price_amount,
        p.currency             AS currency,
        p.status               AS status,
+       p.stock_tracked        AS stock_tracked,
+       p.stock_on_hand        AS stock_on_hand,
        ci.unit_price_at_add::text AS unit_price_at_add,
        ci.added_at            AS added_at,
        m.storage_key          AS storage_key`
@@ -242,23 +252,29 @@ func (r *Repository) CountDistinct(ctx context.Context, cartID string) (int, err
 	return n, nil
 }
 
-// ProductStatus returns the product's lifecycle status and current price; found=false if the row does
-// not exist (only reachable on the guest preview path — see research R11).
-func (r *Repository) ProductStatus(ctx context.Context, productID string) (string, string, bool, error) {
+// ProductStatus returns everything the purchasability decision needs about one product — its
+// lifecycle status, its current price, and (054) whether it is stock-tracked and how many remain.
+// found=false if the row does not exist (only reachable on the guest preview path — research R11).
+//
+// ⚠ It returns the row rather than a bool because the CALLER must be able to say how many are
+// available when it refuses (FR-016). A helper that answered only yes/no would force a second read
+// to build the message, and the two reads could disagree.
+func (r *Repository) ProductStatus(ctx context.Context, productID string) (productStatusRow, bool, error) {
 	rows, err := r.pool.Query(ctx, `
-SELECT status AS status, price_amount::text AS price_amount
+SELECT status AS status, price_amount::text AS price_amount,
+       stock_tracked AS stock_tracked, stock_on_hand AS stock_on_hand
 FROM public.product WHERE id = $1`, productID)
 	if err != nil {
-		return "", "", false, fmt.Errorf("cart: query product status: %w", err)
+		return productStatusRow{}, false, fmt.Errorf("cart: query product status: %w", err)
 	}
 	row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[productStatusRow])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", "", false, nil
+			return productStatusRow{}, false, nil
 		}
-		return "", "", false, fmt.Errorf("cart: scan product status: %w", err)
+		return productStatusRow{}, false, fmt.Errorf("cart: scan product status: %w", err)
 	}
-	return row.Status, row.PriceAmount, true, nil
+	return row, true, nil
 }
 
 // ProductSnapshots reads the catalogue rows for an arbitrary set of product ids, in the SAME shape as a
@@ -278,6 +294,8 @@ SELECT ''::text              AS id,
        p.price_amount::text  AS unit_price_amount,
        p.currency            AS currency,
        p.status              AS status,
+       p.stock_tracked       AS stock_tracked,
+       p.stock_on_hand       AS stock_on_hand,
        NULL::text            AS unit_price_at_add,
        m.storage_key         AS storage_key
 FROM public.product p`+primaryMediaJoin+`
@@ -299,7 +317,9 @@ func (r *Repository) OrderItemsForReorder(ctx context.Context, customerID, order
 SELECT oi.product_id::text AS product_id,
        oi.quantity         AS quantity,
        oi.product_name     AS name,
-       p.status            AS status
+       p.status            AS status,
+       p.stock_tracked     AS stock_tracked,
+       p.stock_on_hand     AS stock_on_hand
 FROM public."order" o
 JOIN public.order_item oi ON oi.order_id = o.id
 LEFT JOIN public.product p ON p.id = oi.product_id
@@ -322,6 +342,10 @@ type ReorderCandidate struct {
 	Quantity  int     `db:"quantity"`
 	Name      string  `db:"name"`
 	Status    *string `db:"status"` // NULL when the product row is gone
+	// 054. Both NULL when the product row is gone — the LEFT JOIN misses, and `Status == nil` is
+	// already the signal for that, so these are only ever read after that check.
+	StockTracked *bool `db:"stock_tracked"`
+	StockOnHand  *int  `db:"stock_on_hand"`
 }
 
 // ── Promotional codes (027 US8) ─────────────────────────────────────────────────────────────────

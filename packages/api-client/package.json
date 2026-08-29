@@ -4,7 +4,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web API client — one authed fetch wrapper + RFC 9457 error mapping. Consumes @effy/shared-types. Internal package: exports TypeScript source.",
+  "description": "Effy web API client \u2014 one authed fetch wrapper + RFC 9457 error mapping. Consumes @effy/shared-types. Internal package: exports TypeScript source.",
   "exports": {
     ".": "./src/index.ts"
   },
@@ -12,12 +12,13 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests\" && exit 0"
+    "test": "vitest run"
   },
   "dependencies": {
     "@effy/shared-types": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^3.0.0"
   }
 }

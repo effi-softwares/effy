@@ -234,9 +234,28 @@ core-ecr-login: ## OPERATOR: docker login to the core-api ECR repo (ENV=dev)
 
 core-image-push: ## OPERATOR: build core-api for linux/arm64 and push (TAG=latest ENV=dev)
 	@ACCOUNT="$$(AWS_PROFILE=$(AWS_PROFILE) aws sts get-caller-identity --query Account --output text)" || exit 1; \
-	REPO="$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com/$(CORE_ECR_REPO)"; \
+	REGISTRY="$$ACCOUNT.dkr.ecr.$(AWS_REGION).amazonaws.com"; \
+	REPO="$$REGISTRY/$(CORE_ECR_REPO)"; \
+	echo "authenticating to ECR ($$REGISTRY)"; \
+	AWS_PROFILE=$(AWS_PROFILE) aws ecr get-login-password --region $(AWS_REGION) \
+	  | docker login --username AWS --password-stdin "$$REGISTRY" >/dev/null || exit 1; \
 	echo "building linux/arm64 → $$REPO:$(TAG)"; \
 	docker buildx build --platform linux/arm64 --target runtime -t "$$REPO:$(TAG)" $(CORE_DIR) --push
+
+# ⚠ WHY THE LOGIN IS PART OF THIS TARGET (added 054, after it bit).
+# An ECR authorization token lasts 12 HOURS. Without the login above, `buildx --push` uses whatever
+# credentials Docker happens to still hold and fails with a bare `403 Forbidden` on a blob HEAD
+# request — which reads like a permissions problem with the IAM role, not an expired token, and sends
+# you looking in the wrong place entirely.
+#
+# ⚠ AND THE FAILURE IS WORSE THAN IT LOOKS WHEN THE TWO TARGETS ARE RUN TOGETHER. `core-image-push`
+# exits non-zero, but `core-deploy` is a separate invocation: it runs anyway, force-deploys whatever
+# `:latest` already points at, waits for the service to stabilise, and prints "deployed." Nothing is
+# wrong with the deployment — it is simply the PREVIOUS build. Check the pushed date before believing
+# a deploy shipped your code:
+#   AWS_PROFILE=ef aws ecr describe-images --region ap-southeast-2 \
+#     --repository-name effy-dev-core-api --query 'imageDetails[?contains(imageTags,`latest`)].imagePushedAt'
+
 
 core-deploy: ## OPERATOR: force a new core-api ECS deployment + wait for stable (TAG=latest ENV=dev)
 	@printf 'ECS force-new-deployment  →  cluster/service=%s stage=%s (live AWS)\nContinue? [y/N] ' "$(CORE_SERVICE)" "$(ENV)"; \
@@ -278,12 +297,12 @@ edge-install: ## Install the JS/TS workspace dependencies (pnpm)
 edge-test: ## typecheck + vitest for every cold-path service (edge-shared + admin + shop)
 	@pnpm --filter "@effy/edge-*" run typecheck && pnpm --filter "@effy/edge-*" run test
 
-edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop|customer|driver|notifications|orders; needs the ef profile)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders ENV=dev"; exit 1; }
+edge-offline: ## Run ONE service locally via serverless-offline (SERVICE=admin|shop|customer|driver|notifications|orders|inventory; needs the ef profile)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-offline SERVICE=admin|shop|customer|driver|notifications|orders|inventory ENV=dev"; exit 1; }
 	@cd $(EDGE_DIR) && AWS_PROFILE=$(AWS_PROFILE) pnpm exec serverless offline --stage $(ENV)
 
-edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders ENV=dev)
-	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders ENV=dev"; exit 1; }
+edge-deploy: ## OPERATOR: deploy ONE cold-path service to AWS (SERVICE=admin|shop|customer|driver|notifications|orders|inventory ENV=dev)
+	@test -n "$(SERVICE)" || { echo "usage: make edge-deploy SERVICE=admin|shop|customer|driver|notifications|orders|inventory ENV=dev"; exit 1; }
 	@test -d "$(EDGE_DIR)" || { echo "edge-deploy: no such service directory: $(EDGE_DIR)"; exit 1; }
 	@printf 'serverless DEPLOY  →  service=%s stage=%s (attaches to the shared HTTP API, live AWS)\nContinue? [y/N] ' "$(SERVICE)" "$(ENV)"; \
 	read ans; [ "$$ans" = "y" ] || { echo "aborted — nothing deployed"; exit 1; }; \

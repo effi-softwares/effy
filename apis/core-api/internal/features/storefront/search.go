@@ -1,7 +1,7 @@
 // Search / browse (019 US4, extended by 025 US1). GET /v1/storefront/products with a pg_trgm text
 // query, filters (category, price range, sale-only, attribute facets), a caller-chosen ORDERING, a
 // total count, and KEYSET pagination for infinite scroll — stable under inserts, unlike OFFSET
-// (research R12). Only status='active' products are visible.
+// (research R12). Only PURCHASABLE products are visible (availability.Predicate, 054).
 package storefront
 
 import (
@@ -86,6 +86,8 @@ func cursorPredicate(p SearchParams, next func(any) string) string {
 // drift the first time a filter was added to one of them, and the shopper would see "48 results" above
 // a list of 31 — a number that is wrong in a way nobody can debug from the outside (FR-016a).
 func (r *Repository) filters(b *strings.Builder, p SearchParams, next func(any) string) {
+	// availability-exempt: public.product — a LISTING filter (see cardColumns in repository.go). Search
+	// results keep an out-of-stock product visible and mark it unavailable (FR-013, A10).
 	b.WriteString("\nWHERE p.status = 'active'")
 
 	if p.Q != "" {

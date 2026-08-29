@@ -28,6 +28,16 @@ data object AccountRoot : AppNavKey
 data object ManagerArea : AppNavKey
 
 /**
+ * The restock list (054 US5), pushed within the CATALOG tab.
+ *
+ * ⚠ NOT A FIFTH TAB. The bar carries four and that is the ceiling on a phone; restocking is also a
+ * catalogue activity — every row leads to a product's Inventory tab — so it belongs inside Catalog
+ * rather than competing with Orders for a slot.
+ */
+@Serializable
+data object RestockList : AppNavKey
+
+/**
  * One fulfillment portion, pushed within the Orders tab (020 US2). Carries the portion id so a compact-width
  * pick survives configuration change AND iOS process death — the operator's tablet can be locked mid-pick and
  * reopen on the same order. Wide layouts show the queue and this pane side by side and never push it.
@@ -60,5 +70,6 @@ val shopNavJson: Json = Json {
         // Every route MUST be registered here: an unregistered subclass fails state restore SILENTLY on iOS
         // (the back stack decodes to nothing rather than throwing), which looks like "the app forgot".
         subclass(OrderDetail::class, OrderDetail.serializer())
+        subclass(RestockList::class, RestockList.serializer())
     }
 }

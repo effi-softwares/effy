@@ -32,7 +32,17 @@ export function toDomainError(status: number, problem?: Partial<ProblemJSON>): D
     status,
     title: problem?.title ?? defaultTitle(kind),
     detail: problem?.detail,
-    fields: Array.isArray(problem?.fields) ? problem.fields : undefined,
+    // ⚠ THE WIRE KEY IS `errors`, NOT `fields`. `@effy/edge-shared`'s `problem()` serialises field
+    // issues under `errors`; this reader only ever looked at `fields`, so `DomainError.fields` was
+    // undefined on EVERY refusal, platform-wide, since the type was introduced. 053 found it and
+    // recorded it as latent (see its SIGNOFF and back-office/orders/errorText.ts); 054 needs it,
+    // because a validation refusal that cannot say WHICH field is wrong is a generic sentence.
+    // Both keys are accepted so a service serialising either shape is understood.
+    fields: Array.isArray(problem?.errors)
+      ? problem.errors
+      : Array.isArray(problem?.fields)
+        ? problem.fields
+        : undefined,
   };
 }
 

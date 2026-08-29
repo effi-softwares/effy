@@ -2,6 +2,26 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "definitions": {
+    "AdjustStockRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "delta": {
+          "$ref": "#/definitions/WireInt",
+          "description": "Signed. Never zero — a movement that moves nothing is a record with no fact behind it."
+        },
+        "note": {
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/definitions/OperatorStockReason"
+        }
+      },
+      "required": [
+        "delta",
+        "reason"
+      ],
+      "type": "object"
+    },
     "AttributeAllowedValueDTO": {
       "additionalProperties": false,
       "description": "An option for a select-typed attribute.",
@@ -306,6 +326,13 @@
             "string",
             "null"
           ]
+        },
+        "weightGrams": {
+          "description": "Shipping weight in grams (032, FR-036a). Omit and the platform records its stated default as an ASSUMPTION. ⚠ There is deliberately no `weightIsAssumed` field: the flag is derived from the act of supplying a weight and is never accepted from a client, or \"measured\" would mean only \"the client said so\".",
+          "type": [
+            "number",
+            "null"
+          ]
         }
       },
       "required": [
@@ -592,6 +619,62 @@
       },
       "type": "object"
     },
+    "LowStockRowDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "effectiveThreshold": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "onHand": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "severity": {
+          "description": "\"out\" sorts above \"low\" — an empty shelf is not the same problem as a thin one.",
+          "enum": [
+            "out",
+            "low"
+          ],
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "productId",
+        "name",
+        "sku",
+        "onHand",
+        "effectiveThreshold",
+        "severity"
+      ],
+      "type": "object"
+    },
+    "OperatorStockReason": {
+      "enum": [
+        "received",
+        "correction",
+        "damage",
+        "expiry"
+      ],
+      "type": "string"
+    },
     "PickupStubRequest": {
       "additionalProperties": false,
       "description": "⚠ DEV-ONLY SCAFFOLD (POST /shop/v1/fulfillments/{id}/pickup) — FR-030…FR-034.\n\nStands in for a driver collecting the order so the lifecycle is exercisable before a driver surface exists. The endpoint is STRUCTURALLY ABSENT outside local development (FR-031): it accepts a caller-supplied identity, so a reachable deployed instance would be an order-state forgery primitive. Scheduled for deletion when the driver slice ships (FR-034).",
@@ -606,12 +689,43 @@
       ],
       "type": "object"
     },
+    "ProblemFieldIssue": {
+      "additionalProperties": false,
+      "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
+      "properties": {
+        "field": {
+          "description": "The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE CODE.\n\n⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`, `bands_required`, …). \"Please check the fields and try again\" tells an operator nothing about which of five rules they broke, and every one of those rules fails SILENTLY in production if it is not understood — a cap below the floor makes every delivery cost the cap, forever.",
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "field",
+        "message"
+      ],
+      "type": "object"
+    },
     "ProblemJSON": {
       "additionalProperties": {},
-      "description": "RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface consumes it, never re-declares it.",
       "properties": {
         "detail": {
           "type": "string"
+        },
+        "errors": {
+          "description": "⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues under `errors`; `fields` was the name only this type used, so every reader keying off it saw nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).",
+          "items": {
+            "$ref": "#/definitions/ProblemFieldIssue"
+          },
+          "type": "array"
+        },
+        "fields": {
+          "deprecated": "The wire uses `errors`. Kept so older readers still compile.",
+          "items": {
+            "$ref": "#/definitions/ProblemFieldIssue"
+          },
+          "type": "array"
         },
         "instance": {
           "type": "string"
@@ -796,6 +910,14 @@
         },
         "updatedAt": {
           "type": "string"
+        },
+        "weightGrams": {
+          "description": "Shipping weight in grams (032). ⚠ A LOGISTICS fact, deliberately distinct from any `net_weight` attribute a shopper reads on the product page — they agree by backfill today and may legitimately diverge, because packaging weighs something. Delivery is priced from this.",
+          "type": "number"
+        },
+        "weightIsAssumed": {
+          "description": "⚠ TRUE means nobody has recorded a real weight and the platform default is in use. Without this flag \"500 g\" would mean both \"we weighed it\" and \"nobody has said\", and no operator could tell which products still need attention (FR-037a).",
+          "type": "boolean"
         }
       },
       "required": [
@@ -814,6 +936,8 @@
         "compareAtAmount",
         "shortDescription",
         "longDescription",
+        "weightGrams",
+        "weightIsAssumed",
         "status",
         "attributes",
         "media",
@@ -959,6 +1083,90 @@
         "archived"
       ],
       "type": "string"
+    },
+    "ProductStockDTO": {
+      "additionalProperties": false,
+      "description": "A product's stock, as one operator screen needs it.",
+      "properties": {
+        "effectiveThreshold": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Product threshold, else shop default, else null — null meaning nothing counts as low."
+        },
+        "low": {
+          "description": "tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold. ⚠ Mutually exclusive with `outOfStock`: an empty shelf and a thin one are different problems needing different actions, and collapsing them tells the operator nothing to act on.",
+          "type": "boolean"
+        },
+        "onHand": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null exactly when untracked — the database makes \"tracked with no count\" unrepresentable."
+        },
+        "outOfStock": {
+          "description": "tracked && onHand === 0.",
+          "type": "boolean"
+        },
+        "productId": {
+          "type": "string"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "This product's own threshold, or null to fall back to the shop default."
+        },
+        "tracked": {
+          "description": "false = unlimited, and identical to how the product behaved before 054 existed (FR-002).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "productId",
+        "tracked",
+        "onHand",
+        "threshold",
+        "effectiveThreshold",
+        "outOfStock",
+        "low"
+      ],
+      "type": "object"
+    },
+    "ProductStockDetailDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "movements": {
+          "description": "Newest first (FR-009).",
+          "items": {
+            "$ref": "#/definitions/StockMovementDTO"
+          },
+          "type": "array"
+        },
+        "stock": {
+          "$ref": "#/definitions/ProductStockDTO"
+        }
+      },
+      "required": [
+        "stock",
+        "movements"
+      ],
+      "type": "object"
     },
     "ProductTypeAttributeDTO": {
       "additionalProperties": false,
@@ -1136,6 +1344,81 @@
       ],
       "type": "object"
     },
+    "SetShopStockSettingsRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "defaultThreshold": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null clears the shop default."
+        }
+      },
+      "required": [
+        "defaultThreshold"
+      ],
+      "type": "object"
+    },
+    "SetStockRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "type": "string"
+        },
+        "onHand": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "reason": {
+          "$ref": "#/definitions/OperatorStockReason"
+        }
+      },
+      "required": [
+        "onHand",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "SetThresholdRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "threshold": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null clears this product's own threshold, falling back to the shop default."
+        }
+      },
+      "required": [
+        "threshold"
+      ],
+      "type": "object"
+    },
+    "SetTrackingRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "onHand": {
+          "$ref": "#/definitions/WireInt",
+          "description": "REQUIRED when enabling (FR-003), ignored when disabling."
+        },
+        "tracked": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "tracked"
+      ],
+      "type": "object"
+    },
     "ShopLifecycleStatus": {
       "description": "Shop lifecycle status (009-shop-management). Only `active` shops serve their operators; `suspended` (temporary hold) and `disabled` (deactivated, retained for audit) both refuse.",
       "enum": [
@@ -1255,6 +1538,26 @@
       ],
       "type": "string"
     },
+    "ShopStockSettingsDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "defaultThreshold": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/WireInt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null = no default, so nothing counts as low; zero stock is still reported as out (FR-005a)."
+        }
+      },
+      "required": [
+        "defaultThreshold"
+      ],
+      "type": "object"
+    },
     "ShopSummaryDTO": {
       "additionalProperties": false,
       "description": "Wire DTO for the assigned shop, embedded in GET /shop/v1/me.",
@@ -1279,6 +1582,88 @@
         "status"
       ],
       "type": "object"
+    },
+    "StockActorKind": {
+      "description": "WHO acted, kept separate from WHY (`reason`).\n\n⚠ The separation is what makes FR-027 possible: a shop reading its own history must be able to see plainly that back-office made a change, without back-office having to pick a reason that says so. `system` is the paid-order path — the only actor with no person behind it.",
+      "enum": [
+        "shop",
+        "back_office",
+        "system"
+      ],
+      "type": "string"
+    },
+    "StockMovementDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "actorKind": {
+          "$ref": "#/definitions/StockActorKind"
+        },
+        "actorLabel": {
+          "description": "A display name where the platform holds one. ⚠ Never an email address (no PII in an audit read).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "orderNumber": {
+          "description": "The order that caused it, by its customer-facing reference. null for a human's own change.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "quantityAfter": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "quantityBefore": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "quantityDelta": {
+          "$ref": "#/definitions/WireInt"
+        },
+        "reason": {
+          "$ref": "#/definitions/StockMovementReason"
+        }
+      },
+      "required": [
+        "id",
+        "quantityDelta",
+        "quantityBefore",
+        "quantityAfter",
+        "reason",
+        "actorKind",
+        "actorLabel",
+        "orderNumber",
+        "note",
+        "createdAt"
+      ],
+      "type": "object"
+    },
+    "StockMovementReason": {
+      "description": "⚠ EVERY COUNT ON THIS CONTRACT IS A `WireInt`, NOT A BARE `number`.\n\n027's R13: Kotlin serialises a bare `number` field as `Double`, so the wire carried `1.0` where the backend expected an integer, and every mobile cart write was silently rejected. The fix was made AT THE CONTRACT — a `WireInt` alias carrying `@asType integer` — precisely so the generated Kotlin cannot regress. The first draft of this file used bare `number` and the generator duly emitted `Double` for `onHand`, `delta` and `threshold`; caught by reading the generated Kotlin back, which is the only place that mistake is visible.\n\nWhy a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` — the database and this union are one contract, and a value in either that the other lacks is a defect.\n\n⚠ There is deliberately NO `cancellation` or `refund` member. Neither capability exists on the platform (order-flow gap register, Tier 2), and a value nothing can produce implies one that does. The set grows when the slice that needs it lands.",
+      "enum": [
+        "received",
+        "correction",
+        "damage",
+        "expiry",
+        "order_paid",
+        "pick_shortfall",
+        "tracking_enabled",
+        "tracking_disabled"
+      ],
+      "type": "string"
     },
     "TransitionRequest": {
       "additionalProperties": false,
@@ -1368,6 +1753,13 @@
             "string",
             "null"
           ]
+        },
+        "weightGrams": {
+          "description": "Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands.",
+          "type": [
+            "number",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1386,10 +1778,17 @@
         }
       },
       "type": "object"
+    },
+    "WireInt": {
+      "description": "A whole number on the wire.\n\n⚠ THIS ALIAS IS LOAD-BEARING, and it exists because a plain `number` broke every mobile cart write.\n\nTypeScript `number` becomes JSON Schema `\"number\"`, which the Kotlin generator renders as `Double` — so `kotlinx.serialization` sent `\"quantity\":1.0`, and Go's `encoding/json` **cannot** unmarshal `1.0` into an `int`. Every `POST /v1/cart/items` and `PATCH /v1/cart/items/{id}` from customer-mobile therefore failed to bind and answered 422. `customer-web` was unaffected: JavaScript serialises an integer as `1`, with no decimal point.\n\n`@asType integer` makes the schema say `\"integer\"`, which generates a Kotlin `Long` and puts a whole number on the wire. Use it for EVERY count, quantity, limit and revision in this contract — the response direction was always fine (kotlinx accepts `3` for a Double), so the asymmetry hid it.\n\nSee specs/027-customer-cart-sync/research.md R13.",
+      "type": "integer"
     }
   },
   "description": "Aggregator — codegen entry only. Every field forces a type into the schema. The catalog block is the shop-facing subset (016) the mobile app consumes; admin-only schema-authoring request DTOs are deliberately NOT here.",
   "properties": {
+    "adjustStockRequest": {
+      "$ref": "#/definitions/AdjustStockRequest"
+    },
     "catalogSchema": {
       "$ref": "#/definitions/CatalogSchemaDTO"
     },
@@ -1435,6 +1834,9 @@
     "lifecycleStatus": {
       "$ref": "#/definitions/ShopLifecycleStatus"
     },
+    "lowStockRow": {
+      "$ref": "#/definitions/LowStockRowDTO"
+    },
     "managerPing": {
       "$ref": "#/definitions/ShopManagerPingDTO"
     },
@@ -1456,6 +1858,12 @@
     "productListItem": {
       "$ref": "#/definitions/ProductListItemDTO"
     },
+    "productStock": {
+      "$ref": "#/definitions/ProductStockDTO"
+    },
+    "productStockDetail": {
+      "$ref": "#/definitions/ProductStockDetailDTO"
+    },
     "registerMedia": {
       "$ref": "#/definitions/RegisterMediaRequest"
     },
@@ -1468,8 +1876,23 @@
     "setProductSections": {
       "$ref": "#/definitions/SetProductSectionsRequest"
     },
+    "setShopStockSettingsRequest": {
+      "$ref": "#/definitions/SetShopStockSettingsRequest"
+    },
+    "setStockRequest": {
+      "$ref": "#/definitions/SetStockRequest"
+    },
+    "setThresholdRequest": {
+      "$ref": "#/definitions/SetThresholdRequest"
+    },
+    "setTrackingRequest": {
+      "$ref": "#/definitions/SetTrackingRequest"
+    },
     "shopSection": {
       "$ref": "#/definitions/ShopSectionDTO"
+    },
+    "shopStockSettings": {
+      "$ref": "#/definitions/ShopStockSettingsDTO"
     },
     "shopSummary": {
       "$ref": "#/definitions/ShopSummaryDTO"
@@ -1479,6 +1902,15 @@
     },
     "staffStatus": {
       "$ref": "#/definitions/ShopStaffStatus"
+    },
+    "stockActorKind": {
+      "$ref": "#/definitions/StockActorKind"
+    },
+    "stockMovement": {
+      "$ref": "#/definitions/StockMovementDTO"
+    },
+    "stockMovementReason": {
+      "$ref": "#/definitions/StockMovementReason"
     },
     "transitionRequest": {
       "$ref": "#/definitions/TransitionRequest"
@@ -1527,7 +1959,19 @@
     "requestableTransition",
     "transitionRequest",
     "itemProgressRequest",
-    "pickupStubRequest"
+    "pickupStubRequest",
+    "stockMovementReason",
+    "stockActorKind",
+    "productStock",
+    "stockMovement",
+    "productStockDetail",
+    "lowStockRow",
+    "shopStockSettings",
+    "setStockRequest",
+    "adjustStockRequest",
+    "setTrackingRequest",
+    "setThresholdRequest",
+    "setShopStockSettingsRequest"
   ],
   "type": "object",
   "title": "ShopContract"

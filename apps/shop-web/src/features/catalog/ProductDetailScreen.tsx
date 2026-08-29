@@ -20,6 +20,7 @@ import {
 } from "./ProductEditDialogs";
 import { productDetailQuery } from "./queries";
 import { SectionAssignment } from "./SectionAssignment";
+import { StockPanel } from "./StockPanel";
 
 type EditTarget = "basics" | "pricing" | "categorization" | "attributes" | null;
 
@@ -168,12 +169,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
         </TabsContent>
 
         <TabsContent value="inventory" className="pt-4">
-          <div className="rounded-md border border-dashed px-4 py-8 text-center">
-            <p className="font-medium">Inventory — coming soon</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Stock tracking for this product will live here in a later release.
-            </p>
-          </div>
+          <StockPanel productId={productId} />
         </TabsContent>
       </Tabs>
 

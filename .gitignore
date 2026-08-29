@@ -77,3 +77,13 @@ override.tf.json
 # A missing file makes the mobile build fail loudly rather than ship a wrong default.
 **/androidApp/google-services.json
 **/iosApp/GoogleService-Info.plist
+
+# --- Serverless Framework build output (054-product-inventory) ---
+# ⚠ AT THE ROOT DELIBERATELY, not per-service. Protection used to depend on each edge service
+# carrying its own .gitignore, and that discipline has failed twice: `edge-api/notifications` never
+# had one and committed 2.9 MB of build output — including a `serverless-state.json` carrying the
+# resolved RDS hostname, master username and secret ARN — and `edge-api/orders` (053) has none
+# either and is still untracked, so it would have leaked the same on its first commit.
+# A rule here covers every service that exists and every one that will.
+**/.serverless/
+**/.esbuild/

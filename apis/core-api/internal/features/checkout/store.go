@@ -11,18 +11,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/features/notifications"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/events"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
 
 // CheckoutLine is a payable cart line resolved for checkout (active products only). Amounts in cents.
 type CheckoutLine struct {
-	ProductID   string
-	ShopID      string
-	Name        string
-	UnitCents   int64
-	Quantity    int
-	WeightGrams int // 047: per-unit logistics weight; the package weight is Σ(WeightGrams × Quantity) per shop.
+	ProductID string
+	ShopID    string
+	Name      string
+	UnitCents int64
+	// What will be CHARGED — already capped at what the shop can supply (054 FR-020).
+	Quantity int
+	// What the cart asked for, before that cap. Equal to Quantity unless stock is short; the caller
+	// meters the difference, and the shopper is told before they pay.
+	RequestedQuantity int
+	WeightGrams       int // 047: per-unit logistics weight; the package weight is Σ(WeightGrams × Quantity) per shop.
 }
 
 // PackageDelivery is the captured per-package delivery outcome, written at intent and copied into
@@ -77,7 +82,7 @@ type Store interface {
 	OrderIntentForCustomer(ctx context.Context, customerID, orderID string) (intentID string, found bool, err error)
 	// FinalizeSucceeded runs the idempotent paid-transition in ONE tx (mark paid + fan-out + outbox +
 	// payment succeeded + empty cart). applied=false when the order was not pending (already finalized).
-	FinalizeSucceeded(ctx context.Context, orderID string) (applied bool, err error)
+	FinalizeSucceeded(ctx context.Context, orderID string) (FinalizeOutcome, error)
 	// FinalizeFailed marks the order + payment failed (no fan-out, no outbox, cart preserved).
 	FinalizeFailed(ctx context.Context, orderID string) error
 
@@ -136,12 +141,15 @@ func NewStore(pool *pgxpool.Pool) Store {
 }
 
 type checkoutLineRow struct {
-	ProductID   string `db:"product_id"`
-	ShopID      string `db:"shop_id"`
-	Name        string `db:"name"`
-	UnitPrice   string `db:"unit_price_amount"`
-	Quantity    int    `db:"quantity"`
-	WeightGrams int    `db:"weight_grams"`
+	ProductID string `db:"product_id"`
+	ShopID    string `db:"shop_id"`
+	Name      string `db:"name"`
+	UnitPrice string `db:"unit_price_amount"`
+	Quantity  int    `db:"quantity"`
+	// What the shopper's cart holds, before the stock cap. Differs from Quantity only when the shop
+	// cannot supply the whole line — which is what the caller meters (054).
+	RequestedQuantity int `db:"requested_quantity"`
+	WeightGrams       int `db:"weight_grams"`
 }
 
 func (s *pgStore) CartLines(ctx context.Context, customerID string) ([]CheckoutLine, error) {
@@ -150,12 +158,19 @@ SELECT ci.product_id::text AS product_id,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
        p.price_amount::text AS unit_price_amount,
-       ci.quantity         AS quantity,
+       -- ⚠ 054 FR-020: the quantity PAID FOR is capped at what the shop can supply. Without this a
+       -- line asking for 5 with 2 on the shelf would create a PaymentIntent for 5, and the shopper
+       -- would be charged in full for three units that do not exist — the exact harm this slice
+       -- exists to prevent, arriving one step later than the cart.
+       -- ⚠ In SQL, not in Go, so it cannot be forgotten by a second caller of this read.
+       LEAST(ci.quantity,
+             CASE WHEN p.stock_tracked THEN p.stock_on_hand ELSE ci.quantity END) AS quantity,
+       ci.quantity         AS requested_quantity,
        p.weight_grams      AS weight_grams
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
-WHERE c.customer_id = $1 AND p.status = 'active'
+WHERE c.customer_id = $1 AND `+availability.Predicate("p")+`
 ORDER BY ci.added_at ASC`, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("checkout: cart lines: %w", err)
@@ -172,7 +187,8 @@ ORDER BY ci.added_at ASC`, customerID)
 		}
 		out = append(out, CheckoutLine{
 			ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name,
-			UnitCents: cents, Quantity: r.Quantity, WeightGrams: r.WeightGrams,
+			UnitCents: cents, Quantity: r.Quantity, RequestedQuantity: r.RequestedQuantity,
+			WeightGrams: r.WeightGrams,
 		})
 	}
 	return out, nil
@@ -464,21 +480,32 @@ LIMIT 1`, customerID)
 	return r.OrderID, r.IntentID, true, nil
 }
 
+// FinalizeOutcome is what the paid transition did, for the caller to meter (054).
+type FinalizeOutcome struct {
+	// False when the order was already paid — a redelivered webhook. Everything below ran zero times.
+	Applied bool
+	// ⚠ TRUE IS AN OVERSELL: the order asked for more of something than the shop had, so a shopper has
+	// paid for units that do not exist. The shop is told at once (the pick line is pre-flagged), and
+	// the service raises the metric the alert watches.
+	StockShortfall bool
+}
+
 // FinalizeSucceeded is the idempotent paid-transition (R5 #2/#3, SC-005/006), all in ONE tx.
-func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (bool, error) {
+func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (FinalizeOutcome, error) {
+	var result FinalizeOutcome
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return false, fmt.Errorf("checkout: begin finalize: %w", err)
+		return result, fmt.Errorf("checkout: begin finalize: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	// 1. Status-guarded transition — 0 rows means already finalized (idempotent no-op).
 	tag, err := tx.Exec(ctx, `UPDATE public."order" SET status='paid', placed_at=now() WHERE id=$1 AND status='pending_payment'`, orderID)
 	if err != nil {
-		return false, fmt.Errorf("checkout: mark paid: %w", err)
+		return result, fmt.Errorf("checkout: mark paid: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return false, nil
+		return result, nil
 	}
 
 	// 2. Fan-out — one shop_fulfillment per distinct order_item.shop_id (item_count = Σ quantity).
@@ -490,7 +517,7 @@ FROM public.order_item oi
 WHERE oi.order_id = $1
 GROUP BY oi.order_id, oi.shop_id
 ON CONFLICT (order_id, shop_id) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: fan-out: %w", err)
+		return result, fmt.Errorf("checkout: fan-out: %w", err)
 	}
 
 	// 2b. Copy the captured per-package delivery (047) onto each fulfilment. Absent for pre-047 orders
@@ -504,7 +531,91 @@ SET delivery_method     = opd.method,
     updated_at          = now()
 FROM public.order_package_delivery opd
 WHERE opd.order_id = sf.order_id AND opd.shop_id = sf.shop_id AND sf.order_id = $1`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: copy package delivery: %w", err)
+		return result, fmt.Errorf("checkout: copy package delivery: %w", err)
+	}
+
+	// ── 2d. THE OVERSELL, FLAGGED BEFORE ANYTHING IS DEDUCTED (054 FR-022a) ─────────────────────
+	//
+	// ⚠ THIS RUNS BEFORE THE REDUCTION, AND THE ORDER MATTERS. The deficit is `ordered - what was on
+	// the shelf`, and after 2e the shelf reads 0 — so computing it afterwards would report the whole
+	// line as short instead of the three units that were actually missing. The first draft of this
+	// did exactly that.
+	//
+	// Where the order asked for more than the shelf held, the pick rows are created here with the
+	// deficit ALREADY marked unavailable, so the shop sees it on opening the order rather than
+	// discovering it at the shelf hours later.
+	//
+	// ⚠ This needs NO change in `edge-api/shop`: its own seed on entry to `picking` is
+	// `ON CONFLICT DO NOTHING` and its reads are LEFT JOINs, so pre-existing rows are absorbed
+	// silently (research R4). It stays correctable — the picker's absolute-quantity PATCH overwrites
+	// both counts, so gathering a pre-flagged line clears the flag with no special case.
+	//
+	// ⚠ One order_item per (order, product) is assumed, which the cart guarantees: `cart_item` is
+	// unique per product, so a line is never split across two rows.
+	flagged, err := tx.Exec(ctx, `
+INSERT INTO public.fulfillment_item
+    (shop_fulfillment_id, order_item_id, ordered_quantity, unavailable_quantity)
+SELECT sf.id, oi.id, oi.quantity,
+       LEAST(oi.quantity, oi.quantity - COALESCE(p.stock_on_hand, 0))
+  FROM public.order_item oi
+  JOIN public.shop_fulfillment sf ON sf.order_id = oi.order_id AND sf.shop_id = oi.shop_id
+  JOIN public.product p ON p.id = oi.product_id
+ WHERE oi.order_id = $1
+   AND p.stock_tracked
+   AND oi.quantity > COALESCE(p.stock_on_hand, 0)
+ON CONFLICT (shop_fulfillment_id, order_item_id) DO NOTHING`, orderID)
+	if err != nil {
+		return result, fmt.Errorf("checkout: flag stock shortfall: %w", err)
+	}
+	// ⚠ ONE INCREMENT PER ORDER, not per line. The question this answers is "how often does a shopper
+	// pay for something that is not there", and a twenty-line basket short on three of them is ONE
+	// occurrence of that, not three. `partial` is the oversell and the thing the alert watches.
+	// ⚠ REPORTED, NOT COUNTED HERE. The repository is SQL only (Principle VI); a Prometheus counter in
+	// it would put telemetry in the data layer. The fact travels out and the service meters it.
+	result.StockShortfall = flagged.RowsAffected() > 0
+
+	// ── 2e. STOCK (054 FR-021/FR-022) ───────────────────────────────────────────────────────────
+	//
+	// ⚠ NO DEDUPE KEY, AND THAT IS DELIBERATE. This function opens with a status-guarded transition
+	// (`UPDATE ... WHERE status='pending_payment'`) and returns early on zero rows, so everything
+	// below it runs EXACTLY ONCE per order however many times the webhook is redelivered. The fan-out,
+	// the outbox append and the receipt enqueue all rely on that already. Adding a second guarantee
+	// here would imply the first is untrustworthy while the whole transaction depends on it.
+	//
+	// ⚠ `GREATEST(0, ...)` IS THE FLOOR, IN THE STATEMENT (FR-022). A read-then-subtract would let two
+	// finalizes for the last unit interleave and drive the count negative. The row lock PostgreSQL
+	// takes on UPDATE serialises them instead, and the `prev` CTE carries the before-value out so the
+	// movement records what actually happened rather than what we read a moment earlier.
+	//
+	// ⚠ `ORDER BY p.id` inside the lock is a DEADLOCK guard: two orders holding overlapping baskets
+	// must take their row locks in the same sequence, or each can hold what the other needs.
+	//
+	// Untracked products match nothing here and produce no movement at all (FR-024).
+	if _, err := tx.Exec(ctx, `
+WITH ordered AS (
+    SELECT oi.product_id, oi.shop_id, SUM(oi.quantity)::int AS qty
+      FROM public.order_item oi
+     WHERE oi.order_id = $1
+     GROUP BY oi.product_id, oi.shop_id
+), prev AS (
+    SELECT p.id, o.shop_id, p.stock_on_hand, o.qty
+      FROM public.product p
+      JOIN ordered o ON o.product_id = p.id
+     WHERE p.stock_tracked
+     ORDER BY p.id
+     FOR UPDATE OF p
+), moved AS (
+    UPDATE public.product p
+       SET stock_on_hand = GREATEST(0, prev.stock_on_hand - prev.qty)
+      FROM prev
+     WHERE p.id = prev.id
+    RETURNING p.id, prev.shop_id, prev.stock_on_hand AS before, p.stock_on_hand AS after
+)
+INSERT INTO public.stock_movement
+    (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub, order_id)
+SELECT id, shop_id, after - before, before, after, 'order_paid', 'system', NULL, $1
+  FROM moved`, orderID); err != nil {
+		return result, fmt.Errorf("checkout: reduce stock: %w", err)
 	}
 
 	// 2c. Push intents — one shop_new_order per active staff member of each fulfilling shop (050).
@@ -516,20 +627,21 @@ SELECT ss.cognito_sub, 'shop', 'shop_new_order',
        jsonb_build_object('entityId', sf.id::text, 'deepLink', 'effy://queue/' || sf.id::text),
        'shop_new_order:' || ss.cognito_sub || ':' || sf.id::text
 FROM public.shop_fulfillment sf
+-- availability-exempt: public.shop_staff — who may be notified, not what may be sold.
 JOIN public.shop_staff ss ON ss.shop_id = sf.shop_id AND ss.status = 'active'
 WHERE sf.order_id = $1
 ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: shop_new_order intents: %w", err)
+		return result, fmt.Errorf("checkout: shop_new_order intents: %w", err)
 	}
 
 	// 3. Outbox — one order.placed with the per-shop breakdown (dedup_key makes it exactly-once).
 	portions, err := shopBreakdownTx(ctx, tx, orderID)
 	if err != nil {
-		return false, err
+		return result, err
 	}
 	number, currency, grand, err := orderMetaTx(ctx, tx, orderID)
 	if err != nil {
-		return false, err
+		return result, err
 	}
 	if err := events.Append(ctx, tx, events.Envelope{
 		EventType:     "order.placed",
@@ -541,7 +653,7 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 			"grandTotal": money.FormatCents(grand), "shops": portions,
 		},
 	}); err != nil {
-		return false, err
+		return result, err
 	}
 
 	// 3b. Push notification intent — the customer's order is paid (050). Same tx as the fact, so it is
@@ -551,7 +663,7 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 	if err := tx.QueryRow(ctx,
 		`SELECT c.cognito_sub FROM public."order" o JOIN public.customer c ON c.id = o.customer_id WHERE o.id = $1`,
 		orderID).Scan(&customerSub); err != nil {
-		return false, fmt.Errorf("checkout: resolve customer sub: %w", err)
+		return result, fmt.Errorf("checkout: resolve customer sub: %w", err)
 	}
 	if err := notifications.Append(ctx, tx, notifications.Request{
 		RecipientSub: customerSub,
@@ -560,7 +672,7 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 		EntityID:     orderID,
 		DeepLink:     "effy://order/" + orderID,
 	}); err != nil {
-		return false, err
+		return result, err
 	}
 
 	// 3c. Receipt-email intent (052 FR-019/FR-020).
@@ -582,12 +694,12 @@ SELECT o.id, 'order_paid', c.email
 FROM public."order" o JOIN public.customer c ON c.id = o.customer_id
 WHERE o.id = $1
 ON CONFLICT DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: enqueue receipt: %w", err)
+		return result, fmt.Errorf("checkout: enqueue receipt: %w", err)
 	}
 
 	// 4. Payment succeeded.
 	if _, err := tx.Exec(ctx, `UPDATE public.payment SET status='succeeded', updated_at=now() WHERE order_id=$1`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: payment succeeded: %w", err)
+		return result, fmt.Errorf("checkout: payment succeeded: %w", err)
 	}
 
 	// 5. Record the promotional redemption (027 FR-048).
@@ -602,7 +714,7 @@ SELECT o.promo_code_id, o.customer_id, o.id, o.discount_amount
 FROM public."order" o
 WHERE o.id = $1 AND o.promo_code_id IS NOT NULL
 ON CONFLICT (order_id) DO NOTHING`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: record promo redemption: %w", err)
+		return result, fmt.Errorf("checkout: record promo redemption: %w", err)
 	}
 
 	// 6. Empty the customer's cart.
@@ -610,13 +722,14 @@ ON CONFLICT (order_id) DO NOTHING`, orderID); err != nil {
 DELETE FROM public.cart_item WHERE cart_id = (
     SELECT c.id FROM public.cart c JOIN public."order" o ON o.customer_id = c.customer_id WHERE o.id = $1
 )`, orderID); err != nil {
-		return false, fmt.Errorf("checkout: empty cart: %w", err)
+		return result, fmt.Errorf("checkout: empty cart: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return false, fmt.Errorf("checkout: commit finalize: %w", err)
+		return result, fmt.Errorf("checkout: commit finalize: %w", err)
 	}
-	return true, nil
+	result.Applied = true
+	return result, nil
 }
 
 // SavePaymentMethod writes the receipt-safe payment summary (052 FR-006).

@@ -219,3 +219,93 @@ describe("deliver stub — ⚠ dev-only (the driver-stub tail)", () => {
     expect(event?.[1]).toContain("delivered:placeholder:test-driver-1");
   });
 });
+
+// ── 054: a pick shortfall corrects the shop's count (FR-023, A9) ────────────────────────────────
+//
+// ⚠ THE SHELF IS THE TRUTH. A picker standing at the shelf has just produced better information than
+// the count did: if they could only find 1 of 3, the shop does not have 2 more somewhere. Leaving the
+// count wrong means the next shopper is sold the same phantom unit — which is the loop this whole
+// feature exists to break.
+describe("a pick shortfall corrects stock (054 FR-023)", () => {
+  it("empties the shelf and records WHY, in the same transaction as the pick", async () => {
+    const calls = fakeTx([
+      { rowCount: 1, rows: [{ id: "fi-1", gathered_quantity: 1, unavailable_quantity: 2, ordered_quantity: 3 }] },
+    ]);
+    await updateItemProgress("f-1", "shop-1", "oi-1", { unavailableQuantity: 2 }, "staff-1");
+
+    const stockCall = calls.find(([text]) => text.includes("public.stock_movement"));
+    expect(stockCall, "a shortfall must write a stock movement").toBeDefined();
+    const text = String(stockCall?.[0]).replace(/\s+/g, " ");
+
+    // ⚠ SETS ZERO, does not subtract. The paid transaction already deducted what was ordered;
+    // subtracting again would double-count. What a shortfall reports is simply "the shelf is empty".
+    expect(text).toContain("SET stock_on_hand = 0");
+    expect(text).toContain("'pick_shortfall'");
+    // Same transaction as the pick — a count that moves with no movement recorded makes SC-005 false
+    // forever, and the history can never be reconstructed after the fact.
+    expect(calls.some(([t]) => t.includes("UPDATE public.fulfillment_item"))).toBe(true);
+  });
+
+  it("resolves the actor's cognito sub rather than storing a shop_staff id", async () => {
+    const calls = fakeTx([
+      { rowCount: 1, rows: [{ id: "fi-1", gathered_quantity: 0, unavailable_quantity: 3, ordered_quantity: 3 }] },
+    ]);
+    await updateItemProgress("f-1", "shop-1", "oi-1", { unavailableQuantity: 3 }, "staff-1");
+
+    const text = String(calls.find(([t]) => t.includes("public.stock_movement"))?.[0]).replace(/\s+/g, " ");
+    // stock_movement.actor_sub snapshots SUBJECTS, not staff-table ids: shop staff live in `public`
+    // and back-office staff in `admin`, and one audit column cannot reference both.
+    expect(text).toContain("SELECT ss.cognito_sub FROM public.shop_staff ss WHERE ss.id = $2");
+  });
+
+  it("does NOT touch stock when an item is UN-flagged", async () => {
+    const calls = fakeTx([
+      { rowCount: 1, rows: [{ id: "fi-1", gathered_quantity: 3, unavailable_quantity: 0, ordered_quantity: 3 }] },
+    ]);
+    await updateItemProgress("f-1", "shop-1", "oi-1", { unavailableQuantity: 0 }, "staff-1");
+
+    // ⚠ "It turned up after all" says NOTHING about how many more are on the shelf. Zeroing the count
+    // here would invent a fact the picker never reported — and it is the correction path for a
+    // shortfall that was flagged at payment (FR-022a) rather than found at the shelf.
+    expect(calls.some(([t]) => t.includes("public.stock_movement"))).toBe(false);
+  });
+
+  it("does not touch stock when only the gathered count is recorded", async () => {
+    const calls = fakeTx([
+      { rowCount: 1, rows: [{ id: "fi-1", gathered_quantity: 2, unavailable_quantity: 0, ordered_quantity: 3 }] },
+    ]);
+    await updateItemProgress("f-1", "shop-1", "oi-1", { gatheredQuantity: 2 }, "staff-1");
+
+    expect(calls.some(([t]) => t.includes("public.stock_movement"))).toBe(false);
+  });
+
+  it("writes nothing for an untracked product or an already-empty shelf", async () => {
+    const calls = fakeTx([
+      { rowCount: 1, rows: [{ id: "fi-1", gathered_quantity: 0, unavailable_quantity: 1, ordered_quantity: 1 }] },
+    ]);
+    await updateItemProgress("f-1", "shop-1", "oi-1", { unavailableQuantity: 1 }, "staff-1");
+
+    const text = String(calls.find(([t]) => t.includes("public.stock_movement"))?.[0]).replace(/\s+/g, " ");
+    // Untracked → no row to lock, so no movement (FR-024). Already zero → no movement either, because
+    // a history full of "corrected 0 → 0" is a history nobody reads.
+    expect(text).toContain("p.stock_tracked AND p.stock_on_hand <> 0");
+  });
+});
+
+// ── 054 R4: pre-seeded shortfall rows must not make a portion look like it is being picked ──────
+describe("a portion with pre-seeded shortfall rows still reads as pending (054 FR-022a)", () => {
+  it("takes status from sf.status alone, never from the presence of pick rows", async () => {
+    query.mockResolvedValue({ rows: [] });
+    await listQueue("shop-1", "active");
+
+    const text = sql(query.mock.calls[0]);
+    // ⚠ The paid transaction now creates fulfillment_item rows BEFORE picking begins, for any line
+    // the shelf could not supply. A query that inferred "picking has started" from their existence
+    // would have been correct before 054 and is wrong now — and the comment above LIST_QUEUE said
+    // exactly that until 054 corrected it.
+    expect(text).toContain("sf.status");
+    expect(text).toContain("AND sf.status = ANY($2::text[])");
+    // The join stays a LEFT JOIN so a portion with no rows still appears with 0/0.
+    expect(text).toContain("LEFT JOIN public.fulfillment_item");
+  });
+});

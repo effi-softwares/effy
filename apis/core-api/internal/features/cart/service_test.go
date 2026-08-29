@@ -13,12 +13,17 @@ import (
 // closely enough to be worth trusting: absolute set-quantity, union-with-MAXIMUM merge, the change-id
 // dedupe, the revision bump, and the two separate item tables.
 type fakeRepo struct {
-	cartID       string
-	revision     int64
-	items        map[string]int    // productID → qty (payable)
-	saved        map[string]int    // productID → qty (set aside)
-	addPrice     map[string]string // productID → the price recorded at add time ("" = none recorded)
-	statuses     map[string]string // productID → status ("" = missing)
+	cartID   string
+	revision int64
+	items    map[string]int    // productID → qty (payable)
+	saved    map[string]int    // productID → qty (set aside)
+	addPrice map[string]string // productID → the price recorded at add time ("" = none recorded)
+	statuses map[string]string // productID → status ("" = missing)
+	// 054. Absent from these maps = untracked, which is the pre-054 default and what every existing
+	// test in this file relies on: none of them mentions stock, and none of their expectations move.
+	// ⚠ That silence IS the SC-006 assertion — an untracked product behaves exactly as it always did.
+	trackedByID  map[string]bool
+	onHandByID   map[string]int
 	priceByID    map[string]string // productID → current unit price
 	nameByID     map[string]string // productID → name
 	changes      map[string]bool   // applied change ids
@@ -32,16 +37,18 @@ type fakeRepo struct {
 
 func newFakeRepo() *fakeRepo {
 	return &fakeRepo{
-		cartID:    "cart-1",
-		items:     map[string]int{},
-		saved:     map[string]int{},
-		addPrice:  map[string]string{},
-		statuses:  map[string]string{},
-		priceByID: map[string]string{},
-		nameByID:  map[string]string{},
-		changes:   map[string]bool{},
-		orders:    map[string][]ReorderCandidate{},
-		usage:     map[string]PromoUsage{},
+		cartID:      "cart-1",
+		items:       map[string]int{},
+		saved:       map[string]int{},
+		addPrice:    map[string]string{},
+		statuses:    map[string]string{},
+		trackedByID: map[string]bool{},
+		onHandByID:  map[string]int{},
+		priceByID:   map[string]string{},
+		nameByID:    map[string]string{},
+		changes:     map[string]bool{},
+		orders:      map[string][]ReorderCandidate{},
+		usage:       map[string]PromoUsage{},
 	}
 }
 
@@ -85,7 +92,7 @@ func (f *fakeRepo) rowsFrom(src map[string]int) []cartLineRow {
 		row := cartLineRow{
 			ID: "line-" + id, ProductID: id, Quantity: src[id],
 			Name: f.nameByID[id], UnitPriceAmount: f.priceByID[id], Currency: "AUD",
-			Status: f.statuses[id],
+			Status: f.statuses[id], StockTracked: f.trackedByID[id], StockOnHand: f.onHandPtr(id),
 		}
 		if p := f.addPrice[id]; p != "" {
 			row.UnitPriceAtAdd = &p
@@ -110,9 +117,30 @@ func (f *fakeRepo) AllLines(_ context.Context, _ string) ([]cartLineRow, []cartL
 
 func (f *fakeRepo) CountDistinct(_ context.Context, _ string) (int, error) { return len(f.items), nil }
 
-func (f *fakeRepo) ProductStatus(_ context.Context, productID string) (string, string, bool, error) {
+func (f *fakeRepo) ProductStatus(_ context.Context, productID string) (productStatusRow, bool, error) {
 	s, ok := f.statuses[productID]
-	return s, f.priceByID[productID], ok, nil
+	return productStatusRow{
+		Status:       s,
+		PriceAmount:  f.priceByID[productID],
+		StockTracked: f.trackedByID[productID],
+		StockOnHand:  f.onHandPtr(productID),
+	}, ok, nil
+}
+
+// onHandPtr mirrors the database: NULL exactly when the product is untracked.
+func (f *fakeRepo) onHandPtr(productID string) *int {
+	if !f.trackedByID[productID] {
+		return nil
+	}
+	n := f.onHandByID[productID]
+	return &n
+}
+
+// track gives a product a stock count. Nothing else in this file calls it, which is the point:
+// every pre-054 test runs against untracked products and its expectations are unchanged.
+func (f *fakeRepo) track(productID string, onHand int) {
+	f.trackedByID[productID] = true
+	f.onHandByID[productID] = onHand
 }
 
 func (f *fakeRepo) ProductSnapshots(_ context.Context, productIDs []string) ([]cartLineRow, error) {
@@ -124,6 +152,7 @@ func (f *fakeRepo) ProductSnapshots(_ context.Context, productIDs []string) ([]c
 		out = append(out, cartLineRow{
 			ProductID: id, Name: f.nameByID[id], UnitPriceAmount: f.priceByID[id],
 			Currency: "AUD", Status: f.statuses[id],
+			StockTracked: f.trackedByID[id], StockOnHand: f.onHandPtr(id),
 		})
 	}
 	return out, nil

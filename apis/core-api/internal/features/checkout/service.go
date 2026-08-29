@@ -110,6 +110,37 @@ type Service struct {
 	delivery DeliveryQuoter
 	// Delivery telemetry (047). Nil-able; a no-op when unwired.
 	deliveryMetrics DeliveryMetrics
+	stockMetrics    StockMetrics
+}
+
+// StockMetrics is the checkout's telemetry sink for stock (054). Nil-able; low-cardinality labels
+// only (Principle VII).
+type StockMetrics interface {
+	StockBlocked(stage string)    // add | checkout
+	StockDeducted(outcome string) // full | partial — ⚠ `partial` is the oversell
+}
+
+// meterStock records what the paid transition did to stock (054).
+//
+// ⚠ `partial` IS THE OVERSELL — a shopper charged for units the shop did not have — and it is what
+// `infra/observability/alerts/054-product-inventory.yml` watches. Called only when the transition
+// actually APPLIED: a redelivered webhook does nothing, and counting it would inflate both series and
+// make the oversell rate meaningless.
+func (s *Service) meterStock(out FinalizeOutcome) {
+	if s.stockMetrics == nil || !out.Applied {
+		return
+	}
+	if out.StockShortfall {
+		s.stockMetrics.StockDeducted("partial")
+		return
+	}
+	s.stockMetrics.StockDeducted("full")
+}
+
+// WithStockMetrics wires the stock telemetry sink.
+func (s *Service) WithStockMetrics(m StockMetrics) *Service {
+	s.stockMetrics = m
+	return s
 }
 
 // DeliveryQuoter computes the delivery quote (standard + same-day options) for a destination postcode +
@@ -231,9 +262,23 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 		return IntentResult{}, ErrAddressNotFound
 	}
 
+	// ⚠ 054: lines whose product is out of stock have already dropped out of `CartLines` (the shared
+	// availability predicate is in that query), and a partially-supplied line arrives with its
+	// quantity already CAPPED at what the shop has. So the subtotal below — and therefore the
+	// PaymentIntent — can only ever cover units the platform believes exist (FR-018, FR-020).
 	itemSubtotalCents := int64(0)
+	shortfall := false
 	for _, l := range lines {
 		itemSubtotalCents += l.UnitCents * int64(l.Quantity)
+		if l.RequestedQuantity > l.Quantity {
+			shortfall = true
+		}
+	}
+	if shortfall && s.stockMetrics != nil {
+		// One increment per checkout that had to be trimmed, not one per line — the question this
+		// answers is "how often does stock change what a shopper pays", and a 20-line basket is one
+		// occurrence of that, not twenty.
+		s.stockMetrics.StockBlocked("checkout")
 	}
 
 	// ⚠ FR-056: the minimum is re-decided HERE, not trusted from the cart's `checkout.allowed`. A client
@@ -558,7 +603,9 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 
 	switch evt.IntentStatus {
 	case IntentSucceeded:
-		if _, err = s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+		out, ferr := s.store.FinalizeSucceeded(ctx, orderID)
+		s.meterStock(out)
+		if err = ferr; err != nil {
 			return err
 		}
 		// 052 — AFTER the commit, best-effort. See capturePaymentMethod.
@@ -618,7 +665,9 @@ func (s *Service) Confirm(ctx context.Context, customerID, orderID string) (Conf
 		return ConfirmResult{}, err
 	}
 	if pi.Status == IntentSucceeded {
-		if _, err := s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+		out, err := s.store.FinalizeSucceeded(ctx, orderID)
+		s.meterStock(out)
+		if err != nil {
 			return ConfirmResult{}, err
 		}
 		// 052 — AFTER the commit, best-effort. See capturePaymentMethod.
@@ -689,7 +738,9 @@ func (s *Service) mayReusePendingOrder(ctx context.Context, customerID string) (
 		// Paid, and nothing told the database. Settle it here so it reaches order history and the shop
 		// fan-out — a paid order stuck in `pending_payment` is wrong on its own terms, quite apart from
 		// this bug. Idempotent; a webhook that arrives later changes nothing.
-		if _, err := s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+		out, err := s.store.FinalizeSucceeded(ctx, orderID)
+		s.meterStock(out)
+		if err != nil {
 			return false, err
 		}
 		return false, nil

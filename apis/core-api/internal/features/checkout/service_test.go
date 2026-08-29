@@ -52,6 +52,7 @@ type fakeStore struct {
 	// 051 T087 — the confirm fallback now carries every redirect return (Klarna, Zip, Afterpay, 3DS),
 	// so its idempotency deserves a test rather than an assumption.
 	finalizeSucceeded int
+	stockShortfall    bool
 	alreadyFinalized  bool
 
 	// The customer's lingering pending order, if any — what `mayReusePendingOrder` reads.
@@ -144,11 +145,12 @@ func (f *fakeStore) OrderIntentForCustomer(context.Context, string, string) (str
 
 // 051 T087: count the paid transitions. `applied` mirrors the real store, where the transition runs
 // only for an order still in pending_payment — so a repeat confirm reports false, not a second apply.
-func (f *fakeStore) FinalizeSucceeded(context.Context, string) (bool, error) {
+func (f *fakeStore) FinalizeSucceeded(context.Context, string) (FinalizeOutcome, error) {
 	f.finalizeSucceeded++
 	applied := !f.alreadyFinalized
 	f.alreadyFinalized = true
-	return applied, nil
+	// 054: `stockShortfall` lets a test drive the oversell metric without a database.
+	return FinalizeOutcome{Applied: applied, StockShortfall: f.stockShortfall}, nil
 }
 func (f *fakeStore) FinalizeFailed(context.Context, string) error {
 	f.finalizeFailed++

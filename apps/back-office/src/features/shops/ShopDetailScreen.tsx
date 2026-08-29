@@ -38,6 +38,7 @@ import { ShopStatusBadge, StaffStatusBadge } from "./components/StatusBadge";
 import type { ShopDetail, ShopUser } from "./model";
 import { shopDetailQuery, useUpdateShopUser } from "./queries";
 import { ShopHistory } from "./components/ShopHistory";
+import { ShopStockPanel } from "./ShopStockPanel";
 
 const ROLE_LABELS: Record<ShopRole, string> = {
   shop_manager: "Shop manager",
@@ -112,6 +113,15 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
       </Card>
 
       <Roster shop={shop} canManage={canManage} />
+
+      {/* 054 US4: the assisted stock path. Reading is open to any active staff incl. csa — a support
+          agent who cannot see the number a shop is ringing up about cannot help them. */}
+      <section className="space-y-3">
+        <div className="border-b pb-2">
+          <h2 className="text-sm font-semibold">Stock</h2>
+        </div>
+        <ShopStockPanel shopId={shop.id} canManage={canManage} />
+      </section>
 
       <ShopHistory shopId={shop.id} />
 

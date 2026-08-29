@@ -4,6 +4,7 @@ import { createRouter } from "@tanstack/react-router";
 import { appIndexRoute, appRoute, managerRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
+import { restockRoute } from "./routes/restock";
 import { catalogProductRoute } from "./routes/catalog.$productId";
 import { ordersRoute } from "./routes/orders";
 import { ordersDetailRoute } from "./routes/orders.$fulfillmentId";
@@ -16,6 +17,7 @@ const routeTree = rootRoute.addChildren([
     appIndexRoute,
     managerRoute,
     catalogRoute,
+    restockRoute,
     catalogProductRoute,
     ordersRoute,
     ordersDetailRoute,

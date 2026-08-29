@@ -33,7 +33,8 @@ func ServiceableForPostcode(ctx context.Context, q db.DBTX, postcode string) (bo
 			SELECT 1
 			FROM public.delivery_zone_postcode zp
 			JOIN public.delivery_zone z ON z.id = zp.zone_id
-			WHERE zp.postcode = $1 AND z.status = 'active'
+			-- availability-exempt: public.delivery_zone — a serving area's lifecycle.
+WHERE zp.postcode = $1 AND z.status = 'active'
 		)`
 	var serviced bool
 	if err := q.QueryRow(ctx, sql, postcode).Scan(&serviced); err != nil {
@@ -58,7 +59,8 @@ func ZoneForPostcode(ctx context.Context, q db.DBTX, postcode string) (Zone, boo
 		SELECT z.id::text, z.ring_id::text, z.sameday_eligible
 		FROM public.delivery_zone_postcode zp
 		JOIN public.delivery_zone z ON z.id = zp.zone_id
-		WHERE zp.postcode = $1 AND z.status = 'active'`
+		-- availability-exempt: public.delivery_zone — a serving area's lifecycle.
+WHERE zp.postcode = $1 AND z.status = 'active'`
 	var z Zone
 	if err := q.QueryRow(ctx, sql, postcode).Scan(&z.ID, &z.RingID, &z.SameDayEligible); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

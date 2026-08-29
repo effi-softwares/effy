@@ -1,5 +1,6 @@
 // Repository layer: SQL only. Reads the 016 catalog (public.product/product_media/category) for the
-// CUSTOMER projection — only status='active' products, primary image joined, money cast to text so it
+// CUSTOMER projection — only PURCHASABLE products (availability.Predicate, 054: live status AND, where
+// the shop counts units, stock remaining), primary image joined, money cast to text so it
 // crosses the wire exactly (research R9). Wire rows are mapped to domain in the service; they never
 // leave this file.
 package storefront
@@ -12,13 +13,18 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
 )
 
 // The shared product-card projection, split into its column list and its FROM so search can splice a
 // relevance-score column between them (025). The LATERAL join picks one image: primary first, then
 // lowest display_order. Money is cast to text to preserve exactness.
-const cardColumns = `p.id::text                 AS id,
+// availability-exempt: public.product — every LISTING filter below is `status` only, deliberately.
+// A listing filter is not a purchasability decision: FR-013/A10 keep an out-of-stock product listed
+// and mark it unavailable through the `available` column projected here. Cart and checkout use
+// availability.Predicate to REFUSE, which is the decision that moves money.
+var cardColumns = `p.id::text                 AS id,
        p.name                     AS name,
        p.brand                    AS brand,
        p.price_amount::text       AS price_amount,
@@ -26,7 +32,14 @@ const cardColumns = `p.id::text                 AS id,
        p.compare_at_amount::text  AS compare_at_amount,
        m.storage_key              AS storage_key,
        m.alt_text                 AS alt_text,
-       p.created_at               AS created_at`
+       p.created_at               AS created_at,
+       -- ⚠ 054: availability is PROJECTED here, never used to filter this read. FR-013 and A10 are
+       -- explicit that a product which has run out stays LISTED and is shown as unavailable —
+       -- removing it would break saved lists, shared links and search results, and would erase the
+       -- platform's ability to say "this is coming back", which is the whole distinction the saved
+       -- list is built on. Money is a different matter: cart and checkout use the same rule to
+       -- REFUSE. Same rule, two jobs.
+       (` + availability.Predicate("p") + `) AS available`
 
 const cardFrom = `
 FROM public.product p
@@ -40,7 +53,7 @@ LEFT JOIN LATERAL (
 `
 
 // cardSelect is the full projection used by every non-search read.
-const cardSelect = "\nSELECT " + cardColumns + cardFrom
+var cardSelect = "\nSELECT " + cardColumns + cardFrom
 
 // cardRow is the wire shape of cardSelect; it never leaves this file.
 type cardRow struct {
@@ -53,6 +66,7 @@ type cardRow struct {
 	StorageKey      *string   `db:"storage_key"`
 	AltText         *string   `db:"alt_text"`
 	CreatedAt       time.Time `db:"created_at"`
+	Available       bool      `db:"available"`
 }
 
 // searchRow is cardRow plus the relevance score. pgx.RowToStructByName requires the struct to match
@@ -153,6 +167,7 @@ SELECT p.id,
        p.ends_at
 FROM public.promo_code p`
 
+// availability-exempt: public.promo_code — a promotion's own lifecycle, nothing to do with stock.
 const advertisedPromoPredicate = `p.is_advertised
   AND p.status = 'active'
   AND (p.starts_at IS NULL OR p.starts_at <= now())
@@ -226,7 +241,12 @@ WHERE p.id::text = $1
 // NewestCards backs the "Featured" rail — newest active products.
 func (r *Repository) NewestCards(ctx context.Context, limit int) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+-- ⚠ 054: RAILS use the FULL rule, and that is not an inconsistency with the listing filters above.
+-- A rail is merchandising — "here are things to buy" — and FR-023 has required since 025 that it
+-- carry only available products. A SEARCH RESULT or a PRODUCT PAGE is somewhere a shopper navigated
+-- to deliberately, or linked to, and there FR-013/A10 keep an out-of-stock product visible and
+-- marked. Two different questions, two different filters, one shared rule underneath.
+WHERE `+availability.Predicate("p")+`
 ORDER BY p.created_at DESC
 LIMIT $1`, limit)
 }
@@ -234,7 +254,12 @@ LIMIT $1`, limit)
 // OnSaleCards backs the "On sale" rail — active products with a compare-at above the current price.
 func (r *Repository) OnSaleCards(ctx context.Context, limit int) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+-- ⚠ 054: RAILS use the FULL rule, and that is not an inconsistency with the listing filters above.
+-- A rail is merchandising — "here are things to buy" — and FR-023 has required since 025 that it
+-- carry only available products. A SEARCH RESULT or a PRODUCT PAGE is somewhere a shopper navigated
+-- to deliberately, or linked to, and there FR-013/A10 keep an out-of-stock product visible and
+-- marked. Two different questions, two different filters, one shared rule underneath.
+WHERE `+availability.Predicate("p")+`
   AND p.compare_at_amount IS NOT NULL
   AND p.compare_at_amount > p.price_amount
 ORDER BY p.created_at DESC
@@ -244,7 +269,12 @@ LIMIT $1`, limit)
 // CategoryCards backs a category rail — active products whose primary category is categoryKey.
 func (r *Repository) CategoryCards(ctx context.Context, categoryKey string, limit int) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+-- ⚠ 054: RAILS use the FULL rule, and that is not an inconsistency with the listing filters above.
+-- A rail is merchandising — "here are things to buy" — and FR-023 has required since 025 that it
+-- carry only available products. A SEARCH RESULT or a PRODUCT PAGE is somewhere a shopper navigated
+-- to deliberately, or linked to, and there FR-013/A10 keep an out-of-stock product visible and
+-- marked. Two different questions, two different filters, one shared rule underneath.
+WHERE `+availability.Predicate("p")+`
   AND p.primary_category_id = (SELECT id FROM public.category WHERE key = $1)
 ORDER BY p.created_at DESC
 LIMIT $2`, categoryKey, limit)
@@ -254,6 +284,8 @@ LIMIT $2`, categoryKey, limit)
 // caller re-orders to its id list.
 func (r *Repository) CardsByIDs(ctx context.Context, ids []string) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
+-- availability-exempt: public.product — a LISTING filter, not a purchasability decision.
+-- Out-of-stock products stay listed; the projected available column marks them (FR-013, A10).
 WHERE p.status = 'active'
   AND p.id = ANY($1::uuid[])`, ids)
 }
@@ -264,7 +296,8 @@ func (r *Repository) RailCandidates(ctx context.Context, limit int) ([]railCandi
 	rows, err := r.db.Query(ctx, `
 SELECT c.key AS key, c.name AS name
 FROM public.category c
-JOIN public.product p ON p.primary_category_id = c.id AND p.status = 'active'
+JOIN public.product p ON p.primary_category_id = c.id AND `+availability.Predicate("p")+`
+-- availability-exempt: public.category — a retired category is hidden whatever its products hold.
 WHERE c.status = 'active'
 GROUP BY c.key, c.name, c.display_order
 ORDER BY c.display_order ASC, count(p.id) DESC
@@ -293,7 +326,7 @@ SELECT c.key AS key,
        (SELECT pc.key FROM public.category pc WHERE pc.id = c.parent_id) AS parent_key,
        (SELECT count(*)
           FROM public.product p
-         WHERE p.primary_category_id = c.id AND p.status = 'active') AS product_count,
+         WHERE p.primary_category_id = c.id AND `+availability.Predicate("p")+`) AS product_count,
        (SELECT m.storage_key
           FROM public.product p
           JOIN LATERAL (
@@ -303,10 +336,18 @@ SELECT c.key AS key,
               ORDER BY is_primary DESC, display_order ASC, created_at ASC
               LIMIT 1
           ) m ON true
+         -- availability-exempt: public.product, DELIBERATELY — read the note below before
+         -- reaching for Predicate here.
+         -- WARNING: DELIBERATELY status ONLY, not availability.Predicate (054). This picks a category's
+         -- representative PICTURE, not something to buy. Letting stock choose it would make a
+         -- category change its face as units come and go — precisely the flicker the determinism
+         -- note above exists to prevent — and a category thumbnail makes no claim that the product
+         -- behind it is purchasable. The guard test names this line as the one permitted exception.
          WHERE p.primary_category_id = c.id AND p.status = 'active'
          ORDER BY p.created_at ASC, p.id ASC
          LIMIT 1) AS image_key
 FROM public.category c
+-- availability-exempt: public.category — the taxonomy's own lifecycle.
 WHERE c.status = 'active'
 ORDER BY c.display_order ASC, c.name ASC`)
 	if err != nil {
@@ -359,6 +400,7 @@ func (r *Repository) FacetableAttributeDefs(ctx context.Context) ([]attrDefRow, 
 	rows, err := r.db.Query(ctx, `
 SELECT key, name, data_type
 FROM public.attribute_definition
+-- availability-exempt: public.attribute_definition — a facet definition, not merchandise.
 WHERE status = 'active'
   AND data_type IN ('single_select', 'multi_select', 'boolean')
 ORDER BY name ASC`)
@@ -392,6 +434,7 @@ func (r *Repository) CategoryCounts(ctx context.Context, p SearchParams) ([]opti
 	next := binder(&args)
 	var b strings.Builder
 	b.WriteString("SELECT c.key AS value, c.name AS label, count(p.id) AS n\nFROM public.product p" +
+		// availability-exempt: public.category — the category filter's own lifecycle.
 		"\nJOIN public.category c ON c.id = p.primary_category_id AND c.status = 'active'")
 	r.filters(&b, p, next)
 	b.WriteString("\nGROUP BY c.key, c.name\nORDER BY count(p.id) DESC, c.name ASC")

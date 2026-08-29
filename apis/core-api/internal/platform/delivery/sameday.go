@@ -60,7 +60,8 @@ func SameDaySchedule(ctx context.Context, q db.DBTX) (runs []CollectionRun, buff
 	}
 	rows, qerr := q.Query(ctx, `
 		SELECT EXTRACT(HOUR FROM run_time)::int, EXTRACT(MINUTE FROM run_time)::int
-		FROM public.delivery_collection_run WHERE status = 'active' ORDER BY run_time`)
+		-- availability-exempt: public.delivery_collection_run — a schedule's lifecycle.
+FROM public.delivery_collection_run WHERE status = 'active' ORDER BY run_time`)
 	if qerr != nil {
 		return nil, 0, fmt.Errorf("delivery: collection runs query: %w", qerr)
 	}

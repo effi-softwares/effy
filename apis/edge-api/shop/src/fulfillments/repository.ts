@@ -68,8 +68,15 @@ interface ItemRow {
  * nothing else in the query changes. `sf.id` is the stable tiebreaker so the ordering is TOTAL:
  * two orders placed in the same millisecond must not swap position between polls (SC-018).
  *
- * The progress counts are a LEFT JOIN aggregate because fulfillment_item rows do not exist until
- * picking begins — a pending portion must still report 0/0 rather than dropping out of the queue.
+ * The progress counts are a LEFT JOIN aggregate so a portion with no pick rows still reports 0/0
+ * rather than dropping out of the queue.
+ *
+ * ⚠ CORRECTED BY 054: this comment used to say rows "do not exist until picking begins". That is no
+ * longer true — the paid transaction now pre-seeds a row for any line the shelf could not supply, so
+ * the shop sees the shortfall on OPENING the order rather than discovering it hours later at the
+ * shelf (FR-022a). The aggregate is unaffected, and `status` comes from `sf.status` alone, so a
+ * `pending` portion with pre-seeded rows still reads as pending. ⚠ NOTHING may infer "picking has
+ * started" from the presence of fulfillment_item rows; that inference is now wrong.
  */
 const LIST_QUEUE = `
 SELECT sf.id,
@@ -488,6 +495,67 @@ export async function updateItemProgress(
         orderItemId,
         quantity: progress.unavailableQuantity,
       });
+      // ⚠ ONLY a real shortfall corrects the count. Un-flagging (`item_restored`, unavailable → 0)
+      // means the item turned up after all, which says nothing about how many MORE are on the shelf —
+      // zeroing the count there would invent a fact the picker never reported.
+      if (row.unavailable_quantity > 0) {
+        await emptyShelfFromPick(client, orderItemId, actorStaffId);
+      }
     }
   });
+}
+
+/**
+ * ⚠ 054 FR-023 — THE SHELF IS THE TRUTH.
+ *
+ * A picker standing at the shelf has just produced better information than the count did. If they
+ * could only find 1 of 3, the shop does not have 2 more somewhere; the count was wrong, and leaving
+ * it wrong means the next shopper is sold the same phantom unit. So recording a shortfall CORRECTS
+ * the count rather than raising a discrepancy for someone to approve later — a correction queue
+ * nobody works is worse than no queue (spec A9).
+ *
+ * ⚠ IT SETS ZERO, IT DOES NOT SUBTRACT. The paid transaction already deducted what was ordered, so
+ * subtracting again would double-count. And the fact a shortfall reports is simple: the picker took
+ * everything that was there and it still was not enough — so the shelf is EMPTY. Any arithmetic
+ * fancier than that would be inventing a number nobody counted.
+ *
+ * ⚠ It is guarded by `stock_on_hand <> 0` so a shelf already known to be empty writes no movement.
+ * A history full of "corrected 0 → 0" entries is a history nobody reads.
+ *
+ * ⚠ AND IT IS IN THE SAME TRANSACTION as the pick. A count that moved with no movement recorded
+ * makes SC-005 false forever; the history can never be reconstructed after the fact.
+ *
+ * ⚠ `actor_sub` is a COGNITO SUB, resolved from the staff id — the movement table snapshots subjects,
+ * not `shop_staff.id`, because shop staff live in `public` and back-office staff in `admin` and one
+ * audit column cannot reference both. It resolves to NULL when the staff record is gone, which the
+ * table permits for a human actor on purpose: a pick must not fail because an operator record moved.
+ *
+ * Untracked products match nothing here and produce no movement (FR-024).
+ */
+async function emptyShelfFromPick(
+  client: { query: (text: string, values: unknown[]) => Promise<unknown> },
+  orderItemId: string,
+  actorStaffId: string | null,
+): Promise<void> {
+  await client.query(
+    `WITH prev AS (
+       SELECT p.id, p.shop_id, p.stock_on_hand
+         FROM public.product p
+         JOIN public.order_item oi ON oi.product_id = p.id
+        WHERE oi.id = $1 AND p.stock_tracked AND p.stock_on_hand <> 0
+        FOR UPDATE OF p
+     ), moved AS (
+       UPDATE public.product p
+          SET stock_on_hand = 0
+         FROM prev
+        WHERE p.id = prev.id
+       RETURNING p.id, prev.shop_id, prev.stock_on_hand AS before, p.stock_on_hand AS after
+     )
+     INSERT INTO public.stock_movement
+         (product_id, shop_id, quantity_delta, quantity_before, quantity_after, reason, actor_kind, actor_sub)
+     SELECT id, shop_id, after - before, before, after, 'pick_shortfall', 'shop',
+            (SELECT ss.cognito_sub FROM public.shop_staff ss WHERE ss.id = $2)
+       FROM moved`,
+    [orderItemId, actorStaffId],
+  );
 }

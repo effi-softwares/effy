@@ -206,6 +206,10 @@ class ShopFoundationUiTest {
                         onRetry = {},
                         onNewProduct = {},
                         onEditDetails = {},
+                        // 054: the Inventory tab is its own MVVM island with its own use cases; this
+                        // test covers the Overview pane, so the stock pane is a stub here. Its own
+                        // behaviour is covered by StockViewModelTest.
+                        stockPane = {},
                     )
                 }
             }

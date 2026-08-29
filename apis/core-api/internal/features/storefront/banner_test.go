@@ -255,18 +255,32 @@ func TestNoProductAppearsTwiceWithinOneRail(t *testing.T) {
 }
 
 func TestRailsCarryOnlyAvailableProducts(t *testing.T) {
+	// ⚠ BOTH KINDS, DELIBERATELY. Seeding only available cards made this test pass vacuously once 054
+	// added a filter that emptied the rails — zero rails trivially contain no unavailable product.
+	// A test that cannot fail is worse than no test, because it reads as coverage.
 	repo := &fakeReader{
-		newest: []cardRow{card("p1", "Milk", nil, 1, nil)},
+		newest: []cardRow{card("p1", "Milk", nil, 1, nil), unavailableCard("gone", "Sold out")},
 		onSale: []cardRow{card("p2", "Bread", strptr("4.00"), 2, nil)},
 	}
 	home, _ := NewService(repo, fakePresign{}).Home(context.Background())
 
+	if len(home.Rails) == 0 {
+		t.Fatal("the available products must still produce rails — an empty result would make this test vacuous")
+	}
+	seen := map[string]bool{}
 	for _, rail := range home.Rails {
 		for _, p := range rail.Products {
+			seen[p.ID] = true
 			if !p.Available {
 				t.Fatalf("rail %q offers unavailable product %q (FR-023)", rail.Key, p.ID)
 			}
 		}
+	}
+	if !seen["p1"] {
+		t.Error("the available product must survive the filter")
+	}
+	if seen["gone"] {
+		t.Error("the out-of-stock product must be dropped from the rail (FR-023)")
 	}
 }
 

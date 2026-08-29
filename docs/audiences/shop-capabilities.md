@@ -389,3 +389,47 @@ shop app. Status:
   in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
   NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
 - **No PII** beyond the auth subject id; analytics consent-gated (shop); push OS-permission only.
+
+## §054 — Product Inventory (Shop-Managed Stock)
+
+Gives a shop a stock count it can maintain, and makes availability tell the truth. Closes gap **G2** in
+[ORDER-FLOW-GAPS.md](../../ORDER-FLOW-GAPS.md) — before this, nothing on the platform knew how much of
+anything a shop had, so overselling was unbounded and the only discovery mechanism was a picker at an
+empty shelf hours later.
+
+**Parity: shop-web ↔ shop-mobile, both built (FR-030).**
+
+| Capability | shop-web | shop-mobile |
+|---|---|---|
+| Turn stock tracking on/off (a count is required to enable) | ✅ Inventory tab | ✅ Inventory tab |
+| Set an exact count · adjust by a delta, with a reason | ✅ | ✅ |
+| Per-product low-stock threshold, clearable to the shop default | ✅ | ✅ |
+| Shop-wide default threshold | ✅ Restock screen | ⚠ read-only — set it on shop-web |
+| Movement history (who, why, before → after) | ✅ table | ✅ rows |
+| Restock list (out-of-stock first, then low) | ✅ `/restock` | ✅ pushed inside Catalog |
+
+- **⚠ Both shop roles manage stock** (FR-010, A7) — the gate is membership, not role, following 020's
+  FR-019a: the append-only movement record is the accountability control, and counting a shelf is the
+  work of whoever is standing at it. The nav entry is ungated for the same reason.
+- **⚠ Tracking is opt-in per product.** An untracked product behaves exactly as it did before 054
+  existed, which is what makes this non-breaking for the whole existing catalogue on day one (FR-002,
+  SC-006 — proven by a test, not asserted).
+- **⚠ The two shop surfaces' Inventory tabs were both placeholders since 016** ("Inventory — coming
+  soon"). This slice is what they were reserved for. On mobile the detail tabs were **decorative** —
+  `DetailTabs()` hard-coded index 0 and the pane below never changed — so Inventory is now real while
+  Attributes and Media still show the overview, as they always have. A pre-existing gap, recorded not
+  silently widened.
+- **A pick shortfall corrects the count** (FR-023): the shelf is the truth, so recording that a line
+  could not be found empties it rather than raising a discrepancy for someone to approve later.
+  Un-flagging does **not** — "it turned up after all" says nothing about how many more are there.
+- **Back-office can do everything a shop can, on their behalf** (FR-026), and the shop sees who did it:
+  the movement history shows "Effy support" beside the individual's name. Read is open to any active
+  staff including `csa`; writing is admin/manager.
+- **Restock is not a fifth mobile tab** — the bar carries four, and every row leads back to a product's
+  Inventory tab, so it lives inside Catalog.
+- **Colour carries nothing.** "Out of stock" and "Low" are words and weight on both surfaces, with
+  tests asserting the words — 041 removed the last amber warning from these exact screens.
+
+**⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
+The oversell concurrency proof (SC-003) is written but has **never executed** — Docker was down for the
+whole session. Spec/artifacts: [specs/054-product-inventory/](../../specs/054-product-inventory/).

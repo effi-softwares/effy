@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
@@ -38,13 +39,16 @@ import (
 // budget widened, because doing only the first would leave no margin at all.
 const writeTimeout = 12 * time.Second
 
-// Product lifecycle values this service reasons about (016). Only `active` is purchasable; `archived` is
-// terminal and its line is swept away; `draft` and `unavailable` are flagged but kept, because a shopper
-// may reasonably wait a temporary state out (research R11).
-const (
-	statusActive   = "active"
-	statusArchived = "archived"
-)
+// The one product lifecycle value this service still reasons about directly (016): `archived` is
+// TERMINAL, and its line is swept away rather than flagged, because there is nothing to wait for.
+// `draft` and `unavailable` are flagged but kept — a shopper may reasonably wait a temporary state
+// out (research R11).
+//
+// ⚠ 054 removed `statusActive` from this package deliberately. "Is this purchasable?" is no longer
+// a status comparison — it is availability.Purchasable, which also weighs stock — and leaving the
+// constant here would leave the old, now-wrong answer within easy reach of the next person editing
+// this file. The guard test refuses its return.
+const statusArchived = "archived"
 
 // Sentinel errors mapped by the handler.
 var (
@@ -177,7 +181,7 @@ type Repo interface {
 	// AllLines is the combined read — payable lines, saved lines and the revision in ONE round trip.
 	AllLines(ctx context.Context, cartID string) (lines, saved []cartLineRow, revision int64, err error)
 	CountDistinct(ctx context.Context, cartID string) (int, error)
-	ProductStatus(ctx context.Context, productID string) (status, price string, found bool, err error)
+	ProductStatus(ctx context.Context, productID string) (row productStatusRow, found bool, err error)
 	ProductSnapshots(ctx context.Context, productIDs []string) ([]cartLineRow, error)
 	OrderItemsForReorder(ctx context.Context, customerID, orderID string) ([]ReorderCandidate, bool, error)
 
@@ -201,10 +205,34 @@ type Service struct {
 	repo    Repo
 	presign media.Presigner
 	policy  cartpolicy.Reader
+	metrics StockMetrics
 }
 
+// StockMetrics is the cart's telemetry sink for stock refusals (054). Nil-able; low-cardinality
+// labels only, never PII or a product id (Principle VII).
+//
+// ⚠ `stock_blocked` is the number that says whether this FEATURE IS WORKING. A rising count is not a
+// fault — it is the oversell being stopped, once per shopper who would previously have been charged
+// for something that did not exist.
+type StockMetrics interface {
+	StockBlocked(stage string) // add | checkout
+}
+
+// WithStockMetrics wires the stock telemetry sink. Absent → a no-op, so tests and the local build
+// need no metrics registry.
+func (s *Service) WithStockMetrics(m StockMetrics) *Service {
+	s.metrics = m
+	return s
+}
+
+// noStockMetrics keeps the call sites free of nil checks — a metric that is not wired is not a
+// branch every caller has to remember.
+type noStockMetrics struct{}
+
+func (noStockMetrics) StockBlocked(string) {}
+
 func NewService(repo Repo, presign media.Presigner, policy cartpolicy.Reader) *Service {
-	return &Service{repo: repo, presign: presign, policy: policy}
+	return &Service{repo: repo, presign: presign, policy: policy, metrics: noStockMetrics{}}
 }
 
 // ── Reads ───────────────────────────────────────────────────────────────────────────────────────
@@ -289,9 +317,6 @@ func (s *Service) Add(ctx context.Context, customerID, productID, changeID strin
 	if err != nil {
 		return Cart{}, err
 	}
-	if err := s.assertPurchasable(ctx, productID); err != nil {
-		return Cart{}, err
-	}
 	cartID, err := s.repo.GetOrCreateCartID(ctx, customerID)
 	if err != nil {
 		return Cart{}, err
@@ -305,6 +330,14 @@ func (s *Service) Add(ctx context.Context, customerID, productID, changeID strin
 	}
 	if !containsProduct(existing, productID) && len(existing) >= policy.MaxDistinctItems {
 		return Cart{}, ErrCartFull
+	}
+
+	// ⚠ 054: the stock check is on the RESULTING line quantity. Adding 2 to a line already holding 4
+	// asks the shop for 6, and checking only the increment would let a shopper walk a line past the
+	// shelf two taps at a time — the exact defect this feature exists to close. The read happens
+	// AFTER the cart is resolved for that reason, and it subsumes the old purchasability check.
+	if err := s.assertCanTake(ctx, productID, quantityOf(existing, productID)+qty); err != nil {
+		return Cart{}, err
 	}
 
 	requested := qty
@@ -349,6 +382,11 @@ func (s *Service) SetQty(ctx context.Context, customerID, productID, changeID st
 			return Cart{}, err
 		}
 		return s.buildWith(ctx, cartID, policy, nil)
+	}
+
+	// An absolute set asks for exactly `qty`, so that is what the shop must be able to supply.
+	if err := s.assertCanTake(ctx, productID, qty); err != nil {
+		return Cart{}, err
 	}
 
 	clamped := clampTo(qty, policy.MaxLineQuantity)
@@ -422,11 +460,11 @@ func (s *Service) Merge(ctx context.Context, customerID, changeID string, lines 
 	keptIDs := make([]string, 0, len(ids))
 	quantities := make([]int32, 0, len(ids))
 	for _, id := range ids {
-		status, _, found, err := s.repo.ProductStatus(ctx, id)
+		prod, found, err := s.repo.ProductStatus(ctx, id)
 		if err != nil {
 			return Cart{}, err
 		}
-		if !found || status == statusArchived {
+		if !found || prod.Status == statusArchived {
 			continue
 		}
 		keptIDs = append(keptIDs, id)
@@ -560,7 +598,10 @@ func (s *Service) Reorder(ctx context.Context, customerID, orderID, changeID str
 			// The product is gone for good. Reported, never silently omitted.
 			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipRemoved})
 			continue
-		case *c.Status != statusActive:
+		// 054: a reorder of something the shop has run out of is skipped as unavailable, exactly like
+		// one the operator withdrew. Same outcome, and the shopper is told either way — what they must
+		// NOT get is it silently added to a cart that cannot be paid for.
+		case !availability.Purchasable(*c.Status, c.StockTracked != nil && *c.StockTracked, c.StockOnHand):
 			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipUnavailable})
 			continue
 		}
@@ -688,7 +729,10 @@ func (s *Service) DiscountForCustomer(ctx context.Context, customerID string, pa
 func payableCents(rows []cartLineRow) int64 {
 	var total int64
 	for _, row := range rows {
-		if row.Status != statusActive {
+		// ⚠ 054 FR-017: a line the shop cannot supply is excluded from the PAYABLE total. This is the
+		// one place that decides what a shopper is actually asked to pay, so an out-of-stock line
+		// dropping out here is what keeps FR-020 true — the amount never covers units that are gone.
+		if !availability.Purchasable(row.Status, row.StockTracked, row.StockOnHand) {
 			continue
 		}
 		if cents, err := money.ParseCents(row.UnitPriceAmount); err == nil {
@@ -866,12 +910,27 @@ func (s *Service) toLines(ctx context.Context, rows []cartLineRow, collectNotice
 	var subtotalCents int64
 
 	for _, row := range rows {
-		available := row.Status == statusActive
+		available := availability.Purchasable(row.Status, row.StockTracked, row.StockOnHand)
 		unitCents, err := money.ParseCents(row.UnitPriceAmount)
 		if err != nil {
 			return nil, 0, nil, err
 		}
-		lineCents := unitCents * int64(row.Quantity)
+		// ⚠ 054 FR-017: the PRESENTED quantity is capped at what the shop can supply, and the subtotal
+		// is computed from that capped number.
+		//
+		// ⚠ WHY CAP THE QUANTITY RATHER THAN JUST THE SUBTOTAL. Leaving `Quantity` at 5 while charging
+		// for 2 makes `lineSubtotal != unitPrice × quantity`, which is exactly the defect 051/052 had
+		// to chase on the mobile receipt — lines that did not add up. Every surface that renders a cart
+		// does that multiplication somewhere, and one that disagrees with the server is a bug nobody
+		// can see in a DOM assertion. The cart ROW is untouched: if stock returns, so does the 5.
+		payableQty := row.Quantity
+		if row.StockTracked && row.StockOnHand != nil && *row.StockOnHand < payableQty {
+			payableQty = *row.StockOnHand
+		}
+		if payableQty < 0 {
+			payableQty = 0
+		}
+		lineCents := unitCents * int64(payableQty)
 
 		var imageURL string
 		if row.StorageKey != nil {
@@ -892,8 +951,25 @@ func (s *Service) toLines(ctx context.Context, rows []cartLineRow, collectNotice
 
 		if available {
 			subtotalCents += lineCents
+			// Partially supplied: the shopper asked for more than the shop has. Told, not silently
+			// reduced — FR-017's "the shopper MUST be told what changed".
+			if collectNotices && payableQty < row.Quantity {
+				notices = append(notices, Notice{
+					ProductID: row.ProductID,
+					Kind:      NoticeQuantityClamped,
+					Detail:    fmt.Sprintf("Only %d of %s available", payableQty, row.Name),
+				})
+			}
 		} else if collectNotices {
-			notices = append(notices, Notice{ProductID: row.ProductID, Kind: NoticeUnavailable, Detail: row.Name})
+			// ⚠ ONE NOTICE KIND, TWO CAUSES, AND THE CAUSE IS IN THE DETAIL (FR-014). "Out of stock"
+			// and "no longer sold" ask different things of a shopper — wait, versus give up — and this
+			// is the surface where they are about to pay, so collapsing them here would undo the
+			// distinction the saved list is built around.
+			notices = append(notices, Notice{
+				ProductID: row.ProductID,
+				Kind:      NoticeUnavailable,
+				Detail:    unavailableDetail(row),
+			})
 		}
 
 		lines = append(lines, Line{
@@ -902,7 +978,7 @@ func (s *Service) toLines(ctx context.Context, rows []cartLineRow, collectNotice
 			Name:               row.Name,
 			ImageURL:           imageURL,
 			UnitPriceAmount:    row.UnitPriceAmount,
-			Quantity:           row.Quantity,
+			Quantity:           payableQty,
 			LineSubtotalAmount: money.FormatCents(lineCents),
 			Available:          available,
 			PriceChangedFrom:   changedFrom,
@@ -938,20 +1014,66 @@ func checkoutState(lineCount, payable int, payableCents int64, policy cartpolicy
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────
 
-// assertPurchasable verifies the product exists and is active.
+// InsufficientStockError refuses a quantity the shop cannot supply, AND SAYS HOW MANY IT CAN.
+//
+// ⚠ THE NUMBER IS THE POINT (FR-016, FR-015b). "That product is unavailable" leaves a shopper with
+// nothing to do; "only 2 available" lets them take the two. It is also the one place a count may
+// reach a customer at all — FR-015 keeps stock off every browse surface — and it is permitted here
+// precisely because the cap already discloses that bound: a shopper who tries 5, then 3, then 2
+// learns the number anyway, so withholding it removes only their ability to act on it.
+type InsufficientStockError struct {
+	ProductID string
+	Available int
+}
+
+func (e *InsufficientStockError) Error() string {
+	return fmt.Sprintf("cart: only %d available", e.Available)
+}
+
+// assertPurchasable verifies the product exists and can actually be bought right now.
+//
+// ⚠ 054: "can be bought" is availability.Purchasable, not `status == active`. The rule is defined
+// once, in one package, and every surface that asks this question reads it from there — see
+// internal/platform/availability for why that matters more than it looks like it should.
 func (s *Service) assertPurchasable(ctx context.Context, productID string) error {
 	if !validUUID(productID) {
 		return ErrProductNotFound
 	}
-	status, _, found, err := s.repo.ProductStatus(ctx, productID)
+	prod, found, err := s.repo.ProductStatus(ctx, productID)
 	if err != nil {
 		return err
 	}
 	if !found {
 		return ErrProductNotFound
 	}
-	if status != statusActive {
+	if !availability.Purchasable(prod.Status, prod.StockTracked, prod.StockOnHand) {
 		return ErrProductUnavailable
+	}
+	return nil
+}
+
+// assertCanTake is assertPurchasable plus "and there are at least `want` of them".
+//
+// ⚠ `want` is the RESULTING line quantity, not the increment. Adding 2 to a line that already holds 4
+// asks the shop for 6, and checking only the increment would let a shopper walk a line past the shelf
+// two at a time — which is the whole defect this feature exists to close.
+func (s *Service) assertCanTake(ctx context.Context, productID string, want int) error {
+	if !validUUID(productID) {
+		return ErrProductNotFound
+	}
+	prod, found, err := s.repo.ProductStatus(ctx, productID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return ErrProductNotFound
+	}
+	if !availability.Purchasable(prod.Status, prod.StockTracked, prod.StockOnHand) {
+		return ErrProductUnavailable
+	}
+	if prod.StockTracked && prod.StockOnHand != nil && want > *prod.StockOnHand {
+		s.metrics.StockBlocked("add")
+		return &InsufficientStockError{ProductID: productID, Available: *prod.StockOnHand}
 	}
 	return nil
 }
@@ -1001,6 +1123,30 @@ func capDistinct(ctx context.Context, repo Repo, cartID string, ids []string, qu
 		outQty = append(outQty, quantities[i])
 	}
 	return outIDs, outQty
+}
+
+// unavailableDetail says WHY a line cannot be supplied, in words a shopper can act on.
+//
+// ⚠ It never discloses a count or a shop — FR-015. "Out of stock" is a state, not a number, and it is
+// the shopper's own cart, so naming the product is not a disclosure.
+func unavailableDetail(row cartLineRow) string {
+	if row.Status == statusArchived {
+		return row.Name + " is no longer sold"
+	}
+	if row.StockTracked && (row.StockOnHand == nil || *row.StockOnHand <= 0) {
+		return row.Name + " is out of stock"
+	}
+	return row.Name + " is unavailable right now"
+}
+
+// quantityOf is what the line already holds — 0 when the product is not in the cart.
+func quantityOf(rows []cartLineRow, productID string) int {
+	for _, r := range rows {
+		if r.ProductID == productID {
+			return r.Quantity
+		}
+	}
+	return 0
 }
 
 func containsProduct(rows []cartLineRow, productID string) bool {

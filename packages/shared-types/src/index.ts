@@ -34,3 +34,5 @@ export * from "./payment";
 // 053-order-lifecycle-completion — back-office order contracts. ⚠ A deliberately separate family
 // from ./order: these carry shop identity and the customer's must never learn to (FR-021).
 export * from "./order-admin";
+// 054-product-inventory
+export * from "./inventory";

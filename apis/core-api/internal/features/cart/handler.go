@@ -8,7 +8,9 @@ package cart
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -278,6 +280,19 @@ func (h *Handler) respond(c *gin.Context, cart Cart, err error) {
 			httpx.NotFound(c)
 		case errors.Is(err, ErrProductUnavailable):
 			httpx.ValidationFailed(c, "that product is currently unavailable")
+		case insufficient(err) != nil:
+			// ⚠ A DISTINGUISHABLE refusal carrying the NUMBER (FR-016, FR-015b). 027 built
+			// `ValidationFailedAs` for exactly this shape: the client keys off the problem `type` and
+			// writes its OWN copy, so no server prose is rendered, while the count travels as a field
+			// error the client can put in that copy. "That product is unavailable" leaves a shopper
+			// with nothing to do; "only 2 available" lets them take the two.
+			e := insufficient(err)
+			httpx.WriteProblem(c, http.StatusBadRequest,
+				"https://effyshopping.com/problems/insufficient-stock",
+				"Request validation failed",
+				fmt.Sprintf("only %d available", e.Available),
+				httpx.FieldError{Field: "availableQuantity", Message: strconv.Itoa(e.Available)},
+			)
 		case errors.Is(err, ErrInvalidQuantity):
 			httpx.ValidationFailed(c, "that quantity is not valid")
 		case errors.Is(err, ErrCartFull):
@@ -289,6 +304,15 @@ func (h *Handler) respond(c *gin.Context, cart Cart, err error) {
 		return
 	}
 	c.JSON(http.StatusOK, toCartDTO(cart))
+}
+
+// insufficient unwraps the stock refusal, or nil.
+func insufficient(err error) *InsufficientStockError {
+	var e *InsufficientStockError
+	if errors.As(err, &e) {
+		return e
+	}
+	return nil
 }
 
 func toLineInputs(in []cartLineInput) []LineInput {
