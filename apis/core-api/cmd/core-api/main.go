@@ -26,6 +26,7 @@ import (
 	"github.com/effyshopping/effy/apis/core-api/internal/features/customerping"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/orders"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/platformstatus"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/refunds"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/saveditems"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/storefront"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
@@ -56,7 +57,12 @@ func main() {
 type dependencies struct {
 	status           *platformstatus.Service
 	customerVerifier *auth.PoolVerifier
-	cognito          *cognitoidentityprovider.Client
+	// ⚠ 055: the SECOND pool this service verifies. Per-pool validation, pinned issuer — the shape
+	// Principle IV sanctions, not the auth proxy it forbids (research R1).
+	backOfficeVerifier *auth.PoolVerifier
+	staffGate          *auth.StaffGate
+	refunds            *refunds.Service
+	cognito            *cognitoidentityprovider.Client
 
 	// 019 commerce shared collaborators — constructed once, wired into each feature slice's
 	// Register as the commerce features (storefront/cart/checkout/orders/saved items) land. Address
@@ -112,6 +118,23 @@ func run() error {
 		return err
 	}
 
+	// ⚠ 055: THE SECOND POOL THIS SERVICE VERIFIES, and the first that is not the customer.
+	//
+	// Refunds are issued here because the payment secret lives here and nowhere else (019 SC-012).
+	// This is per-pool validation against the back-office pool's own issuer and client ids — the shape
+	// Principle IV sanctions — and NOT the auth proxy it forbids. The rejected alternative was the
+	// cold path forwarding an operator's token to this service, which is brokering by definition
+	// (research R1).
+	//
+	// Fail-closed like its sibling: a misconfigured pool aborts boot rather than mounting the admin
+	// routes unauthenticated. ⚠ That matters more here than anywhere else on the platform — these are
+	// the routes that move money.
+	backOfficeVerifier, err := auth.NewPoolVerifier(ctx, auth.AudienceBackOffice,
+		cfg.AWS.Region, cfg.Auth.BackOffice.PoolID, cfg.Auth.BackOffice.ClientIDs...)
+	if err != nil {
+		return err
+	}
+
 	m := metrics.New()
 	m.RegisterPoolStats(pool)
 
@@ -126,10 +149,19 @@ func run() error {
 	// found exactly that in this feature's first draft).
 	cartSvc := cart.NewService(cart.NewRepository(pool), presign, cartpolicy.NewStore(pool)).WithStockMetrics(m)
 
+	// ⚠ Constructed BEFORE the dependency literal because checkout needs it: the refund half of the
+	// provider's webhook rides the ONE signature-verified endpoint (055 US4), and `refunds` imports
+	// `checkout` for the gateway, so the wiring can only go this direction.
+	refundSvc := refunds.NewService(refunds.NewRepository(pool), paymentGateway).WithMetrics(m)
+
 	deps := dependencies{
 		status:           platformstatus.NewService(platformstatus.NewRepository(pool), cfg.Env),
 		customerVerifier: customerVerifier,
-		cognito:          cognitoidentityprovider.NewFromConfig(awsCfg),
+		// 055: refunds are issued here because the payment secret is here (research R1).
+		backOfficeVerifier: backOfficeVerifier,
+		staffGate:          auth.NewStaffGate(pool),
+		refunds:            refundSvc,
+		cognito:            cognitoidentityprovider.NewFromConfig(awsCfg),
 
 		// 019 commerce shared collaborators (research R2/R3/R7).
 		pool:     pool,
@@ -142,7 +174,7 @@ func run() error {
 		cart:       cartSvc,
 		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
-		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m).WithStockMetrics(m),
+		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m).WithStockMetrics(m).WithRefundEvents(refundSvc),
 		orders:   orders.NewService(orders.NewRepository(pool), presign),
 	}
 
@@ -229,8 +261,19 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 	storefront.Register(v1, storefront.NewHandler(deps.storefront), storefront.NewDeliveryReads(deps.pool, deps.metrics))
 	cart.Register(v1, deps.customerVerifier, deps.customer, cart.NewHandler(deps.cart))
 	orders.Register(v1, deps.customerVerifier, deps.customer, orders.NewHandler(deps.orders))
+	// 055 US2 — the customer's own cancel control, mounted on the SAME customer-scoped group the order
+	// reads use, so it inherits the pool verifier and the identity resolution rather than repeating them.
+	refunds.RegisterCustomer(
+		v1.Group("/orders", auth.Middleware(deps.customerVerifier), customeridentity.Middleware(deps.customer)),
+		refunds.NewHandler(deps.refunds, deps.staffGate))
 	saveditems.Register(v1, deps.customerVerifier, deps.customer, saveditems.NewHandler(deps.savedItems))
 	checkout.Register(v1, deps.customerVerifier, deps.customer, checkout.NewHandler(deps.checkout))
+
+	// 055 refunds. ⚠ The ONLY route group on this service that is not the customer pool. It is here,
+	// rather than on the cold path, because the payment secret lives here and nowhere else
+	// (019 SC-012) — see research R1 for why the alternatives were rejected.
+	refunds.RegisterAdmin(v1, deps.backOfficeVerifier,
+		refunds.NewHandler(deps.refunds, deps.staffGate))
 }
 
 // savedCartAdder adapts the cart service to saved-items' narrow CartAdder seam.

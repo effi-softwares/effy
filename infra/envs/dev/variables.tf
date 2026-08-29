@@ -256,7 +256,7 @@ variable "core_api_desired_count" {
 }
 
 variable "core_api_cors_origins" {
-  description = "Browser origins allowed to call the hot path (customer-web). Native mobile + SSR need no CORS. The deployed storefront origin is added here per env; localhost:3000 covers local dev."
+  description = "Browser origins allowed to call the hot path. customer-web (the storefront) and — since 055 — the BACK-OFFICE console, which calls core-api directly to issue refunds because the payment secret lives there and nowhere else. Native mobile + SSR need no CORS. Each env's tfvars lists its real origins; this default only covers a bare local run."
   type        = list(string)
   default     = ["http://localhost:3000"]
 }

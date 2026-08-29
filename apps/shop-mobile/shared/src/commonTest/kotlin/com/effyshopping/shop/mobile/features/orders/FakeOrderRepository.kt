@@ -25,6 +25,8 @@ class FakeOrderRepository(
 ) : OrderRepository {
     var lastState: QueueState? = null
     var lastDetailId: String? = null
+    /** 055 — what the shop said, so a test can assert the reason actually travels. */
+    var lastTransitionReason: String? = null
     var lastTransition: FulfillmentTransition? = null
     var lastProgress: ItemProgress? = null
     var lastProgressItemId: String? = null
@@ -51,13 +53,19 @@ class FakeOrderRepository(
         return detail
     }
 
-    override suspend fun transition(id: String, to: FulfillmentTransition): FulfillmentDetail {
+    override suspend fun transition(
+        id: String,
+        to: FulfillmentTransition,
+        reason: String?,
+    ): FulfillmentDetail {
+        lastTransitionReason = reason
         lastTransition = to
         failTransitionWith?.let { throw AppException(it) }
         detail = detail.copy(
             status = when (to) {
                 FulfillmentTransition.PICKING -> FulfillmentState.PICKING
                 FulfillmentTransition.READY_FOR_PICKUP -> FulfillmentState.READY_FOR_PICKUP
+                FulfillmentTransition.UNFULFILLABLE -> FulfillmentState.UNFULFILLABLE
             },
         )
         return detail

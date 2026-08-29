@@ -82,3 +82,34 @@ func StageFor(fulfillments []Fulfillment) Stage {
 		return StageConfirmed
 	}
 }
+
+// CustomerCancellable reports whether the SHOPPER may still cancel this order themselves (055 FR-012).
+//
+// ⚠ DERIVED HERE AND PUT ON THE WIRE — a client must never work this out from a stage. That is exactly
+// the `summarizeFulfillment` mistake 052 deleted: two implementations of one rule, both rendering
+// something, so a divergence is silent. Here the cost of divergence is a shopper shown a cancel button
+// that refuses, or denied one that would have worked.
+//
+// ⚠ AND IT IS ADVISORY, NOT THE GATE. The server re-decides it inside the row lock when the cancel
+// actually arrives (FR-017), because a shop can begin picking between the read and the tap. This exists
+// so the control is not offered when it obviously cannot work — not so the client can decide.
+//
+// ⚠ THE WINDOW CLOSES WHEN *ANY* SHOP BEGINS, not when all of them have (A2). A two-shop order where
+// one has started picking is already partly real work.
+func CustomerCancellable(status string, fulfillments []Fulfillment) bool {
+	if status != "paid" {
+		// An unpaid order has no money to return; a cancelled one is already cancelled.
+		return false
+	}
+	if len(fulfillments) == 0 {
+		// ⚠ Paid but not yet fanned out. The money is taken and no shop has been told anything, which
+		// is the most cancellable an order ever is.
+		return true
+	}
+	for _, f := range fulfillments {
+		if f.Status != "pending" {
+			return false
+		}
+	}
+	return true
+}

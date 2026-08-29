@@ -49,6 +49,7 @@ const AUTHED = [
   "orderDetailV1",
   "fulfillmentHandoffV1",
   "fulfillmentArrivalV1",
+  "refundProposalDismissV1",
 ] as const;
 
 /** Public by design — liveness/readiness probes touch no customer data. */

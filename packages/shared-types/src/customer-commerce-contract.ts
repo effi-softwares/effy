@@ -11,6 +11,13 @@
  * shop/driver/admin types.
  */
 import type {
+  CustomerRefundDTO,
+  RefundRequestDTO,
+  RefundRequestStatus,
+  CreateRefundRequestBody,
+  CancelOrderBody,
+} from "./refund";
+import type {
   ProductBadge,
   MediaDTO,
   StorefrontProductCardDTO,
@@ -169,6 +176,14 @@ export type {
 };
 
 /** Aggregator — codegen entry only (see file header). Every field forces a type into the schema. */
+export type {
+  CustomerRefundDTO,
+  RefundRequestDTO,
+  RefundRequestStatus,
+  CreateRefundRequestBody,
+  CancelOrderBody,
+};
+
 export interface CustomerCommerceContract {
   home: StorefrontHomeDTO;
   productCard: StorefrontProductCardDTO;
@@ -246,4 +261,12 @@ export interface CustomerCommerceContract {
   listPaymentMethods: ListPaymentMethodsResponse;
   billingDetails: BillingDetailsDTO;
   billingAddress: BillingAddressDTO;
+  // ── 055 refunds & cancellation ──
+  // ⚠ Only the CUSTOMER-facing shapes. `RefundDTO` (staff) carries the payment provider's failure
+  // text and a five-state status, neither of which may reach a shopper — putting it here would make
+  // that a one-line mistake away.
+  customerRefund: CustomerRefundDTO;
+  refundRequest: RefundRequestDTO;
+  createRefundRequest: CreateRefundRequestBody;
+  cancelOrder: CancelOrderBody;
 }

@@ -9,6 +9,7 @@ import { sessionQuery } from "@/features/auth/queries";
 import { canRecordOrderProgress } from "./access";
 import { orderActionError } from "./errorText";
 import { PackageRows } from "./components/PackageRows";
+import { RefundsSection } from "./components/RefundsSection";
 import { STAGE_LABEL, type OrderDetail } from "./model";
 import { orderDetailQuery, useRecordArrival, useRecordHandoff } from "./queries";
 
@@ -221,6 +222,12 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
           <p className="text-sm text-muted-foreground">Billing: same as delivery.</p>
         )}
       </section>
+
+      {/*
+        ⚠ ABOVE HISTORY, BELOW THE ORDER ITSELF. Refunds are the part of this screen an operator acts
+        on — history is what they read afterwards to understand it.
+      */}
+      <RefundsSection order={order} canIssue={canRecord} />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium">History</h2>

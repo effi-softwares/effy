@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -133,5 +133,86 @@ describe("StateControl transitions", () => {
     expect(await screen.findByText(/don't have access to this order/i)).toBeInTheDocument();
     expect(screen.queryByText(/shop_staff row inactive/)).toBeNull();
     expect(screen.queryByRole("button", { name: /reload/i })).toBeNull();
+  });
+});
+
+// ── 055 US6 — the exit a shop that cannot supply its portion previously lacked ──────────────────
+//
+// ⚠ BEFORE THIS, A SHOP HOLDING AN ORDER IT COULD NOT FILL HAD NO STATE TO MOVE IT TO. The portion
+// sat in the active queue forever, and the only way out was for someone to stop looking at it.
+
+describe("can't supply this order (055 US6)", () => {
+  // ⚠ `mockReset`, not `mockClear`. The suite above deliberately uses `mockClear` to keep per-test
+  // resolved values — which means the LAST of them (a 403 rejection) leaks into anything that runs
+  // after it. This block starts from a clean mock and its own success.
+  beforeEach(() => {
+    transitionFulfillment.mockReset();
+    transitionFulfillment.mockResolvedValue(detail("unfulfillable" as never));
+  });
+
+  // ⚠ It tells Effy to refund a customer and takes the order off the queue for good. A mis-tap here
+  // is not a wrong pixel.
+  it("asks before it acts, naming the consequence", async () => {
+    wrap(<StateControl detail={detail("picking")} onReload={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /can't supply this order/i }));
+
+    expect(transitionFulfillment).not.toHaveBeenCalled();
+    expect(screen.getByText(/asks effy to refund the customer/i)).toBeInTheDocument();
+    expect(screen.getByText(/can't be undone/i)).toBeInTheDocument();
+  });
+
+  // ⚠ A REASON IS REQUIRED, here and in the database. Back-office decides a refund on the strength
+  // of it; "the shop said no" is not a basis for returning a customer's money.
+  it("cannot be declared without a reason", async () => {
+    wrap(<StateControl detail={detail("picking")} onReload={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: /can't supply this order/i }));
+
+    const confirm = screen.getByRole("button", { name: /^can't supply it$/i });
+    expect(confirm).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText(/why can't you supply/i), "the chiller failed");
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await userEvent.click(confirm);
+
+    await waitFor(() =>
+      expect(transitionFulfillment).toHaveBeenCalledWith("f1", {
+        to: "unfulfillable",
+        reason: "the chiller failed",
+      }),
+    );
+  });
+
+  // ⚠ Once collected it is no longer the shop's call — the goods have left and somebody is carrying
+  // them. Mirrors the server's legal-edge map, and the server decides.
+  it.each(["collected", "delivered", "unfulfillable", "withdrawn"])(
+    "offers no control once %s",
+    (status) => {
+      wrap(<StateControl detail={detail(status as never)} onReload={() => {}} />);
+      expect(screen.queryByRole("button", { name: /can't supply/i })).not.toBeInTheDocument();
+    },
+  );
+
+  // ⚠ A shop may know before opening the order that it cannot supply it — the whole delivery is off,
+  // the chiller failed. Requiring them to open it first would be ceremony.
+  it.each(["pending", "received", "picking", "ready_for_pickup"])(
+    "is offered while %s",
+    (status) => {
+      wrap(<StateControl detail={detail(status as never)} onReload={() => {}} />);
+      expect(screen.getByRole("button", { name: /can't supply this order/i })).toBeInTheDocument();
+    },
+  );
+
+  // ⚠ It is the LAST RESORT, never a primary action sitting beside the forward one.
+  it("is not a primary action", async () => {
+    wrap(<StateControl detail={detail("picking")} onReload={() => {}} />);
+    const button = screen.getByRole("button", { name: /can't supply this order/i });
+    expect(button.className).not.toMatch(/bg-primary/);
+  });
+
+  // ⚠ `withdrawn` was NOT the shop's doing, and this screen is where they are judged.
+  it("says a cancelled order was cancelled, not that the shop failed", () => {
+    wrap(<StateControl detail={detail("withdrawn" as never)} onReload={() => {}} />);
+    expect(screen.getByText(/the customer cancelled this order/i)).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(/couldn't supply|failed to/i);
   });
 });

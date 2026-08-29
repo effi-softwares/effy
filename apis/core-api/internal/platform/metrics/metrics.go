@@ -33,6 +33,15 @@ type Metrics struct {
 	// the series unbounded AND disclose shop identity into a metrics store (Principle VII, FR-015).
 	stockDeducted *prometheus.CounterVec // labels: outcome ∈ {full,partial}
 	stockBlocked  *prometheus.CounterVec // labels: stage   ∈ {add,checkout}
+
+	// 055 — refunds and cancellation (research R9). ⚠ THE LABEL NAME IS PART OF THE CONTRACT: 054
+	// declared one of the counters above with `outcome` and called it with `stage`, which does NOT
+	// panic — `WithLabelValues` is positional — it silently emits a series every alert querying the
+	// declared name misses. `metrics_test.go` pins the name per metric.
+	refundsIssued    *prometheus.CounterVec // labels: kind    ∈ {item,goodwill,cancellation,external}
+	refundOutcomes   *prometheus.CounterVec // labels: outcome ∈ {succeeded,failed,refused}
+	refundSubmitFail *prometheus.CounterVec // labels: failure ∈ {ambiguous,refused}
+	ordersCancelled  *prometheus.CounterVec // labels: actor   ∈ {customer,back_office}
 }
 
 func New() *Metrics {
@@ -69,6 +78,30 @@ func New() *Metrics {
 			Help: "Purchases stopped by stock, by stage (add | checkout). A RISING count is the " +
 				"feature working, not a fault (054 FR-016/FR-018).",
 		}, []string{"stage"}),
+
+		// ⚠ NO ORDER ID, CUSTOMER ID OR AMOUNT ON ANY LABEL. A label is a time-series dimension:
+		// an order id would mint one series per order (unbounded cardinality, a dead Prometheus) and
+		// an amount would put a customer's money in a metrics endpoint.
+		refundsIssued: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_refunds_issued_total",
+			Help: "Refunds SUBMITTED to the provider, by kind. ⚠ Submitted is not settled — see " +
+				"effy_refund_outcomes_total for what actually happened (055 FR-007).",
+		}, []string{"kind"}),
+		refundOutcomes: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_refund_outcomes_total",
+			Help: "How refunds SETTLED, by outcome. A sustained `failed` rate means money is not " +
+				"reaching customers and nobody outside this metric would know (055 US4).",
+		}, []string{"outcome"}),
+		refundSubmitFail: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_refund_submit_failures_total",
+			Help: "Submissions the provider did not accept, by failure kind. `ambiguous` may have " +
+				"created a refund and is retried under the same key; `refused` is a decision (055 FR-005d).",
+		}, []string{"failure"}),
+		ordersCancelled: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_orders_cancelled_total",
+			Help: "Orders cancelled, by who asked. ⚠ Cancelling IS refunding on this platform — the " +
+				"money was captured at payment (055 research R3).",
+		}, []string{"actor"}),
 	}
 
 	m.registry.MustRegister(
@@ -79,6 +112,10 @@ func New() *Metrics {
 		m.deliveryQuoteFailure,
 		m.stockDeducted,
 		m.stockBlocked,
+		m.refundsIssued,
+		m.refundOutcomes,
+		m.refundSubmitFail,
+		m.ordersCancelled,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
@@ -120,6 +157,29 @@ func (m *Metrics) StockBlocked(stage string) {
 }
 
 // Middleware records the RED pair for every handled request.
+// ── 055 refunds & cancellation ─────────────────────────────────────────────────────────────────
+//
+// ⚠ EACH TAKES THE LABEL IT DECLARES, AND THE TEST PINS THE PAIRING. 054 declared a counter with
+// `outcome` and called it with `stage`: no panic, no error, just a series every alert misses.
+
+// RefundIssued records one refund SUBMITTED to the provider. ⚠ Not settled — see RefundSettled.
+func (m *Metrics) RefundIssued(kind string) { m.refundsIssued.WithLabelValues(kind).Inc() }
+
+// RefundSettled records what the provider finally said. ⚠ This is the one that tells the truth about
+// whether money reached a customer, up to thirty days after RefundIssued.
+func (m *Metrics) RefundSettled(outcome string) { m.refundOutcomes.WithLabelValues(outcome).Inc() }
+
+// RefundSubmitFailed records a submission the provider did not accept.
+//
+// ⚠ `ambiguous` and `refused` are separate because only one of them can be retried. Collapsing them
+// would make a provider outage and a permanent refusal look the same on a dashboard.
+func (m *Metrics) RefundSubmitFailed(failure string) {
+	m.refundSubmitFail.WithLabelValues(failure).Inc()
+}
+
+// OrderCancelled records one cancellation, by who asked for it.
+func (m *Metrics) OrderCancelled(actor string) { m.ordersCancelled.WithLabelValues(actor).Inc() }
+
 func (m *Metrics) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()

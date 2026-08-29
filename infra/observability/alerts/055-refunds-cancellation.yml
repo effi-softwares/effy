@@ -1,0 +1,76 @@
+# Alerting rules for 055-refunds-cancellation.
+#
+# ⚠ NOT LOADED BY ANYTHING. See ../README.md — the Prometheus/Grafana stack these are written for does
+# not exist: no module, no scrape config, and nothing reads core-api's `/metrics`. These are
+# specifications, not live alerts, and this slice inherits that gap rather than introducing it
+# (recorded in the plan's Complexity Tracking).
+#
+# ⚠ UNTIL THE STACK EXISTS, both conditions below are detectable only by querying `public.refund`
+# directly. Say so to whoever asks:
+#
+#     -- refunds the bank rejected, newest first
+#     SELECT id, order_id, amount, failure_reason, settled_at
+#       FROM public.refund WHERE status = 'failed' ORDER BY settled_at DESC;
+#
+#     -- refunds that never settled: the silent one
+#     SELECT id, order_id, amount, created_at
+#       FROM public.refund
+#      WHERE status IN ('submitting', 'submitted') AND created_at < now() - interval '3 days';
+#
+# Metrics referenced here are declared in apis/core-api/internal/platform/metrics/metrics.go and
+# emitted from the refund issue path, the cancellation path and the provider webhook.
+groups:
+  - name: refunds-cancellation
+    rules:
+      # ⚠ THE ONE THAT MATTERS. A sustained failure rate means money is NOT reaching customers who
+      # have been told it is on its way — and nobody outside this metric would know, because the
+      # failure arrives days later on a webhook nobody is watching. The customer sees "there was a
+      # problem" on their order and is waiting for us to fix it.
+      - alert: EffyRefundsFailing
+        expr: |
+          sum(rate(effy_refund_outcomes_total{outcome="failed"}[30m]))
+            /
+          sum(rate(effy_refund_outcomes_total[30m])) > 0.1
+        for: 30m
+        labels:
+          severity: page
+        annotations:
+          summary: "More than 10% of settled refunds are failing"
+          description: >-
+            Customers have been told their money is on its way and it is not arriving. Check
+            public.refund WHERE status = 'failed' for the provider's reasons — they are recorded per
+            refund and are the only clue whether a retry could help.
+
+      # ⚠ THE SILENT ONE, AND THE HARDER OF THE TWO TO NOTICE. A refund stuck in `submitted` has no
+      # failure, no error and no log line — it simply never settles. That is the shape an
+      # insufficient-balance hold takes: the provider accepted the request and is waiting for funds
+      # it does not have. Nothing anywhere says so; the count of unsettled refunds only stops falling.
+      - alert: EffyRefundsNotSettling
+        expr: |
+          sum(increase(effy_refunds_issued_total[24h]))
+            -
+          sum(increase(effy_refund_outcomes_total[24h])) > 5
+        for: 6h
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Refunds are being submitted but not settling"
+          description: >-
+            More refunds were submitted in the last 24h than settled. A refund that never settles
+            looks like nothing at all — check public.refund for rows in 'submitting' or 'submitted'
+            older than a few days, and confirm the provider's refund.* webhooks are still arriving.
+
+      # ⚠ An AMBIGUOUS submission failure means the provider did not answer: the refund may or may not
+      # exist. It is retried under the same idempotency key, which is what makes that safe — but a
+      # sustained rate means the retry is not succeeding either, and those refunds are sitting in
+      # `submitting`, invisible to the customer and to the ceiling.
+      - alert: EffyRefundSubmissionsAmbiguous
+        expr: sum(rate(effy_refund_submit_failures_total{failure="ambiguous"}[15m])) > 0.05
+        for: 15m
+        labels:
+          severity: ticket
+        annotations:
+          summary: "Refund submissions are not reaching the payment provider"
+          description: >-
+            Staff are being told the outcome is unknown. Check provider status; the refunds are safe
+            to retry (same idempotency key) but are not yet on their way.

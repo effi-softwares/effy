@@ -20,6 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import com.effyshopping.customer.mobile.features.checkout.domain.CancelOrderResult
+import com.effyshopping.customer.mobile.features.checkout.domain.CustomerRefundState
+import com.effyshopping.customer.mobile.features.checkout.domain.RefundRequestInput
+import com.effyshopping.customer.mobile.features.checkout.domain.RefundRequestItem
+import com.effyshopping.customer.mobile.features.checkout.domain.RefundRequestResult
 import com.effyshopping.customer.mobile.features.checkout.domain.ResendReceiptResult
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.material3.TextButton
@@ -52,6 +57,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.mutableStateMapOf
 
 private sealed interface ReceiptUiState {
     data object Loading : ReceiptUiState
@@ -304,7 +313,30 @@ private fun ReceiptBody(
     )
 
     // ── Send the receipt again (052 US4, FR-027) ────────────────────────────────────────────────
+    // ⚠ NOTHING AT ALL when there are no refunds (FR-028) — not an empty section. The server omits
+    // the fields entirely, so an unrefunded order renders exactly as it did before 055 (SC-011).
+    if (receipt.refunds.isNotEmpty()) {
+        RefundSection(receipt)
+    }
+
+    // ⚠ ONLY WHEN THE SERVER SAYS SO (FR-012). Never worked out here from `stage` — that is the
+    // `summarizeFulfillment` mistake 052 deleted, and the cost here is a shopper offered a button
+    // that refuses, or denied one that would have worked.
+    if (receipt.cancellable) {
+        CancelOrderRow(container, receipt.id)
+    }
+
     ResendReceiptRow(container, receipt.id)
+
+    // ⚠ 055 US3 — REPLACES "Get help" pointing at the generic 046 feedback form WITH NO ORDER
+    // ATTACHED. A shopper describing a missing item landed in an inbox where nobody could see which
+    // order they meant; the ask now arrives attached to it.
+    //
+    // ⚠ Only on a PAID order — there is nothing to refund on one that never went through, and the
+    // request would sit in the queue with no possible outcome.
+    if (receipt.paid) {
+        RequestRefundRow(container, receipt)
+    }
 
     if (onDone != null) {
         EffyPrimaryAction(
@@ -520,4 +552,317 @@ private sealed interface ResendUiState {
     data object Sending : ResendUiState
     data object Sent : ResendUiState
     data class Message(val text: String) : ResendUiState
+}
+
+
+/**
+ * Cancelling an order (055 US2, FR-012).
+ *
+ * ⚠ IT CONFIRMS FIRST, because this returns money and empties an order the shopper may have spent
+ * time building. The confirmation NAMES WHAT HAPPENS rather than asking "are you sure?", which tells
+ * nobody anything.
+ *
+ * ⚠ AND IT SAYS A REFUND IS COMING. Cancelling *is* refunding on this platform — the money was taken
+ * when the order was paid (research R3) — and a shopper who believes nothing was charged will not go
+ * looking for a refund that has not arrived.
+ *
+ * ⚠ THE REFUSAL POINTS AT A HUMAN. A shop can start preparing between this screen loading and the
+ * tap, and staff can still cancel after that (FR-018) — so the wording must never say the order can
+ * never be cancelled, or a shopper who would have rung up simply gives up.
+ */
+@Composable
+private fun CancelOrderRow(container: AppContainer, orderId: String) {
+    var state by remember(orderId) { mutableStateOf<CancelUiState>(CancelUiState.Idle) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+    ) {
+        when (val current = state) {
+            is CancelUiState.Confirming -> {
+                Text(
+                    "Cancel this order? We'll refund everything you paid, including delivery, to your original payment method.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                    TextButton(
+                        onClick = {
+                            state = CancelUiState.Cancelling
+                            scope.launch {
+                                state = when (val result = container.cancelOrder(orderId)) {
+                                    is CancelOrderResult.Cancelled ->
+                                        // ⚠ "on its way", never "refunded" — the bank has not moved it.
+                                        CancelUiState.Done(
+                                            "Your order is cancelled. ${'$'}{result.amount} is on its way back to you.",
+                                        )
+                                    CancelOrderResult.AlreadyBeingPrepared -> CancelUiState.Message(
+                                        "Someone has already started preparing this order. Contact us and we'll see what we can do.",
+                                    )
+                                    CancelOrderResult.NotAllowed -> CancelUiState.Message(
+                                        "We can't cancel this order. Contact us and we'll help.",
+                                    )
+                                    CancelOrderResult.Failed -> CancelUiState.Message(
+                                        "We couldn't cancel it just now. Please try again, or contact us.",
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) { Text("Yes, cancel it") }
+                    TextButton(
+                        onClick = { state = CancelUiState.Idle },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) { Text("Keep my order") }
+                }
+            }
+            is CancelUiState.Done -> Text(
+                current.text,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            else -> TextButton(
+                onClick = { state = CancelUiState.Confirming },
+                enabled = state !is CancelUiState.Cancelling,
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+            ) {
+                Text(if (state is CancelUiState.Cancelling) "Cancelling…" else "Cancel this order")
+            }
+        }
+        (state as? CancelUiState.Message)?.let {
+            Text(
+                it.text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private sealed interface CancelUiState {
+    data object Idle : CancelUiState
+    data object Confirming : CancelUiState
+    data object Cancelling : CancelUiState
+    data class Done(val text: String) : CancelUiState
+    data class Message(val text: String) : CancelUiState
+}
+
+
+/**
+ * What happened to the shopper's money (055 US5, FR-023) — the mobile half of customer-web's
+ * `RefundBlock`, at parity.
+ *
+ * ⚠ IT SITS ALONGSIDE THE RECEIPT AND NEVER INSIDE IT (FR-024). What was charged is a historical
+ * record; a document that silently rewrote itself after a refund could not be reconciled against a
+ * bank statement, which is the one thing a receipt is for.
+ *
+ * ⚠ NO COLOUR CARRIES MEANING. A refund that had a problem is marked by the words, not by a tint a
+ * colour-blind reader loses entirely.
+ */
+@Composable
+private fun RefundSection(receipt: Receipt) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+    ) {
+        Text(
+            if (receipt.fullyRefunded) "This order was refunded" else "Refunds on this order",
+            style = MaterialTheme.typography.titleSmall,
+        )
+
+        receipt.refunds.forEach { refund ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.xs),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    refundStateLabel(refund.state),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(refund.amount, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        // ⚠ The arithmetic a shopper checks against their bank. 051 and 052 EACH shipped a receipt
+        // whose lines did not add up, and a refund puts a second set of figures on the same document.
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.s),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "Refunded",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(receipt.refundedTotal, style = MaterialTheme.typography.bodyMedium)
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text("You paid", style = MaterialTheme.typography.titleSmall)
+            Text(receipt.amountPaidAfterRefunds, style = MaterialTheme.typography.titleSmall)
+        }
+
+        // ⚠ THE PUBLISHED POLICY'S OWN SENTENCE, and the SAME one customer-web renders (FR-026).
+        // Three places describing this timing would drift; the one that drifts is whichever a
+        // developer edits without opening the legal document.
+        //
+        // ⚠ IT PROMISES NO CREDIT LINE. A refund issued soon after payment often appears as a
+        // REVERSAL — the original charge simply vanishes and no separate credit ever shows up
+        // (research R2). A shopper told to look for a credit will not find one, and will contact us
+        // about money that has already been returned.
+        Text(
+            "Refunds go back to the card or payment method you paid with, usually within a few " +
+                "business days — though when it appears depends on your bank. It may show as the " +
+                "original charge disappearing rather than as a separate credit.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = EffySpacing.s),
+        )
+    }
+}
+
+/**
+ * ⚠ FIVE INTERNAL STATES ARRIVE AS THREE, and none of them says why. "Your bank rejected the refund"
+ * is staff information: a shopper cannot act on it, and surfacing it invites them to argue with a
+ * message that will not change (FR-026).
+ */
+internal fun refundStateLabel(state: CustomerRefundState): String = when (state) {
+    CustomerRefundState.OnItsWay -> "On its way back to you"
+    CustomerRefundState.Completed -> "Refunded"
+    CustomerRefundState.ThereWasAProblem -> "There was a problem — we're looking into it"
+}
+
+
+/**
+ * Asking for a refund (055 US3, FR-005r) — the mobile half of customer-web's `RequestRefund`.
+ *
+ * ⚠ IT MOVES NO MONEY AND MUST NOT READ AS A DECISION. The confirmation says the ask was received,
+ * never that a refund is coming: a person decides, and promising one here would be a commitment
+ * nobody has made.
+ *
+ * ⚠ NAMING ITEMS IS OPTIONAL. A shopper who cannot point at one line — "the whole thing arrived
+ * warm" — must still be able to ask, or they are pushed back to the generic inbox this replaces.
+ */
+@Composable
+private fun RequestRefundRow(container: AppContainer, receipt: Receipt) {
+    var state by remember(receipt.id) { mutableStateOf<RequestUiState>(RequestUiState.Idle) }
+    var message by remember(receipt.id) { mutableStateOf("") }
+    val selected = remember(receipt.id) { mutableStateMapOf<String, Int>() }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = EffySpacing.md),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.xs),
+    ) {
+        when (val current = state) {
+            is RequestUiState.Done -> Text(current.text, style = MaterialTheme.typography.bodyMedium)
+
+            is RequestUiState.Composing, is RequestUiState.Sending, is RequestUiState.Error -> {
+                OutlinedTextField(
+                    value = message,
+                    onValueChange = { message = it },
+                    label = { Text("What went wrong?") },
+                    placeholder = { Text("e.g. two cartons of milk were missing") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                )
+                if (receipt.items.isNotEmpty()) {
+                    Text(
+                        "Which items, if it helps?",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = EffySpacing.xs),
+                    )
+                    receipt.items.forEach { item ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                // ⚠ 48 dp, the constitution's minimum touch target. 033 shipped a
+                                // 32 dp control under a comment claiming it cleared the minimum.
+                                .defaultMinSize(minHeight = 48.dp)
+                                .toggleable(
+                                    value = selected.containsKey(item.orderItemId),
+                                    onValueChange = { on ->
+                                        // ⚠ Keyed on the LINE id, never the product id — see the note
+                                        // on ReceiptItem.orderItemId.
+                                        if (on) selected[item.orderItemId] = item.quantity
+                                        else selected.remove(item.orderItemId)
+                                    },
+                                ),
+                        ) {
+                            Checkbox(
+                                checked = selected.containsKey(item.orderItemId),
+                                onCheckedChange = null,
+                            )
+                            Text(
+                                item.productName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = EffySpacing.s),
+                            )
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+                    TextButton(
+                        enabled = message.isNotBlank() && state !is RequestUiState.Sending,
+                        onClick = {
+                            state = RequestUiState.Sending
+                            scope.launch {
+                                val input = RefundRequestInput(
+                                    message = message.trim(),
+                                    items = selected.map { (id, qty) -> RefundRequestItem(id, qty) },
+                                )
+                                state = when (container.requestRefund(receipt.id, input)) {
+                                    RefundRequestResult.Received -> RequestUiState.Done(
+                                        "Thanks — we've got it and we'll look into this order. " +
+                                            "We'll be in touch about what happens next.",
+                                    )
+                                    RefundRequestResult.AlreadyOpen -> RequestUiState.Done(
+                                        "You've already told us about this order — we're looking into it.",
+                                    )
+                                    RefundRequestResult.NotAllowed -> RequestUiState.Error(
+                                        "We can't take a request for this order. Contact us and we'll help.",
+                                    )
+                                    RefundRequestResult.Failed -> RequestUiState.Error(
+                                        "We couldn't send that just now. Please try again.",
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) {
+                        Text(if (state is RequestUiState.Sending) "Sending…" else "Send")
+                    }
+                    TextButton(
+                        enabled = state !is RequestUiState.Sending,
+                        onClick = { state = RequestUiState.Idle },
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                    ) { Text("Cancel") }
+                }
+                (state as? RequestUiState.Error)?.let {
+                    Text(
+                        it.text,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
+            RequestUiState.Idle -> TextButton(
+                onClick = { state = RequestUiState.Composing },
+                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+            ) { Text("Something wrong with this order?") }
+        }
+    }
+}
+
+private sealed interface RequestUiState {
+    data object Idle : RequestUiState
+    data object Composing : RequestUiState
+    data object Sending : RequestUiState
+    data class Done(val text: String) : RequestUiState
+    data class Error(val text: String) : RequestUiState
 }

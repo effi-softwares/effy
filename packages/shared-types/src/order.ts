@@ -8,6 +8,11 @@
  * Data design: see specs/019-customer-commerce-flow/data-model.md §2.4/§3.
  */
 
+// 055 — the CUSTOMER's refund shape, shared with `refund.ts` rather than restated. The staff shape
+// (`RefundDTO`) lives there too and must never reach this file: it carries the provider's failure
+// text, which is staff information.
+import type { CustomerRefundDTO } from "./refund";
+
 /** Order lifecycle mirrored to the client (payment-driven). */
 export type OrderStatus = "pending_payment" | "paid" | "failed" | "canceled";
 export const ORDER_STATUSES: readonly OrderStatus[] = [
@@ -50,6 +55,18 @@ export interface OrderSummaryDTO {
 
 /** A line on the receipt (product snapshot — never a shop). */
 export interface OrderItemDTO {
+  /**
+   * 055 — this LINE's own id.
+   *
+   * ⚠ NOT INTERCHANGEABLE WITH `productId`, and the difference is load-bearing. `order_item` has no
+   * uniqueness on (order, product), so two lines of the same product cannot be told apart by product
+   * id. A refund request that named a product where a line was expected would not error — the join
+   * would simply match nothing, and every item the shopper named would be SILENTLY DROPPED.
+   *
+   * ⚠ It discloses nothing: a row id on the shopper's own order, carrying no shop and no fulfilment
+   * structure. The back-office contract already speaks this language.
+   */
+  orderItemId: string;
   productId: string;
   productName: string;
   unitPriceAmount: string;
@@ -160,6 +177,53 @@ export interface OrderDTO {
    * picked is `packing`. The customer has not received their order.
    */
   stage: OrderStage;
+
+  /**
+   * 055 — may the SHOPPER still cancel this order themselves? (FR-012)
+   *
+   * ⚠ SERVER-DERIVED, for exactly the reason `stage` above is: a client computing it from
+   * `fulfillments` would be a second implementation of one rule, and the divergence would be silent
+   * because both surfaces still render *something*. Here the cost is a shopper shown a cancel button
+   * that refuses, or denied one that would have worked.
+   *
+   * ⚠ ADVISORY, NOT THE GATE. It was true when the page loaded; a shop may have begun picking since,
+   * and the server re-decides inside a row lock when the cancel actually arrives (FR-017).
+   *
+   * ⚠ `false` DOES NOT MEAN "this order can never be cancelled" — staff can cancel at any pre-departure
+   * stage (FR-018). Any wording built on this must leave that door open, or a shopper who would have
+   * rung up simply gives up.
+   */
+  cancellable: boolean;
+
+  /**
+   * 055 — every refund on this order, newest first (FR-023).
+   *
+   * ⚠ ABSENT ENTIRELY when nothing was refunded — not an empty array (FR-028, SC-011). An order with
+   * no refunds serialises byte-identically to its pre-055 self, so a client that has never seen one
+   * cannot tell this slice shipped, and renders nothing rather than an empty section.
+   *
+   * ⚠ NO FAILURE REASON, NO KIND, NO PROVIDER REFERENCE. See [CustomerRefundDTO].
+   */
+  refunds?: CustomerRefundDTO[];
+
+  /** What has actually been returned or is on its way. Absent when there are no refunds. */
+  refundedTotal?: string;
+
+  /**
+   * What the shopper is out of pocket after refunds.
+   *
+   * ⚠ NOT A CORRECTION TO `grandTotalAmount` (FR-024). That figure is what was CHARGED — a historical
+   * record. A receipt that silently rewrote itself after a refund could not be reconciled against a
+   * bank statement, which is the one thing a receipt is for.
+   */
+  amountPaidAfterRefunds?: string;
+
+  /**
+   * ⚠ DERIVED FROM THE TOTALS, never a stored flag — so reaching it line by line and reaching it in
+   * one act are the same fact. A flag could be true while the numbers disagreed, and then nobody
+   * knows which to believe.
+   */
+  fullyRefunded?: boolean;
 
   /**
    * 052 — how the order was paid, in a form safe to display (FR-006). Null when not captured: a

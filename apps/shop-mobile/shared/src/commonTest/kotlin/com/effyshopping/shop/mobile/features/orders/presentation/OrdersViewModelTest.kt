@@ -193,4 +193,60 @@ class OrdersViewModelTest {
         assertEquals("f1", vm.state.value.selectedId)
         assertNotNull(vm.state.value.detail)
     }
+
+    // ── 055 US6 — the exit a shop that cannot supply its portion previously lacked ───────────────
+    //
+    // ⚠ BEFORE THIS, A SHOP HOLDING AN ORDER IT COULD NOT FILL HAD NO STATE TO MOVE IT TO. The
+    // portion sat in the active queue forever, and the only way out was to stop looking at it.
+
+    @Test
+    fun declaring_a_portion_unsuppliable_sends_the_reason_with_it() = runTest {
+        val repo = FakeOrderRepository()
+        val vm = viewModel(repo, this)
+        runCurrent()
+        vm.selectOrder("f1")
+        runCurrent()
+
+        vm.requestTransition(FulfillmentTransition.UNFULFILLABLE, "the chiller failed overnight")
+        runCurrent()
+
+        assertEquals(FulfillmentTransition.UNFULFILLABLE, repo.lastTransition)
+        // ⚠ The reason must actually travel. Back-office decides a refund on the strength of it, and
+        // a request that arrived without one would be refused by the service and by a CHECK.
+        assertEquals("the chiller failed overnight", repo.lastTransitionReason)
+        assertEquals(FulfillmentState.UNFULFILLABLE, vm.state.value.detail?.status)
+    }
+
+    // ⚠ REFUSED IN THE CLIENT TOO, not only by the server. A request that reached the service without
+    // a reason would come back as a 4xx the operator can do nothing with.
+    @Test
+    fun declaring_a_portion_unsuppliable_without_a_reason_is_refused_before_it_is_sent() = runTest {
+        val repo = FakeOrderRepository()
+        val vm = viewModel(repo, this)
+        runCurrent()
+        vm.selectOrder("f1")
+        runCurrent()
+
+        vm.requestTransition(FulfillmentTransition.UNFULFILLABLE, "   ")
+        runCurrent()
+
+        assertNull(repo.lastTransition, "nothing may be sent without a reason")
+        assertEquals("Say why you can't supply this order.", vm.state.value.message)
+    }
+
+    // ⚠ Every other transition is unaffected — the reason is null and stays null.
+    @Test
+    fun an_ordinary_transition_still_carries_no_reason() = runTest {
+        val repo = FakeOrderRepository()
+        val vm = viewModel(repo, this)
+        runCurrent()
+        vm.selectOrder("f1")
+        runCurrent()
+
+        vm.requestTransition(FulfillmentTransition.READY_FOR_PICKUP)
+        runCurrent()
+
+        assertEquals(FulfillmentTransition.READY_FOR_PICKUP, repo.lastTransition)
+        assertNull(repo.lastTransitionReason)
+    }
 }

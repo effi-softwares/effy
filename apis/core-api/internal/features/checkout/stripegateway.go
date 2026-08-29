@@ -3,6 +3,7 @@ package checkout
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stripe/stripe-go/v82/customersession"
 	"github.com/stripe/stripe-go/v82/paymentintent"
 	"github.com/stripe/stripe-go/v82/paymentmethod"
+	"github.com/stripe/stripe-go/v82/refund"
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
@@ -140,6 +142,25 @@ func (g *StripeGateway) ConstructWebhookEvent(payload []byte, signatureHeader st
 			out.IntentStatus = IntentFailed
 		} else {
 			out.IntentStatus = IntentSucceeded
+		}
+
+	case EventRefundCreated, EventRefundUpdated, EventRefundFailed:
+		// 055. ⚠ The refund's own id is what the platform keys on — NOT the PaymentIntent. An order
+		// can have several refunds, and attaching an outcome to the intent would apply one refund's
+		// fate to all of them.
+		var r stripe.Refund
+		if err := json.Unmarshal(event.Data.Raw, &r); err != nil {
+			return WebhookEvent{}, fmt.Errorf("checkout: webhook decode refund: %w", err)
+		}
+		out.RefundID = r.ID
+		out.RefundStatus = RefundStatus(r.Status)
+		out.RefundAmountCents = r.Amount
+		if r.PaymentIntent != nil {
+			out.RefundPaymentIntentID = r.PaymentIntent.ID
+		}
+		out.FailureReason = string(r.FailureReason)
+		if r.PaymentIntent != nil {
+			out.PaymentIntentID = r.PaymentIntent.ID
 		}
 	}
 	return out, nil
@@ -298,4 +319,55 @@ func (g *StripeGateway) DetachPaymentMethod(ctx context.Context, paymentMethodID
 		return fmt.Errorf("checkout: stripe detach payment method: %w", err)
 	}
 	return nil
+}
+
+// CreateRefund returns money for a payment, in whole or in part (055).
+//
+// ⚠ THREE THINGS THIS DOES THAT ARE EASY TO GET WRONG.
+//
+//  1. **The idempotency key is the caller's, not a fresh one.** It is the same key stored on the
+//     refund row, so an ambiguous retry — a timeout where we do not know whether the refund exists —
+//     is recognised by the provider as the same request and returns the original rather than creating
+//     a second. Without it, FR-005d's automatic retry would be a way to refund twice.
+//
+//  2. **A refusal is classified, not just returned.** A provider error that names a decision comes
+//     back as *RefusedError so the caller never retries it; anything else (a timeout, an unreachable
+//     host, a 5xx) stays ambiguous and IS retried. Retrying a decision fills a queue with attempts
+//     that can never succeed; not retrying an ambiguous failure abandons money mid-flight.
+//
+//  3. **Success means SUBMITTED.** The returned status is usually `pending` — the bank has not moved
+//     anything. The caller must not record the money as returned on the strength of this (FR-007).
+func (g *StripeGateway) CreateRefund(ctx context.Context, in CreateRefundInput) (Refund, error) {
+	params := &stripe.RefundParams{
+		PaymentIntent: stripe.String(in.PaymentIntentID),
+		Amount:        stripe.Int64(in.AmountCents),
+	}
+	params.Context = ctx
+	// ⚠ The SAME key the refund row carries. This is the whole of the retry safety.
+	params.SetIdempotencyKey(in.IdempotencyKey)
+	if in.Reason != "" {
+		params.Reason = stripe.String(in.Reason)
+	}
+	for k, v := range in.Metadata {
+		params.AddMetadata(k, v)
+	}
+
+	r, err := refund.New(params)
+	if err != nil {
+		// ⚠ A card_error or invalid_request_error is the provider REFUSING — a decision. An
+		// api_error, rate-limit or transport failure is AMBIGUOUS: the refund may already exist.
+		var serr *stripe.Error
+		if errors.As(err, &serr) {
+			switch serr.Type {
+			case stripe.ErrorTypeCard, stripe.ErrorTypeInvalidRequest:
+				return Refund{}, &RefusedError{Reason: serr.Msg}
+			}
+		}
+		return Refund{}, fmt.Errorf("checkout: create refund: %w", err)
+	}
+	return Refund{
+		ID:            r.ID,
+		Status:        RefundStatus(r.Status),
+		FailureReason: string(r.FailureReason),
+	}, nil
 }

@@ -25,6 +25,15 @@ type summaryDTO struct {
 }
 
 type itemDTO struct {
+	// ⚠ 055 — THE LINE'S OWN ID, and it was missing until US3 needed it. A customer naming an item in
+	// a refund request has to name a LINE, not a product: `order_item` has no uniqueness on
+	// (order, product), so two lines of the same product are indistinguishable by product id. Passing
+	// one where the other is expected does not error — the join simply matches nothing and every named
+	// item is SILENTLY DROPPED.
+	//
+	// ⚠ It discloses nothing. It is the id of a row on the shopper's own order, carries no shop and no
+	// fulfilment structure, and the back-office already speaks this language (FR-005r).
+	OrderItemID        string `json:"orderItemId"`
 	ProductID          string `json:"productId"`
 	ProductName        string `json:"productName"`
 	UnitPriceAmount    string `json:"unitPriceAmount"`
@@ -89,6 +98,24 @@ type orderDTO struct {
 
 	// 052 — the customer-facing progress word. SERVER-DERIVED; no client computes it (FR-008).
 	Stage string `json:"stage"`
+	// 055 — whether the shopper may cancel this themselves. ⚠ SERVER-DERIVED; the client renders the
+	// control from this and never computes it (FR-012).
+	Cancellable bool `json:"cancellable"`
+
+	// ── 055 US5 — what happened to this shopper's money (FR-023) ────────────────────────────────
+	//
+	// ⚠ ALL FOUR ARE `omitempty`, AND THAT IS SC-011. An order with no refunds must serialise
+	// BYTE-IDENTICALLY to its pre-055 self: no empty array, no "0.00" totals, no `fullyRefunded:false`.
+	// A client that has never seen a refund must not be able to tell this slice shipped.
+	Refunds []customerRefundDTO `json:"refunds,omitempty"`
+	// The sum of every refund that has actually left or is on its way.
+	RefundedTotal string `json:"refundedTotal,omitempty"`
+	// What the shopper is out of pocket after refunds. ⚠ NOT a correction to `grandTotalAmount`,
+	// which stays what was CHARGED (FR-024) — a receipt that rewrote itself could not be reconciled
+	// against a bank statement.
+	AmountPaidAfterRefunds string `json:"amountPaidAfterRefunds,omitempty"`
+	// ⚠ Derived from the totals, never stored, so reaching it line by line and in one act agree.
+	FullyRefunded bool `json:"fullyRefunded,omitempty"`
 	// 052 — nil on a pre-052 order or a failed capture. The client omits the line rather than blanking.
 	PaymentMethod *paymentMethodDTO `json:"paymentMethod"`
 	// 052 — one entry per package. Always present (possibly empty) so a client has no undefined branch.
@@ -137,7 +164,8 @@ func (h *Handler) get(c *gin.Context) {
 	items := make([]itemDTO, 0, len(order.Items))
 	for _, it := range order.Items {
 		items = append(items, itemDTO{
-			ProductID: it.ProductID, ProductName: it.ProductName, UnitPriceAmount: it.UnitPriceAmount,
+			OrderItemID: it.OrderItemID,
+			ProductID:   it.ProductID, ProductName: it.ProductName, UnitPriceAmount: it.UnitPriceAmount,
 			Quantity: it.Quantity, LineSubtotalAmount: it.LineSubtotalAmount,
 			ImageURL: it.ImageURL,
 		})
@@ -186,8 +214,13 @@ func (h *Handler) get(c *gin.Context) {
 		DeliveryFeeAmount: order.DeliveryFeeAmount,
 		GrandTotalAmount:  order.GrandTotalAmount, Currency: order.Currency,
 		PaymentStatus: order.PaymentStatus, Fulfillments: ful,
-		Stage:         string(order.Stage),
-		PaymentMethod: method, ArrivalEstimates: arrivals,
+		Stage:                  string(order.Stage),
+		Cancellable:            order.Cancellable,
+		Refunds:                refundDTOs(order.Refunds),
+		RefundedTotal:          refundedOrEmpty(order),
+		AmountPaidAfterRefunds: paidAfterOrEmpty(order),
+		FullyRefunded:          order.FullyRefunded,
+		PaymentMethod:          method, ArrivalEstimates: arrivals,
 	})
 }
 
@@ -196,4 +229,51 @@ func Register(v1 *gin.RouterGroup, verifier *auth.PoolVerifier, identity *custom
 	g := v1.Group("/orders", auth.Middleware(verifier), customeridentity.Middleware(identity))
 	g.GET("", h.list)
 	g.GET("/:id", h.get)
+}
+
+// ── 055 US5 ─────────────────────────────────────────────────────────────────────────────────────
+
+// customerRefundDTO is one refund, as the SHOPPER sees it.
+//
+// ⚠ THERE IS NO `failureReason` FIELD AND THERE MUST NOT BE. "Your bank rejected the refund" is
+// staff information: a shopper cannot act on it, and surfacing it invites them to argue with a
+// message that will not change (FR-026). The repository does not even select the column, so no
+// mapper can leak it by accident.
+//
+// ⚠ AND NO `kind` OR `reason`. Whether a refund was item-derived, goodwill or a cancellation is
+// Effy's own vocabulary; what a shopper needs is the amount, whether it has landed, and when.
+type customerRefundDTO struct {
+	Amount string `json:"amount"`
+	// on_its_way | completed | there_was_a_problem — five internal states collapsed to three.
+	State string `json:"state"`
+	// When the money actually landed. Null until it has — never a promise of when it will.
+	RefundedAt *string `json:"refundedAt"`
+}
+
+func refundDTOs(in []CustomerRefund) []customerRefundDTO {
+	if len(in) == 0 {
+		// ⚠ nil, not an empty slice — `omitempty` then drops the key entirely (SC-011).
+		return nil
+	}
+	out := make([]customerRefundDTO, 0, len(in))
+	for _, r := range in {
+		out = append(out, customerRefundDTO{Amount: r.Amount, State: r.State, RefundedAt: r.RefundedAt})
+	}
+	return out
+}
+
+// ⚠ EMPTY WHEN THERE ARE NO REFUNDS, so `omitempty` drops the key. Sending "0.00" would add three
+// fields to every order response on the platform to say nothing happened.
+func refundedOrEmpty(o Order) string {
+	if len(o.Refunds) == 0 {
+		return ""
+	}
+	return o.RefundedTotal
+}
+
+func paidAfterOrEmpty(o Order) string {
+	if len(o.Refunds) == 0 {
+		return ""
+	}
+	return o.AmountPaidAfterRefunds
 }

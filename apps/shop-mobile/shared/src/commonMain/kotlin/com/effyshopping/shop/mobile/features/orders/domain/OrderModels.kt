@@ -23,13 +23,46 @@ enum class FulfillmentState(val key: String, val label: String) {
     READY_FOR_PICKUP("ready_for_pickup", "Ready for pickup"),
     COLLECTED("collected", "Collected"),
     DELIVERED("delivered", "Delivered"),
+
+    /**
+     * ⚠ 055 US6 — the exit a shop that cannot supply its portion previously lacked. Before it, a shop
+     * holding an order it could not fill had no state to move it to: the portion sat in the queue
+     * forever, and the only way out was for someone to stop looking at it.
+     *
+     * ⚠ IT MOVES NO MONEY (FR-031). It says "we cannot supply this"; a person at Effy decides the refund.
+     */
+    UNFULFILLABLE("unfulfillable", "Can't supply"),
+
+    /**
+     * ⚠ 055 US2 — set by CANCELLATION, never by a shop, and DELIBERATELY A DIFFERENT STATE from
+     * [UNFULFILLABLE]. The shop did not fail to supply anything — the order was called off. A label
+     * implying otherwise would be wrong on the screen the shop is judged by.
+     */
+    WITHDRAWN("withdrawn", "Order cancelled"),
     ;
 
     /** Items may only be picked while the portion is being worked (contract: PATCH is legal only in `picking`). */
     val isPickable: Boolean get() = this == PICKING
 
-    /** Once collected/delivered (the driver-stub tail), nothing may change (FR-011f). */
-    val isImmutable: Boolean get() = this == COLLECTED || this == DELIVERED
+    /**
+     * Once collected/delivered (the driver-stub tail), nothing may change (FR-011f).
+     *
+     * ⚠ 055 — both terminal states are immutable too. A shop that said it cannot supply must not be
+     * able to un-say it: the platform may already have refunded the customer on the strength of it.
+     */
+    val isImmutable: Boolean
+        get() = this == COLLECTED || this == DELIVERED || this == UNFULFILLABLE || this == WITHDRAWN
+
+    /**
+     * Whether the operator may declare this portion unsuppliable (055 US6, FR-031).
+     *
+     * ⚠ MIRRORS THE SERVER'S LEGAL-EDGE MAP, and the server decides. Once collected it is no longer
+     * the shop's call — the goods have left and somebody is carrying them.
+     *
+     * ⚠ A shop may know BEFORE opening the order that it cannot supply it (the chiller failed, the
+     * whole delivery is off), so [PENDING] is included: requiring them to open it first is ceremony.
+     */
+    val canDeclareUnfulfillable: Boolean get() = !isImmutable
 }
 
 /** Which slice of the queue to read (FR-016). Completed work leaves the active queue but stays openable. */
@@ -46,6 +79,13 @@ enum class QueueState(val key: String, val label: String) {
 enum class FulfillmentTransition(val key: String) {
     PICKING("picking"),
     READY_FOR_PICKUP("ready_for_pickup"),
+
+    /**
+     * ⚠ 055 US6. `withdrawn` is deliberately absent and must never be added: it is written by
+     * `core-api` when an ORDER is cancelled, and a shop asserting it would be claiming a customer
+     * cancelled.
+     */
+    UNFULFILLABLE("unfulfillable"),
 }
 
 /**
@@ -150,7 +190,14 @@ data class FulfillmentDetail(
         get() = when (status) {
             FulfillmentState.PENDING, FulfillmentState.RECEIVED -> FulfillmentTransition.PICKING
             FulfillmentState.PICKING -> FulfillmentTransition.READY_FOR_PICKUP
-            FulfillmentState.READY_FOR_PICKUP, FulfillmentState.COLLECTED, FulfillmentState.DELIVERED -> null
+            FulfillmentState.READY_FOR_PICKUP,
+            FulfillmentState.COLLECTED,
+            FulfillmentState.DELIVERED,
+            // ⚠ 055 — both terminal. There is no forward action from a portion nobody can fill, nor
+            // from one whose order was cancelled.
+            FulfillmentState.UNFULFILLABLE,
+            FulfillmentState.WITHDRAWN,
+            -> null
         }
 
     /** The ONE permitted reversal (FR-011d) — offered only while the portion has not been collected. */

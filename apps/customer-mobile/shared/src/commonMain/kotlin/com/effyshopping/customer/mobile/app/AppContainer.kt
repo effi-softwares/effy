@@ -37,8 +37,12 @@ import com.effyshopping.customer.mobile.features.saved.domain.SavedStore
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleSaved
 import com.effyshopping.customer.mobile.features.saved.domain.UndoRemoveSaved
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
+import com.effyshopping.customer.mobile.features.checkout.data.HttpCancelOrderRepository
+import com.effyshopping.customer.mobile.features.checkout.data.HttpRefundRequestRepository
 import com.effyshopping.customer.mobile.features.checkout.data.HttpReceiptResendRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
+import com.effyshopping.customer.mobile.features.checkout.domain.CancelOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.RequestRefund
 import com.effyshopping.customer.mobile.features.checkout.domain.ResendReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
@@ -308,6 +312,18 @@ class AppContainer(
      * whose job is to enqueue an email, not a commerce read.
      */
     val resendReceipt: ResendReceipt by lazy { HttpReceiptResendRepository(edgeClient) }
+
+    /**
+     * 055 US2 — cancel an order. ⚠ HOT PATH (`coreClient`), unlike the resend above it: cancelling
+     * MOVES MONEY, and the payment secret lives in `core-api` and nowhere else (019 SC-012).
+     */
+    val cancelOrder: CancelOrder by lazy { HttpCancelOrderRepository(coreClient) }
+
+    /**
+     * 055 US3 — ask for a refund. ⚠ HOT PATH beside the cancel route, because the DECIDING lives
+     * there. It moves no money: it records an ask that a person answers.
+     */
+    val requestRefund: RequestRefund by lazy { HttpRefundRequestRepository(coreClient) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 
     // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.

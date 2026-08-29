@@ -37,6 +37,8 @@ private fun FulfillmentStatus.toDomain(): FulfillmentState = when (this) {
     FulfillmentStatus.ReadyForPickup -> FulfillmentState.READY_FOR_PICKUP
     FulfillmentStatus.Collected -> FulfillmentState.COLLECTED
     FulfillmentStatus.Delivered -> FulfillmentState.DELIVERED
+    FulfillmentStatus.Unfulfillable -> FulfillmentState.UNFULFILLABLE
+    FulfillmentStatus.Withdrawn -> FulfillmentState.WITHDRAWN
 }
 
 private fun DeliveryPromiseDTO.toDomain(): DeliveryPromise =
@@ -104,9 +106,16 @@ internal fun QueueState.toDto(): FulfillmentQueueState = when (this) {
 private fun FulfillmentTransition.toDto(): RequestableTransition = when (this) {
     FulfillmentTransition.PICKING -> RequestableTransition.Picking
     FulfillmentTransition.READY_FOR_PICKUP -> RequestableTransition.ReadyForPickup
+    FulfillmentTransition.UNFULFILLABLE -> RequestableTransition.Unfulfillable
 }
 
-internal fun FulfillmentTransition.toRequest(): TransitionRequest = TransitionRequest(to = toDto())
+/**
+ * ⚠ 055 — the reason travels with the transition. It is REQUIRED for `unfulfillable`, enforced by the
+ * service and, underneath it, by a CHECK constraint: back-office is asked to decide a refund on the
+ * strength of it, and "the shop said no" is not a basis for returning a customer's money.
+ */
+internal fun FulfillmentTransition.toRequest(reason: String? = null): TransitionRequest =
+    TransitionRequest(to = toDto(), reason = reason)
 
 /** Absolute quantities, never deltas — a null field is simply "leave this one alone" (FR-010a/FR-010d). */
 internal fun ItemProgress.toRequest(): ItemProgressRequest = ItemProgressRequest(

@@ -1276,3 +1276,56 @@ disagree.
 - ⚠ **A failed same-day delivery still strands its order** — after this slice, the only remaining way
   an order gets permanently stuck. Named in the spec's Assumptions so its absence is not read as
   coverage.
+
+---
+
+## §055 — Refunds & Cancellation
+
+Closes gap **G3**: before this slice, money could go **into** the platform and never come back out.
+`public.refund` did not exist, `order.status = 'canceled'` was permitted by a CHECK and **written by
+nothing**, and a shopper whose items never arrived was told "contact support and we'll sort it out" —
+by a screen whose own copy admitted no money could move.
+
+| Capability | customer-web | customer-mobile | Notes |
+| --- | --- | --- | --- |
+| See every refund on an order | ✅ | ✅ | Absent entirely when there are none (FR-028) |
+| See what was refunded and what they actually paid | ✅ | ✅ | The receipt itself is **unchanged** (FR-024) |
+| Cancel an order themselves | ✅ | ✅ | Only while no shop has begun preparing (FR-012) |
+| Ask for a refund, attached to the order | ✅ | ✅ | Replaces "Get help" → a generic form with no order reference |
+| Emailed when a refund is on its way | ✅ | ✅ | 12th template, `order-refunded` |
+
+### The decisions worth knowing
+
+- ⚠ **Cancelling *is* refunding.** Effy creates PaymentIntents with `CaptureMethod: automatic`, so the
+  money is captured the moment an order is paid — the provider's cancel operation never applies. There
+  is no free cancellation on this platform, only returning money already taken (research R3).
+- ⚠ **The published policy was corrected in the same change** (FR-016a). `refunds-returns/v1.md` said
+  an order could be cancelled *"before it is dispatched"* — far looser than what the platform can
+  honour — and *"to cancel, use the app"*, untrue until this shipped. Superseded by `v2.md` as a **new
+  version**, so a policy someone already read keeps its text and its date.
+- ⚠ **And the audit found a second lie beyond cancellation**: v1 promised "refund **or replacement**"
+  for missing, damaged and incorrect items. The platform has **no replacement mechanism and no
+  back-office order creation** — verified, not assumed.
+- ⚠ **Five internal refund states arrive as three.** A shopper cannot act on the difference between
+  "we have not heard from the provider" and "the provider has it", and whether a refund was *refused*
+  rather than *failed* is a fact about our integration. **No provider failure reason ever reaches a
+  customer** — the column is never even selected.
+- ⚠ **Nothing says "refunded" until the money has actually landed.** The provider accepting a refund is
+  not the bank moving it; that can take days and can fail up to thirty days later.
+- ⚠ **No message promises a credit line.** A refund issued soon after payment often appears as a
+  *reversal* — the original charge simply vanishes and no separate credit ever shows up (research R2).
+  A shopper told to look for a credit will not find one.
+- ⚠ **A refund request moves no money, and that is proven** — the payment gateway is never called and
+  no `public.refund` row is written. A form that withdrew money on submission would let anyone refund
+  their own order by describing a problem.
+
+### Not built, and why
+
+- **No replacements.** The platform can only refund. Recorded in `ORDER-FLOW-GAPS.md`.
+- **No disputes or chargebacks.** A different lifecycle, initiated by the bank, not by anyone here.
+- **A decline is not emailed.** An unsolicited "we said no" invites a reply into something that is not
+  a conversation; the order screen is where the shopper is already looking.
+- **⚠ A residual oversell window is still accepted** (054 A6) — unchanged by this slice.
+
+**⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
+Spec/artifacts: [specs/055-refunds-cancellation/](../../specs/055-refunds-cancellation/).

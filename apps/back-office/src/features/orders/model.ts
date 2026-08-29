@@ -61,10 +61,19 @@ export function packagePositionFor(pkg: OrderPackage): string {
   if (pkg.status === "ready_for_pickup") return "Packed at shop";
   if (pkg.status === "picking") return "Being picked";
   if (pkg.status === "received") return "Received by shop";
+  // ⚠ 055 — two states the shop can no longer act on, and they are DIFFERENT FACTS. `unfulfillable`
+  // is the shop saying it cannot supply; `withdrawn` is the order having been cancelled, which was
+  // never the shop's doing. One label for both would misattribute a cancellation as a shop failure.
+  if (pkg.status === "unfulfillable") return "Shop can't supply";
+  if (pkg.status === "withdrawn") return "Cancelled";
   return "Awaiting shop";
 }
 
 export const AWAITING_LABEL: Record<OrderAwaiting, string> = {
+  // ⚠ 055 US6 — a shop said it cannot supply its portion and nobody has decided what to do. It is
+  // named for the ACTION SOMEONE MUST TAKE, not for the shop's state: the other two are late
+  // packages, this one is money the platform is holding for goods that will never be sent.
+  refund_decision: "Needs a refund decision",
   handover: "Needs handover",
   arrival: "Awaiting arrival",
 };

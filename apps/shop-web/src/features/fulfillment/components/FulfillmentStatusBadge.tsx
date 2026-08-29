@@ -15,6 +15,11 @@ const VARIANT: Record<FulfillmentStatus, "success" | "warning" | "muted"> = {
   ready_for_pickup: "success",
   collected: "muted",
   delivered: "muted",
+  // ⚠ 055 — BOTH MUTED, and both for the same reason: they need nothing further from this shop. A
+  // warning tone on `unfulfillable` would keep drawing the eye to a decision that is now Effy's, and
+  // `withdrawn` was never the shop's doing at all.
+  unfulfillable: "muted",
+  withdrawn: "muted",
 };
 
 export function FulfillmentStatusBadge({ status }: { status: FulfillmentStatus }) {

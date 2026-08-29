@@ -1,0 +1,70 @@
+<!-- order-refunded — money is on its way back (055 US5, FR-027).
+
+     ⚠ IT SAYS "ON ITS WAY", NOT "REFUNDED", AND THAT IS THE WHOLE POINT OF THE MESSAGE. The provider
+     accepting a refund is not the bank moving the money — that can take days and can still fail up to
+     thirty days later. "Your refund is complete" would be a claim the platform cannot make, and it is
+     the one claim that stops a shopper looking for money that never turned up.
+
+     ⚠ IT PROMISES NO CREDIT LINE. A refund issued soon after payment often appears as a REVERSAL —
+     the original charge simply vanishes from the statement and no separate credit ever shows up
+     (research R2). A customer told to look for a credit will not find one, and will write to us about
+     money that has already been returned.
+
+     ⚠ THE TIMING SENTENCE IS THE PUBLISHED POLICY'S OWN, and the same one both customer surfaces
+     render. Four places describing this would drift, and the one that drifts is whichever a developer
+     edits without opening the legal document.
+
+     ⚠ IT NAMES NO SHOP, NO PROVIDER AND NO FAILURE REASON. The catalogue gives this template no var
+     to make those mistakes with — the same mechanism that makes a package count unrepresentable in
+     order-delivered.
+
+     ⚠ IT DOES NOT RESTATE THE RECEIPT. What was charged is a historical record sent at payment; this
+     is a later event. Repeating the order total here would invite the reader to reconcile two
+     documents produced at different moments. -->
+
+<mjml lang="en" dir="ltr">
+  <mj-head>
+    <mj-include path="../generated/theme.mjml" />
+    <mj-title>Your refund for order {{orderNumber}} is on its way</mj-title>
+    <mj-preview>We&rsquo;ve sent the money back to your original payment method.</mj-preview>
+  </mj-head>
+
+  <mj-body width="600px" background-color="#f5f5f5" css-class="e-bg-page">
+    <mj-include path="../components/header.mjml" />
+
+    <mj-section padding="0 32px 32px 32px">
+      <mj-column>
+        <mj-text mj-class="h1" css-class="e-ink e-h1">
+          Your refund is on its way
+        </mj-text>
+
+        <mj-text mj-class="muted" css-class="e-muted" padding="12px 0 0 0">
+          We&rsquo;ve sent {{refundAmount}} back to the card or payment method you paid with for
+          order {{orderNumber}}.
+        </mj-text>
+
+        <!-- ⚠ The honest timing, and the reversal warning. Both matter: without the first a shopper
+             writes to us on day two, and without the second they write to us because they looked for
+             a credit that will never appear. -->
+        <mj-text mj-class="muted" css-class="e-muted" padding="16px 0 0 0">
+          Refunds usually take a few business days, though when it appears depends on your bank. It
+          may show as the original charge disappearing rather than as a separate credit.
+        </mj-text>
+
+        <!-- Both dark classes named so the label inverts with the fill — 038 shipped a receipt button
+             that was invisible in dark mode because the class landed on the wrapping <td> while the
+             colour sat on an inner element. -->
+        <mj-button href="{{orderUrl}}" css-class="e-btn-bg e-btn-fg" align="left" padding="24px 0 0 0">
+          View your order
+        </mj-button>
+
+        <mj-text mj-class="small" css-class="e-muted" padding="20px 0 0 0">
+          Something not right? Reply to this email or write to {{effySupportEmail}} and we&rsquo;ll
+          sort it out.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="../components/footer.mjml" />
+  </mj-body>
+</mjml>

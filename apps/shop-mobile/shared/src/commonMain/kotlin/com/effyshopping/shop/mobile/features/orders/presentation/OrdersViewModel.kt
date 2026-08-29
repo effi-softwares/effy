@@ -123,12 +123,19 @@ class OrdersViewModel(
      * Advance the portion, or reverse it back to picking — the ONE permitted reversal (FR-011d), requested by
      * asking for [FulfillmentTransition.PICKING] again.
      */
-    fun requestTransition(to: FulfillmentTransition) {
+    fun requestTransition(to: FulfillmentTransition, reason: String? = null) {
         val id = mutableState.value.detail?.id ?: return
         if (mutableState.value.isBusy) return
+        // ⚠ 055 — refused HERE as well as by the service and the database. Back-office is asked to
+        // decide a refund on the strength of this; an unexplained one is not a basis for returning a
+        // customer's money, and a client that let it through would produce a 4xx nobody can act on.
+        if (to == FulfillmentTransition.UNFULFILLABLE && reason.isNullOrBlank()) {
+            mutableState.update { it.copy(message = "Say why you can't supply this order.") }
+            return
+        }
         mutableState.update { it.copy(isWorking = true, message = null) }
         scope.launch {
-            runCatching { advanceFulfillment(id, to) }.fold(
+            runCatching { advanceFulfillment(id, to, reason) }.fold(
                 onSuccess = { detail ->
                     mutableState.update { it.copy(detail = detail, selectedId = detail.id, isWorking = false) }
                     // A transition can move the portion between the active and completed slices — re-read the

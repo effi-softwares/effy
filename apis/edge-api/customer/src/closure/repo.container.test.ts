@@ -110,6 +110,14 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     return id
   }
 
+  /** 055 — a SECOND portion on an existing order, so a rollup can be told from a max. */
+  async function addPortion(orderId: string, status: string): Promise<void> {
+    await pool.query(
+      `INSERT INTO public.shop_fulfillment (order_id, status) VALUES ($1, $2)`,
+      [orderId, status],
+    )
+  }
+
   const blockersFor = (customerId: string) => findBlockingOrders(customerId)
 
   it("blocks an order awaiting payment", async () => {
@@ -221,5 +229,42 @@ describe.skipIf(!RUN)("findBlockingOrders — against real PostgreSQL", () => {
     // ⚠ `public."order"` calls this `order_number`, NOT `reference`. The first draft of the repo used
     // `reference` and would have failed at runtime with a 500 on every deletion attempt.
     expect(rows[0]!.order_number).toBe("EFY-TEST")
+  })
+
+  // ── 055 ──────────────────────────────────────────────────────────────────────────────────────
+  //
+  // ⚠ THE SAME DEFECT SHAPE, A THIRD TIME. 053 fixed the VALUE and kept the shape: a negation against
+  // one name still cannot notice the vocabulary moving. 055 moved it again, and both new states are
+  // FINISHED — so both would have satisfied `<> 'delivered'` and held a customer for seven days over
+  // a package nobody is carrying.
+
+  it("does NOT block on a portion the shop said it cannot supply", async () => {
+    const c = await seedCustomer()
+    await seedOrder(c, "paid", 1, "unfulfillable")
+
+    expect(
+      await blockersFor(c),
+      "nobody is carrying a portion the shop cannot supply — it must not block closure",
+    ).toHaveLength(0)
+  })
+
+  it("does NOT block on a portion withdrawn by a cancellation", async () => {
+    const c = await seedCustomer()
+    await seedOrder(c, "paid", 1, "withdrawn")
+
+    expect(
+      await blockersFor(c),
+      "a cancelled order's portion is finished — it must not block closure",
+    ).toHaveLength(0)
+  })
+
+  // ⚠ A ROLLUP, NOT A MAX: one finished portion does not release an order whose other portion is
+  // genuinely with a driver.
+  it("STILL blocks when one portion is finished and another is in transit", async () => {
+    const c = await seedCustomer()
+    const order = await seedOrder(c, "paid", 1, "unfulfillable")
+    await addPortion(order, "collected")
+
+    expect(await blockersFor(c)).toHaveLength(1)
   })
 })

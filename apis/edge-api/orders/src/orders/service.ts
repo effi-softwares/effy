@@ -11,9 +11,28 @@ import type {
   OrderAwaiting,
   OrderStage,
   OrderStatus,
+  RefundDTO,
+  RefundRequestDTO,
 } from "@effy/shared-types";
 
+import * as refundRepo from "./refunds";
 import * as repo from "./repository";
+
+/**
+ * Which refund statuses count against the amount already refunded.
+ *
+ * ⚠ THIS SET IS THE AUTHORITY'S, NOT OURS. `core-api`'s `refundedCents` decides it, inside the row
+ * lock, and that is the only decision that can refuse a refund. Everything computed here is a
+ * DISPLAY of that rule, so if the two sets drift the console shows staff a ceiling the server will
+ * not honour — and they would discover it by having a refund refused for a reason the screen said
+ * was impossible. A drift guard in `service.test.ts` reads the Go constant and fails if they differ,
+ * the same mechanism 053 built for `stage.go`.
+ *
+ * ⚠ `submitting` is out because no money is on its way yet; `failed` is IN because it is money the
+ * platform attempted to return and staff must resolve — freeing the ceiling would let a bouncing
+ * retry refund an order repeatedly.
+ */
+export const COUNTED_REFUND_STATUSES: readonly string[] = ["submitted", "succeeded", "failed"];
 
 /** Page size. Capped so a mistyped `limit` cannot ask for the whole table. */
 export const MAX_LIMIT = 100;
@@ -53,7 +72,16 @@ export function stageFor(statuses: readonly string[]): OrderStage {
   return STAGE_BY_RANK[least]!;
 }
 
-function awaitingFor(handover: number, arrival: number): OrderAwaiting | null {
+/**
+ * What the order is waiting on — the console's work queue.
+ *
+ * ⚠ ORDERED BY WHOSE MONEY IS AT STAKE, not by lifecycle position. 055 puts `refund_decision` FIRST:
+ * a package awaiting handover or arrival is late, but a package a shop cannot supply is money the
+ * platform is holding for goods that will never be sent. An order can genuinely be waiting on more
+ * than one thing, and this says which one an operator should act on.
+ */
+function awaitingFor(handover: number, arrival: number, unfulfillable = 0): OrderAwaiting | null {
+  if (unfulfillable > 0) return "refund_decision";
   if (handover > 0) return "handover";
   if (arrival > 0) return "arrival";
   return null;
@@ -160,11 +188,20 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
   // ⚠ PARALLEL, not four serial round trips. A Sydney RDS hop measures ~135 ms and this detail reads
   // from six tables — 029 found the storefront home intermittently 503-ing at 3.007 s from exactly
   // this mistake (8 serial queries), and that was on the customer's critical path.
-  const [itemRows, packageRows, historyRows] = await Promise.all([
-    repo.items(orderId),
-    repo.packages(orderId),
-    repo.history(orderId),
-  ]);
+  const [itemRows, packageRows, historyRows, refundRows, refundLineRows, proposedRows, requestRow] =
+    await Promise.all([
+      repo.items(orderId),
+      repo.packages(orderId),
+      repo.history(orderId),
+      refundRepo.refunds(orderId),
+      refundRepo.refundLines(orderId),
+      refundRepo.proposedRefunds(orderId),
+      refundRepo.refundRequest(orderId),
+    ]);
+  // ⚠ A SECOND HOP, and deliberately not folded into the wave above: the items belong to a request
+  // that may not exist, and asking for them unconditionally would query on a foreign key we have not
+  // read yet. It costs one round trip on the rare order that HAS an open request, and none otherwise.
+  const requestItemRows = requestRow ? await refundRepo.refundRequestItems(requestRow.request_id) : [];
 
   const packages = packageRows.map(toPackage);
   const statuses = packageRows.map((p) => p.status);
@@ -172,6 +209,11 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     (p) => p.status === "collected" && (p.method ?? "standard") === "standard" && !p.handoff_at,
   ).length;
   const awaitingArrival = packageRows.filter((p) => !p.arrival_at).length;
+  // ⚠ 055 US6 — a portion the shop cannot supply, with no refund yet covering it. `refundedCents > 0`
+  // is deliberately NOT the test: a partial refund for something else does not answer this.
+  const awaitingRefundDecision = packageRows.filter(
+    (p) => p.status === "unfulfillable",
+  ).length;
 
   return {
     id: order.id,
@@ -204,6 +246,115 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
 
     // FR-007 — a rollup: finished only when EVERY package has arrived.
     finished: packageRows.length > 0 && awaitingArrival === 0,
-    awaiting: awaitingFor(awaitingHandover, awaitingArrival),
+    awaiting: awaitingFor(awaitingHandover, awaitingArrival, awaitingRefundDecision),
+
+    ...refundView(order.grand_total_amount, itemRows, refundRows, refundLineRows),
+    proposedRefunds: proposedRows.map((p) => ({
+      orderItemId: p.order_item_id,
+      productName: p.product_name,
+      quantity: p.quantity,
+      amount: p.amount,
+      // Every proposal has one cause: the shop could not supply what was paid for.
+      reason: "item_not_supplied" as const,
+    })),
+    refundRequest: requestRow ? toRefundRequest(requestRow, requestItemRows) : null,
+  };
+}
+
+/**
+ * The refund picture, assembled from rows.
+ *
+ * ⚠ MONEY IS SUMMED IN INTEGER CENTS AND FORMATTED ONCE. Accumulating 2-dp strings as floats is how
+ * `0.1 + 0.2` reaches a screen as `0.30000000000000004`, and on a refund screen a rounding artefact
+ * is not cosmetic — it is the number an operator is about to hand back.
+ */
+function refundView(
+  grandTotal: string,
+  itemRows: readonly repo.OrderItemRow[],
+  refundRows: readonly refundRepo.RefundRow[],
+  lineRows: readonly refundRepo.RefundLineRow[],
+): Pick<
+  AdminOrderDetailDTO,
+  "refunds" | "refundedAmount" | "refundableAmount" | "refundableLines"
+> {
+  const counted = refundRows.filter((r) => COUNTED_REFUND_STATUSES.includes(r.status));
+  const refundedCents = counted.reduce((sum, r) => sum + cents(r.amount), 0);
+  const remainingCents = Math.max(0, cents(grandTotal) - refundedCents);
+
+  // Units already spoken for, per line — by the SAME status set as the money, or the two halves of
+  // the ceiling would disagree with each other.
+  const countedIds = new Set(counted.map((r) => r.refund_id));
+  const usedUnits = new Map<string, number>();
+  for (const l of lineRows) {
+    if (!countedIds.has(l.refund_id)) continue;
+    usedUnits.set(l.order_item_id, (usedUnits.get(l.order_item_id) ?? 0) + l.quantity);
+  }
+
+  const linesByRefund = new Map<string, refundRepo.RefundLineRow[]>();
+  for (const l of lineRows) {
+    const list = linesByRefund.get(l.refund_id) ?? [];
+    list.push(l);
+    linesByRefund.set(l.refund_id, list);
+  }
+
+  return {
+    refunds: refundRows.map((r) => ({
+      id: r.refund_id,
+      kind: r.kind as RefundDTO["kind"],
+      amount: r.amount,
+      reason: r.reason as RefundDTO["reason"],
+      status: r.status as RefundDTO["status"],
+      failureReason: r.failure_reason,
+      note: r.note,
+      actorLabel: r.actor_label,
+      createdAt: r.created_at.toISOString(),
+      settledAt: r.settled_at ? r.settled_at.toISOString() : null,
+      lines: (linesByRefund.get(r.refund_id) ?? []).map((l) => ({
+        orderItemId: l.order_item_id,
+        productName: l.product_name,
+        quantity: l.quantity,
+        amount: l.amount,
+      })),
+    })),
+    refundedAmount: money(refundedCents),
+    refundableAmount: money(remainingCents),
+    refundableLines: itemRows
+      .map((i) => ({
+        orderItemId: i.order_item_id,
+        productName: i.product_name,
+        unitPriceAmount: i.unit_price_amount,
+        quantity: i.quantity - (usedUnits.get(i.order_item_id) ?? 0),
+      }))
+      // ⚠ A fully refunded line is OMITTED, not shown at zero. A row offering nothing is a control
+      // that refuses when used, and the server would refuse it too (FR-008).
+      .filter((l) => l.quantity > 0),
+  };
+}
+
+/** 2-dp decimal string → integer cents. `round`, because `12.34 * 100` is `1233.9999…`. */
+function cents(amount: string): number {
+  return Math.round(Number(amount) * 100);
+}
+
+function money(c: number): string {
+  return (c / 100).toFixed(2);
+}
+
+function toRefundRequest(
+  r: refundRepo.RefundRequestRow,
+  items: readonly refundRepo.RefundRequestItemRow[],
+): RefundRequestDTO {
+  return {
+    id: r.request_id,
+    message: r.message,
+    status: r.status as RefundRequestDTO["status"],
+    outcomeNote: r.outcome_note,
+    items: items.map((i) => ({
+      orderItemId: i.order_item_id,
+      productName: i.product_name,
+      quantity: i.quantity,
+    })),
+    createdAt: r.created_at.toISOString(),
+    decidedAt: r.decided_at ? r.decided_at.toISOString() : null,
   };
 }

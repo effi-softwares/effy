@@ -123,6 +123,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  refundProposalDismissV1:
+    handler: src/functions/refund-proposal-dismiss-v1-post.handler
+    description: Back-office — dismiss a proposed refund a shortfall implied (055 FR-004b). No money moves; write = admin|manager, the same gate as issuing.
+    events:
+      - httpApi:
+          method: POST
+          path: /orders/v1/orders/{orderId}/proposals/{orderItemId}/dismiss
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   fulfillmentHandoffV1:
     handler: src/functions/fulfillment-handoff-v1-post.handler
     description: Record a standard package's handover to an outside carrier (053 US2, FR-002). Write = admin/manager only.

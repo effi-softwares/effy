@@ -47,10 +47,14 @@ class HttpOrderRepository(private val shopApi: HttpClient) : OrderRepository {
         shopApi.get("shop/v1/fulfillments/$id").ensureSuccess().body<FulfillmentDetailDTO>().toDomain()
     }
 
-    override suspend fun transition(id: String, to: FulfillmentTransition): FulfillmentDetail = request {
+    override suspend fun transition(
+        id: String,
+        to: FulfillmentTransition,
+        reason: String?,
+    ): FulfillmentDetail = request {
         // 409 → AppError.Conflict: the portion is not in a state this transition is legal from — someone
         // else moved it. The caller surfaces that and re-reads; it never retries (FR-014).
-        shopApi.post("shop/v1/fulfillments/$id/status") { setBody(to.toRequest()) }
+        shopApi.post("shop/v1/fulfillments/$id/status") { setBody(to.toRequest(reason)) }
             .ensureSuccess().body<FulfillmentDetailDTO>().toDomain()
     }
 

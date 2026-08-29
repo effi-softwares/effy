@@ -4,6 +4,8 @@
 // or an order detail in any internal console, which is why a customer told "contact support and
 // we'll sort it out" (020 FR-018b) reached people who could not see what they were being asked about.
 
+import type { OrderAwaiting } from "@effy/shared-types";
+
 import { query } from "@effy/edge-shared";
 
 export interface OrderSummaryRow {
@@ -36,7 +38,7 @@ export interface OrderSummaryRow {
 export interface ListParams {
   q?: string;
   status?: string;
-  awaiting?: "handover" | "arrival";
+  awaiting?: OrderAwaiting;
   cursor?: string;
   limit: number;
 }
@@ -81,6 +83,13 @@ export async function list(params: ListParams): Promise<OrderSummaryRow[]> {
          AND sf.status = 'collected'
          AND COALESCE(opd.method, 'standard') = 'standard'
          AND h.id IS NULL
+    )`);
+  } else if (params.awaiting === "refund_decision") {
+    // ⚠ 055 US6 — a portion the shop said it cannot supply. Expressed against the same fact the
+    // projection reports, so the filter and the badge can never disagree about one order.
+    where.push(`EXISTS (
+      SELECT 1 FROM public.shop_fulfillment sf
+       WHERE sf.order_id = o.id AND sf.status = 'unfulfillable'
     )`);
   } else if (params.awaiting === "arrival") {
     where.push(`EXISTS (

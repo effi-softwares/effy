@@ -373,6 +373,15 @@
       ],
       "type": "object"
     },
+    "CancelOrderBody": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
     "CartBlockedReason": {
       "description": "Why checkout is unavailable, when it is.",
       "enum": [
@@ -863,6 +872,68 @@
       ],
       "type": "object"
     },
+    "CreateRefundRequestBody": {
+      "additionalProperties": false,
+      "description": "⚠ NO DESTINATION FIELD, AND THERE MUST NEVER BE ONE. The refund goes to the payment method on the order (FR-006). A request that could name where the money goes would be a way to redirect somebody else's (A4).",
+      "properties": {
+        "items": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "orderItemId": {
+                "type": "string"
+              },
+              "quantity": {
+                "$ref": "#/definitions/WireInt"
+              }
+            },
+            "required": [
+              "orderItemId",
+              "quantity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "message"
+      ],
+      "type": "object"
+    },
+    "CustomerRefundDTO": {
+      "additionalProperties": false,
+      "description": "One refund, as the CUSTOMER sees it.\n\n⚠ THREE states, not five, and no failure text. \"Your bank rejected the refund\" invites a shopper to argue with a message they cannot act on, and the difference between `submitting` and `submitted` is a fact about our integration.",
+      "properties": {
+        "amount": {
+          "type": "string"
+        },
+        "refundedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "enum": [
+            "on_its_way",
+            "completed",
+            "there_was_a_problem"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "amount",
+        "state",
+        "refundedAt"
+      ],
+      "type": "object"
+    },
     "DeliveryMethod": {
       "description": "The two delivery methods. same-day is always priced ≥ standard (FR-022).",
       "enum": [
@@ -1204,6 +1275,10 @@
       "additionalProperties": false,
       "description": "Full order / receipt (GET /v1/orders/{id}).",
       "properties": {
+        "amountPaidAfterRefunds": {
+          "description": "What the shopper is out of pocket after refunds.\n\n⚠ NOT A CORRECTION TO `grandTotalAmount` (FR-024). That figure is what was CHARGED — a historical record. A receipt that silently rewrote itself after a refund could not be reconciled against a bank statement, which is the one thing a receipt is for.",
+          "type": "string"
+        },
         "arrivalEstimates": {
           "description": "052 — when the order is expected to arrive (FR-007), one entry per package.\n\n⚠ More than one entry means the order arrives in more than one delivery — a fact about the CUSTOMER'S experience, not about fulfilment structure. It carries no shop reference of any kind (FR-009), and the entries are deliberately unordered with respect to any internal grouping.",
           "items": {
@@ -1221,6 +1296,10 @@
             }
           ],
           "description": "The BILLING address snapshot (023). `null` means \"same as shipping\" — the client renders \"Billing: same as shipping\" rather than repeating the address. A value is a divergent billing address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders."
+        },
+        "cancellable": {
+          "description": "055 — may the SHOPPER still cancel this order themselves? (FR-012)\n\n⚠ SERVER-DERIVED, for exactly the reason `stage` above is: a client computing it from `fulfillments` would be a second implementation of one rule, and the divergence would be silent because both surfaces still render *something*. Here the cost is a shopper shown a cancel button that refuses, or denied one that would have worked.\n\n⚠ ADVISORY, NOT THE GATE. It was true when the page loaded; a shop may have begun picking since, and the server re-decides inside a row lock when the cancel actually arrives (FR-017).\n\n⚠ `false` DOES NOT MEAN \"this order can never be cancelled\" — staff can cancel at any pre-departure stage (FR-018). Any wording built on this must leave that door open, or a shopper who would have rung up simply gives up.",
+          "type": "boolean"
         },
         "currency": {
           "type": "string"
@@ -1242,6 +1321,10 @@
             "$ref": "#/definitions/OrderFulfillmentDTO"
           },
           "type": "array"
+        },
+        "fullyRefunded": {
+          "description": "⚠ DERIVED FROM THE TOTALS, never a stored flag — so reaching it line by line and reaching it in one act are the same fact. A flag could be true while the numbers disagreed, and then nobody knows which to believe.",
+          "type": "boolean"
         },
         "grandTotalAmount": {
           "type": "string"
@@ -1288,6 +1371,17 @@
             "null"
           ]
         },
+        "refundedTotal": {
+          "description": "What has actually been returned or is on its way. Absent when there are no refunds.",
+          "type": "string"
+        },
+        "refunds": {
+          "description": "055 — every refund on this order, newest first (FR-023).\n\n⚠ ABSENT ENTIRELY when nothing was refunded — not an empty array (FR-028, SC-011). An order with no refunds serialises byte-identically to its pre-055 self, so a client that has never seen one cannot tell this slice shipped, and renders nothing rather than an empty section.\n\n⚠ NO FAILURE REASON, NO KIND, NO PROVIDER REFERENCE. See [CustomerRefundDTO].",
+          "items": {
+            "$ref": "#/definitions/CustomerRefundDTO"
+          },
+          "type": "array"
+        },
         "stage": {
           "$ref": "#/definitions/OrderStage",
           "description": "052 — the customer-facing progress stage (FR-008).\n\n⚠ SERVER-DERIVED, ALWAYS. Clients render this; no client computes it from `fulfillments`. Two clients deriving one answer independently is 029's banner target and 033's `available` flag, and the failure is silent because both surfaces still render *something*.\n\n⚠ It is a ROLLUP, NOT A MAX: a two-shop order with one portion delivered and one still being picked is `packing`. The customer has not received their order."
@@ -1309,6 +1403,7 @@
         "paymentStatus",
         "fulfillments",
         "stage",
+        "cancellable",
         "arrivalEstimates"
       ],
       "type": "object"
@@ -1363,6 +1458,10 @@
         "lineSubtotalAmount": {
           "type": "string"
         },
+        "orderItemId": {
+          "description": "055 — this LINE's own id.\n\n⚠ NOT INTERCHANGEABLE WITH `productId`, and the difference is load-bearing. `order_item` has no uniqueness on (order, product), so two lines of the same product cannot be told apart by product id. A refund request that named a product where a line was expected would not error — the join would simply match nothing, and every item the shopper named would be SILENTLY DROPPED.\n\n⚠ It discloses nothing: a row id on the shopper's own order, carrying no shop and no fulfilment structure. The back-office contract already speaks this language.",
+          "type": "string"
+        },
         "productId": {
           "type": "string"
         },
@@ -1377,6 +1476,7 @@
         }
       },
       "required": [
+        "orderItemId",
         "productId",
         "productName",
         "unitPriceAmount",
@@ -1702,6 +1802,77 @@
         "validity"
       ],
       "type": "object"
+    },
+    "RefundRequestDTO": {
+      "additionalProperties": false,
+      "description": "A customer's ask.\n\n⚠ IT IS NOT A REFUND. It carries no amount and no provider reference, and it moves no money (FR-005r). It replaces \"email support and hope\" — today \"Get help\" opens a generic feedback form with no order reference attached. ⚠ Deliberately NOT a message thread: one statement, one outcome.",
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "decidedAt": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "items": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "orderItemId": {
+                "type": "string"
+              },
+              "productName": {
+                "type": "string"
+              },
+              "quantity": {
+                "$ref": "#/definitions/WireInt"
+              }
+            },
+            "required": [
+              "orderItemId",
+              "productName",
+              "quantity"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "message": {
+          "type": "string"
+        },
+        "outcomeNote": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "$ref": "#/definitions/RefundRequestStatus"
+        }
+      },
+      "required": [
+        "id",
+        "message",
+        "status",
+        "items",
+        "outcomeNote",
+        "createdAt",
+        "decidedAt"
+      ],
+      "type": "object"
+    },
+    "RefundRequestStatus": {
+      "enum": [
+        "open",
+        "refunded",
+        "declined"
+      ],
+      "type": "string"
     },
     "ReorderRequest": {
       "additionalProperties": false,
@@ -2320,7 +2491,6 @@
       "type": "integer"
     }
   },
-  "description": "Aggregator — codegen entry only (see file header). Every field forces a type into the schema.",
   "properties": {
     "addToCart": {
       "$ref": "#/definitions/AddToCartRequest"
@@ -2342,6 +2512,9 @@
     },
     "billingDetails": {
       "$ref": "#/definitions/BillingDetailsDTO"
+    },
+    "cancelOrder": {
+      "$ref": "#/definitions/CancelOrderBody"
     },
     "cart": {
       "$ref": "#/definitions/CartDTO"
@@ -2393,6 +2566,12 @@
     },
     "createCheckoutIntentResponse": {
       "$ref": "#/definitions/CreateCheckoutIntentResponse"
+    },
+    "createRefundRequest": {
+      "$ref": "#/definitions/CreateRefundRequestBody"
+    },
+    "customerRefund": {
+      "$ref": "#/definitions/CustomerRefundDTO"
     },
     "deliveryOption": {
       "$ref": "#/definitions/DeliveryOptionDTO"
@@ -2465,6 +2644,9 @@
     },
     "rail": {
       "$ref": "#/definitions/StorefrontRailDTO"
+    },
+    "refundRequest": {
+      "$ref": "#/definitions/RefundRequestDTO"
     },
     "reorderRequest": {
       "$ref": "#/definitions/ReorderRequest"
@@ -2571,7 +2753,11 @@
     "paymentMethod",
     "listPaymentMethods",
     "billingDetails",
-    "billingAddress"
+    "billingAddress",
+    "customerRefund",
+    "refundRequest",
+    "createRefundRequest",
+    "cancelOrder"
   ],
   "type": "object",
   "title": "CustomerCommerceContract"

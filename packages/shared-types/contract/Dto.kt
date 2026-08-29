@@ -428,6 +428,15 @@ data class PasswordWriteResultDTO (
 @Serializable
 data class ProblemJSON (
     val detail: String? = null,
+
+    /**
+     * ⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field
+     * issues under `errors`; `fields` was the name only this type used, so every reader keying
+     * off it saw nothing. Both are declared so the mismatch is visible here rather than
+     * rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).
+     */
+    val errors: List<ProblemFieldIssue>? = null,
+
     val fields: List<ProblemFieldIssue>? = null,
     val instance: String? = null,
     val status: Double,

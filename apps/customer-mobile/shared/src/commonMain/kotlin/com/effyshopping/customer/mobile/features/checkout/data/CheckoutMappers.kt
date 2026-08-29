@@ -3,7 +3,9 @@ package com.effyshopping.customer.mobile.features.checkout.data
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentRequest
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
 import com.effyshopping.customer.mobile.commerce.contract.OrderAddressDTO
+import com.effyshopping.customer.mobile.commerce.contract.CustomerRefundDTO
 import com.effyshopping.customer.mobile.commerce.contract.OrderDTO
+import com.effyshopping.customer.mobile.commerce.contract.State as DtoRefundState
 import com.effyshopping.customer.mobile.commerce.contract.OrderStage as DtoOrderStage
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryMethod as DeliveryMethodDTO
 import com.effyshopping.customer.mobile.commerce.contract.DeliveryQuoteDTO
@@ -11,6 +13,8 @@ import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryMethod
 import com.effyshopping.customer.mobile.features.checkout.domain.DeliveryQuote
 import com.effyshopping.customer.mobile.features.checkout.domain.PlaceOrder
+import com.effyshopping.customer.mobile.features.checkout.domain.CustomerRefund
+import com.effyshopping.customer.mobile.features.checkout.domain.CustomerRefundState
 import com.effyshopping.customer.mobile.features.checkout.domain.Receipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ReceiptItem
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate
@@ -161,6 +165,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
         paid = paymentStatus.value == "succeeded" || status.value == "paid",
         items = items.map {
             ReceiptItem(
+                orderItemId = it.orderItemID,
                 productId = it.productID,
                 productName = it.productName,
                 quantity = it.quantity.toInt(),
@@ -193,5 +198,34 @@ internal fun OrderDTO.toReceipt(): Receipt {
                 promisedTo = it.promisedTo,
             )
         },
+        // ⚠ 055 — MAPPED, not derived. The mapper dropping a field the backend sends is how `brand`,
+        // `badges` and (033) `productId` went missing on this surface: the wire carried them and the
+        // domain model simply did not ask.
+        cancellable = cancellable,
+        // ⚠ 055 US5 — MAPPED, like `cancellable` above. Absent means no refunds, which renders
+        // NOTHING (FR-028) rather than an empty section.
+        refunds = refunds.orEmpty().map { it.toDomain() },
+        refundedTotal = refundedTotal ?: "0.00",
+        // ⚠ Falls back to the CHARGED total, not to "0.00". With no refunds the shopper is out of
+        // pocket the whole amount, and a zero here would tell them they paid nothing.
+        amountPaidAfterRefunds = amountPaidAfterRefunds ?: grandTotalAmount,
+        fullyRefunded = fullyRefunded ?: false,
     )
 }
+
+/**
+ * The wire refund → the domain refund.
+ *
+ * ⚠ A `when` over the generated enum with NO `else` that guesses, exactly like `toDomainStage`. An
+ * unrecognised state must degrade to "on its way" and never to "completed" — telling a shopper their
+ * money has arrived is the one claim that stops them looking for it.
+ */
+private fun CustomerRefundDTO.toDomain(): CustomerRefund = CustomerRefund(
+    amount = amount,
+    state = when (state) {
+        DtoRefundState.Completed -> CustomerRefundState.Completed
+        DtoRefundState.ThereWasAProblem -> CustomerRefundState.ThereWasAProblem
+        DtoRefundState.OnItsWay -> CustomerRefundState.OnItsWay
+    },
+    refundedAt = refundedAt,
+)

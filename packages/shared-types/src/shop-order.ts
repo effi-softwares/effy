@@ -33,7 +33,24 @@ export type FulfillmentStatus =
   | "picking"
   | "ready_for_pickup"
   | "collected"
-  | "delivered";
+  | "delivered"
+  /**
+   * 055 US6 — the exit a shop that cannot supply its portion previously lacked.
+   *
+   * ⚠ Before it, a shop holding an order it could not fill had no state to move it to: the portion
+   * sat in the queue forever, and the only way out was for someone to stop looking at it.
+   *
+   * ⚠ IT MOVES NO MONEY (FR-031). It says "we cannot supply this"; a person decides the refund.
+   */
+  | "unfulfillable"
+  /**
+   * 055 US2 — set by CANCELLATION, never by a shop.
+   *
+   * ⚠ DELIBERATELY A DIFFERENT STATE FROM `unfulfillable`. The shop did not fail to supply anything —
+   * the order was called off. Conflating them would tell a shop it failed at something nobody wanted,
+   * and would make shop-reliability reporting count cancellations as shop failures.
+   */
+  | "withdrawn";
 
 export const FULFILLMENT_STATUSES: readonly FulfillmentStatus[] = [
   "pending",
@@ -42,6 +59,8 @@ export const FULFILLMENT_STATUSES: readonly FulfillmentStatus[] = [
   "ready_for_pickup",
   "collected",
   "delivered",
+  "unfulfillable",
+  "withdrawn",
 ];
 
 export function toFulfillmentStatus(v: string | null | undefined): FulfillmentStatus | null {
@@ -148,14 +167,24 @@ export interface FulfillmentDetailDTO {
 /**
  * Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).
  *
- * Only `picking` and `ready_for_pickup` are requestable: `pending` is the fan-out's, `received` is
- * implicit on first open (FR-011a), and `collected` belongs to the pickup stub alone (FR-030).
- * `ready_for_pickup -> picking` is the ONE permitted reversal (FR-011d).
+ * `pending` is the fan-out's, `received` is implicit on first open (FR-011a), and `collected`
+ * belongs to the pickup stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted
+ * reversal (FR-011d).
+ *
+ * ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion previously lacked.
+ * ⚠ `withdrawn` is deliberately NOT requestable and must never become so: it is written by `core-api`
+ * when an ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.
  */
-export type RequestableTransition = "picking" | "ready_for_pickup";
+export type RequestableTransition = "picking" | "ready_for_pickup" | "unfulfillable";
 
 export interface TransitionRequest {
   to: RequestableTransition;
+  /**
+   * ⚠ REQUIRED when `to` is `unfulfillable`, and enforced by a CHECK constraint underneath. A portion
+   * that leaves the shop's queue unexplained is one back-office cannot decide a refund on: they are
+   * being asked to return a customer's money on the strength of it.
+   */
+  reason?: string;
 }
 
 /**
