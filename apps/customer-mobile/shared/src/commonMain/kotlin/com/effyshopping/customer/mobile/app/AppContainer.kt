@@ -37,7 +37,9 @@ import com.effyshopping.customer.mobile.features.saved.domain.SavedStore
 import com.effyshopping.customer.mobile.features.saved.domain.ToggleSaved
 import com.effyshopping.customer.mobile.features.saved.domain.UndoRemoveSaved
 import com.effyshopping.customer.mobile.features.checkout.data.HttpCheckoutRepository
+import com.effyshopping.customer.mobile.features.checkout.data.HttpReceiptResendRepository
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
+import com.effyshopping.customer.mobile.features.checkout.domain.ResendReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders
 import com.effyshopping.customer.mobile.features.checkout.domain.CheckoutIntent
 import com.effyshopping.customer.mobile.features.checkout.domain.ConfirmOrder
@@ -300,6 +302,12 @@ class AppContainer(
     )
     val quoteDelivery by lazy { QuoteDelivery(checkoutRepo) } // 047: delivery quote at checkout
     val getReceipt by lazy { GetReceipt(checkoutRepo) }
+
+    /**
+     * 052 US4 — resend a paid order's receipt. ⚠ COLD PATH (`edgeClient`): a low-frequency action
+     * whose job is to enqueue an email, not a commerce read.
+     */
+    val resendReceipt: ResendReceipt by lazy { HttpReceiptResendRepository(edgeClient) }
     val listOrders by lazy { ListOrders(checkoutRepo) }
 
     // Address book (022) — view / add / edit / set-default / delete over the reused CRUD.

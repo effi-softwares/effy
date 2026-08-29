@@ -1,136 +1,171 @@
 {
   "orderNumber": "EFY-HVX2AE",
-  "deliveryEstimate": "between 2pm and 4pm today",
+  "placedAt": "26 August 2026 at 2:14 pm",
+  "deliveryEstimate": "Today",
+  "deliveryMethod": "Same-day",
   "items": [
     {
       "name": "Organic bananas",
       "quantity": "1",
-      "lineTotal": "$2.50"
+      "unitPrice": "$2.00",
+      "lineTotal": "$2.00"
     },
     {
       "name": "Free-range eggs (12)",
       "quantity": "2",
-      "lineTotal": "$7.74"
+      "unitPrice": "$3.37",
+      "lineTotal": "$6.74"
     },
     {
       "name": "Sourdough loaf",
       "quantity": "3",
-      "lineTotal": "$15.72"
+      "unitPrice": "$4.74",
+      "lineTotal": "$14.22"
     },
     {
-      "name": "Whole milk 2L",
+      "name": "Full cream milk 2L",
       "quantity": "1",
-      "lineTotal": "$6.61"
+      "unitPrice": "$6.11",
+      "lineTotal": "$6.11"
     },
     {
-      "name": "Baby spinach 200g",
+      "name": "Barilla spaghetti 500g",
       "quantity": "2",
-      "lineTotal": "$15.96"
+      "unitPrice": "$7.48",
+      "lineTotal": "$14.96"
     },
     {
-      "name": "Chicken breast 1kg",
+      "name": "Quilton 3 ply tissue 12pk",
       "quantity": "3",
-      "lineTotal": "$28.05"
+      "unitPrice": "$8.85",
+      "lineTotal": "$26.55"
     },
     {
-      "name": "Cherry tomatoes",
+      "name": "Roma tomatoes 1kg",
       "quantity": "1",
-      "lineTotal": "$10.72"
+      "unitPrice": "$10.22",
+      "lineTotal": "$10.22"
+    },
+    {
+      "name": "Australian bananas",
+      "quantity": "2",
+      "unitPrice": "$11.59",
+      "lineTotal": "$23.18"
+    },
+    {
+      "name": "Cavendish avocados",
+      "quantity": "3",
+      "unitPrice": "$12.96",
+      "lineTotal": "$38.88"
     },
     {
       "name": "Greek yoghurt 1kg",
-      "quantity": "2",
-      "lineTotal": "$24.18"
+      "quantity": "1",
+      "unitPrice": "$2.33",
+      "lineTotal": "$2.33"
     },
     {
-      "name": "Cheddar block 500g",
+      "name": "Tasty cheese block 500g",
+      "quantity": "2",
+      "unitPrice": "$3.70",
+      "lineTotal": "$7.40"
+    },
+    {
+      "name": "Chicken breast fillets 1kg",
       "quantity": "3",
-      "lineTotal": "$40.38"
+      "unitPrice": "$5.07",
+      "lineTotal": "$15.21"
     },
     {
       "name": "Basmati rice 5kg",
       "quantity": "1",
-      "lineTotal": "$14.83"
+      "unitPrice": "$6.44",
+      "lineTotal": "$6.44"
     },
     {
-      "name": "Olive oil 1L",
+      "name": "Extra virgin olive oil 1L",
       "quantity": "2",
-      "lineTotal": "$32.40"
+      "unitPrice": "$7.81",
+      "lineTotal": "$15.62"
     },
     {
-      "name": "Roma tomatoes",
+      "name": "Weet-Bix 1.2kg",
       "quantity": "3",
-      "lineTotal": "$52.71"
+      "unitPrice": "$9.18",
+      "lineTotal": "$27.54"
     },
     {
-      "name": "Red onions 1kg",
+      "name": "Vegemite 380g",
       "quantity": "1",
-      "lineTotal": "$18.94"
+      "unitPrice": "$10.55",
+      "lineTotal": "$10.55"
     },
     {
-      "name": "Avocados (4)",
+      "name": "Tim Tam original",
       "quantity": "2",
-      "lineTotal": "$40.62"
+      "unitPrice": "$11.92",
+      "lineTotal": "$23.84"
     },
     {
-      "name": "Salmon fillets 500g",
+      "name": "Nescafe Blend 43 500g",
       "quantity": "3",
-      "lineTotal": "$11.04"
+      "unitPrice": "$13.29",
+      "lineTotal": "$39.87"
     },
     {
-      "name": "Pasta penne 500g",
+      "name": "Coles brand pasta sauce",
       "quantity": "1",
-      "lineTotal": "$5.05"
+      "unitPrice": "$2.66",
+      "lineTotal": "$2.66"
     },
     {
-      "name": "Tinned chickpeas",
+      "name": "Baby spinach 280g",
       "quantity": "2",
-      "lineTotal": "$12.84"
+      "unitPrice": "$4.03",
+      "lineTotal": "$8.06"
     },
     {
-      "name": "Coffee beans 1kg",
+      "name": "Red capsicum each",
       "quantity": "3",
-      "lineTotal": "$23.37"
+      "unitPrice": "$5.40",
+      "lineTotal": "$16.20"
     },
     {
-      "name": "Dark chocolate 200g",
+      "name": "Brown onions 1kg",
       "quantity": "1",
-      "lineTotal": "$9.16"
-    },
-    {
-      "name": "Sparkling water 12pk",
-      "quantity": "2",
-      "lineTotal": "$21.06"
+      "unitPrice": "$6.77",
+      "lineTotal": "$6.77"
     },
     {
       "name": "Carrots 1kg",
-      "quantity": "3",
-      "lineTotal": "$35.70"
-    },
-    {
-      "name": "Broccoli",
-      "quantity": "1",
-      "lineTotal": "$13.27"
-    },
-    {
-      "name": "Bell peppers (3)",
       "quantity": "2",
-      "lineTotal": "$29.28"
+      "unitPrice": "$8.14",
+      "lineTotal": "$16.28"
     },
     {
-      "name": "Minced beef 1kg",
+      "name": "Potatoes washed 2kg",
       "quantity": "3",
-      "lineTotal": "$48.03"
+      "unitPrice": "$9.51",
+      "lineTotal": "$28.53"
     },
     {
-      "name": "Frozen peas 1kg",
+      "name": "Lemons 500g",
       "quantity": "1",
-      "lineTotal": "$17.38"
+      "unitPrice": "$10.88",
+      "lineTotal": "$10.88"
     }
   ],
-  "subtotal": "$537.54",
-  "deliveryFee": "$7.90",
-  "total": "$545.44",
-  "deliveryAddress": "Unit 4, 128 Example Street, Sydney NSW 2000",
-  "orderUrl": "https://effyshopping.com/orders/EFY-HVX2AE"
+  "subtotal": "$381.04",
+  "hasDiscount": true,
+  "discountLabel": "Discount SPRING10",
+  "discountAmount": "$38.10",
+  "hasDeliveryFee": true,
+  "deliveryFee": "$8.00",
+  "total": "$350.94",
+  "hasPaymentMethod": true,
+  "paymentMethod": "Visa ending 4242",
+  "deliveryAddress": "Janith Madarasinghe\n12 Swan Street\nRichmond VIC 3121\nAustralia",
+  "billingSameAsDelivery": true,
+  "billingAddress": "",
+  "orderUrl": "https://effyshopping.com/orders/8f2c1a"
 }

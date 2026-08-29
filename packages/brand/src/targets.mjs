@@ -289,8 +289,15 @@ export const MANAGED_DIRS = [
  * Files inside a managed directory that the generator does NOT write but that legitimately live
  * there: platform sidecars the toolchain owns. Listing them is narrower — and far more honest — than
  * silently not watching their directory.
+ *
+ * ⚠ `robots.txt` was added by 048, which put a disallow-all `robots.txt` in each internal console's
+ * `public/` (shop-web and back-office are login-gated and must not be indexed) and did NOT exempt it
+ * here — so `brand-check` reported both as ORPHANED and `pnpm -r test` aborted at `packages/brand`
+ * before most of the workspace had run. Same class as 039's hero photograph: a file the brand
+ * generator neither writes nor could have an opinion about. Found by 052's baseline sweep; it is not
+ * 052's file and not 052's defect.
  */
-export const MANAGED_DIR_EXEMPT = ["Contents.json", ".gitkeep"]
+export const MANAGED_DIR_EXEMPT = ["Contents.json", ".gitkeep", "robots.txt"]
 
 /**
  * Directories INSIDE a managed directory that hold editorial CONTENT rather than generated assets.

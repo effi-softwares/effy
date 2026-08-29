@@ -36,6 +36,17 @@ type CreateIntentInput struct {
 }
 
 // PaymentIntent is the provider-neutral result the service persists + returns (client_secret only).
+// PaymentMethodSummary is how an order was paid, reduced to what a receipt may show (052 FR-006).
+//
+// ⚠ NO CARD DATA BEYOND Last4. There is no field here for a card number, an expiry or a cardholder
+// name, and none may be added — this is the same boundary 051's payment.ts draws.
+type PaymentMethodSummary struct {
+	// Effy's OWN family, never the provider's type string: card | wallet | pay_over_time | other.
+	Type  string
+	Brand string
+	Last4 string
+}
+
 type PaymentIntent struct {
 	ID           string
 	ClientSecret string
@@ -102,6 +113,19 @@ type PaymentGateway interface {
 	RetrievePaymentIntent(ctx context.Context, intentID string) (PaymentIntent, error)
 	// ConstructWebhookEvent verifies the provider signature over the raw body and returns the event.
 	ConstructWebhookEvent(payload []byte, signatureHeader string) (WebhookEvent, error)
+
+	// ── 052 ──────────────────────────────────────────────────────────────────────────────────────
+
+	// DescribePaymentMethod reads how an intent was ACTUALLY paid, in a form safe to print on a
+	// receipt (FR-006).
+	//
+	// ⚠ IT COSTS A NETWORK ROUND TRIP, and the caller must therefore keep it OUT of the finalize
+	// transaction. The webhook event's `latest_charge` is an id string rather than an expanded
+	// object, so this cannot be read from the payload the platform already has.
+	//
+	// ⚠ A failure here is NOT an error the caller should propagate: the order is already paid, and a
+	// receipt without a payment line is a supported state (research R3).
+	DescribePaymentMethod(ctx context.Context, intentID string) (PaymentMethodSummary, error)
 
 	// ── 051 ──────────────────────────────────────────────────────────────────────────────────────
 

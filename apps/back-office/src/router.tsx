@@ -15,6 +15,7 @@ import {
 } from "./routes/deliverability";
 import { deliveryIndexRoute } from "./routes/delivery";
 import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback";
+import { orderDetailRoute, ordersIndexRoute } from "./routes/orders";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
 
@@ -26,6 +27,8 @@ const routeTree = rootRoute.addChildren([
     adminRoute,
     shopsIndexRoute,
     shopDetailRoute,
+    ordersIndexRoute,
+    orderDetailRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
     feedbackIndexRoute,

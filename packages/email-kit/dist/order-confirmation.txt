@@ -1,18 +1,32 @@
 Your {{effyProductName}} order {{orderNumber}} is confirmed
 
-Order {{orderNumber}} is on its way - arriving {{deliveryEstimate}}.
+Thanks - we've received your payment and your order is being prepared.
 
-Items:
-{{#each items}}  {{quantity}} x {{name}}  {{lineTotal}}
+Arriving: {{deliveryEstimate}} ({{deliveryMethod}})
+Order:    {{orderNumber}}
+Placed:   {{placedAt}}
+
+What you ordered:
+{{#each items}}  {{name}}
+    {{unitPrice}} each x {{quantity}}  =  {{lineTotal}}
 {{/each}}
-Subtotal: {{subtotal}}
-Delivery: {{deliveryFee}}
-Total: {{total}}
-
+Items subtotal: {{subtotal}}
+{{#if hasDiscount}}{{discountLabel}}: -{{discountAmount}}
+{{/if}}{{#if hasDeliveryFee}}Delivery: {{deliveryFee}}
+{{/if}}Total paid: {{total}}
+{{#if hasPaymentMethod}}Paid with {{paymentMethod}}
+{{/if}}
 Delivering to:
 {{deliveryAddress}}
 
+Billing address:
+{{#if billingSameAsDelivery}}Same as delivery{{else}}{{billingAddress}}{{/if}}
+
 View your order: {{orderUrl}}
+
+This is a record of payment. Prices include GST where it applies.
+If you need a tax invoice for this order, reply to this email or write
+to {{effySupportEmail}}.
 
 --
 {{effyProductName}}{{#if effyPostalAddress}}

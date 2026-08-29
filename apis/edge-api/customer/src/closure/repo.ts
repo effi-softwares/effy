@@ -49,10 +49,13 @@ export interface BlockingOrderRow {
  * Orders that block closure, with the facts FR-042 requires the customer to be told.
  *
  * ⚠ THIS READS A HOT-PATH-OWNED TABLE FROM THE COLD PATH — a recorded Principle III exception
- * (plan.md § Complexity Tracking, research R2). Calling `core-api` instead was rejected because it
- * HAS NO CLOUD DEPLOY (local-Docker-only by platform decision), which would leave deletion
- * permanently broken in dev and impossible in production. The read is one narrow, owned predicate;
- * it projects no order data into the account domain.
+ * (plan.md § Complexity Tracking, research R2). The read is one narrow, owned predicate; it projects
+ * no order data into the account domain.
+ *
+ * ⚠ THE ORIGINAL REASON RECORDED HERE IS NO LONGER TRUE, corrected by 053 (research R2). It said
+ * calling `core-api` was rejected because it "HAS NO CLOUD DEPLOY (local-Docker-only by platform
+ * decision)". That has been false since 040 — `core-api` is deployed and live. The exception may
+ * still be the right call on the grounds above; it should not be cited as precedent on the old one.
  *
  * ⚠ `clears_at` is computed IN SQL and is NEVER NULL — FR-042 forbids a block that cannot state its
  * own end, and the DTO's non-nullable field makes such a blocker unrepresentable.
@@ -74,14 +77,27 @@ export async function findBlockingOrders(customerId: string): Promise<BlockingOr
            OR (
                 o.status = 'paid'
                 AND o.created_at > now() - ($2 || ' days')::interval
-                -- The fulfilment term. It cannot yet be satisfied in production (see the constant
-                -- above), and it is included ANYWAY so the block becomes correct automatically when
-                -- the delivery lifecycle lands, rather than needing to be found and rewritten then.
+                -- The fulfilment term: an order blocks while ANY package is not yet delivered.
+                --
+                -- ⚠ THIS WAS WRONG IN BOTH DIRECTIONS UNTIL 053, and the way it went wrong is worth
+                -- keeping. It was written as "f.status <> 'collected'" with a comment saying it
+                -- would "become correct automatically when the delivery lifecycle lands". The
+                -- lifecycle landed in 049 — with 'delivered' as the terminal state, not 'collected'.
+                -- Nothing failed, because a predicate pinned to a specific VALUE has no way to
+                -- notice that the vocabulary moved. The result:
+                --
+                --   * a DELIVERED package satisfied it, so an arrived order BLOCKED closure until
+                --     the 7-day backstop expired;
+                --   * a COLLECTED package did not satisfy it, so an order genuinely in transit did
+                --     NOT block — which is the case the term exists for.
+                --
+                -- Exactly the customers it should have released were held, and the ones it should
+                -- have held were released. Both fixed by naming the real terminal state.
                 AND EXISTS (
                       SELECT 1
                         FROM public.shop_fulfillment f
                        WHERE f.order_id = o.id
-                         AND f.status <> 'collected'
+                         AND f.status <> 'delivered'
                     )
               )
             )

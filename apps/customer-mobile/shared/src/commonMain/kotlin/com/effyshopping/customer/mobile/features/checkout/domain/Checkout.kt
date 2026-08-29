@@ -69,6 +69,53 @@ data class ReceiptItem(
     val quantity: Int,
     val unitPriceAmount: String,
     val lineSubtotalAmount: String,
+    /**
+     * 052 — the product's primary image, or null.
+     *
+     * ⚠ DECORATION ONLY, and never a carrier of meaning. A line renders complete without it and
+     * nothing on the receipt may be gated on its presence. Every OTHER field here is the order's own
+     * snapshot; this one resolves against the live catalogue, which is why it can go missing.
+     */
+    val imageUrl: String? = null,
+)
+
+/**
+ * 052 — the customer-facing progress stage (FR-008).
+ *
+ * ⚠ SERVER-DERIVED. The backend computes this from every fulfilment portion and puts it on the wire;
+ * this app renders it and never recomputes it. Two clients deriving one answer independently is
+ * 029's banner target and 033's `available` flag — and the failure is silent, because both surfaces
+ * still render *something*.
+ *
+ * [Unknown] exists because the wire union is closed and this build's copy of it can go stale: a fifth
+ * stage added by a later slice must degrade to "we cannot say" rather than crash a receipt.
+ */
+enum class OrderStage { Confirmed, Packing, OnTheWay, Delivered, Unknown }
+
+/**
+ * 052 — how the order was paid (FR-006).
+ *
+ * ⚠ NO CARD DATA BEYOND [last4], ever. There is no field here for a card number, an expiry or a
+ * cardholder name, and none may be added.
+ */
+data class PaymentMethodSummary(
+    val type: String,
+    val brand: String?,
+    val last4: String?,
+)
+
+/**
+ * 052 — when one package is expected to ARRIVE, as shown at checkout (FR-007).
+ *
+ * ⚠ DATES, NOT TIMES. The underlying columns are `date`; the platform has no delivery time window and
+ * cannot derive one. Never render a time from this.
+ *
+ * ⚠ It carries no shop reference of any kind (FR-009).
+ */
+data class ArrivalEstimate(
+    val method: String,
+    val promisedFrom: String?,
+    val promisedTo: String?,
 )
 
 /**
@@ -88,6 +135,15 @@ data class Receipt(
     val billingAddressLine: String?,
     val itemSubtotalAmount: String,
     /**
+     * ⚠ 052 — THE DELIVERY FEE, AND ITS ABSENCE HERE WAS A LIVE DEFECT.
+     *
+     * 051 FR-043 recorded that delivery sat inside the total and appeared nowhere, and fixed it on
+     * customer-web. Mobile was never mapped, so this screen showed Items − Discount = Total while the
+     * shopper had actually been charged a delivery fee — a receipt whose lines do not add up is not
+     * one anybody can check. Null/"0.00" when there is none.
+     */
+    val deliveryFeeAmount: String? = null,
+    /**
      * 027 — what a promotional code took off, as computed at PAYMENT, and the code itself. Read from the
      * ORDER rather than re-derived, so a receipt explains itself years later even if the code has since
      * changed or been disabled (FR-049). Null/"0.00" when none was used.
@@ -96,6 +152,14 @@ data class Receipt(
     val promoCode: String? = null,
     val grandTotalAmount: String,
     val currency: String,
+    /** 052 — when the order was placed, pre-formatted by the mapper. Empty when unknown. */
+    val placedAt: String = "",
+    /** 052 — server-derived progress (FR-008). */
+    val stage: OrderStage = OrderStage.Confirmed,
+    /** 052 — null when never captured: a pre-052 order, or a failed post-commit capture. */
+    val paymentMethod: PaymentMethodSummary? = null,
+    /** 052 — one entry per package. More than one means the order arrives in more than one delivery. */
+    val arrivalEstimates: List<ArrivalEstimate> = emptyList(),
 ) {
     /** True when billing == shipping (the common case) → "Billing: same as shipping" (FR-016). */
     val billingSameAsShipping: Boolean get() = billingAddressLine == null
@@ -197,3 +261,23 @@ class GetReceipt(private val orders: OrdersRepository) {
 class ListOrders(private val orders: OrdersRepository) {
     suspend operator fun invoke(): List<OrderSummary> = orders.list()
 }
+
+/**
+ * Ask the platform to send a paid order's receipt again (052 US4).
+ *
+ * ⚠ A use case, not a repository call from the ViewModel — the domain layer depends on nothing and the
+ * data layer implements it (Principle VI).
+ */
+fun interface ResendReceipt {
+    suspend operator fun invoke(orderId: String): ResendReceiptResult
+}
+
+/**
+ * What came of a resend request.
+ *
+ * ⚠ [Unavailable] deliberately merges "not yours", "no such order" and "not paid". The server refuses
+ * the first two IDENTICALLY so the route cannot be used to discover which order ids are real
+ * (FR-029); giving them separate cases here would invite a UI that tries to tell them apart.
+ */
+enum class ResendReceiptResult { Queued, RateLimited, Unavailable, Failed }
+

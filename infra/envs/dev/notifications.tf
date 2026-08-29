@@ -54,3 +54,59 @@ resource "aws_cloudwatch_metric_alarm" "notification_send_failed" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
+
+# 052 T058 — page on sustained RECEIPT-EMAIL send failures (Principle VII).
+#
+# ⚠ THIS ALARM IS IN SCOPE ON PURPOSE, where two earlier slices deferred theirs. Both 038 and 046
+# declined a send-failure alarm with the rationale "the service already logs it"; deferring a third
+# time would make the exception the rule. The case is stronger here than for either of them: a missing
+# receipt is INVISIBLE TO EVERYONE. The shopper assumes it is coming, the order is already paid and
+# looks healthy, and nothing on the platform notices until somebody complains — which is precisely the
+# failure mode an alarm exists for.
+#
+# The threshold is deliberately LOWER than the push alarm's (10). Push has a legitimate baseline of
+# failures — stale device tokens, uninstalled apps — while a failing receipt send means SES refused
+# something the platform believed it could send. A handful is already worth a look.
+resource "aws_cloudwatch_metric_alarm" "receipt_send_failed" {
+  alarm_name          = "${module.shared.name_prefix}-receipt-send-failed"
+  alarm_description   = "052 — order receipts are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.receipt_dispatch.last_error."
+  namespace           = "Effy/Notifications"
+  metric_name         = "ReceiptSendFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 3
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
+# 053 T068 — page on sustained ARRIVAL-EMAIL send failures (Principle VII).
+#
+# ⚠ NOT DEFERRED, and the reason is narrower than 052's. 038 and 046 both declined a send-failure
+# alarm with "the service already logs it"; 052 broke that habit for the receipt. This one guards the
+# ONLY message a web-only shopper gets about their delivery.
+#
+# Until 053 the three post-payment lifecycle events (ready, out for delivery, delivered) were PUSH
+# ONLY, so the entire customer-web audience — the platform's only public surface — heard nothing
+# after the receipt. If this email stops sending, that audience is back to silence and NOTHING else
+# notices: the order looks healthy, the arrival is recorded, and the only symptom is a customer who
+# does not know their shopping came.
+#
+# Threshold matches the receipt alarm (3) rather than the push alarm (10). Push has a legitimate
+# baseline of failures — stale device tokens, uninstalled apps. An email that SES refused does not.
+resource "aws_cloudwatch_metric_alarm" "notification_email_send_failed" {
+  alarm_name          = "${module.shared.name_prefix}-notification-email-send-failed"
+  alarm_description   = "053 — order-arrival emails are failing to send. Check the SES identity + configuration set grant, MAIL_* config, and public.notification_request.last_error WHERE channel='email'."
+  namespace           = "Effy/Notifications"
+  metric_name         = "NotificationEmailSendFailed"
+  statistic           = "Sum"
+  period              = 300
+  evaluation_periods  = 2
+  threshold           = 3
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}

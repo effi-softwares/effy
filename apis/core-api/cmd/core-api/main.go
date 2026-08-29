@@ -140,7 +140,7 @@ func run() error {
 		savedItems: saveditems.NewService(saveditems.NewRepository(pool), presign).
 			WithCart(savedCartAdder{cartSvc}),
 		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m),
-		orders:   orders.NewService(orders.NewRepository(pool)),
+		orders:   orders.NewService(orders.NewRepository(pool), presign),
 	}
 
 	router := newRouter(cfg, log, pool, m, deps)

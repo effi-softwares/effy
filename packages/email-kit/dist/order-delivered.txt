@@ -1,0 +1,12 @@
+Your {{effyProductName}} order {{orderNumber}} has arrived
+
+Order {{orderNumber}} was delivered on {{deliveredOn}}. Thanks for shopping with {{effyProductName}}.
+
+{{orderUrl}}
+
+Something not right? Reply to this email or write to {{effySupportEmail}} and we'll sort it out.
+
+--
+{{effyProductName}}{{#if effyPostalAddress}}
+{{effyPostalAddress}}{{/if}}
+Questions? Reply to this email or write to {{effySupportEmail}}.

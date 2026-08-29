@@ -12,6 +12,8 @@ interface PendingRow {
   type: NotificationType;
   payload: { entityId?: string } | null;
   attempts: number;
+  channel: PendingRequest["channel"];
+  recipient_email: string | null;
 }
 
 /**
@@ -21,7 +23,7 @@ interface PendingRow {
 async function claimPending(limit: number): Promise<PendingRequest[]> {
   return withTransaction(async (tx) => {
     const res = await tx.query<PendingRow>(
-      `SELECT id, recipient_sub, audience, type, payload, attempts
+      `SELECT id, recipient_sub, audience, type, payload, attempts, channel, recipient_email
          FROM public.notification_request
         WHERE status = 'pending'
         ORDER BY created_at
@@ -36,6 +38,10 @@ async function claimPending(limit: number): Promise<PendingRequest[]> {
       type: r.type,
       entityId: typeof r.payload?.entityId === "string" ? r.payload.entityId : "",
       attempts: r.attempts,
+      // Rows written before 053 have no channel of their own; the column defaults to 'push', which
+      // is exactly what they were.
+      channel: r.channel ?? "push",
+      recipientEmail: r.recipient_email,
     }));
   });
 }
@@ -70,7 +76,7 @@ async function markFailed(id: string, error: string): Promise<void> {
 
 /** Build the DB-backed drain deps around an injected sender (so the handler wires FCM in). */
 export function repositoryDeps(
-  sender: Pick<DrainDeps, "send" | "senderConfigured">,
+  sender: Pick<DrainDeps, "send" | "senderConfigured" | "sendEmail">,
   opts: { maxAttempts: number; batchSize: number },
 ): DrainDeps {
   return {
@@ -80,6 +86,7 @@ export function repositoryDeps(
     claimPending,
     resolveTokens: (sub, audience) => tokensForRecipient(sub, audience),
     send: sender.send,
+    sendEmail: sender.sendEmail,
     markSent,
     markSkipped,
     markRetry,

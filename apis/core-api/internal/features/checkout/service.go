@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/pricing"
 )
@@ -556,12 +558,45 @@ func (s *Service) HandleWebhook(ctx context.Context, payload []byte, signature s
 
 	switch evt.IntentStatus {
 	case IntentSucceeded:
-		_, err = s.store.FinalizeSucceeded(ctx, orderID)
-		return err
+		if _, err = s.store.FinalizeSucceeded(ctx, orderID); err != nil {
+			return err
+		}
+		// 052 — AFTER the commit, best-effort. See capturePaymentMethod.
+		s.capturePaymentMethod(ctx, orderID, evt.PaymentIntentID)
+		return nil
 	case IntentFailed:
 		return s.store.FinalizeFailed(ctx, orderID)
 	default:
 		return nil
+	}
+}
+
+// capturePaymentMethod records HOW an order was paid, for the receipt (052 FR-006).
+//
+// ⚠ IT RUNS AFTER FinalizeSucceeded HAS COMMITTED, AND THAT IS THE DESIGN. Reading the method costs a
+// Stripe round trip (the webhook's `latest_charge` is an id, not an expanded object). Inside the
+// finalize transaction that round trip would sit on the critical path of the paid transition — which
+// is 027's defect exactly: that path was already timing out at ~14 Sydney round trips inside a 4 s
+// budget. A slow provider must never be able to strand a PAID order.
+//
+// ⚠ EVERY FAILURE IS SWALLOWED. The order is paid either way, and the columns are nullable precisely
+// so this can fail without consequence: the receipt then omits the payment line. Logged, never
+// returned — a caller that could act on this error has nothing useful to do with it.
+func (s *Service) capturePaymentMethod(ctx context.Context, orderID, intentID string) {
+	if intentID == "" {
+		return
+	}
+	m, err := s.gateway.DescribePaymentMethod(ctx, intentID)
+	if err != nil || m.Type == "" {
+		if err != nil {
+			logger.FromContext(ctx).Warn("checkout: payment method not captured",
+				zap.String("orderId", orderID), zap.Error(err))
+		}
+		return
+	}
+	if err := s.store.SavePaymentMethod(ctx, orderID, m); err != nil {
+		logger.FromContext(ctx).Warn("checkout: payment method not saved",
+			zap.String("orderId", orderID), zap.Error(err))
 	}
 }
 
@@ -586,6 +621,8 @@ func (s *Service) Confirm(ctx context.Context, customerID, orderID string) (Conf
 		if _, err := s.store.FinalizeSucceeded(ctx, orderID); err != nil {
 			return ConfirmResult{}, err
 		}
+		// 052 — AFTER the commit, best-effort. See capturePaymentMethod.
+		s.capturePaymentMethod(ctx, orderID, intentID)
 		return ConfirmResult{OrderID: orderID, Paid: true}, nil
 	}
 	if pi.Status == IntentFailed {

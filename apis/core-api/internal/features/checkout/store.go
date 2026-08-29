@@ -82,6 +82,10 @@ type Store interface {
 	// FinalizeFailed marks the order + payment failed (no fan-out, no outbox, cart preserved).
 	FinalizeFailed(ctx context.Context, orderID string) error
 
+	// SavePaymentMethod records how an order was paid, for the receipt (052 FR-006). Called AFTER
+	// FinalizeSucceeded has committed — never inside it (see checkout.Service.capturePaymentMethod).
+	SavePaymentMethod(ctx context.Context, orderID string, m PaymentMethodSummary) error
+
 	// ── 051 ──────────────────────────────────────────────────────────────────────────────────────
 
 	// PaymentProfile returns what the provider needs to identify this shopper: the reference already
@@ -561,6 +565,28 @@ ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {
 		return false, err
 	}
 
+	// 3c. Receipt-email intent (052 FR-019/FR-020).
+	//
+	// ⚠ INSIDE THIS TRANSACTION, so the row is written in the SAME atomic step as the fact it
+	// announces. The transaction is reached only when the status-guarded `pending_payment → paid`
+	// update above affected a row, so it runs exactly once per order even under duplicated webhooks —
+	// and `receipt_dispatch_auto_uq` (a PARTIAL unique index on order_id WHERE reason='order_paid')
+	// is a second, independent guarantee the database itself enforces. Re-processing inserts nothing.
+	//
+	// ⚠ THE RECIPIENT IS SNAPSHOTTED HERE, not resolved at send time. A customer who later changes
+	// their account email must not retroactively change where an already-sent receipt went.
+	//
+	// ⚠ It does NOT send. The scheduled notifications worker drains this; an SES call on the paid
+	// path would make a payment's success depend on a mail service being up.
+	if _, err := tx.Exec(ctx, `
+INSERT INTO public.receipt_dispatch (order_id, reason, recipient)
+SELECT o.id, 'order_paid', c.email
+FROM public."order" o JOIN public.customer c ON c.id = o.customer_id
+WHERE o.id = $1
+ON CONFLICT DO NOTHING`, orderID); err != nil {
+		return false, fmt.Errorf("checkout: enqueue receipt: %w", err)
+	}
+
 	// 4. Payment succeeded.
 	if _, err := tx.Exec(ctx, `UPDATE public.payment SET status='succeeded', updated_at=now() WHERE order_id=$1`, orderID); err != nil {
 		return false, fmt.Errorf("checkout: payment succeeded: %w", err)
@@ -593,6 +619,26 @@ DELETE FROM public.cart_item WHERE cart_id = (
 		return false, fmt.Errorf("checkout: commit finalize: %w", err)
 	}
 	return true, nil
+}
+
+// SavePaymentMethod writes the receipt-safe payment summary (052 FR-006).
+//
+// ⚠ A PLAIN UPDATE, deliberately outside any transaction. It touches three nullable columns that
+// nothing reads for a decision — only the receipt displays them — so there is nothing here to make
+// atomic with the paid transition, and a great deal to lose by putting it there.
+//
+// Empty strings are stored as NULL: "not captured" and "captured as blank" must not be the same row.
+func (s *pgStore) SavePaymentMethod(ctx context.Context, orderID string, m PaymentMethodSummary) error {
+	if _, err := s.pool.Exec(ctx, `
+UPDATE public.payment
+   SET method_type  = NULLIF($2, ''),
+       method_brand = NULLIF($3, ''),
+       method_last4 = NULLIF($4, ''),
+       updated_at   = now()
+ WHERE order_id = $1`, orderID, m.Type, m.Brand, m.Last4); err != nil {
+		return fmt.Errorf("checkout: save payment method: %w", err)
+	}
+	return nil
 }
 
 func (s *pgStore) FinalizeFailed(ctx context.Context, orderID string) error {
