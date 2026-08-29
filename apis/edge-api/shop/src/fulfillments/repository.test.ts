@@ -48,7 +48,13 @@ describe("shop scoping — the isolation guarantee (FR-019, SC-007)", () => {
     query.mockResolvedValue({ rows: [] });
     await listQueue("shop-1", "completed");
 
-    expect(query.mock.calls[0]?.[1]).toEqual(["shop-1", ["ready_for_pickup", "collected", "delivered"]]);
+    // ⚠ 055 — `unfulfillable` and `withdrawn` are "completed" FROM THE SHOP'S POINT OF VIEW, meaning
+    // off the active queue, not fulfilled. That is the whole point of US6: a portion nobody can fill
+    // must leave the list of work, or the shop looks at it every day with nothing they can do.
+    expect(query.mock.calls[0]?.[1]).toEqual([
+      "shop-1",
+      ["ready_for_pickup", "collected", "delivered", "unfulfillable", "withdrawn"],
+    ]);
   });
 
   // The load-bearing predicate: order_item.shop_id was denormalized by 019 precisely so a shop's
@@ -99,7 +105,10 @@ describe("guarded transitions (FR-014, SC-005)", () => {
 
     const update = calls.map(([t]) => t.replace(/\s+/g, " "))[0];
     expect(update).toContain("WHERE id = $1 AND shop_id = $2 AND status = $3");
-    expect(calls[0]?.[1]).toEqual(["f-1", "shop-1", "received", "picking"]);
+    // ⚠ `null` is the 055 reason: written in the SAME statement as the status, so the CHECK
+    // constraint sees both at once. Setting the status first and the reason after would make the
+    // intermediate row violate the constraint.
+    expect(calls[0]?.[1]).toEqual(["f-1", "shop-1", "received", "picking", null]);
   });
 
   it("reports false when the guard matched nothing, and writes no audit row", async () => {

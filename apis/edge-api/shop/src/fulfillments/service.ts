@@ -41,7 +41,17 @@ export async function transition(
   actor: Actor,
   fulfillmentId: string,
   to: RequestableTransition,
+  /**
+   * ⚠ 055 US6 — REQUIRED when `to` is `unfulfillable`, and the database enforces it too. A portion
+   * that leaves the queue unexplained is one back-office cannot decide a refund on: they are being
+   * asked to return a customer's money on the strength of it, and "the shop said no" is not a basis.
+   */
+  reason?: string,
 ): Promise<FulfillmentDetail> {
+  if (to === "unfulfillable" && (reason ?? "").trim() === "") {
+    throw new FulfillmentError("validation", "say why this cannot be supplied");
+  }
+
   const current = await repo.readStatus(fulfillmentId, actor.shopId);
   if (current === null) throw notFound();
 
@@ -53,7 +63,9 @@ export async function transition(
     throw new FulfillmentError("conflict", `cannot move a ${current} fulfillment to ${to}`);
   }
 
-  const applied = await repo.transition(fulfillmentId, actor.shopId, current, to, actor.staffId);
+  const applied = await repo.transition(
+    fulfillmentId, actor.shopId, current, to, actor.staffId, reason?.trim(),
+  );
   if (!applied) {
     // Lost the race between our read and our write. Re-read and apply the same rule as above.
     const now = await repo.readStatus(fulfillmentId, actor.shopId);

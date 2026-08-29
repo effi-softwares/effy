@@ -10,9 +10,11 @@ import { json, parseJsonBody, preamble, problem, ProblemType } from "@effy/edge-
 
 import { gate, mapFulfillmentError, toDetailDTO } from "../fulfillments/handler-support";
 import { transition } from "../fulfillments/service";
+import { REQUESTABLE_TRANSITIONS } from "../fulfillments/types";
 import type { RequestableTransition } from "../fulfillments/types";
 
-const REQUESTABLE: readonly string[] = ["picking", "ready_for_pickup"];
+// ⚠ Imported, never restated — see the note on REQUESTABLE_TRANSITIONS.
+const REQUESTABLE: readonly string[] = REQUESTABLE_TRANSITIONS;
 
 export const handler = async (
   event: AuthedEvent,
@@ -33,16 +35,28 @@ export const handler = async (
 
   // `received` and `collected` are deliberately not requestable: the first is implicit on open
   // (FR-011a), the second belongs to the dev-only pickup stub alone (FR-030).
+  //
+  // ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion previously
+  // lacked. `withdrawn` is NOT requestable and must never become so: it is written by `core-api` when
+  // an ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.
   const to = parsed.value.to;
   if (typeof to !== "string" || !REQUESTABLE.includes(to)) {
     return problem(400, ProblemType.ValidationFailed, "Validation failed",
       "invalid target state", scope, [
-        { field: "to", message: "must be one of: picking, ready_for_pickup" },
+        { field: "to", message: `must be one of: ${REQUESTABLE.join(", ")}` },
       ]);
   }
 
   try {
-    return json(200, toDetailDTO(await transition(g.actor, id, to as RequestableTransition)), scope);
+    // ⚠ The reason is REQUIRED for `unfulfillable` — enforced by the service and, underneath it, by a
+    // CHECK constraint. Back-office is asked to decide a refund on the strength of this; "the shop
+    // said no" is not a basis for returning a customer's money.
+    const reason = typeof parsed.value.reason === "string" ? parsed.value.reason : undefined;
+    return json(
+      200,
+      toDetailDTO(await transition(g.actor, id, to as RequestableTransition, reason)),
+      scope,
+    );
   } catch (err) {
     return mapFulfillmentError(err, scope);
   }

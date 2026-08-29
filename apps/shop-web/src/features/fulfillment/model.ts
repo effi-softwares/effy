@@ -47,7 +47,31 @@ export const STATUS_LABEL: Record<FulfillmentStatus, string> = {
   ready_for_pickup: "Ready for pickup",
   collected: "Collected",
   delivered: "Delivered",
+  // ⚠ 055 US6 — the shop's own words for its own decision.
+  unfulfillable: "Can't supply",
+  // ⚠ 055 US2 — NOT the shop's doing. The order was cancelled; they did not fail at anything, and a
+  // label implying otherwise would be wrong on the screen the shop is judged by.
+  withdrawn: "Order cancelled",
 };
+
+/**
+ * Whether the operator may declare this portion unsuppliable (055 US6, FR-031).
+ *
+ * ⚠ MIRRORS THE SERVER'S LEGAL-EDGE MAP, and the server decides. Once collected it is no longer the
+ * shop's call — the goods have left and somebody is carrying them — and both terminal states are
+ * absent because a shop that said it cannot supply must not be able to un-say it: the platform may
+ * already have refunded the customer on the strength of it.
+ *
+ * ⚠ IT MOVES NO MONEY. The control says "we cannot supply this"; a person at Effy decides the refund.
+ */
+export function canDeclareUnfulfillable(status: FulfillmentStatus): boolean {
+  return (
+    status === "pending" ||
+    status === "received" ||
+    status === "picking" ||
+    status === "ready_for_pickup"
+  );
+}
 
 /**
  * The one transition the operator may request from a given state (FR-011).

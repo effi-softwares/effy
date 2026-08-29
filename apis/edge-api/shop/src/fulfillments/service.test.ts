@@ -82,7 +82,10 @@ describe("transition()", () => {
     readDetail.mockResolvedValue(DETAIL);
 
     await expect(transition(ACTOR, "f-1", "picking")).resolves.toEqual(DETAIL);
-    expect(transitionRepo).toHaveBeenCalledWith("f-1", "shop-1", "received", "picking", "staff-1");
+    // ⚠ The trailing `undefined` is the 055 reason, absent for every transition but `unfulfillable`.
+    expect(transitionRepo).toHaveBeenCalledWith(
+      "f-1", "shop-1", "received", "picking", "staff-1", undefined,
+    );
   });
 
   // SC-005: two operators tapping at once must produce exactly ONE applied transition. The loser
@@ -229,5 +232,84 @@ describe("collectViaStub() — ⚠ dev-only scaffold", () => {
     const err = await collectViaStub(ACTOR, "f-1", "  ").catch((e) => e);
     expect(isFulfillmentError(err) && err.kind).toBe("validation");
     expect(readStatus).not.toHaveBeenCalled();
+  });
+});
+
+// ── 055 US6 — the exit a shop that cannot supply its portion previously lacked ──────────────────
+//
+// ⚠ BEFORE THIS, A SHOP HOLDING AN ORDER IT COULD NOT FILL HAD NO STATE TO MOVE IT TO. The portion
+// sat in the active queue forever, and the only way out was for someone to stop looking at it.
+
+describe("unfulfillable (055 US6)", () => {
+  // ⚠ FR-031 — IT MOVES NO MONEY. The shop says "we cannot supply this"; a person decides the refund.
+  // The strongest form of that guarantee is that this service cannot reach a payment at all: it has
+  // no gateway, and the refund path lives in a different service behind a different pool.
+  it("is a state change and nothing else", async () => {
+    readStatus.mockResolvedValue("picking");
+    transitionRepo.mockResolvedValue(true);
+    readDetail.mockResolvedValue(DETAIL);
+
+    await transition(ACTOR, "f-1", "unfulfillable", "the chiller failed overnight");
+
+    expect(transitionRepo).toHaveBeenCalledWith(
+      "f-1", "shop-1", "picking", "unfulfillable", "staff-1", "the chiller failed overnight",
+    );
+  });
+
+  // ⚠ A REASON IS REQUIRED, and the database enforces it too. Back-office is asked to decide a refund
+  // on the strength of this; "the shop said no" is not a basis for returning a customer's money.
+  it.each(["", "   ", undefined])("is refused with %p as a reason", async (reason) => {
+    readStatus.mockResolvedValue("picking");
+
+    await expect(transition(ACTOR, "f-1", "unfulfillable", reason)).rejects.toMatchObject({
+      kind: "validation",
+    });
+    expect(transitionRepo).not.toHaveBeenCalled();
+  });
+
+  // ⚠ T074 — ONCE COLLECTED IT IS NO LONGER THE SHOP'S CALL. The goods have left; somebody is
+  // carrying them. The refusal costs no new code: `collected` is absent as a SOURCE in the legal-edge
+  // map, so the machine simply has no entry that can move it (FR-011f).
+  it.each(["collected", "delivered"])("is refused once the portion is %s", async (from) => {
+    readStatus.mockResolvedValue(from as never);
+
+    await expect(
+      transition(ACTOR, "f-1", "unfulfillable", "we ran out"),
+    ).rejects.toMatchObject({ kind: "conflict" });
+    expect(transitionRepo).not.toHaveBeenCalled();
+  });
+
+  // ⚠ A shop may know BEFORE opening the order that it cannot supply it — the whole delivery is off,
+  // the chiller failed. Requiring them to open it first would be ceremony.
+  it.each(["pending", "received", "picking", "ready_for_pickup"])(
+    "is reachable from %s",
+    async (from) => {
+      readStatus.mockResolvedValue(from as never);
+      transitionRepo.mockResolvedValue(true);
+      readDetail.mockResolvedValue(DETAIL);
+
+      await expect(
+        transition(ACTOR, "f-1", "unfulfillable", "the chiller failed"),
+      ).resolves.toEqual(DETAIL);
+    },
+  );
+
+  // ⚠ IT IS TERMINAL. A shop that said it cannot supply must not be able to un-say it: the platform
+  // may already have refunded the customer on the strength of it.
+  it.each(["picking", "ready_for_pickup"])("cannot be reversed to %s", async (to) => {
+    readStatus.mockResolvedValue("unfulfillable" as never);
+
+    await expect(transition(ACTOR, "f-1", to as never)).rejects.toMatchObject({ kind: "conflict" });
+    expect(transitionRepo).not.toHaveBeenCalled();
+  });
+
+  // ⚠ `withdrawn` is a CANCELLATION, written by core-api, and a shop must never be able to leave it —
+  // nor to claim it. Asserting it would be a shop claiming a customer cancelled.
+  it("cannot be left once withdrawn by a cancellation", async () => {
+    readStatus.mockResolvedValue("withdrawn" as never);
+
+    await expect(
+      transition(ACTOR, "f-1", "unfulfillable", "we ran out"),
+    ).rejects.toMatchObject({ kind: "conflict" });
   });
 });

@@ -202,10 +202,25 @@ ALTER TABLE public.shop_fulfillment ADD CONSTRAINT shop_fulfillment_status_check
     CHECK (status IN ('pending', 'received', 'picking', 'ready_for_pickup', 'collected',
                       'delivered', 'unfulfillable', 'withdrawn'));
 
+-- ⚠ 055 US6 — WHY a shop cannot supply its portion (FR-031).
+--
+-- ⚠ THE CHECK MAKES "UNFULFILLABLE WITH NO REASON" UNREPRESENTABLE, rather than leaving it to a
+-- service to remember. A portion that leaves the queue with no explanation is one nobody can act on:
+-- back-office is being asked to decide a refund on the strength of it, and "the shop said no" is not
+-- a basis for returning a customer's money.
+ALTER TABLE public.shop_fulfillment ADD COLUMN unfulfillable_reason text;
+ALTER TABLE public.shop_fulfillment ADD CONSTRAINT shop_fulfillment_unfulfillable_reason_ck
+    CHECK (status <> 'unfulfillable'
+           OR (unfulfillable_reason IS NOT NULL AND btrim(unfulfillable_reason) <> ''));
+COMMENT ON COLUMN public.shop_fulfillment.unfulfillable_reason IS
+    'Why the shop cannot supply this portion (055 FR-031). ⚠ Required by CHECK when status = ''unfulfillable'' — a portion that leaves the queue unexplained is one back-office cannot decide a refund on. NULL in every other state; ⚠ NOT set on ''withdrawn'', which is a cancellation and not the shop''s doing.';
+
 COMMENT ON COLUMN public.shop_fulfillment.status IS
     'The shop working lifecycle. pending -> received -> picking -> ready_for_pickup -> collected -> delivered. ⚠ `unfulfillable` (055) is the exit a shop that cannot supply its portion previously lacked — the last state with no way out. Permitted only BEFORE collection: once the goods have left the shop it is no longer their call, and it moves NO money (FR-031). ⚠ `withdrawn` (055, FR-014) is a DIFFERENT fact and deliberately a separate state: the ORDER was cancelled, so the shop''s work is called off. Conflating the two would tell a shop it failed to supply something nobody ever wanted, and would make shop-reliability reporting count cancellations as shop failures.';
 
 -- +goose Down
+ALTER TABLE public.shop_fulfillment DROP CONSTRAINT IF EXISTS shop_fulfillment_unfulfillable_reason_ck;
+ALTER TABLE public.shop_fulfillment DROP COLUMN IF EXISTS unfulfillable_reason;
 ALTER TABLE public.shop_fulfillment DROP CONSTRAINT shop_fulfillment_status_check;
 ALTER TABLE public.shop_fulfillment ADD CONSTRAINT shop_fulfillment_status_check
     CHECK (status IN ('pending', 'received', 'picking', 'ready_for_pickup', 'collected', 'delivered'));

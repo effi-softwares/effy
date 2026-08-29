@@ -43,8 +43,18 @@ export const ARRIVAL_SOURCES: readonly ArrivalSource[] = [
  * ⚠ DERIVED, never stored (research R3). It is a join over the absence of a `carrier_handoff` or a
  * `package_arrival` row, which is why it can never drift from the facts it summarises.
  */
-export type OrderAwaiting = "handover" | "arrival";
-export const ORDER_AWAITING: readonly OrderAwaiting[] = ["handover", "arrival"];
+export type OrderAwaiting =
+  | "handover"
+  | "arrival"
+  /**
+   * 055 US6 — a shop said it cannot supply its portion and nobody has decided what to do about it.
+   *
+   * ⚠ IT RANKS ABOVE THE OTHER TWO because it is the only one where a CUSTOMER IS OUT OF POCKET while
+   * the queue waits. A package awaiting handover or arrival is late; a package nobody can supply is
+   * money the platform is holding for goods that will never be sent.
+   */
+  | "refund_decision";
+export const ORDER_AWAITING: readonly OrderAwaiting[] = ["refund_decision", "handover", "arrival"];
 
 /** A row in the back-office order list. */
 export interface AdminOrderSummaryDTO {

@@ -59,6 +59,10 @@ import com.effyshopping.shop.mobile.features.orders.domain.ListFulfillments
 import com.effyshopping.shop.mobile.features.orders.domain.QueueState
 import com.effyshopping.shop.mobile.features.orders.domain.RecordItemProgress
 import kotlinx.coroutines.delay
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
 
 /**
  * The Orders route (020). Owns the ViewModel and the queue heartbeat; everything below it is stateless.
@@ -127,7 +131,7 @@ fun OrdersScreen(
     onOpenOrder: (String) -> Unit,
     onCloseOrder: () -> Unit,
     onRetry: () -> Unit,
-    onTransition: (FulfillmentTransition) -> Unit,
+    onTransition: (FulfillmentTransition, String?) -> Unit,
     onItemProgress: (orderItemId: String, gathered: Int?, unavailable: Int?) -> Unit,
     onDismissMessage: () -> Unit,
 ) {
@@ -327,7 +331,7 @@ private fun OrderDetailPane(
     state: OrdersUiState,
     showBack: Boolean,
     onBack: () -> Unit,
-    onTransition: (FulfillmentTransition) -> Unit,
+    onTransition: (FulfillmentTransition, String?) -> Unit,
     onItemProgress: (orderItemId: String, gathered: Int?, unavailable: Int?) -> Unit,
     modifier: Modifier,
 ) {
@@ -363,7 +367,7 @@ private fun OrderDetailContent(
     detail: FulfillmentDetail,
     canPickItems: Boolean,
     isBusy: Boolean,
-    onTransition: (FulfillmentTransition) -> Unit,
+    onTransition: (FulfillmentTransition, String?) -> Unit,
     onItemProgress: (orderItemId: String, gathered: Int?, unavailable: Int?) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
@@ -503,7 +507,7 @@ private fun PickItemRow(
 private fun TransitionActions(
     detail: FulfillmentDetail,
     isBusy: Boolean,
-    onTransition: (FulfillmentTransition) -> Unit,
+    onTransition: (FulfillmentTransition, String?) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
         when (detail.status) {
@@ -521,7 +525,7 @@ private fun TransitionActions(
                 )
                 // The one permitted reversal (FR-011d), and audited exactly like a forward move (FR-011e).
                 OutlinedButton(
-                    onClick = { onTransition(FulfillmentTransition.PICKING) },
+                    onClick = { onTransition(FulfillmentTransition.PICKING, null) },
                     enabled = !isBusy,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
@@ -539,7 +543,7 @@ private fun TransitionActions(
                         )
                     }
                     Button(
-                        onClick = { onTransition(next) },
+                        onClick = { onTransition(next, null) },
                         enabled = !isBusy,
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
@@ -548,9 +552,28 @@ private fun TransitionActions(
                             when (next) {
                                 FulfillmentTransition.PICKING -> "Start picking"
                                 FulfillmentTransition.READY_FOR_PICKUP -> "Mark ready for pickup"
+                                // ⚠ 055 — never reached from `nextTransition`, which never offers
+                                // this: declaring a portion unsuppliable is a LAST RESORT with its
+                                // own control, not the next step in the happy path.
+                                FulfillmentTransition.UNFULFILLABLE -> "Can't supply this"
                             },
                         )
                     }
+                }
+
+                // ⚠ 055 US6 — THE EXIT A SHOP HOLDING AN UNFILLABLE ORDER PREVIOUSLY LACKED. Before
+                // it the portion sat in the queue forever, and the only way out was for someone to
+                // stop looking at it.
+                //
+                // ⚠ Separated from the forward action and never a filled button: it is the last
+                // resort, and a mis-tap tells Effy to refund a customer.
+                if (detail.status.canDeclareUnfulfillable) {
+                    UnfulfillableControl(
+                        isBusy = isBusy,
+                        onDeclare = { reason ->
+                            onTransition(FulfillmentTransition.UNFULFILLABLE, reason)
+                        },
+                    )
                 }
             }
         }
@@ -677,3 +700,56 @@ private fun ErrorBlock(message: String, onRetry: () -> Unit) {
  */
 private fun clockTime(iso: String): String =
     iso.substringAfter('T', "").takeIf { it.length >= 5 }?.take(5) ?: iso
+
+/**
+ * Declaring a portion unsuppliable (055 US6, FR-031) — the mobile half of shop-web's control.
+ *
+ * ⚠ IT ASKS BEFORE IT ACTS, and the confirmation NAMES THE CONSEQUENCE rather than asking "are you
+ * sure?". This tells Effy to refund a customer and takes the order off the shop's queue for good.
+ *
+ * ⚠ A REASON IS REQUIRED — here, in the ViewModel, in the service and in the database. Back-office is
+ * asked to decide a refund on the strength of it, and "the shop said no" is not a basis for returning
+ * a customer's money.
+ */
+@Composable
+private fun UnfulfillableControl(isBusy: Boolean, onDeclare: (String) -> Unit) {
+    var open by rememberSaveable { mutableStateOf(false) }
+    var reason by rememberSaveable { mutableStateOf("") }
+
+    if (!open) {
+        TextButton(
+            onClick = { open = true },
+            enabled = !isBusy,
+            modifier = Modifier.heightIn(min = 56.dp),
+        ) { Text("Can't supply this order") }
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = reason,
+            onValueChange = { reason = it },
+            label = { Text("Why can't you supply this?") },
+            placeholder = { Text("e.g. the chiller failed overnight") },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "This takes the order off your queue and asks Effy to refund the customer. " +
+                "It can't be undone.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(
+                onClick = { onDeclare(reason.trim()) },
+                enabled = reason.isNotBlank() && !isBusy,
+                modifier = Modifier.heightIn(min = 56.dp),
+            ) { Text("Can't supply it") }
+            TextButton(
+                onClick = { open = false },
+                enabled = !isBusy,
+                modifier = Modifier.heightIn(min = 56.dp),
+            ) { Text("Cancel") }
+        }
+    }
+}

@@ -294,4 +294,50 @@ describe.skipIf(!RUN)("refund reads — against real PostgreSQL and the real mig
       expect(o!.refundRequest!.items[0]!.productName).toBe("Milk");
     });
   });
+
+  /**
+   * ⚠ 055 US6 / T075 — A PORTION THE SHOP CANNOT SUPPLY IS THE CONSOLE'S MOST URGENT WORK ITEM.
+   *
+   * It ranks above `handover` and `arrival` because it is the only one where a CUSTOMER IS OUT OF
+   * POCKET while the queue waits: a late package is late, but a package nobody can supply is money
+   * the platform is holding for goods that will never be sent.
+   */
+  describe("a shop that cannot supply its portion (US6)", () => {
+    async function markUnfulfillable() {
+      await pool.query(
+        `UPDATE public.shop_fulfillment
+            SET status = 'unfulfillable', unfulfillable_reason = 'the chiller failed overnight'
+          WHERE id = $1`,
+        [FULFILMENT],
+      );
+    }
+
+    it("puts the order in front of staff as awaiting a refund decision", async () => {
+      const before = await getOrder(ORDER);
+      expect(before!.awaiting).not.toBe("refund_decision");
+
+      await markUnfulfillable();
+      const after = await getOrder(ORDER);
+      expect(after!.awaiting).toBe("refund_decision");
+    });
+
+    // ⚠ It outranks the others rather than being appended to a list — an order can genuinely be
+    // waiting on more than one thing, and this says which one an operator should act on.
+    it("outranks awaiting an arrival on the same order", async () => {
+      await markUnfulfillable();
+      const o = await getOrder(ORDER);
+      // The package has no arrival either, so both are true; the more urgent one wins.
+      expect(o!.awaiting).toBe("refund_decision");
+    });
+
+    // ⚠ It moves NO money (FR-031). The shop said it cannot supply; a person decides the refund.
+    it("moves no money — it only asks for a decision", async () => {
+      await markUnfulfillable();
+      const o = await getOrder(ORDER);
+
+      expect(o!.refunds).toEqual([]);
+      expect(o!.refundedAmount).toBe("0.00");
+      expect(o!.refundableAmount).toBe("30.00");
+    });
+  });
 });

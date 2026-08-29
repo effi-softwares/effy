@@ -2,6 +2,7 @@ import type { APIGatewayProxyStructuredResultV2, Context } from "aws-lambda";
 
 import type { AuthedEvent } from "@effy/edge-shared";
 import { json, unavailable } from "@effy/edge-shared";
+import { ORDER_AWAITING } from "@effy/shared-types";
 import type { AdminOrderListResponse, OrderAwaiting } from "@effy/shared-types";
 
 import { requireStaff } from "../lib/guard";
@@ -21,8 +22,11 @@ export const handler = async (
   if (!guard.ok) return guard.response;
 
   const qs = event.queryStringParameters ?? {};
+  // ⚠ VALIDATED AGAINST THE SHARED CONST, never a list restated here. A hand-written copy is how a
+  // new value gets added to the type and silently REJECTED by the route — the same trap the shop
+  // service's `REQUESTABLE` was carrying (055 T073).
   const awaiting =
-    qs.awaiting === "handover" || qs.awaiting === "arrival"
+    typeof qs.awaiting === "string" && (ORDER_AWAITING as readonly string[]).includes(qs.awaiting)
       ? (qs.awaiting as OrderAwaiting)
       : undefined;
 

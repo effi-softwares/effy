@@ -548,7 +548,9 @@
         "picking",
         "ready_for_pickup",
         "collected",
-        "delivered"
+        "delivered",
+        "unfulfillable",
+        "withdrawn"
       ],
       "type": "string"
     },
@@ -1313,10 +1315,11 @@
       "type": "object"
     },
     "RequestableTransition": {
-      "description": "Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).\n\nOnly `picking` and `ready_for_pickup` are requestable: `pending` is the fan-out's, `received` is implicit on first open (FR-011a), and `collected` belongs to the pickup stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted reversal (FR-011d).",
+      "description": "Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).\n\n`pending` is the fan-out's, `received` is implicit on first open (FR-011a), and `collected` belongs to the pickup stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted reversal (FR-011d).\n\n⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion previously lacked. ⚠ `withdrawn` is deliberately NOT requestable and must never become so: it is written by `core-api` when an ORDER is cancelled, and a shop asserting it would be claiming a customer cancelled.",
       "enum": [
         "picking",
-        "ready_for_pickup"
+        "ready_for_pickup",
+        "unfulfillable"
       ],
       "type": "string"
     },
@@ -1668,6 +1671,10 @@
     "TransitionRequest": {
       "additionalProperties": false,
       "properties": {
+        "reason": {
+          "description": "⚠ REQUIRED when `to` is `unfulfillable`, and enforced by a CHECK constraint underneath. A portion that leaves the shop's queue unexplained is one back-office cannot decide a refund on: they are being asked to return a customer's money on the strength of it.",
+          "type": "string"
+        },
         "to": {
           "$ref": "#/definitions/RequestableTransition"
         }

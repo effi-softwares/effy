@@ -242,12 +242,16 @@ describe("POST /shop/v1/fulfillments/{id}/status — transitions (US3)", () => {
     )) as { statusCode: number };
 
     expect(res.statusCode).toBe(200);
-    expect(transition).toHaveBeenCalledWith(expect.anything(), "f-1", "ready_for_pickup");
+    // ⚠ The trailing `undefined` is the 055 reason — required only for `unfulfillable`.
+    expect(transition).toHaveBeenCalledWith(expect.anything(), "f-1", "ready_for_pickup", undefined);
   });
 
   // `received` is implicit on open and `collected` belongs to the stub — neither is requestable
   // over this endpoint, so a client cannot use it to skip or forge a state.
-  it.each(["received", "collected", "pending", "nonsense", 42, null])(
+  //
+  // ⚠ 055 — `withdrawn` is in this list and must stay: it is written by `core-api` when an ORDER is
+  // cancelled, and a shop asserting it would be claiming a customer cancelled.
+  it.each(["received", "collected", "withdrawn", "pending", "nonsense", 42, null])(
     "rejects %s as a target state",
     async (to) => {
       grants();

@@ -72,7 +72,16 @@ export function stageFor(statuses: readonly string[]): OrderStage {
   return STAGE_BY_RANK[least]!;
 }
 
-function awaitingFor(handover: number, arrival: number): OrderAwaiting | null {
+/**
+ * What the order is waiting on — the console's work queue.
+ *
+ * ⚠ ORDERED BY WHOSE MONEY IS AT STAKE, not by lifecycle position. 055 puts `refund_decision` FIRST:
+ * a package awaiting handover or arrival is late, but a package a shop cannot supply is money the
+ * platform is holding for goods that will never be sent. An order can genuinely be waiting on more
+ * than one thing, and this says which one an operator should act on.
+ */
+function awaitingFor(handover: number, arrival: number, unfulfillable = 0): OrderAwaiting | null {
+  if (unfulfillable > 0) return "refund_decision";
   if (handover > 0) return "handover";
   if (arrival > 0) return "arrival";
   return null;
@@ -200,6 +209,11 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
     (p) => p.status === "collected" && (p.method ?? "standard") === "standard" && !p.handoff_at,
   ).length;
   const awaitingArrival = packageRows.filter((p) => !p.arrival_at).length;
+  // ⚠ 055 US6 — a portion the shop cannot supply, with no refund yet covering it. `refundedCents > 0`
+  // is deliberately NOT the test: a partial refund for something else does not answer this.
+  const awaitingRefundDecision = packageRows.filter(
+    (p) => p.status === "unfulfillable",
+  ).length;
 
   return {
     id: order.id,
@@ -232,7 +246,7 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
 
     // FR-007 — a rollup: finished only when EVERY package has arrived.
     finished: packageRows.length > 0 && awaitingArrival === 0,
-    awaiting: awaitingFor(awaitingHandover, awaitingArrival),
+    awaiting: awaitingFor(awaitingHandover, awaitingArrival, awaitingRefundDecision),
 
     ...refundView(order.grand_total_amount, itemRows, refundRows, refundLineRows),
     proposedRefunds: proposedRows.map((p) => ({

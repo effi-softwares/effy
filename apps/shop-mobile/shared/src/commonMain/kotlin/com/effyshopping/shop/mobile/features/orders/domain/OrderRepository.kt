@@ -30,7 +30,17 @@ interface OrderRepository {
      * `POST /shop/v1/fulfillments/{id}/status` — advance or reverse the portion (FR-011/FR-011d).
      * An illegal transition from the current state is a 409 → `AppError.Conflict`: someone else moved it.
      */
-    suspend fun transition(id: String, to: FulfillmentTransition): FulfillmentDetail
+    /**
+     * ⚠ [reason] is REQUIRED when [to] is [FulfillmentTransition.UNFULFILLABLE] (055 FR-031) and
+     * ignored otherwise. Back-office is asked to decide a refund on the strength of it; "the shop
+     * said no" is not a basis for returning a customer's money. The service and a CHECK constraint
+     * both enforce it, so a client that forgets is refused rather than silently accepted.
+     */
+    suspend fun transition(
+        id: String,
+        to: FulfillmentTransition,
+        reason: String? = null,
+    ): FulfillmentDetail
 
     /**
      * `PATCH /shop/v1/fulfillments/{id}/items/{orderItemId}` — record picking progress and shortfall.

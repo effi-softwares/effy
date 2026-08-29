@@ -25,7 +25,16 @@ class GetFulfillment(private val repo: OrderRepository) {
  * portion moved under the operator — surface it and re-read; never retry (FR-014).
  */
 class AdvanceFulfillment(private val repo: OrderRepository) {
-    suspend operator fun invoke(id: String, to: FulfillmentTransition): FulfillmentDetail = repo.transition(id, to)
+    /**
+     * ⚠ [reason] is REQUIRED for [FulfillmentTransition.UNFULFILLABLE] (055 FR-031) and ignored
+     * otherwise. ⚠ THAT TRANSITION MOVES NO MONEY: it says "we cannot supply this", and a person at
+     * Effy decides the refund.
+     */
+    suspend operator fun invoke(
+        id: String,
+        to: FulfillmentTransition,
+        reason: String? = null,
+    ): FulfillmentDetail = repo.transition(id, to, reason)
 }
 
 /**

@@ -333,7 +333,9 @@ enum class FulfillmentStatus(val value: String) {
     @SerialName("pending") Pending("pending"),
     @SerialName("picking") Picking("picking"),
     @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup"),
-    @SerialName("received") Received("received");
+    @SerialName("received") Received("received"),
+    @SerialName("unfulfillable") Unfulfillable("unfulfillable"),
+    @SerialName("withdrawn") Withdrawn("withdrawn");
 }
 
 @Serializable
@@ -784,15 +786,20 @@ data class RegisterMediaRequest (
 /**
  * Advance or reverse a portion (POST /shop/v1/fulfillments/{id}/status).
  *
- * Only `picking` and `ready_for_pickup` are requestable: `pending` is the fan-out's,
- * `received` is implicit on first open (FR-011a), and `collected` belongs to the pickup
- * stub alone (FR-030). `ready_for_pickup -> picking` is the ONE permitted reversal
- * (FR-011d).
+ * `pending` is the fan-out's, `received` is implicit on first open (FR-011a), and
+ * `collected` belongs to the pickup stub alone (FR-030). `ready_for_pickup -> picking` is
+ * the ONE permitted reversal (FR-011d).
+ *
+ * ⚠ 055 US6 adds `unfulfillable` — the exit a shop that cannot supply its portion
+ * previously lacked. ⚠ `withdrawn` is deliberately NOT requestable and must never become
+ * so: it is written by `core-api` when an ORDER is cancelled, and a shop asserting it would
+ * be claiming a customer cancelled.
  */
 @Serializable
 enum class RequestableTransition(val value: String) {
     @SerialName("picking") Picking("picking"),
-    @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup");
+    @SerialName("ready_for_pickup") ReadyForPickup("ready_for_pickup"),
+    @SerialName("unfulfillable") Unfulfillable("unfulfillable");
 }
 
 /**
@@ -902,6 +909,13 @@ enum class ShopStaffStatus(val value: String) {
 
 @Serializable
 data class TransitionRequest (
+    /**
+     * ⚠ REQUIRED when `to` is `unfulfillable`, and enforced by a CHECK constraint underneath. A
+     * portion that leaves the shop's queue unexplained is one back-office cannot decide a
+     * refund on: they are being asked to return a customer's money on the strength of it.
+     */
+    val reason: String? = null,
+
     val to: RequestableTransition
 )
 

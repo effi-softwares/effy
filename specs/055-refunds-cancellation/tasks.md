@@ -185,11 +185,11 @@ that order, and confirm the customer is told the outcome.
 **Independent test**: mark a portion unfulfillable and confirm it leaves the shop queue and appears to
 back-office as awaiting a decision.
 
-- [ ] T073 [US6] `POST /shop/v1/fulfillments/{id}/unfulfillable` in `apis/edge-api/shop/` with a reason. ⚠ **Moves no money** (FR-031).
-- [ ] T074 [US6] Refuse it once the portion is collected — the goods have left the shop and it is no longer their call.
-- [ ] T075 [P] [US6] Surface it to back-office as awaiting a refund decision.
-- [ ] T076 [P] [US6] Shop-web and shop-mobile controls, at parity.
-- [ ] T077 [P] [US6] Tests: the queue exit, the collected refusal, and that no money moves.
+- [X] T073 [US6] ⚠ **NOT A NEW ROUTE — A NEW EDGE IN THE EXISTING STATE MACHINE.** `LEGAL_TRANSITIONS` is data, so `unfulfillable` cost one map entry rather than a branch. ⚠ **AND IT FOUND A DRIFT TRAP**: the route validated against a hand-written `REQUESTABLE` array beside the union, so adding the state to the type left the route still **rejecting** it — the array is now the source and the type is derived from it. A reason is REQUIRED, enforced by a **CHECK constraint** and written in the same statement as the status. `POST /shop/v1/fulfillments/{id}/unfulfillable` `POST /shop/v1/fulfillments/{id}/unfulfillable` in `apis/edge-api/shop/` with a reason. ⚠ **Moves no money** (FR-031).
+- [X] T074 [US6] **NEGATIVE PROOF ✅ EXECUTED** — adding `collected` as a source fails by name. ⚠ The refusal costs **no new code**: `collected` is absent as a SOURCE in the legal-edge map, so the absence of an entry IS the rule. Refuse it once the portion is collected Refuse it once the portion is collected — the goods have left the shop and it is no longer their call.
+- [X] T075 [P] [US6] **NEGATIVE PROOF ✅ EXECUTED** — demoting `refund_decision` below the other two fails 2 tests. ⚠ It **outranks** `handover` and `arrival` because it is the only one where a **customer is out of pocket while the queue waits**. ⚠ The list route's `awaiting` parse was the same hand-written-list trap as T073's and now validates against the shared `ORDER_AWAITING`. Surface it to back-office Surface it to back-office as awaiting a refund decision.
+- [X] T076 [P] [US6] **NEGATIVE PROOFS ✅ EXECUTED on both** (3 web, 1 mobile). ⚠ Kotlin's exhaustive `when` **named every site that had to decide** — mapper, screen, test fake — which is exactly what a closed vocabulary with no `else` is for. ⚠ `withdrawn` reads **"Order cancelled"**, never a failure: this is the screen a shop is judged by. Shop-web and shop-mobile controls, at parity. Shop-web and shop-mobile controls, at parity.
+- [X] T077 [P] [US6] **13 shop-service + 7 shop-web + 3 shop-mobile.** ⚠ **AND ONE TEST-INFRASTRUCTURE DEFECT FOUND**: the existing shop-web suite uses `mockClear` to keep per-test resolved values, so its last **403 rejection leaked** into every test added after it. Tests Tests: the queue exit, the collected refusal, and that no money moves.
 
 ---
 

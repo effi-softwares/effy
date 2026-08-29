@@ -288,7 +288,13 @@ async function appendEvent(client: pg.PoolClient | null, e: EventInput): Promise
 
 const TRANSITION = `
 UPDATE public.shop_fulfillment
-   SET status = $4, state_changed_at = now(), updated_at = now()
+   SET status = $4,
+       -- ⚠ 055 — WRITTEN IN THE SAME STATEMENT AS THE STATUS, so the CHECK constraint sees both at
+       -- once. Setting the status first and the reason after would make the intermediate row violate
+       -- the unfulfillable-reason CHECK and fail — which is the constraint doing exactly
+       -- what it was written for.
+       unfulfillable_reason = CASE WHEN $4 = 'unfulfillable' THEN $5 ELSE NULL END,
+       state_changed_at = now(), updated_at = now()
  WHERE id = $1 AND shop_id = $2 AND status = $3
  RETURNING id
 `;
@@ -318,9 +324,13 @@ export async function transition(
   from: FulfillmentStatus,
   to: FulfillmentStatus,
   actorStaffId: string | null,
+  /** 055 — required by the database when `to` is `unfulfillable`; NULL in every other transition. */
+  reason?: string,
 ): Promise<boolean> {
   return withTransaction(async (client) => {
-    const res = await client.query<{ id: string }>(TRANSITION, [fulfillmentId, shopId, from, to]);
+    const res = await client.query<{ id: string }>(TRANSITION, [
+      fulfillmentId, shopId, from, to, reason ?? null,
+    ]);
     if ((res.rowCount ?? 0) === 0) return false;
 
     if (to === "picking") await client.query(SEED_ITEMS, [fulfillmentId, shopId]);
