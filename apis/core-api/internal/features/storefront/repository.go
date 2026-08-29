@@ -1,5 +1,6 @@
 // Repository layer: SQL only. Reads the 016 catalog (public.product/product_media/category) for the
-// CUSTOMER projection — only status='active' products, primary image joined, money cast to text so it
+// CUSTOMER projection — only PURCHASABLE products (availability.Predicate, 054: live status AND, where
+// the shop counts units, stock remaining), primary image joined, money cast to text so it
 // crosses the wire exactly (research R9). Wire rows are mapped to domain in the service; they never
 // leave this file.
 package storefront
@@ -12,6 +13,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/db"
 )
 
@@ -153,6 +155,7 @@ SELECT p.id,
        p.ends_at
 FROM public.promo_code p`
 
+// availability-exempt: public.promo_code — a promotion's own lifecycle, nothing to do with stock.
 const advertisedPromoPredicate = `p.is_advertised
   AND p.status = 'active'
   AND (p.starts_at IS NULL OR p.starts_at <= now())
@@ -226,7 +229,7 @@ WHERE p.id::text = $1
 // NewestCards backs the "Featured" rail — newest active products.
 func (r *Repository) NewestCards(ctx context.Context, limit int) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+WHERE `+availability.Predicate("p")+`
 ORDER BY p.created_at DESC
 LIMIT $1`, limit)
 }
@@ -234,7 +237,7 @@ LIMIT $1`, limit)
 // OnSaleCards backs the "On sale" rail — active products with a compare-at above the current price.
 func (r *Repository) OnSaleCards(ctx context.Context, limit int) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+WHERE `+availability.Predicate("p")+`
   AND p.compare_at_amount IS NOT NULL
   AND p.compare_at_amount > p.price_amount
 ORDER BY p.created_at DESC
@@ -244,7 +247,7 @@ LIMIT $1`, limit)
 // CategoryCards backs a category rail — active products whose primary category is categoryKey.
 func (r *Repository) CategoryCards(ctx context.Context, categoryKey string, limit int) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+WHERE `+availability.Predicate("p")+`
   AND p.primary_category_id = (SELECT id FROM public.category WHERE key = $1)
 ORDER BY p.created_at DESC
 LIMIT $2`, categoryKey, limit)
@@ -254,7 +257,7 @@ LIMIT $2`, categoryKey, limit)
 // caller re-orders to its id list.
 func (r *Repository) CardsByIDs(ctx context.Context, ids []string) ([]cardRow, error) {
 	return r.collectCards(ctx, cardSelect+`
-WHERE p.status = 'active'
+WHERE `+availability.Predicate("p")+`
   AND p.id = ANY($1::uuid[])`, ids)
 }
 
@@ -264,7 +267,8 @@ func (r *Repository) RailCandidates(ctx context.Context, limit int) ([]railCandi
 	rows, err := r.db.Query(ctx, `
 SELECT c.key AS key, c.name AS name
 FROM public.category c
-JOIN public.product p ON p.primary_category_id = c.id AND p.status = 'active'
+JOIN public.product p ON p.primary_category_id = c.id AND `+availability.Predicate("p")+`
+-- availability-exempt: public.category — a retired category is hidden whatever its products hold.
 WHERE c.status = 'active'
 GROUP BY c.key, c.name, c.display_order
 ORDER BY c.display_order ASC, count(p.id) DESC
@@ -293,7 +297,7 @@ SELECT c.key AS key,
        (SELECT pc.key FROM public.category pc WHERE pc.id = c.parent_id) AS parent_key,
        (SELECT count(*)
           FROM public.product p
-         WHERE p.primary_category_id = c.id AND p.status = 'active') AS product_count,
+         WHERE p.primary_category_id = c.id AND `+availability.Predicate("p")+`) AS product_count,
        (SELECT m.storage_key
           FROM public.product p
           JOIN LATERAL (
@@ -303,10 +307,18 @@ SELECT c.key AS key,
               ORDER BY is_primary DESC, display_order ASC, created_at ASC
               LIMIT 1
           ) m ON true
+         -- availability-exempt: public.product, DELIBERATELY — read the note below before
+         -- reaching for Predicate here.
+         -- WARNING: DELIBERATELY status ONLY, not availability.Predicate (054). This picks a category's
+         -- representative PICTURE, not something to buy. Letting stock choose it would make a
+         -- category change its face as units come and go — precisely the flicker the determinism
+         -- note above exists to prevent — and a category thumbnail makes no claim that the product
+         -- behind it is purchasable. The guard test names this line as the one permitted exception.
          WHERE p.primary_category_id = c.id AND p.status = 'active'
          ORDER BY p.created_at ASC, p.id ASC
          LIMIT 1) AS image_key
 FROM public.category c
+-- availability-exempt: public.category — the taxonomy's own lifecycle.
 WHERE c.status = 'active'
 ORDER BY c.display_order ASC, c.name ASC`)
 	if err != nil {
@@ -359,6 +371,7 @@ func (r *Repository) FacetableAttributeDefs(ctx context.Context) ([]attrDefRow, 
 	rows, err := r.db.Query(ctx, `
 SELECT key, name, data_type
 FROM public.attribute_definition
+-- availability-exempt: public.attribute_definition — a facet definition, not merchandise.
 WHERE status = 'active'
   AND data_type IN ('single_select', 'multi_select', 'boolean')
 ORDER BY name ASC`)
@@ -392,6 +405,7 @@ func (r *Repository) CategoryCounts(ctx context.Context, p SearchParams) ([]opti
 	next := binder(&args)
 	var b strings.Builder
 	b.WriteString("SELECT c.key AS value, c.name AS label, count(p.id) AS n\nFROM public.product p" +
+		// availability-exempt: public.category — the category filter's own lifecycle.
 		"\nJOIN public.category c ON c.id = p.primary_category_id AND c.status = 'active'")
 	r.filters(&b, p, next)
 	b.WriteString("\nGROUP BY c.key, c.name\nORDER BY count(p.id) DESC, c.name ASC")

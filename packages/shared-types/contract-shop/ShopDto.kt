@@ -10,6 +10,25 @@ import kotlinx.serialization.json.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.encoding.*
 
+@Serializable
+data class AdjustStockRequest (
+    /**
+     * Signed. Never zero — a movement that moves nothing is a record with no fact behind it.
+     */
+    val delta: Double,
+
+    val note: String? = null,
+    val reason: OperatorStockReason
+)
+
+@Serializable
+enum class OperatorStockReason(val value: String) {
+    @SerialName("correction") Correction("correction"),
+    @SerialName("damage") Damage("damage"),
+    @SerialName("expiry") Expiry("expiry"),
+    @SerialName("received") Received("received");
+}
+
 /**
  * One call bootstraps the create form: the active types (each with their assigned
  * attributes) and the active category tree (flat, parentId-linked).
@@ -172,7 +191,15 @@ data class CreateProductRequest (
     val sectionIDS: List<String>? = null,
 
     val shortDescription: String,
-    val sku: String? = null
+    val sku: String? = null,
+
+    /**
+     * Shipping weight in grams (032, FR-036a). Omit and the platform records its stated default
+     * as an ASSUMPTION. ⚠ There is deliberately no `weightIsAssumed` field: the flag is derived
+     * from the act of supplying a weight and is never accepted from a client, or "measured"
+     * would mean only "the client said so".
+     */
+    val weightGrams: Double? = null
 )
 
 /**
@@ -389,6 +416,32 @@ enum class ShopLifecycleStatus(val value: String) {
     @SerialName("suspended") Suspended("suspended");
 }
 
+@Serializable
+data class LowStockRowDTO (
+    val effectiveThreshold: Double? = null,
+    val name: String,
+    val onHand: Double,
+
+    @SerialName("productId")
+    val productID: String,
+
+    /**
+     * "out" sorts above "low" — an empty shelf is not the same problem as a thin one.
+     */
+    val severity: Severity,
+
+    val sku: String? = null
+)
+
+/**
+ * "out" sorts above "low" — an empty shelf is not the same problem as a thin one.
+ */
+@Serializable
+enum class Severity(val value: String) {
+    @SerialName("low") Low("low"),
+    @SerialName("out") Out("out");
+}
+
 /**
  * Wire DTO for GET /shop/v1/manager-ping (contracts/shop-manager-ping.contract.md).
  */
@@ -436,18 +489,36 @@ data class CreatePresignedUploadResponse (
     val uploadURL: String
 )
 
+@Serializable
+data class ProblemJSON (
+    val detail: String? = null,
+    val fields: List<ProblemFieldIssue>? = null,
+    val instance: String? = null,
+    val status: Double,
+    val title: String,
+    val type: String
+)
+
 /**
  * RFC 9457 problem+json — the platform's single machine-readable error shape (mirrors
  * docs/api/error-envelope.md from 004). Typed ONCE here (Principle II); every web surface
  * consumes it, never re-declares it.
  */
 @Serializable
-data class ProblemJSON (
-    val detail: String? = null,
-    val instance: String? = null,
-    val status: Double,
-    val title: String,
-    val type: String
+data class ProblemFieldIssue (
+    /**
+     * The offending field path — or, for a whole-request refusal, a STABLE MACHINE-READABLE
+     * CODE.
+     *
+     * ⚠ 032 uses the second form for delivery-pricing refusals (`cap_below_floor`,
+     * `bands_required`, …). "Please check the fields and try again" tells an operator nothing
+     * about which of five rules they broke, and every one of those rules fails SILENTLY in
+     * production if it is not understood — a cap below the floor makes every delivery cost the
+     * cap, forever.
+     */
+    val field: String,
+
+    val message: String
 )
 
 /**
@@ -485,7 +556,22 @@ data class ProductDetailDTO (
     val sku: String? = null,
     val status: ProductStatus,
     val typeName: String,
-    val updatedAt: String
+    val updatedAt: String,
+
+    /**
+     * Shipping weight in grams (032). ⚠ A LOGISTICS fact, deliberately distinct from any
+     * `net_weight` attribute a shopper reads on the product page — they agree by backfill today
+     * and may legitimately diverge, because packaging weighs something. Delivery is priced from
+     * this.
+     */
+    val weightGrams: Double,
+
+    /**
+     * ⚠ TRUE means nobody has recorded a real weight and the platform default is in use.
+     * Without this flag "500 g" would mean both "we weighed it" and "nobody has said", and no
+     * operator could tell which products still need attention (FR-037a).
+     */
+    val weightIsAssumed: Boolean
 )
 
 /**
@@ -553,6 +639,119 @@ data class ProductListItemDTO (
 )
 
 /**
+ * A product's stock, as one operator screen needs it.
+ */
+@Serializable
+data class ProductStockDTO (
+    /**
+     * Product threshold, else shop default, else null — null meaning nothing counts as low.
+     */
+    val effectiveThreshold: Double? = null,
+
+    /**
+     * tracked && effectiveThreshold !== null && onHand > 0 && onHand <= effectiveThreshold. ⚠
+     * Mutually exclusive with `outOfStock`: an empty shelf and a thin one are different
+     * problems needing different actions, and collapsing them tells the operator nothing to act
+     * on.
+     */
+    val low: Boolean,
+
+    /**
+     * null exactly when untracked — the database makes "tracked with no count" unrepresentable.
+     */
+    val onHand: Double? = null,
+
+    /**
+     * tracked && onHand === 0.
+     */
+    val outOfStock: Boolean,
+
+    @SerialName("productId")
+    val productID: String,
+
+    /**
+     * This product's own threshold, or null to fall back to the shop default.
+     */
+    val threshold: Double? = null,
+
+    /**
+     * false = unlimited, and identical to how the product behaved before 054 existed (FR-002).
+     */
+    val tracked: Boolean
+)
+
+@Serializable
+data class ProductStockDetailDTO (
+    /**
+     * Newest first (FR-009).
+     */
+    val movements: List<StockMovementDTO>,
+
+    val stock: ProductStockDTO
+)
+
+@Serializable
+data class StockMovementDTO (
+    val actorKind: StockActorKind,
+
+    /**
+     * A display name where the platform holds one. ⚠ Never an email address (no PII in an audit
+     * read).
+     */
+    val actorLabel: String? = null,
+
+    val createdAt: String,
+    val id: String,
+    val note: String? = null,
+
+    /**
+     * The order that caused it, by its customer-facing reference. null for a human's own change.
+     */
+    val orderNumber: String? = null,
+
+    val quantityAfter: Double,
+    val quantityBefore: Double,
+    val quantityDelta: Double,
+    val reason: StockMovementReason
+)
+
+/**
+ * WHO acted, kept separate from WHY (`reason`).
+ *
+ * ⚠ The separation is what makes FR-027 possible: a shop reading its own history must be
+ * able to see plainly that back-office made a change, without back-office having to pick a
+ * reason that says so. `system` is the paid-order path — the only actor with no person
+ * behind it.
+ */
+@Serializable
+enum class StockActorKind(val value: String) {
+    @SerialName("back_office") BackOffice("back_office"),
+    @SerialName("shop") Shop("shop"),
+    @SerialName("system") StockActorKindSystem("system");
+}
+
+/**
+ * Why a count moved. A CLOSED set, mirroring the CHECK on `public.stock_movement.reason` —
+ * the database and this union are one contract, and a value in either that the other lacks
+ * is a defect.
+ *
+ * ⚠ There is deliberately NO `cancellation` or `refund` member. Neither capability exists
+ * on the platform (order-flow gap register, Tier 2), and a value nothing can produce
+ * implies one that does. The set grows when the slice that needs it lands.
+ */
+@Serializable
+enum class StockMovementReason(val value: String) {
+    @SerialName("correction") Correction("correction"),
+    @SerialName("damage") Damage("damage"),
+    @SerialName("expiry") Expiry("expiry"),
+    @SerialName("order_paid") OrderPaid("order_paid"),
+    @SerialName("pick_shortfall") PickShortfall("pick_shortfall"),
+    @SerialName("received") Received("received"),
+    @SerialName("tracking_disabled") TrackingDisabled("tracking_disabled"),
+    @SerialName("tracking_enabled") TrackingEnabled("tracking_enabled");
+}
+
+/**
  * POST /shop/v1/products/{id}/media/register — record an uploaded object.
  */
 @Serializable
@@ -595,6 +794,39 @@ data class SetProductSectionsRequest (
     val sectionIDS: List<String>
 )
 
+@Serializable
+data class SetShopStockSettingsRequest (
+    /**
+     * null clears the shop default.
+     */
+    val defaultThreshold: Double? = null
+)
+
+@Serializable
+data class SetStockRequest (
+    val note: String? = null,
+    val onHand: Double,
+    val reason: OperatorStockReason
+)
+
+@Serializable
+data class SetThresholdRequest (
+    /**
+     * null clears this product's own threshold, falling back to the shop default.
+     */
+    val threshold: Double? = null
+)
+
+@Serializable
+data class SetTrackingRequest (
+    /**
+     * REQUIRED when enabling (FR-003), ignored when disabling.
+     */
+    val onHand: Double? = null,
+
+    val tracked: Boolean
+)
+
 /**
  * A shop-local section (grouping; Uber-Eats-style menu section).
  */
@@ -603,6 +835,15 @@ data class ShopSectionDTO (
     val displayOrder: Double,
     val id: String,
     val name: String
+)
+
+@Serializable
+data class ShopStockSettingsDTO (
+    /**
+     * null = no default, so nothing counts as low; zero stock is still reported as out
+     * (FR-005a).
+     */
+    val defaultThreshold: Double? = null
 )
 
 /**
@@ -678,7 +919,12 @@ data class UpdateProductRequest (
     val productTypeID: String? = null,
 
     val shortDescription: String? = null,
-    val sku: String? = null
+    val sku: String? = null,
+
+    /**
+     * Recording a weight here marks it MEASURED (032, FR-036a). Omit to leave it as it stands.
+     */
+    val weightGrams: Double? = null
 )
 
 @Serializable

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/effyshopping/effy/apis/core-api/internal/features/notifications"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/events"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 )
@@ -151,7 +152,7 @@ SELECT ci.product_id::text AS product_id,
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
-WHERE c.customer_id = $1 AND p.status = 'active'
+WHERE c.customer_id = $1 AND `+availability.Predicate("p")+`
 ORDER BY ci.added_at ASC`, customerID)
 	if err != nil {
 		return nil, fmt.Errorf("checkout: cart lines: %w", err)
@@ -512,6 +513,7 @@ SELECT ss.cognito_sub, 'shop', 'shop_new_order',
        jsonb_build_object('entityId', sf.id::text, 'deepLink', 'effy://queue/' || sf.id::text),
        'shop_new_order:' || ss.cognito_sub || ':' || sf.id::text
 FROM public.shop_fulfillment sf
+-- availability-exempt: public.shop_staff — who may be notified, not what may be sold.
 JOIN public.shop_staff ss ON ss.shop_id = sf.shop_id AND ss.status = 'active'
 WHERE sf.order_id = $1
 ON CONFLICT (dedupe_key) DO NOTHING`, orderID); err != nil {

@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 )
 
 // ── Repository rows (never leave this package) ──────────────────────────────────────────────────
@@ -61,7 +63,7 @@ SELECT p.id::text                  AS id,
        (SELECT c.key FROM public.category c WHERE c.id = p.primary_category_id) AS primary_category_key,
        (p.created_at >= now() - interval '14 days') AS is_new
 FROM public.product p
-WHERE p.id = $1 AND p.status = 'active'`, id)
+WHERE p.id = $1 AND `+availability.Predicate("p")+``, id)
 	if err != nil {
 		return detailRow{}, false, fmt.Errorf("storefront: query detail: %w", err)
 	}
@@ -108,6 +110,8 @@ JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
 LEFT JOIN public.product_type_attribute pta
        ON pta.attribute_definition_id = pav.attribute_definition_id
       AND pta.product_type_id = (SELECT product_type_id FROM public.product WHERE id = $1)
+-- availability-exempt: public.attribute_definition — a retired attribute is not shown, whatever
+-- the product it hangs off is doing.
 WHERE pav.product_id = $1 AND ad.status = 'active'
 ORDER BY group_label ASC, pta.display_order ASC NULLS LAST, ad.name ASC`, id)
 	if err != nil {

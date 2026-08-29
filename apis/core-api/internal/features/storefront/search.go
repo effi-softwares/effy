@@ -1,7 +1,7 @@
 // Search / browse (019 US4, extended by 025 US1). GET /v1/storefront/products with a pg_trgm text
 // query, filters (category, price range, sale-only, attribute facets), a caller-chosen ORDERING, a
 // total count, and KEYSET pagination for infinite scroll — stable under inserts, unlike OFFSET
-// (research R12). Only status='active' products are visible.
+// (research R12). Only PURCHASABLE products are visible (availability.Predicate, 054).
 package storefront
 
 import (
@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 )
 
 // SearchParams is the repository-level query (cursor already decoded, limit already +1 for lookahead).
@@ -86,7 +88,7 @@ func cursorPredicate(p SearchParams, next func(any) string) string {
 // drift the first time a filter was added to one of them, and the shopper would see "48 results" above
 // a list of 31 — a number that is wrong in a way nobody can debug from the outside (FR-016a).
 func (r *Repository) filters(b *strings.Builder, p SearchParams, next func(any) string) {
-	b.WriteString("\nWHERE p.status = 'active'")
+	b.WriteString("\nWHERE " + availability.Predicate("p"))
 
 	if p.Q != "" {
 		q := next("%" + p.Q + "%")

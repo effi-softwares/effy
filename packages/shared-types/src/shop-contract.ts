@@ -49,6 +49,20 @@ import type {
   CreateShopSectionRequest,
   UpdateShopSectionRequest,
 } from "./catalog";
+import type {
+  StockMovementReason,
+  StockActorKind,
+  ProductStockDTO,
+  StockMovementDTO,
+  ProductStockDetailDTO,
+  LowStockRowDTO,
+  ShopStockSettingsDTO,
+  SetStockRequest,
+  AdjustStockRequest,
+  SetTrackingRequest,
+  SetThresholdRequest,
+  SetShopStockSettingsRequest,
+} from "./inventory";
 
 export type {
   ShopRole,
@@ -85,6 +99,18 @@ export type {
   TransitionRequest,
   ItemProgressRequest,
   PickupStubRequest,
+  StockMovementReason,
+  StockActorKind,
+  ProductStockDTO,
+  StockMovementDTO,
+  ProductStockDetailDTO,
+  LowStockRowDTO,
+  ShopStockSettingsDTO,
+  SetStockRequest,
+  AdjustStockRequest,
+  SetTrackingRequest,
+  SetThresholdRequest,
+  SetShopStockSettingsRequest,
 };
 
 /** Aggregator — codegen entry only. Every field forces a type into the schema.
@@ -128,4 +154,18 @@ export interface ShopContract {
   transitionRequest: TransitionRequest;
   itemProgressRequest: ItemProgressRequest;
   pickupStubRequest: PickupStubRequest;
+  // ── 054 product inventory ──
+  // ⚠ Operator-facing only. Nothing here reaches a customer surface (FR-015).
+  stockMovementReason: StockMovementReason;
+  stockActorKind: StockActorKind;
+  productStock: ProductStockDTO;
+  stockMovement: StockMovementDTO;
+  productStockDetail: ProductStockDetailDTO;
+  lowStockRow: LowStockRowDTO;
+  shopStockSettings: ShopStockSettingsDTO;
+  setStockRequest: SetStockRequest;
+  adjustStockRequest: AdjustStockRequest;
+  setTrackingRequest: SetTrackingRequest;
+  setThresholdRequest: SetThresholdRequest;
+  setShopStockSettingsRequest: SetShopStockSettingsRequest;
 }

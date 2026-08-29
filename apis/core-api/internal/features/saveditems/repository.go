@@ -96,9 +96,16 @@ func (r *Repository) MembershipIDs(ctx context.Context, customerID string) ([]st
 // ⚠ ONE STATEMENT, NOT ONE PER ITEM. A Sydney RDS round trip measures ~135 ms from a local core-api, so
 // a per-item query at the 200-item cap would cost ~27 s against a 2 s budget.
 //
-// ⚠ THE VERDICT IS NOW CATALOGUE STATUS ALONE. It used to join shop → zone → offering → pricing rule to
-// answer whether the product could reach the shopper's address. Delivery zones were withdrawn from the
-// platform, so there is no such question to answer and every address is implicitly deliverable.
+// ⚠ THE VERDICT IS CATALOGUE STATUS **AND STOCK** (054). It used to join shop → zone → offering →
+// pricing rule to answer whether the product could reach the shopper's address; delivery zones were
+// withdrawn, so there is no such question to answer and every address is implicitly deliverable.
+//
+// ⚠ TWO CAUSES, ONE VERDICT, and getting this wrong is the drift 054 came closest to shipping. A
+// product at zero stock and a product an operator switched to `unavailable` are the SAME statement to
+// a shopper — "not right now, but wait" — and they must produce the same verdict. Had the stock arm
+// been omitted here, a sold-out product would have read `purchasable` in a saved list while being
+// unbuyable on every other surface, and the list would be lying in exactly the way 033 built it to
+// stop lying (research R12.2).
 const listSQL = `
 SELECT s.product_id::text                        AS product_id,
        p.name                                    AS name,
@@ -113,9 +120,14 @@ SELECT s.product_id::text                        AS product_id,
        c.key                                     AS category_key,
        p.created_at >= now() - interval '14 days' AS is_new,
        (p.currency = s.saved_currency AND p.price_amount < s.saved_price_amount) AS price_dropped,
+       -- availability-exempt: public.product, and deliberately. This CASE does not decide WHETHER
+       -- the product is purchasable — it classifies WHY it is not, into the two answers a shopper can
+       -- act on differently ("wait" vs "give up"). Predicate collapses both into one boolean, which is
+       -- exactly the distinction FR-014 and SC-010 exist to preserve. The stock arm keeps it in step.
        CASE
          WHEN p.status = 'archived' THEN 'no_longer_sold'
          WHEN p.status <> 'active'  THEN 'temporarily_unavailable'
+         WHEN p.stock_tracked AND coalesce(p.stock_on_hand, 0) <= 0 THEN 'temporarily_unavailable'
          ELSE 'purchasable'
        END                                       AS verdict
 FROM public.customer_saved_item s

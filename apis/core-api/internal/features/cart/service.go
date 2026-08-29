@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/availability"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/media"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
@@ -38,13 +39,16 @@ import (
 // budget widened, because doing only the first would leave no margin at all.
 const writeTimeout = 12 * time.Second
 
-// Product lifecycle values this service reasons about (016). Only `active` is purchasable; `archived` is
-// terminal and its line is swept away; `draft` and `unavailable` are flagged but kept, because a shopper
-// may reasonably wait a temporary state out (research R11).
-const (
-	statusActive   = "active"
-	statusArchived = "archived"
-)
+// The one product lifecycle value this service still reasons about directly (016): `archived` is
+// TERMINAL, and its line is swept away rather than flagged, because there is nothing to wait for.
+// `draft` and `unavailable` are flagged but kept — a shopper may reasonably wait a temporary state
+// out (research R11).
+//
+// ⚠ 054 removed `statusActive` from this package deliberately. "Is this purchasable?" is no longer
+// a status comparison — it is availability.Purchasable, which also weighs stock — and leaving the
+// constant here would leave the old, now-wrong answer within easy reach of the next person editing
+// this file. The guard test refuses its return.
+const statusArchived = "archived"
 
 // Sentinel errors mapped by the handler.
 var (
@@ -177,7 +181,7 @@ type Repo interface {
 	// AllLines is the combined read — payable lines, saved lines and the revision in ONE round trip.
 	AllLines(ctx context.Context, cartID string) (lines, saved []cartLineRow, revision int64, err error)
 	CountDistinct(ctx context.Context, cartID string) (int, error)
-	ProductStatus(ctx context.Context, productID string) (status, price string, found bool, err error)
+	ProductStatus(ctx context.Context, productID string) (row productStatusRow, found bool, err error)
 	ProductSnapshots(ctx context.Context, productIDs []string) ([]cartLineRow, error)
 	OrderItemsForReorder(ctx context.Context, customerID, orderID string) ([]ReorderCandidate, bool, error)
 
@@ -422,11 +426,11 @@ func (s *Service) Merge(ctx context.Context, customerID, changeID string, lines 
 	keptIDs := make([]string, 0, len(ids))
 	quantities := make([]int32, 0, len(ids))
 	for _, id := range ids {
-		status, _, found, err := s.repo.ProductStatus(ctx, id)
+		prod, found, err := s.repo.ProductStatus(ctx, id)
 		if err != nil {
 			return Cart{}, err
 		}
-		if !found || status == statusArchived {
+		if !found || prod.Status == statusArchived {
 			continue
 		}
 		keptIDs = append(keptIDs, id)
@@ -560,7 +564,10 @@ func (s *Service) Reorder(ctx context.Context, customerID, orderID, changeID str
 			// The product is gone for good. Reported, never silently omitted.
 			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipRemoved})
 			continue
-		case *c.Status != statusActive:
+		// 054: a reorder of something the shop has run out of is skipped as unavailable, exactly like
+		// one the operator withdrew. Same outcome, and the shopper is told either way — what they must
+		// NOT get is it silently added to a cart that cannot be paid for.
+		case !availability.Purchasable(*c.Status, c.StockTracked != nil && *c.StockTracked, c.StockOnHand):
 			skipped = append(skipped, Skipped{ProductID: c.ProductID, Name: c.Name, Reason: SkipUnavailable})
 			continue
 		}
@@ -688,7 +695,10 @@ func (s *Service) DiscountForCustomer(ctx context.Context, customerID string, pa
 func payableCents(rows []cartLineRow) int64 {
 	var total int64
 	for _, row := range rows {
-		if row.Status != statusActive {
+		// ⚠ 054 FR-017: a line the shop cannot supply is excluded from the PAYABLE total. This is the
+		// one place that decides what a shopper is actually asked to pay, so an out-of-stock line
+		// dropping out here is what keeps FR-020 true — the amount never covers units that are gone.
+		if !availability.Purchasable(row.Status, row.StockTracked, row.StockOnHand) {
 			continue
 		}
 		if cents, err := money.ParseCents(row.UnitPriceAmount); err == nil {
@@ -866,7 +876,7 @@ func (s *Service) toLines(ctx context.Context, rows []cartLineRow, collectNotice
 	var subtotalCents int64
 
 	for _, row := range rows {
-		available := row.Status == statusActive
+		available := availability.Purchasable(row.Status, row.StockTracked, row.StockOnHand)
 		unitCents, err := money.ParseCents(row.UnitPriceAmount)
 		if err != nil {
 			return nil, 0, nil, err
@@ -938,19 +948,23 @@ func checkoutState(lineCount, payable int, payableCents int64, policy cartpolicy
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────
 
-// assertPurchasable verifies the product exists and is active.
+// assertPurchasable verifies the product exists and can actually be bought right now.
+//
+// ⚠ 054: "can be bought" is availability.Purchasable, not `status == active`. The rule is defined
+// once, in one package, and every surface that asks this question reads it from there — see
+// internal/platform/availability for why that matters more than it looks like it should.
 func (s *Service) assertPurchasable(ctx context.Context, productID string) error {
 	if !validUUID(productID) {
 		return ErrProductNotFound
 	}
-	status, _, found, err := s.repo.ProductStatus(ctx, productID)
+	prod, found, err := s.repo.ProductStatus(ctx, productID)
 	if err != nil {
 		return err
 	}
 	if !found {
 		return ErrProductNotFound
 	}
-	if status != statusActive {
+	if !availability.Purchasable(prod.Status, prod.StockTracked, prod.StockOnHand) {
 		return ErrProductUnavailable
 	}
 	return nil

@@ -45,6 +45,11 @@ const GuestCap = 50
 //	purchasable             → buy now
 //	temporarily_unavailable → sold, not in stock — wait
 //	no_longer_sold          → withdrawn entirely — give up
+//
+// ⚠ 054: `temporarily_unavailable` now has TWO causes — the operator switched the product off, or
+// the shop has run out — and they collapse to one verdict deliberately. The shopper's next action is
+// identical for both ("wait"), and the second cause is not theirs to know about; distinguishing them
+// would disclose stock state without changing anything a shopper could do.
 const (
 	VerdictPurchasable    = "purchasable"
 	VerdictTemporarilyOut = "temporarily_unavailable"

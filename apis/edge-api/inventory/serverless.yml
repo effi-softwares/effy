@@ -1,0 +1,186 @@
+# edge-inventory — Effy cold-path inventory service (054-product-inventory).
+#
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/
+# CORS/authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live
+# under /inventory/.
+#
+# ⚠ TWO AUDIENCES, ONE SERVICE, TWO AUTHORIZERS. Shop routes attach to the Terraform-owned SHOP
+# authorizer; the assisted back-office routes attach to the BACK-OFFICE one. API Gateway authorizers
+# are per-ROUTE, so no token crosses pools and this service never brokers auth for another —
+# Principle IV holds structurally, not by convention. 046 established the pattern (an authed and a
+# public submit route in one service). The alternative — shop routes in edge-shop and admin routes
+# somewhere else — would put one stock service and repository in two places, or force a third
+# extraction to avoid that.
+#
+# ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R6): `effy-edge-admin`
+# declares 77 functions and packages to 434 of CloudFormation's 500 resources, and the cheap
+# mitigation is already spent — it carries `versionFunctions: false`, which 049 was forced to add
+# when the driver routes hit the ceiling. The six assisted routes here would spend most of what is
+# left, in the exact domain (refunds, cancellation, returns) the gap register queues next. 053 made
+# the same call for the same reason.
+#
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-inventory
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # ⚠ Set from the START, not when it is needed — 053's lesson, learned from admin hitting the CFN
+  # limit under pressure. Nothing here publishes aliases or uses provisioned concurrency, and every
+  # httpApi integration invokes the unqualified ($LATEST) ARN, so per-deploy Versions are dead weight.
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 054-product-inventory
+    service: inventory
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
+  # edge-shop/admin/driver/orders. DEV ONLY — see infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the inventory service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the inventory service serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/readyz
+
+  # ── Shop routes — SHOP authorizer, scoped to the caller's own active shop ────────────────────
+  # ⚠ shopId is NEVER read from the client on these; it is resolved from the shop_staff record.
+
+  stockGetV1:
+    handler: src/functions/stock-v1-get.handler
+    description: Read a product's stock, its effective threshold and its recent movements (054 US1, FR-009).
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/products/{productId}/stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  stockTrackingPutV1:
+    handler: src/functions/stock-tracking-v1-put.handler
+    description: Turn stock tracking on (a count is required) or off for a product (054 US1, FR-002/FR-003).
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/products/{productId}/stock/tracking
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  stockPutV1:
+    handler: src/functions/stock-v1-put.handler
+    description: Set a product's count to an exact value (054 US1, FR-006).
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/products/{productId}/stock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  stockAdjustPostV1:
+    handler: src/functions/stock-adjustment-v1-post.handler
+    description: Record a relative increase or decrease in a product's count (054 US1, FR-006).
+    events:
+      - httpApi:
+          method: POST
+          path: /inventory/v1/products/{productId}/stock/adjustments
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  stockThresholdPutV1:
+    handler: src/functions/stock-threshold-v1-put.handler
+    description: Set or clear a product's own low-stock threshold (054 US1, FR-005).
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/products/{productId}/stock/threshold
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  settingsGetV1:
+    handler: src/functions/settings-v1-get.handler
+    description: Read the shop's default low-stock threshold (054, FR-005).
+    events:
+      - httpApi:
+          method: GET
+          path: /inventory/v1/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  settingsPutV1:
+    handler: src/functions/settings-v1-put.handler
+    description: Set the shop's default low-stock threshold (054, FR-005).
+    events:
+      - httpApi:
+          method: PUT
+          path: /inventory/v1/settings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
