@@ -60,6 +60,9 @@ func (s *Service) settleRefundEvent(ctx context.Context, evt checkout.WebhookEve
 		return SettleOutcome{}, err
 	}
 	if changed {
+		// ⚠ THE COUNTER THAT TELLS THE TRUTH. `RefundIssued` fires at submission; this fires when the
+		// provider finally says what happened, up to thirty days later.
+		s.meter(func(m Metrics) { m.RefundSettled(status) })
 		return SettleOutcome{Recognised: true, Changed: true, Status: status}, nil
 	}
 
@@ -81,6 +84,7 @@ func (s *Service) settleRefundEvent(ctx context.Context, evt checkout.WebhookEve
 	if err := s.repo.RecordUnattributedRefund(ctx, evt); err != nil {
 		return SettleOutcome{}, fmt.Errorf("refunds: record unattributed: %w", err)
 	}
+	s.meter(func(m Metrics) { m.RefundIssued("external") })
 	logger.FromContext(ctx).Warn("refunds: refund issued outside the platform",
 		zap.String("providerRefundId", evt.RefundID),
 		zap.String("status", status))

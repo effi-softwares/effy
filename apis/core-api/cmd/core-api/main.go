@@ -152,7 +152,7 @@ func run() error {
 	// ⚠ Constructed BEFORE the dependency literal because checkout needs it: the refund half of the
 	// provider's webhook rides the ONE signature-verified endpoint (055 US4), and `refunds` imports
 	// `checkout` for the gateway, so the wiring can only go this direction.
-	refundSvc := refunds.NewService(refunds.NewRepository(pool), paymentGateway)
+	refundSvc := refunds.NewService(refunds.NewRepository(pool), paymentGateway).WithMetrics(m)
 
 	deps := dependencies{
 		status:           platformstatus.NewService(platformstatus.NewRepository(pool), cfg.Env),

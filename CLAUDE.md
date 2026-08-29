@@ -261,6 +261,61 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**055-refunds-cancellation — Refunds & Cancellation.** 🚧 **90/106 tasks — ALL SIX USER STORIES BUILT
+and fully machine-verified. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
+[specs/055-refunds-cancellation/SIGNOFF.md](specs/055-refunds-cancellation/SIGNOFF.md).
+
+Closes gap **G3** — the money half of the post-purchase story.
+- ⚠ **THE DEFECT: money could go INTO the platform and never come back out.** `public.refund` did not
+  exist; `order.status = 'canceled'` had been permitted by a CHECK since 019 and was **written by
+  nothing** (055 is its first writer); a shopper whose items never arrived was told *"contact support
+  and we'll sort it out"* by a screen whose own comment admitted no money could move.
+- ⚠ **A REFUND IS A STATE MACHINE, NOT A CALL.** The provider accepting one means only *submitted*;
+  the bank can reject it **up to thirty days later**. Five states — `submitting`/`submitted` answer
+  "has the provider got it", `failed`/`refused` answer "could retrying ever help". `failed` counts
+  against the ceiling so a bouncing retry cannot refund an order repeatedly; `submitting` does not, or
+  an outage on our side would make the platform refuse money it still holds.
+- ⚠ **`core-api` GAINED A SECOND COGNITO VERIFIER** (back-office) because the payment secret lives
+  there and nowhere else (019 SC-012). Per-pool validation against that pool's own issuer — the shape
+  Principle IV sanctions — **not** the auth proxy it forbids; the rejected alternative was the cold
+  path forwarding an operator's token (research R1). Isolation proven in **both** directions.
+- ⚠ **CANCELLING *IS* REFUNDING.** `CaptureMethod: automatic` means the money is captured at payment,
+  so the provider's cancel operation never applies to an Effy order (R3).
+- ⚠ **THE PUBLISHED POLICY WAS CORRECTED IN THE SAME CHANGE** (FR-016a) — as a NEW VERSION (`v2.md`),
+  so a policy someone already read keeps its text and its date. It said "before it is dispatched"
+  (looser than the platform can honour) and "to cancel, use the app" (untrue until this shipped). ⚠ The
+  audit found a **second lie**: "refund **or replacement**", and the platform has **no replacement
+  mechanism and no back-office order creation** — verified, not assumed.
+- **⚠ MY OWN WORST DEFECT, CAUGHT BY READING THE CODE BACK**: `HandleWebhook` opened with
+  `if evt.PaymentIntentID == "" { return nil }` — which is **every** `refund.*` event. Refund events
+  were **discarded before they were deduped or dispatched**, and every test on both sides passed
+  because each half was correct in isolation: `HandleRefundEvent` worked perfectly and was never
+  called.
+- **⚠ AND ONE I NEARLY SHIPPED**: neither customer surface carried `orderItemId`. `order_item` has no
+  uniqueness on (order, product), so passing a product id where a line id is expected does **not
+  error** — the join matches nothing and every item a shopper names is **silently dropped**. Third
+  outing of that shape after `brand`, `badges` and (033) `productId`.
+- **⚠ PRE-EXISTING, FOUND AND FIXED**: `cm-contract-check` was **already red at HEAD** (proven by
+  stashing) — 054 committed the TS `errors` field and never regenerated the Kotlin. And the
+  **account-closure blocker was wrong a third time**: 053 fixed the value and kept the shape, so both
+  new terminal states satisfied `<> 'delivered'` and would have held a customer for seven days over a
+  package nobody is carrying. Terminal states are now named positively.
+- **Proposals are DERIVED, never stored** — only the *dismissal* is a row (027's counted-not-stored
+  rule, third application). **Stock returns only where the platform can know it should** (item-derived,
+  tracked, uncollected): inventing stock is worse than not returning it.
+- **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **1,813**, 17 packages, exit 0 · Go
+  build/vet/gofmt clean · refunds **67** · edge-orders **54** · edge-shop **192** · edge-customer
+  **203** · `email-check` **12 templates** · both mobile apps compile. **34 negative proofs**, each
+  executed by breaking the thing.
+- **⚠ Open (16)**: the commit; `make db-up`; ⚠ `make apply` **first** (core-api needs the back-office
+  pool ids + CORS origin); `core-image-push && core-deploy`; `edge-deploy SERVICE=orders|shop`;
+  registering the **`refund.*` webhook events** (without them no refund ever settles); then the walks.
+  ⚠ **T097 is the most important open item on the platform** — force a real `refund.failed` and confirm
+  the order stops claiming the money went back. ⚠ **Nobody has looked at any screen**: 039 shipped four
+  live defects with a fully green suite. Register:
+  [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) (**G3 closed**); operator guide:
+  [docs/order-console-guide.md](docs/order-console-guide.md).
+
 **054-product-inventory — Product Inventory (Shop-Managed Stock).** 🚧 **78/93 tasks — US1–US5 all BUILT
 and FULLY machine-verified, ✅ INCLUDING SC-003 AGAINST REAL POSTGRESQL. NOT DEPLOYED, NOT COMMITTED,
 NOT WALKED BY A PERSON.** Spec/artifacts: [specs/054-product-inventory/](specs/054-product-inventory/).

@@ -31,3 +31,4 @@ slice provisions Prometheus and points it at these rules, every threshold below 
 |---|---|---|
 | `alerts/032-delivery-pricing.yml` | 032 — delivery pricing & same-day | ⚠ written, not loaded |
 | `alerts/054-product-inventory.yml` | 054 — product inventory (oversell) | ⚠ written, not loaded |
+| `alerts/055-refunds-cancellation.yml` | 055 — refunds failing, and refunds that never settle | ⚠ written, not loaded |

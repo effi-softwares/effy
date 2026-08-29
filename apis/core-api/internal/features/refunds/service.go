@@ -19,8 +19,35 @@ import (
 // are identical. Two copies of "what a valid refund is" would drift, and the drift would show up as
 // money.
 type Service struct {
+	// 055 — refund telemetry. Nil-able; a no-op when unwired.
+	metrics Metrics
 	repo    *Repository
 	gateway checkout.PaymentGateway
+}
+
+// Metrics is the refund telemetry this service emits (055 R9). Nil-able like every other optional
+// collaborator on this platform: unwired, nothing is metered and nothing crashes.
+//
+// ⚠ NO ORDER ID, CUSTOMER ID OR AMOUNT CROSSES THIS INTERFACE. A label is a time-series dimension —
+// an order id would mint one series per order, and an amount would put a customer's money in a
+// metrics endpoint.
+type Metrics interface {
+	RefundIssued(kind string)
+	RefundSettled(outcome string)
+	RefundSubmitFailed(failure string)
+	OrderCancelled(actor string)
+}
+
+// WithMetrics wires refund telemetry.
+func (s *Service) WithMetrics(m Metrics) *Service {
+	s.metrics = m
+	return s
+}
+
+func (s *Service) meter(f func(Metrics)) {
+	if s.metrics != nil {
+		f(s.metrics)
+	}
 }
 
 func NewService(repo *Repository, gw checkout.PaymentGateway) *Service {
@@ -232,6 +259,7 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (IssueResult, error)
 		if errors.As(ferr, &refused) {
 			// ⚠ A DECISION. Terminal — retrying it cannot change the answer (FR-005d).
 			_ = s.repo.MarkRefused(ctx, refundID, refused.Reason)
+			s.meter(func(m Metrics) { m.RefundSubmitFailed("refused") })
 			return IssueResult{}, fmt.Errorf("refunds: provider refused: %s", refused.Reason)
 		}
 		// ⚠ AMBIGUOUS AND STILL AMBIGUOUS AFTER RETRYING — the refund may or may not exist. The row
@@ -241,11 +269,13 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (IssueResult, error)
 		//
 		// ⚠ AND IT IS NOT SILENTLY DROPPED. `Stalled` is what the console reads to put it in front of
 		// a person; the operator is told the outcome is unknown, which is the honest answer.
+		s.meter(func(m Metrics) { m.RefundSubmitFailed("ambiguous") })
 		return IssueResult{RefundID: refundID, Status: "submitting", Stalled: true,
 			Amount: money.FormatCents(amountCents)}, nil
 	}
 
 	_ = s.repo.MarkSubmitted(ctx, refundID, res.ID)
+	s.meter(func(m Metrics) { m.RefundIssued(in.Kind) })
 
 	// ⚠ A SHOPPER WHO ASKED HAS NOW BEEN ANSWERED (FR-005r2). Without this the request stays open
 	// forever: a queue item nobody can close, and a customer who is never told the outcome of the
@@ -255,6 +285,14 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (IssueResult, error)
 	// refund because a status update did not land would be reporting a failure for something that
 	// demonstrably happened. Most refunds have no request at all — the platform proposes them from
 	// shortfalls — so "no open request" is the ordinary case, not an error.
+
+	// ⚠ FR-030 — PUT THE UNITS BACK, but only where the platform can know it should: an item-derived
+	// refund, a tracked product, an uncollected portion. See `stock.go` for why each condition is
+	// there. Swallowed and AFTER the refund is recorded: the money is already on its way, and a stock
+	// write that could abort that would trade a customer's refund for a shelf count.
+	if in.Kind == "item" {
+		_ = s.repo.ReturnStock(ctx, refundID, in.OrderID)
+	}
 
 	_ = s.repo.CloseOpenRequestForOrder(ctx, in.OrderID, in.ActorSub)
 

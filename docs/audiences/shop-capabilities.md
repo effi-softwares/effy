@@ -433,3 +433,37 @@ empty shelf hours later.
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
 The oversell concurrency proof (SC-003) is written but has **never executed** — Docker was down for the
 whole session. Spec/artifacts: [specs/054-product-inventory/](../../specs/054-product-inventory/).
+
+---
+
+## §055 — Refunds & Cancellation (the shop's part)
+
+This slice is mostly customer- and back-office-facing. The shop's part is one thing, and it removes
+the last state a shop could not get out of.
+
+| Capability | shop-web | shop-mobile | Notes |
+| --- | --- | --- | --- |
+| Declare a portion unsuppliable | ✅ | ✅ | With a reason, required at four layers |
+| See a cancelled order as cancelled | ✅ | ✅ | Not as a shop failure |
+
+- ⚠ **`unfulfillable` is the exit a shop never had.** A shop holding an order it could not fill had no
+  state to move it to: the portion sat in the active queue forever, and the only way out was for
+  someone to stop looking at it.
+- ⚠ **It moves no money** (FR-031). It says "we cannot supply this"; a person at Effy decides the
+  refund, and the order surfaces in the console as **awaiting a refund decision** — ranked above
+  handover and arrival, because it is the only one where a customer is out of pocket while the queue
+  waits.
+- ⚠ **A reason is required**, enforced by the control, the ViewModel, the service and a **CHECK
+  constraint**. Back-office is asked to return a customer's money on the strength of it; "the shop said
+  no" is not a basis.
+- ⚠ **`withdrawn` is a DIFFERENT state, and reads "Order cancelled".** It is written by `core-api` when
+  an order is cancelled — never by a shop. Conflating it with `unfulfillable` would tell a shop it
+  failed at something nobody ever wanted, and would make shop-reliability reporting count cancellations
+  as shop failures.
+- ⚠ **Both are terminal.** A shop that said it cannot supply must not be able to un-say it: the
+  platform may already have refunded the customer on the strength of it.
+- ⚠ **Once collected it is no longer the shop's call.** The refusal costs no code — `collected` is
+  absent as a source in the legal-edge map, so the absence of an entry *is* the rule.
+
+**⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
+Spec/artifacts: [specs/055-refunds-cancellation/](../../specs/055-refunds-cancellation/).

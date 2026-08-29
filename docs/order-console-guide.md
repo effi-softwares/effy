@@ -79,13 +79,55 @@ business has not earned.
 
 ---
 
+## Refunds and cancellation (055)
+
+⚠ **This console now moves real money.** Read this section before using it.
+
+**Issuing a refund.** Pick the items, or choose *Goodwill* and type an amount with a reason. The
+amount for items is **computed and cannot be edited** — if it could, the figure and the lines could
+disagree, and the record would claim a refund covered items it did not. A confirmation names the
+amount before anything happens.
+
+⚠ **Refunding is irreversible.** There is no un-refund; a correction would be a new charge, which the
+platform cannot make. That is why the control asks first, and why `csa` cannot use it.
+
+⚠ **"On its way" is not "refunded".** The provider accepting a refund only means it has been
+submitted; the bank can reject it **up to thirty days later**. Watch the state:
+
+| What you see | What it means | What to do |
+| --- | --- | --- |
+| On its way to the customer | Submitted, not yet settled | Nothing — this is normal |
+| Refunded | The money actually landed | Nothing |
+| **Failed — needs attention** | The bank rejected it | Read the reason; a retry may work |
+| **Refused — cannot be retried** | The provider would not accept it | Do not retry; the answer will not change |
+| **No answer from the bank — needs checking** | We never got a reply — the refund may or may not exist | ⚠ **Check before doing anything.** Re-issuing could refund twice |
+
+**Owed but not refunded.** When a shop records a shortfall, the console proposes a refund for it
+automatically. You either issue it or **dismiss it with a reason** — dismissing is not the harmless
+half: deciding a customer is *not* owed money they paid for is exactly as consequential as paying
+them, and nobody comes back to check it.
+
+**Customer requests.** A shopper can now ask for a refund from their own order, in their own words,
+attached to that order. Answer it by issuing a refund (which closes it automatically) or by declining
+with a reason. There is no reply box — this is one statement and one outcome, not a conversation. ⚠ A
+decline is **not emailed**; the shopper sees the outcome on their order.
+
+**Cancelling.** A customer can cancel until a shop starts preparing. **You can cancel later** — right
+up until the package leaves the shop — because a phone call arrives after their control has gone.
+⚠ Cancelling **is** refunding: the money was captured at payment, so there is no "cancel before we
+charge them".
+
+**"Needs a refund decision"** in the list means a shop said it cannot supply its portion. It ranks
+above handover and arrival because it is the only one where a customer is out of pocket while the
+queue waits.
+
+---
+
 ## What this console deliberately cannot do
 
-No refunds, no cancellations, no returns, no editing an order, no re-sending the receipt. None of it
-is built yet — the routes do not exist, so no button can appear here without a spec first.
-
-If a customer is owed money, that is still a manual conversation. The **Feedback** console is where
-their message lands.
+No returns, no replacements, no editing an order. ⚠ **Effy cannot send a replacement** — there is no
+mechanism and no way to create an order from here; if the customer wants the item rather than the
+money, that is a manual conversation. Disputes and chargebacks are the bank's process, not this one.
 
 ---
 

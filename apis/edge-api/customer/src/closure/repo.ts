@@ -93,11 +93,19 @@ export async function findBlockingOrders(customerId: string): Promise<BlockingOr
                 --
                 -- Exactly the customers it should have released were held, and the ones it should
                 -- have held were released. Both fixed by naming the real terminal state.
+                --
+                -- ⚠ 055 NAMES THE TERMINAL STATES POSITIVELY, WHICH IS THE ACTUAL LESSON. 053 fixed
+                -- the value and kept the shape: a NEGATION against one name still cannot notice the
+                -- vocabulary moving, and it moved again — 'unfulfillable' (a shop that cannot supply)
+                -- and 'withdrawn' (a cancelled order) are both finished, and both would have
+                -- satisfied a negation of 'delivered' and BLOCKED closure for seven days over a package
+                -- nobody is carrying. Listing what is DONE means a new working state blocks (safe,
+                -- and correct by default) while a new terminal one must be added here deliberately.
                 AND EXISTS (
                       SELECT 1
                         FROM public.shop_fulfillment f
                        WHERE f.order_id = o.id
-                         AND f.status <> 'delivered'
+                         AND f.status NOT IN ('delivered', 'unfulfillable', 'withdrawn')
                     )
               )
             )

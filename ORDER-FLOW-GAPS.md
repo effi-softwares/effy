@@ -100,7 +100,28 @@ sole discovery mechanism is a picker finding an empty shelf hours later — whic
 > count never reads below zero, and removing the floor makes the second payment violate the CHECK
 > constraint. ✅ **DEPLOYED to dev 2026-08-29.** ⚠ No screen has been looked at by a person.
 
-### G3. Shortfall has no money path
+### ~~G3. Shortfall has no money path~~ — ✅ **CLOSED by 055-refunds-cancellation** (code-complete, not yet deployed)
+
+Money can now leave the platform: `public.refund`, a provider call, a back-office control, customer
+cancellation, customer-raised requests, refund visibility on both customer surfaces, a refund email,
+and a shop exit. The "Unavailable" panel no longer says *"contact support"* — the platform proposes a
+refund for every recorded shortfall automatically, and the panel says the customer will not be charged.
+
+⚠ **What 055 does NOT close, recorded so its absence is not read as coverage:**
+
+- **Replacements.** The platform can only refund. There is no replacement mechanism and no back-office
+  order creation — verified during 055's policy audit, not assumed. The published policy previously
+  promised "refund **or replacement**" and was corrected.
+- **Disputes and chargebacks.** A different lifecycle, initiated by the bank rather than by anyone
+  here. No `charge.dispute.*` handling exists.
+- **Substitutions.** A shop cannot offer an alternative item; it can only say it cannot supply.
+- **Shop cost attribution.** A refund is Effy's money; nothing apportions it back to the shop whose
+  shortfall caused it. There is no shop-billing model to attribute it to.
+- **A residual oversell window** (054 A6) is unchanged.
+
+The original entry follows, for the record.
+
+#### The defect as it stood
 
 `apis/edge-api/shop/src/functions/fulfillment-item-v1-patch.ts:5`:
 
@@ -120,11 +141,11 @@ normal way the platform learns it oversold.
 
 | Missing | Evidence |
 |---|---|
-| **Customer order cancellation** | `public."order".status` CHECK includes `'canceled'` (`db/migrations/20260719120000_customer_commerce.sql`); nothing in the codebase ever writes it. No route, no UI, no console action. |
-| **Refunds / returns** | No data model, no route, no provider call, no console. See G3. |
-| **Order-scoped support** | `apps/customer-web/app/(account)/orders/[id]/page.tsx:94` — "Get help" links to `/feedback`, the generic 046 form. No order reference is attached and there is no thread. |
+| ~~**Customer order cancellation**~~ ✅ **055** | ⚠ 055 is its **first writer** — the CHECK had permitted `'canceled'` since 019 and nothing ever wrote it. Customer route + staff route, guarded transition under a row lock. |
+| ~~**Refunds**~~ ✅ **055** / **returns** ⚠ still open | Refunds built end to end. **Returns are not**: nothing models goods coming back, and a refund does not require one. |
+| ~~**Order-scoped support**~~ ✅ **055** | A shopper raises a refund request from their own order, in their own words, with the items they name. ⚠ Still **not a thread** — one statement, one outcome, by design. |
 | **Failed-delivery visibility** ⚠ **now the top structural gap** | `apis/edge-api/driver/src/delivery/repository.ts` sets `delivery_task = 'failed'`. `shop_fulfillment` stays `collected`; no customer notification, no re-attempt scheduling, no customer-facing state. The shopper keeps seeing "on the way". **After 053 this is the only remaining way an order gets permanently stuck.** |
-| **Shop rejection** | `shop_fulfillment.status` (`db/migrations/20260722160000_fulfillment_delivered_state.sql:10`) has no `cancelled`/`rejected` member. A shop that cannot fulfil its portion has no exit from the state machine. |
+| ~~**Shop rejection**~~ ✅ **055** | `shop_fulfillment.status` gains `unfulfillable` (the shop cannot supply) and `withdrawn` (the order was cancelled) — ⚠ deliberately two states, because conflating them would count cancellations as shop failures. |
 
 ---
 
@@ -246,6 +267,9 @@ life. iOS push is deferred entirely on the Apple Developer account blocker
    ones, and there is still no way to give anybody their money back.
 2. **Standard-delivery completion + carrier handoff (G1)** — without it no standard order can ever
    reach a terminal state, and the delivered notification is unreachable for the majority path.
-3. **Refunds and cancellation (G3, Tier 2)** — the money half of the post-purchase story.
+3. ~~**Refunds and cancellation (G3, Tier 2)**~~ — ✅ built by **055**, code-complete and
+   machine-verified; **not yet deployed**. ⚠ The money half of the post-purchase story now exists, but
+   **no refund has ever actually been issued** — the walk that proves the platform does not lie about
+   money (a real `refund.failed`) has not been run.
 4. **G6 and G7 now, regardless** — both are one-line corrections to rules that were right when written
    and became wrong when a later slice changed the lifecycle underneath them.

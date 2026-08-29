@@ -98,6 +98,10 @@ func (s *Service) Cancel(ctx context.Context, in CancelInput) (CancelResult, err
 	}
 
 	_ = s.repo.MarkSubmitted(ctx, refundID, res.ID)
+	s.meter(func(m Metrics) {
+		m.RefundIssued("cancellation")
+		m.OrderCancelled(in.ActorKind)
+	})
 	return CancelResult{RefundID: refundID, Amount: money.FormatCents(amountCents),
 		Status: StatusSubmitted}, nil
 }
