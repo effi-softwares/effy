@@ -15,6 +15,11 @@ import {
 } from "./routes/deliverability";
 import { deliveryIndexRoute } from "./routes/delivery";
 import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback";
+import {
+  driverDetailRoute,
+  driverExceptionsRoute,
+  driversIndexRoute,
+} from "./routes/drivers";
 import { orderDetailRoute, ordersIndexRoute } from "./routes/orders";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
@@ -29,6 +34,10 @@ const routeTree = rootRoute.addChildren([
     shopDetailRoute,
     ordersIndexRoute,
     orderDetailRoute,
+    driversIndexRoute,
+    // ⚠ The literal path before the parameterised one — see routes/drivers.tsx.
+    driverExceptionsRoute,
+    driverDetailRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
     feedbackIndexRoute,

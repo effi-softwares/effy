@@ -24,7 +24,14 @@ export type AnalyticsEvent =
   // Catalog schema-authority events (016). No PII — the ids are platform identifiers, never
   // operator-typed values.
   | { name: "schema_type_created"; productTypeId: string }
-  | { name: "schema_attribute_created"; attributeId: string };
+  | { name: "schema_attribute_created"; attributeId: string }
+  // Driver-management events (056). ⚠ NO PII: `driverId` is a platform identifier. A driver's name,
+  // work email, phone and emergency contact must never appear in an analytics payload (FR-050) — and
+  // the emergency contact is a THIRD PARTY who never dealt with Effy at all.
+  | { name: "driver_created"; driverId: string }
+  | { name: "driver_status_changed"; driverId: string; status: string }
+  | { name: "driver_exception_resolved"; kind: string }
+  | { name: "driver_work_released"; released: number };
 
 const telemetry = createTelemetry<AnalyticsEvent>({
   key: config.posthogKey(),

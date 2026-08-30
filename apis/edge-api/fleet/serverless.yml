@@ -1,0 +1,400 @@
+# edge-fleet — Effy cold-path fleet service (056-driver-management).
+#
+# Attaches to the Terraform-owned shared HTTP API (shared-gateway.contract.md): NO API/stage/CORS/
+# authorizers created here (those live in infra/envs/<env>/edge-gateway.tf). Routes live under
+# /fleet/. Every authenticated route uses the Terraform-owned BACK-OFFICE JWT authorizer (by id from
+# SSM) — an ATTACHMENT to an existing authorizer, not a new pool (Principle IV).
+#
+# ⚠ WHY THIS IS ITS OWN SERVICE AND NOT A DOMAIN INSIDE edge-admin (research R1, measured):
+#   $ grep -c "^    handler:" apis/edge-api/admin/serverless.yml   → 77 before this slice
+# `effy-edge-admin` packaged to 434 of CloudFormation's hard 500 resources, and its OWN header
+# records that the DRIVER routes are what tipped it to 511 in the first place — `versionFunctions:
+# false` was the emergency recovery and is already spent. ~18 routes at ~5 resources each does not
+# fit at any price that stack can pay. 053 (orders) and 054 (inventory) each hit the same wall and
+# made the same call; this is the third application of a settled pattern.
+#
+# ⚠ AND NOT INSIDE edge-driver EITHER, which would have been structurally sound — API Gateway
+# authorizers are per-ROUTE, and 054 carries two audiences in one service on exactly that basis. The
+# reason is the asymmetry of the failure: a mis-wired route in the DRIVER service would hand a driver
+# the ability to edit driver records, including their own employment status. A separate service makes
+# that mistake unreachable rather than merely unlikely.
+#
+# ⚠ THE FIVE 049 ROUTES MOVED HERE from edge-admin rather than being duplicated, so there is exactly
+# one driver-management implementation. Deploy THIS service BEFORE re-deploying admin, or there is a
+# window in which driver management answers nothing.
+#
+# Serverless 3.40.0 pinned (frozen v3; benign nodejs22.x schema warning).
+service: effy-edge-fleet
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # 🧑‍💻 CONFIRM the latest Parameters-and-Secrets extension layer version for the region.
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  # ⚠ Set from the START, not when it is needed. admin reached the CFN limit before anyone noticed
+  # and had to add this under pressure (049). Nothing here publishes aliases or uses provisioned
+  # concurrency, and every httpApi integration invokes the unqualified ($LATEST) ARN.
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 056-driver-management
+    service: fleet
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # Driver-pool provisioning: the pool this service creates driver sign-ins in. Resolved from the
+    # auth contract at deploy time — never hard-coded. The driver pool defines NO RBAC groups.
+    DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
+    # Proof-of-delivery media lives in the shared media bucket under driver-proof/.
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    # ⚠ Operational thresholds (research R11). BOTH are read by src/shared/config.ts, and
+    # config.contract.test.ts reads THIS FILE to assert each one is declared. That guard exists
+    # because 035 read four env vars its serverless.yml never declared — every pool resolved
+    # "unknown", no email was ever sent, and 100 passing tests missed it because the tests set those
+    # vars themselves.
+    FLEET_DUTY_OVERDUE_HOURS: "14"
+    FLEET_EXPIRY_WARNING_DAYS: "30"
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # Driver provisioning: scoped Admin actions on the DRIVER pool ARN ONLY. This is an
+        # authorized server-side provisioning write by an authenticated BACK-OFFICE operator, not
+        # cross-pool authentication (049 research R3/R9) — the routes still carry the back-office
+        # authorizer. ⚠ No AddUserToGroup: the driver pool defines no RBAC groups (Principle IV).
+        # Moved here verbatim from edge-admin; not widened.
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminDisableUser
+            - cognito-idp:AdminEnableUser
+          Resource: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_arn}
+        # Proof-of-delivery media: READ ONLY, and only under the driver-proof/ prefix. ⚠ Narrower
+        # than edge-driver's grant on the same prefix, which also carries PutObject — back-office
+        # views proof, it never captures any.
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/driver-proof/*
+  layers:
+    - ${param:secretsExtensionArn}
+  # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
+  # edge-shop/admin/driver/orders: no NAT means an in-VPC Lambda cannot reach public AWS APIs, and
+  # the dev DB is reachable on its public endpoint. DEV ONLY — see infra/envs/README.md.
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the fleet service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/healthz
+
+  readyz:
+    handler: src/functions/readyz-get.handler
+    description: Readiness — can the fleet service serve? Probes the DB under a 2s budget. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/readyz
+
+  # ── US1 — the register and the profile of record ────────────────────────────────────────────────
+  driversListV1:
+    handler: src/functions/drivers-list-v1-get.handler
+    description: Driver register — search, filter, keyset paging (056 FR-001…FR-005). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/drivers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverGetV1:
+    handler: src/functions/driver-get-v1-get.handler
+    description: One driver's full profile of record, incl. account-state discrepancy (056 FR-006). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/drivers/{driverId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverUpdateV1:
+    handler: src/functions/driver-update-v1-patch.handler
+    description: Edit the profile; absent leaves alone, null CLEARS (056 FR-009/FR-010). Write = admin/manager.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /fleet/v1/drivers/{driverId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── US2 — onboarding, lifecycle, offboarding ────────────────────────────────────────────────────
+  driverCreateV1:
+    handler: src/functions/driver-create-v1-post.handler
+    description: Provision a driver — record + driver-pool sign-in together; a duplicate work email is REFUSED (056 FR-013/FR-014). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/drivers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverStatusV1:
+    handler: src/functions/driver-status-v1-post.handler
+    description: active/suspended/offboarded with a reason; refuses until held work is acknowledged (056 FR-015…FR-020). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/drivers/{driverId}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverAuditV1:
+    handler: src/functions/driver-audit-v1-get.handler
+    description: The driver's change history — who changed what, when (056 FR-025). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/drivers/{driverId}/audit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── US3 — the exceptions the driver app has recorded since 049 and nothing ever read ────────────
+  exceptionsListV1:
+    handler: src/functions/exceptions-list-v1-get.handler
+    description: Undeliverable drops + missing/short package reports, with the outstanding count (056 FR-027…FR-032). Read = any active staff, csa most of all.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/exceptions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  exceptionResolveV1:
+    handler: src/functions/exception-resolve-v1-post.handler
+    description: Close one exception with a note; one-way, never deleted (056 FR-031). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/exceptions/{kind}/{exceptionId}/resolve
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── US4 — duty visibility and stranded work ────────────────────────────────────────────────────
+  dutyV1:
+    handler: src/functions/duty-v1-get.handler
+    description: Who is on duty, what they are doing, and what work is waiting for a driver (056 FR-034…FR-036). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/duty
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dutyEndV1:
+    handler: src/functions/duty-end-v1-post.handler
+    description: End a duty session left open past the threshold (056 FR-037). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/duty/{sessionId}/end
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  strandedListV1:
+    handler: src/functions/stranded-list-v1-get.handler
+    description: Work held by a driver who can no longer do it — derived, never stored (056 FR-021). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/stranded
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  strandedReleaseV1:
+    handler: src/functions/stranded-release-v1-post.handler
+    description: Return stranded work to the unassigned pool — the sweep decides who gets it (056 FR-021/FR-038). Write = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/stranded/release
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── US5 — the work record and proof of delivery ────────────────────────────────────────────────
+  driverHistoryV1:
+    handler: src/functions/driver-history-v1-get.handler
+    description: A driver's runs by working day + period activity counts, no currency (056 FR-039/FR-043). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/drivers/{driverId}/history
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  runGetV1:
+    handler: src/functions/run-get-v1-get.handler
+    description: One run's stops in order with the time each state was reached (056 FR-040). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/runs/{runId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dropProofV1:
+    handler: src/functions/drop-proof-v1-get.handler
+    description: Proof captured for a completed drop; time-limited presigned media, and issuing it is audited (056 FR-041/FR-042). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/drops/{deliveryTaskId}/proof
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  # ── US6 — readiness and coverage ───────────────────────────────────────────────────────────────
+  readinessV1:
+    handler: src/functions/readiness-v1-get.handler
+    description: Drivers who cannot receive work, zones with nobody in them, expiring credentials (056 FR-044…FR-046). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/readiness
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+resources:
+  Resources:
+    # healthz does no work, so it can essentially only fail on a broken bundle or a runtime init
+    # error — which makes an error here an unambiguous "this deploy is broken" signal.
+    HealthzErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-healthz-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref HealthzLambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+    ReadyzErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-readyz-errors
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions: [{ Name: FunctionName, Value: !Ref ReadyzLambdaFunction }]
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+
+    # ⚠ THE ONE ALARM THAT IS NOT A GENERIC LAMBDA-ERROR ALARM, and the only state in this feature
+    # an operator cannot repair from the console.
+    #
+    # Provisioning a driver writes to TWO systems — the identity pool, then the platform record — and
+    # cannot be atomic. If the second write fails, a sign-in account exists for someone who is not a
+    # driver. The console shows it (`accountState: identity_only`) but cannot fix it: creating the
+    # driver again is refused, correctly, because the address is in use.
+    #
+    # The service logs the exact string this filter selects at both failure points.
+    DriverProvisionFailedMetricFilter:
+      Type: AWS::Logs::MetricFilter
+      Properties:
+        LogGroupName: /aws/lambda/${self:service}-${sls:stage}-driverCreateV1
+        FilterPattern: '"fleet.driver_provision_failed"'
+        MetricTransformations:
+          - MetricNamespace: Effy/Fleet
+            MetricName: DriverProvisionFailed
+            MetricValue: "1"
+            DefaultValue: 0
+      DependsOn: DriverCreateV1LogGroup
+
+    DriverProvisionFailedAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-${sls:stage}-driver-provision-failed
+        AlarmDescription: >-
+          A driver was half-provisioned — an identity exists without a platform record, or the record
+          write failed after the identity was created. An operator cannot repair this from the
+          console; the orphaned pool account must be resolved by hand.
+        Namespace: Effy/Fleet
+        MetricName: DriverProvisionFailed
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - ${ssm:/effy/${sls:stage}/alerts/topic_arn}
+
+    # ⚠ THERE IS DELIBERATELY NO ALARM ON OUTSTANDING EXCEPTIONS. That number is WORKLOAD, not
+    # health — it goes up when drivers report problems, which is the system working. Alarming on
+    # workload is how a team learns to ignore alarms, and this platform's alerts topic is the same
+    # one that carries "sending reputation is about to be suspended".

@@ -25,6 +25,15 @@ describe("back-office nav (role-aware dashboard nav)", () => {
     }
   });
 
+  it("shows the ungated Drivers item to every role, csa included (056 FR-022)", () => {
+    // ⚠ A CSA is exactly who is asked "why did my delivery fail". The failed-delivery reports the
+    // driver app has been recording since 049 had NO READER AT ALL until 056, and gating them to
+    // admin/manager would put them one role away from the person fielding the call.
+    for (const roles of [["admin"], ["manager"], ["csa"], []] as const) {
+      expect(visibleNav(NAV, roles).map((i) => i.to)).toContain("/drivers");
+    }
+  });
+
   it("shows the Admin item only to an administrator", () => {
     expect(visibleNav(NAV, ["admin"]).map((i) => i.to)).toContain("/admin");
     expect(visibleNav(NAV, ["manager", "admin"]).map((i) => i.to)).toContain("/admin");
