@@ -261,6 +261,69 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**056-driver-management — Back-Office Driver Management.** 🚧 **CODE-COMPLETE + FULLY MACHINE-VERIFIED
+across the new service, the console, the migration and both corrections. NOT DEPLOYED, NOT COMMITTED,
+NOT WALKED BY A PERSON.** Sign-off:
+[specs/056-driver-management/SIGNOFF.md](specs/056-driver-management/SIGNOFF.md).
+
+Builds the driver console **049 deferred in writing** — its own spec said "a full driver-management
+console is out of scope for this slice unless folded in during planning." This is that slice.
+- ⚠ **THE DEFECT: the driver app has been recording exceptions for a reader that does not exist.**
+  `public.delivery_failure` and `public.collection_task_issue` are both annotated *"recorded for
+  back-office follow-up"* — and `apis/edge-api/driver` is the **only** code that has ever touched
+  either, and only to INSERT. A repo-wide search for a reader returns nothing. So a driver marks a drop
+  undeliverable, the package stays `collected`, and the shopper keeps seeing "on the way" indefinitely
+  with **nobody at Effy told**. [ORDER-FLOW-GAPS.md](ORDER-FLOW-GAPS.md) named this the **top remaining
+  structural gap**; 056 builds the reader. ⚠ **Closed for Effy, NOT for the shopper** — no customer
+  notification and no re-attempt scheduling; that is the slice this one unblocks.
+- ⚠ **STANDING A DRIVER DOWN CAN STRAND PHYSICAL GOODS, PERMANENTLY AND INVISIBLY** — and this was in
+  no register because nobody knew. `releaseIneligibleWork` correctly never yanks picked-up work (the
+  packages are in a van), but `collection_task_package_uq UNIQUE(shop_fulfillment_id)` then keeps them
+  claimed and the sweep's `NOT EXISTS` skips them **forever**, an order attached to each. **Derived on
+  read, never stored** (027's counted-not-stored rule, third application); the operator is **warned and
+  shown the itemised held work before confirming**, and releasing is an explicit human action because it
+  asserts something about the physical world no query can know.
+- ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/fleet`** (18 routes, back-office authorizer), on a
+  **measured** constraint: `effy-edge-admin` declared **77 handlers at 434/500** CloudFormation
+  resources with `versionFunctions: false` **already spent** — and its own header records that the
+  **driver routes** are what tipped it to 511 in the first place. The five 049 routes **MOVED** here, so
+  admin goes **77 → 72** — the first time that stack has gone *down*. ⚠ Deliberately **not** in
+  `edge-api/driver`, which would be structurally sound but where a mis-wired route hands a **driver** the
+  ability to edit driver records, including their own employment status.
+- **⚠ THE ACCESS GATE WAS A NEGATIVE TEST, AND THIS SLICE WOULD HAVE BROKEN IT.** `requireDriver` read
+  `=== "disabled"`; widening the enum to three values meant a **suspended driver satisfied its negation
+  and kept a working session** — stood down in the console, still signing in and being assigned work,
+  with nothing failing. That is 055's lesson recurring on the very next slice (053's `<> 'delivered'`
+  blocker, two new terminal states straight through it). Now `!== "active"`, with the test parameterised
+  over every non-active state so a fourth status forces a decision instead of inheriting "permitted".
+- **⚠ CREATING A "NEW" DRIVER SILENTLY OVERWROTE AN EXISTING ONE.** `ensureDriverUser` swallowed the
+  exists exception and **re-enabled a stood-down Cognito account**; `insertDriver` upserted on conflict.
+  Together: reusing a departed employee's work email adopted their record, overwrote name/zone/vehicle,
+  **brought their sign-in back to life** — and reported success. Both halves now refuse, naming them.
+- **⚠ A PROFILE FIELD COULD NEVER BE CLEARED.** `COALESCE($n, col)` cannot distinguish "leave alone"
+  from "clear", so a zone once assigned was permanent. The write now reads the **presence** of a key.
+- **⚠ DRIVER MANAGEMENT WROTE NO AUDIT ROW AT ALL** — the only privileged back-office domain that did
+  not. Shops, promotions and catalog schema all do. ⚠ The audit detail records a PII field as
+  **changed**, never its value: the emergency contact is a **third party** who never dealt with Effy.
+- **⚠ THE CONCURRENCY TOKEN WOULD HAVE MADE EVERY EDIT FAIL, and only the container test found it.**
+  `toISOString()` truncates to **milliseconds**; PostgreSQL stores **microseconds** — so
+  `WHERE updated_at = $2` never matched its own row and every save would have said *"changed by someone
+  else"*. Invisible to `tsc` (both strings) and to the mocked tests (they mock the repository). Also
+  caught there: **two wrong column names** (`order.reference` → `order_number`,
+  `customer_address.suburb` → `city`) that typecheck perfectly and fail only at runtime.
+- **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **1,908**, 20 packages, zero failures ·
+  edge-fleet **91** (62 unit + **29 container-backed against real PostgreSQL**) · edge-admin **191
+  UNMODIFIED** (the proof the extraction changed nothing else) · back-office **190** · Go clean ·
+  `tokens:check` **unchanged** · `brand-check`. **SEVEN negative proofs**, each done by breaking the
+  thing — ⚠ including one where **the break was NOT caught** and the guard had to be fixed: it matched
+  only `{ driver }` and the injected leak was `{ driver: row }`.
+- **⚠ Open (14, all operator)**: the baseline record; the commit; `make db-up`; ⚠ `edge-deploy
+  SERVICE=fleet` **BEFORE** `admin` (or driver management answers nothing at all); `SERVICE=driver`;
+  `make apply`; then the walks. ⚠ **§6 is the most important walk** — collect a real package, stand the
+  driver down, confirm the itemised warning, release the stranded work. ⚠ **Nobody has looked at any
+  screen**: 039 shipped four live defects with a fully green suite. Parity register:
+  [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md) §056.
+
 **055-refunds-cancellation — Refunds & Cancellation.** 🚧 **90/106 tasks — ALL SIX USER STORIES BUILT
 and fully machine-verified. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 [specs/055-refunds-cancellation/SIGNOFF.md](specs/055-refunds-cancellation/SIGNOFF.md).
@@ -1880,5 +1943,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/055-refunds-cancellation/plan.md
+at specs/056-driver-management/plan.md
 <!-- SPECKIT END -->

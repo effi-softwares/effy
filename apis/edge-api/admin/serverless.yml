@@ -50,9 +50,6 @@ provider:
     # Shop-pool provisioning (009): the pool id the shops slice creates users in. Resolved from
     # the auth contract at deploy time — never hard-coded (R3).
     SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
-    # Driver-pool provisioning (049): the pool id the drivers slice creates users in. Resolved from
-    # the auth contract at deploy time — never hard-coded (R9). The driver pool defines NO groups.
-    DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
     # Promotional banner artwork (028). The SAME bucket product media uses — banners live under a
     # `promotions/` prefix rather than in a bucket of their own, so one bucket policy and one
     # lifecycle rule cover all operator-uploaded imagery.
@@ -99,15 +96,10 @@ provider:
             - cognito-idp:AdminDisableUser
             - cognito-idp:AdminEnableUser
           Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
-        # Driver provisioning (049): the SAME scoped Admin actions, on the DRIVER pool ARN ONLY. No
-        # AddUserToGroup — the driver pool defines no RBAC groups (Principle IV).
-        - Effect: Allow
-          Action:
-            - cognito-idp:AdminCreateUser
-            - cognito-idp:AdminGetUser
-            - cognito-idp:AdminDisableUser
-            - cognito-idp:AdminEnableUser
-          Resource: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_arn}
+        # ⚠ The driver-pool Cognito grant that stood here (049) MOVED TO `apis/edge-api/fleet` with
+        # the routes that used it (056). Nothing in this service touches the driver pool any more, and
+        # a grant nothing uses is a standing permission with no purpose — the kind that survives until
+        # something else finds it.
         # Email deliverability (037). Three reads and ONE delete, all scoped to this environment's
         # SES identity — never "*". ⚠ There is deliberately no PutSuppressedDestination: nothing in
         # the product needs to make a person unreachable by hand, and a button that can silently
@@ -311,62 +303,23 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
-  # ── Driver management (049). Minimal provisioning adjunct so the driver app has accounts to sign
-  #    in as; read = any active staff, mutate = admin/manager. Cognito-first → public.driver record.
-  driversListV1:
-    handler: src/functions/drivers-list-v1-get.handler
-    description: List drivers — 049
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/drivers
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  driverGetV1:
-    handler: src/functions/driver-get-v1-get.handler
-    description: One driver — 049
-    events:
-      - httpApi:
-          method: GET
-          path: /admin/v1/drivers/{driverId}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  driverCreateV1:
-    handler: src/functions/driver-create-v1-post.handler
-    description: Provision a driver (driver-pool Cognito user + record) — 049
-    events:
-      - httpApi:
-          method: POST
-          path: /admin/v1/drivers
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  driverUpdateV1:
-    handler: src/functions/driver-update-v1-patch.handler
-    description: Update a driver's name/zone/vehicle — 049
-    events:
-      - httpApi:
-          method: PATCH
-          path: /admin/v1/drivers/{driverId}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  driverStatusV1:
-    handler: src/functions/driver-status-v1-post.handler
-    description: Activate/disable a driver — 049
-    events:
-      - httpApi:
-          method: POST
-          path: /admin/v1/drivers/{driverId}/status
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+  # ── Driver management MOVED OUT (056-driver-management). ──────────────────────────────────────
+  # 049 landed five routes here as a "minimal provisioning adjunct" so the driver app had accounts to
+  # sign in as, and recorded in its own spec that "a full driver-management console is out of scope
+  # for this slice unless folded in during planning."
+  #
+  # 056 is that console, and it does not fit here. This stack packaged to 434 of CloudFormation's
+  # hard 500 resources with `versionFunctions: false` ALREADY SPENT — and the header of this file
+  # records that it was the driver routes that tipped it to 511 in the first place. ~18 more routes
+  # at ~5 resources each is not available at any price this stack can pay.
+  #
+  # The five routes now live in `apis/edge-api/fleet` under /fleet/v1/*, behind the SAME back-office
+  # authorizer. Removing them here reclaims ~25 resources — the first time this stack has gone down
+  # rather than up. The driver-pool Cognito grant and DRIVER_USER_POOL_ID moved with them; nothing
+  # left in this service touches the driver pool.
+  #
+  # ⚠ DEPLOY ORDER MATTERS: deploy `fleet` BEFORE re-deploying this service, or there is a window in
+  # which driver management answers nothing at all.
 
   # ── Promotional codes & order rules (027 US10). Back-office authorizer; read = any active staff
   #    (support answers "is this code live?"), mutate = admin/manager. Every mutation audits.

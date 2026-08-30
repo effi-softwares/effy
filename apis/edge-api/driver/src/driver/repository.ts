@@ -8,7 +8,7 @@
 
 import { query } from "@effy/edge-shared";
 
-import { type DriverRecord } from "./types";
+import { type DriverRecord, type DriverStatus } from "./types";
 
 interface DriverRow {
   id: string;
@@ -19,7 +19,7 @@ interface DriverRow {
   zone_name: string | null;
   vehicle_type: string | null;
   vehicle_plate: string | null;
-  status: "active" | "disabled";
+  status: DriverStatus;
   on_duty_since: Date | null;
 }
 

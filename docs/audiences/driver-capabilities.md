@@ -41,8 +41,43 @@ retires the 020 dev-only `collected`/`delivered` stubs.
 | Offline write queue (exactly-once on reconnect) | ✅ | ✅ | persisted, idempotent by `changeId` (FR-039/040, SC-007) |
 | Monochrome design, dark mode, 48dp targets, no currency | ✅ | ✅ | shared `compose-driver` theme (FR-041–045) |
 
-**Provisioning** (back-office, `apis/edge-api/admin/src/drivers`): create/list/update/disable a driver —
-Cognito-first → `public.driver` record; RBAC read=any active staff, mutate=admin/manager.
+**Provisioning** — ⚠ **SUPERSEDED BY §056.** 049 shipped five routes in `apis/edge-api/admin/src/drivers`
+as a minimal adjunct so the driver app had accounts to sign in as, and recorded in its own spec that
+"a full driver-management console is out of scope for this slice unless folded in during planning."
+That console is 056; those five routes have MOVED to `apis/edge-api/fleet` and the admin copy is deleted.
+
+## §056 — Back-Office Driver Management (the console 049 deferred)
+
+The driver audience gains **no new capability** here — `apps/driver-mobile` is untouched, and drivers do
+not edit their own profile. What changes is that everything the driver app RECORDS finally has a reader,
+and everything back-office decides about a driver finally has a screen. New cold-path service
+`apis/edge-api/fleet` (18 routes, back-office authorizer); one migration altering three tables and
+creating none.
+
+| Capability | Driver app | Back-office | Notes |
+|---|---|---|---|
+| Driver record exists, is provisioned, has a zone | ✅ (reads it) | ✅ | 049 created the record; 056 gives it a register, search, filters and paging |
+| Full profile of record | — | ✅ | phone, start date, emergency contact, licence + expiry, registration expiry, notes (FR-006/007/008) |
+| A profile field can be **cleared** | — | ✅ | ⚠ Was impossible: `COALESCE($n, col)` could not tell "leave alone" from "clear", so a zone once set could never be un-set (FR-010) |
+| Duplicate work email is **refused** | — | ✅ | ⚠ Was the opposite: create silently ADOPTED the existing driver's record and RE-ENABLED a stood-down sign-in, reporting success (FR-014) |
+| Employment lifecycle | ✅ (refused when not active) | ✅ | `active \| suspended \| offboarded` — 049's two-value `active \| disabled` could not express "back next week" |
+| ⚠ Access gate tests the **positive** state | ✅ | — | `requireDriver` read `=== "disabled"`; widening the enum would have let a **suspended** driver keep working. Now `!== "active"` |
+| Held-work warning before standing a driver down | — | ✅ | itemised, names the affected orders, requires explicit confirmation (FR-020) |
+| **Stranded work** visible and releasable | — | ✅ | ⚠ Derived, never stored. The sweep deliberately never yanks picked-up work; nothing told a human, and a UNIQUE constraint kept those packages claimed forever (FR-021) |
+| **Failed deliveries** readable | ✅ (writes them) | ✅ | ⚠ `public.delivery_failure` had **no reader anywhere** since 049 despite "recorded for back-office follow-up" (FR-027) |
+| **Missing/short at a shop** readable | ✅ (writes them) | ✅ | ⚠ Same — `public.collection_task_issue` had no reader (FR-028) |
+| Exception → order in one step, resolvable with a note | — | ✅ | one-way, never deleted, who + when recorded (FR-030/031) |
+| Duty visibility · overdue session · end a shift | ✅ (goes on duty) | ✅ | back-office can END a session, never START one (FR-034/037) |
+| "Nobody is on duty and N packages are waiting" | — | ✅ | uses the assignment sweep's **own** candidate predicate, pinned by a parity test (FR-036) |
+| Manual dispatch to a named driver | — | ⛔ **Deliberately absent** | 049's no-dispatcher model stands; release-to-pool is the sanctioned intervention, asserted over the whole route table (FR-038) |
+| Work history · run timeline · proof of delivery | ✅ (own history) | ✅ | proof media is time-limited presigned and issuing it is audited (FR-039–042) |
+| Period activity counts | — | ✅ | ⚠ Counts only. Not a timesheet, and carries no currency (FR-043/049) |
+| Readiness: no-zone / expired licence / uncovered zone | — | ✅ | ⚠ A zone-less driver is inert for assignment TODAY and nothing said so (FR-044–046, SC-009) |
+| Every privileged action audited | — | ✅ | ⚠ Driver management was the **only** privileged back-office domain writing no `admin.audit_log` row (FR-024) |
+| Driver contact details in logs/telemetry | — | ⛔ never | audit detail records a PII field as *changed*, never its value (FR-050) |
+
+**RBAC**: read = any active back-office staff **including csa** (FR-022); mutate = admin/manager (FR-023),
+decided from the `admin.staff` record, never the token claim.
 
 ## §050 — Observability & Push Notification Foundation
 
