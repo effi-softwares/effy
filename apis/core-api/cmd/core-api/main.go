@@ -60,9 +60,12 @@ type dependencies struct {
 	// ⚠ 055: the SECOND pool this service verifies. Per-pool validation, pinned issuer — the shape
 	// Principle IV sanctions, not the auth proxy it forbids (research R1).
 	backOfficeVerifier *auth.PoolVerifier
-	staffGate          *auth.StaffGate
-	refunds            *refunds.Service
-	cognito            *cognitoidentityprovider.Client
+	// ⚠ 057: the THIRD pool, mounted on exactly one route (the shop refund). See config.Shop.
+	shopVerifier *auth.PoolVerifier
+	shopGate     *auth.ShopGate
+	staffGate    *auth.StaffGate
+	refunds      *refunds.Service
+	cognito      *cognitoidentityprovider.Client
 
 	// 019 commerce shared collaborators — constructed once, wired into each feature slice's
 	// Register as the commerce features (storefront/cart/checkout/orders/saved items) land. Address
@@ -135,6 +138,16 @@ func run() error {
 		return err
 	}
 
+	// ⚠ 057: THE THIRD POOL. A shop manager may refund their own portion of an order, and that must
+	// settle through 055's state machine, which is here because the payment secret is here. Same shape
+	// as its two siblings — this service validates the shop pool against its OWN issuer and client ids,
+	// forwards nothing. Fail-closed at boot for the same reason: these routes move money.
+	shopVerifier, err := auth.NewPoolVerifier(ctx, auth.AudienceShop,
+		cfg.AWS.Region, cfg.Auth.Shop.PoolID, cfg.Auth.Shop.ClientIDs...)
+	if err != nil {
+		return err
+	}
+
 	m := metrics.New()
 	m.RegisterPoolStats(pool)
 
@@ -159,9 +172,12 @@ func run() error {
 		customerVerifier: customerVerifier,
 		// 055: refunds are issued here because the payment secret is here (research R1).
 		backOfficeVerifier: backOfficeVerifier,
-		staffGate:          auth.NewStaffGate(pool),
-		refunds:            refundSvc,
-		cognito:            cognitoidentityprovider.NewFromConfig(awsCfg),
+		// 057: the shop half of the same reasoning — one route, its own pool, its own record gate.
+		shopVerifier: shopVerifier,
+		shopGate:     auth.NewShopGate(pool),
+		staffGate:    auth.NewStaffGate(pool),
+		refunds:      refundSvc,
+		cognito:      cognitoidentityprovider.NewFromConfig(awsCfg),
 
 		// 019 commerce shared collaborators (research R2/R3/R7).
 		pool:     pool,
@@ -274,6 +290,17 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 	// (019 SC-012) — see research R1 for why the alternatives were rejected.
 	refunds.RegisterAdmin(v1, deps.backOfficeVerifier,
 		refunds.NewHandler(deps.refunds, deps.staffGate))
+
+	// ⚠ 057 US5 — THE ONE SHOP-POOL ROUTE ON THIS ENTIRE SERVICE. A shop manager refunds their own
+	// portion of an order through 055's pipeline, unchanged: same service, same state machine, same
+	// provider call, same idempotency key. What differs is the way in — this pool's own verifier — and
+	// the extra gate that a back-office refund does not need, because a shop's authority is bounded by
+	// which orders their shop actually touched.
+	//
+	// ⚠ Every OTHER route above is scoped to the customer or back-office pool and rejects a shop token
+	// structurally. Keep it that way: this line is the whole of the shop's reach into core-api.
+	refunds.RegisterShop(v1, deps.shopVerifier,
+		refunds.NewHandler(deps.refunds, deps.staffGate).WithShopGate(deps.shopGate))
 }
 
 // savedCartAdder adapts the cart service to saved-items' narrow CartAdder seam.

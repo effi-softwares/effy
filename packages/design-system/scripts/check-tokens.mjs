@@ -13,7 +13,31 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const css = readFileSync(resolve(here, "../src/tokens.css"), "utf8");
+
+// 057: this guard now checks TWO files — the platform SSOT and shop-web's scoped value layer. The
+// AA rules, the key-set parity rule and the non-text-semantic rule are IDENTICAL for both, which is
+// the whole point of keeping the shop layer inside this package: a per-surface value set cannot opt
+// out of the contrast law. Only the radius rule differs (the shop layer is a single 8px by design —
+// see its header), and the shop layer is additionally forbidden from introducing a third hue.
+const TARGETS = [
+  { label: "tokens.css", path: "../src/tokens.css", radii: "platform", noThirdHue: false },
+  { label: "tokens/shop.css", path: "../src/tokens/shop.css", radii: "single-8", noThirdHue: true },
+];
+
+const errors = [];
+for (const target of TARGETS) checkFile(target);
+
+if (errors.length) {
+  console.error("check-tokens: FAILED\n  - " + errors.join("\n  - "));
+  process.exit(1);
+}
+console.log(
+  `check-tokens: OK — ${TARGETS.length} token files \u00d7 2 appearances, all pairs pass WCAG AA`,
+);
+
+function checkFile({ label, path, radii, noThirdHue }) {
+const css = readFileSync(resolve(here, path), "utf8");
+const err = (m) => errors.push(`[${label}] ${m}`);
 
 /** Parse a `:root { … }` / `.dark { … }` block into { name: "#rrggbb" }. */
 function parseBlock(selector) {
@@ -30,11 +54,10 @@ function parseBlock(selector) {
 
 const light = parseBlock(":root");
 const dark = parseBlock(".dark");
-const errors = [];
 
 // 1) same key set in both appearances
-for (const k of Object.keys(light)) if (!(k in dark)) errors.push(`--${k} missing from .dark`);
-for (const k of Object.keys(dark)) if (!(k in light)) errors.push(`--${k} missing from :root`);
+for (const k of Object.keys(light)) if (!(k in dark)) err(`--${k} missing from .dark`);
+for (const k of Object.keys(dark)) if (!(k in light)) err(`--${k} missing from :root`);
 
 // 2) radius parity with mobile EffyRadius (px at 16px root)
 const remPx = (name) => {
@@ -43,8 +66,36 @@ const remPx = (name) => {
 };
 // Preset bIkeymG scale (041): sm=6px, md=8px. The invariant is web==mobile PARITY (both derive from
 // these tokens), not a specific number; the generator emits the same dp.
-if (remPx("--radius-sm") !== 6) errors.push(`--radius-sm must be 0.375rem (6px), got ${remPx("--radius-sm")}px`);
-if (remPx("--radius-md") !== 8) errors.push(`--radius-md must be 0.5rem (8px), got ${remPx("--radius-md")}px`);
+if (radii === "platform") {
+  if (remPx("--radius-sm") !== 6) err(`--radius-sm must be 0.375rem (6px), got ${remPx("--radius-sm")}px`);
+  if (remPx("--radius-md") !== 8) err(`--radius-md must be 0.5rem (8px), got ${remPx("--radius-md")}px`);
+} else {
+  // ⚠ 057: the shop layer's THREE-STEP scale — 4px for 16px checkboxes, 6px for every control, 8px
+  // for containers. Pinned because the first reading of the mockup collapsed it to a single 8px, and
+  // the console looked wrong in a way no colour check could see: an 8px button on an 8px card has no
+  // hierarchy. Counting the mockup's own declarations settles it — 131 controls at 6px, 17 containers
+  // at var(--radius).
+  const SHOP_RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 8 };
+  for (const [step, px] of Object.entries(SHOP_RADII)) {
+    if (remPx(step) !== px) err(`${step} must be ${px}px in the shop layer, got ${remPx(step)}px`);
+  }
+}
+
+// 057: the shop layer may not smuggle in the mockup's amber. Principle V permits exactly two
+// semantic colours; the imported design's --warning is remapped to monochrome emphasis instead.
+// ⚠ Proven by breaking it: adding `--warning: #b45309;` to shop.css fails this and names the token.
+if (noThirdHue) {
+  const THIRD_HUE = ["warning", "warning-soft", "info", "caution"];
+  for (const name of THIRD_HUE) {
+    if (name in light || name in dark) {
+      err(
+        `--${name} exists: the shop layer may introduce NO third UI hue (constitution Principle V). ` +
+          `The mockup's amber "Awaiting pick"/low-stock states are rendered as monochrome emphasis ` +
+          `(weight, border, icon) — see src/tokens/shop.css deviation 1.`,
+      );
+    }
+  }
+}
 
 // 3) WCAG 2.1 contrast
 const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -110,8 +161,8 @@ const SEMANTIC_NON_TEXT = ["success", "chart-1", "chart-2", "chart-3", "chart-4"
 // text-on-fill or a labelled UI accent.
 const CHART_TOKENS = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"];
 for (const name of CHART_TOKENS) {
-  if (!(name in light)) errors.push(`--${name} missing from :root (chart palette must exist in both appearances)`);
-  if (!(name in dark)) errors.push(`--${name} missing from .dark (chart palette must exist in both appearances)`);
+  if (!(name in light)) err(`--${name} missing from :root (chart palette must exist in both appearances)`);
+  if (!(name in dark)) err(`--${name} missing from .dark (chart palette must exist in both appearances)`);
 }
 
 for (const [appName, set] of [
@@ -120,12 +171,12 @@ for (const [appName, set] of [
 ]) {
   for (const [fg, bg, min] of PAIRS) {
     if (!(fg in set) || !(bg in set)) {
-      errors.push(`[${appName}] pair --${fg}/--${bg}: a var is missing`);
+      err(`[${appName}] pair --${fg}/--${bg}: a var is missing`);
       continue;
     }
     const r = ratio(set[fg], set[bg]);
     if (r < min) {
-      errors.push(`[${appName}] --${fg} on --${bg} = ${r.toFixed(2)}:1 (needs ${min}:1)`);
+      err(`[${appName}] --${fg} on --${bg} = ${r.toFixed(2)}:1 (needs ${min}:1)`);
     }
   }
 }
@@ -152,7 +203,7 @@ const monoDecl = css.match(/--font-mono\s*:\s*([^;]+);/);
 if (monoDecl) {
   const value = monoDecl[1].toLowerCase();
   if (!MONO_HINTS.some((hint) => value.includes(hint))) {
-    errors.push(
+    err(
       `--font-mono is declared as "${monoDecl[1].trim()}", which does not look monospace. ` +
         `OtpInput's cell variant sets each character position in tabular monospace so a code that ` +
         `is read aloud, dictated or compared against an email is unambiguous (1/l, 0/O, 5/S). ` +
@@ -164,15 +215,11 @@ if (monoDecl) {
 // 5) non-text semantic colours must not acquire a foreground pair (see SEMANTIC_NON_TEXT above)
 for (const name of SEMANTIC_NON_TEXT) {
   if (`${name}-foreground` in light || `${name}-foreground` in dark) {
-    errors.push(
+    err(
       `--${name}-foreground exists: --${name} is a NON-TEXT indicator only (constitution v1.11.0). ` +
         `If text must sit on it, re-tune --${name} to clear 4.5:1 first and add the pair to PAIRS.`,
     );
   }
 }
 
-if (errors.length) {
-  console.error("check-tokens: FAILED\n  - " + errors.join("\n  - "));
-  process.exit(1);
 }
-console.log(`check-tokens: OK — ${Object.keys(light).length} vars × 2 appearances, radii 6/8, all pairs pass WCAG AA`);

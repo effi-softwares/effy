@@ -32,15 +32,30 @@ export interface RefundRow {
  * ⚠ `actor_label` resolves a NAME, never an email — an audit read is not a reason to put a staff
  * member's contact details on a screen. It is a LEFT JOIN because `actor_sub` is a snapshot rather
  * than a foreign key, and because a `system`-issued refund has no person behind it at all.
+ *
+ * ⚠ 057 — IT NOW JOINS BOTH STAFF TABLES, AND IT HAD TO. `actor_sub` is a Cognito subject from
+ * WHICHEVER POOL the actor belongs to. This query only ever joined `admin.staff`, which is correct
+ * for `back_office` and matches nothing for anyone else — so the moment a shop manager could issue a
+ * refund (US5), every shop-issued refund would have come back with a null label and rendered in the
+ * back-office audit trail as a bare em-dash. Not an error, not a warning: silently unattributable, in
+ * the one table whose own comment says "an unattributable staff refund is the audit gap this table
+ * exists to close."
+ *
+ * ⚠ The two joins are keyed on `actor_kind` as well as the sub, so they cannot both match. Without
+ * that predicate a subject that somehow existed in both pools would make COALESCE pick by join order
+ * rather than by fact.
  */
 export async function refunds(orderId: string): Promise<RefundRow[]> {
   const res = await query<RefundRow>(
     `SELECT r.id::text AS refund_id, r.kind, r.amount::text, r.reason, r.status,
             r.failure_reason, r.note, r.actor_kind,
-            ast.name AS actor_label,
+            COALESCE(ast.name, sst.name) AS actor_label,
             r.created_at, r.settled_at
        FROM public.refund r
-       LEFT JOIN admin.staff ast ON ast.cognito_sub = r.actor_sub
+       LEFT JOIN admin.staff ast
+              ON ast.cognito_sub = r.actor_sub AND r.actor_kind = 'back_office'
+       LEFT JOIN public.shop_staff sst
+              ON sst.cognito_sub = r.actor_sub AND r.actor_kind = 'shop'
       WHERE r.order_id = $1
    ORDER BY r.created_at DESC, r.id DESC`,
     [orderId],

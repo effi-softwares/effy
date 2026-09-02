@@ -27,7 +27,9 @@ export function ConsoleBrand({ mark, name, surface }: ConsoleBrandProps) {
           className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
         >
           <Link to="/">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-full bg-sidebar-primary font-semibold text-sidebar-primary-foreground">
+            {/* ⚠ 057: a rounded SQUARE, not a disc. The imported design's brand tile is
+                `border-radius:6px` — a disc reads as an avatar (a person), and this is a product mark. */}
+            <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-sidebar-primary text-[13px] font-semibold text-sidebar-primary-foreground">
               {mark}
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">

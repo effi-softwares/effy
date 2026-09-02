@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import {
   Sidebar,
@@ -32,6 +32,18 @@ export interface ConsoleShellProps<TRole extends string> {
   nav: readonly NavItem<TRole>[];
   roles: readonly TRole[];
   navGroupLabel?: string;
+  /** 057 — optional live counts beside nav items, keyed by `to`. Omitted = no badges (back-office). */
+  navBadges?: Readonly<Record<string, number | undefined>>;
+  /** 057 — optional controls on the right of the header bar. Omitted = the header is unchanged. */
+  headerActions?: ReactNode;
+  /** 057 — supplying a title swaps the breadcrumb header for the imported design's title+subtitle. */
+  headerTitle?: ReactNode;
+  headerSubtitle?: ReactNode;
+  /**
+   * 057 — the sidebar's width, e.g. "14rem" for the imported design's 224px rail. Omitted keeps the
+   * shadcn default, which is what back-office renders at today.
+   */
+  sidebarWidth?: string;
 
   email: string;
   theme: Theme;
@@ -54,6 +66,11 @@ export function ConsoleShell<TRole extends string>({
   nav,
   roles,
   navGroupLabel,
+  navBadges,
+  headerActions,
+  headerTitle,
+  headerSubtitle,
+  sidebarWidth,
   email,
   theme,
   onSetTheme,
@@ -65,13 +82,17 @@ export function ConsoleShell<TRole extends string>({
   children,
 }: ConsoleShellProps<TRole>) {
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={onSidebarOpenChange}>
+    <SidebarProvider
+      open={sidebarOpen}
+      onOpenChange={onSidebarOpenChange}
+      style={sidebarWidth ? ({ "--sidebar-width": sidebarWidth } as CSSProperties) : undefined}
+    >
       <Sidebar collapsible="icon">
         <SidebarHeader>
           <ConsoleBrand {...brand} />
         </SidebarHeader>
         <SidebarContent>
-          <NavList nav={nav} roles={roles} groupLabel={navGroupLabel} />
+          <NavList nav={nav} roles={roles} groupLabel={navGroupLabel} badges={navBadges} />
         </SidebarContent>
         <SidebarFooter>
           <ConsoleUserMenu
@@ -85,7 +106,13 @@ export function ConsoleShell<TRole extends string>({
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <ConsoleHeader surfaceLabel={surfaceLabel} nav={nav} />
+        <ConsoleHeader
+          surfaceLabel={surfaceLabel}
+          nav={nav}
+          actions={headerActions}
+          title={headerTitle}
+          subtitle={headerSubtitle}
+        />
         <div className={contentClassName}>{children}</div>
       </SidebarInset>
     </SidebarProvider>

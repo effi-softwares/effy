@@ -107,6 +107,7 @@ describe("refund history", () => {
     failureReason: "card_declined",
     note: null,
     lines: [{ orderItemId: "oi1", productName: "Milk", quantity: 1, amount: "10.00" }],
+    actorKind: "back_office" as const,
     actorLabel: "Sam Okafor",
     createdAt: "2026-08-29T04:00:00.000Z",
     settledAt: null,
@@ -202,6 +203,7 @@ describe("did the money go?", () => {
     reason: "item_not_supplied" as const,
     note: null,
     lines: [],
+    actorKind: "back_office" as const,
     actorLabel: "Sam Okafor",
     createdAt: "2026-08-29T04:00:00.000Z",
     settledAt: null,
@@ -241,6 +243,10 @@ describe("did the money go?", () => {
           kind: "external",
           reason: "external",
           status: "succeeded",
+          // ⚠ An `external` refund is `system`, not `back_office`. The migration is explicit: it "has
+          // no lines and no Effy actor, because the platform genuinely does not know either", and
+          // `refund_actor_sub_ck` makes `system` the ONLY kind permitted a null subject.
+          actorKind: "system" as const,
           actorLabel: null,
           note: "Issued outside Effy, in the payment provider.",
         },
@@ -249,8 +255,11 @@ describe("did the money go?", () => {
     } as never);
 
     expect(await screen.findByText(/issued outside effy/i)).toBeInTheDocument();
-    // No Effy actor, because the platform genuinely does not know who did it.
-    expect(screen.getByText("—")).toBeInTheDocument();
+    // ⚠ 057 changed this cell, and improved it. It used to render a bare "—" for any refund whose
+    // label did not resolve — which conflated "nobody did this, it came from the provider" with "we
+    // could not work out who did this". Naming the pool makes the first case say so, and is what
+    // stops a shop-issued refund (US5) from silently reading as unattributable.
+    expect(screen.getByText("Automatic")).toBeInTheDocument();
   });
 });
 

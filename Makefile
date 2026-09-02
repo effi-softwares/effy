@@ -209,8 +209,11 @@ core-run: ## Run core-api locally in Docker with live reload (DSN + pool ids + S
 	STRIPE_WEBHOOK="$$($(SECRET_CMD) /effy/$(ENV)/stripe/webhook_secret)" || { echo "core-run: cannot read Stripe webhook secret from Secrets Manager (019 — /effy/$(ENV)/stripe/webhook_secret)"; exit 1; }; \
 	BO_POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/user_pool_id)" || { echo "core-run: cannot read back-office pool id from SSM (055 — core-api verifies it because refunds are issued here)"; exit 1; }; \
 	BO_CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/back-office/app_client_id)" || { echo "core-run: cannot read back-office app client id from SSM (055)"; exit 1; }; \
+	SHOP_POOL_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/shop/user_pool_id)" || { echo "core-run: cannot read shop pool id from SSM (057 — core-api verifies it because shop-initiated refunds settle here)"; exit 1; }; \
+	SHOP_CLIENT_ID="$$($(AUTH_PARAM_CMD) /effy/$(ENV)/auth/shop/app_client_id)" || { echo "core-run: cannot read shop app client id from SSM (057)"; exit 1; }; \
 	EFFY_ENV=$(ENV) DB_DSN="$$DSN" AUTH_CUSTOMER_POOL_ID="$$POOL_ID" AUTH_CUSTOMER_CLIENT_ID="$$CLIENT_ID,$$MOBILE_CLIENT_ID" \
 		AUTH_BACK_OFFICE_POOL_ID="$$BO_POOL_ID" AUTH_BACK_OFFICE_CLIENT_ID="$$BO_CLIENT_ID" \
+		AUTH_SHOP_POOL_ID="$$SHOP_POOL_ID" AUTH_SHOP_CLIENT_ID="$$SHOP_CLIENT_ID" \
 	AWS_REGION=$(AWS_REGION) AWS_PROFILE=$(AWS_PROFILE) AWS_MEDIA_BUCKET="$$MEDIA_BUCKET" \
 	STRIPE_SECRET_KEY="$$STRIPE_SECRET" STRIPE_WEBHOOK_SECRET="$$STRIPE_WEBHOOK" \
 		docker compose -f $(CORE_DIR)/docker-compose.yml up --build

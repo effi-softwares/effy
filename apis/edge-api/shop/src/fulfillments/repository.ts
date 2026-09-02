@@ -40,6 +40,7 @@ interface SummaryRow {
 
 interface DetailRow {
   id: string;
+  order_id: string;
   order_number: string;
   placed_at: Date;
   status: FulfillmentStatus;
@@ -132,7 +133,7 @@ export async function listQueue(
  * (FR-007, FR-008). An order-level total would itself leak the existence of other shops' items.
  */
 const READ_DETAIL = `
-SELECT sf.id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, o.delivery_address
+SELECT sf.id, sf.order_id, o.order_number, o.placed_at, sf.status, sf.state_changed_at, o.delivery_address
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
  WHERE sf.id = $1 AND sf.shop_id = $2
@@ -226,6 +227,9 @@ export async function readDetail(
 
   return {
     id: row.id,
+    // ⚠ 057 — the shop refund route addresses the ORDER, and `order_number` is a human reference, not
+    // an identifier. Selected on the detail read only; the queue never needs it.
+    orderId: row.order_id,
     orderNumber: row.order_number,
     placedAt: row.placed_at,
     status: row.status,

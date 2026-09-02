@@ -330,7 +330,7 @@ func TestIssue_SendsMoneyToTheOrdersOwnPaymentAndNowhereElse(t *testing.T) {
 	gw := &recordingGateway{}
 	svc := NewService(NewRepository(pool), gw)
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -352,7 +352,7 @@ func TestIssue_SendsTheSameIdempotencyKeyItStored(t *testing.T) {
 	svc := NewService(NewRepository(pool), gw)
 	ctx := context.Background()
 
-	_, err := svc.Issue(ctx, IssueInput{
+	_, err := svc.Issue(ctx, IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "x", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -372,7 +372,7 @@ func TestIssue_RecordsSubmittedNotRefunded(t *testing.T) {
 	seedPaidOrder(t, pool, 5000)
 	svc := NewService(NewRepository(pool), &recordingGateway{})
 
-	out, err := svc.Issue(context.Background(), IssueInput{
+	out, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "x", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -394,7 +394,7 @@ func TestIssue_AnAmbiguousFailureLeavesTheRefundRetryable(t *testing.T) {
 	gw := &recordingGateway{err: errors.New("connection reset")}
 	svc := NewService(NewRepository(pool), gw)
 
-	out, err := svc.Issue(context.Background(), IssueInput{
+	out, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "x", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -415,7 +415,7 @@ func TestIssue_ADefiniteRefusalIsTerminalAndKeepsTheProvidersReason(t *testing.T
 	gw := &recordingGateway{err: &checkout.RefusedError{Reason: "charge_already_refunded"}}
 	svc := NewService(NewRepository(pool), gw)
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "x", Amount: "10.00", ActorSub: "staff-1",
 	})

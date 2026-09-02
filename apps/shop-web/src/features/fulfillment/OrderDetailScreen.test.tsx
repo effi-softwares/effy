@@ -8,6 +8,8 @@ import type { FulfillmentDetail, FulfillmentItem, FulfillmentStatus } from "./mo
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
+  // 057: the rebuilt screen navigates from its breadcrumb, so the mock must supply this too.
+  useNavigate: () => () => {},
 }));
 
 const getFulfillment = vi.hoisted(() => vi.fn());
@@ -37,7 +39,8 @@ function item(over: Partial<FulfillmentItem> = {}): FulfillmentItem {
 function detail(status: FulfillmentStatus, items: FulfillmentItem[] = [item()]): FulfillmentDetail {
   return {
     id: "f1",
-    orderNumber: "EFY-10023",
+    orderId: "11111111-1111-4111-8111-111111111111",
+  orderNumber: "EFY-10023",
     placedAt: "2026-07-20T02:14:05Z",
     status,
     stateChangedAt: "2026-07-20T02:15:11Z",
@@ -73,9 +76,24 @@ describe("OrderDetailScreen", () => {
     expect(await screen.findByText("EFY-10023")).toBeInTheDocument();
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
     expect(screen.getByText("1 Test St, Unit 4")).toBeInTheDocument();
-    expect(screen.getByText("3000")).toBeInTheDocument();
+    // ⚠ 057 renders the destination as an ADDRESS BLOCK (the imported design's rail), so city and
+    // postcode share a line the way they would on an envelope. The fact is unchanged; the DOM shape
+    // is. Matched across elements rather than loosened to a substring, which would pass on any digit.
+    expect(
+      screen.getByText((_, el) => (el?.textContent ?? "").trim() === "Melbourne 3000"),
+    ).toBeInTheDocument();
     expect(screen.getByText("SunRice Long Grain White Rice 1kg")).toBeInTheDocument();
-    expect(screen.getByText("Pick list (1 line)")).toBeInTheDocument();
+    // ⚠ 057 renames this section "Items" and moves the count into a muted sub-label beside it, which
+    // is the imported design's section header. The list itself is unchanged.
+    expect(screen.getByText("Items")).toBeInTheDocument();
+    expect(
+      screen.getByText((_, el) => /^\d+ units · standard$/.test((el?.textContent ?? "").trim())),
+    ).toBeInTheDocument();
+    // ⚠ The imported design's sticky bar shows PICK PROGRESS where a generic console shows the order
+    // TOTAL. A shop portion has no order-level money (020 SC-007), so progress is the figure here.
+    expect(
+      screen.getByText((_, el) => /^\d+\/\d+ picked$/.test((el?.textContent ?? "").trim())),
+    ).toBeInTheDocument();
   });
 
   it("shows a loading state then an error state with retry", async () => {

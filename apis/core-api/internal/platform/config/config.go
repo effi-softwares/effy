@@ -83,9 +83,20 @@ type Auth struct {
 	// and that is proven in BOTH directions (T009, T053a) — this is new attack surface on the service
 	// that holds the platform's most dangerous secret.
 	//
-	// driver / shop pools are added here (same shape, required tags) by the first slice that mounts
-	// routes for those audiences.
 	BackOffice Pool `envPrefix:"BACK_OFFICE_"`
+
+	// ⚠ 057: THE THIRD POOL THIS SERVICE VERIFIES, and it is here for exactly the reason the comment
+	// above predicted — "added by the first slice that mounts routes for those audiences."
+	//
+	// A shop manager may now refund their own portion of an order from the shop console. That must
+	// settle through 055's refund state machine, which lives here because the payment secret does. The
+	// alternative — the cold path calling this service — would invent an inter-service trust boundary
+	// the platform does not otherwise have (research R2). Same shape as BackOffice: this service
+	// validates the shop pool against ITS OWN issuer and client ids, forwards nothing, brokers nothing.
+	//
+	// ⚠ ONE ROUTE. A shop token is structurally rejected by every other route on this service, and
+	// that is proven in both directions in pool_isolation_test.go.
+	Shop Pool `envPrefix:"SHOP_"`
 }
 
 type Pool struct {

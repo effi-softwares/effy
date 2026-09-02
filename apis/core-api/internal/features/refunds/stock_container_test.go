@@ -76,7 +76,7 @@ func TestReturnStock_PutsUncollectedTrackedUnitsBack(t *testing.T) {
 	item := seedTrackedLine(t, pool, true, 5, "picking")
 	svc := NewService(NewRepository(pool), &recordingGateway{})
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "item", Reason: ReasonItemNotSupplied, ActorSub: "staff-1",
 		Lines: []LineInput{{OrderItemID: item, Quantity: 2}},
 	})
@@ -107,7 +107,7 @@ func TestReturnStock_AGoodwillRefundReturnsNothing(t *testing.T) {
 	seedTrackedLine(t, pool, true, 5, "picking")
 	svc := NewService(NewRepository(pool), &recordingGateway{})
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -126,7 +126,7 @@ func TestReturnStock_ACollectedPortionReturnsNothing(t *testing.T) {
 	item := seedTrackedLine(t, pool, true, 5, "collected")
 	svc := NewService(NewRepository(pool), &recordingGateway{})
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "item", Reason: ReasonItemUnusable, ActorSub: "staff-1",
 		Lines: []LineInput{{OrderItemID: item, Quantity: 2}},
 	})
@@ -144,7 +144,7 @@ func TestReturnStock_AnUntrackedProductReturnsNothing(t *testing.T) {
 	item := seedTrackedLine(t, pool, false, 0, "picking")
 	svc := NewService(NewRepository(pool), &recordingGateway{})
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "item", Reason: ReasonItemNotSupplied, ActorSub: "staff-1",
 		Lines: []LineInput{{OrderItemID: item, Quantity: 2}},
 	})

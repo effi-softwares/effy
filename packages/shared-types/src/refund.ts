@@ -88,6 +88,9 @@ export interface RefundDTO {
   note: string | null
   /** Which lines it covered. Empty for a goodwill refund — it names none. */
   lines: RefundLineDTO[]
+  /** ⚠ 057: which pool the actor came from. See [RefundActorKind] — without it a shop-issued refund
+   *  is indistinguishable from an unattributable one. */
+  actorKind: RefundActorKind
   actorLabel: string | null
   createdAt: string
   settledAt: string | null
@@ -194,4 +197,47 @@ export interface DismissProposalBody {
 
 export interface CancelOrderBody {
   reason?: string
+}
+
+// ── 057-shop-console-redesign: a shop may refund its own portion ────────────────────────────────
+
+/**
+ * Who issued a refund.
+ *
+ * ⚠ THIS TYPE DID NOT EXIST BEFORE 057, AND ITS ABSENCE WAS A DEFECT. `public.refund` has carried
+ * `actor_kind` since 055 and no DTO ever exposed it — only `actorLabel`, a name resolved by a LEFT
+ * JOIN against `admin.staff`. That join answers for `back_office` and for nothing else, so the moment
+ * a shop can issue a refund, every shop-issued refund renders in back-office as "—": unattributable,
+ * with no signal that anything is missing. The table's own comment says an unattributable staff
+ * refund "is the audit gap this table exists to close."
+ *
+ * ⚠ `system` means NOBODY AT EFFY DID THIS — it arrived from the provider unattributed, and is the
+ * only kind permitted a null label.
+ */
+export type RefundActorKind = "back_office" | "customer" | "shop" | "system"
+
+/**
+ * What a shop manager sends to refund their own portion of an order (US5).
+ *
+ * ⚠ IT NAMES LINES, NEVER AN AMOUNT — the same rule [IssueItemRefundRequest] holds to, for the same
+ * reason: if a caller could send an amount beside a line selection the two could disagree, and the
+ * record would claim a refund covered items it did not.
+ *
+ * ⚠ AND IT CANNOT NAME ANOTHER SHOP'S LINES. The server intersects the requested lines with the
+ * portion the caller's own shop is fulfilling and refuses the request outright if anything falls
+ * outside it — never silently dropping the excess, which is 055's own `orderItemId` lesson (a join
+ * that matches nothing does not error, it just refunds less than the operator asked for).
+ */
+export interface ShopRefundRequest {
+  lines: { orderItemId: string; quantity: WireInt }[]
+  reason: Extract<RefundReason, "item_not_supplied" | "item_unusable">
+  note?: string
+  /**
+   * Return the refunded units to this shop's stock.
+   *
+   * ⚠ Defaults to FALSE, and the default is the honest one. 055 settled that stock returns only
+   * happen "where the platform can know it should" — inventing stock is worse than not returning it.
+   * A shop refunding an unusable item usually has nothing to put back on the shelf.
+   */
+  restock?: boolean
 }

@@ -2,11 +2,9 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
-import { ImageOff, Plus, Tags } from "lucide-react";
-
 import type { ProductStatus } from "@effy/shared-types";
-import { PRODUCT_STATUSES } from "@effy/shared-types";
+import { ImageOff, Plus, Search, Tags, X } from "lucide-react";
+
 import {
   Button,
   Input,
@@ -15,89 +13,55 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Skeleton,
 } from "@effy/design-system/ui";
-import { DataTable, ErrorState } from "@effy/web-kit/console";
+import { ErrorState } from "@effy/web-kit/console";
 
+import {
+  MicroLabel,
+  Page,
+  Pill,
+  Segmented,
+  StockMeter,
+  TableFrame,
+  Td,
+  Th,
+  Tr,
+} from "@/components/console/primitives";
 import { track } from "@/lib/telemetry";
 
-import { ProductCreateFlow } from "./ProductCreateFlow";
 import { SectionsManager } from "./SectionsManager";
-import { ProductStatusBadge } from "./components/ProductStatusBadge";
 import type { ProductListItem, ProductListParams, ProductSort } from "./model";
 import { catalogSchemaQuery, productListQuery, sectionsQuery } from "./queries";
 
 const PAGE_SIZE = 20;
 const ALL = "all";
 
-const SORTS: { value: ProductSort; label: string }[] = [
-  { value: "recent", label: "Most recent" },
-  { value: "name", label: "Name" },
-  { value: "price", label: "Price" },
+/**
+ * The catalog list, rebuilt to the imported design (057).
+ *
+ * ⚠ THE STATUS FILTER IS A SEGMENTED CONTROL, NOT A SELECT. The mockup leads with `catTabs` because
+ * "what is live vs. what is a draft" is the question an operator opens this screen asking; burying it
+ * as the fourth dropdown in a row of six makes it the hardest filter to reach. The remaining filters
+ * stay as selects — they are refinements, not the primary axis.
+ *
+ * ⚠ SEARCH IS SERVER-SIDE HERE AND CLIENT-SIDE ON THE ORDER QUEUE, deliberately. The catalog is paged
+ * and runs to thousands of rows, so filtering one page in the browser would silently search only what
+ * is visible and report "no matches" for a product that exists. The queue is tens of rows and its
+ * ordering is load-bearing, so it filters in place.
+ */
+const STATUS_TABS: readonly { value: ProductStatus | typeof ALL; label: string }[] = [
+  { value: ALL, label: "All" },
+  { value: "active", label: "Live" },
+  { value: "draft", label: "Drafts" },
+  { value: "unavailable", label: "Unavailable" },
+  { value: "archived", label: "Archived" },
 ];
 
-function formatMoney(amount: string, currency: string): string {
-  return `${currency} ${amount}`;
+/** ⚠ Monochrome. The mockup tints these; see `primitives.tsx` for why that cannot survive here. */
+function statusPill(status: ProductStatus) {
+  return status === "active" ? "outline" : "quiet";
 }
-
-const columns: ColumnDef<ProductListItem>[] = [
-  {
-    id: "image",
-    header: "",
-    cell: ({ row }) =>
-      row.original.primaryImageUrl ? (
-        <img
-          src={row.original.primaryImageUrl}
-          alt=""
-          className="h-10 w-10 rounded-md border object-cover"
-        />
-      ) : (
-        <div className="flex h-10 w-10 items-center justify-center rounded-md border text-muted-foreground">
-          <ImageOff className="size-4" />
-        </div>
-      ),
-  },
-  {
-    accessorKey: "name",
-    header: "Name",
-    cell: ({ row }) => (
-      <div className="min-w-0">
-        <Link
-          to="/catalog/$productId"
-          params={{ productId: row.original.id }}
-          className="font-medium hover:underline"
-        >
-          {row.original.name}
-        </Link>
-        {row.original.brand ? (
-          <div className="text-xs text-muted-foreground">{row.original.brand}</div>
-        ) : null}
-      </div>
-    ),
-  },
-  { accessorKey: "typeName", header: "Type" },
-  { accessorKey: "categoryName", header: "Category" },
-  {
-    accessorKey: "priceAmount",
-    header: "Price",
-    cell: ({ row }) => (
-      <span className="tabular-nums">
-        {formatMoney(row.original.priceAmount, row.original.currency)}
-      </span>
-    ),
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => <ProductStatusBadge status={row.original.status} />,
-  },
-  {
-    accessorKey: "sku",
-    header: "SKU",
-    cell: ({ row }) => (
-      <span className="font-mono text-xs text-muted-foreground">{row.original.sku ?? "—"}</span>
-    ),
-  },
-];
 
 export function CatalogListScreen() {
   const schema = useQuery(catalogSchemaQuery);
@@ -112,7 +76,6 @@ export function CatalogListScreen() {
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState<ProductSort>("recent");
-  const [createOpen, setCreateOpen] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState(false);
 
   const params: ProductListParams = useMemo(
@@ -139,7 +102,6 @@ export function CatalogListScreen() {
   const categories = schema.data?.categories ?? [];
   const sectionList = sections.data ?? [];
 
-  // Reset to page 1 whenever a filter/search changes — page N of the old result set is meaningless.
   function onSearch(value: string) {
     setQ(value);
     setPage(1);
@@ -151,134 +113,190 @@ export function CatalogListScreen() {
     track({ name: "catalog_filter_applied" });
   }
 
+  const activeFilters = [
+    q.trim() ? { key: "q", label: `"${q.trim()}"`, clear: () => onSearch("") } : null,
+    type !== ALL
+      ? {
+          key: "type",
+          label: types.find((t) => t.id === type)?.name ?? "Type",
+          clear: () => onFilter(setType, ALL),
+        }
+      : null,
+    category !== ALL
+      ? {
+          key: "category",
+          label: categories.find((c) => c.id === category)?.name ?? "Category",
+          clear: () => onFilter(setCategory, ALL),
+        }
+      : null,
+    section !== ALL
+      ? {
+          key: "section",
+          label: sectionList.find((x) => x.id === section)?.name ?? "Section",
+          clear: () => onFilter(setSection, ALL),
+        }
+      : null,
+    priceMin.trim()
+      ? { key: "min", label: `min ${priceMin}`, clear: () => onFilter(setPriceMin, "") }
+      : null,
+    priceMax.trim()
+      ? { key: "max", label: `max ${priceMax}`, clear: () => onFilter(setPriceMax, "") }
+      : null,
+  ].filter((f): f is { key: string; label: string; clear: () => void } => f !== null);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Catalog</h1>
-          <p className="text-muted-foreground">Your shop's products.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setSectionsOpen(true)}>
-            <Tags />
-            Manage sections
-          </Button>
-          <Button onClick={() => setCreateOpen(true)}>
+    <Page>
+      {/* The mockup's top row: the primary axis on the left, the create action on the right. */}
+      <div className="flex flex-wrap items-center gap-4">
+        <Segmented
+          ariaLabel="Filter by status"
+          value={status}
+          onChange={(v) => onFilter(setStatus, v)}
+          options={STATUS_TABS}
+        />
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" className="h-8" onClick={() => setSectionsOpen(true)}>
+          <Tags />
+          Manage sections
+        </Button>
+        <Button asChild size="sm" className="h-8">
+          <Link to="/catalog/new">
             <Plus />
-            Add product
-          </Button>
-        </div>
+            New product
+          </Link>
+        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search name, SKU, brand…"
-          value={q}
-          onChange={(e) => onSearch(e.target.value)}
-          className="max-w-xs"
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+          />
+          <Input
+            aria-label="Search products"
+            placeholder="Search name, SKU, brand…"
+            value={q}
+            onChange={(e) => onSearch(e.target.value)}
+            className="h-8 w-64 pl-8 text-[13px]"
+          />
+        </div>
+
+        <FilterSelect
+          label="Type"
+          value={type}
+          onChange={(v) => onFilter(setType, v)}
+          options={types.map((t) => ({ value: t.id, label: t.name }))}
+          allLabel="All types"
         />
-        <Select value={type} onValueChange={(v) => onFilter(setType, v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All types</SelectItem>
-            {types.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={category} onValueChange={(v) => onFilter(setCategory, v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Category" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All categories</SelectItem>
-            {categories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={section} onValueChange={(v) => onFilter(setSection, v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder="Section" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All sections</SelectItem>
-            {sectionList.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={status}
-          onValueChange={(v) => onFilter(setStatus, v as ProductStatus | typeof ALL)}
-        >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All statuses</SelectItem>
-            {PRODUCT_STATUSES.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <FilterSelect
+          label="Category"
+          value={category}
+          onChange={(v) => onFilter(setCategory, v)}
+          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+          allLabel="All categories"
+        />
+        <FilterSelect
+          label="Section"
+          value={section}
+          onChange={(v) => onFilter(setSection, v)}
+          options={sectionList.map((s) => ({ value: s.id, label: s.name }))}
+          allLabel="All sections"
+        />
+
         <Input
+          aria-label="Minimum price"
           placeholder="Min $"
           inputMode="decimal"
           value={priceMin}
           onChange={(e) => onFilter(setPriceMin, e.target.value)}
-          className="w-24"
+          className="h-8 w-20 text-[13px]"
         />
         <Input
+          aria-label="Maximum price"
           placeholder="Max $"
           inputMode="decimal"
           value={priceMax}
           onChange={(e) => onFilter(setPriceMax, e.target.value)}
-          className="w-24"
+          className="h-8 w-20 text-[13px]"
         />
+
         <Select value={sort} onValueChange={(v) => onFilter(setSort, v as ProductSort)}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="h-8 w-40 text-[13px]" aria-label="Sort">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SORTS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>
-                {s.label}
-              </SelectItem>
-            ))}
+            <SelectItem value="recent">Most recent</SelectItem>
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="price">Price</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
+      {activeFilters.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <MicroLabel>Filtered by</MicroLabel>
+          {activeFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={f.clear}
+              aria-label={`Remove filter ${f.label}`}
+              className="border-border hover:bg-accent focus-visible:ring-ring inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
+            >
+              {f.label}
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <CatalogSkeleton />
       ) : (
         <>
-          <DataTable
-            columns={columns}
-            data={data.items}
-            emptyMessage="No products match your filter. Add your first product to get started."
-          />
-          <div className="flex items-center justify-between text-sm">
+          <TableFrame>
+            <thead>
+              <tr className="bg-muted">
+                <Th>Product</Th>
+                <Th width="15%">SKU</Th>
+                <Th width="12%">Category</Th>
+                <Th width="14%">Status</Th>
+                <Th width="11%" align="right">
+                  Price
+                </Th>
+                <Th width="16%" align="right">
+                  Inventory
+                </Th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.length === 0 ? (
+                <tr className="border-border border-t">
+                  <td colSpan={6} className="text-muted-foreground px-3.5 py-10 text-center text-sm">
+                    No products match your filter. Add your first product to get started.
+                  </td>
+                </tr>
+              ) : (
+                data.items.map((p) => <ProductRow key={p.id} product={p} />)
+              )}
+            </tbody>
+          </TableFrame>
+
+          <div className="flex items-center justify-between text-[13px]">
             <span className="text-muted-foreground">
-              {data.total} product{data.total === 1 ? "" : "s"} · page {data.page} of {totalPages}
+              <span className="tabular-nums">{data.total}</span> product
+              {data.total === 1 ? "" : "s"} · page{" "}
+              <span className="tabular-nums">{data.page}</span> of{" "}
+              <span className="tabular-nums">{totalPages}</span>
             </span>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -287,6 +305,7 @@ export function CatalogListScreen() {
               <Button
                 variant="outline"
                 size="sm"
+                className="h-8"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
               >
@@ -297,8 +316,110 @@ export function CatalogListScreen() {
         </>
       )}
 
-      <ProductCreateFlow open={createOpen} onOpenChange={setCreateOpen} />
       <SectionsManager open={sectionsOpen} onOpenChange={setSectionsOpen} />
+    </Page>
+  );
+}
+
+function ProductRow({ product }: { product: ProductListItem }) {
+  // ⚠ THE LIST DTO CARRIES NO STOCK COUNT (054 keeps inventory off the catalog read), so the mockup's
+  // per-row inventory meter has nothing to draw from here. Rather than invent a figure — which is the
+  // "fixture agreed with the code instead of with the world" defect this codebase keeps recording —
+  // the column states what IS known: whether the product is purchasable at all. The real meter lives
+  // on the product's Inventory tab, where the count actually is.
+  const available = product.status === "active";
+
+  return (
+    <Tr interactive>
+      <Td>
+        <div className="flex min-w-0 items-center gap-3">
+          {product.primaryImageUrl ? (
+            <img
+              src={product.primaryImageUrl}
+              alt=""
+              className="border-border size-8 shrink-0 rounded-md border object-cover"
+            />
+          ) : (
+            <div className="border-border text-muted-foreground grid size-8 shrink-0 place-items-center rounded-md border">
+              <ImageOff className="size-3.5" />
+            </div>
+          )}
+          {/* ⚠ The mockup's Product cell is one line. The BRAND is kept as a muted second line
+              anyway: it is the field an operator scans to tell two similar products apart, and the
+              mockup's own sample data simply has no brands in it. Its TYPE column is genuinely gone —
+              Category answers the same question for scanning, and the mockup drops it. */}
+          <div className="min-w-0">
+            <Link
+              to="/catalog/$productId"
+              params={{ productId: product.id }}
+              className="block truncate font-medium hover:underline"
+            >
+              {product.name}
+            </Link>
+            {product.brand ? (
+              <div className="text-muted-foreground truncate text-xs">{product.brand}</div>
+            ) : null}
+          </div>
+        </div>
+      </Td>
+      <Td className="text-muted-foreground truncate font-mono text-[12.5px]">
+        {product.sku ?? "—"}
+      </Td>
+      <Td className="text-muted-foreground text-[13px]">{product.categoryName}</Td>
+      <Td>
+        <Pill variant={statusPill(product.status)}>{product.status}</Pill>
+      </Td>
+      <Td align="right" className="font-medium tabular-nums">
+        {product.currency} {product.priceAmount}
+      </Td>
+      <Td align="right">
+        <StockMeter
+          onHand={available ? 1 : 0}
+          max={1}
+          label={available ? "Buyable" : "Not buyable"}
+          urgent={!available}
+        />
+      </Td>
+    </Tr>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  allLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  allLabel: string;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="h-8 w-36 text-[13px]" aria-label={`Filter by ${label.toLowerCase()}`}>
+        <SelectValue placeholder={label} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ALL}>{allLabel}</SelectItem>
+        {options.map((o) => (
+          <SelectItem key={o.value} value={o.value}>
+            {o.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function CatalogSkeleton() {
+  return (
+    <div className="border-border space-y-2 rounded-[var(--radius)] border p-4">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <Skeleton key={i} className="h-10 w-full" />
+      ))}
     </div>
   );
 }

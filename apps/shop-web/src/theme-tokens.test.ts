@@ -6,6 +6,13 @@ import { describe, expect, it } from "vitest";
 // system and define NOTHING of its own. A second surface that quietly forks the theme is exactly
 // the drift this slice exists to prevent — so assert it mechanically, not by review.
 //
+// ⚠ 057 NARROWED WHAT "NOTHING OF ITS OWN" MEANS, AND THE GUARD SAYS SO RATHER THAN BEING DELETED.
+// shop-web now adopts an imported design's token VALUES (zinc ramp, Geist, a single 8px radius). Those
+// values live in `packages/design-system/src/tokens/shop.css` — inside the shared package, checked by
+// the same AA guard as the platform SSOT — and shop-web merely imports it. So the invariant is no
+// longer "one token file"; it is "shop-web declares no token values IN THE APP". That is the part
+// that actually prevents drift, and it is what the assertions below now pin.
+//
 // (Vitest runs from the app dir → resolve both files from there.)
 const appCss = readFileSync(resolve(process.cwd(), "src/styles.css"), "utf8");
 const tokensCss = readFileSync(
@@ -19,6 +26,22 @@ const appCssCode = appCss.replace(/\/\*[\s\S]*?\*\//g, "").toLowerCase();
 describe("shop-web inherits the design system and defines no theme of its own", () => {
   it("imports the shared tokens", () => {
     expect(appCssCode).toContain('@import "@effy/design-system/tokens.css"');
+  });
+
+  // 057: the shop value layer is imported AFTER the platform tokens — order is load-bearing, since
+  // it wins by being later. Asserting only that it is imported would let a reorder pass silently.
+  it("imports the shop value layer, and after the platform tokens", () => {
+    const platform = appCssCode.indexOf('@import "@effy/design-system/tokens.css"');
+    const shop = appCssCode.indexOf('@import "@effy/design-system/tokens/shop.css"');
+    expect(shop).toBeGreaterThan(-1);
+    expect(shop).toBeGreaterThan(platform);
+  });
+
+  // ⚠ The values must stay in the shared package. An app-local copy is exactly the Principle II
+  // violation the shop layer was designed around, and it would escape check-tokens.mjs entirely.
+  it("keeps every adopted value in the shared package, none in the app", () => {
+    expect(appCssCode).not.toMatch(/#[0-9a-f]{3,8}\b/);
+    expect(appCssCode).not.toMatch(/--(pad|rowpad|font-sans|font-mono)\s*:/);
   });
 
   it("declares zero colour literals locally", () => {

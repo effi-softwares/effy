@@ -147,6 +147,8 @@ export interface FulfillmentItem {
 /** The pick screen. Contains no order-level total — that would leak other shops' lines. */
 export interface FulfillmentDetail {
   id: string;
+  /** 057 — the order's id, for the shop refund route on core-api. See the DTO for why. */
+  orderId: string;
   orderNumber: string;
   placedAt: Date;
   status: FulfillmentStatus;

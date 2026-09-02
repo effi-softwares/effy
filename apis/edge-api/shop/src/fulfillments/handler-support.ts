@@ -158,6 +158,7 @@ function toItemDTO(i: FulfillmentItem): FulfillmentItemDTO {
 export function toDetailDTO(d: FulfillmentDetail): FulfillmentDetailDTO {
   return {
     id: d.id,
+    orderId: d.orderId,
     orderNumber: d.orderNumber,
     placedAt: d.placedAt.toISOString(),
     status: d.status,

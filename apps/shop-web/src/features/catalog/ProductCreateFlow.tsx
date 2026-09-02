@@ -6,12 +6,6 @@ import { Box, CupSoda, type LucideIcon, Package, SprayCan, UtensilsCrossed } fro
 import type { CreateProductRequest } from "@effy/shared-types";
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
   Input,
   Label,
   Select,
@@ -19,16 +13,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
   Textarea,
 } from "@effy/design-system/ui";
-import { useIsMobile } from "@effy/design-system/hooks/use-mobile";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { Crumbs, MicroLabel, Page } from "@/components/console/primitives";
 
 import { meQuery } from "@/features/shop-identity/queries";
 import { sessionQuery } from "@/features/auth/queries";
@@ -76,15 +65,16 @@ import {
  * `CreateProductRequest.media[]`, is not reachable because presign needs a product id.)
  */
 export interface ProductCreateFlowProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** Where "Discard" and the breadcrumb return to. */
+  onCancel: () => void;
+  /** Called once the product is created and its image uploaded. */
+  onCreated: (productId: string) => void;
 }
 
 // Image is its own dedicated step, at step 3 — right after Basics (FR-010b / research R16).
 const STEP_TITLES = ["Product type", "Basics", "Image", "Details", "Review"] as const;
 
-export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps) {
-  const isMobile = useIsMobile();
+export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProps) {
   const schema = useQuery(catalogSchemaQuery);
   const createProduct = useCreateProduct();
 
@@ -101,13 +91,13 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
   // Restore the device-local draft when the flow opens (FR-012). The image `File` cannot be revived
   // from storage, so it is re-picked; every text field returns.
   useEffect(() => {
-    if (!open || !shopId || !subject) return;
+    if (!shopId || !subject) return;
     setDraft(loadDraft(shopId, subject) ?? emptyDraft());
     setImageFile(null);
     setUploadProgress(null);
     setFormError(null);
     track({ name: "product_create_started" });
-  }, [open, shopId, subject]);
+  }, [shopId, subject]);
 
   const selectedType: ProductType | undefined = useMemo(
     () => schema.data?.productTypes.find((t) => t.id === draft.productTypeId),
@@ -139,6 +129,18 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
     update({ step });
   }
 
+  // ⚠ Revoked on change, or every re-pick leaks a blob URL for the life of the tab.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!imageFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(imageFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [imageFile]);
+
   const step = draft.step;
   const attrErrors = selectedType ? attributeErrors(selectedType, draft.attributes) : {};
 
@@ -163,7 +165,7 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
     setImageFile(null);
     setUploadProgress(null);
     setFormError(null);
-    onOpenChange(false);
+    onCancel();
   }
 
   async function publish() {
@@ -197,27 +199,19 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
       setDraft(emptyDraft());
       setImageFile(null);
       setUploadProgress(null);
-      onOpenChange(false);
+      onCreated(product.id);
     } catch (err) {
       setUploadProgress(null);
       setFormError(productMutationError(err));
     }
   }
 
-  const header = (
-    <>
-      <p className="text-sm text-muted-foreground">
-        Step {step + 1} of {STEP_TITLES.length} · {STEP_TITLES[step]}
-      </p>
-    </>
-  );
-
   const body = (
     <div className="flex h-full flex-col gap-4">
       {schema.isError ? (
         <ErrorState error={schema.error} onRetry={() => void schema.refetch()} />
       ) : schema.isPending ? (
-        <p className="text-sm text-muted-foreground">Loading catalog…</p>
+        <p className="text-muted-foreground text-sm">Loading catalog…</p>
       ) : step === 0 ? (
         <TypeStep
           types={schema.data.productTypes}
@@ -244,75 +238,150 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
           uploadProgress={uploadProgress}
         />
       )}
-
-      {formError ? <p className="text-sm text-destructive">{formError}</p> : null}
     </div>
   );
 
-  const footer = (
-    <div className="flex w-full items-center justify-between gap-2">
-      <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
-        Discard
-      </Button>
-      <div className="flex gap-2">
-        {step > 0 ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => goToStep(step - 1)}
-            disabled={busy}
-          >
-            Back
-          </Button>
-        ) : null}
-        {step < STEP_TITLES.length - 1 ? (
-          <Button type="button" onClick={() => goToStep(step + 1)} disabled={!canAdvance}>
-            Next
-          </Button>
-        ) : (
-          <Button type="button" onClick={() => void publish()} disabled={busy}>
-            {busy ? "Publishing…" : "Publish"}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-
-  const title = "Add product";
-  const description = "Create a product through a guided, type-driven form. Your progress is saved.";
-
-  if (isMobile) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        {/* Fixed-height bottom sheet: pinned header + footer, the body is the only scroll region so
-            the Next / Discard buttons never scroll out of reach. */}
-        <SheetContent side="bottom" className="flex h-[85dvh] flex-col gap-0 p-0">
-          <SheetHeader className="shrink-0 border-b">
-            <SheetTitle>{title}</SheetTitle>
-            <SheetDescription>{description}</SheetDescription>
-            {header}
-          </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{body}</div>
-          <SheetFooter className="shrink-0 border-t">{footer}</SheetFooter>
-        </SheetContent>
-      </Sheet>
-    );
-  }
+  const STEP_HINTS = [
+    "Pick what kind of product this is. The type decides which details you are asked for next.",
+    "The essentials a shopper sees, and the weight delivery is priced on.",
+    "One photograph. It is what the product looks like everywhere on the storefront.",
+    "The details this product type asks for. Required ones are marked.",
+    "Check it over. Nothing is published until you press Publish.",
+  ] as const;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* Fixed size (75dvw × 70dvh) so the dialog never resizes as the step content changes. It is a
-          flex column: a pinned header, a single scroll region for the body, and a pinned footer. */}
-      <DialogContent className="flex h-[85dvh] w-[75dvw] max-w-[80dvw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[85dvw]">
-        <DialogHeader className="shrink-0 border-b px-6 py-4">
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
-          {header}
-        </DialogHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{body}</div>
-        <DialogFooter className="shrink-0 border-t px-6 py-4">{footer}</DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <Page className="gap-6">
+      <Crumbs parent="Catalog" onParent={onCancel} current="New product" />
+
+      {/* The imported design's wizard is a PAGE, not a dialog: two columns, the form on the left and
+          a progress rail with a live preview on the right. A modal cannot show the preview, and it
+          cannot show which steps remain without stealing room from the form. */}
+      <div className="grid items-start gap-9 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="grid min-w-0 gap-6">
+          <div className="grid gap-[5px]">
+            <MicroLabel>
+              Step {step + 1} of {STEP_TITLES.length}
+            </MicroLabel>
+            <h2 className="text-[18px] font-semibold tracking-[-.02em]">{STEP_TITLES[step]}</h2>
+            <p className="text-muted-foreground max-w-[60ch] text-[13.5px] leading-[1.6]">
+              {STEP_HINTS[step]}
+            </p>
+          </div>
+
+          <div className="bg-border h-px" />
+
+          <div className="min-h-[280px]">{body}</div>
+
+          <div className="border-border flex items-center justify-between gap-2 border-t pt-4">
+            <Button type="button" variant="ghost" onClick={discard} disabled={busy}>
+              Discard
+            </Button>
+            <div className="flex gap-2">
+              {step > 0 ? (
+                <Button type="button" variant="outline" onClick={() => goToStep(step - 1)} disabled={busy}>
+                  Back
+                </Button>
+              ) : null}
+              {step < STEP_TITLES.length - 1 ? (
+                <Button type="button" onClick={() => goToStep(step + 1)} disabled={!canAdvance}>
+                  Next
+                </Button>
+              ) : (
+                <Button type="button" onClick={() => void publish()} disabled={busy}>
+                  {busy ? "Publishing…" : "Publish"}
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <aside className="grid min-w-0 gap-[22px]">
+          <div className="grid gap-3">
+            <MicroLabel>Progress</MicroLabel>
+            {STEP_TITLES.map((label, i) => {
+              const done = i < step;
+              const active = i === step;
+              // ⚠ Only a COMPLETED step is clickable. Jumping forward into Review over an unvalidated
+              // Basics form is exactly what `canAdvance` exists to prevent, and a freely clickable
+              // rail would route straight around it.
+              const reachable = i <= step;
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={!reachable || busy}
+                  onClick={() => goToStep(i)}
+                  aria-current={active ? "step" : undefined}
+                  className="border-border flex w-full items-center gap-2.5 border-b pb-3 text-left enabled:cursor-pointer disabled:cursor-default"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={
+                      "border-border grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-medium " +
+                      (done || active
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-muted-foreground")
+                    }
+                  >
+                    {done ? "\u2713" : i + 1}
+                  </span>
+                  <span
+                    className={
+                      "min-w-0 flex-1 text-[13px] " +
+                      (active ? "text-foreground font-medium" : "text-muted-foreground")
+                    }
+                  >
+                    {label}
+                  </span>
+                  <span className="text-muted-foreground text-xs whitespace-nowrap">
+                    {done ? "Done" : active ? "Now" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ⚠ The live preview. It shows only what the operator has actually entered — an empty
+              draft reads "Untitled product", never invented sample text. */}
+          <div className="grid gap-3">
+            <MicroLabel>Preview</MicroLabel>
+            <div className="flex items-center gap-3">
+              {previewUrl ? (
+                <img
+                  src={previewUrl}
+                  alt=""
+                  className="border-border size-11 shrink-0 rounded-md border object-cover"
+                />
+              ) : (
+                <div className="border-border bg-muted size-11 shrink-0 rounded-md border" />
+              )}
+              <div className="grid min-w-0 gap-[3px]">
+                <div className="truncate text-[13.5px] font-medium">
+                  {draft.name.trim() || "Untitled product"}
+                </div>
+                <div className="text-muted-foreground truncate font-mono text-xs">
+                  {draft.sku.trim() || "no SKU"}
+                </div>
+              </div>
+            </div>
+            <div className="border-border flex justify-between gap-4 border-t pt-2.5 text-[13px]">
+              <span className="text-muted-foreground">Price</span>
+              <span className="font-medium tabular-nums">{draft.priceAmount.trim() || "—"}</span>
+            </div>
+            <div className="flex justify-between gap-4 text-[13px]">
+              <span className="text-muted-foreground">Type</span>
+              <span className="font-medium">{selectedType?.name ?? "—"}</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {formError ? (
+        <p role="alert" className="text-destructive text-sm">
+          {formError}
+        </p>
+      ) : null}
+    </Page>
   );
 }
 

@@ -475,7 +475,9 @@ const sidebarMenuButtonVariants = cva(
           "bg-background shadow-[0_0_0_1px_var(--sidebar-border)] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
       },
       size: {
-        default: "h-8 text-sm",
+        // ⚠ 057: 13.5px, the imported design's nav label size. The 32px height and 6px radius
+        // already matched; only the type was a step too large.
+        default: "h-8 text-[13.5px]",
         sm: "h-7 text-xs",
         lg: "h-12 text-sm group-data-[collapsible=icon]:p-0!",
       },

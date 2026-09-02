@@ -27,6 +27,13 @@ import { otpErrorMessage, START_SIGN_IN_ERROR, startSignIn, submitOtp } from "..
  */
 export interface OtpSignInCardProps {
   title: string;
+  /**
+   * ⚠ 057 — `"bare"` drops the card frame and the title/description header, leaving only the form.
+   * The shop console's sign-in is a column on the page ground rather than a card floating on it, and
+   * its heading lives in the page. Omitted (the default) renders exactly as it always has, which is
+   * what keeps back-office untouched.
+   */
+  chrome?: "card" | "bare";
   /** Fired when the flow completes and a session exists. The surface navigates. */
   onAuthenticated: () => Promise<void> | void;
   /** Optional analytics hooks — the surface owns its event taxonomy. */
@@ -39,6 +46,7 @@ type Step = "email" | "otp";
 
 export function OtpSignInCard({
   title,
+  chrome = "card",
   onAuthenticated,
   onSignInStarted,
   onOtpSubmitted,
@@ -81,18 +89,9 @@ export function OtpSignInCard({
     },
   });
 
-  return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
-        <CardTitle className="text-primary">{title}</CardTitle>
-        <CardDescription>
-          {step === "email"
-            ? "Sign in with your work email — we'll send a one-time code."
-            : `Enter the code we sent to ${email}.`}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {step === "email" ? (
+  const body = (
+    <>
+      {step === "email" ? (
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -198,7 +197,33 @@ export function OtpSignInCard({
             </p>
           </form>
         )}
-      </CardContent>
+    </>
+  );
+
+  // ⚠ The step description is the ONE piece of the header that carries state ("Enter the code we sent
+  // to …"), so `bare` keeps it and drops only the frame and the title. Losing it would leave an
+  // operator staring at six empty boxes with no idea which inbox to check.
+  const description =
+    step === "email"
+      ? "Sign in with your work email — we'll send a one-time code."
+      : `Enter the code we sent to ${email}.`;
+
+  if (chrome === "bare") {
+    return (
+      <div className="w-full max-w-sm space-y-4">
+        <p className="text-muted-foreground text-sm">{description}</p>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <Card className="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle className="text-primary">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   );
 }

@@ -292,7 +292,16 @@ function RefundHistory({
                   <span className="block text-xs text-muted-foreground">{r.failureReason}</span>
                 ) : null}
               </td>
-              <td className="w-40 py-2 align-top text-muted-foreground">{r.actorLabel ?? "—"}</td>
+              {/* ⚠ 057 — THE ACTOR'S POOL IS NAMED, NOT JUST THEIR LABEL, AND THIS FIXED A REAL GAP.
+                  `actorLabel` is resolved by a LEFT JOIN against `admin.staff`. That answers for a
+                  back-office actor and for nobody else — so the moment a SHOP could issue a refund
+                  (057 US5), every shop-issued refund would have rendered here as a bare "—":
+                  unattributable, with nothing on screen saying anything was missing. The refund
+                  table's own comment calls that "the audit gap this table exists to close."
+                  Showing the kind means an unresolved label is still attributed to a pool. */}
+              <td className="w-40 py-2 align-top text-muted-foreground">
+                {actorText(r)}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -327,3 +336,23 @@ const STATE_WORD: Record<string, string> = {
   failed: "Failed — needs attention",
   refused: "Refused — cannot be retried",
 };
+
+/**
+ * Who issued a refund, in words.
+ *
+ * ⚠ `system` HAS NO PERSON AND MUST NOT INVENT ONE — it arrived from the provider unattributed, and
+ * a name here would be a false statement in the one record that exists to say who moved money.
+ * Everything else names its pool, so a label that failed to resolve still says where to look.
+ */
+function actorText(r: RefundDTO): string {
+  switch (r.actorKind) {
+    case "system":
+      return "Automatic";
+    case "customer":
+      return r.actorLabel ?? "The customer";
+    case "shop":
+      return r.actorLabel ? `${r.actorLabel} (shop)` : "Shop";
+    case "back_office":
+      return r.actorLabel ?? "Effy staff";
+  }
+}

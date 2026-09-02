@@ -4,6 +4,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@effy/design-system/ui";
@@ -20,12 +21,22 @@ export interface NavListProps<TRole extends string> {
   nav: readonly NavItem<TRole>[];
   roles: readonly TRole[];
   groupLabel?: string;
+  /**
+   * ⚠ 057 — OPTIONAL, AND ABSENT MEANS NO BADGE AT ALL. Keyed by the item's `to`. shop-web shows a
+   * live count of orders waiting; back-office passes nothing and renders byte-identically, which is
+   * how this shared component gains a capability without changing the other console (Principle II).
+   *
+   * ⚠ A zero is NOT rendered. "0 orders waiting" is noise on a rail read at a glance, and a badge
+   * that is always present stops being a signal.
+   */
+  badges?: Readonly<Record<string, number | undefined>>;
 }
 
 export function NavList<TRole extends string>({
   nav,
   roles,
   groupLabel = "Platform",
+  badges,
 }: NavListProps<TRole>) {
   const { pathname } = useLocation();
 
@@ -43,10 +54,24 @@ export function NavList<TRole extends string>({
                   <span>{item.label}</span>
                 </Link>
               </SidebarMenuButton>
+              {badgeFor(badges, item.to) ? (
+                <SidebarMenuBadge className="tabular-nums">
+                  {badgeFor(badges, item.to)}
+                </SidebarMenuBadge>
+              ) : null}
             </SidebarMenuItem>
           );
         })}
       </SidebarMenu>
     </SidebarGroup>
   );
+}
+
+/** Absent, zero and undefined all mean "no badge" — only a positive count is worth a pixel. */
+function badgeFor(
+  badges: Readonly<Record<string, number | undefined>> | undefined,
+  to: string,
+): number | null {
+  const n = badges?.[to];
+  return typeof n === "number" && n > 0 ? n : null;
 }

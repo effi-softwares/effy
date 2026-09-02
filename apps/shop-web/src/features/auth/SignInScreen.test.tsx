@@ -1,6 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 
 // The card and the OTP flow live in @effy/web-kit; here we mock the SDK boundary so this test
@@ -73,9 +76,22 @@ describe("SignInScreen (shop-web)", () => {
     await waitFor(() => expect(navigate).toHaveBeenCalledWith({ to: "/" }));
   });
 
-  it("carries this surface's brand", () => {
+  /**
+   * ⚠ 057 MOVED THE BRAND LOCKUP UP INTO THE AUTH LAYOUT, which is where the imported design puts it
+   * — above the heading, not inside the form. This test renders the SCREEN alone, so it can no longer
+   * see it. Rather than delete the guarantee, the assertion splits in two: the screen must still say
+   * which surface this is in words an operator reads, and the layout must still render the lockup
+   * (checked from source, since the route component is not independently renderable here).
+   */
+  it("says which surface this is", () => {
     renderScreen();
-    expect(screen.getByText("Effy Shop")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /sign in/i })).toBeInTheDocument();
+    expect(screen.getByText(/access your shop/i)).toBeInTheDocument();
+  });
+
+  it("keeps the brand lockup on the sign-in route", () => {
+    const layout = readFileSync(resolve(__dirname, "../../routes/auth.tsx"), "utf8");
+    expect(layout).toContain("Effy Shop Console");
   });
 
   it("never renders a password field (passwordless only)", () => {

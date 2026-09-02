@@ -1,11 +1,12 @@
 import type {
+  ShopRefundRequest,
   FulfillmentDetailDTO,
   FulfillmentQueueDTO,
   ItemProgressRequest,
   TransitionRequest,
 } from "@effy/shared-types";
 
-import { api } from "@/lib/api";
+import { api, coreApi } from "@/lib/api";
 
 import type { FulfillmentDetail, FulfillmentQueue, FulfillmentQueueState } from "./model";
 
@@ -60,4 +61,21 @@ export async function updateItemProgress(
     `/shop/v1/fulfillments/${id}/items/${orderItemId}`,
     body,
   );
+}
+
+/**
+ * Refund part of this shop's portion of an order (057 US5).
+ *
+ * ⚠ THE ONLY CALL ON THIS SURFACE THAT GOES TO THE HOT PATH. It settles through 055's refund state
+ * machine, which lives in `core-api` because the payment secret does and nowhere else. The route is
+ * mounted behind core-api's own shop-pool verifier — one route, on that whole service.
+ *
+ * ⚠ IT SENDS LINES AND QUANTITIES, NEVER AN AMOUNT. The server prices the refund from the receipt and
+ * REFUSES a client-supplied amount, so the two can never disagree about what was covered.
+ */
+export async function issueShopRefund(
+  orderId: string,
+  body: ShopRefundRequest,
+): Promise<{ refundId: string; status: string; amount: string }> {
+  return coreApi.post(`/v1/shop/orders/${orderId}/refunds`, body);
 }

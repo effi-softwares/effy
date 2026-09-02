@@ -311,9 +311,15 @@ SELECT p.id::text AS product_id,
        p.sku      AS sku,
        p.stock_on_hand AS on_hand,
        COALESCE(p.low_stock_threshold, s.default_low_stock_threshold) AS effective_threshold,
-       CASE WHEN p.stock_on_hand <= 0 THEN 'out' ELSE 'low' END AS severity
+       CASE WHEN p.stock_on_hand <= 0 THEN 'out' ELSE 'low' END AS severity,
+       -- ⚠ 057: LEFT JOIN, because a product with no supplier is ordinary and must still appear.
+       -- An INNER JOIN here would silently drop exactly the products a shop has not organised yet —
+       -- which is the majority on the day this ships.
+       p.supplier_id::text AS supplier_id,
+       sup.name            AS supplier_name
   FROM public.product p
   LEFT JOIN public.shop_stock_settings s ON s.shop_id = p.shop_id
+  LEFT JOIN public.supplier sup ON sup.id = p.supplier_id
  WHERE p.shop_id = $1
    AND p.stock_tracked
    AND p.status <> 'archived'
@@ -322,12 +328,20 @@ SELECT p.id::text AS product_id,
       OR (COALESCE(p.low_stock_threshold, s.default_low_stock_threshold) IS NOT NULL
           AND p.stock_on_hand <= COALESCE(p.low_stock_threshold, s.default_low_stock_threshold))
        )
+ -- ⚠ 057 ADDED SUPPLIER DATA HERE BUT DELIBERATELY DID NOT TOUCH THIS ORDERING.
+ -- The first draft sorted by supplier first, and low-stock.test.ts caught it: that silently
+ -- demoted an OUT-OF-STOCK product at one supplier below a merely-low one at another, changing a
+ -- guarantee 054 shipped (FR-029, "most urgent first") to serve a presentation concern. Grouping is
+ -- the client's job, and grouping a list that is already urgency-ordered gives urgency ordering
+ -- inside every group for free. The guard stayed green because the behaviour stayed correct.
  ORDER BY (p.stock_on_hand <= 0) DESC, p.stock_on_hand ASC, p.name ASC
  LIMIT 500
 `;
 
 interface LowStockDbRow {
   product_id: string;
+  supplier_id: string | null;
+  supplier_name: string | null;
   name: string;
   sku: string | null;
   on_hand: number;
@@ -344,5 +358,7 @@ export async function readLowStock(shopId: string): Promise<LowStockRowDTO[]> {
     onHand: r.on_hand,
     effectiveThreshold: r.effective_threshold,
     severity: r.severity,
+    supplierId: r.supplier_id,
+    supplierName: r.supplier_name,
   }));
 }

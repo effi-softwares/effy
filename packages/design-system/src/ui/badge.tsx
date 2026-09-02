@@ -5,7 +5,12 @@ import { Slot } from "radix-ui"
 import { cn } from "../cn"
 
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  // ⚠ 057: a badge is a PILL — `rounded-full`, not `rounded-md`. This is the one place the squared
+  // pass makes something rounder, and it is not an inconsistency: the mockup's status chips are all
+  // `border-radius:999px`, which is a SHAPE (a lozenge around a word) rather than a step on the radius
+  // scale. Controls are square; labels are pills. Keeping the badge on `md` made it read as a tiny
+  // disabled button.
+  "inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[11.5px] font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
   {
     variants: {
       variant: {

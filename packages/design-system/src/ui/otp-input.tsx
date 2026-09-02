@@ -91,12 +91,12 @@ function OtpInput({
       data-slot="otp-input"
       data-variant="plain"
       className={cn(
-        // ⚠ PILL, h-11, px-4 — byte-for-byte `input.tsx`'s field base (minus the `file:` affordances
-        // an OTP field never uses). The plain variant IS an Input but for its tracking, so it takes
-        // the same pill shape; a shorter `rounded-md` box here would read as a different component in
-        // the same sign-in form. `OtpSignInCard.test.tsx` asserts `maxlength`/behaviour, not shape, so
-        // the consoles stay functionally identical — this is a visual unification only.
-        "h-11 w-full min-w-0 rounded-full border border-input bg-transparent px-4 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm dark:bg-input/30",
+        // ⚠ SQUARED, h-9, px-3 — byte-for-byte `input.tsx`'s field base (minus the `file:` affordances
+        // an OTP field never uses). The rule is unchanged and only the shape moved: the plain variant
+        // IS an Input but for its tracking, so a differently-shaped box here would read as a foreign
+        // component in the same sign-in form. `OtpSignInCard.test.tsx` asserts `maxlength`/behaviour,
+        // not shape, so the consoles stay functionally identical — this is visual only.
+        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
         // Codes are read back character by character far more often than prose is, so they get
         // tabular figures and a little tracking. This is the one place that is worth it.
         "font-mono tracking-[0.35em]",
@@ -294,7 +294,10 @@ function Cell({
         // never compress them narrower than tall. The size is set HERE and nowhere else, so no
         // responsive utility from an unrelated class string can halve it the way `md:text-sm` did
         // (defect D-01a).
-        "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-[1.5px] bg-background transition-colors sm:h-12 sm:w-12",
+        // ⚠ 057: `rounded-md` (6px). The cells stay LARGE (44/48px) because a one-time code is typed
+        // under time pressure and often on a tablet — that is a touch-target decision, not a radius
+        // one, and squaring the corners does not shrink the target.
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-[1.5px] bg-background transition-colors sm:h-12 sm:w-12",
         "font-mono text-lg tabular-nums text-foreground sm:text-xl",
         filled ? "border-foreground" : "border-ring",
         // ⚠ The ERROR IS ON THE CELLS, not only in the message beside them (044 C-06/FR-007). A

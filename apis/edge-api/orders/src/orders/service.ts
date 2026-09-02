@@ -306,6 +306,10 @@ function refundView(
       status: r.status as RefundDTO["status"],
       failureReason: r.failure_reason,
       note: r.note,
+      // ⚠ 057 — the pool is carried, not only the name. `actor_label` resolves against whichever
+      // staff table matches `actor_kind`, and a `system` refund has no person at all; without the
+      // kind the console cannot tell "nobody did this" from "we could not resolve who did".
+      actorKind: r.actor_kind as RefundDTO["actorKind"],
       actorLabel: r.actor_label,
       createdAt: r.created_at.toISOString(),
       settledAt: r.settled_at ? r.settled_at.toISOString() : null,
