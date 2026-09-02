@@ -276,7 +276,7 @@ func TestCancel_ReturnsOnlyWhatRemainsAfterAnEarlierRefund(t *testing.T) {
 	svc := NewService(repo, gw)
 	ctx := context.Background()
 
-	_, err := svc.Issue(ctx, IssueInput{
+	_, err := svc.Issue(ctx, IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late", Amount: "20.00", ActorSub: "staff-1",
 	})

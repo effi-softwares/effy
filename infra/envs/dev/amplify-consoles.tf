@@ -16,6 +16,12 @@ locals {
   # The deployed cold-path (edge) gateway origin — the same address 042 wires for the storefront's
   # cold path. Both consoles call it; shop-web on /shop/v1/*, back-office on /admin/v1/*.
   console_api_base_url = "https://${var.api_subdomain}.${module.dns.zone_name}" # https://edge-api.dev.effyshopping.com
+  # ⚠ 057: the HOT path, and the shop console is the ONLY console that needs it. It calls exactly one
+  # core-api route — issuing a refund, which must settle through 055's state machine because the
+  # payment secret lives there and nowhere else. Derived from the same zone the service is served from,
+  # never hand-typed: an origin that drifts fails only at a browser pre-flight, the hardest kind of
+  # failure to recognise.
+  core_api_base_url = "https://${var.core_api_subdomain}.${module.dns.zone_name}" # https://core-api.dev.effyshopping.com
 
   # ── SPA rewrite (research D3 / contracts § "SPA rewrite") ──────────────────────────────────────
   # Any path that is NOT a real static asset → /index.html with status 200 (a rewrite, not a redirect,
@@ -41,6 +47,9 @@ locals {
     VITE_COGNITO_USER_POOL_ID = module.shop_pool.user_pool_id
     VITE_COGNITO_CLIENT_ID    = module.shop_pool.app_client_id
     VITE_API_BASE_URL         = local.console_api_base_url
+    # ⚠ 057 — REQUIRED by apps/shop-web's config contract. Without it the hosted build serves a console
+    # that throws "Missing required config" on first render, not just on the refund path.
+    VITE_CORE_API_BASE_URL = local.core_api_base_url
   }, local.telemetry_env)
 
   back_office_env = merge({

@@ -154,6 +154,16 @@ export interface FulfillmentItemDTO {
 /** The pick screen (GET /shop/v1/fulfillments/{id}). */
 export interface FulfillmentDetailDTO {
   id: string;
+  /**
+   * ⚠ 057 — THE ORDER'S OWN ID, added because `orderNumber` is a human reference and cannot address a
+   * resource. The shop refund route is `POST /v1/shop/orders/{orderId}/refunds` on `core-api`, and
+   * without this the console had literally no way to name the order it was looking at.
+   *
+   * ⚠ It is NOT a disclosure: the shop already sees this order's number, its items and its delivery
+   * address. What stays absent is every OTHER shop's portion and any order-level money — the
+   * projection does not select them (FR-007/FR-008).
+   */
+  orderId: string;
   orderNumber: string;
   placedAt: string;
   status: FulfillmentStatus;

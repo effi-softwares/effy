@@ -39,6 +39,11 @@ func TestLoad_DSNOverridesParts(t *testing.T) {
 	// 055: core-api now verifies a second pool (the back office), because refunds are issued here.
 	t.Setenv("AUTH_BACK_OFFICE_POOL_ID", "pool-bo")
 	t.Setenv("AUTH_BACK_OFFICE_CLIENT_ID", "client-bo")
+	// ⚠ 057 — the THIRD pool, and `required` on purpose. A missing value must abort boot rather than
+	// mount the shop refund route unauthenticated; this test failing when the vars are absent is the
+	// fail-closed behaviour working, not a nuisance.
+	t.Setenv("AUTH_SHOP_POOL_ID", "pool-shop")
+	t.Setenv("AUTH_SHOP_CLIENT_ID", "client-shop-web,client-shop-mobile")
 	t.Setenv("AUTH_CUSTOMER_CLIENT_ID", "web,mobile")
 	t.Setenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
 	t.Setenv("STRIPE_SECRET_KEY", "sk_test_x")

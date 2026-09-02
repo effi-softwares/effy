@@ -44,6 +44,10 @@ provider:
     # Product-media bucket (016). Provisioned by infra/envs/<env>/media.tf; the name is published
     # at /effy/<env>/media/bucket. Direct-to-S3 presigned upload/read (research R9).
     S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+    # ⚠ 057 US7 — shop-scoped team management provisions colleagues on the SHOP pool, reusing 009's
+    # mechanism rather than a second one (FR-019). Resolved from the auth contract at deploy time,
+    # never hard-coded. Without it every invite fails at runtime with a pool-id error.
+    SHOP_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_id}
   iam:
     role:
       statements:
@@ -57,6 +61,23 @@ provider:
             - s3:PutObject
             - s3:GetObject
           Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
+        # ⚠ 057 US7: admin Cognito actions for team management, scoped to the SHOP pool ARN ONLY.
+        #
+        # A shop manager provisioning a colleague at their OWN shop is an authorized server-side write,
+        # not token brokering — the routes sit behind the shop authorizer and the service re-checks
+        # `shop_manager` against the platform record before reaching Cognito at all.
+        #
+        # ⚠ There is deliberately NO AdminDeleteUser. Standing someone down disables them; erasing the
+        # identity would orphan every audit row that names their subject.
+        - Effect: Allow
+          Action:
+            - cognito-idp:AdminCreateUser
+            - cognito-idp:AdminGetUser
+            - cognito-idp:AdminAddUserToGroup
+            - cognito-idp:AdminRemoveUserFromGroup
+            - cognito-idp:AdminDisableUser
+            - cognito-idp:AdminEnableUser
+          Resource: ${ssm:/effy/${sls:stage}/auth/shop/user_pool_arn}
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — the functions run OUTSIDE the VPC (dev posture, 2026-07-12). Same rationale
@@ -842,3 +863,171 @@ resources:
         Threshold: 0
         ComparisonOperator: GreaterThanThreshold
         TreatMissingData: notBreaching
+
+  # ── 057 shop console redesign: suppliers + purchase orders (US6) ─────────────────────────────
+  suppliersListV1:
+    handler: src/functions/suppliers-list-v1-get.handler
+    description: List this shop's suppliers — 057
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/suppliers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  supplierCreateV1:
+    handler: src/functions/suppliers-create-v1-post.handler
+    description: Record a supplier — 057
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/suppliers
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  supplierGetV1:
+    handler: src/functions/suppliers-get-v1-get.handler
+    description: Read one supplier — 057
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/suppliers/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  supplierUpdateV1:
+    handler: src/functions/suppliers-update-v1-patch.handler
+    description: Edit a supplier — 057
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/suppliers/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  supplierArchiveV1:
+    handler: src/functions/suppliers-delete-v1-delete.handler
+    description: Archive a supplier — 057
+    events:
+      - httpApi:
+          method: DELETE
+          path: /shop/v1/suppliers/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  purchaseOrdersListV1:
+    handler: src/functions/purchase-orders-list-v1-get.handler
+    description: List this shop's purchase orders — 057
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/purchase-orders
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  purchaseOrderCreateV1:
+    handler: src/functions/purchase-orders-create-v1-post.handler
+    description: Build a draft purchase order — 057
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/purchase-orders
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  purchaseOrderGetV1:
+    handler: src/functions/purchase-orders-get-v1-get.handler
+    description: Read one purchase order — 057
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/purchase-orders/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  purchaseOrderUpdateV1:
+    handler: src/functions/purchase-orders-update-v1-patch.handler
+    description: Edit a draft / send / cancel — 057
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/purchase-orders/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  purchaseOrderReceiveV1:
+    handler: src/functions/purchase-orders-receive-v1-post.handler
+    description: Receive goods, updating stock — 057
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/purchase-orders/{id}/receive
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productSupplierV1:
+    handler: src/functions/product-supplier-v1-patch.handler
+    description: Set or clear a product's default supplier — 057
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/products/{id}/supplier
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  # ── 057: shop-scoped team management (US7) ────────────────────────────────────────────────────
+  teamListV1:
+    handler: src/functions/team-list-v1-get.handler
+    description: This shop's roster — 057
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/team
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  teamInviteV1:
+    handler: src/functions/team-invite-v1-post.handler
+    description: Invite a colleague (manager only) — 057
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/team/invite
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  teamRoleV1:
+    handler: src/functions/team-role-v1-patch.handler
+    description: Change a colleague's role (manager only) — 057
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/team/{staffId}/role
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  teamDeactivateV1:
+    handler: src/functions/team-deactivate-v1-post.handler
+    description: Stand a colleague down (manager only) — 057
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/team/{staffId}/deactivate
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+

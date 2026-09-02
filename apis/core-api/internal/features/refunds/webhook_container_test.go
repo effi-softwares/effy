@@ -30,7 +30,7 @@ func issueOne(t *testing.T, pool *pgxpool.Pool, providerID string) string {
 	t.Helper()
 	gw := &recordingGateway{refundID: providerID}
 	svc := NewService(NewRepository(pool), gw)
-	res, err := svc.Issue(context.Background(), IssueInput{
+	res, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -148,7 +148,7 @@ func TestSettle_ARefundIssuedOutsideThePlatformIsRecorded(t *testing.T) {
 	// ⚠ AND IT REDUCES THE CEILING. That is the whole point — the money is gone either way.
 	gw := &recordingGateway{}
 	over := NewService(NewRepository(pool), gw)
-	_, err := over.Issue(ctx, IssueInput{
+	_, err := over.Issue(ctx, IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "the rest", Amount: "45.00", ActorSub: "staff-1",
 	})
@@ -205,7 +205,7 @@ func TestSubmit_AnUnreachableProviderNeverProducesASecondRefund(t *testing.T) {
 	svc := NewService(NewRepository(pool), gw)
 	ctx := context.Background()
 
-	in := IssueInput{
+	in := IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	}
@@ -238,7 +238,7 @@ func TestSubmit_RetriesAnAmbiguousFailureAndThenStops(t *testing.T) {
 	gw := &recordingGateway{err: errors.New("i/o timeout")}
 	svc := NewService(NewRepository(pool), gw)
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -255,7 +255,7 @@ func TestSubmit_ADefiniteRefusalIsNotRetriedAndItsReasonReachesStaff(t *testing.
 	gw := &recordingGateway{err: &checkout.RefusedError{Reason: "charge_already_refunded"}}
 	svc := NewService(NewRepository(pool), gw)
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	})
@@ -287,7 +287,7 @@ func TestCeiling_AStalledRefundDoesNotReduceWhatCanStillBeRefunded(t *testing.T)
 
 	// A refund that never got an answer: the row exists, in `submitting`.
 	stalled := NewService(NewRepository(pool), &recordingGateway{err: errors.New("i/o timeout")})
-	res, err := stalled.Issue(ctx, IssueInput{
+	res, err := stalled.Issue(ctx, IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "first attempt", Amount: "20.00", ActorSub: "staff-1",
 	})
@@ -302,7 +302,7 @@ func TestCeiling_AStalledRefundDoesNotReduceWhatCanStillBeRefunded(t *testing.T)
 	// The whole $50 is still the platform's to return — nothing has left.
 	gw := &recordingGateway{}
 	svc := NewService(NewRepository(pool), gw)
-	full, err := svc.Issue(ctx, IssueInput{
+	full, err := svc.Issue(ctx, IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "the customer's actual refund", Amount: "50.00", ActorSub: "staff-2",
 	})

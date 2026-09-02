@@ -61,9 +61,16 @@ module "core_api" {
     # is derived from the same zone + subdomain the console is actually served from. A hand-typed
     # origin that drifts from the real one fails only at a browser pre-flight, which is the hardest
     # kind of failure to recognise.
+    # ⚠ 057 appends the SHOP console origin for the same reason 055 appended back-office: the shop
+    # console now calls exactly one route on this service (the refund). Without this the control fails
+    # at the browser pre-flight with nothing on screen explaining why — and the shop operator sees a
+    # refund that simply does not work.
     CORS_ALLOWED_ORIGINS = join(",", concat(
       var.core_api_cors_origins,
-      ["https://${var.back_office_subdomain}.${module.dns.zone_name}"],
+      [
+        "https://${var.back_office_subdomain}.${module.dns.zone_name}",
+        "https://${var.shop_web_subdomain}.${module.dns.zone_name}",
+      ],
     ))
     AWS_MEDIA_BUCKET = aws_s3_bucket.product_media.bucket
 
@@ -83,6 +90,18 @@ module "core_api" {
     # rather than mounting the money routes unauthenticated.
     AUTH_BACK_OFFICE_POOL_ID   = module.back_office_pool.user_pool_id
     AUTH_BACK_OFFICE_CLIENT_ID = module.back_office_pool.app_client_id
+
+    # ⚠ 057 — THE THIRD POOL. A shop manager refunds their own portion of an order from the shop
+    # console; that settles through 055's refund machine, which lives here with the payment secret.
+    # Same shape, same reasoning, same fail-closed `required` tag as back-office above.
+    #
+    # ⚠ BOTH app clients, comma-separated. A pool has more than one (shop-web and shop-mobile, 014),
+    # and 027 records what a single-client assumption costs: every mobile call answered 401, invisibly.
+    AUTH_SHOP_POOL_ID = module.shop_pool.user_pool_id
+    AUTH_SHOP_CLIENT_ID = join(",", [
+      module.shop_pool.app_client_id,
+      aws_cognito_user_pool_client.shop_mobile.id,
+    ])
 
     # DB connection PARTS — the app composes the DSN from these + the injected password (040).
     DB_HOST = module.db.endpoint

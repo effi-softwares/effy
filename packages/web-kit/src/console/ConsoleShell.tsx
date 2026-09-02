@@ -32,6 +32,10 @@ export interface ConsoleShellProps<TRole extends string> {
   nav: readonly NavItem<TRole>[];
   roles: readonly TRole[];
   navGroupLabel?: string;
+  /** 057 — optional live counts beside nav items, keyed by `to`. Omitted = no badges (back-office). */
+  navBadges?: Readonly<Record<string, number | undefined>>;
+  /** 057 — optional controls on the right of the header bar. Omitted = the header is unchanged. */
+  headerActions?: ReactNode;
 
   email: string;
   theme: Theme;
@@ -54,6 +58,8 @@ export function ConsoleShell<TRole extends string>({
   nav,
   roles,
   navGroupLabel,
+  navBadges,
+  headerActions,
   email,
   theme,
   onSetTheme,
@@ -71,7 +77,7 @@ export function ConsoleShell<TRole extends string>({
           <ConsoleBrand {...brand} />
         </SidebarHeader>
         <SidebarContent>
-          <NavList nav={nav} roles={roles} groupLabel={navGroupLabel} />
+          <NavList nav={nav} roles={roles} groupLabel={navGroupLabel} badges={navBadges} />
         </SidebarContent>
         <SidebarFooter>
           <ConsoleUserMenu
@@ -85,7 +91,7 @@ export function ConsoleShell<TRole extends string>({
         <SidebarRail />
       </Sidebar>
       <SidebarInset>
-        <ConsoleHeader surfaceLabel={surfaceLabel} nav={nav} />
+        <ConsoleHeader surfaceLabel={surfaceLabel} nav={nav} actions={headerActions} />
         <div className={contentClassName}>{children}</div>
       </SidebarInset>
     </SidebarProvider>

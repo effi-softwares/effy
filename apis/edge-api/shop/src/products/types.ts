@@ -190,7 +190,10 @@ export interface FieldIssue {
   message: string;
 }
 
-export type ProductErrorKind = "validation" | "conflict" | "not_found";
+// ⚠ 057 added "forbidden". A manager-only refusal is 403, and folding it into "not_found" (the
+// tempting shortcut) would be wrong in BOTH directions: it tells an authorised operator their own team
+// does not exist, and it tells an unauthorised one that a resource is absent rather than off-limits.
+export type ProductErrorKind = "validation" | "conflict" | "not_found" | "forbidden";
 
 export class ProductError extends Error {
   constructor(

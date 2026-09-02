@@ -26,7 +26,7 @@ import { fulfillmentQueueQuery } from "./queries";
 function row(over: Partial<FulfillmentSummary> = {}): FulfillmentSummary {
   return {
     id: "f1",
-    orderNumber: "EFY-10023",
+  orderNumber: "EFY-10023",
     placedAt: "2026-07-20T02:14:05Z",
     status: "received",
     stateChangedAt: "2026-07-20T02:15:11Z",
@@ -56,7 +56,12 @@ describe("OrderQueueScreen", () => {
     expect(screen.getByText("2/4")).toBeInTheDocument();
     expect(screen.getByText("standard")).toBeInTheDocument();
     expect(screen.getByText("Received")).toBeInTheDocument();
-    expect(screen.getByText(/1 active order$/)).toBeInTheDocument();
+    // ⚠ Matched across elements on purpose. 057 split the count into its own <span> so the figure is
+    // tabular-nums; a plain text matcher broke on markup that was still correct. 052 recorded the same
+    // shape (a styling commit moved the class a selector matched, and the test asserted nothing after).
+    expect(
+      screen.getByText((_, el) => el?.textContent?.trim() === "1 active order"),
+    ).toBeInTheDocument();
   });
 
   it("reads the active slice by default", async () => {
@@ -127,7 +132,11 @@ describe("OrderQueueScreen", () => {
 
     expect(await screen.findByText("EFY-DONE")).toBeInTheDocument();
     expect(listFulfillments).toHaveBeenCalledWith("completed");
-    await waitFor(() => expect(screen.getByText(/1 completed order$/)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText((_, el) => el?.textContent?.trim() === "1 completed order"),
+      ).toBeInTheDocument(),
+    );
   });
 
   it("shows the completed empty state when nothing has been fulfilled yet", async () => {

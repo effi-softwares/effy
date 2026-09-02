@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ImageOff, Plus, Tags } from "lucide-react";
+import { ImageOff, Plus, Search, Tags, X } from "lucide-react";
 
 import type { ProductStatus } from "@effy/shared-types";
 import { PRODUCT_STATUSES } from "@effy/shared-types";
@@ -151,11 +151,52 @@ export function CatalogListScreen() {
     track({ name: "catalog_filter_applied" });
   }
 
+  // 057: the active filters, so they can be shown as removable chips. A filter bar whose controls
+  // scroll out of view leaves an operator staring at a short list with no idea why it is short.
+  const activeFilters = [
+    q.trim() ? { key: "q", label: `"${q.trim()}"`, clear: () => onSearch("") } : null,
+    type !== ALL
+      ? {
+          key: "type",
+          label: types.find((t) => t.id === type)?.name ?? "Type",
+          clear: () => onFilter(setType, ALL),
+        }
+      : null,
+    category !== ALL
+      ? {
+          key: "category",
+          label: categories.find((c) => c.id === category)?.name ?? "Category",
+          clear: () => onFilter(setCategory, ALL),
+        }
+      : null,
+    section !== ALL
+      ? {
+          key: "section",
+          label: sectionList.find((x) => x.id === section)?.name ?? "Section",
+          clear: () => onFilter(setSection, ALL),
+        }
+      : null,
+    status !== ALL ? { key: "status", label: status, clear: () => onFilter(setStatus, ALL) } : null,
+    priceMin.trim() ? { key: "min", label: `min ${priceMin}`, clear: () => onFilter(setPriceMin, "") } : null,
+    priceMax.trim() ? { key: "max", label: `max ${priceMax}`, clear: () => onFilter(setPriceMax, "") } : null,
+  ].filter((f): f is { key: string; label: string; clear: () => void } => f !== null);
+
+  function clearAll() {
+    setQ("");
+    setType(ALL);
+    setCategory(ALL);
+    setSection(ALL);
+    setStatus(ALL);
+    setPriceMin("");
+    setPriceMax("");
+    setPage(1);
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-[var(--pad)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-1">
-          <h1 className="text-xl font-semibold">Catalog</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Catalog</h1>
           <p className="text-muted-foreground">Your shop's products.</p>
         </div>
         <div className="flex items-center gap-2">
@@ -170,13 +211,20 @@ export function CatalogListScreen() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          placeholder="Search name, SKU, brand…"
-          value={q}
-          onChange={(e) => onSearch(e.target.value)}
-          className="max-w-xs"
-        />
+      <div className="flex flex-wrap items-center gap-3 rounded-md border p-3">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            aria-label="Search products"
+            placeholder="Search name, SKU, brand…"
+            value={q}
+            onChange={(e) => onSearch(e.target.value)}
+            className="w-64 pl-8"
+          />
+        </div>
         <Select value={type} onValueChange={(v) => onFilter(setType, v)}>
           <SelectTrigger className="w-40">
             <SelectValue placeholder="Type" />
@@ -259,6 +307,31 @@ export function CatalogListScreen() {
           </SelectContent>
         </Select>
       </div>
+
+      {activeFilters.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-muted-foreground text-xs">Filtered by</span>
+          {activeFilters.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={f.clear}
+              className="hover:bg-accent focus-visible:ring-ring inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2"
+              aria-label={`Remove filter ${f.label}`}
+            >
+              {f.label}
+              <X className="size-3" aria-hidden="true" />
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={clearAll}
+            className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-4"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />

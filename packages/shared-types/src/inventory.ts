@@ -108,6 +108,14 @@ export interface LowStockRowDTO {
   effectiveThreshold: WireInt | null
   /** "out" sorts above "low" — an empty shelf is not the same problem as a thin one. */
   severity: "out" | "low"
+  /**
+   * ⚠ 057 (FR-018) — the product's default supplier, so the restock queue can group by who to order
+   * from. BOTH ARE NULLABLE AND NULL IS A FIRST-CLASS STATE, not a gap: a shop that has never recorded
+   * a supplier still gets a working restock list, with those products in their own "Unassigned"
+   * bucket. That is what keeps this non-breaking for every product that existed before 057.
+   */
+  supplierId: string | null
+  supplierName: string | null
 }
 
 export interface ShopStockSettingsDTO {

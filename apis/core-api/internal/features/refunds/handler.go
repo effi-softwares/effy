@@ -17,10 +17,19 @@ import (
 type Handler struct {
 	svc   *Service
 	staff *auth.StaffGate
+	// ⚠ 057 — nil unless the shop route is mounted. `issueAsShop` refuses with 503 rather than
+	// panicking if it is ever reached without one.
+	shop ShopGate
 }
 
 func NewHandler(svc *Service, staff *auth.StaffGate) *Handler {
 	return &Handler{svc: svc, staff: staff}
+}
+
+// WithShopGate wires the record-backed gate the shop refund route needs (057 US5).
+func (h *Handler) WithShopGate(g ShopGate) *Handler {
+	h.shop = g
+	return h
 }
 
 // RegisterAdmin mounts the back-office refund routes behind the BACK-OFFICE pool.
@@ -93,6 +102,9 @@ func (h *Handler) issue(c *gin.Context) {
 		Note:     body.Note,
 		Amount:   body.Amount,
 		ActorSub: sub,
+		// ⚠ Set explicitly now that it is no longer a literal inside the service (057). The compiler
+		// forces every call site to say which organisation is spending the money.
+		ActorKind: "back_office",
 	}
 	for _, l := range body.Lines {
 		in.Lines = append(in.Lines, LineInput{OrderItemID: l.OrderItemID, Quantity: l.Quantity})

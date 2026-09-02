@@ -36,6 +36,9 @@ type Metrics interface {
 	RefundSettled(outcome string)
 	RefundSubmitFailed(failure string)
 	OrderCancelled(actor string)
+	// ⚠ 057 — authorization refusals on the shop refund route, which no other counter can see: they
+	// happen BEFORE the provider is called, so effy_refund_submit_failures_total never learns of them.
+	ShopRefundDenied(reason string)
 }
 
 // WithMetrics wires refund telemetry.
@@ -70,11 +73,14 @@ var operatorReasons = map[string]bool{
 }
 
 var (
-	ErrInvalidReason  = errors.New("refunds: unknown reason")
-	ErrNoteRequired   = errors.New("refunds: a goodwill refund must carry a note")
-	ErrAmountRejected = errors.New("refunds: an item-derived refund computes its own amount")
-	ErrNoLines        = errors.New("refunds: no lines selected")
-	ErrAmountInvalid  = errors.New("refunds: the amount must be positive")
+	ErrInvalidReason = errors.New("refunds: unknown reason")
+	// ⚠ 057 — a programming error, not an operator one: no request body can set the actor kind, it is
+	// set by whichever route handled the call. Surfacing it as a 500 rather than a 400 is deliberate.
+	ErrInvalidActorKind = errors.New("refunds: unknown actor kind")
+	ErrNoteRequired     = errors.New("refunds: a goodwill refund must carry a note")
+	ErrAmountRejected   = errors.New("refunds: an item-derived refund computes its own amount")
+	ErrNoLines          = errors.New("refunds: no lines selected")
+	ErrAmountInvalid    = errors.New("refunds: the amount must be positive")
 )
 
 // IssueInput is one refund a staff member is asking for.
@@ -86,6 +92,17 @@ type IssueInput struct {
 	Lines    []LineInput
 	Amount   string // goodwill only
 	ActorSub string
+	/**
+	 * ⚠ 057 — WHICH POOL THE ACTOR CAME FROM, and it is REQUIRED rather than defaulted.
+	 *
+	 * It was the literal "back_office" inside [Service.Issue] until a shop manager could issue a
+	 * refund too. Defaulting it here would have been the smaller diff and the worse decision: a new
+	 * call site that forgot to set it would record a shop's refund as back-office work, and the audit
+	 * trail would name the wrong organisation with nothing failing. `validate` refuses an unknown
+	 * value, so adding a fourth actor forces a decision instead of inheriting one — which is exactly
+	 * what 053 and 056 both failed to do when they widened an enum.
+	 */
+	ActorKind string
 }
 
 type LineInput struct {
@@ -116,8 +133,17 @@ func idempotencyKey(in IssueInput, amountCents int64) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+// ⚠ The actor kinds a HUMAN request may claim. `system` and `customer` are deliberately absent:
+// `system` means the provider acted with nobody behind it (and the DB's refund_actor_sub_ck forbids it
+// a subject at all), and a customer never issues a refund — they request one, which is a different
+// table. A value outside this set is a programming error and must fail loudly, not be coerced.
+var issuerKinds = map[string]bool{"back_office": true, "shop": true}
+
 // validate checks what a refund must be before any money is considered.
 func validate(in IssueInput) error {
+	if !issuerKinds[in.ActorKind] {
+		return ErrInvalidActorKind
+	}
 	if !operatorReasons[in.Reason] {
 		return ErrInvalidReason
 	}
@@ -232,7 +258,7 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (IssueResult, error)
 	refundID, paid, err := s.repo.Record(ctx, InsertInput{
 		OrderID: in.OrderID, Kind: in.Kind, AmountCents: amountCents, Currency: "AUD",
 		Reason: in.Reason, Note: note, IdempotencyKey: idempotencyKey(in, amountCents),
-		ActorKind: "back_office", ActorSub: in.ActorSub, Lines: lines,
+		ActorKind: in.ActorKind, ActorSub: in.ActorSub, Lines: lines,
 	})
 	if errors.Is(err, ErrAlreadyIssued) {
 		// ⚠ A SUCCESS THAT CHANGED NOTHING. A double-click must not look like a failure to the

@@ -37,7 +37,8 @@ function item(over: Partial<FulfillmentItem> = {}): FulfillmentItem {
 function detail(status: FulfillmentStatus, items: FulfillmentItem[] = [item()]): FulfillmentDetail {
   return {
     id: "f1",
-    orderNumber: "EFY-10023",
+    orderId: "11111111-1111-4111-8111-111111111111",
+  orderNumber: "EFY-10023",
     placedAt: "2026-07-20T02:14:05Z",
     status,
     stateChangedAt: "2026-07-20T02:15:11Z",

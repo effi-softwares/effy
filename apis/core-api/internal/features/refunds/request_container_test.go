@@ -197,7 +197,7 @@ func TestIssue_ClosesTheOrdersOpenRequest(t *testing.T) {
 	_, err := svc.RaiseRequest(ctx, raise("Two cartons were missing"))
 	require.NoError(t, err)
 
-	_, err = svc.Issue(ctx, IssueInput{
+	_, err = svc.Issue(ctx, IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "two cartons short", Amount: "20.00", ActorSub: "staff-1",
 	})
@@ -220,7 +220,7 @@ func TestIssue_SucceedsWhenThereIsNoOpenRequest(t *testing.T) {
 	seedPaidOrder(t, pool, 5000)
 	svc := NewService(NewRepository(pool), &recordingGateway{})
 
-	_, err := svc.Issue(context.Background(), IssueInput{
+	_, err := svc.Issue(context.Background(), IssueInput{ActorKind: "back_office",
 		OrderID: orderID, Kind: "goodwill", Reason: ReasonGoodwill,
 		Note: "late delivery", Amount: "10.00", ActorSub: "staff-1",
 	})

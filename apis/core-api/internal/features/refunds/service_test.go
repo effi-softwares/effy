@@ -12,6 +12,7 @@ func input(mut func(*IssueInput)) IssueInput {
 	in := IssueInput{
 		OrderID: "o1", Kind: "item", Reason: ReasonItemNotSupplied,
 		Lines: []LineInput{{OrderItemID: "oi1", Quantity: 1}}, ActorSub: "staff-1",
+		ActorKind: "back_office",
 	}
 	if mut != nil {
 		mut(&in)
@@ -131,6 +132,39 @@ func TestGoodwillAmount_RefusesZeroAndNegativeAndNonsense(t *testing.T) {
 	for _, bad := range []string{"0.00", "-5.00", "", "five dollars", "1.234"} {
 		if _, err := goodwillCents(bad); err == nil {
 			t.Errorf("goodwillCents(%q) must be refused", bad)
+		}
+	}
+}
+
+// ⚠ 057 — THE ACTOR KIND IS VALIDATED, AND THIS IS THE 053/056 LESSON APPLIED IN ADVANCE.
+//
+// Both of those features widened an enum whose readers negated it, and both shipped: 053's
+// `<> 'delivered'` admitted two new terminal states, 056's `=== "disabled"` let a suspended driver
+// keep a session. The shape is always the same — a value written after the check inherits "permitted".
+//
+// So this is parameterised over the whole vocabulary rather than testing the two happy values. A fifth
+// actor kind added to the database CHECK forces a decision here instead of silently being accepted or
+// silently being refused.
+func TestActorKind_OnlyAnIssuerMayIssue(t *testing.T) {
+	// Every value public.refund.actor_kind permits, after 057 widened it.
+	for _, tc := range []struct {
+		kind    string
+		allowed bool
+		why     string
+	}{
+		{"back_office", true, "Effy staff issue refunds — the original path"},
+		{"shop", true, "057 US5: a shop manager may refund their own portion"},
+		{"customer", false, "a customer REQUESTS a refund; they never issue one"},
+		{"system", false, "nobody at Effy did it — the provider acted, and the DB forbids it a subject"},
+		{"", false, "an unset kind must fail loudly, never default to spending someone's money"},
+		{"driver", false, "not a refund issuer, and inventing one must not silently work"},
+	} {
+		err := validate(input(func(in *IssueInput) { in.ActorKind = tc.kind }))
+		if tc.allowed && err != nil {
+			t.Errorf("%q must be permitted (%s), got %v", tc.kind, tc.why, err)
+		}
+		if !tc.allowed && err != ErrInvalidActorKind {
+			t.Errorf("%q must be refused (%s), got %v", tc.kind, tc.why, err)
 		}
 	}
 }

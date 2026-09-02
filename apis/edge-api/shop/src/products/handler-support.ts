@@ -71,6 +71,10 @@ export function mapProductError(err: unknown, scope: RequestScope): APIGatewayPr
         return problem(404, NOT_FOUND, "Not found", err.message, scope);
       case "conflict":
         return problem(409, CONFLICT, "Conflict", err.message, scope);
+      case "forbidden":
+        // ⚠ Uniform, and it never says which term of the gate failed (007 FR-021): not a manager,
+        // stood down, or at a suspended shop all read identically from outside.
+        return forbidden(scope);
     }
   }
   scope.log.error({ err: err instanceof Error ? err.message : String(err) }, "product op failed");

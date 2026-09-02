@@ -1,0 +1,194 @@
+/* Effy SHOP-WEB token value layer — 057-shop-console-redesign.
+ *
+ * ⚠ WHAT THIS FILE IS. A per-surface VALUE layer, loaded by `apps/shop-web` after `tokens.css`. It
+ * redeclares the same variable names with the values of the imported Claude Design mockup
+ * ("Effy Shop Console.dc.html", project 951bb710). The MECHANISM stays shared — one package, one
+ * variable vocabulary, one AA guard (`scripts/check-tokens.mjs` checks this file too) — so nothing
+ * is copy-pasted into the app and Principle II holds. Only the values vary, and only for shop-web.
+ *
+ * ⚠ WHAT IT IS NOT. It is not a second design system, and no other surface may import it.
+ * back-office, customer-web and the three mobile apps are untouched: the Compose generator and the
+ * drift check read `tokens.css` and only `tokens.css`, so mobile cannot be affected by anything here.
+ *
+ * ── THE ADOPTED SET ────────────────────────────────────────────────────────────────────────────
+ * Neutral ramp: shadcn's ZINC scale (#09090b … #fafafa), replacing the platform's bIkeymG neutrals.
+ * Type: Geist / Geist Mono. Radius: a SINGLE 8px, replacing the platform's 6/8/10/14 scale.
+ * Spacing: the mockup's --pad (24px) and --rowpad (12px).
+ *
+ * ── FIVE DELIBERATE DEVIATIONS FROM THE MOCKUP ─────────────────────────────────────────────────
+ * The rule applied throughout: COLOUR LAW WINS, EVERYTHING ELSE IS ADOPTED. This is the same
+ * treatment 041 gave preset bIkeymG, and for the same reasons.
+ *
+ *  1. ⚠ NO --warning, AND NO --warning-soft. The mockup carries an amber third hue (#b45309 light /
+ *     #fbbf24 dark) for "Awaiting pick", low stock and medium risk. Principle V permits exactly two
+ *     semantic colours and names only two exceptions (a third-party sign-in mark, and a chart-only
+ *     palette) — neither is a status badge. 041 already removed amber from these very screens. Every
+ *     such state is rendered as monochrome emphasis instead: weight, a border, or an icon.
+ *     ⚠ There is nothing to "restore" here. If a token named --warning ever appears in this file, the
+ *     constitution has been violated, not improved.
+ *  2. --destructive is #e01010 / #ff6b6b, NOT the mockup's #dc2626 / #f87171. The two semantic
+ *     colours are pinned by the constitution; the mockup's light red measures 4.36:1 on white and
+ *     fails AA text besides.
+ *  3. --success is #0c9409 / #22c55e, NOT the mockup's own greens. Same rule. It keeps NO
+ *     -foreground pair: at 4.00:1 it clears the 3:1 non-text bar and fails the 4.5:1 text bar, which
+ *     is exactly why nothing may be written on it.
+ *     ⚠ AND THE MOCKUP'S DARK SUCCESS VALUE IS A RETIRED BRAND COLOUR — it is byte-identical to the
+ *     green-400 that 024 used as the customer splash ground and that scripts/check-no-emerald.sh has
+ *     swept out of live source ever since. Adopting it would have failed that guard on this very
+ *     file. The literal is deliberately not written here for the same reason; the guard greps prose
+ *     as well as code, and it is right to.
+ *  4. --muted-foreground is #52525b (zinc-600) in light, NOT the mockup's #71717a (zinc-500).
+ *     #71717a on #f4f4f5 measures 4.40:1 — it FAILS AA text by a hair, on the colour that carries
+ *     every secondary line in the console. Dark keeps the mockup's #a1a1aa (6.91:1).
+ *  5. --ring is #71717a in BOTH appearances, NOT the mockup's #a1a1aa / #52525b. Those measure
+ *     2.56:1 on white and 2.57:1 on the dark ground — both fail even the 3:1 bar WCAG 1.4.11 sets
+ *     for a non-text UI indicator. A focus ring nobody can see is not a focus ring.
+ *
+ * ── ONE RECORDED CONSEQUENCE ───────────────────────────────────────────────────────────────────
+ * ⚠ shop-web's radii now DIVERGE from shop-mobile's. 017's SC-004 held web px == mobile dp because
+ * both derived from one file; shop-web is a single 8px while shop-mobile keeps the platform 6/8/10/14
+ * from `tokens.css`. That is a direct consequence of adopting this mockup for one surface only, it is
+ * intended, and it is written here so nobody later "fixes" it as drift. The parity invariant still
+ * holds for every surface that reads `tokens.css`.
+ */
+
+:root {
+  /* Surfaces — white ground; cards are the ground, separated by hairlines rather than a tint. */
+  --background: #ffffff;
+  --foreground: #09090b; /* 19.55:1 */
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+
+  /* The accent is the ramp, and it INVERTS by appearance (see .dark). Near-black fill, near-white
+     label — 16.97:1. Do not collapse this to one value: a neutral accent is invisible on its own
+     ground, which is the whole reason the platform's accent has always inverted. */
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b; /* 16.12:1 */
+  --muted: #f4f4f5;
+  --muted-foreground: #52525b; /* 7.03:1 — TUNED, see deviation 4 */
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+
+  /* Semantic — constitutional values, not the mockup's (deviations 2 and 3). */
+  --destructive: #e01010; /* 4.94:1 with white */
+  --destructive-foreground: #ffffff;
+  --success: #0c9409; /* 4.00:1 — NON-TEXT ONLY, deliberately has no -foreground pair */
+
+  --disabled: #e4e4e7;
+  --disabled-foreground: #71717a; /* 3.85:1 — WCAG exempts disabled controls; we hold 3:1 anyway */
+  --placeholder: #71717a; /* 4.83:1 on white */
+
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #71717a; /* 4.83:1 — TUNED, see deviation 5 */
+
+  /* Data-visualisation palette — CHARTS ONLY (constitution v1.13.0), greyscale in the zinc family so
+     a chart reads as part of this surface. Never a UI accent, never given a -foreground pair. */
+  --chart-1: #e4e4e7;
+  --chart-2: #a1a1aa;
+  --chart-3: #71717a;
+  --chart-4: #52525b;
+  --chart-5: #27272a;
+
+  /* Sidebar — one step off the content ground so the rail reads as a distinct plane. */
+  --sidebar: #fafafa;
+  --sidebar-foreground: #09090b;
+  --sidebar-primary: #18181b;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #71717a;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa; /* 18.10:1 */
+  --card: #18181b;
+  --card-foreground: #fafafa; /* 16.97:1 */
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+
+  /* ⚠ THE INVERSION. Near-WHITE fill, near-black label. */
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa; /* 14.27:1 */
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa; /* 6.91:1 — the mockup's own value, and it passes */
+  --accent: #1c1c1f;
+  --accent-foreground: #fafafa; /* 16.28:1 */
+
+  --destructive: #ff6b6b;
+  --destructive-foreground: #09090b;
+  --success: #22c55e;
+
+  --disabled: #27272a;
+  --disabled-foreground: #a1a1aa; /* 5.81:1 */
+  --placeholder: #71717a; /* 4.12:1 on the dark ground */
+
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #71717a; /* 4.12:1 — TUNED, see deviation 5 */
+
+  --chart-1: #e4e4e7;
+  --chart-2: #a1a1aa;
+  --chart-3: #71717a;
+  --chart-4: #52525b;
+  --chart-5: #27272a;
+
+  --sidebar: #0c0c0e;
+  --sidebar-foreground: #fafafa; /* 18.72:1 */
+  --sidebar-primary: #fafafa;
+  --sidebar-primary-foreground: #18181b;
+  --sidebar-accent: #1c1c1f;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #71717a;
+}
+
+/* Scale + type. These sit outside the appearance blocks because they do not vary by appearance.
+ *
+ * ⚠ ONE radius, not a scale. The mockup uses a single 8px everywhere, so sm/md/lg/xl are all bound
+ * to it rather than deleted — every existing `rounded-sm`/`rounded-lg` utility in the shared
+ * primitives keeps working and simply resolves to the same corner. */
+:root {
+  --radius: 0.5rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+
+  /* The mockup's two spacing constants: --pad is a page/section gutter, --rowpad a table row's
+     vertical padding. Named as the mockup names them so a value can be traced back to its source. */
+  --pad: 24px;
+  --rowpad: 12px;
+
+  /* ⚠ Geist is loaded from Google Fonts by apps/shop-web/index.html — it is NOT self-hosted the way
+     General Sans is, because this repository has no Geist woff2 to commit. The stack degrades to the
+     system UI face if the request is blocked, which is why the fallbacks are real. Self-hosting it is
+     a recorded carry-forward, not an oversight.
+     ⚠ --font-mono must stay MONOSPACE: one-time codes are dictated over the phone and compared digit
+     by digit, where 1/l and 0/O are expensive. check-tokens.mjs enforces it. */
+  --font-sans: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Tailwind v4 reads its utility scale from @theme. The colour vars above flow through the mapping
+   already declared in tokens.css (--color-* : var(--*)), so only the scale needs restating here. */
+@theme inline {
+  --radius-sm: 0.5rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.5rem;
+  --font-sans: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}

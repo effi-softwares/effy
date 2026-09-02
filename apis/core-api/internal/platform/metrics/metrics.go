@@ -41,6 +41,7 @@ type Metrics struct {
 	refundsIssued    *prometheus.CounterVec // labels: kind    ∈ {item,goodwill,cancellation,external}
 	refundOutcomes   *prometheus.CounterVec // labels: outcome ∈ {succeeded,failed,refused}
 	refundSubmitFail *prometheus.CounterVec // labels: failure ∈ {ambiguous,refused}
+	shopRefundDenied *prometheus.CounterVec // labels: reason ∈ {not_permitted,not_your_lines,unavailable}
 	ordersCancelled  *prometheus.CounterVec // labels: actor   ∈ {customer,back_office}
 }
 
@@ -97,6 +98,20 @@ func New() *Metrics {
 			Help: "Submissions the provider did not accept, by failure kind. `ambiguous` may have " +
 				"created a refund and is retried under the same key; `refused` is a decision (055 FR-005d).",
 		}, []string{"failure"}),
+		// ⚠ 057 — AUTHORIZATION refusals on the shop refund route, which no existing metric can see.
+		//
+		// The plan asked for a `core_api_shop_refund_failed` counter "feeding the same alert 055 built
+		// for refund failures". That would have DOUBLE-COUNTED: a shop refund travels the identical
+		// submit path as a back-office one, so its provider failures are already on
+		// effy_refund_submit_failures_total. What is genuinely unmeasured is the half that never
+		// reaches the provider — a non-manager, a suspended shop, or a request naming another shop's
+		// lines. A sustained rise here is either a UI that offers a control it should not, or someone
+		// probing which orders exist.
+		shopRefundDenied: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "effy_shop_refund_denied_total",
+			Help: "Shop-initiated refunds refused BEFORE the provider was called, by reason. " +
+				"Distinct from effy_refund_submit_failures_total, which counts provider outcomes (057 US5).",
+		}, []string{"reason"}),
 		ordersCancelled: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "effy_orders_cancelled_total",
 			Help: "Orders cancelled, by who asked. ⚠ Cancelling IS refunding on this platform — the " +
@@ -115,6 +130,7 @@ func New() *Metrics {
 		m.refundsIssued,
 		m.refundOutcomes,
 		m.refundSubmitFail,
+		m.shopRefundDenied,
 		m.ordersCancelled,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
@@ -176,6 +192,12 @@ func (m *Metrics) RefundSettled(outcome string) { m.refundOutcomes.WithLabelValu
 func (m *Metrics) RefundSubmitFailed(failure string) {
 	m.refundSubmitFail.WithLabelValues(failure).Inc()
 }
+
+// ShopRefundDenied records a shop refund refused before any money was considered (057 US5).
+//
+// ⚠ The REASON is recorded here but never returned to the caller — the HTTP refusal is uniform and
+// says nothing about which term failed, or the route becomes a probe for which orders exist.
+func (m *Metrics) ShopRefundDenied(reason string) { m.shopRefundDenied.WithLabelValues(reason).Inc() }
 
 // OrderCancelled records one cancellation, by who asked for it.
 func (m *Metrics) OrderCancelled(actor string) { m.ordersCancelled.WithLabelValues(actor).Inc() }

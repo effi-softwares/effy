@@ -467,3 +467,57 @@ the last state a shop could not get out of.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
 Spec/artifacts: [specs/055-refunds-cancellation/](../../specs/055-refunds-cancellation/).
+
+---
+
+## §057 — Shop Console Redesign (057-shop-web-redesign)
+
+The console rebuilt on an imported Claude Design mockup, plus three capabilities the shop audience
+never had: initiating a refund, tracking suppliers and purchase orders, and managing its own team.
+
+| Capability | shop-web | shop-mobile | Notes |
+| --- | --- | --- | --- |
+| Dashboard with **live** counts | ✅ | ⛔ | Was four em-dashes and a chart of invented data |
+| Needs-attention list (orders + stock) | ✅ | ⛔ | Every row navigates to the thing it names |
+| Order queue search / filter / bulk advance | ✅ | ⛔ | Filters only REMOVE rows; server order preserved |
+| Catalog filter chips | ✅ | ⛔ | Server-side search, unlike the queue's client-side filter |
+| Add-product wizard progress rail | ✅ | ⛔ | New shared `Stepper` primitive |
+| Restock grouped by supplier | ✅ | ⛔ | "Unassigned" is a real group, listed last |
+| Suppliers (record / edit / archive) | ✅ | ⛔ | Archived, never deleted — a PO names its supplier forever |
+| Purchase orders (build / send / receive) | ✅ | ⛔ | Receiving is the one write that moves stock |
+| **Initiate a refund** | ✅ (manager) | ⛔ | Settles through 055's pipeline — no second mechanism |
+| **Manage the team** (invite / role / stand down) | ✅ (manager) | ⛔ | Writes the records back-office owns |
+
+- ⚠ **THE SHOP CONSOLE NOW REACHES `core-api`, ON EXACTLY ONE ROUTE.** Refunds must settle through
+  055's state machine, which lives there because the payment secret does (019 SC-012). `core-api`
+  gains a **third** per-pool verifier (shop) — the same shape 055 used for back-office, per-pool
+  validation against that pool's own issuer, not the auth proxy Principle IV forbids. Every other
+  route on that service rejects a shop token structurally.
+- ⚠ **The refund gate asks THREE questions and all three must hold**: an active operator, carrying
+  `shop_manager`, at an active shop **that is fulfilling part of this order**. The third is what makes
+  it different from every other gate on the platform — a shop manager's authority is bounded by which
+  orders their shop actually touched, so it cannot be answered from the subject alone.
+- ⚠ **Refunding is the ONE authority split from picking.** 020's FR-019a deliberately gave both roles
+  full fulfilment access — the people at the shelves do the work. A refund is irreversible and spends
+  the business's money, so it is manager-only, like 046's outward reply and 053's arrival assertion.
+- ⚠ **INVITING A COLLEAGUE REFUSES A REUSED EMAIL RATHER THAN ADOPTING THE ACCOUNT BEHIND IT — and
+  this feature's own research said the opposite.** R5 recorded 009's provisioning as "built correctly"
+  and safe to reuse as-is. It is not, for this caller: `ensureShopUser` recovers an existing account
+  and **re-enables it if disabled**, which 009 documented as break-glass for a back-office admin. 056
+  records that exact shape as a shipped defect on the driver path. A shop manager typing a departed
+  colleague's address cannot know any of it happened, so the invite refuses and **names** the
+  situation.
+- ⚠ **The last active manager cannot be removed — by either route.** Guarding only "stand down" leaves
+  demotion as the way in, and a shop with no manager cannot invite, change a role or refund. It locks
+  itself out permanently and only back-office can undo it.
+- ⚠ **A `received` purchase order still accepts receives**, and the container test is what proved it
+  must. `received` is DERIVED, so refusing writes there broke both idempotency (a retry errored) and
+  correction (a mis-keyed receive could never be fixed) — a derived state a human cannot escape.
+- ⚠ **Colour law held throughout.** The mockup ships a third `--warning` hue, a password sign-in and
+  a green that is byte-identical to a retired brand value; none was adopted. `check-tokens.mjs` now
+  guards the shop layer too and **fails naming the token** if a third hue appears.
+- **shop-mobile gains nothing** — 057 is a web slice by design (FR-001). The ⛔ column is the register
+  doing its job: every row above is a parity debt the mobile surface now carries.
+
+**⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
+Spec/artifacts: [specs/057-shop-web-redesign/](../../specs/057-shop-web-redesign/).

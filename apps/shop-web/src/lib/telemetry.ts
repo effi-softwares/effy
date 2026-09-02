@@ -39,7 +39,18 @@ export type ShopAnalyticsEvent =
   | { name: "shop_order_reversed"; fulfillmentId: string }
   | { name: "shop_order_item_gathered"; fulfillmentId: string }
   | { name: "shop_order_item_unavailable"; fulfillmentId: string }
-  | { name: "shop_order_item_restored"; fulfillmentId: string };
+  | { name: "shop_order_item_restored"; fulfillmentId: string }
+  // 057 US5 — a shop manager refunded their own portion. ⚠ NO amount, NO order number, NO line names:
+  // the same PII rule the fulfilment events hold to. `fulfillmentId` is a unit of work, not a person.
+  | { name: "shop_refund_initiated"; fulfillmentId: string }
+  // 057 US6 — restocking. ⚠ No supplier name and no cost: a supplier is a third party who never dealt
+  // with Effy's analytics, and unit cost is commercially sensitive to the shop.
+  | { name: "purchase_order_created"; purchaseOrderId: string; lineCount: number }
+  | { name: "purchase_order_received"; purchaseOrderId: string; complete: boolean }
+  // 057 US7 — team management. ⚠ NEVER the invitee's email or name: this is the one event that would
+  // otherwise carry a colleague's identity into product analytics.
+  | { name: "shop_staff_invited"; role: string }
+  | { name: "shop_staff_deactivated" };
 
 const telemetry = createTelemetry<ShopAnalyticsEvent>({
   key: config.posthogKey(),

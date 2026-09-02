@@ -14,6 +14,8 @@ import { ErrorState } from "@effy/web-kit/console";
 
 import { track } from "@/lib/telemetry";
 
+import { TeamRoster } from "@/features/team/TeamRoster";
+
 import { managerPingQuery } from "./queries";
 
 /**
@@ -33,7 +35,13 @@ export function ManagerOnlyScreen() {
   }, [denied]);
 
   return (
-    <Card className="max-w-md">
+    <div className="flex flex-col gap-[var(--pad)]">
+      {/* ⚠ 057 US7 — the management area is no longer a bare access proof. The roster is the first
+          real thing a manager can DO here; the access card below stays because it is the one screen
+          that demonstrates the backend gate, and 007's SC-005b still leans on it. */}
+      <TeamRoster />
+
+      <Card className="max-w-md">
       <CardHeader>
         <CardTitle>Shop management</CardTitle>
         <CardDescription>
@@ -58,6 +66,7 @@ export function ManagerOnlyScreen() {
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 }

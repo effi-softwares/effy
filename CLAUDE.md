@@ -261,6 +261,71 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**057-shop-web-redesign — Shop Console Redesign.** 🚧 **68/77 tasks — every phase BUILT and fully
+machine-verified, INCLUDING against real PostgreSQL. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
+PERSON.** Spec/artifacts: [specs/057-shop-web-redesign/](specs/057-shop-web-redesign/).
+
+Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`, read via
+`DesignSync` — it is **not** in the repo), and adds the three capabilities the shop audience never had.
+- ⚠ **THE MOCKUP IS A GENERIC E-COMMERCE CONSOLE, AND FOUR OF ITS SCREENS ARE THINGS EFFY CANNOT DO.**
+  It ships payment **capture**, **carrier/tracking**, order-**line editing** and a **password** sign-in.
+  Effy captures at payment (055 R3); a shop hands its portion to an Effy driver (049) and never sees a
+  carrier; an order is a paid financial record 055 refuses to edit; and the shop audience is *strictly
+  passwordless* — the pool has no password flow, so that field would collect a credential Cognito
+  rejects. All four are refused by **source guards that read this directory and fail naming the file**.
+- ⚠ **THE COLOUR LAW HELD, THREE TIMES.** The mockup carries a third `--warning` hue (amber), a
+  `--destructive` that fails AA, and a dark `--success` **byte-identical to the retired 024 splash
+  green** — which fired `check-no-emerald.sh` on my own comment. None adopted. `check-tokens.mjs` now
+  checks **both** token files and a new `check-shop-theme.mjs` proves the shop layer overrides **all 36**
+  platform colour vars, so a missed one cannot silently mix two neutral ramps. ⚠ `tokens:check` passes
+  **unchanged** — the mechanical proof nothing reached the three mobile Compose themes.
+- ⚠ **A SHOP-SCOPED TOKEN LAYER, INSIDE THE SHARED PACKAGE** (`design-system/src/tokens/shop.css`):
+  the zinc ramp, Geist, a single 8px radius. Mechanism shared, values per-surface. ⚠ Recorded
+  consequence: shop-web's radii now **diverge from shop-mobile's**, ending 017's SC-004 parity for this
+  one surface. Intended, and written down so nobody "fixes" it as drift.
+- ⚠ **`core-api` GAINED A THIRD COGNITO VERIFIER** (shop), on **exactly one route** — the refund. Same
+  reasoning 055 used for back-office: the payment secret lives there and nowhere else. The gate asks
+  **three** questions (active operator · `shop_manager` · at an active shop **that is on this order**);
+  the third is what makes it unlike every other gate, and it is proven against real PostgreSQL.
+- ⚠ **A LATENT DEFECT FOUND AND FIXED: every shop-issued refund would have been UNATTRIBUTABLE.**
+  `actor_label` is resolved by a LEFT JOIN against `admin.staff` **only** — correct for back-office and
+  matching nothing for anyone else. The moment a shop could refund, back-office's audit trail would
+  render "—" with nothing saying anything was missing, in the table whose own comment calls that "the
+  audit gap this table exists to close." Now joins both staff tables and the DTO carries `actorKind`.
+- ⚠ **T006 WAS WRONG AND WAS NOT BUILT AS WRITTEN.** It asked for `initiated_by` +
+  `initiated_by_shop_staff_id` on `public.refund`; that table has carried `actor_kind` + `actor_sub`
+  since 055. Two columns answering one question is 033/052/053's shape. The migration **widens the
+  CHECK** instead — after auditing all three readers, because 053 and 056 each shipped a defect through
+  an enum widening.
+- ⚠ **RESEARCH R5 WAS WRONG TOO.** It recorded 009's provisioning as safe to reuse as-is;
+  `ensureShopUser` **re-enables a disabled account** (break-glass for a back-office admin, a trap for a
+  shop manager). 056 records the identical shape as a shipped defect. The invite now **refuses** a
+  reused email and names the situation, and never reaches Cognito.
+- ⚠ **A DEFECT OF MY OWN, CAUGHT ONLY BY THE CONTAINER TEST**: a fully-`received` purchase order
+  refused further receives. `received` is **derived**, so that broke idempotency (a retry errored) and
+  correction (a mis-keyed receive could never be undone) — a derived state a human cannot escape, which
+  is 056's stranded-work shape. Only `cancelled` refuses now.
+- ⚠ **AND ONE GUARD THAT DID NOT CATCH ITS OWN NEGATIVE PROOF.** The FR-012 source guard required a
+  delimiter after the phrase, so an injected `<RotateCcw />Capture payment` sailed through. Fixed to
+  word-bounded phrases over comment-stripped source; **all six** injections now caught. 056 records the
+  same near-miss.
+- ⚠ **AND A BEHAVIOUR CHANGE A 054 TEST STOPPED ME SHIPPING**: sorting the restock query by supplier
+  silently demoted an out-of-stock product at one supplier below a merely-low one at another. Grouping
+  moved to the client; 054's urgency guarantee is untouched.
+- **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **18 packages, 1,749 tests, zero
+  failures** (shop-web **239**, edge-shop **223** incl. **12 container-backed**, back-office **190**
+  UNMODIFIED, edge-admin **191** UNMODIFIED) · Go build/vet/gofmt clean · `go test ./...` with Docker up,
+  **refunds green incl. 4 new container tests against the real migrations** · `check-tokens` ·
+  `check-shop-theme` · `tokens:check` **unchanged** · `check-no-emerald`/`check-no-jade`.
+  **Negative proofs executed by breaking the thing**: the amber hue, the AA-failing muted-foreground, a
+  dropped token override, a password field, and all six forbidden controls.
+- **⚠ Open (9, all operator)**: the commit; `make db-up ENV=dev`; ⚠ `make apply ENV=dev` **first**
+  (core-api needs `AUTH_SHOP_*` or it **fails closed at boot**, and edge-shop needs the shop-pool
+  Cognito grant or every invite 500s); `core-image-push && core-deploy`; `make edge-deploy SERVICE=shop`
+  and `SERVICE=inventory`; then the quickstart walks. ⚠ **Nobody has looked at any screen** — 039
+  shipped four live defects with a fully green suite. Parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §057.
+
 **056-driver-management — Back-Office Driver Management.** 🚧 **CODE-COMPLETE + FULLY MACHINE-VERIFIED
 across the new service, the console, the migration and both corrections. NOT DEPLOYED, NOT COMMITTED,
 NOT WALKED BY A PERSON.** Sign-off:
@@ -1943,5 +2008,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/056-driver-management/plan.md
+at specs/057-shop-web-redesign/plan.md
 <!-- SPECKIT END -->

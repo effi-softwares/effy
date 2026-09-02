@@ -1,12 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { isShopManager } from "@effy/shared-types";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Undo2 } from "lucide-react";
 
+import { Button } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
+
+import { sessionQuery } from "@/features/auth/queries";
 
 import { FulfillmentStatusBadge } from "./components/FulfillmentStatusBadge";
 import { PickList } from "./components/PickList";
+import { RefundSheet } from "./components/RefundSheet";
 import { StateControl } from "./components/StateControl";
 import { track } from "@/lib/telemetry";
 
@@ -23,11 +28,28 @@ import { fulfillmentDetailQuery } from "./queries";
  *
  * Opening this screen IS the acknowledgement — a `pending` portion becomes `received` as a side
  * effect of the read (FR-011a), which is why there is no "acknowledge" button anywhere.
+ *
+ * ⚠ 057 RESTYLED THIS SCREEN AND DELIBERATELY ADDED NOTHING TO IT. The imported mockup's order detail
+ * carries payment capture, carrier selection, shipment/tracking rows, line editing and a returns
+ * panel. Effy can honour none of them — see `__tests__/order-detail.test.tsx`, which reads this
+ * directory's source and fails naming the file if any of them appears. The layout changed; the
+ * capability surface did not.
  */
 export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(
     fulfillmentDetailQuery(fulfillmentId),
   );
+
+  const { data: session } = useQuery(sessionQuery);
+  const [refundOpen, setRefundOpen] = useState(false);
+
+  // ⚠ 057 US5 / FR-014b — A COURTESY, NOT THE GATE. The backend decides from the platform record
+  // (role AND status AND the shop's own portion of THIS order) and refuses regardless of what this
+  // renders. Withholding the control from a `shop_staff` operator only spares them a refusal they can
+  // do nothing about — 020's FR-019a deliberately gave both roles full fulfilment access, and this is
+  // the one action that is not fulfilment: a refund is irreversible and spends the business's money.
+  const canRefund =
+    session?.status === "signed-in" && isShopManager(session.identity.roles);
 
   // Keyed on the portion id, not on `data` — this is "the operator opened this order", which must
   // fire once per open, not again on every refetch or state change.
@@ -63,7 +85,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   const shortfall = detail.items.reduce((n, i) => n + i.unavailableQuantity, 0);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-[var(--pad)]">
       <BackLink />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -77,7 +99,17 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             {detail.promise.serviceLevel})
           </p>
         </div>
-        <StateControl detail={detail} onReload={() => void refetch()} />
+        <div className="flex flex-col items-end gap-2">
+          <StateControl detail={detail} onReload={() => void refetch()} />
+          {/* ⚠ Separated from the forward actions and never a primary button. A mis-tap here returns a
+              customer's money, which is not a wrong pixel. */}
+          {canRefund ? (
+            <Button variant="ghost" size="sm" onClick={() => setRefundOpen(true)}>
+              <Undo2 />
+              Refund items
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       {shortfall > 0 ? (
@@ -98,23 +130,34 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         </div>
       ) : null}
 
-      <Section title="Delivery">
-        <DetailList
-          rows={[
-            ["Recipient", detail.delivery.recipientName],
-            ["Phone", detail.delivery.phone ?? "—"],
-            ["Address", addressLine(detail)],
-            ["City", detail.delivery.city],
-            ["Region", detail.delivery.region ?? "—"],
-            ["Postcode", detail.delivery.postalCode],
-            ["Country", detail.delivery.country],
-          ]}
-        />
-      </Section>
+      {/* ⚠ The pick list gets the wide column and comes FIRST in the DOM. It is the only thing on
+          this screen a person is actively working through, so it must be what a tablet shows without
+          scrolling and what a screen reader reaches first. Delivery is reference material. */}
+      <div className="grid gap-[var(--pad)] lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <Section
+          title={`Pick list (${detail.items.length} line${detail.items.length === 1 ? "" : "s"})`}
+        >
+          <PickList fulfillmentId={detail.id} items={detail.items} status={detail.status} />
+        </Section>
 
-      <Section title={`Pick list (${detail.items.length} line${detail.items.length === 1 ? "" : "s"})`}>
-        <PickList fulfillmentId={detail.id} items={detail.items} status={detail.status} />
-      </Section>
+        <Section title="Delivery">
+          <DetailList
+            rows={[
+              ["Recipient", detail.delivery.recipientName],
+              ["Phone", detail.delivery.phone ?? "—"],
+              ["Address", addressLine(detail)],
+              ["City", detail.delivery.city],
+              ["Region", detail.delivery.region ?? "—"],
+              ["Postcode", detail.delivery.postalCode],
+              ["Country", detail.delivery.country],
+            ]}
+          />
+        </Section>
+      </div>
+
+      {canRefund ? (
+        <RefundSheet detail={detail} open={refundOpen} onOpenChange={setRefundOpen} />
+      ) : null}
     </div>
   );
 }
@@ -151,7 +194,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function DetailList({ rows }: { rows: [string, string][] }) {
   return (
-    <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
+    <dl className="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-2 text-sm">
       {rows.map(([label, value], i) => (
         <div key={i} className="contents">
           <dt className="text-muted-foreground">{label}</dt>

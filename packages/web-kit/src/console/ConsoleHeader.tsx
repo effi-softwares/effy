@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { useLocation } from "@tanstack/react-router";
 
 import {
@@ -17,11 +19,14 @@ export interface ConsoleHeaderProps<TRole extends string> {
   /** e.g. "Effy Shop" — the static left crumb. */
   surfaceLabel: string;
   nav: readonly NavItem<TRole>[];
+  /** 057 — optional right-aligned controls. Omitted = the header renders exactly as before. */
+  actions?: ReactNode;
 }
 
 export function ConsoleHeader<TRole extends string>({
   surfaceLabel,
   nav,
+  actions,
 }: ConsoleHeaderProps<TRole>) {
   const { pathname } = useLocation();
   const section = currentSection(nav, pathname);
@@ -41,6 +46,7 @@ export function ConsoleHeader<TRole extends string>({
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
+      {actions ? <div className="ml-auto flex items-center gap-2">{actions}</div> : null}
     </header>
   );
 }

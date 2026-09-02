@@ -27,6 +27,10 @@ function row(over: Partial<LowStockRowDTO> = {}): LowStockRowDTO {
     onHand: 2,
     effectiveThreshold: 5,
     severity: "low",
+    // ⚠ 057 added supplier grouping to the restock DTO. Back-office renders neither field — the
+    // shop's supply chain is the shop's business — but the shape is shared, so the fixture carries it.
+    supplierId: null,
+    supplierName: null,
     ...over,
   };
 }

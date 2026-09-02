@@ -7,6 +7,11 @@ const REQUIRED = [
   "VITE_COGNITO_USER_POOL_ID",
   "VITE_COGNITO_CLIENT_ID",
   "VITE_API_BASE_URL",
+  // ⚠ 057 — a SECOND backend host, and the reason is Principle III, not convenience. Everything the
+  // shop console does is cold-path CRUD on the shared gateway EXCEPT issuing a refund, which must
+  // settle through 055's state machine — and that lives in core-api because the payment secret does
+  // (019 SC-012). This is the same split 011's FR-028 set for the customer surfaces.
+  "VITE_CORE_API_BASE_URL",
 ] as const;
 
 const cfg = createConfig(
@@ -25,6 +30,12 @@ export const config = {
   cognitoClientId: (): string => cfg.require("VITE_COGNITO_CLIENT_ID"),
   /** The shared gateway host; paths carry /shop/v1/... */
   apiBaseUrl: (): string => cfg.require("VITE_API_BASE_URL"),
+  /**
+   * The HOT path (core-api). ⚠ Used by exactly one call — the shop refund — and it should stay that
+   * way: every other shop capability belongs on the cold path. A second base URL is an invitation to
+   * drift, so the one legitimate user of it is named here.
+   */
+  coreApiBaseUrl: (): string => cfg.require("VITE_CORE_API_BASE_URL"),
   posthogKey: (): string | undefined => cfg.optional("VITE_POSTHOG_KEY"),
   posthogHost: (): string | undefined => cfg.optional("VITE_POSTHOG_HOST"),
   // 050 FR-026 — analytics kill switch. Anything but the string "false" (incl. unset) = enabled.

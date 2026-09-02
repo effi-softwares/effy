@@ -55,13 +55,13 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   const detail: ProductDetail = data;
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-[var(--pad)]">
       <BackLink />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold">{detail.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{detail.name}</h1>
             <ProductStatusBadge status={detail.status} />
           </div>
           {detail.brand ? <p className="text-muted-foreground">{detail.brand}</p> : null}

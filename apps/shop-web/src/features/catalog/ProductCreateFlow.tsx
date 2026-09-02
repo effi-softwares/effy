@@ -25,6 +25,7 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
+  Stepper,
   Textarea,
 } from "@effy/design-system/ui";
 import { useIsMobile } from "@effy/design-system/hooks/use-mobile";
@@ -204,12 +205,21 @@ export function ProductCreateFlow({ open, onOpenChange }: ProductCreateFlowProps
     }
   }
 
+  // ⚠ 057: a real progress rail, not a sentence. "Step 2 of 5 · Basics" told the operator where they
+  // were and nothing else — not what was already done, not what remained, and it offered no way back
+  // to a step they had completed. The rail carries all three.
+  //
+  // ⚠ `maxReachableStep` is the LAST COMPLETED step, never the last index. Jumping forward into
+  // Review over an unvalidated Basics form is exactly what `canAdvance` exists to prevent, and a
+  // clickable rail would route straight around it.
   const header = (
-    <>
-      <p className="text-sm text-muted-foreground">
-        Step {step + 1} of {STEP_TITLES.length} · {STEP_TITLES[step]}
-      </p>
-    </>
+    <Stepper
+      steps={STEP_TITLES}
+      current={step}
+      maxReachableStep={step}
+      onStepSelect={busy ? undefined : goToStep}
+      className="pt-3"
+    />
   );
 
   const body = (
