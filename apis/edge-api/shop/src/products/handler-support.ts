@@ -148,6 +148,8 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     weightGrams: d.weightGrams,
     weightIsAssumed: d.weightIsAssumed,
     status: d.status,
+    supplierId: d.supplierId,
+    supplierName: d.supplierName,
     attributes: d.attributes.map((a) => ({
       attributeId: a.attributeId,
       key: a.key,

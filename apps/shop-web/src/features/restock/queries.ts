@@ -64,12 +64,26 @@ export function useArchiveSupplier() {
   return useMutation({ mutationFn: repo.archiveSupplier, onSuccess: invalidate })
 }
 
+/**
+ * ⚠ THIS MUTATION SHIPPED WITH 057's US6 AND HAD NO CALL SITE. The restock queue groups by supplier
+ * (FR-018) and nothing anywhere could assign one, so every product sat in the "Unassigned" bucket
+ * permanently. The product detail screen is where it now lives — the one screen that knows which
+ * product the operator means.
+ *
+ * ⚠ AND IT INVALIDATES THE CATALOG ROOT TOO, which the shared `useInvalidate` does not. The product
+ * DETAIL now carries `supplierName` (resolved on read), so without this the operator assigns a
+ * supplier, the write succeeds, and the row they are looking at keeps showing the old answer.
+ */
 export function useSetProductSupplier() {
   const invalidate = useInvalidate()
+  const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ productId, supplierId }: { productId: string; supplierId: string | null }) =>
       repo.setProductSupplier(productId, supplierId),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      invalidate()
+      void qc.invalidateQueries({ queryKey: ["shop", "catalog"] })
+    },
   })
 }
 

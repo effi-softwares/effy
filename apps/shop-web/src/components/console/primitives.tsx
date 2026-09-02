@@ -59,14 +59,22 @@ export function Section({
   )
 }
 
-/** The section-header action: `Edit`, `Manage`, `See all`. */
+/**
+ * The section-header action: `Edit`, `Manage`, `See all`.
+ *
+ * ⚠ `onClick` IS REQUIRED, AND THAT IS A FIX. The product screen shipped
+ * `<SectionAction>Manage</SectionAction>` on its Media section with no handler at all — a control
+ * that looks live, takes keyboard focus, and does nothing when clicked. Nothing failed: a missing
+ * optional prop is not a type error and no DOM assertion looks for a handler. Making it required
+ * turns the next one into a build error instead of something an operator discovers by clicking.
+ */
 export function SectionAction({
   children,
   onClick,
   disabled,
 }: {
   children: ReactNode
-  onClick?: () => void
+  onClick: () => void
   disabled?: boolean
 }) {
   return (

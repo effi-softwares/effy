@@ -287,6 +287,18 @@ export interface ProductDetailDTO {
    */
   weightIsAssumed: boolean;
   status: ProductStatus;
+  /**
+   * ⚠ 057 — the product's default supplier, resolved on read. BOTH ARE NULLABLE AND NULL IS A
+   * FIRST-CLASS STATE, exactly as `LowStockRowDTO` records it: a product nobody has assigned a
+   * supplier to is ordinary, and the restock queue gives those their own "Unassigned" bucket.
+   *
+   * ⚠ WHY IT IS ON THE DETAIL AT ALL. `PATCH /shop/v1/products/{id}/supplier` shipped with 057's US6
+   * and had NO CALL SITE anywhere in the console — the restock queue groups by a supplier nothing
+   * could assign. Reading it here is what makes the assignment reachable from the one screen that
+   * knows which product it is about.
+   */
+  supplierId: string | null;
+  supplierName: string | null;
   attributes: ProductAttributeValueDTO[];
   media: ProductMediaDTO[];
   sections: string[];
