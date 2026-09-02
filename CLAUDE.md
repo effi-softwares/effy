@@ -312,8 +312,24 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
 - ⚠ **AND A BEHAVIOUR CHANGE A 054 TEST STOPPED ME SHIPPING**: sorting the restock query by supplier
   silently demoted an out-of-stock product at one supplier below a merely-low one at another. Grouping
   moved to the client; 054's urgency guarantee is untouched.
-- **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **18 packages, 1,749 tests, zero
-  failures** (shop-web **239**, edge-shop **223** incl. **12 container-backed**, back-office **190**
+- ⚠ **THE SIX MAIN SCREENS WERE REBUILT AGAINST THE MOCKUP'S ACTUAL MARKUP, not just its tokens** —
+  a second pass after the first delivered the theme and left five screens only lightly restyled. The
+  shell (224px rail, 56px header carrying the screen's identity + live subtitle + search + theme + a
+  route-derived CTA), catalog (segmented status tabs, `--muted` table head, 6 columns), product detail
+  (⚠ **six tabs collapsed into one scrolling column** with per-section Edit links and a summary rail),
+  order detail (sticky action bar, activity timeline, address rail), sign-in (brand lockup + bare
+  column) and the add-product wizard (⚠ **a modal turned into a ROUTE** with a progress rail and live
+  preview — a URL survives the refresh a modal dropped). Shared chrome changes are **opt-in props** on
+  `ConsoleShell`/`ConsoleHeader`/`OtpSignInCard`; back-office's **190 tests pass unmodified**, which is
+  the proof.
+- ⚠ **FOUR MORE MOCKUP BLOCKS REFUSED, all on order detail**: its money totals (a shop portion carries
+  no order-level money — 020 SC-007 — and its "VAT 25%" is Swedish, while AU grocery is a mixed supply),
+  its **Capture** button (Effy captures at payment, 055 R3), its **Duplicate**/**Edit order** (an order
+  is a paid record 055 refuses to edit) and **Print invoice** (`canIssueTaxInvoice()` is false — no ABN,
+  no per-item GST). Its `TONES` map was refused wholesale: amber is a third hue, and it uses `--success`
+  as TEXT at 4.00:1, below the 4.5:1 bar that is exactly why `--success` has no `-foreground` pair.
+- **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **18 packages, 1,750 tests, zero
+  failures** (shop-web **240**, edge-shop **223** incl. **12 container-backed**, back-office **190**
   UNMODIFIED, edge-admin **191** UNMODIFIED) · Go build/vet/gofmt clean · `go test ./...` with Docker up,
   **refunds green incl. 4 new container tests against the real migrations** · `check-tokens` ·
   `check-shop-theme` · `tokens:check` **unchanged** · `check-no-emerald`/`check-no-jade`.

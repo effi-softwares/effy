@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
+  // 057: the rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
+  useNavigate: () => () => {},
 }))
 
 const updateProduct = vi.hoisted(() => vi.fn())

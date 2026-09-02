@@ -7,6 +7,8 @@ import type { FulfillmentDetail } from "../model"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
+  // 057: the rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
+  useNavigate: () => () => {},
 }))
 
 const getFulfillment = vi.hoisted(() => vi.fn())

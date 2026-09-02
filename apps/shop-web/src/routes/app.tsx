@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { createRoute, Outlet, useNavigate } from "@tanstack/react-router";
+import { createRoute, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@tanstack/react-store";
 
 import { ConsoleShell } from "@effy/web-kit/console";
 
+import { HeaderChrome } from "@/components/console/HeaderChrome";
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
@@ -51,13 +52,23 @@ function AppShell() {
   const signOut = useSignOut();
   const navigate = useNavigate();
   const navBadges = useNavBadges();
+  const { pathname } = useLocation();
 
   const identity = data?.status === "signed-in" ? data.identity : null;
+
+  // ⚠ 057 — the imported design puts the screen's identity in the HEADER, not in an <h1> on every
+  // page. The subtitle carries live context (what is waiting, what is short), which is why it reads
+  // the same nav badges the rail does rather than a count of its own.
+  const chrome = headerChromeFor(pathname, navBadges);
 
   return (
     <ConsoleShell
       brand={{ mark: "E", name: "Effy", surface: "Shop" }}
       surfaceLabel="Effy Shop"
+      sidebarWidth="14rem"
+      headerTitle={chrome.title}
+      headerSubtitle={chrome.subtitle}
+      headerActions={<HeaderChrome />}
       nav={NAV}
       navBadges={navBadges}
       roles={identity?.roles ?? []}
@@ -75,4 +86,45 @@ function AppShell() {
       <Outlet />
     </ConsoleShell>
   );
+}
+
+/**
+ * The header's title and one-line context, per screen (057).
+ *
+ * ⚠ THE SUBTITLE IS DERIVED FROM THE SAME CACHE THE SIDEBAR BADGES READ. A second count here could
+ * disagree with the rail three pixels away, which is the `summarizeFulfillment` mistake 052 deleted —
+ * two implementations of one fact, on one screen.
+ */
+function headerChromeFor(
+  pathname: string,
+  badges: Record<string, number | undefined>,
+): { title: string; subtitle: string } {
+  const waiting = badges["/orders"] ?? 0;
+  const short = badges["/restock"] ?? 0;
+
+  if (pathname.startsWith("/orders")) {
+    return {
+      title: "Orders",
+      subtitle: waiting > 0 ? `${waiting} waiting to be picked` : "Nothing waiting",
+    };
+  }
+  if (pathname.startsWith("/catalog")) {
+    return { title: "Catalog", subtitle: "Your shop's products" };
+  }
+  if (pathname.startsWith("/restock")) {
+    return {
+      title: "Restock",
+      subtitle: short > 0 ? `${short} products need restocking` : "Nothing running low",
+    };
+  }
+  if (pathname.startsWith("/manager")) {
+    return { title: "Management", subtitle: "Your team and shop settings" };
+  }
+  return {
+    title: "Today",
+    subtitle:
+      waiting > 0 || short > 0
+        ? `${waiting} to pick · ${short} to restock`
+        : "Everything is up to date",
+  };
 }

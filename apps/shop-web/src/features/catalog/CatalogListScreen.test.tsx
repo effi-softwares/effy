@@ -70,13 +70,19 @@ describe("CatalogListScreen columns", () => {
     wrap(<CatalogListScreen />);
 
     expect(await screen.findByText("Flat White")).toBeInTheDocument();
+    // ⚠ 057 follows the imported design's SIX-column table: Product / SKU / Category / Status /
+    // Price / Inventory. The Type column is gone — Category answers the same scanning question and
+    // the mockup drops it. Brand survives as the Product cell's muted second line, because it is what
+    // tells two similar products apart; the mockup's own sample data just has no brands in it.
     expect(screen.getByText("Effy Roastery")).toBeInTheDocument();
-    expect(screen.getByText("Prepared Food")).toBeInTheDocument();
     expect(screen.getByText("Coffee")).toBeInTheDocument();
     expect(screen.getByText("AUD 4.50")).toBeInTheDocument();
     expect(screen.getByText("active")).toBeInTheDocument();
     expect(screen.getByText("FW-001")).toBeInTheDocument();
-    expect(screen.getByText(/1 product ·/)).toBeInTheDocument();
+    // ⚠ Matched across elements: the count is its own <span> so the figure is tabular-nums.
+    expect(
+      screen.getAllByText((_, el) => (el?.textContent ?? "").trim().startsWith("1 product ·"))[0],
+    ).toBeInTheDocument();
   });
 
   it("shows the empty state when the shop has no products", async () => {
