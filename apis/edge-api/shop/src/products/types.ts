@@ -132,6 +132,9 @@ export interface ProductDetail {
   /** ⚠ TRUE = the platform default is in use; nobody has measured it (FR-037a). */
   weightIsAssumed: boolean;
   status: ProductStatus;
+  /** The default supplier for restocking, resolved on read (057). NULL is a first-class state. */
+  supplierId: string | null;
+  supplierName: string | null;
   attributes: ProductAttributeValue[];
   media: ProductMedia[];
   sections: string[];

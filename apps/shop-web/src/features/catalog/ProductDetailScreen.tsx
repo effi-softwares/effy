@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ImageOff } from "lucide-react";
 
+import type { StockMovementDTO } from "@effy/shared-types";
 import { Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
@@ -22,9 +23,10 @@ import {
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge";
 import { formatAttributeValue, formatMoney, orderedMedia } from "./detailFormat";
-import { LifecycleControls } from "./LifecycleControls";
+import { InventorySection } from "./InventorySection";
 import { MediaGallery } from "./MediaGallery";
 import type { ProductDetail } from "./model";
+import { ProductHeaderActions, ProductRemovalControl } from "./ProductActions";
 import {
   AttributesEditDialog,
   BasicsEditDialog,
@@ -33,7 +35,7 @@ import {
 } from "./ProductEditDialogs";
 import { productDetailQuery } from "./queries";
 import { SectionAssignment } from "./SectionAssignment";
-import { StockPanel } from "./StockPanel";
+import { stockChangeTitle } from "./stockMovementText";
 import { productStockQuery } from "./stockQueries";
 
 type EditTarget = "basics" | "pricing" | "categorization" | "attributes" | null;
@@ -54,6 +56,8 @@ type EditTarget = "basics" | "pricing" | "categorization" | "attributes" | null;
  */
 export function ProductDetailScreen({ productId }: { productId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId));
+  // Shares the Inventory section's cache entry rather than issuing a second read (Principle VI).
+  const headerStock = useQuery(productStockQuery(productId));
   const [editing, setEditing] = useState<EditTarget>(null);
   const navigate = useNavigate();
 
@@ -98,7 +102,10 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
             <MetaDivider />
             <span className="text-muted-foreground text-[13px]">{detail.categoryName}</span>
             <MetaDivider />
-            <ProductStatusBadge status={detail.status} />
+            {/* ⚠ The header chip answers "can a shopper buy this right now", which is the question
+                an operator opens this screen with — so it takes the live stock the rest of the page
+                is already reading rather than reporting a lifecycle state an empty shelf contradicts. */}
+            <ProductStatusBadge status={detail.status} stock={headerStock.data?.stock} />
             <span className="text-[13.5px] font-medium tabular-nums whitespace-nowrap">
               {formatMoney(detail.priceAmount, detail.currency)}
             </span>
@@ -106,7 +113,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <LifecycleControls detail={detail} onDeleted={() => void refetch()} />
+          <ProductHeaderActions detail={detail} />
         </div>
       </div>
 
@@ -167,13 +174,9 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
             </div>
           </Section>
 
-          {/* Inventory is the mockup's third section and the one with live controls, so the whole
-              054 panel sits inside it rather than behind a tab. */}
-          <Section title="Inventory">
-            <div className="pt-4">
-              <StockPanel productId={productId} />
-            </div>
-          </Section>
+          {/* Inventory is the mockup's third section — the numbers stated as rows, every write behind
+              a named verb. See InventorySection for the three mockup features refused here. */}
+          <InventorySection detail={detail} />
 
           <Section title="Attributes" action={<SectionAction onClick={() => setEditing("attributes")}>Edit</SectionAction>}>
             {detail.attributes.length === 0 ? (
@@ -191,14 +194,24 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
             )}
           </Section>
 
-          <Section title="Media" action={<SectionAction>Manage</SectionAction>}>
+          {/* ⚠ NO "Manage" ACTION, and its removal is a fix rather than a trim. The section carried
+              `<SectionAction>Manage</SectionAction>` with NO onClick — a control that looks live,
+              takes focus, and does nothing when clicked. The mockup needs it because its media lives
+              behind a sheet; ours is managed inline right below (add, make primary, reorder, delete),
+              so the honest header action is none at all. */}
+          <Section title="Media">
             <div className="pt-3.5">
               <MediaGallery detail={detail} />
             </div>
           </Section>
 
+          {/* ⚠ THE MOCKUP CALLS THIS "Visibility and channels" AND OURS MUST NOT. Effy is a
+              single-brand storefront with hidden fulfilment: there is exactly one channel, so a
+              heading promising several describes a choice the operator does not have. What the
+              section actually holds is where the product sits in the catalogue and which of the
+              shop's own sections it appears in. */}
           <Section
-            title="Visibility and channels"
+            title="Classification and placement"
             action={
               <SectionAction onClick={() => setEditing("categorization")}>Edit</SectionAction>
             }
@@ -212,7 +225,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
           </Section>
         </div>
 
-        <ProductRail detail={detail} productId={productId} />
+        <ProductRail detail={detail} productId={productId} onDeleted={goCatalog} />
       </div>
 
       <BasicsEditDialog
@@ -260,46 +273,47 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
  * ⚠ ITS "Last 30 days" BLOCK IS SAMPLE DATA IN THE MOCKUP, AND IS NOT REPRODUCED. The platform stores
  * no per-product sales history — nothing on this codebase can answer "units sold, last 30 days" — and
  * drawing the block with invented figures is the exact defect this feature deleted from the dashboard,
- * where four em-dashes and a fake chart had been shipped as if they were real. What the rail carries
- * instead is what IS known and is worth having pinned beside the sections: the live stock position and
- * the product's own lifecycle.
+ * where four em-dashes and a fake chart had been shipped as if they were real.
+ *
+ * ⚠ AND THE RAIL NO LONGER RESTATES THE STOCK NUMBERS. It used to carry Tracked / On hand / Threshold
+ * beside an Inventory section that now states all three as rows — two places rendering one fact, which
+ * is the shape 052 deleted `summarizeFulfillment` for and 033 refused an `available` flag over. What
+ * the rail carries in that space is the mockup's own second block, "Recent changes", which is real:
+ * every entry is a `stock_movement` row.
  */
-function ProductRail({ detail, productId }: { detail: ProductDetail; productId: string }) {
+function ProductRail({
+  detail,
+  productId,
+  onDeleted,
+}: {
+  detail: ProductDetail;
+  productId: string;
+  onDeleted: () => void;
+}) {
   const stock = useQuery(productStockQuery(productId));
 
   return (
     <aside className="grid min-w-0 gap-[26px]">
       <div className="grid gap-0.5">
-        <MicroLabel className="pb-2.5">Stock</MicroLabel>
+        <MicroLabel className="pb-2.5">Recent changes</MicroLabel>
         {stock.isPending ? (
           <Skeleton className="h-16 w-full" />
         ) : stock.isError ? (
           <p className="text-muted-foreground border-border border-t py-2.5 text-[13px]">
-            Stock couldn&apos;t be loaded.
+            Recent changes couldn&apos;t be loaded.
+          </p>
+        ) : stock.data.movements.length === 0 ? (
+          <p className="text-muted-foreground border-border border-t py-2.5 text-[13px]">
+            No stock changes recorded yet.
           </p>
         ) : (
-          <>
-            <RailRow
-              label="Tracked"
-              value={stock.data.stock.tracked ? "Yes" : "No"}
-            />
-            {stock.data.stock.tracked ? (
-              <>
-                <RailRow label="On hand" value={stock.data.stock.onHand} />
-                <RailRow
-                  label="Threshold"
-                  value={stock.data.stock.effectiveThreshold ?? "—"}
-                />
-              </>
-            ) : null}
-            {/* ⚠ Out-of-stock reads with WEIGHT, never a hue — the one thing on this rail that
-                needs a human is the one thing set in semibold. */}
-            {stock.data.stock.outOfStock ? (
-              <div className="border-border border-t py-2.5 text-[13px] font-semibold">
-                Out of stock — shoppers cannot buy this
-              </div>
-            ) : null}
-          </>
+          /* ⚠ FOUR, and the full list stays in the Inventory section. The rail is 260px wide and a
+             movement carries four facts (what moved, why, who, and off the back of which order); the
+             three that do not fit are exactly the ones an operator reconciling a count needs, so the
+             rail summarises and the table below answers. */
+          stock.data.movements
+            .slice(0, 4)
+            .map((m) => <RailChange key={m.id} movement={m} />)
         )}
       </div>
 
@@ -316,6 +330,24 @@ function ProductRail({ detail, productId }: { detail: ProductDetail; productId: 
           })}
         />
       </div>
+
+      {/* The mockup puts the removal at the foot of the rail, furthest from everything routine. */}
+      <ProductRemovalControl detail={detail} onDeleted={onDeleted} />
     </aside>
+  );
+}
+
+/** One line of the rail's change log: what happened, and when. */
+function RailChange({ movement }: { movement: StockMovementDTO }) {
+  return (
+    <div className="border-border grid gap-0.5 border-t py-2.5">
+      <span className="text-[13px]">{stockChangeTitle(movement)}</span>
+      <span className="text-muted-foreground text-[12px]">
+        {new Date(movement.createdAt).toLocaleString(undefined, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })}
+      </span>
+    </div>
   );
 }
