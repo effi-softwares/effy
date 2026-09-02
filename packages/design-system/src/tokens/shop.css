@@ -155,13 +155,27 @@
 
 /* Scale + type. These sit outside the appearance blocks because they do not vary by appearance.
  *
- * ⚠ ONE radius, not a scale. The mockup uses a single 8px everywhere, so sm/md/lg/xl are all bound
- * to it rather than deleted — every existing `rounded-sm`/`rounded-lg` utility in the shared
- * primitives keeps working and simply resolves to the same corner. */
+ * ⚠ A THREE-STEP SCALE, AND THE FIRST READING OF THIS MOCKUP GOT IT WRONG. Its `:root` declares
+ * `--radius:8px`, which looked like "one radius everywhere" — but counting the actual declarations
+ * tells a different story: **131 elements hardcode 6px** (every button, input, select, textarea and
+ * small tile), 17 use `var(--radius)` (containers — table frames, cards, dialogs, the sheet), and the
+ * 16px checkboxes use 4px. The 8px base is the CONTAINER radius; controls are tighter.
+ *
+ * Getting this backwards is what made the console look wrong even after the palette landed: an 8px
+ * button beside an 8px card has no hierarchy, and the design's crispness comes from the control being
+ * visibly sharper than the surface it sits on.
+ *
+ *   sm 4px  — checkboxes, and anything 16px or smaller
+ *   md 6px  — THE WORKHORSE: buttons, inputs, selects, textareas, menu items, small tiles
+ *   lg 8px  — containers: cards, table frames, dialogs, sheets, the segmented-tab trough
+ *   xl 8px  — bound to lg; the mockup has nothing rounder than 8px except true pills (999px)
+ *
+ * ⚠ Pills (badges, status chips, progress bars) use `rounded-full` directly and are NOT on this
+ * scale — they are 999px in the mockup, which is a shape, not a step. */
 :root {
   --radius: 0.5rem;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.5rem;
 
@@ -184,8 +198,8 @@
 /* Tailwind v4 reads its utility scale from @theme. The colour vars above flow through the mapping
    already declared in tokens.css (--color-* : var(--*)), so only the scale needs restating here. */
 @theme inline {
-  --radius-sm: 0.5rem;
-  --radius-md: 0.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.5rem;
   --font-sans: Geist, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,

@@ -54,8 +54,11 @@ export function ConsoleUserMenu({
 
   const identityBlock = (
     <>
-      <Avatar className="h-8 w-8 rounded-full">
-        <AvatarFallback className="rounded-full">{initial}</AvatarFallback>
+      {/* ⚠ 057: a rounded SQUARE (6px), matching the imported design's `26px / border-radius:6px`
+          identity tile. Squared avatars are the console's house style; the round default belongs to
+          the customer surfaces. */}
+      <Avatar className="size-8 rounded-md">
+        <AvatarFallback className="rounded-md text-[11px] font-medium">{initial}</AvatarFallback>
       </Avatar>
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-semibold">{name}</span>

@@ -322,6 +322,25 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   preview — a URL survives the refresh a modal dropped). Shared chrome changes are **opt-in props** on
   `ConsoleShell`/`ConsoleHeader`/`OtpSignInCard`; back-office's **190 tests pass unmodified**, which is
   the proof.
+- ⚠ **THE PLATFORM'S PILL SYSTEM WAS REVERSED TO A SQUARED ONE**, on operator direction, and the
+  radius scale was WRONG on the first pass. `shop.css` bound sm/md/lg/xl all to 8px, read off the
+  mockup's `--radius:8px`. Counting its actual declarations tells a different story: **131 controls
+  hardcode 6px**, 17 containers use `var(--radius)`, 16px checkboxes use 4px. The 8px base is the
+  CONTAINER radius. An 8px button on an 8px card has no hierarchy, which is why the console still
+  looked wrong after the palette landed. Now **sm 4 / md 6 / lg 8 / xl 8**.
+- ⚠ **`Button` AND `Input` CARRIED `rounded-full`** (051's "the platform's ONE button shape", h-11 pill
+  fields). Both are now `rounded-md` / `h-9`, along with select, textarea, OTP field, card
+  (`xl`→`lg`), menu surfaces (`md`→`lg`), menu rows (`sm`→`md`), the brand mark and the avatar
+  (discs→6px squares). ⚠ **The badge went the OTHER way** — `md`→`full` — because a status chip is a
+  lozenge around a word, a shape rather than a radius step; squared, it read as a tiny disabled button.
+  ⚠ **This changes customer-web and back-office too** (they share the components and are queued for
+  their own redesigns); their **458 + 190 tests pass unmodified**, and `tokens:check` is **unchanged**,
+  so no mobile Compose theme moved.
+- ⚠ **A NEW GUARD, `check-component-shape.mjs`**, because a reversal is exactly what gets half-undone
+  later: someone reads 051's pill comment in the history and "restores" one component, and nothing
+  fails — a class string is not typechecked and no DOM test looks at corners. It asserts controls are
+  never pills, the badge always is, and **no surface is sharper than the rows inside it**. Proven by
+  breaking all three.
 - ⚠ **FOUR MORE MOCKUP BLOCKS REFUSED, all on order detail**: its money totals (a shop portion carries
   no order-level money — 020 SC-007 — and its "VAT 25%" is Swedish, while AU grocery is a mixed supply),
   its **Capture** button (Effy captures at payment, 055 R3), its **Duplicate**/**Edit order** (an order

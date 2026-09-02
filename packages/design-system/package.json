@@ -18,7 +18,7 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-tokens.mjs && node scripts/check-shop-theme.mjs && node scripts/check-banner-canvas.mjs && node scripts/check-banner-template.mjs",
+    "test": "node scripts/check-tokens.mjs && node scripts/check-shop-theme.mjs && node scripts/check-component-shape.mjs && node scripts/check-banner-canvas.mjs && node scripts/check-banner-template.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs && node scripts/gen-stripe-appearance.mjs",
     "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs && node scripts/check-banner-template.mjs",

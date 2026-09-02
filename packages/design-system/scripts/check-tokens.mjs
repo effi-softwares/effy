@@ -70,10 +70,14 @@ if (radii === "platform") {
   if (remPx("--radius-sm") !== 6) err(`--radius-sm must be 0.375rem (6px), got ${remPx("--radius-sm")}px`);
   if (remPx("--radius-md") !== 8) err(`--radius-md must be 0.5rem (8px), got ${remPx("--radius-md")}px`);
 } else {
-  // 057: shop-web adopts the mockup's SINGLE 8px corner. Every step is bound to it rather than
-  // deleted, so `rounded-sm`/`rounded-lg` in the shared primitives keep resolving to something.
-  for (const step of ["--radius-sm", "--radius-md", "--radius-lg", "--radius-xl"]) {
-    if (remPx(step) !== 8) err(`${step} must be 0.5rem (8px) in the shop layer, got ${remPx(step)}px`);
+  // ⚠ 057: the shop layer's THREE-STEP scale — 4px for 16px checkboxes, 6px for every control, 8px
+  // for containers. Pinned because the first reading of the mockup collapsed it to a single 8px, and
+  // the console looked wrong in a way no colour check could see: an 8px button on an 8px card has no
+  // hierarchy. Counting the mockup's own declarations settles it — 131 controls at 6px, 17 containers
+  // at var(--radius).
+  const SHOP_RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 8 };
+  for (const [step, px] of Object.entries(SHOP_RADII)) {
+    if (remPx(step) !== px) err(`${step} must be ${px}px in the shop layer, got ${remPx(step)}px`);
   }
 }
 
