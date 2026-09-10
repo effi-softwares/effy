@@ -261,7 +261,7 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**057-shop-web-redesign — Shop Console Redesign.** 🚧 **68/77 tasks — every phase BUILT and fully
+**057-shop-web-redesign — Shop Console Redesign.** 🚧 **87/94 tasks — every phase BUILT and fully
 machine-verified, INCLUDING against real PostgreSQL. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Spec/artifacts: [specs/057-shop-web-redesign/](specs/057-shop-web-redesign/).
 
@@ -274,6 +274,15 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   Header: breadcrumb trail replaces the title (new opt-in `headerBreadcrumb` on `ConsoleShell`), primary
   action + theme toggle removed (appearance stays in the user menu). Default threshold → Catalog → Stock
   settings. See spec.md § Amendment A1.
+- ⚠ **AMENDMENT A2 (2026-09-10, design revision): PRODUCT DETAIL IS FOUR TABS AGAIN** — Details
+  (details · pricing · attributes) · Inventory (stock rules · stock movements) · Media · Visibility,
+  default Details and **reset per product** (body keyed on `productId`). The summary rail is gone; its
+  content is an **Activity** right-side `Sheet` whose change log shows **every** stock movement (the rail
+  fit four), and Archive moved into the header (destructive label, operator decision). Sections are open
+  (title + subtitle + action, one rule, label-over-value field grid) via new `DetailSection` /
+  `FieldGrid` / `Field` primitives beside `Section`/`DetailRow`. ⚠ **The revision's variants, unit
+  cost/margin, reorder point, "Last 30 days" stats, seeded log and coloured dots were NOT reproduced** —
+  each slot carries the real equivalent (spec A2 §5, research R10); `inventory-guard` passes unchanged.
 - ⚠ **THE MOCKUP IS A GENERIC E-COMMERCE CONSOLE, AND FOUR OF ITS SCREENS ARE THINGS EFFY CANNOT DO.**
   It ships payment **capture**, **carrier/tracking**, order-**line editing** and a **password** sign-in.
   Effy captures at payment (055 R3); a shop hands its portion to an Effy driver (049) and never sees a
@@ -323,7 +332,8 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   a second pass after the first delivered the theme and left five screens only lightly restyled. The
   shell (224px rail, 56px header carrying the screen's identity + live subtitle + search + theme + a
   route-derived CTA), catalog (segmented status tabs, `--muted` table head, 6 columns), product detail
-  (⚠ **six tabs collapsed into one scrolling column** with per-section Edit links and a summary rail),
+  (six tabs collapsed into one scrolling column with a summary rail — ⚠ **superseded by A2**: four tabs
+  + an Activity sheet),
   order detail (sticky action bar, activity timeline, address rail), sign-in (brand lockup + bare
   column) and the add-product wizard (⚠ **a modal turned into a ROUTE** with a progress rail and live
   preview — a URL survives the refresh a modal dropped). Shared chrome changes are **opt-in props** on
@@ -355,16 +365,16 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   no per-item GST). Its `TONES` map was refused wholesale: amber is a third hue, and it uses `--success`
   as TEXT at 4.00:1, below the 4.5:1 bar that is exactly why `--success` has no `-foreground` pair.
 - **Verified**: `pnpm -r typecheck` **19/19** · `pnpm -r test` **18 packages, 1,750 tests, zero
-  failures** (shop-web **240**, edge-shop **223** incl. **12 container-backed**, back-office **190**
+  failures** (shop-web **272** after A2, edge-shop **223** incl. **12 container-backed**, back-office **190**
   UNMODIFIED, edge-admin **191** UNMODIFIED) · Go build/vet/gofmt clean · `go test ./...` with Docker up,
   **refunds green incl. 4 new container tests against the real migrations** · `check-tokens` ·
   `check-shop-theme` · `tokens:check` **unchanged** · `check-no-emerald`/`check-no-jade`.
   **Negative proofs executed by breaking the thing**: the amber hue, the AA-failing muted-foreground, a
   dropped token override, a password field, and all six forbidden controls.
-- **⚠ Open (9, all operator)**: the commit; `make db-up ENV=dev`; ⚠ `make apply ENV=dev` **first**
+- **⚠ Open (7 tasks, all operator)**: the commit; `make db-up ENV=dev`; ⚠ `make apply ENV=dev` **first**
   (core-api needs `AUTH_SHOP_*` or it **fails closed at boot**, and edge-shop needs the shop-pool
   Cognito grant or every invite 500s); `core-image-push && core-deploy`; `make edge-deploy SERVICE=shop`
-  and `SERVICE=inventory`; then the quickstart walks. ⚠ **Nobody has looked at any screen** — 039
+  and `SERVICE=inventory`; then the quickstart walks (incl. A2-09, the product-detail tabs + Activity sheet). ⚠ **Nobody has looked at any screen** — 039
   shipped four live defects with a fully green suite. Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §057.
 

@@ -30,6 +30,50 @@ contradict it:
    purchasing will return as its own feature with its own spec. The refund, cancellation and return
    "restock" toggles are unrelated (they return units to stock) and are unchanged.
 
+## Amendment A2 — Product detail revision (2026-09-10)
+
+The imported design's product detail page was revised again. The page's **structure** is adopted in
+full; where the revision shows data the platform does not hold, the slot carries the platform's real
+equivalent instead (operator decision, 2026-09-10 — "real-data mapping"). It narrows FR-015 for this
+one screen and does not contradict it.
+
+1. **Four tabs under the product header**, above the content: **Details** (product details, pricing,
+   attributes) · **Inventory** (stock rules, stock movements) · **Media** · **Visibility**. Details is
+   the default, and the selection resets to Details whenever a different product is opened — it is
+   never carried across navigation.
+2. **The right-hand summary column is removed**; the page is one full-width content column. Its
+   content moves to an **Activity** side sheet opened from the header — full height, anchored right,
+   with its own scroll, a close control and no footer actions — holding a summary of the product's
+   lifecycle facts and its **complete** change log (each entry: a status dot, what happened, and
+   "when · who"). The change log is why it moved: it can be arbitrarily long.
+3. **Header actions, in order**: Receive stock (primary) · Publish/Unpublish/Restore · Activity ·
+   Archive product (or Delete draft). The removal action's label is set in the destructive colour.
+4. **Sections are open, never carded**: a bold title, a one-line subtitle saying what the section is,
+   the section's action on the same row, a single rule beneath, then the content. Fields are stacked
+   label-over-value blocks in a responsive grid that fills the page width; no per-field dividers. The
+   one exception is the stock-movement table, which is genuine tabular data and keeps its row rules.
+5. **What the revision shows and the platform cannot back is NOT reproduced** (FR-015b):
+   - *Variants* (per-variant stock, cover bars, reserved/available) → **Stock movements**, the real
+     per-product history, with the product-level stock adjustment as its action.
+   - *Unit cost* and *Margin* → **Currency** and the **Discount** a compare-at price advertises.
+   - *Reorder point / location / barcode* stock rules → the rules the product has: **stock tracking,
+     on hand, low-stock threshold**.
+   - *"Last 30 days"* performance stats → a **Summary** of real lifecycle facts (status, sections,
+     images, last updated).
+   - *A seeded, multi-type change log* → the **real stock-movement log**, every entry.
+   - *"Visibility and channels"* → **"Visibility and placement"** (storefront status, type, category,
+     sections) — there is exactly one channel.
+   - *Coloured (green/amber/red) status dots* → **monochrome** dots; the entry's own text carries the
+     meaning.
+
+- **FR-015a** *(A2)*: The product detail screen MUST present its content in the four tabs of A2 §1,
+  default to Details, reset to Details when a different product is opened, and offer the product's
+  change log in a side sheet that shows every entry rather than a truncated summary.
+- **FR-015b** *(A2)*: The product detail screen MUST NOT render a figure, field or history entry the
+  platform does not record — no variants, unit cost, margin, reorder point, stock location, reserved
+  units, cover estimate, sales-period statistic or sample log entry. Each such slot either carries the
+  platform's real equivalent (A2 §5) or is absent.
+
 ## Source Design — What Was Imported
 
 A Claude Design mockup (`Effy Shop Console.dc.html`, project "Multi-theme console application") was read in full. It is a **generic e-commerce admin console** (in the visual style of Shopify/Linear-type shadcn dashboards) built for a fictional Swedish home-goods brand — SEK currency, 25%/12%/6% VAT bands, Swedish addresses, PostNord/DHL/Budbee carriers. It ships its own token set (light/dark shadcn-style CSS variables, Geist/Geist Mono typeface, 8px radius) and a component vocabulary of: sidebar nav + top header with global search, a dashboard (metric strip, revenue chart, "needs attention" list, latest-orders table), an orders queue (tabs, saved views, filters, bulk actions, sortable table, empty state, pagination), an order detail page (line items, payment/capture/refund, shipments with carrier + tracking, returns, internal notes, activity log, customer panel), a product catalog (list + 4-step create wizard + product detail with variants/media/pricing/inventory), a restock/purchase-ordering queue (supplier grouping, order quantities, cost totals), and a team/settings management screen (roster + shop toggles).
@@ -83,7 +127,9 @@ A shop operator manages their catalog day to day: browsing/searching products, c
 
 1. **Given** the shop's product catalog, **When** an operator searches or filters it, **Then** results update using the new table/list design with accurate stock and status indicators.
 2. **Given** an existing product, **When** an operator opens its detail page, **Then** they can view and edit its details, pricing, media and stock rules through the redesigned screen.
-3. **Given** products below their configured restock threshold, **When** an operator opens the restock queue, **Then** exactly those products are listed, each showing current on-hand count and a way to record newly received stock.
+3. ⛔ *Withdrawn (A1 — no restock queue)* — **Given** products below their configured restock threshold, **When** an operator opens the restock queue, **Then** exactly those products are listed, each showing current on-hand count and a way to record newly received stock.
+4. *(A2)* **Given** an operator on a product's Inventory tab, **When** they open a different product, **Then** that product opens on its Details tab.
+5. *(A2)* **Given** a product with more stock movements than fit on screen, **When** the operator opens Activity, **Then** a side sheet lists every movement, each with what happened, when and who, and scrolls independently of the page.
 
 ---
 

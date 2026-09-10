@@ -375,3 +375,31 @@ See spec.md § Amendment A1. Built and machine-verified; not deployed.
 - [ ] A1-08 (operator) `make db-up ENV=dev`, `make edge-deploy SERVICE=shop` and `SERVICE=inventory`,
   then look at the header on every screen.
 
+
+---
+
+## Amendment A2 — Product detail revision (2026-09-10)
+
+See spec.md § Amendment A2 and research.md R10. Built and machine-verified; not deployed.
+
+- [x] A2-01 Console primitives `DetailSection` / `FieldGrid` / `Field` in
+  `apps/shop-web/src/components/console/primitives.tsx` (beside `Section` / `DetailRow`, which order
+  detail keeps).
+- [x] A2-02 `ProductDetailScreen.tsx`: four tabs (Details · Inventory · Media · Visibility), body keyed
+  on `productId` so the tab resets per product, rail removed, full-width single column, sections
+  rebuilt with subtitles; Attributes closes the Details tab (FR-015a).
+- [x] A2-03 `ProductActivitySheet.tsx`: right-anchored sheet with the lifecycle Summary and the FULL
+  stock-movement change log, monochrome dots, "when · who" meta (FR-015a/FR-015b).
+- [x] A2-04 `ProductActions.tsx`: header order Receive stock · Publish/Unpublish · Activity ·
+  Archive/Delete draft; removal control moved from the rail into the header, destructive label.
+- [x] A2-05 `InventorySection.tsx`: Stock rules as a field grid + Stock movements (with Adjust stock) in
+  place of the mockup's Variants.
+- [x] A2-06 `MediaGallery.tsx`: 110px thumbnail tiles with inline reorder / primary / delete; "Add image"
+  as the section action.
+- [x] A2-07 `detailFormat.ts`: `discountText` (Pricing's fourth figure) and `storefrontText`
+  (Visibility's lead field), with unit tests.
+- [x] A2-08 Tests: Activity sheet lists every movement (9, not the rail's 4) and renders no sales
+  statistic; formatter tests. shop-web **272** tests, typecheck, build, `check-component-shape`,
+  `check-shop-theme` and `inventory-guard` all green.
+- [ ] A2-09 (operator) Look at the product detail screen — all four tabs and the Activity sheet, Light
+  and Dark, desktop and tablet width (quickstart § US3 step 4).

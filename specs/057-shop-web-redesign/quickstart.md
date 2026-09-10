@@ -41,9 +41,14 @@ Validation scenarios for each user story in `spec.md`. Run locally before any de
 
 1. Search/filter the catalog; confirm results update with accurate stock indicators.
 2. Open a product; edit a field; confirm it persists and reflects in the list.
-3. Open the restock queue; confirm it lists exactly the products flagged by the existing
-   low-stock rule, and that a product with no supplier appears under "Unassigned" rather than
-   disappearing (edge case).
+3. ~~Open the restock queue~~ — withdrawn by Amendment A1 (no restock queue). Instead: confirm the
+   dashboard's "Needs attention" list links each low-stock product to its detail screen.
+4. *(A2)* Open a product: confirm four tabs (Details · Inventory · Media · Visibility) with Details
+   selected; switch to Inventory, then open a different product and confirm it lands on Details.
+   Open **Activity**: the sheet slides in from the right, scrolls on its own, and lists every stock
+   movement with "when · who". Confirm no variants, unit cost, margin or "Last 30 days" figures appear
+   anywhere, the header reads Receive stock · Publish/Unpublish · Activity · Archive product, and the
+   layout holds at tablet width in Light and Dark.
 
 ## US4 — Visual consistency (P2)
 

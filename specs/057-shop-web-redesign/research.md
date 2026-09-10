@@ -156,3 +156,37 @@ a blocker for this feature's other scope.
 **Rationale**: Consistent with how prior features (028, 029, 033, 039, 046) have handled this
 exact same recurring gap — declare the events, note the gap if the init step turns out to be
 missing, don't invent a parallel telemetry mechanism to paper over it.
+
+## R10: Product detail revision (A2) — mapping the unmappable
+
+**Decision**: Adopt the revision's structure exactly — four shadcn `Tabs`, a right-anchored shadcn
+`Sheet` for Activity, open card-free sections with a single header rule and stacked label-over-value
+fields in an auto-fit grid — and fill each slot the platform cannot back with its real equivalent
+(spec A2 §5). The operator chose this over (a) rendering "not available" placeholders and (b) building
+the slots as designed with sample data.
+
+**Rationale**: Every refused slot is already refused by a source guard on a platform fact, not on
+effort — `features/catalog/__tests__/inventory-guard.test.ts` names variants, reserved units, stock
+location, days-of-cover, unit cost / margin, VAT rate, sales channels and reorder point. Placeholders
+would have needed those guard patterns narrowed and would have put controls on screen that promise a
+capability; sample data is the defect this feature deleted from the dashboard. The guard passes
+unchanged, which is the mechanical proof.
+
+**Component mapping**:
+- *Tabs* → the existing `@effy/design-system/ui` `Tabs`. Inactive triggers are muted in both
+  appearances via a shop-web className; the shared trigger's light-mode default (full foreground) is
+  NOT changed, because back-office and customer-web consume it.
+- *Right sheet* → the existing `SheetContent side="right"`, sized/squared by className. No new sheet
+  variant was needed, and `ResponsiveModal` (centred dialog / mobile drawer) is untouched.
+- *Sections / fields* → three new console primitives, `DetailSection`, `FieldGrid`, `Field`, added
+  BESIDE the existing `Section` / `DetailRow` rather than replacing them: order detail still uses the
+  row-list shape, and one prop flipping another's semantics is how a shared primitive drifts.
+- *Tab reset* → the screen body is keyed on `productId`, which also closes any open edit dialog on
+  navigation.
+- *Archive tint* → the design's destructive text colour is adopted (operator decision), reversing the
+  first rebuild's neutral treatment; `--destructive` is AA as text in both shop appearances (4.94:1
+  light). The button stays outlined — only the label is tinted.
+
+**Alternatives considered**: keeping the rail alongside the tabs (rejected — the revision's point is
+the change log's length); per-tab URLs (rejected — the spec requires the tab NOT to persist, and a
+search param would carry it through back/forward).

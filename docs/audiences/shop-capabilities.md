@@ -486,6 +486,7 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
 | Catalog filter chips | ✅ | ⛔ | Server-side search, unlike the queue's client-side filter |
 | Add-product wizard progress rail | ✅ | ⛔ | New shared `Stepper` primitive |
 | Breadcrumb trail in the header (parents navigate back) | ✅ | ⛔ | Replaced the in-page crumb rows |
+| Product detail in four tabs + Activity sheet (full change log) | ✅ | ⛔ | A2 — replaced the one-scroll page and its rail |
 | Suppliers / purchase orders / restock queue | ⛔ removed | ⛔ | Deferred to its own feature (2026-09-10) |
 | **Initiate a refund** | ✅ (manager) | ⛔ | Settles through 055's pipeline — no second mechanism |
 | **Manage the team** (invite / role / stand down) | ✅ (manager) | ⛔ | Writes the records back-office owns |
@@ -497,6 +498,12 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
   `stock_movement.purchase_order_line_id`. Purchasing returns later as its own spec. The header also
   lost its primary action and theme toggle (appearance stays in the sidebar user menu's Light / Dark /
   Follow-System), and the screen title became a breadcrumb trail.
+- ⚠ **DESIGN REVISION A2 (2026-09-10) — PRODUCT DETAIL IN FOUR TABS.** Details · Inventory · Media ·
+  Visibility (resets to Details per product); the summary rail became an **Activity** side sheet whose
+  change log lists **every** stock movement (the rail fit four); Archive moved into the header. The
+  revision's variants, unit cost / margin, reorder point, "Last 30 days" stats and seeded log are
+  **not** reproduced — each slot carries the platform's real equivalent (spec A2 §5), and
+  `inventory-guard.test.ts` passes unchanged. Presentation-only: no API, contract or data change.
 - ⚠ **THE SHOP CONSOLE NOW REACHES `core-api`, ON EXACTLY ONE ROUTE.** Refunds must settle through
   055's state machine, which lives there because the payment secret does (019 SC-012). `core-api`
   gains a **third** per-pool verifier (shop) — the same shape 055 used for back-office, per-pool

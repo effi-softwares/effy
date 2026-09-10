@@ -201,3 +201,14 @@ a new service).
 |-----------|------------|---------------------------------------|
 | Shop-web-specific design-token **values** (spacing scale, single 8px radius, Geist typeface, exact neutral hex steps) diverge from the shared design-system's current values, while colour law (monochrome ramp, two semantic colours, AA) and the shared component primitives stay identical and shared | Explicit operator direction for this feature: adopt the imported design's full token set, "no need to stick with current ones" | Forcing shop-web to keep back-office's exact current spacing/radius/typeface values would silently override that direction. The values live in a shop-scoped layer **inside** the one shared `@effy/design-system` package (same variable names, same `tokens:check`/AA-guard mechanism) rather than being copy-pasted shop-web-local — back-office is untouched and no logic is forked, only values |
 | `apis/core-api` gains a third per-pool JWT verifier (shop pool), scoped to exactly one refund-initiation route | Shop-initiated refunds must settle through 055's existing refund state machine, whose Stripe secret exists only in `core-api` | A cold-path (`edge-api/shop`) → hot-path (`core-api`) service call was considered and rejected: it would introduce a new inter-service trust boundary the platform doesn't otherwise have, when 055 already established — and got right — the pattern of adding a second (here, third) narrowly-scoped pool verifier directly on `core-api` for the identical reason |
+
+## Amendment A2 — Product detail revision (2026-09-10)
+
+Presentation-only; no backend, contract, data or token change. The product detail screen moves to four
+tabs and an Activity side sheet built from existing `@effy/design-system/ui` primitives (`Tabs`,
+`Sheet` with `side="right"`), plus three new shop-web console primitives (`DetailSection`,
+`FieldGrid`, `Field`). Slots the platform cannot back are filled with real data per spec A2 §5; the
+component mapping and the reasons are in research.md R10. Constitution check unchanged: no card
+layouts (Principle V), no new hue (dots are monochrome; the removal label uses the existing semantic
+`--destructive`), server state stays in TanStack Query (the sheet shares the Inventory tab's stock
+query — Principle VI).
