@@ -26,6 +26,12 @@ const SOURCES = [
   "handler-support.ts",
   "promise.ts",
   "types.ts",
+  // ⚠ 057 A3 — the order console reads the ORDER row itself (for its money), which puts the second
+  // address one column away. Its sources are held to the same rule.
+  "../orders/repository.ts",
+  "../orders/service.ts",
+  "../orders/handler-support.ts",
+  "../orders/types.ts",
 ] as const;
 
 describe("shop fulfilment: billing never crosses the boundary (023 FR-018)", () => {

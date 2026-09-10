@@ -103,6 +103,21 @@ type IssueInput struct {
 	 * what 053 and 056 both failed to do when they widened an enum.
 	 */
 	ActorKind string
+	/**
+	 * ⚠ 057 A3 — THE SHOP'S RESTOCK TOGGLE, WHICH THE SERVER USED TO IGNORE. The shop refund route
+	 * parsed `restock` and never read it, so the console's switch changed nothing: stock went back
+	 * automatically whenever 055's three conditions held, including for an item the shop had just
+	 * refunded as UNUSABLE — putting a damaged unit back on sale. A shop is the one issuer that knows
+	 * whether the goods are fit to sell, so for a shop the return happens ONLY when they asked for it.
+	 * Back-office keeps 055's automatic behaviour (the zero value).
+	 */
+	SkipStockReturn bool
+}
+
+// returnsStock decides whether an issued refund puts units back. The three physical conditions
+// (tracked product, uncollected portion) are the SQL's; this is the issuer's half.
+func returnsStock(in IssueInput) bool {
+	return in.Kind == "item" && !in.SkipStockReturn
 }
 
 type LineInput struct {
@@ -316,7 +331,7 @@ func (s *Service) Issue(ctx context.Context, in IssueInput) (IssueResult, error)
 	// refund, a tracked product, an uncollected portion. See `stock.go` for why each condition is
 	// there. Swallowed and AFTER the refund is recorded: the money is already on its way, and a stock
 	// write that could abort that would trade a customer's refund for a shelf count.
-	if in.Kind == "item" {
+	if returnsStock(in) {
 		_ = s.repo.ReturnStock(ctx, refundID, in.OrderID)
 	}
 

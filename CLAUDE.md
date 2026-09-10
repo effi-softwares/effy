@@ -283,6 +283,20 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   `FieldGrid` / `Field` primitives beside `Section`/`DetailRow`. ⚠ **The revision's variants, unit
   cost/margin, reorder point, "Last 30 days" stats, seeded log and coloured dots were NOT reproduced** —
   each slot carries the real equivalent (spec A2 §5, research R10); `inventory-guard` passes unchanged.
+- ⚠ **AMENDMENT A3 (2026-09-10): ORDERS LIST + ORDER DETAIL REBUILT** on A2's conventions. List:
+  server-side tabs (counts over every state), saved views (derived presets), search + 4 filters,
+  sortable columns, paging, CSV export, bulk fulfil/tag/can't-supply — state in the URL. Detail: header
+  block + prev/next, tabs Summary · Items · Fulfilment (reset per order), Activity **sheet**, tags +
+  internal notes (new `fulfillment_tag`/`fulfillment_note`, migration `20260910090000`, CHECK on
+  `fulfillment_event` widened, back-office projection audited), toast + log entry on every mutation.
+  ⚠ **Order money IS now shown on shop-web (operator decision)** via NEW routes `/shop/v1/orders…`
+  (5 routes in edge-shop `src/orders/`); the pick contract shop-mobile reads is untouched. ⚠ Still
+  refused as impossible, not stylistic: Capture (auto-captured, 055 R3), VAT/GST line (052 R13), Edit
+  order, carrier/tracking, returns, billing/email. "Cancel" = can't-supply. ⚠ **Pre-existing defect
+  fixed**: the shop refund's `restock` toggle was parsed and IGNORED by core-api (an *unusable* item
+  went back on sale) — now `SkipStockReturn`. Also fixed: `isAtRisk` flagged delivered/terminal orders
+  at risk (negation again). Verified incl. **9 container tests vs the real migrations**. Open: `make
+  db-up`, `edge-deploy SERVICE=shop` (+`orders`), `core-image-push && core-deploy`, the walk.
 - ⚠ **THE MOCKUP IS A GENERIC E-COMMERCE CONSOLE, AND FOUR OF ITS SCREENS ARE THINGS EFFY CANNOT DO.**
   It ships payment **capture**, **carrier/tracking**, order-**line editing** and a **password** sign-in.
   Effy captures at payment (055 R3); a shop hands its portion to an Effy driver (049) and never sees a
@@ -334,7 +348,7 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   route-derived CTA), catalog (segmented status tabs, `--muted` table head, 6 columns), product detail
   (six tabs collapsed into one scrolling column with a summary rail — ⚠ **superseded by A2**: four tabs
   + an Activity sheet),
-  order detail (sticky action bar, activity timeline, address rail), sign-in (brand lockup + bare
+  order detail (sticky action bar, activity timeline, address rail — ⚠ **superseded by A3**), sign-in (brand lockup + bare
   column) and the add-product wizard (⚠ **a modal turned into a ROUTE** with a progress rail and live
   preview — a URL survives the refresh a modal dropped). Shared chrome changes are **opt-in props** on
   `ConsoleShell`/`ConsoleHeader`/`OtpSignInCard`; back-office's **190 tests pass unmodified**, which is

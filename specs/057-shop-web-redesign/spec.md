@@ -74,6 +74,45 @@ one screen and does not contradict it.
   units, cover estimate, sales-period statistic or sample log entry. Each such slot either carries the
   platform's real equivalent (A2 §5) or is absent.
 
+## Amendment A3 — Orders list + order detail revision (2026-09-10)
+
+Operator direction: rebuild the Orders list and order detail on the design's markup and on A2's
+conventions (header breadcrumb, open sections, field grid, full width, Activity side sheet, tabs that
+reset per record). Decisions recorded with the operator before building:
+
+1. **Order money IS shown to the shop** (operator decision). This relaxes 020 FR-007/FR-008 / SC-007
+   **for the shop-web console only**, through NEW routes (`/shop/v1/orders…`); the pick contract
+   (`/shop/v1/fulfillments…`, `shop-order.ts`) that shop-mobile's generated Kotlin reads is unchanged
+   and still carries no money. A guard now pins that contract instead of `repo.ts`.
+2. **Still not built, because the platform cannot do them** (not a design preference):
+   - *Capture* — capture is automatic at checkout (055 R3). The design renders the button only for an
+     authorised-but-uncaptured order, which no Effy order ever is, so it never renders; Authorised and
+     Captured are shown as the one figure they are.
+   - *"VAT 25%"* — per-item GST is unmodelled (052 R13); no tax line is drawn (guarded).
+   - *Edit order* — a paid record (055). *Shipments / carrier / tracking* — Effy drivers (049); the
+     Fulfilment tab shows **Picking** and **Handoff** (collection, delivery) instead. *Returns* — no
+     returns model exists; the refund sheet's "put back on the shelf" is the shop's restock.
+   - *Billing address, customer email, order count / LTV* — never shared with shops (023 FR-018). The
+     Addresses section names "Bill to" and says it is withheld.
+3. **"Cancel order" is the Can't-supply declaration** (055 US6) — a shop cannot cancel a customer's
+   (possibly multi-shop) order. Single from the header, or in bulk; the bulk dialog lists every order
+   number and requires one reason.
+4. **Tags and internal notes are new**: `fulfillment_tag`, `fulfillment_note` (migration
+   `20260910090000_shop_order_console.sql`), shop-scoped through the portion; both write to
+   `fulfillment_event`, whose CHECK widens by `note_added` / `tags_changed` (readers audited; the
+   back-office history projection gained explicit arms).
+5. **The "risk" marker is the promise**, not fraud: an open order near or past its ready-by.
+6. **Saved views are presets**, derived (a view is active when the filters equal it), not stored.
+7. **The list's state is the URL**; search, four filters (Status = attention, Payment, Fulfilment =
+   delivery method, Date), sort and page are server-side so tab counts cover every state. Default
+   sort stays oldest-first (020 FR-001b).
+
+- **FR-016** *(A3)*: Every order mutation from the console MUST append to the order's activity log and
+  raise a confirmation toast.
+- **FR-017** *(A3)*: A shop refund MUST return stock only when the shop asked for it (the refund
+  sheet's restock toggle). ⚠ Before A3 the server parsed `restock` and ignored it, so an item refunded
+  as *unusable* went back on sale; `IssueInput.SkipStockReturn` now carries the choice.
+
 ## Source Design — What Was Imported
 
 A Claude Design mockup (`Effy Shop Console.dc.html`, project "Multi-theme console application") was read in full. It is a **generic e-commerce admin console** (in the visual style of Shopify/Linear-type shadcn dashboards) built for a fictional Swedish home-goods brand — SEK currency, 25%/12%/6% VAT bands, Swedish addresses, PostNord/DHL/Budbee carriers. It ships its own token set (light/dark shadcn-style CSS variables, Geist/Geist Mono typeface, 8px radius) and a component vocabulary of: sidebar nav + top header with global search, a dashboard (metric strip, revenue chart, "needs attention" list, latest-orders table), an orders queue (tabs, saved views, filters, bulk actions, sortable table, empty state, pagination), an order detail page (line items, payment/capture/refund, shipments with carrier + tracking, returns, internal notes, activity log, customer panel), a product catalog (list + 4-step create wizard + product detail with variants/media/pricing/inventory), a restock/purchase-ordering queue (supplier grouping, order quantities, cost totals), and a team/settings management screen (roster + shop toggles).

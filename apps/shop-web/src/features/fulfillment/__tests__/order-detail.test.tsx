@@ -90,25 +90,27 @@ describe("the shop console offers no action the platform cannot perform", () => 
   }
 
   /**
-   * The other half of the same rule, stated positively: the backend's projection does not SELECT an
-   * order-level total, a payment status, or another shop's lines (020 FR-007/FR-008, SC-007), so the
-   * omission is structural rather than a rendering choice. This pins that the client never asks.
-   *
-   * ⚠ THE FIRST DRAFT OF THIS ASSERTION BANNED THE BARE WORD `amount`, AND IT WAS WRONG. 057 added
-   * `issueShopRefund`, whose response legitimately carries the refund's own amount — the figure the
-   * operator must be shown after refunding. A guard that cannot tell "this order was charged $84" from
-   * "this refund returned $12" fails on correct code, and the next person deletes it. The vocabulary
-   * below is order-level money and shop identity, which are the two things that must never appear.
+   * ⚠ REWRITTEN BY 057 A3. This used to assert that `repo.ts` never asked for order-level money. A3
+   * put the order's money on the console by operator decision, through NEW routes (`/shop/v1/orders…`)
+   * — so the rule that survives is the one shop-mobile depends on: the PICK contract, which the Kotlin
+   * mirror is generated from, still carries no money and no shop identity. Checked on the contract
+   * itself, where a regression would actually reach the device.
    */
-  it("never asks the backend for order-level money or another shop's identity", () => {
-    const repo = code(join(FULFILLMENT_DIR, "repo.ts"))
+  it("keeps the pick contract free of money and shop identity (shop-mobile reads it)", () => {
+    const contract = code(resolve(FULFILLMENT_DIR, "../../../../../packages/shared-types/src/shop-order.ts"))
     for (const banned of [
-      /\border(_|\s*)?total\b/i,
-      /\bgrand(_|\s*)?total\b/i,
+      /\bamount\b/i,
+      /\b(grand|order)_?[tT]otal\b/,
       /\bpayment(_|\s*)?(status|intent|method)\b/i,
       /\bshop_?[iI]d\b/,
     ]) {
-      expect(repo, `repo.ts must not mention ${banned}`).not.toMatch(banned)
+      expect(contract, `shop-order.ts must not mention ${banned}`).not.toMatch(banned)
     }
+  })
+
+  /** ⚠ 057 A3 — no tax figure may be drawn: per-item GST is unmodelled (052 R13). */
+  it("draws no tax line", () => {
+    const offenders = files.filter((f) => /\b(VAT|GST)\b/.test(code(f)))
+    expect(offenders).toEqual([])
   })
 })

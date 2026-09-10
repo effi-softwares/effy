@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { bulkCandidates, summarise } from "../bulk"
+import { bulkCandidates, summarise, withTag } from "../bulk"
 import type { FulfillmentSummary } from "../model"
 
 /**
@@ -113,5 +113,32 @@ describe("summarise", () => {
 
   it("never returns an empty string — a silent control looks broken", () => {
     expect(summarise({ succeeded: [], failed: [], skipped: 0 })).toBe("Nothing to advance.")
+  })
+})
+
+/**
+ * 057 A3 — "Add tag" in bulk. ⚠ The tag route takes an ABSOLUTE set, so each row must be sent its own
+ * tags plus the new one — sending just the new tag would erase every tag the row already had.
+ */
+describe("withTag", () => {
+  const rows = [
+    { id: "a", orderNumber: "EFY-A", status: "received" as const, tags: ["vip"] },
+    { id: "b", orderNumber: "EFY-B", status: "picking" as const, tags: [] },
+    { id: "c", orderNumber: "EFY-C", status: "picking" as const, tags: ["fragile"] },
+  ]
+
+  it("keeps each row's existing tags and adds the new one", () => {
+    expect(withTag(rows, new Set(["a", "b"]), "Fragile ")).toEqual([
+      { id: "a", orderNumber: "EFY-A", tags: ["vip", "fragile"] },
+      { id: "b", orderNumber: "EFY-B", tags: ["fragile"] },
+    ])
+  })
+
+  it("skips rows that already carry the tag, and unselected rows", () => {
+    expect(withTag(rows, new Set(["c"]), "fragile")).toEqual([])
+  })
+
+  it("does nothing for a blank tag", () => {
+    expect(withTag(rows, new Set(["a"]), "   ")).toEqual([])
   })
 })

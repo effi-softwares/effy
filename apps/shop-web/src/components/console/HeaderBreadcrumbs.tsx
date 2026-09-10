@@ -1,7 +1,7 @@
 import { Fragment } from "react"
 
 import { useQuery } from "@tanstack/react-query"
-import { Link, useLocation, useParams } from "@tanstack/react-router"
+import { Link, useLocation, useParams, useSearch } from "@tanstack/react-router"
 
 import {
   Breadcrumb,
@@ -12,7 +12,7 @@ import {
 } from "@effy/design-system/ui"
 
 import { productDetailQuery } from "@/features/catalog/queries"
-import { fulfillmentDetailQuery } from "@/features/fulfillment/queries"
+import { orderDetailQuery } from "@/features/fulfillment/queries"
 import { cn } from "@/lib/utils"
 
 /** One step of the header's trail. `to` present = a parent the operator can go back to. */
@@ -67,9 +67,13 @@ export function crumbsFor(
 export function HeaderBreadcrumbs() {
   const { pathname } = useLocation()
   const params = useParams({ strict: false }) as { fulfillmentId?: string; productId?: string }
+  // ⚠ On an order, the "Orders" crumb returns to the list it was opened FROM — same tab, filters and
+  // page — so going back up the trail does not throw away the operator's place.
+  const search = useSearch({ strict: false }) as Record<string, unknown>
 
+  // 057 A3 — the console's order read, under the key the order screen itself uses.
   const order = useQuery({
-    ...fulfillmentDetailQuery(params.fulfillmentId ?? ""),
+    ...orderDetailQuery(params.fulfillmentId ?? ""),
     enabled: !!params.fulfillmentId,
   })
   const product = useQuery({
@@ -111,6 +115,7 @@ export function HeaderBreadcrumbs() {
                   <BreadcrumbLink asChild>
                     <Link
                       to={c.to}
+                      search={c.to === "/orders" && params.fulfillmentId ? search : undefined}
                       className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded-sm text-sm font-medium tracking-[-.01em] whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none"
                     >
                       {c.label}

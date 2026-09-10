@@ -168,3 +168,21 @@ func TestActorKind_OnlyAnIssuerMayIssue(t *testing.T) {
 		}
 	}
 }
+
+// ⚠ 057 A3 — the shop's restock toggle was parsed and ignored, so an item refunded as UNUSABLE went
+// straight back on sale. A shop's refund returns stock only when the shop asked; back-office keeps
+// 055's automatic return; a goodwill refund names no items and never returns any.
+func TestReturnsStock_HonoursTheIssuersChoice(t *testing.T) {
+	if !returnsStock(input(nil)) {
+		t.Error("a back-office item refund returns stock (055 FR-030)")
+	}
+	if returnsStock(input(func(in *IssueInput) { in.ActorKind, in.SkipStockReturn = "shop", true })) {
+		t.Error("a shop refund without restock must NOT return stock")
+	}
+	if !returnsStock(input(func(in *IssueInput) { in.ActorKind = "shop" })) {
+		t.Error("a shop refund WITH restock returns stock")
+	}
+	if returnsStock(input(func(in *IssueInput) { in.Kind = "goodwill" })) {
+		t.Error("a goodwill refund names no items and returns nothing")
+	}
+}

@@ -199,13 +199,18 @@ function mapItem(r: ItemRow): FulfillmentItem {
   };
 }
 
-export async function readDetail(
+/**
+ * Opening a portion IS the acknowledgement (FR-011a). Exported because the pick screen and the 057 A3
+ * order console are two ways of opening the same portion, and both must acknowledge it — a console
+ * that did not would leave an order it had shown someone reading "New" on the tablet.
+ *
+ * The audit row is written only when the transition actually happened (rowCount > 0).
+ */
+export async function acknowledge(
   fulfillmentId: string,
   shopId: string,
   actorStaffId: string | null,
-): Promise<FulfillmentDetail> {
-  // Acknowledge BEFORE reading, so the returned status reflects the acknowledgement the caller just
-  // caused. The audit row is written only when the transition actually happened (rowCount > 0).
+): Promise<void> {
   const ack = await query<{ id: string }>(ACKNOWLEDGE, [fulfillmentId, shopId]);
   if ((ack.rowCount ?? 0) > 0) {
     await appendEvent(null, {
@@ -216,6 +221,16 @@ export async function readDetail(
       toStatus: "received",
     });
   }
+}
+
+export async function readDetail(
+  fulfillmentId: string,
+  shopId: string,
+  actorStaffId: string | null,
+): Promise<FulfillmentDetail> {
+  // Acknowledge BEFORE reading, so the returned status reflects the acknowledgement the caller just
+  // caused.
+  await acknowledge(fulfillmentId, shopId, actorStaffId);
 
   const head = await query<DetailRow>(READ_DETAIL, [fulfillmentId, shopId]);
   const row = head.rows[0];
@@ -256,25 +271,39 @@ export async function readStatus(
 
 const APPEND_EVENT = `
 INSERT INTO public.fulfillment_event
-       (shop_fulfillment_id, actor_staff_id, event_type, from_status, to_status, order_item_id, quantity)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (shop_fulfillment_id, actor_staff_id, event_type, from_status, to_status, order_item_id, quantity, detail)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `;
 
-interface EventInput {
+export interface EventInput {
   fulfillmentId: string;
   actorStaffId: string | null;
-  eventType: "state_changed" | "item_gathered" | "item_unavailable" | "item_restored";
+  /** ⚠ 057 A3 widened this with the console's two events; see the migration for the reader audit. */
+  eventType:
+    | "state_changed"
+    | "item_gathered"
+    | "item_unavailable"
+    | "item_restored"
+    | "note_added"
+    | "tags_changed";
   fromStatus?: string | null;
   toStatus?: string | null;
   orderItemId?: string | null;
   quantity?: number | null;
+  /** 057 A3 — the resulting tag set for `tags_changed`; NULL otherwise. */
+  detail?: string | null;
 }
 
 /**
  * Append one audit row. Pass a client to write it INSIDE the caller's transaction — which every
  * state change does, so the audit can never disagree with the state it records (research R6).
+ *
+ * Exported for the 057 A3 order console, whose tag and note writes land in this same log.
  */
-async function appendEvent(client: pg.PoolClient | null, e: EventInput): Promise<void> {
+export async function appendEvent(
+  client: { query: (text: string, values: unknown[]) => Promise<unknown> } | null,
+  e: EventInput,
+): Promise<void> {
   const args = [
     e.fulfillmentId,
     e.actorStaffId,
@@ -283,6 +312,7 @@ async function appendEvent(client: pg.PoolClient | null, e: EventInput): Promise
     e.toStatus ?? null,
     e.orderItemId ?? null,
     e.quantity ?? null,
+    e.detail ?? null,
   ];
   if (client) await client.query(APPEND_EVENT, args);
   else await query(APPEND_EVENT, args);

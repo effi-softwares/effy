@@ -31,16 +31,23 @@ export function PickList({
   const editable = isPickable(status);
 
   function write(item: FulfillmentItem, body: { gatheredQuantity?: number; unavailableQuantity?: number }) {
-    progress.mutate({ orderItemId: item.orderItemId, body });
+    progress.mutate({
+      orderItemId: item.orderItemId,
+      body,
+      label: item.name,
+      ordered: item.orderedQuantity,
+    });
   }
 
   return (
     <div className="space-y-3">
       {!editable ? (
         <p className="text-sm text-muted-foreground">
-          {status === "collected"
-            ? "This order has been collected — its pick list is final."
-            : "Start picking to record progress against these lines."}
+          {status === "received" || status === "pending"
+            ? "Start picking to record progress against these lines."
+            : status === "ready_for_pickup"
+              ? "Ready for pickup — reopen picking to change these lines."
+              : "This order has left picking — its pick list is final."}
         </p>
       ) : null}
 
@@ -50,7 +57,9 @@ export function PickList({
         </p>
       ) : null}
 
-      <ul className="divide-y rounded-md border">
+      {/* ⚠ 057 A3 — row rules, no outer frame: the section's own hairline is the top edge, as on every
+          open section in the console. */}
+      <ul className="divide-border divide-y border-b">
         {items.map((item) => {
           const pendingWrite =
             progress.isPending && progress.variables?.orderItemId === item.orderItemId;
@@ -60,7 +69,7 @@ export function PickList({
           return (
             <li
               key={item.orderItemId}
-              className="flex flex-wrap items-center gap-4 px-4 py-3 sm:flex-nowrap"
+              className="flex flex-wrap items-center gap-4 py-3 sm:flex-nowrap"
             >
               {item.imageUrl ? (
                 <img

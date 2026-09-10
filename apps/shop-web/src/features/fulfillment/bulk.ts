@@ -1,5 +1,12 @@
-import type { FulfillmentSummary, RequestableTransition } from "./model"
+import type { FulfillmentStatus, RequestableTransition } from "./model"
 import { nextTransition } from "./model"
+
+/** What the bulk logic needs of a row — met by both the pick queue and the 057 A3 order list. */
+export interface BulkRow {
+  id: string
+  orderNumber: string
+  status: FulfillmentStatus
+}
 
 /**
  * Bulk state-advance (US2, T027) — pure logic, no React, unit-testable.
@@ -27,11 +34,12 @@ export interface BulkCandidate {
 /**
  * ⚠ ONLY FORWARD, AND NEVER `unfulfillable`. `nextTransition` returns the one forward step; declaring
  * a portion unsuppliable is a separate, reason-carrying decision that tells Effy to refund a customer
- * (055 FR-031). Offering it in a bulk control — where one click covers rows the operator did not read
- * individually — is how a mis-click refunds five people.
+ * (055 FR-031). Offering it as a one-click "advance" — where one click covers rows the operator did not
+ * read individually — is how a mis-click refunds five people. 057 A3's bulk "Cancel" is therefore its
+ * OWN control, which lists every order number and demands a reason (`CantSupplyDialog`).
  */
 export function bulkCandidates(
-  rows: readonly FulfillmentSummary[],
+  rows: readonly BulkRow[],
   selectedIds: ReadonlySet<string>,
 ): BulkCandidate[] {
   const out: BulkCandidate[] = []
@@ -80,4 +88,21 @@ export function summarise(outcome: BulkOutcome): string {
   // is indistinguishable from a broken one.
   if (parts.length === 0) return "Nothing to advance."
   return parts.join(" · ") + "."
+}
+
+/**
+ * The tag set each selected row should end with after "Add tag" (057 A3): its own tags plus the new
+ * one. ⚠ Per row, because the tag route takes an ABSOLUTE set — sending just the new tag would erase
+ * every tag the row already had. Rows that already carry it are left out, so nothing is re-written.
+ */
+export function withTag(
+  rows: readonly (BulkRow & { tags: readonly string[] })[],
+  selectedIds: ReadonlySet<string>,
+  tag: string,
+): { id: string; orderNumber: string; tags: string[] }[] {
+  const t = tag.trim().toLowerCase()
+  if (!t) return []
+  return rows
+    .filter((r) => selectedIds.has(r.id) && !r.tags.includes(t))
+    .map((r) => ({ id: r.id, orderNumber: r.orderNumber, tags: [...r.tags, t] }))
 }

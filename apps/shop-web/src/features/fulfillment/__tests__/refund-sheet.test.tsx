@@ -1,21 +1,27 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { describe, expect, it, vi } from "vitest"
 
-import type { FulfillmentDetail } from "../model"
+import { orderDetail, orderList } from "./fixtures"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
   useNavigate: () => () => {},
 }))
 
-const getFulfillment = vi.hoisted(() => vi.fn())
+const getOrder = vi.hoisted(() => vi.fn())
 const issueShopRefund = vi.hoisted(() => vi.fn())
 vi.mock("../repo", () => ({
-  getFulfillment,
+  getOrder,
   issueShopRefund,
+  listOrders: vi.fn(async () => orderList([])),
+  getOrderActivity: vi.fn(),
+  setOrderTags: vi.fn(),
+  addOrderNote: vi.fn(),
   listFulfillments: vi.fn(),
+  getFulfillment: vi.fn(),
   transitionFulfillment: vi.fn(),
   updateItemProgress: vi.fn(),
 }))
@@ -25,36 +31,20 @@ vi.mock("@/features/auth/queries", () => ({ sessionQuery }))
 
 import { OrderDetailScreen } from "../OrderDetailScreen"
 
-const DETAIL: FulfillmentDetail = {
-  id: "f1",
-  orderId: "11111111-1111-4111-8111-111111111111",
-  orderNumber: "EFY-10023",
-  placedAt: "2026-09-02T02:14:05Z",
-  status: "picking",
-  stateChangedAt: "2026-09-02T02:15:11Z",
-  promise: { serviceLevel: "standard", readyBy: "2026-09-02T03:14:05Z" },
-  delivery: {
-    recipientName: "Maya Oyelaran",
-    phone: null,
-    line1: "12 Riverina St",
-    line2: null,
-    city: "Melbourne",
-    region: "VIC",
-    postalCode: "3000",
-    country: "AU",
-  },
-  items: [
+const DETAIL = orderDetail({
+  lines: [
+    { ...orderDetail().lines[0]!, orderItemId: "oi1", orderedQuantity: 2, refundedQuantity: 0 },
     {
-      orderItemId: "oi1",
-      name: "Barossa Free-Range Eggs 700g",
-      sku: "EGG-700",
-      imageUrl: null,
-      orderedQuantity: 2,
-      gatheredQuantity: 2,
-      unavailableQuantity: 0,
+      ...orderDetail().lines[0]!,
+      orderItemId: "oi2",
+      name: "Oat milk 1L",
+      orderedQuantity: 3,
+      refundedQuantity: 1,
+      unitPrice: "3.00",
+      lineTotal: "9.00",
     },
   ],
-} as FulfillmentDetail
+})
 
 function wrap(roles: string[]) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -62,7 +52,7 @@ function wrap(roles: string[]) {
     status: "signed-in",
     identity: { subject: "s1", email: "maya@effy.shop", roles },
   })
-  getFulfillment.mockResolvedValue(DETAIL)
+  getOrder.mockResolvedValue(DETAIL)
   return render(
     <QueryClientProvider client={qc}>
       <OrderDetailScreen fulfillmentId="f1" />
@@ -81,41 +71,72 @@ function wrap(roles: string[]) {
  * nothing about.
  */
 describe("shop refund control", () => {
-  it("offers refunding to a shop manager", async () => {
+  it("offers refunding to a shop manager, in the Payment section's header", async () => {
     wrap(["shop_manager"])
-    expect(await screen.findByRole("button", { name: /refund items/i })).toBeInTheDocument()
+    const payment = (await screen.findByRole("heading", { name: "Payment" })).closest("section")!
+    expect(within(payment).getByRole("button", { name: "Refund" })).toBeInTheDocument()
   })
 
   it("withholds it from shop_staff, who still keep full fulfilment access", async () => {
     wrap(["shop_staff"])
-    await screen.findByText("Barossa Free-Range Eggs 700g")
-
-    expect(screen.queryByRole("button", { name: /refund items/i })).not.toBeInTheDocument()
-    // ⚠ The rest of the screen is UNCHANGED for them — picking is their job (020 FR-019a).
+    await screen.findByRole("heading", { name: "Payment" })
+    expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole("tab", { name: "Items" }))
     expect(screen.getByText("Barossa Free-Range Eggs 700g")).toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument()
   })
 
   it("withholds it from a role-less operator", async () => {
     wrap([])
-    await screen.findByText("Barossa Free-Range Eggs 700g")
-    expect(screen.queryByRole("button", { name: /refund items/i })).not.toBeInTheDocument()
+    await screen.findByRole("heading", { name: "Payment" })
+    expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument()
   })
 
   it("never issues a refund from merely rendering the screen", async () => {
     wrap(["shop_manager"])
-    await screen.findByText("Barossa Free-Range Eggs 700g")
+    await screen.findByRole("heading", { name: "Payment" })
     expect(issueShopRefund).not.toHaveBeenCalled()
   })
 
-  /**
-   * ⚠ 020 SC-007 restated at the refund boundary. This screen shows no order-level money, and adding
-   * a refund control must not have introduced any: a shop sees ITS OWN lines, never what the whole
-   * order was charged.
-   */
-  it("still shows no order-level total anywhere", async () => {
+  /** 057 A3 — the line-level refund opens the sheet with exactly that line, at what is left of it. */
+  it("a line's Refund opens the sheet with that line chosen, clamped to what is still refundable", async () => {
     wrap(["shop_manager"])
-    await screen.findByText("Barossa Free-Range Eggs 700g")
+    await userEvent.click(await screen.findByRole("tab", { name: "Items" }))
+    const row = screen.getByText("Oat milk 1L").closest("tr")!
+    await userEvent.click(within(row).getByRole("button", { name: "Refund" }))
+
+    const sheet = await screen.findByRole("dialog")
+    expect(within(sheet).getByLabelText("Refund Oat milk 1L")).toBeChecked()
+    expect(within(sheet).getByLabelText("Refund Barossa Free-Range Eggs 700g")).not.toBeChecked()
+    // 3 ordered, 1 already on its way back → 2.
+    expect(within(sheet).getByLabelText("Quantity to refund for Oat milk 1L")).toHaveValue("2")
+    expect(within(sheet).getByText("1 already refunded", { exact: false })).toBeInTheDocument()
+  })
+
+  it("sends lines and quantities — never an amount", async () => {
+    issueShopRefund.mockResolvedValue({ refundId: "r1", status: "submitted", amount: "6.00" })
+    wrap(["shop_manager"])
+    await userEvent.click(await screen.findByRole("tab", { name: "Items" }))
+    const row = screen.getByText("Oat milk 1L").closest("tr")!
+    await userEvent.click(within(row).getByRole("button", { name: "Refund" }))
+    await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /^Refund 1 item$/ }))
+
+    await waitFor(() => expect(issueShopRefund).toHaveBeenCalled())
+    const [orderId, body] = issueShopRefund.mock.calls[0]!
+    expect(orderId).toBe(DETAIL.orderId)
+    expect(body).toEqual({ lines: [{ orderItemId: "oi2", quantity: 2 }], reason: "item_not_supplied", restock: false })
+    expect(body).not.toHaveProperty("amount")
+  })
+
+  /**
+   * ⚠ 057 A3 put the order's money on this screen by operator decision. It did NOT make capture or a
+   * tax line real: Effy captures at payment (055 R3) and per-item GST is unmodelled (052 R13).
+   */
+  it("shows the order's money, but no capture control and no tax line", async () => {
+    wrap(["shop_manager"])
+    await screen.findByText("Authorised")
+    expect(screen.queryByRole("button", { name: /capture/i })).not.toBeInTheDocument()
     const text = document.body.textContent ?? ""
-    expect(text).not.toMatch(/order total|grand total|amount paid/i)
+    expect(text).not.toMatch(/\b(VAT|GST)\b/)
   })
 })

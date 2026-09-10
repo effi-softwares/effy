@@ -32,3 +32,18 @@ export function fulfillmentMutationError(err: unknown): string {
   }
   return "Something went wrong. Please try again.";
 }
+
+/**
+ * Inline copy for a failed tag or note save (057 A3). Distinct from `fulfillmentMutationError`, whose
+ * 400 copy talks about QUANTITIES — right for a pick write, nonsense under a note.
+ */
+export function orderEditError(err: unknown): string {
+  if (isDomainError(err)) {
+    if (err.kind === "forbidden") return "You don't have access to this order.";
+    if (err.kind === "unavailable")
+      return "The service is waking up or unreachable. Try again in a moment.";
+    if (err.status === 400 || err.status === 422)
+      return "That wasn't accepted — tags are up to 10 short words, and a note can't be empty.";
+  }
+  return "Something went wrong. Please try again.";
+}

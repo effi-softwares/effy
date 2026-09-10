@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { FulfillmentDetail, FulfillmentStatus } from "./model";
+import type { FulfillmentStatus } from "./model";
 
 const transitionFulfillment = vi.hoisted(() => vi.fn());
 vi.mock("./repo", () => ({
@@ -14,206 +14,117 @@ vi.mock("./repo", () => ({
   updateItemProgress: vi.fn(),
 }));
 
-import { StateControl } from "./components/StateControl";
+import { CantSupplyDialog, StateActions, stateNote } from "./components/StateControl";
 
-function detail(status: FulfillmentStatus): FulfillmentDetail {
-  return {
-    id: "f1",
-    orderId: "11111111-1111-4111-8111-111111111111",
-  orderNumber: "EFY-10023",
-    placedAt: "2026-07-20T02:14:05Z",
-    status,
-    stateChangedAt: "2026-07-20T02:15:11Z",
-    promise: { serviceLevel: "standard", readyBy: "2026-07-20T03:14:05Z" },
-    delivery: {
-      recipientName: "Ada Lovelace",
-      phone: null,
-      line1: "1 Test St",
-      line2: null,
-      city: "Melbourne",
-      region: "VIC",
-      postalCode: "3000",
-      country: "AU",
-    },
-    items: [],
-  };
-}
+const target = (status: FulfillmentStatus) => ({ id: "f1", orderNumber: "EFY-10023", status });
 
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   return render(<QueryClientProvider client={qc}>{children}</QueryClientProvider>);
 }
 
-describe("StateControl transitions", () => {
-  // Call counts are load-bearing below ("a reload must not re-submit"), so each test starts from a
-  // clean call log. mockClear keeps the per-test resolved values intact.
+describe("StateActions — the header's lifecycle control", () => {
   beforeEach(() => {
-    transitionFulfillment.mockClear();
+    transitionFulfillment.mockReset();
+    transitionFulfillment.mockResolvedValue({ id: "f1", orderNumber: "EFY-10023", status: "picking", items: [] });
   });
 
   it("offers 'Start picking' from received and submits the transition", async () => {
-    transitionFulfillment.mockResolvedValue(detail("picking"));
-
-    wrap(<StateControl detail={detail("received")} onReload={vi.fn()} />);
-
+    wrap(<StateActions detail={target("received")} />);
     await userEvent.click(screen.getByRole("button", { name: /start picking/i }));
-
     expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "picking" });
   });
 
   it("offers 'Mark ready for pickup' from picking", async () => {
-    transitionFulfillment.mockResolvedValue(detail("ready_for_pickup"));
-
-    wrap(<StateControl detail={detail("picking")} onReload={vi.fn()} />);
-
+    wrap(<StateActions detail={target("picking")} />);
     await userEvent.click(screen.getByRole("button", { name: /mark ready for pickup/i }));
-
     expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "ready_for_pickup" });
   });
 
-  // US3 scenario 2 — a second operator must not be offered a duplicate completing action.
-  it("offers no completing action once the order is ready, only the permitted reversal", () => {
-    wrap(<StateControl detail={detail("ready_for_pickup")} onReload={vi.fn()} />);
-
-    expect(screen.queryByRole("button", { name: /mark ready for pickup/i })).toBeNull();
-    expect(screen.getByRole("button", { name: /reopen picking/i })).toBeInTheDocument();
-    expect(screen.getByText(/awaiting collection/i)).toBeInTheDocument();
+  // ⚠ `from` is state the operator acted on — it must never reach the wire.
+  it("sends only the transition, never the source state", async () => {
+    wrap(<StateActions detail={target("picking")} />);
+    await userEvent.click(screen.getByRole("button", { name: /mark ready for pickup/i }));
+    expect(transitionFulfillment.mock.calls[0]![1]).not.toHaveProperty("from");
   });
 
-  it("submits the one permitted reversal back to picking", async () => {
-    transitionFulfillment.mockResolvedValue(detail("picking"));
-
-    wrap(<StateControl detail={detail("ready_for_pickup")} onReload={vi.fn()} />);
-
+  it("offers no completing action once ready, only the permitted reversal", async () => {
+    wrap(<StateActions detail={target("ready_for_pickup")} />);
+    expect(screen.queryByRole("button", { name: /mark ready/i })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /reopen picking/i }));
-
     expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "picking" });
   });
 
-  // FR-011f — collected is terminal and immutable; the UI offers nothing at all.
-  it("offers no action on a collected portion", () => {
-    wrap(<StateControl detail={detail("collected")} onReload={vi.fn()} />);
-
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    expect(screen.getByText(/collected/i)).toBeInTheDocument();
-  });
-
-  // FR-014 / SC-005 — the 409 path. 409 maps to DomainErrorKind "unknown", so it is detected by
-  // STATUS. The affordance offered must be RELOAD, never a retry: retrying would re-submit a
-  // decision made against a state the server no longer holds.
-  it("surfaces a 409 as a reload affordance, not a retry", async () => {
-    transitionFulfillment.mockRejectedValue({ kind: "unknown", status: 409, title: "Conflict" });
-    const onReload = vi.fn();
-
-    wrap(<StateControl detail={detail("picking")} onReload={onReload} />);
-
-    await userEvent.click(screen.getByRole("button", { name: /mark ready for pickup/i }));
-
-    expect(await screen.findByText(/changed elsewhere/i)).toBeInTheDocument();
-    const reload = screen.getByRole("button", { name: /reload/i });
-    expect(screen.queryByRole("button", { name: /^retry$/i })).toBeNull();
-
-    await userEvent.click(reload);
-    expect(onReload).toHaveBeenCalledTimes(1);
-    // Reloading must not re-submit the refused transition.
-    expect(transitionFulfillment).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows a non-leaking message for a non-conflict failure and offers no reload", async () => {
-    transitionFulfillment.mockRejectedValue({
-      kind: "forbidden",
-      status: 403,
-      title: "Forbidden",
-      detail: "shop_staff row inactive",
-    });
-
-    wrap(<StateControl detail={detail("received")} onReload={vi.fn()} />);
-
-    await userEvent.click(screen.getByRole("button", { name: /start picking/i }));
-
-    expect(await screen.findByText(/don't have access to this order/i)).toBeInTheDocument();
-    expect(screen.queryByText(/shop_staff row inactive/)).toBeNull();
-    expect(screen.queryByRole("button", { name: /reload/i })).toBeNull();
+  it.each(["collected", "delivered", "unfulfillable", "withdrawn"] as const)("offers nothing once %s", (s) => {
+    wrap(<StateActions detail={target(s)} />);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 });
 
-// ── 055 US6 — the exit a shop that cannot supply its portion previously lacked ──────────────────
-//
-// ⚠ BEFORE THIS, A SHOP HOLDING AN ORDER IT COULD NOT FILL HAD NO STATE TO MOVE IT TO. The portion
-// sat in the active queue forever, and the only way out was for someone to stop looking at it.
+describe("stateNote", () => {
+  // ⚠ `withdrawn` was NOT the shop's doing, and this screen is where they are judged.
+  it("says a cancelled order was cancelled, not that the shop failed", () => {
+    expect(stateNote("withdrawn")).toMatch(/the customer cancelled this order/i);
+    expect(stateNote("withdrawn")).not.toMatch(/couldn't supply|failed to/i);
+  });
 
-describe("can't supply this order (055 US6)", () => {
-  // ⚠ `mockReset`, not `mockClear`. The suite above deliberately uses `mockClear` to keep per-test
-  // resolved values — which means the LAST of them (a 403 rejection) leaks into anything that runs
-  // after it. This block starts from a clean mock and its own success.
+  it("says what happens next after can't-supply", () => {
+    expect(stateNote("unfulfillable")).toMatch(/effy .* will refund the customer/i);
+  });
+});
+
+// ── 055 US6 — the console's "Cancel order", which is a can't-supply declaration ─────────────────
+
+describe("CantSupplyDialog (055 US6, 057 A3)", () => {
   beforeEach(() => {
     transitionFulfillment.mockReset();
-    transitionFulfillment.mockResolvedValue(detail("unfulfillable" as never));
+    transitionFulfillment.mockResolvedValue({});
   });
 
-  // ⚠ It tells Effy to refund a customer and takes the order off the queue for good. A mis-tap here
-  // is not a wrong pixel.
-  it("asks before it acts, naming the consequence", async () => {
-    wrap(<StateControl detail={detail("picking")} onReload={() => {}} />);
-    await userEvent.click(screen.getByRole("button", { name: /can't supply this order/i }));
-
-    expect(transitionFulfillment).not.toHaveBeenCalled();
+  // ⚠ It tells Effy to refund a customer and takes the order off the queue for good.
+  it("names the consequence before it acts", () => {
+    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />);
     expect(screen.getByText(/asks effy to refund the customer/i)).toBeInTheDocument();
     expect(screen.getByText(/can't be undone/i)).toBeInTheDocument();
+    expect(transitionFulfillment).not.toHaveBeenCalled();
   });
 
-  // ⚠ A REASON IS REQUIRED, here and in the database. Back-office decides a refund on the strength
-  // of it; "the shop said no" is not a basis for returning a customer's money.
+  // ⚠ A REASON IS REQUIRED, here and in the database.
   it("cannot be declared without a reason", async () => {
-    wrap(<StateControl detail={detail("picking")} onReload={() => {}} />);
-    await userEvent.click(screen.getByRole("button", { name: /can't supply this order/i }));
-
+    const onOpenChange = vi.fn();
+    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={onOpenChange} />);
     const confirm = screen.getByRole("button", { name: /^can't supply it$/i });
     expect(confirm).toBeDisabled();
 
     await userEvent.type(screen.getByLabelText(/why can't you supply/i), "the chiller failed");
-    await waitFor(() => expect(confirm).toBeEnabled());
     await userEvent.click(confirm);
-
     await waitFor(() =>
-      expect(transitionFulfillment).toHaveBeenCalledWith("f1", {
-        to: "unfulfillable",
-        reason: "the chiller failed",
-      }),
+      expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "unfulfillable", reason: "the chiller failed" }),
     );
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
-  // ⚠ Once collected it is no longer the shop's call — the goods have left and somebody is carrying
-  // them. Mirrors the server's legal-edge map, and the server decides.
-  it.each(["collected", "delivered", "unfulfillable", "withdrawn"])(
-    "offers no control once %s",
-    (status) => {
-      wrap(<StateControl detail={detail(status as never)} onReload={() => {}} />);
-      expect(screen.queryByRole("button", { name: /can't supply/i })).not.toBeInTheDocument();
-    },
-  );
+  // ⚠ In bulk it lists every order it will touch, and leaves out what is past the point of no return.
+  it("in bulk, names each order and leaves out the ones already gone", async () => {
+    wrap(
+      <CantSupplyDialog
+        targets={[
+          { id: "a", orderNumber: "EFY-A", status: "received" },
+          { id: "b", orderNumber: "EFY-B", status: "picking" },
+          { id: "c", orderNumber: "EFY-C", status: "collected" },
+        ]}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    expect(screen.getByText("EFY-A")).toBeInTheDocument();
+    expect(screen.getByText("EFY-B")).toBeInTheDocument();
+    expect(screen.queryByText("EFY-C")).not.toBeInTheDocument();
+    expect(screen.getByText(/1 selected order has already left your hands/i)).toBeInTheDocument();
 
-  // ⚠ A shop may know before opening the order that it cannot supply it — the whole delivery is off,
-  // the chiller failed. Requiring them to open it first would be ceremony.
-  it.each(["pending", "received", "picking", "ready_for_pickup"])(
-    "is offered while %s",
-    (status) => {
-      wrap(<StateControl detail={detail(status as never)} onReload={() => {}} />);
-      expect(screen.getByRole("button", { name: /can't supply this order/i })).toBeInTheDocument();
-    },
-  );
-
-  // ⚠ It is the LAST RESORT, never a primary action sitting beside the forward one.
-  it("is not a primary action", async () => {
-    wrap(<StateControl detail={detail("picking")} onReload={() => {}} />);
-    const button = screen.getByRole("button", { name: /can't supply this order/i });
-    expect(button.className).not.toMatch(/bg-primary/);
-  });
-
-  // ⚠ `withdrawn` was NOT the shop's doing, and this screen is where they are judged.
-  it("says a cancelled order was cancelled, not that the shop failed", () => {
-    wrap(<StateControl detail={detail("withdrawn" as never)} onReload={() => {}} />);
-    expect(screen.getByText(/the customer cancelled this order/i)).toBeInTheDocument();
-    expect(document.body.textContent ?? "").not.toMatch(/couldn't supply|failed to/i);
+    await userEvent.type(screen.getByLabelText(/why can't you supply/i), "power cut");
+    await userEvent.click(screen.getByRole("button", { name: /^can't supply 2$/i }));
+    await waitFor(() => expect(transitionFulfillment).toHaveBeenCalledTimes(2));
+    expect(transitionFulfillment).not.toHaveBeenCalledWith("c", expect.anything());
   });
 });

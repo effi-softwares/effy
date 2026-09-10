@@ -64,6 +64,13 @@ export function promiseFrom(
  * late would be noise the operator cannot act on.
  */
 export function isAtRisk(promise: DeliveryPromise, status: string, now: Date = new Date()): boolean {
-  if (status === "ready_for_pickup" || status === "collected") return false;
+  // ⚠ NAMED POSITIVELY (057 A3). This used to exclude `ready_for_pickup` and `collected` only, so
+  // every state added after it — `delivered`, `unfulfillable`, `withdrawn` — satisfied the negation
+  // and reported a finished order as AT RISK on the completed queue. That is 053/055's terminal-state
+  // lesson recurring; listing the states that CAN be at risk means a new state is safe by default.
+  if (!AT_RISK_STATUSES.includes(status)) return false;
   return promise.readyBy.getTime() - now.getTime() <= AT_RISK_THRESHOLD_MS;
 }
+
+/** The only states in which a portion can still miss its promise — the shop has not finished it. */
+export const AT_RISK_STATUSES: readonly string[] = ["pending", "received", "picking"];

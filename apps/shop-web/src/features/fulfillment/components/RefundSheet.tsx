@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Loader2, Undo2 } from "lucide-react"
 
@@ -19,13 +19,28 @@ import {
   SelectTrigger,
   SelectValue,
   Switch,
+  toast,
 } from "@effy/design-system/ui"
 
 import { track } from "@/lib/telemetry"
 
 import { fulfillmentMutationError } from "../errorText"
-import type { FulfillmentDetail } from "../model"
+import { formatMoney, refundableQuantity, type OrderLine } from "../orderConsole"
+import { invalidateOrders } from "../queries"
 import { issueShopRefund } from "../repo"
+
+/**
+ * What the sheet needs to know about the order (057 A3): the portion, the order it belongs to, and
+ * this shop's priced lines with what is already on its way back.
+ */
+export interface RefundTarget {
+  /** The portion (shop_fulfillment.id) — telemetry's unit of work. */
+  id: string
+  orderId: string
+  orderNumber: string
+  currency: string
+  lines: Pick<OrderLine, "orderItemId" | "name" | "orderedQuantity" | "refundedQuantity" | "unitPrice">[]
+}
 
 /**
  * Refunding this shop's portion of an order (US5, FR-014).
@@ -48,13 +63,25 @@ export function RefundSheet({
   detail,
   open,
   onOpenChange,
+  initialLineId,
 }: {
-  detail: FulfillmentDetail
+  detail: RefundTarget
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** 057 A3 — a line-level "Refund" opens the sheet with that one line already chosen. */
+  initialLineId?: string | null
 }) {
   const queryClient = useQueryClient()
   const [quantities, setQuantities] = useState<Record<string, number>>({})
+
+  // Each opening starts from the line it was opened for (or none), never from a half-finished choice
+  // left behind by the last time the sheet was closed.
+  useEffect(() => {
+    if (!open) return
+    const line = detail.lines.find((l) => l.orderItemId === initialLineId)
+    setQuantities(line ? { [line.orderItemId]: refundableQuantity(line) } : {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-seed on open, not on every re-read
+  }, [open, initialLineId])
   const [reason, setReason] = useState<"item_not_supplied" | "item_unusable">("item_not_supplied")
   const [note, setNote] = useState("")
   const [restock, setRestock] = useState(false)
@@ -69,9 +96,13 @@ export function RefundSheet({
         note: note.trim() || undefined,
         restock,
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       track({ name: "shop_refund_initiated", fulfillmentId: detail.id })
-      void queryClient.invalidateQueries({ queryKey: ["shop", "fulfillment", "detail", detail.id] })
+      // ⚠ "Sent", not "refunded": the provider accepting it means only that it is on its way (055).
+      toast.success(`Refund of ${formatMoney(res.amount, detail.currency)} sent`, {
+        description: detail.orderNumber,
+      })
+      invalidateOrders(queryClient)
       onOpenChange(false)
       setQuantities({})
       setNote("")
@@ -79,6 +110,12 @@ export function RefundSheet({
   })
 
   const selectedCount = Object.values(quantities).filter((q) => q > 0).length
+  // ⚠ A PREVIEW, labelled as one. The server prices the refund from the receipt; this multiplies the
+  // same receipt prices so the operator sees roughly what they are about to send back.
+  const preview = detail.lines.reduce(
+    (c, l) => c + Math.round(Number(l.unitPrice) * 100) * (quantities[l.orderItemId] ?? 0),
+    0,
+  )
 
   return (
     <ResponsiveModal open={open} onOpenChange={onOpenChange}>
@@ -93,18 +130,20 @@ export function RefundSheet({
 
         <div className="space-y-4">
           <ul className="divide-y rounded-md border">
-            {detail.items.map((item) => {
+            {detail.lines.map((item) => {
               const chosen = quantities[item.orderItemId] ?? 0
+              const left = refundableQuantity(item)
               return (
                 <li key={item.orderItemId} className="flex items-center gap-3 px-3 py-2">
                   <Checkbox
                     id={`refund-${item.orderItemId}`}
                     aria-label={`Refund ${item.name}`}
                     checked={chosen > 0}
+                    disabled={left === 0}
                     onCheckedChange={(v) =>
                       setQuantities((q) => ({
                         ...q,
-                        [item.orderItemId]: v === true ? item.orderedQuantity : 0,
+                        [item.orderItemId]: v === true ? left : 0,
                       }))
                     }
                   />
@@ -115,11 +154,13 @@ export function RefundSheet({
                     <span className="block truncate">{item.name}</span>
                     <span className="text-muted-foreground text-xs tabular-nums">
                       ordered {item.orderedQuantity}
+                      {item.refundedQuantity > 0 ? ` · ${item.refundedQuantity} already refunded` : ""}
                     </span>
                   </Label>
-                  {/* ⚠ Clamped to what was ordered. Refunding more units than were sold is not a
-                      generosity the platform can express — the server refuses it (ErrLineOverRefunded)
-                      and so should the control, rather than offering a value that will bounce. */}
+                  {/* ⚠ Clamped to what is still refundable — ordered, minus what is already on its way
+                      back. Refunding more units than were sold is not a generosity the platform can
+                      express — the server refuses it (ErrLineOverRefunded) and so should the control,
+                      rather than offering a value that will bounce. */}
                   <Input
                     aria-label={`Quantity to refund for ${item.name}`}
                     inputMode="numeric"
@@ -127,7 +168,7 @@ export function RefundSheet({
                     disabled={chosen === 0}
                     value={chosen === 0 ? "" : String(chosen)}
                     onChange={(e) => {
-                      const n = Math.max(0, Math.min(item.orderedQuantity, Number(e.target.value) || 0))
+                      const n = Math.max(0, Math.min(left, Number(e.target.value) || 0))
                       setQuantities((q) => ({ ...q, [item.orderItemId]: n }))
                     }}
                   />
@@ -181,6 +222,16 @@ export function RefundSheet({
               </span>
             </Label>
           </div>
+
+          {selectedCount > 0 ? (
+            <p className="text-muted-foreground text-[13px]">
+              About{" "}
+              <span className="text-foreground font-medium tabular-nums">
+                {formatMoney((preview / 100).toFixed(2), detail.currency)}
+              </span>{" "}
+              — Effy prices the refund from the receipt.
+            </p>
+          ) : null}
 
           {refund.isError ? (
             <p role="alert" className="text-destructive text-sm">

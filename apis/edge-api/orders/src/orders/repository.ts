@@ -283,6 +283,10 @@ export async function history(orderId: string): Promise<HistoryRow[]> {
                 WHEN 'item_gathered'   THEN 'Item picked'
                 WHEN 'item_unavailable' THEN 'Item marked unavailable'
                 WHEN 'item_restored'   THEN 'Item restored'
+                -- 057 A3 — the shop console's two events. Named here in the same change that
+                -- widened the CHECK, or the ELSE arm would print the raw wire value to staff.
+                WHEN 'note_added'      THEN 'Shop added an internal note'
+                WHEN 'tags_changed'    THEN 'Shop changed its tags'
                 ELSE fe.event_type
               END AS summary,
               NULL::text AS actor_sub,

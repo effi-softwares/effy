@@ -19,13 +19,15 @@ vi.mock("@tanstack/react-router", () => ({
   ),
   useLocation: () => location,
   useParams: () => params.value,
+  useSearch: () => ({}),
   useNavigate: () => () => {},
 }))
 
-const getFulfillment = vi.hoisted(() => vi.fn())
+// 057 A3 — the crumb reads the order CONSOLE's detail (the key the order screen itself uses).
+const getOrder = vi.hoisted(() => vi.fn())
 vi.mock("@/features/fulfillment/repo", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  getFulfillment,
+  getOrder,
 }))
 
 const getProduct = vi.hoisted(() => vi.fn())
@@ -90,7 +92,7 @@ describe("crumbsFor", () => {
 describe("HeaderBreadcrumbs", () => {
   it("names the order from the cached detail read, in mono, as the page heading", async () => {
     at("/orders/f1", { fulfillmentId: "f1" })
-    getFulfillment.mockResolvedValue({ orderNumber: "EFY-10023" })
+    getOrder.mockResolvedValue({ orderNumber: "EFY-10023" })
     wrap(<HeaderBreadcrumbs />)
 
     const heading = await screen.findByRole("heading", { level: 1, name: "EFY-10023" })
@@ -118,7 +120,7 @@ describe("HeaderBreadcrumbs", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Catalog" })).toBeInTheDocument()
     expect(screen.queryByRole("link")).not.toBeInTheDocument()
     expect(getProduct).not.toHaveBeenCalled()
-    expect(getFulfillment).not.toHaveBeenCalled()
+    expect(getOrder).not.toHaveBeenCalled()
   })
 })
 

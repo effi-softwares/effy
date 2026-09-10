@@ -40,3 +40,5 @@ export * from "./inventory";
 export * from "./refund";
 // 057-shop-console-redesign
 export * from "./shop-team"
+// 057 Amendment A3 — the shop order console (separate from the pick contract in ./shop-order)
+export * from "./shop-order-console"

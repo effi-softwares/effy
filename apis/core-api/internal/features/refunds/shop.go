@@ -141,6 +141,8 @@ func (h *Handler) issueAsShop(c *gin.Context) {
 		Note:      body.Note,
 		ActorSub:  id.Subject,
 		ActorKind: "shop",
+		// ⚠ 057 A3 — honoured at last. See IssueInput.SkipStockReturn.
+		SkipStockReturn: !body.Restock,
 	}
 	for _, l := range body.Lines {
 		in.Lines = append(in.Lines, LineInput{OrderItemID: l.OrderItemID, Quantity: l.Quantity})

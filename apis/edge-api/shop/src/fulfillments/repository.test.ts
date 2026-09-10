@@ -135,6 +135,8 @@ describe("guarded transitions (FR-014, SC-005)", () => {
       "ready_for_pickup",
       null,
       null,
+      // 057 A3 — `detail`, NULL for every event but the console's tags_changed.
+      null,
     ]);
     expect(withTransaction).toHaveBeenCalledTimes(1);
   });

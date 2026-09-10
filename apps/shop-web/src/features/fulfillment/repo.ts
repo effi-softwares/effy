@@ -3,6 +3,10 @@ import type {
   FulfillmentDetailDTO,
   FulfillmentQueueDTO,
   ItemProgressRequest,
+  ShopOrderActivityDTO,
+  ShopOrderDetailDTO,
+  ShopOrderListDTO,
+  ShopOrderListQuery,
   TransitionRequest,
 } from "@effy/shared-types";
 
@@ -78,4 +82,40 @@ export async function issueShopRefund(
   body: ShopRefundRequest,
 ): Promise<{ refundId: string; status: string; amount: string }> {
   return coreApi.post(`/v1/shop/orders/${orderId}/refunds`, body);
+}
+
+// ── 057 Amendment A3 — the ORDER CONSOLE (`/shop/v1/orders…`) ────────────────────────────────────
+//
+// A sibling of the pick routes above, read by shop-web's Orders list and order detail. These carry the
+// order's money by operator decision (A3); the pick routes still do not, and shop-mobile still reads
+// only those. Same rule as everything above: no shop identifier is ever sent.
+
+/** The list. Search, filters, sort and paging are server-side, so the tab counts cover every state. */
+export async function listOrders(q: ShopOrderListQuery): Promise<ShopOrderListDTO> {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(q)) {
+    if (v !== undefined && v !== "") params.set(k, String(v));
+  }
+  const qs = params.toString();
+  return api.get<ShopOrderListDTO>(`/shop/v1/orders${qs ? `?${qs}` : ""}`);
+}
+
+/** One order. ⚠ Like the pick read, opening it acknowledges a `pending` portion (020 FR-011a). */
+export async function getOrder(id: string): Promise<ShopOrderDetailDTO> {
+  return api.get<ShopOrderDetailDTO>(`/shop/v1/orders/${id}`);
+}
+
+/** The full history, for the Activity sheet — fetched only when the sheet opens. */
+export async function getOrderActivity(id: string): Promise<ShopOrderActivityDTO> {
+  return api.get<ShopOrderActivityDTO>(`/shop/v1/orders/${id}/activity`);
+}
+
+/** Replace the tag set. ABSOLUTE, so a retried save lands the same result. */
+export async function setOrderTags(id: string, tags: string[]): Promise<ShopOrderDetailDTO> {
+  return api.put<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/tags`, { tags });
+}
+
+/** Add an internal note. Append-only — there is no edit or delete. */
+export async function addOrderNote(id: string, body: string): Promise<ShopOrderDetailDTO> {
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/notes`, { body });
 }

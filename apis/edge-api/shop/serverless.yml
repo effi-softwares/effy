@@ -391,6 +391,65 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── 057 Amendment A3 — the shop ORDER CONSOLE (shop-web's Orders list + order detail). ──
+  # A sibling of the pick routes above, not a replacement: `/shop/v1/fulfillments…` is what shop-mobile
+  # and the dashboard read and is unchanged. These carry the order's money (operator decision A3), its
+  # tags, notes and full history. Same membership gate (both roles), same uniform 403, same shop scope.
+  ordersListV1:
+    handler: src/functions/orders-list-v1-get.handler
+    description: Order console list — server-side search/filters/sort/paging + per-state counts — 057 A3
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/orders
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  orderGetV1:
+    handler: src/functions/order-get-v1-get.handler
+    description: Order console detail — lines, money, refunds, tags, notes; acknowledges on open — 057 A3
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/orders/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  orderActivityV1:
+    handler: src/functions/order-activity-v1-get.handler
+    description: Order console activity log — events, refunds, collection, arrival — 057 A3
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/orders/{id}/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  orderTagsV1:
+    handler: src/functions/order-tags-v1-put.handler
+    description: Replace an order's tag set (absolute, idempotent; logged) — 057 A3
+    events:
+      - httpApi:
+          method: PUT
+          path: /shop/v1/orders/{id}/tags
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  orderNotesV1:
+    handler: src/functions/order-notes-v1-post.handler
+    description: Add an internal note to an order (append-only; logged) — 057 A3
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/orders/{id}/notes
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   # ⚠ THE DEV-ONLY PICKUP STUB IS DELIBERATELY **NOT REGISTERED HERE** (020 FR-031, SC-013).
   #
   # src/functions/fulfillment-pickup-v1-post.ts exists and is unit-tested, but NO route points at it
