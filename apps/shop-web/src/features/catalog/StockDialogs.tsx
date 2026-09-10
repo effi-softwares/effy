@@ -87,12 +87,11 @@ interface DialogProps {
  * The mockup's primary header action, landed on `POST .../adjustments` with reason `received`.
  *
  * ⚠ THE MOCKUP'S SUPPLIER AND REFERENCE FIELDS ARE NOT HERE, and that is deliberate rather than an
- * omission. 057 already built the honest version of that: a purchase order names its supplier, its
- * reference and its lines, and receiving against it writes `stock_movement.purchase_order_line_id` —
- * the paper trail whose whole point is that "why do we have 48 of these" stays answerable months
- * later. Two free-text boxes here would record the same intent as unjoinable prose, and an operator
- * who filled them in would reasonably believe the order had been reconciled when nothing had. So this
- * dialog says where the reconciled path is instead of imitating it.
+ * omission. Where stock came from belongs to purchasing — suppliers and orders a receipt can cite —
+ * which is deferred to its own future feature (design revision 2026-09-10). Two free-text boxes here
+ * would record that intent as unjoinable prose, and an operator who filled them in would reasonably
+ * believe the delivery had been reconciled against something when nothing had. The note is the honest
+ * place for context until purchasing exists.
  */
 export function ReceiveStockDialog({ productId, stock, open, onOpenChange }: DialogProps) {
   const adjust = useAdjustStock(productId);
@@ -164,11 +163,6 @@ export function ReceiveStockDialog({ productId, stock, open, onOpenChange }: Dia
               {valid ? `${onHand} → ${onHand + parsed}` : onHand}
             </span>
           </div>
-
-          <p className="text-muted-foreground text-[12.5px]">
-            Received a whole purchase order? Record it on the Restock screen instead — receiving there
-            ties the units to the order and the supplier they came from.
-          </p>
 
           {adjust.isError ? <Refusal error={adjust.error} /> : null}
         </div>

@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
-import type { ProductStockDetailDTO, SupplierDTO } from "@effy/shared-types"
+import type { ProductStockDetailDTO } from "@effy/shared-types"
 
 /**
  * 057 — the rebuilt Inventory section and the two writes it puts behind named verbs.
@@ -30,22 +30,6 @@ vi.mock("../stockRepo", () => ({
   getStockSettings: vi.fn(),
   setStockSettings: vi.fn(),
   getLowStock: vi.fn(),
-}))
-
-const listSuppliers = vi.hoisted(() => vi.fn())
-const setProductSupplier = vi.hoisted(() => vi.fn())
-
-vi.mock("@/features/restock/repo", () => ({
-  listSuppliers,
-  setProductSupplier,
-  createSupplier: vi.fn(),
-  updateSupplier: vi.fn(),
-  archiveSupplier: vi.fn(),
-  listPurchaseOrders: vi.fn(),
-  getPurchaseOrder: vi.fn(),
-  createPurchaseOrder: vi.fn(),
-  updatePurchaseOrder: vi.fn(),
-  receivePurchaseOrder: vi.fn(),
 }))
 
 const { InventorySection } = await import("../InventorySection")
@@ -76,37 +60,12 @@ const PRODUCT = {
   sku: "EGG-700",
   gtin: null,
   status: "active",
-  supplierId: null,
-  supplierName: null,
   media: [],
   sections: [],
   attributes: [],
   missingMandatoryAttributes: [],
   updatedAt: "2026-09-02T00:00:00.123456Z",
 } as unknown as ProductDetail
-
-const SUPPLIERS: SupplierDTO[] = [
-  {
-    id: "sup-1",
-    name: "Riverina Produce",
-    contactEmail: null,
-    contactPhone: null,
-    notes: null,
-    status: "active",
-    createdAt: "2026-09-01T00:00:00Z",
-    updatedAt: "2026-09-01T00:00:00Z",
-  },
-  {
-    id: "sup-2",
-    name: "Old Dairy Co",
-    contactEmail: null,
-    contactPhone: null,
-    notes: null,
-    status: "archived",
-    createdAt: "2026-09-01T00:00:00Z",
-    updatedAt: "2026-09-01T00:00:00Z",
-  },
-]
 
 function wrap(children: ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
@@ -120,8 +79,6 @@ beforeEach(() => {
   adjustStock.mockResolvedValue(stockDetail())
   setStockTracking.mockResolvedValue(stockDetail())
   setStockThreshold.mockResolvedValue(stockDetail())
-  listSuppliers.mockResolvedValue(SUPPLIERS)
-  setProductSupplier.mockResolvedValue(undefined)
 })
 
 // ── The section states the numbers ───────────────────────────────────────────────────────────────
@@ -145,15 +102,6 @@ describe("the Inventory section", () => {
     )
     wrap(<InventorySection detail={PRODUCT} />)
     expect(await screen.findByText(/4 — set for this product/)).toBeInTheDocument()
-  })
-
-  it("shows the default supplier, and 'Not set' is a real answer rather than a blank", async () => {
-    // 057's own migration: NULL is expected and supported. A blank cell reads as a loading failure.
-    wrap(<InventorySection detail={PRODUCT} />)
-    expect(await screen.findByText("Not set")).toBeInTheDocument()
-
-    wrap(<InventorySection detail={{ ...PRODUCT, supplierId: "sup-1", supplierName: "Riverina Produce" }} />)
-    expect(await screen.findAllByText("Riverina Produce")).not.toHaveLength(0)
   })
 
   it("says an empty shelf is unbuyable, in words and weight rather than a hue", async () => {
@@ -218,17 +166,15 @@ describe("receiving stock", () => {
     expect(adjustStock).not.toHaveBeenCalled()
   })
 
-  it("points at the purchase order rather than imitating it with free text", async () => {
-    // ⚠ The mockup's receive sheet has Supplier and Reference boxes. 057 already built the honest
-    // version — receiving against a purchase order writes `stock_movement.purchase_order_line_id` —
-    // and two free-text boxes here would record the same intent as unjoinable prose while leaving the
-    // operator believing the order had been reconciled.
+  it("does not imitate purchasing with free-text supplier and reference boxes", async () => {
+    // ⚠ The mockup's receive sheet has Supplier and Reference boxes. Where stock came from belongs to
+    // purchasing (deferred to its own feature); two free-text boxes here would record that intent as
+    // unjoinable prose while leaving the operator believing the delivery had been reconciled.
     wrap(
       <ReceiveStockDialog productId="p1" stock={stockDetail().stock} open onOpenChange={() => {}} />,
     )
     expect(screen.queryByLabelText(/^supplier$/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/^reference$/i)).not.toBeInTheDocument()
-    expect(screen.getByText(/restock screen/i)).toBeInTheDocument()
   })
 
   it("shows the server's own refusal, not one generic sentence", async () => {
@@ -369,7 +315,6 @@ describe("inventory rules", () => {
     await waitFor(() => expect(setStockThreshold).toHaveBeenCalled())
     expect(setStockThreshold.mock.calls[0]![1]).toEqual({ threshold: 4 })
     expect(setStockTracking).not.toHaveBeenCalled()
-    expect(setProductSupplier).not.toHaveBeenCalled()
   })
 
   it("clears a threshold back to the shop default rather than making it permanent", async () => {
@@ -381,42 +326,6 @@ describe("inventory rules", () => {
 
     await waitFor(() => expect(setStockThreshold).toHaveBeenCalled())
     expect(setStockThreshold.mock.calls[0]![1]).toEqual({ threshold: null })
-  })
-
-  it("assigns a supplier — the write 057 shipped with no call site at all", async () => {
-    const user = userEvent.setup()
-    openRules()
-
-    await user.click(await screen.findByLabelText(/default supplier/i))
-    await user.click(await screen.findByRole("option", { name: "Riverina Produce" }))
-    await user.click(screen.getByRole("button", { name: /save rules/i }))
-
-    await waitFor(() => expect(setProductSupplier).toHaveBeenCalled())
-    expect(setProductSupplier).toHaveBeenCalledWith("p1", "sup-1")
-  })
-
-  it("offers a supplier that is retired on no picker", async () => {
-    // ⚠ Soft-retirement is the whole point of `supplier.status`: an archived supplier stays readable
-    // on historical purchase orders and disappears from the assignment picker.
-    const user = userEvent.setup()
-    openRules()
-    await user.click(await screen.findByLabelText(/default supplier/i))
-    const listbox = await screen.findByRole("listbox")
-    expect(within(listbox).queryByText("Old Dairy Co")).not.toBeInTheDocument()
-  })
-
-  it("clears an assigned supplier with an explicit null", async () => {
-    // 056 shipped a profile field that could never be emptied because COALESCE cannot tell "leave
-    // alone" from "clear". The supplier route takes an explicit null precisely so this works.
-    const user = userEvent.setup()
-    openRules({}, { ...PRODUCT, supplierId: "sup-1", supplierName: "Riverina Produce" })
-
-    await user.click(await screen.findByLabelText(/default supplier/i))
-    await user.click(await screen.findByRole("option", { name: /not set/i }))
-    await user.click(screen.getByRole("button", { name: /save rules/i }))
-
-    await waitFor(() => expect(setProductSupplier).toHaveBeenCalled())
-    expect(setProductSupplier).toHaveBeenCalledWith("p1", null)
   })
 
   it("turns tracking on BEFORE writing a threshold that depends on it", async () => {

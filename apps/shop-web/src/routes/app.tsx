@@ -4,6 +4,7 @@ import { useStore } from "@tanstack/react-store";
 
 import { ConsoleShell } from "@effy/web-kit/console";
 
+import { HeaderBreadcrumbs } from "@/components/console/HeaderBreadcrumbs";
 import { HeaderChrome } from "@/components/console/HeaderChrome";
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
@@ -57,17 +58,17 @@ function AppShell() {
   const identity = data?.status === "signed-in" ? data.identity : null;
 
   // ⚠ 057 — the imported design puts the screen's identity in the HEADER, not in an <h1> on every
-  // page. The subtitle carries live context (what is waiting, what is short), which is why it reads
-  // the same nav badges the rail does rather than a count of its own.
-  const chrome = headerChromeFor(pathname, navBadges);
+  // page: a breadcrumb trail (design revision 2026-09-10) followed by one line of live context, which
+  // reads the same nav badges the rail does rather than a count of its own.
+  const subtitle = headerSubtitleFor(pathname, navBadges);
 
   return (
     <ConsoleShell
       brand={{ mark: "E", name: "Effy", surface: "Shop" }}
       surfaceLabel="Effy Shop"
       sidebarWidth="14rem"
-      headerTitle={chrome.title}
-      headerSubtitle={chrome.subtitle}
+      headerBreadcrumb={<HeaderBreadcrumbs />}
+      headerSubtitle={subtitle}
       headerActions={<HeaderChrome />}
       nav={NAV}
       navBadges={navBadges}
@@ -89,42 +90,19 @@ function AppShell() {
 }
 
 /**
- * The header's title and one-line context, per screen (057).
+ * The header's one-line context, per screen (057). The screen's NAME is the breadcrumb's job.
  *
  * ⚠ THE SUBTITLE IS DERIVED FROM THE SAME CACHE THE SIDEBAR BADGES READ. A second count here could
  * disagree with the rail three pixels away, which is the `summarizeFulfillment` mistake 052 deleted —
  * two implementations of one fact, on one screen.
  */
-function headerChromeFor(
-  pathname: string,
-  badges: Record<string, number | undefined>,
-): { title: string; subtitle: string } {
+function headerSubtitleFor(pathname: string, badges: Record<string, number | undefined>): string {
   const waiting = badges["/orders"] ?? 0;
-  const short = badges["/restock"] ?? 0;
 
   if (pathname.startsWith("/orders")) {
-    return {
-      title: "Orders",
-      subtitle: waiting > 0 ? `${waiting} waiting to be picked` : "Nothing waiting",
-    };
+    return waiting > 0 ? `${waiting} waiting to be picked` : "Nothing waiting";
   }
-  if (pathname.startsWith("/catalog")) {
-    return { title: "Catalog", subtitle: "Your shop's products" };
-  }
-  if (pathname.startsWith("/restock")) {
-    return {
-      title: "Restock",
-      subtitle: short > 0 ? `${short} products need restocking` : "Nothing running low",
-    };
-  }
-  if (pathname.startsWith("/manager")) {
-    return { title: "Management", subtitle: "Your team and shop settings" };
-  }
-  return {
-    title: "Today",
-    subtitle:
-      waiting > 0 || short > 0
-        ? `${waiting} to pick · ${short} to restock`
-        : "Everything is up to date",
-  };
+  if (pathname.startsWith("/catalog")) return "Your shop's products";
+  if (pathname.startsWith("/manager")) return "Your team and shop settings";
+  return waiting > 0 ? `${waiting} to pick` : "Everything is up to date";
 }

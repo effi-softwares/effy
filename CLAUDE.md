@@ -267,6 +267,13 @@ PERSON.** Spec/artifacts: [specs/057-shop-web-redesign/](specs/057-shop-web-rede
 
 Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`, read via
 `DesignSync` — it is **not** in the repo), and adds the three capabilities the shop audience never had.
+- ⚠ **AMENDMENT A1 (2026-09-10, design revision): PURCHASING REMOVED — deferred, not left dormant.** No
+  Restock screen on shop-web OR shop-mobile; suppliers / purchase orders / default supplier gone from UI,
+  edge-shop (10 routes), shared-types and telemetry; `20260910065158_remove_shop_purchasing.sql` drops
+  the schema (refund `actor_kind='shop'` untouched). The low-stock READ stays (dashboard, back-office).
+  Header: breadcrumb trail replaces the title (new opt-in `headerBreadcrumb` on `ConsoleShell`), primary
+  action + theme toggle removed (appearance stays in the user menu). Default threshold → Catalog → Stock
+  settings. See spec.md § Amendment A1.
 - ⚠ **THE MOCKUP IS A GENERIC E-COMMERCE CONSOLE, AND FOUR OF ITS SCREENS ARE THINGS EFFY CANNOT DO.**
   It ships payment **capture**, **carrier/tracking**, order-**line editing** and a **password** sign-in.
   Effy captures at payment (055 R3); a shop hands its portion to an Effy driver (049) and never sees a

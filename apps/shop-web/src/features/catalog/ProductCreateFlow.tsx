@@ -17,7 +17,7 @@ import {
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { Crumbs, MicroLabel, Page } from "@/components/console/primitives";
+import { MicroLabel, Page } from "@/components/console/primitives";
 
 import { meQuery } from "@/features/shop-identity/queries";
 import { sessionQuery } from "@/features/auth/queries";
@@ -65,7 +65,7 @@ import {
  * `CreateProductRequest.media[]`, is not reachable because presign needs a product id.)
  */
 export interface ProductCreateFlowProps {
-  /** Where "Discard" and the breadcrumb return to. */
+  /** Where "Discard" returns to. */
   onCancel: () => void;
   /** Called once the product is created and its image uploaded. */
   onCreated: (productId: string) => void;
@@ -251,8 +251,6 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
 
   return (
     <Page className="gap-6">
-      <Crumbs parent="Catalog" onParent={onCancel} current="New product" />
-
       {/* The imported design's wizard is a PAGE, not a dialog: two columns, the form on the left and
           a progress rail with a live preview on the right. A modal cannot show the preview, and it
           cannot show which steps remain without stealing room from the form. */}

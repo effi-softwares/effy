@@ -64,10 +64,6 @@ private class FakeStockRepo(
 
     override suspend fun setThreshold(productId: String, threshold: Int?) =
         result().also { lastThreshold = threshold; thresholdCalls++ }
-
-    // 054 US5. Not exercised here — LowStockViewModelTest covers the restock list.
-    override suspend fun lowStock(): List<com.effyshopping.shop.mobile.features.catalog.domain.LowStockItem> =
-        emptyList()
 }
 
 private fun viewModel(repo: FakeStockRepo, scope: TestScope) = StockViewModel(

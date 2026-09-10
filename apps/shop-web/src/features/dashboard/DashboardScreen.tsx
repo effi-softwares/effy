@@ -26,7 +26,7 @@ import { attentionFrom, countsFrom } from "./model"
  * trend line from data that does not exist would be the same defect wearing a different label.
  *
  * ⚠ NO METRIC CARDS AT THE TOP (Principle V / DOCTRINE-2). The counts are a compact figure strip of
- * sectioned columns, not tiles — the same treatment the order queue and restock list get.
+ * sectioned columns, not tiles — the same treatment the order queue gets.
  */
 export function DashboardScreen() {
   const orders = useQuery(fulfillmentQueueQuery("active"))
@@ -41,7 +41,7 @@ export function DashboardScreen() {
     [orders.data, lowStock.data],
   )
 
-  // ⚠ Only the ORDERS read is allowed to fail the whole screen. The restock list is supporting
+  // ⚠ Only the ORDERS read is allowed to fail the whole screen. The low-stock list is supporting
   // context: losing it should not hide the queue an operator came here to check. Its own failure is
   // reported in place, in its own section.
   const loading = orders.isPending || lowStock.isPending

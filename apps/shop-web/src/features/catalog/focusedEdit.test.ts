@@ -31,8 +31,6 @@ function detail(over: Partial<ProductDetail> = {}): ProductDetail {
     weightGrams: 500,
     weightIsAssumed: true,
     status: "active",
-    supplierId: null,
-    supplierName: null,
     attributes: [],
     media: [],
     sections: [],

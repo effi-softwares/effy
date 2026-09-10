@@ -74,21 +74,6 @@ data class StockMovement(
     val createdAt: String,
 )
 
-/**
- * One line of the restock list (054 US5).
- *
- * ⚠ `severity` is two values, not a boolean. An empty shelf and a thin one need different actions —
- * restock now versus restock soon — and collapsing them tells an operator nothing to act on.
- */
-data class LowStockItem(
-    val productId: String,
-    val name: String,
-    val sku: String?,
-    val onHand: Int,
-    val effectiveThreshold: Int?,
-    val outOfStock: Boolean,
-)
-
 /** Stock plus its history, newest first (FR-009). */
 data class ProductStockDetail(
     val stock: ProductStock,
@@ -119,7 +104,4 @@ interface StockRepository {
 
     /** `PUT /inventory/v1/products/{id}/stock/threshold` — null clears it, falling back to the shop default. */
     suspend fun setThreshold(productId: String, threshold: Int?): ProductStockDetail
-
-    /** `GET /inventory/v1/low-stock` — this shop's restock list, out-of-stock first. */
-    suspend fun lowStock(): List<LowStockItem>
 }

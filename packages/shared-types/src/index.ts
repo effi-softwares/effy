@@ -39,6 +39,4 @@ export * from "./inventory";
 // 055-refunds-cancellation
 export * from "./refund";
 // 057-shop-console-redesign
-export * from "./supplier"
-export * from "./purchase-order"
 export * from "./shop-team"

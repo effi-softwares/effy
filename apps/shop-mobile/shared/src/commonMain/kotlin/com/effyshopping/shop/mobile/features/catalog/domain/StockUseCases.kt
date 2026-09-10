@@ -48,11 +48,6 @@ class SetStockThreshold(private val repo: StockRepository) {
         repo.setThreshold(productId, threshold)
 }
 
-/** This shop's restock list (FR-029) — everything out of stock or at/below its threshold. */
-class GetLowStock(private val repo: StockRepository) {
-    suspend operator fun invoke(): List<LowStockItem> = repo.lowStock()
-}
-
 /**
  * The stock use cases as one bundle, so a screen takes ONE parameter instead of five.
  *
@@ -67,5 +62,4 @@ data class StockUseCases(
     val adjustStock: AdjustStock,
     val setStockTracking: SetStockTracking,
     val setStockThreshold: SetStockThreshold,
-    val getLowStock: GetLowStock,
 )

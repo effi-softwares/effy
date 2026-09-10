@@ -2,7 +2,16 @@ import { useEffect, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
-import { Button, Input, Label } from "@effy/design-system/ui";
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+} from "@effy/design-system/ui";
 
 import { stockErrorText } from "./stockErrorText";
 import { stockSettingsQuery, useSetStockSettings } from "./stockQueries";
@@ -11,8 +20,8 @@ import { stockSettingsQuery, useSetStockSettings } from "./stockQueries";
  * The shop-wide default low-stock threshold (054 FR-005).
  *
  * ⚠ WHY A SHOP-WIDE DEFAULT EXISTS AT ALL. A shop with hundreds of products would have to set a
- * threshold one product at a time, so in practice the restock list would stay empty for a long while
- * after shipping — precision nobody has time to enter is the same as no feature. One number, set
+ * threshold one product at a time, so in practice nothing would be reported as running low for a long
+ * while after shipping — precision nobody has time to enter is the same as no feature. One number, set
  * once, with a per-product override for the items that genuinely need their own.
  */
 export function ShopDefaultThresholdControl() {
@@ -63,5 +72,36 @@ export function ShopDefaultThresholdControl() {
         </p>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * The catalog's stock settings, opened from the catalog toolbar beside "Manage sections".
+ *
+ * ⚠ IT LIVES IN CATALOG, NOT MANAGEMENT, although the design's "Shop settings" list is on Management.
+ * Management is manager-only in the nav, and this setting is not: both shop roles manage stock (054
+ * FR-010, A7) and the backend admits both. Putting it behind the manager rail would hide a control
+ * from the people the backend says may use it. It used to sit on the Restock screen, which the
+ * 2026-09-10 design revision removed; inventory management stays in Catalog.
+ */
+export function StockSettingsDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Stock settings</DialogTitle>
+          <DialogDescription>
+            Shop-wide defaults for tracked products. A product&apos;s own inventory rules override them.
+          </DialogDescription>
+        </DialogHeader>
+        <ShopDefaultThresholdControl />
+      </DialogContent>
+    </Dialog>
   );
 }

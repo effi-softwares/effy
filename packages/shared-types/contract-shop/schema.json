@@ -661,19 +661,6 @@
             "string",
             "null"
           ]
-        },
-        "supplierId": {
-          "description": "⚠ 057 (FR-018) — the product's default supplier, so the restock queue can group by who to order from. BOTH ARE NULLABLE AND NULL IS A FIRST-CLASS STATE, not a gap: a shop that has never recorded a supplier still gets a working restock list, with those products in their own \"Unassigned\" bucket. That is what keeps this non-breaking for every product that existed before 057.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "supplierName": {
-          "type": [
-            "string",
-            "null"
-          ]
         }
       },
       "required": [
@@ -682,9 +669,7 @@
         "sku",
         "onHand",
         "effectiveThreshold",
-        "severity",
-        "supplierId",
-        "supplierName"
+        "severity"
       ],
       "type": "object"
     },
@@ -927,19 +912,6 @@
         "status": {
           "$ref": "#/definitions/ProductStatus"
         },
-        "supplierId": {
-          "description": "⚠ 057 — the product's default supplier, resolved on read. BOTH ARE NULLABLE AND NULL IS A FIRST-CLASS STATE, exactly as `LowStockRowDTO` records it: a product nobody has assigned a supplier to is ordinary, and the restock queue gives those their own \"Unassigned\" bucket.\n\n⚠ WHY IT IS ON THE DETAIL AT ALL. `PATCH /shop/v1/products/{id}/supplier` shipped with 057's US6 and had NO CALL SITE anywhere in the console — the restock queue groups by a supplier nothing could assign. Reading it here is what makes the assignment reachable from the one screen that knows which product it is about.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "supplierName": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "typeName": {
           "type": "string"
         },
@@ -974,8 +946,6 @@
         "weightGrams",
         "weightIsAssumed",
         "status",
-        "supplierId",
-        "supplierName",
         "attributes",
         "media",
         "sections",

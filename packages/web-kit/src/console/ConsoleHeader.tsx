@@ -31,6 +31,16 @@ export interface ConsoleHeaderProps<TRole extends string> {
    */
   title?: ReactNode;
   subtitle?: ReactNode;
+  /**
+   * 057 (design revision 2026-09-10) — a breadcrumb trail rendered IN PLACE OF the title, in the same
+   * 56px header, followed by the same hairline + subtitle. Opt-in like `title`: omitted, nothing
+   * changes.
+   *
+   * ⚠ It replaces the `<h1>` rather than going inside it: a trail of links is navigation, and a heading
+   * wrapping interactive crumbs reads to a screen reader as one long title. The surface supplying the
+   * trail owns the page's heading (e.g. by making its final crumb the `<h1>`).
+   */
+  breadcrumb?: ReactNode;
 }
 
 export function ConsoleHeader<TRole extends string>({
@@ -39,6 +49,7 @@ export function ConsoleHeader<TRole extends string>({
   actions,
   title,
   subtitle,
+  breadcrumb,
 }: ConsoleHeaderProps<TRole>) {
   const { pathname } = useLocation();
   const section = currentSection(nav, pathname);
@@ -46,12 +57,18 @@ export function ConsoleHeader<TRole extends string>({
   // ⚠ 057's header is 56px, not 64px, and sticky. The imported design puts the page's identity here
   // rather than repeating it as an <h1> on every screen — so a screen supplying `title` must NOT also
   // render its own heading, or the same words appear twice.
-  if (title !== undefined) {
+  if (title !== undefined || breadcrumb !== undefined) {
     return (
       <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b px-[var(--pad)]">
         <SidebarTrigger className="-ml-1 md:hidden" />
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <h1 className="shrink-0 text-sm font-semibold tracking-[-.01em] whitespace-nowrap">{title}</h1>
+          {breadcrumb !== undefined ? (
+            // May shrink (unlike the title): a long product name truncates rather than pushing the
+            // header wider than the screen.
+            <div className="min-w-0">{breadcrumb}</div>
+          ) : (
+            <h1 className="shrink-0 text-sm font-semibold tracking-[-.01em] whitespace-nowrap">{title}</h1>
+          )}
           {subtitle ? (
             <>
               <span aria-hidden="true" className="bg-border h-4 w-px shrink-0" />

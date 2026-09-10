@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 
 import { isShopManager } from "@effy/shared-types";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, Undo2 } from "lucide-react";
 
 import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import {
-  Crumbs,
   DetailRow,
   MicroLabel,
   Page,
@@ -45,7 +43,7 @@ import { fulfillmentDetailQuery } from "./queries";
  *     per-item GST treatment is unmodelled, so `canIssueTaxInvoice()` is false by design (052 FR-031).
  *
  * `__tests__/order-detail.test.tsx` reads this directory's source and fails naming the file if any of
- * them reappears. What IS adopted: the sticky action bar, the mono breadcrumb, the two-column body,
+ * them reappears. What IS adopted: the sticky action bar, the two-column body,
  * the item table's shape, the activity timeline and the right rail.
  *
  * ⚠ Opening this screen IS the acknowledgement — a `pending` portion becomes `received` as a side
@@ -57,9 +55,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   );
   const { data: session } = useQuery(sessionQuery);
   const [refundOpen, setRefundOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const goOrders = () => void navigate({ to: "/orders" });
 
   // Keyed on the portion id, not on `data` — "the operator opened this order", once per open.
   const openedStatus = data?.status;
@@ -76,7 +71,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   if (isError) {
     return (
       <Page>
-        <Crumbs parent="Orders" onParent={goOrders} current="Order" />
         <ErrorState
           error={error}
           onRetry={() => void refetch()}
@@ -88,7 +82,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   if (isPending) {
     return (
       <Page>
-        <Crumbs parent="Orders" onParent={goOrders} current="Loading…" />
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-64 w-full" />
       </Page>
@@ -102,10 +95,6 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
 
   return (
     <Page className="gap-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <Crumbs parent="Orders" onParent={goOrders} current={detail.orderNumber} />
-      </div>
-
       {/* ── The mockup's sticky action bar. `top-14` clears the 56px header exactly. ───────────── */}
       <div className="bg-background border-border sticky top-14 z-[4] flex flex-wrap items-center gap-3 rounded-[var(--radius)] border px-4 py-3">
         <div className="grid min-w-0 gap-[7px]">

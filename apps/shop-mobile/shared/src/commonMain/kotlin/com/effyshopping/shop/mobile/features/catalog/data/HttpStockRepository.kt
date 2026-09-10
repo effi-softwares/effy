@@ -1,7 +1,6 @@
 package com.effyshopping.shop.mobile.features.catalog.data
 
 import com.effyshopping.shop.mobile.contract.AdjustStockRequest
-import com.effyshopping.shop.mobile.contract.LowStockRowDTO
 import com.effyshopping.shop.mobile.contract.ProductStockDetailDTO
 import com.effyshopping.shop.mobile.contract.SetStockRequest
 import com.effyshopping.shop.mobile.contract.SetThresholdRequest
@@ -9,7 +8,6 @@ import com.effyshopping.shop.mobile.contract.SetTrackingRequest
 import com.effyshopping.shop.mobile.core.error.AppError
 import com.effyshopping.shop.mobile.core.error.AppException
 import com.effyshopping.shop.mobile.core.http.ensureSuccess
-import com.effyshopping.shop.mobile.features.catalog.domain.LowStockItem
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductStockDetail
 import com.effyshopping.shop.mobile.features.catalog.domain.StockReason
 import com.effyshopping.shop.mobile.features.catalog.domain.StockRepository
@@ -79,11 +77,6 @@ class HttpStockRepository(private val shopApi: HttpClient) : StockRepository {
         shopApi.put("inventory/v1/products/$productId/stock/threshold") {
             setBody(SetThresholdRequest(threshold = threshold?.toLong()))
         }.ensureSuccess().body<ProductStockDetailDTO>().toDomain()
-    }
-
-    override suspend fun lowStock(): List<LowStockItem> = request {
-        shopApi.get("inventory/v1/low-stock")
-            .ensureSuccess().body<List<LowStockRowDTO>>().map { it.toDomain() }
     }
 
     private suspend inline fun <T> request(block: () -> T): T =

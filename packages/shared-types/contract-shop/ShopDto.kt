@@ -445,19 +445,7 @@ data class LowStockRowDTO (
      */
     val severity: Severity,
 
-    val sku: String? = null,
-
-    /**
-     * ⚠ 057 (FR-018) — the product's default supplier, so the restock queue can group by who to
-     * order from. BOTH ARE NULLABLE AND NULL IS A FIRST-CLASS STATE, not a gap: a shop that has
-     * never recorded a supplier still gets a working restock list, with those products in their
-     * own "Unassigned" bucket. That is what keeps this non-breaking for every product that
-     * existed before 057.
-     */
-    @SerialName("supplierId")
-    val supplierID: String? = null,
-
-    val supplierName: String? = null
+    val sku: String? = null
 )
 
 /**
@@ -591,22 +579,6 @@ data class ProductDetailDTO (
     val shortDescription: String,
     val sku: String? = null,
     val status: ProductStatus,
-
-    /**
-     * ⚠ 057 — the product's default supplier, resolved on read. BOTH ARE NULLABLE AND NULL IS A
-     * FIRST-CLASS STATE, exactly as `LowStockRowDTO` records it: a product nobody has assigned
-     * a supplier to is ordinary, and the restock queue gives those their own "Unassigned"
-     * bucket.
-     *
-     * ⚠ WHY IT IS ON THE DETAIL AT ALL. `PATCH /shop/v1/products/{id}/supplier` shipped with
-     * 057's US6 and had NO CALL SITE anywhere in the console — the restock queue groups by a
-     * supplier nothing could assign. Reading it here is what makes the assignment reachable
-     * from the one screen that knows which product it is about.
-     */
-    @SerialName("supplierId")
-    val supplierID: String? = null,
-
-    val supplierName: String? = null,
     val typeName: String,
     val updatedAt: String,
 

@@ -35,7 +35,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -70,7 +69,6 @@ fun CatalogRoute(
     listProducts: ListProducts,
     getProduct: GetProduct,
     stockUseCases: StockUseCases,
-    onOpenRestock: () -> Unit = {},
 ) {
     val viewModel = viewModel { CatalogViewModel(listProducts, getProduct) }
     val state by viewModel.state.collectAsState()
@@ -81,7 +79,6 @@ fun CatalogRoute(
         onRetry = viewModel::refresh,
         onNewProduct = {},
         onEditDetails = {},
-        onOpenRestock = onOpenRestock,
         stockPane = { productId -> StockPane(productId, stockUseCases) },
     )
 }
@@ -130,7 +127,6 @@ fun CatalogScreen(
     onNewProduct: () -> Unit,
     onEditDetails: () -> Unit,
     stockPane: @Composable (productId: String) -> Unit,
-    onOpenRestock: () -> Unit = {},
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -140,7 +136,7 @@ fun CatalogScreen(
     ) {
         val wide = maxWidth >= 840.dp
         Column(Modifier.fillMaxSize()) {
-            CatalogHeader(onNewProduct, onOpenRestock)
+            CatalogHeader(onNewProduct)
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (wide) {
                 Row(Modifier.fillMaxSize()) {
@@ -191,7 +187,7 @@ fun CatalogScreen(
 }
 
 @Composable
-private fun CatalogHeader(onNewProduct: () -> Unit, onOpenRestock: () -> Unit = {}) {
+private fun CatalogHeader(onNewProduct: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = EffySpacing.xl, vertical = EffySpacing.lg),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -205,11 +201,6 @@ private fun CatalogHeader(onNewProduct: () -> Unit, onOpenRestock: () -> Unit = 
         )
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.md), verticalAlignment = Alignment.CenterVertically) {
             Text("Search", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            // ⚠ Restock lives INSIDE Catalog, not as a fifth tab: the bar carries four and that is the
-            // ceiling on a phone, and every row in that list leads back to a product's Inventory tab.
-            TextButton(onClick = onOpenRestock, modifier = Modifier.heightIn(min = 52.dp)) {
-                Text("Restock", style = MaterialTheme.typography.labelLarge)
-            }
             Button(
                 onClick = onNewProduct,
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),

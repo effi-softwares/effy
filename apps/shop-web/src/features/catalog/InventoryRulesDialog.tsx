@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { useQuery } from "@tanstack/react-query";
-
 import type { ProductStockDTO } from "@effy/shared-types";
 import {
   Button,
@@ -13,15 +11,8 @@ import {
   DialogTitle,
   Input,
   Label,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Switch,
 } from "@effy/design-system/ui";
-
-import { suppliersQuery, useSetProductSupplier } from "@/features/restock/queries";
 
 import type { ProductDetail } from "./model";
 import { stockErrorText } from "./stockErrorText";
@@ -37,19 +28,14 @@ import { useSetStockThreshold, useSetStockTracking } from "./stockQueries";
  *   • `Track inventory`  → kept verbatim. It is 054's `stock_tracked`, and off is a real state: an
  *     untracked product behaves exactly as it did before 054 existed.
  *   • `Reorder point`    → the LOW-STOCK THRESHOLD, and renamed on purpose. Effy's threshold does not
- *     reorder anything; it puts the product on the Restock screen for a person to decide about. A
- *     field called "reorder point" promises automatic replenishment the platform does not have.
+ *     reorder anything; it marks the product as running low (the dashboard and its own detail say
+ *     so) for a person to decide about. A field called "reorder point" promises automatic replenishment the platform does not have.
  *   • `Location`         → REFUSED. A shop IS the location — 049's model is one fulfilment node per
  *     shop, and the schema has no per-shop bin/warehouse anywhere. A select offering "Borås workshop"
  *     would be three options that all mean the same shelf.
  *   • `Barcode (EAN)`    → NOT REPEATED HERE. It is the product's GTIN, and it is already shown and
  *     edited under Product details. Two editors for one column is how one operator's save reverts
  *     another's; the mockup only separates them because its inventory is a different record.
- *
- * ⚠ AND ONE FIELD THE MOCKUP DOES NOT HAVE IS ADDED: the DEFAULT SUPPLIER. 057 shipped
- * `PATCH /shop/v1/products/{id}/supplier` and the Restock queue that groups by its answer, and
- * nothing in the console could set it. The rule "who do we buy this from" belongs with the other
- * standing stock rules, so it lives here.
  */
 export function InventoryRulesDialog({
   detail,
@@ -62,27 +48,22 @@ export function InventoryRulesDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const suppliers = useQuery(suppliersQuery);
   const setTracking = useSetStockTracking(detail.id);
   const setThreshold = useSetStockThreshold(detail.id);
-  const setSupplier = useSetProductSupplier();
 
   const [tracked, setTracked] = useState(stock.tracked);
   const [openingCount, setOpeningCount] = useState("");
   const [threshold, setThresholdValue] = useState(
     stock.threshold === null ? "" : String(stock.threshold),
   );
-  const [supplierId, setSupplierId] = useState(detail.supplierId ?? NONE);
 
   useEffect(() => {
     if (!open) return;
     setTracked(stock.tracked);
     setOpeningCount("");
     setThresholdValue(stock.threshold === null ? "" : String(stock.threshold));
-    setSupplierId(detail.supplierId ?? NONE);
     setTracking.reset();
     setThreshold.reset();
-    setSupplier.reset();
     // Seed on open only, never mid-typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -98,12 +79,12 @@ export function InventoryRulesDialog({
   const thresholdValid = threshold.trim() === "" || (thresholdValue !== null && thresholdValue >= 0);
   const canSave = openingValid && thresholdValid;
 
-  const pending = setTracking.isPending || setThreshold.isPending || setSupplier.isPending;
-  const failure = setTracking.error ?? setThreshold.error ?? setSupplier.error;
+  const pending = setTracking.isPending || setThreshold.isPending;
+  const failure = setTracking.error ?? setThreshold.error;
 
   /**
-   * ⚠ THREE ROUTES, SAVED IN ORDER, AND TRACKING GOES FIRST. Threshold and supplier are meaningless
-   * on an untracked product, and the server refuses a threshold write when tracking is off — so
+   * ⚠ TWO ROUTES, SAVED IN ORDER, AND TRACKING GOES FIRST. A threshold is meaningless on an
+   * untracked product, and the server refuses a threshold write when tracking is off — so
    * saving them in any other order turns one operator action into a confusing refusal for a product
    * that is, by the time they read it, being tracked perfectly well.
    *
@@ -120,18 +101,12 @@ export function InventoryRulesDialog({
       if (tracked && thresholdValue !== stock.threshold) {
         await setThreshold.mutateAsync({ threshold: thresholdValue });
       }
-      const nextSupplier = supplierId === NONE ? null : supplierId;
-      if (nextSupplier !== (detail.supplierId ?? null)) {
-        await setSupplier.mutateAsync({ productId: detail.id, supplierId: nextSupplier });
-      }
       onOpenChange(false);
     } catch {
       // The refusal is rendered from the mutation's own error below. Swallowing it here only stops
       // an unhandled rejection; it never hides it from the operator.
     }
   }
-
-  const active = (suppliers.data ?? []).filter((s) => s.status === "active");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -196,35 +171,10 @@ export function InventoryRulesDialog({
                   ? stock.effectiveThreshold === null
                     ? "Leave blank to use the shop default. Nothing is set for this shop yet, so only products that reach zero are reported."
                     : `Leave blank to use the shop default of ${stock.effectiveThreshold}.`
-                  : "At or below this count, the product appears on the Restock screen. It stays on sale."}
+                  : "At or below this count, the product is reported as running low. It stays on sale."}
               </p>
             </div>
           ) : null}
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="rules-supplier">Default supplier</Label>
-            <Select value={supplierId} onValueChange={setSupplierId}>
-              <SelectTrigger id="rules-supplier" className="w-full">
-                <SelectValue placeholder="Not set" />
-              </SelectTrigger>
-              <SelectContent>
-                {/* ⚠ "Not set" IS AN OPTION, not the absence of one. A supplier once chosen must be
-                    clearable — 056 shipped a profile field that could never be emptied, and the
-                    supplier route was written to take an explicit null precisely so this works. */}
-                <SelectItem value={NONE}>Not set</SelectItem>
-                {active.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-muted-foreground text-[12.5px]">
-              {active.length === 0
-                ? "No suppliers recorded yet. Add one on the Restock screen."
-                : "Groups this product with the rest of that supplier's order on the Restock screen."}
-            </p>
-          </div>
 
           {failure ? (
             <p role="alert" className="text-destructive text-sm">
@@ -245,9 +195,6 @@ export function InventoryRulesDialog({
     </Dialog>
   );
 }
-
-/** Radix `Select` reserves the empty string for "no value", so "not set" needs a real sentinel. */
-const NONE = "__none__";
 
 function wholeNumber(raw: string): number | null {
   const text = raw.trim();

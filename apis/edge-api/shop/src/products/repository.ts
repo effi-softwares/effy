@@ -622,8 +622,6 @@ interface ProductRow {
   weight_grams: number;
   weight_is_assumed: boolean;
   status: ProductStatus;
-  supplier_id: string | null;
-  supplier_name: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -659,15 +657,11 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
             p.price_amount::text AS price_amount, p.currency,
             p.compare_at_amount::text AS compare_at_amount,
             p.short_description, p.long_description, p.weight_grams, p.weight_is_assumed,
-            p.status, p.supplier_id, sup.name AS supplier_name,
+            p.status,
             p.created_at, p.updated_at
        FROM public.product p
        JOIN public.product_type pt ON pt.id = p.product_type_id
        JOIN public.category c ON c.id = p.primary_category_id
-       -- LEFT, and it has to be. product.supplier_id is nullable by design (057's migration says
-       -- "NULL is expected and supported"), so an inner join would make every product nobody has
-       -- assigned a supplier to vanish from its own detail screen: a 404 for a row that exists.
-       LEFT JOIN public.supplier sup ON sup.id = p.supplier_id
       WHERE p.id = $1 AND p.shop_id = $2`,
     [id, shopId],
   );
@@ -745,8 +739,6 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     weightGrams: Number(row.weight_grams),
     weightIsAssumed: row.weight_is_assumed,
     status: row.status,
-    supplierId: row.supplier_id,
-    supplierName: row.supplier_name,
     attributes,
     media: mediaOut,
     sections: sections.rows.map((s) => s.name),

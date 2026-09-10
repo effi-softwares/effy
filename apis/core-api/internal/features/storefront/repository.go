@@ -72,27 +72,25 @@ type cardRow struct {
 // searchRow is cardRow plus the relevance score. pgx.RowToStructByName requires the struct to match
 // the result set exactly, so search — which always selects a score column — needs its own row type
 // rather than an optional field on cardRow.
+//
+// ⚠ cardRow is EMBEDDED, never restated. SearchCards selects `cardColumns` verbatim and appends one
+// score column, so its result set IS cardRow's plus `score` — by construction, not by agreement.
+// Restating the fields is exactly how this read broke: 054 added `available` to cardColumns and to
+// cardRow and missed the copy here, and because RowToStructByName demands an exact match, EVERY
+// search scan then failed at runtime with `struct doesn't have corresponding row field available`.
+// Embedding means a column added to the shared projection cannot miss search. (pgx flattens
+// anonymous embedded structs when matching columns — v5 rows.go, `sf.Anonymous`.)
 type searchRow struct {
-	ID              string    `db:"id"`
-	Name            string    `db:"name"`
-	Brand           *string   `db:"brand"`
-	PriceAmount     string    `db:"price_amount"`
-	Currency        string    `db:"currency"`
-	CompareAtAmount *string   `db:"compare_at_amount"`
-	StorageKey      *string   `db:"storage_key"`
-	AltText         *string   `db:"alt_text"`
-	CreatedAt       time.Time `db:"created_at"`
-	Score           float32   `db:"score"`
+	cardRow
+	Score float32 `db:"score"`
 }
 
 // card projects a search row onto the shared card shape the service already knows how to map.
-func (r searchRow) card() cardRow {
-	return cardRow{
-		ID: r.ID, Name: r.Name, Brand: r.Brand,
-		PriceAmount: r.PriceAmount, Currency: r.Currency, CompareAtAmount: r.CompareAtAmount,
-		StorageKey: r.StorageKey, AltText: r.AltText, CreatedAt: r.CreatedAt,
-	}
-}
+//
+// ⚠ This used to hand-copy field by field, and it dropped `Available` — so even once the scan above
+// is fixed, every search result would have rendered as unavailable, which looks like catalogue data
+// rather than a bug. Returning the embedded value cannot omit a field.
+func (r searchRow) card() cardRow { return r.cardRow }
 
 // railCandidate is a category that has active products (drives the Home category rails).
 type railCandidate struct {

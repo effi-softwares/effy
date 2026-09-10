@@ -8,7 +8,6 @@ import type { FulfillmentDetail, FulfillmentItem, FulfillmentStatus } from "./mo
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
-  // 057: the rebuilt screen navigates from its breadcrumb, so the mock must supply this too.
   useNavigate: () => () => {},
 }));
 
@@ -68,13 +67,15 @@ function wrap(children: ReactNode) {
 }
 
 describe("OrderDetailScreen", () => {
-  it("renders the reference, delivery context and this shop's lines", async () => {
+  it("renders the delivery context and this shop's lines", async () => {
     getFulfillment.mockResolvedValue(detail("picking"));
 
     wrap(<OrderDetailScreen fulfillmentId="f1" />);
 
-    expect(await screen.findByText("EFY-10023")).toBeInTheDocument();
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
+    // ⚠ The order reference is the header breadcrumb's final crumb now (design revision 2026-09-10),
+    // not an in-page row. Rendering it here as well would name the same order twice.
+    expect(screen.queryByText("EFY-10023")).not.toBeInTheDocument();
     expect(screen.getByText("1 Test St, Unit 4")).toBeInTheDocument();
     // ⚠ 057 renders the destination as an ADDRESS BLOCK (the imported design's rail), so city and
     // postcode share a line the way they would on an envelope. The fact is unchanged; the DOM shape
@@ -104,7 +105,7 @@ describe("OrderDetailScreen", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /retry/i }));
 
-    expect(await screen.findByText("EFY-10023")).toBeInTheDocument();
+    expect(await screen.findByText("SunRice Long Grain White Rice 1kg")).toBeInTheDocument();
   });
 
   it("shows a shop-scoped, non-disclosing refusal", async () => {

@@ -36,7 +36,7 @@ export const productStockQuery = (productId: string) =>
     staleTime: 15_000,
   });
 
-/** The restock list (US5). Same short staleness as a product's own count — it is derived from them. */
+/** The low-stock list (054 US5) — the dashboard's stock half. Same short staleness as a product's own count — it is derived from them. */
 export const lowStockQuery = queryOptions({
   queryKey: [...STOCK_ROOT, "low"] as const,
   queryFn: getLowStock,

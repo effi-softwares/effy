@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ProductStatus } from "@effy/shared-types";
-import { ImageOff, Plus, Search, Tags, X } from "lucide-react";
+import { Boxes, ImageOff, Plus, Search, Tags, X } from "lucide-react";
 
 import {
   Button,
@@ -31,6 +31,7 @@ import {
 import { track } from "@/lib/telemetry";
 
 import { SectionsManager } from "./SectionsManager";
+import { StockSettingsDialog } from "./ShopDefaultThreshold";
 import type { ProductListItem, ProductListParams, ProductSort } from "./model";
 import { catalogSchemaQuery, productListQuery, sectionsQuery } from "./queries";
 
@@ -77,6 +78,7 @@ export function CatalogListScreen() {
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState<ProductSort>("recent");
   const [sectionsOpen, setSectionsOpen] = useState(false);
+  const [stockSettingsOpen, setStockSettingsOpen] = useState(false);
 
   const params: ProductListParams = useMemo(
     () => ({
@@ -158,6 +160,10 @@ export function CatalogListScreen() {
         <Button variant="outline" size="sm" className="h-8" onClick={() => setSectionsOpen(true)}>
           <Tags />
           Manage sections
+        </Button>
+        <Button variant="outline" size="sm" className="h-8" onClick={() => setStockSettingsOpen(true)}>
+          <Boxes />
+          Stock settings
         </Button>
         <Button asChild size="sm" className="h-8">
           <Link to="/catalog/new">
@@ -317,6 +323,7 @@ export function CatalogListScreen() {
       )}
 
       <SectionsManager open={sectionsOpen} onOpenChange={setSectionsOpen} />
+      <StockSettingsDialog open={stockSettingsOpen} onOpenChange={setStockSettingsOpen} />
     </Page>
   );
 }

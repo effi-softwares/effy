@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
 
-import { lowStockQuery } from "@/features/catalog/stockQueries"
 import { fulfillmentQueueQuery } from "@/features/fulfillment/queries"
 
 import { countsFrom } from "./model"
@@ -19,12 +18,11 @@ import { countsFrom } from "./model"
  */
 export function useNavBadges(): Record<string, number | undefined> {
   const orders = useQuery(fulfillmentQueueQuery("active"))
-  const lowStock = useQuery(lowStockQuery)
 
-  const counts = countsFrom(orders.data?.items ?? [], lowStock.data ?? [])
+  // Stock carries no badge: the rail has no stock destination since Restock was removed (2026-09-10).
+  const counts = countsFrom(orders.data?.items ?? [], [])
 
   return {
     "/orders": counts.toPick,
-    "/restock": counts.needsRestock,
   }
 }

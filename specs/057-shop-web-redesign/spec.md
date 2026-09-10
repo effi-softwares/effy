@@ -8,6 +8,28 @@
 
 **Input**: User description: "as the next spec i want to do a full rewamp of shop web application. here i have a cluade design created with another account. i want you to use it and implement them in the shop web app. this new design may have already have features and new features as well. so we need to consider them and if api needed to be implemented use the edage api to do that! (core api if only needed) first of all do a deep dive and understand. note that this new claude design have tokens for styling. use them. no need to stick with current ones. also You must use shadcn ui compoenent for all the places. Import target: Claude Design project 'Multi-theme console application', file `Effy Shop Console.dc.html`."
 
+## Amendment A1 — Design revision (2026-09-10)
+
+The imported design was revised; three changes are adopted, and they narrow this spec rather than
+contradict it:
+
+1. **Breadcrumbs move into the header.** Every in-page breadcrumb row is removed. The header shows one
+   trail in place of the static screen title: parent crumbs navigate back (Catalog → catalog list,
+   Orders → order queue); the final crumb is non-interactive, in the primary foreground at a heavier
+   weight, and an order's number renders in the monospace face. Screens with no hierarchy show just
+   their own name. The header's one-line context (subtitle) is kept.
+2. **The header's right-hand controls are removed** — the primary action and the light/dark toggle.
+   FR-003 still holds: appearance stays user-selectable (Light / Dark / Follow-System) from the sidebar
+   user menu.
+3. **Purchasing is DEFERRED, not cancelled, and removed cleanly.** User Story 6, FR-016, FR-018,
+   FR-018a, FR-018b and SC-008 are withdrawn from this feature, along with FR-017's restock *queue*:
+   there is no Restock screen on either shop surface. Inventory management stays in Catalog and on each
+   product's detail (the shop-wide default threshold moves to Catalog → Stock settings). Low stock is
+   still surfaced — the dashboard's "Needs attention" list links each product to its detail screen. The
+   supplier / purchase-order schema is dropped by a forward migration rather than left dormant;
+   purchasing will return as its own feature with its own spec. The refund, cancellation and return
+   "restock" toggles are unrelated (they return units to stock) and are unchanged.
+
 ## Source Design — What Was Imported
 
 A Claude Design mockup (`Effy Shop Console.dc.html`, project "Multi-theme console application") was read in full. It is a **generic e-commerce admin console** (in the visual style of Shopify/Linear-type shadcn dashboards) built for a fictional Swedish home-goods brand — SEK currency, 25%/12%/6% VAT bands, Swedish addresses, PostNord/DHL/Budbee carriers. It ships its own token set (light/dark shadcn-style CSS variables, Geist/Geist Mono typeface, 8px radius) and a component vocabulary of: sidebar nav + top header with global search, a dashboard (metric strip, revenue chart, "needs attention" list, latest-orders table), an orders queue (tabs, saved views, filters, bulk actions, sortable table, empty state, pagination), an order detail page (line items, payment/capture/refund, shipments with carrier + tracking, returns, internal notes, activity log, customer panel), a product catalog (list + 4-step create wizard + product detail with variants/media/pricing/inventory), a restock/purchase-ordering queue (supplier grouping, order quantities, cost totals), and a team/settings management screen (roster + shop toggles).
@@ -98,7 +120,7 @@ A shop manager finds a problem while fulfilling an order — an item is damaged,
 
 ---
 
-### User Story 6 - Shop operator manages suppliers and builds purchase orders for restocking (Priority: P3)
+### User Story 6 - Shop operator manages suppliers and builds purchase orders for restocking (Priority: P3) — ⛔ DEFERRED (A1)
 
 A shop manager tracks which supplier each product is sourced from, sees what to reorder grouped by supplier, builds a purchase order specifying quantities and the shop's purchase cost per unit, and marks it received — which updates the product's on-hand stock the same way manually recording received stock does today, but now with a paper trail of what was ordered, from whom, and at what cost.
 
@@ -176,11 +198,11 @@ A shop manager invites a new staff member, assigns them a role (staff or manager
 **Catalog, product detail & stock**
 
 - **FR-015**: The catalog list, product detail, product creation flow, and stock/low-stock screens MUST be restyled in the new design while continuing to use the shop's existing product and stock model (tracked/untracked flag, stock-on-hand, low-stock threshold, receiving stock) as their data source.
-- **FR-016**: The platform MUST gain a supplier concept, scoped per shop: a shop manager can record suppliers and assign a supplier to a product, and the restock queue groups low-stock products by their assigned supplier (with an "unassigned" grouping for products carrying none).
-- **FR-017**: The restock queue MUST list exactly the products the shop's existing low-stock rule flags, show each one's current on-hand count, and let the operator record newly received stock against it (directly, or via a purchase order per FR-018).
-- **FR-018**: A shop manager MUST be able to build a purchase order from one or more restock-queue lines, specifying an order quantity and the shop's unit purchase cost per line, see a computed order total, and mark the order fully or partially received; marking received MUST increase the corresponding products' stock-on-hand and create a stock movement record traceable to that purchase order.
-- **FR-018a**: A purchase order MUST carry a status distinguishing at least draft, submitted, and (fully or partially) received, so a partially-received order's outstanding quantity remains visible rather than the order silently closing.
-- **FR-018b**: A product's customer-facing price MUST remain unaffected by purchase-order unit cost — cost is shop-internal bookkeeping, not a pricing input for this redesign.
+- ⛔ *Deferred (A1)* — **FR-016**: The platform MUST gain a supplier concept, scoped per shop: a shop manager can record suppliers and assign a supplier to a product, and the restock queue groups low-stock products by their assigned supplier (with an "unassigned" grouping for products carrying none).
+- ⚠ *Narrowed (A1): no restock queue; stock is recorded from the product's detail* — **FR-017**: The restock queue MUST list exactly the products the shop's existing low-stock rule flags, show each one's current on-hand count, and let the operator record newly received stock against it (directly, or via a purchase order per FR-018).
+- ⛔ *Deferred (A1)* — **FR-018**: A shop manager MUST be able to build a purchase order from one or more restock-queue lines, specifying an order quantity and the shop's unit purchase cost per line, see a computed order total, and mark the order fully or partially received; marking received MUST increase the corresponding products' stock-on-hand and create a stock movement record traceable to that purchase order.
+- ⛔ *Deferred (A1)* — **FR-018a**: A purchase order MUST carry a status distinguishing at least draft, submitted, and (fully or partially) received, so a partially-received order's outstanding quantity remains visible rather than the order silently closing.
+- ⛔ *Deferred (A1)* — **FR-018b**: A product's customer-facing price MUST remain unaffected by purchase-order unit cost — cost is shop-internal bookkeeping, not a pricing input for this redesign.
 
 **Scope boundary with other subsystems**
 
@@ -211,7 +233,7 @@ A shop manager invites a new staff member, assigns them a role (staff or manager
 - **SC-005**: Dark/Light/Follow-System appearance choice persists across sign-outs and remains WCAG AA legible in both appearances on every redesigned screen.
 - **SC-006**: No screen in the redesigned console offers an action the platform cannot actually perform (verified against FR-012/FR-013/FR-014/FR-018b).
 - **SC-007**: A shop manager can initiate a refund from an order's detail page, and the resulting status is identical, at every subsequent point, to what appears on the customer's and back-office's views of that same order.
-- **SC-008**: A shop manager can go from an empty purchase order to a submitted one, and from "received" to updated stock-on-hand, without leaving the restock/purchase-order screen.
+- ⛔ *Deferred (A1)* — **SC-008**: A shop manager can go from an empty purchase order to a submitted one, and from "received" to updated stock-on-hand, without leaving the restock/purchase-order screen.
 - **SC-009**: A shop manager can invite, edit the role of, or deactivate a staff member at their own shop in under a minute, and that change is visible from back-office's staff view immediately, with no extra sync step.
 - **SC-010**: A shop manager cannot, through any shop console action, view or modify another shop's staff or refund/cancel an order outside their own shop's fulfilment scope (verified by a fail-closed negative test for each).
 

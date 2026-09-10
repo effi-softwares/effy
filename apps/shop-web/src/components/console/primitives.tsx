@@ -357,24 +357,6 @@ export function Segmented<T extends string>({
   )
 }
 
-// ── Breadcrumb ──────────────────────────────────────────────────────────────────────────────────
-
-export function Crumbs({ parent, onParent, current }: { parent: string; onParent: () => void; current: string }) {
-  return (
-    <nav aria-label="Breadcrumb" className="text-muted-foreground flex items-center gap-2 text-[13px]">
-      <button
-        type="button"
-        onClick={onParent}
-        className="hover:text-foreground focus-visible:ring-ring cursor-pointer rounded-sm bg-transparent p-0 text-[13px] focus-visible:ring-2 focus-visible:outline-none"
-      >
-        {parent}
-      </button>
-      <span aria-hidden="true">/</span>
-      <span className="text-foreground min-w-0 truncate">{current}</span>
-    </nav>
-  )
-}
-
 /** The 1px × 12px rule the mockup puts between metadata items. */
 export function MetaDivider() {
   return <span aria-hidden="true" className="bg-border h-3 w-px shrink-0" />

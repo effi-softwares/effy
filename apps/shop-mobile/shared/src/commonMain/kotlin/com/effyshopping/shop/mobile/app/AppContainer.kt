@@ -26,7 +26,6 @@ import com.effyshopping.shop.mobile.features.catalog.data.HttpStockRepository
 import com.effyshopping.shop.mobile.features.catalog.domain.AssignSections
 import com.effyshopping.shop.mobile.features.catalog.domain.AdjustStock
 import com.effyshopping.shop.mobile.features.catalog.domain.CatalogRepository
-import com.effyshopping.shop.mobile.features.catalog.domain.GetLowStock
 import com.effyshopping.shop.mobile.features.catalog.domain.GetProductStock
 import com.effyshopping.shop.mobile.features.catalog.domain.SetStockCount
 import com.effyshopping.shop.mobile.features.catalog.domain.SetStockThreshold
@@ -117,7 +116,6 @@ class AppContainer(
             adjustStock = AdjustStock(stock),
             setStockTracking = SetStockTracking(stock),
             setStockThreshold = SetStockThreshold(stock),
-            getLowStock = GetLowStock(stock),
         )
     }
     val createProduct by lazy { CreateProduct(catalog) }

@@ -39,6 +39,8 @@ export interface ConsoleShellProps<TRole extends string> {
   /** 057 — supplying a title swaps the breadcrumb header for the imported design's title+subtitle. */
   headerTitle?: ReactNode;
   headerSubtitle?: ReactNode;
+  /** 057 — a breadcrumb trail in place of the title (see `ConsoleHeader`). Omitted = unchanged. */
+  headerBreadcrumb?: ReactNode;
   /**
    * 057 — the sidebar's width, e.g. "14rem" for the imported design's 224px rail. Omitted keeps the
    * shadcn default, which is what back-office renders at today.
@@ -70,6 +72,7 @@ export function ConsoleShell<TRole extends string>({
   headerActions,
   headerTitle,
   headerSubtitle,
+  headerBreadcrumb,
   sidebarWidth,
   email,
   theme,
@@ -112,6 +115,7 @@ export function ConsoleShell<TRole extends string>({
           actions={headerActions}
           title={headerTitle}
           subtitle={headerSubtitle}
+          breadcrumb={headerBreadcrumb}
         />
         <div className={contentClassName}>{children}</div>
       </SidebarInset>

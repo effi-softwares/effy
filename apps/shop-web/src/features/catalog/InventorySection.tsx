@@ -106,17 +106,12 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
           </>
         ) : null}
 
-        <DetailRow
-          label="Default supplier"
-          value={detail.supplierName ?? "Not set"}
-        />
-
         {/* The one line that needs a person, set in semibold — the section's only emphasis. */}
         {stock.tracked && (stock.outOfStock || stock.low) ? (
           <p className="pt-3.5 text-[13.5px] font-semibold">
             {stock.outOfStock
               ? "Out of stock — shoppers cannot buy this right now."
-              : `Running low — ${stock.onHand} left. It is on the Restock screen.`}
+              : `Running low — ${stock.onHand} left.`}
           </p>
         ) : null}
 

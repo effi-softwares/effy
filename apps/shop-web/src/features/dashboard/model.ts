@@ -6,7 +6,7 @@ import type { FulfillmentSummary } from "@/features/fulfillment/model"
  * The dashboard's numbers, DERIVED from the two reads the console already makes (T018, FR-006).
  *
  * ⚠ NO NEW ENDPOINT, AND THAT IS A DESIGN DECISION RATHER THAN A SHORTCUT. The order queue and the
- * restock list are both already fetched, cached and polled by TanStack Query under their own keys; a
+ * low-stock list are both already fetched, cached and polled by TanStack Query under their own keys; a
  * `/shop/v1/dashboard` summary would be a THIRD source for facts the client already holds, free to
  * disagree with the screens it is summarising. 052 deleted `summarizeFulfillment` for exactly that —
  * two implementations of one rule, on two surfaces, diverging silently. The dashboard reads the same

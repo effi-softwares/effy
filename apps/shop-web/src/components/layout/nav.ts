@@ -1,4 +1,4 @@
-import { ClipboardList, LayoutDashboard, Package, PackageSearch, Shield } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Package, Shield } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -19,10 +19,7 @@ export const NAV: NavItem<ShopRole>[] = [
   // access, and the staff standing at the shelves are its primary users. Gating it would hide the
   // work from the people who do it — and the backend admits both roles anyway.
   { label: "Orders", to: "/orders", icon: ClipboardList },
-  // Restock (054 US5) is likewise UNGATED: both shop roles manage stock (FR-010, A7), and the people
-  // standing at the shelves are exactly who needs this list. The backend admits both roles.
-  { label: "Restock", to: "/restock", icon: PackageSearch },
-  // same-day, and the pickers need to. Only SUBMITTING a declaration is manager-only, enforced by the
-  // backend — nav visibility reflects the authoritative gate, it is never a second source of truth.
+  // ⚠ No Restock item (design revision 2026-09-10): purchasing is deferred to its own future feature.
+  // Stock is managed in Catalog and on each product's detail — both open to either shop role.
   { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
 ];

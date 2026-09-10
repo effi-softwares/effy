@@ -28,6 +28,13 @@ describe("shop-web nav (role-aware)", () => {
     expect(NAV.find((i) => i.to === "/orders")?.requiredRole).toBeUndefined();
   });
 
+  // Design revision 2026-09-10 — purchasing is deferred to its own feature, removed rather than left
+  // dormant. Stock is managed from Catalog and each product's detail.
+  it("offers no Restock item to anyone", () => {
+    expect(NAV.map((i) => i.to)).not.toContain("/restock");
+    expect(NAV.map((i) => i.label)).not.toContain("Restock");
+  });
+
   it("hides the Management item from shop_staff and role-less operators", () => {
     expect(visibleNav(NAV, ["shop_staff"]).map((i) => i.to)).not.toContain("/manager");
     expect(visibleNav(NAV, []).map((i) => i.to)).not.toContain("/manager");

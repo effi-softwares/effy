@@ -1,12 +1,9 @@
 package com.effyshopping.shop.mobile.features.catalog.data
 
 import com.effyshopping.shop.mobile.contract.OperatorStockReason
-import com.effyshopping.shop.mobile.contract.LowStockRowDTO
-import com.effyshopping.shop.mobile.contract.Severity
 import com.effyshopping.shop.mobile.contract.ProductStockDTO
 import com.effyshopping.shop.mobile.contract.ProductStockDetailDTO
 import com.effyshopping.shop.mobile.contract.StockMovementDTO
-import com.effyshopping.shop.mobile.features.catalog.domain.LowStockItem
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductStock
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductStockDetail
 import com.effyshopping.shop.mobile.features.catalog.domain.StockActor
@@ -52,17 +49,6 @@ fun StockMovementDTO.toDomain(): StockMovement =
         orderNumber = orderNumber,
         note = note,
         createdAt = createdAt,
-    )
-
-fun LowStockRowDTO.toDomain(): LowStockItem =
-    LowStockItem(
-        productId = productID,
-        name = name,
-        sku = sku,
-        onHand = onHand.toInt(),
-        effectiveThreshold = effectiveThreshold?.toInt(),
-        // The wire carries "out" | "low"; the domain carries the fact, so the UI cannot mis-spell it.
-        outOfStock = severity == Severity.Out,
     )
 
 /**

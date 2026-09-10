@@ -7,7 +7,6 @@ import type { FulfillmentDetail } from "../model"
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({ children }: { children: ReactNode }) => <a href="#">{children}</a>,
-  // 057: the rebuilt screens navigate from the breadcrumb, so the mock must supply this too.
   useNavigate: () => () => {},
 }))
 
@@ -89,7 +88,7 @@ describe("shop refund control", () => {
 
   it("withholds it from shop_staff, who still keep full fulfilment access", async () => {
     wrap(["shop_staff"])
-    await screen.findByText("EFY-10023")
+    await screen.findByText("Barossa Free-Range Eggs 700g")
 
     expect(screen.queryByRole("button", { name: /refund items/i })).not.toBeInTheDocument()
     // ⚠ The rest of the screen is UNCHANGED for them — picking is their job (020 FR-019a).
@@ -98,13 +97,13 @@ describe("shop refund control", () => {
 
   it("withholds it from a role-less operator", async () => {
     wrap([])
-    await screen.findByText("EFY-10023")
+    await screen.findByText("Barossa Free-Range Eggs 700g")
     expect(screen.queryByRole("button", { name: /refund items/i })).not.toBeInTheDocument()
   })
 
   it("never issues a refund from merely rendering the screen", async () => {
     wrap(["shop_manager"])
-    await screen.findByText("EFY-10023")
+    await screen.findByText("Barossa Free-Range Eggs 700g")
     expect(issueShopRefund).not.toHaveBeenCalled()
   })
 
@@ -115,7 +114,7 @@ describe("shop refund control", () => {
    */
   it("still shows no order-level total anywhere", async () => {
     wrap(["shop_manager"])
-    await screen.findByText("EFY-10023")
+    await screen.findByText("Barossa Free-Range Eggs 700g")
     const text = document.body.textContent ?? ""
     expect(text).not.toMatch(/order total|grand total|amount paid/i)
   })

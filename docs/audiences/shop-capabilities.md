@@ -404,9 +404,9 @@ empty shelf hours later.
 | Turn stock tracking on/off (a count is required to enable) | ✅ Inventory tab | ✅ Inventory tab |
 | Set an exact count · adjust by a delta, with a reason | ✅ | ✅ |
 | Per-product low-stock threshold, clearable to the shop default | ✅ | ✅ |
-| Shop-wide default threshold | ✅ Restock screen | ⚠ read-only — set it on shop-web |
+| Shop-wide default threshold | ✅ Catalog → Stock settings | ⚠ read-only — set it on shop-web |
 | Movement history (who, why, before → after) | ✅ table | ✅ rows |
-| Restock list (out-of-stock first, then low) | ✅ `/restock` | ✅ pushed inside Catalog |
+| Restock list (out-of-stock first, then low) | ⛔ removed 2026-09-10 | ⛔ removed 2026-09-10 |
 
 - **⚠ Both shop roles manage stock** (FR-010, A7) — the gate is membership, not role, following 020's
   FR-019a: the append-only movement record is the accountability control, and counting a shelf is the
@@ -425,8 +425,10 @@ empty shelf hours later.
 - **Back-office can do everything a shop can, on their behalf** (FR-026), and the shop sees who did it:
   the movement history shows "Effy support" beside the individual's name. Read is open to any active
   staff including `csa`; writing is admin/manager.
-- **Restock is not a fifth mobile tab** — the bar carries four, and every row leads back to a product's
-  Inventory tab, so it lives inside Catalog.
+- **⚠ The restock LIST was removed from both surfaces on 2026-09-10** (057 design revision — purchasing
+  deferred, see §057). The low-stock READ (`GET /inventory/v1/low-stock`) stays: shop-web's dashboard
+  "Needs attention" and counts, and back-office's shop stock panel, still consume it. A product's own
+  Inventory tab still says when it is out or running low.
 - **Colour carries nothing.** "Out of stock" and "Low" are words and weight on both surfaces, with
   tests asserting the words — 041 removed the last amber warning from these exact screens.
 
@@ -472,8 +474,9 @@ Spec/artifacts: [specs/055-refunds-cancellation/](../../specs/055-refunds-cancel
 
 ## §057 — Shop Console Redesign (057-shop-web-redesign)
 
-The console rebuilt on an imported Claude Design mockup, plus three capabilities the shop audience
-never had: initiating a refund, tracking suppliers and purchase orders, and managing its own team.
+The console rebuilt on an imported Claude Design mockup, plus two capabilities the shop audience
+never had: initiating a refund and managing its own team. (A third — suppliers and purchase orders —
+was built, then **removed on 2026-09-10** by a design revision; see below.)
 
 | Capability | shop-web | shop-mobile | Notes |
 | --- | --- | --- | --- |
@@ -482,12 +485,18 @@ never had: initiating a refund, tracking suppliers and purchase orders, and mana
 | Order queue search / filter / bulk advance | ✅ | ⛔ | Filters only REMOVE rows; server order preserved |
 | Catalog filter chips | ✅ | ⛔ | Server-side search, unlike the queue's client-side filter |
 | Add-product wizard progress rail | ✅ | ⛔ | New shared `Stepper` primitive |
-| Restock grouped by supplier | ✅ | ⛔ | "Unassigned" is a real group, listed last |
-| Suppliers (record / edit / archive) | ✅ | ⛔ | Archived, never deleted — a PO names its supplier forever |
-| Purchase orders (build / send / receive) | ✅ | ⛔ | Receiving is the one write that moves stock |
+| Breadcrumb trail in the header (parents navigate back) | ✅ | ⛔ | Replaced the in-page crumb rows |
+| Suppliers / purchase orders / restock queue | ⛔ removed | ⛔ | Deferred to its own feature (2026-09-10) |
 | **Initiate a refund** | ✅ (manager) | ⛔ | Settles through 055's pipeline — no second mechanism |
 | **Manage the team** (invite / role / stand down) | ✅ (manager) | ⛔ | Writes the records back-office owns |
 
+- ⚠ **DESIGN REVISION 2026-09-10 — PURCHASING REMOVED, NOT LEFT DORMANT.** The Restock screen,
+  suppliers, purchase orders, the product's default supplier, the 10 edge-shop routes, their DTOs and
+  telemetry events are gone, and `20260910065158_remove_shop_purchasing.sql` drops `supplier`,
+  `purchase_order`, `purchase_order_line`, `product.supplier_id` and
+  `stock_movement.purchase_order_line_id`. Purchasing returns later as its own spec. The header also
+  lost its primary action and theme toggle (appearance stays in the sidebar user menu's Light / Dark /
+  Follow-System), and the screen title became a breadcrumb trail.
 - ⚠ **THE SHOP CONSOLE NOW REACHES `core-api`, ON EXACTLY ONE ROUTE.** Refunds must settle through
   055's state machine, which lives there because the payment secret does (019 SC-012). `core-api`
   gains a **third** per-pool verifier (shop) — the same shape 055 used for back-office, per-pool

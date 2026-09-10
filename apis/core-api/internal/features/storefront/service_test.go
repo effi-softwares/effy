@@ -303,10 +303,6 @@ func cardIDs(cards []ProductCard) []string {
 
 // searchRowOf lifts a card row into the search projection (the score column only matters for
 // relevance ordering, which these tests do not exercise).
-func searchRowOf(c cardRow) searchRow {
-	return searchRow{
-		ID: c.ID, Name: c.Name, Brand: c.Brand,
-		PriceAmount: c.PriceAmount, Currency: c.Currency, CompareAtAmount: c.CompareAtAmount,
-		StorageKey: c.StorageKey, AltText: c.AltText, CreatedAt: c.CreatedAt,
-	}
-}
+// ⚠ It carries the WHOLE card row. It used to copy field by field and silently dropped `Available`,
+// which is how the fake came to agree with a broken card() instead of with the database.
+func searchRowOf(c cardRow) searchRow { return searchRow{cardRow: c} }

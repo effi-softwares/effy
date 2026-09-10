@@ -350,3 +350,28 @@ story.
 - Stop at any checkpoint to validate a story independently before continuing.
 - Colour law is non-negotiable throughout: no task in any phase introduces a UI hue beyond the
   monochrome ramp and the two existing semantic colours (error/success) — see research.md R3.
+
+---
+
+## Amendment A1 — Design revision (2026-09-10)
+
+See spec.md § Amendment A1. Built and machine-verified; not deployed.
+
+- [x] A1-01 Header breadcrumb trail (`components/console/HeaderBreadcrumbs.tsx`) via a new opt-in
+  `headerBreadcrumb` slot on `@effy/web-kit/console`'s `ConsoleShell`/`ConsoleHeader` (back-office
+  passes none and is unchanged); in-page `Crumbs` rows and the primitive removed.
+- [x] A1-02 Header primary action + theme toggle removed from `HeaderChrome` (search only).
+- [x] A1-03 shop-web Restock removed: nav item, `/restock` route, `LowStockScreen`, `features/restock/*`,
+  the default-supplier rule, purchasing telemetry; shop-wide default threshold moved to Catalog →
+  Stock settings.
+- [x] A1-04 edge-shop: the 10 supplier / purchase-order routes (+ product-supplier PATCH), their
+  services, repositories and container tests removed; product detail no longer joins `supplier`.
+- [x] A1-05 edge-inventory: low-stock read no longer joins `supplier`; shared-types `supplier.ts` /
+  `purchase-order.ts` and the supplier fields on `LowStockRowDTO` / product detail removed; shop Kotlin
+  contract regenerated.
+- [x] A1-06 shop-mobile restock list removed (route, screen, ViewModel + test, use case, repository call).
+- [x] A1-07 Migration `20260910065158_remove_shop_purchasing.sql` (forward drop; dev-only Down restores
+  the shape) — applied up, down and up again on throwaway PostgreSQL 16.
+- [ ] A1-08 (operator) `make db-up ENV=dev`, `make edge-deploy SERVICE=shop` and `SERVICE=inventory`,
+  then look at the header on every screen.
+

@@ -5,7 +5,6 @@ import { appIndexRoute, appRoute, managerRoute } from "./routes/app";
 import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
 import { catalogNewRoute } from "./routes/catalog.new";
-import { restockRoute } from "./routes/restock";
 import { catalogProductRoute } from "./routes/catalog.$productId";
 import { ordersRoute } from "./routes/orders";
 import { ordersDetailRoute } from "./routes/orders.$fulfillmentId";
@@ -20,7 +19,6 @@ const routeTree = rootRoute.addChildren([
     catalogRoute,
     // ⚠ BEFORE the $productId route: "new" would otherwise be captured as a product id and answer 404.
     catalogNewRoute,
-    restockRoute,
     catalogProductRoute,
     ordersRoute,
     ordersDetailRoute,

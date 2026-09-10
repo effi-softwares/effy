@@ -29,9 +29,9 @@ import { describe, expect, it } from "vitest"
  *   • DAYS COVER — needs a sales velocity, and the platform stores no per-product sales history. It is
  *     the same fact that refuses the mockup's "Last 30 days" rail, and drawing a bar from an invented
  *     velocity is the defect this feature deleted from the dashboard.
- *   • UNIT COST / MARGIN — `public.product` has no cost column. `purchase_order_line.unit_cost` is what
- *     ONE order paid, not a standing cost, and 057's migration explicitly refused a price-list table.
- *     A margin computed from a cost nobody recorded is a number with no fact behind it.
+ *   • UNIT COST / MARGIN — `public.product` has no cost column, and purchasing (where a cost would be
+ *     recorded) is deferred to its own feature. A margin computed from a cost nobody recorded is a
+ *     number with no fact behind it.
  *   • VAT RATE — 052's R13 settled this: the ABN is unsupplied and per-item GST treatment is unmodelled,
  *     so an AU grocery basket is a MIXED SUPPLY and a single "25% — standard" rate is simply false.
  *     `canIssueTaxInvoice()` stays false until both land.

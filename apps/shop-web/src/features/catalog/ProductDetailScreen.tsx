@@ -9,7 +9,6 @@ import { Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import {
-  Crumbs,
   DetailRow,
   MetaDivider,
   MicroLabel,
@@ -66,7 +65,6 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   if (isError) {
     return (
       <Page>
-        <Crumbs parent="Catalog" onParent={goCatalog} current="Product" />
         <ErrorState error={error} onRetry={() => void refetch()} />
       </Page>
     );
@@ -74,7 +72,6 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   if (isPending) {
     return (
       <Page>
-        <Crumbs parent="Catalog" onParent={goCatalog} current="Loading…" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-64 w-full" />
       </Page>
@@ -85,8 +82,6 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 
   return (
     <Page className="gap-[22px]">
-      <Crumbs parent="Catalog" onParent={goCatalog} current={detail.name} />
-
       {/* ── Hero: image, identity, and the two actions the mockup gives this screen ────────────── */}
       <div className="flex flex-wrap items-start gap-[18px]">
         <ProductThumb detail={detail} />
