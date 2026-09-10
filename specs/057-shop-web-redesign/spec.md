@@ -115,6 +115,16 @@ reset per record). Decisions recorded with the operator before building:
    Tags, Customer, Ship to, Bill to). Dialogs use the design's sheet (`DesignSheet`). No tabs, no
    side sheet on this screen.
 
+9. **Revision 2 (design update, same day)**: header search removed; order pagination moved INTO the
+   app header (detail only). "Items and fulfilment" merges the two sections and picks **per line**
+   (26px box: full ✓ / part – / unavailable × / none), with "Select all"/"Clear all", an "Adjust this
+   line" dialog (Picked in full · Part picked + units · Unavailable, optional note) and "Fulfil {n}
+   items" → the Effy handover (untouched lines are recorded unavailable first, so nothing leaves
+   short without a record). New route `POST /shop/v1/orders/{id}/picks` (one transaction, one log entry
+   per line, a tick on a received order starts picking) and column `fulfillment_item.pick_note`
+   (`20260911090000`). A part pick records the remainder as unavailable. Activity is a right sheet
+   again; the narrow column holds only payment + actions; "Customer and delivery" is full width below.
+
 - **FR-016** *(A3)*: Every order mutation from the console MUST append to the order's activity log and
   raise a confirmation toast.
 - **FR-017** *(A3)*: A shop refund MUST return stock only when the shop asked for it (the refund

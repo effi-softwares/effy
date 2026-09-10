@@ -439,6 +439,17 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  orderPicksV1:
+    handler: src/functions/order-picks-v1-post.handler
+    description: Item-level picking — tick / select all / adjust a line (part, unavailable, note); logged — 057 A3
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/orders/{id}/picks
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   orderNotesV1:
     handler: src/functions/order-notes-v1-post.handler
     description: Add an internal note to an order (append-only; logged) — 057 A3

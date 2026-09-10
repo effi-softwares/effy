@@ -140,6 +140,8 @@ export interface ShopOrderLineDTO {
   refundedQuantity: WireInt
   unitPrice: string
   lineTotal: string
+  /** The picker's note from "Adjust this line" (A3 revision 2). */
+  pickNote: string | null
 }
 
 /** One refund on the order — any issuer, so the shop sees money Effy returned too. */
@@ -231,7 +233,8 @@ export interface ShopOrderActivityEntryDTO {
   at: string
   title: string
   actorLabel: string | null
-  tone: "strong" | "quiet"
+  /** `negative` — something the customer will not get (unavailable, can't supply, cancelled). */
+  tone: "strong" | "quiet" | "negative"
 }
 
 export interface ShopOrderActivityDTO {
@@ -248,6 +251,19 @@ export interface ShopOrderTagsRequest {
 /** POST /shop/v1/orders/{id}/notes. */
 export interface ShopOrderNoteRequest {
   body: string
+}
+
+/**
+ * POST /shop/v1/orders/{id}/picks — item-level picking. `full` ticks the whole line, `none` clears it,
+ * `part` records `units` picked (the rest is short), `unavailable` none. The note is optional.
+ */
+export interface ShopOrderPicksRequest {
+  lines: {
+    orderItemId: string
+    mode: "full" | "part" | "unavailable" | "none"
+    units?: WireInt
+    note?: string
+  }[]
 }
 
 /** Tag limits, shared so the console refuses exactly what the service refuses. */

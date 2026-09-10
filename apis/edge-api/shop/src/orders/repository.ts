@@ -10,7 +10,7 @@
 
 import { presignRead, query, withTransaction } from "@effy/edge-shared";
 
-import { appendEvent } from "../fulfillments/repository";
+import { appendEvent, emptyShelfFromPick } from "../fulfillments/repository";
 import {
   AT_RISK_THRESHOLD_MS,
   DEFAULT_READY_WINDOW_MS,
@@ -306,6 +306,7 @@ interface LineRecord {
   order_item_id: string;
   name: string;
   sku: string | null;
+  pick_note: string | null;
   storage_key: string | null;
   ordered_quantity: number;
   gathered_quantity: number | null;
@@ -331,6 +332,7 @@ SELECT oi.id AS order_item_id,
        oi.quantity AS ordered_quantity,
        fi.gathered_quantity,
        fi.unavailable_quantity,
+       fi.pick_note,
        (SELECT SUM(rl.quantity)
           FROM public.refund_line rl
           JOIN public.refund r ON r.id = rl.refund_id
@@ -483,6 +485,7 @@ async function toLine(r: LineRecord): Promise<OrderLine> {
     gatheredQuantity: r.gathered_quantity ?? 0,
     unavailableQuantity: r.unavailable_quantity ?? 0,
     refundedQuantity: Number(r.refunded_quantity ?? 0),
+    pickNote: r.pick_note,
     unitPrice: money(r.unit_price_amount),
     lineTotal: money(r.line_subtotal_amount),
   };
@@ -529,6 +532,8 @@ export interface ActivityRecord {
   quantity: number | null;
   detail: string | null;
   item_name: string | null;
+  /** The line's ordered quantity, for "2 of 3 picked" — item events only. */
+  item_ordered: number | null;
   amount: string | null;
   refund_status: string | null;
   refund_kind: string | null;
@@ -549,7 +554,7 @@ const READ_ACTIVITY = `
 SELECT * FROM (
   SELECT 'event'::text AS source, fe.id::text AS id, fe.occurred_at AS at,
          fe.event_type, fe.from_status, fe.to_status, fe.quantity, fe.detail,
-         oi.product_name AS item_name,
+         oi.product_name AS item_name, oi.quantity AS item_ordered,
          NULL::text AS amount, NULL::text AS refund_status, NULL::text AS refund_kind,
          'shop'::text AS actor_kind, ss.name AS actor_name
     FROM public.fulfillment_event fe
@@ -566,7 +571,7 @@ SELECT * FROM (
   UNION ALL
 
   SELECT 'refund', r.id::text, r.created_at,
-         NULL, NULL, NULL, NULL, NULL, NULL,
+         NULL, NULL, NULL, NULL, NULL, NULL, NULL::int,
          r.amount::text, r.status, r.kind,
          r.actor_kind, ss.name
     FROM public.shop_fulfillment sf
@@ -577,7 +582,7 @@ SELECT * FROM (
   UNION ALL
 
   SELECT 'collection', ct.id::text, ct.collected_at,
-         NULL, NULL, ct.status, NULL, NULL, NULL,
+         NULL, NULL, ct.status, NULL, NULL, NULL, NULL::int,
          NULL, NULL, NULL, 'driver', NULL
     FROM public.collection_task ct
     JOIN public.shop_fulfillment sf ON sf.id = ct.shop_fulfillment_id
@@ -586,7 +591,7 @@ SELECT * FROM (
   UNION ALL
 
   SELECT 'arrival', pa.id::text, pa.arrived_at,
-         NULL, NULL, pa.source, NULL, NULL, NULL,
+         NULL, NULL, pa.source, NULL, NULL, NULL, NULL::int,
          NULL, NULL, NULL, 'effy', NULL
     FROM public.package_arrival pa
     JOIN public.shop_fulfillment sf ON sf.id = pa.shop_fulfillment_id
@@ -681,6 +686,97 @@ export async function addNote(
     if (!id) return null;
     await appendEvent(client, { fulfillmentId, actorStaffId, eventType: "note_added" });
     return id;
+  });
+}
+
+// ── Writes: item-level picking ──────────────────────────────────────────────────────────────────
+
+/** One line's resolved pick, as absolute counts. The service derives these from the operator's mode. */
+export interface PickWrite {
+  orderItemId: string;
+  mode: "full" | "part" | "unavailable" | "none";
+  /** Units picked — meaningful for `part`; derived for the others. */
+  units: number;
+  note: string | null;
+}
+
+/**
+ * Record item-level picks on this shop's lines — every line in ONE transaction with its log entry,
+ * so the log can never describe a pick the counts do not hold.
+ *
+ * ⚠ THE COUNTS ARE STILL 020's TWO ABSOLUTE NUMBERS. A mode is translated, never stored:
+ *   full → gathered = ordered, unavailable = 0 · part → gathered = n, unavailable = ordered − n
+ *   unavailable → gathered = 0, unavailable = ordered · none → both 0.
+ * ⚠ "part" RECORDS THE REMAINDER AS UNAVAILABLE. A unit the picker did not pick is not going in the
+ * bag, and the platform's shortfall path (055's refund proposal, 054's shelf correction) keys on
+ * `unavailable_quantity`. Leaving it merely "not picked" would short the customer silently.
+ *
+ * ⚠ UPSERTED, scoped through the portion. Rows are seeded on entry to picking, but a portion that
+ * predates that seed still gets its row rather than a silent no-op.
+ *
+ * Returns `null` when the portion is not this shop's; throws `validation` for a line not on it.
+ */
+export async function applyPicks(
+  fulfillmentId: string,
+  shopId: string,
+  picks: readonly PickWrite[],
+  actorStaffId: string | null,
+): Promise<true | null> {
+  return withTransaction(async (client) => {
+    const owned = await client.query<{ id: string }>(
+      `SELECT id FROM public.shop_fulfillment WHERE id = $1 AND shop_id = $2 FOR UPDATE`,
+      [fulfillmentId, shopId],
+    );
+    if (!owned.rows[0]) return null;
+
+    for (const p of picks) {
+      const line = await client.query<{ ordered: number }>(
+        `SELECT oi.quantity AS ordered
+           FROM public.shop_fulfillment sf
+           JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
+          WHERE sf.id = $1 AND oi.id = $2`,
+        [fulfillmentId, p.orderItemId],
+      );
+      const ordered = line.rows[0]?.ordered;
+      if (ordered === undefined) {
+        throw new FulfillmentError("validation", "that item is not part of this order", [
+          { field: "lines", message: `unknown line ${p.orderItemId}` },
+        ]);
+      }
+      if (p.mode === "part" && (p.units < 1 || p.units > ordered)) {
+        throw new FulfillmentError("validation", `only ${ordered} ordered`, [
+          { field: "units", message: p.units < 1 ? "use unavailable instead of 0" : `only ${ordered} ordered` },
+        ]);
+      }
+      const gathered = p.mode === "full" ? ordered : p.mode === "part" ? p.units : 0;
+      const unavailable =
+        p.mode === "unavailable" ? ordered : p.mode === "part" ? ordered - p.units : 0;
+
+      await client.query(
+        `INSERT INTO public.fulfillment_item
+                (shop_fulfillment_id, order_item_id, ordered_quantity, gathered_quantity, unavailable_quantity, pick_note)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (shop_fulfillment_id, order_item_id) DO UPDATE
+            SET gathered_quantity = EXCLUDED.gathered_quantity,
+                unavailable_quantity = EXCLUDED.unavailable_quantity,
+                pick_note = EXCLUDED.pick_note,
+                updated_at = now()`,
+        [fulfillmentId, p.orderItemId, ordered, gathered, unavailable, p.note],
+      );
+
+      await appendEvent(client, {
+        fulfillmentId,
+        actorStaffId,
+        eventType: p.mode === "unavailable" ? "item_unavailable" : "item_gathered",
+        orderItemId: p.orderItemId,
+        quantity: p.mode === "unavailable" ? ordered : gathered,
+        detail: p.note,
+      });
+
+      // ⚠ 054 FR-023 — a real shortfall empties the shelf count, as a per-quantity pick does.
+      if (unavailable > 0) await emptyShelfFromPick(client, p.orderItemId, actorStaffId);
+    }
+    return true;
   });
 }
 

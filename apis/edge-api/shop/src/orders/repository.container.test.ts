@@ -39,7 +39,7 @@ vi.mock("@effy/edge-shared", async () => {
   };
 });
 
-import { addNote, listOrders, readActivity, readOrder, replaceTags } from "./repository";
+import { addNote, applyPicks, listOrders, readActivity, readOrder, replaceTags } from "./repository";
 import { parseListQuery, toEntry } from "./service";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -309,5 +309,48 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     // ⚠ The staff-recorded arrival wrote BOTH rows; it appears once.
     expect(titles.filter((t) => /deliver/i.test(t))).toHaveLength(1);
     expect(log.find((e) => e.title.startsWith("Refund"))?.actorLabel).toBe("Effy");
+  });
+
+  it("records item-level picks as counts, keeps the note, logs each line, and short-picks the rest", async () => {
+    const o = await order({
+      number: "EFY-P",
+      recipient: "P",
+      status: "picking",
+      lines: [{ name: "Eggs", price: 5, qty: 3 }, { name: "Milk", price: 2, qty: 2 }, { name: "Bread", price: 4, qty: 1 }],
+    });
+    const [eggs, milk, bread] = o.itemIds as [string, string, string];
+    expect(
+      await applyPicks(o.fulfillmentId, SHOP, [
+        { orderItemId: eggs, mode: "part", units: 2, note: "one cracked" },
+        { orderItemId: milk, mode: "full", units: 0, note: null },
+        { orderItemId: bread, mode: "unavailable", units: 0, note: "supplier short" },
+      ], STAFF),
+    ).toBe(true);
+
+    const d = await readOrder(o.fulfillmentId, SHOP);
+    const by = Object.fromEntries(d.lines.map((l) => [l.name, l]));
+    // ⚠ A part pick records the remainder as unavailable, so the shortfall path sees it.
+    expect(by.Eggs).toMatchObject({ gatheredQuantity: 2, unavailableQuantity: 1, pickNote: "one cracked" });
+    expect(by.Milk).toMatchObject({ gatheredQuantity: 2, unavailableQuantity: 0, pickNote: null });
+    expect(by.Bread).toMatchObject({ gatheredQuantity: 0, unavailableQuantity: 1, pickNote: "supplier short" });
+
+    const log = (await readActivity(o.fulfillmentId, SHOP))!.map(toEntry).map((e) => e.title);
+    expect(log).toContain("Eggs — 2 of 3 picked · one cracked");
+    expect(log).toContain("Milk — picked in full");
+    expect(log).toContain("Bread — marked unavailable · supplier short");
+
+    // Clearing a line zeroes both counts and drops the note.
+    await applyPicks(o.fulfillmentId, SHOP, [{ orderItemId: bread, mode: "none", units: 0, note: null }], STAFF);
+    const after = (await readOrder(o.fulfillmentId, SHOP)).lines.find((l) => l.name === "Bread")!;
+    expect(after).toMatchObject({ gatheredQuantity: 0, unavailableQuantity: 0, pickNote: null });
+  });
+
+  it("refuses a line from another shop's portion", async () => {
+    const mine = await order({ number: "EFY-M1", recipient: "M", status: "picking" });
+    const theirs = await order({ number: "EFY-T1", recipient: "T", status: "picking", shop: OTHER_SHOP });
+    await expect(
+      applyPicks(mine.fulfillmentId, SHOP, [{ orderItemId: theirs.itemIds[0]!, mode: "full", units: 0, note: null }], STAFF),
+    ).rejects.toMatchObject({ kind: "validation" });
+    expect(await applyPicks(theirs.fulfillmentId, SHOP, [{ orderItemId: theirs.itemIds[0]!, mode: "full", units: 0, note: null }], STAFF)).toBeNull();
   });
 });

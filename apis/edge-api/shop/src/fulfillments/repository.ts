@@ -576,7 +576,7 @@ export async function updateItemProgress(
  *
  * Untracked products match nothing here and produce no movement (FR-024).
  */
-async function emptyShelfFromPick(
+export async function emptyShelfFromPick(
   client: { query: (text: string, values: unknown[]) => Promise<unknown> },
   orderItemId: string,
   actorStaffId: string | null,

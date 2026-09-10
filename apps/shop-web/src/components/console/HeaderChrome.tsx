@@ -1,39 +1,33 @@
-import { useNavigate } from "@tanstack/react-router"
-import { Search } from "lucide-react"
+import { useLocation, useNavigate, useParams, useSearch } from "@tanstack/react-router"
 
-import { Input } from "@effy/design-system/ui"
+import { OrderPager } from "@/features/fulfillment/components/OrderPager"
+import { validateOrdersSearch } from "@/features/fulfillment/orderConsole"
 
 /**
- * The header's right-hand control: the search field, and nothing else.
+ * The header's right-hand side (057 A3 revision 2).
  *
- * ⚠ THE PRIMARY ACTION AND THE THEME TOGGLE ARE GONE (design revision 2026-09-10). The action pointed
- * at Restock, which no longer exists, and every screen already carries its own action where the work
- * is (Catalog's "New product", the order's action bar). Appearance stays user-selectable through the
- * sidebar user menu's Light / Dark / Follow-System — the only control that can express "follow the
- * system", and the one the constitution's dark-mode requirement rests on.
+ * ⚠ NO SEARCH, NO PRIMARY ACTION, NO THEME TOGGLE. Search lives only on the Orders list, where it has a
+ * list to narrow; every screen carries its own action where the work is; appearance stays in the
+ * sidebar user menu (Light / Dark / Follow-System).
+ *
+ * ⚠ ON ORDER DETAIL — AND ONLY THERE — it carries the order pagination. The page body has no second
+ * copy. It walks the list the order was opened from: the route's search params ARE that list.
  */
 export function HeaderChrome() {
+  const { pathname } = useLocation()
+  const params = useParams({ strict: false }) as { fulfillmentId?: string }
+  const search = useSearch({ strict: false }) as Record<string, unknown>
   const navigate = useNavigate()
 
+  if (!pathname.startsWith("/orders/") || !params.fulfillmentId) return null
+
   return (
-    <div className="relative hidden min-w-0 flex-1 sm:block sm:max-w-60">
-      <Search
-        aria-hidden="true"
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-      />
-      <Input
-        aria-label="Search orders and products"
-        placeholder="Search orders, SKUs…"
-        className="h-8 pl-8 text-[13px]"
-        onKeyDown={(e) => {
-          // ⚠ Enter routes to the screen that can actually answer the query. The header field is a
-          // shortcut into the queue's own filter, not a second search implementation — two searches
-          // over one dataset is the shape 052 deleted `summarizeFulfillment` for.
-          if (e.key !== "Enter") return
-          const q = (e.target as HTMLInputElement).value.trim()
-          if (q) void navigate({ to: "/orders", search: { q } })
-        }}
-      />
-    </div>
+    <OrderPager
+      fulfillmentId={params.fulfillmentId}
+      search={validateOrdersSearch(search)}
+      onNavigate={(fulfillmentId, next) =>
+        void navigate({ to: "/orders/$fulfillmentId", params: { fulfillmentId }, search: next })
+      }
+    />
   )
 }

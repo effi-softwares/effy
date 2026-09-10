@@ -106,6 +106,8 @@ export interface OrderLine {
   refundedQuantity: number;
   unitPrice: string;
   lineTotal: string;
+  /** The picker's note from "Adjust this line", if any. */
+  pickNote: string | null;
 }
 
 export interface OrderRefund {
@@ -172,7 +174,8 @@ export interface ActivityEntry {
   at: Date;
   title: string;
   actorLabel: string | null;
-  tone: "strong" | "quiet";
+  /** `negative` — something the customer will not get (unavailable, can't supply, cancelled). */
+  tone: "strong" | "quiet" | "negative";
 }
 
 /** Limits, mirrored from `@effy/shared-types` so the console refuses exactly what this refuses. */

@@ -1,6 +1,6 @@
 import { keepPreviousData, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import type { ItemProgressRequest, TransitionRequest } from "@effy/shared-types";
+import type { ShopOrderPicksRequest, TransitionRequest } from "@effy/shared-types";
 import { toast } from "@effy/design-system/ui";
 
 import { track } from "@/lib/telemetry";
@@ -15,9 +15,9 @@ import {
   getOrderActivity,
   listFulfillments,
   listOrders,
+  setOrderPicks,
   setOrderTags,
   transitionFulfillment,
-  updateItemProgress,
 } from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI). Every mutation here returns
@@ -147,46 +147,30 @@ export function useTransitionFulfillment(id: string) {
 }
 
 /**
- * Record progress / shortfall on one line (US2). Absolute quantities, so a retry is idempotent.
- * `label` is the line's name, carried only so the toast can say which line moved.
+ * Item-level picking (A3 revision 2) — a tick, "Select all" / "Clear all", or "Adjust this line".
+ *
+ * `toast` is the confirmation the caller wants said ("Eggs — picked in full"); the server writes the
+ * matching log entry in the same transaction as the counts.
  */
-export function useUpdateItemProgress(id: string) {
+export function useSetPicks(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (args: { orderItemId: string; body: ItemProgressRequest; label?: string; ordered?: number }) =>
-      updateItemProgress(id, args.orderItemId, args.body),
+    mutationFn: (args: { lines: ShopOrderPicksRequest["lines"]; toast: string }) =>
+      setOrderPicks(id, { lines: args.lines }),
     onSuccess: (_detail, args) => {
-      // No quantity and no product name in the props — a shortfall is an unresolved obligation to a
-      // specific customer and belongs in the operational record, not in product analytics.
-      if (args.body.gatheredQuantity !== undefined) {
-        track({ name: "shop_order_item_gathered", fulfillmentId: id });
-      }
-      if (args.body.unavailableQuantity !== undefined) {
+      // No product name and no quantity in the props — the operational record is the log.
+      for (const l of args.lines) {
         track({
-          name: args.body.unavailableQuantity > 0
-            ? "shop_order_item_unavailable"
-            : "shop_order_item_restored",
+          name: l.mode === "unavailable" ? "shop_order_item_unavailable" : "shop_order_item_gathered",
           fulfillmentId: id,
         });
       }
-      const name = args.label ?? "Item";
-      if (args.body.unavailableQuantity !== undefined) {
-        toast.success(
-          args.body.unavailableQuantity > 0
-            ? `${name}: ${args.body.unavailableQuantity} marked unavailable`
-            : `${name}: found — no longer short`,
-        );
-      } else if (args.body.gatheredQuantity !== undefined) {
-        toast.success(
-          args.ordered !== undefined
-            ? `${name}: ${args.body.gatheredQuantity} of ${args.ordered} picked`
-            : `${name}: ${args.body.gatheredQuantity} picked`,
-        );
-      }
+      toast.success(args.toast);
       invalidateOrders(queryClient);
     },
     onError: (err) => {
       toast.error(fulfillmentMutationError(err));
+      invalidateOrders(queryClient);
     },
   });
 }

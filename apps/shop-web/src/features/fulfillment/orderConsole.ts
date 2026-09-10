@@ -240,3 +240,70 @@ export function toCsv(rows: readonly OrderRow[]): string {
   )
   return [head.join(","), ...body].join("\n")
 }
+
+// ── Item-level picking (A3 revision 2) ────────────────────────────────────────────────────────
+
+/**
+ * A line's pick state, DERIVED from its two counts — never stored beside them.
+ *   full — every unit gathered · part — some gathered (the rest short) · unavailable — none gathered,
+ *   all short · none — untouched.
+ */
+export type PickMode = "full" | "part" | "unavailable" | "none"
+
+export function pickModeOf(l: Pick<OrderLine, "orderedQuantity" | "gatheredQuantity" | "unavailableQuantity">): PickMode {
+  if (l.gatheredQuantity >= l.orderedQuantity && l.orderedQuantity > 0) return "full"
+  if (l.gatheredQuantity > 0) return "part"
+  if (l.unavailableQuantity > 0) return "unavailable"
+  return "none"
+}
+
+/** The status line under the SKU: "Picked" / "{n} of {total} picked" / "Unavailable · {note}" / "Not picked". */
+export function pickLabel(l: Pick<OrderLine, "orderedQuantity" | "gatheredQuantity" | "unavailableQuantity" | "pickNote">): string {
+  switch (pickModeOf(l)) {
+    case "full":
+      return "Picked"
+    case "part":
+      return `${l.gatheredQuantity} of ${l.orderedQuantity} picked`
+    case "unavailable":
+      return l.pickNote ? `Unavailable · ${l.pickNote}` : "Unavailable"
+    case "none":
+      return "Not picked"
+  }
+}
+
+/** "{picked} of {total} items picked" — lines picked in full, over lines. */
+export function pickSummary(lines: readonly OrderLine[]): string {
+  const full = lines.filter((l) => pickModeOf(l) === "full").length
+  return `${full} of ${lines.length} ${lines.length === 1 ? "item" : "items"} picked`
+}
+
+/**
+ * The Adjust dialog's "Units picked" rule — required, numeric, at least 1, at most ordered. The copy
+ * is the design's, and the server refuses the same values.
+ */
+export function unitsError(raw: string, ordered: number): string | null {
+  if (raw.trim() === "" || !/^\d+$/.test(raw.trim())) return "Enter a number."
+  const n = Number(raw)
+  if (n < 1) return "Use Unavailable instead of 0."
+  if (n > ordered) return `Only ${ordered} ordered.`
+  return null
+}
+
+/** The toast (and the log entry's words) for one line's new state. */
+export function pickToast(name: string, mode: PickMode, units: number, ordered: number): string {
+  switch (mode) {
+    case "full":
+      return `${name} — picked in full`
+    case "part":
+      return `${name} — ${units} of ${ordered} picked`
+    case "unavailable":
+      return `${name} — marked unavailable`
+    case "none":
+      return `${name} — picking cleared`
+  }
+}
+
+/** Whether lines can still be picked from the console: before handover. A tick on "received" starts picking. */
+export function canPick(status: OrderDetail["status"]): boolean {
+  return status === "pending" || status === "received" || status === "picking"
+}

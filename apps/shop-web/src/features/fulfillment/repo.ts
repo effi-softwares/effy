@@ -2,11 +2,11 @@ import type {
   ShopRefundRequest,
   FulfillmentDetailDTO,
   FulfillmentQueueDTO,
-  ItemProgressRequest,
   ShopOrderActivityDTO,
   ShopOrderDetailDTO,
   ShopOrderListDTO,
   ShopOrderListQuery,
+  ShopOrderPicksRequest,
   TransitionRequest,
 } from "@effy/shared-types";
 
@@ -47,24 +47,6 @@ export async function transitionFulfillment(
   body: TransitionRequest,
 ): Promise<FulfillmentDetail> {
   return api.post<FulfillmentDetailDTO>(`/shop/v1/fulfillments/${id}/status`, body);
-}
-
-/**
- * Record picking progress / shortfall on ONE line (US2, FR-010a…FR-010f).
- *
- * Quantities are ABSOLUTE, never deltas — idempotent under retry, which matters on a flaky shop
- * tablet. Lowering `unavailableQuantity` back to 0 is how a flagged item is un-flagged when it turns
- * up (FR-010d). Returns the whole updated portion, so the caller invalidates rather than patches.
- */
-export async function updateItemProgress(
-  id: string,
-  orderItemId: string,
-  body: ItemProgressRequest,
-): Promise<FulfillmentDetail> {
-  return api.patch<FulfillmentDetailDTO>(
-    `/shop/v1/fulfillments/${id}/items/${orderItemId}`,
-    body,
-  );
 }
 
 /**
@@ -118,4 +100,12 @@ export async function setOrderTags(id: string, tags: string[]): Promise<ShopOrde
 /** Add an internal note. Append-only — there is no edit or delete. */
 export async function addOrderNote(id: string, body: string): Promise<ShopOrderDetailDTO> {
   return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/notes`, { body });
+}
+
+/**
+ * Item-level picking (A3 revision 2): one line for a tick or an Adjust, every line for Select all.
+ * ⚠ Ticking a received order starts picking server-side — the tick is the start.
+ */
+export async function setOrderPicks(id: string, body: ShopOrderPicksRequest): Promise<ShopOrderDetailDTO> {
+  return api.post<ShopOrderDetailDTO>(`/shop/v1/orders/${id}/picks`, body);
 }

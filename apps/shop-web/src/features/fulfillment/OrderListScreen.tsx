@@ -141,6 +141,8 @@ export function OrderListScreen({
 
   return (
     <div className="grid gap-4">
+      {/* ── The filter bar: tabs · views · filters, 22px apart, one rule under it (revision 2) ─── */}
+      <div className="border-border grid gap-[22px] border-b pb-[22px]">
       {/* ── Tabs · search · Export CSV ───────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-4">
         <div role="tablist" aria-label="Order status" className="bg-muted flex flex-wrap gap-0.5 rounded-lg p-[3px]">
@@ -210,7 +212,7 @@ export function OrderListScreen({
       </div>
 
       {/* ── Filters · reset · count ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end gap-2.5 pb-0.5">
+      <div className="flex flex-wrap items-end gap-2.5">
         <FilterSelect
           label="Date"
           value={search.range ?? "any"}
@@ -259,6 +261,8 @@ export function OrderListScreen({
         </div>
       </div>
 
+      </div>
+
       {selected.size > 0 ? (
         <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadCsv} />
       ) : null}
@@ -274,10 +278,11 @@ export function OrderListScreen({
         />
       ) : (
         <>
-          {/* ── The table (wide) ──────────────────────────────────────────────────────────────── */}
+          {/* ── The table — always rendered; it scrolls sideways on a narrow viewport rather than
+              being swapped for a stripped-down list (revision 2). ─────────────────────────────── */}
           <div
             className={cn(
-              "border-border hidden overflow-x-auto rounded-[var(--radius)] border transition-opacity md:block",
+              "border-border overflow-x-auto rounded-[var(--radius)] border transition-opacity",
               isPlaceholderData && "opacity-60",
             )}
           >
@@ -361,27 +366,6 @@ export function OrderListScreen({
             </table>
           </div>
 
-          {/* ── The stacked list (narrow) ─────────────────────────────────────────────────────── */}
-          <div className="border-border border-t md:hidden">
-            {rows.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => onOpenOrder(o.id)}
-                className="border-border grid w-full cursor-pointer gap-[5px] border-b bg-transparent py-3 text-left"
-              >
-                <span className="flex items-center justify-between gap-2.5">
-                  <span className="text-[13.5px] font-medium">{o.customerName || "—"}</span>
-                  <span className="text-[13.5px] font-medium tabular-nums">{formatMoney(o.total, o.currency)}</span>
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{o.orderNumber}</span>
-                  <OrderStatusPill status={o.status} />
-                </span>
-                <span className="text-muted-foreground text-[12.5px]">{o.itemsSummary}</span>
-              </button>
-            ))}
-          </div>
         </>
       )}
 

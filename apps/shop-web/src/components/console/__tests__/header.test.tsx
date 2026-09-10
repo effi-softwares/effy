@@ -25,9 +25,11 @@ vi.mock("@tanstack/react-router", () => ({
 
 // 057 A3 — the crumb reads the order CONSOLE's detail (the key the order screen itself uses).
 const getOrder = vi.hoisted(() => vi.fn())
+const listOrders = vi.hoisted(() => vi.fn())
 vi.mock("@/features/fulfillment/repo", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   getOrder,
+  listOrders,
 }))
 
 const getProduct = vi.hoisted(() => vi.fn())
@@ -125,12 +127,35 @@ describe("HeaderBreadcrumbs", () => {
 })
 
 describe("HeaderChrome", () => {
-  it("carries the search field and no primary action or theme toggle", () => {
-    wrap(<HeaderChrome />)
+  // ⚠ Revision 2: no search in the header, no primary action, no theme toggle.
+  it("carries nothing on a screen that is not an order", () => {
+    at("/orders")
+    const { container } = wrap(<HeaderChrome />)
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument()
+  })
 
-    expect(screen.getByRole("textbox", { name: /search orders and products/i })).toBeInTheDocument()
-    // ⚠ Appearance stays selectable from the sidebar user menu (Light / Dark / Follow-System).
-    expect(screen.queryByRole("button")).not.toBeInTheDocument()
-    expect(screen.queryByText(/restock/i)).not.toBeInTheDocument()
+  it("carries the order pagination on order detail only — '{n} of {total}' and two arrows", async () => {
+    at("/orders/b", { fulfillmentId: "b" })
+    listOrders.mockResolvedValue({
+      items: [{ id: "a" }, { id: "b" }, { id: "c" }],
+      total: 3,
+      page: 1,
+      pageSize: 25,
+      counts: {},
+    })
+    wrap(<HeaderChrome />)
+    expect(await screen.findByText("2 of 3")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Previous order" })).toBeEnabled()
+    expect(screen.getByRole("button", { name: "Next order" })).toBeEnabled()
+  })
+
+  it("mutes and disables an arrow at the end of the list", async () => {
+    at("/orders/c", { fulfillmentId: "c" })
+    listOrders.mockResolvedValue({ items: [{ id: "a" }, { id: "b" }, { id: "c" }], total: 3, page: 1, pageSize: 25, counts: {} })
+    wrap(<HeaderChrome />)
+    const next = await screen.findByRole("button", { name: "Next order" })
+    expect(next).toBeDisabled()
+    expect(next.className).toContain("text-muted-foreground")
   })
 })

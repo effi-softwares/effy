@@ -6,14 +6,15 @@ const repo = vi.hoisted(() => ({
   readActivity: vi.fn(),
   replaceTags: vi.fn(),
   addNote: vi.fn(),
+  applyPicks: vi.fn(),
 }));
 vi.mock("./repository", () => repo);
 
-const fulfillmentsRepo = vi.hoisted(() => ({ acknowledge: vi.fn() }));
+const fulfillmentsRepo = vi.hoisted(() => ({ acknowledge: vi.fn(), readStatus: vi.fn(), transition: vi.fn() }));
 vi.mock("../fulfillments/repository", () => fulfillmentsRepo);
 
 import type { ActivityRecord } from "./repository";
-import { addNote, getActivity, getOrder, parseListQuery, setTags, toEntry } from "./service";
+import { addNote, getActivity, getOrder, parseListQuery, setPicks, setTags, toEntry } from "./service";
 
 const ACTOR = { sub: "sub-1", shopId: "shop-1", staffId: "staff-1" };
 
@@ -177,6 +178,7 @@ function record(over: Partial<ActivityRecord>): ActivityRecord {
     quantity: null,
     detail: null,
     item_name: null,
+    item_ordered: null,
     amount: null,
     refund_status: null,
     refund_kind: null,
@@ -189,7 +191,7 @@ function record(over: Partial<ActivityRecord>): ActivityRecord {
 describe("the log's wording", () => {
   it("says what happened and who did it", () => {
     const e = toEntry(record({ event_type: "item_unavailable", quantity: 2, item_name: "Oat milk" }));
-    expect(e).toMatchObject({ title: "2 × Oat milk marked unavailable", actorLabel: "Maya", tone: "strong" });
+    expect(e).toMatchObject({ title: "Oat milk — marked unavailable", actorLabel: "Maya", tone: "negative" });
   });
 
   it("names the one reversal distinctly — it is the signal an order was completed too early", () => {
@@ -238,7 +240,83 @@ describe("the log's wording", () => {
       title: "Collected by an Effy driver",
       actorLabel: "Effy driver",
     });
-    expect(toEntry(record({ source: "collection", to_status: "short", actor_kind: "driver" })).tone).toBe("strong");
+    expect(toEntry(record({ source: "collection", to_status: "short", actor_kind: "driver" })).tone).toBe("negative");
     expect(toEntry(record({ source: "arrival", actor_kind: "effy" })).title).toBe("Delivered to the customer");
+  });
+});
+
+describe("item-level picking (A3 revision 2)", () => {
+  it("records each line's mode, units and trimmed note", async () => {
+    fulfillmentsRepo.readStatus.mockResolvedValue("picking");
+    repo.applyPicks.mockResolvedValue(true);
+    repo.readOrder.mockResolvedValue({ id: "f-1" });
+    await setPicks(ACTOR, "f-1", {
+      lines: [
+        { orderItemId: "a", mode: "full" },
+        { orderItemId: "b", mode: "part", units: 2, note: "  only two left  " },
+        { orderItemId: "c", mode: "unavailable" },
+      ],
+    });
+    expect(repo.applyPicks).toHaveBeenCalledWith(
+      "f-1",
+      "shop-1",
+      [
+        { orderItemId: "a", mode: "full", units: 0, note: null },
+        { orderItemId: "b", mode: "part", units: 2, note: "only two left" },
+        { orderItemId: "c", mode: "unavailable", units: 0, note: null },
+      ],
+      "staff-1",
+    );
+    expect(fulfillmentsRepo.transition).not.toHaveBeenCalled();
+  });
+
+  /** ⚠ The tick IS the start: a received order moves to picking through the guarded machine. */
+  it("starts picking when the first tick lands on a received order", async () => {
+    fulfillmentsRepo.readStatus.mockResolvedValue("received");
+    fulfillmentsRepo.transition.mockResolvedValue(true);
+    repo.applyPicks.mockResolvedValue(true);
+    repo.readOrder.mockResolvedValue({ id: "f-1" });
+    await setPicks(ACTOR, "f-1", { lines: [{ orderItemId: "a", mode: "full" }] });
+    expect(fulfillmentsRepo.transition).toHaveBeenCalledWith("f-1", "shop-1", "received", "picking", "staff-1");
+  });
+
+  it("refuses to pick once the order has left picking", async () => {
+    fulfillmentsRepo.readStatus.mockResolvedValue("ready_for_pickup");
+    await expect(setPicks(ACTOR, "f-1", { lines: [{ orderItemId: "a", mode: "full" }] })).rejects.toMatchObject({
+      kind: "conflict",
+    });
+    expect(repo.applyPicks).not.toHaveBeenCalled();
+  });
+
+  it("refuses a part pick of 0 — use Unavailable instead", async () => {
+    await expect(
+      setPicks(ACTOR, "f-1", { lines: [{ orderItemId: "a", mode: "part", units: 0 }] }),
+    ).rejects.toMatchObject({ kind: "validation", message: "use Unavailable instead of 0" });
+  });
+
+  it("refuses an unknown mode, a duplicate line, or no lines", async () => {
+    await expect(setPicks(ACTOR, "f-1", { lines: [{ orderItemId: "a", mode: "most" }] })).rejects.toMatchObject({ kind: "validation" });
+    await expect(
+      setPicks(ACTOR, "f-1", { lines: [{ orderItemId: "a", mode: "full" }, { orderItemId: "a", mode: "none" }] }),
+    ).rejects.toMatchObject({ kind: "validation" });
+    await expect(setPicks(ACTOR, "f-1", { lines: [] })).rejects.toMatchObject({ kind: "validation" });
+  });
+});
+
+describe("the picking log's words", () => {
+  const ev = (over: Partial<ActivityRecord>) => toEntry(record({ event_type: "item_gathered", item_name: "Eggs", item_ordered: 3, ...over }));
+
+  it("says picked in full, n of m picked, or picking cleared — with the note", () => {
+    expect(ev({ quantity: 3 }).title).toBe("Eggs — picked in full");
+    expect(ev({ quantity: 2, detail: "two cracked" }).title).toBe("Eggs — 2 of 3 picked · two cracked");
+    expect(ev({ quantity: 0 }).title).toBe("Eggs — picking cleared");
+  });
+
+  it("gives an unavailable line the destructive dot, and routine picks the muted one", () => {
+    expect(toEntry(record({ event_type: "item_unavailable", item_name: "Eggs", quantity: 3, detail: "supplier short" }))).toMatchObject({
+      title: "Eggs — marked unavailable · supplier short",
+      tone: "negative",
+    });
+    expect(ev({ quantity: 3 }).tone).toBe("quiet");
   });
 });

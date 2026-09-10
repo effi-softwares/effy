@@ -76,6 +76,7 @@ export function orderDetail(over: Partial<OrderDetail> = {}): OrderDetail {
         refundedQuantity: 0,
         unitPrice: "8.90",
         lineTotal: "17.80",
+        pickNote: null,
       },
     ],
     money: {
