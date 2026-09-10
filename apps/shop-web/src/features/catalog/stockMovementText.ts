@@ -3,9 +3,9 @@ import type { StockActorKind, StockMovementDTO, StockMovementReason } from "@eff
 /**
  * The vocabulary for a stock movement, in ONE place (Principle II).
  *
- * ⚠ IT LIVES HERE BECAUSE TWO SURFACES NOW RENDER THE SAME ROWS: the Inventory section's full table
- * and the product rail's "Recent changes" summary. Two copies of a reason map is how the table comes
- * to say "Short at picking" while the rail beside it still says "pick_shortfall" — a divergence that
+ * ⚠ IT LIVES HERE BECAUSE TWO SURFACES NOW RENDER THE SAME ROWS: the Inventory tab's full table
+ * and the Activity sheet's change log. Two copies of a reason map is how the table comes to say
+ * "Short at picking" while the sheet still says "pick_shortfall" — a divergence that
  * is silent, because both keep rendering something.
  */
 
@@ -55,10 +55,10 @@ export function formatDelta(delta: number): string {
 }
 
 /**
- * One line for the rail: what moved, and by how much.
+ * One change-log line: what moved, and by how much.
  *
  * ⚠ THE COUNT IS PART OF THE TITLE, not decoration. "Correction" alone tells an operator scanning the
- * rail nothing they can act on; "Correction −3" is the whole event.
+ * log nothing they can act on; "Correction −3" is the whole event.
  */
 export function stockChangeTitle(movement: StockMovementDTO): string {
   return `${reasonLabel(movement)} ${formatDelta(movement.quantityDelta)}`;

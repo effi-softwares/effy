@@ -61,14 +61,15 @@ export function deleteGuardMessage(status: ProductStatus): string {
  * 057 — the two named actions the mockup gives this screen, instead of one "Change status" menu.
  *
  * ⚠ WHY THE MENU WENT. The imported mockup puts ONE verb in the header ("Unpublish" / "Publish" /
- * "Restore") and ONE at the foot of the rail ("Archive product"), and it is right to: a dropdown
+ * "Restore") and ONE removal verb ("Archive product") — both now in the header's action row (the
+ * revised mockup deleted the rail the removal used to sit at the foot of), and it is right to: a dropdown
  * called "Change status" makes an operator open a menu to find out what it can even do, and then
  * makes them translate "make unavailable" into the thing they actually want, which is "take it off
  * the storefront". The transitions are unchanged — every one of `availableTransitions` is still
  * reachable — but each now arrives as the word for the outcome.
  *
- * ⚠ AND THE TWO NEVER OVERLAP. An archived product's way back is the header's "Restore"; the rail
- * offers nothing, because a second control doing the same thing is how two buttons drift apart.
+ * ⚠ AND THE TWO NEVER OVERLAP. An archived product's way back is the header's "Restore"; the removal
+ * control offers nothing, because a second control doing the same thing is how two buttons drift apart.
  * ──────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export interface VisibilityAction {
@@ -142,7 +143,7 @@ export interface RemovalAction {
 }
 
 /**
- * The removal action at the foot of the rail, or null when there is none.
+ * The removal action (last in the header row), or null when there is none.
  *
  * ⚠ NULL FOR AN ARCHIVED PRODUCT. It is already removed; the only thing left to do to it is restore
  * it, and the header does that.

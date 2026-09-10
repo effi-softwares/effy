@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import { DetailRow, MicroLabel, Section, SectionAction } from "@/components/console/primitives";
+import { DetailSection, Field, FieldGrid, SectionAction } from "@/components/console/primitives";
 
 import type { ProductDetail } from "./model";
 import { AdjustStockDialog } from "./StockDialogs";
@@ -51,24 +51,24 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
 
   if (isError) {
     return (
-      <Section title="Inventory">
-        <div className="pt-4">
+      <DetailSection title="Stock rules" subtitle={RULES_SUBTITLE}>
+        <div className="pt-[18px]">
           <ErrorState
             error={error}
             onRetry={() => void refetch()}
             forbiddenMessage="You don't have permission to see stock for this product."
           />
         </div>
-      </Section>
+      </DetailSection>
     );
   }
   if (isPending) {
     return (
-      <Section title="Inventory">
-        <div className="pt-4">
+      <DetailSection title="Stock rules" subtitle={RULES_SUBTITLE}>
+        <div className="pt-[18px]">
           <Skeleton className="h-32 w-full" />
         </div>
-      </Section>
+      </DetailSection>
     );
   }
 
@@ -76,68 +76,73 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
 
   return (
     <>
-      <Section
-        title="Inventory"
+      <DetailSection
+        title="Stock rules"
+        subtitle={RULES_SUBTITLE}
         action={<SectionAction onClick={() => setRulesOpen(true)}>Edit rules</SectionAction>}
       >
         {/* ⚠ NO COLOUR ANYWHERE IN HERE. The mockup tints an empty shelf red, a thin one amber and a
             healthy one green; amber is a third UI hue the constitution does not have, and 041
             specifically stripped one out of these very screens. "Out of stock" and "Running low" are
-            carried by WORDS AND WEIGHT, which is also what works on a shop floor in bright light. */}
-        <DetailRow
-          label="Stock tracking"
-          value={stock.tracked ? "On" : "Off — this product can be bought without limit"}
-        />
-
-        {stock.tracked ? (
-          <>
-            <DetailRow
-              label="Units on hand"
-              value={`${stock.onHand} ${stock.onHand === 1 ? "unit" : "units"}`}
-              emphasis={stock.outOfStock}
-            />
-            <DetailRow
-              label="Low-stock threshold"
-              value={thresholdText(
-                stock.threshold,
-                stock.effectiveThreshold,
-              )}
-            />
-          </>
-        ) : null}
+            carried by WORDS AND WEIGHT, which is also what works on a shop floor in bright light.
+            ⚠ And the mockup's reorder point / location / barcode fields are not here — see the
+            docblock and `inventory-guard.test.ts`; these three are the rules this product HAS. */}
+        <FieldGrid min={180}>
+          <Field
+            label="Stock tracking"
+            size="figure"
+            value={stock.tracked ? "On" : "Off — this product can be bought without limit"}
+          />
+          {stock.tracked ? (
+            <>
+              <Field
+                label="On hand"
+                size="figure"
+                value={`${stock.onHand} ${stock.onHand === 1 ? "unit" : "units"}`}
+              />
+              <Field
+                label="Low-stock threshold"
+                size="figure"
+                value={thresholdText(stock.threshold, stock.effectiveThreshold)}
+              />
+            </>
+          ) : null}
+        </FieldGrid>
 
         {/* The one line that needs a person, set in semibold — the section's only emphasis. */}
         {stock.tracked && (stock.outOfStock || stock.low) ? (
-          <p className="pt-3.5 text-[13.5px] font-semibold">
+          <p className="pt-[18px] text-[13.5px] font-semibold">
             {stock.outOfStock
               ? "Out of stock — shoppers cannot buy this right now."
               : `Running low — ${stock.onHand} left.`}
           </p>
         ) : null}
+      </DetailSection>
 
-        {/* ⚠ The mockup's sub-block here is "BY VARIANT / Manage variants". The platform has no
-            variants (see the docblock), so the slot carries the thing it does have and that an
-            operator actually needs beside a count: every movement of it, and who caused each one. */}
-        <div className="grid gap-0 pt-5">
-          <div className="border-border flex items-baseline justify-between gap-3 border-b pb-2.5">
-            <MicroLabel>Stock movements</MicroLabel>
-            <SectionAction onClick={() => setAdjustOpen(true)} disabled={!stock.tracked}>
-              Adjust stock
-            </SectionAction>
+      {/* ⚠ THE MOCKUP'S SECOND INVENTORY SECTION IS "Variants". The platform has no variants (see the
+          docblock), so the slot carries the thing it does have and an operator actually needs beside
+          a count: every movement of it, who caused it, and the one write that corrects it. Like the
+          mockup's variant list it is a genuine data table, so it keeps its own row rules. */}
+      <DetailSection
+        title="Stock movements"
+        subtitle="Every change to the count, with who made it and why."
+        action={
+          <SectionAction onClick={() => setAdjustOpen(true)} disabled={!stock.tracked}>
+            Adjust stock
+          </SectionAction>
+        }
+      >
+        {stock.tracked ? (
+          <div className="pt-2">
+            <StockHistory movements={data.movements} />
           </div>
-
-          {stock.tracked ? (
-            <div className="pt-3.5">
-              <StockHistory movements={data.movements} />
-            </div>
-          ) : (
-            <p className="text-muted-foreground py-3.5 text-[13px]">
-              Nothing is recorded while stock is not tracked. Turn tracking on in Edit rules to start
-              keeping a count and a history.
-            </p>
-          )}
-        </div>
-      </Section>
+        ) : (
+          <p className="text-muted-foreground pt-[18px] text-[13px]">
+            Nothing is recorded while stock is not tracked. Turn tracking on in Edit rules to start
+            keeping a count and a history.
+          </p>
+        )}
+      </DetailSection>
 
       <InventoryRulesDialog
         detail={detail}
@@ -159,6 +164,8 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
     </>
   );
 }
+
+const RULES_SUBTITLE = "How this product is counted and when it needs reordering.";
 
 /**
  * ⚠ THE ROW SAYS WHERE THE NUMBER CAME FROM, not just what it is. A shop default and a per-product
@@ -197,7 +204,7 @@ export function ReceiveStockButton({
       title={
         tracked
           ? undefined
-          : "Stock isn't tracked for this product. Turn tracking on under Inventory first."
+          : "Stock isn't tracked for this product. Turn tracking on under the Inventory tab first."
       }
     >
       Receive stock

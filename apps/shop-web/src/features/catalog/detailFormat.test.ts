@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import type { ProductAttributeValue, ProductDetail, ProductMedia } from "./model";
-import { formatAttributeValue, formatMoney, orderedMedia, primaryMedia } from "./detailFormat";
+import {
+  discountText,
+  formatAttributeValue,
+  formatMoney,
+  orderedMedia,
+  primaryMedia,
+  storefrontText,
+} from "./detailFormat";
 
 // T066: the detail page maps a typed EAV value → a human-readable `<dl>` cell, and orders media
 // primary-first for the gallery.
@@ -82,5 +89,29 @@ describe("media ordering", () => {
   it("resolves the primary image", () => {
     expect(primaryMedia(detail)?.id).toBe("primary");
     expect(primaryMedia({ media: [] } as unknown as ProductDetail)).toBeNull();
+  });
+});
+
+describe("discountText (057 pricing block)", () => {
+  it("states the saving a compare-at price advertises", () => {
+    expect(discountText("8.00", "10.00")).toBe("20% off");
+    expect(discountText("6.65", "9.99")).toBe("33% off");
+  });
+
+  it("says nothing when there is no saving to state", () => {
+    // ⚠ A "was" at or below "now" is not a discount; "0% off" or "-5% off" would claim one.
+    expect(discountText("8.00", null)).toBe("—");
+    expect(discountText("8.00", "8.00")).toBe("—");
+    expect(discountText("8.00", "7.50")).toBe("—");
+    expect(discountText(null, "10.00")).toBe("—");
+  });
+});
+
+describe("storefrontText", () => {
+  it("names what a shopper sees, never the internal status", () => {
+    expect(storefrontText("active")).toBe("On sale");
+    expect(storefrontText("unavailable")).toMatch(/hidden from shoppers/);
+    expect(storefrontText("draft")).toMatch(/never published/);
+    expect(storefrontText("archived")).toMatch(/^Archived/);
   });
 });

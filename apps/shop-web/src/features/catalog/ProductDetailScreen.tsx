@@ -4,28 +4,38 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ImageOff } from "lucide-react";
 
-import type { StockMovementDTO } from "@effy/shared-types";
-import { Skeleton } from "@effy/design-system/ui";
+import {
+  Skeleton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import {
-  DetailRow,
+  DetailSection,
+  Field,
+  FieldGrid,
   MetaDivider,
   MicroLabel,
   Page,
-  Pill,
-  RailRow,
-  Section,
   SectionAction,
-  StatCell,
 } from "@/components/console/primitives";
 
 import { ProductStatusBadge } from "./components/ProductStatusBadge";
-import { formatAttributeValue, formatMoney, orderedMedia } from "./detailFormat";
+import {
+  discountText,
+  formatAttributeValue,
+  formatMoney,
+  orderedMedia,
+  storefrontText,
+} from "./detailFormat";
 import { InventorySection } from "./InventorySection";
 import { MediaGallery } from "./MediaGallery";
 import type { ProductDetail } from "./model";
-import { ProductHeaderActions, ProductRemovalControl } from "./ProductActions";
+import { ProductActivitySheet } from "./ProductActivitySheet";
+import { ProductHeaderActions } from "./ProductActions";
 import {
   AttributesEditDialog,
   BasicsEditDialog,
@@ -34,30 +44,40 @@ import {
 } from "./ProductEditDialogs";
 import { productDetailQuery } from "./queries";
 import { SectionAssignment } from "./SectionAssignment";
-import { stockChangeTitle } from "./stockMovementText";
 import { productStockQuery } from "./stockQueries";
 
 type EditTarget = "basics" | "pricing" | "categorization" | "attributes" | null;
 
+type DetailTab = "details" | "inventory" | "media" | "visibility";
+
 /**
- * Product detail, rebuilt to the imported design (057).
+ * Product detail, rebuilt to the imported design (057) — revised 2026-09-10.
  *
- * ⚠ TABS ARE GONE, AND THAT IS THE POINT OF THE REBUILD. The screen was six tabs — Overview,
- * Attributes, Media, Pricing, Categorization, Inventory — which meant an operator answering "is this
- * priced right and do we have any" had to visit two of them and hold the first in their head. The
- * mockup lays every section down one scrolling column with its own `Edit` link, and puts the numbers
- * that summarise the product in a right rail that never scrolls away from them. Nothing is removed;
- * five clicks are.
+ * ⚠ TABS ARE BACK, AND THAT IS NOT A REVERSAL OF THE FIRST REBUILD. The pre-057 screen was six tabs
+ * that split "is this priced right" from "do we have any"; the first rebuild laid everything down one
+ * scroll beside a summary rail. The revised mockup lands between the two: FOUR tabs, grouped by the
+ * question an operator arrives with — Details (what is it, what does it cost), Inventory (how many,
+ * what moved), Media, Visibility. Price and stock rules no longer share a scroll, but neither is one
+ * click away from its own neighbour any more.
  *
- * ⚠ THE SECTION ORDER IS THE MOCKUP'S, and it is not arbitrary: details → pricing → inventory →
- * media → visibility. It descends from "what is this" to "how is it sold" to "have we got it", which
- * is the order the questions actually arrive in.
+ * ⚠ THE RAIL IS GONE. Its change log could only ever show four entries in 260px; it now lives in an
+ * "Activity" sheet with a scrollable surface of its own, and the Archive control moved up into the
+ * header's action row. The page is one full-width column.
+ *
+ * ⚠ THE TAB RESETS PER PRODUCT. The body is keyed on `productId`, so moving from one product to
+ * another lands on Details — a tab is where you are on THIS product, not a preference to carry over.
  */
 export function ProductDetailScreen({ productId }: { productId: string }) {
+  return <ProductDetailBody key={productId} productId={productId} />;
+}
+
+function ProductDetailBody({ productId }: { productId: string }) {
   const { data, error, isPending, isError, refetch } = useQuery(productDetailQuery(productId));
-  // Shares the Inventory section's cache entry rather than issuing a second read (Principle VI).
+  // Shares the Inventory tab's cache entry rather than issuing a second read (Principle VI).
   const headerStock = useQuery(productStockQuery(productId));
   const [editing, setEditing] = useState<EditTarget>(null);
+  const [tab, setTab] = useState<DetailTab>("details");
+  const [activityOpen, setActivityOpen] = useState(false);
   const navigate = useNavigate();
 
   const goCatalog = () => void navigate({ to: "/catalog" });
@@ -79,10 +99,11 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   }
 
   const detail: ProductDetail = data;
+  const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target);
 
   return (
     <Page className="gap-[22px]">
-      {/* ── Hero: image, identity, and the two actions the mockup gives this screen ────────────── */}
+      {/* ── Hero: image, identity, and the header's four actions ───────────────────────────────── */}
       <div className="flex flex-wrap items-start gap-[18px]">
         <ProductThumb detail={detail} />
 
@@ -107,9 +128,12 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <ProductHeaderActions detail={detail} />
-        </div>
+        {/* Receive stock · Unpublish/Publish · Activity · Archive — the mockup's order. */}
+        <ProductHeaderActions
+          detail={detail}
+          onOpenActivity={() => setActivityOpen(true)}
+          onDeleted={goCatalog}
+        />
       </div>
 
       {detail.missingMandatoryAttributes.length > 0 ? (
@@ -122,106 +146,139 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
             <p className="font-medium">Missing required details</p>
             <p className="text-muted-foreground">
               This product&apos;s type now requires attributes it doesn&apos;t have:{" "}
-              {detail.missingMandatoryAttributes.join(", ")}. It stays visible — add them below to keep
-              it complete.
+              {detail.missingMandatoryAttributes.join(", ")}. It stays visible — add them under
+              Details → Attributes to keep it complete.
             </p>
           </div>
         </div>
       ) : null}
 
-      {/* ── The mockup's two-column body: sections left, summary rail right ────────────────────── */}
-      <div className="grid items-start gap-9 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="grid min-w-0 gap-[30px]">
-          <Section
-            title="Product details"
-            action={<SectionAction onClick={() => setEditing("basics")}>Edit</SectionAction>}
-          >
-            <DetailRow label="Name" value={detail.name} />
-            <DetailRow label="Brand" value={detail.brand ?? "—"} />
-            <DetailRow label="SKU" value={detail.sku ?? "—"} mono />
-            <DetailRow label="GTIN" value={detail.gtin ?? "—"} mono />
-            <DetailRow label="Short description" value={detail.shortDescription} />
-            <DetailRow label="Long description" value={detail.longDescription ?? "—"} />
-            <DetailRow
-              label="Shipping weight"
-              value={
-                detail.weightIsAssumed
-                  ? `${detail.weightGrams} g (assumed — not yet measured)`
-                  : `${detail.weightGrams} g`
-              }
-            />
-          </Section>
+      <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)} className="gap-[22px]">
+        <TabsList className="max-w-full flex-wrap">
+          {TABS.map((t) => (
+            <TabsTrigger
+              key={t.value}
+              value={t.value}
+              // ⚠ Inactive triggers are MUTED in both appearances. The shared trigger's light-mode
+              // default is full foreground, which leaves the active tab told apart by its fill alone.
+              className="text-muted-foreground hover:text-foreground data-[state=active]:text-foreground flex-none px-[13px]"
+            >
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-          {/* ⚠ The mockup's pricing block is a bare grid of stat cells under one hairline — NOT cards
-              (Principle V / DOCTRINE-2). The figures are the content; a border around each would add
-              nothing but weight. */}
-          <Section
-            title="Pricing"
-            action={<SectionAction onClick={() => setEditing("pricing")}>Edit</SectionAction>}
+        {/* ── Details: what it is, and what it costs ─────────────────────────────────────────── */}
+        <TabsContent value="details" className="grid gap-[34px]">
+          <DetailSection
+            title="Product details"
+            subtitle="Name, SKU and how this product is filed."
+            action={<SectionAction onClick={edit("basics")}>Edit</SectionAction>}
           >
-            <div className="border-border grid grid-cols-2 border-b sm:grid-cols-3">
-              <StatCell label="Price" value={formatMoney(detail.priceAmount, detail.currency)} />
-              <StatCell
-                label="Compare-at"
+            <FieldGrid>
+              <Field label="Name" value={detail.name} />
+              <Field label="Brand" value={detail.brand ?? "—"} />
+              <Field label="SKU" value={detail.sku ?? "—"} mono />
+              <Field label="GTIN" value={detail.gtin ?? "—"} mono />
+              <Field
+                label="Shipping weight"
+                value={
+                  detail.weightIsAssumed
+                    ? `${detail.weightGrams} g (assumed — not yet measured)`
+                    : `${detail.weightGrams} g`
+                }
+              />
+              <Field label="Short description" value={detail.shortDescription} wide />
+              <Field label="Long description" value={detail.longDescription ?? "—"} wide />
+            </FieldGrid>
+          </DetailSection>
+
+          {/* ⚠ FOUR FIGURES, AS THE MOCKUP HAS — BUT NOT ITS FOUR. Its Unit cost and Margin need a cost
+              the platform never records (`inventory-guard.test.ts`); Currency and the compare-at
+              saving are the two real figures that take their places. */}
+          <DetailSection
+            title="Pricing"
+            subtitle="Storefront price, compare-at price and the saving it advertises."
+            action={<SectionAction onClick={edit("pricing")}>Edit</SectionAction>}
+          >
+            <div className="grid grid-cols-2 gap-x-8 gap-y-[18px] pt-[18px] sm:grid-cols-4">
+              <Field
+                label="Price"
+                size="display"
+                value={formatMoney(detail.priceAmount, detail.currency)}
+              />
+              <Field
+                label="Compare at"
+                size="display"
                 value={formatMoney(detail.compareAtAmount, detail.currency)}
               />
-              <StatCell label="Currency" value={detail.currency} />
+              <Field label="Currency" size="display" value={detail.currency} />
+              <Field
+                label="Discount"
+                size="display"
+                value={discountText(detail.priceAmount, detail.compareAtAmount)}
+              />
             </div>
-          </Section>
+          </DetailSection>
 
-          {/* Inventory is the mockup's third section — the numbers stated as rows, every write behind
-              a named verb. See InventorySection for the three mockup features refused here. */}
-          <InventorySection detail={detail} />
-
-          <Section title="Attributes" action={<SectionAction onClick={() => setEditing("attributes")}>Edit</SectionAction>}>
+          {/* Not in the mockup, which has no typed attributes; it belongs with the other facts about
+              what the product IS, so it closes the Details tab. */}
+          <DetailSection
+            title="Attributes"
+            subtitle="The extra details this product's type asks for."
+            action={<SectionAction onClick={edit("attributes")}>Edit</SectionAction>}
+          >
             {detail.attributes.length === 0 ? (
-              <p className="text-muted-foreground py-3 text-[13px]">
+              <p className="text-muted-foreground pt-[18px] text-[13px]">
                 This product&apos;s type has no extra attributes.
               </p>
             ) : (
-              detail.attributes.map((a) => (
-                <DetailRow
-                  key={a.name}
-                  label={a.unit ? `${a.name} (${a.unit})` : a.name}
-                  value={formatAttributeValue(a)}
-                />
-              ))
+              <FieldGrid>
+                {detail.attributes.map((a) => (
+                  <Field
+                    key={a.name}
+                    label={a.unit ? `${a.name} (${a.unit})` : a.name}
+                    value={formatAttributeValue(a)}
+                  />
+                ))}
+              </FieldGrid>
             )}
-          </Section>
+          </DetailSection>
+        </TabsContent>
 
-          {/* ⚠ NO "Manage" ACTION, and its removal is a fix rather than a trim. The section carried
-              `<SectionAction>Manage</SectionAction>` with NO onClick — a control that looks live,
-              takes focus, and does nothing when clicked. The mockup needs it because its media lives
-              behind a sheet; ours is managed inline right below (add, make primary, reorder, delete),
-              so the honest header action is none at all. */}
-          <Section title="Media">
-            <div className="pt-3.5">
-              <MediaGallery detail={detail} />
-            </div>
-          </Section>
+        {/* ── Inventory: Stock rules + Stock movements (see InventorySection) ─────────────────── */}
+        <TabsContent value="inventory" className="grid gap-[34px]">
+          <InventorySection detail={detail} />
+        </TabsContent>
 
-          {/* ⚠ THE MOCKUP CALLS THIS "Visibility and channels" AND OURS MUST NOT. Effy is a
-              single-brand storefront with hidden fulfilment: there is exactly one channel, so a
-              heading promising several describes a choice the operator does not have. What the
-              section actually holds is where the product sits in the catalogue and which of the
-              shop's own sections it appears in. */}
-          <Section
-            title="Classification and placement"
-            action={
-              <SectionAction onClick={() => setEditing("categorization")}>Edit</SectionAction>
-            }
+        <TabsContent value="media" className="grid gap-[34px]">
+          <MediaGallery detail={detail} />
+        </TabsContent>
+
+        {/* ⚠ THE MOCKUP CALLS THIS "Visibility and channels" AND OURS MUST NOT. Effy is a single-brand
+            storefront with hidden fulfilment: there is exactly one channel, so a heading promising
+            several describes a choice the operator does not have. What the tab really holds is
+            whether shoppers can see the product and where it is filed. */}
+        <TabsContent value="visibility" className="grid gap-[34px]">
+          <DetailSection
+            title="Visibility and placement"
+            subtitle="Whether shoppers can see this product, and where it is filed."
+            action={<SectionAction onClick={edit("categorization")}>Edit</SectionAction>}
           >
-            <DetailRow label="Type" value={detail.typeName} />
-            <DetailRow label="Category" value={detail.categoryName} />
-            <div className="pt-4">
-              <MicroLabel className="pb-2">Sections</MicroLabel>
+            <FieldGrid>
+              <Field label="Storefront" value={storefrontText(detail.status)} />
+              <Field label="Type" value={detail.typeName} />
+              <Field label="Category" value={detail.categoryName} />
+            </FieldGrid>
+            <div className="grid gap-2 pt-[18px]">
+              <MicroLabel>Sections</MicroLabel>
               <SectionAssignment detail={detail} />
             </div>
-          </Section>
-        </div>
+          </DetailSection>
+        </TabsContent>
+      </Tabs>
 
-        <ProductRail detail={detail} productId={productId} onDeleted={goCatalog} />
-      </div>
+      <ProductActivitySheet detail={detail} open={activityOpen} onOpenChange={setActivityOpen} />
 
       <BasicsEditDialog
         detail={detail}
@@ -247,6 +304,13 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   );
 }
 
+const TABS: readonly { value: DetailTab; label: string }[] = [
+  { value: "details", label: "Details" },
+  { value: "inventory", label: "Inventory" },
+  { value: "media", label: "Media" },
+  { value: "visibility", label: "Visibility" },
+];
+
 function ProductThumb({ detail }: { detail: ProductDetail }) {
   const primary = orderedMedia(detail)[0];
   return primary ? (
@@ -258,91 +322,6 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
   ) : (
     <div className="border-border bg-muted text-muted-foreground grid size-[72px] shrink-0 place-items-center rounded-[var(--radius)] border">
       <ImageOff className="size-5" />
-    </div>
-  );
-}
-
-/**
- * The mockup's right rail.
- *
- * ⚠ ITS "Last 30 days" BLOCK IS SAMPLE DATA IN THE MOCKUP, AND IS NOT REPRODUCED. The platform stores
- * no per-product sales history — nothing on this codebase can answer "units sold, last 30 days" — and
- * drawing the block with invented figures is the exact defect this feature deleted from the dashboard,
- * where four em-dashes and a fake chart had been shipped as if they were real.
- *
- * ⚠ AND THE RAIL NO LONGER RESTATES THE STOCK NUMBERS. It used to carry Tracked / On hand / Threshold
- * beside an Inventory section that now states all three as rows — two places rendering one fact, which
- * is the shape 052 deleted `summarizeFulfillment` for and 033 refused an `available` flag over. What
- * the rail carries in that space is the mockup's own second block, "Recent changes", which is real:
- * every entry is a `stock_movement` row.
- */
-function ProductRail({
-  detail,
-  productId,
-  onDeleted,
-}: {
-  detail: ProductDetail;
-  productId: string;
-  onDeleted: () => void;
-}) {
-  const stock = useQuery(productStockQuery(productId));
-
-  return (
-    <aside className="grid min-w-0 gap-[26px]">
-      <div className="grid gap-0.5">
-        <MicroLabel className="pb-2.5">Recent changes</MicroLabel>
-        {stock.isPending ? (
-          <Skeleton className="h-16 w-full" />
-        ) : stock.isError ? (
-          <p className="text-muted-foreground border-border border-t py-2.5 text-[13px]">
-            Recent changes couldn&apos;t be loaded.
-          </p>
-        ) : stock.data.movements.length === 0 ? (
-          <p className="text-muted-foreground border-border border-t py-2.5 text-[13px]">
-            No stock changes recorded yet.
-          </p>
-        ) : (
-          /* ⚠ FOUR, and the full list stays in the Inventory section. The rail is 260px wide and a
-             movement carries four facts (what moved, why, who, and off the back of which order); the
-             three that do not fit are exactly the ones an operator reconciling a count needs, so the
-             rail summarises and the table below answers. */
-          stock.data.movements
-            .slice(0, 4)
-            .map((m) => <RailChange key={m.id} movement={m} />)
-        )}
-      </div>
-
-      <div className="grid gap-0.5">
-        <MicroLabel className="pb-2.5">Lifecycle</MicroLabel>
-        <RailRow label="Status" value={<Pill variant="quiet">{detail.status}</Pill>} />
-        <RailRow label="Sections" value={detail.sections.length} />
-        <RailRow label="Images" value={detail.media.length} />
-        <RailRow
-          label="Updated"
-          value={new Date(detail.updatedAt).toLocaleDateString(undefined, {
-            day: "numeric",
-            month: "short",
-          })}
-        />
-      </div>
-
-      {/* The mockup puts the removal at the foot of the rail, furthest from everything routine. */}
-      <ProductRemovalControl detail={detail} onDeleted={onDeleted} />
-    </aside>
-  );
-}
-
-/** One line of the rail's change log: what happened, and when. */
-function RailChange({ movement }: { movement: StockMovementDTO }) {
-  return (
-    <div className="border-border grid gap-0.5 border-t py-2.5">
-      <span className="text-[13px]">{stockChangeTitle(movement)}</span>
-      <span className="text-muted-foreground text-[12px]">
-        {new Date(movement.createdAt).toLocaleString(undefined, {
-          dateStyle: "medium",
-          timeStyle: "short",
-        })}
-      </span>
     </div>
   );
 }

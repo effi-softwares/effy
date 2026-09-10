@@ -60,6 +60,105 @@ export function Section({
 }
 
 /**
+ * An open, card-free page section (057 product-detail revision): a bold title, a one-line muted
+ * subtitle saying what the section IS, its action right-aligned on the same row — then ONE hairline,
+ * then the content.
+ *
+ * ⚠ DISTINCT FROM `Section`, NOT A REPLACEMENT. `Section` draws a row-list whose every row carries its
+ * own bottom border; the product screen dropped those per-row rules because a divider under every
+ * field reads as noise once fields sit in a grid. Order detail still wants the row-list, so the two
+ * shapes live side by side rather than one prop flipping the other's semantics.
+ */
+export function DetailSection({
+  title,
+  subtitle,
+  action,
+  children,
+  className,
+}: {
+  title: ReactNode
+  subtitle: ReactNode
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <section className={cn("grid min-w-0", className)}>
+      <div className="border-border flex items-start justify-between gap-4 border-b pb-[11px]">
+        <div className="grid min-w-0 gap-[3px]">
+          <h2 className="text-sm font-semibold tracking-[-.01em]">{title}</h2>
+          <p className="text-muted-foreground text-[12.5px] leading-[1.5]">{subtitle}</p>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+/**
+ * The responsive field grid under a `DetailSection` — auto-fit columns, so the content fills the page
+ * width instead of hugging a narrow measure. `min` is the narrowest a column may get.
+ */
+export function FieldGrid({
+  children,
+  min = 210,
+  className,
+}: {
+  children: ReactNode
+  min?: number
+  className?: string
+}) {
+  return (
+    <div
+      className={cn("grid gap-x-8 gap-y-[18px] pt-[18px]", className)}
+      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))` }}
+    >
+      {children}
+    </div>
+  )
+}
+
+/**
+ * One stacked field: an uppercase micro-label above its value. `wide` spans every column and caps the
+ * value at a readable measure (descriptions); `size` picks the value scale — `body` for prose,
+ * `figure` for counts (15px), `display` for money (19px).
+ */
+export function Field({
+  label,
+  value,
+  mono,
+  wide,
+  size = "body",
+  emphasis,
+}: {
+  label: ReactNode
+  value: ReactNode
+  mono?: boolean
+  wide?: boolean
+  size?: "body" | "figure" | "display"
+  emphasis?: boolean
+}) {
+  return (
+    <div className={cn("grid min-w-0 content-start gap-[5px]", wide && "col-span-full")}>
+      <MicroLabel className="whitespace-normal">{label}</MicroLabel>
+      <div
+        className={cn(
+          size === "body" && "text-[13.5px] leading-[1.55]",
+          size === "figure" && "text-[15px] font-semibold tracking-[-.01em] tabular-nums",
+          size === "display" && "text-[19px] font-semibold tracking-[-.02em] tabular-nums",
+          wide && "max-w-[68ch]",
+          mono && "font-mono",
+          emphasis && "font-semibold",
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  )
+}
+
+/**
  * The section-header action: `Edit`, `Manage`, `See all`.
  *
  * ⚠ `onClick` IS REQUIRED, AND THAT IS A FIX. The product screen shipped

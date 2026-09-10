@@ -1,8 +1,10 @@
 import { useRef, useState } from "react";
 
-import { ArrowDown, ArrowUp, ImageOff, ImagePlus, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ImageOff, Star, Trash2 } from "lucide-react";
 
 import { Badge, Button } from "@effy/design-system/ui";
+
+import { DetailSection, SectionAction } from "@/components/console/primitives";
 
 import { orderedMedia } from "./detailFormat";
 import { productMutationError } from "./errorText";
@@ -15,7 +17,7 @@ const ACCEPT = "image/jpeg,image/png,image/webp";
 
 /**
  * Media gallery management (US4 T064): add (presign→PUT→register), set-primary, reorder, delete.
- * No cards — a plain divided list of rows (DOCTRINE-2). Every write invalidates the detail query, so
+ * No cards — a wrap of 110px thumbnails in the product screen's Media tab (057, DOCTRINE-2). Every write invalidates the detail query, so
  * the gallery re-renders from the server's truth rather than a hand-patched local copy (Principle VI).
  */
 export function MediaGallery({ detail }: { detail: ProductDetail }) {
@@ -74,113 +76,114 @@ export function MediaGallery({ detail }: { detail: ProductDetail }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          The primary image is shown first everywhere the product appears.
-        </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPT}
-          className="hidden"
-          onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-        >
-          <ImagePlus />
+    <DetailSection
+      title="Media"
+      subtitle="Images shown on the storefront, in order. The first is the thumbnail."
+      action={
+        <SectionAction onClick={() => inputRef.current?.click()} disabled={busy}>
           Add image
-        </Button>
-      </div>
+        </SectionAction>
+      }
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPT}
+        className="hidden"
+        onChange={(e) => void onPick(e.target.files?.[0] ?? null)}
+      />
 
-      {progress != null ? (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full bg-primary transition-all"
-            style={{ width: `${progress}%` }}
-            role="progressbar"
-            aria-valuenow={progress}
-            aria-valuemin={0}
-            aria-valuemax={100}
-          />
-        </div>
-      ) : null}
+      <div className="grid gap-4 pt-[18px]">
+        {progress != null ? (
+          <div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
+            <div
+              className="bg-primary h-full transition-all"
+              style={{ width: `${progress}%` }}
+              role="progressbar"
+              aria-valuenow={progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            />
+          </div>
+        ) : null}
 
-      {media.length === 0 ? (
-        <div className="flex items-center gap-2 rounded-md border border-dashed px-4 py-6 text-sm text-muted-foreground">
-          <ImageOff className="size-4" />
-          No images yet. Add one to give this product a picture.
-        </div>
-      ) : (
-        <ul className="divide-y rounded-md border">
-          {media.map((m, i) => (
-            <li key={m.id} className="flex items-center gap-3 p-3">
-              <img
-                src={m.url}
-                alt={m.altText ?? ""}
-                className="h-14 w-14 rounded-md border object-cover"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  {m.isPrimary ? <Badge variant="success">Primary</Badge> : null}
-                  <span className="truncate text-sm text-muted-foreground">
-                    {m.altText || "No alt text"}
-                  </span>
+        {media.length === 0 ? (
+          <div className="text-muted-foreground flex items-center gap-2 rounded-md border border-dashed px-4 py-6 text-sm">
+            <ImageOff className="size-4" />
+            No images yet. Add one to give this product a picture.
+          </div>
+        ) : (
+          /* ⚠ THE MOCKUP'S 110px SQUARES, and the management stays inline under each one. The mockup
+             hides reorder/primary/delete behind a "Manage" sheet; ours are four icon buttons beneath
+             the tile they act on, so there is no second surface restating the same gallery. */
+          <ul className="flex flex-wrap gap-3">
+            {media.map((m, i) => (
+              <li key={m.id} className="grid w-[110px] gap-1.5">
+                <div className="relative">
+                  <img
+                    src={m.url}
+                    alt={m.altText ?? ""}
+                    className="border-border bg-muted size-[110px] rounded-[var(--radius)] border object-cover"
+                  />
+                  {m.isPrimary ? (
+                    <Badge variant="success" className="absolute top-1.5 left-1.5">
+                      Primary
+                    </Badge>
+                  ) : null}
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={busy || i === 0}
-                  onClick={() => move(i, -1)}
-                  aria-label="Move up"
-                >
-                  <ArrowUp />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={busy || i === media.length - 1}
-                  onClick={() => move(i, 1)}
-                  aria-label="Move down"
-                >
-                  <ArrowDown />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={busy || m.isPrimary}
-                  onClick={() => setPrimary(m.id)}
-                  aria-label="Set as primary"
-                >
-                  <Star />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  disabled={busy}
-                  onClick={() => del(m.id)}
-                  aria-label="Delete image"
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                <div className="flex items-center justify-between">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    disabled={busy || i === 0}
+                    onClick={() => move(i, -1)}
+                    aria-label="Move earlier"
+                  >
+                    <ArrowLeft />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    disabled={busy || i === media.length - 1}
+                    onClick={() => move(i, 1)}
+                    aria-label="Move later"
+                  >
+                    <ArrowRight />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    disabled={busy || m.isPrimary}
+                    onClick={() => setPrimary(m.id)}
+                    aria-label="Set as primary"
+                  >
+                    <Star />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    disabled={busy}
+                    onClick={() => del(m.id)}
+                    aria-label="Delete image"
+                  >
+                    <Trash2 />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-    </div>
+        {error ? <p className="text-destructive text-sm">{error}</p> : null}
+      </div>
+    </DetailSection>
   );
 }

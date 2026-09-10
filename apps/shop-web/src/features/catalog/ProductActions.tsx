@@ -38,7 +38,15 @@ import { useQuery } from "@tanstack/react-query";
  * body says what actually happens to orders and to the stock count, because "are you sure?" on its own
  * teaches nobody anything.
  */
-export function ProductHeaderActions({ detail }: { detail: ProductDetail }) {
+export function ProductHeaderActions({
+  detail,
+  onOpenActivity,
+  onDeleted,
+}: {
+  detail: ProductDetail;
+  onOpenActivity: () => void;
+  onDeleted: () => void;
+}) {
   const changeStatus = useChangeStatus(detail.id);
   const stock = useQuery(productStockQuery(detail.id));
   const [receiveOpen, setReceiveOpen] = useState(false);
@@ -78,6 +86,12 @@ export function ProductHeaderActions({ detail }: { detail: ProductDetail }) {
           {action.label}
         </Button>
       ) : null}
+
+      <Button variant="outline" size="sm" onClick={onOpenActivity}>
+        Activity
+      </Button>
+
+      <ProductRemovalControl detail={detail} onDeleted={onDeleted} />
 
       {error ? <span className="text-destructive text-sm">{error}</span> : null}
 
@@ -121,7 +135,8 @@ export function ProductHeaderActions({ detail }: { detail: ProductDetail }) {
 }
 
 /**
- * The removal control at the foot of the right rail, where the mockup puts it.
+ * The removal control — last in the header's action row (057 revision; it used to sit at the foot of
+ * a right rail the revised mockup deleted). Rendered by `ProductHeaderActions`.
  *
  * ⚠ ARCHIVING IS NOT DELETION AND THE BUTTON NEVER PRETENDS IT IS. A published product cannot be hard
  * deleted — the backend refuses it, because orders and fulfilments reference the row — so the only
@@ -170,11 +185,18 @@ export function ProductRemovalControl({
   }
 
   return (
-    <div className="grid gap-2">
-      {/* ⚠ Outlined, not filled, and the word is the only thing carrying weight. The mockup tints this
-          button with `--destructive`; ours does not, because the platform's destructive colour is
-          reserved for a refusal the operator did not ask for, and archiving is reversible. */}
-      <Button variant="outline" size="sm" disabled={busy} onClick={() => setConfirm(true)}>
+    <>
+      {/* ⚠ OUTLINED, NOT FILLED — only the WORD takes the destructive colour (operator direction,
+          2026-09-10, reversing this button's earlier neutral treatment). The platform's `--destructive`
+          is AA as text, so the label reads; a filled red button would shout a reversible archive as
+          loudly as a permanent delete, and the confirmation is what carries the weight. */}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={() => setConfirm(true)}
+        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+      >
         {action.label}
       </Button>
 
@@ -200,6 +222,6 @@ export function ProductRemovalControl({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
