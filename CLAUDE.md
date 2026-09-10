@@ -283,7 +283,10 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   `FieldGrid` / `Field` primitives beside `Section`/`DetailRow`. ⚠ **The revision's variants, unit
   cost/margin, reorder point, "Last 30 days" stats, seeded log and coloured dots were NOT reproduced** —
   each slot carries the real equivalent (spec A2 §5, research R10); `inventory-guard` passes unchanged.
-- ⚠ **AMENDMENT A3 (2026-09-10): ORDERS LIST + ORDER DETAIL REBUILT** on A2's conventions. List:
+- ⚠ **AMENDMENT A3 (2026-09-10): ORDERS LIST + ORDER DETAIL REBUILT** — ⚠ **revised the same day to the
+  design's MARKUP** (operator: "follow the design"): list row-for-row incl. the Items summary column;
+  detail = sticky summary bar + two columns with an in-page Activity log (NO tabs, NO side sheet);
+  dialogs on `components/console/DesignSheet`. First pass used A2's conventions and was rejected. List:
   server-side tabs (counts over every state), saved views (derived presets), search + 4 filters,
   sortable columns, paging, CSV export, bulk fulfil/tag/can't-supply — state in the URL. Detail: header
   block + prev/next, tabs Summary · Items · Fulfilment (reset per order), Activity **sheet**, tags +

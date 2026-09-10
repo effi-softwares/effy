@@ -78,7 +78,7 @@ const REFUND_TOTALS = `
 /**
  * Every portion this shop holds, with everything a row or a filter needs, computed once.
  *
- * `$1` shop · `$2` search pattern (NULL = none) · `$3` attention · `$4` payment · `$5` method ·
+ * `$1` shop · `$2` search pattern over order number, customer, item names and SKUs (NULL = none) · `$3` attention · `$4` payment · `$5` method ·
  * `$6` range. The tab is deliberately NOT a predicate here: the per-tab counts are taken over this
  * set, which is what makes each count answer "how many would I see if I clicked it" under whatever
  * else is applied.
@@ -99,6 +99,8 @@ WITH base AS (
          ${paymentStateSql("o.grand_total_amount", "rf.settled", "rf.pending")} AS payment,
          ${AT_RISK} AS at_risk,
          COALESCE(tg.tags, ARRAY[]::text[]) AS tags,
+         COALESCE(li.items_summary, '') AS items_summary,
+         COALESCE(li.skus, '') AS skus,
          CASE WHEN sf.status IN ('pending', 'received') THEN 'new' ELSE sf.status END AS tab
     FROM public.shop_fulfillment sf
     JOIN public."order" o ON o.id = sf.order_id
@@ -108,6 +110,16 @@ WITH base AS (
        WHERE x.shop_fulfillment_id = sf.id
     ) fi ON true
     ${REFUND_TOTALS}
+    -- The design's Items column: "Eggs ×2, Oat milk" over THIS shop's lines only (the fan-out key,
+    -- oi.shop_id = sf.shop_id, as everywhere else). SKUs ride along so search can match them.
+    LEFT JOIN LATERAL (
+      SELECT string_agg(split_part(oi.product_name, ',', 1) || ' ×' || oi.quantity, ', '
+                        ORDER BY oi.product_name, oi.id) AS items_summary,
+             string_agg(COALESCE(p.sku, ''), ' ') AS skus
+        FROM public.order_item oi
+        LEFT JOIN public.product p ON p.id = oi.product_id
+       WHERE oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
+    ) li ON true
     LEFT JOIN LATERAL (
       SELECT array_agg(t.tag ORDER BY t.tag) AS tags
         FROM public.fulfillment_tag t
@@ -117,7 +129,8 @@ WITH base AS (
 ), filtered AS (
   SELECT *
     FROM base
-   WHERE ($2::text IS NULL OR order_number ILIKE $2 OR customer_name ILIKE $2)
+   WHERE ($2::text IS NULL OR order_number ILIKE $2 OR customer_name ILIKE $2
+          OR items_summary ILIKE $2 OR skus ILIKE $2)
      AND (   $3::text = 'any'
           OR ($3::text = 'at_risk'  AND at_risk)
           OR ($3::text = 'short'    AND unavailable_count > 0)
@@ -161,6 +174,7 @@ interface RowRecord {
   payment: PaymentState;
   at_risk: boolean;
   tags: string[];
+  items_summary: string;
   full_count: string;
 }
 
@@ -226,6 +240,7 @@ function toRow(r: RowRecord): OrderRow {
     total: money(r.total),
     currency: r.currency,
     tags: r.tags,
+    itemsSummary: r.items_summary,
   };
 }
 

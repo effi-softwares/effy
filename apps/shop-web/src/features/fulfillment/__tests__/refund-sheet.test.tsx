@@ -17,7 +17,7 @@ vi.mock("../repo", () => ({
   getOrder,
   issueShopRefund,
   listOrders: vi.fn(async () => orderList([])),
-  getOrderActivity: vi.fn(),
+  getOrderActivity: vi.fn(async () => ({ entries: [] })),
   setOrderTags: vi.fn(),
   addOrderNote: vi.fn(),
   listFulfillments: vi.fn(),
@@ -71,55 +71,53 @@ function wrap(roles: string[]) {
  * nothing about.
  */
 describe("shop refund control", () => {
-  it("offers refunding to a shop manager, in the Payment section's header", async () => {
+  const paymentCard = async () =>
+    (await screen.findByText(/captured at checkout/)).parentElement as HTMLElement
+
+  it("offers refunding to a shop manager, in the Payment card", async () => {
     wrap(["shop_manager"])
-    const payment = (await screen.findByRole("heading", { name: "Payment" })).closest("section")!
-    expect(within(payment).getByRole("button", { name: "Refund" })).toBeInTheDocument()
+    expect(within(await paymentCard()).getByRole("button", { name: "Refund" })).toBeInTheDocument()
   })
 
   it("withholds it from shop_staff, who still keep full fulfilment access", async () => {
     wrap(["shop_staff"])
-    await screen.findByRole("heading", { name: "Payment" })
+    await paymentCard()
     expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole("tab", { name: "Items" }))
-    expect(screen.getByText("Barossa Free-Range Eggs 700g")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument()
+    expect(screen.getAllByText("Barossa Free-Range Eggs 700g").length).toBeGreaterThan(0)
   })
 
   it("withholds it from a role-less operator", async () => {
     wrap([])
-    await screen.findByRole("heading", { name: "Payment" })
+    await paymentCard()
     expect(screen.queryByRole("button", { name: "Refund" })).not.toBeInTheDocument()
   })
 
   it("never issues a refund from merely rendering the screen", async () => {
     wrap(["shop_manager"])
-    await screen.findByRole("heading", { name: "Payment" })
+    await paymentCard()
     expect(issueShopRefund).not.toHaveBeenCalled()
   })
 
-  /** 057 A3 — the line-level refund opens the sheet with exactly that line, at what is left of it. */
-  it("a line's Refund opens the sheet with that line chosen, clamped to what is still refundable", async () => {
+  /** The design's line picker: a quantity per line, a "max" shortcut clamped to what is left. */
+  it("offers each line up to what is still refundable", async () => {
     wrap(["shop_manager"])
-    await userEvent.click(await screen.findByRole("tab", { name: "Items" }))
-    const row = screen.getByText("Oat milk 1L").closest("tr")!
-    await userEvent.click(within(row).getByRole("button", { name: "Refund" }))
-
+    await userEvent.click(within(await paymentCard()).getByRole("button", { name: "Refund" }))
     const sheet = await screen.findByRole("dialog")
-    expect(within(sheet).getByLabelText("Refund Oat milk 1L")).toBeChecked()
-    expect(within(sheet).getByLabelText("Refund Barossa Free-Range Eggs 700g")).not.toBeChecked()
-    // 3 ordered, 1 already on its way back → 2.
-    expect(within(sheet).getByLabelText("Quantity to refund for Oat milk 1L")).toHaveValue("2")
-    expect(within(sheet).getByText("1 already refunded", { exact: false })).toBeInTheDocument()
+    // Oat milk: 3 ordered, 1 already on its way back → max 2 (the eggs' 2 of 2 read "max 2" too).
+    expect(within(sheet).getAllByRole("button", { name: "max 2" })).toHaveLength(2)
+    expect(within(sheet).getByText(/1 already refunded/)).toBeInTheDocument()
+    expect(within(sheet).getByRole("button", { name: "Issue refund" })).toBeDisabled()
   })
 
-  it("sends lines and quantities — never an amount", async () => {
+  it("sends lines and quantities — never an amount — and restock only when asked", async () => {
     issueShopRefund.mockResolvedValue({ refundId: "r1", status: "submitted", amount: "6.00" })
     wrap(["shop_manager"])
-    await userEvent.click(await screen.findByRole("tab", { name: "Items" }))
-    const row = screen.getByText("Oat milk 1L").closest("tr")!
-    await userEvent.click(within(row).getByRole("button", { name: "Refund" }))
-    await userEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: /^Refund 1 item$/ }))
+    await userEvent.click(within(await paymentCard()).getByRole("button", { name: "Refund" }))
+    const sheet = await screen.findByRole("dialog")
+    // The second line — oat milk, $3.00 each.
+    await userEvent.click(within(sheet).getAllByRole("button", { name: "max 2" })[1]!)
+    expect(within(sheet).getByText("$6.00", { selector: "div.text-base" })).toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole("button", { name: "Issue refund" }))
 
     await waitFor(() => expect(issueShopRefund).toHaveBeenCalled())
     const [orderId, body] = issueShopRefund.mock.calls[0]!
@@ -134,9 +132,8 @@ describe("shop refund control", () => {
    */
   it("shows the order's money, but no capture control and no tax line", async () => {
     wrap(["shop_manager"])
-    await screen.findByText("Authorised")
+    await paymentCard()
     expect(screen.queryByRole("button", { name: /capture/i })).not.toBeInTheDocument()
-    const text = document.body.textContent ?? ""
-    expect(text).not.toMatch(/\b(VAT|GST)\b/)
+    expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/)
   })
 })

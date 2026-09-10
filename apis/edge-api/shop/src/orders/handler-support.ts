@@ -29,6 +29,7 @@ function toRowDTO(r: OrderRow): ShopOrderRowDTO {
     total: r.total,
     currency: r.currency,
     tags: r.tags,
+    itemsSummary: r.itemsSummary,
   };
 }
 

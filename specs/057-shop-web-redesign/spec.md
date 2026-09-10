@@ -107,6 +107,14 @@ reset per record). Decisions recorded with the operator before building:
    delivery method, Date), sort and page are server-side so tab counts cover every state. Default
    sort stays oldest-first (020 FR-001b).
 
+8. **Revised the same day (operator: "follow the design")**: both screens are now the design's MARKUP,
+   not A2's conventions. List: tabs + search + Export CSV on one row, Views chips, labelled filter
+   selects (Date · Payment · Fulfilment · Delivery) with the count, the Items summary column. Detail:
+   position + prev/next, the sticky summary bar, two columns (Items with totals + Refunded box,
+   Fulfilment, Internal notes, an in-page Activity log | Payment card, Print pick list, Can't supply,
+   Tags, Customer, Ship to, Bill to). Dialogs use the design's sheet (`DesignSheet`). No tabs, no
+   side sheet on this screen.
+
 - **FR-016** *(A3)*: Every order mutation from the console MUST append to the order's activity log and
   raise a confirmation toast.
 - **FR-017** *(A3)*: A shop refund MUST return stock only when the shop asked for it (the refund

@@ -18,6 +18,7 @@ export function orderRow(over: Partial<OrderRow> = {}): OrderRow {
     total: "57.80",
     currency: "AUD",
     tags: [],
+    itemsSummary: "Barossa Free-Range Eggs 700g ×2, Oat milk 1L ×2",
     ...over,
   }
 }

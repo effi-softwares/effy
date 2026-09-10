@@ -1,61 +1,58 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { CheckCircle2, Loader2, Tag } from "lucide-react"
 
-import {
-  Button,
-  Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  toast,
-} from "@effy/design-system/ui"
+import { toast } from "@effy/design-system/ui"
 
+import { DesignSheet, SheetField } from "@/components/console/DesignSheet"
 import { track } from "@/lib/telemetry"
+import { cn } from "@/lib/utils"
 
 import { bulkCandidates, summarise, withTag, type BulkOutcome } from "../bulk"
 import { fulfillmentMutationError } from "../errorText"
+import type { RequestableTransition } from "../model"
 import type { OrderRow } from "../orderConsole"
 import { invalidateOrders } from "../queries"
 import { setOrderTags, transitionFulfillment } from "../repo"
 import { CantSupplyDialog } from "./StateControl"
 
 /**
- * The bulk bar (US2, T027; 057 A3's fulfil · tag · cancel · clear) — appears only when rows are
- * selected, and says how many.
+ * The bulk bar — the design's `hasSel` strip: "N selected" · a rule · the actions · Clear on the right.
  *
- * ⚠ IT RUNS SEQUENTIALLY, NOT IN PARALLEL. Parallel requests against the same queue would race the
- * server's own state guards and produce a wall of 409s that mean nothing to the operator. Sequential
- * is slower and honest: each portion is advanced against the state the server actually held when its
- * turn came.
+ * ⚠ THE DESIGN'S "Mark packed / Mark shipped" ARE EFFY'S TWO FORWARD STEPS: "Start picking" and "Mark
+ * ready". Each moves only the selected orders that are at the step before it — never a state forced
+ * onto an order already past it. "Cancel orders" is the can't-supply declaration (a shop cannot cancel
+ * a customer's order), confirmed in a sheet that names every order it will touch.
  *
- * ⚠ A FAILURE DOES NOT ABORT THE RUN. Advancing eight orders and stopping at the third because one
- * refused would leave the operator with no idea which five were untouched. Every candidate is
- * attempted; the toast names what refused.
+ * ⚠ SEQUENTIAL, AND A FAILURE DOES NOT ABORT THE RUN — each portion is moved against the state the
+ * server held when its turn came, and the toast names what refused.
  */
 export function BulkActions({
   rows,
   selected,
   onClear,
+  onExport,
 }: {
   rows: readonly OrderRow[]
   selected: ReadonlySet<string>
   onClear: () => void
+  onExport: (rows: readonly OrderRow[]) => void
 }) {
   const queryClient = useQueryClient()
-  const [running, setRunning] = useState<"advance" | "tag" | null>(null)
+  const [running, setRunning] = useState(false)
   const [tagOpen, setTagOpen] = useState(false)
   const [tag, setTag] = useState("")
   const [cancelOpen, setCancelOpen] = useState(false)
 
   const candidates = bulkCandidates(rows, selected)
-  const skipped = selected.size - candidates.length
   const chosen = rows.filter((r) => selected.has(r.id))
+  const toPicking = candidates.filter((c) => c.to === "picking")
+  const toReady = candidates.filter((c) => c.to === "ready_for_pickup")
 
-  async function advance() {
-    setRunning("advance")
-    const outcome: BulkOutcome = { succeeded: [], failed: [], skipped }
-    for (const c of candidates) {
+  async function advance(to: RequestableTransition) {
+    const batch = candidates.filter((c) => c.to === to)
+    setRunning(true)
+    const outcome: BulkOutcome = { succeeded: [], failed: [], skipped: selected.size - batch.length }
+    for (const c of batch) {
       const from = rows.find((r) => r.id === c.id)?.status ?? "received"
       try {
         await transitionFulfillment(c.id, { to: c.to })
@@ -65,10 +62,8 @@ export function BulkActions({
         outcome.failed.push({ orderNumber: c.orderNumber, reason: fulfillmentMutationError(err) })
       }
     }
-    // One invalidation at the end, not one per order — N refetches mid-run would repaint the table
-    // under the operator's hand.
     invalidateOrders(queryClient)
-    setRunning(null)
+    setRunning(false)
     const message = summarise(outcome)
     if (outcome.failed.length === 0 && outcome.succeeded.length > 0) toast.success(message)
     else toast.error(message)
@@ -77,7 +72,7 @@ export function BulkActions({
 
   async function addTag() {
     const writes = withTag(rows, selected, tag)
-    setRunning("tag")
+    setRunning(true)
     const failed: string[] = []
     for (const w of writes) {
       try {
@@ -87,7 +82,7 @@ export function BulkActions({
       }
     }
     invalidateOrders(queryClient)
-    setRunning(null)
+    setRunning(false)
     const done = writes.length - failed.length
     if (done > 0) toast.success(`Tagged ${done} order${done === 1 ? "" : "s"} “${tag.trim().toLowerCase()}”`)
     if (writes.length === 0) toast.message("Every selected order already has that tag.")
@@ -96,89 +91,93 @@ export function BulkActions({
     setTagOpen(false)
   }
 
-  const busy = running !== null
-
   return (
     <div className="border-border bg-muted flex flex-wrap items-center gap-2.5 rounded-[var(--radius)] border px-3.5 py-2.5">
-      <span className="text-[13px] font-medium whitespace-nowrap tabular-nums">
+      <div className="text-[13px] font-medium whitespace-nowrap tabular-nums">
         {selected.size} selected
-      </span>
-      <span aria-hidden="true" className="bg-border h-4 w-px" />
-
-      <div className="flex flex-wrap gap-1.5">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-[12.5px]"
-          disabled={busy || candidates.length === 0}
-          title={candidates.length === 0 ? "Nothing selected can be advanced — already finished" : undefined}
-          onClick={() => void advance()}
-        >
-          {running === "advance" ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-          Fulfil {candidates.length > 0 ? candidates.length : ""}
-        </Button>
-
-        <Popover open={tagOpen} onOpenChange={setTagOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="h-7 text-[12.5px]" disabled={busy}>
-              {running === "tag" ? <Loader2 className="animate-spin" /> : <Tag />}
-              Add tag
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-64">
-            <form
-              className="grid gap-2"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (tag.trim()) void addTag()
-              }}
-            >
-              <label htmlFor="bulk-tag" className="text-[13px] font-medium">
-                Tag {selected.size} order{selected.size === 1 ? "" : "s"}
-              </label>
-              <Input
-                id="bulk-tag"
-                autoFocus
-                maxLength={32}
-                placeholder="e.g. fragile"
-                value={tag}
-                onChange={(e) => setTag(e.target.value)}
-              />
-              <Button type="submit" size="sm" disabled={!tag.trim() || busy}>
-                Add tag
-              </Button>
-            </form>
-          </PopoverContent>
-        </Popover>
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive hover:text-destructive h-7 text-[12.5px]"
-          disabled={busy}
-          onClick={() => setCancelOpen(true)}
-        >
-          Can&apos;t supply
-        </Button>
       </div>
-
+      <div aria-hidden="true" className="bg-border h-4 w-px" />
+      <div className="flex flex-wrap gap-1.5">
+        <BarButton disabled={running || toPicking.length === 0} onClick={() => void advance("picking")}>
+          Start picking
+        </BarButton>
+        <BarButton disabled={running || toReady.length === 0} onClick={() => void advance("ready_for_pickup")}>
+          Mark ready
+        </BarButton>
+        <BarButton disabled={running} onClick={() => setTagOpen(true)}>
+          Add tag
+        </BarButton>
+        <BarButton disabled={running} onClick={() => onExport(chosen)}>
+          Export
+        </BarButton>
+        <BarButton disabled={running} destructive onClick={() => setCancelOpen(true)}>
+          Can&apos;t supply
+        </BarButton>
+      </div>
       <div className="flex-1" />
-      <Button
-        variant="ghost"
-        size="sm"
-        className="text-muted-foreground h-7 text-[12.5px]"
-        disabled={busy}
+      <button
+        type="button"
+        disabled={running}
         onClick={onClear}
+        className="text-muted-foreground hover:text-foreground h-7 cursor-pointer rounded-md border-none bg-transparent px-2.5 text-[12.5px] font-medium whitespace-nowrap"
       >
-        Clear selection
-      </Button>
+        Clear
+      </button>
 
-      <CantSupplyDialog
-        targets={chosen}
-        open={cancelOpen}
-        onOpenChange={setCancelOpen}
-        onDone={onClear}
-      />
+      <DesignSheet
+        open={tagOpen}
+        onOpenChange={setTagOpen}
+        title="Tag selected orders"
+        description="The tag is added to every order you picked."
+        saveLabel="Add tag"
+        canSave={tag.trim() !== ""}
+        saving={running}
+        onSave={() => void addTag()}
+      >
+        <SheetField label="Add a tag" htmlFor="bulk-tag">
+          <input
+            id="bulk-tag"
+            autoFocus
+            maxLength={32}
+            placeholder="Fragile"
+            value={tag}
+            onChange={(e) => setTag(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && tag.trim()) void addTag()
+            }}
+            className="border-input bg-background focus:border-ring h-9 rounded-md border px-3 text-sm outline-none"
+          />
+        </SheetField>
+      </DesignSheet>
+
+      <CantSupplyDialog targets={chosen} open={cancelOpen} onOpenChange={setCancelOpen} onDone={onClear} />
     </div>
+  )
+}
+
+/** The bar's buttons: 28px, outline on the background, 12.5px — the destructive one in red. */
+function BarButton({
+  children,
+  onClick,
+  disabled,
+  destructive,
+}: {
+  children: ReactNode
+  onClick: () => void
+  disabled?: boolean
+  destructive?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "border-input bg-background h-7 cursor-pointer rounded-md border px-2.5 text-[12.5px] font-medium whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50",
+        destructive ? "text-destructive hover:bg-destructive/10" : "hover:bg-accent",
+      )}
+    >
+      {children}
+    </button>
   )
 }

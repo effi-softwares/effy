@@ -182,6 +182,19 @@ describe.skipIf(!RUN)("shop order console — against real PostgreSQL and the re
     expect(out.counts.all).toBe(1);
   });
 
+  it("summarises this shop's lines for the Items column, and searches item names", async () => {
+    await order({
+      number: "EFY-I",
+      recipient: "I",
+      lines: [{ name: "Oat milk, 1L", price: 3, qty: 2 }, { name: "Bread", price: 5, qty: 1 }],
+    });
+    const out = await listOrders(SHOP, parseListQuery({}));
+    // The design's "name ×qty" — the part before the first comma, as it does.
+    expect(out.items[0]!.itemsSummary).toBe("Bread ×1, Oat milk ×2");
+    expect((await listOrders(SHOP, parseListQuery({ q: "oat" }))).items).toHaveLength(1);
+    expect((await listOrders(SHOP, parseListQuery({ q: "cheese" }))).items).toHaveLength(0);
+  });
+
   it("derives payment state from refunds — submitted is pending, not refunded", async () => {
     const full = await order({ number: "EFY-F", recipient: "F", total: 30 });
     const part = await order({ number: "EFY-P", recipient: "P", total: 30 });

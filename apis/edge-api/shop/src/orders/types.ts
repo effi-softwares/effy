@@ -83,6 +83,8 @@ export interface OrderRow {
   total: string;
   currency: string;
   tags: string[];
+  /** "Eggs ×2, Oat milk ×1" — this shop's lines, for the list's Items column. */
+  itemsSummary: string;
 }
 
 export interface OrderList {

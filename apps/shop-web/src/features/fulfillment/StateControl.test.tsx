@@ -84,27 +84,37 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
   // ⚠ It tells Effy to refund a customer and takes the order off the queue for good.
   it("names the consequence before it acts", () => {
     wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />);
-    expect(screen.getByText(/asks effy to refund the customer/i)).toBeInTheDocument();
+    expect(screen.getByText(/effy refunds the customer/i)).toBeInTheDocument();
     expect(screen.getByText(/can't be undone/i)).toBeInTheDocument();
     expect(transitionFulfillment).not.toHaveBeenCalled();
   });
 
-  // ⚠ A REASON IS REQUIRED, here and in the database.
-  it("cannot be declared without a reason", async () => {
+  it("sends the chosen reason", async () => {
     const onOpenChange = vi.fn();
     wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={onOpenChange} />);
-    const confirm = screen.getByRole("button", { name: /^can't supply it$/i });
-    expect(confirm).toBeDisabled();
-
-    await userEvent.type(screen.getByLabelText(/why can't you supply/i), "the chiller failed");
-    await userEvent.click(confirm);
+    await userEvent.selectOptions(screen.getByLabelText(/why can't you supply/i), "Items damaged or unusable");
+    await userEvent.click(screen.getByRole("button", { name: /^can't supply it$/i }));
     await waitFor(() =>
-      expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "unfulfillable", reason: "the chiller failed" }),
+      expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "unfulfillable", reason: "Items damaged or unusable" }),
     );
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 
-  // ⚠ In bulk it lists every order it will touch, and leaves out what is past the point of no return.
+  // ⚠ A REASON IS REQUIRED, here and in the database — "Other" asks for the words.
+  it("cannot be declared as Other without saying what happened", async () => {
+    wrap(<CantSupplyDialog targets={[target("picking")]} open onOpenChange={() => {}} />);
+    await userEvent.selectOptions(screen.getByLabelText(/why can't you supply/i), "Other");
+    const confirm = screen.getByRole("button", { name: /^can't supply it$/i });
+    expect(confirm).toBeDisabled();
+    await userEvent.type(screen.getByLabelText(/say what happened/i), "the chiller failed");
+    expect(confirm).toBeEnabled();
+    await userEvent.click(confirm);
+    await waitFor(() =>
+      expect(transitionFulfillment).toHaveBeenCalledWith("f1", { to: "unfulfillable", reason: "the chiller failed" }),
+    );
+  });
+
+  // ⚠ In bulk it lists every order it will touch, and leaves out the ones already gone.
   it("in bulk, names each order and leaves out the ones already gone", async () => {
     wrap(
       <CantSupplyDialog
@@ -122,7 +132,6 @@ describe("CantSupplyDialog (055 US6, 057 A3)", () => {
     expect(screen.queryByText("EFY-C")).not.toBeInTheDocument();
     expect(screen.getByText(/1 selected order has already left your hands/i)).toBeInTheDocument();
 
-    await userEvent.type(screen.getByLabelText(/why can't you supply/i), "power cut");
     await userEvent.click(screen.getByRole("button", { name: /^can't supply 2$/i }));
     await waitFor(() => expect(transitionFulfillment).toHaveBeenCalledTimes(2));
     expect(transitionFulfillment).not.toHaveBeenCalledWith("c", expect.anything());

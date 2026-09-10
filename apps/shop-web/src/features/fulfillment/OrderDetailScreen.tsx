@@ -2,83 +2,53 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { isShopManager } from "@effy/shared-types";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ChevronLeft, ChevronRight, History, ImageOff } from "lucide-react";
+import { ImageOff } from "lucide-react";
 
-import {
-  Button,
-  Skeleton,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@effy/design-system/ui";
+import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
-import {
-  DetailSection,
-  Field,
-  FieldGrid,
-  MetaDivider,
-  Page,
-  Pill,
-  SectionAction,
-} from "@/components/console/primitives";
 import { sessionQuery } from "@/features/auth/queries";
 import { track } from "@/lib/telemetry";
 import { cn } from "@/lib/utils";
 
-import { FulfillmentStatusBadge } from "./components/FulfillmentStatusBadge";
-import { OrderActivitySheet } from "./components/OrderActivitySheet";
 import { OrderNoteDialog, OrderTagsDialog } from "./components/OrderNotesAndTags";
+import { OrderStatusPill, PaymentPill } from "./components/OrderPill";
 import { PickList } from "./components/PickList";
 import { RefundSheet } from "./components/RefundSheet";
 import { CantSupplyDialog, StateActions, stateNote } from "./components/StateControl";
-import { canDeclareUnfulfillable, STATUS_LABEL } from "./model";
+import { canDeclareUnfulfillable } from "./model";
 import {
   formatMoney,
   formatWhen,
   methodText,
-  PAYMENT_LABEL,
   paymentMethodText,
   refundableQuantity,
   type OrderDetail,
+  type OrderLine,
   type OrdersSearch,
 } from "./orderConsole";
-import { orderDetailQuery, orderListQuery } from "./queries";
-
-type DetailTab = "summary" | "items" | "fulfilment";
-
-const TABS: readonly { value: DetailTab; label: string }[] = [
-  { value: "summary", label: "Summary" },
-  { value: "items", label: "Items" },
-  { value: "fulfilment", label: "Fulfilment" },
-];
+import { orderActivityQuery, orderDetailQuery, orderListQuery } from "./queries";
 
 /**
- * Order detail, rebuilt to the imported design and product detail's conventions (057 Amendment A3).
+ * Order detail — transcribed from the imported design's `isOrderDetail` block ("Effy Shop
+ * Console.dc.html"): the position + previous/next row; the sticky summary bar (total, status, payment
+ * and risk pills, placed line, actions); then two columns — Items (lines, totals, the refunded box),
+ * Fulfilment, Internal notes and the Activity log on the left; the Payment card, the action stack,
+ * Tags, Customer, Ship to and Bill to in the right rail.
  *
- * ⚠ THREE TABS — Summary (who, where, money, tags, notes) · Items (the priced lines and their refunds)
- * · Fulfilment (picking and handoff) — and the tab RESETS per order: the body is keyed on the id, so
- * previous/next always lands on Summary, as product detail lands on Details.
- *
- * ⚠ THE MOCKUP'S BLOCKS THAT STILL DO NOT EXIST HERE, AND WHY (A3 settled the money question; these it
- * did not change):
- *   • CAPTURE — Effy captures at payment (`CaptureMethod: automatic`, 055 R3). The mockup shows the
- *     button only for an authorised-but-uncaptured order, and no Effy order is ever in that state, so
- *     following the design faithfully means it never renders. Authorised and Captured are shown as the
- *     one figure they always are.
- *   • "VAT 25%" — Swedish. Australian grocery is a mixed GST supply and per-item GST is unmodelled
- *     (052 R13); a tax line here would be a number nobody computed.
- *   • EDIT ORDER / DUPLICATE / PRINT INVOICE — an order is a paid record 055 refuses to edit, and the
- *     platform cannot issue a tax invoice (`canIssueTaxInvoice()` is false, 052 FR-031).
- *   • SHIPMENTS, CARRIER, TRACKING — a shop hands its package to an Effy driver (049); a delivery
- *     partner may carry a standard package after the hub, and its reference is staff-only (053
- *     FR-022). The Fulfilment tab shows the handoff the shop actually takes part in.
- *   • RETURNS — the platform has no returns model. A refund's "put back on the shelf" is the one
- *     restock a shop can do, and it lives in the refund sheet.
- *   • BILLING ADDRESS, EMAIL, ORDER HISTORY — never shared with a shop (023 FR-018).
- * `__tests__/order-detail.test.tsx` reads this directory's source and fails naming the file if any of
- * the forbidden controls reappears.
+ * ⚠ WHERE IT DEPARTS FROM THE MOCKUP, IT IS BECAUSE THE PLATFORM CANNOT DO THE THING, not for taste:
+ *   • CAPTURE — Effy captures at payment (`CaptureMethod: automatic`, 055 R3). The design shows the
+ *     button only while an order is authorised-but-uncaptured, which no Effy order ever is, so it never
+ *     renders.
+ *   • "VAT 25%" — per-item GST is unmodelled (052 R13); no tax row is drawn.
+ *   • DUPLICATE / RESEND EMAIL / PRINT INVOICE / EDIT ORDER — an order is a paid record (055), the
+ *     receipt is the customer's to resend, and the platform cannot issue a tax invoice (052 FR-031).
+ *   • SHIPMENTS, CARRIER, TRACKING, RETURNS — a shop hands its package to an Effy driver (049) and there
+ *     is no returns model. The Fulfilment section carries picking and the driver handoff instead.
+ *   • CUSTOMER EMAIL, ORDER COUNT, LTV, BILLING ADDRESS — never shared with a shop (023 FR-018).
+ *   • "Cancel order" is the can't-supply declaration — a shop cannot cancel a customer's order.
+ * `__tests__/order-detail.test.tsx` reads this directory's source and fails naming the file if a
+ * forbidden control reappears.
  *
  * ⚠ Opening this screen IS the acknowledgement — a `pending` portion becomes `received` as a side
  * effect of the read (FR-011a), which is why there is no "acknowledge" button anywhere.
@@ -93,35 +63,14 @@ export function OrderDetailScreen({
   search?: OrdersSearch;
   onNavigate?: (fulfillmentId: string, search: OrdersSearch) => void;
 }) {
-  return (
-    <OrderDetailBody
-      key={fulfillmentId}
-      fulfillmentId={fulfillmentId}
-      search={search}
-      onNavigate={onNavigate}
-    />
-  );
-}
-
-function OrderDetailBody({
-  fulfillmentId,
-  search,
-  onNavigate,
-}: {
-  fulfillmentId: string;
-  search: OrdersSearch;
-  onNavigate?: (fulfillmentId: string, search: OrdersSearch) => void;
-}) {
   const { data, error, isPending, isError, refetch } = useQuery(orderDetailQuery(fulfillmentId));
   const { data: session } = useQuery(sessionQuery);
-  const [tab, setTab] = useState<DetailTab>("summary");
-  const [activityOpen, setActivityOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
   const [noteOpen, setNoteOpen] = useState(false);
-  const [refund, setRefund] = useState<{ open: boolean; lineId: string | null }>({ open: false, lineId: null });
+  const [refundOpen, setRefundOpen] = useState(false);
 
-  // Keyed on the portion id, not on `data` — "the operator opened this order", once per open.
+  // Keyed on the portion id — "the operator opened this order", once per open.
   const openedStatus = data?.status;
   useEffect(() => {
     if (!openedStatus) return;
@@ -129,191 +78,154 @@ function OrderDetailBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per portion, not per status change
   }, [fulfillmentId]);
 
-  // ⚠ FR-014b — a courtesy, not the gate. The backend decides from the platform record (role AND
-  // status AND this shop's own portion of THIS order) and refuses regardless of what renders here.
+  // ⚠ FR-014b — a courtesy, not the gate. The backend decides from the platform record.
   const canRefund = session?.status === "signed-in" && isShopManager(session.identity.roles);
 
   const nav = <OrderNeighbours fulfillmentId={fulfillmentId} search={search} onNavigate={onNavigate} />;
 
   if (isError) {
     return (
-      <Page>
+      <div className="grid gap-5">
         {nav}
         <ErrorState
           error={error}
           onRetry={() => void refetch()}
           forbiddenMessage="This order isn't available to your shop."
         />
-      </Page>
+      </div>
     );
   }
   if (isPending) {
     return (
-      <Page>
+      <div className="grid gap-5">
         {nav}
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-64 w-full" />
-      </Page>
+        <Skeleton className="h-[62px] w-full" />
+        <Skeleton className="h-72 w-full" />
+      </div>
     );
   }
 
   const detail: OrderDetail = data;
-  const shortfall = detail.lines.reduce((n, l) => n + l.unavailableQuantity, 0);
+  const currency = detail.money.currency;
   const units = detail.lines.reduce((n, l) => n + l.orderedQuantity, 0);
-  const note = stateNote(detail.status);
-  const openRefund = (lineId: string | null = null) => setRefund({ open: true, lineId });
+  const refundable = canRefund && detail.lines.some((l) => refundableQuantity(l) > 0);
 
   return (
-    <Page className="gap-[22px]">
+    <div className="grid gap-5">
       {nav}
 
-      {/* ── Header block: identity, pills, and the actions ───────────────────────────────────── */}
-      <div className="flex flex-wrap items-start gap-[18px]">
-        <div className="grid min-w-[240px] flex-1 gap-2">
-          <div className="font-mono text-[22px] leading-[1.15] font-semibold tracking-[-.02em]">
-            {detail.orderNumber}
+      {/* ── The sticky summary bar. `top-14` clears the 56px header exactly. ─────────────────── */}
+      <div className="border-border bg-background sticky top-14 z-[4] flex flex-wrap items-center gap-3 rounded-[var(--radius)] border px-4 py-3">
+        <div className="grid min-w-0 gap-[7px]">
+          <div className="flex flex-wrap items-center gap-2 gap-y-1.5">
+            <span className="text-base font-semibold tracking-[-.02em] tabular-nums">
+              {formatMoney(detail.money.total, currency)}
+            </span>
+            <OrderStatusPill status={detail.status} />
+            <PaymentPill state={detail.payment.state} />
+            {detail.atRisk ? (
+              <span className="border-destructive text-destructive rounded-full border px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap">
+                At risk
+              </span>
+            ) : null}
           </div>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-2.5 text-[13px]">
-            <span className="text-foreground font-medium">{detail.delivery.recipientName || "—"}</span>
-            <MetaDivider />
-            <span>Placed {formatWhen(detail.placedAt)}</span>
-            <MetaDivider />
-            <span>Ready by {formatWhen(detail.readyBy)}</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <FulfillmentStatusBadge status={detail.status} />
-            <Pill variant={detail.payment.state === "paid" ? "quiet" : "outline"}>
-              {PAYMENT_LABEL[detail.payment.state]}
-            </Pill>
-            {detail.deliveryMethod ? <Pill variant="quiet">{methodText(detail.deliveryMethod)}</Pill> : null}
-            {detail.atRisk ? <Pill variant="strong">At risk</Pill> : null}
-            {shortfall > 0 ? <Pill variant="outline">{shortfall} short</Pill> : null}
+          <div className="text-muted-foreground text-[12.5px]">
+            Placed {formatWhen(detail.placedAt)} · {methodText(detail.deliveryMethod)} delivery · ready by{" "}
+            {formatWhen(detail.readyBy)}
           </div>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => setActivityOpen(true)}>
-            <History />
-            Activity
-          </Button>
-          {canDeclareUnfulfillable(detail.status) ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive"
-              onClick={() => setCancelOpen(true)}
-            >
-              Can&apos;t supply
-            </Button>
-          ) : null}
+        <div className="min-w-3 flex-1" />
+        <div className="flex flex-wrap gap-2">
           <StateActions detail={detail} />
         </div>
       </div>
 
-      {note ? <p className="text-muted-foreground -mt-2 text-[13px]">{note}</p> : null}
-
-      {shortfall > 0 ? (
-        <div
-          role="status"
-          className="border-border bg-muted flex items-start gap-2 rounded-md border px-4 py-3 text-sm"
-        >
-          <AlertTriangle className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+      <div className="grid items-start gap-9 min-[1060px]:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+        {/* ── Main column ─────────────────────────────────────────────────────────────────────── */}
+        <div className="grid min-w-0 gap-7">
           <div>
-            <p className="font-medium">
-              {shortfall} item{shortfall === 1 ? "" : "s"} flagged unavailable
-            </p>
-            <p className="text-muted-foreground">
-              This order can still be completed with the remaining items. The shortfall stays
-              recorded — refund it from the Items tab if the customer should get that money back.
-            </p>
+            <SectionHead
+              title="Items"
+              meta={`${units} unit${units === 1 ? "" : "s"} · ${methodText(detail.deliveryMethod)} delivery`}
+            />
+            <ItemsTable detail={detail} />
+            {detail.refunds.length > 0 ? <RefundedBox detail={detail} /> : null}
           </div>
-        </div>
-      ) : null}
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as DetailTab)} className="gap-[22px]">
-        <TabsList className="max-w-full flex-wrap">
-          {TABS.map((t) => (
-            <TabsTrigger
-              key={t.value}
-              value={t.value}
-              // ⚠ Inactive triggers are MUTED in both appearances (product detail's rule).
-              className="text-muted-foreground hover:text-foreground data-[state=active]:text-foreground flex-none px-[13px]"
-            >
-              {t.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+          <div>
+            <SectionHead title="Fulfilment" />
+            <PickList fulfillmentId={detail.id} items={detail.lines} status={detail.status} />
+            <Handoff detail={detail} />
+          </div>
 
-        {/* ── Summary: who, where, the money, and the shop's own tags and notes ────────────────── */}
-        <TabsContent value="summary" className="grid gap-[34px]">
-          <DetailSection title="Customer" subtitle="Who placed this order and how to reach them.">
-            <FieldGrid>
-              <Field label="Name" value={detail.delivery.recipientName || "—"} />
-              <Field label="Phone" value={detail.delivery.phone ?? "—"} mono={!!detail.delivery.phone} />
-              <Field label="Delivery" value={methodText(detail.deliveryMethod)} />
-              <Field label="Ready by" value={formatWhen(detail.readyBy)} />
-            </FieldGrid>
-          </DetailSection>
-
-          <DetailSection title="Addresses" subtitle="Where this order ships and bills.">
-            <FieldGrid>
-              <Field label="Ship to" value={<AddressLines detail={detail} />} />
-              {/* ⚠ Named, and said to be withheld — not silently missing. 023 FR-018 keeps it from
-                  every shop surface; Effy holds it with the payment. */}
-              <Field
-                label="Bill to"
-                value={<span className="text-muted-foreground">Held by Effy with the payment — not shared with shops.</span>}
-              />
-            </FieldGrid>
-          </DetailSection>
-
-          <DetailSection
-            title="Payment"
-            subtitle="How this order was paid and what is still outstanding."
-            action={
-              canRefund && detail.lines.some((l) => refundableQuantity(l) > 0) ? (
-                <SectionAction onClick={() => openRefund()}>Refund</SectionAction>
-              ) : undefined
-            }
-          >
-            <FieldGrid>
-              <Field label="Method" value={paymentMethodText(detail.payment)} />
-              <Field label="Status" value={PAYMENT_LABEL[detail.payment.state]} emphasis={detail.payment.state !== "paid"} />
-              <Field label="Paid" value={formatWhen(detail.payment.paidAt)} />
-            </FieldGrid>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-[18px] pt-[18px] sm:grid-cols-4">
-              <Field label="Authorised" size="display" value={formatMoney(detail.payment.amount, detail.money.currency)} />
-              {/* ⚠ Always equal to Authorised — capture is automatic at checkout (055 R3). Shown, as
-                  the design asks, so nobody wonders whether something is still held. */}
-              <Field label="Captured" size="display" value={formatMoney(detail.payment.amount, detail.money.currency)} />
-              <Field
-                label="Refunded"
-                size="display"
-                value={
-                  <>
-                    {formatMoney(detail.money.refunded, detail.money.currency)}
-                    {Number(detail.money.refundPending) > 0 ? (
-                      <span className="text-muted-foreground block text-[12.5px] font-normal tracking-normal">
-                        + {formatMoney(detail.money.refundPending, detail.money.currency)} on its way
-                      </span>
-                    ) : null}
-                  </>
-                }
-              />
-              <Field label="Net" size="display" value={formatMoney(detail.money.net, detail.money.currency)} />
-            </div>
-            {detail.refunds.length > 0 ? <RefundsTable detail={detail} /> : null}
-          </DetailSection>
-
-          <DetailSection
-            title="Tags"
-            subtitle="Labels your team uses to spot orders that need care."
-            action={<SectionAction onClick={() => setTagsOpen(true)}>Edit</SectionAction>}
-          >
-            {detail.tags.length === 0 ? (
-              <p className="text-muted-foreground pt-[18px] text-[13px]">No tags yet.</p>
+          <div>
+            <SectionHead title="Internal notes" action={{ label: "Add note", onClick: () => setNoteOpen(true) }} />
+            {detail.notes.length === 0 ? (
+              <div className="text-muted-foreground py-3.5 text-[13px]">No notes yet.</div>
             ) : (
-              <div className="flex flex-wrap gap-1.5 pt-[18px]">
+              detail.notes.map((n) => (
+                <div key={n.id} className="border-border grid gap-1 border-b py-3">
+                  <div className="text-[13.5px] leading-[1.55] whitespace-pre-line text-pretty">{n.body}</div>
+                  <div className="text-muted-foreground text-[12px]">
+                    {n.authorLabel ? `${n.authorLabel} · ` : ""}
+                    {formatWhen(n.createdAt)}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <ActivityLog fulfillmentId={detail.id} />
+        </div>
+
+        {/* ── The rail ───────────────────────────────────────────────────────────────────────── */}
+        <div className="grid min-w-0 gap-6">
+          <div className="border-border grid gap-3 rounded-[var(--radius)] border p-3.5">
+            <div className="flex items-baseline justify-between gap-2.5">
+              <MicroLabel>Payment</MicroLabel>
+              <PaymentPill state={detail.payment.state} />
+            </div>
+            <div className="text-muted-foreground text-[13px]">
+              {paymentMethodText(detail.payment)} · {formatMoney(detail.payment.amount, currency)} captured at
+              checkout
+            </div>
+            {refundable ? (
+              <div className="grid gap-2">
+                <Button
+                  variant="outline"
+                  className="h-[34px] text-[13.5px]"
+                  onClick={() => setRefundOpen(true)}
+                >
+                  Refund
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-2">
+            <Button variant="outline" className="h-9 text-[13.5px]" onClick={() => printPickList(detail)}>
+              Print pick list
+            </Button>
+            {canDeclareUnfulfillable(detail.status) ? (
+              <Button
+                variant="ghost"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive h-9 text-[13.5px]"
+                onClick={() => setCancelOpen(true)}
+              >
+                Can&apos;t supply this order
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="grid gap-2">
+            <div className="flex items-baseline justify-between gap-2.5">
+              <MicroLabel>Tags</MicroLabel>
+              <LinkButton small onClick={() => setTagsOpen(true)}>
+                Edit
+              </LinkButton>
+            </div>
+            {detail.tags.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
                 {detail.tags.map((t) => (
                   <span
                     key={t}
@@ -323,135 +235,211 @@ function OrderDetailBody({
                   </span>
                 ))}
               </div>
-            )}
-          </DetailSection>
+            ) : null}
+          </div>
 
-          <DetailSection
-            title="Internal notes"
-            subtitle="For your team only — the customer never sees these."
-            action={<SectionAction onClick={() => setNoteOpen(true)}>Add note</SectionAction>}
-          >
-            {detail.notes.length === 0 ? (
-              <p className="text-muted-foreground pt-[18px] text-[13px]">No notes yet.</p>
-            ) : (
-              <ol className="grid gap-4 pt-[18px]">
-                {detail.notes.map((n) => (
-                  <li key={n.id} className="grid gap-1">
-                    <p className="max-w-[68ch] text-[13.5px] leading-[1.55] whitespace-pre-line text-pretty">
-                      {n.body}
-                    </p>
-                    <p className="text-muted-foreground text-[12px]">
-                      {n.authorLabel ? `${formatWhen(n.createdAt)} · ${n.authorLabel}` : formatWhen(n.createdAt)}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </DetailSection>
-        </TabsContent>
-
-        {/* ── Items: the priced lines, line refunds, and the totals ─────────────────────────────── */}
-        <TabsContent value="items" className="grid gap-[34px]">
-          <DetailSection
-            title="Items"
-            subtitle={`${units} unit${units === 1 ? "" : "s"} from your shop, at the price the customer paid.`}
-          >
-            <ItemsTable detail={detail} canRefund={canRefund} onRefundLine={(id) => openRefund(id)} />
-            <Totals detail={detail} />
-          </DetailSection>
-        </TabsContent>
-
-        {/* ── Fulfilment: picking, then the handoff ──────────────────────────────────────────── */}
-        <TabsContent value="fulfilment" className="grid gap-[34px]">
-          <DetailSection
-            title="Picking"
-            subtitle="Record what you've gathered and flag anything that isn't on the shelf."
-          >
-            <div className="pt-3">
-              <PickList fulfillmentId={detail.id} items={detail.lines} status={detail.status} />
-            </div>
-          </DetailSection>
-
-          <DetailSection title="Handoff" subtitle="How this order leaves your shop and reaches the customer.">
-            <FieldGrid>
-              <Field label="State" value={STATUS_LABEL[detail.status]} />
-              <Field label="Delivery" value={methodText(detail.deliveryMethod)} />
-              <Field label="Ready by" value={formatWhen(detail.readyBy)} />
-              <Field
-                label="Collected by Effy"
-                value={detail.handoff.collectedAt ? formatWhen(detail.handoff.collectedAt) : "Not yet"}
-              />
-              <Field
-                label="Delivered"
-                value={detail.handoff.deliveredAt ? formatWhen(detail.handoff.deliveredAt) : "Not yet"}
-              />
-              {detail.handoff.unfulfillableReason ? (
-                <Field label="Why it couldn't be supplied" value={detail.handoff.unfulfillableReason} wide />
+          <div className="grid gap-4">
+            <div className="border-border grid gap-1 border-b pb-4">
+              <MicroLabel>Customer</MicroLabel>
+              <div className="text-[13.5px] font-medium">{detail.delivery.recipientName || "—"}</div>
+              {detail.delivery.phone ? (
+                <div className="text-muted-foreground text-[13px]">{detail.delivery.phone}</div>
               ) : null}
-              <Field
-                label="What happens next"
-                wide
-                value={
-                  <span className="text-muted-foreground">
-                    {detail.deliveryMethod === "same_day"
-                      ? "An Effy driver collects the package and delivers it to the customer the same day."
-                      : "An Effy driver collects the package for the Effy hub; a delivery partner takes it from there."}
-                  </span>
-                }
-              />
-            </FieldGrid>
-          </DetailSection>
-        </TabsContent>
-      </Tabs>
+            </div>
+            <div className="border-border grid gap-1 border-b pb-4">
+              <MicroLabel>Ship to</MicroLabel>
+              <div className="text-[13px] leading-[1.6] whitespace-pre-line">{addressText(detail)}</div>
+            </div>
+            <div className="grid gap-1">
+              <MicroLabel>Bill to</MicroLabel>
+              {/* ⚠ Named and said to be withheld, not silently missing (023 FR-018). */}
+              <div className="text-muted-foreground text-[13px] leading-[1.6]">Held by Effy with the payment.</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-      <OrderActivitySheet
-        fulfillmentId={detail.id}
-        orderNumber={detail.orderNumber}
-        open={activityOpen}
-        onOpenChange={setActivityOpen}
-      />
       <CantSupplyDialog targets={[detail]} open={cancelOpen} onOpenChange={setCancelOpen} />
       <OrderTagsDialog fulfillmentId={detail.id} tags={detail.tags} open={tagsOpen} onOpenChange={setTagsOpen} />
       <OrderNoteDialog fulfillmentId={detail.id} open={noteOpen} onOpenChange={setNoteOpen} />
       {canRefund ? (
         <RefundSheet
-          detail={{
-            id: detail.id,
-            orderId: detail.orderId,
-            orderNumber: detail.orderNumber,
-            currency: detail.money.currency,
-            lines: detail.lines,
-          }}
-          open={refund.open}
-          initialLineId={refund.lineId}
-          onOpenChange={(open) => setRefund((r) => ({ ...r, open }))}
+          detail={{ id: detail.id, orderId: detail.orderId, orderNumber: detail.orderNumber, currency, lines: detail.lines }}
+          open={refundOpen}
+          onOpenChange={setRefundOpen}
         />
       ) : null}
-    </Page>
+    </div>
   );
 }
 
-function AddressLines({ detail }: { detail: OrderDetail }) {
-  const d = detail.delivery;
+// ── Pieces ────────────────────────────────────────────────────────────────────────────────────
+
+function MicroLabel({ children }: { children: ReactNode }) {
   return (
-    <span className="block">
-      <span className="block">{d.line1}</span>
-      {d.line2 ? <span className="block">{d.line2}</span> : null}
-      <span className="block">
-        {d.city}
-        {d.region ? ` ${d.region}` : ""} {d.postalCode}
-      </span>
-      <span className="text-muted-foreground block">{d.country}</span>
-    </span>
+    <div className="text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase">
+      {children}
+    </div>
+  );
+}
+
+/** The design's bare text action: muted, 13px/500, darkens on hover. */
+function LinkButton({ children, onClick, small }: { children: ReactNode; onClick: () => void; small?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "text-muted-foreground hover:text-foreground focus-visible:ring-ring cursor-pointer rounded-sm border-none bg-transparent p-0 font-medium focus-visible:ring-2 focus-visible:outline-none",
+        small ? "text-[12.5px]" : "text-[13px]",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** A main-column section header: title, muted meta, the action on the right, one hairline under. */
+function SectionHead({
+  title,
+  meta,
+  action,
+}: {
+  title: string;
+  meta?: string;
+  action?: { label: string; onClick: () => void };
+}) {
+  return (
+    <div className="border-border flex flex-wrap items-baseline gap-2.5 border-b pb-2.5">
+      <h2 className="text-[13.5px] font-semibold">{title}</h2>
+      {meta ? <div className="text-muted-foreground text-[12.5px]">{meta}</div> : null}
+      <div className="flex-1" />
+      {action ? <LinkButton onClick={action.onClick}>{action.label}</LinkButton> : null}
+    </div>
+  );
+}
+
+function pickedText(l: OrderLine): { text: string; className: string } {
+  if (l.unavailableQuantity > 0) {
+    return { text: `${l.unavailableQuantity} unavailable`, className: "text-destructive" };
+  }
+  if (l.gatheredQuantity >= l.orderedQuantity) return { text: "Picked", className: "text-foreground" };
+  if (l.gatheredQuantity > 0) return { text: "Part picked", className: "text-muted-foreground" };
+  return { text: "Not picked", className: "text-muted-foreground" };
+}
+
+/**
+ * The line table and the totals under it.
+ *
+ * ⚠ THE TOTALS ADD UP. The rows are THIS shop's lines and the total is the whole order's, so a two-shop
+ * order gets an "Items from other shops" row — without it the lines would not reconcile with the total.
+ */
+function ItemsTable({ detail }: { detail: OrderDetail }) {
+  const m = detail.money;
+  const currency = m.currency;
+  const others = Math.round(Number(m.itemSubtotal) * 100) - Math.round(Number(m.shopSubtotal) * 100);
+  return (
+    <table className="w-full border-collapse">
+      <tbody>
+        {detail.lines.map((l) => {
+          const picked = pickedText(l);
+          return (
+            <tr key={l.orderItemId} className="border-border border-b">
+              <td className="w-11 py-3 pr-2">
+                {l.imageUrl ? (
+                  <img src={l.imageUrl} alt="" className="border-border size-9 rounded-md border object-cover" />
+                ) : (
+                  <div className="border-border bg-muted text-muted-foreground grid size-9 place-items-center rounded-md border">
+                    <ImageOff className="size-4" />
+                  </div>
+                )}
+              </td>
+              <td className="px-2 py-3">
+                <div className="text-[13.5px] font-medium">{l.name}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{l.sku ?? "no SKU"}</span>
+                  <span className={cn("text-[11.5px] whitespace-nowrap", picked.className)}>{picked.text}</span>
+                  {l.refundedQuantity > 0 ? (
+                    <span className="text-muted-foreground text-[11.5px] whitespace-nowrap">
+                      {l.refundedQuantity} refunded
+                    </span>
+                  ) : null}
+                </div>
+              </td>
+              <td className="text-muted-foreground px-2 py-3 text-right text-[13px] whitespace-nowrap">
+                {l.orderedQuantity} × {formatMoney(l.unitPrice, currency)}
+              </td>
+              <td className="w-[110px] py-3 pl-2 text-right text-[13.5px] font-medium tabular-nums">
+                {formatMoney(l.lineTotal, currency)}
+              </td>
+            </tr>
+          );
+        })}
+        <TotalRow label="Subtotal" value={formatMoney(m.shopSubtotal, currency)} first />
+        {others > 0 ? (
+          <TotalRow label="Items from other shops" value={formatMoney((others / 100).toFixed(2), currency)} />
+        ) : null}
+        {Number(m.discount) > 0 ? (
+          <TotalRow
+            label={
+              <>
+                Discount {m.promoCode ? <span className="font-mono">{m.promoCode}</span> : null}
+              </>
+            }
+            value={`−${formatMoney(m.discount, currency)}`}
+          />
+        ) : null}
+        <TotalRow label="Delivery" value={formatMoney(m.deliveryFee, currency)} last />
+        <tr className="border-border border-t">
+          <td colSpan={3} className="pt-2.5 pr-2 text-sm font-semibold">
+            Total
+          </td>
+          <td className="pt-2.5 text-right text-sm font-semibold whitespace-nowrap tabular-nums">
+            {formatMoney(m.total, currency)}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function TotalRow({
+  label,
+  value,
+  first,
+  last,
+}: {
+  label: ReactNode;
+  value: string;
+  first?: boolean;
+  last?: boolean;
+}) {
+  return (
+    <tr>
+      <td
+        colSpan={3}
+        className={cn("text-muted-foreground pr-2 text-[13px]", first ? "pt-[9px] pb-[3px]" : last ? "pt-[3px] pb-2.5" : "py-[3px]")}
+      >
+        {label}
+      </td>
+      <td
+        className={cn(
+          "text-right text-[13px] whitespace-nowrap tabular-nums",
+          first ? "pt-[9px] pb-[3px]" : last ? "pt-[3px] pb-2.5" : "py-[3px]",
+        )}
+      >
+        {value}
+      </td>
+    </tr>
   );
 }
 
 const REFUND_STATUS: Record<string, string> = {
-  submitting: "Sending",
-  submitted: "With the bank",
-  succeeded: "Returned",
-  failed: "Failed",
-  refused: "Refused",
+  submitting: "sending",
+  submitted: "with the bank",
+  succeeded: "returned",
+  failed: "failed",
+  refused: "refused",
 };
 
 const REFUND_REASON: Record<string, string> = {
@@ -462,180 +450,164 @@ const REFUND_REASON: Record<string, string> = {
   external: "Outside the platform",
 };
 
-/** Every refund on the order — a genuine data table, so it keeps its row rules. */
-function RefundsTable({ detail }: { detail: OrderDetail }) {
+/** The design's "Refunded" box under the items: the total, each refund, and what was paid net. */
+function RefundedBox({ detail }: { detail: OrderDetail }) {
+  const m = detail.money;
   return (
-    <div className="pt-[22px]">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[520px] border-collapse text-[13px]">
-          <thead>
-            <tr className="border-border border-b">
-              <HeadCell>Refund</HeadCell>
-              <HeadCell>Reason</HeadCell>
-              <HeadCell>Status</HeadCell>
-              <HeadCell>By</HeadCell>
-              <HeadCell align="right">Amount</HeadCell>
-            </tr>
-          </thead>
-          <tbody>
-            {detail.refunds.map((r) => (
-              <tr key={r.id} className="border-border border-b">
-                <td className="text-muted-foreground py-2.5 pr-3 whitespace-nowrap">{formatWhen(r.createdAt)}</td>
-                <td className="py-2.5 pr-3">{REFUND_REASON[r.reason] ?? r.reason}</td>
-                <td className={cn("py-2.5 pr-3", r.status !== "succeeded" && "font-semibold")}>
-                  {REFUND_STATUS[r.status] ?? r.status}
-                </td>
-                <td className="text-muted-foreground py-2.5 pr-3">{r.actorLabel ?? "—"}</td>
-                <td className="py-2.5 text-right font-medium tabular-nums">
-                  {formatMoney(r.amount, detail.money.currency)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="border-border mt-3.5 grid gap-2.5 rounded-[var(--radius)] border px-3.5 py-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <div className="text-[13px] font-semibold">Refunded</div>
+        <div className="text-destructive text-[13.5px] font-semibold whitespace-nowrap tabular-nums">
+          −{formatMoney(m.refunded, m.currency)}
+        </div>
+      </div>
+      {detail.refunds.map((r) => (
+        <div key={r.id} className="border-border flex items-baseline justify-between gap-3 border-t pt-2">
+          <div className="text-muted-foreground text-[12.5px]">
+            {REFUND_REASON[r.reason] ?? r.reason} · {formatWhen(r.createdAt)} · {REFUND_STATUS[r.status] ?? r.status}
+            {r.actorLabel ? ` · ${r.actorLabel}` : ""}
+          </div>
+          <div className="text-[12.5px] whitespace-nowrap tabular-nums">{formatMoney(r.amount, m.currency)}</div>
+        </div>
+      ))}
+      <div className="border-border flex items-baseline justify-between gap-3 border-t pt-2">
+        <div className="text-[13px] font-semibold">Net paid</div>
+        <div className="text-[13px] font-semibold whitespace-nowrap tabular-nums">{formatMoney(m.net, m.currency)}</div>
       </div>
     </div>
   );
 }
 
-function HeadCell({ children, align = "left" }: { children: ReactNode; align?: "left" | "right" }) {
+/** Where the package goes after the shelf — the design's shipment rows, in Effy's hub-and-spoke terms. */
+function Handoff({ detail }: { detail: OrderDetail }) {
+  const remaining = detail.lines.reduce(
+    (n, l) => n + Math.max(0, l.orderedQuantity - l.gatheredQuantity - l.unavailableQuantity),
+    0,
+  );
+  const note = stateNote(detail.status);
+  const rows: { title: string; meta: string }[] = [];
+  if (detail.handoff.collectedAt) {
+    rows.push({ title: "Collected by an Effy driver", meta: formatWhen(detail.handoff.collectedAt) });
+  }
+  if (detail.handoff.deliveredAt) {
+    rows.push({ title: "Delivered to the customer", meta: formatWhen(detail.handoff.deliveredAt) });
+  }
+  if (detail.handoff.unfulfillableReason) {
+    rows.push({ title: `Can't supply — ${detail.handoff.unfulfillableReason}`, meta: "" });
+  }
   return (
-    <th
-      className={cn(
-        "text-muted-foreground py-2 pr-3 text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase last:pr-0",
-        align === "right" ? "text-right" : "text-left",
-      )}
-    >
-      {children}
-    </th>
+    <>
+      {rows.map((r) => (
+        <div
+          key={r.title}
+          className="border-border flex flex-wrap items-baseline justify-between gap-3 border-b py-3"
+        >
+          <div className="text-[13.5px] font-medium">{r.title}</div>
+          <div className="text-muted-foreground text-[12.5px] whitespace-nowrap">{r.meta}</div>
+        </div>
+      ))}
+      <div className="text-muted-foreground py-3.5 text-[13px]">
+        {remaining > 0 && (detail.status === "received" || detail.status === "picking" || detail.status === "pending")
+          ? `${remaining} unit${remaining === 1 ? "" : "s"} still to pick.`
+          : (note ??
+            (detail.deliveryMethod === "same_day"
+              ? "An Effy driver collects it and delivers it the same day."
+              : "An Effy driver collects it for the hub; a delivery partner takes it from there."))}
+      </div>
+    </>
   );
 }
 
-/** The line-item table — a real table, with light row rules and a line-level refund. */
-function ItemsTable({
-  detail,
-  canRefund,
-  onRefundLine,
-}: {
-  detail: OrderDetail;
-  canRefund: boolean;
-  onRefundLine: (orderItemId: string) => void;
-}) {
-  const currency = detail.money.currency;
+/**
+ * The Activity log — in the page, as the design has it: a dot on a rail per entry, the entry on the
+ * left and "who · when" on the right. It is the full history (events, refunds, collection, arrival).
+ *
+ * ⚠ THE DOT IS MONOCHROME: the design colours it by kind, which needs a third hue (Principle V). A
+ * decision-bearing entry takes the foreground; routine progress the muted tone. The title says which.
+ */
+function ActivityLog({ fulfillmentId }: { fulfillmentId: string }) {
+  const log = useQuery(orderActivityQuery(fulfillmentId));
   return (
-    <div className="overflow-x-auto pt-2">
-      <table className="w-full min-w-[640px] border-collapse">
-        <thead>
-          <tr className="border-border border-b">
-            <HeadCell>Product</HeadCell>
-            <HeadCell align="right">Qty</HeadCell>
-            <HeadCell align="right">Unit price</HeadCell>
-            <HeadCell align="right">Line total</HeadCell>
-            <HeadCell align="right">Refunded</HeadCell>
-            {canRefund ? <th className="w-20" aria-label="Actions" /> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {detail.lines.map((l) => {
-            const left = refundableQuantity(l);
-            return (
-              <tr key={l.orderItemId} className="border-border border-b">
-                <td className="py-3 pr-3">
-                  <div className="flex items-center gap-3">
-                    {l.imageUrl ? (
-                      <img src={l.imageUrl} alt="" className="border-border size-9 shrink-0 rounded-md border object-cover" />
-                    ) : (
-                      <div className="border-border bg-muted text-muted-foreground grid size-9 shrink-0 place-items-center rounded-md border">
-                        <ImageOff className="size-4" />
-                      </div>
-                    )}
-                    <div className="min-w-0">
-                      <div className="text-[13.5px] font-medium break-words">{l.name}</div>
-                      <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-[12px]">
-                        <span className="font-mono">{l.sku ?? "no SKU"}</span>
-                        <span>
-                          {l.unavailableQuantity > 0
-                            ? `${l.unavailableQuantity} unavailable`
-                            : `${l.gatheredQuantity}/${l.orderedQuantity} picked`}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3 pr-3 text-right text-[13px] tabular-nums">{l.orderedQuantity}</td>
-                <td className="py-3 pr-3 text-right text-[13px] tabular-nums">{formatMoney(l.unitPrice, currency)}</td>
-                <td className="py-3 pr-3 text-right text-[13.5px] font-medium tabular-nums">
-                  {formatMoney(l.lineTotal, currency)}
-                </td>
-                <td className="py-3 pr-3 text-right text-[13px] tabular-nums">
-                  {l.refundedQuantity > 0 ? l.refundedQuantity : <span className="text-muted-foreground">—</span>}
-                </td>
-                {canRefund ? (
-                  <td className="py-3 text-right">
-                    {left > 0 ? (
-                      <SectionAction onClick={() => onRefundLine(l.orderItemId)}>Refund</SectionAction>
-                    ) : null}
-                  </td>
+    <div>
+      <div className="border-border border-b pb-3 text-[13.5px] font-semibold">Activity log</div>
+      <div className="pt-3.5">
+        {log.isPending ? (
+          <Skeleton className="h-16 w-full" />
+        ) : log.isError ? (
+          <div className="text-muted-foreground text-[13px]">The activity couldn&apos;t be loaded.</div>
+        ) : log.data.entries.length === 0 ? (
+          <div className="text-muted-foreground text-[13px]">Nothing recorded yet.</div>
+        ) : (
+          log.data.entries.map((e, i) => (
+            <div key={e.id} className="grid grid-cols-[14px_1fr] gap-3">
+              <div className="flex flex-col items-center">
+                <div
+                  aria-hidden="true"
+                  className={cn(
+                    "mt-[5px] size-[7px] shrink-0 rounded-full",
+                    e.tone === "strong" ? "bg-foreground" : "bg-muted-foreground/60",
+                  )}
+                />
+                {i < log.data.entries.length - 1 ? (
+                  <div aria-hidden="true" className="bg-border w-px flex-1" />
                 ) : null}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-3 pb-4">
+                <div className="text-[13.5px] font-medium text-pretty">{e.title}</div>
+                <div className="text-muted-foreground text-[12px] whitespace-nowrap">
+                  {e.actorLabel ? `${e.actorLabel} · ` : ""}
+                  {formatWhen(e.at)}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
-/**
- * The totals beneath the items.
- *
- * ⚠ THEY ADD UP. The table lists THIS shop's lines, the order total covers every shop's, so a
- * two-shop order gets an "Items from other shops" row — without it the lines above would not reconcile
- * with the total below, and an operator checking the arithmetic would find money unaccounted for.
- */
-function Totals({ detail }: { detail: OrderDetail }) {
-  const m = detail.money;
-  const others = Math.round(Number(m.itemSubtotal) * 100) - Math.round(Number(m.shopSubtotal) * 100);
-  const rows: { label: ReactNode; value: string; strong?: boolean; rule?: boolean }[] = [
-    { label: "Your items", value: formatMoney(m.shopSubtotal, m.currency) },
-    ...(others > 0 ? [{ label: "Items from other shops", value: formatMoney((others / 100).toFixed(2), m.currency) }] : []),
-    { label: "Delivery", value: formatMoney(m.deliveryFee, m.currency) },
-    ...(Number(m.discount) > 0
-      ? [{
-          label: m.promoCode ? <>Discount <span className="font-mono">{m.promoCode}</span></> : "Discount",
-          value: `−${formatMoney(m.discount, m.currency)}`,
-        }]
-      : []),
-    { label: "Total", value: formatMoney(m.total, m.currency), strong: true, rule: true },
-    { label: "Refunded", value: Number(m.refunded) > 0 ? `−${formatMoney(m.refunded, m.currency)}` : formatMoney("0", m.currency) },
-    { label: "Net", value: formatMoney(m.net, m.currency), strong: true },
-  ];
-  return (
-    <dl className="ml-auto grid w-full max-w-[380px] pt-4">
-      {rows.map((r, i) => (
-        <div
-          key={i}
-          className={cn(
-            "flex items-baseline justify-between gap-6 py-1 text-[13px]",
-            r.rule && "border-border mt-1.5 border-t pt-2.5",
-            r.strong && "text-sm font-semibold",
-          )}
-        >
-          <dt className={cn(!r.strong && "text-muted-foreground")}>{r.label}</dt>
-          <dd className="tabular-nums whitespace-nowrap">{r.value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+function addressText(detail: OrderDetail): string {
+  const d = detail.delivery;
+  return [
+    d.recipientName,
+    d.line1,
+    d.line2,
+    [d.city, d.region, d.postalCode].filter(Boolean).join(" "),
+    d.country,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /**
- * Previous / next within the list this order was opened from.
+ * "Print pick list" — a plain printable list of this shop's lines, opened in its own window so the
+ * console's chrome never reaches the printer. Only what a picker needs: the order, the lines, the SKUs.
+ */
+function printPickList(detail: OrderDetail) {
+  const w = window.open("", "_blank", "width=720,height=900");
+  if (!w) return;
+  const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
+  const rows = detail.lines
+    .map(
+      (l) =>
+        `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(l.sku ?? "")}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.orderedQuantity}</td></tr>`,
+    )
+    .join("");
+  w.document.write(
+    `<!doctype html><title>Pick list ${esc(detail.orderNumber)}</title><body style="font:14px system-ui;margin:32px"><h1 style="font-size:18px;margin:0 0 4px">Pick list · <span style="font-family:monospace">${esc(detail.orderNumber)}</span></h1><p style="color:#666;margin:0 0 16px">${esc(detail.delivery.recipientName)} · ${esc(methodText(detail.deliveryMethod))} delivery · ready by ${esc(formatWhen(detail.readyBy))}</p><table style="width:100%;border-collapse:collapse">${rows}</table></body>`,
+  );
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
+/**
+ * Position + previous / next within the list this order was opened from — the design's top row.
  *
- * ⚠ IT READS THE LIST'S OWN CACHED QUERY — same key, same filters — so "3 of 47" is the list the
- * operator just looked at, not a second definition of it. At a page edge it reads the neighbouring page
- * the same way. Opened with no list behind it (a dashboard link) and not on the first page, it shows
- * nothing rather than a position it cannot know.
+ * ⚠ IT READS THE LIST'S OWN CACHED QUERY (same key, same filters), so "3 of 47" is the list the
+ * operator just looked at. At a page edge it reads the neighbouring page the same way. Opened with no
+ * list behind it (a dashboard link) and not on the first page, it shows nothing rather than guess.
  */
 function OrderNeighbours({
   fulfillmentId,
@@ -656,18 +628,8 @@ function OrderNeighbours({
 
   const needPrev = index === 0 && page > 1;
   const needNext = index >= 0 && index === rows.length - 1 && page < pageCount;
-  const prevPage = useQuery({
-    ...orderListQuery({ ...search, page: page - 1 }),
-    refetchInterval: false,
-    enabled: needPrev,
-  });
-  const nextPage = useQuery({
-    ...orderListQuery({ ...search, page: page + 1 }),
-    refetchInterval: false,
-    enabled: needNext,
-  });
-
-  if (index < 0 || !onNavigate) return null;
+  const prevPage = useQuery({ ...orderListQuery({ ...search, page: page - 1 }), refetchInterval: false, enabled: needPrev });
+  const nextPage = useQuery({ ...orderListQuery({ ...search, page: page + 1 }), refetchInterval: false, enabled: needNext });
 
   const prev =
     index > 0
@@ -676,37 +638,54 @@ function OrderNeighbours({
         ? { id: prevPage.data.items[prevPage.data.items.length - 1]!.id, search: { ...search, page: page - 1 } }
         : null;
   const next =
-    index < rows.length - 1
+    index >= 0 && index < rows.length - 1
       ? { id: rows[index + 1]!.id, search }
       : needNext && nextPage.data?.items.length
         ? { id: nextPage.data.items[0]!.id, search: { ...search, page: page + 1 } }
         : null;
 
+  const known = index >= 0 && !!onNavigate;
   return (
-    <div className="-mb-2 flex items-center justify-end gap-1.5">
-      <span className="text-muted-foreground mr-1 text-[12.5px] whitespace-nowrap tabular-nums">
-        {(page - 1) * pageSize + index + 1} of {total}
-      </span>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-7"
-        aria-label="Previous order"
-        disabled={!prev}
-        onClick={() => prev && onNavigate(prev.id, prev.search)}
-      >
-        <ChevronLeft />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-7"
-        aria-label="Next order"
-        disabled={!next}
-        onClick={() => next && onNavigate(next.id, next.search)}
-      >
-        <ChevronRight />
-      </Button>
+    <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-[13px]">
+      <div className="flex-1" />
+      {known ? (
+        <div className="flex items-center gap-1.5">
+          <span className="text-[12.5px] whitespace-nowrap tabular-nums">
+            {(page - 1) * pageSize + index + 1} of {total}
+          </span>
+          <NavButton label="Previous order" disabled={!prev} onClick={() => prev && onNavigate!(prev.id, prev.search)}>
+            ←
+          </NavButton>
+          <NavButton label="Next order" disabled={!next} onClick={() => next && onNavigate!(next.id, next.search)}>
+            →
+          </NavButton>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function NavButton({
+  children,
+  label,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode;
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="border-input bg-background text-foreground hover:bg-accent size-7 cursor-pointer rounded-md border text-[12px] disabled:cursor-default disabled:opacity-45"
+    >
+      {children}
+    </button>
   );
 }

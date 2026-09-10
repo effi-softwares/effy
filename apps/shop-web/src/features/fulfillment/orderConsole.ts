@@ -105,12 +105,14 @@ export function clearedFilters(s: OrdersSearch): OrdersSearch {
  * the view correctly stops claiming to be selected.
  */
 export const SAVED_VIEWS: readonly { id: string; label: string; search: OrdersSearch }[] = [
+  // The design's five, in its order. "Paid, unfulfilled" and "High value" have no Effy meaning (every
+  // order a shop sees is paid; there is no value threshold the platform defines), so their slots carry
+  // the two views a shop floor actually needs: same-day work and shortfalls.
   { id: "all", label: "All orders", search: {} },
   { id: "needs-picking", label: "Needs picking", search: { tab: "new" } },
-  { id: "at-risk", label: "At risk", search: { attention: "at_risk" } },
-  { id: "short", label: "Short items", search: { attention: "short" } },
   { id: "same-day", label: "Same-day", search: { method: "same_day" } },
-  { id: "refunds", label: "Refund pending", search: { payment: "refund_pending" } },
+  { id: "short", label: "Short items", search: { attention: "short" } },
+  { id: "attention", label: "Needs attention", search: { attention: "at_risk" } },
 ]
 
 const VIEW_KEYS = ["tab", "q", "attention", "payment", "method", "range"] as const
@@ -129,7 +131,7 @@ export function applyView(s: OrdersSearch, view: OrdersSearch): OrdersSearch {
 
 export const TAB_LABEL: Record<ShopOrderTab, string> = {
   all: "All",
-  new: "New",
+  new: "Awaiting pick",
   picking: "Picking",
   ready_for_pickup: "Ready",
   collected: "Collected",
@@ -172,6 +174,18 @@ export function methodText(m: "same_day" | "standard" | null): string {
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The list's Placed column, as the design has it: the time for today's orders, the day otherwise.
+ */
+export function formatPlacedShort(iso: string, now: Date = new Date()): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return "—"
+  const sameDay = d.toDateString() === now.toDateString()
+  return sameDay
+    ? d.toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit", hour12: false })
+    : d.toLocaleDateString("en-AU", { day: "numeric", month: "short" })
+}
 
 /** A decimal-string amount as currency. The wire value is never parsed into arithmetic here. */
 export function formatMoney(amount: string, currency = "AUD"): string {

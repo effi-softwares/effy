@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -48,6 +48,7 @@ function wrap(children: ReactNode, roles: string[] = ["shop_staff"]) {
 function open(d: OrderDetail = orderDetail(), roles?: string[]) {
   getOrder.mockResolvedValue(d);
   listOrders.mockResolvedValue(orderList([]));
+  getOrderActivity.mockResolvedValue({ entries: [] });
   return wrap(<OrderDetailScreen fulfillmentId={d.id} />, roles);
 }
 
@@ -55,24 +56,23 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("order detail — the header block", () => {
-  it("shows the order id in mono, the customer, placed-at and the status pills", async () => {
+describe("order detail — the design's summary bar", () => {
+  it("leads with the total, then the status, payment and risk pills, then the placed line", async () => {
     open(orderDetail({ atRisk: true, payment: { ...orderDetail().payment, state: "partially_refunded" } }));
-    const id = await screen.findByText("EFY-10023", { selector: "div" });
-    expect(id.className).toContain("font-mono");
-    expect(screen.getAllByText("Maya Oyelaran").length).toBeGreaterThan(0);
-    expect(screen.getByText(/^Placed /)).toBeInTheDocument();
-    expect(screen.getByText("Picking")).toBeInTheDocument();
-    expect(screen.getAllByText("Partially refunded").length).toBeGreaterThan(0);
+    expect(await screen.findByText("Picking")).toBeInTheDocument();
+    // The total appears in the bar and again as the Items total.
+    expect(screen.getAllByText("$57.80").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Partially refunded").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("At risk")).toBeInTheDocument();
+    expect(screen.getByText(/^Placed .* · Standard delivery · ready by/)).toBeInTheDocument();
   });
 
-  it("offers the next step, Activity, and Can't supply — never Capture", async () => {
+  it("offers the next step — and never Capture, Duplicate, Resend email or Print invoice", async () => {
     open();
     expect(await screen.findByRole("button", { name: /mark ready for pickup/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /activity/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /can't supply/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /capture/i })).not.toBeInTheDocument();
+    for (const name of [/capture/i, /duplicate/i, /resend email/i, /print invoice/i, /edit order/i]) {
+      expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    }
   });
 
   it("shows a shop-scoped, non-disclosing refusal", async () => {
@@ -83,92 +83,80 @@ describe("order detail — the header block", () => {
   });
 });
 
-describe("order detail — tabs", () => {
-  it("opens on Summary with its five sections, each with its subtitle", async () => {
+describe("order detail — the main column", () => {
+  it("has the design's sections in order: Items, Fulfilment, Internal notes, Activity log", async () => {
     open();
-    await screen.findByText("Customer");
-    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute("data-state", "active");
-    for (const [title, subtitle] of [
-      ["Customer", "Who placed this order and how to reach them."],
-      ["Addresses", "Where this order ships and bills."],
-      ["Payment", "How this order was paid and what is still outstanding."],
-      ["Tags", /spot orders/],
-      ["Internal notes", /customer never sees/],
-    ] as const) {
-      expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-      expect(screen.getByText(subtitle)).toBeInTheDocument();
-    }
+    await screen.findByRole("heading", { name: "Items" });
+    const titles = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(titles).toEqual(["Items", "Fulfilment", "Internal notes"]);
+    expect(screen.getByText("Activity log")).toBeInTheDocument();
   });
 
-  it("shows the payment figures, with Captured equal to Authorised", async () => {
+  it("lists this shop's lines as qty × unit and a line total, with totals that reconcile", async () => {
     open();
-    await screen.findByText("Authorised");
-    expect(screen.getByText("Visa •••• 4242")).toBeInTheDocument();
-    expect(screen.getAllByText("$57.80").length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("names the second address and says it is withheld, rather than leaving it blank", async () => {
-    open();
-    expect(await screen.findByText("Bill to")).toBeInTheDocument();
-    expect(screen.getByText(/not shared with shops/i)).toBeInTheDocument();
-  });
-
-  it("lists this shop's priced lines on Items, with totals that reconcile", async () => {
-    open();
-    await userEvent.click(await screen.findByRole("tab", { name: "Items" }));
-    expect(screen.getByText("Barossa Free-Range Eggs 700g")).toBeInTheDocument();
-    expect(screen.getByText("$8.90")).toBeInTheDocument();
-    expect(screen.getAllByText("$17.80")).toHaveLength(2); // the line, and "Your items"
+    await screen.findByText("2 × $8.90");
+    expect(screen.getByText("Part picked")).toBeInTheDocument();
     // ⚠ A two-shop order: the other shop's items get their own row, so the lines add up.
     expect(screen.getByText("Items from other shops")).toBeInTheDocument();
     expect(screen.getByText("$30.00")).toBeInTheDocument();
-    // ⚠ No tax line — per-item GST is unmodelled (052 R13).
+    expect(screen.getByText("Delivery")).toBeInTheDocument();
+    // ⚠ No tax row — per-item GST is unmodelled (052 R13).
     expect(document.body.textContent ?? "").not.toMatch(/\b(VAT|GST)\b/);
   });
 
-  it("resets to Summary when the order changes", async () => {
-    getOrder.mockImplementation(async (id: string) => orderDetail({ id, orderNumber: id === "f1" ? "EFY-1" : "EFY-2" }));
-    listOrders.mockResolvedValue(orderList([]));
-    const { rerender } = wrap(<OrderDetailScreen fulfillmentId="f1" />);
-    await userEvent.click(await screen.findByRole("tab", { name: "Items" }));
-    expect(screen.getByRole("tab", { name: "Items" })).toHaveAttribute("data-state", "active");
-
-    rerender(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <OrderDetailScreen fulfillmentId="f2" />
-      </QueryClientProvider>,
+  it("shows the Refunded box with each refund and the net paid", async () => {
+    open(
+      orderDetail({
+        money: { ...orderDetail().money, refunded: "8.90", net: "48.90" },
+        refunds: [
+          { id: "r1", amount: "8.90", status: "succeeded", reason: "item_unusable", actorKind: "shop", actorLabel: "Sam", createdAt: "2026-09-10T04:00:00Z" },
+        ],
+      }),
     );
-    await screen.findByText("EFY-2", { selector: "div" });
-    expect(screen.getByRole("tab", { name: "Summary" })).toHaveAttribute("data-state", "active");
+    expect(await screen.findByText("Refunded")).toBeInTheDocument();
+    expect(screen.getByText("−$8.90")).toBeInTheDocument();
+    expect(screen.getByText(/Unusable · .* · returned · Sam/)).toBeInTheDocument();
+    expect(screen.getByText("Net paid")).toBeInTheDocument();
+    expect(screen.getByText("$48.90")).toBeInTheDocument();
+  });
+
+  it("shows the activity log in the page, with who · when", async () => {
+    getOrder.mockResolvedValue(orderDetail());
+    listOrders.mockResolvedValue(orderList([]));
+    getOrderActivity.mockResolvedValue({
+      entries: [{ id: "e1", at: "2026-09-10T02:20:00Z", title: "Picked 1 × Eggs", actorLabel: "Sam", tone: "quiet" }],
+    });
+    wrap(<OrderDetailScreen fulfillmentId="f1" />);
+    expect(await screen.findByText("Picked 1 × Eggs")).toBeInTheDocument();
+    expect(screen.getByText(/^Sam · /)).toBeInTheDocument();
+  });
+
+  it("lists internal notes, newest first, with their author", async () => {
+    open(orderDetail({ notes: [{ id: "n1", body: "Call on arrival", authorLabel: "Maya", createdAt: "2026-09-10T03:00:00Z" }] }));
+    expect(await screen.findByText("Call on arrival")).toBeInTheDocument();
+    expect(screen.getByText(/^Maya · /)).toBeInTheDocument();
   });
 });
 
-describe("order detail — the Activity sheet", () => {
-  it("reads the log only when opened, and shows each entry's when · who", async () => {
-    getOrderActivity.mockResolvedValue({
-      entries: [
-        { id: "e1", at: "2026-09-10T02:20:00Z", title: "Picked 1 × Eggs", actorLabel: "Sam", tone: "quiet" },
-        { id: "e2", at: "2026-09-10T02:30:00Z", title: "1 × Milk marked unavailable", actorLabel: null, tone: "strong" },
-      ],
-    });
-    open();
-    await screen.findByText("Customer");
-    expect(getOrderActivity).not.toHaveBeenCalled();
-
-    await userEvent.click(screen.getByRole("button", { name: /activity/i }));
-    const sheet = await screen.findByRole("dialog");
-    expect(await within(sheet).findByText("Picked 1 × Eggs")).toBeInTheDocument();
-    expect(within(sheet).getByText(/· Sam$/)).toBeInTheDocument();
-    expect(getOrderActivity).toHaveBeenCalledWith("f1");
+describe("order detail — the rail", () => {
+  it("has the Payment card, the action stack, Tags, Customer, Ship to and Bill to", async () => {
+    open(orderDetail({ tags: ["fragile"] }));
+    expect(await screen.findByText("Visa •••• 4242 · $57.80 captured at checkout")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print pick list" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Can't supply this order" })).toBeInTheDocument();
+    expect(screen.getByText("fragile")).toBeInTheDocument();
+    expect(screen.getByText("Ship to")).toBeInTheDocument();
+    // ⚠ Named and said to be withheld (023 FR-018).
+    expect(screen.getByText("Bill to")).toBeInTheDocument();
+    expect(screen.getByText(/Held by Effy with the payment/)).toBeInTheDocument();
   });
 });
 
 describe("order detail — previous / next", () => {
   it("walks the list it was opened from", async () => {
     getOrder.mockResolvedValue(orderDetail({ id: "b" }));
-    listOrders.mockResolvedValue(
-      orderList([orderRow({ id: "a" }), orderRow({ id: "b" }), orderRow({ id: "c" })], { total: 3 }),
-    );
+    getOrderActivity.mockResolvedValue({ entries: [] });
+    listOrders.mockResolvedValue(orderList([orderRow({ id: "a" }), orderRow({ id: "b" }), orderRow({ id: "c" })], { total: 3 }));
     const onNavigate = vi.fn();
     wrap(<OrderDetailScreen fulfillmentId="b" search={{ tab: "picking" }} onNavigate={onNavigate} />);
     expect(await screen.findByText("2 of 3")).toBeInTheDocument();
@@ -179,63 +167,56 @@ describe("order detail — previous / next", () => {
   });
 });
 
-describe("PickList quantity controls (Fulfilment tab)", () => {
-  async function fulfilment(d: OrderDetail) {
-    open(d);
-    await userEvent.click(await screen.findByRole("tab", { name: "Fulfilment" }));
-  }
-
+describe("PickList quantity controls (Fulfilment section)", () => {
   it("writes ABSOLUTE gathered quantities, not deltas", async () => {
     updateItemProgress.mockResolvedValue({});
-    await fulfilment(orderDetail({ lines: [line({ gatheredQuantity: 1 })] }));
-    await userEvent.click(screen.getByRole("button", { name: /more gathered/i }));
+    open(orderDetail({ lines: [line({ gatheredQuantity: 1 })] }));
+    await userEvent.click(await screen.findByRole("button", { name: /more gathered/i }));
     expect(updateItemProgress).toHaveBeenCalledWith("f1", "oi1", { gatheredQuantity: 2 });
   });
 
   it("cannot gather more than was ordered", async () => {
-    await fulfilment(orderDetail({ lines: [line({ gatheredQuantity: 2 })] }));
-    expect(screen.getByRole("button", { name: /more gathered/i })).toBeDisabled();
+    open(orderDetail({ lines: [line({ gatheredQuantity: 2 })] }));
+    expect(await screen.findByRole("button", { name: /more gathered/i })).toBeDisabled();
   });
 
   // FR-010 — flag the shortfall rather than pretend the item was picked.
   it("flags the outstanding quantity unavailable", async () => {
     updateItemProgress.mockResolvedValue({});
-    await fulfilment(orderDetail({ lines: [line({ gatheredQuantity: 1 })] }));
-    await userEvent.click(screen.getByRole("button", { name: /^unavailable$/i }));
+    open(orderDetail({ lines: [line({ gatheredQuantity: 1 })] }));
+    await userEvent.click(await screen.findByRole("button", { name: /^unavailable$/i }));
     expect(updateItemProgress).toHaveBeenCalledWith("f1", "oi1", { unavailableQuantity: 1 });
   });
 
   // FR-010d — items turn up. Un-flagging is a first-class affordance, and it writes 0 absolutely.
   it("un-flags an unavailable item back to zero", async () => {
     updateItemProgress.mockResolvedValue({});
-    await fulfilment(orderDetail({ lines: [line({ gatheredQuantity: 0, unavailableQuantity: 2 })] }));
-    await userEvent.click(screen.getByRole("button", { name: /found it/i }));
+    open(orderDetail({ lines: [line({ gatheredQuantity: 0, unavailableQuantity: 2 })] }));
+    await userEvent.click(await screen.findByRole("button", { name: /found it/i }));
     expect(updateItemProgress).toHaveBeenCalledWith("f1", "oi1", { unavailableQuantity: 0 });
   });
 
-  it("surfaces the shortfall in the header and points at the refund", async () => {
-    open(orderDetail({ lines: [line({ unavailableQuantity: 1 })] }));
-    expect(await screen.findByText(/1 item flagged unavailable/i)).toBeInTheDocument();
-    expect(screen.getByText(/refund it from the items tab/i)).toBeInTheDocument();
-  });
-
   it("locks the pick list outside the picking state", async () => {
-    await fulfilment(orderDetail({ status: "received" }));
-    expect(screen.getByRole("button", { name: /more gathered/i })).toBeDisabled();
+    open(orderDetail({ status: "received" }));
+    expect(await screen.findByRole("button", { name: /more gathered/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /^unavailable$/i })).toBeDisabled();
   });
 
   it("surfaces a rejected quantity write inline", async () => {
     updateItemProgress.mockRejectedValue({ kind: "unknown", status: 400, title: "Bad request" });
-    await fulfilment(orderDetail());
-    await userEvent.click(screen.getByRole("button", { name: /more gathered/i }));
+    open();
+    await userEvent.click(await screen.findByRole("button", { name: /more gathered/i }));
     expect(await screen.findByText(/more than was ordered/i)).toBeInTheDocument();
   });
 
-  it("shows the handoff facts the shop takes part in", async () => {
-    await fulfilment(orderDetail({ handoff: { collectedAt: "2026-09-10T05:00:00Z", deliveredAt: null, unfulfillableReason: null } }));
-    expect(screen.getByText("Collected by Effy")).toBeInTheDocument();
-    expect(screen.getByText("Not yet")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText(/delivery partner takes it from there/)).toBeInTheDocument());
+  it("says how many units are still to pick, and shows the driver handoff once it happens", async () => {
+    open(orderDetail({ status: "picking", lines: [line({ gatheredQuantity: 1 })] }));
+    expect(await screen.findByText("1 unit still to pick.")).toBeInTheDocument();
+  });
+
+  it("records the collection by an Effy driver", async () => {
+    open(orderDetail({ status: "collected", handoff: { collectedAt: "2026-09-10T05:00:00Z", deliveredAt: null, unfulfillableReason: null } }));
+    const row = (await screen.findByText("Collected by an Effy driver")).parentElement!;
+    expect(within(row).getByText(/Sep/)).toBeInTheDocument();
   });
 });

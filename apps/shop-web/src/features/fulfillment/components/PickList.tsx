@@ -1,6 +1,6 @@
 import { ImageOff, Minus, PackageX, Plus, Undo2 } from "lucide-react";
 
-import { Badge, Button } from "@effy/design-system/ui";
+import { Button } from "@effy/design-system/ui";
 
 import { fulfillmentMutationError } from "../errorText";
 import { isPickable, remainingQuantity, type FulfillmentItem, type FulfillmentStatus } from "../model";
@@ -40,9 +40,9 @@ export function PickList({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid">
       {!editable ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-muted-foreground border-border border-b py-3 text-[13px]">
           {status === "received" || status === "pending"
             ? "Start picking to record progress against these lines."
             : status === "ready_for_pickup"
@@ -59,7 +59,7 @@ export function PickList({
 
       {/* ⚠ 057 A3 — row rules, no outer frame: the section's own hairline is the top edge, as on every
           open section in the console. */}
-      <ul className="divide-border divide-y border-b">
+      <ul className="divide-border divide-y">
         {items.map((item) => {
           const pendingWrite =
             progress.isPending && progress.variables?.orderItemId === item.orderItemId;
@@ -69,31 +69,36 @@ export function PickList({
           return (
             <li
               key={item.orderItemId}
-              className="flex flex-wrap items-center gap-4 py-3 sm:flex-nowrap"
+              className="border-border flex flex-wrap items-center gap-3 py-3 sm:flex-nowrap"
             >
               {item.imageUrl ? (
                 <img
                   src={item.imageUrl}
                   alt=""
-                  className="size-12 shrink-0 rounded-md border object-cover"
+                  className="border-border size-9 shrink-0 rounded-md border object-cover"
                 />
               ) : (
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-md border text-muted-foreground">
-                  <ImageOff className="size-5" />
+                <div className="border-border bg-muted text-muted-foreground grid size-9 shrink-0 place-items-center rounded-md border">
+                  <ImageOff className="size-4" />
                 </div>
               )}
 
               <div className="min-w-0 flex-1">
-                <p className="font-medium break-words">{item.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  <span className="font-mono">{item.sku ?? "—"}</span> · ordered{" "}
-                  <span className="tabular-nums">{item.orderedQuantity}</span>
-                </p>
-                {flagged ? (
-                  <Badge variant="warning" className="mt-1">
-                    {item.unavailableQuantity} unavailable
-                  </Badge>
-                ) : null}
+                <p className="text-[13.5px] font-medium break-words">{item.name}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-muted-foreground font-mono text-[12px]">{item.sku ?? "—"}</span>
+                  <span
+                    className={
+                      flagged
+                        ? "text-destructive text-[11.5px] font-medium"
+                        : "text-muted-foreground text-[11.5px]"
+                    }
+                  >
+                    {flagged
+                      ? `${item.unavailableQuantity} unavailable`
+                      : `ordered ${item.orderedQuantity}`}
+                  </span>
+                </div>
               </div>
 
               {/* Gathered stepper — absolute values, clamped to what is legal. */}
@@ -101,6 +106,7 @@ export function PickList({
                 <Button
                   variant="outline"
                   size="icon"
+                  className="size-8"
                   aria-label={`Fewer gathered: ${item.name}`}
                   disabled={!editable || pendingWrite || item.gatheredQuantity <= 0}
                   onClick={() => write(item, { gatheredQuantity: item.gatheredQuantity - 1 })}
@@ -108,7 +114,7 @@ export function PickList({
                   <Minus />
                 </Button>
                 <span
-                  className="min-w-16 text-center text-lg font-semibold tabular-nums"
+                  className="min-w-14 text-center text-[15px] font-semibold tabular-nums"
                   aria-label={`Gathered ${item.gatheredQuantity} of ${item.orderedQuantity}: ${item.name}`}
                 >
                   {item.gatheredQuantity}/{item.orderedQuantity}
@@ -116,6 +122,7 @@ export function PickList({
                 <Button
                   variant="outline"
                   size="icon"
+                  className="size-8"
                   aria-label={`More gathered: ${item.name}`}
                   disabled={!editable || pendingWrite || remaining <= 0}
                   onClick={() => write(item, { gatheredQuantity: item.gatheredQuantity + 1 })}
@@ -129,6 +136,7 @@ export function PickList({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-8 text-[12.5px]"
                   disabled={!editable || pendingWrite}
                   onClick={() => write(item, { unavailableQuantity: 0 })}
                 >
@@ -139,6 +147,7 @@ export function PickList({
                 <Button
                   variant="outline"
                   size="sm"
+                  className="h-8 text-[12.5px]"
                   disabled={!editable || pendingWrite || remaining <= 0}
                   onClick={() => write(item, { unavailableQuantity: remaining })}
                 >

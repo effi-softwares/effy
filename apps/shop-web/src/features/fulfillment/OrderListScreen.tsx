@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { ArrowDown, ArrowUp, Download, Loader2, Search, X } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 
 import {
-  SHOP_ORDER_ATTENTION,
   SHOP_ORDER_METHODS,
   SHOP_ORDER_PAYMENT_STATES,
   SHOP_ORDER_RANGES,
@@ -15,33 +14,27 @@ import {
 import {
   Button,
   Checkbox,
-  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
   Skeleton,
-  Tabs,
-  TabsList,
-  TabsTrigger,
   toast,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
-import { MicroLabel, Page, Pill } from "@/components/console/primitives"
 import { track } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
 
 import { BulkActions } from "./components/BulkActions"
-import { FulfillmentStatusBadge } from "./components/FulfillmentStatusBadge"
+import { OrderStatusPill, paymentTextClass } from "./components/OrderPill"
 import {
   activeViewId,
   applyView,
-  ATTENTION_LABEL,
   clearedFilters,
   formatMoney,
-  formatWhen,
+  formatPlacedShort,
   isFiltered,
   METHOD_LABEL,
   PAYMENT_LABEL,
@@ -58,20 +51,20 @@ import { orderListQuery } from "./queries"
 import { listOrders } from "./repo"
 
 /**
- * The shop's Orders list, rebuilt to the imported design (057 Amendment A3).
+ * The Orders list — transcribed from the imported design's `isOrders` block ("Effy Shop Console.dc.html"),
+ * row for row: the segmented status tabs with counts, search and Export CSV on the same line; the
+ * Views chips; the labelled filter selects with the result count at the end; the bulk bar; the
+ * bordered table with a muted header; the dashed empty state; Previous / Next.
  *
- * ⚠ EVERYTHING THAT NARROWS THE LIST IS SERVER-SIDE NOW. The queue this replaced filtered the page the
- * server sent, which was right for tens of active rows and wrong for a list that includes every order
- * the shop has ever handled: the tab counts must cover EVERY state, not the visible page, and a search
- * must find an order from last month. So the tabs, search, four filters, sort and page all go to the
- * server, and the counts come back computed under the same filters (minus the tab itself).
+ * ⚠ WHERE IT DEPARTS FROM THE MOCKUP, IT IS FOR EFFY'S MODEL, NOT FOR TASTE:
+ *   • the tabs are Effy's states (Awaiting pick · Picking · Ready · Collected · Delivered · Can't supply
+ *     · Cancelled), not "Packed / Shipped" — a shop never ships anything (049);
+ *   • the fourth filter is Delivery (same-day / standard), because Effy has one sales channel;
+ *   • the row's flag is "At risk" against the ready-by promise — Effy has no fraud score.
  *
- * ⚠ THE DEFAULT IS STILL OLDEST FIRST (020 FR-001b): the order that has waited longest is the one to
- * pick next. Clicking a column header re-sorts on purpose; nothing re-sorts on its own.
- *
- * ⚠ THE STATE IS THE URL (`search` / `onSearchChange`), so back from an order lands on the same page
- * and the order's previous/next knows which list it came from. The screen stays router-agnostic so it
- * can be tested without one.
+ * ⚠ EVERYTHING THAT NARROWS THE LIST IS SERVER-SIDE, so the tab counts cover every state and a search
+ * finds last month's order. The state lives in the URL (`search` / `onSearchChange`). The default sort
+ * is oldest first — the order that has waited longest is the one to pick next (020 FR-001b).
  */
 export function OrderListScreen({
   search,
@@ -93,9 +86,8 @@ export function OrderListScreen({
     track({ name: "shop_order_queue_viewed", state: tab === "all" || tab === "new" || tab === "picking" ? "active" : "completed" })
   }, [tab])
 
-  // ⚠ Selection is cleared whenever the list changes under it (page, tab, filter, sort). Carrying it
-  // across would let an operator act on rows they can no longer see — the definition of an unreviewed
-  // bulk action.
+  // ⚠ Selection is cleared whenever the list changes under it — acting on rows no longer visible is
+  // the definition of an unreviewed bulk action.
   useEffect(() => {
     setSelected(new Set())
   }, [searchKey])
@@ -113,6 +105,7 @@ export function OrderListScreen({
   const pageSize = data?.pageSize ?? 25
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const filtered = isFiltered(search)
+  const dirty = filtered || tab !== "all"
   const allOnPage = rows.length > 0 && rows.every((r) => selected.has(r.id))
   const someOnPage = rows.some((r) => selected.has(r.id))
   const viewId = activeViewId(search)
@@ -129,21 +122,15 @@ export function OrderListScreen({
   async function exportCsv() {
     setExporting(true)
     try {
-      // ⚠ Every matching row, not just this page — "Export" of a filtered list means the filtered list.
-      // Capped, because a CSV of the shop's entire history is a report, not an export button.
+      // ⚠ Every matching row, not just this page — capped, because a CSV of a shop's entire history is
+      // a report, not an export button.
       const all: OrderRow[] = []
       for (let p = 1; p <= 40; p++) {
         const res = await listOrders({ ...toListQuery(search), page: p })
         all.push(...res.items)
         if (all.length >= res.total || res.items.length === 0) break
       }
-      const blob = new Blob([toCsv(all)], { type: "text/csv;charset=utf-8" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`
-      a.click()
-      URL.revokeObjectURL(url)
+      downloadCsv(all)
       toast.success(`Exported ${all.length} order${all.length === 1 ? "" : "s"}`)
     } catch {
       toast.error("The export couldn't be built. Try again in a moment.")
@@ -153,109 +140,127 @@ export function OrderListScreen({
   }
 
   return (
-    <Page className="gap-4">
-      {/* ── Title area + the primary action (the breadcrumb itself is in the app header) ───────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        <p className="text-muted-foreground min-w-0 flex-1 text-[13px]">
-          Every order your shop is supplying — oldest first, updated automatically.
-        </p>
-        <Button size="sm" disabled={exporting || total === 0} onClick={() => void exportCsv()}>
-          {exporting ? <Loader2 className="animate-spin" /> : <Download />}
-          Export CSV
-        </Button>
-      </div>
-
-      {/* ── Status tabs (counts over every state) + saved views ──────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-        <Tabs value={tab} onValueChange={(v) => update({ tab: v as OrdersSearch["tab"] })}>
-          <TabsList className="h-auto max-w-full flex-wrap">
-            {SHOP_ORDER_TABS.map((t) => (
-              <TabsTrigger
+    <div className="grid gap-4">
+      {/* ── Tabs · search · Export CSV ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div role="tablist" aria-label="Order status" className="bg-muted flex flex-wrap gap-0.5 rounded-lg p-[3px]">
+          {SHOP_ORDER_TABS.map((t) => {
+            const active = tab === t
+            return (
+              <button
                 key={t}
-                value={t}
-                className="text-muted-foreground hover:text-foreground data-[state=active]:text-foreground h-7 flex-none gap-1.5 px-[11px] text-[13px] font-normal data-[state=active]:font-medium"
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => update({ tab: t })}
+                className={cn(
+                  "focus-visible:ring-ring flex h-7 cursor-pointer items-center gap-1.5 rounded-md border-none px-[11px] text-[13px] focus-visible:ring-2 focus-visible:outline-none",
+                  active
+                    ? "bg-background text-foreground font-medium shadow-sm"
+                    : "text-muted-foreground hover:text-foreground bg-transparent font-normal",
+                )}
               >
                 {TAB_LABEL[t]}
-                <span className="font-mono text-[11.5px] opacity-65 tabular-nums">
-                  {data ? data.counts[t] : "·"}
+                <span className="font-mono text-[11.5px] tabular-nums opacity-65">
+                  {data ? data.counts[t] : ""}
                 </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <MicroLabel>Views</MicroLabel>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saved views">
-            {SAVED_VIEWS.map((v) => {
-              const active = viewId === v.id
-              return (
-                <button
-                  key={v.id}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => update(applyView(search, v.search))}
-                  className={cn(
-                    "border-border hover:bg-accent focus-visible:ring-ring h-[26px] cursor-pointer rounded-full border px-2.5 text-[12.5px] whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none",
-                    active ? "bg-foreground text-background hover:bg-foreground font-medium" : "bg-background text-muted-foreground",
-                  )}
-                >
-                  {v.label}
-                </button>
-              )
-            })}
-          </div>
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex-1" />
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
+          <Button
+            variant="outline"
+            className="h-8 px-3 text-[13px]"
+            disabled={exporting || total === 0}
+            onClick={() => void exportCsv()}
+          >
+            {exporting ? <Loader2 className="animate-spin" /> : null}
+            Export CSV
+          </Button>
         </div>
       </div>
 
-      {/* ── Toolbar: search + the four filters, composed ─────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end gap-2.5">
-        <SearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
-        <FilterSelect
-          label="Status"
-          value={search.attention ?? "any"}
-          options={SHOP_ORDER_ATTENTION.map((a) => ({ value: a, label: ATTENTION_LABEL[a] }))}
-          onChange={(v) => update({ attention: v as OrdersSearch["attention"] })}
-        />
-        <FilterSelect
-          label="Payment"
-          value={search.payment ?? "any"}
-          options={[
-            { value: "any", label: "Any payment" },
-            ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] })),
-          ]}
-          onChange={(v) => update({ payment: v === "any" ? undefined : (v as OrdersSearch["payment"]) })}
-        />
-        <FilterSelect
-          label="Fulfilment"
-          value={search.method ?? "any"}
-          options={SHOP_ORDER_METHODS.map((m) => ({ value: m, label: METHOD_LABEL[m] }))}
-          onChange={(v) => update({ method: v as OrdersSearch["method"] })}
-        />
+      {/* ── Views ─────────────────────────────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase">
+          Views
+        </div>
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saved views">
+          {SAVED_VIEWS.map((v) => {
+            const active = viewId === v.id
+            return (
+              <button
+                key={v.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => update(applyView(search, v.search))}
+                className={cn(
+                  "border-border hover:bg-accent focus-visible:ring-ring h-[26px] cursor-pointer rounded-full border px-2.5 text-[12.5px] whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none",
+                  active ? "bg-background text-foreground font-medium" : "text-muted-foreground bg-transparent font-normal",
+                )}
+              >
+                {v.label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ── Filters · reset · count ───────────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-end gap-2.5 pb-0.5">
         <FilterSelect
           label="Date"
           value={search.range ?? "any"}
           options={SHOP_ORDER_RANGES.map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
           onChange={(v) => update({ range: v as OrdersSearch["range"] })}
         />
-        {filtered ? (
+        <FilterSelect
+          label="Payment"
+          value={search.payment ?? "any"}
+          options={[
+            { value: "any", label: "Any" },
+            ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] })),
+          ]}
+          onChange={(v) => update({ payment: v === "any" ? undefined : (v as OrdersSearch["payment"]) })}
+        />
+        {/* The design's Fulfilment filter IS its tab set; here the two are one value, so choosing in
+            either moves the other and they can never disagree. */}
+        <FilterSelect
+          label="Fulfilment"
+          value={tab}
+          options={SHOP_ORDER_TABS.map((t) => ({ value: t, label: t === "all" ? "Any" : TAB_LABEL[t] }))}
+          onChange={(v) => update({ tab: v as OrdersSearch["tab"] })}
+        />
+        <FilterSelect
+          label="Delivery"
+          value={search.method ?? "any"}
+          options={SHOP_ORDER_METHODS.map((m) => ({ value: m, label: m === "any" ? "Any" : METHOD_LABEL[m] }))}
+          onChange={(v) => update({ method: v as OrdersSearch["method"] })}
+        />
+        {dirty ? (
           <Button
             variant="ghost"
-            size="sm"
-            className="text-muted-foreground h-8"
-            onClick={() => onSearchChange(clearedFilters(search))}
+            className="text-muted-foreground hover:text-foreground h-8 px-3 text-[13px]"
+            onClick={() => onSearchChange(validateOrdersSearch({ sort: search.sort, dir: search.dir }))}
           >
             Reset filters
           </Button>
         ) : null}
         <div className="flex-1" />
-        <p className="text-muted-foreground pb-1.5 text-[13px] whitespace-nowrap tabular-nums" aria-live="polite">
-          {!data ? "" : total === 0 ? "No matches" : `Showing ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + rows.length} of ${total}`}
-        </p>
+        <div className="text-muted-foreground pb-1.5 text-[13px] whitespace-nowrap tabular-nums" aria-live="polite">
+          {!data
+            ? ""
+            : total === 0
+              ? "No matches"
+              : `Showing ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + rows.length} of ${total}`}
+        </div>
       </div>
 
       {selected.size > 0 ? (
-        <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} />
+        <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadCsv} />
       ) : null}
 
       {isError ? (
@@ -264,75 +269,131 @@ export function OrderListScreen({
         <ListSkeleton />
       ) : total === 0 ? (
         <EmptyState
-          filtered={filtered}
-          tab={tab}
-          onClear={() => onSearchChange(clearedFilters(search))}
-          onAll={() => update({ tab: undefined })}
+          filtered={dirty}
+          onReset={() => onSearchChange(clearedFilters({ sort: search.sort, dir: search.dir }))}
         />
       ) : (
-        <div
-          className={cn(
-            "border-border overflow-x-auto rounded-[var(--radius)] border transition-opacity",
-            isPlaceholderData && "opacity-60",
-          )}
-        >
-          <table className="w-full min-w-[860px] table-fixed border-collapse">
-            <colgroup>
-              <col className="w-11" />
-              <col className="w-[132px]" />
-              <col />
-              <col className="w-[132px]" />
-              {/* ⚠ Wide enough for "Partially refunded", its longest label, on one line. */}
-              <col className="w-[158px]" />
-              <col className="w-[150px]" />
-              <col className="w-[76px]" />
-              <col className="w-[116px]" />
-            </colgroup>
-            <thead>
-              <tr className="bg-muted">
-                <th className="py-2.5 pl-3.5">
-                  <Checkbox
-                    aria-label="Select all orders on this page"
-                    checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
-                    onCheckedChange={(v) =>
-                      setSelected(v === true ? new Set(rows.map((r) => r.id)) : new Set())
-                    }
-                  />
-                </th>
-                <SortTh label="Order" sortKey="number" search={search} onSort={update} />
-                <SortTh label="Customer" sortKey="customer" search={search} onSort={update} />
-                <SortTh label="Date" sortKey="placed" search={search} onSort={update} />
-                <PlainTh>Payment</PlainTh>
-                <PlainTh>Fulfilment</PlainTh>
-                <SortTh label="Items" sortKey="items" search={search} onSort={update} align="right" />
-                <SortTh label="Total" sortKey="total" search={search} onSort={update} align="right" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <OrderTableRow
-                  key={row.id}
-                  row={row}
-                  search={search}
-                  selected={selected.has(row.id)}
-                  onSelect={(on) => toggle(row.id, on)}
-                  onOpen={() => onOpenOrder(row.id)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* ── The table (wide) ──────────────────────────────────────────────────────────────── */}
+          <div
+            className={cn(
+              "border-border hidden overflow-x-auto rounded-[var(--radius)] border transition-opacity md:block",
+              isPlaceholderData && "opacity-60",
+            )}
+          >
+            <table className="w-full min-w-[820px] table-fixed border-collapse">
+              <thead>
+                <tr className="bg-muted">
+                  <th className="w-[34px] py-[9px] pl-3.5">
+                    <Checkbox
+                      aria-label="Select all on this page"
+                      className="size-4"
+                      checked={allOnPage ? true : someOnPage ? "indeterminate" : false}
+                      onCheckedChange={(v) => setSelected(v === true ? new Set(rows.map((r) => r.id)) : new Set())}
+                    />
+                  </th>
+                  <SortTh label="Order" sortKey="number" width="11%" search={search} onSort={update} />
+                  <SortTh label="Customer" sortKey="customer" width="19%" search={search} onSort={update} />
+                  <SortTh label="Items" search={search} onSort={update} />
+                  <SortTh label="Placed" sortKey="placed" width="8%" search={search} onSort={update} />
+                  <SortTh label="Fulfilment" width="13%" search={search} onSort={update} />
+                  {/* ⚠ Wide enough for "Partially refunded", its longest label, on one line. */}
+                  <SortTh label="Payment" width="14%" search={search} onSort={update} />
+                  <SortTh label="Total" sortKey="total" width="11%" align="right" search={search} onSort={update} />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((o) => {
+                  const sel = selected.has(o.id)
+                  return (
+                    <tr
+                      key={o.id}
+                      onClick={() => onOpenOrder(o.id)}
+                      data-state={sel ? "selected" : undefined}
+                      className={cn("border-border hover:bg-accent cursor-pointer border-t", sel && "bg-accent")}
+                    >
+                      {/* ⚠ Ticking a row must not also open it. */}
+                      <td className="py-3 pl-3.5" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          aria-label={`Select ${o.orderNumber}`}
+                          className="size-4"
+                          checked={sel}
+                          onCheckedChange={(v) => toggle(o.id, v === true)}
+                        />
+                      </td>
+                      <td className="px-3.5 py-3">
+                        <Link
+                          to="/orders/$fulfillmentId"
+                          params={{ fulfillmentId: o.id }}
+                          search={search}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-muted-foreground hover:text-foreground font-mono text-[12.5px] whitespace-nowrap no-underline"
+                        >
+                          {o.orderNumber}
+                        </Link>
+                      </td>
+                      <td className="px-3.5 py-3">
+                        {/* Wraps rather than overflowing when a flag rides beside the name. */}
+                        <div className="flex flex-wrap items-center gap-x-[7px] gap-y-[3px]">
+                          <span className="text-[13.5px] font-medium break-words">{o.customerName || "—"}</span>
+                          <RowFlag row={o} />
+                        </div>
+                      </td>
+                      <td className="text-muted-foreground overflow-hidden px-3.5 py-3 text-[13px] text-ellipsis whitespace-nowrap">
+                        {o.itemsSummary}
+                      </td>
+                      <td className="text-muted-foreground px-3.5 py-3 font-mono text-[13px] whitespace-nowrap">
+                        {formatPlacedShort(o.placedAt)}
+                      </td>
+                      <td className="px-3.5 py-3">
+                        <OrderStatusPill status={o.status} />
+                      </td>
+                      <td className={cn("px-3.5 py-3 text-[12.5px] font-medium whitespace-nowrap", paymentTextClass(o.payment))}>
+                        {PAYMENT_LABEL[o.payment]}
+                      </td>
+                      <td className="px-3.5 py-3 text-right text-[13.5px] font-medium whitespace-nowrap tabular-nums">
+                        {formatMoney(o.total, o.currency)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── The stacked list (narrow) ─────────────────────────────────────────────────────── */}
+          <div className="border-border border-t md:hidden">
+            {rows.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => onOpenOrder(o.id)}
+                className="border-border grid w-full cursor-pointer gap-[5px] border-b bg-transparent py-3 text-left"
+              >
+                <span className="flex items-center justify-between gap-2.5">
+                  <span className="text-[13.5px] font-medium">{o.customerName || "—"}</span>
+                  <span className="text-[13.5px] font-medium tabular-nums">{formatMoney(o.total, o.currency)}</span>
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-muted-foreground font-mono text-[12px] whitespace-nowrap">{o.orderNumber}</span>
+                  <OrderStatusPill status={o.status} />
+                </span>
+                <span className="text-muted-foreground text-[12.5px]">{o.itemsSummary}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       {total > 0 ? (
         <div className="flex flex-wrap items-center justify-end gap-2.5">
-          <span className="text-muted-foreground text-[12.5px] whitespace-nowrap tabular-nums">
+          <div className="text-muted-foreground text-[12.5px] whitespace-nowrap tabular-nums">
             Page {page} of {pageCount}
-          </span>
+          </div>
           <div className="flex gap-1.5">
             <Button
               variant="outline"
-              size="sm"
+              className="h-[30px] px-3 text-[13px] disabled:opacity-45"
               disabled={page <= 1}
               onClick={() => update({ page: page - 1 }, true)}
             >
@@ -340,7 +401,7 @@ export function OrderListScreen({
             </Button>
             <Button
               variant="outline"
-              size="sm"
+              className="h-[30px] px-3 text-[13px] disabled:opacity-45"
               disabled={page >= pageCount}
               onClick={() => update({ page: page + 1 }, true)}
             >
@@ -349,133 +410,81 @@ export function OrderListScreen({
           </div>
         </div>
       ) : null}
-    </Page>
+    </div>
   )
 }
 
-function OrderTableRow({
-  row,
-  search,
-  selected,
-  onSelect,
-  onOpen,
-}: {
-  row: OrderRow
-  search: OrdersSearch
-  selected: boolean
-  onSelect: (on: boolean) => void
-  onOpen: () => void
-}) {
+function downloadCsv(rows: readonly OrderRow[]) {
+  const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * The row's flag chip (`padding:1px 6px; border-radius:4px; 10.5px; coloured border and text`).
+ * ⚠ Effy's "risk" is the promise: an open order near or past its ready-by. A shortfall is the other
+ * thing a shop must see from the list, so it takes the same chip in the quiet tone.
+ */
+function RowFlag({ row }: { row: OrderRow }) {
   return (
-    <tr
-      onClick={onOpen}
-      data-state={selected ? "selected" : undefined}
-      className={cn(
-        "border-border hover:bg-accent cursor-pointer border-t transition-colors",
-        selected && "bg-accent",
-      )}
-    >
-      {/* ⚠ The checkbox cell swallows the click, or ticking a row would also open it. */}
-      <td className="py-3 pl-3.5" onClick={(e) => e.stopPropagation()}>
-        <Checkbox
-          aria-label={`Select ${row.orderNumber}`}
-          checked={selected}
-          onCheckedChange={(v) => onSelect(v === true)}
-        />
-      </td>
-      <td className="px-3.5 py-3">
-        <Link
-          to="/orders/$fulfillmentId"
-          params={{ fulfillmentId: row.id }}
-          search={search}
-          onClick={(e) => e.stopPropagation()}
-          className="text-muted-foreground hover:text-foreground font-mono text-[12.5px] whitespace-nowrap hover:underline"
-        >
-          {row.orderNumber}
-        </Link>
-      </td>
-      <td className="px-3.5 py-3">
-        {/* ⚠ Wraps rather than overflowing: a name with three badges still fits its column. */}
-        <div className="flex flex-wrap items-center gap-x-[7px] gap-y-[3px]">
-          <span className="text-[13.5px] font-medium break-words">{row.customerName || "—"}</span>
-          {/* ⚠ The risk marker. In the mockup this is fraud risk; Effy has no fraud score, and the
-              risk a shop can act on is its promise — so it marks an open order near or past its
-              ready-by (020 FR-001a). Monochrome: weight and fill, never a hue. */}
-          {row.atRisk ? <Pill variant="strong">At risk</Pill> : null}
-          {row.unavailableCount > 0 ? <Pill variant="outline">{row.unavailableCount} short</Pill> : null}
-          {row.tags.map((t) => (
-            <Pill key={t} variant="quiet">
-              {t}
-            </Pill>
-          ))}
-        </div>
-      </td>
-      <td className="text-muted-foreground px-3.5 py-3 font-mono text-[12.5px] whitespace-nowrap">
-        {formatWhen(row.placedAt)}
-      </td>
-      <td
-        className={cn(
-          "px-3.5 py-3 text-[12.5px] font-medium whitespace-nowrap",
-          row.payment === "paid" ? "text-muted-foreground" : "text-foreground font-semibold",
-        )}
-      >
-        {PAYMENT_LABEL[row.payment]}
-      </td>
-      <td className="px-3.5 py-3">
-        <FulfillmentStatusBadge status={row.status} />
-      </td>
-      <td className="px-3.5 py-3 text-right text-[13px] tabular-nums">{row.itemCount}</td>
-      <td className="px-3.5 py-3 text-right text-[13.5px] font-medium whitespace-nowrap tabular-nums">
-        {formatMoney(row.total, row.currency)}
-      </td>
-    </tr>
+    <>
+      {row.atRisk ? (
+        <span className="border-destructive text-destructive rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
+          At risk
+        </span>
+      ) : null}
+      {row.unavailableCount > 0 ? (
+        <span className="border-muted-foreground text-muted-foreground rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
+          {row.unavailableCount} short
+        </span>
+      ) : null}
+    </>
   )
 }
 
 function SortTh({
   label,
   sortKey,
+  width,
+  align = "left",
   search,
   onSort,
-  align = "left",
 }: {
   label: string
-  sortKey: ShopOrderSort
+  sortKey?: ShopOrderSort
+  width?: string
+  align?: "left" | "right"
   search: OrdersSearch
   onSort: (patch: Partial<OrdersSearch>) => void
-  align?: "left" | "right"
 }) {
-  const current = (search.sort ?? "placed") === sortKey
+  const current = !!sortKey && (search.sort ?? "placed") === sortKey
   const dir = search.dir ?? "asc"
   return (
     <th
       className="p-0"
-      aria-sort={current ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      style={width ? { width } : undefined}
+      aria-sort={current ? (dir === "asc" ? "ascending" : "descending") : undefined}
     >
       <button
         type="button"
-        // First click on a new column sorts descending (biggest / newest / Z first — what a header
-        // click usually wants); a second click flips it.
-        onClick={() => onSort({ sort: sortKey, dir: current ? (dir === "asc" ? "desc" : "asc") : "desc" })}
+        disabled={!sortKey}
+        // First click on a new column sorts descending; a second click flips it.
+        onClick={() => sortKey && onSort({ sort: sortKey, dir: current ? (dir === "asc" ? "desc" : "asc") : "desc" })}
         className={cn(
-          "text-muted-foreground hover:text-foreground flex w-full cursor-pointer items-center gap-[5px] px-3.5 py-2.5 text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase",
-          align === "right" && "justify-end",
-          current && "text-foreground",
+          "text-muted-foreground flex w-full items-center gap-[5px] border-none bg-transparent px-3.5 py-[9px] text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase",
+          align === "right" ? "justify-end" : "justify-start",
+          sortKey ? "hover:text-foreground cursor-pointer" : "cursor-default",
         )}
       >
         {label}
-        {current ? (
-          dir === "asc" ? <ArrowUp className="size-3" aria-hidden="true" /> : <ArrowDown className="size-3" aria-hidden="true" />
-        ) : null}
+        <span className="text-[10px]" aria-hidden="true">
+          {current ? (dir === "asc" ? "↑" : "↓") : ""}
+        </span>
       </button>
-    </th>
-  )
-}
-
-function PlainTh({ children }: { children: string }) {
-  return (
-    <th className="text-muted-foreground px-3.5 py-2.5 text-left text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase">
-      {children}
     </th>
   )
 }
@@ -494,11 +503,14 @@ function FilterSelect({
   const id = `filter-${label.toLowerCase()}`
   return (
     <div className="grid min-w-[140px] gap-[5px]">
-      <label htmlFor={id}>
-        <MicroLabel>{label}</MicroLabel>
+      <label
+        htmlFor={id}
+        className="text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase"
+      >
+        {label}
       </label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} size="sm" className="h-8 w-full text-[13px]" aria-label={label}>
+        <SelectTrigger id={id} size="sm" className="h-8 w-full px-2 text-[13px] shadow-none">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -514,9 +526,8 @@ function FilterSelect({
 }
 
 /**
- * The search box. ⚠ DEBOUNCED: every keystroke would otherwise be a server round trip and a URL
- * write. The box keeps its own text while typing and adopts the URL's when it changes from elsewhere
- * (a saved view, "Reset filters").
+ * The search box — 250px, a ✕ inside it once there is text. ⚠ DEBOUNCED: every keystroke would
+ * otherwise be a server round trip and a URL write.
  */
 function SearchBox({ value, onChange }: { value: string; onChange: (q: string) => void }) {
   const [text, setText] = useState(value)
@@ -529,82 +540,46 @@ function SearchBox({ value, onChange }: { value: string; onChange: (q: string) =
   }, [text])
 
   return (
-    <div className="grid gap-[5px]">
-      <label htmlFor="orders-search">
-        <MicroLabel>Search</MicroLabel>
-      </label>
-      <div className="relative flex items-center">
-        <Search
-          className="text-muted-foreground pointer-events-none absolute left-2.5 size-3.5"
-          aria-hidden="true"
-        />
-        <Input
-          id="orders-search"
-          placeholder="Order number or customer…"
-          className="h-8 w-[250px] max-w-full pr-8 pl-8 text-[13px]"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-        {text ? (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={() => {
-              setText("")
-              onChange("")
-            }}
-            className="text-muted-foreground hover:bg-accent absolute right-1 grid size-6 cursor-pointer place-items-center rounded-sm"
-          >
-            <X className="size-3.5" />
-          </button>
-        ) : null}
-      </div>
+    <div className="relative flex items-center">
+      <input
+        aria-label="Search"
+        placeholder="Search order, customer, SKU…"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="border-input bg-background focus:border-ring h-8 w-[250px] max-w-full rounded-md border pr-[30px] pl-[11px] text-[13px] outline-none"
+      />
+      {text ? (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => {
+            setText("")
+            onChange("")
+          }}
+          className="text-muted-foreground hover:bg-accent absolute right-1 grid size-[22px] cursor-pointer place-items-center rounded-[4px] border-none bg-transparent"
+        >
+          <X className="size-3.5" />
+        </button>
+      ) : null}
     </div>
   )
 }
 
-function EmptyState({
-  filtered,
-  tab,
-  onClear,
-  onAll,
-}: {
-  filtered: boolean
-  tab: string
-  onClear: () => void
-  onAll: () => void
-}) {
-  const [title, body, action] = useMemo((): [string, string, React.ReactNode] => {
-    if (filtered) {
-      return [
-        "No orders match these filters",
-        "Widen the date range, clear the search, or reset the filters and start again.",
-        <Button key="c" variant="outline" size="sm" onClick={onClear}>
-          Clear filters
-        </Button>,
-      ]
-    }
-    if (tab !== "all") {
-      return [
-        `No ${TAB_LABEL[tab as keyof typeof TAB_LABEL].toLowerCase()} orders`,
-        "Nothing is in this state right now.",
-        <Button key="a" variant="outline" size="sm" onClick={onAll}>
-          Show all orders
-        </Button>,
-      ]
-    }
-    return [
-      "No orders yet",
-      "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself.",
-      null,
-    ]
-  }, [filtered, tab, onClear, onAll])
-
+/** The design's dashed empty state — with distinct copy for "none yet" and "none match". */
+function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => void }) {
   return (
     <div className="border-border grid justify-items-center gap-2 rounded-[var(--radius)] border border-dashed px-6 py-11 text-center">
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="text-muted-foreground max-w-[340px] text-[13px] leading-[1.55]">{body}</p>
-      {action ? <div className="mt-1.5">{action}</div> : null}
+      <div className="text-sm font-semibold">{filtered ? "No orders match these filters" : "No orders yet"}</div>
+      <div className="text-muted-foreground max-w-[340px] text-[13px] leading-[1.55]">
+        {filtered
+          ? "Widen the date range, clear the search, or reset everything and start again."
+          : "Orders appear here the moment a customer pays for something your shop supplies. This list updates by itself."}
+      </div>
+      {filtered ? (
+        <Button variant="outline" className="mt-1.5 h-8 px-3.5 text-[13px]" onClick={onReset}>
+          Reset filters
+        </Button>
+      ) : null}
     </div>
   )
 }

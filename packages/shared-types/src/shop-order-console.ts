@@ -109,6 +109,8 @@ export interface ShopOrderRowDTO {
   total: string
   currency: string
   tags: string[]
+  /** "Eggs ×2, Oat milk ×1" — this shop's lines, for the list's Items column. */
+  itemsSummary: string
 }
 
 /** Per-tab counts over EVERY state, under every filter except the tab itself. */

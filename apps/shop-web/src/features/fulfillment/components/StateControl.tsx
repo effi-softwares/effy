@@ -1,21 +1,11 @@
-import { CheckCircle2, Loader2, RotateCcw, ShoppingBasket } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 
 import { useQueryClient } from "@tanstack/react-query";
 
-import {
-  Button,
-  Input,
-  Label,
-  ResponsiveModal,
-  ResponsiveModalContent,
-  ResponsiveModalDescription,
-  ResponsiveModalFooter,
-  ResponsiveModalHeader,
-  ResponsiveModalTitle,
-  toast,
-} from "@effy/design-system/ui";
+import { Button, toast } from "@effy/design-system/ui";
 
+import { DesignSheet, SheetField } from "@/components/console/DesignSheet";
 import { track } from "@/lib/telemetry";
 
 import { fulfillmentMutationError } from "../errorText";
@@ -57,28 +47,21 @@ export function StateActions({ detail }: { detail: { id: string; status: Fulfill
       {detail.status === "ready_for_pickup" ? (
         <Button
           variant="outline"
-          size="sm"
+          className="h-8 px-[11px] text-[13px]"
           disabled={transition.isPending}
           onClick={() => transition.mutate({ to: "picking", from: detail.status })}
         >
-          <RotateCcw />
           Reopen picking
         </Button>
       ) : null}
 
       {advance && advance !== "unfulfillable" ? (
         <Button
-          size="sm"
+          className="h-8 px-[13px] text-[13px]"
           disabled={transition.isPending}
           onClick={() => transition.mutate({ to: advance, from: detail.status })}
         >
-          {transition.isPending ? (
-            <Loader2 className="animate-spin" />
-          ) : advance === "picking" ? (
-            <ShoppingBasket />
-          ) : (
-            <CheckCircle2 />
-          )}
+          {transition.isPending ? <Loader2 className="animate-spin" /> : null}
           {ACTION_LABEL[advance]}
         </Button>
       ) : null}
@@ -116,25 +99,28 @@ export interface CantSupplyTarget {
   status: FulfillmentStatus;
 }
 
+/** The design's cancel-reason picker, in the words a shop floor uses for "we can't supply it". */
+const REASONS = [
+  "Out of stock",
+  "Items damaged or unusable",
+  "Shop can't open or trade",
+  "Other",
+] as const;
+
 /**
- * Declaring orders unsuppliable (055 US6, FR-031) — the console's "Cancel order", for one order from
- * the header or for a selection from the bulk bar.
+ * Declaring orders unsuppliable (055 US6, FR-031) — the design's "Cancel order" / "Cancel selected
+ * orders?" sheet, for one order from the rail or for a selection from the bulk bar.
  *
  * ⚠ IT IS NOT A CANCELLATION, AND IT DOES NOT SAY IT IS. A shop cannot cancel a customer's order — a
- * two-shop order is one purchase, and the other shop's half is still being packed. What a shop CAN say
- * is "we cannot supply our part", and Effy decides the refund. The dialog names that consequence
- * instead of asking "are you sure?".
+ * two-shop order is one purchase and the other half is still being packed. What a shop CAN say is "we
+ * cannot supply our part", and Effy decides the refund. So the design's two toggles ("Return items to
+ * stock", "Refund the payment") are not offered: both are Effy's decision on the refund that follows.
  *
- * ⚠ A REASON IS REQUIRED, here and in the database. Back-office is asked to decide a refund on the
- * strength of this; "the shop said no" is not a basis for returning a customer's money.
+ * ⚠ A REASON IS REQUIRED, here and in the database — back-office decides a refund on the strength of
+ * it. "Other" asks for the words.
  *
- * ⚠ IN BULK IT NAMES EVERY ORDER IT WILL TOUCH. bulk.ts records why a one-click, unread bulk
- * declaration is dangerous ("how a mis-click refunds five people"); 057 A3 asked for bulk cancel, so
- * the confirmation lists each order number and the reason applies to all of them — the operator reads
- * what they are declaring before they declare it. Orders past the point of no return are left out and
- * said to be left out.
- *
- * ⚠ IT RUNS SEQUENTIALLY AND A FAILURE DOES NOT ABORT THE RUN — the bulk bar's own rule.
+ * ⚠ IN BULK IT NAMES EVERY ORDER IT WILL TOUCH and leaves out, and says it leaves out, any order
+ * already past the point of no return. Sequential; a failure does not abort the run.
  */
 export function CantSupplyDialog({
   targets,
@@ -148,19 +134,21 @@ export function CantSupplyDialog({
   onDone?: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [reason, setReason] = useState("");
+  const [choice, setChoice] = useState<(typeof REASONS)[number]>("Out of stock");
+  const [other, setOther] = useState("");
   const [running, setRunning] = useState(false);
 
   const eligible = targets.filter((t) => canDeclareUnfulfillable(t.status));
   const excluded = targets.length - eligible.length;
   const single = targets.length === 1;
+  const reason = choice === "Other" ? other.trim() : choice;
 
   async function run() {
     setRunning(true);
     const failed: string[] = [];
     for (const t of eligible) {
       try {
-        await transitionFulfillment(t.id, { to: "unfulfillable", reason: reason.trim() });
+        await transitionFulfillment(t.id, { to: "unfulfillable", reason });
         track({ name: "shop_order_state_changed", fulfillmentId: t.id, from: t.status, to: "unfulfillable" });
       } catch (err) {
         failed.push(`${t.orderNumber} (${fulfillmentMutationError(err)})`);
@@ -172,7 +160,7 @@ export function CantSupplyDialog({
     const done = eligible.length - failed.length;
     if (done > 0) {
       toast.success(
-        done === 1 && single
+        single
           ? "Marked can't supply — Effy will refund the customer"
           : `${done} order${done === 1 ? "" : "s"} marked can't supply`,
         { description: single ? targets[0]?.orderNumber : undefined },
@@ -180,67 +168,73 @@ export function CantSupplyDialog({
     }
     if (failed.length > 0) toast.error(`Refused: ${failed.join(", ")}`);
     if (failed.length === 0) {
-      setReason("");
+      setChoice("Out of stock");
+      setOther("");
       onOpenChange(false);
       onDone?.();
     }
   }
 
   return (
-    <ResponsiveModal open={open} onOpenChange={(o) => !running && onOpenChange(o)}>
-      <ResponsiveModalContent className="sm:max-w-lg">
-        <ResponsiveModalHeader>
-          <ResponsiveModalTitle>
-            {single ? "Can't supply this order" : `Can't supply ${eligible.length} orders`}
-          </ResponsiveModalTitle>
-          <ResponsiveModalDescription>
-            This takes {single ? "the order" : "each order"} off your queue and asks Effy to refund the
-            customer for your items. It can&apos;t be undone.
-          </ResponsiveModalDescription>
-        </ResponsiveModalHeader>
-
-        <div className="space-y-4">
-          {!single ? (
-            <ul className="text-[13px]">
-              {eligible.map((t) => (
-                <li key={t.id} className="border-border border-t py-1.5 font-mono">
-                  {t.orderNumber}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+    <DesignSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={single ? "Can't supply this order?" : "Can't supply the selected orders?"}
+      description={
+        single
+          ? "It leaves your queue and Effy refunds the customer for your items. It can't be undone."
+          : "Each order leaves your queue and Effy refunds every customer for your items. It can't be undone."
+      }
+      cancelLabel={single ? "Keep order" : "Keep orders"}
+      saveLabel={single ? "Can't supply it" : `Can't supply ${eligible.length}`}
+      destructive
+      canSave={reason !== "" && eligible.length > 0}
+      saving={running}
+      onSave={() => void run()}
+    >
+      {!single ? (
+        <div className="grid">
+          {eligible.map((t) => (
+            <div key={t.id} className="border-border border-b py-2 font-mono text-[12.5px]">
+              {t.orderNumber}
+            </div>
+          ))}
           {excluded > 0 ? (
-            <p className="text-muted-foreground text-[13px]">
-              {excluded} selected order{excluded === 1 ? " has" : "s have"} already left your hands
-              and {excluded === 1 ? "is" : "are"} left out.
+            <p className="text-muted-foreground pt-2 text-[12.5px]">
+              {excluded} selected order{excluded === 1 ? " has" : "s have"} already left your hands and{" "}
+              {excluded === 1 ? "is" : "are"} left out.
             </p>
           ) : null}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="unfulfillable-reason">Why can&apos;t you supply {single ? "it" : "them"}?</Label>
-            <Input
-              id="unfulfillable-reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g. the chiller failed overnight"
-            />
-          </div>
         </div>
+      ) : null}
 
-        <ResponsiveModalFooter>
-          <Button variant="ghost" disabled={running} onClick={() => onOpenChange(false)}>
-            Keep {single ? "order" : "orders"}
-          </Button>
-          <Button
-            variant="destructive"
-            disabled={reason.trim() === "" || running || eligible.length === 0}
-            onClick={() => void run()}
-          >
-            {running ? <Loader2 className="animate-spin" /> : null}
-            {single ? "Can't supply it" : `Can't supply ${eligible.length}`}
-          </Button>
-        </ResponsiveModalFooter>
-      </ResponsiveModalContent>
-    </ResponsiveModal>
+      <SheetField label="Reason" htmlFor="unfulfillable-reason">
+        <select
+          id="unfulfillable-reason"
+          aria-label="Why can't you supply it?"
+          value={choice}
+          onChange={(e) => setChoice(e.target.value as (typeof REASONS)[number])}
+          className="border-input bg-background focus:border-ring h-9 cursor-pointer rounded-md border px-2.5 text-sm outline-none"
+        >
+          {REASONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
+      </SheetField>
+      {choice === "Other" ? (
+        <SheetField label="Say what happened" htmlFor="unfulfillable-other">
+          <input
+            id="unfulfillable-other"
+            autoFocus
+            value={other}
+            onChange={(e) => setOther(e.target.value)}
+            placeholder="e.g. the chiller failed overnight"
+            className="border-input bg-background focus:border-ring h-9 rounded-md border px-3 text-sm outline-none"
+          />
+        </SheetField>
+      ) : null}
+    </DesignSheet>
   );
 }

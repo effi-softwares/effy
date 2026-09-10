@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { act, render, screen, within } from "@testing-library/react"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import type { ReactNode } from "react"
 import { afterEach, describe, expect, it, vi } from "vitest"
@@ -33,6 +33,13 @@ import { OrderListScreen } from "../OrderListScreen"
 import type { OrdersSearch } from "../orderConsole"
 import { orderListQuery } from "../queries"
 
+/** jsdom applies no CSS, so both the wide table and the narrow list render — scope to the table. */
+const table = () => within(screen.getByRole("table"))
+const findInTable = async (text: string) => {
+  await screen.findByRole("table")
+  return table().getByText(text)
+}
+
 function wrap(search: OrdersSearch = {}) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const onSearchChange = vi.fn()
@@ -55,13 +62,15 @@ describe("the Orders list (057 A3)", () => {
     listOrders.mockResolvedValue(orderList([orderRow({ payment: "partially_refunded" })]))
     wrap()
 
-    const id = await screen.findByText("EFY-10023")
+    const id = await findInTable("EFY-10023")
     expect(id.className).toContain("font-mono")
-    expect(screen.getByText("Maya Oyelaran")).toBeInTheDocument()
+    expect(table().getByText("Maya Oyelaran")).toBeInTheDocument()
+    // The design's Items column — this shop's lines, summarised.
+    expect(table().getByText("Barossa Free-Range Eggs 700g ×2, Oat milk 1L ×2")).toBeInTheDocument()
     // ⚠ The longest payment label, on one line — the column is sized for it.
-    const pay = screen.getByText("Partially refunded")
+    const pay = table().getByText("Partially refunded")
     expect(pay.className).toContain("whitespace-nowrap")
-    expect(screen.getByText("$57.80")).toBeInTheDocument()
+    expect(table().getByText("$57.80")).toBeInTheDocument()
   })
 
   /** ⚠ Counts cover EVERY state, from the server — not the rows on this page. */
@@ -72,7 +81,7 @@ describe("the Orders list (057 A3)", () => {
       }),
     )
     wrap()
-    await screen.findByText("EFY-10023")
+    await screen.findByRole("table")
     const tab = screen.getByRole("tab", { name: /Delivered/ })
     expect(tab).toHaveTextContent("20")
     expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("41")
@@ -82,16 +91,15 @@ describe("the Orders list (057 A3)", () => {
   it("marks an at-risk order and a short one in the row", async () => {
     listOrders.mockResolvedValue(orderList([orderRow({ atRisk: true, unavailableCount: 2, tags: ["fragile"] })]))
     wrap()
-    const row = (await screen.findByText("EFY-10023")).closest("tr")!
+    const row = (await findInTable("EFY-10023")).closest("tr")!
     expect(within(row).getByText("At risk")).toBeInTheDocument()
     expect(within(row).getByText("2 short")).toBeInTheDocument()
-    expect(within(row).getByText("fragile")).toBeInTheDocument()
   })
 
   it("opens the order when its row is clicked", async () => {
     listOrders.mockResolvedValue(orderList([orderRow({ id: "f9" })]))
     const { onOpenOrder } = wrap()
-    await userEvent.click(await screen.findByText("Maya Oyelaran"))
+    await userEvent.click(await findInTable("Maya Oyelaran"))
     expect(onOpenOrder).toHaveBeenCalledWith("f9")
   })
 
@@ -105,15 +113,15 @@ describe("the Orders list (057 A3)", () => {
   it("changing a filter returns to page one", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()], { total: 60, page: 2 }))
     const { onSearchChange } = wrap({ page: 2 })
-    await screen.findByText("EFY-10023")
-    await userEvent.click(screen.getByRole("button", { name: "At risk" }))
+    await screen.findByRole("table")
+    await userEvent.click(screen.getByRole("button", { name: "Needs attention" }))
     expect(onSearchChange).toHaveBeenCalledWith({ attention: "at_risk" })
   })
 
   it("debounces the search box into the URL", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     const { onSearchChange } = wrap()
-    await screen.findByText("EFY-10023")
+    await screen.findByRole("table")
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
     await user.type(screen.getByLabelText("Search"), "EFY-1")
@@ -127,7 +135,7 @@ describe("the Orders list (057 A3)", () => {
   it("marks the saved view that matches the current filters, and only that one", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     wrap({ method: "same_day" })
-    await screen.findByText("EFY-10023")
+    await screen.findByRole("table")
     expect(screen.getByRole("button", { name: "Same-day" })).toHaveAttribute("aria-pressed", "true")
     expect(screen.getByRole("button", { name: "All orders" })).toHaveAttribute("aria-pressed", "false")
   })
@@ -135,8 +143,8 @@ describe("the Orders list (057 A3)", () => {
   it("sorts by a column header, flipping direction on the second click", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     const { onSearchChange, rerender } = wrap()
-    await screen.findByText("EFY-10023")
-    await userEvent.click(screen.getByRole("button", { name: /^Total/ }))
+    await screen.findByRole("table")
+    await userEvent.click(table().getByRole("button", { name: /^Total/ }))
     expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total", dir: "desc" })
 
     rerender(
@@ -144,7 +152,8 @@ describe("the Orders list (057 A3)", () => {
         <OrderListScreen search={{ sort: "total", dir: "desc" }} onSearchChange={onSearchChange} onOpenOrder={vi.fn()} />
       </QueryClientProvider>,
     )
-    await userEvent.click(await screen.findByRole("button", { name: /^Total/ }))
+    await screen.findByRole("table")
+    await userEvent.click(table().getByRole("button", { name: /^Total/ }))
     expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total" })
   })
 
@@ -163,14 +172,16 @@ describe("empty states say which kind of empty it is", () => {
     listOrders.mockResolvedValue(orderList([]))
     wrap()
     expect(await screen.findByText("No orders yet")).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument()
+    expect(screen.queryByRole("button", { name: "Reset filters" })).not.toBeInTheDocument()
   })
 
   it("no orders matching the filters — with a way out", async () => {
     listOrders.mockResolvedValue(orderList([]))
     const { onSearchChange } = wrap({ q: "zzz", range: "today", sort: "total" })
     expect(await screen.findByText("No orders match these filters")).toBeInTheDocument()
-    await userEvent.click(screen.getByRole("button", { name: "Clear filters" }))
+    // Both the toolbar's and the empty state's reset do the same thing; use the empty state's.
+    const resets = screen.getAllByRole("button", { name: "Reset filters" })
+    await userEvent.click(resets[resets.length - 1]!)
     // Filters go; the operator's chosen sort stays.
     expect(onSearchChange).toHaveBeenCalledWith({ sort: "total" })
   })
@@ -180,17 +191,17 @@ describe("selection and the bulk bar", () => {
   it("appears with the selection count and clears on demand", async () => {
     listOrders.mockResolvedValue(orderList([orderRow({ id: "a", orderNumber: "EFY-A" }), orderRow({ id: "b", orderNumber: "EFY-B" })]))
     wrap()
-    await screen.findByText("EFY-A")
+    await screen.findByRole("table")
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByLabelText("Select EFY-A"))
     await userEvent.click(screen.getByLabelText("Select EFY-B"))
     expect(screen.getByText("2 selected")).toBeInTheDocument()
-    for (const name of [/Fulfil/, /Add tag/, /Can't supply/, /Clear selection/]) {
+    for (const name of [/Start picking/, /Mark ready/, /Add tag/, /^Export$/, /Can't supply/, /^Clear$/]) {
       expect(screen.getByRole("button", { name })).toBeInTheDocument()
     }
 
-    await userEvent.click(screen.getByRole("button", { name: /Clear selection/ }))
+    await userEvent.click(screen.getByRole("button", { name: /^Clear$/ }))
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument()
   })
 
@@ -201,7 +212,7 @@ describe("selection and the bulk bar", () => {
     expect(onOpenOrder).not.toHaveBeenCalled()
   })
 
-  it("bulk fulfil advances each order to ITS OWN next state", async () => {
+  it("Start picking moves only the orders waiting to be picked; Mark ready only those picking", async () => {
     listOrders.mockResolvedValue(
       orderList([
         orderRow({ id: "a", orderNumber: "EFY-A", status: "received" }),
@@ -210,10 +221,10 @@ describe("selection and the bulk bar", () => {
     )
     transitionFulfillment.mockResolvedValue({})
     wrap()
-    await userEvent.click(await screen.findByLabelText("Select all orders on this page"))
-    await userEvent.click(screen.getByRole("button", { name: /Fulfil 2/ }))
-    expect(transitionFulfillment).toHaveBeenCalledWith("a", { to: "picking" })
-    expect(transitionFulfillment).toHaveBeenCalledWith("b", { to: "ready_for_pickup" })
+    await userEvent.click(await screen.findByLabelText("Select all on this page"))
+    await userEvent.click(screen.getByRole("button", { name: "Start picking" }))
+    await waitFor(() => expect(transitionFulfillment).toHaveBeenCalledWith("a", { to: "picking" }))
+    expect(transitionFulfillment).not.toHaveBeenCalledWith("b", expect.anything())
   })
 })
 

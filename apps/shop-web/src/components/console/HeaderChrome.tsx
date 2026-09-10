@@ -31,7 +31,7 @@ export function HeaderChrome() {
           // over one dataset is the shape 052 deleted `summarizeFulfillment` for.
           if (e.key !== "Enter") return
           const q = (e.target as HTMLInputElement).value.trim()
-          if (q) void navigate({ to: "/orders" })
+          if (q) void navigate({ to: "/orders", search: { q } })
         }}
       />
     </div>
