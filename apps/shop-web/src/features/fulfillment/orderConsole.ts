@@ -90,41 +90,13 @@ export function isFiltered(s: OrdersSearch): boolean {
   return !!(s.q || s.attention || s.payment || s.method || s.range)
 }
 
-/** Drop every filter and the search, keeping the tab and sort the operator chose. */
-export function clearedFilters(s: OrdersSearch): OrdersSearch {
-  return validateOrdersSearch({ tab: s.tab, sort: s.sort, dir: s.dir })
-}
-
-// ── Saved views ─────────────────────────────────────────────────────────────────────────────────
-
 /**
- * The saved views — named filter presets beside the status tabs.
- *
- * ⚠ DERIVED, NOT STORED. A view is "active" when the current filters equal its preset exactly, so
- * there is no second piece of state to fall out of step with the URL: change one filter by hand and
- * the view correctly stops claiming to be selected.
+ * How many filters are set — the count on the "Filters" button (revision 3). The search and the tab
+ * are not filters here: each has its own control on the page. `attention` still counts, because an old
+ * link may carry it and the sheet's "Clear all" is the way to drop it.
  */
-export const SAVED_VIEWS: readonly { id: string; label: string; search: OrdersSearch }[] = [
-  // The design's five, in its order. "Paid, unfulfilled" and "High value" have no Effy meaning (every
-  // order a shop sees is paid; there is no value threshold the platform defines), so their slots carry
-  // the two views a shop floor actually needs: same-day work and shortfalls.
-  { id: "all", label: "All orders", search: {} },
-  { id: "needs-picking", label: "Needs picking", search: { tab: "new" } },
-  { id: "same-day", label: "Same-day", search: { method: "same_day" } },
-  { id: "short", label: "Short items", search: { attention: "short" } },
-  { id: "attention", label: "Needs attention", search: { attention: "at_risk" } },
-]
-
-const VIEW_KEYS = ["tab", "q", "attention", "payment", "method", "range"] as const
-
-export function activeViewId(s: OrdersSearch): string | null {
-  const view = SAVED_VIEWS.find((v) => VIEW_KEYS.every((k) => (v.search[k] ?? undefined) === (s[k] ?? undefined)))
-  return view?.id ?? null
-}
-
-/** Apply a view: its filters replace the current ones; the sort the operator chose survives. */
-export function applyView(s: OrdersSearch, view: OrdersSearch): OrdersSearch {
-  return validateOrdersSearch({ ...view, sort: s.sort, dir: s.dir })
+export function activeFilterCount(s: OrdersSearch): number {
+  return [s.range, s.payment, s.method, s.attention].filter(Boolean).length
 }
 
 // ── Labels ──────────────────────────────────────────────────────────────────────────────────────

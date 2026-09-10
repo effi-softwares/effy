@@ -4,21 +4,10 @@ import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { Loader2, X } from "lucide-react"
 
-import {
-  SHOP_ORDER_METHODS,
-  SHOP_ORDER_PAYMENT_STATES,
-  SHOP_ORDER_RANGES,
-  SHOP_ORDER_TABS,
-  type ShopOrderSort,
-} from "@effy/shared-types"
+import { SHOP_ORDER_TABS, type ShopOrderSort } from "@effy/shared-types"
 import {
   Button,
   Checkbox,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Skeleton,
   toast,
 } from "@effy/design-system/ui"
@@ -28,18 +17,14 @@ import { track } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
 
 import { BulkActions } from "./components/BulkActions"
+import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
 import { OrderStatusPill, paymentTextClass } from "./components/OrderPill"
 import {
-  activeViewId,
-  applyView,
-  clearedFilters,
+  activeFilterCount,
   formatMoney,
   formatPlacedShort,
   isFiltered,
-  METHOD_LABEL,
   PAYMENT_LABEL,
-  RANGE_LABEL,
-  SAVED_VIEWS,
   TAB_LABEL,
   toCsv,
   toListQuery,
@@ -52,14 +37,18 @@ import { listOrders } from "./repo"
 
 /**
  * The Orders list — transcribed from the imported design's `isOrders` block ("Effy Shop Console.dc.html"),
- * row for row: the segmented status tabs with counts, search and Export CSV on the same line; the
- * Views chips; the labelled filter selects with the result count at the end; the bulk bar; the
- * bordered table with a muted header; the dashed empty state; Previous / Next.
+ * row for row (revision 3): search + Filters + Export CSV; the segmented status tabs on their own row;
+ * the result count with "Clear filters" over one rule; the bulk bar; the bordered table with a muted
+ * header; the dashed empty state; Previous / Next. The filters themselves live in a right-side sheet.
+ *
+ * ⚠ REMOVED ON PURPOSE (revision 3) — do not re-add: the saved-views pills (presets of these same
+ * filters), a Fulfilment select (the tabs do that job) and the uppercase labels above body selects.
  *
  * ⚠ WHERE IT DEPARTS FROM THE MOCKUP, IT IS FOR EFFY'S MODEL, NOT FOR TASTE:
  *   • the tabs are Effy's states (Awaiting pick · Picking · Ready · Collected · Delivered · Can't supply
  *     · Cancelled), not "Packed / Shipped" — a shop never ships anything (049);
- *   • the fourth filter is Delivery (same-day / standard), because Effy has one sales channel;
+ *   • the design's Channel filter is Delivery (same-day / standard) — Effy has one sales channel, and
+ *     how the package travels is the dimension that actually splits a shop's orders;
  *   • the row's flag is "At risk" against the ready-by promise — Effy has no fraud score.
  *
  * ⚠ EVERYTHING THAT NARROWS THE LIST IS SERVER-SIDE, so the tab counts cover every state and a search
@@ -78,6 +67,7 @@ export function OrderListScreen({
   const { data, error, isPending, isError, refetch, isPlaceholderData } = useQuery(orderListQuery(search))
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [exporting, setExporting] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const tab = search.tab ?? "all"
   const searchKey = JSON.stringify(toListQuery(search))
@@ -105,10 +95,21 @@ export function OrderListScreen({
   const pageSize = data?.pageSize ?? 25
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
   const filtered = isFiltered(search)
+  // Anything that narrows the list — the search, a filter or a tab — earns "Clear filters".
   const dirty = filtered || tab !== "all"
+  const filterCount = activeFilterCount(search)
+  const countLabel = !data
+    ? ""
+    : total === 0
+      ? "No matches"
+      : `Showing ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + rows.length} of ${total}`
+
+  /** "Clear filters": back to every order — search, filters and tab — keeping only the sort. */
+  function clearAll() {
+    onSearchChange(validateOrdersSearch({ sort: search.sort, dir: search.dir }))
+  }
   const allOnPage = rows.length > 0 && rows.every((r) => selected.has(r.id))
   const someOnPage = rows.some((r) => selected.has(r.id))
-  const viewId = activeViewId(search)
 
   function toggle(id: string, on: boolean) {
     setSelected((prev) => {
@@ -141,11 +142,41 @@ export function OrderListScreen({
 
   return (
     <div className="grid gap-4">
-      {/* ── The filter bar: tabs · views · filters, 22px apart, one rule under it (revision 2) ─── */}
-      <div className="border-border grid gap-[22px] border-b pb-[22px]">
-      {/* ── Tabs · search · Export CSV ───────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div role="tablist" aria-label="Order status" className="bg-muted flex flex-wrap gap-0.5 rounded-lg p-[3px]">
+      {/* ── The controls: three rows, 22px apart; a rule under the result meta (revision 3) ────── */}
+      <div className="grid gap-[22px]">
+        {/* Row 1 — search, then the page actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
+          <div className="flex-1" />
+          <Button
+            variant="outline"
+            className="h-[34px] gap-[7px] px-3 text-[13px]"
+            onClick={() => setFiltersOpen(true)}
+          >
+            Filters
+            {filterCount > 0 ? (
+              <span className="bg-primary text-primary-foreground grid h-[17px] min-w-[17px] place-items-center rounded-[5px] px-[5px] font-mono text-[11px] font-medium">
+                {filterCount}
+              </span>
+            ) : null}
+          </Button>
+          <Button
+            variant="outline"
+            className="h-[34px] px-3 text-[13px]"
+            disabled={exporting || total === 0}
+            onClick={() => void exportCsv()}
+          >
+            {exporting ? <Loader2 className="animate-spin" /> : null}
+            Export CSV
+          </Button>
+        </div>
+
+        {/* Row 2 — the status tabs, on their own row */}
+        <div
+          role="tablist"
+          aria-label="Order status"
+          className="bg-muted flex flex-wrap gap-0.5 justify-self-start rounded-lg p-[3px]"
+        >
           {SHOP_ORDER_TABS.map((t) => {
             const active = tab === t
             return (
@@ -170,98 +201,32 @@ export function OrderListScreen({
             )
           })}
         </div>
-        <div className="flex-1" />
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchBox value={search.q ?? ""} onChange={(q) => update({ q })} />
-          <Button
-            variant="outline"
-            className="h-8 px-3 text-[13px]"
-            disabled={exporting || total === 0}
-            onClick={() => void exportCsv()}
-          >
-            {exporting ? <Loader2 className="animate-spin" /> : null}
-            Export CSV
-          </Button>
+
+        {/* Row 3 — the result meta, then the rule that separates the controls from the table */}
+        <div className="border-border flex flex-wrap items-center gap-3 border-b pb-3">
+          <div className="text-muted-foreground text-[13px] whitespace-nowrap tabular-nums" aria-live="polite">
+            {countLabel}
+          </div>
+          {dirty ? (
+            <button
+              type="button"
+              onClick={clearAll}
+              className="text-muted-foreground hover:bg-accent hover:text-foreground h-[26px] cursor-pointer rounded-md border-none bg-transparent px-[9px] text-[12.5px] font-medium whitespace-nowrap"
+            >
+              Clear filters
+            </button>
+          ) : null}
         </div>
       </div>
 
-      {/* ── Views ─────────────────────────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <div className="text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase">
-          Views
-        </div>
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Saved views">
-          {SAVED_VIEWS.map((v) => {
-            const active = viewId === v.id
-            return (
-              <button
-                key={v.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => update(applyView(search, v.search))}
-                className={cn(
-                  "border-border hover:bg-accent focus-visible:ring-ring h-[26px] cursor-pointer rounded-full border px-2.5 text-[12.5px] whitespace-nowrap focus-visible:ring-2 focus-visible:outline-none",
-                  active ? "bg-background text-foreground font-medium" : "text-muted-foreground bg-transparent font-normal",
-                )}
-              >
-                {v.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* ── Filters · reset · count ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-end gap-2.5">
-        <FilterSelect
-          label="Date"
-          value={search.range ?? "any"}
-          options={SHOP_ORDER_RANGES.map((r) => ({ value: r, label: RANGE_LABEL[r] }))}
-          onChange={(v) => update({ range: v as OrdersSearch["range"] })}
-        />
-        <FilterSelect
-          label="Payment"
-          value={search.payment ?? "any"}
-          options={[
-            { value: "any", label: "Any" },
-            ...SHOP_ORDER_PAYMENT_STATES.map((p) => ({ value: p, label: PAYMENT_LABEL[p] })),
-          ]}
-          onChange={(v) => update({ payment: v === "any" ? undefined : (v as OrdersSearch["payment"]) })}
-        />
-        {/* The design's Fulfilment filter IS its tab set; here the two are one value, so choosing in
-            either moves the other and they can never disagree. */}
-        <FilterSelect
-          label="Fulfilment"
-          value={tab}
-          options={SHOP_ORDER_TABS.map((t) => ({ value: t, label: t === "all" ? "Any" : TAB_LABEL[t] }))}
-          onChange={(v) => update({ tab: v as OrdersSearch["tab"] })}
-        />
-        <FilterSelect
-          label="Delivery"
-          value={search.method ?? "any"}
-          options={SHOP_ORDER_METHODS.map((m) => ({ value: m, label: m === "any" ? "Any" : METHOD_LABEL[m] }))}
-          onChange={(v) => update({ method: v as OrdersSearch["method"] })}
-        />
-        {dirty ? (
-          <Button
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground h-8 px-3 text-[13px]"
-            onClick={() => onSearchChange(validateOrdersSearch({ sort: search.sort, dir: search.dir }))}
-          >
-            Reset filters
-          </Button>
-        ) : null}
-        <div className="flex-1" />
-        <div className="text-muted-foreground pb-1.5 text-[13px] whitespace-nowrap tabular-nums" aria-live="polite">
-          {!data
-            ? ""
-            : total === 0
-              ? "No matches"
-              : `Showing ${(page - 1) * pageSize + 1}–${(page - 1) * pageSize + rows.length} of ${total}`}
-        </div>
-      </div>
-
-      </div>
+      <OrderFiltersSheet
+        open={filtersOpen}
+        onOpenChange={setFiltersOpen}
+        search={search}
+        countLabel={countLabel}
+        onChange={(patch) => update(patch)}
+        onClearAll={() => update({ range: undefined, payment: undefined, method: undefined, attention: undefined })}
+      />
 
       {selected.size > 0 ? (
         <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadCsv} />
@@ -274,7 +239,7 @@ export function OrderListScreen({
       ) : total === 0 ? (
         <EmptyState
           filtered={dirty}
-          onReset={() => onSearchChange(clearedFilters({ sort: search.sort, dir: search.dir }))}
+          onReset={clearAll}
         />
       ) : (
         <>
@@ -473,42 +438,6 @@ function SortTh({
   )
 }
 
-function FilterSelect({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string
-  value: string
-  options: { value: string; label: string }[]
-  onChange: (v: string) => void
-}) {
-  const id = `filter-${label.toLowerCase()}`
-  return (
-    <div className="grid min-w-[140px] gap-[5px]">
-      <label
-        htmlFor={id}
-        className="text-muted-foreground text-[11.5px] font-medium tracking-[.04em] whitespace-nowrap uppercase"
-      >
-        {label}
-      </label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id={id} size="sm" className="h-8 w-full px-2 text-[13px] shadow-none">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  )
-}
-
 /**
  * The search box — 250px, a ✕ inside it once there is text. ⚠ DEBOUNCED: every keystroke would
  * otherwise be a server round trip and a URL write.
@@ -524,13 +453,13 @@ function SearchBox({ value, onChange }: { value: string; onChange: (q: string) =
   }, [text])
 
   return (
-    <div className="relative flex items-center">
+    <div className="relative flex max-w-[340px] flex-[1_1_260px] items-center">
       <input
         aria-label="Search"
         placeholder="Search order, customer, SKU…"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="border-input bg-background focus:border-ring h-8 w-[250px] max-w-full rounded-md border pr-[30px] pl-[11px] text-[13px] outline-none"
+        className="border-input bg-background focus:border-ring h-[34px] w-full rounded-md border pr-[30px] pl-[11px] text-[13px] outline-none"
       />
       {text ? (
         <button
@@ -540,7 +469,7 @@ function SearchBox({ value, onChange }: { value: string; onChange: (q: string) =
             setText("")
             onChange("")
           }}
-          className="text-muted-foreground hover:bg-accent absolute right-1 grid size-[22px] cursor-pointer place-items-center rounded-[4px] border-none bg-transparent"
+          className="text-muted-foreground hover:bg-accent absolute right-[5px] grid size-[22px] cursor-pointer place-items-center rounded-[4px] border-none bg-transparent"
         >
           <X className="size-3.5" />
         </button>

@@ -110,12 +110,12 @@ describe("the Orders list (057 A3)", () => {
     expect(listOrders).toHaveBeenCalledWith({ q: "maya", method: "same_day", payment: "refunded", tab: "picking" })
   })
 
-  it("changing a filter returns to page one", async () => {
+  it("changing the tab returns to page one", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()], { total: 60, page: 2 }))
     const { onSearchChange } = wrap({ page: 2 })
     await screen.findByRole("table")
-    await userEvent.click(screen.getByRole("button", { name: "Needs attention" }))
-    expect(onSearchChange).toHaveBeenCalledWith({ attention: "at_risk" })
+    await userEvent.click(screen.getByRole("tab", { name: /Picking/ }))
+    expect(onSearchChange).toHaveBeenCalledWith({ tab: "picking" })
   })
 
   it("debounces the search box into the URL", async () => {
@@ -132,12 +132,59 @@ describe("the Orders list (057 A3)", () => {
     expect(onSearchChange).toHaveBeenLastCalledWith({ q: "EFY-1" })
   })
 
-  it("marks the saved view that matches the current filters, and only that one", async () => {
+  /** ⚠ Revision 3 — the saved-views row and the body selects are gone on purpose. */
+  it("has no saved views, no Fulfilment select and no labels above body selects", async () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
-    wrap({ method: "same_day" })
+    wrap()
     await screen.findByRole("table")
-    expect(screen.getByRole("button", { name: "Same-day" })).toHaveAttribute("aria-pressed", "true")
-    expect(screen.getByRole("button", { name: "All orders" })).toHaveAttribute("aria-pressed", "false")
+    for (const gone of ["All orders", "Needs picking", "Needs attention", "Views"]) {
+      expect(screen.queryByText(gone)).not.toBeInTheDocument()
+    }
+    expect(screen.queryByLabelText("Fulfilment")).not.toBeInTheDocument()
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument()
+  })
+
+  it("badges Filters with the number set — and shows no badge at zero", async () => {
+    listOrders.mockResolvedValue(orderList([orderRow()]))
+    const { unmount } = wrap()
+    await screen.findByRole("table")
+    expect(screen.getByRole("button", { name: "Filters" })).toBeInTheDocument()
+    unmount()
+
+    wrap({ range: "7d", payment: "refunded", q: "maya", tab: "picking" })
+    await screen.findByRole("table")
+    // Search and tab are not filters — they have their own controls.
+    expect(screen.getByRole("button", { name: "Filters 2" })).toBeInTheDocument()
+  })
+
+  it("opens the Filters sheet: its selects, the count and Clear all — no Apply button", async () => {
+    listOrders.mockResolvedValue(orderList([orderRow()], { total: 47 }))
+    const { onSearchChange } = wrap({ range: "today", method: "same_day" })
+    await screen.findByRole("table")
+    await userEvent.click(screen.getByRole("button", { name: /^Filters/ }))
+    const sheet = await screen.findByRole("dialog")
+    expect(within(sheet).getByText("Narrow the list down. Changes apply straight away.")).toBeInTheDocument()
+    for (const label of ["Date", "Payment", "Delivery"]) {
+      expect(within(sheet).getByLabelText(label)).toBeInTheDocument()
+    }
+    expect(within(sheet).getByText("Showing 1–1 of 47")).toBeInTheDocument()
+    expect(within(sheet).queryByRole("button", { name: /apply/i })).not.toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole("button", { name: "Clear all" }))
+    expect(onSearchChange).toHaveBeenLastCalledWith({})
+  })
+
+  it("offers Clear filters beside the count only when something is filtered", async () => {
+    listOrders.mockResolvedValue(orderList([orderRow()]))
+    const { unmount } = wrap()
+    await screen.findByRole("table")
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument()
+    unmount()
+
+    const { onSearchChange } = wrap({ q: "maya", payment: "paid", tab: "picking", sort: "total" })
+    await screen.findByRole("table")
+    await userEvent.click(screen.getByRole("button", { name: "Clear filters" }))
+    // Everything that narrows the list goes; the operator's sort stays.
+    expect(onSearchChange).toHaveBeenCalledWith({ sort: "total" })
   })
 
   it("sorts by a column header, flipping direction on the second click", async () => {
