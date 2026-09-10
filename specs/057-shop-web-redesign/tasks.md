@@ -401,5 +401,8 @@ See spec.md § Amendment A2 and research.md R10. Built and machine-verified; not
 - [x] A2-08 Tests: Activity sheet lists every movement (9, not the rail's 4) and renders no sales
   statistic; formatter tests. shop-web **272** tests, typecheck, build, `check-component-shape`,
   `check-shop-theme` and `inventory-guard` all green.
+- [x] A2-10 `FocusedEditDialog` gains `size="wide"` (768px vs 512px): Edit basics lays out name/brand
+  and SKU/GTIN/weight in three columns, Edit attributes in two (long text and checkbox groups span
+  both). Pricing and categorization stay narrow. Full width below `sm` either way.
 - [ ] A2-09 (operator) Look at the product detail screen — all four tabs and the Activity sheet, Light
   and Dark, desktop and tablet width (quickstart § US3 step 4).

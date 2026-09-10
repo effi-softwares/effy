@@ -104,44 +104,55 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
       stale={edit.stale}
       onReload={edit.reload}
       onSave={onSave}
+      size="wide"
     >
-      <Field id="e-name" label="Name" required>
-        <Input id="e-name" value={name} onChange={(e) => setName(e.target.value)} />
-      </Field>
-      <div className="grid grid-cols-2 gap-3">
+      {/* Identity on one band: the name takes two columns, brand one; the three identifiers below. */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="sm:col-span-2">
+          <Field id="e-name" label="Name" required>
+            <Input id="e-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
+        </div>
         <Field id="e-brand" label="Brand">
           <Input id="e-brand" value={brand} onChange={(e) => setBrand(e.target.value)} />
         </Field>
         <Field id="e-sku" label="SKU">
           <Input id="e-sku" value={sku} onChange={(e) => setSku(e.target.value)} />
         </Field>
+        <Field id="e-gtin" label="GTIN">
+          <Input id="e-gtin" value={gtin} onChange={(e) => setGtin(e.target.value)} />
+        </Field>
+        <Field id="e-weight" label="Shipping weight (grams)">
+          <Input
+            id="e-weight"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            step={1}
+            value={weightGrams}
+            onChange={(e) => setWeight(e.target.value)}
+            placeholder={detail.weightIsAssumed ? `${detail.weightGrams} (assumed)` : undefined}
+          />
+        </Field>
       </div>
-      <Field id="e-gtin" label="GTIN">
-        <Input id="e-gtin" value={gtin} onChange={(e) => setGtin(e.target.value)} />
-      </Field>
+      {/* ⚠ The assumed-weight warning spans the dialog: under a one-third-width field it would wrap to
+          six lines and push the descriptions out of view. */}
+      {detail.weightIsAssumed ? (
+        <p className="text-sm text-muted-foreground">
+          ⚠ Nobody has weighed this — {detail.weightGrams} g is an assumption the platform records so
+          delivery can still be priced. Enter the real weight, including packaging.
+        </p>
+      ) : null}
       <Field id="e-short" label="Short description" required>
         <Textarea id="e-short" value={shortDescription} onChange={(e) => setShort(e.target.value)} />
       </Field>
       <Field id="e-long" label="Long description">
-        <Textarea id="e-long" value={longDescription} onChange={(e) => setLong(e.target.value)} />
-      </Field>
-      <Field id="e-weight" label="Shipping weight (grams)">
-        <Input
-          id="e-weight"
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          value={weightGrams}
-          onChange={(e) => setWeight(e.target.value)}
-          placeholder={detail.weightIsAssumed ? `${detail.weightGrams} (assumed)` : undefined}
+        <Textarea
+          id="e-long"
+          rows={6}
+          value={longDescription}
+          onChange={(e) => setLong(e.target.value)}
         />
-        {detail.weightIsAssumed ? (
-          <p className="text-sm text-muted-foreground">
-            ⚠ Nobody has weighed this — {detail.weightGrams} g is an assumption the platform records so
-            delivery can still be priced. Enter the real weight, including packaging.
-          </p>
-        ) : null}
       </Field>
     </FocusedEditDialog>
   );
@@ -332,25 +343,38 @@ export function AttributesEditDialog({ detail, open, onOpenChange }: EditProps) 
       stale={edit.stale}
       onReload={edit.reload}
       onSave={onSave}
+      size="wide"
     >
       {!type ? (
         <p className="text-sm text-muted-foreground">Loading attributes…</p>
       ) : type.attributes.length === 0 ? (
         <p className="text-sm text-muted-foreground">This product type has no extra attributes.</p>
       ) : (
-        [...type.attributes]
-          .sort((a, b) => a.displayOrder - b.displayOrder)
-          .map((attr) => (
-            <AttributeField
-              key={attr.attributeId}
-              attr={attr}
-              value={values[attr.attributeId]}
-              error={errors[attr.attributeId]}
-              onChange={(next) =>
-                setValues((v) => ({ ...v, [attr.attributeId]: next }))
-              }
-            />
-          ))
+        <div className="grid gap-x-4 gap-y-4 sm:grid-cols-2">
+          {[...type.attributes]
+            .sort((a, b) => a.displayOrder - b.displayOrder)
+            .map((attr) => (
+              // Prose and checkbox groups take the full width; a half-width column would wrap a
+              // paragraph into a sliver and stack every checkbox on its own line.
+              <div
+                key={attr.attributeId}
+                className={
+                  attr.dataType === "long_text" || attr.dataType === "multi_select"
+                    ? "sm:col-span-2"
+                    : undefined
+                }
+              >
+                <AttributeField
+                  attr={attr}
+                  value={values[attr.attributeId]}
+                  error={errors[attr.attributeId]}
+                  onChange={(next) =>
+                    setValues((v) => ({ ...v, [attr.attributeId]: next }))
+                  }
+                />
+              </div>
+            ))}
+        </div>
       )}
     </FocusedEditDialog>
   );

@@ -261,7 +261,7 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**057-shop-web-redesign — Shop Console Redesign.** 🚧 **87/94 tasks — every phase BUILT and fully
+**057-shop-web-redesign — Shop Console Redesign.** 🚧 **88/95 tasks — every phase BUILT and fully
 machine-verified, INCLUDING against real PostgreSQL. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Spec/artifacts: [specs/057-shop-web-redesign/](specs/057-shop-web-redesign/).
 

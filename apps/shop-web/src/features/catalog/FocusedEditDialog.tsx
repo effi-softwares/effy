@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from "@effy/design-system/ui";
 
+import { cn } from "@/lib/utils";
+
 /**
  * The shell every focused-edit dialog shares (US4): a small `Dialog` scoped to ONE field/group, with
  * a save button, inline (non-leaking) error copy, and — when the save hit a 409 — a "Reload" affordance
@@ -30,6 +32,12 @@ export interface FocusedEditDialogProps {
   stale: boolean;
   onReload: () => void;
   onSave: () => void;
+  /**
+   * `default` (512px) for a dialog of one or two fields; `wide` (768px) for one carrying many — the
+   * basics and attribute editors lay their fields out in columns, which a 512px dialog stacks into a
+   * tall scroll with half the screen unused beside it. Below the `sm` breakpoint both are full width.
+   */
+  size?: "default" | "wide";
   children: ReactNode;
 }
 
@@ -44,11 +52,17 @@ export function FocusedEditDialog({
   stale,
   onReload,
   onSave,
+  size = "default",
   children,
 }: FocusedEditDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent
+        className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          size === "wide" ? "sm:max-w-3xl" : "sm:max-w-lg",
+        )}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           {description ? <DialogDescription>{description}</DialogDescription> : null}
