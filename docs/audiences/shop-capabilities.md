@@ -535,11 +535,14 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
 - **shop-mobile gains nothing** — 057 is a web slice by design (FR-001). The ⛔ column is the register
   doing its job: every row above is a parity debt the mobile surface now carries.
 - **Amendment A3 (2026-09-10) — the order console** (spec § Amendment A3), shop-web only, all ⛔ on
-  mobile: server-side Orders list (status tabs with all-state counts, saved views, search + 4 filters,
-  sortable columns, paging, CSV export, bulk fulfil / tag / can't-supply); order detail in three tabs
-  (Summary · Items · Fulfilment) with an Activity sheet, tags and internal notes, line-level refunds,
-  previous/next. ⚠ **The order's money is now visible on shop-web** (operator decision) via new
-  `/shop/v1/orders…` routes; the pick contract shop-mobile reads is unchanged and still money-free.
+  mobile. **Orders list**: search · Filters sheet (Date · Payment · Delivery) · Export CSV; status tabs
+  with all-state counts; result count + Clear filters; sortable table with an Items summary column,
+  paging, bulk Start picking / Mark ready / Add tag / Export / Can't supply. **Order detail**: sticky
+  summary bar, "Items and fulfilment" with **per-line picking** (tick, Select all, Adjust: part picked /
+  unavailable + note), Fulfil → handover to an Effy driver, tags and internal notes, refund with an
+  honoured restock choice, Activity sheet, order pagination in the header. ⚠ **The order's money is
+  visible on shop-web** (operator decision) via `/shop/v1/orders…`; the pick contract shop-mobile reads
+  is unchanged and still money-free — shop-mobile still picks per unit on the 020 contract.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
 Spec/artifacts: [specs/057-shop-web-redesign/](../../specs/057-shop-web-redesign/).

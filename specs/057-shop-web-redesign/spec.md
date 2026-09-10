@@ -74,62 +74,110 @@ one screen and does not contradict it.
   units, cover estimate, sales-period statistic or sample log entry. Each such slot either carries the
   platform's real equivalent (A2 §5) or is absent.
 
-## Amendment A3 — Orders list + order detail revision (2026-09-10)
+## Amendment A3 — Order console: Orders list + order detail (2026-09-10)
 
-Operator direction: rebuild the Orders list and order detail on the design's markup and on A2's
-conventions (header breadcrumb, open sections, field grid, full width, Activity side sheet, tabs that
-reset per record). Decisions recorded with the operator before building:
+Operator direction: rebuild the Orders list and order detail on the imported design's markup. The
+screens went through three design revisions on the same day; this section records the decisions that
+hold across all of them, then the screens **as they now stand**, then the revision history.
+
+### A3 §1 — Decisions (settled with the operator before building)
 
 1. **Order money IS shown to the shop** (operator decision). This relaxes 020 FR-007/FR-008 / SC-007
    **for the shop-web console only**, through NEW routes (`/shop/v1/orders…`); the pick contract
    (`/shop/v1/fulfillments…`, `shop-order.ts`) that shop-mobile's generated Kotlin reads is unchanged
-   and still carries no money. A guard now pins that contract instead of `repo.ts`.
-2. **Still not built, because the platform cannot do them** (not a design preference):
-   - *Capture* — capture is automatic at checkout (055 R3). The design renders the button only for an
-     authorised-but-uncaptured order, which no Effy order ever is, so it never renders; Authorised and
-     Captured are shown as the one figure they are.
-   - *"VAT 25%"* — per-item GST is unmodelled (052 R13); no tax line is drawn (guarded).
-   - *Edit order* — a paid record (055). *Shipments / carrier / tracking* — Effy drivers (049); the
-     Fulfilment tab shows **Picking** and **Handoff** (collection, delivery) instead. *Returns* — no
-     returns model exists; the refund sheet's "put back on the shelf" is the shop's restock.
-   - *Billing address, customer email, order count / LTV* — never shared with shops (023 FR-018). The
-     Addresses section names "Bill to" and says it is withheld.
+   and still carries no money. A guard pins that contract instead of `repo.ts`.
+2. **Not built, because the platform cannot do them** (not a design preference):
+   - *Capture* — capture is automatic at checkout (055 R3). The design shows the button only for an
+     authorised-but-uncaptured order, which no Effy order ever is, so it never renders.
+   - *"VAT 25%"* — per-item GST is unmodelled (052 R13); no tax row is drawn (guarded).
+   - *Duplicate, Resend email, Print invoice, Edit order* — an order is a paid record (055); the
+     receipt resend is the customer's own route (052); no tax invoice can be issued (052 FR-031).
+   - *Carrier, tracking number, Record a return* — a shop hands its package to an Effy driver (049)
+     and the platform has no returns model. "Fulfil" hands the package over instead (§2).
+   - *Customer email, "Customer since", order count / LTV, billing address* — never shared with a shop
+     (023 FR-018). "Bill to" is named and said to be withheld.
 3. **"Cancel order" is the Can't-supply declaration** (055 US6) — a shop cannot cancel a customer's
-   (possibly multi-shop) order. Single from the header, or in bulk; the bulk dialog lists every order
-   number and requires one reason.
+   (possibly multi-shop) order. From the detail's action column, or in bulk; the bulk dialog lists
+   every order number, leaves out orders already handed over, and requires one reason.
 4. **Tags and internal notes are new**: `fulfillment_tag`, `fulfillment_note` (migration
    `20260910090000_shop_order_console.sql`), shop-scoped through the portion; both write to
    `fulfillment_event`, whose CHECK widens by `note_added` / `tags_changed` (readers audited; the
    back-office history projection gained explicit arms).
-5. **The "risk" marker is the promise**, not fraud: an open order near or past its ready-by.
-6. **Saved views are presets**, derived (a view is active when the filters equal it), not stored.
-7. **The list's state is the URL**; search, four filters (Status = attention, Payment, Fulfilment =
-   delivery method, Date), sort and page are server-side so tab counts cover every state. Default
-   sort stays oldest-first (020 FR-001b).
+5. **The risk marker is the promise**, not fraud: an open order near or past its ready-by.
+6. **Design vocabulary mapped to Effy's model**: status tabs are Effy's states (Awaiting pick · Picking
+   · Ready · Collected · Delivered · Can't supply · Cancelled), not "Packed / Shipped"; the design's
+   Channel filter is **Delivery** (same-day / standard) — Effy has one sales channel; its Payment
+   filter omits "Authorized" (capture is automatic).
+7. **The list's state is the URL**; search, filters, sort and page are server-side so the tab counts
+   cover every state. Default sort stays oldest-first (020 FR-001b).
+8. **Colour law held**: the design's amber (part-picked, warning pills) and green-as-text (picked) are
+   not adopted — monochrome weight + glyph, and the platform's error colour only for "the customer
+   will not get this" (unavailable, can't supply, cancelled, refunded).
 
-8. **Revised the same day (operator: "follow the design")**: both screens are now the design's MARKUP,
-   not A2's conventions. List: tabs + search + Export CSV on one row, Views chips, labelled filter
-   selects (Date · Payment · Fulfilment · Delivery) with the count, the Items summary column. Detail:
-   position + prev/next, the sticky summary bar, two columns (Items with totals + Refunded box,
-   Fulfilment, Internal notes, an in-page Activity log | Payment card, Print pick list, Can't supply,
-   Tags, Customer, Ship to, Bill to). Dialogs use the design's sheet (`DesignSheet`). No tabs, no
-   side sheet on this screen.
+### A3 §2 — The screens as they stand (after revision 3)
 
-9. **Revision 2 (design update, same day)**: header search removed; order pagination moved INTO the
-   app header (detail only). "Items and fulfilment" merges the two sections and picks **per line**
-   (26px box: full ✓ / part – / unavailable × / none), with "Select all"/"Clear all", an "Adjust this
-   line" dialog (Picked in full · Part picked + units · Unavailable, optional note) and "Fulfil {n}
-   items" → the Effy handover (untouched lines are recorded unavailable first, so nothing leaves
-   short without a record). New route `POST /shop/v1/orders/{id}/picks` (one transaction, one log entry
-   per line, a tick on a received order starts picking) and column `fulfillment_item.pick_note`
-   (`20260911090000`). A part pick records the remainder as unavailable. Activity is a right sheet
-   again; the narrow column holds only payment + actions; "Customer and delivery" is full width below.
+**App header** — breadcrumb, divider, muted subtitle; **no search, no primary action, no theme
+toggle**. On order detail only, the right side carries the order pagination ("{n} of {total}" + ←/→,
+28×28; muted and inert at the ends of the list), which walks the list the order was opened from.
 
-- **FR-016** *(A3)*: Every order mutation from the console MUST append to the order's activity log and
+**Orders list** — three control rows, 22px apart: (1) search (flexible, max 340px, 34px, ✕ to clear) ·
+**Filters** (count badge when any filter is set) · **Export CSV**; (2) the status tabs with counts;
+(3) the result count ("Showing 1–20 of 47" / "No matches") with **Clear filters** when anything
+narrows the list, 12px above a rule. The filters live in a right **Filters sheet** (~440px, no footer):
+Date · Payment · Delivery, applying immediately, with the count and **Clear all** under a rule. Then the
+bulk bar (Start picking · Mark ready · Add tag · Export · Can't supply · Clear), the table (Order ·
+Customer + flag · Items summary · Placed · Fulfilment · Payment · Total; sortable; always rendered,
+scrolls sideways when narrow), the dashed empty state, and Previous / Next.
+
+**Order detail** — a sticky summary bar (total · fulfilment pill · payment pill · risk pill · "{placed}
+· Online store" · **Activity** · the next-step button); a two-column grid (56px gap): the content
+column ("Items and fulfilment", then "Internal notes", 52px apart) beside a narrow column holding
+**only** the payment card (method, captured at checkout, Refund for managers) and **Print pick list**
+/ **Cancel order**; then **Customer and delivery** full width (Customer · Ship to · Bill to · Tags).
+The activity log is a right **Activity sheet** ("Everything that has happened on this order."), the
+order's entries only.
+
+**Items and fulfilment** — the priced lines ARE the pick list, picked **per line**: a 26×26 box per
+row (full ✓ · part – · unavailable × with a muted row · none empty), "{picked} of {total} items
+picked", **Select all / Clear all**, and **Adjust** per line → "Adjust this line" (Availability:
+Picked in full · Part picked + Units picked · Unavailable; optional note). Totals (subtotal, items from
+other shops, discount, shipping, total), the Refunded box, then **Fulfil {n} items** → "Ready for
+collection" (what is in the parcel; saving marks the order ready for an Effy driver). A "Shipments"
+block shows the handover once it has happened.
+
+### A3 §3 — Requirements
+
+- **FR-022** *(A3)*: Every order mutation from the console MUST append to the order's activity log and
   raise a confirmation toast.
-- **FR-017** *(A3)*: A shop refund MUST return stock only when the shop asked for it (the refund
-  sheet's restock toggle). ⚠ Before A3 the server parsed `restock` and ignored it, so an item refunded
-  as *unusable* went back on sale; `IssueInput.SkipStockReturn` now carries the choice.
+- **FR-023** *(A3)*: A shop refund MUST return stock only when the shop asked for it (the refund
+  sheet's "Return items to stock"). ⚠ Before A3 the server parsed `restock` and ignored it, so an item
+  refunded as *unusable* went back on sale; `IssueInput.SkipStockReturn` now carries the choice.
+- **FR-024** *(A3 rev 2)*: Picking MUST be recordable per line in one action, and a line that does not
+  leave in full MUST be recorded short: a part pick records the remainder as unavailable, and handing
+  over marks every untouched line unavailable first — 055's refund proposal and 054's shelf correction
+  key on `unavailable_quantity`, so a unit that silently stays behind would short the customer with
+  nothing on the record. A line's state is DERIVED from its two counts, never stored beside them; only
+  the picker's note is stored (`fulfillment_item.pick_note`, migration `20260911090000`).
+- **FR-025** *(A3 rev 2)*: The first pick on a received order MUST start picking, through the same
+  guarded state machine as the header's button; a pick on an order that has left picking is refused.
+- **FR-026** *(A3 rev 3)*: The Orders list MUST NOT re-add the saved-views row, a Fulfilment select, or
+  labels above selects in the page body — the status tabs and the Filters sheet carry those jobs.
+
+### A3 §4 — Revision history
+
+- **First build** — A2's conventions (Summary · Items · Fulfilment tabs, open sections, Activity
+  sheet). **Rejected** by the operator: "follow the design".
+- **Revision 1** — the design's markup: in-page Activity log, Views chips, labelled body filters, the
+  Items summary column, `DesignSheet` for every order dialog.
+- **Revision 2** — header search removed and order pagination moved into the header; Items and
+  Fulfilment merged with per-line picking, Adjust and Fulfil; `POST /shop/v1/orders/{id}/picks` (one
+  transaction, one log entry per line); Activity back in a sheet; narrow column = payment + actions;
+  Customer and delivery full width below.
+- **Revision 3** — list controls cleaned up: saved views and the body filters removed; filters moved
+  into a Filters sheet; tabs on their own row; result meta with Clear filters. ⚠ The "Needs attention"
+  (at risk) and "Short items" views were the only way to filter by attention; the row markers remain,
+  and an `attention` param from an old link still counts in the Filters badge and is cleared by
+  "Clear all".
 
 ## Source Design — What Was Imported
 

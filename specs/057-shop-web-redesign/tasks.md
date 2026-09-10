@@ -406,3 +406,34 @@ See spec.md § Amendment A2 and research.md R10. Built and machine-verified; not
   both). Pricing and categorization stay narrow. Full width below `sm` either way.
 - [ ] A2-09 (operator) Look at the product detail screen — all four tabs and the Activity sheet, Light
   and Dark, desktop and tablet width (quickstart § US3 step 4).
+
+
+---
+
+## Amendment A3 — Order console: Orders list + order detail (2026-09-10)
+
+See spec.md § Amendment A3. Built and machine-verified through three design revisions; not deployed.
+
+- [x] A3-01 shared-types `shop-order-console.ts` — a contract family separate from the pick contract
+  (list/detail/activity/tags/notes/picks DTOs); the pick contract and its Kotlin mirror unchanged.
+- [x] A3-02 Migration `20260910090000_shop_order_console.sql` — `fulfillment_tag`, `fulfillment_note`,
+  `fulfillment_event` CHECK widened (`note_added`, `tags_changed`) + `detail`; readers audited and the
+  edge-orders history projection given explicit arms.
+- [x] A3-03 edge-shop `src/orders/` + routes `GET /shop/v1/orders` (server-side tabs/counts, search incl.
+  item names and SKUs, filters, sort, paging, items summary), `GET /orders/{id}`, `GET /orders/{id}/activity`,
+  `PUT /orders/{id}/tags`, `POST /orders/{id}/notes`.
+- [x] A3-04 core-api: the shop refund's `restock` honoured (`IssueInput.SkipStockReturn`, FR-023).
+- [x] A3-05 Fixed in passing: `isAtRisk` flagged delivered/terminal orders at risk (named positively now);
+  the reversal telemetry fired on every "Start picking".
+- [x] A3-06 Revision 1 — the design's markup; `components/console/DesignSheet.tsx` for every order dialog.
+- [x] A3-07 Revision 2 — migration `20260911090000_fulfillment_pick_note.sql`; `POST /shop/v1/orders/{id}/picks`
+  (FR-024/FR-025); "Items and fulfilment" with per-line boxes, Select all, Adjust, Fulfil (untouched lines
+  recorded unavailable first), Shipments; Activity sheet; header order pagination; header search removed.
+- [x] A3-08 Revision 3 — list controls: search · Filters · Export CSV; tabs row; result meta + Clear filters;
+  `OrderFiltersSheet` (Date · Payment · Delivery, immediate); saved views and body filters removed (FR-026).
+- [x] A3-09 Tests: shop-web **290**, edge-shop **285** incl. **12 container-backed** against the real
+  migrations (list, money, picks, tags/notes, the four-way activity union), refunds Go tests incl.
+  containers, edge-orders **54** with containers. Rendered locally against the design at each revision.
+- [ ] A3-10 (operator) Commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=shop ENV=dev` and
+  `SERVICE=orders`; `make core-image-push && make core-deploy`; push shop-web to `dev`.
+- [ ] A3-11 (operator) Walk quickstart § A3 on dev with real orders — Light and Dark, desktop and tablet.

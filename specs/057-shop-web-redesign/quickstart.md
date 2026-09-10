@@ -37,6 +37,37 @@ Validation scenarios for each user story in `spec.md`. Run locally before any de
 5. Select 3+ orders; apply a bulk state-advance; confirm a success summary names how many
    succeeded.
 
+### A3 — The order console walk (after revision 3)
+
+Prerequisites: `make db-up ENV=dev` (migrations `20260910090000` and `20260911090000`),
+`make edge-deploy SERVICE=shop ENV=dev` (and `SERVICE=orders` for the history projection),
+`make core-image-push && make core-deploy` (restock fix, FR-023), then shop-web from `dev`.
+
+1. **Header**: on the list there is no search in the header; open an order — "{n} of {total}" and ←/→
+   appear on the header's right, walk to the next order, and the arrow at the end of the list is muted
+   and does nothing. No pagination anywhere in the page body.
+2. **List controls**: search narrows by order number, customer and SKU; **Filters** opens the right
+   sheet — set Date and Payment, confirm the list changes without an Apply button and the badge reads
+   2; **Clear all** empties it. With any filter, search or tab set, **Clear filters** appears beside the
+   count and resets everything but the sort. There are no saved-view pills and no labelled selects in
+   the page body. Narrow the window: the table scrolls sideways (no mobile list).
+3. **Per-line picking**: on a received order tick one line — the order moves to Picking, the line
+   shows ✓ "Picked", a toast and an Activity entry ("{item} — picked in full") appear. **Select all** →
+   every line ✓, label flips to **Clear all**. **Adjust** a line → Part picked with 0 ("Use Unavailable
+   instead of 0."), more than ordered ("Only {n} ordered."), then a valid number and a note → "{n} of
+   {m} picked". Adjust another → Unavailable with a note → × and "Unavailable · {note}", red dot in
+   Activity. Reload — the note survives.
+4. **Fulfil**: with nothing ticked the button reads "Fulfil picked items" and only toasts. Tick some,
+   leave one untouched → **Fulfil {n} items** → the dialog lists the parcel and says the rest is
+   recorded unavailable → confirm; the untouched line is now Unavailable, the order is Ready for pickup
+   and a **Shipments** row appears. Back-office's refund proposal for this order lists the short units.
+5. **Tags, notes, refund**: add a tag and a note (both appear in Activity); as `shop_manager`, refund a
+   line with "Return items to stock" OFF and confirm the stock count does not move; repeat ON and
+   confirm it does (FR-023). As `shop_staff`, confirm no Refund button.
+6. **Cancel order**: opens "Can't supply this order?", requires a reason, and marks the order Can't
+   supply; bulk Can't supply lists the order numbers and leaves out handed-over orders.
+7. Light and Dark; desktop and tablet width.
+
 ## US3 — Catalog, product detail, stock/restock (P2)
 
 1. Search/filter the catalog; confirm results update with accurate stock indicators.

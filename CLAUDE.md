@@ -283,23 +283,25 @@ Rebuilds `apps/shop-web` on an imported Claude Design mockup (project `951bb710`
   `FieldGrid` / `Field` primitives beside `Section`/`DetailRow`. ⚠ **The revision's variants, unit
   cost/margin, reorder point, "Last 30 days" stats, seeded log and coloured dots were NOT reproduced** —
   each slot carries the real equivalent (spec A2 §5, research R10); `inventory-guard` passes unchanged.
-- ⚠ **AMENDMENT A3 (2026-09-10): ORDERS LIST + ORDER DETAIL REBUILT** — ⚠ **revised the same day to the
-  design's MARKUP** (operator: "follow the design"): list row-for-row incl. the Items summary column;
-  detail = sticky summary bar + two columns with an in-page Activity log (NO tabs, NO side sheet);
-  dialogs on `components/console/DesignSheet`. First pass used A2's conventions and was rejected. List:
-  server-side tabs (counts over every state), saved views (derived presets), search + 4 filters,
-  sortable columns, paging, CSV export, bulk fulfil/tag/can't-supply — state in the URL. Detail: header
-  block + prev/next, tabs Summary · Items · Fulfilment (reset per order), Activity **sheet**, tags +
-  internal notes (new `fulfillment_tag`/`fulfillment_note`, migration `20260910090000`, CHECK on
-  `fulfillment_event` widened, back-office projection audited), toast + log entry on every mutation.
-  ⚠ **Order money IS now shown on shop-web (operator decision)** via NEW routes `/shop/v1/orders…`
-  (5 routes in edge-shop `src/orders/`); the pick contract shop-mobile reads is untouched. ⚠ Still
-  refused as impossible, not stylistic: Capture (auto-captured, 055 R3), VAT/GST line (052 R13), Edit
-  order, carrier/tracking, returns, billing/email. "Cancel" = can't-supply. ⚠ **Pre-existing defect
-  fixed**: the shop refund's `restock` toggle was parsed and IGNORED by core-api (an *unusable* item
-  went back on sale) — now `SkipStockReturn`. Also fixed: `isAtRisk` flagged delivered/terminal orders
-  at risk (negation again). Verified incl. **9 container tests vs the real migrations**. Open: `make
-  db-up`, `edge-deploy SERVICE=shop` (+`orders`), `core-image-push && core-deploy`, the walk.
+- ⚠ **AMENDMENT A3 (2026-09-10): THE ORDER CONSOLE — ORDERS LIST + ORDER DETAIL**, built to the
+  design's MARKUP through three same-day revisions (a first pass on A2's conventions was rejected:
+  "follow the design"). Current state (spec § A3 §2): **header** has no search; order pagination sits
+  in the header on detail only. **List**: search · Filters (right sheet: Date · Payment · Delivery,
+  immediate) · Export CSV; tabs row; count + Clear filters; saved views and body selects **removed on
+  purpose** (FR-026). **Detail**: sticky bar + Activity (a right sheet) · "Items and fulfilment" with
+  **per-line picking** (tick / Select all / Adjust → part / unavailable + note) and **Fulfil** → the
+  Effy handover · narrow column = payment + Print pick list + Cancel order (= can't-supply) · Customer
+  and delivery full width. Backend: edge-shop `src/orders/` (6 routes incl. `POST …/picks`), migrations
+  `20260910090000` (tags, notes, widened `fulfillment_event`) + `20260911090000` (`pick_note`).
+  ⚠ **Order money IS shown on shop-web (operator decision)**; the pick contract shop-mobile reads is
+  untouched. ⚠ **A part pick records the remainder unavailable, and Fulfil marks untouched lines
+  unavailable first** (FR-024) — the refund proposal keys on it, so nothing leaves short unrecorded.
+  ⚠ Still refused as impossible, not stylistic: Capture, VAT, Duplicate/Resend/Print invoice/Edit
+  order, carrier/tracking, returns, customer email/history/billing. ⚠ **Pre-existing defects fixed**:
+  the shop refund's `restock` was parsed and IGNORED by core-api (FR-023, `SkipStockReturn`);
+  `isAtRisk` flagged terminal orders. ⚠ A3's requirements are **FR-022…FR-026** (FR-016/017 were
+  already taken). Verified: shop-web **290**, edge-shop **285** incl. **12 container tests vs the real
+  migrations**. Open: commit, `db-up`, `edge-deploy SERVICE=shop` (+`orders`), `core-deploy`, the walk.
 - ⚠ **THE MOCKUP IS A GENERIC E-COMMERCE CONSOLE, AND FOUR OF ITS SCREENS ARE THINGS EFFY CANNOT DO.**
   It ships payment **capture**, **carrier/tracking**, order-**line editing** and a **password** sign-in.
   Effy captures at payment (055 R3); a shop hands its portion to an Effy driver (049) and never sees a
