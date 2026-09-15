@@ -33,6 +33,8 @@ const ALLOWED: Record<string, string> = {
   shop_ops_order_status_changed: "058: poke + mark the paid hour for every shop on the order",
   shop_ops_refund_changed: "058: poke + mark the hour the refund was issued",
   shop_ops_dismissal_added: "058: poke the shop when a proposed refund is dismissed",
+  shop_ops_order_item_added:
+    "058 follow-up: mark the bucket when an order's lines appear — covers an order inserted already paid, which the status trigger cannot see",
 };
 
 /**

@@ -152,16 +152,33 @@ ON CONFLICT (shop_id, bucket_start) DO UPDATE SET
   computed_at       = EXCLUDED.computed_at
 `;
 
+/**
+ * Wipe the product rows for the local DATES the recomputed hours fall in.
+ *
+ * ⚠ A SEPARATE STATEMENT, AND IT HAS TO BE. The first draft did the delete in a data-modifying CTE
+ * on the INSERT below — which reads correctly and is wrong: PostgreSQL runs the sub-statements of a
+ * WITH concurrently, with the same snapshot, so the INSERT's unique index still sees the rows the
+ * DELETE is removing and the whole statement dies on `shop_product_sales_day_pkey`. It only shows up
+ * on the SECOND recompute of a day — which is every correction, every reconciliation and every
+ * reversed refund — so the container tests are the only thing that could have caught it.
+ *
+ * The wipe is what lets a product DROP OUT of a day (its only order refunded away, or reassigned):
+ * an upsert alone would leave yesterday's row standing with nothing left to justify it.
+ */
+const WIPE_PRODUCTS = `
+DELETE FROM public.shop_product_sales_day p
+ USING (
+   SELECT DISTINCT (b.bucket_start AT TIME ZONE $3)::date AS local_date
+     FROM unnest($2::timestamptz[]) AS b(bucket_start)
+ ) d
+ WHERE p.shop_id = $1::uuid AND p.local_date = d.local_date
+`;
+
 /** Product-level sales for the local DATES the recomputed hours fall in. */
 const RECOMPUTE_PRODUCTS = `
 WITH days AS (
   SELECT DISTINCT (b.bucket_start AT TIME ZONE $3)::date AS local_date
     FROM unnest($2::timestamptz[]) AS b(bucket_start)
-), wiped AS (
-  DELETE FROM public.shop_product_sales_day p
-   USING days d
-   WHERE p.shop_id = $1::uuid AND p.local_date = d.local_date
-  RETURNING 1
 )
 INSERT INTO public.shop_product_sales_day (shop_id, local_date, product_id, units, gross_goods)
 SELECT $1::uuid,
@@ -213,6 +230,7 @@ export async function runRollup(limit = CLAIM_LIMIT): Promise<RollupResult> {
 
     for (const [shopId, { timezone, buckets }] of byShop) {
       await tx.query(RECOMPUTE, [shopId, buckets, timezone]);
+      await tx.query(WIPE_PRODUCTS, [shopId, buckets, timezone]);
       await tx.query(RECOMPUTE_PRODUCTS, [shopId, buckets, timezone]);
       await tx.query(CLEAR_CLAIMED, [shopId, buckets]);
       await tx.query(TOUCH_STATE, [shopId, timezone]);

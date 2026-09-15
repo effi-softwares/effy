@@ -43,6 +43,7 @@ vi.mock("@effy/edge-shared", async () => {
 });
 
 import { readHours, readTopProducts } from "./repository";
+import { localParts } from "./window";
 import { runRollup } from "./rollup";
 import { runReconcile } from "./reconcile";
 import { readInsights } from "./service";
@@ -86,7 +87,9 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
   });
 
   beforeEach(async () => {
-    await pool.query(`TRUNCATE public.customer, public.shop RESTART IDENTITY CASCADE`);
+    await pool.query(
+      `TRUNCATE public.customer, public.shop, public.product_type, public.category RESTART IDENTITY CASCADE`,
+    );
     await pool.query(`DELETE FROM public.insights_dirty`);
     await pool.query(`DELETE FROM public.shop_sales_hour`);
     await pool.query(`DELETE FROM public.shop_product_sales_day`);
@@ -95,13 +98,18 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
       `INSERT INTO public.shop (id, code, name) VALUES ($1,'S1','Shop One'), ($2,'S2','Shop Two')`,
       [SHOP, OTHER_SHOP],
     );
+    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('grocery','Grocery')`);
+    await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
   });
 
   async function product(name: string, shop = SHOP): Promise<string> {
     const res = await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, name, slug, price_amount, status)
-       VALUES ($1,$2,$3,10,'active') RETURNING id`,
-      [shop, name, `${name.toLowerCase()}-${Math.random().toString(36).slice(2, 8)}`],
+      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
+         short_description, created_by, status)
+       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', 'active'
+         FROM public.product_type pt, public.category c
+       RETURNING id`,
+      [shop, name],
     );
     return res.rows[0]!.id;
   }
@@ -117,12 +125,17 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
   }): Promise<{ orderId: string; fulfillmentId: string; itemId: string }> {
     const shop = opts.shop ?? SHOP;
     const qty = opts.qty ?? 3;
+    // ⚠ THE PRODUCTION PATH, NOT A SHORTCUT: an order is created `pending_payment` and only becomes
+    // `paid` through an UPDATE inside FinalizeSucceeded (019). That UPDATE is what the trigger
+    // watches, so a fixture that inserts a paid row directly marks no bucket and silently gives the
+    // rollup nothing to do — which is exactly how this suite first came up empty.
     const o = await pool.query<{ id: string }>(
       `INSERT INTO public."order" (customer_id, order_number, status, item_subtotal_amount,
          delivery_fee_amount, grand_total_amount, delivery_address, placed_at)
-       VALUES ($1,$2,$3,$4,5,$5,'{"recipientName":"Ada"}'::jsonb, now() - make_interval(mins => $6))
+       VALUES ($1,$2,'pending_payment',$3,5,$4,'{"recipientName":"Ada"}'::jsonb,
+               now() - make_interval(mins => $5))
        RETURNING id`,
-      [CUST, opts.number, opts.status ?? "paid", qty * 10, qty * 10 + 5, opts.minutesAgo ?? 30],
+      [CUST, opts.number, qty * 10, qty * 10 + 5, opts.minutesAgo ?? 30],
     );
     const orderId = o.rows[0]!.id;
     const productId = opts.productId ?? (await product(`P-${opts.number}`, shop));
@@ -136,7 +149,19 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
        VALUES ($1,$2,'received',$3,$4) RETURNING id`,
       [orderId, shop, qty, qty * 10],
     );
+    // The payment lands last, exactly as FinalizeSucceeded does it — and THAT is what marks the
+    // bucket dirty. `opts.status` lets a test leave an order unpaid.
+    await pool.query(`UPDATE public."order" SET status = $2 WHERE id = $1`, [
+      orderId,
+      opts.status ?? "paid",
+    ]);
     return { orderId, fulfillmentId: f.rows[0]!.id, itemId: item.rows[0]!.id };
+  }
+
+  /** The calendar date an instant falls on IN THE SHOP'S ZONE — what `local_date` actually holds. */
+  function shopDate(d: Date): string {
+    const p = localParts(d, TZ);
+    return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
   }
 
   async function currentWindow(): Promise<{ from: Date; to: Date }> {
@@ -189,8 +214,9 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
     it("attributes an item refund to the shop whose line it names", async () => {
       const { orderId, itemId } = await paidOrder({ number: "EFY-5", qty: 3 });
       const refund = await pool.query<{ id: string }>(
-        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, status)
-         VALUES ($1,'item',10,'item_not_supplied','k-5','back_office','succeeded') RETURNING id`,
+        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind,
+           actor_sub, status)
+         VALUES ($1,'item',10,'item_not_supplied','k-5','back_office','sub-staff','succeeded') RETURNING id`,
         [orderId],
       );
       await pool.query(
@@ -210,8 +236,9 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
     it("⚠ ignores goodwill and external refunds — they are Effy's gesture, not this shop's goods", async () => {
       const { orderId } = await paidOrder({ number: "EFY-6" });
       await pool.query(
-        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, status)
-         VALUES ($1,'goodwill',15,'goodwill','k-6','back_office','succeeded')`,
+        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind,
+           actor_sub, note, status)
+         VALUES ($1,'goodwill',15,'goodwill','k-6','back_office','sub-staff','a gesture','succeeded')`,
         [orderId],
       );
       await runRollup();
@@ -230,8 +257,10 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
         ["k-c", "refused"],
       ] as const) {
         const r = await pool.query<{ id: string }>(
-          `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, status)
-           VALUES ($1,'item',10,'item_not_supplied',$2,'back_office',$3) RETURNING id`,
+          `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind,
+             actor_sub, status, failure_reason)
+           VALUES ($1,'item',10,'item_not_supplied',$2,'back_office','sub-staff',$3,
+                   CASE WHEN $3 = 'failed' THEN 'provider declined' ELSE NULL END) RETURNING id`,
           [orderId, key, status],
         );
         await pool.query(
@@ -250,8 +279,9 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
     it("⚠ REVERSES when a submitted refund later fails — the one correction that reaches back", async () => {
       const { orderId, itemId } = await paidOrder({ number: "EFY-8" });
       const r = await pool.query<{ id: string }>(
-        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, status)
-         VALUES ($1,'item',10,'item_not_supplied','k-8','back_office','submitted') RETURNING id`,
+        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind,
+           actor_sub, status)
+         VALUES ($1,'item',10,'item_not_supplied','k-8','back_office','sub-staff','submitted') RETURNING id`,
         [orderId],
       );
       await pool.query(
@@ -264,7 +294,11 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
       expect((await readHours(SHOP, from, to)).reduce((n, x) => n + Number(x.refunds), 0)).toBe(10);
 
       // 055: the bank can reject a refund up to thirty days later. The figure must go back.
-      await pool.query(`UPDATE public.refund SET status = 'failed' WHERE id = $1`, [r.rows[0]!.id]);
+      await pool.query(
+        `UPDATE public.refund SET status = 'failed', failure_reason = 'the bank rejected it'
+          WHERE id = $1`,
+        [r.rows[0]!.id],
+      );
       await runRollup();
       expect((await readHours(SHOP, from, to)).reduce((n, x) => n + Number(x.refunds), 0)).toBe(0);
     });
@@ -284,8 +318,9 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
       );
       // A cancellation names no lines at all: it covers the whole order, delivery included.
       await pool.query(
-        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind, status)
-         VALUES ($1,'cancellation',65,'order_cancelled','k-9','back_office','succeeded')`,
+        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind,
+           actor_sub, status)
+         VALUES ($1,'cancellation',65,'order_cancelled','k-9','back_office','sub-staff','succeeded')`,
         [orderId],
       );
       await runRollup();
@@ -351,9 +386,12 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
       await paidOrder({ number: "EFY-14", qty: 2, productId: b });
       await runRollup();
 
-      const today = new Date();
-      const date = today.toISOString().slice(0, 10);
-      const yesterday = new Date(today.getTime() - 86_400_000).toISOString().slice(0, 10);
+      // ⚠ THE SHOP'S DATES, NOT THE MACHINE'S. `shop_product_sales_day.local_date` is a Melbourne
+      // date, and `toISOString()` gives a UTC one — the same day only for part of the day, and for
+      // developers in some timezones never. The first draft did exactly that and found nothing at
+      // 17:17 UTC, when Melbourne had already turned over.
+      const date = shopDate(new Date());
+      const yesterday = shopDate(new Date(Date.now() - 86_400_000));
       const rows = await readTopProducts(SHOP, yesterday, date, 5);
 
       expect(rows[0]!.name).toBe("Linen apron");

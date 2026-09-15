@@ -261,10 +261,11 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
-**058-shop-today-insights — Shop Console: Today & Insights.** 🚧 **CODE-COMPLETE + MACHINE-VERIFIED
-across the migration, both backends, the shared packages and the console. NOT DEPLOYED, NOT COMMITTED,
-NOT WALKED BY A PERSON.** ⚠ **Docker was DOWN all session, so every container test is WRITTEN AND
-UNEXECUTED** (052 lost a session's proofs the same way). Spec/artifacts:
+**058-shop-today-insights — Shop Console: Today & Insights.** 🚧 **DEPLOYED TO DEV (first migration,
+both backends, the console) and the screens answer. ⚠ A SECOND MIGRATION IS PENDING, NOT COMMITTED,
+NOT DEPLOYED. NOT WALKED BY A PERSON.** ⚠ **Docker was down while this was written, so the container
+tests ran only AFTERWARDS — and they found three defects the whole green suite had missed** (below).
+Spec/artifacts:
 [specs/058-shop-today-insights/](specs/058-shop-today-insights/); research deliverable:
 [docs/insights-architecture.md](docs/insights-architecture.md).
 
@@ -322,15 +323,36 @@ shop is performing) — the shop audience's first sight of its own revenue over 
   `@effy/edge-shared`; the pick-list renderer and the orders CSV export were extracted so Today and the
   order console cannot diverge. ⚠ **edge-orders' 16 tests pass UNMODIFIED** — the proof the first
   promotion changed nothing.
+- ⚠ **THE CONTAINER TESTS FOUND A HOLE IN THE TRIGGER PATH — a second migration,
+  `20260915171139_insights_mark_on_order_item.sql`.** The order triggers watch `AFTER UPDATE OF status`,
+  which is the production path (019 creates an order `pending_payment` and pays it by UPDATE) — but a
+  line ADDED to an order that is already paid (a correction, a re-fan-out) changes a shop's figures and
+  marked nothing dirty. A third trigger on `public.order_item` INSERT closes it, with an idempotent
+  backfill. ⚠ It also exposed that the FIXTURE was wrong in the same way — it inserted orders already
+  `paid`, so the trigger never fired and the suite would have passed over an empty rollup.
+- ⚠ **AND A PRODUCTION DEFECT IN THE PRODUCT ROLLUP THAT ONLY THE SECOND RECOMPUTE SHOWS.**
+  `RECOMPUTE_PRODUCTS` deleted the day's rows in a **data-modifying CTE** on its own INSERT. PostgreSQL
+  runs a WITH's sub-statements concurrently on one snapshot, so the INSERT's unique index still sees the
+  rows the DELETE is removing: every **second** recompute of a day died on `shop_product_sales_day_pkey`
+  — which is every correction, every reconciliation and every reversed refund, i.e. **exactly the
+  idempotency the whole design rests on**. Split into two statements; proven by putting the CTE back.
+- ⚠ **A THIRD, IN A TEST'S OWN CLOCK**: the top-products fixture derived its dates with
+  `toISOString()` (UTC) while `local_date` is the **shop's** Melbourne date. Green in some timezones and
+  red in others — it failed on a machine in `Asia/Colombo` at 17:17 UTC, when Melbourne had already
+  turned over. The fixture now asks the shop's zone, like the service does.
 - **Verified**: `pnpm -r typecheck` **19/19** · shop-web **335** (37 files) · edge-shop **314** ·
   web-kit **63** · edge-orders **16 UNMODIFIED** · edge-inventory **59** · Go build/vet/gofmt clean ·
-  **12 new Go tests** (hub, handler, listener) · `terraform validate`/`fmt`. **Six negative proofs**,
-  each executed by breaking the thing.
-- **⚠ Open (operator)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=shop` **and**
-  `SERVICE=orders`; `core-image-push && core-deploy`; `make apply` (three alarms); then the
-  [quickstart](specs/058-shop-today-insights/quickstart.md) walks W1–W13. ⚠ **Run the container tests
-  with Docker up first** — they are the only thing that has ever caught a wrong column name here (056),
-  and this slice writes 40+ of them unexecuted. ⚠ **Nobody has looked at any screen**: 039 shipped four
+  **12 new Go tests** (hub, handler, listener) · `terraform validate`/`fmt`. **Seven negative proofs**,
+  each executed by breaking the thing. ✅ **WITH DOCKER UP**: edge-shop **364/364 across 29 files**
+  incl. **40 container tests against the real migrations** (triggers, rollups, Today, orders), Go
+  `shoplive` green (101.7 s), and **`orders/` 12/12 UNMODIFIED** — the proof the new trigger broke
+  nothing that already worked.
+- **⚠ Open (operator)**: ⚠ **commit the second migration + `make db-up ENV=dev`** (schema only — the
+  running rollup job picks up the newly-marked buckets, so no code deploy); ⚠ **`make edge-deploy
+  SERVICE=shop ENV=dev`** carries the product-rollup fix, which is a **code** change and does need one;
+  then the [quickstart](specs/058-shop-today-insights/quickstart.md) walks W1–W13 — **W8** (a late refund
+  lands in today's figures while the older day's revenue stays put) is the one that exercises the
+  second recompute the CTE defect broke. ⚠ **Nobody has looked at any screen**: 039 shipped four
   live defects with a fully green suite. Parity register:
   [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §058.
 

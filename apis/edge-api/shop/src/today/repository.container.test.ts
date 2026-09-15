@@ -61,12 +61,16 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
   });
 
   beforeEach(async () => {
-    await pool.query(`TRUNCATE public.customer, public.shop RESTART IDENTITY CASCADE`);
+    await pool.query(
+      `TRUNCATE public.customer, public.shop, public.product_type, public.category RESTART IDENTITY CASCADE`,
+    );
     await pool.query(`INSERT INTO public.customer (id, cognito_sub, email) VALUES ($1,'sub-c','a@b.c')`, [CUST]);
     await pool.query(
       `INSERT INTO public.shop (id, code, name) VALUES ($1,'S1','Shop One'), ($2,'S2','Shop Two')`,
       [SHOP, OTHER_SHOP],
     );
+    await pool.query(`INSERT INTO public.product_type (key, name) VALUES ('grocery','Grocery')`);
+    await pool.query(`INSERT INTO public.category (key, name) VALUES ('dairy','Dairy')`);
   });
 
   async function product(opts: {
@@ -78,13 +82,14 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
     status?: string;
   }): Promise<string> {
     const res = await pool.query<{ id: string }>(
-      `INSERT INTO public.product (shop_id, name, slug, price_amount, status, stock_tracked,
-         stock_on_hand, low_stock_threshold)
-       VALUES ($1,$2,$3,10,$4,$5,$6,$7) RETURNING id`,
+      `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
+         short_description, created_by, status, stock_tracked, stock_on_hand, low_stock_threshold)
+       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', $3, $4, $5, $6
+         FROM public.product_type pt, public.category c
+       RETURNING id`,
       [
         opts.shop ?? SHOP,
         opts.name,
-        opts.name.toLowerCase().replace(/\W+/g, "-"),
         opts.status ?? "active",
         opts.tracked ?? true,
         opts.onHand ?? 0,
