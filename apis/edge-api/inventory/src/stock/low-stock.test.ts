@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const query = vi.hoisted(() => vi.fn());
-vi.mock("@effy/edge-shared", () => ({ query, withTransaction: vi.fn() }));
+// ⚠ PARTIAL mock (058): the low-stock SQL fragments moved into @effy/edge-shared so Today and the
+// restock list cannot answer "what is running out?" differently (054's one-rule-in-14-places
+// lesson). Only the DB access is stubbed; the real constants are spread in, so these assertions
+// still read the rule the service actually sends.
+vi.mock("@effy/edge-shared", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  query,
+  withTransaction: vi.fn(),
+}));
 
 const { readLowStock } = await import("./repository");
 

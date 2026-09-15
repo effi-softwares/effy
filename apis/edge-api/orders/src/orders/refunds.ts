@@ -84,59 +84,18 @@ export async function refundLines(orderId: string): Promise<RefundLineRow[]> {
   return res.rows;
 }
 
-export interface ProposedRefundRow {
-  order_item_id: string;
-  product_name: string;
-  quantity: number;
-  amount: string;
-}
-
 /**
- * ⚠ PROPOSED REFUNDS ARE DERIVED, AND THERE IS NO PROPOSALS TABLE (FR-004a, data-model §4).
+ * ⚠ THE DERIVATION MOVED TO `@effy/edge-shared` (058), it did not change.
  *
- * A proposal is a *view of other facts*: a pick shortfall the picker recorded, minus anything already
- * refunded against that line, minus anything a human has dismissed. Storing it would let it disagree
- * with the shortfall it came from — a picker correcting a quantity would leave a stale proposal behind,
- * which FR-004b forbids ("at most once per shortfall, however many times the shortfall is edited").
- * Deriving makes that requirement free instead of a reconciliation job. This is 027's
- * counted-not-stored rule, applied a third time.
- *
- * ⚠ The platform has its OWN STAFF'S EVIDENCE that a customer paid for something they did not receive.
- * Making them ask for it is the failure gap G3 describes. But a payment triggered by a warehouse tap
- * has no second pair of eyes, so this proposes and a person decides (spec A5b).
- *
- * ⚠ GROUPED BY ORDER ITEM, not by shortfall row: one product short across two pick records is one
- * decision, not two.
+ * The shop console became its second reader — Today surfaces a shop's own unresolved shortfalls as
+ * "Refund waiting for approval". Two copies of this SQL would be two answers to "what does the
+ * platform still owe this customer", and the copy that drifted would fail silently: it is a SELECT,
+ * so nothing would error, the two screens would simply disagree. Re-exported here so this module's
+ * callers are untouched, and edge-orders' suite passes unmodified — which is the proof the move
+ * changed no behaviour (the same proof 028 used when it promoted the presign helper).
  */
-export async function proposedRefunds(orderId: string): Promise<ProposedRefundRow[]> {
-  const res = await query<ProposedRefundRow>(
-    `SELECT oi.id::text AS order_item_id,
-            oi.product_name,
-            SUM(fi.unavailable_quantity)::int AS quantity,
-            (SUM(fi.unavailable_quantity) * oi.unit_price_amount)::text AS amount
-       FROM public.fulfillment_item fi
-       JOIN public.order_item oi        ON oi.id = fi.order_item_id
-       JOIN public.shop_fulfillment sf  ON sf.id = fi.shop_fulfillment_id
-      WHERE oi.order_id = $1
-        AND fi.unavailable_quantity > 0
-        -- Already refunded, in whole or in part: only the remainder is still a decision.
-        AND fi.unavailable_quantity > COALESCE((
-              SELECT SUM(rl.quantity)
-                FROM public.refund_line rl
-                JOIN public.refund r ON r.id = rl.refund_id
-               WHERE rl.order_item_id = oi.id
-                 AND r.status IN ('submitting','submitted','succeeded','failed')), 0)
-        -- ⚠ A human looked and said no. The ONLY thing about a proposal that is stored, because it is
-        -- the one fact the derivation cannot hold.
-        AND NOT EXISTS (
-              SELECT 1 FROM public.refund_proposal_dismissal d
-               WHERE d.shop_fulfillment_id = sf.id AND d.order_item_id = oi.id)
-   GROUP BY oi.id, oi.product_name, oi.unit_price_amount
-   ORDER BY oi.product_name`,
-    [orderId],
-  );
-  return res.rows;
-}
+export type { ProposedRefundRow } from "@effy/edge-shared";
+export { proposedRefunds } from "@effy/edge-shared";
 
 export interface RefundRequestRow {
   request_id: string;

@@ -43,6 +43,14 @@ type Metrics struct {
 	refundSubmitFail *prometheus.CounterVec // labels: failure ∈ {ambiguous,refused}
 	shopRefundDenied *prometheus.CounterVec // labels: reason ∈ {not_permitted,not_your_lines,unavailable}
 	ordersCancelled  *prometheus.CounterVec // labels: actor   ∈ {customer,back_office}
+
+	// ── 058 shop console live stream ──────────────────────────────────────────────────────────
+	// ⚠ NO SHOP LABEL on any of these. One series per shop is a cardinality bomb as the platform
+	// grows, and none of these questions ("are consoles connected?", "is the listener flapping?")
+	// is asked per shop anyway (Principle VII).
+	shopLiveStreams   prometheus.Gauge
+	shopLivePokes     prometheus.Counter
+	shopLiveReconnect prometheus.Counter
 }
 
 func New() *Metrics {
@@ -112,6 +120,20 @@ func New() *Metrics {
 			Help: "Shop-initiated refunds refused BEFORE the provider was called, by reason. " +
 				"Distinct from effy_refund_submit_failures_total, which counts provider outcomes (057 US5).",
 		}, []string{"reason"}),
+		shopLiveStreams: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "effy_shop_live_streams",
+			Help: "Shop console live streams currently open on this task (058).",
+		}),
+		shopLivePokes: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "effy_shop_live_pokes_total",
+			Help: "Notifications received from PostgreSQL and fanned out to open consoles (058).",
+		}),
+		shopLiveReconnect: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "effy_shop_live_listener_reconnects_total",
+			Help: "Times the LISTEN connection dropped and was re-established (058). Every one of " +
+				"these is a window in which notifications were missed, which is why a reconnect " +
+				"broadcasts a resync to every open console.",
+		}),
 		ordersCancelled: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "effy_orders_cancelled_total",
 			Help: "Orders cancelled, by who asked. ⚠ Cancelling IS refunding on this platform — the " +
@@ -132,6 +154,9 @@ func New() *Metrics {
 		m.refundSubmitFail,
 		m.shopRefundDenied,
 		m.ordersCancelled,
+		m.shopLiveStreams,
+		m.shopLivePokes,
+		m.shopLiveReconnect,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)
@@ -201,6 +226,15 @@ func (m *Metrics) ShopRefundDenied(reason string) { m.shopRefundDenied.WithLabel
 
 // OrderCancelled records one cancellation, by who asked for it.
 func (m *Metrics) OrderCancelled(actor string) { m.ordersCancelled.WithLabelValues(actor).Inc() }
+
+// ShopLiveStreams publishes how many console streams this task is holding (058).
+func (m *Metrics) ShopLiveStreams(n int) { m.shopLiveStreams.Set(float64(n)) }
+
+// ShopLivePoke records one notification fanned out to the consoles watching a shop.
+func (m *Metrics) ShopLivePoke() { m.shopLivePokes.Inc() }
+
+// ShopLiveListenerReconnect records one LISTEN reconnection — a window where pokes were missed.
+func (m *Metrics) ShopLiveListenerReconnect() { m.shopLiveReconnect.Inc() }
 
 func (m *Metrics) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {

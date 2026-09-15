@@ -261,6 +261,79 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**058-shop-today-insights — Shop Console: Today & Insights.** 🚧 **CODE-COMPLETE + MACHINE-VERIFIED
+across the migration, both backends, the shared packages and the console. NOT DEPLOYED, NOT COMMITTED,
+NOT WALKED BY A PERSON.** ⚠ **Docker was DOWN all session, so every container test is WRITTEN AND
+UNEXECUTED** (052 lost a session's proofs the same way). Spec/artifacts:
+[specs/058-shop-today-insights/](specs/058-shop-today-insights/); research deliverable:
+[docs/insights-architecture.md](docs/insights-architecture.md).
+
+Replaces 057's dashboard with **Today** (what needs doing right now) and adds **Insights** (how the
+shop is performing) — the shop audience's first sight of its own revenue over time.
+- ⚠ **RESEARCH FIRST, AS THE BRIEF DEMANDED** — `docs/insights-architecture.md` (24 cited sources)
+  compares how Shopify/Stripe/Saleor/Medusa serve these two workloads, webhook-reliability practice,
+  and **monthly cost at 10k and 500k orders/month**. It concludes: rollup tables in Postgres, **no edge
+  runtime and no CDN cache** (every operator and the database are in Sydney; the payload is private
+  per shop — Vercel's own docs now say run functions next to the data), and **SSE + Postgres
+  LISTEN/NOTIFY** for live updates. **≈$0/month at 10k, ≈$13–14 at 500k**, against **$25–110** for
+  every hosted realtime option — each of which *still* needs the same database listener.
+- ⚠ **THE PLATFORM'S FIRST DATABASE TRIGGERS**, and the justification is narrow: **six services on two
+  backends** write the tables these screens derive from. A poke or a dirty-mark written in application
+  code must be remembered by every one of them, forever, and missing one is **silent** — 054's
+  `availability`-in-14-places lesson. A trigger fires inside the writing transaction and cannot be
+  forgotten. `triggers.guard.test.ts` enumerates every trigger function in `public` and **fails naming
+  it** if one does anything beyond `pg_notify` + an `ON CONFLICT DO NOTHING` insert (proven by breaking
+  it). ⚠ The `shop_ops` channel is **NOT the event backbone** (Principle VI) — a shop id, no envelope,
+  no consumer may read business meaning from it.
+- ⚠ **`core-api` GAINED A SECOND SHOP-POOL ROUTE** — `GET /v1/shop/live`, a recorded Principle III
+  exception: API Gateway's HTTP API caps an integration at **30 s**, so the cold path cannot hold a
+  stream, and Fargate is the platform's only long-running process. It carries **no data at all** (every
+  frame is `data: {}`), so no shop READ moved to the hot path. ⚠ 057's comment claiming the refund was
+  "the whole of the shop's reach into core-api" **was corrected in the same change** — a count in a
+  comment is true only while someone maintains it.
+- ⚠ **A LIVE-ONLY DEFECT CAUGHT BY READING THE CONFIG, NOT THE TESTS**: `http.Server.WriteTimeout` is
+  **30 s** for this service and applies to a response's whole lifetime — so every stream would have died
+  at 30 seconds while `httptest` (which sets no timeouts) passed every test. Cleared per-request with
+  `http.NewResponseController`. This is 024's VectorDrawable shape: valid, compiling, tested, wrong only
+  where it runs.
+- ⚠ **TWO REAL BUGS IN THE CALENDAR ARITHMETIC, caught by the DST tests.** Rebuilding an instant from
+  wall-clock fields is **ambiguous** on the day daylight saving ends (02:30 happens twice), and the first
+  draft silently **skipped an entire trading hour**; and `nextLocalHour` "snapped" through the same
+  ambiguity. A 25-hour day now yields **25 buckets** (02 twice) and a 23-hour day **23**, proven against
+  real zone rules — plus Adelaide's **+9:30**, where local hours begin at :30 UTC and a UTC-hour bucket
+  could never express them.
+- ⚠ **REFUNDS ARE DATED WHEN ISSUED, NOT WHEN SOLD** — Shopify's own practice, and **the spec was
+  amended** (FR-032) rather than the code bent: a reported past day then never changes because of
+  something that happened later. Recomputation is **from source, never incremental**: 055 says a
+  submitted refund can be rejected **thirty days later**, so a figure must be able to move backwards.
+- ⚠ **THREE CONTROLS REFUSED, THREE CELLS REPLACED** — not styling. `New order` (a shop cannot create
+  one), `Discount code` (codes are platform-wide and would discount other shops' items),
+  `Message a customer` (a shop never gets the customer's email — 023 FR-018; the design's
+  `orders@effy.shop` does not exist). `Conversion rate` / `New customers` / `Returns open` became
+  **Can't supply · Cancelled · Ready for pickup**. ⚠ The refusals guard uses **word-bounded phrases over
+  comment-stripped source** and was proven with the exact shape that defeated 057's first attempt
+  (`✉Message a customer`, no delimiter).
+- ⚠ **FR-006 IS STRUCTURAL, NOT A CONVENTION**: the Needs attention row, its unit figure, the badge, the
+  sidebar badge and **both** Insights fulfilment cells render from ONE field of ONE cached query; the
+  glance strip's money cells read the **same cache entry Insights reads**. Proven by breaking it.
+- ⚠ **Insights may never touch raw orders** (FR-026) — `rollup-only.guard.test.ts` reads the repository
+  and fails naming the file; the rollup job is the one place allowed to. Proven by injecting a join.
+- **Principle II, three promotions**: 055's refund-proposal rule and 054's low-stock predicate moved to
+  `@effy/edge-shared`; the pick-list renderer and the orders CSV export were extracted so Today and the
+  order console cannot diverge. ⚠ **edge-orders' 16 tests pass UNMODIFIED** — the proof the first
+  promotion changed nothing.
+- **Verified**: `pnpm -r typecheck` **19/19** · shop-web **335** (37 files) · edge-shop **314** ·
+  web-kit **63** · edge-orders **16 UNMODIFIED** · edge-inventory **59** · Go build/vet/gofmt clean ·
+  **12 new Go tests** (hub, handler, listener) · `terraform validate`/`fmt`. **Six negative proofs**,
+  each executed by breaking the thing.
+- **⚠ Open (operator)**: the commit; `make db-up ENV=dev`; `make edge-deploy SERVICE=shop` **and**
+  `SERVICE=orders`; `core-image-push && core-deploy`; `make apply` (three alarms); then the
+  [quickstart](specs/058-shop-today-insights/quickstart.md) walks W1–W13. ⚠ **Run the container tests
+  with Docker up first** — they are the only thing that has ever caught a wrong column name here (056),
+  and this slice writes 40+ of them unexecuted. ⚠ **Nobody has looked at any screen**: 039 shipped four
+  live defects with a fully green suite. Parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §058.
+
 **057-shop-web-redesign — Shop Console Redesign.** 🚧 **88/95 tasks — every phase BUILT and fully
 machine-verified, INCLUDING against real PostgreSQL. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A
 PERSON.** Spec/artifacts: [specs/057-shop-web-redesign/](specs/057-shop-web-redesign/).

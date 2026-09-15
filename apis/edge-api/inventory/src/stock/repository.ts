@@ -12,7 +12,13 @@
  * recently-changed reading useless within a day of shipping.
  */
 
-import { query, withTransaction } from "@effy/edge-shared";
+import {
+  EFFECTIVE_LOW_STOCK_THRESHOLD,
+  LOW_STOCK_PREDICATE,
+  LOW_STOCK_SEVERITY,
+  query,
+  withTransaction,
+} from "@effy/edge-shared";
 import type { LowStockRowDTO, StockMovementReason } from "@effy/shared-types";
 
 import { notFound, type Actor, type MovementRow, type StockRow } from "./types";
@@ -310,18 +316,12 @@ SELECT p.id::text AS product_id,
        p.name     AS name,
        p.sku      AS sku,
        p.stock_on_hand AS on_hand,
-       COALESCE(p.low_stock_threshold, s.default_low_stock_threshold) AS effective_threshold,
-       CASE WHEN p.stock_on_hand <= 0 THEN 'out' ELSE 'low' END AS severity
+       ${EFFECTIVE_LOW_STOCK_THRESHOLD} AS effective_threshold,
+       ${LOW_STOCK_SEVERITY} AS severity
   FROM public.product p
   LEFT JOIN public.shop_stock_settings s ON s.shop_id = p.shop_id
  WHERE p.shop_id = $1
-   AND p.stock_tracked
-   AND p.status <> 'archived'
-   AND (
-         p.stock_on_hand <= 0
-      OR (COALESCE(p.low_stock_threshold, s.default_low_stock_threshold) IS NOT NULL
-          AND p.stock_on_hand <= COALESCE(p.low_stock_threshold, s.default_low_stock_threshold))
-       )
+   AND ${LOW_STOCK_PREDICATE}
  -- ⚠ Most urgent first (FR-029) — the order IS the guarantee. Any presentation grouping is the
  -- client's job, over a list that is already urgency-ordered.
  ORDER BY (p.stock_on_hand <= 0) DESC, p.stock_on_hand ASC, p.name ASC

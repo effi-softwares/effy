@@ -32,6 +32,7 @@ import {
   type OrderRow,
   type OrdersSearch,
 } from "./orderConsole"
+import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
 import { orderListQuery } from "./queries"
 import { listOrders } from "./repo"
 
@@ -123,16 +124,11 @@ export function OrderListScreen({
   async function exportCsv() {
     setExporting(true)
     try {
-      // ⚠ Every matching row, not just this page — capped, because a CSV of a shop's entire history is
-      // a report, not an export button.
-      const all: OrderRow[] = []
-      for (let p = 1; p <= 40; p++) {
-        const res = await listOrders({ ...toListQuery(search), page: p })
-        all.push(...res.items)
-        if (all.length >= res.total || res.items.length === 0) break
-      }
-      downloadCsv(all)
-      toast.success(`Exported ${all.length} order${all.length === 1 ? "" : "s"}`)
+      // ⚠ 058: the export itself moved to `exportOrders.ts` when Today's Quick actions became its
+      // second caller. Two implementations would mean two CSV shapes, and the divergence would be
+      // noticed in a spreadsheet on someone else's desk long after the change that caused it.
+      const exported = await exportOrdersCsv(search)
+      toast.success(`Exported ${exported} order${exported === 1 ? "" : "s"}`)
     } catch {
       toast.error("The export couldn't be built. Try again in a moment.")
     } finally {
@@ -229,7 +225,7 @@ export function OrderListScreen({
       />
 
       {selected.size > 0 ? (
-        <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadCsv} />
+        <BulkActions rows={rows} selected={selected} onClear={() => setSelected(new Set())} onExport={downloadOrdersCsv} />
       ) : null}
 
       {isError ? (
@@ -363,15 +359,6 @@ export function OrderListScreen({
   )
 }
 
-function downloadCsv(rows: readonly OrderRow[]) {
-  const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
 
 /**
  * The row's flag chip (`padding:1px 6px; border-radius:4px; 10.5px; coloured border and text`).

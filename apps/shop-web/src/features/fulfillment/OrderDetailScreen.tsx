@@ -25,6 +25,7 @@ import {
   refundableQuantity,
   type OrderDetail,
 } from "./orderConsole";
+import { printPickLists } from "./pickList";
 import { orderDetailQuery } from "./queries";
 
 /**
@@ -289,24 +290,24 @@ function addressText(detail: OrderDetail): string {
 }
 
 /**
- * "Print pick list" — a plain printable list of this shop's lines in its own window, so the console's
- * chrome never reaches the printer.
+ * "Print pick list" — one document, through the shared renderer (058 T010). Today's "Print pick
+ * lists" prints many through the same code, so the sheet a picker carries is the same either way.
  */
 function printPickList(detail: OrderDetail) {
-  const w = window.open("", "_blank", "width=720,height=900");
-  if (!w) return;
-  const esc = (s: string) =>
-    s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-  const rows = detail.lines
-    .map(
-      (l) =>
-        `<tr><td style="padding:8px 0;border-bottom:1px solid #ddd">☐</td><td style="padding:8px;border-bottom:1px solid #ddd">${esc(l.name)}</td><td style="padding:8px;border-bottom:1px solid #ddd;font-family:monospace">${esc(l.sku ?? "")}</td><td style="padding:8px 0;border-bottom:1px solid #ddd;text-align:right">${l.orderedQuantity}</td></tr>`,
-    )
-    .join("");
-  w.document.write(
-    `<!doctype html><title>Pick list ${esc(detail.orderNumber)}</title><body style="font:14px system-ui;margin:32px"><h1 style="font-size:18px;margin:0 0 4px">Pick list · <span style="font-family:monospace">${esc(detail.orderNumber)}</span></h1><p style="color:#666;margin:0 0 16px">${esc(detail.delivery.recipientName)} · ${esc(methodText(detail.deliveryMethod))} delivery · ready by ${esc(formatWhen(detail.readyBy))}</p><table style="width:100%;border-collapse:collapse">${rows}</table></body>`,
-  );
-  w.document.close();
-  w.focus();
-  w.print();
+  printPickLists(
+    [
+      {
+        orderNumber: detail.orderNumber,
+        recipientName: detail.delivery.recipientName,
+        deliveryMethod: detail.deliveryMethod,
+        readyBy: detail.readyBy,
+        lines: detail.lines.map((l) => ({
+          name: l.name,
+          sku: l.sku,
+          quantity: l.orderedQuantity,
+        })),
+      },
+    ],
+    `Pick list ${detail.orderNumber}`,
+  )
 }

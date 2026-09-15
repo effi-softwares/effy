@@ -20,3 +20,9 @@ export * from "./lib/back-office-authz";
 export * from "./lib/order-completion";
 // 032: promoted from edge-api/admin so the shop console shares ONE definition of "a real place".
 export * from "./validate";
+// 058: proposed refunds — derived, never stored (055). Promoted when the shop console became its
+// second reader: back-office decides them per order, the shop console surfaces its own on Today.
+export * from "./lib/refund-proposals";
+// 058: the low-stock rule, promoted from edge-api/inventory when Today became its third reader.
+// One rule in one place — 054's "availability written in 14 places" lesson, applied before it bites.
+export * from "./lib/low-stock";

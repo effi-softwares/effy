@@ -42,3 +42,5 @@ export * from "./refund";
 export * from "./shop-team"
 // 057 Amendment A3 — the shop order console (separate from the pick contract in ./shop-order)
 export * from "./shop-order-console"
+// 058-shop-today-insights — Today (live operational) + Insights (prepared analytics)
+export * from "./shop-insights"

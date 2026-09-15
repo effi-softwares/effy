@@ -9,10 +9,10 @@ import { HeaderChrome } from "@/components/console/HeaderChrome";
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
-// ⚠ 057: the dashboard is its own feature slice now. It was an inline component here that rendered
-// four em-dashes and a chart of invented data; see DashboardScreen for why both are gone.
-import { DashboardScreen } from "@/features/dashboard/DashboardScreen";
-import { useNavBadges } from "@/features/dashboard/useNavBadges";
+// ⚠ 058: Today replaced the dashboard. 057 made its counts real; this makes them live, and gives
+// the operator the single most urgent thing to act on rather than four figures to interpret.
+import { TodayScreen } from "@/features/today/TodayScreen";
+import { useNavBadges } from "@/features/today/useNavBadges";
 import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen";
 import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
 
@@ -33,7 +33,7 @@ export const appRoute = createRoute({
 export const appIndexRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  component: DashboardScreen,
+  component: TodayScreen,
 });
 
 // Reaching this route is NOT authorization — the backend refuses a non-manager regardless (FR-008).
@@ -103,6 +103,7 @@ function headerSubtitleFor(pathname: string, badges: Record<string, number | und
     return waiting > 0 ? `${waiting} waiting to be picked` : "Nothing waiting";
   }
   if (pathname.startsWith("/catalog")) return "Your shop's products";
+  if (pathname.startsWith("/insights")) return "Revenue, volume and product performance";
   if (pathname.startsWith("/manager")) return "Your team and shop settings";
   return waiting > 0 ? `${waiting} to pick` : "Everything is up to date";
 }

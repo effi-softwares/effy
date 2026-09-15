@@ -46,7 +46,18 @@ export type ShopAnalyticsEvent =
   // 057 US7 — team management. ⚠ NEVER the invitee's email or name: this is the one event that would
   // otherwise carry a colleague's identity into product analytics.
   | { name: "shop_staff_invited"; role: string }
-  | { name: "shop_staff_deactivated" };
+  | { name: "shop_staff_deactivated" }
+  // 058 — Today and Insights. ⚠ NO figures, NO order numbers, NO product names: an analytics event
+  // that carried a shop's revenue would put the shop's money in a third-party product tool, which is
+  // a different question from whether anyone uses the screen. `kind`, `action`, `range` and `metric`
+  // are all closed vocabularies, so these stay low-cardinality too (Principle VII).
+  | { name: "today_viewed" }
+  | { name: "today_attention_acted"; kind: string }
+  | { name: "quick_action_used"; action: string }
+  | { name: "insights_viewed"; range: string }
+  | { name: "insights_range_changed"; range: string }
+  | { name: "insights_drilled"; metric: string }
+  | { name: "insights_exported"; range: string };
 
 const telemetry = createTelemetry<ShopAnalyticsEvent>({
   key: config.posthogKey(),

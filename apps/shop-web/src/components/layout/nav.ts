@@ -1,4 +1,4 @@
-import { ClipboardList, LayoutDashboard, Package, Shield } from "lucide-react";
+import { BarChart3, ClipboardList, LayoutDashboard, Package, Shield } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -11,7 +11,8 @@ import type { NavItem } from "@effy/web-kit/console";
 // role-less operator never sees a control it cannot use, and /shop/v1/manager-ping refuses them
 // if they ask directly anyway.
 export const NAV: NavItem<ShopRole>[] = [
-  { label: "Dashboard", to: "/", icon: LayoutDashboard },
+  // 058: "Today" — the screen answers "what needs doing now", and the label should say so.
+  { label: "Today", to: "/", icon: LayoutDashboard },
   // Catalog is open to any shop member (the backend allows shop_manager OR shop_staff), so no
   // requiredRole — every operator can browse and add products.
   { label: "Catalog", to: "/catalog", icon: Package },
@@ -21,5 +22,8 @@ export const NAV: NavItem<ShopRole>[] = [
   { label: "Orders", to: "/orders", icon: ClipboardList },
   // ⚠ No Restock item (design revision 2026-09-10): purchasing is deferred to its own future feature.
   // Stock is managed in Catalog and on each product's detail — both open to either shop role.
+  // 058: Insights is open to both roles — the money on it is the shop's own, and an operator who can
+  // see an order's total on the Orders list is not learning anything new from its weekly sum.
+  { label: "Insights", to: "/insights", icon: BarChart3 },
   { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
 ];

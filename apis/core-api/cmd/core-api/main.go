@@ -28,6 +28,7 @@ import (
 	"github.com/effyshopping/effy/apis/core-api/internal/features/platformstatus"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/refunds"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/saveditems"
+	"github.com/effyshopping/effy/apis/core-api/internal/features/shoplive"
 	"github.com/effyshopping/effy/apis/core-api/internal/features/storefront"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
@@ -63,6 +64,7 @@ type dependencies struct {
 	// ⚠ 057: the THIRD pool, mounted on exactly one route (the shop refund). See config.Shop.
 	shopVerifier *auth.PoolVerifier
 	shopGate     *auth.ShopGate
+	shopLive     *shoplive.Hub
 	staffGate    *auth.StaffGate
 	refunds      *refunds.Service
 	cognito      *cognitoidentityprovider.Client
@@ -175,9 +177,11 @@ func run() error {
 		// 057: the shop half of the same reasoning — one route, its own pool, its own record gate.
 		shopVerifier: shopVerifier,
 		shopGate:     auth.NewShopGate(pool),
-		staffGate:    auth.NewStaffGate(pool),
-		refunds:      refundSvc,
-		cognito:      cognitoidentityprovider.NewFromConfig(awsCfg),
+		// 058: the console live stream's fan-out. One hub per task; the listener below feeds it.
+		shopLive:  shoplive.NewHub(),
+		staffGate: auth.NewStaffGate(pool),
+		refunds:   refundSvc,
+		cognito:   cognitoidentityprovider.NewFromConfig(awsCfg),
 
 		// 019 commerce shared collaborators (research R2/R3/R7).
 		pool:     pool,
@@ -193,6 +197,14 @@ func run() error {
 		checkout: checkout.NewService(checkout.NewStore(pool), paymentGateway, cfg.Stripe.PublishableKey).WithOrderPolicy(cartpolicy.NewStore(pool)).WithPromotions(cartSvc).WithDelivery(delivery.NewQuoter(pool)).WithDeliveryMetrics(m).WithStockMetrics(m).WithRefundEvents(refundSvc),
 		orders:   orders.NewService(orders.NewRepository(pool), presign),
 	}
+
+	// 058 — the shop console live stream's LISTEN connection.
+	//
+	// ⚠ STARTED, NEVER AWAITED, AND NEVER FATAL. If PostgreSQL will not take the LISTEN, every
+	// console falls back to its 30-second refetch and the shop console keeps working (research R2).
+	// Refusing to boot `core-api` — which serves checkout — because a notification channel is
+	// unavailable would take the storefront down to protect a convenience.
+	go shoplive.NewListener(pool, deps.shopLive, log, m).Run(ctx)
 
 	router := newRouter(cfg, log, pool, m, deps)
 
@@ -301,6 +313,13 @@ func registerFeatures(v1, v2 *gin.RouterGroup, deps dependencies) {
 	// structurally. Keep it that way: this line is the whole of the shop's reach into core-api.
 	refunds.RegisterShop(v1, deps.shopVerifier,
 		refunds.NewHandler(deps.refunds, deps.staffGate).WithShopGate(deps.shopGate))
+
+	// ⚠ 058 — THE SECOND (and only other) SHOP-POOL ROUTE ON THIS SERVICE: the console's live stream.
+	// It exists here because a stream must outlive a request and the cold path cannot hold one (API
+	// Gateway's HTTP API caps an integration at 30 seconds); Fargate is the platform's only
+	// long-running process. It carries NO shop data — every event is a content-free "refetch" — so no
+	// shop READ moved to the hot path with it (Principle III exception, research R1).
+	shoplive.RegisterShop(v1, deps.shopVerifier, shoplive.NewHandler(deps.shopLive, deps.shopGate, deps.metrics))
 }
 
 // savedCartAdder adapts the cart service to saved-items' narrow CartAdder seam.

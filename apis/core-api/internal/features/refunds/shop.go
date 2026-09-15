@@ -37,11 +37,16 @@ var ErrLinesNotYours = errors.New("refunds: one or more lines are not this shop'
 
 // RegisterShop mounts THE one shop-authorized route on this service.
 //
-// ⚠ ONE ROUTE, AND THE GROUP EXISTS TO KEEP IT THAT WAY. Every other route on this service is scoped
-// to the customer or back-office pool and rejects a shop token structurally — proven in both
-// directions in `platform/auth/pool_isolation_test.go`. Adding a second route here should require
-// someone to think about it, so the group is deliberately narrow rather than a general `/shop` prefix
-// that later routes could be dropped into without review.
+// ⚠ ONE ROUTE HERE, AND THE GROUP EXISTS TO KEEP IT THAT WAY. Every other route on this service is
+// scoped to the customer or back-office pool and rejects a shop token structurally — proven in both
+// directions in `platform/auth/pool_isolation_test.go`. Adding a route here should require someone to
+// think about it, so the group is deliberately narrow rather than a general `/shop` prefix that later
+// routes could be dropped into without review.
+//
+// ⚠ CORRECTED BY 058: this comment used to claim it was "the whole of the shop's reach into
+// core-api". It is not, any more — `shoplive.RegisterShop` mounts a second shop-pool route (the
+// console's live stream), for the same kind of reason: a capability that cannot live anywhere else.
+// A count in a comment is only true while someone maintains it, so it is maintained here.
 func RegisterShop(v1 *gin.RouterGroup, v *auth.PoolVerifier, h *Handler) {
 	shop := v1.Group("/shop", auth.Middleware(v))
 	shop.POST("/orders/:orderId/refunds", h.issueAsShop)

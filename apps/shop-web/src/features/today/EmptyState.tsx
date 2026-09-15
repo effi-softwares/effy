@@ -1,7 +1,7 @@
 import { CheckCircle2 } from "lucide-react"
 
 /**
- * The steady state (US1, FR-008).
+ * The steady state (057 FR-008, carried into 058's Needs attention card).
  *
  * ⚠ IT SAYS "NOTHING NEEDS YOU", NOT "NO RESULTS". This screen is read many times a day by someone
  * checking whether they are behind. An empty-results treatment — a shrug, a dashed box, "no data" —
@@ -11,7 +11,7 @@ import { CheckCircle2 } from "lucide-react"
  * ⚠ NO RETRY AFFORDANCE. There is nothing to retry: this is success. An error state is a different
  * component (`ErrorState`), and offering a button here would invite an operator to keep pressing it.
  */
-export function DashboardEmptyState() {
+export function TodayEmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 rounded-md border px-6 py-12 text-center">
       <span

@@ -18,6 +18,10 @@ export {
   type TelemetryConfig,
   type TelemetryEvent,
 } from "./runtime/telemetry";
+// 058: the authenticated SSE reader. Shared because it is audience-neutral runtime plumbing — the
+// shop console uses it today, and back-office's own live screens will want the same one, not a
+// second copy (Principle II).
+export { openLiveStream, parseFrame, type LiveEvent, type LiveStreamOptions } from "./runtime/live";
 export {
   createUiStore,
   type Theme,

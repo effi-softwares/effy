@@ -417,6 +417,70 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── 058: Today & Insights ──────────────────────────────────────────────────────────────────────
+  # Today is LIVE state, counted on every read; Insights is PREPARED figures, read from the rollups.
+  # Two endpoints on purpose (FR-025/FR-026): one payload cannot honestly claim two freshnesses.
+  todayV1:
+    handler: src/functions/today-v1-get.handler
+    description: Today — live pick backlog, needs-attention list and the five most recent orders — 058
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/today
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  insightsV1:
+    handler: src/functions/insights-v1-get.handler
+    description: Insights — prepared figures from the rollups; never an aggregate over raw orders — 058
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/insights
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  # The rollup job and its nightly check. ⚠ The dirty table IS the queue, so a failed run loses
+  # nothing: the rows it could not process are still there a minute later.
+  teamActivityV1:
+    handler: src/functions/team-activity-v1-get.handler
+    description: Team activity — a union over the audit trails the platform already keeps — 058
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/team-activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  pickListsV1:
+    handler: src/functions/pick-lists-v1-get.handler
+    description: Batch pick lists — every order awaiting pick, as printable documents (no money) — 058
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/pick-lists
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  insightsRollup:
+    handler: src/functions/insights-rollup.handler
+    description: Recompute dirty insight buckets from source; keep the current hour fresh (058)
+    timeout: 60
+    events:
+      - schedule: rate(1 minute)
+
+  insightsReconcile:
+    handler: src/functions/insights-reconcile.handler
+    description: Nightly sweep — recompute 35 days per shop and alarm if anything had to change (058)
+    timeout: 300
+    events:
+      # 03:30 Melbourne (17:30 UTC) — after the shops are shut, before anyone reads yesterday.
+      - schedule: cron(30 17 * * ? *)
+
   orderActivityV1:
     handler: src/functions/order-activity-v1-get.handler
     description: Order console activity log — events, refunds, collection, arrival — 057 A3

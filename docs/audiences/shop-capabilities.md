@@ -546,3 +546,46 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
 Spec/artifacts: [specs/057-shop-web-redesign/](../../specs/057-shop-web-redesign/).
+
+---
+
+## §058 — Today & Insights (shop-web)
+
+**058-shop-today-insights** replaces the console's dashboard with **Today** (what needs doing right
+now) and adds **Insights** (how the shop is performing). Both are **shop-web only**; every row below
+is a parity debt shop-mobile now carries (⛔).
+
+| Capability | shop-web | shop-mobile |
+|---|---|---|
+| Today: pick backlog, out-of-stock and low-stock rows, proposed refunds, each with a verb button | ✅ | ⛔ |
+| Today: live orders, ageing relative times, `New` under 60 s | ✅ | ⛔ |
+| Live updates as orders are paid (SSE from `core-api`, polling fallback) | ✅ | ⛔ |
+| Today at a glance (revenue, orders, AOV, awaiting pick) | ✅ | ⛔ |
+| Quick actions sheet (six actions) | ✅ | ⛔ |
+| Team activity sheet | ✅ | ⛔ |
+| Insights: range control, two metric strips, twin charts, top products, CSV | ✅ | ⛔ |
+
+**What the shop audience can now see that it could not before:** its own revenue over time, its
+average order value, what it could not supply, and what it refunded — all scoped to its own goods.
+
+**⚠ Three controls the imported design offers are deliberately NOT built** (FR-011), each because the
+platform cannot honour them rather than as a styling choice: **New order** (a shop cannot create an
+order — customers buy from Effy), **Discount code** (codes are platform-wide and would discount other
+shops' items), **Message a customer** (a shop is never given the customer's email — 023 FR-018). A
+source guard fails naming the file if any of them reappears.
+
+**⚠ Three Insights cells were replaced rather than faked** (FR-034): `Conversion rate` (a hidden
+fulfilment node has no funnel of its own), `New customers` (customer relationship data is withheld
+from shops) and `Returns open` (the platform has no returns model) became **Can't supply**,
+**Cancelled** and **Ready for pickup**.
+
+**⚠ Revenue means this shop's goods** (FR-032) — not the order totals the Orders list shows, which
+include the delivery fee and order-level discount Effy sets for the whole order. The Insights
+subtitles say "Goods · AUD" so the two are never read as the same number. Refunds reduce revenue **on
+the day they were issued**, following Shopify's sales-report practice, so a reported past day never
+changes because of something that happened later.
+
+**⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
+Container tests are written but were **not executed** — Docker was down for the whole session.
+Spec/artifacts: [specs/058-shop-today-insights/](../../specs/058-shop-today-insights/); architecture
+research: [docs/insights-architecture.md](../insights-architecture.md).

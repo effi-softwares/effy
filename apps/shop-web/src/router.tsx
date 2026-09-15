@@ -6,12 +6,13 @@ import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
 import { catalogNewRoute } from "./routes/catalog.new";
 import { catalogProductRoute } from "./routes/catalog.$productId";
+import { insightsRoute } from "./routes/insights";
 import { ordersRoute } from "./routes/orders";
 import { ordersDetailRoute } from "./routes/orders.$fulfillmentId";
 import { rootRoute } from "./routes/__root";
 
 // Code-based route tree. Protected shell at '/' (+ '/manager', '/catalog', '/catalog/$productId',
-// '/orders', '/orders/$fulfillmentId'), public auth at '/auth/sign-in'.
+// '/orders', '/orders/$fulfillmentId', '/insights'), public auth at '/auth/sign-in'.
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([
     appIndexRoute,
@@ -22,6 +23,7 @@ const routeTree = rootRoute.addChildren([
     catalogProductRoute,
     ordersRoute,
     ordersDetailRoute,
+    insightsRoute,
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ]);

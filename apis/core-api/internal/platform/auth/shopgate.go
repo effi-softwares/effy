@@ -2,8 +2,10 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -99,4 +101,40 @@ func (g *ShopGate) ShopIDFor(ctx context.Context, sub string) (string, error) {
 		return "", nil
 	}
 	return *shopID, nil
+}
+
+// ⚠ 058 — MEMBERSHIP, NOT ROLE. The live stream asks a different question from the refund gate above:
+// not "may this person move money on this order" but "does this person work here, right now". Both
+// shop roles may watch their own shop's work — 020 FR-019a gave both full fulfilment access, and the
+// stream carries no data beyond "something changed" anyway (058 contracts/shop-live-stream).
+//
+// The two status terms remain: a stood-down operator and an operator at a suspended shop are both
+// refused, so a token that outlives either is refused with it. The JOIN collapses "no shop",
+// "inactive shop" and "inactive operator" into one falsity, so no branch can leak which term failed.
+const shopActiveShopFor = `
+SELECT sh.id::text
+  FROM public.shop_staff s
+  JOIN public.shop sh ON sh.id = s.shop_id
+ WHERE s.cognito_sub = $1
+   -- availability-exempt: public.shop_staff — WHO may act, not what may be sold.
+   AND s.status = 'active'
+   -- availability-exempt: public.shop — the fulfilment node's own lifecycle (009).
+   AND sh.status = 'active'
+ LIMIT 1`
+
+// ActiveShopFor resolves the shop this subject may watch, or "" when they may not watch anything.
+//
+// ⚠ "" IS A REFUSAL, NEVER "ALL SHOPS". Every caller must treat the empty string as deny; a stream
+// subscribed to "" would be subscribed to nothing, but a query written carelessly around it could
+// just as easily match everything.
+func (g *ShopGate) ActiveShopFor(ctx context.Context, sub string) (string, error) {
+	var shopID string
+	err := g.pool.QueryRow(ctx, shopActiveShopFor, sub).Scan(&shopID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("auth: active shop lookup: %w", err)
+	}
+	return shopID, nil
 }
