@@ -44,8 +44,13 @@ export function SignInScreen({ next }: { next?: string }) {
   return (
     <div className="grid gap-6">
       <div className="grid gap-1.5">
+        {/* The design's small brand-coloured eyebrow above the heading. It is the form column's only
+            use of the action colour, which is what ties it to the panel beside it. */}
+        <p className="text-[11.5px] font-semibold uppercase tracking-[.06em] text-brand">
+          Shop console
+        </p>
         <h1 className="text-2xl font-semibold tracking-[-.02em]">Sign in</h1>
-        <p className="text-muted-foreground text-sm">
+        <p className="text-sm text-muted-foreground">
           Enter your work email below to access your shop.
         </p>
       </div>
