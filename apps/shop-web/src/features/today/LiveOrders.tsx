@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import type { ShopLiveOrderDTO } from "@effy/shared-types"
+import { Spinner } from "@effy/design-system/ui"
 
 import { formatMoney } from "@/features/fulfillment/orderConsole"
 
@@ -15,12 +16,12 @@ import { isNewArrival, liveMeta } from "./model"
  * committed and fanned it out (019), so that state is unrepresentable — and the rule the design was
  * working around ("never send a row to a different order's id") holds by construction here.
  *
- * ⚠ THE `New` BADGE IS A DOT, NOT GREEN TEXT. The design used `--success` as a text colour at
- * 4.00:1; the constitution is explicit that success is a NON-TEXT indicator (below the 4.5:1 text
- * bar). The dot carries the colour, the word carries the meaning, and the row still reads as new in
- * greyscale.
+ * ⚠ THE `New` BADGE AND THE NEWEST ROW NOW USE `--success-soft`, AS THE DESIGN DRAWS THEM. Both were
+ * monochrome because the old `--success` measured 4.00:1 and could not legally carry text; the
+ * adopted #0d8043 clears 4.5:1 on white AND on its own tint, so the word may sit on the colour.
  *
- * ⚠ THE NEWEST ROW IS `bg-muted`, not success-soft — same reason.
+ * ⚠ THE DOT STAYS. The word "New" still appears, so the row reads as new in greyscale and to a
+ * screen reader — the tint is what makes it findable, not what makes it legible.
  */
 export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[]; now: number }) {
   return (
@@ -28,12 +29,12 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
       <header className="flex items-center gap-3 border-b px-[18px] py-4">
         <div className="grid min-w-0 gap-[3px]">
           <div className="flex items-center gap-2">
-            {/* A non-text indicator, and the one animation on the screen. `motion-reduce` turns it
-                off: a pulsing dot is exactly what vestibular-sensitivity settings exist for. */}
-            <span
-              aria-hidden="true"
-              className="bg-success size-[7px] shrink-0 animate-pulse rounded-full motion-reduce:animate-none"
-            />
+            {/* ⚠ THE DESIGN'S SPINNER, not a pulsing dot. "Anything that updates on its own carries
+                the spinner" — a dot that fades in and out reads as decoration, while a turning ring
+                reads as work in flight, which is the actual claim this header is making. It is
+                exempt from the reduced-motion flattening by `data-effy-spinner` (see spinner.tsx):
+                slowed, never stopped, because it IS the signal. */}
+            <Spinner />
             <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Live orders</h2>
           </div>
           <p className="text-muted-foreground text-[12.5px]">Updating as orders arrive</p>
@@ -60,7 +61,7 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
                 params={{ fulfillmentId: o.fulfillmentId }}
                 className={
                   "hover:bg-accent flex w-full items-center gap-3 border-b px-[18px] py-[14px] text-left no-underline" +
-                  (i === 0 && isNewArrival(o.paidAt, now) ? " bg-muted" : "")
+                  (i === 0 && isNewArrival(o.paidAt, now) ? " bg-success-soft" : "")
                 }
               >
                 <span className="min-w-0 flex-1">
@@ -70,8 +71,8 @@ export function LiveOrders({ orders, now }: { orders: readonly ShopLiveOrderDTO[
                     </span>
                     <span className="text-[13.5px] font-medium">{o.customerName}</span>
                     {isNewArrival(o.paidAt, now) ? (
-                      <span className="border-border flex items-center gap-1.5 rounded-full border px-[7px] py-px text-[11px] font-medium">
-                        <span aria-hidden="true" className="bg-success size-1.5 rounded-full" />
+                      <span className="flex items-center gap-1.5 rounded-full border border-border bg-success-soft px-[7px] py-px text-[11px] font-medium text-success">
+                        <span aria-hidden="true" className="size-1.5 rounded-full bg-success" />
                         New
                       </span>
                     ) : null}

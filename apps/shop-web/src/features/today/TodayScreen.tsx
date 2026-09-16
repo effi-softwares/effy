@@ -69,24 +69,18 @@ export function TodayScreen() {
           </p>
         </div>
         <div className="min-w-3 flex-1" />
-        <Button
-          variant="outline"
-          className="h-[34px] px-3 text-[13px]"
-          onClick={() => setQuickActionsOpen(true)}
-        >
+        {/* ⚠ No hand-rolled heights any more. `Button`'s default IS the design's 34px at 13.5px
+            since the theme adoption, so `h-[34px] px-3 text-[13px]` was three hardcoded values
+            restating the component — and three places for it to drift. */}
+        <Button variant="outline" onClick={() => setQuickActionsOpen(true)}>
           Quick actions
         </Button>
-        <Button
-          variant="outline"
-          className="h-[34px] px-3 text-[13px]"
-          onClick={() => setTeamActivityOpen(true)}
-        >
+        <Button variant="outline" onClick={() => setTeamActivityOpen(true)}>
           Team activity
         </Button>
         {/* ⚠ Unavailable when nothing is waiting, and it says why on hover: a primary button that
             prints nothing teaches an operator to distrust the printer, not the button. */}
         <Button
-          className="h-[34px] px-[13px] text-[13px]"
           disabled={awaitingPick === 0}
           title={awaitingPick === 0 ? "Nothing is waiting to be picked" : undefined}
           onClick={() => void printLists()}
@@ -99,8 +93,11 @@ export function TodayScreen() {
       <div className="grid items-start gap-5 [grid-template-columns:minmax(0,1fr)] min-[1100px]:[grid-template-columns:minmax(0,1.15fr)_minmax(0,1fr)]">
         {today.isPending || !data ? (
           <>
-            <Skeleton className="h-[320px] w-full rounded-[var(--radius)]" />
-            <Skeleton className="h-[320px] w-full rounded-[var(--radius)]" />
+            {/* ⚠ Skeletons at the CARDS' own size and radius, not a bare spinner: the priority row
+                is the reason the operator opened the console, and a region that collapses to nothing
+                while loading makes the whole page jump when it arrives. */}
+            <Skeleton className="h-[320px] w-full rounded-xl" />
+            <Skeleton className="h-[320px] w-full rounded-xl" />
           </>
         ) : (
           <>

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import type { ShopAttentionItemDTO } from "@effy/shared-types"
-import { Button } from "@effy/design-system/ui"
+import { Button, IconChip } from "@effy/design-system/ui"
 
 import { TodayEmptyState } from "./EmptyState"
 import { track } from "@/lib/telemetry"
@@ -16,11 +16,14 @@ import { attentionHref, attentionRow, formatAge } from "./model"
  * should not have to do — and a generic "View" makes them work out what they are supposed to do when
  * they get there.
  *
- * ⚠ URGENCY IS A DOT AND WEIGHT, NEVER A HUE — except the one case that has earned a semantic
- * colour. The imported design used amber for "warning" throughout; amber is a third hue and the
- * platform has two (Principle V), and 041 had already swept amber out of these very screens. What
- * survives is `--destructive` on an EMPTY shelf, which is a real problem right now, and the neutral
- * ramp everywhere else. Rendered in greyscale this card loses nothing but the red dot.
+ * ⚠ URGENCY IS A DOT, AND IT NOW CARRIES THE DESIGN'S THREE TONES. Under the monochrome
+ * constitution only `--destructive` was available, so "waiting" had to read as plain foreground and
+ * looked identical to "nothing urgent". The adopted palette supplies `--warning`, which is exactly
+ * the missing middle: destructive = a shelf is empty RIGHT NOW, warning = something is waiting and
+ * ageing, muted = noted, not urgent.
+ *
+ * ⚠ THE DOT IS NEVER THE ONLY SIGNAL. Every row states its situation in words and ends in a specific
+ * verb, so the card reads identically in greyscale and to a screen reader.
  */
 export function NeedsAttention({
   items,
@@ -38,6 +41,13 @@ export function NeedsAttention({
   return (
     <section className="bg-background overflow-hidden rounded-[var(--radius)] border">
       <header className="flex items-center gap-3 border-b px-[18px] py-4">
+        <IconChip tone="warning" size="lg" className="mt-0.5">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+            <path d="M8 4.5v4" />
+            <path d="M8 11.2h.01" />
+            <path d="M8 1.8 14.6 13.4H1.4Z" strokeLinejoin="round" />
+          </svg>
+        </IconChip>
         <div className="grid min-w-0 gap-[3px]">
           <h2 className="text-[15px] font-semibold tracking-[-0.01em]">Needs attention</h2>
           <p className="text-muted-foreground text-[12.5px]">
@@ -48,9 +58,9 @@ export function NeedsAttention({
         </div>
         <div className="flex-1" />
         {openCount > 0 ? (
-          // The design's badge was warning-soft on warning; monochrome here (research R15). Mono
-          // digits so the count does not jitter as it changes width.
-          <span className="bg-muted text-foreground grid h-[22px] min-w-[22px] place-items-center rounded-md px-[7px] font-mono text-xs font-semibold">
+          // ⚠ The design's own warning-soft-on-warning badge, restored. Mono digits so the count does
+          // not jitter sideways as it changes width — it updates live.
+          <span className="grid h-[22px] min-w-[22px] place-items-center rounded-md bg-warning-soft px-[7px] font-mono text-xs font-semibold tabular-nums text-warning">
             {openCount}
           </span>
         ) : null}
@@ -97,7 +107,7 @@ function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }
           row.tone === "problem"
             ? "bg-destructive size-[7px] shrink-0 rounded-full"
             : row.tone === "waiting"
-              ? "bg-foreground size-[7px] shrink-0 rounded-full"
+              ? "bg-warning size-[7px] shrink-0 rounded-full"
               : "bg-muted-foreground size-[7px] shrink-0 rounded-full"
         }
       />
@@ -105,7 +115,7 @@ function AttentionRow({ item, now }: { item: ShopAttentionItemDTO; now: number }
         <p className="text-[13.5px] font-medium text-pretty">{row.title}</p>
         <p className="text-muted-foreground mt-[3px] text-[12.5px]">{row.detail}</p>
       </div>
-      <Button asChild variant="outline" className="h-[30px] px-[11px] text-[12.5px]">
+      <Button asChild variant="outline" size="compact">
         <Link
           to={attentionHref(item)}
           onClick={() => track({ name: "today_attention_acted", kind: item.kind })}
