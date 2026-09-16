@@ -57,8 +57,9 @@ const POSITIONS = Array.from({ length: OTP_LENGTH }, (_, i) => i)
  * `repeating-linear-gradient` behind text laid out with `letter-spacing` in `ch` units. Measured on
  * the shipped build (044 BASELINE.md), that produced three defects at once:
  *
- *   • **Invisible** — the rule used `--input` (`#e5e5e5`), whose own token comment says it is
- *     "deliberately not contrast-tested". At 1.24:1 on white it is not a boundary, it is a rumour.
+ *   • **Invisible** — the rule used `--input`, a hairline token whose own comment says it is
+ *     "deliberately not contrast-tested". It measured 1.24:1 on white then and 1.33:1 under the
+ *     adopted palette — either way not a boundary, a rumour.
  *   • **Off-centre** — an inline `marginRight` overrode one half of `mx-auto`, leaving
  *     `margin-left: auto` to shove the control against the right edge of its column. At 1440px it
  *     began 270px into a 384px column and overflowed the far edge by 12px.
@@ -96,7 +97,7 @@ function OtpInput({
         // IS an Input but for its tracking, so a differently-shaped box here would read as a foreign
         // component in the same sign-in form. `OtpSignInCard.test.tsx` asserts `maxlength`/behaviour,
         // not shape, so the consoles stay functionally identical — this is visual only.
-        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
+        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
         // Codes are read back character by character far more often than prose is, so they get
         // tabular figures and a little tracking. This is the one place that is worth it.
         "font-mono tracking-[0.35em]",
@@ -246,13 +247,20 @@ function OtpCells({
  * ⚠ EVERY STATE IS CARRIED BY SHAPE OR WEIGHT AS WELL AS COLOUR (044 FR-019, SC-010): an empty cell
  * has a mid-weight boundary, a filled one a full-contrast boundary and a glyph, the active one an
  * offset ring and a caret, an invalid one the destructive boundary *and* the error message beside
- * the field. None of them is distinguishable by hue alone, which matters on a monochrome platform
- * where there is no hue to spend.
+ * the field. None of them is distinguishable by hue alone — which mattered when the platform was
+ * monochrome and still matters now that it is not: a colour-blind operator reads exactly the same
+ * four states.
  *
- * ⚠ THE BOUNDARY IS `border-ring`, NOT `border-input`. `--input` is `#e5e5e5` on white — 1.24:1, and
- * its own token comment says it is "deliberately not contrast-tested". `--ring` is `#808080` light /
- * `#737373` dark, both above the 3:1 WCAG 1.4.11 bar for a UI component boundary. Using the border
- * token here is what made the field invisible (defect D-01).
+ * ⚠ THE BOUNDARY IS `border-ring`, NOT `border-input`. `--input` measures 1.33:1 on the light ground
+ * and 1.57:1 on the dark one, and its own token comment says it is "deliberately not
+ * contrast-tested". `--ring` is 3.07:1 light / 3.14:1 dark — above the 3:1 WCAG 1.4.11 bar for a UI
+ * component boundary, which check-tokens.mjs holds it to. Using the border token here is what made
+ * the field invisible (defect D-01).
+ *
+ * ⚠ THE RATIOS ABOVE WERE RE-MEASURED AT THE THEME ADOPTION, NOT CARRIED OVER. They used to cite
+ * #e5e5e5 / #808080 / #737373, which stopped being this platform's values the moment the palette
+ * changed — a comment that states a false number is worse than no comment, because the next reader
+ * trusts it. check-tokens.mjs is the authority; these figures are provenance.
  */
 function Cell({
   char,
@@ -280,7 +288,7 @@ function Cell({
         // that boundary is `border-ring` (3:1) and 2px rather than the untested hairline token.
         // ⚠ 1.5px, DOWN FROM 2px (operator direction 2026-08-11 — "borders are too dark"). The weight
         // is what was lightened, not the colour, and that is a measured constraint rather than a
-        // preference: `--ring` (#808080) is **3.95:1** on white, and WCAG 1.4.11 wants **3:1** for the
+        // preference: `--ring` is **3.07:1** on the light ground, and WCAG 1.4.11 wants **3:1** for the
         // visual boundary of a UI component. The lightest grey that still clears that bar is roughly
         // #959595 — barely distinguishable from what is here — so there is almost no colour headroom
         // left to spend. Stroke weight is where the headroom actually is: half a pixel off reads

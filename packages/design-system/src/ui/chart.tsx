@@ -36,6 +36,12 @@ function useChart() {
   return context
 }
 
+/**
+ * ⚠ THE `#ccc` / `#fff` LITERALS BELOW ARE NOT COLOURS THIS PLATFORM SETS. They are ATTRIBUTE
+ * SELECTORS matching recharts' own hardcoded defaults (`[stroke='#ccc']`), used to find those
+ * elements and override them with `--border` / `transparent`. Removing them would not remove a
+ * colour; it would stop the override from matching and let recharts' grey through.
+ */
 function ChartContainer({
   id,
   className,
@@ -175,7 +181,7 @@ function ChartTooltipContent({
   return (
     <div
       className={cn(
-        "border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl",
+        "border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs shadow-md",
         className
       )}
     >

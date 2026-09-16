@@ -67,6 +67,11 @@ function AppShell() {
       brand={{ mark: "E", name: "Effy", surface: "Shop" }}
       surfaceLabel="Effy Shop"
       sidebarWidth="14rem"
+      // ⚠ THE PAGE GUTTER IS `--pad` (24px), NOT THE SHELL'S DEFAULT `p-4` (16px). The design sets
+      // one page padding and uses it for the header, the content and the section rhythm alike; at
+      // 16px the console's tables sat tighter to the rail than the header above them, which reads as
+      // a misalignment rather than as a deliberate density.
+      contentClassName="flex w-full flex-1 flex-col gap-[var(--pad)] p-[var(--pad)]"
       headerBreadcrumb={<HeaderBreadcrumbs />}
       headerSubtitle={subtitle}
       headerActions={<HeaderChrome />}

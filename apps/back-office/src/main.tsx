@@ -49,7 +49,7 @@ try {
       }}
     >
       <h1 style={{ fontSize: "1.25rem" }}>Configuration error</h1>
-      <p style={{ color: "#737373" }}>{message}</p>
+      <p style={{ color: "var(--muted-foreground)" }}>{message}</p>
     </div>,
   );
 }

@@ -10,8 +10,8 @@ import { assertConfig } from "./lib/env";
 import { initTelemetry, reportError } from "./lib/telemetry";
 import { applyTheme, uiStore } from "./lib/ui-store";
 import { createAppRouter } from "./router";
-// Typeface: General Sans arrives via @font-face in @effy/design-system tokens.css (Principle II).
-// It is not on Google Fonts and has no @fontsource package, so there is nothing to import here.
+// Typeface: Geist arrives from Google Fonts in index.html (it has no woff2 to commit), with
+// self-hosted General Sans named second in --font-sans as the fallback. Nothing to import here.
 import "./styles.css";
 
 const rootEl = document.getElementById("root");
@@ -41,6 +41,11 @@ try {
   createRoot(rootEl).render(
     <div
       style={{
+        // ⚠ DELIBERATELY NOT --font-sans. This is the pre-app failure screen; it renders when
+        // assertConfig() throws, and the one thing it must never do is depend on something that
+        // might also have failed. The COLOUR is a token because styles.css is imported above this
+        // and has already applied; the FACE stays a system stack because a webfont is a network
+        // request, and a config error must not render as invisible text while one is in flight.
         fontFamily: "system-ui, sans-serif",
         padding: "2rem",
         maxWidth: 640,
@@ -48,7 +53,7 @@ try {
       }}
     >
       <h1 style={{ fontSize: "1.25rem" }}>Configuration error</h1>
-      <p style={{ color: "#737373" }}>{message}</p>
+      <p style={{ color: "var(--muted-foreground)" }}>{message}</p>
     </div>,
   );
 }

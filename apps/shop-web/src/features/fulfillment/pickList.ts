@@ -1,3 +1,15 @@
+/* ⚠ THE HEX VALUES IN THIS FILE ARE DELIBERATE AND CANNOT BE TOKENS.
+ *
+ * A pick list is written into a NEW WINDOW as a standalone HTML document and sent to a printer. That
+ * document has no access to the console's stylesheet, so `var(--border)` would resolve to nothing and
+ * the rules would vanish — and even if it did, the theme's colours are chosen for a screen: a navy
+ * dark-mode ground printed on paper is a solid black page. Print output is its own medium, and these
+ * greys (#ddd rules, #666 secondary text) are chosen for toner, not for the palette.
+ *
+ * This is the one file in the console exempt from the no-raw-hex rule, and the exemption is written
+ * here rather than in an allow-list nobody reads while editing.
+ */
+
 /**
  * The pick list, as a printable document — ONE renderer, two call sites (058 T010).
  *
