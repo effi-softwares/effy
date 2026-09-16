@@ -191,22 +191,56 @@ validate JWTs per pool and pin the issuer — there is **no auth proxy**, and a 
 pool is structurally rejected by services scoped to another.
 
 ## Design system (one source of truth)
-**MONOCHROME — there is NO brand hue in the UI** (constitution v1.10.0 → v1.11.0 → **v1.13.0**,
-features 026 & **041**). A neutral ramp (adopted values `#0a0a0a` … `#ffffff`, feature 041) carries
-every UI accent role, and the accent **INVERTS between appearances**: near-black on light, near-white
-on dark, each taking the other as its label. A hue reads against both grounds; a neutral one does not,
-so a single accent value would be invisible in one mode. Exactly **TWO** semantic colours exist
-alongside the ramp — error `#e01010` and success `#0C9409` (success is a **non-text indicator only**,
-4.00:1). **No third hue may be introduced as a UI colour**; two exceptions, each a data/asset role
-rather than a UI accent: a third-party sign-in mark, and a bounded **data-visualisation palette**
-(`--chart-1..5`, feature 041/v1.13.0) permitted **for charts only** — never a UI accent/fill/text,
-never given a `-foreground` pair, never surfaced to the mobile Compose themes. Typeface **General
-Sans**, plus spacing/radius scales — shared across all surfaces via one design-system package.
-**RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0) and Jade `#0FB57E` / fill
-`#047857` (v1.10.0). Both are swept out of live source by `scripts/check-no-emerald.sh` and
-`scripts/check-no-jade.sh`. **Dark mode required, and user-selectable (Light / Dark / Follow-System).** Mobile must feel native (iOS HIG / Android Material); fat-finger touch
-targets + micro-animations are requirements, not optional polish. Design refs: Uber / Bolt /
-foodpanda / eBay.
+⚠ **THE PLATFORM IS NO LONGER MONOCHROME.** On operator direction (design project `951bb710`,
+`theme-adoption-prompt.md`) the **"Effy Shop Console" appearance identity was adopted PLATFORM-WIDE**,
+reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carries it —
+`packages/design-system/src/tokens.css` — and 057's shop-scoped `tokens/shop.css` was **DELETED**
+rather than left restating the same values (two files declaring one palette is the
+two-sources-for-one-fact shape this repo has shipped five defects through). ⚠ **Recorded win**: 017's
+SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**.
+- **`--brand` / `--primary` — cobalt `#1d4ed8` light / `#4d7cff` dark — THE one action colour.** Both
+  names resolve to the same value on purpose (`--primary` is the shadcn vocabulary the primitives
+  consume, `--brand` the role name screens read). ⚠ The hue **LIFTS** in dark rather than inverting —
+  unlike the retired neutral accent, a hue reads against both grounds. Plus `--brand-soft/-mid/-ink`.
+- **Three bounded non-brand hues**: `--accent2` (orange) is **attention and time pressure ONLY** —
+  notification dots, unread badges, cut-off chips, deliberately rare; `--violet` and `--teal` are the
+  second and third data-viz series and the avatar tints, **never interactive**.
+- **Four state semantics**, each with a `-soft` tint it is written on: `--destructive`, `--success`,
+  `--warning`, plus the neutral `muted`. The closed status mapping is **in-progress → brand ·
+  complete → success · waiting/at-risk → warning · failed/refunded → destructive · inert → muted**.
+  ⚠ `--success` and `--warning` keep **NO `-foreground` pair**: they may be text ON THEIR TINT but
+  never a fill with a label on it (`check-tokens.mjs` enforces the absence).
+- ⚠ **FOUR VALUES TUNED from the source, all for contrast**, all required by the adoption prompt's own
+  4.5:1 rule: `--accent2` light `#d6650c`→`#b4550a` (3.36:1 on its own tint), `--teal` light
+  `#0b8577`→`#0a7d70` (4.08:1), `--ring` light `#8eadee`→`#7993ca` (2.24:1 — failed even the 3:1 UI
+  bar). Dark passes unchanged at every pair. ⚠ The sign-in panel fills with `--primary`, **not**
+  `--brand`: the reference's `background:var(--brand); color:#fff` measures **2.62:1 in dark**.
+- **Radius: a four-step scale** read off the design's own declarations, not its `--radius` literal —
+  **sm 4 (checkboxes) / md 6 (inputs, nav, in-row) / lg 8 (buttons, icon chips) / xl 10
+  (containers)**. Pills (badges, status chips, progress) are `rounded-full`, a shape not a step.
+- **NO GRADIENTS. Flat fills only.** Cards are **bordered, never shadowed**; the only shadows are on
+  floating layers (dialog, popover, sheet, select, dropdown, chart tooltip).
+- **Type: Geist / Geist Mono.** ⚠ NOT self-hosted (no woff2 to commit) — loaded from Google Fonts by
+  the two consoles' `index.html`. `--font-sans` names **self-hosted General Sans second**, which is
+  what keeps `customer-web`'s typography intact without adding a request to a public storefront.
+- **Theme mechanics**: `data-theme="light"|"dark"` on the document element is the persisted,
+  authoritative switch; the `.dark` class is **derived from it in the same statement** (Tailwind's
+  `dark:` variants resolve off a class). Restored **before first paint** by an inline script in each
+  console's `index.html`. Dark mode required, user-selectable (Light / Dark / Follow-System).
+- **RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a`, Jade `#0FB57E` / `#047857`, and the
+  041 monochrome ramp. The first two are still swept by `scripts/check-no-emerald.sh` /
+  `check-no-jade.sh`.
+- **Guards** (`pnpm --filter @effy/design-system test`): `check-tokens.mjs` (key-set parity, the
+  four-step radius scale, **WCAG AA on every pair incl. each solid against its own `-soft` tint**,
+  the no-`-foreground` rule), `check-component-shape.mjs` (controls never pills, badge always is,
+  containers ≥ buttons ≥ controls), and ⚠ **`check-token-usage.mjs`** — scans 306 files and fails if
+  a colour utility names a token `@theme` does not declare, because **Tailwind emits no rule at all
+  for an unknown utility** and the element renders as nothing with no error anywhere.
+- **Mobile**: the three Compose themes regenerate from `tokens.css` and take the cobalt accent and
+  the navy-ink ground. ⚠ The new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`)
+  are **web-only** — `gen-compose-theme.mjs`'s token list is unchanged, deliberately. Mobile must
+  still feel native (iOS HIG / Android Material); fat-finger targets + micro-animations are
+  requirements. Design refs: Uber / Bolt / foodpanda / eBay.
 
 **Design reference & layout doctrine (constitution v1.9.0, Principle V):**
 - **Reference platforms** — Effy is **"Uber Eats + eBay, food-first."** For any feature's business
