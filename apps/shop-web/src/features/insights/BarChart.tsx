@@ -1,14 +1,22 @@
 import type { InsightsBucketDTO, InsightsFigureDTO, ComparisonBasis } from "@effy/shared-types"
 
-import { barHeights, deltaText } from "./model"
+import { barHeights, deltaText, deltaToneClass } from "./model"
 
 /**
  * One of the twin bar charts (058, US3).
  *
  * ⚠ PLAIN DIVS, NO CHART LIBRARY. The design draws flat bars with mono axis labels; recharts would
- * add ~400 KB to a login-gated console (041 recorded that cost) to render rectangles. It also means
- * this slice uses no `--chart-*` token at all — the data-visualisation palette exists for charts that
- * need to distinguish series, and a single-series bar chart does not.
+ * add ~400 KB to a login-gated console (041 recorded that cost) to render rectangles.
+ *
+ * ⚠ TWO SERIES, AND WHICH CHART GETS WHICH IS FIXED. The adopted design pairs these charts with
+ * `--brand` for the first (revenue) and `--violet` for the second (volume) — the same two hues, in
+ * the same order, every time. That consistency is the whole point: an operator who glances at a
+ * cobalt bar knows it is money without reading the header. Swapping them per screen would make the
+ * colour meaningless.
+ *
+ * ⚠ THE LATEST BUCKET IS AT FULL SATURATION, THE REST AT `-mid`. It marks "now" — the bucket still
+ * filling up — rather than "best". A uniform chart makes the reader compare a partial bar against
+ * complete ones without knowing it.
  *
  * ⚠ EVERY BUCKET IS DRAWN, INCLUDING THE EMPTY ONES. A missing bar and a zero bar say different
  * things: a chart that silently omits quiet hours misreports the shape of a trading day.
@@ -21,6 +29,7 @@ export function BarChart({
   basis,
   buckets,
   valueOf,
+  series,
 }: {
   title: string
   subtitle: string
@@ -29,7 +38,11 @@ export function BarChart({
   basis: ComparisonBasis
   buckets: readonly InsightsBucketDTO[]
   valueOf: (b: InsightsBucketDTO) => number
+  /** `primary` is money (brand), `secondary` is volume (violet). Fixed by the design, not per call. */
+  series: "primary" | "secondary"
 }) {
+  const latestFill = series === "primary" ? "bg-brand" : "bg-violet"
+  const restFill = series === "primary" ? "bg-brand-mid" : "bg-violet-mid"
   const heights = barHeights(buckets.map(valueOf))
 
   return (
@@ -43,7 +56,7 @@ export function BarChart({
         <div className="flex-1" />
         <div className="grid gap-[3px] text-right">
           <p className="text-[15px] font-semibold tabular-nums whitespace-nowrap">{total}</p>
-          <p className="text-muted-foreground text-[11.5px] whitespace-nowrap">
+          <p className={`text-[11.5px] whitespace-nowrap ${deltaToneClass(figure)}`}>
             {deltaText(figure, basis)}
           </p>
         </div>
@@ -59,13 +72,9 @@ export function BarChart({
               className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-[7px]"
             >
               <div
-                // The final bucket is the one still filling up; the primary fill marks it as "now"
-                // rather than as "best" — monochrome, so it reads as emphasis and nothing more.
-                className={
-                  i === buckets.length - 1
-                    ? "bg-primary w-full rounded-[3px]"
-                    : "bg-muted w-full rounded-[3px]"
-                }
+                className={`w-full rounded-[3px] ${
+                  i === buckets.length - 1 ? latestFill : restFill
+                }`}
                 style={{ height: `${heights[i]}%` }}
                 title={`${b.label}${b.partial ? " (partial)" : ""}`}
               />

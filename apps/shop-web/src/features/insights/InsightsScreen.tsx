@@ -113,6 +113,7 @@ export function InsightsScreen() {
 
           <div className="grid items-start gap-8 [grid-template-columns:minmax(0,1fr)] min-[1060px]:[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]">
             <BarChart
+              series="primary"
               title="Revenue"
               // ⚠ "Goods · AUD", not the design's "SEK incl. VAT": per-item GST is unmodelled
               // (052 R13), so any tax claim here would be invented — and "goods" names the basis,
@@ -125,6 +126,7 @@ export function InsightsScreen() {
               valueOf={(b) => Number(b.revenue)}
             />
             <BarChart
+              series="secondary"
               title="Order volume"
               subtitle={`${GRAIN_LABEL[dto.series.grain]} · paid orders`}
               total={`${dto.series.ordersTotal.value} orders`}

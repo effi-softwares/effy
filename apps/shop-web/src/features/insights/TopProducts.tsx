@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router"
 
 import type { InsightsRange, InsightsTopProductDTO } from "@effy/shared-types"
+import { Progress } from "@effy/design-system/ui"
 
 import { money, RANGE_PERIOD } from "./model"
 
@@ -48,10 +49,11 @@ export function TopProducts({
                     <img
                       src={p.thumbnailUrl}
                       alt=""
-                      className="bg-muted size-[30px] rounded-md border object-cover"
+                      className="size-[30px] rounded-[7px] border border-border object-cover"
                     />
                   ) : (
-                    <div className="bg-muted size-[30px] rounded-md border" />
+                    // The design's --brand-soft placeholder tile, not a bordered grey square.
+                    <div className="size-[30px] rounded-[7px] bg-brand-soft" />
                   )}
                 </td>
                 <td className="px-2 py-3.5">
@@ -66,12 +68,17 @@ export function TopProducts({
                 </td>
                 <td className="w-[34%] px-2 py-3.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="bg-muted h-[5px] min-w-10 flex-1 overflow-hidden rounded-full">
-                      <div
-                        className="bg-primary h-full"
-                        style={{ width: `${Math.round(p.share * 100)}%` }}
-                      />
-                    </div>
+                    {/* ⚠ The shared Progress primitive, on the BRAND tone — this bar measures a
+                        share of revenue, which is money, and money is the first chart series too.
+                        It was a hand-rolled track with no ARIA at all, so a screen reader was told
+                        nothing about the ranking this column exists to show. */}
+                    <Progress
+                      className="min-w-10 flex-1"
+                      height={5}
+                      tone="brand"
+                      value={Math.round(p.share * 100)}
+                      label={`${p.name}: share of revenue`}
+                    />
                     <span className="text-muted-foreground text-xs tabular-nums whitespace-nowrap">
                       {p.units} units
                     </span>

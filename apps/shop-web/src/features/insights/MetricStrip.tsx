@@ -1,6 +1,26 @@
 import type { ShopBacklogDTO, ShopInsightsDTO } from "@effy/shared-types"
+import { IconChip } from "@effy/design-system/ui"
 
-import { deltaText, metricLabel, money, RANGE_SUFFIX } from "./model"
+import { deltaText, deltaToneClass, metricLabel, money, RANGE_SUFFIX } from "./model"
+
+/**
+ * The design's five KPI chips, in its own order and its own geometric glyphs: ◈ brand, ◫ violet,
+ * ◎ teal, ◐ warning, ▤ attention.
+ *
+ * ⚠ THE LAST TWO ARE NOT DECORATIVE. Cells 4 and 5 ("Awaiting pick", "Unfulfilled units") are the
+ * only LIVE operational figures on an analytics screen — work, not results — and the warning and
+ * attention tints are what separate them at a glance from the three money figures beside them.
+ *
+ * ⚠ NEVER EMOJI. These glyphs inherit `currentColor` and render identically everywhere; an emoji
+ * would arrive in the operating system's own palette and ignore the theme entirely.
+ */
+const CHIPS = [
+  { glyph: "\u25c8", tone: "brand" },
+  { glyph: "\u25eb", tone: "violet" },
+  { glyph: "\u25ce", tone: "teal" },
+  { glyph: "\u25d0", tone: "warning" },
+  { glyph: "\u25a4", tone: "attention" },
+] as const
 
 /**
  * The primary metric strip (058, US3).
@@ -26,6 +46,7 @@ export function MetricStrip({
       label: metricLabel("Revenue", dto.range),
       value: money(dto.primary.revenue.value, dto.currency),
       note: deltaText(dto.primary.revenue, dto.comparison.basis),
+      tone: deltaToneClass(dto.primary.revenue),
     },
     {
       label: metricLabel("Orders", dto.range),
@@ -39,6 +60,7 @@ export function MetricStrip({
       label: "Average order value",
       value: money(dto.primary.averageOrderValue.value, dto.currency),
       note: deltaText(dto.primary.averageOrderValue, dto.comparison.basis),
+      tone: deltaToneClass(dto.primary.averageOrderValue),
     },
     {
       label: "Awaiting pick",
@@ -58,16 +80,29 @@ export function MetricStrip({
   // about. A gap draws only between cells, at every width, with no nth-child arithmetic.
   return (
     <dl className="bg-border grid grid-cols-2 gap-px overflow-hidden rounded-[var(--radius)] border min-[1240px]:grid-cols-5 sm:grid-cols-3">
-      {cells.map((c) => (
-        <div key={c.label} className="bg-background grid gap-[5px] px-[18px] py-4">
-          <dt className="text-muted-foreground truncate text-[12.5px] font-medium">{c.label}</dt>
-          <dd className="truncate text-[25px] font-semibold tracking-[-0.02em] tabular-nums">
-            {c.value}
-          </dd>
-          {/* Direction is in the glyph and the sign — never in a hue (Principle V). */}
-          <dd className="text-muted-foreground truncate text-xs">{c.note}</dd>
-        </div>
-      ))}
+      {cells.map((c, i) => {
+        const chip = CHIPS[i] ?? CHIPS[0]
+        return (
+          <div key={c.label} className="bg-background grid gap-[5px] px-[18px] py-4">
+            <dt className="flex min-w-0 items-center gap-2">
+              <IconChip tone={chip.tone} size="lg">
+                {chip.glyph}
+              </IconChip>
+              <span className="truncate text-[12.5px] font-medium text-muted-foreground">
+                {c.label}
+              </span>
+            </dt>
+            <dd className="truncate text-[25px] font-semibold tracking-[-0.02em] tabular-nums">
+              {c.value}
+            </dd>
+            {/* ⚠ The glyph still carries the direction (deltaText writes ▲/▼), so the colour is
+                never the only thing saying a figure went down. */}
+            <dd className={`truncate text-xs ${"tone" in c && c.tone ? c.tone : "text-muted-foreground"}`}>
+              {c.note}
+            </dd>
+          </div>
+        )
+      })}
     </dl>
   )
 }

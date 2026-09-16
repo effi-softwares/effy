@@ -70,6 +70,29 @@ export function deltaText(figure: InsightsFigureDTO, basis: ComparisonBasis): st
   return `${arrow} ${body} ${BASIS_LABEL[basis]}`
 }
 
+/**
+ * The colour a delta is written in.
+ *
+ * ⚠ THE ADOPTED DESIGN TONES ITS DELTAS, and this restores that: up is `--success`, down is
+ * `--destructive`, and a figure with nothing to compare against stays muted. Monochrome had to put
+ * the whole statement in the ▲/▼ glyph.
+ *
+ * ⚠ IT LIVES HERE, NOT IN THE THREE COMPONENTS THAT RENDER A DELTA. The metric strip, the chart
+ * headers and the glance strip all show one, and three copies of a sign test is exactly how one of
+ * them ends up calling a drop green.
+ *
+ * ⚠ THE GLYPH STILL CARRIES THE DIRECTION. `deltaText` writes ▲/▼ regardless, so a red figure is
+ * never the only thing saying "this went down".
+ */
+export function deltaToneClass(figure: InsightsFigureDTO): string {
+  const { kind, amount } = figure.change
+  if (kind === "none" || amount === null) return "text-muted-foreground"
+  const n = Number(amount)
+  if (n > 0) return "text-success"
+  if (n < 0) return "text-destructive"
+  return "text-muted-foreground"
+}
+
 /** "26 August – 1 September · compared with the previous week · updated a moment ago". */
 export function windowSubtitle(dto: ShopInsightsDTO, now: number): string {
   const fmt = (iso: string) =>
