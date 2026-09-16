@@ -320,7 +320,8 @@ function ProductThumb({ detail }: { detail: ProductDetail }) {
       className="border-border size-[72px] shrink-0 rounded-[var(--radius)] border object-cover"
     />
   ) : (
-    <div className="border-border bg-muted text-muted-foreground grid size-[72px] shrink-0 place-items-center rounded-[var(--radius)] border">
+    // The design's image placeholder — a --brand-soft tile, not a bordered grey box.
+    <div className="grid size-[72px] shrink-0 place-items-center rounded-[7px] bg-brand-soft text-brand">
       <ImageOff className="size-5" />
     </div>
   );

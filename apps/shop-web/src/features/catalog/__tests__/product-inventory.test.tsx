@@ -105,15 +105,25 @@ describe("the Inventory section", () => {
     expect(await screen.findByText(/4 — set for this product/)).toBeInTheDocument()
   })
 
-  it("says an empty shelf is unbuyable, in words and weight rather than a hue", async () => {
+  // ⚠ REWRITTEN BY THE THEME ADOPTION, NOT DELETED. This used to forbid a hue outright, because the
+  // monochrome constitution had no colour meaning "running low". It now pins the two things that
+  // still matter: the sentence says which state it is (so the line survives greyscale and a screen
+  // reader), and EMPTY and LOW do not render alike — collapsing them is what made "nothing left" and
+  // "a few left" look like the same problem.
+  it("says an empty shelf is unbuyable, in words AND distinguishably from merely low", async () => {
     getProductStock.mockResolvedValue(stockDetail({ onHand: 0, outOfStock: true }))
-    wrap(<InventorySection detail={PRODUCT} />)
+    const out = wrap(<InventorySection detail={PRODUCT} />)
+    const outLine = await within(out.container).findByText(
+      /out of stock — shoppers cannot buy this right now/i,
+    )
+    expect(outLine.className).toMatch(/font-semibold/)
 
-    const line = await screen.findByText(/out of stock — shoppers cannot buy this right now/i)
-    // ⚠ 041 stripped an amber "warning" colour out of these very screens and the platform has exactly
-    // two semantic colours, neither meaning "running low". The emphasis must be weight.
-    expect(line.className).toMatch(/font-semibold/)
-    expect(line.className).not.toMatch(/text-(destructive|amber|yellow|orange|red)/)
+    getProductStock.mockResolvedValue(stockDetail({ onHand: 2, low: true }))
+    const low = wrap(<InventorySection detail={PRODUCT} />)
+    const lowLine = await within(low.container).findByText(/running low — 2 left/i)
+    expect(lowLine.className).toMatch(/font-semibold/)
+
+    expect(outLine.className).not.toBe(lowLine.className)
   })
 
   it("withholds the count and the adjustment when stock is not tracked", async () => {

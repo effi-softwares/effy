@@ -6,6 +6,7 @@ import { Button, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { DetailSection, Field, FieldGrid, SectionAction } from "@/components/console/primitives";
+import { cn } from "@/lib/utils";
 
 import type { ProductDetail } from "./model";
 import { AdjustStockDialog } from "./StockDialogs";
@@ -109,9 +110,21 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
           ) : null}
         </FieldGrid>
 
-        {/* The one line that needs a person, set in semibold — the section's only emphasis. */}
+        {/* ⚠ THE ONE LINE THAT NEEDS A PERSON, and the two states are now told apart by colour as
+            well as weight. An EMPTY shelf is destructive — the product cannot be sold at all. A LOW
+            one is warning — it still can. Under the monochrome constitution both had to render as
+            plain semibold, which made "nothing left" and "a few left" look like the same problem;
+            they need different decisions on different days.
+
+            ⚠ THE WEIGHT STAYS, and the sentence still says which state it is. The colour is what
+            makes the line findable on a dense screen, never what makes it legible. */}
         {stock.tracked && (stock.outOfStock || stock.low) ? (
-          <p className="pt-[18px] text-[13.5px] font-semibold">
+          <p
+            className={cn(
+              "pt-[18px] text-[13.5px] font-semibold",
+              stock.outOfStock ? "text-destructive" : "text-warning",
+            )}
+          >
             {stock.outOfStock
               ? "Out of stock — shoppers cannot buy this right now."
               : `Running low — ${stock.onHand} left.`}

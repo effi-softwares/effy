@@ -27,6 +27,7 @@ import {
   Td,
   Th,
   Tr,
+  type PillTone,
 } from "@/components/console/primitives";
 import { track } from "@/lib/telemetry";
 
@@ -59,9 +60,25 @@ const STATUS_TABS: readonly { value: ProductStatus | typeof ALL; label: string }
   { value: "archived", label: "Archived" },
 ];
 
-/** ⚠ Monochrome. The mockup tints these; see `primitives.tsx` for why that cannot survive here. */
-function statusPill(status: ProductStatus) {
-  return status === "active" ? "outline" : "quiet";
+/**
+ * The design's tints, now that the platform has them. Matches `ProductStatusBadge` exactly — the
+ * catalog table and a product's own header must not disagree about what "draft" looks like.
+ *
+ * ⚠ THE TABLE HAS NO STOCK COUNT (054 keeps inventory off the catalog read), so unlike
+ * `ProductStatusBadge` this can never say "Low stock". That is the correct degradation: it shows the
+ * lifecycle state it actually knows rather than inventing a stock claim.
+ */
+function statusPill(status: ProductStatus): PillTone {
+  switch (status) {
+    case "draft":
+      return "brand";
+    case "active":
+      return "success";
+    case "unavailable":
+      return "warning";
+    case "archived":
+      return "muted";
+  }
 }
 
 export function CatalogListScreen() {
@@ -344,10 +361,13 @@ function ProductRow({ product }: { product: ProductListItem }) {
             <img
               src={product.primaryImageUrl}
               alt=""
-              className="border-border size-8 shrink-0 rounded-md border object-cover"
+              className="size-8 shrink-0 rounded-[7px] border border-border object-cover"
             />
           ) : (
-            <div className="border-border text-muted-foreground grid size-8 shrink-0 place-items-center rounded-md border">
+            // ⚠ The design's image placeholder: a --brand-soft tile at the 7px small-tile radius,
+            // not a bordered grey box. It reads as "an image belongs here" rather than as an empty
+            // cell, which is what the bordered version looked like beside rows that had photos.
+            <div className="grid size-8 shrink-0 place-items-center rounded-[7px] bg-brand-soft text-brand">
               <ImageOff className="size-3.5" />
             </div>
           )}

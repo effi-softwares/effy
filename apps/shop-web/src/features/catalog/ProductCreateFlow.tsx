@@ -8,6 +8,7 @@ import {
   Button,
   Input,
   Label,
+  Progress,
   Select,
   SelectContent,
   SelectItem,
@@ -351,7 +352,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
                   className="border-border size-11 shrink-0 rounded-md border object-cover"
                 />
               ) : (
-                <div className="border-border bg-muted size-11 shrink-0 rounded-md border" />
+                <div className="size-11 shrink-0 rounded-[7px] bg-brand-soft" />
               )}
               <div className="grid min-w-0 gap-[3px]">
                 <div className="truncate text-[13.5px] font-medium">
@@ -441,14 +442,19 @@ function TypeStep({
               aria-pressed={selected}
               className={cn(
                 "flex h-full min-h-28 flex-col items-center justify-center gap-3 rounded-lg border p-4 text-center transition-colors",
-                "hover:border-primary/60 hover:bg-muted/40",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                selected ? "border-primary bg-primary/5 ring-1 ring-primary" : "border-border",
+                // ⚠ FLAT TINT TOKENS, NOT ALPHA. `bg-primary/5` and `border-primary/60` composite
+                // the action colour onto whatever is behind them and produce values that exist in no
+                // palette — and they land differently in light and dark, where the ground is navy
+                // rather than white. --brand-soft and --brand-mid ARE those roles, authored for both
+                // appearances and contrast-checked.
+                "hover:border-brand-mid hover:bg-accent",
+                "focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-muted",
+                selected ? "border-brand bg-brand-soft" : "border-border",
               )}
             >
               <span
                 className={cn(
-                  "flex size-12 shrink-0 items-center justify-center rounded-full transition-colors",
+                  "flex size-12 shrink-0 items-center justify-center rounded-lg transition-colors",
                   selected
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted text-muted-foreground",
@@ -675,16 +681,10 @@ function ReviewStep({
 
       {uploadProgress != null ? (
         <div className="space-y-1">
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full bg-primary transition-all"
-              style={{ width: `${uploadProgress}%` }}
-              role="progressbar"
-              aria-valuenow={uploadProgress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            />
-          </div>
+          {/* The shared Progress primitive — an in-flight upload is brand, the work-in-progress
+              tone. It was a hand-rolled bar with its own ARIA; one component means one bar on the
+              platform and one place for its height, radius and roles to live. */}
+          <Progress value={uploadProgress} tone="brand" height={6} label="Image upload" />
           <p className="text-xs text-muted-foreground">Uploading image… {uploadProgress}%</p>
         </div>
       ) : null}
