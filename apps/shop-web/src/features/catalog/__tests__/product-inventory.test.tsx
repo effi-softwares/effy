@@ -388,15 +388,39 @@ describe("the product state chip", () => {
     }
   })
 
-  it("carries its state by weight, never by a hue", () => {
-    // 041 removed amber from these screens and `--success` is a non-text indicator at 4.00:1, which
-    // is exactly why it has no `-foreground` pair. Rendered in greyscale the chip must lose nothing.
-    const view = wrap(
-      <ProductStatusBadge status="active" stock={stockDetail({ onHand: 0, outOfStock: true }).stock} />,
-    )
-    expect(within(view.container).getByText("Out of stock").className).not.toMatch(
-      /(amber|yellow|orange|red|green|emerald)|bg-(success|destructive)/,
-    )
+  // ⚠ THIS TEST WAS REVERSED BY THE THEME ADOPTION, AND REWRITTEN RATHER THAN DELETED. It used to
+  // assert the chip carried NO hue at all, which was the monochrome constitution (041): amber was
+  // banned and `--success` was a 4.00:1 non-text indicator. The adopted theme supplies `--warning`
+  // and re-tunes `--success` to clear 4.5:1 on its own tint, so a hue is now correct here.
+  //
+  // What survived the reversal is the requirement that actually protects anyone: THE COLOUR IS NEVER
+  // THE ONLY CARRIER. A chip must still say its state in words, so it reads identically to a
+  // colour-blind operator, in greyscale, and to a screen reader. Deleting this test because its
+  // premise changed would have taken that guarantee with it.
+  it("never lets colour be the only carrier of the state", () => {
+    const cases = [
+      { status: "active" as const, stock: stockDetail({ onHand: 0, outOfStock: true }).stock, word: "Out of stock" },
+      { status: "active" as const, stock: stockDetail({ onHand: 2, low: true }).stock, word: "Low stock" },
+      { status: "draft" as const, stock: undefined, word: "draft" },
+      { status: "archived" as const, stock: undefined, word: "archived" },
+    ]
+    for (const c of cases) {
+      const view = wrap(<ProductStatusBadge status={c.status} stock={c.stock} />)
+      // The word is present, and it is the chip's own text — not a title attribute a sighted
+      // operator cannot see or a screen reader has to hunt for.
+      expect(within(view.container).getByText(c.word)).toBeInTheDocument()
+    }
+  })
+
+  // ⚠ EMPTY AND LOW MUST NOT LOOK THE SAME. The monochrome version had to collapse them into one
+  // "urgent" treatment; conflating them again would cost the operator the distinction that decides
+  // whether to reorder today or this week — so the two chips are asserted to differ.
+  it("distinguishes an empty shelf from a low one", () => {
+    const out = wrap(<ProductStatusBadge status="active" stock={stockDetail({ onHand: 0, outOfStock: true }).stock} />)
+    const low = wrap(<ProductStatusBadge status="active" stock={stockDetail({ onHand: 2, low: true }).stock} />)
+    const outClass = within(out.container).getByText("Out of stock").className
+    const lowClass = within(low.container).getByText("Low stock").className
+    expect(outClass).not.toBe(lowClass)
   })
 })
 

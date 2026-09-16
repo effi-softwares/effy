@@ -6,6 +6,7 @@ import { authLayoutRoute, signInRoute } from "./routes/auth";
 import { catalogRoute } from "./routes/catalog";
 import { catalogNewRoute } from "./routes/catalog.new";
 import { catalogProductRoute } from "./routes/catalog.$productId";
+import { devTokensRoute } from "./routes/dev.tokens";
 import { insightsRoute } from "./routes/insights";
 import { ordersRoute } from "./routes/orders";
 import { ordersDetailRoute } from "./routes/orders.$fulfillmentId";
@@ -24,6 +25,11 @@ const routeTree = rootRoute.addChildren([
     ordersRoute,
     ordersDetailRoute,
     insightsRoute,
+    // ⚠ DEV ONLY. The theme-adoption gallery (`/dev/tokens`) is a build-time-stripped array member,
+    // not a runtime guard: `import.meta.env.DEV` folds to `false` in a production build, so both the
+    // route AND the screen it imports are tree-shaken out of the bundle. A `beforeLoad` redirect
+    // would leave the whole gallery in the shipped JS.
+    ...(import.meta.env.DEV ? [devTokensRoute] : []),
   ]),
   authLayoutRoute.addChildren([signInRoute]),
 ]);
