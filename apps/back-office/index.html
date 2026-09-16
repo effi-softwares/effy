@@ -12,6 +12,37 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Geist — the platform typeface since the theme adoption. ⚠ NOT self-hosted (this repository
+         has no Geist woff2 to commit); --font-sans names "General Sans" second, which is self-hosted
+         by the design system, so blocking these links degrades to that rather than to a system face.
+         Self-hosting Geist is a recorded carry-forward. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <!-- ⚠ PRE-PAINT APPEARANCE RESTORE. Without this the app boots light, JS hydrates, and a dark-mode
+         operator gets a full-brightness flash on every load — on a shop tablet under bright lights
+         that is the single most visible defect in the console. It is inline and synchronous ON
+         PURPOSE: a deferred module cannot beat first paint.
+         The key must match createUiStore(…) in src/lib/ui-store.ts; a mismatch silently
+         reverts to system, so it is asserted in src/lib/__tests__/appearance.test.ts. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("effy.theme") || "system";
+          var dark =
+            t === "dark" ||
+            (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+          document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+        } catch (e) {
+          /* Private mode or blocked storage: fall through to light. Never let this throw — it runs
+             before the app and an exception here leaves a blank document. */
+        }
+      })();
+    </script>
     <title>Effy Back-Office</title>
   </head>
   <body>

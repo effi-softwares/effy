@@ -80,16 +80,31 @@ export function createUiStore(prefix: string): UiStore {
     return theme === "dark" || (theme === "system" && systemPrefersDark());
   }
 
+  /**
+   * ⚠ SETS TWO THINGS, AND THAT IS NOT A DUPLICATION. `data-theme` is the authoritative switch the
+   * adopted design specifies and the only value that is persisted; the `.dark` class is DERIVED from
+   * it here because Tailwind's `dark:` variants across three surfaces resolve off a class. They are
+   * written in one place, together, so they cannot disagree — a `data-theme` set without the class
+   * would give a navy-ink token set under light-mode utilities.
+   *
+   * ⚠ The attribute is written for BOTH appearances (`light` as well as `dark`), because the
+   * pre-paint script in each console's index.html reads it back, and an absent attribute is
+   * indistinguishable from "not yet decided".
+   */
   function applyTheme(theme: Theme): void {
     if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", resolvedDark(theme));
+    const dark = resolvedDark(theme);
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
 
     if (theme === "system" && typeof window !== "undefined" && window.matchMedia) {
       if (!mql) mql = window.matchMedia("(prefers-color-scheme: dark)");
       if (!mediaListener) {
         mediaListener = () => {
           if (store.state.theme === "system") {
-            document.documentElement.classList.toggle("dark", systemPrefersDark());
+            const nowDark = systemPrefersDark();
+            document.documentElement.classList.toggle("dark", nowDark);
+            document.documentElement.setAttribute("data-theme", nowDark ? "dark" : "light");
           }
         };
         mql.addEventListener("change", mediaListener);

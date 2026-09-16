@@ -1,4 +1,5 @@
-// COMPONENT SHAPE GUARD — 057. Zero-dependency, same philosophy as check-tokens.mjs.
+// COMPONENT SHAPE GUARD — 057, updated by the platform-wide theme adoption.
+// Zero-dependency, same philosophy as check-tokens.mjs.
 //
 // ⚠ WHAT THIS PROTECTS, AND WHY IT NEEDED A GUARD AT ALL.
 //
@@ -46,9 +47,9 @@ const CONTROLS = ["button.tsx", "input.tsx", "select.tsx", "textarea.tsx", "otp-
 for (const name of CONTROLS) {
   if (/rounded-full/.test(code(name))) {
     errors.push(
-      `${name} carries \`rounded-full\`. Controls are SQUARED on this platform (6px, \`rounded-md\`) — ` +
-        `the imported console design hardcodes 6px on 131 controls. If a pill is genuinely wanted ` +
-        `again, change it here AND in src/tokens/shop.css, not in one component.`,
+      `${name} carries \`rounded-full\`. Controls are SQUARED on this platform (6px, \`rounded-md\`; ` +
+        `buttons 8px, \`rounded-lg\`) — the adopted console design hardcodes 6px on 131 controls. If a ` +
+        `pill is genuinely wanted again, change the RADIUS SCALE in src/tokens.css, not one component.`,
     );
   }
 }
@@ -79,24 +80,43 @@ function minRadius(name) {
   return found.length ? Math.min(...found) : null;
 }
 
+// ⚠ THE CONTAINER STEP MOVED FROM `lg` TO `xl` WITH THE THEME ADOPTION, and this guard moved with it
+// rather than being relaxed. The adopted scale is sm 4 / md 6 / lg 8 / xl 10: controls at 6px, BUTTONS
+// and icon chips at 8px, containers at 10px. Under the previous scale `lg` was the container; leaving
+// that literal here would have passed a card that is now the same radius as the button inside it —
+// the exact hierarchy inversion this file exists to catch, sailing through its own guard.
+const CONTAINER = RANK.xl;
+
 // Overlay surfaces hold rows; the surface must be at least as soft as its rows.
 for (const name of ["dropdown-menu.tsx", "select.tsx", "popover.tsx", "dialog.tsx", "alert-dialog.tsx"]) {
   const surface = maxRadius(name);
   const row = minRadius(name);
-  if (surface !== null && row !== null && surface < RANK.lg) {
+  if (surface !== null && row !== null && surface < CONTAINER) {
     errors.push(
-      `${name}: its softest radius is below \`rounded-lg\` (8px). Overlay SURFACES take the container ` +
+      `${name}: its softest radius is below \`rounded-xl\` (10px). Overlay SURFACES take the container ` +
         `step; only the rows inside them take the control step.`,
     );
   }
 }
 
-// The card is the canonical surface: exactly the container step, never softer.
+// The card is the canonical surface: exactly the container step, never softer and never sharper.
 const card = maxRadius("card.tsx");
-if (card !== RANK.lg) {
+if (card !== CONTAINER) {
   errors.push(
-    `card.tsx must be \`rounded-lg\` (8px, the container step), found rank ${card}. \`rounded-xl\` is ` +
-      `what made a card read as softer than the page it sits on.`,
+    `card.tsx must be \`rounded-xl\` (10px, the container step), found rank ${card}. A card at the ` +
+      `BUTTON step reads as softer than the page and flatter than the control inside it.`,
+  );
+}
+
+// ⚠ AND THE BUTTON MUST SIT BETWEEN THEM. Nothing checked this before, because under the old scale the
+// button and the container were both `lg` and the ordering was vacuous. It is not vacuous now: a
+// button "restored" to `rounded-md` would match the inputs and lose the step the design draws between
+// a field and an action.
+const button = maxRadius("button.tsx");
+if (button !== RANK.lg) {
+  errors.push(
+    `button.tsx must be \`rounded-lg\` (8px, the button step), found rank ${button}. Buttons sit one ` +
+      `step above controls (6px) and one below containers (10px).`,
   );
 }
 

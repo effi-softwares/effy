@@ -7,30 +7,30 @@
 
 export const EMAIL_TOKENS = {
   light: {
-      "pageGround": "#f5f5f5",
+      "pageGround": "#edf2fd",
       "canvas": "#ffffff",
-      "ink": "#0a0a0a",
-      "mutedInk": "#525252",
-      "hairline": "#e5e5e5",
-      "actionFill": "#171717",
-      "actionLabel": "#fafafa",
-      "codeSurface": "#f5f5f5",
-      "error": "#e01010",
-      "success": "#0c9409"
+      "ink": "#0b1220",
+      "mutedInk": "#5c6b86",
+      "hairline": "#e1e8f3",
+      "actionFill": "#1d4ed8",
+      "actionLabel": "#ffffff",
+      "codeSurface": "#edf2fd",
+      "error": "#cf2b1f",
+      "success": "#0d8043"
   },
   dark: {
-      "pageGround": "#171717",
-      "canvas": "#0a0a0a",
-      "ink": "#fafafa",
-      "mutedInk": "#b5b5b5",
-      "hairline": "#232323",
-      "actionFill": "#e5e5e5",
-      "actionLabel": "#171717",
-      "codeSurface": "#262626",
-      "error": "#ff6b6b",
-      "success": "#22c55e"
+      "pageGround": "#070c16",
+      "canvas": "#0a0f1b",
+      "ink": "#eef2fa",
+      "mutedInk": "#97a4bc",
+      "hairline": "#212b3f",
+      "actionFill": "#4d7cff",
+      "actionLabel": "#04102b",
+      "codeSurface": "#212b3f",
+      "error": "#ff7a6d",
+      "success": "#44cf85"
   },
-  radiusSm: "6px",
+  radiusSm: "8px",
 } as const;
 
 export const EMAIL_TYPE = {

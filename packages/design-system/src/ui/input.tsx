@@ -18,13 +18,14 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         // Safari zooming on focus at <16px, which matters on a customer storefront opened on a phone.
         // This is an operator console on a bench tablet and a desktop; the mockup sets 14px flat, and
         // a field that changes size at a breakpoint is the kind of drift this whole pass is undoing.
-        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
-        // ⚠ NO FOCUS HALO. shadcn's default is `ring-[3px] ring-ring/50`, a soft glow outside the
-        // field; it is deliberately absent here (operator direction) and must not be reintroduced by
-        // a call site. The focus indicator is the BORDER changing to `--ring` (#808080 light /
-        // #737373 dark — 3.95:1 and 4.18:1 on their grounds, over WCAG 1.4.11's 3:1), which is what
-        // keeps removing the halo a style change rather than an accessibility regression.
-        "focus-visible:border-ring",
+        "h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 text-sm transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-placeholder disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30",
+        // ⚠ FOCUS IS A BORDER CHANGE PLUS A 3px `--muted` RING (adoption prompt, Phase 2 §2). The
+        // ring is a NEUTRAL tint, not a tinted glow of the ring colour — on a cobalt-accented form
+        // a coloured halo reads as "this field is selected/active" rather than "this field has
+        // keyboard focus", which is a different statement. `--ring` itself is tuned to clear WCAG
+        // 1.4.11's 3:1 against the ground (3.07:1 light / 3.14:1 dark) so the border alone is a
+        // sufficient indicator where the ring is not rendered.
+        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-muted",
         "aria-invalid:border-destructive",
         className
       )}

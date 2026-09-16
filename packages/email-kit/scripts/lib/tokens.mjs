@@ -151,9 +151,21 @@ export function buildEmailTokens() {
     const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
     return m ? Math.round(parseFloat(m[1]) * 16) : null;
   };
-  const radiusSm = remPx("--radius-sm");
-  if (radiusSm !== 6) errors.push(`--radius-sm must be 0.375rem (6px), got ${radiusSm}px`);
-  tokens.radiusSm = `${radiusSm}px`;
+  // ⚠ EMAIL TAKES THE BUTTON STEP (--radius-lg, 8px), NOT --radius-sm.
+  //
+  // It used to read `--radius-sm` because under the old platform scale that WAS 6px — the control
+  // step — and the only radius email needs is the one on its call-to-action button. The theme
+  // adoption re-based the scale to sm 4 / md 6 / lg 8 / xl 10, which silently turned every email
+  // button into a 4px near-square: a value that is correct for a 16px checkbox and wrong for a 44px
+  // button. Reading the role rather than the old number is what stops that recurring.
+  //
+  // The exported key keeps the name `radiusSm` so the generated artifact and every template that
+  // interpolates it are unchanged — renaming it would rewrite ten committed files to say the same
+  // thing. What it MEANS is documented here and asserted below.
+  const radiusButton = remPx("--radius-lg");
+  if (radiusButton !== 8)
+    errors.push(`--radius-lg must be 0.5rem (8px, the button step), got ${radiusButton}px`);
+  tokens.radiusSm = `${radiusButton}px`;
 
   if (errors.length) {
     throw new Error("email tokens could not be derived:\n  - " + errors.join("\n  - "));

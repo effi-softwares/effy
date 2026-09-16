@@ -1,51 +1,83 @@
-/* Effy design tokens — the brand SSOT (constitution Principle V, v1.13.0).
+/* Effy design tokens — the brand SSOT (constitution Principle V).
+ *
+ * ── WHAT CHANGED, AND WHY IT IS RECORDED HERE ─────────────────────────────────────────────────
+ * THE PLATFORM IS NO LONGER MONOCHROME. On operator direction (theme-adoption-prompt.md, design
+ * project 951bb710), this file adopts the "Effy Shop Console" appearance identity PLATFORM-WIDE:
+ * a cobalt brand, a navy-ink dark base, and three bounded non-brand hues.
+ *
+ * ⚠ THIS REVERSES constitution v1.10.0 → v1.13.0 and features 026 / 041, which held that a neutral
+ * ramp carries every UI accent role and that NO brand hue may exist in the interface. It also
+ * supersedes 057's shop-scoped value layer (`src/tokens/shop.css`), which adopted this same mockup's
+ * STRUCTURE while deliberately refusing its COLOUR. That file is deleted rather than left restating
+ * these values: two files declaring one palette is the two-sources-for-one-fact shape this repository
+ * has shipped defects through five times (033 `available`, 052 `summarizeFulfillment`, 053
+ * `problem.fields`, 054 `availability`, 058 the product rollup). One palette, one file.
+ *
+ * ⚠ RECORDED CONSEQUENCE — 017's SC-004 PARITY IS RESTORED. 057 gave shop-web its own radius scale
+ * and broke web-px == mobile-dp for that one surface. With a single token file the invariant holds
+ * again for all six surfaces.
+ *
+ * ⚠ RECORDED CONSEQUENCE — THE MOBILE COMPOSE THEMES MOVE. `gen-compose-theme.mjs` reads this file,
+ * so customer/shop/driver mobile take the cobalt accent and the navy-ink dark ground. The three new
+ * hues do NOT reach mobile: the generator's COLOR_TOKENS list is unchanged, so --brand-*, --accent2,
+ * --violet, --teal and --warning exist on web only. That is deliberate, not an oversight.
+ *
+ * ── THE ROLES ─────────────────────────────────────────────────────────────────────────────────
+ * --brand / --primary  cobalt, THE one action colour: primary buttons, active nav, active tabs,
+ *                      focus rings, selected checkboxes, progress fills, the first chart series.
+ *                      Never decorative.
+ * --brand-soft/-mid/-ink  tinted surfaces that carry brand meaning (active nav ground, in-progress
+ *                      pills, image placeholders, icon chips). --brand-ink is the text on --brand-soft.
+ * --accent2            orange. ATTENTION AND TIME PRESSURE ONLY — notification dots, unread badges,
+ *                      cut-off chips. Deliberately rare; more than twice on a screen is overuse.
+ * --violet / --teal    second and third data-viz series, and avatar tints. NOT interactive elements.
+ * --success/--warning/--destructive (+ -soft)  state semantics only. Never brand, never emphasis.
+ *
+ * ── FOUR VALUES TUNED AWAY FROM THE SOURCE, ALL FOR CONTRAST, NONE NEGOTIABLE ──────────────────
+ * The adoption prompt itself requires "4.5:1 in both themes … check -soft backgrounds specifically",
+ * so these are the prompt being obeyed, not departed from. Every other value is byte-exact.
+ *   --accent2 (light)  #d6650c → #b4550a   source: 3.36:1 on its own -soft, 3.67:1 on white
+ *   --teal    (light)  #0b8577 → #0a7d70   source: 4.08:1 on its own -soft
+ *   --ring    (light)  #8eadee → #7993ca   source: 2.24:1 on white — fails even the 3:1 UI bar
+ *                                          (WCAG 1.4.11). A focus ring nobody can see is not one.
+ * Dark passes unchanged at every pair. Ratios are re-derived by scripts/check-tokens.mjs, which is
+ * the authority — the figures above are provenance, not the check.
+ *
+ * ⚠ --success KEEPS NO -foreground PAIR, though for a NEW reason. It used to lack one because
+ * #0c9409 measured 4.00:1 and failed text. The adopted #0d8043 clears 4.5:1 on white AND on
+ * --success-soft, so success MAY now be text on its tint (that is what a status pill is). What it
+ * still may not be is a FILL WITH A LABEL ON IT, which is what a -foreground pair would license.
+ * check-tokens.mjs enforces the absence.
+ *
+ * ⚠ NO GRADIENTS. Flat fills only, everywhere. Cards are bordered, never shadowed; the only shadows
+ * on the platform are on floating layers (dialog, popover, sheet).
+ *
+ * Dark mode via the `.dark` class — REQUIRED, and user-selectable (Light / Dark / Follow-System).
+ * The brand lives here ONCE; never hardcode it. */
 
-   Feature 041 (2026-08-08): the platform adopts an operator-supplied appearance identity. The UI is
-   still MONOCHROME — a neutral ramp carries EVERY UI accent role (primary fill, selected state, active
-   navigation, focus ring, emphasis) and there is NO brand hue in the interface. The accent still
-   INVERTS between appearances. Two things are added on operator direction: the neutral values are the
-   adopted set (near-white/near-black ramp, hex-converted from the source oklch), and a bounded
-   DATA-VISUALISATION palette (--chart-1..5) exists FOR CHARTS ONLY — never a UI accent/fill/text,
-   never given a -foreground pair, never surfaced to the mobile Compose themes (constitution v1.13.0).
-   Retired Effy Emerald + terracotta + Jade remain swept out by scripts/check-no-emerald.sh /
-   check-no-jade.sh. The dark --sidebar-primary is NEUTRALIZED from the source's blue (see .dark).
-
-   ⚠ THE ACCENT INVERTS BETWEEN APPEARANCES. --primary is near-black #1A1A1A on light and near-white
-   #F5F5F5 on dark, each taking the other as its label. Emerald could hold ONE value across both modes
-   because a hue reads against either ground; a neutral accent cannot — near-black on a near-black
-   ground is invisible. Do not "simplify" this back to a single value.
-
-   ⚠ EXACTLY TWO SEMANTIC HUES, and no more: --destructive (error) and --success. Neither is
-   decorative and neither is an accent. --success has NO foreground pair ON PURPOSE: at 4.00:1 on white
-   it clears the 3:1 bar for a non-text UI indicator (a field border, a ✓ glyph) but FAILS the 4.5:1 bar
-   for text, so nothing may be written on it. check-tokens.mjs enforces that absence.
-
-   ⚠ THREE VALUES ARE TUNED AWAY FROM THE SOURCE DESIGN, all for contrast, none negotiable:
-     error       #ED1010 → #e01010   (source measures 4.48:1 with white — fails AA text)
-     disabled    white-on-#CCCCCC (1.61:1) → #808080 on #E6E6E6 (3.16:1)
-     placeholder #999999 (2.85:1)  → #808080 (3.95:1)
-
-   Dark mode via the `.dark` class — REQUIRED, and user-selectable (Light / Dark / Follow-System).
-   The brand lives here ONCE; never hardcode it.
-
-   Contrast (WCAG 2.1 AA) is machine-enforced by scripts/check-tokens.mjs — every FG/BG pair, both
-   appearances, ZERO exemptions. Radii are pinned EXPLICITLY (not shadcn's calc chain) so
-   web px == mobile EffyRadius dp: sm=8px, md=16px (017 data-model / SC-004). */
-
+/* ⚠ TWO HOOKS, ONE FACT, ONE WRITER. The adopted design specifies `data-theme="light"|"dark"` on the
+   document element as the switch, and that is what `applyTheme()` persists and sets. The `.dark`
+   class is DERIVED from it in the same statement, because Tailwind's `dark:` variants across three
+   web surfaces resolve off a class and several hundred of them already exist.
+   ⚠ The CSS below is keyed on the dark CLASS ALONE, deliberately not on a selector list: three build
+   tools parse this file for that block by name (gen-compose-theme, check-compose-theme,
+   check-tokens), and a selector list silently defeats all three — the Compose generator simply stops
+   finding the dark theme and regenerates a light-only file. Since nothing ever sets one hook without
+   the other, one selector is sufficient; see ui-store.ts applyTheme(), the only writer. */
 @custom-variant dark (&:is(.dark *));
 
-/* General Sans — the platform typeface, SELF-HOSTED from files committed in this package.
+/* General Sans — RETAINED AS THE FALLBACK FACE, SELF-HOSTED from files committed in this package.
  *
- * ⚠ Why @font-face here rather than each app wiring its own: General Sans is NOT on Google Fonts and
- * has no @fontsource package, so neither mechanism this repo used for Nunito Sans exists. Declaring it
- * once in the SSOT means all three web surfaces inherit the typeface from the same import that gives
- * them the palette — which is Principle II, and is why no app needs a font config of its own.
+ * ⚠ WHY THIS DID NOT SIMPLY GET DELETED. Geist is the adopted typeface but is NOT self-hosted (this
+ * repository has no Geist woff2 to commit); shop-web and back-office load it from Google Fonts in
+ * their index.html. customer-web is a PUBLIC storefront with a 174 KB bundle gate and a static PPR
+ * shell, where adding a third-party font request is a perf decision, not a styling one — so it does
+ * not load Geist, and naming General Sans second in --font-sans is what keeps its typography intact
+ * instead of silently dropping to the system UI face.
  *
- * Weights are 400/500/600 ONLY. The design language never uses Bold 700; `font-weight: 700` will
- * synthesise a faux-bold rather than load a real face, so prefer 600.
- *
- * `font-display: swap` keeps text visible during load — these are self-hosted and same-origin, so the
- * swap window is short. WOFF2 carries the foundry's original CFF outlines losslessly. */
+ * A browser downloads a webfont only when it actually renders glyphs with it. Where Geist loads,
+ * General Sans is never fetched; where it does not, it takes over. No surface regresses and the
+ * storefront gains no request. */
 @font-face {
   font-family: "General Sans";
   src: url("./fonts/general_sans_regular.woff2") format("woff2");
@@ -69,146 +101,189 @@
 }
 
 :root {
-  /* Radius base (0.625rem = 10px). The sm/md scale stays PINNED in @theme (8/16px) so web px ==
-     mobile EffyRadius dp (SC-004); this base only feeds components that read --radius directly. */
-  --radius: 0.625rem;
-
-  /* Surfaces — white ground, white cards (adopted identity, feature 041). Separation comes from
-     hairline borders and type weight, not from a tinted ground. */
+  /* Surfaces — white ground. Cards ARE the ground, separated by a hairline, never by a tint or a
+     shadow; --card therefore equals --background by design, not by omission. */
   --background: #ffffff;
-  --foreground: #0a0a0a; /* 19.80:1 */
+  --foreground: #0b1220; /* 18.72:1 */
   --card: #ffffff;
-  --card-foreground: #0a0a0a;
+  --card-foreground: #0b1220;
   --popover: #ffffff;
-  --popover-foreground: #0a0a0a;
+  --popover-foreground: #0b1220;
 
-  /* The accent IS the ramp. Near-black fill, near-white label — 17.18:1. See the header on inversion. */
-  --primary: #171717;
-  --primary-foreground: #fafafa;
+  --muted: #f1f5fb;
+  --muted-foreground: #5c6b86; /* 5.38:1 on white, 4.92:1 on --muted */
+  --border: #e1e8f3; /* hairline divider — decorative, deliberately not contrast-tested */
+  --input: #d7e0ee;
 
-  --secondary: #f5f5f5;
-  --secondary-foreground: #171717; /* 16.44:1 */
-  --muted: #f5f5f5;
-  /* Body/secondary text colour. Darkened from #6b6b6b → #525252 (neutral-600): the previous value
-     read too grey for primary reading copy across the surfaces. #525252 on #f5f5f5 ≈ 7.06:1 (well
-     clear of AA text 4.5:1) and stays distinct from --foreground #0a0a0a so hierarchy survives.
-     History: 041 adopted #737373 (4.35:1, FAILED AA) → tuned to #6b6b6b (~4.99:1) → #525252. */
-  --muted-foreground: #525252;
-  /* A hover state is a HINT, not a state change: ramp 50 reads as "this is interactive". */
-  --accent: #f5f5f5;
-  --accent-foreground: #171717;
+  --accent: #edf2fd;
+  --accent-foreground: #12224a; /* 13.83:1 */
+  --secondary: #f1f5fb;
+  --secondary-foreground: #12224a; /* 14.18:1 */
 
-  /* Error — the constitution's pinned semantic colour (#e01010 → 4.94:1). NOT the adopted theme's
-     #e7000b: the two semantic hues are fixed by Principle V, which feature 041 did not amend. */
-  --destructive: #e01010;
+  /* THE ONE ACTION COLOUR. --primary and --brand are the same value on purpose: --primary is the
+     shadcn-vocabulary name the UI primitives already consume, --brand is the role name the console
+     screens read. Keeping them equal is what makes "the action colour" a single fact. */
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff; /* 6.70:1 */
+  --brand: #1d4ed8; /* 6.70:1 on white — legible as link/eyebrow text */
+  --brand-soft: #e9f0ff;
+  --brand-mid: #b9cdfb;
+  --brand-ink: #11317f; /* 10.38:1 on --brand-soft */
+
+  /* Attention and time pressure only. TUNED (see header). */
+  --accent2: #b4550a; /* 4.95:1 on white, 4.53:1 on --accent2-soft */
+  --accent2-soft: #fff3e8;
+
+  /* Data-viz series 2 and 3, and avatar tints. Never interactive. */
+  --violet: #6d3fd4; /* 6.34:1 on white, 5.54:1 on --violet-soft */
+  --violet-soft: #f2edff;
+  --violet-mid: #cfc0f7;
+  --teal: #0a7d70; /* TUNED — 5.02:1 on white, 4.52:1 on --teal-soft */
+  --teal-soft: #e4f7f3;
+
+  /* State semantics. Each pairs with its own -soft tint; the solid is the text on that tint. */
+  --destructive: #cf2b1f; /* 5.23:1 on white, 4.77:1 on --destructive-soft */
   --destructive-foreground: #ffffff;
+  --destructive-soft: #fef2f1;
+  --success: #0d8043; /* 5.02:1 on white, 4.56:1 on --success-soft — NO -foreground pair, see header */
+  --success-soft: #e8f8ee;
+  --warning: #a85c05; /* 5.00:1 on white, 4.63:1 on --warning-soft */
+  --warning-soft: #fff5e5;
 
-  /* Success — NON-TEXT ONLY (4.00:1). Deliberately has NO --success-foreground. */
-  --success: #0c9409;
+  /* Disabled reduces opacity and switches the cursor; it does not change colour (adoption prompt,
+     Phase 2 §1). These exist so the token vocabulary stays complete, not to introduce a grey state. */
+  --disabled: #f1f5fb;
+  --disabled-foreground: #5c6b86; /* 4.92:1 — WCAG exempts disabled controls; we hold 3:1 anyway */
+  --placeholder: #5c6b86; /* 5.38:1 on white */
 
-  /* Disabled — WCAG exempts disabled controls; we hold 3:1 anyway (3.16:1). */
-  --disabled: #e6e6e6;
-  --disabled-foreground: #808080; /* ramp 500 */
+  --ring: #7993ca; /* TUNED — 3.07:1 on white (WCAG 1.4.11 non-text UI → 3:1) */
 
-  /* Placeholder — ramp 500 gives 3.95:1 on white. */
-  --placeholder: #808080;
+  /* Data-visualisation palette. Series order is fixed by the adoption prompt: --brand first,
+     --violet second, then --teal, --accent2, and --brand-mid for the de-emphasised tail. Never a UI
+     accent, never given a -foreground pair. */
+  --chart-1: #1d4ed8;
+  --chart-2: #6d3fd4;
+  --chart-3: #0a7d70;
+  --chart-4: #b4550a;
+  --chart-5: #b9cdfb;
 
-  --border: #e5e5e5; /* hairline divider, deliberately not contrast-tested */
-  --input: #e5e5e5;
-  /* AA TUNING (041): adopted --ring #a1a1a1 measures 2.58:1 on white (FAILS even the 3:1 UI bar);
-     tuned to #808080 → 3.95:1 (a focus ring is a non-text UI component, WCAG 1.4.11 → 3:1). */
-  --ring: #808080;
-
-  /* Data-visualisation palette — CHARTS ONLY (constitution v1.13.0). GREYSCALE, per preset bIkeymG:
-     the design is fully monochrome, so charts are a neutral ramp, not a categorical hue set. Never a
-     UI accent/fill/text, never given a -foreground pair, never surfaced to the mobile themes. */
-  --chart-1: #d4d4d4;
-  --chart-2: #737373;
-  --chart-3: #525252;
-  --chart-4: #404040;
-  --chart-5: #262626;
-
-  /* Dashboard sidebar — one step off the content ground so the rail reads as a distinct plane. */
-  --sidebar: #fafafa;
-  --sidebar-foreground: #0a0a0a;
-  --sidebar-primary: #171717;
-  --sidebar-primary-foreground: #fafafa;
-  --sidebar-accent: #f5f5f5; /* hover / active-item highlight */
-  --sidebar-accent-foreground: #171717;
-  --sidebar-border: #e5e5e5;
-  --sidebar-ring: #808080;
+  /* The 224px rail — one step off the content ground so it reads as a distinct plane. */
+  --sidebar: #f7f9fe;
+  --sidebar-foreground: #0b1220; /* 17.77:1 */
+  --sidebar-primary: #1d4ed8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #edf2fd;
+  --sidebar-accent-foreground: #12224a;
+  --sidebar-border: #e1e8f3;
+  --sidebar-ring: #7993ca;
 }
 
 .dark {
-  /* The adopted dark neutrals (feature 041). --card is one step up from the ground, not a wholesale
-     inversion. */
-  --background: #0a0a0a;
-  --foreground: #fafafa; /* 18.97:1 */
-  --card: #171717;
-  --card-foreground: #fafafa; /* 14.23:1 */
-  --popover: #171717;
-  --popover-foreground: #fafafa;
+  /* ⚠ NAVY INK, NOT PURE BLACK. Every dark value below is the source design's, unmodified — all
+     pairs clear AA as authored. */
+  --background: #0a0f1b;
+  --foreground: #eef2fa; /* 17.06:1 */
+  --card: #0a0f1b;
+  --card-foreground: #eef2fa;
+  --popover: #0a0f1b;
+  --popover-foreground: #eef2fa;
 
-  /* ⚠ THE INVERSION. Near-WHITE fill with a near-black label — a neutral accent is invisible on its
-     own ground, so it must flip end-for-end between appearances. */
-  --primary: #e5e5e5;
-  --primary-foreground: #171717; /* 14.23:1 */
+  --muted: #141c2c;
+  --muted-foreground: #97a4bc; /* 7.61:1 on the ground, 6.78:1 on --muted */
+  --border: #212b3f;
+  --input: #2a3550;
 
-  --secondary: #262626;
-  --secondary-foreground: #fafafa;
-  --muted: #262626;
-  --muted-foreground: #b5b5b5; /* brightened from #a1a1a1 (5.86:1) → less washed-out in dark; #b5b5b5 on #262626 ≈ 7.36:1 */
-  --accent: #262626;
-  --accent-foreground: #fafafa;
+  --accent: #17203a;
+  --accent-foreground: #eef2fa; /* 14.35:1 */
+  --secondary: #212b3f;
+  --secondary-foreground: #eef2fa; /* 12.63:1 */
 
-  --destructive: #ff6b6b; /* constitution semantic — 6.85:1 with its near-black label */
-  --destructive-foreground: #0a0a0a;
+  /* ⚠ The brand LIFTS in dark rather than inverting. A hue reads against both grounds, so unlike the
+     retired monochrome accent it does not need to flip end-for-end — it only needs to clear the
+     darker ground, which is why the value brightens from #1d4ed8 to #4d7cff. */
+  --primary: #4d7cff;
+  --primary-foreground: #04102b; /* 5.06:1 */
+  --brand: #7a9cff; /* 7.32:1 — brighter than --primary: this one carries TEXT, --primary carries fills */
+  --brand-soft: #16203c;
+  --brand-mid: #2b3e6e;
+  --brand-ink: #b3c7ff; /* 9.59:1 on --brand-soft */
 
-  --success: #22c55e; /* constitution semantic, NON-TEXT ONLY */
+  --accent2: #ff9a52; /* 9.11:1 on the ground, 7.96:1 on --accent2-soft */
+  --accent2-soft: #2b1a0b;
 
-  --disabled: #333333;
-  --disabled-foreground: #808080; /* 3.20:1 */
+  --violet: #a98bff; /* 7.13:1 on the ground, 6.37:1 on --violet-soft */
+  --violet-soft: #1d1736;
+  --violet-mid: #332a5c;
+  --teal: #35c6ac; /* 8.96:1 on the ground, 7.63:1 on --teal-soft */
+  --teal-soft: #0b2420;
 
-  --placeholder: #808080; /* 4.41:1 on the dark ground */
+  --destructive: #ff7a6d; /* 7.53:1 on the ground, 6.82:1 on --destructive-soft */
+  --destructive-foreground: #0a0f1b;
+  --destructive-soft: #2b1412;
+  --success: #44cf85; /* 9.58:1 on the ground, 8.28:1 on --success-soft — NO -foreground pair */
+  --success-soft: #0c2318;
+  --warning: #f7b44c; /* 10.56:1 on the ground, 8.95:1 on --warning-soft */
+  --warning-soft: #291f0b;
 
-  --border: #232323; /* white @10% flattened over the ground */
-  --input: #2f2f2f; /* white @15% flattened */
-  --ring: #737373; /* 4.18:1 — a non-text focus indicator (WCAG 1.4.11 → 3:1) */
+  --disabled: #141c2c;
+  --disabled-foreground: #97a4bc; /* 6.78:1 */
+  --placeholder: #97a4bc; /* 7.61:1 on the ground */
 
-  /* CHARTS ONLY — greyscale, same values as light (preset bIkeymG). See :root. */
-  --chart-1: #d4d4d4;
-  --chart-2: #737373;
-  --chart-3: #525252;
-  --chart-4: #404040;
-  --chart-5: #262626;
+  --ring: #3d5fae; /* 3.14:1 on the ground (WCAG 1.4.11 non-text UI → 3:1) */
 
-  --sidebar: #171717;
-  --sidebar-foreground: #fafafa;
-  /* ⚠ NEUTRALIZED (041): the adopted theme's dark --sidebar-primary is a BLUE (#1447e6) — a coloured
-     UI accent, which the "charts only" rule forbids. Set to the monochrome accent so the active nav
-     item stays neutral in dark mode. */
-  --sidebar-primary: #e5e5e5;
-  --sidebar-primary-foreground: #171717;
-  --sidebar-accent: #262626; /* active/hover item */
-  --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #232323;
-  --sidebar-ring: #737373;
+  --chart-1: #4d7cff;
+  --chart-2: #a98bff;
+  --chart-3: #35c6ac;
+  --chart-4: #ff9a52;
+  --chart-5: #2b3e6e;
+
+  --sidebar: #070c16;
+  --sidebar-foreground: #eef2fa; /* 17.44:1 */
+  --sidebar-primary: #4d7cff;
+  --sidebar-primary-foreground: #04102b;
+  --sidebar-accent: #17203a;
+  --sidebar-accent-foreground: #eef2fa;
+  --sidebar-border: #212b3f;
+  --sidebar-ring: #3d5fae;
+}
+
+/* Scale and spacing. Outside the appearance blocks because they do not vary by appearance.
+ *
+ * ⚠ A FOUR-STEP RADIUS SCALE, read off the source design's own declarations rather than its
+ * `--radius` literal. Counting what it actually writes: 16px checkboxes at 4px, every control at
+ * 6px, buttons and icon chips at 8px, containers at `var(--radius)` = 10px. The crispness of the
+ * console comes from a control being visibly sharper than the surface it sits on; collapsing these
+ * to one value is what made an earlier pass look wrong after the palette was already right.
+ *
+ *   sm  4px — checkboxes, and anything 16px or smaller
+ *   md  6px — inputs, selects, textareas, nav items, in-row controls, small tiles
+ *   lg  8px — buttons, icon chips
+ *   xl 10px — THE CONTAINER STEP: cards, table frames, dialogs, sheets, the segmented-tab trough
+ *
+ * ⚠ Pills (badges, status chips, progress tracks) use `rounded-full` and are NOT on this scale —
+ * 999px is a shape, not a step. check-component-shape.mjs asserts both halves of that. */
+:root {
+  --radius: 0.625rem; /* 10px — the container step; components reading --radius directly get this */
+
+  /* The source design's two spacing constants, named as it names them so a value can be traced
+     back: --pad is the page/section gutter, --rowpad a table row's vertical padding. */
+  --pad: 24px;
+  --rowpad: 12px;
 }
 
 @theme inline {
-  /* Radius — the preset bIkeymG scale, pinned EXPLICITLY as rem (the preset's calc chain over the
-     0.625rem base, resolved so the hex/rem-only Compose generator can read it). Still web px == mobile
-     EffyRadius dp — SC-004 is PARITY, not the specific numbers, and both sides derive from here.
-     sm=6px, md=8px, lg=10px, xl=14px; pill via rounded-full. */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.625rem;
-  --radius-xl: 0.875rem;
+  --radius-sm: 0.25rem; /* 4px */
+  --radius-md: 0.375rem; /* 6px */
+  --radius-lg: 0.5rem; /* 8px */
+  --radius-xl: 0.625rem; /* 10px */
 
-  /* Typography — General Sans is the one family (display + body), declared by the @font-face rules at
-     the top of this file. No app registers a font of its own; importing this file is what supplies it. */
-  --font-sans: "General Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  /* ⚠ Geist first, General Sans second — see the @font-face note above; the second name is what
+     keeps customer-web's typography intact without adding a request to a public storefront.
+     ⚠ --font-mono must stay MONOSPACE: one-time codes are dictated over the phone and compared digit
+     by digit, where 1/l, 0/O and 5/S are expensive. check-tokens.mjs enforces it. */
+  --font-sans: Geist, "General Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -224,10 +299,34 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+
+  /* The brand family — the one action colour and its tinted surfaces. */
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-mid: var(--brand-mid);
+  --color-brand-ink: var(--brand-ink);
+
+  /* Attention only. Rare by design. */
+  --color-accent2: var(--accent2);
+  --color-accent2-soft: var(--accent2-soft);
+
+  /* Data-viz series and avatar tints. Never interactive. */
+  --color-violet: var(--violet);
+  --color-violet-soft: var(--violet-soft);
+  --color-violet-mid: var(--violet-mid);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
-  /* --success has no -foreground pair by design: it is a non-text indicator (border / ✓ glyph). */
+  --color-destructive-soft: var(--destructive-soft);
+  /* --success and --warning have no -foreground pair by design: they may be text ON THEIR TINT, but
+     never a fill with a label on it. check-tokens.mjs enforces the absence for --success. */
   --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+
   --color-disabled: var(--disabled);
   --color-disabled-foreground: var(--disabled-foreground);
   --color-placeholder: var(--placeholder);
@@ -235,7 +334,6 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  /* Data-visualisation palette — CHARTS ONLY (constitution v1.13.0). */
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -250,4 +348,84 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/* The four keyframes the adoption prompt names, defined ONCE here so no component re-declares them.
+ * `fade` is the standard content entrance (a 4px rise), `pulse` marks anything live, `spin` drives
+ * the 11px spinner that replaces every text-only "Loading…", and the sheet set carries the floating
+ * layers. Sheets slide from the right on desktop and rise on mobile; dialogs scale from .97. */
+@keyframes effy-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes effy-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes effy-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes effy-overlay {
+  from {
+    opacity: 0.001;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes effy-sheet-in {
+  from {
+    transform: scale(0.97);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes effy-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@keyframes effy-sheet-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ⚠ Respect the OS reduced-motion setting: the animations above are entrances, never the only signal
+   that something happened, so removing them costs no information. The spinner keeps turning — it IS
+   the signal that work is in flight — but slowly enough not to trigger vestibular symptoms. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  [data-effy-spinner] {
+    animation-duration: 1.8s !important;
+    animation-iteration-count: infinite !important;
+  }
 }

@@ -4,13 +4,12 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web design system — the brand SSOT (MONOCHROME: a ten-step neutral ramp with NO brand hue, whose accent INVERTS by appearance — near-black on light, near-white on dark — plus exactly two bounded semantic colours and a bounded data-visualisation chart palette for charts only; General Sans type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V, v1.13.0). Internal package: exports TS source + CSS.",
+  "description": "Effy web design system — the brand SSOT (a cobalt brand as the single action colour, a navy-ink dark base, three bounded non-brand hues — attention/violet/teal — and four state semantics; Geist type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",
     "./hooks/use-mobile": "./src/hooks/use-mobile.ts",
     "./tokens.css": "./src/tokens.css",
-    "./tokens/shop.css": "./src/tokens/shop.css",
     "./stripe-appearance": "./stripe/appearance.ts",
     "./banner-template.svg": "./banner/banner-template.svg"
   },
@@ -18,7 +17,7 @@
   "scripts": {
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/check-tokens.mjs && node scripts/check-shop-theme.mjs && node scripts/check-component-shape.mjs && node scripts/check-banner-canvas.mjs && node scripts/check-banner-template.mjs",
+    "test": "node scripts/check-tokens.mjs && node scripts/check-component-shape.mjs && node scripts/check-banner-canvas.mjs && node scripts/check-banner-template.mjs",
     "tokens:test": "node scripts/check-tokens.mjs",
     "tokens:gen": "node scripts/gen-compose-theme.mjs && node scripts/gen-stripe-appearance.mjs",
     "tokens:check": "node scripts/check-compose-theme.mjs && node scripts/check-mobile-assets.mjs && node scripts/check-banner-template.mjs",

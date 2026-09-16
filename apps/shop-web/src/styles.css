@@ -2,15 +2,13 @@
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
 @import "@effy/design-system/tokens.css";
-/* 057 — the shop-scoped VALUE layer, loaded after the platform tokens so its values win. It lives
-   in the shared design-system package (same variable names, same AA guard), NOT in this app: the
-   mechanism stays shared, only the values differ. See that file's header for the five deliberate
-   deviations from the imported mockup. */
-@import "@effy/design-system/tokens/shop.css";
 
-/* This surface defines NO theme of its own (FR-013 / SC-007). Brand, dark mode, and the monochrome
-   neutral identity (plus the bounded chart palette for data-viz) all arrive from the shared design
-   system. The rules below only bind Tailwind's defaults to those tokens — asserted by
+/* ⚠ THE SHOP-SCOPED VALUE LAYER IS GONE. 057 loaded `@effy/design-system/tokens/shop.css` after the
+   platform tokens so shop-web could carry its own values; the platform-wide theme adoption made
+   those values THE platform's, so that second file was deleted rather than left restating them.
+   This surface once again defines NO theme of its own (FR-013 / SC-007) and reads exactly one token
+   file. Brand, dark mode and the chart palette all arrive from the shared design system; the rules
+   below only bind browser and Tailwind defaults to those tokens — asserted by
    src/theme-tokens.test.ts. */
 @layer base {
   * {
@@ -20,5 +18,33 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    /* Adoption prompt, Phase 1: body text gets `pretty` so a heading or a card subtitle never leaves
+       one orphaned word on its own line. Unsupported browsers ignore it; nothing depends on it. */
+    text-wrap: pretty;
+  }
+
+  /* ⚠ ANY NUMBER THAT CAN CHANGE MUST BE TABULAR (adoption prompt, Phase 1). Declared once here on
+     the elements that always hold changing figures, so a metric value or a table amount cannot jog
+     sideways as it updates. Identifiers get the mono family at their call site. */
+  th,
+  td,
+  output,
+  time {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The reference design's scrollbar: the thumb is the hairline colour inset by a transparent
+     border, so a scrolling region reads as part of the surface rather than a browser artifact. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 8px;
+    border: 3px solid transparent;
+    background-clip: content-box;
   }
 }

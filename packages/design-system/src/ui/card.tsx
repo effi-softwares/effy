@@ -2,15 +2,22 @@ import * as React from "react"
 
 import { cn } from "../cn"
 
+// THE CARD (theme-adoption-prompt.md, Phase 2 §3).
+//
+// ⚠ BORDERED, NEVER SHADOWED, AND NEVER NESTED. A 1px `--border` on `--radius` (10px, the container
+// step). `shadow-sm` was REMOVED rather than overridden per call site: the adopted design reserves
+// shadows for floating layers only, and a shadowed card on a flat page is the single most visible
+// way this theme gets diluted.
+//
+// ⚠ BODY ROWS ARE SEPARATED BY A HAIRLINE, NOT BY A SECOND CARD. A card inside a card is the layout
+// the design never uses — it doubles the border, doubles the padding, and turns a list into a stack
+// of boxes. `CardRow` below exists so that separation has a named primitive to reach for.
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card"
       className={cn(
-        // ⚠ 057: `rounded-lg` (8px) — the CONTAINER step. The mockup's bordered surfaces all sit on
-        // `var(--radius)`, and an `xl` card beside a 6px button is the hierarchy inversion this pass
-        // exists to fix: the surface should be softer than the control, never the reverse.
-        "flex flex-col gap-6 rounded-lg border bg-card py-6 text-card-foreground shadow-sm",
+        "flex flex-col rounded-xl border border-border bg-card text-card-foreground",
         className
       )}
       {...props}
@@ -18,12 +25,14 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+// The header row: an optional icon chip, then title + subtitle, then a spacer, then a count pill or a
+// `label →` ghost link. 16–18px padding, matching the design's card padding.
 function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-header"
       className={cn(
-        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        "flex items-center gap-2.5 px-4 py-3.5 [.border-b]:pb-3.5",
         className
       )}
       {...props}
@@ -35,7 +44,10 @@ function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-title"
-      className={cn("leading-none font-semibold", className)}
+      className={cn(
+        "text-[14.5px] font-semibold leading-none tracking-[-0.01em]",
+        className
+      )}
       {...props}
     />
   )
@@ -45,7 +57,20 @@ function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("mt-1 text-[12.5px] text-muted-foreground", className)}
+      {...props}
+    />
+  )
+}
+
+// Title + subtitle as one block, so the header's flex row keeps them together and the spacer pushes
+// the action to the far edge. Without this the subtitle becomes a sibling of the action and the
+// header collapses to one line at narrow widths.
+function CardHeading({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-heading"
+      className={cn("min-w-0 flex-1", className)}
       {...props}
     />
   )
@@ -55,10 +80,7 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-action"
-      className={cn(
-        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
-        className
-      )}
+      className={cn("flex shrink-0 items-center gap-1.5", className)}
       {...props}
     />
   )
@@ -66,9 +88,22 @@ function CardAction({ className, ...props }: React.ComponentProps<"div">) {
 
 function CardContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
+    <div data-slot="card-content" className={cn("px-4 pb-4", className)} {...props} />
+  )
+}
+
+/**
+ * A body row inside a card. Rows are separated from each other by a hairline — the LAST row carries
+ * no rule, which is what stops a card ending in a stray line just above its own border.
+ */
+function CardRow({ className, ...props }: React.ComponentProps<"div">) {
+  return (
     <div
-      data-slot="card-content"
-      className={cn("px-6", className)}
+      data-slot="card-row"
+      className={cn(
+        "flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0",
+        className
+      )}
       {...props}
     />
   )
@@ -78,7 +113,7 @@ function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="card-footer"
-      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      className={cn("flex items-center px-4 pb-4 [.border-t]:pt-3.5", className)}
       {...props}
     />
   )
@@ -90,6 +125,8 @@ export {
   CardFooter,
   CardTitle,
   CardAction,
+  CardHeading,
   CardDescription,
   CardContent,
+  CardRow,
 }

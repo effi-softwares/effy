@@ -28,13 +28,13 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(appCssCode).toContain('@import "@effy/design-system/tokens.css"');
   });
 
-  // 057: the shop value layer is imported AFTER the platform tokens — order is load-bearing, since
-  // it wins by being later. Asserting only that it is imported would let a reorder pass silently.
-  it("imports the shop value layer, and after the platform tokens", () => {
-    const platform = appCssCode.indexOf('@import "@effy/design-system/tokens.css"');
-    const shop = appCssCode.indexOf('@import "@effy/design-system/tokens/shop.css"');
-    expect(shop).toBeGreaterThan(-1);
-    expect(shop).toBeGreaterThan(platform);
+    // ⚠ 057's "imports the shop value layer, and after the platform tokens" assertion is DELETED, not
+  // relaxed. That file no longer exists: the theme adoption made its values the platform's, so a
+  // test demanding a second import would now fail for the right reason and be "fixed" by recreating
+  // the very duplication the adoption removed. Its replacement is the assertion below — exactly one
+  // token file is imported.
+  it("imports exactly one token file", () => {
+    expect(appCssCode.match(/@import "@effy\/design-system\/tokens/g)).toHaveLength(1);
   });
 
   // ⚠ The values must stay in the shared package. An app-local copy is exactly the Principle II
@@ -58,19 +58,40 @@ describe("shop-web inherits the design system and defines no theme of its own", 
     expect(appCssCode).not.toMatch(/font-size\s*:\s*clamp\(/);
   });
 
-  // 026: the brand is monochrome. The accent INVERTS between appearances — that is the invariant
-  // most likely to be "simplified" away by someone who assumes one accent value, so assert it.
-  it("resolves the monochrome accent from the shared source, inverting by appearance", () => {
-    expect(tokensCss).toMatch(/--primary:\s*#171717/); // light: near-black (adopted, feature 041)
-    expect(tokensCss).toMatch(/--primary:\s*#e5e5e5/); // dark: near-white
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#fafafa/);
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#171717/);
+  // ⚠ THE PLATFORM IS NO LONGER MONOCHROME, and this test says so rather than being deleted. It used
+  // to assert a near-black/near-white accent that INVERTED by appearance. The adopted accent is a
+  // cobalt hue, which reads against both grounds and therefore LIFTS rather than inverting — a
+  // distinction worth pinning, because "restoring" an inversion here would put a dark-on-dark fill
+  // in the dark theme.
+  it("resolves the cobalt action colour from the shared source, lifting (not inverting) in dark", () => {
+    expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/); // light
+    expect(tokensCss).toMatch(/--primary:\s*#4d7cff/); // dark — brighter, same hue
+    // --primary and --brand are ONE fact: the action colour. Equal on purpose (see tokens.css).
+    expect(tokensCss).toMatch(/--brand:\s*#1d4ed8/);
   });
 
-  // 041: charts are the ONE place non-monochrome colour is allowed, and never as text.
+  // The attention hue is deliberately rare, and deliberately NOT the action colour. If these two
+  // ever resolve to the same value, every "needs attention" affordance has silently become a CTA.
+  it("keeps the attention hue distinct from the action colour", () => {
+    const brand = tokensCss.match(/--brand:\s*(#[0-9a-f]{6})/)?.[1];
+    const attention = tokensCss.match(/--accent2:\s*(#[0-9a-f]{6})/)?.[1];
+    expect(brand).toBeTruthy();
+    expect(attention).toBeTruthy();
+    expect(attention).not.toBe(brand);
+  });
+
+  // Charts carry hues, and never as text-on-fill.
   it("carries the bounded data-visualisation palette with no foreground pair", () => {
     expect(tokensCss).toMatch(/--chart-1:\s*#/);
     expect(tokensCss).not.toContain("--chart-1-foreground");
+  });
+
+  // ⚠ --success and --warning may be text ON THEIR TINT but never a fill with a label on it. The
+  // structural guarantee is the ABSENCE of a paired foreground token — without one there is nothing
+  // to write on the solid with. check-tokens.mjs enforces it for --success; this pins both.
+  it("gives the non-fill semantics no foreground pair", () => {
+    expect(tokensCss).not.toContain("--success-foreground");
+    expect(tokensCss).not.toContain("--warning-foreground");
   });
 
   it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {

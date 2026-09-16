@@ -21,31 +21,31 @@ import com.stripe.android.paymentsheet.PaymentSheet
  */
 object EffyPaymentAppearance {
     private val Light = PaymentSheet.Colors(
-        primary = Color(0xFF171717.toInt()),
+        primary = Color(0xFF1D4ED8.toInt()),
         surface = Color(0xFFFFFFFF.toInt()),
         component = Color(0xFFFFFFFF.toInt()),
-        componentBorder = Color(0xFFE5E5E5.toInt()),
-        componentDivider = Color(0xFFE5E5E5.toInt()),
-        onComponent = Color(0xFF0A0A0A.toInt()),
-        onSurface = Color(0xFF0A0A0A.toInt()),
-        subtitle = Color(0xFF525252.toInt()),
-        placeholderText = Color(0xFF808080.toInt()),
-        appBarIcon = Color(0xFF525252.toInt()),
-        error = Color(0xFFE01010.toInt()),
+        componentBorder = Color(0xFFD7E0EE.toInt()),
+        componentDivider = Color(0xFFE1E8F3.toInt()),
+        onComponent = Color(0xFF0B1220.toInt()),
+        onSurface = Color(0xFF0B1220.toInt()),
+        subtitle = Color(0xFF5C6B86.toInt()),
+        placeholderText = Color(0xFF5C6B86.toInt()),
+        appBarIcon = Color(0xFF5C6B86.toInt()),
+        error = Color(0xFFCF2B1F.toInt()),
     )
 
     private val Dark = PaymentSheet.Colors(
-        primary = Color(0xFFE5E5E5.toInt()),
-        surface = Color(0xFF171717.toInt()),
-        component = Color(0xFF171717.toInt()),
-        componentBorder = Color(0xFF2F2F2F.toInt()),
-        componentDivider = Color(0xFF232323.toInt()),
-        onComponent = Color(0xFFFAFAFA.toInt()),
-        onSurface = Color(0xFFFAFAFA.toInt()),
-        subtitle = Color(0xFFB5B5B5.toInt()),
-        placeholderText = Color(0xFF808080.toInt()),
-        appBarIcon = Color(0xFFB5B5B5.toInt()),
-        error = Color(0xFFFF6B6B.toInt()),
+        primary = Color(0xFF4D7CFF.toInt()),
+        surface = Color(0xFF0A0F1B.toInt()),
+        component = Color(0xFF0A0F1B.toInt()),
+        componentBorder = Color(0xFF2A3550.toInt()),
+        componentDivider = Color(0xFF212B3F.toInt()),
+        onComponent = Color(0xFFEEF2FA.toInt()),
+        onSurface = Color(0xFFEEF2FA.toInt()),
+        subtitle = Color(0xFF97A4BC.toInt()),
+        placeholderText = Color(0xFF97A4BC.toInt()),
+        appBarIcon = Color(0xFF97A4BC.toInt()),
+        error = Color(0xFFFF7A6D.toInt()),
     )
 
     /**
@@ -57,7 +57,7 @@ object EffyPaymentAppearance {
         colorsLight = Light,
         colorsDark = Dark,
         shapes = PaymentSheet.Shapes(
-            cornerRadiusDp = 8f,
+            cornerRadiusDp = 6f,
             borderStrokeWidthDp = 1f,
         ),
         // ⚠ Typography is NOT a data class in this SDK — there is no .default.copy(...). Verified

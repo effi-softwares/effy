@@ -14,15 +14,12 @@ import { dirname, resolve } from "node:path";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-// 057: this guard now checks TWO files — the platform SSOT and shop-web's scoped value layer. The
-// AA rules, the key-set parity rule and the non-text-semantic rule are IDENTICAL for both, which is
-// the whole point of keeping the shop layer inside this package: a per-surface value set cannot opt
-// out of the contrast law. Only the radius rule differs (the shop layer is a single 8px by design —
-// see its header), and the shop layer is additionally forbidden from introducing a third hue.
-const TARGETS = [
-  { label: "tokens.css", path: "../src/tokens.css", radii: "platform", noThirdHue: false },
-  { label: "tokens/shop.css", path: "../src/tokens/shop.css", radii: "single-8", noThirdHue: true },
-];
+// ⚠ THIS GUARD CHECKS ONE FILE AGAIN. 057 split the palette across `tokens.css` and a shop-scoped
+// `tokens/shop.css`; the platform-wide theme adoption collapsed that back to a single SSOT, and the
+// second file is deleted rather than left restating the same values. A guard that iterates a list of
+// one is kept as a list on purpose — the next per-surface value layer adds an entry here and inherits
+// every rule below, which is the property that made the shop layer safe in the first place.
+const TARGETS = [{ label: "tokens.css", path: "../src/tokens.css" }];
 
 const errors = [];
 for (const target of TARGETS) checkFile(target);
@@ -35,8 +32,13 @@ console.log(
   `check-tokens: OK — ${TARGETS.length} token files \u00d7 2 appearances, all pairs pass WCAG AA`,
 );
 
-function checkFile({ label, path, radii, noThirdHue }) {
-const css = readFileSync(resolve(here, path), "utf8");
+function checkFile({ label, path }) {
+// ⚠ COMMENTS ARE STRIPPED BEFORE PARSING, and that is not tidiness. This file's own prose
+// legitimately discusses the selectors it declares; without this, a sentence mentioning the dark
+// block is matched as the block, `[^}]*` captures the rest of the comment, and every token is
+// reported missing from dark — which is exactly how this guard failed once. Worse, the generator
+// hits the same trap silently and emits a light-only theme.
+const css = readFileSync(resolve(here, path), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 const err = (m) => errors.push(`[${label}] ${m}`);
 
 /** Parse a `:root { … }` / `.dark { … }` block into { name: "#rrggbb" }. */
@@ -64,38 +66,16 @@ const remPx = (name) => {
   const m = css.match(new RegExp(`${name}\\s*:\\s*([\\d.]+)rem`));
   return m ? Math.round(parseFloat(m[1]) * 16) : null;
 };
-// Preset bIkeymG scale (041): sm=6px, md=8px. The invariant is web==mobile PARITY (both derive from
-// these tokens), not a specific number; the generator emits the same dp.
-if (radii === "platform") {
-  if (remPx("--radius-sm") !== 6) err(`--radius-sm must be 0.375rem (6px), got ${remPx("--radius-sm")}px`);
-  if (remPx("--radius-md") !== 8) err(`--radius-md must be 0.5rem (8px), got ${remPx("--radius-md")}px`);
-} else {
-  // ⚠ 057: the shop layer's THREE-STEP scale — 4px for 16px checkboxes, 6px for every control, 8px
-  // for containers. Pinned because the first reading of the mockup collapsed it to a single 8px, and
-  // the console looked wrong in a way no colour check could see: an 8px button on an 8px card has no
-  // hierarchy. Counting the mockup's own declarations settles it — 131 controls at 6px, 17 containers
-  // at var(--radius).
-  const SHOP_RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 8 };
-  for (const [step, px] of Object.entries(SHOP_RADII)) {
-    if (remPx(step) !== px) err(`${step} must be ${px}px in the shop layer, got ${remPx(step)}px`);
-  }
+// ⚠ THE FOUR-STEP SCALE, read off the adopted design's own declarations rather than its `--radius`
+// literal: 4px checkboxes, 6px controls, 8px buttons/icon chips, 10px containers. Pinned because an
+// earlier pass collapsed it to a single value and the console looked wrong in a way no colour check
+// could see — an 8px button on an 8px card has no hierarchy. The invariant is also web==mobile
+// PARITY (SC-004): both sides derive from these numbers, and gen-compose-theme.mjs emits the same dp.
+const RADII = { "--radius-sm": 4, "--radius-md": 6, "--radius-lg": 8, "--radius-xl": 10 };
+for (const [step, px] of Object.entries(RADII)) {
+  if (remPx(step) !== px) err(`${step} must be ${px}px, got ${remPx(step)}px`);
 }
-
-// 057: the shop layer may not smuggle in the mockup's amber. Principle V permits exactly two
-// semantic colours; the imported design's --warning is remapped to monochrome emphasis instead.
-// ⚠ Proven by breaking it: adding `--warning: #b45309;` to shop.css fails this and names the token.
-if (noThirdHue) {
-  const THIRD_HUE = ["warning", "warning-soft", "info", "caution"];
-  for (const name of THIRD_HUE) {
-    if (name in light || name in dark) {
-      err(
-        `--${name} exists: the shop layer may introduce NO third UI hue (constitution Principle V). ` +
-          `The mockup's amber "Awaiting pick"/low-stock states are rendered as monochrome emphasis ` +
-          `(weight, border, icon) — see src/tokens/shop.css deviation 1.`,
-      );
-    }
-  }
-}
+if (remPx("--radius") !== 10) err(`--radius must be 0.625rem (10px, the container step), got ${remPx("--radius")}px`);
 
 // 3) WCAG 2.1 contrast
 const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -146,7 +126,26 @@ const PAIRS = [
   ["ring", "background", UI],
   ["disabled-foreground", "disabled", UI],
   ["placeholder", "background", UI],
-  ["success", "background", UI],
+
+  // ── THE ADOPTED PALETTE (platform-wide theme adoption) ────────────────────────────────────────
+  // Every tinted surface is tested against the solid that is written ON it, because a `-soft`
+  // background is exactly where a palette quietly fails: the pair looks harmonious and measures 3.4.
+  // Three source values were tuned to clear these rows — see the header of src/tokens.css.
+  ["brand", "background", TEXT], // link, eyebrow label, "label →" ghost link
+  ["brand-ink", "brand-soft", TEXT], // active nav item, in-progress status pill
+  ["primary-foreground", "brand", TEXT], // the label on a primary button
+  ["accent2", "background", TEXT], // unread count, cut-off chip, the notification dot itself
+  ["accent2", "accent2-soft", TEXT],
+  ["violet", "violet-soft", TEXT], // avatar tint 2
+  ["teal", "teal-soft", TEXT], // avatar tint 3
+  ["destructive", "destructive-soft", TEXT], // failed / refunded pill
+  ["warning", "warning-soft", TEXT], // awaiting / at-risk pill
+  ["warning", "background", TEXT],
+  // ⚠ success IS tested as text here, which it never used to be. The retired #0c9409 measured 4.00:1
+  // and could only ever be a border or a ✓; the adopted #0d8043 clears 4.5:1 on white and on its own
+  // tint, so a paid/shipped pill may carry the word. It still gets no -foreground pair — see below.
+  ["success", "success-soft", TEXT],
+  ["success", "background", TEXT],
 ];
 
 // 026 FR-009a / constitution v1.11.0: success is a NON-TEXT indicator — a field border and a ✓ glyph,

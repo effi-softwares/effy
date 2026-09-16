@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
+
 import { beforeEach, describe, expect, it } from "vitest"
 
 import { applyTheme, setTheme, uiStore } from "../ui-store"
@@ -45,5 +48,38 @@ describe("appearance selection", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true)
     applyTheme("light")
     expect(document.documentElement.classList.contains("dark")).toBe(false)
+  })
+})
+
+/**
+ * ⚠ THE PRE-PAINT SCRIPT AND THE STORE MUST AGREE ON ONE STRING, AND NOTHING ELSE WOULD CATCH IT.
+ *
+ * index.html restores the appearance before first paint by reading localStorage directly — it runs
+ * before any module loads, so it cannot import the key. If that literal drifts from
+ * `createUiStore(prefix)`'s `${prefix}.theme`, the script silently reads `null`, falls back to
+ * system, and a dark-mode operator gets a full-brightness flash on every load. Nothing throws, no
+ * test fails, and the app looks correct one frame later.
+ *
+ * This was not hypothetical: the first draft of that script shipped `effy-shop:theme` (a colon) and
+ * back-office's shipped the wrong prefix entirely. Both are pinned here by reading the real file.
+ */
+describe("pre-paint appearance restore", () => {
+  const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8")
+
+  it("reads the same localStorage key the store writes", () => {
+    setTheme("dark")
+    const writtenKey = Object.keys(localStorage).find((k) => k.endsWith(".theme"))
+    expect(writtenKey).toBeTruthy()
+    expect(html).toContain(`localStorage.getItem("${writtenKey}")`)
+  })
+
+  it("sets both the data-theme attribute and the Tailwind class hook", () => {
+    expect(html).toContain('setAttribute("data-theme"')
+    expect(html).toContain('classList.toggle("dark"')
+  })
+
+  /** A throw here leaves a blank document, so the script must swallow blocked/absent storage. */
+  it("cannot throw when storage is unavailable", () => {
+    expect(html).toMatch(/try\s*\{[\s\S]*localStorage[\s\S]*\}\s*catch/)
   })
 })

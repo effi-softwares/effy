@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 
+import { cn } from "@effy/design-system";
+
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +15,10 @@ import {
 import type { Theme } from "../runtime/ui-store";
 import { ConsoleBrand } from "./ConsoleBrand";
 import { ConsoleHeader } from "./ConsoleHeader";
+import { AlertsButton } from "./AlertsButton";
 import { ConsoleUserMenu } from "./ConsoleUserMenu";
+import { MobileNavBar } from "./MobileNavBar";
+import { ThemeToggle } from "./ThemeToggle";
 import { NavList } from "./NavList";
 import type { NavItem } from "./nav";
 
@@ -34,8 +39,19 @@ export interface ConsoleShellProps<TRole extends string> {
   navGroupLabel?: string;
   /** 057 — optional live counts beside nav items, keyed by `to`. Omitted = no badges (back-office). */
   navBadges?: Readonly<Record<string, number | undefined>>;
-  /** 057 — optional controls on the right of the header bar. Omitted = the header is unchanged. */
+  /**
+   * 057 — optional controls on the right of the header bar.
+   *
+   * ⚠ THESE SIT BEFORE THE ALERTS BUTTON AND THE THEME TOGGLE, WHICH THE SHELL ALWAYS SUPPLIES. The
+   * adopted design pins those two to the same place on every screen, so a screen cannot take their
+   * slot — record pagination and other per-screen controls go here, to their left.
+   */
   headerActions?: ReactNode;
+  /**
+   * Optional alerts affordance. Omitted, no bell renders at all — a console with nothing to alert
+   * about should not carry a permanently silent indicator.
+   */
+  alerts?: { count: number; onOpen: () => void };
   /** 057 — supplying a title swaps the breadcrumb header for the imported design's title+subtitle. */
   headerTitle?: ReactNode;
   headerSubtitle?: ReactNode;
@@ -70,6 +86,7 @@ export function ConsoleShell<TRole extends string>({
   navGroupLabel,
   navBadges,
   headerActions,
+  alerts,
   headerTitle,
   headerSubtitle,
   headerBreadcrumb,
@@ -112,12 +129,30 @@ export function ConsoleShell<TRole extends string>({
         <ConsoleHeader
           surfaceLabel={surfaceLabel}
           nav={nav}
-          actions={headerActions}
+          actions={
+            <>
+              {headerActions}
+              {alerts ? <AlertsButton count={alerts.count} onOpen={alerts.onOpen} /> : null}
+              <ThemeToggle theme={theme} onSetTheme={onSetTheme} />
+            </>
+          }
           title={headerTitle}
           subtitle={headerSubtitle}
           breadcrumb={headerBreadcrumb}
         />
-        <div className={contentClassName}>{children}</div>
+        {/* ⚠ The bottom nav is FIXED, so it overlays the end of the scroll region. The padding below
+            reserves its height (56px + the device safe area) and is removed at the same 1100px
+            breakpoint the bar disappears at — without it the last table row and the pagination
+            controls sit permanently under the bar and cannot be reached. */}
+        <div
+          className={cn(
+            contentClassName,
+            "pb-[calc(56px+env(safe-area-inset-bottom))] min-[1100px]:pb-0"
+          )}
+        >
+          {children}
+        </div>
+        <MobileNavBar nav={nav} roles={roles} />
       </SidebarInset>
     </SidebarProvider>
   );

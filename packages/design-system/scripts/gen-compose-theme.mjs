@@ -186,7 +186,10 @@ function colorScheme(fnName, valName, objName) {
 }
 
 function generate(target) {
-  const css = readFileSync(CSS, "utf8");
+  // ⚠ Comments stripped before parsing: tokens.css prose legitimately names the selectors it
+  // declares, and an unstripped comment mentioning the dark block is matched AS the block — the
+  // generator would then emit a light-only theme with nothing failing. See check-tokens.mjs.
+  const css = readFileSync(CSS, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const light = parseBlock(css, ":root");
   const dark = parseBlock(css, ".dark");
 

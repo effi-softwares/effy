@@ -2,9 +2,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-// Brand guard (017 SC-002 / SC-008): the design-system surfaces stay neutral-leaning, the retired
-// Jade accent is gone, and Effy Forest #26483a is the single brand accent. Mirrors the no-Jade
-// sweep, but automated. (Vitest runs from the app dir → resolve the SSOT from there.)
+// Brand guard (017 SC-002 / SC-008), UPDATED BY THE PLATFORM-WIDE THEME ADOPTION.
+//
+// ⚠ THE PLATFORM IS NO LONGER MONOCHROME. This file used to assert a neutral ramp carrying every UI
+// accent, which was the constitution from v1.10.0 to v1.13.0. The adopted identity makes cobalt the
+// one action colour platform-wide, so the two assertions that pinned the monochrome rule now pin the
+// cobalt one instead — REWRITTEN, not deleted. A guard that is deleted because its premise changed
+// takes the real requirement with it; the requirement here was never "be grey", it was "there is
+// exactly ONE action colour and it is declared in one place".
+//
+// The retired-palette sweeps below are untouched and still binding: Jade and Effy Emerald stay gone.
+// (Vitest runs from the app dir → resolve the SSOT from there.)
 const tokensCss = readFileSync(
   resolve(process.cwd(), "../../packages/design-system/src/tokens.css"),
   "utf8",
@@ -38,22 +46,33 @@ describe("design-system tokens — Effy Forest brand (017)", () => {
     }
   });
 
-  // 026: the brand is monochrome. The accent INVERTS between appearances — that is the invariant
-  // most likely to be "simplified" away by someone who assumes one accent value, so assert it.
-  it("uses the monochrome neutral ramp as the accent, inverting by appearance", () => {
-    expect(tokensCss).toMatch(/--primary:\s*#171717/); // light: near-black (adopted, feature 041)
-    expect(tokensCss).toMatch(/--primary:\s*#e5e5e5/); // dark: near-white
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#fafafa/);
-    expect(tokensCss).toMatch(/--primary-foreground:\s*#171717/);
-    // the focus ring is an AA-tuned neutral (WCAG 1.4.11 UI bar), not the accent (041)
-    expect(tokensCss).toMatch(/--ring:\s*#808080/); // light
-    expect(tokensCss).toMatch(/--ring:\s*#737373/); // dark
+  // ⚠ ONE ACTION COLOUR, DECLARED ONCE. --primary and --brand must resolve to the SAME value: the
+  // shadcn-vocabulary name the primitives consume and the role name the screens read are two names
+  // for one fact, and letting them drift would give the platform two "primary" colours that are
+  // almost the same — the worst possible outcome, because nobody would notice.
+  it("uses cobalt as the single action colour, under both of its names", () => {
+    expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/); // light
+    expect(tokensCss).toMatch(/--brand:\s*#1d4ed8/);
+    expect(tokensCss).toMatch(/--primary:\s*#4d7cff/); // dark — the hue LIFTS, it does not invert
   });
 
-  it("carries exactly two semantic hues, and success has no foreground pair", () => {
-    expect(tokensCss).toContain("#e01010"); // error, light
-    expect(tokensCss).toContain("#0c9409"); // success, light — non-text indicator only
+  // ⚠ The focus ring is a TUNED neutral-blue, never the accent itself. A ring in the action colour
+  // is indistinguishable from a selected state on a cobalt-accented form.
+  it("keeps the focus ring off the action colour and above the WCAG 1.4.11 bar", () => {
+    expect(tokensCss).toMatch(/--ring:\s*#7993ca/); // light — 3.07:1 on white
+    expect(tokensCss).toMatch(/--ring:\s*#3d5fae/); // dark — 3.14:1 on the navy ground
+  });
+
+  // ⚠ FOUR state semantics now, not two — and none of them may become a fill with a label on it.
+  // The structural guarantee is the ABSENCE of a foreground pair: without one there is nothing to
+  // write on the solid with, so a well-meaning "make the success pill solid" cannot typecheck its
+  // way to 4.00:1 white-on-green.
+  it("carries the four state semantics, none of which may be a labelled fill", () => {
+    expect(tokensCss).toContain("#cf2b1f"); // destructive, light
+    expect(tokensCss).toContain("#0d8043"); // success, light
+    expect(tokensCss).toContain("#a85c05"); // warning, light
     expect(tokensCss).not.toContain("--success-foreground");
+    expect(tokensCss).not.toContain("--warning-foreground");
   });
 
   it("has fully retired both prior brand palettes (Jade and Effy Emerald)", () => {

@@ -18,51 +18,51 @@ export type StripeAppearance = {
 export const paymentAppearanceLight: StripeAppearance = {
   theme: "stripe",
   variables: {
-      "colorPrimary": "#171717",
+      "colorPrimary": "#1d4ed8",
       "colorBackground": "#ffffff",
-      "colorText": "#0a0a0a",
-      "colorTextSecondary": "#525252",
-      "colorTextPlaceholder": "#808080",
-      "colorDanger": "#e01010",
-      "colorIcon": "#525252",
-      "borderRadius": "8px",
+      "colorText": "#0b1220",
+      "colorTextSecondary": "#5c6b86",
+      "colorTextPlaceholder": "#5c6b86",
+      "colorDanger": "#cf2b1f",
+      "colorIcon": "#5c6b86",
+      "borderRadius": "6px",
       "fontFamily": "\"General Sans\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
       "fontSizeBase": "16px",
       "spacingUnit": "4px"
   },
   rules: {
       ".Input": {
-          "border": "1px solid #e5e5e5",
+          "border": "1px solid #d7e0ee",
           "borderRadius": "9999px",
           "padding": "10px 16px",
           "boxShadow": "none"
       },
       ".Input:focus": {
-          "border": "1px solid #808080",
+          "border": "1px solid #7993ca",
           "boxShadow": "none",
           "outline": "none"
       },
       ".Input--invalid": {
-          "border": "1px solid #e01010",
+          "border": "1px solid #cf2b1f",
           "boxShadow": "none"
       },
       ".Label": {
           "fontWeight": "500",
           "fontSize": "13px",
-          "color": "#0a0a0a"
+          "color": "#0b1220"
       },
       ".Tab, .Block": {
-          "border": "1px solid #e5e5e5",
-          "borderRadius": "8px",
+          "border": "1px solid #e1e8f3",
+          "borderRadius": "6px",
           "boxShadow": "none"
       },
       ".Tab:focus, .Tab--selected": {
-          "border": "1px solid #0a0a0a",
+          "border": "1px solid #0b1220",
           "boxShadow": "none",
           "outline": "none"
       },
       ".Error": {
-          "color": "#e01010",
+          "color": "#cf2b1f",
           "fontSize": "13px"
       }
   },
@@ -71,51 +71,51 @@ export const paymentAppearanceLight: StripeAppearance = {
 export const paymentAppearanceDark: StripeAppearance = {
   theme: "stripe",
   variables: {
-      "colorPrimary": "#e5e5e5",
-      "colorBackground": "#171717",
-      "colorText": "#fafafa",
-      "colorTextSecondary": "#b5b5b5",
-      "colorTextPlaceholder": "#808080",
-      "colorDanger": "#ff6b6b",
-      "colorIcon": "#b5b5b5",
-      "borderRadius": "8px",
+      "colorPrimary": "#4d7cff",
+      "colorBackground": "#0a0f1b",
+      "colorText": "#eef2fa",
+      "colorTextSecondary": "#97a4bc",
+      "colorTextPlaceholder": "#97a4bc",
+      "colorDanger": "#ff7a6d",
+      "colorIcon": "#97a4bc",
+      "borderRadius": "6px",
       "fontFamily": "\"General Sans\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
       "fontSizeBase": "16px",
       "spacingUnit": "4px"
   },
   rules: {
       ".Input": {
-          "border": "1px solid #2f2f2f",
+          "border": "1px solid #2a3550",
           "borderRadius": "9999px",
           "padding": "10px 16px",
           "boxShadow": "none"
       },
       ".Input:focus": {
-          "border": "1px solid #737373",
+          "border": "1px solid #3d5fae",
           "boxShadow": "none",
           "outline": "none"
       },
       ".Input--invalid": {
-          "border": "1px solid #ff6b6b",
+          "border": "1px solid #ff7a6d",
           "boxShadow": "none"
       },
       ".Label": {
           "fontWeight": "500",
           "fontSize": "13px",
-          "color": "#fafafa"
+          "color": "#eef2fa"
       },
       ".Tab, .Block": {
-          "border": "1px solid #232323",
-          "borderRadius": "8px",
+          "border": "1px solid #212b3f",
+          "borderRadius": "6px",
           "boxShadow": "none"
       },
       ".Tab:focus, .Tab--selected": {
-          "border": "1px solid #fafafa",
+          "border": "1px solid #eef2fa",
           "boxShadow": "none",
           "outline": "none"
       },
       ".Error": {
-          "color": "#ff6b6b",
+          "color": "#ff7a6d",
           "fontSize": "13px"
       }
   },
