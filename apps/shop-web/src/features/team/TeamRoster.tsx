@@ -5,6 +5,7 @@ import { UserPlus } from "lucide-react"
 import { isShopManager, SHOP_ROLES, type ShopRole, type ShopTeamMemberDTO } from "@effy/shared-types"
 import {
   Badge,
+  InitialsAvatar,
   Button,
   Input,
   Label,
@@ -116,7 +117,19 @@ function MemberRow({ member, canManage }: { member: ShopTeamMemberDTO; canManage
 
   return (
     <TableRow>
-      <TableCell className="font-medium">{member.name ?? "—"}</TableCell>
+      {/* ⚠ EVERY LIST OF PEOPLE CARRIES AVATARS (adoption prompt, Phase 2 §8). Seeded on the STAFF
+          ID, so a colleague keeps one tint here and anywhere else they appear — and a rename does not
+          re-colour them. */}
+      <TableCell className="font-medium">
+        <span className="flex items-center gap-2.5">
+          <InitialsAvatar
+            name={member.name ?? member.email ?? "?"}
+            seed={member.staffId}
+            className="size-7 shrink-0"
+          />
+          {member.name ?? "—"}
+        </span>
+      </TableCell>
       <TableCell className="text-muted-foreground">{member.email ?? "—"}</TableCell>
       <TableCell>
         {canManage && member.status === "active" ? (

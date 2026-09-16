@@ -7,6 +7,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
   Table,
   TableBody,
@@ -36,8 +37,10 @@ export function ShopHistory({ shopId }: { shopId: string }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>History</CardTitle>
-        <CardDescription>Audit trail of changes to this shop and its roster.</CardDescription>
+        <CardHeading>
+          <CardTitle>History</CardTitle>
+          <CardDescription>Audit trail of changes to this shop and its roster.</CardDescription>
+        </CardHeading>
       </CardHeader>
       <CardContent className="space-y-3">
         {isError ? (

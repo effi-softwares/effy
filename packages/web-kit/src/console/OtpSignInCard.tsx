@@ -8,6 +8,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
   Input,
   OtpInput,
@@ -220,8 +221,10 @@ export function OtpSignInCard({
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-primary">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardHeading>
+          <CardTitle className="text-primary">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </CardHeading>
       </CardHeader>
       <CardContent>{body}</CardContent>
     </Card>

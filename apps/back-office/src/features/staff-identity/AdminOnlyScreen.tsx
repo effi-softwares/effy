@@ -8,6 +8,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
@@ -33,8 +34,10 @@ export function AdminOnlyScreen() {
   return (
     <Card className="max-w-md">
       <CardHeader>
-        <CardTitle>Administrator area</CardTitle>
-        <CardDescription>Access is decided by the backend, not the interface.</CardDescription>
+        <CardHeading>
+          <CardTitle>Administrator area</CardTitle>
+          <CardDescription>Access is decided by the backend, not the interface.</CardDescription>
+        </CardHeading>
       </CardHeader>
       <CardContent>
         {isPending ? (

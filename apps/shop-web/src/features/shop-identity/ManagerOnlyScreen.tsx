@@ -8,7 +8,9 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
+  Spinner,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
@@ -43,14 +45,22 @@ export function ManagerOnlyScreen() {
 
       <Card className="max-w-md">
       <CardHeader>
-        <CardTitle>Shop management</CardTitle>
-        <CardDescription>
+        <CardHeading>
+          <CardTitle>Shop management</CardTitle>
+          <CardDescription>
           Reserved for shop managers. Access is decided by the backend, not by this page.
         </CardDescription>
+        </CardHeading>
       </CardHeader>
       <CardContent>
         {isPending ? (
-          <p className="text-sm text-muted-foreground">Checking your access…</p>
+          // ⚠ A SPINNER, NOT A BARE STRING (adoption prompt, per-screen checklist). "Checking your
+          // access…" is indistinguishable from a request that has stalled — a sentence does not read
+          // as motion, so a hung gate and a working one looked identical.
+          <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-busy="true">
+            <Spinner />
+            Checking your access…
+          </p>
         ) : isError ? (
           <ErrorState
             error={error}

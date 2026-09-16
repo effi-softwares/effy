@@ -7,6 +7,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
@@ -25,10 +26,12 @@ export function ProvingScreen() {
   return (
     <Card className="max-w-md">
       <CardHeader>
-        <CardTitle>Your back-office record</CardTitle>
-        <CardDescription>
+        <CardHeading>
+          <CardTitle>Your back-office record</CardTitle>
+          <CardDescription>
           The platform's own record of you — proves this console reaches the backend as you.
         </CardDescription>
+        </CardHeading>
       </CardHeader>
       <CardContent>
         {isPending ? (

@@ -8,6 +8,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
   ChartContainer,
   ChartTooltip,
@@ -112,8 +113,10 @@ function DashboardScreen() {
       chart={
         <Card>
           <CardHeader>
-            <CardTitle>Shops by region</CardTitle>
-            <CardDescription>Sample data — not live operations</CardDescription>
+            <CardHeading>
+              <CardTitle>Shops by region</CardTitle>
+              <CardDescription>Sample data — not live operations</CardDescription>
+            </CardHeading>
           </CardHeader>
           <CardContent>
             <ChartContainer config={SHOPS_CONFIG} className="h-[240px] w-full">

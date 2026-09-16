@@ -11,6 +11,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
+  CardHeading,
   CardTitle,
   Select,
   SelectContent,
@@ -100,7 +101,9 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Details</CardTitle>
+          <CardHeading>
+            <CardTitle>Details</CardTitle>
+          </CardHeading>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
@@ -150,8 +153,10 @@ function Roster({ shop, canManage }: { shop: ShopDetail; canManage: boolean }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Roster</CardTitle>
-        <CardDescription>Operators provisioned for this shop.</CardDescription>
+        <CardHeading>
+          <CardTitle>Roster</CardTitle>
+          <CardDescription>Operators provisioned for this shop.</CardDescription>
+        </CardHeading>
       </CardHeader>
       <CardContent>
         <div className="rounded-md border">
