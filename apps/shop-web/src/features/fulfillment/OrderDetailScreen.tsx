@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { isShopManager } from "@effy/shared-types";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button, Skeleton } from "@effy/design-system/ui";
+import { Button, InitialsAvatar, Skeleton } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { sessionQuery } from "@/features/auth/queries";
@@ -81,8 +81,11 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   if (isPending) {
     return (
       <div className="grid gap-7">
-        <Skeleton className="h-[62px] w-full" />
-        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-[62px] w-full rounded-xl" />
+        <div className="grid items-start gap-14 min-[1060px]:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
+          <Skeleton className="h-72 w-full rounded-xl" />
+          <Skeleton className="h-40 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -102,8 +105,12 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             </span>
             <OrderStatusPill status={detail.status} />
             <PaymentPill state={detail.payment.state} />
+            {/* ⚠ WARNING, NOT DESTRUCTIVE. "At risk" means this order is ageing toward a cut-off —
+                the design's waiting/at-risk tone. Destructive is reserved for something that has
+                already failed (refunded, can't supply); using it here would make every busy morning
+                look like a page of errors and devalue the colour where it matters. */}
             {detail.atRisk ? (
-              <span className="border-destructive text-destructive rounded-full border px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap">
+              <span className="rounded-full border border-border bg-warning-soft px-2 py-0.5 text-[11.5px] font-medium whitespace-nowrap text-warning">
                 At risk
               </span>
             ) : null}
@@ -113,7 +120,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
         </div>
         <div className="min-w-3 flex-1" />
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="h-8 px-[11px] text-[13px]" onClick={() => setActivityOpen(true)}>
+          <Button variant="outline" size="sm" onClick={() => setActivityOpen(true)}>
             Activity
           </Button>
           <StateActions detail={detail} />
@@ -160,7 +167,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
             </div>
             {refundable ? (
               <div className="grid gap-2">
-                <Button variant="outline" className="h-[34px] text-[13.5px]" onClick={() => setRefundOpen(true)}>
+                <Button variant="outline" onClick={() => setRefundOpen(true)}>
                   Refund
                 </Button>
               </div>
@@ -168,15 +175,15 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           </div>
 
           <div className="grid gap-2">
-            <Button variant="outline" className="h-9 text-[13.5px]" onClick={() => printPickList(detail)}>
+            <Button variant="outline" onClick={() => printPickList(detail)}>
               Print pick list
             </Button>
+            {/* ⚠ `destructive-ghost`, the platform's default destructive affordance — NOT the filled
+                red button. A solid fill here would give the riskiest control on the screen the visual
+                weight of a primary action. The three hand-rolled classes it used to carry were
+                exactly that variant, restated. */}
             {canDeclareUnfulfillable(detail.status) ? (
-              <Button
-                variant="ghost"
-                className="text-destructive hover:bg-destructive/10 hover:text-destructive h-9 text-[13.5px]"
-                onClick={() => setCancelOpen(true)}
-              >
+              <Button variant="destructive-ghost" onClick={() => setCancelOpen(true)}>
                 Cancel order
               </Button>
             ) : null}
@@ -198,10 +205,24 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
           style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}
         >
           <Block label="Customer">
-            <div className="text-[13.5px] font-medium">{detail.delivery.recipientName || "—"}</div>
-            {detail.delivery.phone ? (
-              <div className="text-muted-foreground text-[13px]">{detail.delivery.phone}</div>
-            ) : null}
+            {/* ⚠ The avatar is seeded on the FULFILLMENT ID, not the name, so the same order shows
+                the same tint here and in the orders list — a name-seeded tint would shift the moment
+                a recipient name is corrected. */}
+            <div className="flex items-center gap-2.5">
+              {detail.delivery.recipientName ? (
+                <InitialsAvatar
+                  name={detail.delivery.recipientName}
+                  seed={detail.id}
+                  className="size-7 shrink-0"
+                />
+              ) : null}
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-medium">{detail.delivery.recipientName || "—"}</div>
+                {detail.delivery.phone ? (
+                  <div className="text-muted-foreground text-[13px]">{detail.delivery.phone}</div>
+                ) : null}
+              </div>
+            </div>
           </Block>
           <Block label="Ship to">
             <div className="text-[13px] leading-[1.6] whitespace-pre-line">{addressText(detail)}</div>

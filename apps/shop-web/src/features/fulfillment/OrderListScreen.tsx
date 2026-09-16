@@ -8,6 +8,7 @@ import { SHOP_ORDER_TABS, type ShopOrderSort } from "@effy/shared-types"
 import {
   Button,
   Checkbox,
+  InitialsAvatar,
   Skeleton,
   toast,
 } from "@effy/design-system/ui"
@@ -15,6 +16,8 @@ import { ErrorState } from "@effy/web-kit/console"
 
 import { track } from "@/lib/telemetry"
 import { cn } from "@/lib/utils"
+
+import { Segmented } from "@/components/console/primitives"
 
 import { BulkActions } from "./components/BulkActions"
 import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
@@ -146,19 +149,18 @@ export function OrderListScreen({
           <div className="flex-1" />
           <Button
             variant="outline"
-            className="h-[34px] gap-[7px] px-3 text-[13px]"
+            className="gap-[7px]"
             onClick={() => setFiltersOpen(true)}
           >
             Filters
             {filterCount > 0 ? (
-              <span className="bg-primary text-primary-foreground grid h-[17px] min-w-[17px] place-items-center rounded-[5px] px-[5px] font-mono text-[11px] font-medium">
+              <span className="grid h-[17px] min-w-[17px] place-items-center rounded-[5px] bg-brand px-[5px] font-mono text-[11px] font-medium tabular-nums text-primary-foreground">
                 {filterCount}
               </span>
             ) : null}
           </Button>
           <Button
             variant="outline"
-            className="h-[34px] px-3 text-[13px]"
             disabled={exporting || total === 0}
             onClick={() => void exportCsv()}
           >
@@ -167,36 +169,29 @@ export function OrderListScreen({
           </Button>
         </div>
 
-        {/* Row 2 — the status tabs, on their own row */}
-        <div
-          role="tablist"
-          aria-label="Order status"
-          className="bg-muted flex flex-wrap gap-0.5 justify-self-start rounded-lg p-[3px]"
-        >
-          {SHOP_ORDER_TABS.map((t) => {
-            const active = tab === t
-            return (
-              <button
-                key={t}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => update({ tab: t })}
-                className={cn(
-                  "focus-visible:ring-ring flex h-7 cursor-pointer items-center gap-1.5 rounded-md border-none px-[11px] text-[13px] focus-visible:ring-2 focus-visible:outline-none",
-                  active
-                    ? "bg-background text-foreground font-medium shadow-sm"
-                    : "text-muted-foreground hover:text-foreground bg-transparent font-normal",
-                )}
-              >
+        {/* Row 2 — the status tabs, on their own row.
+            ⚠ THIS WAS A THIRD, HAND-ROLLED COPY OF THE SEGMENTED CONTROL. The platform had three:
+            `Tabs` in the design system, `Segmented` in the console primitives, and this one — each
+            with its own active treatment. The theme adoption changed the active segment to a solid
+            --brand fill, and a copy nobody remembered would have stayed a raised white chip with a
+            shadow on a flat, shadowless design. It now renders `Segmented`, so there is one control
+            and one place to change it. */}
+        <Segmented
+          ariaLabel="Order status"
+          value={tab}
+          onChange={(t) => update({ tab: t })}
+          options={SHOP_ORDER_TABS.map((t) => ({
+            value: t,
+            label: (
+              <span className="flex items-center gap-1.5">
                 {TAB_LABEL[t]}
                 <span className="font-mono text-[11.5px] tabular-nums opacity-65">
                   {data ? data.counts[t] : ""}
                 </span>
-              </button>
-            )
-          })}
-        </div>
+              </span>
+            ),
+          }))}
+        />
 
         {/* Row 3 — the result meta, then the rule that separates the controls from the table */}
         <div className="border-border flex flex-wrap items-center gap-3 border-b pb-3">
@@ -300,7 +295,18 @@ export function OrderListScreen({
                       </td>
                       <td className="px-3.5 py-3">
                         {/* Wraps rather than overflowing when a flag rides beside the name. */}
+                        {/* ⚠ An avatar per person (adoption prompt, list pattern). The tint is
+                            DETERMINISTIC on the order id, so the same customer keeps the same colour
+                            down the column and across screens — an index-derived tint would re-colour
+                            everyone on every sort and actively mislead. */}
                         <div className="flex flex-wrap items-center gap-x-[7px] gap-y-[3px]">
+                          {o.customerName ? (
+                            <InitialsAvatar
+                              name={o.customerName}
+                              seed={o.id}
+                              className="size-6 shrink-0"
+                            />
+                          ) : null}
                           <span className="text-[13.5px] font-medium break-words">{o.customerName || "—"}</span>
                           <RowFlag row={o} />
                         </div>
@@ -417,7 +423,10 @@ function SortTh({
         )}
       >
         {label}
-        <span className="text-[10px]" aria-hidden="true">
+        {/* ⚠ The arrow is rendered ONLY for the active column, in the action colour. An arrow on
+            every header says every column is sorted; a neutral glyph everywhere is noise in a row
+            that is already dense. */}
+        <span className="text-[10px] text-brand" aria-hidden="true">
           {current ? (dir === "asc" ? "↑" : "↓") : ""}
         </span>
       </button>
