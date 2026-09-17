@@ -72,12 +72,12 @@ export const paymentAppearanceDark: StripeAppearance = {
   theme: "stripe",
   variables: {
       "colorPrimary": "#60a5fa",
-      "colorBackground": "#262626",
+      "colorBackground": "#151515",
       "colorText": "#fafafa",
-      "colorTextSecondary": "#adadad",
-      "colorTextPlaceholder": "#adadad",
+      "colorTextSecondary": "#a3a3a3",
+      "colorTextPlaceholder": "#a3a3a3",
       "colorDanger": "#f87171",
-      "colorIcon": "#adadad",
+      "colorIcon": "#a3a3a3",
       "borderRadius": "6px",
       "fontFamily": "\"General Sans\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
       "fontSizeBase": "16px",
@@ -85,13 +85,13 @@ export const paymentAppearanceDark: StripeAppearance = {
   },
   rules: {
       ".Input": {
-          "border": "1px solid #525252",
+          "border": "1px solid #383838",
           "borderRadius": "9999px",
           "padding": "10px 16px",
           "boxShadow": "none"
       },
       ".Input:focus": {
-          "border": "1px solid #737373",
+          "border": "1px solid #636363",
           "boxShadow": "none",
           "outline": "none"
       },
@@ -105,7 +105,7 @@ export const paymentAppearanceDark: StripeAppearance = {
           "color": "#fafafa"
       },
       ".Tab, .Block": {
-          "border": "1px solid #404040",
+          "border": "1px solid #2a2a2a",
           "borderRadius": "6px",
           "boxShadow": "none"
       },

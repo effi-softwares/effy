@@ -57,9 +57,9 @@
   /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
      NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
   @media (prefers-color-scheme: dark) {
-      .e-bg-page { background-color: #1f1f1f !important; }
-      .e-bg-canvas { background-color: #262626 !important; }
-      .e-bg-code { background-color: #404040 !important; }
+      .e-bg-page { background-color: #111111 !important; }
+      .e-bg-canvas { background-color: #151515 !important; }
+      .e-bg-code { background-color: #212121 !important; }
       .e-ink,
       .e-ink div,
       .e-ink p,
@@ -71,15 +71,15 @@
       .e-muted p,
       .e-muted span,
       .e-muted a,
-      .e-muted h1 { color: #adadad !important; }
-      .e-rule p { border-top-color: #404040 !important; }
+      .e-muted h1 { color: #a3a3a3 !important; }
+      .e-rule p { border-top-color: #2a2a2a !important; }
       .e-btn-bg td { background-color: #60a5fa !important; }
       .e-btn-fg,
       .e-btn-fg div,
       .e-btn-fg p,
       .e-btn-fg span,
       .e-btn-fg a,
-      .e-btn-fg h1 { color: #171717 !important; }
+      .e-btn-fg h1 { color: #111111 !important; }
       .e-error,
       .e-error div,
       .e-error p,
@@ -91,11 +91,11 @@
      Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
      (DARK_RULES) so they cannot drift. */
     [data-ogsc] .e-bg-page,
-    [data-ogsb] .e-bg-page { background-color: #1f1f1f !important; }
+    [data-ogsb] .e-bg-page { background-color: #111111 !important; }
     [data-ogsc] .e-bg-canvas,
-    [data-ogsb] .e-bg-canvas { background-color: #262626 !important; }
+    [data-ogsb] .e-bg-canvas { background-color: #151515 !important; }
     [data-ogsc] .e-bg-code,
-    [data-ogsb] .e-bg-code { background-color: #404040 !important; }
+    [data-ogsb] .e-bg-code { background-color: #212121 !important; }
     [data-ogsc] .e-ink,
     [data-ogsc] .e-ink div,
     [data-ogsc] .e-ink p,
@@ -107,8 +107,8 @@
     [data-ogsc] .e-muted p,
     [data-ogsc] .e-muted span,
     [data-ogsc] .e-muted a,
-    [data-ogsc] .e-muted h1 { color: #adadad !important; }
-    [data-ogsc] .e-rule p { border-top-color: #404040 !important; }
+    [data-ogsc] .e-muted h1 { color: #a3a3a3 !important; }
+    [data-ogsc] .e-rule p { border-top-color: #2a2a2a !important; }
     [data-ogsc] .e-btn-bg td,
     [data-ogsb] .e-btn-bg td { background-color: #60a5fa !important; }
     [data-ogsc] .e-btn-fg,
@@ -116,7 +116,7 @@
     [data-ogsc] .e-btn-fg p,
     [data-ogsc] .e-btn-fg span,
     [data-ogsc] .e-btn-fg a,
-    [data-ogsc] .e-btn-fg h1 { color: #171717 !important; }
+    [data-ogsc] .e-btn-fg h1 { color: #111111 !important; }
     [data-ogsc] .e-error,
     [data-ogsc] .e-error div,
     [data-ogsc] .e-error p,

@@ -143,7 +143,7 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
       <div className="flex flex-col gap-4 pb-8 sm:flex-row sm:items-center sm:gap-5">
         <div
           aria-hidden="true"
-          className="flex size-13 shrink-0 items-center justify-center rounded-full bg-[#eef7ee] dark:bg-[#2d4335]"
+          className="flex size-13 shrink-0 items-center justify-center rounded-full bg-[#eef7ee] dark:bg-[#17291f]"
         >
           <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
             <path

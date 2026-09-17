@@ -60,7 +60,7 @@ describe("design-system tokens — Effy Forest brand (017)", () => {
   // is indistinguishable from a selected state on a cobalt-accented form.
   it("keeps the focus ring off the action colour and above the WCAG 1.4.11 bar", () => {
     expect(tokensCss).toMatch(/--ring:\s*#7993ca/); // light — 3.07:1 on white
-    expect(tokensCss).toMatch(/--ring:\s*#737373/); // dark — 3.19:1 on the neutral-grey ground
+    expect(tokensCss).toMatch(/--ring:\s*#636363/); // dark — 3.04:1 on the near-black ground
   });
 
   // ⚠ FOUR state semantics now, not two — and none of them may become a fill with a label on it.

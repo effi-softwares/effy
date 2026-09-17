@@ -36,7 +36,7 @@ import { ActionLink } from "./actions"
  * `--background` is `#EFEFF1` (a soft grey ground) with white `--card` raised on top.
  *
  * So the storefront INVERTS the mapping rather than inventing a colour: the page surface is the
- * `card` token (white in light, `#262626` in dark) and tinted tiles use `muted`. No hex is hardcoded,
+ * `card` token (white in light, near-black in dark) and tinted tiles use `muted`. No hex is hardcoded,
  * no token changes value, `tokens:check` is untouched, and dark mode keeps working — a plain
  * `bg-white` would have broken it.
  *

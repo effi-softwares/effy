@@ -25,13 +25,16 @@
  * If a future slice wants a platform-wide status system, that is a constitution amendment with its
  * own evidence — not a side effect of a receipt.
  *
- * ⚠ THE THREE DARK TINTS WERE RE-DERIVED WHEN THE DARK THEME MOVED FROM NAVY INK TO NEUTRAL GREY,
- * AND THIS IS THE FAILURE MODE THAT MAKES A HARDCODED VALUE DIFFERENT FROM A TOKEN. The old darks
- * (#12220F / #241A0C / #2A1010) were chosen to sit one step LIGHTER than a #0A0F1B ground. The grey
- * ground is #262626 — lighter than all three — so every tint silently flipped to the DARK side of its
- * surface: a wash became a hole, at 1.1:1 against the page, while the `standard` tone (which reads
- * --muted through the theme) stayed a light wash. Four tones, three of them inverted, nothing failing.
- * The replacements sit just under --muted's level again, so the row reads as one family.
+ * ⚠ THESE THREE DARK TINTS HAVE NOW BEEN RE-DERIVED TWICE FOR ONE THEME CHANGE, AND THAT IS THE
+ * WHOLE ARGUMENT FOR WHY A HARDCODED VALUE IS NOT A TOKEN. The original darks were picked to sit one
+ * step LIGHTER than a navy ground. When the ground went grey it was lighter than all three, so every
+ * tint flipped to the DARK side of its surface — a wash became a hole at 1.1:1 against the page —
+ * while the `standard` tone, which reads --muted THROUGH THE THEME, stayed correct without anyone
+ * touching it. Then the ground went near-black and --muted came down with it, and the replacements
+ * were suddenly the BRIGHTEST things in the row. Three tones wrong twice; the fourth right both times,
+ * for free. Nothing failed on either occasion: no DOM assertion can see a chip that has become a hole.
+ * The values below sit within a hair of --muted at the near-black ground, so the row reads as one
+ * family again — and they will need checking the next time the ground moves.
  */
 
 export type ReceiptStatusTone = "paid" | "same_day" | "standard" | "attention"
@@ -50,12 +53,12 @@ export type ToneClasses = {
 export const RECEIPT_STATUS_TONES: Readonly<Record<ReceiptStatusTone, ToneClasses>> = {
   /** Payment received; order delivered. The constitution's own `--success`, used as a non-text dot. */
   paid: {
-    tint: "bg-[#eef7ee] dark:bg-[#2d4335]",
+    tint: "bg-[#eef7ee] dark:bg-[#17291f]",
     dot: "bg-[#0c9409] dark:bg-[#22c55e]",
   },
   /** ⚠ THE ONE GENUINELY NEW HUE. Distinguishes an expedited package the shopper paid more for. */
   same_day: {
-    tint: "bg-[#fdf3e7] dark:bg-[#443829]",
+    tint: "bg-[#fdf3e7] dark:bg-[#2b2318]",
     dot: "bg-[#b45309] dark:bg-[#f0a04b]",
   },
   /** Pure ramp — the DEFAULT needs no hue, only the exception does. */
@@ -68,7 +71,7 @@ export const RECEIPT_STATUS_TONES: Readonly<Record<ReceiptStatusTone, ToneClasse
    * Drawn now so a later refunds slice has nothing to invent.
    */
   attention: {
-    tint: "bg-[#fdecec] dark:bg-[#432e2e]",
+    tint: "bg-[#fdecec] dark:bg-[#2b1b1b]",
     dot: "bg-[#e01010] dark:bg-[#ff6b6b]",
   },
 }

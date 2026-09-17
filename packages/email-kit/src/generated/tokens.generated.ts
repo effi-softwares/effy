@@ -19,14 +19,14 @@ export const EMAIL_TOKENS = {
       "success": "#0d8043"
   },
   dark: {
-      "pageGround": "#1f1f1f",
-      "canvas": "#262626",
+      "pageGround": "#111111",
+      "canvas": "#151515",
       "ink": "#fafafa",
-      "mutedInk": "#adadad",
-      "hairline": "#404040",
+      "mutedInk": "#a3a3a3",
+      "hairline": "#2a2a2a",
       "actionFill": "#60a5fa",
-      "actionLabel": "#171717",
-      "codeSurface": "#404040",
+      "actionLabel": "#111111",
+      "codeSurface": "#212121",
       "error": "#f87171",
       "success": "#4cd97b"
   },

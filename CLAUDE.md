@@ -198,10 +198,17 @@ reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carr
 rather than left restating the same values (two files declaring one palette is the
 two-sources-for-one-fact shape this repo has shipped five defects through). ⚠ **Recorded win**: 017's
 SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**.
-- ⚠ **THE DARK BASE IS NEUTRAL GREY, NOT THE ADOPTED NAVY INK** (2026-09-17, operator direction,
-  `dark-theme-update-prompt.md`, same design project). The `.dark` block was rebuilt on a true grey
-  ramp — `#262626` ground, `#404040` muted/border/hover, `#1f1f1f` sidebar (**recessed**, one step
-  DARKER than the content ground), `#fafafa`/`#adadad` text — with **no blue tint in any neutral**.
+- ⚠ **THE DARK BASE IS NEAR-BLACK NEUTRAL, NOT THE ADOPTED NAVY INK** (2026-09-17). The `.dark`
+  block now carries **the design's own values**, read from `Effy Shop Console.dc.html` via DesignSync
+  — **not** `dark-theme-update-prompt.md`, which the design has since moved past. Ground `#151515`,
+  rail `#111111` (**recessed**, darker than the content ground), muted/secondary `#212121`, hover
+  `#232323`, **border `#2a2a2a`**, input `#383838`, text `#fafafa`/`#a3a3a3`. **No blue tint in any
+  neutral**; the light block is byte-identical throughout.
+  ⚠ **THE PROMPT'S RAMP WAS BUILT AND REJECTED IN BETWEEN**: it bound `--muted`, `--border`,
+  `--accent` and every hover to **one** value (`#404040`) on a `#262626` ground, so nothing had a
+  hierarchy and everything had an edge — the operator report was *"borders are too much"*. The design
+  steps those four roles by ~12 points each, and `--border` is a **1.27:1 hairline** again. Borders
+  are deliberately **not** contrast-tested; a 3:1 border is a slab on every surface.
   The **light block is byte-identical** to before. Hues lifted to their 400-level equivalents so they
   carry on grey, and every `-soft` is now grey mixed with the hue rather than a saturated dark, so a
   tinted chip sits on the base instead of reading as a coloured card.
@@ -211,13 +218,19 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   unlike the retired neutral accent, a hue reads against both grounds. Plus `--brand-soft/-mid/-ink`.
   ⚠ The grey rebase also **ended the dark-only split** between them (the navy ground had needed a
   brighter `#7a9cff` for brand TEXT); they are now one value in **both** appearances.
-- ⚠ **FOUR MORE VALUES TUNED, on the grey rebase.** Three are the prompt's own 4.5:1-on-`-soft` rule:
-  `--muted-foreground` `#a3a3a3`→`#adadad` (4.11:1 on `--muted`), `--violet-soft` `#3b3547`→`#373040`
-  (4.32:1), `--destructive-soft` `#452f2f`→`#422c2c` (4.46:1). The fourth is **not** contrast:
-  `--success` dark was specified as green-400, which is **byte-identical to the retired 024 customer
-  splash ground** and turns `check-no-emerald.sh` red — 057 hit the same collision on the same token
-  and refused it too, so it is `#4cd97b`. ⚠ Naming the retired hex **in a comment** is itself a hit;
-  the sweep does not strip comments.
+- ⚠ **TWO VALUES DEVIATE FROM THE DESIGN'S DARK BLOCK, both forced by a guard.** `--ring`
+  `#5a5a5a`→`#636363` (the design's is **2.65:1** on its own ground, under the 3:1 WCAG 1.4.11 bar —
+  the same correction the light ring already carries). And `--success`, specified as green-400, is
+  **byte-identical to the retired 024 customer splash ground** and turns `check-no-emerald.sh` red —
+  057 hit the same collision on the same token and refused it too — so it is `#4cd97b`. ⚠ Naming the
+  retired hex **in a comment** is itself a hit; the sweep does not strip comments.
+- ⚠ **`check-tokens.mjs` GAINED TWO GUARDS, each from a defect committed during this change.**
+  (1) **The residue after comment-stripping must still be CSS**: a glob written as `--chart-` + `*/`
+  inside a comment **closes it**, and the remaining prose became stylesheet source — every token guard
+  passed (they all strip comments first) and only the customer-web **production build** failed, quoting
+  a phrase several lines past the fault. (2) **Every ratio written in a comment must match the
+  recomputed one**: the dark block was re-derived three times and on one pass **thirteen** annotations
+  were stale — plausible numbers describing pairs that had moved. Both proven by breaking them.
 - **Three bounded non-brand hues**: `--accent2` (orange) is **attention and time pressure ONLY** —
   notification dots, unread badges, cut-off chips, deliberately rare; `--violet` and `--teal` are the
   second and third data-viz series and the avatar tints, **never interactive**.

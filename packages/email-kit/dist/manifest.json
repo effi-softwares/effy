@@ -3,84 +3,84 @@
     "htmlBytes": 15795,
     "htmlChars": 15787,
     "textBytes": 655,
-    "htmlSha": "08e449c773393397",
+    "htmlSha": "bd742053060b1fe9",
     "textSha": "acc50cf56bb4ce82"
   },
   "auth-email-verification-code": {
     "htmlBytes": 15568,
     "htmlChars": 15560,
     "textBytes": 351,
-    "htmlSha": "3ce55f901c0afc60",
+    "htmlSha": "3c08cc94850123b0",
     "textSha": "b8ed960744d46bd5"
   },
   "auth-password-reset-code": {
     "htmlBytes": 15641,
     "htmlChars": 15633,
     "textBytes": 419,
-    "htmlSha": "15a16d176abfd3e3",
+    "htmlSha": "a3123ba57af92ba5",
     "textSha": "3ddcce995750fa26"
   },
   "auth-sign-in-code": {
     "htmlBytes": 15722,
     "htmlChars": 15714,
     "textBytes": 463,
-    "htmlSha": "c0622f44f06831a6",
+    "htmlSha": "845fdaa7b8c02836",
     "textSha": "36a873160f094935"
   },
   "auth-sign-up-code": {
     "htmlBytes": 15592,
     "htmlChars": 15584,
     "textBytes": 370,
-    "htmlSha": "d26fc4335a0b6377",
+    "htmlSha": "8d99240114e9b926",
     "textSha": "605afbaae27ba788"
   },
   "auth-step-up-code": {
     "htmlBytes": 15591,
     "htmlChars": 15583,
     "textBytes": 379,
-    "htmlSha": "3254869d9cca02f9",
+    "htmlSha": "6558ff6ae8cca474",
     "textSha": "8d4d518a448e81dd"
   },
   "feedback-received": {
     "htmlBytes": 15712,
     "htmlChars": 15704,
     "textBytes": 453,
-    "htmlSha": "65988cbbf2b42b4a",
+    "htmlSha": "be65c1f1166b64c7",
     "textSha": "0012b86952b08d2e"
   },
   "feedback-reply": {
     "htmlBytes": 20748,
     "htmlChars": 20740,
     "textBytes": 368,
-    "htmlSha": "0f764fc099d64c63",
+    "htmlSha": "d8b401fbbf750ff3",
     "textSha": "f3258476fdfd8bd4"
   },
   "newsletter-confirmation": {
     "htmlBytes": 16860,
     "htmlChars": 16852,
     "textBytes": 505,
-    "htmlSha": "d2a8884e63132b23",
+    "htmlSha": "059d3cd6a83cf7e6",
     "textSha": "a2bc1d98f2cba889"
   },
   "order-confirmation": {
     "htmlBytes": 44487,
     "htmlChars": 44479,
     "textBytes": 1045,
-    "htmlSha": "921a6b9702907e13",
+    "htmlSha": "88b29265869c04d3",
     "textSha": "fab9cd82fbc68fb4"
   },
   "order-delivered": {
     "htmlBytes": 16276,
     "htmlChars": 16268,
     "textBytes": 417,
-    "htmlSha": "802a2822319bbfc4",
+    "htmlSha": "5bc08843a7512e19",
     "textSha": "ee243f5dd0e7c10d"
   },
   "order-refunded": {
     "htmlBytes": 16959,
     "htmlChars": 16951,
     "textBytes": 582,
-    "htmlSha": "c2f534a0f45f632e",
+    "htmlSha": "f606a5b8af941cae",
     "textSha": "0063d83b9b858a84"
   }
 }

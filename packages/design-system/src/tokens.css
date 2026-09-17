@@ -4,8 +4,11 @@
  * THE PLATFORM IS NO LONGER MONOCHROME. On operator direction (theme-adoption-prompt.md, design
  * project 951bb710), this file adopts the "Effy Shop Console" appearance identity PLATFORM-WIDE:
  * a cobalt brand, a dark base, and three bounded non-brand hues. ⚠ THE DARK BASE IS NO LONGER THE
- * ADOPTED NAVY INK: it was replaced with a NEUTRAL GREY ramp on operator direction
- * (dark-theme-update-prompt.md, same design project). See the .dark block for what moved and why.
+ * NAVY INK THIS FILE ORIGINALLY ADOPTED: it is now the NEAR-BLACK neutral ramp the design itself
+ * carries (#151515 ground, #111111 rail), read from `Effy Shop Console.dc.html` via DesignSync.
+ * ⚠ IT IS NOT the mid-grey ramp of `dark-theme-update-prompt.md`, which the design has since moved
+ * past — that prompt bound --muted, --border, --accent and every hover to ONE value (#404040), which
+ * turned every divider into a slab. See the .dark block for what moved and why.
  *
  * ⚠ THIS REVERSES constitution v1.10.0 → v1.13.0 and features 026 / 041, which held that a neutral
  * ramp carries every UI accent role and that NO brand hue may exist in the interface. It also
@@ -181,118 +184,118 @@
 }
 
 .dark {
-  /* ⚠ NEUTRAL GREY, NOT NAVY INK. The dark base was a navy/dark-blue ramp taken from the adopted
-     design; it is replaced by a true neutral grey ramp (dark-theme-update-prompt.md, design project
-     951bb710). No neutral in this block carries a blue tint. --background LIFTS from #0a0f1b to
-     #262626, so every surface below is re-derived against a substantially lighter ground rather than
-     recoloured in place. The LIGHT block is untouched.
+  /* ⚠ THESE VALUES ARE THE DESIGN'S OWN, READ FROM `Effy Shop Console.dc.html` VIA DesignSync — not
+     from the earlier `dark-theme-update-prompt.md`, which the design has since moved past. The prompt
+     specified a mid-grey ramp (#262626 ground, #404040 for muted AND borders AND hover); the design
+     ships a near-black one where those three roles are three different, much closer values. Adopting
+     the prompt made every border a visible slab, which is the operator report this block answers.
+     The LIGHT block is untouched.
 
-     ⚠ THREE VALUES TUNED AWAY FROM THE SOURCE PROMPT, ALL FOR CONTRAST, NONE NEGOTIABLE — and all
-     three are the Verify §3 rule in the prompt itself ("4.5:1 minimum for body text" on -soft
-     backgrounds) being
-     obeyed, not departed from. Every other value is byte-exact.
-       --muted-foreground  #a3a3a3 → #adadad   source: 4.11:1 on --muted
-       --violet-soft       #3b3547 → #373040   source: --violet at 4.32:1 on it
-       --destructive-soft  #452f2f → #422c2c   source: --destructive at 4.46:1 on it
-     Ratios are re-derived by scripts/check-tokens.mjs, which is the authority — the figures below
-     are provenance, not the check.
+     ⚠ WHAT ACTUALLY FIXES "TOO MANY BORDERS" IS THAT --border IS A HAIRLINE AGAIN. At #2a2a2a on a
+     #151515 ground it measures 1.27:1 — barely a seam, and almost exactly what the light theme's
+     own hairline measures on white (1.23:1), which is the point: a divider should weigh the same in
+     both appearances. The rejected #404040-on-#262626 measured 1.46:1 — only 0.19 more, and that is
+     the whole difference between a seam and a rule at these levels. Borders are NOT contrast-tested
+     (see check-tokens.mjs): a 3:1 border is a heavy slab on every surface, and that is exactly what
+     the console looked like.
 
-     ⚠ THE KEYS THE PROMPT DID NOT NAME ARE DERIVED, NOT DROPPED. check-tokens.mjs enforces key-set
-     parity between :root and .dark, so --card, --popover, --disabled, --placeholder, the chart
-     series and the sidebar family must all exist here. Each follows the light block's own
-     relationship: --card and --popover equal the ground, --disabled equals --muted, --placeholder
-     equals --muted-foreground, and the chart series is brand · violet · teal · accent2 · brand-mid
-     in that fixed order.
+     ⚠ THE THREE NEUTRAL PLANES ARE DISTINCT AND CLOSE: ground #151515, muted/secondary #212121,
+     accent (hover) #232323, border #2a2a2a, input #383838. They step by roughly 12 points each. The
+     grey rebase collapsed muted, border, accent and hover onto ONE value, which is why nothing had a
+     hierarchy and everything had an edge.
 
-     ⚠ DO NOT WRITE A GLOB LIKE --chart-<star>/ IN THIS COMMENT. An asterisk followed by a slash IS
-     the comment terminator: the first draft of this block wrote one, the comment closed mid-sentence,
-     and the remaining prose became CSS source. Every token guard passed — they all strip comments
-     before parsing, so to them the file was fine — and the only thing that failed was the storefront
-     production build, several steps later, with a parse error naming a phrase three lines further on.
-     check-tokens.mjs now parses the residue after comment-stripping and fails on prose. */
-  --background: #262626;
-  --foreground: #fafafa; /* 14.50:1 */
-  --card: #262626;
+     ⚠ TWO VALUES DEVIATE FROM THE DESIGN, BOTH FORCED BY A GUARD, NEITHER NEGOTIABLE:
+       --ring     #5a5a5a → #636363   the design's value is 2.65:1 on its own ground, under the 3:1
+                                      WCAG 1.4.11 bar for a non-text UI indicator. This is the SAME
+                                      correction the light ring already carries (#8eadee → #7993ca at
+                                      2.24:1). A focus ring nobody can see is not one.
+       --success  green-400 → #4cd97b the design's value is byte-identical to the retired 024 customer
+                                      splash ground, which turns scripts/check-no-emerald.sh red. 057
+                                      hit the same collision on the same token and refused it too.
+                                      ⚠ DO NOT NAME THE RETIRED HEX HERE — the sweep does not strip
+                                      comments, so writing it in order to forbid it is itself a hit.
+     Every other value is byte-exact. Ratios are re-derived by scripts/check-tokens.mjs, which is the
+     authority — the figures below are provenance, not the check.
+
+     ⚠ THE KEYS THE DESIGN DOES NOT NAME ARE DERIVED, NOT DROPPED. check-tokens.mjs enforces key-set
+     parity between :root and .dark, so --card, --popover, --disabled, --placeholder, the chart series
+     and the sidebar family must all exist here. Each follows the light block's own relationship:
+     --card and --popover equal the ground, --disabled equals --muted, --placeholder equals
+     --muted-foreground, the sidebar family mirrors accent/border/ring/primary, and the chart series
+     is brand · violet · teal · accent2 · brand-mid in that fixed order. */
+  --background: #151515;
+  --foreground: #fafafa; /* 17.50:1 */
+  --card: #151515;
   --card-foreground: #fafafa;
-  --popover: #262626;
+  --popover: #151515;
   --popover-foreground: #fafafa;
 
-  --muted: #404040;
-  --muted-foreground: #adadad; /* TUNED — 4.62:1 on --muted, 6.74:1 on the ground */
-  --border: #404040; /* hairline divider — decorative, deliberately not contrast-tested */
-  --input: #525252;
+  --muted: #212121;
+  --muted-foreground: #a3a3a3; /* 6.38:1 on --muted, 7.24:1 on the ground */
+  --border: #2a2a2a; /* hairline divider — decorative, deliberately not contrast-tested */
+  --input: #383838;
 
-  --accent: #404040;
-  --accent-foreground: #fafafa; /* 9.93:1 */
-  --secondary: #404040;
-  --secondary-foreground: #fafafa; /* 9.93:1 */
+  --accent: #232323; /* the hover plane — one step above --muted, not the same value */
+  --accent-foreground: #fafafa; /* 15.06:1 */
+  --secondary: #212121;
+  --secondary-foreground: #fafafa; /* 15.43:1 */
 
-  /* ⚠ The brand still LIFTS in dark rather than inverting — it is now the 400-level equivalent of
-     the light 600-level cobalt, so it carries on grey. ⚠ AND --brand NOW EQUALS --primary IN DARK
-     TOO. The old block split them (#4d7cff fill vs a brighter #7a9cff for text) because the navy
-     ground needed the extra step for text; #60a5fa clears 5.95:1 on #262626 unaided, so the split
-     has no reason to exist and the two names resolve to one fact in BOTH appearances, as the light
-     block already had them. --primary-foreground is near-black because the dark fill is light. */
+  /* ⚠ The brand LIFTS in dark rather than inverting, and --brand EQUALS --primary here as it does in
+     light: one action colour, one value, both names. --primary-foreground is near-black because the
+     dark fill is light. */
   --primary: #60a5fa;
-  --primary-foreground: #171717; /* 7.05:1 */
-  --brand: #60a5fa; /* 5.95:1 on the ground — legible as link/eyebrow text */
-  --brand-soft: #33404f;
-  --brand-mid: #3f5b7d;
-  --brand-ink: #bfdbfe; /* 7.44:1 on --brand-soft */
+  --primary-foreground: #111111; /* 7.43:1 */
+  --brand: #60a5fa; /* 7.18:1 on the ground — legible as link/eyebrow text */
+  --brand-soft: #1b2430;
+  --brand-mid: #2f4460;
+  --brand-ink: #bfdbfe; /* 11.02:1 on --brand-soft */
 
   /* Attention and time pressure only. */
-  --accent2: #fb923c; /* 6.69:1 on the ground, 5.15:1 on --accent2-soft */
-  --accent2-soft: #43362b;
+  --accent2: #fb923c; /* 8.07:1 on the ground, 7.10:1 on --accent2-soft */
+  --accent2-soft: #2a1f16;
 
   /* Data-viz series 2 and 3, and avatar tints. Never interactive. */
-  --violet: #a78bfa; /* 5.84:1 on the ground, 4.65:1 on --violet-soft */
-  --violet-soft: #373040; /* TUNED — see header */
-  --violet-mid: #514a6b;
-  --teal: #2dd4bf; /* 8.62:1 on the ground, 5.66:1 on --teal-soft */
-  --teal-soft: #2d4342;
+  --violet: #a78bfa; /* 6.71:1 on the ground, 5.89:1 on --violet-soft */
+  --violet-soft: #241f2e;
+  --violet-mid: #3b3450;
+  --teal: #2dd4bf; /* 9.81:1 on the ground, 8.15:1 on --teal-soft */
+  --teal-soft: #16292a;
 
   /* State semantics. Each pairs with its own -soft tint; the solid is the text on that tint.
-     ⚠ Every -soft here is GREY MIXED WITH THE HUE, not a saturated dark colour — a tinted chip has
-     to sit on the grey base as a chip, not read as a small coloured card. */
-  --destructive: #f87171; /* 6.65:1 on the ground, 4.66:1 on --destructive-soft */
-  --destructive-foreground: #171717; /* 6.48:1 — the dark fill is light, so its label is near-black */
-  --destructive-soft: #422c2c; /* TUNED — see header */
-  /* ⚠ TUNED, AND FOR A REASON THAT IS NOT CONTRAST. The green-400 value the prompt specifies for
-     this token is byte-identical to the RETIRED 024 customer splash ground, which is one of the
-     values scripts/check-no-emerald.sh sweeps for — so adopting it turns that guard red. The fix for
-     a red retired-brand sweep is never to exempt the value: the guard exists precisely so a retired
-     brand colour cannot walk back in wearing the name of a different role. 057 hit the same collision on
-     this same token and refused it too. The value below is the same green at a step no mark used.
-     ⚠ DO NOT WRITE THE RETIRED HEX IN THIS COMMENT. The sweep does not strip comments, and naming
-     the value in order to forbid it is itself a hit — which is how 057 first failed this guard. */
-  --success: #4cd97b; /* 8.30:1 on the ground, 5.86:1 on --success-soft — NO -foreground pair */
-  --success-soft: #2d4335;
-  --warning: #fbbf24; /* 9.07:1 on the ground, 6.59:1 on --warning-soft */
-  --warning-soft: #453b28;
+     ⚠ Every -soft is the GROUND mixed with a trace of the hue, not a saturated dark — a status chip
+     has to sit on the page as a chip, not read as a small coloured card. */
+  --destructive: #f87171; /* 6.60:1 on the ground, 5.95:1 on --destructive-soft */
+  --destructive-foreground: #111111; /* 6.82:1 — the dark fill is light, so its label is near-black */
+  --destructive-soft: #2b1b1b;
+  --success: #4cd97b; /* TUNED — 10.02:1 on the ground, 8.39:1 on --success-soft — NO -foreground pair */
+  --success-soft: #17291f;
+  --warning: #fbbf24; /* 10.94:1 on the ground, 9.20:1 on --warning-soft */
+  --warning-soft: #2b2417;
 
-  --disabled: #404040;
-  --disabled-foreground: #adadad; /* 4.62:1 */
-  --placeholder: #adadad; /* 6.74:1 on the ground */
+  --disabled: #212121;
+  --disabled-foreground: #a3a3a3; /* 6.38:1 */
+  --placeholder: #a3a3a3; /* 7.24:1 on the ground */
 
-  --ring: #737373; /* 3.19:1 on the ground (WCAG 1.4.11 non-text UI → 3:1) */
+  --ring: #636363; /* TUNED — 3.04:1 on the ground (WCAG 1.4.11 non-text UI → 3:1) */
 
   --chart-1: #60a5fa;
   --chart-2: #a78bfa;
   --chart-3: #2dd4bf;
   --chart-4: #fb923c;
-  --chart-5: #3f5b7d;
+  --chart-5: #2f4460;
 
-  /* ⚠ The rail reads RECESSED, not raised: #1f1f1f is one step DARKER than the #262626 content
+  /* ⚠ The rail reads RECESSED, not raised: #111111 is one step DARKER than the #151515 content
      ground. In light it is one step lighter than white for the same reason — in both appearances the
-     rail is a distinct plane, and in neither is it a floating card. */
-  --sidebar: #1f1f1f;
-  --sidebar-foreground: #fafafa; /* 15.79:1 */
+     rail is a distinct plane, and in neither is it a floating card. At near-black the two are only
+     four points apart, which is the intent: the rail is a seam, not a slab. */
+  --sidebar: #111111;
+  --sidebar-foreground: #fafafa; /* 18.09:1 */
   --sidebar-primary: #60a5fa;
-  --sidebar-primary-foreground: #171717;
-  --sidebar-accent: #404040;
+  --sidebar-primary-foreground: #111111;
+  --sidebar-accent: #232323;
   --sidebar-accent-foreground: #fafafa;
-  --sidebar-border: #404040;
-  --sidebar-ring: #737373;
+  --sidebar-border: #2a2a2a;
+  --sidebar-ring: #636363;
 }
 
 /* Scale and spacing. Outside the appearance blocks because they do not vary by appearance.

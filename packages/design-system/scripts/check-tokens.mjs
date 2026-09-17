@@ -234,6 +234,68 @@ for (const [appName, set] of [
   }
 }
 
+// 3b) ⚠ EVERY RATIO WRITTEN IN A COMMENT MUST MATCH THE RECOMPUTED ONE.
+//
+// The annotations beside each token ("7.23:1 on --muted") are provenance, and provenance that is
+// maintained by hand rots the moment a value moves. This was not hypothetical: the dark block was
+// re-derived three times in one sitting, and on the last pass THIRTEEN of its annotations were
+// wrong — each one a plausible-looking number that no longer described the pair it named. A stale
+// figure is worse than none, because the next person trusts it instead of measuring. 058 recorded
+// the same shape ("a count in a comment is true only while someone maintains it") about a comment
+// claiming how many routes a service had.
+//
+// So the comments are now checked like code. Two forms are understood, matching what the file
+// writes: "N:1 on --token" / "N:1 on the ground", and a bare "N:1" on a *-foreground declaration,
+// which always means "on the surface this is the foreground of".
+{
+  const SOLO = {
+    foreground: "background",
+    "card-foreground": "card",
+    "popover-foreground": "popover",
+    "accent-foreground": "accent",
+    "secondary-foreground": "secondary",
+    "primary-foreground": "primary",
+    "sidebar-foreground": "sidebar",
+    "disabled-foreground": "disabled",
+  };
+  for (const [appName, selector, set] of [
+    ["light", ":root", light],
+    ["dark", ".dark", dark],
+  ]) {
+    const block = css.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([^}]*)\\}`, "m"));
+    if (!block) continue;
+    // ⚠ Read the ORIGINAL text, not the comment-stripped css — the annotations live in the comments.
+    const raw = readFileSync(resolve(here, path), "utf8");
+    const rb = raw.match(new RegExp(`${selector.replace(".", "\\.")}\\s*\\{([\\s\\S]*?)\\n\\}`, "m"));
+    if (!rb) continue;
+    for (const line of rb[1].split("\n")) {
+      const decl = line.match(/--([\w-]+)\s*:\s*(#[0-9a-fA-F]{6});\s*\/\*(.*?)\*\//);
+      if (!decl) continue;
+      const [, name, value, note] = decl;
+      const claims = [];
+      for (const m of note.matchAll(/([\d.]+):1 on (?:the ground|--([\w-]+))/g)) {
+        claims.push([m[1], m[2] ?? "background"]);
+      }
+      const solo = note.match(/^\s*([\d.]+):1\s*$/);
+      if (solo && SOLO[name]) claims.push([solo[1], SOLO[name]]);
+      for (const [claimed, bgName] of claims) {
+        const bg = set[bgName];
+        if (!bg) {
+          err(`[${appName}] --${name} cites --${bgName}, which is not declared`);
+          continue;
+        }
+        const actual = ratio(value.toLowerCase(), bg).toFixed(2);
+        if (actual !== claimed) {
+          err(
+            `[${appName}] --${name} comment claims ${claimed}:1 on --${bgName}, actual ${actual}:1 ` +
+              `— fix the comment, not the check`,
+          );
+        }
+      }
+    }
+  }
+}
+
 // 4) ⚠ the monospace stack must stay monospace — one-time codes are read back character by character.
 //
 // ⚠ THIS GUARD'S REASON CHANGED IN 044, AND THE MESSAGE WAS REWRITTEN RATHER THAN THE GUARD DELETED.
