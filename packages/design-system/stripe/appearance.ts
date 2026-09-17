@@ -71,13 +71,13 @@ export const paymentAppearanceLight: StripeAppearance = {
 export const paymentAppearanceDark: StripeAppearance = {
   theme: "stripe",
   variables: {
-      "colorPrimary": "#4d7cff",
-      "colorBackground": "#0a0f1b",
-      "colorText": "#eef2fa",
-      "colorTextSecondary": "#97a4bc",
-      "colorTextPlaceholder": "#97a4bc",
-      "colorDanger": "#ff7a6d",
-      "colorIcon": "#97a4bc",
+      "colorPrimary": "#60a5fa",
+      "colorBackground": "#262626",
+      "colorText": "#fafafa",
+      "colorTextSecondary": "#adadad",
+      "colorTextPlaceholder": "#adadad",
+      "colorDanger": "#f87171",
+      "colorIcon": "#adadad",
       "borderRadius": "6px",
       "fontFamily": "\"General Sans\", ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif",
       "fontSizeBase": "16px",
@@ -85,37 +85,37 @@ export const paymentAppearanceDark: StripeAppearance = {
   },
   rules: {
       ".Input": {
-          "border": "1px solid #2a3550",
+          "border": "1px solid #525252",
           "borderRadius": "9999px",
           "padding": "10px 16px",
           "boxShadow": "none"
       },
       ".Input:focus": {
-          "border": "1px solid #3d5fae",
+          "border": "1px solid #737373",
           "boxShadow": "none",
           "outline": "none"
       },
       ".Input--invalid": {
-          "border": "1px solid #ff7a6d",
+          "border": "1px solid #f87171",
           "boxShadow": "none"
       },
       ".Label": {
           "fontWeight": "500",
           "fontSize": "13px",
-          "color": "#eef2fa"
+          "color": "#fafafa"
       },
       ".Tab, .Block": {
-          "border": "1px solid #212b3f",
+          "border": "1px solid #404040",
           "borderRadius": "6px",
           "boxShadow": "none"
       },
       ".Tab:focus, .Tab--selected": {
-          "border": "1px solid #eef2fa",
+          "border": "1px solid #fafafa",
           "boxShadow": "none",
           "outline": "none"
       },
       ".Error": {
-          "color": "#ff7a6d",
+          "color": "#f87171",
           "fontSize": "13px"
       }
   },

@@ -19,16 +19,16 @@ export const EMAIL_TOKENS = {
       "success": "#0d8043"
   },
   dark: {
-      "pageGround": "#070c16",
-      "canvas": "#0a0f1b",
-      "ink": "#eef2fa",
-      "mutedInk": "#97a4bc",
-      "hairline": "#212b3f",
-      "actionFill": "#4d7cff",
-      "actionLabel": "#04102b",
-      "codeSurface": "#212b3f",
-      "error": "#ff7a6d",
-      "success": "#44cf85"
+      "pageGround": "#1f1f1f",
+      "canvas": "#262626",
+      "ink": "#fafafa",
+      "mutedInk": "#adadad",
+      "hairline": "#404040",
+      "actionFill": "#60a5fa",
+      "actionLabel": "#171717",
+      "codeSurface": "#404040",
+      "error": "#f87171",
+      "success": "#4cd97b"
   },
   radiusSm: "8px",
 } as const;

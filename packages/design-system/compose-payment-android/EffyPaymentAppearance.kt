@@ -35,17 +35,17 @@ object EffyPaymentAppearance {
     )
 
     private val Dark = PaymentSheet.Colors(
-        primary = Color(0xFF4D7CFF.toInt()),
-        surface = Color(0xFF0A0F1B.toInt()),
-        component = Color(0xFF0A0F1B.toInt()),
-        componentBorder = Color(0xFF2A3550.toInt()),
-        componentDivider = Color(0xFF212B3F.toInt()),
-        onComponent = Color(0xFFEEF2FA.toInt()),
-        onSurface = Color(0xFFEEF2FA.toInt()),
-        subtitle = Color(0xFF97A4BC.toInt()),
-        placeholderText = Color(0xFF97A4BC.toInt()),
-        appBarIcon = Color(0xFF97A4BC.toInt()),
-        error = Color(0xFFFF7A6D.toInt()),
+        primary = Color(0xFF60A5FA.toInt()),
+        surface = Color(0xFF262626.toInt()),
+        component = Color(0xFF262626.toInt()),
+        componentBorder = Color(0xFF525252.toInt()),
+        componentDivider = Color(0xFF404040.toInt()),
+        onComponent = Color(0xFFFAFAFA.toInt()),
+        onSurface = Color(0xFFFAFAFA.toInt()),
+        subtitle = Color(0xFFADADAD.toInt()),
+        placeholderText = Color(0xFFADADAD.toInt()),
+        appBarIcon = Color(0xFFADADAD.toInt()),
+        error = Color(0xFFF87171.toInt()),
     )
 
     /**

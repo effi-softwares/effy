@@ -11,12 +11,17 @@ import { rootRoute } from "./__root";
  * the single largest coloured surface in the product and the only one that breaks the rule.
  *
  * ⚠ IT FILLS WITH `--primary`, NOT `--brand`, AND THAT IS A CORRECTION TO THE REFERENCE. The
- * reference draws `background:var(--brand); color:#fff`. In LIGHT both resolve the same and it is
- * fine. In DARK, `--brand` lifts to #7a9cff — a light periwinkle — and white on it measures 1.90:1:
- * an unreadable headline across half the screen, on the one page that has to establish trust before
- * a credential is typed. `--primary`/`--primary-foreground` is the pair check-tokens.mjs already
- * holds to 4.5:1 in BOTH appearances (6.70:1 light, 5.06:1 dark), so the panel cannot regress
- * without the build failing. The two hues differ by one step; the readability differs by everything.
+ * reference draws `background:var(--brand); color:#fff`. The bug is the hardcoded `#fff`, not the
+ * token: the dark brand fill is LIGHT, so white on it was measured at 1.90:1 — an unreadable
+ * headline across half the screen, on the one page that has to establish trust before a credential
+ * is typed. `--primary`/`--primary-foreground` is the pair check-tokens.mjs already holds to 4.5:1
+ * in BOTH appearances (6.70:1 light, 7.05:1 dark), so the panel cannot regress without the build
+ * failing.
+ *
+ * ⚠ --brand AND --primary NOW RESOLVE EQUAL IN BOTH APPEARANCES (the neutral-grey dark rebase
+ * removed the one-step split the navy ground had needed), so today the two spellings would render
+ * identically. That is NOT a reason to switch to `--brand`: what makes this panel safe is the
+ * GUARDED PAIR, and only --primary has one. If the values ever diverge again, this stays correct.
  *
  * ⚠ THE PANEL COLLAPSES BELOW THE FORM on narrow viewports (`flex-wrap`, form column first in the
  * DOM at narrow widths via `order`). On a phone the form is what the operator came for — a

@@ -54,6 +54,60 @@ function parseBlock(selector) {
   return out;
 }
 
+// 0) ⚠ THE RESIDUE AFTER COMMENT-STRIPPING MUST STILL BE CSS — and this guard exists because
+// every other check in this file was blind to the failure that added it.
+//
+// A comment ends at the FIRST `*/`, so writing a glob like `--chart-*/` inside one closes it
+// mid-sentence and turns the remaining prose into stylesheet source. Nothing here noticed: this
+// guard, gen-compose-theme and check-compose-theme all strip comments before parsing, so to all
+// three the file looked perfect and both appearances parsed cleanly. The only thing that failed was
+// the customer-web production build, with a PostCSS error quoting a phrase several lines past the
+// real fault. A token file that passes every token check and cannot be compiled is the worst shape
+// of this bug, because the signal arrives nowhere near the cause.
+//
+// The rule below is deliberately coarse: outside comments this file is only ever at-rules,
+// selectors, braces and `name: value;` declarations. Anything else is prose that escaped. It scans
+// STATEMENTS, not lines, because a declaration may legitimately wrap (--font-sans does).
+{
+  let buf = "";
+  let depth = 0;
+  const check = (raw, kind) => {
+    const body = raw.replace(/\s+/g, " ").trim();
+    if (!body) return;
+    const ok =
+      /^@/.test(body) || // at-rule (@font-face, @theme inline, @keyframes, @media, @custom-variant)
+      (kind === "decl" && /^[\w-]+\s*:\s*.+$/.test(body)) || // declaration, incl. --custom-property
+      (kind === "block" && /^[\w.:[\]()&*>+~#="'\-\s,%]+$/.test(body)); // selector / keyframe offset
+    if (ok) return;
+    err(
+      `not CSS after comment-stripping — a comment almost certainly closed early (an asterisk ` +
+        `followed by a slash inside one): "${body.slice(0, 70)}"`,
+    );
+  };
+  for (const ch of css) {
+    if (ch === "{") {
+      check(buf, "block");
+      buf = "";
+      depth++;
+    } else if (ch === "}") {
+      check(buf, "decl");
+      buf = "";
+      depth--;
+      if (depth < 0) {
+        err("unbalanced braces after comment-stripping (a closing brace with no opener)");
+        break;
+      }
+    } else if (ch === ";") {
+      check(buf, "decl");
+      buf = "";
+    } else {
+      buf += ch;
+    }
+  }
+  if (depth !== 0) err(`unbalanced braces after comment-stripping (depth ${depth})`);
+  if (buf.trim()) check(buf, "decl");
+}
+
 const light = parseBlock(":root");
 const dark = parseBlock(".dark");
 

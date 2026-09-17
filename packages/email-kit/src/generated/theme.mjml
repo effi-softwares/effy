@@ -30,35 +30,35 @@
   /* Dark, mechanism 1 of 2: prefers-color-scheme (Apple Mail, Outlook.com, Outlook mobile, Samsung;
      NOT Gmail). No custom mobile media query — MJML stacks columns itself and body copy is 16px. */
   @media (prefers-color-scheme: dark) {
-      .e-bg-page { background-color: #070c16 !important; }
-      .e-bg-canvas { background-color: #0a0f1b !important; }
-      .e-bg-code { background-color: #212b3f !important; }
+      .e-bg-page { background-color: #1f1f1f !important; }
+      .e-bg-canvas { background-color: #262626 !important; }
+      .e-bg-code { background-color: #404040 !important; }
       .e-ink,
       .e-ink div,
       .e-ink p,
       .e-ink span,
       .e-ink a,
-      .e-ink h1 { color: #eef2fa !important; }
+      .e-ink h1 { color: #fafafa !important; }
       .e-muted,
       .e-muted div,
       .e-muted p,
       .e-muted span,
       .e-muted a,
-      .e-muted h1 { color: #97a4bc !important; }
-      .e-rule p { border-top-color: #212b3f !important; }
-      .e-btn-bg td { background-color: #4d7cff !important; }
+      .e-muted h1 { color: #adadad !important; }
+      .e-rule p { border-top-color: #404040 !important; }
+      .e-btn-bg td { background-color: #60a5fa !important; }
       .e-btn-fg,
       .e-btn-fg div,
       .e-btn-fg p,
       .e-btn-fg span,
       .e-btn-fg a,
-      .e-btn-fg h1 { color: #04102b !important; }
+      .e-btn-fg h1 { color: #171717 !important; }
       .e-error,
       .e-error div,
       .e-error p,
       .e-error span,
       .e-error a,
-      .e-error h1 { color: #ff7a6d !important; }
+      .e-error h1 { color: #f87171 !important; }
   }
 </mj-style>
 
@@ -67,38 +67,38 @@
      Outlook apps, which do not honour prefers-color-scheme. Both blocks come from one source
      (DARK_RULES) so they cannot drift. */
     [data-ogsc] .e-bg-page,
-    [data-ogsb] .e-bg-page { background-color: #070c16 !important; }
+    [data-ogsb] .e-bg-page { background-color: #1f1f1f !important; }
     [data-ogsc] .e-bg-canvas,
-    [data-ogsb] .e-bg-canvas { background-color: #0a0f1b !important; }
+    [data-ogsb] .e-bg-canvas { background-color: #262626 !important; }
     [data-ogsc] .e-bg-code,
-    [data-ogsb] .e-bg-code { background-color: #212b3f !important; }
+    [data-ogsb] .e-bg-code { background-color: #404040 !important; }
     [data-ogsc] .e-ink,
     [data-ogsc] .e-ink div,
     [data-ogsc] .e-ink p,
     [data-ogsc] .e-ink span,
     [data-ogsc] .e-ink a,
-    [data-ogsc] .e-ink h1 { color: #eef2fa !important; }
+    [data-ogsc] .e-ink h1 { color: #fafafa !important; }
     [data-ogsc] .e-muted,
     [data-ogsc] .e-muted div,
     [data-ogsc] .e-muted p,
     [data-ogsc] .e-muted span,
     [data-ogsc] .e-muted a,
-    [data-ogsc] .e-muted h1 { color: #97a4bc !important; }
-    [data-ogsc] .e-rule p { border-top-color: #212b3f !important; }
+    [data-ogsc] .e-muted h1 { color: #adadad !important; }
+    [data-ogsc] .e-rule p { border-top-color: #404040 !important; }
     [data-ogsc] .e-btn-bg td,
-    [data-ogsb] .e-btn-bg td { background-color: #4d7cff !important; }
+    [data-ogsb] .e-btn-bg td { background-color: #60a5fa !important; }
     [data-ogsc] .e-btn-fg,
     [data-ogsc] .e-btn-fg div,
     [data-ogsc] .e-btn-fg p,
     [data-ogsc] .e-btn-fg span,
     [data-ogsc] .e-btn-fg a,
-    [data-ogsc] .e-btn-fg h1 { color: #04102b !important; }
+    [data-ogsc] .e-btn-fg h1 { color: #171717 !important; }
     [data-ogsc] .e-error,
     [data-ogsc] .e-error div,
     [data-ogsc] .e-error p,
     [data-ogsc] .e-error span,
     [data-ogsc] .e-error a,
-    [data-ogsc] .e-error h1 { color: #ff7a6d !important; }
+    [data-ogsc] .e-error h1 { color: #f87171 !important; }
 </mj-style>
 
 <mj-raw>

@@ -53,14 +53,14 @@ describe("design-system tokens — Effy Forest brand (017)", () => {
   it("uses cobalt as the single action colour, under both of its names", () => {
     expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/); // light
     expect(tokensCss).toMatch(/--brand:\s*#1d4ed8/);
-    expect(tokensCss).toMatch(/--primary:\s*#4d7cff/); // dark — the hue LIFTS, it does not invert
+    expect(tokensCss).toMatch(/--primary:\s*#60a5fa/); // dark — the hue LIFTS, it does not invert
   });
 
   // ⚠ The focus ring is a TUNED neutral-blue, never the accent itself. A ring in the action colour
   // is indistinguishable from a selected state on a cobalt-accented form.
   it("keeps the focus ring off the action colour and above the WCAG 1.4.11 bar", () => {
     expect(tokensCss).toMatch(/--ring:\s*#7993ca/); // light — 3.07:1 on white
-    expect(tokensCss).toMatch(/--ring:\s*#3d5fae/); // dark — 3.14:1 on the navy ground
+    expect(tokensCss).toMatch(/--ring:\s*#737373/); // dark — 3.19:1 on the neutral-grey ground
   });
 
   // ⚠ FOUR state semantics now, not two — and none of them may become a fill with a label on it.

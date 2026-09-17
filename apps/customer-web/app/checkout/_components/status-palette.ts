@@ -24,6 +24,14 @@
  * ⚠ DO NOT "promote" this to a design token to reduce duplication. The duplication IS the boundary.
  * If a future slice wants a platform-wide status system, that is a constitution amendment with its
  * own evidence — not a side effect of a receipt.
+ *
+ * ⚠ THE THREE DARK TINTS WERE RE-DERIVED WHEN THE DARK THEME MOVED FROM NAVY INK TO NEUTRAL GREY,
+ * AND THIS IS THE FAILURE MODE THAT MAKES A HARDCODED VALUE DIFFERENT FROM A TOKEN. The old darks
+ * (#12220F / #241A0C / #2A1010) were chosen to sit one step LIGHTER than a #0A0F1B ground. The grey
+ * ground is #262626 — lighter than all three — so every tint silently flipped to the DARK side of its
+ * surface: a wash became a hole, at 1.1:1 against the page, while the `standard` tone (which reads
+ * --muted through the theme) stayed a light wash. Four tones, three of them inverted, nothing failing.
+ * The replacements sit just under --muted's level again, so the row reads as one family.
  */
 
 export type ReceiptStatusTone = "paid" | "same_day" | "standard" | "attention"
@@ -42,12 +50,12 @@ export type ToneClasses = {
 export const RECEIPT_STATUS_TONES: Readonly<Record<ReceiptStatusTone, ToneClasses>> = {
   /** Payment received; order delivered. The constitution's own `--success`, used as a non-text dot. */
   paid: {
-    tint: "bg-[#eef7ee] dark:bg-[#12220f]",
+    tint: "bg-[#eef7ee] dark:bg-[#2d4335]",
     dot: "bg-[#0c9409] dark:bg-[#22c55e]",
   },
   /** ⚠ THE ONE GENUINELY NEW HUE. Distinguishes an expedited package the shopper paid more for. */
   same_day: {
-    tint: "bg-[#fdf3e7] dark:bg-[#241a0c]",
+    tint: "bg-[#fdf3e7] dark:bg-[#443829]",
     dot: "bg-[#b45309] dark:bg-[#f0a04b]",
   },
   /** Pure ramp — the DEFAULT needs no hue, only the exception does. */
@@ -60,7 +68,7 @@ export const RECEIPT_STATUS_TONES: Readonly<Record<ReceiptStatusTone, ToneClasse
    * Drawn now so a later refunds slice has nothing to invent.
    */
   attention: {
-    tint: "bg-[#fdecec] dark:bg-[#2a1010]",
+    tint: "bg-[#fdecec] dark:bg-[#432e2e]",
     dot: "bg-[#e01010] dark:bg-[#ff6b6b]",
   },
 }

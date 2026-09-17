@@ -4,7 +4,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
-  "description": "Effy web design system — the brand SSOT (a cobalt brand as the single action colour, a navy-ink dark base, three bounded non-brand hues — attention/violet/teal — and four state semantics; Geist type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
+  "description": "Effy web design system — the brand SSOT (a cobalt brand as the single action colour, a neutral-grey dark base, three bounded non-brand hues — attention/violet/teal — and four state semantics; Geist type; spacing/radius scales) + Tailwind v4 theme tokens + dark mode + cn util + the platform's one set of shadcn/ui primitives (constitution Principle V). Internal package: exports TS source + CSS.",
   "exports": {
     ".": "./src/index.ts",
     "./ui": "./src/ui/index.ts",

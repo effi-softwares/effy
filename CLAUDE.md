@@ -198,10 +198,26 @@ reversing constitution v1.10.0 → v1.13.0 and features 026 / 041. One file carr
 rather than left restating the same values (two files declaring one palette is the
 two-sources-for-one-fact shape this repo has shipped five defects through). ⚠ **Recorded win**: 017's
 SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**.
-- **`--brand` / `--primary` — cobalt `#1d4ed8` light / `#4d7cff` dark — THE one action colour.** Both
+- ⚠ **THE DARK BASE IS NEUTRAL GREY, NOT THE ADOPTED NAVY INK** (2026-09-17, operator direction,
+  `dark-theme-update-prompt.md`, same design project). The `.dark` block was rebuilt on a true grey
+  ramp — `#262626` ground, `#404040` muted/border/hover, `#1f1f1f` sidebar (**recessed**, one step
+  DARKER than the content ground), `#fafafa`/`#adadad` text — with **no blue tint in any neutral**.
+  The **light block is byte-identical** to before. Hues lifted to their 400-level equivalents so they
+  carry on grey, and every `-soft` is now grey mixed with the hue rather than a saturated dark, so a
+  tinted chip sits on the base instead of reading as a coloured card.
+- **`--brand` / `--primary` — cobalt `#1d4ed8` light / `#60a5fa` dark — THE one action colour.** Both
   names resolve to the same value on purpose (`--primary` is the shadcn vocabulary the primitives
   consume, `--brand` the role name screens read). ⚠ The hue **LIFTS** in dark rather than inverting —
   unlike the retired neutral accent, a hue reads against both grounds. Plus `--brand-soft/-mid/-ink`.
+  ⚠ The grey rebase also **ended the dark-only split** between them (the navy ground had needed a
+  brighter `#7a9cff` for brand TEXT); they are now one value in **both** appearances.
+- ⚠ **FOUR MORE VALUES TUNED, on the grey rebase.** Three are the prompt's own 4.5:1-on-`-soft` rule:
+  `--muted-foreground` `#a3a3a3`→`#adadad` (4.11:1 on `--muted`), `--violet-soft` `#3b3547`→`#373040`
+  (4.32:1), `--destructive-soft` `#452f2f`→`#422c2c` (4.46:1). The fourth is **not** contrast:
+  `--success` dark was specified as green-400, which is **byte-identical to the retired 024 customer
+  splash ground** and turns `check-no-emerald.sh` red — 057 hit the same collision on the same token
+  and refused it too, so it is `#4cd97b`. ⚠ Naming the retired hex **in a comment** is itself a hit;
+  the sweep does not strip comments.
 - **Three bounded non-brand hues**: `--accent2` (orange) is **attention and time pressure ONLY** —
   notification dots, unread badges, cut-off chips, deliberately rare; `--violet` and `--teal` are the
   second and third data-viz series and the avatar tints, **never interactive**.
@@ -237,7 +253,7 @@ SC-004 web-px == mobile-dp parity, which 057 broke for shop-web, is **restored**
   a colour utility names a token `@theme` does not declare, because **Tailwind emits no rule at all
   for an unknown utility** and the element renders as nothing with no error anywhere.
 - **Mobile**: the three Compose themes regenerate from `tokens.css` and take the cobalt accent and
-  the navy-ink ground. ⚠ The new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`)
+  the neutral-grey ground. ⚠ The new hues (`--brand-*`, `--accent2`, `--violet`, `--teal`, `--warning`)
   are **web-only** — `gen-compose-theme.mjs`'s token list is unchanged, deliberately. Mobile must
   still feel native (iOS HIG / Android Material); fat-finger targets + micro-animations are
   requirements. Design refs: Uber / Bolt / foodpanda / eBay.

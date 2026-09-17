@@ -32,6 +32,14 @@ import androidx.compose.ui.graphics.Color
  * system, and putting these there is exactly what rules 1 and 2 forbid. The duplication IS the
  * boundary. Two small constants that must be edited together are a far smaller cost than a third hue
  * entering the platform's token set.
+ *
+ * ⚠ THE THREE DARK TINTS WERE RE-DERIVED WHEN THE DARK THEME MOVED FROM NAVY INK TO NEUTRAL GREY,
+ * AND THIS IS THE FAILURE MODE THAT MAKES A HARDCODED VALUE DIFFERENT FROM A TOKEN. The old darks
+ * (#12220F / #241A0C / #2A1010) were chosen to sit one step LIGHTER than a #0A0F1B ground. The grey
+ * ground is #262626 — lighter than all three — so every tint silently flipped to the DARK side of its
+ * surface: a wash became a hole, at 1.1:1 against the page, while the `standard` tone (which reads
+ * --muted through the theme) stayed a light wash. Four tones, three of them inverted, nothing failing.
+ * The replacements sit just under --muted's level again, so the row reads as one family.
  */
 object ReceiptStatusPalette {
     /** Payment received; order delivered. The platform's own success colour, used as a non-text dot. */
@@ -41,7 +49,7 @@ object ReceiptStatusPalette {
 
     @Composable
     @ReadOnlyComposable
-    fun paidTint(): Color = if (isDark()) Color(0xFF12220F) else Color(0xFFEEF7EE)
+    fun paidTint(): Color = if (isDark()) Color(0xFF2D4335) else Color(0xFFEEF7EE)
 
     /** ⚠ THE ONE GENUINELY NEW HUE. Marks an expedited package the shopper paid more for. */
     @Composable
@@ -50,7 +58,7 @@ object ReceiptStatusPalette {
 
     @Composable
     @ReadOnlyComposable
-    fun sameDayTint(): Color = if (isDark()) Color(0xFF241A0C) else Color(0xFFFDF3E7)
+    fun sameDayTint(): Color = if (isDark()) Color(0xFF443829) else Color(0xFFFDF3E7)
 
     /** Needs attention. The platform's own destructive colour; drawn now for a later refunds slice. */
     @Composable

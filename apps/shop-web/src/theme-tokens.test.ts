@@ -65,9 +65,12 @@ describe("shop-web inherits the design system and defines no theme of its own", 
   // in the dark theme.
   it("resolves the cobalt action colour from the shared source, lifting (not inverting) in dark", () => {
     expect(tokensCss).toMatch(/--primary:\s*#1d4ed8/); // light
-    expect(tokensCss).toMatch(/--primary:\s*#4d7cff/); // dark — brighter, same hue
+    expect(tokensCss).toMatch(/--primary:\s*#60a5fa/); // dark — brighter, same hue
     // --primary and --brand are ONE fact: the action colour. Equal on purpose (see tokens.css).
+    // ⚠ The dark theme's neutral-grey rebase made them equal in BOTH appearances: the navy ground
+    // needed a brighter --brand for text, a grey one does not, so the split had no reason to survive.
     expect(tokensCss).toMatch(/--brand:\s*#1d4ed8/);
+    expect(tokensCss).toMatch(/--brand:\s*#60a5fa/);
   });
 
   // The attention hue is deliberately rare, and deliberately NOT the action colour. If these two
