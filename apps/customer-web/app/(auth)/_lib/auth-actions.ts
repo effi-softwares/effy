@@ -6,9 +6,11 @@ import {
   confirmSignUp,
   resetPassword,
   confirmResetPassword,
+  getCurrentUser,
   resendSignUpCode,
   signIn,
   signInWithRedirect,
+  signOut,
   signUp,
 } from "aws-amplify/auth"
 import { PASSWORD_MIN_LENGTH, type CredentialRoute } from "@effy/shared-types"
@@ -20,6 +22,51 @@ import { PASSWORD_MIN_LENGTH, type CredentialRoute } from "@effy/shared-types"
  * convergence is not achieved here — it is achieved by the pre-sign-up linking trigger on the
  * backend. This module only drives the flows.
  */
+
+// ── A leftover session (the "clear site data" defect) ──────────────────────────────────────────
+
+/**
+ * ⚠ A LEFTOVER SESSION BLOCKS SIGN-IN, AND THE ONLY WAY OUT USED TO BE "CLEAR SITE DATA".
+ *
+ * Amplify's `signIn` and `signInWithRedirect` first ask `getCurrentUser()`, which reads the tokens in
+ * the auth cookies and never asks Cognito whether they are still good. If any are there it throws
+ * `UserAlreadyAuthenticatedException` — even when the server-side session read has already decided
+ * this shopper is signed out (tokens revoked by a password change or a sign-out elsewhere, a refresh
+ * that failed without clearing them, a pool that was re-created). That fell through to
+ * `authErrorMessage`'s default, "Something went wrong", with no way forward on the page.
+ *
+ * Someone on the sign-in form is asking for a NEW session, so the leftover one is discarded (a local
+ * sign-out: cookies cleared, refresh token revoked best-effort) and the attempt runs once more. Only
+ * this one exception triggers it; every other failure propagates untouched.
+ */
+export function isUserAlreadyAuthenticated(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === "UserAlreadyAuthenticatedException"
+}
+
+async function withStaleSessionCleared<T>(attempt: () => Promise<T>): Promise<T> {
+  try {
+    return await attempt()
+  } catch (err) {
+    if (!isUserAlreadyAuthenticated(err)) throw err
+    await signOut()
+    return attempt()
+  }
+}
+
+/**
+ * The sign-UP variant, which must clear BEFORE rather than retry after: `signUp` itself does not
+ * check, but the `autoSignIn` it arms does — and it would fail only after the customer has confirmed
+ * their code, leaving them registered and signed out. A retry cannot help there, because the armed
+ * `autoSignIn` is spent.
+ */
+async function clearLeftoverSession(): Promise<void> {
+  try {
+    await getCurrentUser()
+  } catch {
+    return // nobody is signed in — the normal case
+  }
+  await signOut()
+}
 
 // ── Route (a): email + password ────────────────────────────────────────────────────────────────
 
@@ -46,6 +93,7 @@ import { PASSWORD_MIN_LENGTH, type CredentialRoute } from "@effy/shared-types"
  * surface already renders gracefully.
  */
 export async function signUpWithPassword(email: string, password: string) {
+  await clearLeftoverSession()
   return signUp({
     username: email,
     password,
@@ -57,13 +105,15 @@ export async function signUpWithPassword(email: string, password: string) {
 }
 
 export async function signInWithPassword(email: string, password: string) {
-  return signIn({
-    username: email,
-    password,
-    // SRP: the password is never transmitted. `USER_PASSWORD_AUTH` would send it in plaintext over
-    // TLS and exists for migration triggers — we do not enable it on the app client at all.
-    options: { authFlowType: "USER_SRP_AUTH" },
-  })
+  return withStaleSessionCleared(() =>
+    signIn({
+      username: email,
+      password,
+      // SRP: the password is never transmitted. `USER_PASSWORD_AUTH` would send it in plaintext over
+      // TLS and exists for migration triggers — we do not enable it on the app client at all.
+      options: { authFlowType: "USER_SRP_AUTH" },
+    }),
+  )
 }
 
 // ── Route (b): email OTP, with NO password ever set ────────────────────────────────────────────
@@ -106,6 +156,7 @@ export async function signInWithPassword(email: string, password: string) {
  * customer audience migrates — see specs/035-six-digit-otp/research.md § R4b.
  */
 export async function signUpWithOtp(email: string) {
+  await clearLeftoverSession()
   return signUp({
     username: email,
     options: {
@@ -137,10 +188,12 @@ export async function completeAutoSignIn() {
  * completing sign-in WITHOUT presenting the challenge.
  */
 export async function signInWithOtp(email: string) {
-  return signIn({
-    username: email,
-    options: { authFlowType: "CUSTOM_WITHOUT_SRP" },
-  })
+  return withStaleSessionCleared(() =>
+    signIn({
+      username: email,
+      options: { authFlowType: "CUSTOM_WITHOUT_SRP" },
+    }),
+  )
 }
 
 /**
@@ -236,7 +289,7 @@ export async function startGoogleSignIn(next: string) {
   if (typeof window !== "undefined") {
     window.sessionStorage.setItem(PENDING_NEXT, next)
   }
-  return signInWithRedirect({ provider: "Google" })
+  return withStaleSessionCleared(() => signInWithRedirect({ provider: "Google" }))
 }
 
 const PENDING_NEXT = "effy_pending_next"
@@ -347,6 +400,16 @@ export function authErrorMessage(err: unknown, context: "password" | "code" = "p
     default:
       return "Something went wrong. Please try again."
   }
+}
+
+/**
+ * The shopper-facing copy is deliberately coarse, which also made failures undiagnosable. The
+ * exception NAME (never the message, never the address) goes to the console so the next report
+ * carries the actual cause.
+ */
+export function logAuthFailure(stage: string, err: unknown): void {
+  const name = (err as { name?: string } | null)?.name ?? "UnknownError"
+  console.warn(`[auth] ${stage} failed: ${name}`)
 }
 
 /**

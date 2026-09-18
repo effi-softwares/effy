@@ -13,6 +13,7 @@ import {
   authErrorMessage,
   classifySignInStep,
   isStaleSignInSession,
+  logAuthFailure,
   resendSignInCode,
   signInWithOtp,
   signInWithPassword,
@@ -115,6 +116,7 @@ export function SignInForm() {
       try {
         await fn()
       } catch (err) {
+        logAuthFailure(`sign-in (${context})`, err)
         setError(authErrorMessage(err, context))
       }
     })
@@ -163,6 +165,7 @@ export function SignInForm() {
         // Cognito asked for the code again → it was not accepted, and attempts remain.
         return "rejected"
       } catch (err) {
+        logAuthFailure("sign-in code", err)
         if (isStaleSignInSession(err)) {
           // ⚠ The client gave up before the server did. Not a refusal — send them back to the email
           // step, address intact, where one tap gets a fresh code.

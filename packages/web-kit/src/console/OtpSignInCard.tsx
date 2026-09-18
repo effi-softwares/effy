@@ -15,7 +15,23 @@ import {
   Label,
 } from "@effy/design-system/ui";
 
-import { otpErrorMessage, START_SIGN_IN_ERROR, startSignIn, submitOtp } from "../auth/otp";
+import {
+  isStaleSignInSession,
+  otpErrorMessage,
+  START_SIGN_IN_ERROR,
+  startSignIn,
+  submitOtp,
+} from "../auth/otp";
+
+/**
+ * ⚠ The on-screen copy is deliberately uniform (no existence oracle), which also made every failure
+ * UNDIAGNOSABLE — the email step discarded the exception outright. The exception NAME (never the
+ * message, never the address) goes to the console so the next report carries the actual cause.
+ */
+function logSignInFailure(stage: "start" | "otp", err: unknown): void {
+  const name = (err as { name?: string } | null)?.name ?? "UnknownError";
+  console.warn(`[auth] sign-in ${stage} failed: ${name}`);
+}
 
 /**
  * The passwordless sign-in card: email → one-time code → done.
@@ -68,7 +84,8 @@ export function OtpSignInCard({
         setEmail(trimmed);
         if (outcome === "otp-required") setStep("otp");
         else await onAuthenticated();
-      } catch {
+      } catch (err) {
+        logSignInFailure("start", err);
         setFormError(START_SIGN_IN_ERROR);
         onSignInFailed?.("start");
       }
@@ -84,7 +101,14 @@ export function OtpSignInCard({
         await submitOtp(value.code.trim());
         await onAuthenticated();
       } catch (err) {
+        logSignInFailure("otp", err);
         setFormError(otpErrorMessage(err));
+        // The challenge state expired locally — the code box can no longer be checked by anyone, so
+        // return to the email step (address kept) where one tap sends a fresh code.
+        if (isStaleSignInSession(err)) {
+          otpForm.reset();
+          setStep("email");
+        }
         onSignInFailed?.("otp");
       }
     },

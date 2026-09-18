@@ -490,6 +490,8 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
 | Suppliers / purchase orders / restock queue | ⛔ removed | ⛔ | Deferred to its own feature (2026-09-10) |
 | **Initiate a refund** | ✅ (manager) | ⛔ | Settles through 055's pipeline — no second mechanism |
 | **Manage the team** (invite / role / stand down) | ✅ (manager) | ⛔ | Writes the records back-office owns |
+| Grouped, collapsible icon rail (count dot, group rule, trigger-only collapse) | ✅ | ⛔ | A4 — shadcn `sidebar-07` |
+| Region loader with title + description (pages, tables, drawers) | ✅ | ⛔ | A4 — skeletons kept for small things |
 
 - ⚠ **DESIGN REVISION 2026-09-10 — PURCHASING REMOVED, NOT LEFT DORMANT.** The Restock screen,
   suppliers, purchase orders, the product's default supplier, the 10 edge-shop routes, their DTOs and
@@ -498,6 +500,13 @@ was built, then **removed on 2026-09-10** by a design revision; see below.)
   `stock_movement.purchase_order_line_id`. Purchasing returns later as its own spec. The header also
   lost its primary action and theme toggle (appearance stays in the sidebar user menu's Light / Dark /
   Follow-System), and the screen title became a breadcrumb trail.
+- ⚠ **AMENDMENT A4 (2026-09-18) — SHELL, OVERLAYS, LOADING.** The header theme toggle is **deleted**
+  (it had come back with the theme adoption; back-office loses it too — the user menu is the only
+  appearance control). The rail gained Platform / Workspace groups, a collapsed-mode count dot and
+  group rule, and a header trigger at every width; it now turns into its sheet at **1100px**, the
+  bottom bar's breakpoint, so no width shows both. **Every overlay on both consoles had been
+  unanimated** — `tw-animate-css` was imported by customer-web only. Page / table / drawer loading
+  uses the new orbit `LoadingArea`; skeletons remain for single lines and figures.
 - ⚠ **DESIGN REVISION A2 (2026-09-10) — PRODUCT DETAIL IN FOUR TABS.** Details · Inventory · Media ·
   Visibility (resets to Details per product); the summary rail became an **Activity** side sheet whose
   change log lists **every** stock movement (the rail fit four); Archive moved into the header. The

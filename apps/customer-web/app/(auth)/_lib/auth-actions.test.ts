@@ -3,6 +3,13 @@ import { describe, expect, it, vi } from "vitest"
 // ⚠ `auth-actions` imports `aws-amplify/auth` at module scope. The functions under test are PURE and
 // touch none of it, but the import must resolve — so the SDK is stubbed rather than loaded. Nothing
 // below asserts on a mock: these are decision functions, and the mock only satisfies the import graph.
+const { signIn, signOut, getCurrentUser, signUp } = vi.hoisted(() => ({
+  signIn: vi.fn(),
+  signOut: vi.fn(),
+  getCurrentUser: vi.fn(),
+  signUp: vi.fn(),
+}))
+
 vi.mock("aws-amplify/auth", () => ({
   autoSignIn: vi.fn(),
   confirmSignIn: vi.fn(),
@@ -10,14 +17,23 @@ vi.mock("aws-amplify/auth", () => ({
   resetPassword: vi.fn(),
   confirmResetPassword: vi.fn(),
   resendSignUpCode: vi.fn(),
-  signIn: vi.fn(),
+  getCurrentUser,
+  signIn,
   signInWithRedirect: vi.fn(),
-  signUp: vi.fn(),
+  signOut,
+  signUp,
 }))
 
 import { PASSWORD_MIN_LENGTH } from "@effy/shared-types"
 
-import { authErrorMessage, classifySignInStep, isStaleSignInSession } from "./auth-actions"
+import {
+  authErrorMessage,
+  classifySignInStep,
+  isStaleSignInSession,
+  signInWithOtp,
+  signInWithPassword,
+  signUpWithOtp,
+} from "./auth-actions"
 
 /**
  * 036 T057 — the sign-in step classifier and the refusal mapping.
@@ -119,5 +135,55 @@ describe("isStaleSignInSession", () => {
     expect(isStaleSignInSession(new Error("boom"))).toBe(false)
     expect(isStaleSignInSession(undefined)).toBe(false)
     expect(isStaleSignInSession(null)).toBe(false)
+  })
+})
+
+/**
+ * The "clear site data" defect: a leftover auth cookie made Amplify refuse every new sign-in with
+ * `UserAlreadyAuthenticatedException`, which surfaced as "Something went wrong" and could only be
+ * escaped by wiping the browser.
+ */
+describe("a leftover session never blocks a new sign-in", () => {
+  const already = () =>
+    Object.assign(new Error("x"), { name: "UserAlreadyAuthenticatedException" })
+
+  it("⚠ signs the leftover session out and retries the code sign-in once", async () => {
+    signIn.mockReset().mockRejectedValueOnce(already()).mockResolvedValueOnce({ isSignedIn: false })
+    signOut.mockReset().mockResolvedValue(undefined)
+    await expect(signInWithOtp("a@x.com")).resolves.toEqual({ isSignedIn: false })
+    expect(signOut).toHaveBeenCalledTimes(1)
+    expect(signIn).toHaveBeenCalledTimes(2)
+  })
+
+  it("does the same for the password sign-in", async () => {
+    signIn.mockReset().mockRejectedValueOnce(already()).mockResolvedValueOnce({ isSignedIn: true })
+    signOut.mockReset().mockResolvedValue(undefined)
+    await expect(signInWithPassword("a@x.com", "p")).resolves.toEqual({ isSignedIn: true })
+    expect(signOut).toHaveBeenCalledTimes(1)
+  })
+
+  it("never signs anyone out for any other failure", async () => {
+    signIn.mockReset().mockRejectedValue(Object.assign(new Error("x"), { name: "LimitExceededException" }))
+    signOut.mockReset()
+    await expect(signInWithOtp("a@x.com")).rejects.toMatchObject({ name: "LimitExceededException" })
+    expect(signOut).not.toHaveBeenCalled()
+    expect(signIn).toHaveBeenCalledTimes(1)
+  })
+
+  it("clears a leftover session BEFORE sign-up, so the armed autoSignIn can succeed", async () => {
+    getCurrentUser.mockReset().mockResolvedValue({ userId: "u", username: "a@x.com" })
+    signOut.mockReset().mockResolvedValue(undefined)
+    signUp.mockReset().mockResolvedValue({})
+    await signUpWithOtp("a@x.com")
+    expect(signOut).toHaveBeenCalledTimes(1)
+    expect(signOut.mock.invocationCallOrder[0]).toBeLessThan(signUp.mock.invocationCallOrder[0])
+  })
+
+  it("does not sign out before sign-up when nobody is signed in", async () => {
+    getCurrentUser.mockReset().mockRejectedValue(new Error("UserUnAuthenticatedException"))
+    signOut.mockReset()
+    signUp.mockReset().mockResolvedValue({})
+    await signUpWithOtp("a@x.com")
+    expect(signOut).not.toHaveBeenCalled()
   })
 })

@@ -2,15 +2,16 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-const { signIn, confirmSignIn } = vi.hoisted(() => ({
+const { signIn, confirmSignIn, signOut } = vi.hoisted(() => ({
   signIn: vi.fn(),
   confirmSignIn: vi.fn(),
+  signOut: vi.fn(),
 }));
 
 vi.mock("aws-amplify/auth", () => ({
   signIn,
   confirmSignIn,
-  signOut: vi.fn(),
+  signOut,
   fetchAuthSession: vi.fn(),
 }));
 
@@ -80,6 +81,56 @@ describe("OtpSignInCard", () => {
 
     expect(await screen.findByText(/isn't right/i)).toBeInTheDocument();
     expect(screen.queryByText(/CodeMismatchException/)).not.toBeInTheDocument();
+  });
+
+  it("⚠ recovers from a leftover session instead of needing 'clear site data'", async () => {
+    signIn.mockReset();
+    signOut.mockReset().mockResolvedValue(undefined);
+    signIn
+      .mockRejectedValueOnce(
+        Object.assign(new Error("x"), { name: "UserAlreadyAuthenticatedException" }),
+      )
+      .mockResolvedValueOnce({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.type(screen.getByLabelText(/work email/i), "op@effy.test");
+    await user.click(screen.getByRole("button", { name: /send code/i }));
+
+    expect(await screen.findByLabelText(/one-time code/i)).toBeInTheDocument();
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(signIn).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not sign out for any other email-step failure", async () => {
+    signIn.mockReset();
+    signOut.mockReset();
+    signIn.mockRejectedValue(Object.assign(new Error("x"), { name: "LimitExceededException" }));
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.type(screen.getByLabelText(/work email/i), "op@effy.test");
+    await user.click(screen.getByRole("button", { name: /send code/i }));
+
+    await screen.findByText(/couldn't send a code/i);
+    expect(signOut).not.toHaveBeenCalled();
+    expect(signIn).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns to the email step when the local challenge state has expired", async () => {
+    signIn.mockReset();
+    signIn.mockResolvedValue({ nextStep: { signInStep: "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE" } });
+    confirmSignIn.mockRejectedValue(Object.assign(new Error("x"), { name: "SignInException" }));
+    const user = userEvent.setup();
+    renderCard();
+
+    await user.type(screen.getByLabelText(/work email/i), "op@effy.test");
+    await user.click(screen.getByRole("button", { name: /send code/i }));
+    await user.type(await screen.findByLabelText(/one-time code/i), "123456");
+    await user.click(screen.getByRole("button", { name: /verify & sign in/i }));
+
+    expect(await screen.findByText(/timed out/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/work email/i)).toHaveValue("op@effy.test");
   });
 
   it("never renders a password field — no Effy pool has passwords", () => {

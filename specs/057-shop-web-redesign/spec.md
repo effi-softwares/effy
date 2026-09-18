@@ -179,6 +179,63 @@ block shows the handover once it has happened.
   and an `attention` param from an old link still counts in the Filters badge and is cleared by
   "Clear all".
 
+## Amendment A4 — Console shell, overlays and loading (2026-09-18)
+
+Operator-directed polish of the shell every screen renders inside. Presentation-only: no API, contract
+or data change. It narrows this spec rather than contradicting it.
+
+1. **No theme toggle in the header — removed, not hidden.** The platform-wide theme adoption had put
+   a one-click light/dark button back into the shared console header, reversing A1 §2. The component
+   is **deleted** from `@effy/web-kit`, not gated behind a flag, so it cannot quietly return. Because
+   the header is shared, **back-office loses it too**. FR-003 still holds through the sidebar user
+   menu (Light / Dark / Follow-System), which is now the **only** appearance control on either console.
+2. **The sidebar follows the design's rail (shadcn `sidebar-07`)** — it was already the shadcn
+   primitive; these are the gaps:
+   - **Two groups**: **Platform** (Today · Orders · Catalog · Insights) and **Workspace**
+     (Management · Tokens), in the design's order. Management keeps its `shop_manager` gate. ⚠ Tokens
+     links the `/dev/tokens` harness and exists in **development builds only**, stripped the same way
+     as its route — a production item would link to nothing.
+   - **Collapsed (icon rail)**: the group labels vanish, so a **1px `--border` rule** separates the
+     groups; the count badge is hidden, so a **dot** marks the item instead (`--brand` on the active
+     route, `--accent2` otherwise) — a count that only exists when expanded is a regression.
+     Tooltips carry the labels, and nested routes keep their parent active (an order keeps Orders lit).
+   - **The header trigger is the only collapse control**, followed by a vertical separator before
+     the breadcrumbs, at every width (it was hidden on desktop). ⌘B / Ctrl+B is the primitive's.
+   - **The brand is a link home, never a toggle**: "Effy Shop" over the operator's **own shop name**
+     (the design's placeholder second line), falling back to "Shop console" before it loads.
+   - **Collapse survives a reload** through the console's client store (`localStorage`), not the
+     primitive's cookie — the existing mechanism, same effect.
+   - ⚠ **No width shows both navigations.** The sidebar's own breakpoint was 768px while the bottom
+     bar's is 1100px, so between them the rail and the bar rendered together — on back-office too. The
+     sidebar now switches to its off-canvas sheet at the **same 1100px**. The sheet is kept below it
+     (opened from the header trigger) because it carries the account menu, the only sign-out there.
+3. **Overlays animate.** Every sheet, dialog, dropdown, popover, select and tooltip on shop-web **and
+   back-office** appeared and vanished with no motion: the shared primitives use `tw-animate-css`
+   utilities, and only customer-web imported that stylesheet. Tailwind emits nothing for a utility it
+   does not know, with no error anywhere. Both consoles now import it.
+4. **Loading states: a shimmer for small things, the orbit loader for regions.** Skeletons remain for
+   a line of text or a single figure. A **page**, a **table** or a **drawer's body** shows the new
+   `Loader` inside a `LoadingArea` sized for what replaces it (`page` / `region` / `sheet`), with a
+   short title and one line saying what is being fetched. A table's loader sits inside the table's
+   own frame so the region keeps its footprint.
+   - The mark: an **`--accent2` (orange) centre**, a **`--brand` planet** orbiting it, and a small
+     moon that is `--brand-mid` in light and `--muted-foreground` in dark. ⚠ `--accent2` is otherwise
+     reserved for attention; this one decorative, non-interactive use is an **operator decision**.
+   - ⚠ Built from **flat discs, not `radial-gradient`** (no gradients); scaled from the source's
+     70px geometry. Under reduced motion it **slows rather than freezes**, like the spinner.
+
+- **FR-027** *(A4)*: The console header MUST NOT carry an appearance control; the sidebar user menu
+  (Light / Dark / Follow-System) is the only one.
+- **FR-028** *(A4)*: The sidebar MUST group its items (Platform, Workspace); collapsed, it MUST keep a
+  count visible as a dot and keep the groups visibly separated. Only the header trigger (and its
+  keyboard shortcut) collapses it; the brand navigates home.
+- **FR-029** *(A4)*: At any viewport width exactly one primary navigation MUST be on screen — the rail
+  at 1100px and above, the bottom bar below it.
+- **FR-030** *(A4)*: Sheets, dialogs and menus MUST animate as they open and close.
+- **FR-031** *(A4)*: A page, a table or a drawer's body that is loading MUST show the region loader with
+  a title and a one-line description, never a region-sized skeleton; skeletons are for a line or a
+  single figure.
+
 ## Source Design — What Was Imported
 
 A Claude Design mockup (`Effy Shop Console.dc.html`, project "Multi-theme console application") was read in full. It is a **generic e-commerce admin console** (in the visual style of Shopify/Linear-type shadcn dashboards) built for a fictional Swedish home-goods brand — SEK currency, 25%/12%/6% VAT bands, Swedish addresses, PostNord/DHL/Budbee carriers. It ships its own token set (light/dark shadcn-style CSS variables, Geist/Geist Mono typeface, 8px radius) and a component vocabulary of: sidebar nav + top header with global search, a dashboard (metric strip, revenue chart, "needs attention" list, latest-orders table), an orders queue (tabs, saved views, filters, bulk actions, sortable table, empty state, pagination), an order detail page (line items, payment/capture/refund, shipments with carrier + tracking, returns, internal notes, activity log, customer panel), a product catalog (list + 4-step create wizard + product detail with variants/media/pricing/inventory), a restock/purchase-ordering queue (supplier grouping, order quantities, cost totals), and a team/settings management screen (roster + shop toggles).

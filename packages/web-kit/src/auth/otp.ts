@@ -20,11 +20,40 @@ import { confirmSignIn, fetchAuthSession, signIn, signOut } from "aws-amplify/au
 
 export type SignInOutcome = "otp-required" | "done";
 
+/**
+ * ⚠ A LEFTOVER SESSION BLOCKS SIGN-IN, AND THE ONLY WAY OUT USED TO BE "CLEAR SITE DATA".
+ *
+ * Amplify's `signIn` first asks `getCurrentUser()`, which reads the tokens in browser storage and
+ * never asks Cognito whether they are still good. If any are there it throws
+ * `UserAlreadyAuthenticatedException` — even when the app itself (whose session query errored, or
+ * whose tokens were revoked by a sign-out elsewhere, or which belong to a pool that was re-created)
+ * has put the operator on the sign-in screen. Nothing on the page could recover from that.
+ *
+ * Someone on the sign-in form is asking for a NEW session, so the leftover one is discarded (a
+ * local sign-out: tokens cleared, refresh token revoked best-effort) and the attempt runs once more.
+ * Only this one exception triggers it; every other failure propagates untouched.
+ */
+export function isUserAlreadyAuthenticated(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === "UserAlreadyAuthenticatedException";
+}
+
+export async function withStaleSessionCleared<T>(attempt: () => Promise<T>): Promise<T> {
+  try {
+    return await attempt();
+  } catch (err) {
+    if (!isUserAlreadyAuthenticated(err)) throw err;
+    await signOut();
+    return attempt();
+  }
+}
+
 export async function startSignIn(email: string): Promise<SignInOutcome> {
-  const { nextStep } = await signIn({
-    username: email,
-    options: { authFlowType: "CUSTOM_WITHOUT_SRP" },
-  });
+  const { nextStep } = await withStaleSessionCleared(() =>
+    signIn({
+      username: email,
+      options: { authFlowType: "CUSTOM_WITHOUT_SRP" },
+    }),
+  );
   switch (nextStep.signInStep) {
     // The platform's own 6-digit code (035).
     case "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE":
@@ -93,9 +122,19 @@ export function otpErrorMessage(err: unknown): string {
       return "Too many attempts. Please wait a moment and try again.";
     case "NotAuthorizedException":
       return "That didn't work. Request a new code and try again.";
+    // ⚠ Amplify keeps the in-flight challenge in sessionStorage for THREE minutes; the code lives for
+    // FIVE. A code typed in between is refused locally before Cognito sees it. Nothing is wrong with
+    // the code or the account — the card sends the operator back to the email step.
+    case "SignInException":
+      return "Your sign-in timed out. Send a new code to continue.";
     default:
       return "We couldn't verify that code. Please try again.";
   }
+}
+
+/** Is this the client-side challenge-state expiry rather than a refusal from Cognito? */
+export function isStaleSignInSession(err: unknown): boolean {
+  return (err as { name?: string } | null)?.name === "SignInException";
 }
 
 /** The uniform failure for the email step — never reveals whether the account exists. */
