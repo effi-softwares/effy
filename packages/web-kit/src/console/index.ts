@@ -21,6 +21,5 @@ export { DataTable, type DataTableProps } from "./DataTable";
 // suburbs commitment when a shop declares its same-day areas, and a second copy of a CORRECTNESS
 // disclosure is the worst kind to duplicate — two places for the same warning to drift or go stale.
 export { currentSection, visibleNav, type NavItem } from "./nav";
-export * from "./ThemeToggle";
 export * from "./AlertsButton";
 export * from "./MobileNavBar";

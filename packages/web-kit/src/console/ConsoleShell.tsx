@@ -18,7 +18,6 @@ import { ConsoleHeader } from "./ConsoleHeader";
 import { AlertsButton } from "./AlertsButton";
 import { ConsoleUserMenu } from "./ConsoleUserMenu";
 import { MobileNavBar } from "./MobileNavBar";
-import { ThemeToggle } from "./ThemeToggle";
 import { NavList } from "./NavList";
 import type { NavItem } from "./nav";
 
@@ -42,9 +41,10 @@ export interface ConsoleShellProps<TRole extends string> {
   /**
    * 057 — optional controls on the right of the header bar.
    *
-   * ⚠ THESE SIT BEFORE THE ALERTS BUTTON AND THE THEME TOGGLE, WHICH THE SHELL ALWAYS SUPPLIES. The
-   * adopted design pins those two to the same place on every screen, so a screen cannot take their
-   * slot — record pagination and other per-screen controls go here, to their left.
+   * ⚠ THESE SIT BEFORE THE ALERTS BUTTON, WHICH THE SHELL SUPPLIES. The design pins it to the same
+   * place on every screen, so a screen cannot take its slot — record pagination and other per-screen
+   * controls go here, to its left. There is no header theme toggle: appearance lives in the sidebar
+   * user menu (Light / Dark / Follow-System).
    */
   headerActions?: ReactNode;
   /**
@@ -133,7 +133,6 @@ export function ConsoleShell<TRole extends string>({
             <>
               {headerActions}
               {alerts ? <AlertsButton count={alerts.count} onOpen={alerts.onOpen} /> : null}
-              <ThemeToggle theme={theme} onSetTheme={onSetTheme} />
             </>
           }
           title={headerTitle}
