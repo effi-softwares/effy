@@ -8,12 +8,12 @@ import { Boxes, ImageOff, Plus, Search, Tags, X } from "lucide-react";
 import {
   Button,
   Input,
+  LoadingArea,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
 } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
@@ -277,7 +277,7 @@ export function CatalogListScreen() {
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <CatalogSkeleton />
+        <CatalogLoading />
       ) : (
         <>
           <TableFrame>
@@ -441,12 +441,11 @@ function FilterSelect({
   );
 }
 
-function CatalogSkeleton() {
+function CatalogLoading() {
   return (
-    <div className="border-border space-y-2 rounded-[var(--radius)] border p-4">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <Skeleton key={i} className="h-10 w-full" />
-      ))}
+    // The table's own frame, so the region reads as "the table is coming" and keeps its footprint.
+    <div className="border-border rounded-[var(--radius)] border">
+      <LoadingArea title="Loading products" description="Fetching your catalog." />
     </div>
   );
 }

@@ -479,4 +479,12 @@
     animation-duration: 1.8s !important;
     animation-iteration-count: infinite !important;
   }
+  /* The region loader keeps orbiting for the same reason, at half speed; its moon keeps its 2:1. */
+  [data-effy-loader] {
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+  }
+  [data-effy-loader] > [data-effy-loader-moon] {
+    animation-duration: 1s !important;
+  }
 }

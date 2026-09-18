@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query"
 
 import {
+  LoadingArea,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  Skeleton,
 } from "@effy/design-system/ui"
 
 import { cn } from "@/lib/utils"
@@ -45,10 +45,7 @@ export function OrderActivitySheet({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-[18px]">
           {log.isPending ? (
-            <div className="grid gap-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
+            <LoadingArea variant="sheet" title="Loading activity" description="Fetching everything recorded on this order." />
           ) : log.isError ? (
             <p className="text-muted-foreground text-[13px]">The activity couldn&apos;t be loaded.</p>
           ) : log.data.entries.length === 0 ? (

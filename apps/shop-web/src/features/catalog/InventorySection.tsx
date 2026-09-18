@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 
-import { Button, Skeleton } from "@effy/design-system/ui";
+import { Button, LoadingArea } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { DetailSection, Field, FieldGrid, SectionAction } from "@/components/console/primitives";
@@ -67,7 +67,7 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
     return (
       <DetailSection title="Stock rules" subtitle={RULES_SUBTITLE}>
         <div className="pt-[18px]">
-          <Skeleton className="h-32 w-full" />
+          <LoadingArea variant="sheet" title="Loading stock" description="Fetching the stock count and rules." />
         </div>
       </DetailSection>
     );

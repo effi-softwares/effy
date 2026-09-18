@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ImageOff } from "lucide-react";
 
 import {
-  Skeleton,
+  LoadingArea,
   Tabs,
   TabsContent,
   TabsList,
@@ -92,8 +92,7 @@ function ProductDetailBody({ productId }: { productId: string }) {
   if (isPending) {
     return (
       <Page>
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-64 w-full" />
+        <LoadingArea variant="page" title="Loading product" description="Fetching its details, pricing and stock." />
       </Page>
     );
   }

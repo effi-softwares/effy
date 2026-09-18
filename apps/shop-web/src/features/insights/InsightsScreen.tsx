@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import type { InsightsRange } from "@effy/shared-types"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, LoadingArea, Skeleton } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
 
 import { todayQuery } from "@/features/today/queries"
@@ -101,11 +101,7 @@ export function InsightsScreen() {
       </header>
 
       {!dto ? (
-        <div className="grid gap-[30px]">
-          <Skeleton className="h-[104px] w-full rounded-[var(--radius)]" />
-          <Skeleton className="h-[62px] w-full rounded-[var(--radius)]" />
-          <Skeleton className="h-[220px] w-full" />
-        </div>
+        <LoadingArea variant="page" title="Loading insights" description="Working out your revenue, orders and top products." />
       ) : (
         <>
           <MetricStrip dto={dto} backlog={today.data?.backlog} />

@@ -33,6 +33,7 @@ export * from "./select";
 export * from "./separator";
 export * from "./sheet";
 export * from "./sidebar";
+export * from "./loader";
 export * from "./skeleton";
 export * from "./spinner";
 export * from "./sonner";

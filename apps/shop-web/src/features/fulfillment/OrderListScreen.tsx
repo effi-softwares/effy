@@ -9,7 +9,7 @@ import {
   Button,
   Checkbox,
   InitialsAvatar,
-  Skeleton,
+  LoadingArea,
   toast,
 } from "@effy/design-system/ui"
 import { ErrorState } from "@effy/web-kit/console"
@@ -226,7 +226,7 @@ export function OrderListScreen({
       {isError ? (
         <ErrorState error={error} onRetry={() => void refetch()} />
       ) : isPending ? (
-        <ListSkeleton />
+        <ListLoading />
       ) : total === 0 ? (
         <EmptyState
           filtered={dirty}
@@ -493,12 +493,11 @@ function EmptyState({ filtered, onReset }: { filtered: boolean; onReset: () => v
   )
 }
 
-function ListSkeleton() {
+function ListLoading() {
   return (
-    <div className="border-border space-y-2 rounded-[var(--radius)] border p-4">
-      {[0, 1, 2, 3, 4, 5].map((i) => (
-        <Skeleton key={i} className="h-10 w-full" />
-      ))}
+    // The table's own frame, so the region reads as "the table is coming" and keeps its footprint.
+    <div className="border-border rounded-[var(--radius)] border">
+      <LoadingArea title="Loading orders" description="Fetching your latest orders." />
     </div>
   )
 }

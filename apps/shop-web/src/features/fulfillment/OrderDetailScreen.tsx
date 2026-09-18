@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { isShopManager } from "@effy/shared-types";
 import { useQuery } from "@tanstack/react-query";
 
-import { Button, InitialsAvatar, Skeleton } from "@effy/design-system/ui";
+import { Button, InitialsAvatar, LoadingArea } from "@effy/design-system/ui";
 import { ErrorState } from "@effy/web-kit/console";
 
 import { sessionQuery } from "@/features/auth/queries";
@@ -80,13 +80,7 @@ export function OrderDetailScreen({ fulfillmentId }: { fulfillmentId: string }) 
   }
   if (isPending) {
     return (
-      <div className="grid gap-7">
-        <Skeleton className="h-[62px] w-full rounded-xl" />
-        <div className="grid items-start gap-14 min-[1060px]:grid-cols-[minmax(0,1fr)_minmax(260px,320px)]">
-          <Skeleton className="h-72 w-full rounded-xl" />
-          <Skeleton className="h-40 w-full rounded-xl" />
-        </div>
-      </div>
+      <LoadingArea variant="page" title="Loading order" description="Fetching its items, payment and delivery details." />
     );
   }
 

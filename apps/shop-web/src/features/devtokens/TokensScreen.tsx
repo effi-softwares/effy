@@ -22,6 +22,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Loader,
   Skeleton,
   Spinner,
   Table,
@@ -296,6 +297,12 @@ export function TokensScreen() {
           <div className="grid gap-2">
             <Skeleton className="h-4 w-1/3" />
             <Skeleton className="h-4 w-2/3" />
+          </div>
+          {/* Skeleton for small things (a line, a figure); the orbit loader for regions. */}
+          <div className="flex items-end gap-8">
+            <Loader size={44} />
+            <Loader size={56} />
+            <Loader size={72} />
           </div>
         </CardContent>
       </Card>

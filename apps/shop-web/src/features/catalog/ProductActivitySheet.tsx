@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { StockMovementDTO } from "@effy/shared-types";
 import {
+  LoadingArea,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  Skeleton,
 } from "@effy/design-system/ui";
 
 import { MicroLabel, Pill, RailRow } from "@/components/console/primitives";
@@ -78,7 +78,7 @@ export function ProductActivitySheet({
           <div className="grid gap-0.5">
             <MicroLabel className="pb-2">Change log</MicroLabel>
             {stock.isPending ? (
-              <Skeleton className="h-24 w-full" />
+              <LoadingArea variant="sheet" title="Loading change log" description="Fetching every change to this product’s stock." />
             ) : stock.isError ? (
               <p className="text-muted-foreground border-border border-t py-2.5 text-[13px]">
                 The change log couldn&apos;t be loaded.

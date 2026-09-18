@@ -2,12 +2,12 @@ import { useQuery } from "@tanstack/react-query"
 
 import type { TeamActivityEntryDTO } from "@effy/shared-types"
 import {
+  LoadingArea,
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  Skeleton,
 } from "@effy/design-system/ui"
 
 import { relativeTime } from "./model"
@@ -45,11 +45,7 @@ export function TeamActivitySheet({
 
         <div className="overflow-y-auto px-5 py-2">
           {activity.isPending ? (
-            <div className="grid gap-2 py-3">
-              {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-10 w-full" />
-              ))}
-            </div>
+            <LoadingArea variant="sheet" title="Loading team activity" description="Fetching what your team has done today." />
           ) : activity.data && activity.data.entries.length > 0 ? (
             <ul className="grid gap-0.5">
               {activity.data.entries.map((entry) => (

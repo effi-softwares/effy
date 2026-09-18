@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { ErrorState } from "@effy/web-kit/console"
-import { Button, Skeleton } from "@effy/design-system/ui"
+import { Button, LoadingArea, Skeleton } from "@effy/design-system/ui"
 
 import { LiveOrders } from "./LiveOrders"
 import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
@@ -93,11 +93,9 @@ export function TodayScreen() {
       <div className="grid items-start gap-5 [grid-template-columns:minmax(0,1fr)] min-[1100px]:[grid-template-columns:minmax(0,1.15fr)_minmax(0,1fr)]">
         {today.isPending || !data ? (
           <>
-            {/* ⚠ Skeletons at the CARDS' own size and radius, not a bare spinner: the priority row
-                is the reason the operator opened the console, and a region that collapses to nothing
-                while loading makes the whole page jump when it arrives. */}
-            <Skeleton className="h-[320px] w-full rounded-xl" />
-            <Skeleton className="h-[320px] w-full rounded-xl" />
+            {/* One loader across both columns, in space at least the cards' height (320px), so the
+                page does not jump when they arrive. */}
+            <LoadingArea variant="page" title="Loading today" description="Gathering the orders and stock that need you now." className="col-span-full min-h-[320px]" />
           </>
         ) : (
           <>
