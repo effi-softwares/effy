@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* ⚠ REQUIRED BY THE SHARED PRIMITIVES. Sheet, dialog, dropdown, popover, select and tooltip animate
+   with `animate-in` / `slide-in-from-*` / `fade-*` utilities this package defines. Without it
+   Tailwind emits NO rule for them — no error — and every overlay pops in and out unanimated. */
+@import "tw-animate-css";
 @source "../../../packages/design-system/src";
 @source "../../../packages/web-kit/src";
 @import "@effy/design-system/tokens.css";
