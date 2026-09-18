@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 const loadMe = vi.hoisted(() => vi.fn());
-vi.mock("./repo", () => ({ loadMe, loadManagerPing: vi.fn() }));
+vi.mock("./repo", () => ({ loadMe }));
 vi.mock("@/lib/telemetry", () => ({ track: vi.fn(), reportError: vi.fn(), initTelemetry: vi.fn() }));
 
 import { ProvingScreen } from "./ProvingScreen";

@@ -1,7 +1,5 @@
 import {
   toShopRoles,
-  type ManagerPingResult,
-  type ShopManagerPingDTO,
   type ShopStaffRecord,
   type ShopStaffRecordDTO,
 } from "@effy/shared-types";
@@ -21,10 +19,4 @@ export async function loadMe(): Promise<ShopStaffRecord> {
     status: dto.status,
     shop: dto.shop,
   };
-}
-
-/** The manager-only proving read. A 403 here is a correct answer, not a failure to retry. */
-export async function loadManagerPing(): Promise<ManagerPingResult> {
-  const dto = await api.get<ShopManagerPingDTO>("/shop/v1/manager-ping");
-  return { subject: dto.subject };
 }
