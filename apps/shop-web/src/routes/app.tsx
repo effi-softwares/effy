@@ -14,6 +14,7 @@ import { sessionQuery, useSignOut } from "@/features/auth/queries";
 import { TodayScreen } from "@/features/today/TodayScreen";
 import { useNavBadges } from "@/features/today/useNavBadges";
 import { ManagerOnlyScreen } from "@/features/shop-identity/ManagerOnlyScreen";
+import { meQuery } from "@/features/shop-identity/queries";
 import { setSidebarOpen, setTheme, uiStore } from "@/lib/ui-store";
 
 import { rootRoute } from "./__root";
@@ -53,6 +54,9 @@ function AppShell() {
   const signOut = useSignOut();
   const navigate = useNavigate();
   const navBadges = useNavBadges();
+  // The brand's secondary line is the operator's own shop. Same cache entry the identity screen
+  // reads; until it answers (or when no shop is assigned yet) the line names the console instead.
+  const { data: me } = useQuery(meQuery);
   const { pathname } = useLocation();
 
   const identity = data?.status === "signed-in" ? data.identity : null;
@@ -64,7 +68,7 @@ function AppShell() {
 
   return (
     <ConsoleShell
-      brand={{ mark: "E", name: "Effy", surface: "Shop" }}
+      brand={{ mark: "E", name: "Effy Shop", surface: me?.shop?.name ?? "Shop console" }}
       surfaceLabel="Effy Shop"
       sidebarWidth="14rem"
       // ⚠ THE PAGE GUTTER IS `--pad` (24px), NOT THE SHELL'S DEFAULT `p-4` (16px). The design sets
@@ -78,7 +82,6 @@ function AppShell() {
       nav={NAV}
       navBadges={navBadges}
       roles={identity?.roles ?? []}
-      navGroupLabel="Shop"
       email={identity?.email ?? ""}
       theme={theme}
       onSetTheme={setTheme}

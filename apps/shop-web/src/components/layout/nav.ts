@@ -1,10 +1,13 @@
-import { BarChart3, ClipboardList, LayoutDashboard, Package, Shield } from "lucide-react";
+import { BarChart3, ClipboardList, LayoutDashboard, Package, Palette, Shield } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
 
 // This surface's nav config. The NavItem model and the `visibleNav` filter are shared; WHAT is in
-// the menu, and which role each item requires, is the console's own.
+// the menu, which group it sits in, and which role each item requires, is the console's own.
+//
+// Order and grouping follow the imported design (sidebar-07): Platform = Today · Orders · Catalog ·
+// Insights; Workspace = Management · Tokens. The bottom bar takes the first five in this order.
 //
 // The Management item is gated by the SAME role the backend gate checks. Nav visibility REFLECTS
 // the authoritative backend gate — it is never a second source of truth. A shop_staff or
@@ -12,18 +15,23 @@ import type { NavItem } from "@effy/web-kit/console";
 // if they ask directly anyway.
 export const NAV: NavItem<ShopRole>[] = [
   // 058: "Today" — the screen answers "what needs doing now", and the label should say so.
-  { label: "Today", to: "/", icon: LayoutDashboard },
-  // Catalog is open to any shop member (the backend allows shop_manager OR shop_staff), so no
-  // requiredRole — every operator can browse and add products.
-  { label: "Catalog", to: "/catalog", icon: Package },
+  { label: "Today", to: "/", icon: LayoutDashboard, group: "Platform" },
   // Orders is deliberately UNGATED (FR-019a): both shop_manager and shop_staff have full fulfilment
   // access, and the staff standing at the shelves are its primary users. Gating it would hide the
   // work from the people who do it — and the backend admits both roles anyway.
-  { label: "Orders", to: "/orders", icon: ClipboardList },
+  { label: "Orders", to: "/orders", icon: ClipboardList, group: "Platform" },
+  // Catalog is open to any shop member (the backend allows shop_manager OR shop_staff), so no
+  // requiredRole — every operator can browse and add products.
+  { label: "Catalog", to: "/catalog", icon: Package, group: "Platform" },
   // ⚠ No Restock item (design revision 2026-09-10): purchasing is deferred to its own future feature.
-  // Stock is managed in Catalog and on each product's detail — both open to either shop role.
   // 058: Insights is open to both roles — the money on it is the shop's own, and an operator who can
   // see an order's total on the Orders list is not learning anything new from its weekly sum.
-  { label: "Insights", to: "/insights", icon: BarChart3 },
-  { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager" },
+  { label: "Insights", to: "/insights", icon: BarChart3, group: "Platform" },
+  { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager", group: "Workspace" },
+  // ⚠ DEV BUILDS ONLY, stripped the same way router.tsx strips the route: `import.meta.env.DEV`
+  // folds to false in a production build. A production item would link to a route that does not
+  // exist, and a page of swatches has no place in the operator's nav.
+  ...(import.meta.env.DEV
+    ? [{ label: "Tokens", to: "/dev/tokens", icon: Palette, group: "Workspace" }]
+    : []),
 ];

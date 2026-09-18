@@ -78,6 +78,13 @@ export interface ConsoleShellProps<TRole extends string> {
   children: ReactNode;
 }
 
+/**
+ * ⚠ THE WIDTH BELOW WHICH THE CONSOLE NAVIGATES BY THE BOTTOM BAR — the same 1100px `MobileNavBar`
+ * and the content padding below key on. The sidebar is told it too, so below it the rail becomes the
+ * off-canvas sheet (reached from the header trigger) instead of rendering beside the bottom bar.
+ */
+const NARROW_BREAKPOINT = 1100;
+
 export function ConsoleShell<TRole extends string>({
   brand,
   surfaceLabel,
@@ -105,6 +112,7 @@ export function ConsoleShell<TRole extends string>({
     <SidebarProvider
       open={sidebarOpen}
       onOpenChange={onSidebarOpenChange}
+      mobileBreakpoint={NARROW_BREAKPOINT}
       style={sidebarWidth ? ({ "--sidebar-width": sidebarWidth } as CSSProperties) : undefined}
     >
       <Sidebar collapsible="icon">

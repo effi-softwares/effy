@@ -60,7 +60,10 @@ export function ConsoleHeader<TRole extends string>({
   if (title !== undefined || breadcrumb !== undefined) {
     return (
       <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-3 border-b px-[var(--pad)]">
-        <SidebarTrigger className="-ml-1 md:hidden" />
+        {/* sidebar-07: the trigger, then a hairline, then the trail. The trigger is the ONLY control
+            that collapses the rail (the brand is a link home); below 1100px it opens the sheet. */}
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="!h-4" />
         <div className="flex min-w-0 flex-1 items-center gap-2">
           {breadcrumb !== undefined ? (
             // May shrink (unlike the title): a long product name truncates rather than pushing the

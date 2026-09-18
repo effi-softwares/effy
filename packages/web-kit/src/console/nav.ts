@@ -12,6 +12,32 @@ export interface NavItem<TRole extends string> {
   icon: LucideIcon;
   /** Hide this item unless the operator holds this role. UX only — the backend gates for real. */
   requiredRole?: TRole;
+  /**
+   * The sidebar group this item sits under (e.g. "Platform", "Workspace"). Items without one fall
+   * into the shell's default group, so a console that never names a group renders one group as before.
+   */
+  group?: string;
+}
+
+/**
+ * Split nav into its sidebar groups, in first-appearance order. Items keep their relative order, so
+ * the bottom bar (which ignores groups) and the rail agree about sequence.
+ */
+export function groupNav<TRole extends string>(
+  items: readonly NavItem<TRole>[],
+  defaultLabel: string,
+): { label: string; items: NavItem<TRole>[] }[] {
+  const groups: { label: string; items: NavItem<TRole>[] }[] = [];
+  for (const item of items) {
+    const label = item.group ?? defaultLabel;
+    let g = groups.find((x) => x.label === label);
+    if (!g) {
+      g = { label, items: [] };
+      groups.push(g);
+    }
+    g.items.push(item);
+  }
+  return groups;
 }
 
 /**
