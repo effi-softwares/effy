@@ -33,8 +33,12 @@ export function SignInScreen({ next }: { next?: string }) {
   const queryClient = useQueryClient();
 
   async function finish() {
-    await queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
-    const session = await queryClient.ensureQueryData(sessionQuery);
+    // ⚠ A FORCED FETCH, NOT invalidate + ensureQueryData. Nothing on the sign-in page observes the
+    // session, so `invalidateQueries` refetches nothing, and `ensureQueryData` returns whatever is
+    // cached — the "signed-out" left by sign-out or by the guard that sent the operator here. The
+    // guard then read that same stale entry and bounced a freshly-authenticated operator back to
+    // sign-in, and the only way through was a second code.
+    const session = await queryClient.fetchQuery({ ...sessionQuery, staleTime: 0 });
     if (session.status === "signed-in") {
       track({ name: "shop_auth_sign_in_succeeded", subject: session.identity.subject });
     }

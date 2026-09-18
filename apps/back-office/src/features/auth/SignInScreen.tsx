@@ -14,7 +14,10 @@ export function SignInScreen({ next }: { next?: string }) {
   const queryClient = useQueryClient();
 
   async function finish() {
-    await queryClient.invalidateQueries({ queryKey: sessionQuery.queryKey });
+    // ⚠ A FORCED FETCH, NOT invalidate. Nothing on the sign-in page observes the session, so
+    // `invalidateQueries` refetches nothing; the guard's `ensureQueryData` then returned the cached
+    // "signed-out" and bounced a freshly-authenticated operator back to sign-in.
+    await queryClient.fetchQuery({ ...sessionQuery, staleTime: 0 });
     // US1 has a single protected route; multi-route `next`-return arrives with US2+.
     void next;
     navigate({ to: "/" });
