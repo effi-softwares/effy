@@ -37,46 +37,9 @@ export function ManagerOnlyScreen() {
   }, [denied]);
 
   return (
-    <div className="flex flex-col gap-[var(--pad)]">
-      {/* ⚠ 057 US7 — the management area is no longer a bare access proof. The roster is the first
-          real thing a manager can DO here; the access card below stays because it is the one screen
-          that demonstrates the backend gate, and 007's SC-005b still leans on it. */}
+    <div className="flex flex-col gap-(--pad)">
       <TeamRoster />
 
-      <Card className="max-w-md">
-      <CardHeader>
-        <CardHeading>
-          <CardTitle>Shop management</CardTitle>
-          <CardDescription>
-          Reserved for shop managers. Access is decided by the backend, not by this page.
-        </CardDescription>
-        </CardHeading>
-      </CardHeader>
-      <CardContent>
-        {isPending ? (
-          // ⚠ A SPINNER, NOT A BARE STRING (adoption prompt, per-screen checklist). "Checking your
-          // access…" is indistinguishable from a request that has stalled — a sentence does not read
-          // as motion, so a hung gate and a working one looked identical.
-          <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-busy="true">
-            <Spinner />
-            Checking your access…
-          </p>
-        ) : isError ? (
-          <ErrorState
-            error={error}
-            onRetry={() => void refetch()}
-            forbiddenMessage="Your account can't reach shop management. This needs an active shop-manager role at an active shop."
-          />
-        ) : (
-          <div className="space-y-2 text-sm">
-            <p>The backend served this manager-only read for you.</p>
-            <p className="text-muted-foreground">
-              Subject <span className="font-mono">{data.subject}</span>
-            </p>
-          </div>
-        )}
-      </CardContent>
-      </Card>
     </div>
   );
 }
