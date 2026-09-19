@@ -324,6 +324,88 @@ surfaces in parallel: one vertical slice proves the foundation before the patter
 
 ## Active feature
 
+**059-shop-web-pwa — Shop Console as an Installable, Notifying Production App.** 🚧 **109/128 tasks
+— CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
+infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON, AND NO NOTIFICATION HAS EVER
+BEEN DELIVERED.** Sign-off: [specs/059-shop-web-pwa/SIGNOFF.md](specs/059-shop-web-pwa/SIGNOFF.md);
+research deliverable: [specs/059-shop-web-pwa/research.md](specs/059-shop-web-pwa/research.md).
+
+Makes `apps/shop-web` installable, makes it notify when a new order or an attention condition
+arrives, and makes the console survive a shop-floor network dropout.
+- ⚠ **THE DEFECT: the platform has decided to tell shops about new orders since 050, and told nobody.**
+  `core-api/checkout/store.go:621` enqueues one `shop_new_order` intent **per active staff member of
+  every fulfilling shop, on every paid order**; the worker resolves those to `device_token` rows; and
+  `device_token.platform` was `CHECK (… IN ('android','ios'))` — while the shop audience works in a
+  **web console**. Every intent since 050 was written, attempted and recorded `skipped`. **One line of
+  the migration is the fix.** ⚠ **No backfill**: those rows are a record of a real defect, not a queue
+  to replay — resending would notify operators about orders picked weeks ago.
+- ⚠ **`POST /shop/v1/devices` ALREADY EXISTED.** Research found US1 needed no new producer and no new
+  endpoint. The slice is one enum widening, one sender branch, and the client half.
+- ⚠ **FCM WEB PUSH, NOT STANDALONE VAPID — and the rejected option is recorded with its reasoning.**
+  Most 2026 guidance recommends `web-push` + VAPID, and for greenfield it is right: vendor-neutral,
+  zero client SDK. Rejected because this is not greenfield — the existing outbox already carries
+  retry, idempotency and **dead-token pruning** that a parallel sender would have to re-earn, and FCM
+  is a **locked** technology (swapping it needs a constitution amendment).
+- ⚠ **`awaiting_pick` BECOMES TRUE BY THE PASSAGE OF TIME**, which is the single fact that decided the
+  architecture: there is no INSERT to hang a trigger on, so 058's trigger pattern and 054's per-write
+  pattern both miss the most time-critical of the four conditions. A **scheduled evaluator** is the
+  only shape that works. New table `public.shop_attention_state`; ⚠ **a row is DELETED when its
+  condition clears**, and that delete is what makes "notifies again on recurrence" a consequence of
+  the design rather than a rule somebody must remember.
+- ⚠ **THE READER AUDIT FOUND A FOURTH READER THE PLAN'S RESEARCH MISSED** — `packages/shared-types/src/device.ts`,
+  **dormant** (exported, imported by nothing), whose comment read *"Web push is out of scope this
+  slice"*. Found by grep, not by a failing build, which is exactly how it would have sat contradicting
+  the live contract forever. 053 and 056 each shipped a defect through an enum widening; 057 records
+  the pattern a third time.
+- ⚠ **AND A WAY FOR ONE UNKNOWN ROW TO KILL THE WHOLE DRAIN.** `worker/repository.ts` casts
+  `PendingRow.type` with nothing checking it, so a row written by a newer producer would throw on
+  `.title` and take **every audience's** notifications down — 053's "unconfigured FCM halted the whole
+  drain" by another road. ⚠ **My first fix was wrong and was reversed**: making `copyFor` return
+  `undefined` pushed an impossible case onto every call site and cost the "suites pass unmodified"
+  proof. The lie is the **cast**; the boundary is where it had to stop.
+- ⚠ **`manifest.webmanifest` WOULD HAVE BEEN ANSWERED WITH HTML AND A 200.** The Amplify SPA rewrite's
+  extension allow-list (`amplify-consoles.tf`) did not contain `webmanifest`, so the console would
+  simply not be installable — no error in the page, the build, any test or any log — and on iPadOS,
+  where the Push API exists **only** for a home-screen app, that would have taken notifications with
+  it. Proven against the live regex (NP1).
+- ⚠ **THE BUILT SERVICE WORKER WOULD HAVE BEEN AN ES MODULE** while `pwa.ts` registers it as classic.
+  It works today **by accident** (the bundle happens to emit no top-level import); a dependency change
+  would break registration **only in a real browser**. Pinned to `iife`. 024's VectorDrawable and
+  058's `WriteTimeout` shape — valid, compiling, tested, wrong only where it runs.
+- ⚠ **ONE SERVICE WORKER, ENFORCED BY A TEST.** The Firebase SDK registers its own
+  `firebase-messaging-sw.js` unless `getToken` is handed a registration; beside Workbox that is the
+  documented **continuous-reload loop**. Two guards: one call site for `register`, and every
+  `getToken` passes `serviceWorkerRegistration`.
+- ⚠ **DATA-ONLY TO WEB, AND THE SERVICE WORKER ALWAYS SHOWS SOMETHING.** A `notification` block makes
+  the SDK render a second banner; and **iOS revokes permission from a worker that receives a push and
+  displays nothing**, so the fallback path is a platform rule, not defensive padding.
+- ⚠ **TWO COALESCING MECHANISMS, DELIBERATELY OPPOSITE.** Attention coalesces at the **producer** (one
+  intent per kind per run — a stock count can drop forty products at once); orders coalesce in the
+  **service worker** by `tag` (batching them would delay the first, which is what SC-001 measures).
+- ⚠ **`pnpm -r test` WAS GREEN WHILE `typecheck` FAILED** — vitest does not run `tsc`. 029 recorded it;
+  it recurred here and was caught only by running the full typecheck separately.
+- ⚠ **A `platform` DIMENSION ON THE EXISTING SEND METRIC WOULD HAVE BLINDED THE ALARM** (a dimensioned
+  metric is a different metric in CloudWatch). Emitted as its own EMF record instead; 054 recorded the
+  same shape.
+- **Verified**: `pnpm -r typecheck` **20/20** · shop-web **429** (was 335) · edge-shop **357** (was
+  314) · edge-notifications **43** · edge-shared **75** · build emits `sw.js` (iife) + the manifest ·
+  `tokens:check` **UNCHANGED** · `brand-check` 62 assets · `check-no-emerald`/`check-no-jade` ·
+  `terraform validate`/`fmt`. **UNMODIFIED**: back-office **191**, customer-web **463**, edge-customer
+  **170**, edge-driver **10**, edge-admin **191**, `drain.test.ts` **12**, and `edge-shop/src/today/`
+  **untouched entirely**. **TWELVE negative proofs, each executed by breaking the thing** — ⚠ NP7
+  (dedupe keyed on the product id) and NP8 (nullable `subject_key`) are the two that leave a green
+  suite and a feature that looks like it works; both are caught by multiple tests.
+- **⚠ Open (19, all operator)**: ⚠ **the four Firebase values in `dev.tfvars`** (`terraform plan`
+  REFUSES without them, deliberately — without the VAPID key the console boots, permission is granted,
+  the toggle turns on and the tablet never rings, with nothing thrown); `make db-up ENV=dev`; ⚠
+  **`edge-deploy SERVICE=notifications` BEFORE `SERVICE=shop`** — the consumer must learn the new types
+  before the producer writes them; `make apply ENV=dev`; push to `dev`. ⚠ **Docker was down all
+  session, so the 40 container tests have NEVER RUN** — 058 was the last slice for which that was true
+  and its container tests then found three defects a green suite had missed. ⚠ **§3b of the
+  [quickstart](specs/059-shop-web-pwa/quickstart.md) is the first moment anything here is proven**;
+  **§6 — the capability walk — is what the brief actually asked for.** Parity register:
+  [docs/audiences/shop-capabilities.md](docs/audiences/shop-capabilities.md) §059.
+
 **058-shop-today-insights — Shop Console: Today & Insights.** 🚧 **DEPLOYED TO DEV (first migration,
 both backends, the console) and the screens answer. ⚠ A SECOND MIGRATION IS PENDING, NOT COMMITTED,
 NOT DEPLOYED. NOT WALKED BY A PERSON.** ⚠ **Docker was down while this was written, so the container
@@ -2237,5 +2319,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/058-shop-today-insights/plan.md
+at specs/059-shop-web-pwa/plan.md
 <!-- SPECKIT END -->

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Effy shop web — the shop operator console (007-shop-web). Vite + React 19 SPA on the shop Cognito pool; local-only this slice. Web half of the shop audience; kept at parity with apps/shop-mobile.",
+  "description": "Effy shop web \u2014 the shop operator console (007-shop-web). Vite + React 19 SPA on the shop Cognito pool; local-only this slice. Web half of the shop audience; kept at parity with apps/shop-mobile.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
@@ -17,6 +17,7 @@
     "@effy/design-system": "workspace:*",
     "@effy/shared-types": "workspace:*",
     "@effy/web-kit": "workspace:*",
+    "@tanstack/query-persist-client-core": "5.101.2",
     "@tanstack/react-form": "^1.33.0",
     "@tanstack/react-hotkeys": "^0.10.0",
     "@tanstack/react-query": "^5.101.2",
@@ -27,6 +28,8 @@
     "aws-amplify": "^6.18.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "firebase": "^12.19.0",
+    "idb-keyval": "^6.3.0",
     "lucide-react": "^1.24.0",
     "posthog-js": "^1.200.0",
     "radix-ui": "^1.6.2",
@@ -51,6 +54,10 @@
     "tailwindcss": "^4.0.0",
     "typescript": "~5.9.2",
     "vite": "^7.0.0",
-    "vitest": "^3.0.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^3.0.0",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-window": "^7.4.1"
   }
 }

@@ -113,6 +113,18 @@ resource "aws_amplify_app" "this" {
     }
   }
 
+  # ── Response headers (059) ──────────────────────────────────────────────────────────────────────
+  # Amplify takes customHeaders as a YAML document, not as typed blocks, so the list is rendered here.
+  # Empty list → the attribute is omitted entirely, which is what keeps every pre-059 app unchanged.
+  custom_headers = length(var.custom_headers) == 0 ? null : yamlencode({
+    customHeaders = [
+      for h in var.custom_headers : {
+        pattern = h.pattern
+        headers = [for k, v in h.headers : { key = k, value = v }]
+      }
+    ]
+  })
+
   enable_branch_auto_build    = var.enable_auto_build
   enable_branch_auto_deletion = false
 

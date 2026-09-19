@@ -137,8 +137,70 @@ function mobileTargets(app, surface, colourway) {
 }
 
 /** Favicon set for a Vite SPA (public/ + explicit <link> tags in index.html). */
-function viteWebTargets(app, surface, colourway) {
+/**
+ * @param {boolean} [pwa] 059 — also emit the four manifest icons. Default false, so back-office is
+ *   byte-identical and only the surface that declares a manifest carries icons for one.
+ */
+function viteWebTargets(app, surface, colourway, pwa = false) {
   const pub = `apps/${app}/public`
+  const pwaTargets = !pwa
+    ? []
+    : [
+        // ⚠ BOTH PURPOSES, MIRRORING customer-web's SET EXACTLY. customer-web's own comment records
+        // why: declaring only `maskable` makes a launcher that expects an unmasked icon show a
+        // visibly over-zoomed mark, because the maskable composition already contains the safe-zone
+        // padding the launcher is about to add again.
+        {
+          surface,
+          slot: "pwa-192",
+          colourway,
+          composition: "maskable",
+          kind: KIND.PNG,
+          sizes: [192],
+          path: `${pub}/web-app-manifest-192x192.png`,
+        },
+        {
+          surface,
+          slot: "pwa-512",
+          colourway,
+          composition: "maskable",
+          kind: KIND.PNG,
+          sizes: [512],
+          path: `${pub}/web-app-manifest-512x512.png`,
+        },
+        {
+          surface,
+          slot: "pwa-any-192",
+          colourway,
+          composition: "web-icon",
+          kind: KIND.PNG,
+          sizes: [192],
+          path: `${pub}/web-app-icon-192.png`,
+        },
+        {
+          surface,
+          slot: "pwa-any-512",
+          colourway,
+          composition: "web-icon",
+          kind: KIND.PNG,
+          sizes: [512],
+          path: `${pub}/web-app-icon-512.png`,
+        },
+        // ⚠ THE NOTIFICATION BADGE — a separate asset, not a resized icon. Android renders
+        // `badge` as a MONOCHROME silhouette in the status bar: every non-transparent pixel becomes
+        // white and everything else is dropped. A full-colour icon used here arrives as a solid
+        // white blob. The android-mono composition is the mark already reduced to one channel, which
+        // is exactly what this needs, and 024 authored it for Android's themed-icon layer.
+        {
+          surface,
+          slot: "pwa-badge",
+          colourway,
+          composition: "android-mono",
+          kind: KIND.PNG,
+          sizes: [96],
+          path: `${pub}/notification-badge-96.png`,
+        },
+      ]
   return [
     {
       surface,
@@ -166,6 +228,7 @@ function viteWebTargets(app, surface, colourway) {
       sizes: [180],
       path: `${pub}/apple-touch-icon.png`,
     },
+    ...pwaTargets,
   ]
 }
 
@@ -238,7 +301,10 @@ export const TARGETS = [
   },
 
   // ── shop-web (Dark polarity) · back-office (Mid) ──────────────────────────────────────────────
-  ...viteWebTargets("shop-web", "shop-web", "dark"),
+  // ⚠ 059 — shop-web is the platform's first installable console, so it is the only Vite surface
+  // that takes the manifest icons. back-office passes nothing and its assets stay byte-identical,
+  // which is the proof this generalisation changed only the surface that asked for it.
+  ...viteWebTargets("shop-web", "shop-web", "dark", true),
   ...viteWebTargets("back-office", "back-office", "mid"),
 
   // ── mobile ────────────────────────────────────────────────────────────────────────────────────

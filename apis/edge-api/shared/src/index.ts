@@ -12,6 +12,7 @@ export * from "./lib/media";
 export * from "./lib/image-dimensions";
 // 050: device push-token registration, shared by every service that registers a mobile device.
 export * from "./lib/devices";
+export * from "./lib/notification-types";
 // 053: back-office authz (record-authoritative), promoted from admin/feedback when edge-orders
 // became its third consumer. Principle II — cross-cutting logic is shared, never copy-pasted.
 export * from "./lib/back-office-authz";

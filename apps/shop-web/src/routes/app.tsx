@@ -6,6 +6,8 @@ import { ConsoleShell } from "@effy/web-kit/console";
 
 import { HeaderBreadcrumbs } from "@/components/console/HeaderBreadcrumbs";
 import { HeaderChrome } from "@/components/console/HeaderChrome";
+import { PwaBanners } from "@/components/console/PwaBanners";
+import { useNotificationNavigation } from "@/features/notifications/useNotificationNavigation";
 import { NAV } from "@/components/layout/nav";
 import { requireSession } from "@/features/auth/guards";
 import { sessionQuery, useSignOut } from "@/features/auth/queries";
@@ -54,6 +56,9 @@ function AppShell() {
   const signOut = useSignOut();
   const navigate = useNavigate();
   const navBadges = useNavBadges();
+  // 059 FR-014 — a notification tapped while the console is already open routes here instead of
+  // opening a second window. The service worker posts the path; the router does the rest.
+  useNotificationNavigation();
   // The brand's secondary line is the operator's own shop. Same cache entry the identity screen
   // reads; until it answers (or when no shop is assigned yet) the line names the console instead.
   const { data: me } = useQuery(meQuery);
@@ -92,6 +97,10 @@ function AppShell() {
       sidebarOpen={sidebarOpen}
       onSidebarOpenChange={setSidebarOpen}
     >
+      {/* 059 — offline / update-ready / install, one at a time, above the screen they qualify.
+          Inside the shell so every protected screen carries them; nothing renders when all three
+          are quiet, so an operator who never installs sees no change at all (SC-012). */}
+      <PwaBanners />
       <Outlet />
     </ConsoleShell>
   );

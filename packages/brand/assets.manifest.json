@@ -408,6 +408,41 @@
       "path": "apps/shop-web/public/icon.svg",
       "sha256": "572675aad20054d31f8a8f2ad1f5e89ebdacba0667a836f241aedc641c536426",
       "bytes": 1102
+    },
+    {
+      "surface": "shop-web",
+      "slot": "pwa-badge",
+      "path": "apps/shop-web/public/notification-badge-96.png",
+      "sha256": "62ea9491b0cb8dbb22a8b3cd6b0cf48605c3430eba171663e4c8563f62863dbb",
+      "bytes": 1420
+    },
+    {
+      "surface": "shop-web",
+      "slot": "pwa-any-192",
+      "path": "apps/shop-web/public/web-app-icon-192.png",
+      "sha256": "347a269d0aba77780069f1d5476a1a55522597fb86ab4340a4f522581fd757ac",
+      "bytes": 3409
+    },
+    {
+      "surface": "shop-web",
+      "slot": "pwa-any-512",
+      "path": "apps/shop-web/public/web-app-icon-512.png",
+      "sha256": "1820c361b9a800ed6f302fae2b4e4ad68538f1534771f0b90907ca4f0d1126ff",
+      "bytes": 10230
+    },
+    {
+      "surface": "shop-web",
+      "slot": "pwa-192",
+      "path": "apps/shop-web/public/web-app-manifest-192x192.png",
+      "sha256": "e46ea39c0b0062fb5b52b8eecda7122058b6c3c79db17c1f4440f689531ea966",
+      "bytes": 2924
+    },
+    {
+      "surface": "shop-web",
+      "slot": "pwa-512",
+      "path": "apps/shop-web/public/web-app-manifest-512x512.png",
+      "sha256": "2f0c9e46cbd5f864e162465ed35dcff017855cf458c3a18f995c4381f0dfbb13",
+      "bytes": 7889
     }
   ]
 }

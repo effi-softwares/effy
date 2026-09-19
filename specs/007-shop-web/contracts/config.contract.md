@@ -15,6 +15,24 @@ environment or, worse, the **wrong identity pool**.
 | `VITE_COGNITO_USER_POOL_ID` | `/effy/<env>/auth/shop/user_pool_id` | **shop** pool — not `back-office` |
 | `VITE_COGNITO_CLIENT_ID` | `/effy/<env>/auth/shop/app_client_id` | public PKCE client, no secret |
 | `VITE_API_BASE_URL` | `/effy/<env>/edge/api_endpoint` | shared gateway host; paths carry `/shop/v1/...` |
+| `VITE_CORE_API_BASE_URL` | `/effy/<env>/core/api_endpoint` | **057** — the HOT path. Two callers only: the shop refund (055's state machine, where the payment secret lives) and 058's live stream. ⚠ Added by 057 and never recorded here; corrected by **059**. |
+| `VITE_FIREBASE_API_KEY` | operator-supplied | **059** — Firebase console → Project settings → Your apps → Web |
+| `VITE_FIREBASE_PROJECT_ID` | operator-supplied | 059 |
+| `VITE_FIREBASE_APP_ID` | operator-supplied | 059 |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | operator-supplied | 059 |
+| `VITE_VAPID_PUBLIC_KEY` | operator-supplied | **059** — Cloud Messaging → Web Push certificates, **public** half |
+
+### ⚠ The five 059 values are public, and required anyway
+
+They identify the Firebase project; they do not authorise. The secret half is the FCM **service
+account**, which lives in Secrets Manager and is read only by the notifications worker — it never
+reaches a browser.
+
+They are **required rather than optional** for a reason specific to `VITE_VAPID_PUBLIC_KEY`: without
+it `getToken()` never resolves, so the operator grants notification permission, watches the toggle
+turn on, and owns a tablet that will never ring. Nothing throws and nothing logs. That is the
+silently-wrong outward-facing value the constitution's Real-World Identifiers rule exists to prevent,
+so the console refuses to boot instead. Pinned by `src/lib/__tests__/env.test.ts`.
 
 Note the SSM slug is **un-hyphenated `shop`**, unlike the back-office console's `back-office`. This
 asymmetry is pre-existing (`infra/envs/dev/auth-shop.tf` passes `audience = "shop"`).
@@ -65,3 +83,8 @@ VITE_API_BASE_URL=           # ssm /effy/dev/edge/api_endpoint   (paths carry /s
 VITE_POSTHOG_KEY=
 VITE_POSTHOG_HOST=
 ```
+
+⚠ **The block above is 007's original and is now incomplete.** The live, maintained example is
+[`apps/shop-web/.env.local.example`](../../../apps/shop-web/.env.local.example), committed by 059,
+which carries the 057 and 059 keys as well. Two examples for one fact is the shape this repo has
+shipped defects through; this one is kept only as 007's historical record.

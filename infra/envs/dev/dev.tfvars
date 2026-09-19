@@ -171,4 +171,26 @@ posthog_project_key = "phc_spcqvxVGBz2zp3hNaS4ENXXrddGJovCJqgn4i4yGFUeb"
 posthog_host        = "https://us.i.posthog.com"
 telemetry_enabled   = true
 # fcm_project_id — set to your Firebase project ID when wiring backend push (see quickstart §A1).
-fcm_project_id    = "effy-dev-bbd5a"
+fcm_project_id = "effy-dev-bbd5a"
+
+# ── 059 shop-web PWA / web push ─────────────────────────────────────────────────────────────────
+# ⚠ OPERATOR: fill these in before `make apply ENV=dev`. `terraform plan` refuses while they are
+# absent, and that refusal is the feature — see infra/envs/dev/variables.tf for why.
+#
+# All four are PUBLIC (they identify the Firebase project; they authorise nothing). The secret half
+# is the FCM service account, already in Secrets Manager since 050.
+#
+# Where they come from, in the Firebase console for project `effy-dev-bbd5a`:
+#   • Project settings → Your apps → Web app → SDK setup and configuration
+#       apiKey            → firebase_api_key
+#       appId             → firebase_app_id
+#       messagingSenderId → firebase_messaging_sender_id
+#     (projectId is NOT repeated here — `fcm_project_id` above already carries it.)
+#   • Project settings → Cloud Messaging → Web configuration → Web Push certificates
+#       "Key pair" (the PUBLIC key, ~87 chars) → firebase_vapid_public_key
+#       ⚠ Generate one if the section is empty. ⚠ Never paste the private key.
+#
+firebase_api_key             = "AIzaSyBnSIBJ-eJVbX3TZJr81i7MATVjJSxvnak"
+firebase_app_id              = "1:156903323347:web:775e1a55ce33ae7a3c4626"
+firebase_messaging_sender_id = "156903323347"
+firebase_vapid_public_key    = "BFtiWZrQmvX7pUildkzxb3mfRZ5Yl0P6mnaZPDUPW33smtGv_jRXOJ6NCNDeaada9K0c2ZOy5TMVhfw1k6BJfMQ"

@@ -56,7 +56,31 @@ export type ShopAnalyticsEvent =
   | { name: "insights_viewed"; range: string }
   | { name: "insights_range_changed"; range: string }
   | { name: "insights_drilled"; metric: string }
-  | { name: "insights_exported"; range: string };
+  | { name: "insights_exported"; range: string }
+  // ── 059 PWA + notifications ───────────────────────────────────────────────────────────────────
+  // ⚠ NO PII, as everywhere else: a method, a permission outcome, a notification TYPE. Never a
+  // token, never an address, never which product ran out.
+  | { name: "pwa_install_prompted"; method: string }
+  | { name: "pwa_installed" }
+  | { name: "sw_update_applied" }
+  | { name: "notif_permission_requested" }
+  | { name: "notif_permission_result"; result: string }
+  | { name: "notif_enabled" }
+  | { name: "notif_disabled" }
+  | { name: "notif_type_muted"; type: string }
+  | { name: "notif_type_unmuted"; type: string }
+  /**
+   * ⚠ THE NUMBER THAT DECIDES WHETHER THIS SLICE WAS WORTH BUILDING, and it is not optional
+   * instrumentation. It is also the engagement signal browsers now rate-limit against — Chrome
+   * began returning 429 to high-volume, low-engagement senders in January 2026 — so a falling
+   * open rate is an early warning that the platform is about to lose the ability to notify at all.
+   *
+   * Fired from the PAGE, on a message the service worker posts, because a service worker has no
+   * PostHog and giving it one would mean giving it a credential (see src/sw.ts).
+   */
+  | { name: "notif_opened"; type: string }
+  | { name: "offline_entered" }
+  | { name: "offline_recovered" };
 
 const telemetry = createTelemetry<ShopAnalyticsEvent>({
   key: config.posthogKey(),

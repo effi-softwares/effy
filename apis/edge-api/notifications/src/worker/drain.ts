@@ -29,7 +29,12 @@ export interface DrainDeps {
   batchSize: number;
   claimPending(limit: number): Promise<PendingRequest[]>;
   resolveTokens(sub: string, audience: PendingRequest["audience"]): Promise<RecipientToken[]>;
-  send(fcmToken: string, type: NotificationType, entityId: string): Promise<SendResult>;
+  send(
+    fcmToken: string,
+    type: NotificationType,
+    entityId: string,
+    platform: RecipientToken["platform"],
+  ): Promise<SendResult>;
   /** 053 — the email channel. Resolves what it renders from `entityId` at send time. */
   sendEmail(to: string, type: NotificationType, entityId: string): Promise<SendResult>;
   markSent(id: string): Promise<void>;
@@ -51,6 +56,19 @@ export interface DrainSummary {
   /** 053 — split so the failure alarm can say which channel is broken. */
   emailSent: number;
   emailFailed: number;
+  /**
+   * 059 — push outcomes BY PLATFORM (android | ios | web).
+   *
+   * ⚠ EMITTED AS ITS OWN METRIC, NOT AS A DIMENSION ON `NotificationSendFailed`. In CloudWatch a
+   * dimensioned metric is a DIFFERENT metric from an undimensioned one — adding a dimension to the
+   * existing series would leave the alarm in `notifications.tf`, which queries no dimensions,
+   * reading a metric that nothing publishes any more. It would not error; it would go blind. 054
+   * recorded exactly this shape: "a metric declared with label `outcome` but called with `stage` —
+   * which does not panic, it silently emits a series every alert querying `{stage=…}` misses."
+   *
+   * So the existing counters stay byte-identical and this rides alongside them.
+   */
+  byPlatform: Record<string, { sent: number; failed: number }>;
 }
 
 /**
@@ -62,6 +80,7 @@ export async function drainOnce(deps: DrainDeps): Promise<DrainSummary> {
     claimed: 0,
     sent: 0,
     skipped: 0,
+    byPlatform: {},
     retried: 0,
     failed: 0,
     pruned: 0,
@@ -100,10 +119,25 @@ async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary):
     return;
   }
 
-  const tokens = await deps.resolveTokens(req.recipientSub, req.audience);
-  if (tokens.length === 0) {
+  const allTokens = await deps.resolveTokens(req.recipientSub, req.audience);
+  if (allTokens.length === 0) {
     // No device / permission not granted — a valid outcome, NOT a failure (FR-019).
     await deps.markSkipped(req.id, "no_token");
+    s.skipped += 1;
+    return;
+  }
+
+  // 059 FR-024/FR-025 — honour this REGISTRATION's preferences, not this person's. One operator's
+  // tablet can be muted for a type while their phone is not, which is exactly what FR-025 asks for.
+  //
+  // ⚠ `mutedTypes` is optional, so a mobile row (which never carries one) filters nothing and every
+  // pre-059 behaviour is preserved unchanged.
+  const tokens = allTokens.filter((t) => !(t.mutedTypes ?? []).includes(req.type));
+  if (tokens.length === 0) {
+    // ⚠ A DISTINCT REASON FROM "no_token". Both are skips, but they mean opposite things to whoever
+    // is triaging: "no_token" says nobody could be reached, "muted" says everybody chose not to be.
+    // Collapsing them would send an operator hunting for a delivery fault that does not exist.
+    await deps.markSkipped(req.id, "muted");
     s.skipped += 1;
     return;
   }
@@ -111,10 +145,13 @@ async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary):
   let delivered = false;
   let lastError = "unknown";
   for (const t of tokens) {
-    const r = await deps.send(t.fcmToken, req.type, req.entityId);
+    const r = await deps.send(t.fcmToken, req.type, req.entityId, t.platform);
+    const p = (s.byPlatform[t.platform] ??= { sent: 0, failed: 0 });
     if (r.ok) {
       delivered = true;
+      p.sent += 1;
     } else {
+      p.failed += 1;
       lastError = r.errorClass ?? "unknown";
       if (r.prune) {
         await deps.pruneToken(t.fcmToken);

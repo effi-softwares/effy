@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
+import { useStore } from "@tanstack/react-store"
 
 import { ErrorState } from "@effy/web-kit/console"
 import { Button, LoadingArea, Skeleton } from "@effy/design-system/ui"
@@ -7,13 +8,14 @@ import { Button, LoadingArea, Skeleton } from "@effy/design-system/ui"
 import { LiveOrders } from "./LiveOrders"
 import { printLists, QuickActionsSheet } from "./QuickActionsSheet"
 import { TeamActivitySheet } from "./TeamActivitySheet"
-import { subheading } from "./model"
+import { relativeTime, subheading } from "./model"
 import { NeedsAttention } from "./NeedsAttention"
 import { TodayGlance } from "./TodayGlance"
 import { todayQueryFor } from "./queries"
 import { useNow } from "./useNow"
 import { useShopLive } from "./useShopLive"
 
+import { onlineStore } from "@/lib/online"
 import { track } from "@/lib/telemetry"
 
 /**
@@ -50,6 +52,13 @@ export function TodayScreen() {
 
   const data = today.data
   const awaitingPick = data?.backlog.awaitingPick.orders ?? 0
+  // ⚠ 059 FR-035 — WHILE OFFLINE, THIS SCREEN IS A PHOTOGRAPH, NOT A WINDOW. Today is the screen an
+  // operator makes decisions from, and its figures are the ones that look most convincingly current
+  // when they are not: "3 orders awaiting pick" reads identically whether it arrived four seconds or
+  // four hours ago. The shell's offline banner says the console is offline; this says how old what
+  // you are reading is, which is the part that changes what you would do about it.
+  const { online } = useStore(onlineStore)
+  const fetchedAt = today.dataUpdatedAt
   const heading = useMemo(
     () => (data ? subheading(data.now, data.timezone) : null),
     [data],
@@ -66,6 +75,11 @@ export function TodayScreen() {
           <h1 className="text-[17px] font-semibold tracking-[-0.02em]">Today</h1>
           <p className="text-muted-foreground text-[12.5px]">
             {heading ?? <Skeleton className="h-4 w-56" />}
+            {!online && fetchedAt > 0 && (
+              <span className="text-[var(--warning)]">
+                {" · "}last updated {relativeTime(new Date(fetchedAt).toISOString(), now)}
+              </span>
+            )}
           </p>
         </div>
         <div className="min-w-3 flex-1" />

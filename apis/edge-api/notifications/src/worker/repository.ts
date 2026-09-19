@@ -1,15 +1,25 @@
 // The real drain dependencies over Postgres. Raw SQL, no ORM (Principle VI).
 // 050-observability-push-foundation.
-import { query, tokensForRecipient, pruneToken, withTransaction } from "@effy/edge-shared";
+import {
+  query,
+  tokensForRecipient,
+  pruneToken,
+  withTransaction,
+} from "@effy/edge-shared";
 
 import type { DrainDeps, PendingRequest } from "./drain";
-import type { NotificationType } from "./copy";
+import { isKnownNotificationType, type NotificationType } from "./copy";
 
 interface PendingRow {
   id: string;
   recipient_sub: string;
   audience: PendingRequest["audience"];
-  type: NotificationType;
+  /**
+   * ⚠ `text` IN THE DATABASE, AND THIS DECLARATION IS AN ASSERTION, NOT A CHECK. Nothing verifies
+   * that a claimed row's type is one this build knows — see `isKnownNotificationType`, which 059's
+   * reader audit added for exactly this line.
+   */
+  type: string;
   payload: { entityId?: string } | null;
   attempts: number;
   channel: PendingRequest["channel"];
@@ -31,18 +41,29 @@ async function claimPending(limit: number): Promise<PendingRequest[]> {
         FOR UPDATE SKIP LOCKED`,
       [limit],
     );
-    return res.rows.map((r) => ({
-      id: r.id,
-      recipientSub: r.recipient_sub,
-      audience: r.audience,
-      type: r.type,
-      entityId: typeof r.payload?.entityId === "string" ? r.payload.entityId : "",
-      attempts: r.attempts,
-      // Rows written before 053 have no channel of their own; the column defaults to 'push', which
-      // is exactly what they were.
-      channel: r.channel ?? "push",
-      recipientEmail: r.recipient_email,
-    }));
+    // ⚠ FILTERED, NOT CAST. A row whose type this build does not know is left `pending` for the
+    // deploy that does know it, rather than claimed and thrown on. Throwing here would not skip one
+    // row — an exception inside the claim window kills the whole drain, and with it every other
+    // audience's notifications (053's "an unconfigured FCM halted the whole drain", by another
+    // road). The mandated deploy order makes this window empty; this makes it survivable.
+    //
+    // ⚠ The rows are still CLAIMED by the SELECT ... FOR UPDATE, but the transaction commits without
+    // marking them, so they remain pending and are picked up by a later invocation.
+    return res.rows
+      .filter((r) => isKnownNotificationType(r.type))
+      .map((r) => ({
+        id: r.id,
+        recipientSub: r.recipient_sub,
+        audience: r.audience,
+        type: r.type as NotificationType,
+        entityId:
+          typeof r.payload?.entityId === "string" ? r.payload.entityId : "",
+        attempts: r.attempts,
+        // Rows written before 053 have no channel of their own; the column defaults to 'push', which
+        // is exactly what they were.
+        channel: r.channel ?? "push",
+        recipientEmail: r.recipient_email,
+      }));
   });
 }
 

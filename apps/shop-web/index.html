@@ -12,6 +12,19 @@
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- 059 — the console is installable. ⚠ The manifest is served at this exact path only because
+         the Amplify SPA rewrite allow-list learned `webmanifest` in the same change; without that it
+         returns the app shell as HTML with a 200 and the console is silently not installable. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- --brand light. From the design system's own value; this slice adds no token. -->
+    <meta name="theme-color" content="#1d4ed8" />
+    <!-- ⚠ iOS/iPadOS reads these, not the manifest, for a home-screen app's title bar. Without
+         `apple-mobile-web-app-capable` an added-to-home-screen console opens in a Safari view WITH
+         browser chrome — and on iPadOS the Push API is available only to a standalone home-screen
+         app, so getting this wrong costs notifications on this audience's primary device. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Effy Shop" />
     <!-- Geist — the platform typeface since the theme adoption (was shop-web-only under 057).
          ⚠ NOT self-hosted (this repository has no Geist woff2 to commit); --font-sans names
          "General Sans" second, which IS self-hosted by the design system, so blocking these links

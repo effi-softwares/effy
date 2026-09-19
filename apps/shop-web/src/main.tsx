@@ -7,6 +7,10 @@ import { RouterProvider } from "@tanstack/react-router";
 
 import { configureAmplify } from "./lib/amplify";
 import { assertConfig } from "./lib/env";
+import { watchInstallability } from "./lib/install";
+import { watchConnectivity } from "./lib/online";
+import { registerServiceWorker } from "./lib/pwa";
+import { startQueryPersistence } from "./lib/query-persist";
 import { initTelemetry, reportError } from "./lib/telemetry";
 import { applyTheme, uiStore } from "./lib/ui-store";
 import { createAppRouter } from "./router";
@@ -25,7 +29,27 @@ try {
   wireGlobalErrorReporting(reportError);
   applyTheme(uiStore.state.theme);
 
+  // 059 — the console becomes installable and offline-survivable. Both no-op where unsupported, and
+  // both are deliberately AFTER assertConfig: a console that cannot read its own config must fail
+  // on that, not on a service worker.
+  registerServiceWorker();
+  watchInstallability();
+
   const queryClient = createQueryClient();
+
+  // 059 FR-035 — the last-loaded screens survive a reload, so an installed console opened offline
+  // has something to show. ⚠ Keyed on the build id: a cache restored into a build whose DTOs have
+  // changed renders yesterday's shape into today's components, which is a screen quietly missing
+  // fields rather than a crash.
+  startQueryPersistence(queryClient, __BUILD_ID__);
+
+  // 059 FR-037 — recover without a manual reload. `refetchType: "active"` refreshes only what is on
+  // screen; a console with a dozen cached screens must not fire a dozen requests the moment a
+  // tablet's wifi comes back.
+  watchConnectivity(() => {
+    void queryClient.invalidateQueries({ refetchType: "active" });
+  });
+
   const router = createAppRouter(queryClient);
 
   createRoot(rootEl).render(

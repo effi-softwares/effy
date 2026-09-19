@@ -54,6 +54,47 @@ function emitFailureMetric(
   );
 }
 
+/**
+ * 059 — push outcomes per platform, as a SEPARATE EMF record.
+ *
+ * ⚠ SEPARATE ON PURPOSE. In CloudWatch a dimensioned metric is a different metric from an
+ * undimensioned one, so adding `platform` to the block above would leave the alarm in
+ * `notifications.tf` — which queries no dimensions — reading a series nothing publishes any more.
+ * It would not error. It would go blind. 054 recorded that exact shape.
+ *
+ * ⚠ THREE VALUES, SO THE CARDINALITY IS BOUNDED (Principle VII: metric labels stay low-cardinality).
+ * The dimension is the platform enum, never a token, a subject or a shop id.
+ *
+ * ⚠ DELIBERATELY NOT ALARMED ON. A browser push subscription expiring is normal and expected — an
+ * alarm that fires every week on healthy behaviour is an alarm that gets muted, and then the real
+ * one is muted with it. This exists to be looked at when someone asks "is web push working", which
+ * before 059 had no answer at all.
+ */
+function emitPlatformMetrics(byPlatform: Record<string, { sent: number; failed: number }>): void {
+  for (const [platform, counts] of Object.entries(byPlatform)) {
+    console.log(
+      JSON.stringify({
+        _aws: {
+          Timestamp: Date.now(),
+          CloudWatchMetrics: [
+            {
+              Namespace: "Effy/Notifications",
+              Dimensions: [["platform"]],
+              Metrics: [
+                { Name: "PushSentByPlatform", Unit: "Count" },
+                { Name: "PushFailedByPlatform", Unit: "Count" },
+              ],
+            },
+          ],
+        },
+        platform,
+        PushSentByPlatform: counts.sent,
+        PushFailedByPlatform: counts.failed,
+      }),
+    );
+  }
+}
+
 export const handler: ScheduledHandler = async () => {
   const log = logger.child({ worker: "notification-drain" });
   try {
@@ -85,6 +126,7 @@ export const handler: ScheduledHandler = async () => {
     // Structured log for triage + an EMF metric the send-failure alarm pages on (Principle VII).
     log.info({ metric: "notification_drain", ...summary }, "notification drain complete");
     emitFailureMetric(summary.failed, summary.pruned, summary.emailFailed, summary.emailSent);
+    emitPlatformMetrics(summary.byPlatform);
     if (summary.failed > 0) {
       log.error(
         { failed: summary.failed, emailFailed: summary.emailFailed },

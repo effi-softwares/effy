@@ -435,3 +435,69 @@ variable "fcm_project_id" {
   type        = string
   default     = ""
 }
+
+# ── 059 shop-web PWA / web push ─────────────────────────────────────────────────────────────────
+#
+# The Firebase web app's identity, build-inlined into the shop console.
+#
+# ⚠ ALL FIVE ARE PUBLIC, AND ALL FIVE ARE REQUIRED ANYWAY. They identify the Firebase project; they
+# do not authorise anything. The secret half is the FCM service account, which 050 already seeded
+# into Secrets Manager and which only the notifications worker reads.
+#
+# ⚠ NO DEFAULTS, ON PURPOSE (constitution § Real-World Identifiers: "where an identifier is not yet
+# known, the configuration MUST fail loudly"). A missing key here stops `terraform plan`. The
+# alternative — defaulting to "" — produces a console that boots, grants notification permission,
+# shows the toggle turning on, and never rings, with nothing thrown and nothing logged. That is
+# exactly the wrong outward-facing value that silently works.
+#
+# Source: Firebase console → Project settings → Your apps → Web (four), and → Cloud Messaging →
+# Web configuration → Web Push certificates (the PUBLIC half of the VAPID pair).
+
+variable "firebase_api_key" {
+  description = "Firebase web app API key (public; identifies the project, authorises nothing). Operator-supplied."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.firebase_api_key)) > 0
+    error_message = "firebase_api_key must be supplied — see the Firebase console. An empty value produces a console whose notifications silently never arrive."
+  }
+}
+
+# ⚠ THERE IS NO `firebase_project_id`, DELIBERATELY. 050 already declares `fcm_project_id`, and it
+# is the SAME Firebase project — the console's web app and the worker's service account live in one
+# project by definition. A second variable naming the same fact is how the two drift, one gets
+# updated and the other does not, and the console ends up talking to a project the worker never
+# sends from. The env map below reads `var.fcm_project_id`.
+
+variable "firebase_app_id" {
+  description = "Firebase web app id, 1:NNN:web:HEX (public). Operator-supplied."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.firebase_app_id)) > 0
+    error_message = "firebase_app_id must be supplied — see the Firebase console."
+  }
+}
+
+variable "firebase_messaging_sender_id" {
+  description = "Firebase Cloud Messaging sender id (public). Operator-supplied."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.firebase_messaging_sender_id)) > 0
+    error_message = "firebase_messaging_sender_id must be supplied — see the Firebase console."
+  }
+}
+
+variable "firebase_vapid_public_key" {
+  description = "Web Push certificate PUBLIC key (VAPID, base64url ~87 chars). Public-safe. Operator-supplied."
+  type        = string
+
+  validation {
+    # ⚠ Shape-checked, not just presence-checked, because this is the one value whose absence and
+    # whose wrongness look identical from the outside: getToken() simply never resolves. A VAPID
+    # public key is a base64url-encoded uncompressed P-256 point — 87 or 88 characters, no padding.
+    condition     = can(regex("^[A-Za-z0-9_-]{80,100}$", trimspace(var.firebase_vapid_public_key)))
+    error_message = "firebase_vapid_public_key must be the base64url PUBLIC key from Firebase → Cloud Messaging → Web Push certificates (~87 chars, characters A-Z a-z 0-9 _ -). ⚠ Do NOT paste the private key."
+  }
+}

@@ -598,3 +598,47 @@ changes because of something that happened later.
 Container tests are written but were **not executed** — Docker was down for the whole session.
 Spec/artifacts: [specs/058-shop-today-insights/](../../specs/058-shop-today-insights/); architecture
 research: [docs/insights-architecture.md](../insights-architecture.md).
+
+---
+
+## §059 — the console becomes an installable, notifying app
+
+Added by [059-shop-web-pwa](../../specs/059-shop-web-pwa/).
+
+| # | Capability | Web (`shop-web`) | Mobile (`shop-mobile`) | Backend it depends on |
+|---|---|---|---|---|
+| 59.1 | Install the console to a home screen; it opens standalone, branded, and still signed in | ✅ | — | none (static hosting) |
+| 59.2 | An installed console finds and applies a new deployed version without reinstalling | ✅ | — | none |
+| 59.3 | **Be notified of a new order with the console closed** | ✅ | ✅ (since 050) | `device_token` + `notification_request`, FCM |
+| 59.4 | Be notified when an attention condition newly needs a human (4 kinds) | ✅ | ⬜ | the scheduled attention evaluator |
+| 59.5 | Tapping a notification opens the console **on that order**, reusing the open window | ✅ | ✅ | `webPath` in the push payload |
+| 59.6 | Turn notifications on/off, and mute individual kinds, **per device** | ✅ | ⬜ | `GET`/`PATCH /shop/v1/notification-preferences` |
+| 59.7 | Survive a network dropout: read last-known data, marked as such; writes refused, never faked | ✅ | ⬜ | none (client) |
+| 59.8 | Unread count on the app icon where the OS supports one | ✅ | ✅ (native) | none |
+
+**⚠ Row 59.3 was a DEFECT, not a gap.** Since 050 the platform has enqueued one `shop_new_order`
+intent per active staff member of every fulfilling shop, on every paid order — and
+`device_token.platform` permitted only `android`/`ios`, so for a shop audience that works in a **web
+console** every one of those intents was recorded, attempted and discarded as "nobody to send to".
+The mobile ✅ was real; the web one was unreachable. One line of `20260919064216_shop_web_push.sql`
+is the fix.
+
+**⚠ Rows 59.4, 59.6 and 59.7 are ⬜ on mobile, and that is a decision, not an oversight.** The
+attention evaluator enqueues to a `sub`, so shop-mobile would receive 59.4 the moment it registered
+a token for those types — but it has no preference UI, and `POST /shop/v1/devices` **refuses**
+`mutedTypes` on a mobile platform rather than accepting and discarding it, precisely so a future
+mobile slice cannot mistake this for already wired.
+
+**⚠ On iPadOS — this audience's primary device — the Push API exists ONLY for a home-screen web app.**
+Row 59.1 is therefore a *precondition* of row 59.3 there, not a convenience. An operator who never
+installs cannot even be **asked** for notification permission.
+
+**⚠ Notifications carry no customer data** (FR-013/FR-031): a count and an age, never a name, an
+address, a contact detail or another shop's figures. Pinned by a test over every type.
+
+**⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person,
+and NO NOTIFICATION HAS EVER BEEN DELIVERED.** The 40 container-backed tests are written and were
+**not executed** — Docker was down for the whole session, the second slice running for which that is
+true. ⚠ **Every cell above is INTENDED state. FR-038 requires this table to be rewritten with
+OBSERVED state once a person has walked the console.** Sign-off:
+[specs/059-shop-web-pwa/SIGNOFF.md](../../specs/059-shop-web-pwa/SIGNOFF.md).

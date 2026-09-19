@@ -567,6 +567,45 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── 059: the attention evaluator (US3) ────────────────────────────────────────────────────────
+  #
+  # ⚠ EVERY FIVE MINUTES, NOT EVERY MINUTE. The rollup job next door runs at a minute because a
+  # figure an operator is reading goes stale that fast. An attention condition is different: three of
+  # the four are things a human then walks across a shop to deal with, and the fourth (a backlog
+  # ageing past its threshold) is not more urgent for being noticed sixty seconds sooner. Five
+  # minutes bounds the interruption rate as much as it bounds the cost.
+  attentionEvaluate:
+    handler: src/functions/attention-evaluate.handler
+    description: Detect newly-appeared attention conditions per shop and enqueue one notification per kind (059 US3)
+    timeout: 60
+    events:
+      - schedule: rate(5 minutes)
+
+  # ── 059: per-registration notification preferences (US4) ──────────────────────────────────────
+  # ⚠ PER REGISTRATION, NOT PER OPERATOR. FR-025 requires a manager's tablet and a picker's tablet
+  # to be independently controllable, so the token is the key on both routes.
+  shopNotificationPrefsV1Get:
+    handler: src/functions/shop-notification-prefs-v1-get.handler
+    description: What this device's notification settings are, and which types exist (059 FR-024)
+    events:
+      - httpApi:
+          method: GET
+          path: /shop/v1/notification-preferences
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  shopNotificationPrefsV1Patch:
+    handler: src/functions/shop-notification-prefs-v1-patch.handler
+    description: Mute/unmute notification types on this device only (059 FR-024/FR-025)
+    events:
+      - httpApi:
+          method: PATCH
+          path: /shop/v1/notification-preferences
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
 
   # ── 057: shop-scoped team management (US7) ────────────────────────────────────────────────────
   teamListV1:

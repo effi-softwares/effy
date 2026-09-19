@@ -81,6 +81,29 @@ variable "custom_rules" {
   default = []
 }
 
+variable "custom_headers" {
+  description = <<-EOT
+    Amplify `customHeaders` rules, as a YAML-shaped list of { pattern, headers }. Default [] — the
+    storefront and back-office need none, so both stay byte-identical (the same defaulting discipline
+    048 used when it generalised this module for the consoles).
+
+    059 passes two for the shop console's PWA:
+      • /sw.js                  — no-store, so a deployed fix reaches an installed device
+      • /manifest.webmanifest   — no-cache, so a changed icon or name is picked up
+
+    ⚠ NOT STRICTLY REQUIRED, AND ADDED ANYWAY. Browsers already cap service-worker script caching at
+    24 hours and bypass the HTTP cache for it by default, so SC-009 ("a deploy reaches an installed
+    device within one working day") holds without this. Relying on a browser default for a
+    deploy-reach guarantee is an unstated dependency, which is the kind this repo keeps discovering
+    later; stating it costs one variable.
+  EOT
+  type = list(object({
+    pattern = string
+    headers = map(string)
+  }))
+  default = []
+}
+
 variable "stage" {
   description = "Informational Amplify branch stage: DEVELOPMENT / PRODUCTION / etc."
   type        = string

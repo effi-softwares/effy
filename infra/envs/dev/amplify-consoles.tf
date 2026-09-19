@@ -26,11 +26,43 @@ locals {
   # ── SPA rewrite (research D3 / contracts § "SPA rewrite") ──────────────────────────────────────
   # Any path that is NOT a real static asset → /index.html with status 200 (a rewrite, not a redirect,
   # so deep-link URLs are preserved). The negative-lookahead keeps genuine assets serving directly.
+  #
+  # ⚠ `webmanifest` ADDED BY 059, AND ITS ABSENCE WAS A SILENT FAILURE. Without it the extension is
+  # not in the allow-list, so `GET /manifest.webmanifest` matched the rewrite and returned the app
+  # shell — HTML, with status 200. The browser then parses HTML as a manifest, finds nothing, and the
+  # console is simply NOT INSTALLABLE: no error in the page, no error in the build, no failing test,
+  # and nothing in any log. On iPadOS, where the Push API exists only for a home-screen app, that
+  # would have taken notifications down with it.
+  #
+  # `js` and `json` were already listed, so the service worker and a `.json`-named manifest would
+  # have worked by luck. Fixing the list rather than renaming the file, because the next console to
+  # want a manifest would otherwise walk into the same trap.
   spa_rewrite_rules = [{
-    source = "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>"
+    source = "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webmanifest|webp)$)([^.]+$)/>"
     target = "/index.html"
     status = "200"
   }]
+
+  # ── PWA response headers (059) ─────────────────────────────────────────────────────────────────
+  # Shop-web only. back-office is not a PWA and passes nothing, so it stays byte-identical.
+  pwa_headers = [
+    {
+      # The service worker decides when every other asset is refreshed, so it is the one file that
+      # must never be served stale. Browsers already cap SW script caching at 24h; this states it.
+      pattern = "/sw.js"
+      headers = {
+        "Cache-Control" = "no-store, max-age=0"
+      }
+    },
+    {
+      # Revalidate rather than no-store: the manifest changes rarely, but a changed icon or name
+      # sitting behind a long cache is invisible until someone reinstalls.
+      pattern = "/manifest.webmanifest"
+      headers = {
+        "Cache-Control" = "no-cache"
+      }
+    },
+  ]
 
   # ── Per-console VITE_* env (build-time, inlined by Vite, all public-safe — contracts/config.contract.md)
   # ⚠ Principle IV: shop-web MUST take the SHOP pool, back-office the ADMIN pool. A swap makes sign-in
@@ -50,6 +82,24 @@ locals {
     # ⚠ 057 — REQUIRED by apps/shop-web's config contract. Without it the hosted build serves a console
     # that throws "Missing required config" on first render, not just on the refund path.
     VITE_CORE_API_BASE_URL = local.core_api_base_url
+
+    # ── 059 web push ─────────────────────────────────────────────────────────────────────────────
+    # ⚠ ALL FIVE ARE PUBLIC BY DESIGN. They identify the Firebase project; they do not authorise.
+    # The secret half is the FCM service account, which lives in Secrets Manager and is read only by
+    # the notifications worker — it must never reach a browser.
+    #
+    # ⚠ OPERATOR-SUPPLIED, NO DEFAULTS (constitution § Real-World Identifiers). The variables below
+    # have no default and `terraform plan` refuses without them. That is deliberate for
+    # VITE_VAPID_PUBLIC_KEY in particular: without it `getToken()` never resolves, so the operator
+    # grants notification permission, sees the toggle turn on, and owns a tablet that will never
+    # ring — nothing throws and nothing logs. A build that stops beats a value that silently works.
+    VITE_FIREBASE_API_KEY = var.firebase_api_key
+    # ⚠ 050's variable, not a new one. The console's web app and the notifications worker's service
+    # account are the same Firebase project by definition; two variables naming it is how they drift.
+    VITE_FIREBASE_PROJECT_ID          = var.fcm_project_id
+    VITE_FIREBASE_APP_ID              = var.firebase_app_id
+    VITE_FIREBASE_MESSAGING_SENDER_ID = var.firebase_messaging_sender_id
+    VITE_VAPID_PUBLIC_KEY             = var.firebase_vapid_public_key
   }, local.telemetry_env)
 
   back_office_env = merge({
@@ -86,6 +136,8 @@ module "amplify_shop_web" {
 
   env_vars     = local.shop_web_env
   custom_rules = local.spa_rewrite_rules
+  # 059 — shop-web is the platform's only PWA. back-office passes nothing and stays byte-identical.
+  custom_headers = local.pwa_headers
 
   # service_role_arn unused for WEB (the module ignores it and sets iam_service_role_arn = null).
 

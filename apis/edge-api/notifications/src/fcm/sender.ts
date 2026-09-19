@@ -10,6 +10,8 @@ import { getSecretString } from "@effy/edge-shared";
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 
+import type { DevicePlatform } from "@effy/edge-shared";
+
 import { copyFor, dataFor, type NotificationType } from "../worker/copy";
 
 /** The outcome of one send, so the worker knows whether to prune the token. */
@@ -22,7 +24,19 @@ export interface SendResult {
 
 export interface Sender {
   configured: boolean;
-  send(fcmToken: string, type: NotificationType, entityId: string): Promise<SendResult>;
+  /**
+   * ⚠ `platform` IS REQUIRED SINCE 059, and its absence was a latent defect rather than an
+   * omission. Before 059 this sender ignored the platform entirely and emitted ONE message shape for
+   * every token. Given a browser that does not fail — it silently sends a mobile-shaped message,
+   * whose `notification` block makes the Firebase SDK render a banner ON TOP OF the one our service
+   * worker shows. Two banners for one order, and nothing anywhere reporting a problem.
+   */
+  send(
+    fcmToken: string,
+    type: NotificationType,
+    entityId: string,
+    platform: DevicePlatform,
+  ): Promise<SendResult>;
 }
 
 let appInstance: App | undefined;
@@ -62,21 +76,60 @@ const PRUNABLE = new Set([
 
 export async function createSender(): Promise<Sender> {
   const app = await firebaseApp();
-  if (!app) return { configured: false, async send() {return { ok: false, prune: false };} };
+  if (!app)
+    return {
+      configured: false,
+      async send() {
+        return { ok: false, prune: false };
+      },
+    };
 
   const messaging = getMessaging(app);
   return {
     configured: true,
-    async send(fcmToken, type, entityId): Promise<SendResult> {
+    async send(fcmToken, type, entityId, platform): Promise<SendResult> {
       const c = copyFor(type);
+      const data = dataFor(type, entityId);
       try {
-        await messaging.send({
-          token: fcmToken,
-          notification: { title: c.title, body: c.body },
-          data: dataFor(type, entityId),
-          android: { priority: "high" },
-          apns: { headers: { "apns-priority": "10" }, payload: { aps: { sound: "default" } } },
-        });
+        await messaging.send(
+          platform === "web"
+            ? {
+                token: fcmToken,
+                // ⚠ NO `notification` KEY, AND THIS IS THE WHOLE POINT OF THE BRANCH.
+                //
+                // With one present the Firebase JS SDK displays the message ITSELF, and our service
+                // worker displays it too — two identical banners for one event. Omitting it is also
+                // what makes everything 059 needs possible at all: `tag` (how twenty orders in a
+                // minute become one banner), `data` (how the click knows where to go), the app badge,
+                // and the decision NOT to show when the operator is demonstrably already looking.
+                //
+                // ⚠ It also means we are responsible for always showing something. iOS REVOKES
+                // notification permission from a service worker that receives a push and displays
+                // nothing, so `src/sw.ts` shows a notification on every push by construction,
+                // including on a payload it cannot parse.
+                data,
+                webpush: {
+                  headers: {
+                    // A new-order notification that arrives eleven minutes late is worse than one
+                    // that never arrives: it tells an operator to hurry for something already picked.
+                    TTL: "600",
+                    Urgency: "high",
+                  },
+                },
+              }
+            : {
+                // ⚠ MOBILE IS BYTE-FOR-BYTE WHAT IT WAS BEFORE 059. The mobile send tests pass
+                // unmodified, which is the proof this branch changed nothing that already worked.
+                token: fcmToken,
+                notification: { title: c.title, body: c.body },
+                data,
+                android: { priority: "high" },
+                apns: {
+                  headers: { "apns-priority": "10" },
+                  payload: { aps: { sound: "default" } },
+                },
+              },
+        );
         return { ok: true, prune: false };
       } catch (err) {
         const code =
