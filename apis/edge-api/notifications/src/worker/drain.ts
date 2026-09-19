@@ -42,6 +42,8 @@ export interface DrainDeps {
   markRetry(id: string, error: string): Promise<void>;
   markFailed(id: string, error: string): Promise<void>;
   pruneToken(fcmToken: string): Promise<void>;
+  /** 059 — optional structured logger, so a failed send says WHY. Absent in unit tests. */
+  log?: { warn(obj: unknown, msg: string): void };
 }
 
 export interface DrainSummary {
@@ -153,6 +155,23 @@ async function drainPush(deps: DrainDeps, req: PendingRequest, s: DrainSummary):
     } else {
       p.failed += 1;
       lastError = r.errorClass ?? "unknown";
+      // ⚠ LOG THE PROVIDER'S ERROR, PER TOKEN. Without this the only trace of a failed send is a
+      // `pruned` counter in the run summary, and the row's `last_error` is OVERWRITTEN by the next
+      // run's `no_token` once the token has been deleted — so the reason a registration died is
+      // unrecoverable minutes later. 059 spent an investigation reconstructing one from a counter.
+      //
+      // ⚠ NO TOKEN IN THE LOG, ever. It is a delivery address; the platform prefix is enough to
+      // tell a browser subscription from a phone.
+      deps.log?.warn(
+        {
+          notificationId: req.id,
+          type: req.type,
+          platform: t.platform,
+          errorClass: r.errorClass ?? "unknown",
+          pruning: r.prune,
+        },
+        "notification send failed",
+      );
       if (r.prune) {
         await deps.pruneToken(t.fcmToken);
         s.pruned += 1;

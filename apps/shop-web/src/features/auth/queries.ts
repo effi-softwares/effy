@@ -28,10 +28,25 @@ export function useSignOut() {
       // ⚠ BEST EFFORT, NEVER BLOCKING. If it fails, signing out still proceeds — the row is cleaned
       // up by the worker's existing dead-token pruning on the next send. A notification setting must
       // not be able to trap an operator in a session.
+      //
+      // ⚠ BOTH SIDES, OR NEITHER — AND THIS ORDER. `forgetToken()` calls Firebase's `deleteToken()`,
+      // which unsubscribes the browser and KILLS THE TOKEN AT FCM. Calling it unconditionally (the
+      // first version of this) meant that whenever `obtainToken()` returned null — a fresh load
+      // where the service-worker registration had not resolved yet — the server DELETE was skipped
+      // but the token was destroyed anyway. The row then pointed at a token FCM considered dead, the
+      // next order's send was rejected, and the worker pruned the registration.
+      //
+      // The operator saw: notifications enabled successfully, then silently never again. Diagnosed
+      // from a `pruned: 1` counter, because nothing logged the reason.
       try {
         const token = await obtainToken();
-        if (token) await unregisterDevice(token);
-        await forgetToken();
+        if (token) {
+          await unregisterDevice(token);
+          await forgetToken();
+        }
+        // No token in hand → leave the subscription alone. A live row pointing at a live token is
+        // recoverable (the next sign-in re-registers the same token); a live row pointing at a dead
+        // one is not.
       } catch {
         /* see above */
       }

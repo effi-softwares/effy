@@ -118,6 +118,8 @@ export const handler: ScheduledHandler = async () => {
         send: sender.send,
         senderConfigured: sender.configured,
         sendEmail: emailSender.send,
+        // 059 — so a failed send says WHY, in the log, at the moment it happens.
+        log,
       },
       { maxAttempts: MAX_ATTEMPTS, batchSize: BATCH_SIZE },
     );

@@ -103,7 +103,12 @@ describe("dead-token pruning survives the branch (FR-028)", () => {
   it.each([
     ["messaging/registration-token-not-registered", true],
     ["messaging/invalid-registration-token", true],
-    ["messaging/invalid-argument", true],
+    // ⚠ `invalid-argument` USED TO PRUNE, AND THAT WAS WRONG. It means the MESSAGE was malformed —
+    // the sender's fault, not the recipient's. Pruning on it deletes a working registration because
+    // of a bug in our own payload, and the failure hides itself: the operator re-enables
+    // notifications, the next send deletes the row again, and the drain reports a healthy
+    // `skipped: no_token` forever. Changed in 059 after a live registration was destroyed this way.
+    ["messaging/invalid-argument", false],
     ["messaging/internal-error", false],
   ])("%s → prune=%s", async (code, prune) => {
     send.mockRejectedValueOnce(Object.assign(new Error("nope"), { code }));

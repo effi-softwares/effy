@@ -67,11 +67,22 @@ async function firebaseApp(): Promise<App | undefined> {
   return appInstance;
 }
 
-/** Errors that mean the token is dead and should be pruned (FR-018). */
+/**
+ * Errors that mean the TOKEN IS DEAD and the row should be deleted (050 FR-018).
+ *
+ * ⚠ `messaging/invalid-argument` WAS IN THIS SET AND HAS BEEN REMOVED (059). It does not mean the
+ * token is dead — it means THE MESSAGE WAS MALFORMED, which is the sender's fault, not the
+ * recipient's. Pruning on it deletes a perfectly good registration because of a bug in our own
+ * payload, and the failure is self-concealing: the operator re-enables notifications, the next send
+ * deletes the row again, and the console reports a healthy `skipped: no_token` drain forever.
+ *
+ * The cost of being wrong is asymmetric. A dead token left in place is retried and pruned on the
+ * next genuine failure; a live token deleted in error can only be recovered by the operator
+ * noticing and re-enabling, which is exactly the thing they have no reason to do.
+ */
 const PRUNABLE = new Set([
   "messaging/registration-token-not-registered",
   "messaging/invalid-registration-token",
-  "messaging/invalid-argument",
 ]);
 
 export async function createSender(): Promise<Sender> {

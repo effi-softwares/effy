@@ -97,7 +97,7 @@ async function markFailed(id: string, error: string): Promise<void> {
 
 /** Build the DB-backed drain deps around an injected sender (so the handler wires FCM in). */
 export function repositoryDeps(
-  sender: Pick<DrainDeps, "send" | "senderConfigured" | "sendEmail">,
+  sender: Pick<DrainDeps, "send" | "senderConfigured" | "sendEmail" | "log">,
   opts: { maxAttempts: number; batchSize: number },
 ): DrainDeps {
   return {
