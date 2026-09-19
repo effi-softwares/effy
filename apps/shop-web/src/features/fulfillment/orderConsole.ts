@@ -20,6 +20,7 @@ import {
   type ShopOrderSort,
   type ShopOrderTab,
 } from "@effy/shared-types"
+import type { FulfillmentStatus } from "@effy/shared-types"
 
 /**
  * The shop ORDER CONSOLE's domain (057 Amendment A3) — the list's URL state, the labels, and money
@@ -74,7 +75,11 @@ export function validateOrdersSearch(raw: Record<string, unknown>): OrdersSearch
   if (range && range !== "any") out.range = range
   const sort = pick(raw.sort, SHOP_ORDER_SORTS)
   if (sort && sort !== "placed") out.sort = sort
-  if (raw.dir === "desc") out.dir = "desc"
+  // ⚠ DESCENDING IS THE DEFAULT (see ORDER_ROW_TONE below) — so it is `asc` that must be written into
+  // the URL, and `desc` that is dropped. This MUST agree with the service's own default
+  // (`apis/edge-api/shop/src/orders/service.ts`): if the two disagree, a bare `/orders` sends no
+  // direction, the server picks its own, and the header arrow points the wrong way at a correct list.
+  if (raw.dir === "asc") out.dir = "asc"
   const page = typeof raw.page === "number" ? raw.page : Number(raw.page)
   if (Number.isInteger(page) && page > 1) out.page = page
   return out
@@ -146,6 +151,60 @@ export function methodText(m: "same_day" | "standard" | null): string {
 }
 
 // ── Formatting ──────────────────────────────────────────────────────────────────────────────────
+
+// ── The row's tone (2026-09-19, operator direction) ─────────────────────────────────────────────
+
+/**
+ * How long an order reads as "just in".
+ *
+ * ⚠ NOT Today's `NEW_WINDOW_MS` (60 s), and the difference is the screen's job rather than taste.
+ * Today's Live orders is a five-row feed of the newest arrivals that a person watches change; one
+ * minute is long enough there because the row is at the top of a short list either way. This is the
+ * whole order book, paged and filterable, and an operator comes back to it from the floor — a window
+ * that expires before they return would mean the highlight is only ever seen by someone already
+ * looking at the screen, which is the one person who does not need it.
+ *
+ * ⚠ THE LIST POLLS EVERY 15 s AND THE SCREEN TICKS ITS OWN CLOCK AT THE SAME RATE, so a row stops
+ * being green on time even if no new data arrives. A highlight that outlives its claim is worse than
+ * none: it is read as fresh (058 FR-009, the same rule as the ageing timestamps).
+ */
+export const RECENT_WINDOW_MS = 15 * 60_000
+
+/** Terminal states — the portion has left this shop's hands, one way or another. */
+const TERMINAL: ReadonlySet<FulfillmentStatus> = new Set<FulfillmentStatus>([
+  "collected",
+  "delivered",
+  "unfulfillable",
+  "withdrawn",
+])
+
+/**
+ * The row's highlight, or `null` for the ordinary case.
+ *
+ * ⚠ TWO DIFFERENT FACTS, DELIBERATELY NOT ONE. `recent` is about the CLOCK — it just arrived.
+ * `unopened` is about a PERSON — `status = 'pending'` means nobody at this shop has opened it yet,
+ * because opening it IS the acknowledgement (020 FR-011a). They usually coincide at first and then
+ * come apart, which is exactly the case worth seeing: an order that is no longer new and STILL has
+ * not been looked at.
+ *
+ * ⚠ THE STATUS PILL CANNOT SAY THIS. It maps `pending` and `received` both to "Awaiting pick" (they
+ * are the same work), so the console had no way at all to show that an order had never been opened.
+ *
+ * ⚠ A TERMINAL ORDER IS NEVER "RECENT". A cancelled order placed ten minutes ago is not work waiting
+ * to be done, and a green wash on it would say the opposite of the truth.
+ */
+export type OrderRowTone = "recent" | "unopened"
+
+export function orderRowTone(
+  row: Pick<OrderRow, "placedAt" | "status">,
+  now: number,
+): OrderRowTone | null {
+  const placed = new Date(row.placedAt).getTime()
+  if (!TERMINAL.has(row.status) && Number.isFinite(placed) && now - placed < RECENT_WINDOW_MS) {
+    return "recent"
+  }
+  return row.status === "pending" ? "unopened" : null
+}
 
 /**
  * The list's Placed column, as the design has it: the time for today's orders, the day otherwise.

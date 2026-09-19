@@ -32,10 +32,17 @@ function oneOf<T extends string>(raw: string | undefined, allowed: readonly T[],
 /**
  * Parse the list query string. Every field is optional on the wire and fully defaulted here.
  *
- * ⚠ THE DEFAULT SORT IS OLDEST FIRST. The queue this screen replaced was strict FIFO by construction
- * (020 FR-001b, SC-020) — the order that has waited longest is the one to pick next — so a console
- * that opened newest-first would quietly bury the most urgent work below the fold. The operator can
- * re-sort by any column; the default is the one that keeps the floor honest.
+ * ⚠ THE DEFAULT SORT IS NEWEST FIRST (operator direction, 2026-09-19). It was oldest-first, because
+ * the queue this screen replaced was strict FIFO (020 FR-001b, SC-020) and the order that has waited
+ * longest is the one to pick next. That argument has not stopped being true — the console simply
+ * answers a second question the queue never did ("what just came in?"), and it is the one an operator
+ * asks of a list that updates while they watch it.
+ *
+ * ⚠ WHAT KEEPS THE FLOOR HONEST INSTEAD: the list marks an order NOBODY HAS OPENED YET
+ * (`status = 'pending'` — opening it IS the acknowledgement, FR-011a) so it is findable wherever it
+ * sits, and the Awaiting-pick tab plus the `placed` header's ascending flip still give strict FIFO in
+ * one click. ⚠ The residual cost is recorded rather than hidden: the oldest unopened order is now at
+ * the BOTTOM of the default page, not the top.
  */
 export function parseListQuery(qs: Record<string, string | undefined> | null): OrderListQuery {
   const p = qs ?? {};
@@ -48,7 +55,7 @@ export function parseListQuery(qs: Record<string, string | undefined> | null): O
     method: oneOf(p.method, METHODS, "any"),
     range: oneOf(p.range, RANGES, "any"),
     sort: oneOf(p.sort, SORT_KEYS, "placed"),
-    dir: p.dir === "desc" ? "desc" : "asc",
+    dir: p.dir === "asc" ? "asc" : "desc",
     page: Number.isFinite(page) && page >= 1 ? Math.min(page, 10_000) : 1,
     pageSize: PAGE_SIZE,
   };

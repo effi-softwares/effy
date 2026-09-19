@@ -191,17 +191,100 @@ describe("the Orders list (057 A3)", () => {
     listOrders.mockResolvedValue(orderList([orderRow()]))
     const { onSearchChange, rerender } = wrap()
     await screen.findByRole("table")
+    // ⚠ Descending is the DEFAULT now, so it is dropped from the URL rather than written into it.
     await userEvent.click(table().getByRole("button", { name: /^Total/ }))
-    expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total", dir: "desc" })
+    expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total" })
 
     rerender(
       <QueryClientProvider client={new QueryClient()}>
-        <OrderListScreen search={{ sort: "total", dir: "desc" }} onSearchChange={onSearchChange} onOpenOrder={vi.fn()} />
+        <OrderListScreen search={{ sort: "total" }} onSearchChange={onSearchChange} onOpenOrder={vi.fn()} />
       </QueryClientProvider>,
     )
     await screen.findByRole("table")
     await userEvent.click(table().getByRole("button", { name: /^Total/ }))
-    expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total" })
+    expect(onSearchChange).toHaveBeenLastCalledWith({ sort: "total", dir: "asc" })
+  })
+
+  /**
+   * ⚠ The arrow is the only thing on screen that says which way the list runs. When it disagreed with
+   * the default it drew ↑ over a newest-first list and the first click on `Placed` did nothing
+   * visible — the exact shape of defect a green suite hides.
+   */
+  it("shows the Placed column sorted descending by default", async () => {
+    listOrders.mockResolvedValue(orderList([orderRow()]))
+    wrap()
+    await screen.findByRole("table")
+    const placed = table().getAllByRole("columnheader").find((th) => th.textContent?.startsWith("Placed"))
+    expect(placed).toHaveAttribute("aria-sort", "descending")
+  })
+
+  /**
+   * ⚠ THE WASH AND THE WORD ARE ONE FEATURE, TESTED TOGETHER. A test that asserted only the class
+   * would pass over a row that is legible to nobody who cannot see the colour; one that asserted
+   * only the word would pass over a row nobody can find. Both, or neither, is the contract.
+   */
+  describe("the row's tone (2026-09-19)", () => {
+    const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString()
+    const rowOf = (text: string) => table().getByText(text).closest("tr") as HTMLElement
+
+    it("washes a just-arrived order green and says New", async () => {
+      listOrders.mockResolvedValue(
+        orderList([orderRow({ customerName: "Fresh Arrival", placedAt: minutesAgo(2), status: "pending" })]),
+      )
+      wrap()
+      await screen.findByRole("table")
+      expect(rowOf("Fresh Arrival").className).toContain("bg-success-soft")
+      expect(table().getByText("New")).toBeInTheDocument()
+    })
+
+    it("washes an order nobody has opened yellow once it is no longer new", async () => {
+      listOrders.mockResolvedValue(
+        orderList([orderRow({ customerName: "Waiting Unseen", placedAt: minutesAgo(45), status: "pending" })]),
+      )
+      wrap()
+      await screen.findByRole("table")
+      expect(rowOf("Waiting Unseen").className).toContain("bg-warning-soft")
+      expect(table().getByText("Not opened")).toBeInTheDocument()
+      expect(table().queryByText("New")).not.toBeInTheDocument()
+    })
+
+    /** Opening it IS the acknowledgement (020 FR-011a) — `received` is the proof a person saw it. */
+    it("leaves an opened order untinted, though its status pill still reads Awaiting pick", async () => {
+      listOrders.mockResolvedValue(
+        orderList([orderRow({ customerName: "Seen Already", placedAt: minutesAgo(45), status: "received" })]),
+      )
+      wrap()
+      await screen.findByRole("table")
+      const row = rowOf("Seen Already").className
+      expect(row).not.toContain("bg-success-soft")
+      expect(row).not.toContain("bg-warning-soft")
+      expect(table().getByText("Awaiting pick")).toBeInTheDocument()
+      expect(table().queryByText("Not opened")).not.toBeInTheDocument()
+    })
+
+    /** ⚠ A cancelled order placed ten minutes ago is not fresh work, and green would say it is. */
+    it("never calls a terminal order recent", async () => {
+      listOrders.mockResolvedValue(
+        orderList([orderRow({ customerName: "Called Off", placedAt: minutesAgo(2), status: "withdrawn" })]),
+      )
+      wrap()
+      await screen.findByRole("table")
+      expect(rowOf("Called Off").className).not.toContain("bg-success-soft")
+      expect(table().queryByText("New")).not.toBeInTheDocument()
+    })
+
+    /** ⚠ Two background utilities on one row resolve by stylesheet order, not by source order. */
+    it("drops the wash on a selected row so the selection is never invisible", async () => {
+      listOrders.mockResolvedValue(
+        orderList([orderRow({ customerName: "Fresh Arrival", placedAt: minutesAgo(2), status: "pending" })]),
+      )
+      wrap()
+      await screen.findByRole("table")
+      await userEvent.click(table().getByRole("checkbox", { name: /Select EFY-/ }))
+      const row = rowOf("Fresh Arrival").className
+      expect(row).toContain("bg-accent")
+      expect(row).not.toContain("bg-success-soft")
+    })
   })
 
   it("pages with Previous/Next and says where it is", async () => {

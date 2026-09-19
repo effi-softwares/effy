@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils"
 
 import { Segmented } from "@/components/console/primitives"
 
+import { useNow } from "@/features/today/useNow"
+
 import { BulkActions } from "./components/BulkActions"
 import { OrderFiltersSheet } from "./components/OrderFiltersSheet"
 import { OrderStatusPill, paymentTextClass } from "./components/OrderPill"
@@ -27,12 +29,14 @@ import {
   formatMoney,
   formatPlacedShort,
   isFiltered,
+  orderRowTone,
   PAYMENT_LABEL,
   TAB_LABEL,
   toCsv,
   toListQuery,
   validateOrdersSearch,
   type OrderRow,
+  type OrderRowTone,
   type OrdersSearch,
 } from "./orderConsole"
 import { downloadOrdersCsv, exportOrdersCsv } from "./exportOrders"
@@ -56,8 +60,12 @@ import { listOrders } from "./repo"
  *   • the row's flag is "At risk" against the ready-by promise — Effy has no fraud score.
  *
  * ⚠ EVERYTHING THAT NARROWS THE LIST IS SERVER-SIDE, so the tab counts cover every state and a search
- * finds last month's order. The state lives in the URL (`search` / `onSearchChange`). The default sort
- * is oldest first — the order that has waited longest is the one to pick next (020 FR-001b).
+ * finds last month's order. The state lives in the URL (`search` / `onSearchChange`).
+ *
+ * ⚠ THE DEFAULT SORT IS NEWEST FIRST (operator direction, 2026-09-19) — it was oldest-first, the
+ * queue's FIFO rule (020 FR-001b). The urgency that default carried is now carried by the ROW: an
+ * order that has just arrived is washed `--success-soft` and one NOBODY HAS OPENED is washed
+ * `--warning-soft`, so the work that needs a person is findable wherever it sits. See `orderRowTone`.
  */
 export function OrderListScreen({
   search,
@@ -72,6 +80,10 @@ export function OrderListScreen({
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  // ⚠ The row tones AGE. The list polls every 15 s; without a clock of its own a row washed green on
+  // arrival would stay green until the next fetch changed something, which on a quiet afternoon is
+  // never (058 FR-009 — a highlight that outlives its claim is read as fresh).
+  const now = useNow(15_000)
 
   const tab = search.tab ?? "all"
   const searchKey = JSON.stringify(toListQuery(search))
@@ -266,12 +278,24 @@ export function OrderListScreen({
               <tbody>
                 {rows.map((o) => {
                   const sel = selected.has(o.id)
+                  const tone = orderRowTone(o, now)
                   return (
                     <tr
                       key={o.id}
                       onClick={() => onOpenOrder(o.id)}
                       data-state={sel ? "selected" : undefined}
-                      className={cn("border-border hover:bg-accent cursor-pointer border-t", sel && "bg-accent")}
+                      data-tone={tone ?? undefined}
+                      className={cn(
+                        "border-border hover:bg-accent cursor-pointer border-t",
+                        // ⚠ THE WASH IS SKIPPED WHEN THE ROW IS SELECTED, not layered under it. Two
+                        // background utilities on one element are resolved by stylesheet order, not
+                        // by the order they are written here, so "selected" would win on some builds
+                        // and lose on others — and a selected row the operator cannot see is how a
+                        // bulk action gets applied to rows nobody reviewed.
+                        !sel && tone === "recent" && "bg-success-soft",
+                        !sel && tone === "unopened" && "bg-warning-soft",
+                        sel && "bg-accent",
+                      )}
                     >
                       {/* ⚠ Ticking a row must not also open it. */}
                       <td className="py-3 pl-3.5" onClick={(e) => e.stopPropagation()}>
@@ -308,7 +332,7 @@ export function OrderListScreen({
                             />
                           ) : null}
                           <span className="text-[13.5px] font-medium break-words">{o.customerName || "—"}</span>
-                          <RowFlag row={o} />
+                          <RowFlag row={o} tone={tone} />
                         </div>
                       </td>
                       <td className="text-muted-foreground overflow-hidden px-3.5 py-3 text-[13px] text-ellipsis whitespace-nowrap">
@@ -370,10 +394,36 @@ export function OrderListScreen({
  * The row's flag chip (`padding:1px 6px; border-radius:4px; 10.5px; coloured border and text`).
  * ⚠ Effy's "risk" is the promise: an open order near or past its ready-by. A shortfall is the other
  * thing a shop must see from the list, so it takes the same chip in the quiet tone.
+ *
+ * ⚠ THE TONE CHIP IS WHAT MAKES THE WASH LEGAL. The row's colour is the FINDER — it is what lets an
+ * operator spot the row from across a bench — and the word is the MEANING. Colour alone excludes a
+ * colour-blind operator, a screen-reader user and anyone printing the list, which is the same rule
+ * Today's Live orders keeps (its green row also says "New") and the same one every status pill on
+ * this screen keeps.
+ *
+ * ⚠ THE CHIP IS BORDERED AND UNFILLED, unlike Today's. Here the row itself carries the `-soft` fill,
+ * so a chip with that same fill would dissolve into it — most visibly on an unopened row, whose
+ * status pill is ALREADY `--warning-soft`. The bordered chip is this component's existing device
+ * ("At risk", "N short") and cannot collide with any wash.
+ *
+ * ⚠ "Not opened" IS NOT WHAT THE STATUS PILL SAYS. That pill maps `pending` and `received` both to
+ * "Awaiting pick" — the same work — so until now the console could not show that an order had never
+ * been looked at by anyone.
  */
-function RowFlag({ row }: { row: OrderRow }) {
+function RowFlag({ row, tone }: { row: OrderRow; tone: OrderRowTone | null }) {
   return (
     <>
+      {tone === "recent" ? (
+        <span className="border-success text-success flex items-center gap-1 rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
+          <span aria-hidden="true" className="bg-success size-1.5 rounded-full" />
+          New
+        </span>
+      ) : null}
+      {tone === "unopened" ? (
+        <span className="border-warning text-warning rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
+          Not opened
+        </span>
+      ) : null}
       {row.atRisk ? (
         <span className="border-destructive text-destructive rounded-[4px] border px-1.5 py-px text-[10.5px] font-medium whitespace-nowrap">
           At risk
@@ -404,7 +454,9 @@ function SortTh({
   onSort: (patch: Partial<OrdersSearch>) => void
 }) {
   const current = !!sortKey && (search.sort ?? "placed") === sortKey
-  const dir = search.dir ?? "asc"
+  // ⚠ DESCENDING, matching `validateOrdersSearch` and the service. Reading "asc" here would draw ↑
+  // over a newest-first list and make the first click on `Placed` a no-op.
+  const dir = search.dir ?? "desc"
   return (
     <th
       className="p-0"

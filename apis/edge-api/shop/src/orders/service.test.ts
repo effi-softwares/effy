@@ -32,20 +32,25 @@ describe("parseListQuery — the wire is optional, the query never is", () => {
       method: "any",
       range: "any",
       sort: "placed",
-      dir: "asc",
+      dir: "desc",
       page: 1,
       pageSize: 25,
     });
   });
 
   /**
-   * ⚠ The replaced queue was strict FIFO (020 SC-020): the order that has waited longest is the one to
-   * pick next. A console that opened newest-first would bury the most urgent work below the fold.
+   * ⚠ Newest-first by operator direction (2026-09-19), reversing the queue's FIFO default. The FIFO
+   * read is one click away (the `placed` header flips to ascending) and an order nobody has opened
+   * is marked in the row, so the urgency the old default carried is still findable.
    */
-  it("opens oldest-first, keeping the queue's FIFO default", () => {
+  it("opens newest-first", () => {
     const q = parseListQuery({});
     expect(q.sort).toBe("placed");
-    expect(q.dir).toBe("asc");
+    expect(q.dir).toBe("desc");
+  });
+
+  it("still takes an explicit ascending direction — the FIFO read", () => {
+    expect(parseListQuery({ dir: "asc" }).dir).toBe("asc");
   });
 
   it("treats an unrecognised value as its default, never as a wider match", () => {
@@ -66,7 +71,7 @@ describe("parseListQuery — the wire is optional, the query never is", () => {
       method: "any",
       range: "any",
       sort: "placed",
-      dir: "asc",
+      dir: "desc",
       page: 1,
     });
   });
