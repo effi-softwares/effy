@@ -1,4 +1,4 @@
-import { BarChart3, ClipboardList, LayoutDashboard, Package, Palette, Shield } from "lucide-react";
+import { BarChart3, Bell, ClipboardList, LayoutDashboard, Package, Palette, Shield } from "lucide-react";
 
 import type { ShopRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -28,6 +28,16 @@ export const NAV: NavItem<ShopRole>[] = [
   // see an order's total on the Orders list is not learning anything new from its weekly sum.
   { label: "Insights", to: "/insights", icon: BarChart3, group: "Platform" },
   { label: "Management", to: "/manager", icon: Shield, requiredRole: "shop_manager", group: "Workspace" },
+  // ⚠ 059 — AND THE REASON IT IS HERE AT ALL IS A DEFECT I SHIPPED. The route, the screen, the hook,
+  // both backend routes and the whole push chain were built and the screen was linked from NOWHERE:
+  // unreachable except by typing the URL. Every notification intent was therefore recorded `skipped`
+  // with `no_token`, because no device could ever register. 039's lesson exactly — a feature that is
+  // complete, tested, and invisible.
+  //
+  // ⚠ UNGATED, like Orders. Every operator chooses what interrupts them; the one role-scoped TYPE
+  // (`shop_refund_proposed`) is filtered by the platform record at enqueue time, never by hiding a
+  // switch — a preference hidden by CSS is still a preference the server would honour.
+  { label: "Notifications", to: "/settings/notifications", icon: Bell, group: "Workspace" },
   // ⚠ DEV BUILDS ONLY, stripped the same way router.tsx strips the route: `import.meta.env.DEV`
   // folds to false in a production build. A production item would link to a route that does not
   // exist, and a page of swatches has no place in the operator's nav.
