@@ -114,13 +114,29 @@ resource "aws_amplify_app" "this" {
   }
 
   # ── Response headers (059) ──────────────────────────────────────────────────────────────────────
-  # Amplify takes customHeaders as a YAML document, not as typed blocks, so the list is rendered here.
-  # Empty list → the attribute is omitted entirely, which is what keeps every pre-059 app unchanged.
+  # Amplify takes customHeaders as a YAML document, not as typed blocks, so it is rendered here.
+  # Empty list → the attribute is omitted entirely, which keeps every app that passes none unchanged.
+  #
+  # ⚠ THE `applications` WRAPPER IS MANDATORY, AND OMITTING IT FAILS THE BUILD — AFTER IT SUCCEEDS.
+  # Every app built from this module is an Amplify MONOREPO app (they all set
+  # AMPLIFY_MONOREPO_APP_ROOT from `app_root`), and a monorepo app rejects the flat single-app
+  # `customHeaders:` document with:
+  #
+  #     !!!Unable to save headers: CustomerError: Monorepo spec provided without "applications" key
+  #
+  # ⚠ It is raised in POST-PROCESSING, after `## Build completed successfully` — so typecheck, tests
+  # and the bundle all pass, the log reads like a healthy build to the last ten lines, and the job
+  # still goes red. Found exactly that way on 059's first deploy.
   custom_headers = length(var.custom_headers) == 0 ? null : yamlencode({
-    customHeaders = [
-      for h in var.custom_headers : {
-        pattern = h.pattern
-        headers = [for k, v in h.headers : { key = k, value = v }]
+    applications = [
+      {
+        appRoot = var.app_root
+        customHeaders = [
+          for h in var.custom_headers : {
+            pattern = h.pattern
+            headers = [for k, v in h.headers : { key = k, value = v }]
+          }
+        ]
       }
     ]
   })
