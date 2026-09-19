@@ -5,7 +5,13 @@
  * ⚠ THIS IS GENUINE CLIENT STATE, which is why it lives in a TanStack Store and not in the query
  * cache (Principle VI). "Is this device connected" is not something the server can tell us.
  */
-import { Store } from "@tanstack/store"
+// ⚠ `@tanstack/react-store`, NOT `@tanstack/store`. It re-exports `Store` (`export * from
+// "@tanstack/store"`), and react-store is what this app DECLARES. Importing the core package
+// directly worked only because it is a transitive dependency that `node-linker=hoisted` flattens
+// into the root `node_modules` — an undeclared dependency that resolves by luck, and stops
+// resolving the moment the hoisting layout changes. Every other store in this app imports it the
+// same way.
+import { Store } from "@tanstack/react-store"
 
 export interface OnlineState {
   online: boolean

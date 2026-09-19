@@ -13,7 +13,13 @@
  * for notification permission — the API is absent. So these instructions are the precondition for
  * the whole of US1 on the device it matters most on, which is why US2 is P1.
  */
-import { Store } from "@tanstack/store"
+// ⚠ `@tanstack/react-store`, NOT `@tanstack/store`. It re-exports `Store` (`export * from
+// "@tanstack/store"`), and react-store is what this app DECLARES. Importing the core package
+// directly worked only because it is a transitive dependency that `node-linker=hoisted` flattens
+// into the root `node_modules` — an undeclared dependency that resolves by luck, and stops
+// resolving the moment the hoisting layout changes. Every other store in this app imports it the
+// same way.
+import { Store } from "@tanstack/react-store"
 
 const DISMISSED_KEY = "effy-shop.install-dismissed"
 

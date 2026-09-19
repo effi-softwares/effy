@@ -8,7 +8,13 @@
  * documented symptom is the app reloading itself continuously after every deploy. `getRegistration()`
  * below is what `messaging.ts` passes to `getToken`.
  */
-import { Store } from "@tanstack/store"
+// ⚠ `@tanstack/react-store`, NOT `@tanstack/store`. It re-exports `Store` (`export * from
+// "@tanstack/store"`), and react-store is what this app DECLARES. Importing the core package
+// directly worked only because it is a transitive dependency that `node-linker=hoisted` flattens
+// into the root `node_modules` — an undeclared dependency that resolves by luck, and stops
+// resolving the moment the hoisting layout changes. Every other store in this app imports it the
+// same way.
+import { Store } from "@tanstack/react-store"
 
 /** How often an already-open console checks for a new build. */
 const UPDATE_CHECK_MS = 30 * 60 * 1000
