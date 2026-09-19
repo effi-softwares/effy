@@ -32,8 +32,8 @@ vi.mock("../stockRepo", () => ({
   getLowStock: vi.fn(),
 }))
 
-const { InventorySection } = await import("../InventorySection")
-const { AdjustStockDialog, ReceiveStockDialog } = await import("../StockDialogs")
+const { InventorySection, ReceiveStockButton } = await import("../InventorySection")
+const { AdjustStockDialog, ReceiveStockDialog, StartTrackingDialog } = await import("../StockDialogs")
 const { InventoryRulesDialog } = await import("../InventoryRulesDialog")
 const { ProductActivitySheet } = await import("../ProductActivitySheet")
 
@@ -280,6 +280,92 @@ describe("adjusting stock", () => {
     await user.click(await screen.findByRole("option", { name: /add or remove/i }))
     await user.type(screen.getByLabelText(/change by/i), "-8")
     expect(screen.getByText("5 → 0")).toBeInTheDocument()
+  })
+})
+
+// ── Starting a count from the header ─────────────────────────────────────────────────────────────
+
+describe("the header stock action on an untracked product", () => {
+  // ⚠ TRACKING IS OFF BY DEFAULT (054), so this is the state MOST products are in — the header's
+  // stock button used to be dead on nearly every product page, with its only explanation in a `title`
+  // attribute no touch device shows. These assertions pin the replacement: the label says which
+  // action is coming, and the action itself is reachable in one step.
+
+  it("offers Add stock instead of a disabled Receive stock", async () => {
+    getProductStock.mockResolvedValue(stockDetail({ tracked: false, onHand: null }))
+    wrap(<ReceiveStockButton detail={PRODUCT} onReceive={() => {}} />)
+
+    const button = await screen.findByRole("button", { name: "Add stock" })
+    expect(button).toBeEnabled()
+  })
+
+  it("keeps Receive stock where a count already exists", async () => {
+    // ⚠ Waited for, not read once: the loading state ALSO reads "Receive stock" (deliberately — see
+    // below), so a bare findByRole resolves against the disabled placeholder and asserts nothing.
+    getProductStock.mockResolvedValue(stockDetail({ tracked: true, onHand: 12 }))
+    wrap(<ReceiveStockButton detail={PRODUCT} onReceive={() => {}} />)
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Receive stock" })).toBeEnabled(),
+    )
+  })
+
+  it("stays disabled and keeps the tracked label while the stock read is in flight", () => {
+    // ⚠ Defaulting to "Add stock" would flip the wording under the operator's cursor a moment later,
+    // and on a tracked product a fast click would open the wrong dialog.
+    getProductStock.mockReturnValue(new Promise(() => {}))
+    wrap(<ReceiveStockButton detail={PRODUCT} onReceive={() => {}} />)
+    expect(screen.getByRole("button", { name: "Receive stock" })).toBeDisabled()
+  })
+
+  it("turns tracking on and records the opening count in ONE request", async () => {
+    // ⚠ One request, not a turn-on followed by an adjust: a failed second call would leave the
+    // product tracked at zero — briefly unbuyable — which is the state FR-003 refuses to create by
+    // accident.
+    const user = userEvent.setup()
+    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+
+    expect(screen.getByRole("button", { name: /^add stock$/i })).toBeDisabled()
+    await user.type(screen.getByLabelText(/units in stock now/i), "24")
+    await user.click(screen.getByRole("button", { name: /^add stock$/i }))
+
+    await waitFor(() => expect(setStockTracking).toHaveBeenCalledTimes(1))
+    expect(setStockTracking.mock.calls[0]![1]).toEqual({ tracked: true, onHand: 24 })
+    expect(setStockCount).not.toHaveBeenCalled()
+    expect(adjustStock).not.toHaveBeenCalled()
+  })
+
+  it("says that selling behaviour changes, before the write", async () => {
+    // ⚠ An operator who typed a number into something called "Add stock" has not consented to the
+    // product going unbuyable at zero unless it is written next to the field.
+    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+    expect(screen.getByText(/deducts a unit, and the product stops selling at zero/i)).toBeInTheDocument()
+  })
+
+  it("refuses a count that is not a whole number, without asking the server", async () => {
+    const user = userEvent.setup()
+    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+
+    await user.type(screen.getByLabelText(/units in stock now/i), "-3")
+    expect(screen.getByRole("button", { name: /^add stock$/i })).toBeDisabled()
+    expect(setStockTracking).not.toHaveBeenCalled()
+  })
+
+  it("renders the server's own refusal rather than one generic sentence (053)", async () => {
+    const user = userEvent.setup()
+    setStockTracking.mockRejectedValue({
+      kind: "forbidden",
+      status: 403,
+      title: "Forbidden",
+      detail: "internal wording that must never be rendered",
+    })
+    wrap(<StartTrackingDialog productId="p1" open onOpenChange={() => {}} />)
+
+    await user.type(screen.getByLabelText(/units in stock now/i), "5")
+    await user.click(screen.getByRole("button", { name: /^add stock$/i }))
+
+    const alert = await screen.findByRole("alert")
+    expect(alert).toHaveTextContent(/don't have permission/i)
+    expect(alert).not.toHaveTextContent(/internal wording/)
   })
 })
 

@@ -21,7 +21,7 @@ import {
 } from "@effy/design-system/ui";
 
 import { stockErrorText } from "./stockErrorText";
-import { useAdjustStock, useSetStockCount } from "./stockQueries";
+import { useAdjustStock, useSetStockCount, useSetStockTracking } from "./stockQueries";
 
 /**
  * The two stock WRITES the redesigned product page offers (057) — the mockup's `receive` and
@@ -173,6 +173,114 @@ export function ReceiveStockDialog({ productId, stock, open, onOpenChange }: Dia
           </Button>
           <Button onClick={submit} disabled={!valid || adjust.isPending}>
             {adjust.isPending ? "Adding…" : "Add to stock"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Add stock (start counting) ───────────────────────────────────────────────────────────────────
+
+/**
+ * The untracked product's version of the header action, and the reason it exists.
+ *
+ * ⚠ TRACKING IS OFF BY DEFAULT (054), SO THIS IS THE STATE MOST PRODUCTS ARE IN. Until now the header
+ * button was disabled for every one of them and the only way forward was: open the Inventory tab,
+ * find `Edit rules`, discover a switch, flip it, and only then type the number the operator came here
+ * to type. Four steps to answer "we just got 24 of these". The refusal was honest — the count write
+ * genuinely does not apply to an untracked product — but a dead control is a poor teacher, and the
+ * operator's intent ("start counting this, here is how many") is a thing the platform can act on
+ * directly.
+ *
+ * ⚠ IT IS ONE REQUEST, NOT TWO. `PUT .../stock/tracking` takes the opening count in the same body
+ * that turns tracking on, and the server writes a single `tracking_enabled` movement from it. A
+ * turn-on-then-adjust pair would leave a product tracked-at-zero — briefly unbuyable — if the second
+ * call failed, which is exactly the state FR-003 refuses to create by accident.
+ *
+ * ⚠ AND IT SAYS WHAT ELSE CHANGES. Turning tracking on is not just bookkeeping: from that moment
+ * paid orders deduct units and the product stops selling at zero. An operator who typed a number into
+ * something called "Add stock" has not consented to that unless it is written next to the field.
+ */
+export function StartTrackingDialog({
+  productId,
+  open,
+  onOpenChange,
+}: Omit<DialogProps, "stock">) {
+  const setTracking = useSetStockTracking(productId);
+  const [units, setUnits] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setUnits("");
+      setTracking.reset();
+    }
+    // Reset on open only — reset() is a new identity every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const parsed = wholeNumber(units);
+  const valid = parsed !== null;
+
+  function submit() {
+    if (!valid) return;
+    setTracking.mutate(
+      { tracked: true, onHand: parsed },
+      { onSuccess: () => onOpenChange(false) },
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add stock</DialogTitle>
+          <DialogDescription>
+            This product isn&apos;t counted yet. Enter how many you have and Effy starts keeping
+            count from there.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-4">
+          <div className="grid gap-1.5">
+            <Label htmlFor="start-units">Units in stock now</Label>
+            <Input
+              id="start-units"
+              inputMode="numeric"
+              autoComplete="off"
+              className="w-32"
+              placeholder="0"
+              value={units}
+              onChange={(e) => setUnits(e.target.value)}
+            />
+            <p className="text-muted-foreground text-[12.5px]">
+              Required — counting cannot start from an unknown number.
+            </p>
+          </div>
+
+          {/* ⚠ The consequence, stated before the write and not after it. This one action changes how
+              the product behaves for shoppers, and the operator only sees the words "Add stock". */}
+          <div className="border-border border-t pt-3.5">
+            <p className="text-muted-foreground text-[12.5px]">
+              Stock tracking will be turned on: each paid order deducts a unit, and the product stops
+              selling at zero. You can turn it off again, or set a low-stock threshold, under Edit
+              rules.
+            </p>
+          </div>
+
+          {setTracking.isError ? <Refusal error={setTracking.error} /> : null}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={setTracking.isPending}
+          >
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={!valid || setTracking.isPending}>
+            {setTracking.isPending ? "Adding…" : "Add stock"}
           </Button>
         </DialogFooter>
       </DialogContent>

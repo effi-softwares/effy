@@ -19,7 +19,7 @@ import { productMutationError } from "./errorText";
 import { ReceiveStockButton } from "./InventorySection";
 import type { ProductDetail } from "./model";
 import { useChangeStatus, useDeleteProduct } from "./queries";
-import { ReceiveStockDialog } from "./StockDialogs";
+import { ReceiveStockDialog, StartTrackingDialog } from "./StockDialogs";
 import { removalAction, visibilityAction } from "./statusControl";
 import { productStockQuery } from "./stockQueries";
 import { useQuery } from "@tanstack/react-query";
@@ -95,17 +95,33 @@ export function ProductHeaderActions({
 
       {error ? <span className="text-destructive text-sm">{error}</span> : null}
 
-      {/* ⚠ Mounted only once the stock read has landed. The dialog shows "on hand → after" before the
-          write, and it cannot do that arithmetic against a count it does not have yet — an opening
-          state of "0 → 24" for a shelf holding 12 is exactly the wrong thing to show someone about to
-          commit a number. */}
+      {/* ⚠ Mounted only once the stock read has landed. The receive dialog shows "on hand → after"
+          before the write, and it cannot do that arithmetic against a count it does not have yet — an
+          opening state of "0 → 24" for a shelf holding 12 is exactly the wrong thing to show someone
+          about to commit a number.
+
+          ⚠ WHICH DIALOG DEPENDS ON THE PRODUCT, and the button's own label already said which one is
+          coming. Tracking is opt-in per product (054) and OFF by default, so an untracked product is
+          the common case, not the edge one: it gets `StartTrackingDialog`, which turns counting on and
+          records the opening count in a single request. A tracked product gets the additive receive.
+          The two are not one dialog with a mode, because the operator is not choosing between them —
+          the product's own state decides, and a mode switch would offer a choice with one right
+          answer. */}
       {stock.data ? (
-        <ReceiveStockDialog
-          productId={detail.id}
-          stock={stock.data.stock}
-          open={receiveOpen}
-          onOpenChange={setReceiveOpen}
-        />
+        stock.data.stock.tracked ? (
+          <ReceiveStockDialog
+            productId={detail.id}
+            stock={stock.data.stock}
+            open={receiveOpen}
+            onOpenChange={setReceiveOpen}
+          />
+        ) : (
+          <StartTrackingDialog
+            productId={detail.id}
+            open={receiveOpen}
+            onOpenChange={setReceiveOpen}
+          />
+        )
       ) : null}
 
       {action ? (

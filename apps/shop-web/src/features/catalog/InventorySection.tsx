@@ -151,8 +151,8 @@ export function InventorySection({ detail }: { detail: ProductDetail }) {
           </div>
         ) : (
           <p className="text-muted-foreground pt-[18px] text-[13px]">
-            Nothing is recorded while stock is not tracked. Turn tracking on in Edit rules to start
-            keeping a count and a history.
+            Nothing is recorded while stock is not tracked. Use Add stock at the top of this page to
+            enter what you have and start keeping a count and a history.
           </p>
         )}
       </DetailSection>
@@ -192,12 +192,25 @@ function thresholdText(own: number | null, effective: number | null): string {
 }
 
 /**
- * The header's Receive-stock affordance, which needs the same stock read this section makes and so
- * shares its cache entry rather than issuing a second one.
+ * The header's stock affordance — `Receive stock` on a tracked product, `Add stock` on one that is
+ * not counted yet. It needs the same stock read this section makes and so shares its cache entry
+ * rather than issuing a second one.
  *
- * ⚠ IT IS DISABLED, NOT HIDDEN, WHEN STOCK IS UNTRACKED — and it says why. A control that vanishes
- * leaves the operator hunting for it; one that refuses out loud teaches the rule once. This is the
- * same reason 033's guest save cap refuses deliberately instead of quietly doing nothing.
+ * ⚠ IT USED TO BE DISABLED WHENEVER TRACKING WAS OFF, WHICH IS MOST PRODUCTS. Tracking is opt-in per
+ * product (054) and defaults to off, so the platform's own default put a dead control in the header
+ * of nearly every product page, explaining itself only in a `title` attribute a touch device never
+ * shows. The refusal was TRUE — there is no count to receive into — but it answered a question the
+ * operator was not asking. "We just got 24 of these" is the same intent whether or not a count
+ * exists; the only difference is that one of them has to start the count first, and the platform can
+ * do that in the same request (see `StartTrackingDialog`).
+ *
+ * ⚠ THE LABEL IS WHAT CARRIES THE DIFFERENCE, and it changes for a reason rather than for variety:
+ * receiving ADDS to a number that exists, adding stock ESTABLISHES one. An operator who reads
+ * "Receive stock" on an uncounted product would reasonably expect a running total behind it.
+ *
+ * ⚠ WHILE THE READ IS IN FLIGHT THE BUTTON IS DISABLED AND KEEPS THE TRACKED LABEL. Defaulting to
+ * `Add stock` would flip the wording under the operator's cursor a moment later — and on a tracked
+ * product, offer the wrong dialog to a fast click.
  */
 export function ReceiveStockButton({
   detail,
@@ -207,20 +220,12 @@ export function ReceiveStockButton({
   onReceive: () => void;
 }) {
   const { data } = useQuery(productStockQuery(detail.id));
+  const loading = data === undefined;
   const tracked = data?.stock.tracked ?? false;
 
   return (
-    <Button
-      size="sm"
-      onClick={onReceive}
-      disabled={!tracked}
-      title={
-        tracked
-          ? undefined
-          : "Stock isn't tracked for this product. Turn tracking on under the Inventory tab first."
-      }
-    >
-      Receive stock
+    <Button size="sm" onClick={onReceive} disabled={loading}>
+      {loading || tracked ? "Receive stock" : "Add stock"}
     </Button>
   );
 }
