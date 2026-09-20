@@ -46,14 +46,34 @@ export function toMeDTO(record: DriverRecord): DriverMeDTO {
 }
 
 /** Go on/off duty; returns the resulting duty status. */
-export async function setDuty(record: DriverRecord, onDuty: boolean): Promise<DutyResponse> {
+export async function setDuty(
+  record: DriverRecord,
+  onDuty: boolean,
+  expectedEndAt?: string | null,
+): Promise<DutyResponse> {
   if (onDuty) {
-    await repo.goOnDuty(record.id);
+    // ⚠ An absent or malformed value is stored as NULL, which MEANS UNKNOWN (FR-033). It is never
+    // replaced with an assumed shift length: a guess that looks like a fact is worse than a gap,
+    // because the dispatch slice will decide someone's workload from it.
+    const expected = normaliseExpectedEnd(expectedEndAt);
+    await repo.goOnDuty(record.id, expected);
     const fresh = await repo.findBySubject(record.subject);
-    return { dutyStatus: "on_duty", since: fresh?.onDutySince ?? null };
+    return {
+      dutyStatus: "on_duty",
+      since: fresh?.onDutySince ?? null,
+      expectedEndAt: fresh?.expectedEndAt ?? null,
+    };
   }
   await repo.goOffDuty(record.id);
-  return { dutyStatus: "off_duty", since: null };
+  return { dutyStatus: "off_duty", since: null, expectedEndAt: null };
+}
+
+/** ISO 8601 or nothing. ⚠ An unparseable value becomes NULL rather than throwing — a driver must
+ *  never be prevented from going on duty by an optional convenience field. */
+function normaliseExpectedEnd(value: unknown): string | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const t = Date.parse(value);
+  return Number.isNaN(t) ? null : new Date(t).toISOString();
 }
 // ⚠ `recordLocation` STOOD HERE AND IS GONE (061, FR-035/FR-036). Effy does not track driver
 // position. It was a receiver with no sender — no caller in the mobile app, no location permission

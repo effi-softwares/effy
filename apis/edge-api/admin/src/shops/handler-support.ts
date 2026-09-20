@@ -85,6 +85,7 @@ export function toDetailDTO(d: ShopDetail): ShopDetailDTO {
     status: d.status,
     contactPhone: d.contactPhone,
     notes: d.notes,
+    address: d.address,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
     users: d.users.map(toUserDTO),

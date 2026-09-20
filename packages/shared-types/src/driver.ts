@@ -57,13 +57,27 @@ export interface DriverMeDTO {
 export interface DutyRequest {
   onDuty: boolean;
   changeId: string;
+  /**
+   * ⚠ OPTIONAL, AND ITS ABSENCE MEANS UNKNOWN (061, FR-032/FR-033).
+   *
+   * When a driver goes on duty they may say when they expect to finish. It buys nothing today — it
+   * exists so the dispatch slice can ask "can this driver finish this round before they go home",
+   * which is otherwise unanswerable.
+   *
+   * ⚠ IT MUST NEVER BE DEFAULTED TO A SHIFT LENGTH. An invented finish time would make a guess look
+   * like a fact at exactly the moment it decides someone's workload — and the driver would be the
+   * one who found out.
+   */
+  expectedEndAt?: string | null;
 }
 export interface DutyResponse {
   dutyStatus: DriverDutyStatus;
   since: string | null; // ISO 8601; null when off duty
+  /** null = the driver did not say. Render as "unknown", never as a time. */
+  expectedEndAt: string | null;
 }
 
-/** POST /driver/v1/location — optional point-in-time snapshot (never streamed). */
+/** ⚠ `LocationRequest` STOOD HERE AND IS GONE (061) — see the note below. */
 // ⚠ `LocationRequest` STOOD HERE AND IS GONE (061, FR-035/FR-036). Effy does not track driver
 // position. It was a receiver with no sender — no caller in `apps/driver-mobile`, no location
 // permission declared on either platform, no reader of the columns — and leaving it dormant is how
@@ -585,6 +599,11 @@ export interface OnDutyDriver {
   zone: string | null;
   sessionId: string;
   onDutySince: string;
+  /** ⚠ null = the driver did not say when they expect to finish. The console renders "unknown";
+   *  it MUST NOT substitute a default shift length (061, FR-033). */
+  expectedEndAt: string | null;
+  /** True when an expected finish has already passed — visible, not alarming. */
+  pastExpectedEnd: boolean;
   /** True when the session has been open longer than the configured threshold (FR-037). */
   overdue: boolean;
 }

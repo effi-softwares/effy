@@ -134,11 +134,11 @@ change stays attributable.
 
 **Independent test**: create a driver, fill every field, edit them, clear an optional one, read the history back.
 
-- [ ] T055 [P] [US3] Add `licenceClass` to the driver DTOs in `packages/shared-types/src/driver.ts` (profile, update request, list item)
-- [ ] T056 [US3] Extend `apis/edge-api/fleet/src/drivers/repository.ts` to read and write `licence_class`, ⚠ **preserving 056's presence-not-value update semantics** — a key present with `null` clears, a key absent leaves alone; do NOT "clean" the request object (FR-022)
-- [ ] T057 [US3] Extend `apis/edge-api/fleet/src/drivers/service.ts` to validate the licence class against the closed set and refuse an unknown value by name
+- [X] T055 [P] [US3] Add `licenceClass` to the driver DTOs in `packages/shared-types/src/driver.ts` (profile, update request, list item)
+- [X] T056 [US3] Extend `apis/edge-api/fleet/src/drivers/repository.ts` to read and write `licence_class`, ⚠ **preserving 056's presence-not-value update semantics** — a key present with `null` clears, a key absent leaves alone; do NOT "clean" the request object (FR-022)
+- [X] T057 [US3] Extend `apis/edge-api/fleet/src/drivers/service.ts` to validate the licence class against the closed set and refuse an unknown value by name
 - [ ] T058 [P] [US3] Add the licence-class field to `apps/back-office/src/features/drivers/components/ProfileEditForm.tsx` and the driver detail rows
-- [ ] T059 [P] [US3] Unit test in `apis/edge-api/fleet/src/drivers/service.test.ts` — clearing an optional field persists as cleared, proven by round-tripping rather than by asserting the request shape
+- [X] T059 [P] [US3] Unit test in `apis/edge-api/fleet/src/drivers/service.test.ts` — clearing an optional field persists as cleared, proven by round-tripping rather than by asserting the request shape
 - [ ] T060 [P] [US3] Test in `apis/edge-api/fleet/src/shared/audit.test.ts` — a change to the emergency contact records **that the field changed and NOT its value** (FR-024)
 
 **Checkpoint**: the driver record is complete and the licence is a fact the platform can act on.
@@ -151,14 +151,14 @@ change stays attributable.
 
 **Independent test**: create drivers in each blocked state and confirm each shows its own reason; an unblocked driver appears nowhere.
 
-- [ ] T061 [US4] Extend `BLOCKED_REASONS` in `apis/edge-api/fleet/src/drivers/sql.ts` with `no_vehicle` and `vehicle_non_compliant`, derived by joining the open holding and its vehicle — ⚠ extending the existing fragment, never writing a second predicate (research R8)
-- [ ] T062 [US4] Add the licence-class rule to `apis/edge-api/fleet/src/drivers/sql.ts` as a rule with a single current case, so `licence_class_insufficient` is reachable the day a heavier vehicle exists (research R7, FR-027)
-- [ ] T063 [P] [US4] Container test C8 in `apis/edge-api/fleet/src/schema.container.test.ts` — `BLOCKED_REASONS` emits **every** applicable reason, not the first found (FR-026)
-- [ ] T064 [P] [US4] Container test C9 in `apis/edge-api/fleet/src/schema.container.test.ts` — an expired licence yields a reason naming the licence (FR-027, SC-005)
-- [ ] T065 [P] [US4] Container test C10 in `apis/edge-api/fleet/src/schema.container.test.ts` — a holder of a non-compliant vehicle is blocked with a reason naming **the vehicle**, not the driver (FR-027)
-- [ ] T066 [US4] Extend `apis/edge-api/fleet/src/readiness/repository.ts` and `service.ts` to carry the new reasons through to the readiness payload
-- [ ] T067 [US4] Add the two new labels to `BLOCKED_LABEL` in `apps/back-office/src/features/drivers/model.ts` and render them in `components/ReadinessPanel.tsx`
-- [ ] T068 [P] [US4] Test in `apps/back-office/src/features/drivers/model.test.ts` that `BLOCKED_LABEL` is **exhaustive over `DriverBlockedReason`**, so a future widening fails the suite instead of rendering a blank reason (risk K1, NP12)
+- [X] T061 [US4] Extend `BLOCKED_REASONS` in `apis/edge-api/fleet/src/drivers/sql.ts` with `no_vehicle` and `vehicle_non_compliant`, derived by joining the open holding and its vehicle — ⚠ extending the existing fragment, never writing a second predicate (research R8)
+- [X] T062 [US4] Add the licence-class rule to `apis/edge-api/fleet/src/drivers/sql.ts` as a rule with a single current case, so `licence_class_insufficient` is reachable the day a heavier vehicle exists (research R7, FR-027)
+- [X] T063 [P] [US4] Container test C8 in `apis/edge-api/fleet/src/schema.container.test.ts` — `BLOCKED_REASONS` emits **every** applicable reason, not the first found (FR-026)
+- [X] T064 [P] [US4] Container test C9 in `apis/edge-api/fleet/src/schema.container.test.ts` — an expired licence yields a reason naming the licence (FR-027, SC-005)
+- [X] T065 [P] [US4] Container test C10 in `apis/edge-api/fleet/src/schema.container.test.ts` — a holder of a non-compliant vehicle is blocked with a reason naming **the vehicle**, not the driver (FR-027)
+- [X] T066 [US4] Extend `apis/edge-api/fleet/src/readiness/repository.ts` and `service.ts` to carry the new reasons through to the readiness payload
+- [X] T067 [US4] Add the two new labels to `BLOCKED_LABEL` in `apps/back-office/src/features/drivers/model.ts` and render them in `components/ReadinessPanel.tsx`
+- [X] T068 [P] [US4] Test in `apps/back-office/src/features/drivers/model.test.ts` that `BLOCKED_LABEL` is **exhaustive over `DriverBlockedReason`**, so a future widening fails the suite instead of rendering a blank reason (risk K1, NP12)
 - [ ] T069 [P] [US4] Test in `apis/edge-api/fleet/src/readiness/service.test.ts` that a driver who can work does **not** appear in the readiness view at all (FR-028)
 
 **Checkpoint**: the recorded facts now produce an operational answer, and it is the answer slice C's engine will agree with.
@@ -171,9 +171,9 @@ change stays attributable.
 
 **Independent test**: give every active shop an address, leave one without, confirm the gap shows.
 
-- [ ] T070 [P] [US5] Add the five address fields to the shop DTOs in `packages/shared-types/src/shop.ts` (or the existing shop admin types), all optional
-- [ ] T071 [US5] Extend `apis/edge-api/admin/src/shops/repository.ts` and `service.ts` to read and write the address fields, ⚠ **on the routes that already exist — no new function** (research R3, `edge-admin` is at ~434/500 CloudFormation resources)
-- [ ] T072 [US5] Validate `postcode` against `^[0-9]{4}$` in `apis/edge-api/admin/src/shops/service.ts` and refuse a malformed value by name — a bad postcode matches no zone in slice C and would produce a shop nobody can be sent to, silently
+- [X] T070 [P] [US5] Add the five address fields to the shop DTOs in `packages/shared-types/src/shop.ts` (or the existing shop admin types), all optional
+- [X] T071 [US5] Extend `apis/edge-api/admin/src/shops/repository.ts` and `service.ts` to read and write the address fields, ⚠ **on the routes that already exist — no new function** (research R3, `edge-admin` is at ~434/500 CloudFormation resources)
+- [X] T072 [US5] Validate `postcode` against `^[0-9]{4}$` in `apis/edge-api/admin/src/shops/service.ts` and refuse a malformed value by name — a bad postcode matches no zone in slice C and would produce a shop nobody can be sent to, silently
 - [ ] T073 [P] [US5] Add the address fields to the shop form and detail rows in `apps/back-office/src/features/shops/`
 - [ ] T074 [US5] Render a missing address as a **named gap** in `apps/back-office/src/features/shops/ShopsListScreen.tsx` rather than as blank space (FR-030)
 - [ ] T075 [US5] ⚠ Write a source guard in `apis/edge-api/admin/src/shops/hidden-fulfilment.guard.test.ts` asserting no customer-facing payload carries a shop address field — hidden fulfilment is a platform invariant (FR-031 neighbourhood, risk K4, NP9)
@@ -189,12 +189,12 @@ change stays attributable.
 
 **Independent test**: go on duty with and without a finish time; confirm the two are distinguishable everywhere.
 
-- [ ] T077 [P] [US6] Add `expectedEndAt` to `DutyRequest`, `DutyResponse` and `OnDutyDriver` in `packages/shared-types/src/driver.ts`
-- [ ] T078 [US6] Extend `apis/edge-api/driver/src/driver/repository.ts` and `service.ts` to accept and store `expected_end_at` when going on duty
-- [ ] T079 [US6] Extend `apis/edge-api/fleet/src/duty/repository.ts` to return `expectedEndAt` and whether it has passed, for the back-office duty panel (FR-034)
-- [ ] T080 [P] [US6] Render the expected finish, or the word **unknown**, in `apps/back-office/src/features/drivers/components/DutyPanel.tsx` — ⚠ never a substituted default (FR-033)
+- [X] T077 [P] [US6] Add `expectedEndAt` to `DutyRequest`, `DutyResponse` and `OnDutyDriver` in `packages/shared-types/src/driver.ts`
+- [X] T078 [US6] Extend `apis/edge-api/driver/src/driver/repository.ts` and `service.ts` to accept and store `expected_end_at` when going on duty
+- [X] T079 [US6] Extend `apis/edge-api/fleet/src/duty/repository.ts` to return `expectedEndAt` and whether it has passed, for the back-office duty panel (FR-034)
+- [X] T080 [P] [US6] Render the expected finish, or the word **unknown**, in `apps/back-office/src/features/drivers/components/DutyPanel.tsx` — ⚠ never a substituted default (FR-033)
 - [ ] T081 [P] [US6] Add the optional finish-time entry to the go-on-duty flow in `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/features/driver/`
-- [ ] T082 [P] [US6] ⚠ Write the test in `apps/back-office/src/features/drivers/components/DutyPanel.test.tsx` that a null `expectedEndAt` renders as unknown and that **no default shift length is substituted anywhere** (NP11 — one of the two negative proofs that otherwise leave a green suite)
+- [X] T082 [P] [US6] ⚠ Write the test in `apps/back-office/src/features/drivers/components/DutyPanel.test.tsx` that a null `expectedEndAt` renders as unknown and that **no default shift length is substituted anywhere** (NP11 — one of the two negative proofs that otherwise leave a green suite)
 
 **Checkpoint**: slice C's feasibility gate has an input, and an honest answer when it does not.
 

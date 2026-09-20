@@ -47,6 +47,17 @@ export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
 // db/migrations/20260920101500_remove_driver_work_model.sql, and are removed rather than kept as
 // labels with nothing to label.
 
+/** "6:30 pm" in Melbourne — the operator's own clock, never UTC. */
+export function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Australia/Melbourne",
+  });
+}
+
 /** "3 h 20 m on duty" — a duration a person can scan, not a timestamp they have to subtract. */
 export function durationSince(iso: string, now = Date.now()): string {
   const ms = Math.max(0, now - Date.parse(iso));

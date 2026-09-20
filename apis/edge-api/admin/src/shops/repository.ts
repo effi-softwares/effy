@@ -29,6 +29,11 @@ interface ShopRow {
   status: ShopLifecycleStatus;
   contact_phone: string | null;
   notes: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  suburb: string | null;
+  postcode: string | null;
+  state: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -73,6 +78,14 @@ function mapShop(row: ShopRow): Shop {
     status: row.status,
     contactPhone: row.contact_phone,
     notes: row.notes,
+    // ⚠ 061: address only, never coordinates (FR-031). Nothing computes distance.
+    address: {
+      addressLine1: row.address_line1,
+      addressLine2: row.address_line2,
+      suburb: row.suburb,
+      postcode: row.postcode,
+      state: row.state as Shop["address"]["state"],
+    },
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
@@ -177,7 +190,9 @@ export async function listShops(params: {
 
 async function readShop(shopId: string): Promise<Shop | null> {
   const res = await query<ShopRow>(
-    `SELECT id, code, name, status, contact_phone, notes, created_at, updated_at
+    `SELECT id, code, name, status, contact_phone, notes,
+            address_line1, address_line2, suburb, postcode, state,
+            created_at, updated_at
        FROM public.shop WHERE id = $1`,
     [shopId],
   );
@@ -310,7 +325,8 @@ export async function createShopWithManager(
     let id: string;
     try {
       const ins = await client.query<{ id: string }>(
-        `INSERT INTO public.shop (code, name, contact_phone, notes)
+        `INSERT INTO public.shop (code, name, contact_phone, notes,
+                                  address_line1, address_line2, suburb, postcode, state)
               VALUES ($1, $2, $3, $4)
            ON CONFLICT (code) DO UPDATE
               SET name = EXCLUDED.name, contact_phone = EXCLUDED.contact_phone,
@@ -341,17 +357,46 @@ export async function createShopWithManager(
   return detail;
 }
 
-/** Edit mutable details (name/contactPhone/notes). Code is immutable (A9) and never touched. */
+/** Edit mutable details (name/contactPhone/notes/address). Code is immutable (A9), never touched. */
 export async function updateShop(
   shopId: string,
-  values: { name: string; contactPhone: string | null; notes: string | null },
+  values: {
+    name: string;
+    contactPhone: string | null;
+    notes: string | null;
+    addressLine1?: string | null;
+    addressLine2?: string | null;
+    suburb?: string | null;
+    postcode?: string | null;
+    state?: string | null;
+  },
   actorSub: string,
 ): Promise<ShopDetail> {
   await withTransaction(async (client) => {
+    // ⚠ Address fields use PRESENCE, not value: a key present with null clears, a key absent leaves
+    // alone. The same rule 056 established for drivers, where COALESCE collapsed the two and a zone
+    // once assigned could never be un-assigned.
+    const sets = [
+      "name = $2",
+      "contact_phone = $3",
+      "notes = $4",
+    ];
+    const args: unknown[] = [shopId, values.name, values.contactPhone, values.notes];
+    for (const [key, col] of [
+      ["addressLine1", "address_line1"],
+      ["addressLine2", "address_line2"],
+      ["suburb", "suburb"],
+      ["postcode", "postcode"],
+      ["state", "state"],
+    ] as const) {
+      if (!(key in values)) continue;
+      args.push(values[key] ?? null);
+      sets.push(`${col} = $${args.length}`);
+    }
     const res = await client.query<{ id: string }>(
-      `UPDATE public.shop SET name = $2, contact_phone = $3, notes = $4, updated_at = now()
+      `UPDATE public.shop SET ${sets.join(", ")}, updated_at = now()
         WHERE id = $1 RETURNING id`,
-      [shopId, values.name, values.contactPhone, values.notes],
+      args,
     );
     if (!res.rows[0]) throw new ShopError("not_found", "shop not found");
     await insertAudit(client, actorSub, "shop.update", "shop", shopId, { name: values.name });

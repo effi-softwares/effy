@@ -114,11 +114,64 @@ export async function createShop(
   );
 }
 
+// ── Address (061) ──────────────────────────────────────────────────────────────────────────
+
+const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
+
+/**
+ * Validate the five address fields and return only the keys the caller actually sent.
+ *
+ * ⚠ PRESENCE, NOT VALUE — a key present with null CLEARS, a key absent leaves alone. The same rule
+ * 056 established for drivers, where COALESCE collapsed the two and a zone once assigned could never
+ * be un-assigned.
+ *
+ * ⚠ THE POSTCODE RULE IS NOT COSMETIC. Slice C matches this value against `delivery_zone_postcode`.
+ * A malformed postcode there matches NO zone, silently — producing a shop nobody can be sent to, with
+ * nothing failing anywhere. Refusing it here is the cheapest place to catch it.
+ */
+function addressPatch(patch: Record<string, unknown>): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  const fields: { field: string; message: string }[] = [];
+
+  for (const key of ["addressLine1", "addressLine2", "suburb"]) {
+    if (!(key in patch)) continue;
+    out[key] = optionalText(patch[key]);
+  }
+
+  if ("postcode" in patch) {
+    const v = optionalText(patch.postcode);
+    if (v !== null && !/^[0-9]{4}$/.test(v)) {
+      fields.push({ field: "postcode", message: "must be exactly four digits" });
+    }
+    out.postcode = v;
+  }
+
+  if ("state" in patch) {
+    const v = optionalText(patch.state);
+    if (v !== null && !AU_STATES.includes(v)) {
+      fields.push({ field: "state", message: `must be one of ${AU_STATES.join(", ")}` });
+    }
+    out.state = v;
+  }
+
+  if (fields.length > 0) throw new ShopError("validation", "invalid shop address", fields);
+  return out;
+}
+
 // ── Edit details ───────────────────────────────────────────────────────────────────────────
 
 export async function editShop(
   shopId: string,
-  patch: { name?: unknown; contactPhone?: unknown; notes?: unknown },
+  patch: {
+    name?: unknown;
+    contactPhone?: unknown;
+    notes?: unknown;
+    addressLine1?: unknown;
+    addressLine2?: unknown;
+    suburb?: unknown;
+    postcode?: unknown;
+    state?: unknown;
+  },
   actorSub: string,
 ): Promise<ShopDetail> {
   const current = await repo.getShopDetail(shopId);
@@ -136,7 +189,11 @@ export async function editShop(
   const contactPhone = "contactPhone" in patch ? optionalText(patch.contactPhone) : current.contactPhone;
   const notes = "notes" in patch ? optionalText(patch.notes) : current.notes;
 
-  return repo.updateShop(shopId, { name, contactPhone, notes }, actorSub);
+  return repo.updateShop(
+    shopId,
+    { name, contactPhone, notes, ...addressPatch(patch as Record<string, unknown>) },
+    actorSub,
+  );
 }
 
 // ── Lifecycle ────────────────────────────────────────────────────────────────────────────────

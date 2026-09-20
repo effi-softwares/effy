@@ -16,6 +16,7 @@ const ACTIVE: DriverRecord = {
   status: "active",
   dutyStatus: "off_duty",
   onDutySince: null,
+  expectedEndAt: null,
 };
 
 describe("requireDriver — the access decision is the record, not the token (Principle IV)", () => {

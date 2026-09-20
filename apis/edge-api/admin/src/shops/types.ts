@@ -1,6 +1,7 @@
 // Domain types for back-office shop management (009-shop-management). Wire DTOs live in
 // @effy/shared-types and are mapped explicitly in the handlers; these are the internal domain
 // shapes and never leak wire concerns (constitution Principle VI). Mirrors data-model.md §5.
+import type { ShopAddressDTO } from "@effy/shared-types";
 
 export type ShopLifecycleStatus = "active" | "suspended" | "disabled";
 export type ShopStaffStatus = "active" | "disabled";
@@ -30,6 +31,9 @@ export interface Shop {
   status: ShopLifecycleStatus;
   contactPhone: string | null;
   notes: string | null;
+  /** ⚠ 061: where the shop physically is, so a driver can be told where to collect from. Address
+   *  only — no coordinates (FR-031), because nothing on this platform computes distance. */
+  address: ShopAddressDTO;
   createdAt: string;
   updatedAt: string;
 }

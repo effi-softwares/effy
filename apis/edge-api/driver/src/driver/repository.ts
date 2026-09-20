@@ -21,6 +21,7 @@ interface DriverRow {
   vehicle_plate: string | null;
   status: DriverStatus;
   on_duty_since: Date | null;
+  expected_end_at: Date | null;
 }
 
 const SELECT_BY_SUB = `
@@ -30,14 +31,20 @@ const SELECT_BY_SUB = `
          d.work_email,
          d.delivery_zone_id AS zone_id,
          z.name             AS zone_name,
-         d.vehicle_type,
-         d.vehicle_plate,
+         -- ⚠ 061: what the driver drives is the vehicle behind their OPEN holding, not two
+         -- free-text columns on the driver row that nobody maintained. NULL is ordinary: they hold
+         -- nothing right now.
+         hv.body_type          AS vehicle_type,
+         hv.registration_plate AS vehicle_plate,
          d.status,
-         s.started_at       AS on_duty_since
+         s.started_at       AS on_duty_since,
+         s.expected_end_at  AS expected_end_at
     FROM public.driver d
     LEFT JOIN public.delivery_zone z ON z.id = d.delivery_zone_id
     LEFT JOIN public.driver_duty_session s
            ON s.driver_id = d.id AND s.ended_at IS NULL
+    LEFT JOIN public.vehicle_holding vh ON vh.driver_id = d.id AND vh.ended_at IS NULL
+    LEFT JOIN public.vehicle          hv ON hv.id = vh.vehicle_id
    WHERE d.cognito_sub = $1
 `;
 
@@ -54,6 +61,8 @@ function mapRow(row: DriverRow): DriverRecord {
     status: row.status,
     dutyStatus: row.on_duty_since ? "on_duty" : "off_duty",
     onDutySince: row.on_duty_since ? row.on_duty_since.toISOString() : null,
+    // ⚠ NULL means the driver did not say. It is NOT a defaulted shift length (FR-033).
+    expectedEndAt: row.expected_end_at ? row.expected_end_at.toISOString() : null,
   };
 }
 
@@ -65,12 +74,12 @@ export async function findBySubject(sub: string): Promise<DriverRecord | null> {
 }
 
 /** Open a duty session (idempotent: the partial-unique index means a second open is a no-op). */
-export async function goOnDuty(driverId: string): Promise<void> {
+export async function goOnDuty(driverId: string, expectedEndAt: string | null): Promise<void> {
   await query(
-    `INSERT INTO public.driver_duty_session (driver_id, started_at)
-         VALUES ($1, now())
+    `INSERT INTO public.driver_duty_session (driver_id, started_at, expected_end_at)
+         VALUES ($1, now(), $2::timestamptz)
     ON CONFLICT DO NOTHING`,
-    [driverId],
+    [driverId, expectedEndAt],
   );
 }
 

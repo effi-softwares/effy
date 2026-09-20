@@ -32,7 +32,39 @@ export const BLOCKED_REASONS = `(
     CASE WHEN d.delivery_zone_id IS NULL THEN 'no_zone' END,
     CASE WHEN d.licence_expires_on IS NOT NULL
           AND d.licence_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
-         THEN 'licence_expired' END
+         THEN 'licence_expired' END,
+    -- ── 061 ──────────────────────────────────────────────────────────────────────────────────────
+    -- ⚠ EVERY APPLICABLE REASON IS EMITTED, NOT THE FIRST ONE FOUND (FR-026). A driver can be
+    -- suspended AND holding a van with lapsed rego; sending an operator to fix only one of those
+    -- wastes the trip. ARRAY_REMOVE keeps the array dense without collapsing the causes.
+    CASE WHEN NOT EXISTS (
+           SELECT 1 FROM public.vehicle_holding bvh
+            WHERE bvh.driver_id = d.id AND bvh.ended_at IS NULL
+         ) THEN 'no_vehicle' END,
+    -- ⚠ The reason names the VEHICLE's problem, not the driver's. The remedy is to renew a
+    -- registration or book an inspection — not to do anything to the person.
+    CASE WHEN EXISTS (
+           SELECT 1
+             FROM public.vehicle_holding bvh
+             JOIN public.vehicle bv ON bv.id = bvh.vehicle_id
+            WHERE bvh.driver_id = d.id AND bvh.ended_at IS NULL
+              AND (
+                (bv.registration_expires_on IS NOT NULL
+                   AND bv.registration_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date)
+                OR (bv.insurance_expires_on IS NOT NULL
+                   AND bv.insurance_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date)
+                OR (bv.roadworthy_expires_on IS NOT NULL
+                   AND bv.roadworthy_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date)
+                OR bv.status <> 'active'
+              )
+         ) THEN 'vehicle_non_compliant' END
+    -- ⚠ licence_class_insufficient IS NOT EMITTED YET, AND THAT IS A DECISION, NOT AN OMISSION.
+    -- Every Effy vehicle is a light vehicle, so a current Australian Class C covers all of them and
+    -- the rule would have exactly zero true cases. Research verified the thresholds: Chain of
+    -- Responsibility begins above 4.5t GVM and heavy-vehicle fatigue law above 12t, neither of which
+    -- reaches these vans. The CLASS is recorded (driver.licence_class) so the day a heavier vehicle
+    -- is bought, this becomes a predicate over data that already exists rather than a schema change
+    -- under time pressure. Emitting a reason that can never fire would teach operators to ignore it.
   ], NULL)
 )`;
 

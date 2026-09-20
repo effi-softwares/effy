@@ -638,6 +638,75 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
+  describe("061 C8/C9/C10 — every blocking reason, stated and complete", () => {
+    /**
+     * ⚠ C8 — FR-026. EVERY applicable reason, not the first one found.
+     *
+     * The remedy differs per reason, so a first-match list sends an operator to fix the wrong thing
+     * and then wonder why the driver still cannot work.
+     */
+    it("⚠ C8 — emits EVERY applicable reason at once, not just the first", async () => {
+      // Suspended AND no zone AND licence expired AND no vehicle: four causes, one driver.
+      const id = await seedDriver("Hotel Eight", {
+        zoneId: null,
+        status: "suspended",
+        licenceExpires: "2020-01-01",
+      });
+      const d = await driversRepo.getDriver(id);
+      expect(new Set(d!.blockedReasons)).toEqual(
+        new Set(["suspended", "no_zone", "licence_expired", "no_vehicle"]),
+      );
+    });
+
+    /** ⚠ C9 — SC-005. Proven by CAUSING it, not by asserting the rule exists. */
+    it("⚠ C9 — an expired licence is reported, and the reason names the licence", async () => {
+      const zoneId = await seedZone();
+      const id = await seedDriver("India Nine", { zoneId, licenceExpires: "2020-01-01" });
+      const d = await driversRepo.getDriver(id);
+      expect(d!.blockedReasons).toContain("licence_expired");
+    });
+
+    /**
+     * ⚠ C10 — the reason must name the VEHICLE's problem, not the driver's.
+     *
+     * This driver is faultless: active, zoned, licensed, holding a van. The van's registration has
+     * lapsed. Reporting that as a problem with the person would send an operator to the wrong place.
+     */
+    it("⚠ C10 — a holder of a non-compliant vehicle is blocked, and NOT for a licence reason", async () => {
+      const zoneId = await seedZone();
+      const id = await seedDriver("Juliet Ten", { zoneId, licenceExpires: "2030-01-01" });
+      const v = await seedVehicle("EFY-C10", { regExpires: "2020-01-01" });
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, id]);
+
+      const d = await driversRepo.getDriver(id);
+      expect(d!.blockedReasons).toContain("vehicle_non_compliant");
+      expect(d!.blockedReasons).not.toContain("no_vehicle");
+      expect(d!.blockedReasons).not.toContain("licence_expired");
+    });
+
+    /** The happy path, asserted because FR-028 says an unblocked driver appears NOWHERE. */
+    it("⚠ reports NO reasons for a driver who can actually work", async () => {
+      const zoneId = await seedZone();
+      const id = await seedDriver("Kilo Clean", { zoneId, licenceExpires: "2030-01-01" });
+      const v = await seedVehicle("EFY-OK", { regExpires: "2030-01-01" });
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, id]);
+
+      const d = await driversRepo.getDriver(id);
+      expect(d!.blockedReasons).toEqual([]);
+    });
+
+    /** ⚠ An off-road vehicle blocks its holder too — the van is in a workshop, not on the road. */
+    it("treats an off-road vehicle as non-compliant for its holder", async () => {
+      const zoneId = await seedZone();
+      const id = await seedDriver("Lima Offroad", { zoneId, licenceExpires: "2030-01-01" });
+      const v = await seedVehicle("EFY-OFF", { status: "off_road", regExpires: "2030-01-01" });
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, id]);
+
+      const d = await driversRepo.getDriver(id);
+      expect(d!.blockedReasons).toContain("vehicle_non_compliant");
+    });
+  });
+
   describe("SC-009 — readiness surfaces the gap before an order is affected", () => {
     it("⚠ flags a driver with NO ZONE as unable to receive work", async () => {
       await seedDriver("Zoneless", { zoneId: null });
@@ -654,8 +723,15 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
       const blocked = await readinessRepo.blockedDrivers();
       const byName = Object.fromEntries(blocked.map((b) => [b.driverName, b.reasons]));
-      expect(byName["Expired"]).toEqual(["licence_expired"]);
-      expect(byName["Stood Down"]).toEqual(["suspended"]);
+
+      // ⚠ 061 WIDENED THIS, AND THE WIDENING IS CORRECT RATHER THAN A REGRESSION. Both of these
+      // drivers now also hold no vehicle, which is a real reason they cannot be given work — it was
+      // simply unrepresentable before vehicles existed. The assertion moved from `toEqual` to naming
+      // the cause it is about, because pinning an EXACT list here would mean every future reason
+      // breaks a test that is not about it.
+      expect(byName["Expired"]).toContain("licence_expired");
+      expect(byName["Stood Down"]).toContain("suspended");
+      expect(byName["Expired"]).toContain("no_vehicle");
     });
 
     it("⚠ the register carries the SAME flag, so the gap is visible where drivers are listed", async () => {

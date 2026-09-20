@@ -21,6 +21,8 @@ interface OnDutyRow {
   zone_name: string | null;
   session_id: string;
   on_duty_since: Date;
+  expected_end_at: Date | null;
+  past_expected_end: boolean;
   overdue: boolean;
 }
 
@@ -38,6 +40,11 @@ export async function listOnDuty(): Promise<OnDutyDriver[]> {
             z.name       AS zone_name,
             s.id         AS session_id,
             s.started_at AS on_duty_since,
+            s.expected_end_at,
+            -- ⚠ 061: an overrun is VISIBLE, not alarming. A driver still working past their expected
+            -- finish is ordinary; a driver who never said is NOT overrunning, which is why this is
+            -- false rather than true when expected_end_at is NULL.
+            (s.expected_end_at IS NOT NULL AND s.expected_end_at < now()) AS past_expected_end,
             (s.started_at < now() - make_interval(hours => $1::int)) AS overdue
        FROM public.driver_duty_session s
        JOIN public.driver d             ON d.id = s.driver_id
@@ -53,6 +60,9 @@ export async function listOnDuty(): Promise<OnDutyDriver[]> {
     zone: r.zone_name,
     sessionId: r.session_id,
     onDutySince: r.on_duty_since.toISOString(),
+    // ⚠ null means the driver did not say. The console renders "unknown" — never a default (FR-033).
+    expectedEndAt: r.expected_end_at ? r.expected_end_at.toISOString() : null,
+    pastExpectedEnd: r.past_expected_end,
     overdue: r.overdue,
   }));
 }

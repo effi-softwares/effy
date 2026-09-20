@@ -8,7 +8,7 @@ import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { canManageDrivers } from "../access";
 import { driverActionError } from "../errorText";
-import { durationSince } from "../model";
+import { durationSince, formatTime } from "../model";
 import { dutyQuery, useEndDutySession } from "../queries";
 import { useState } from "react";
 
@@ -85,6 +85,17 @@ export function DutyPanel() {
                 {durationSince(d.onDutySince)} on duty
               </span>
               <span className="text-sm text-muted-foreground">Idle — nothing is assigned</span>
+              {/* ⚠ 061 FR-033 — "unknown" is a real answer and is SAID, not implied by a blank.
+                  A default shift length here would make a guess look like a fact at exactly the
+                  point the dispatch slice reads it to decide someone's workload. */}
+              <span className="text-sm text-muted-foreground">
+                {d.expectedEndAt
+                  ? `Expects to finish ${formatTime(d.expectedEndAt)}`
+                  : "Finish time unknown"}
+              </span>
+              {d.pastExpectedEnd ? (
+                <span className="text-sm font-medium">Past their expected finish</span>
+              ) : null}
               {d.overdue ? (
                 <span className="flex items-center gap-2 text-sm">
                   <span className="font-medium">Shift running long</span>

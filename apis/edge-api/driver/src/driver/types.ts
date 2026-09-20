@@ -21,6 +21,8 @@ export interface DriverRecord {
   status: DriverStatus;
   dutyStatus: DutyStatus;
   onDutySince: string | null; // ISO 8601; null when off duty
+  /** ⚠ null = the driver did not say when they expect to finish. Never a default (061, FR-033). */
+  expectedEndAt: string | null;
 }
 
 /** Raised when a driver-pool token has no provisioned record, or the record is not active. Both are
