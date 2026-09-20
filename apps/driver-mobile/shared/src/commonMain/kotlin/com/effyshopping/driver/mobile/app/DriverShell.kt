@@ -36,6 +36,7 @@ import com.effyshopping.driver.mobile.core.nav.HistoryDetailRoute
 import com.effyshopping.driver.mobile.core.nav.HistoryRoot
 import com.effyshopping.driver.mobile.core.nav.HubCheckinRoute
 import com.effyshopping.driver.mobile.core.nav.MapRoot
+import com.effyshopping.driver.mobile.core.nav.ShopProblemRoute
 import com.effyshopping.driver.mobile.core.nav.ShopStopRoute
 import com.effyshopping.driver.mobile.core.nav.TodayRoot
 import com.effyshopping.driver.mobile.core.nav.driverNavJson
@@ -46,6 +47,7 @@ import com.effyshopping.driver.mobile.features.placeholder.ComingSoonScreen
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionRunScreen
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionViewModel
 import com.effyshopping.driver.mobile.features.collection.presentation.HubCheckinScreen
+import com.effyshopping.driver.mobile.features.collection.presentation.ShopProblemScreen
 import com.effyshopping.driver.mobile.features.collection.presentation.ShopStopScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryRunScreen
 import com.effyshopping.driver.mobile.features.delivery.presentation.DeliveryViewModel
@@ -85,6 +87,9 @@ fun DriverShell(
     session: SessionState.SignedIn,
     mapLauncher: com.effyshopping.driver.mobile.core.platform.MapLauncher =
         com.effyshopping.driver.mobile.core.platform.NoOpMapLauncher(),
+    // 060 FR-009 — the OS-level reduced-motion preference, honoured by skeleton shimmer and the
+    // idle pulse. Already plumbed to the sign-in flow since 049; the shell never received it.
+    reducedMotion: Boolean = false,
 ) {
     val tabs = rememberTabBackStacks(
         tabs = DriverTab.entries.toList(),
@@ -142,6 +147,7 @@ fun DriverShell(
                             tabs.push(if (phase == Phase.COLLECTION) CollectionRunRoute(runId) else DeliveryRunRoute(runId))
                         },
                         onOpenActivity = { tabs.push(ActivityRoute) },
+                        reducedMotion = reducedMotion,
                     )
                 }
                 ActivityRoute -> {
@@ -169,17 +175,38 @@ fun DriverShell(
                         onBack = { tabs.pop() },
                         onOpenStop = { stopId -> tabs.push(ShopStopRoute(route.runId, stopId)) },
                         onCheckIn = { tabs.push(HubCheckinRoute(route.runId)) },
+                        onRefresh = { vm.loadRun() },
+                        hubName = session.driver.hub,
                     )
                 }
                 is ShopStopRoute -> {
                     val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
                     val st by vm.state.collectAsState()
-                    androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
+                    // ⚠ Clearing on stopId change is what stops one stop's ticks appearing at the
+                    // next: the ViewModel is keyed per RUN, not per stop, so the set outlives a stop.
+                    androidx.compose.runtime.LaunchedEffect(route.stopId) {
+                        vm.clearConfirmations()
+                        vm.loadStop(route.stopId)
+                    }
                     ShopStopScreen(
                         state = st,
                         onBack = { tabs.pop() },
                         onCollect = { vm.collect(route.stopId) { tabs.pop() } },
-                        onReport = { kind -> vm.report(route.stopId, kind, null) },
+                        onTogglePackage = vm::togglePackage,
+                        onOpenProblem = { tabs.push(ShopProblemRoute(route.runId, route.stopId)) },
+                    )
+                }
+                is ShopProblemRoute -> {
+                    val vm = viewModel(key = "coll-${route.runId}") { newCollectionVm(container, route.runId) }
+                    val st by vm.state.collectAsState()
+                    androidx.compose.runtime.LaunchedEffect(route.stopId) { vm.loadStop(route.stopId) }
+                    ShopProblemScreen(
+                        state = st,
+                        onBack = { tabs.pop() },
+                        onSubmit = { ref, kind, note ->
+                            vm.reportPackage(route.stopId, ref, kind, note)
+                            tabs.pop()
+                        },
                     )
                 }
                 is HubCheckinRoute -> {

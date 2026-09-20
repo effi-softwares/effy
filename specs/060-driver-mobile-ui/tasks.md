@@ -103,19 +103,19 @@ bare list of default controls. Matches [quickstart.md](./quickstart.md) §4.
 
 ### Today (screens 9–12)
 
-- [ ] T027 [US1] Rebuild the off-duty state in `<D>/features/today/presentation/TodayScreen.kt` (screen 9): duty pill, date + location line, the large two-line greeting, the shift figures row, and a single 62 dp primary action — replacing the current small informational panel
-- [ ] T028 [US1] Rebuild the phase indicator in `<D>/features/today/presentation/TodayScreen.kt` (screens 10–11) so each half carries its own kicker, title and progress meta, not just a label
-- [ ] T029 [US1] Create the current stop/drop hero in `<D>/features/today/presentation/CurrentWorkCard.kt` (screens 10–11): map strip, title row with a status chip, address, and a metrics footer. ⚠ **A recorded Principle V card exception** (plan Complexity Tracking / research R12) — it holds a map, which a detail row cannot
-- [ ] T030 [US1] Create the "Up next" queue + hub footer row in `<D>/features/today/presentation/UpNextList.kt` (screens 10–11): numbered rows, per-row trailing pill, and a "Whole run ›" affordance
-- [ ] T031 [P] [US1] Polish the idle state in `<D>/features/today/presentation/TodayScreen.kt` (screen 12) to the design's pulsing-ring treatment and add the pull-to-refresh hint
+- [X] T027 [US1] Rebuild the off-duty state in `<D>/features/today/presentation/TodayScreen.kt` (screen 9): duty pill, date + location line, the large two-line greeting, the shift figures row, and a single 62 dp primary action — replacing the current small informational panel
+- [X] T028 [US1] Rebuild the phase indicator in `<D>/features/today/presentation/TodayScreen.kt` (screens 10–11) so each half carries its own kicker, title and progress meta, not just a label
+- [X] T029 [US1] Create the current stop/drop hero in `<D>/features/today/presentation/CurrentWorkCard.kt` (screens 10–11): map strip, title row with a status chip, address, and a metrics footer. ⚠ **A recorded Principle V card exception** (plan Complexity Tracking / research R12) — it holds a map, which a detail row cannot
+- [X] T030 [US1] Create the "Up next" queue + hub footer row in `<D>/features/today/presentation/UpNextList.kt` (screens 10–11): numbered rows, per-row trailing pill, and a "Whole run ›" affordance
+- [X] T031 [P] [US1] Polish the idle state in `<D>/features/today/presentation/TodayScreen.kt` (screen 12) to the design's pulsing-ring treatment and add the pull-to-refresh hint
 
 ### Collection run (screens 16–18)
 
-- [ ] T032 [US1] Rebuild `CollectionRunScreen` in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 16): progress bar, assignment line, per-stop blocks with address + meta + **a per-stop action button**, and the dashed hub row that ends the run. ⚠ A recorded card exception (research R12)
-- [ ] T033 [US1] Rebuild `ShopStopScreen` in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 17): per-package **tappable confirmation rows** with reference, destination and method pill, plus a running confirmed count (FR-019)
-- [ ] T034 [US1] Replace the stop's "Collect all" button with `SwipeToConfirm` (T009) in `<D>/features/collection/presentation/CollectionScreens.kt` (FR-018, SC-013)
-- [ ] T035 [US1] Create `<D>/features/collection/presentation/ShopProblemScreen.kt` (screen 18) — ⚠ **currently a bare `TextButton` that fires `onReport("missing")` instantly**. The screen picks the package, picks what is wrong, takes a note, and states that reporting does not block the rest of the stop or the run (FR-021)
-- [ ] T036 [US1] Wire `ShopProblemRoute` into `<D>/app/DriverShell.kt` and reach it from the shop stop
+- [X] T032 [US1] Rebuild `CollectionRunScreen` in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 16): progress bar, assignment line, per-stop blocks with address + meta + **a per-stop action button**, and the dashed hub row that ends the run. ⚠ A recorded card exception (research R12)
+- [X] T033 [US1] Rebuild `ShopStopScreen` in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 17): per-package **tappable confirmation rows** with reference, destination and method pill, plus a running confirmed count (FR-019)
+- [X] T034 [US1] Replace the stop's "Collect all" button with `SwipeToConfirm` (T009) in `<D>/features/collection/presentation/CollectionScreens.kt` (FR-018, SC-013)
+- [X] T035 [US1] Create `<D>/features/collection/presentation/ShopProblemScreen.kt` (screen 18) — ⚠ **currently a bare `TextButton` that fires `onReport("missing")` instantly**. The screen picks the package, picks what is wrong, takes a note, and states that reporting does not block the rest of the stop or the run (FR-021)
+- [X] T036 [US1] Wire `ShopProblemRoute` into `<D>/app/DriverShell.kt` and reach it from the shop stop
 
 ### Hub check-in (screens 19–20)
 
@@ -229,10 +229,10 @@ route instead; every task below stands except T061.
 
 **Independent test**: Force a slow load, a failed load and no connectivity, on a list and a detail screen.
 
-- [ ] T084 [P] [US6] Build the Today skeleton in `<D>/features/today/presentation/TodaySkeleton.kt` (screen 14) from `EffySkeleton` (T010). ⚠ **Compose it from the same primitives as the real content** — 028 recorded that a skeleton built differently *cannot* match, because a `Row` coerces `Modifier.width()` into what is left (research R10)
+- [X] T084 [P] [US6] Build the Today skeleton in `<D>/features/today/presentation/TodaySkeleton.kt` (screen 14) from `EffySkeleton` (T010). ⚠ **Compose it from the same primitives as the real content** — 028 recorded that a skeleton built differently *cannot* match, because a `Row` coerces `Modifier.width()` into what is left (research R10)
 - [ ] T085 [P] [US6] Build the drop-detail skeleton in `<D>/features/delivery/presentation/DropSkeleton.kt` (screen 32), same rule
-- [ ] T086 [P] [US6] Build the failed-load state in `<D>/features/today/presentation/TodayScreen.kt` (screen 15) on `loadFailed` (T024): named failure, "your stops are safe", and a retry action — replacing the red line of text
-- [ ] T087 [US6] Build the offline banner and cached-run state (screen 13) in `<D>/features/today/presentation/TodayScreen.kt` and `<D>/app/DriverShell.kt`: a persistent indicator, rows marked cached, the last-synced line from `cachedAt`, and the promise that confirmations upload on reconnect. ⚠ The offline write queue has existed since 049 and has **never had an interface**
+- [X] T086 [P] [US6] Build the failed-load state in `<D>/features/today/presentation/TodayScreen.kt` (screen 15) on `loadFailed` (T024): named failure, "your stops are safe", and a retry action — replacing the red line of text
+- [X] T087 [US6] Build the offline banner and cached-run state (screen 13) in `<D>/features/today/presentation/TodayScreen.kt` and `<D>/app/DriverShell.kt`: a persistent indicator, rows marked cached, the last-synced line from `cachedAt`, and the promise that confirmations upload on reconnect. ⚠ The offline write queue has existed since 049 and has **never had an interface**
 - [ ] T088 [US6] Register US6's fields in `provenance-register.md` — ⚠ `cachedAt` is ✅ `PLATFORM` (the queue's own timestamp), not invented
 
 ---

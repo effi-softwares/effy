@@ -86,6 +86,43 @@ class CollectionViewModel(
         }
     }
 
+    /**
+     * Tick or untick one package at the current stop (060 FR-019).
+     *
+     * ⚠ **Local only — this sends nothing.** The platform has no per-package collect endpoint, and
+     * 060 is a presentation slice (FR-024). The single `collect` call still fires on the swipe
+     * commit. Stated consequence: the ticks do not survive process death.
+     */
+    fun togglePackage(ref: String) {
+        _state.update { st ->
+            val next = st.confirmedPackageIds.toMutableSet()
+            if (!next.add(ref)) next.remove(ref)
+            st.copy(confirmedPackageIds = next)
+        }
+    }
+
+    /** Clear the tick state when moving to a different stop, so it cannot bleed across stops. */
+    fun clearConfirmations() {
+        _state.update { it.copy(confirmedPackageIds = emptySet()) }
+    }
+
+    /**
+     * Report a missing or short package (060 FR-021).
+     *
+     * ⚠ **The package reference is carried IN THE NOTE, not as its own field.** `reportIssue` has
+     * no package parameter — 049 built it as a stop-level report — and adding one would be backend
+     * work this slice excludes. Prefixing the note keeps the driver's answer legible to whoever
+     * reads it in back-office, which is the only consumer today. Recorded rather than left as a
+     * quiet encoding: a later slice that adds a real column should strip this prefix.
+     */
+    fun reportPackage(stopId: String, packageRef: String?, kind: String, note: String?) {
+        val composed = listOfNotNull(
+            packageRef?.takeIf { it.isNotBlank() }?.let { "Package $it" },
+            note?.takeIf { it.isNotBlank() },
+        ).joinToString(" — ").ifBlank { null }
+        report(stopId, kind, composed)
+    }
+
     fun report(stopId: String, kind: String, note: String?) {
         viewModelScope.launch {
             try {

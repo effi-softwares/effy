@@ -101,7 +101,7 @@ fun App(
                             primed = true
                         })
                     } else {
-                        DriverShell(container, s, mapLauncher)
+                        DriverShell(container, s, mapLauncher, platformState.reducedMotion)
                     }
                 }
             }

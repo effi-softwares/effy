@@ -48,7 +48,7 @@ sections are filled in as each phase lands.
 | Map **cartography** | map-collection, map-delivery | ✅ | Real OpenStreetMap data via OpenFreeMap. ⚠ *Not* OSM's own tile servers, which forbid app distribution (R2). | — |
 | **Dispatch phone number** | help | ⛔ | ⚠ An outward-facing real-world identifier. The constitution requires these be **operator-supplied, never inferred**; the design's `1800 EFFY OPS` is sample content. Shown as unavailable. | The operator supplying a real number |
 | Proof photo **geotag** | proof-photo, history-detail | ⛔ | No location capture is wired. A wrong geotag on a delivery record is evidence in a dispute. | Location capture + permission |
-| **Shift length** / **stops done** (off-duty) | offduty | 🟡 | No shift model exists. Decorative — a driver does not route on them. ⚠ Reconsider as ⛔ if operators begin using them for time records. | A shift/roster model |
+| **Shift length** / **stops done** (off-duty) | offduty | ⛔ | ⚠ **RECLASSIFIED during implementation, 🟡 → ⛔.** The planning note called these decorative "because a driver does not route on them". Building the screen showed that is the wrong test: the figure a driver checks is *"did my stops register?"*, and rendering `0` after a full shift answers it **wrongly**. They render `—`. | A shift/roster model with a completed-stop count |
 | **Bay / dock** detail | home, collection-run, hub-checkin | 🟡 | `shop` has no premises detail. | Shop premises fields |
 | **"assigned 9:02 am by dispatch"** | collection-run | 🟡 | Assignment time is not exposed by the driver API. | A field on the run DTO |
 
@@ -73,10 +73,88 @@ reason · history records and timelines · activity items and read state · app 
 *Pending — Phase 6.*
 
 ### Group 2 — Duty & today
-*Pending — Phase 2.*
+
+**Screen 9 · `offduty`** — `TodayScreen.OffDutyBody`
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Brand title "Effy Driver" | ✅ | Static copy |
+| Duty pill "OFF DUTY" | ✅ | `driver.dutyStatus` |
+| Zone line | ✅ | `driver.zone`; omitted when unassigned |
+| Date ("Wednesday 22 Aug") | — | ⚠ **OMITTED, not placeholder.** The app has no date-formatting dependency and 060 adds no capability for a label. Unblocked by: a date utility, if a later slice wants one. |
+| Greeting name | ✅ | `driver.display` — ⚠ the design's time-of-day ("Morning,") is dropped; it needs a clock |
+| "Stops done" | ⛔ | No shift model and no completed-stop count. Renders `—`. ⚠ Showing `0` after a full shift would tell a driver their work did not register. **Unblocked by**: a shift/roster model |
+| "Shift length" | ⛔ | Same. Renders `—`. **Unblocked by**: a shift/roster model |
+| "Go on duty" action | ✅ | Real — calls `setDuty` |
+
+**Screens 10–11 · `home` / `home-delivery`** — `TodayScreen`, `CurrentWorkCard`, `UpNextList`
+
+| Field | Class | Source / reason |
+|---|---|---|
+| "Today" + stops-remaining line | 🔢 | Derived from `today.remainingCount` (✅) and `today.phase` (✅) |
+| Duty pill "ON DUTY" | ✅ | `driver.dutyStatus`. ⚠ Deliberately **not** interactive — see `DutyPill` |
+| Phase bar titles + active phase | ✅ | `today.phase` |
+| Phase bar meta ("In progress" / "Locked until check-in") | 🔢 | Derived from `today.phase` |
+| Hero title | ✅ | `today.active.title` |
+| Hero subtitle | ✅ | `today.active.subtitle` |
+| Hero status chip | ✅ | `today.active.status` |
+| Hero **map strip** | 🟡 | Neutral panel reserving the space. **Unblocked by**: Phase 5 (MapLibre + OpenFreeMap) **and** shop geodata for the pins |
+| Hero **ETA** | ⛔ | ⚠ **OMITTED from the metrics row**, not dashed — in an inline dot-separated row a string of dashes reads as a broken screen. **Unblocked by**: a routing provider + shop geodata (049 R13) |
+| Hero **distance** | ⛔ | Same. **Unblocked by**: `shop.address` + geocoding |
+| Hero **bay / dock** | 🟡 | `shop` carries no premises detail. Currently unused. **Unblocked by**: premises fields on `shop` |
+| "Up next · N shops/drops" | 🔢 | Derived from `today.upNext.size` |
+| Queue row index | 🔢 | Derived from list position (active is #1, so the queue starts at 2) |
+| Queue row title / subtitle | ✅ | `TodayItem.title` / `.subtitle` |
+| Queue row **ETA** | ⛔ | ⚠ **OMITTED on every row.** A driver sequences their round by these. **Unblocked by**: routing + geodata |
+| "Then: hub check-in" + hub name | ✅ | `driver.hub`; the row is hidden when unassigned. Collection phase only |
+| Drop **delivery window** ("12:30–1:00") | ⛔ | ⚠ **OMITTED.** 052 R4: the platform's delivery promise is **date-granular**; there is no time window and none can be derived. Telling a customer "between 12:30 and 1" would invent a commitment Effy has not made. **Unblocked by**: a delivery time-window model |
+
+**Screen 12 · `home-empty`** — all ✅ / static copy. Pulsing indicator suppressed under reduced motion.
+
+**Screen 13 · `home-offline`** — banner copy static ✅; **`cachedAt` is ✅ PLATFORM**, read from the
+offline queue's own timestamp, ⚠ not invented.
+
+**Screen 15 · `error`** — all static copy ✅; retry calls the real refresh.
 
 ### Group 3 — Phase 1, collection run
-*Pending — Phase 2.*
+
+**Screen 16 · `collection-run`** — `CollectionRunScreen`
+
+| Field | Class | Source / reason |
+|---|---|---|
+| "N of M shops collected" + progress bar | 🔢 | Derived from `run.stops[].status` (✅) |
+| Stop sequence mark | ✅ | `CollectionStop.sequence` |
+| Shop name, shop code | ✅ | `CollectionStop.shopName` / `.shopCode` |
+| Package count per stop | ✅ | `CollectionStop.packageCount` |
+| Stop action button state | 🔢 | Derived from `CollectionStop.status` |
+| Hub block name | ✅ | `driver.hub`; falls back to the generic "Effy hub" when unassigned |
+| Stop **ETA** | ⛔ | ⚠ **OMITTED on every stop.** **Unblocked by**: routing + shop geodata (049 R13) |
+| Stop **distance** | ⛔ | ⚠ **OMITTED.** **Unblocked by**: `shop.address` + geocoding |
+| Stop **address** | — | ⚠ **OMITTED — the platform has none.** `CollectionStop` carries name and code only; `shop` has no address field at all. The design shows a street address per stop. **Unblocked by**: `shop.address` |
+| Stop **bay / dock** | 🟡 | No premises detail on `shop`. Unused. **Unblocked by**: premises fields |
+| **"assigned 9:02 am by dispatch"** | 🟡 | ⚠ **OMITTED rather than invented** — assignment time is not on the run DTO. **Unblocked by**: a field on the run DTO |
+
+**Screen 17 · `shop-stop`** — `ShopStopScreen`
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Shop name | ✅ | `ShopStop.shopName` |
+| "N of M confirmed" | 🔢 | Derived from local `confirmedPackageIds` — ⚠ **UI-only state; sends nothing and does not survive process death** |
+| Package reference | ✅ | `CollectionPackage.ref` |
+| Destination suburb | ✅ | `CollectionPackage.destinationSuburb` |
+| Item count per package | 🔢 | Derived from `CollectionPackage.items[].qty` (✅) |
+| Same-day / standard badge | ✅ | `CollectionPackage.method` |
+| Tick state | 🔢 | Local UI state (see above) |
+| Collection-bay instructions | 🟡 | ⚠ **OMITTED** — the design's "collection bay 2, rear lane" has no field behind it. **Unblocked by**: premises fields on `shop` |
+
+**Screen 18 · `shop-problem`** — `ShopProblemScreen`
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Package reference chips | ✅ | `ShopStop.packages[].ref` |
+| Problem kinds | ✅ | A closed set defined in the app (`ProblemKind`) |
+| Note field | ✅ | Free text, sent to the platform |
+| Submitted report | ✅ | `reportIssue` — ⚠ **the package reference is prefixed into the NOTE**, because the endpoint has no package parameter. **Unblocked by**: a package column on the issue record |
 
 ### Group 4 — The pivot, hub check-in
 *Pending — Phase 2.*
