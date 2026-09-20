@@ -44,6 +44,7 @@ interface ShopListRow {
   name: string;
   status: ShopLifecycleStatus;
   user_count: string; // pg bigint → string
+  has_address: boolean;
   total: string;
 }
 
@@ -162,6 +163,10 @@ export async function listShops(params: {
   const { page, pageSize, status, q } = params;
   const res = await query<ShopListRow>(
     `SELECT s.id, s.code, s.name, s.status,
+            -- ⚠ 061 FR-030: whether a driver could be sent here at all. The address itself is NOT
+            -- selected — a register does not need a street, and a shop's location should not travel
+            -- further than it has to.
+            (s.address_line1 IS NOT NULL) AS has_address,
             count(ss.id) AS user_count,
             count(*) OVER() AS total
        FROM public.shop s
@@ -181,6 +186,7 @@ export async function listShops(params: {
       name: r.name,
       status: r.status,
       userCount: Number(r.user_count),
+      hasAddress: r.has_address,
     })),
     total,
     page,

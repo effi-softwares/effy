@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import type { AustralianState } from "@effy/shared-types";
+
 import { useForm } from "@tanstack/react-form";
 
 import {
@@ -37,6 +39,12 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
       name: shop.name,
       contactPhone: shop.contactPhone ?? "",
       notes: shop.notes ?? "",
+      // ⚠ 061: where a driver is told to collect from. Address only — no coordinates (FR-031).
+      addressLine1: shop.address?.addressLine1 ?? "",
+      addressLine2: shop.address?.addressLine2 ?? "",
+      suburb: shop.address?.suburb ?? "",
+      postcode: shop.address?.postcode ?? "",
+      state: shop.address?.state ?? "",
     },
     onSubmit: async ({ value }) => {
       setFormError(null);
@@ -45,6 +53,14 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
           name: value.name.trim(),
           contactPhone: value.contactPhone.trim() || null,
           notes: value.notes.trim() || null,
+          // ⚠ An empty box means CLEAR, so `null` is sent rather than the key being dropped. The
+          // service reads the PRESENCE of a key — 056's lesson, where COALESCE collapsed "leave
+          // alone" and "clear" into one and a zone once assigned could never be un-assigned.
+          addressLine1: value.addressLine1.trim() || null,
+          addressLine2: value.addressLine2.trim() || null,
+          suburb: value.suburb.trim() || null,
+          postcode: value.postcode.trim() || null,
+          state: (value.state.trim() || null) as AustralianState | null,
         });
         track({ name: "shop_updated", shopId: shop.id });
         onOpenChange(false);
@@ -111,6 +127,85 @@ export function EditShopDialog({ shop, open, onOpenChange }: EditShopDialogProps
                   onChange={(e) => field.handleChange(e.target.value)}
                   onBlur={field.handleBlur}
                 />
+              </div>
+            )}
+          </form.Field>
+          {/* ⚠ 061 — where the shop physically is, so a driver can be told where to collect from.
+              A customer NEVER sees this: hidden fulfilment is a platform invariant, guarded by a
+              source test in the admin service. */}
+          <form.Field name="addressLine1">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="edit-addr1">Street address</Label>
+                <Input
+                  id="edit-addr1"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              </div>
+            )}
+          </form.Field>
+          <form.Field name="addressLine2">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="edit-addr2">Unit, level or building</Label>
+                <Input
+                  id="edit-addr2"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                />
+              </div>
+            )}
+          </form.Field>
+          <div className="grid grid-cols-3 gap-3">
+            <form.Field name="suburb">
+              {(field) => (
+                <div className="col-span-2 space-y-2">
+                  <Label htmlFor="edit-suburb">Suburb</Label>
+                  <Input
+                    id="edit-suburb"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                  />
+                </div>
+              )}
+            </form.Field>
+            <form.Field name="postcode">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label htmlFor="edit-postcode">Postcode</Label>
+                  <Input
+                    id="edit-postcode"
+                    inputMode="numeric"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onBlur={field.handleBlur}
+                  />
+                </div>
+              )}
+            </form.Field>
+          </div>
+          <form.Field name="state">
+            {(field) => (
+              <div className="space-y-2">
+                <Label htmlFor="edit-state">State</Label>
+                <select
+                  id="edit-state"
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  onBlur={field.handleBlur}
+                >
+                  <option value="">Not recorded</option>
+                  {["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"].map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </form.Field>

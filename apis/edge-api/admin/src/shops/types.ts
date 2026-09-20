@@ -43,6 +43,7 @@ export interface ShopDetail extends Shop {
 }
 
 export interface ShopListItem {
+  hasAddress: boolean;
   id: string;
   code: string;
   name: string;

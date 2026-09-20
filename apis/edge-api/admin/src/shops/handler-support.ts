@@ -94,7 +94,7 @@ export function toDetailDTO(d: ShopDetail): ShopDetailDTO {
 
 export function toListDTO(p: Paged<ShopListItem>): PagedDTO<ShopListItemDTO> {
   return {
-    items: p.items.map((i) => ({ id: i.id, code: i.code, name: i.name, status: i.status, userCount: i.userCount })),
+    items: p.items.map((i) => ({ id: i.id, code: i.code, name: i.name, status: i.status, userCount: i.userCount, hasAddress: i.hasAddress })),
     total: p.total,
     page: p.page,
     pageSize: p.pageSize,

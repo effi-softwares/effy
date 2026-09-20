@@ -65,7 +65,7 @@ register answers "what do we run, and what is roadworthy" — with no other stor
 
 - [X] T016 [P] [US1] Container test C4 in `apis/edge-api/fleet/src/schema.container.test.ts` — a duplicate plate among non-retired vehicles is refused, and the SAME plate is accepted once the first is retired
 - [X] T017 [P] [US1] Container test C5 in `apis/edge-api/fleet/src/schema.container.test.ts` — plate uniqueness is case-insensitive (`abc123` vs `ABC123`)
-- [ ] T018 [P] [US1] Unit tests for compliance derivation in `apis/edge-api/fleet/src/vehicles/service.test.ts` — each of the three expiry dates in the past yields its own named issue, and several lapsed at once yield several
+- [X] T018 [P] [US1] Unit tests for compliance derivation in `apis/edge-api/fleet/src/vehicles/service.test.ts` — each of the three expiry dates in the past yields its own named issue, and several lapsed at once yield several
 
 ### Implementation for User Story 1
 
@@ -79,14 +79,14 @@ register answers "what do we run, and what is roadworthy" — with no other stor
 - [X] T026 [P] [US1] Write the handler `apis/edge-api/fleet/src/functions/vehicle-status-v1-post.ts`
 - [X] T027 [US1] Declare the five routes in `apis/edge-api/fleet/serverless.yml`, each carrying the back-office authorizer; read routes open to any active staff, mutating routes to admin/manager
 - [X] T028 [US1] Write audit calls for `vehicle.created`, `vehicle.updated` and `vehicle.status_changed` through 056's existing `recordAudit` in `apis/edge-api/fleet/src/shared/audit.ts` — no second audit trail
-- [ ] T029 [P] [US1] Write `apps/back-office/src/features/vehicles/repo.ts` and `queries.ts` on `@effy/api-client` and TanStack Query — server state in the query cache only, never hand-cached in component state
-- [ ] T030 [P] [US1] Write `apps/back-office/src/features/vehicles/model.ts` — screen vocabulary, body-type and compliance-issue labels as exhaustive `Record<>` maps
-- [ ] T031 [US1] Write `apps/back-office/src/features/vehicles/VehiclesListScreen.tsx` — a table with status tabs; ⚠ **no metric cards** (Principle V), refrigeration and compliance visible without opening a record (FR-009)
-- [ ] T032 [US1] Write `apps/back-office/src/features/vehicles/VehicleDetailScreen.tsx` — a sectioned page of detail rows, no cards
-- [ ] T033 [P] [US1] Write `apps/back-office/src/features/vehicles/components/CreateVehicleDialog.tsx` and `VehicleEditForm.tsx` using `@effy/design-system/ui` primitives only
-- [ ] T034 [P] [US1] Write `apps/back-office/src/features/vehicles/components/VehicleStatusControl.tsx` — active ↔ off_road ↔ retired, with retirement labelled destructively
-- [ ] T035 [US1] Register the vehicle routes in `apps/back-office/src/routes/` and `apps/back-office/src/router.tsx`, and add the nav entry in `apps/back-office/src/components/layout/nav.ts`
-- [ ] T036 [P] [US1] Write console tests in `apps/back-office/src/features/vehicles/VehiclesListScreen.test.tsx` — compliance issues render by name; a csa sees no mutating control (absent, not disabled)
+- [X] T029 [P] [US1] Write `apps/back-office/src/features/vehicles/repo.ts` and `queries.ts` on `@effy/api-client` and TanStack Query — server state in the query cache only, never hand-cached in component state
+- [X] T030 [P] [US1] Write `apps/back-office/src/features/vehicles/model.ts` — screen vocabulary, body-type and compliance-issue labels as exhaustive `Record<>` maps
+- [X] T031 [US1] Write `apps/back-office/src/features/vehicles/VehiclesListScreen.tsx` — a table with status tabs; ⚠ **no metric cards** (Principle V), refrigeration and compliance visible without opening a record (FR-009)
+- [X] T032 [US1] Write `apps/back-office/src/features/vehicles/VehicleDetailScreen.tsx` — a sectioned page of detail rows, no cards
+- [X] T033 [P] [US1] Write `apps/back-office/src/features/vehicles/components/CreateVehicleDialog.tsx` and `VehicleEditForm.tsx` using `@effy/design-system/ui` primitives only
+- [X] T034 [P] [US1] Write `apps/back-office/src/features/vehicles/components/VehicleStatusControl.tsx` — active ↔ off_road ↔ retired, with retirement labelled destructively
+- [X] T035 [US1] Register the vehicle routes in `apps/back-office/src/routes/` and `apps/back-office/src/router.tsx`, and add the nav entry in `apps/back-office/src/components/layout/nav.ts`
+- [X] T036 [P] [US1] Write console tests in `apps/back-office/src/features/vehicles/VehiclesListScreen.test.tsx` — compliance issues render by name; a csa sees no mutating control (absent, not disabled)
 
 **Checkpoint**: US1 is independently shippable. The register answers the fleet question with nothing else built.
 
@@ -117,11 +117,11 @@ full holding history.
 - [X] T047 [US2] Declare both routes in `apis/edge-api/fleet/serverless.yml` with the back-office authorizer (bringing the service to 19 functions)
 - [X] T048 [US2] Add `vehicle.holding_issued` and `vehicle.holding_returned` audit calls through `recordAudit` in `apis/edge-api/fleet/src/holdings/service.ts`
 - [X] T049 [US2] Extend the vehicle detail read in `apis/edge-api/fleet/src/vehicles/repository.ts` to include the current holder and the full holding history, newest first (FR-016)
-- [ ] T050 [P] [US2] Write `apps/back-office/src/features/vehicles/components/HoldingControl.tsx` — issue and return, with odometer entry
-- [ ] T051 [P] [US2] Write `apps/back-office/src/features/vehicles/components/HoldingHistory.tsx` — every period with holder, dates and both odometer readings
-- [ ] T052 [US2] Surface the current holder on the vehicle list and detail, and the held vehicle on the driver detail in `apps/back-office/src/features/drivers/DriverDetailScreen.tsx` (FR-017)
-- [ ] T053 [US2] ⚠ Extend the stand-down flow in `apps/back-office/src/features/drivers/components/StatusControl.tsx` and `apis/edge-api/fleet/src/drivers/service.ts` so that standing down a driver holding a vehicle **warns, names the vehicle, and requires an explicit decision** (FR-019) — mirroring 056's held-work pattern that this slice's teardown removed
-- [ ] T054 [P] [US2] Write console tests covering the two refusals and the stand-down warning in `apps/back-office/src/features/vehicles/` and `apps/back-office/src/features/drivers/components/StatusControl.test.tsx`
+- [X] T050 [P] [US2] Write `apps/back-office/src/features/vehicles/components/HoldingControl.tsx` — issue and return, with odometer entry
+- [X] T051 [P] [US2] Write `apps/back-office/src/features/vehicles/components/HoldingHistory.tsx` — every period with holder, dates and both odometer readings
+- [X] T052 [US2] Surface the current holder on the vehicle list and detail, and the held vehicle on the driver detail in `apps/back-office/src/features/drivers/DriverDetailScreen.tsx` (FR-017)
+- [X] T053 [US2] ⚠ Extend the stand-down flow in `apps/back-office/src/features/drivers/components/StatusControl.tsx` and `apis/edge-api/fleet/src/drivers/service.ts` so that standing down a driver holding a vehicle **warns, names the vehicle, and requires an explicit decision** (FR-019) — mirroring 056's held-work pattern that this slice's teardown removed
+- [X] T054 [P] [US2] Write console tests covering the two refusals and the stand-down warning in `apps/back-office/src/features/vehicles/` and `apps/back-office/src/features/drivers/components/StatusControl.test.tsx`
 
 **Checkpoint**: US1 + US2 deliver the operator's core ask — a fleet that can be described and handed out.
 
@@ -137,9 +137,9 @@ change stays attributable.
 - [X] T055 [P] [US3] Add `licenceClass` to the driver DTOs in `packages/shared-types/src/driver.ts` (profile, update request, list item)
 - [X] T056 [US3] Extend `apis/edge-api/fleet/src/drivers/repository.ts` to read and write `licence_class`, ⚠ **preserving 056's presence-not-value update semantics** — a key present with `null` clears, a key absent leaves alone; do NOT "clean" the request object (FR-022)
 - [X] T057 [US3] Extend `apis/edge-api/fleet/src/drivers/service.ts` to validate the licence class against the closed set and refuse an unknown value by name
-- [ ] T058 [P] [US3] Add the licence-class field to `apps/back-office/src/features/drivers/components/ProfileEditForm.tsx` and the driver detail rows
+- [X] T058 [P] [US3] Add the licence-class field to `apps/back-office/src/features/drivers/components/ProfileEditForm.tsx` and the driver detail rows
 - [X] T059 [P] [US3] Unit test in `apis/edge-api/fleet/src/drivers/service.test.ts` — clearing an optional field persists as cleared, proven by round-tripping rather than by asserting the request shape
-- [ ] T060 [P] [US3] Test in `apis/edge-api/fleet/src/shared/audit.test.ts` — a change to the emergency contact records **that the field changed and NOT its value** (FR-024)
+- [X] T060 [P] [US3] Test in `apis/edge-api/fleet/src/shared/audit.test.ts` — a change to the emergency contact records **that the field changed and NOT its value** (FR-024)
 
 **Checkpoint**: the driver record is complete and the licence is a fact the platform can act on.
 
@@ -159,7 +159,7 @@ change stays attributable.
 - [X] T066 [US4] Extend `apis/edge-api/fleet/src/readiness/repository.ts` and `service.ts` to carry the new reasons through to the readiness payload
 - [X] T067 [US4] Add the two new labels to `BLOCKED_LABEL` in `apps/back-office/src/features/drivers/model.ts` and render them in `components/ReadinessPanel.tsx`
 - [X] T068 [P] [US4] Test in `apps/back-office/src/features/drivers/model.test.ts` that `BLOCKED_LABEL` is **exhaustive over `DriverBlockedReason`**, so a future widening fails the suite instead of rendering a blank reason (risk K1, NP12)
-- [ ] T069 [P] [US4] Test in `apis/edge-api/fleet/src/readiness/service.test.ts` that a driver who can work does **not** appear in the readiness view at all (FR-028)
+- [X] T069 [P] [US4] Test in `apis/edge-api/fleet/src/readiness/service.test.ts` that a driver who can work does **not** appear in the readiness view at all (FR-028)
 
 **Checkpoint**: the recorded facts now produce an operational answer, and it is the answer slice C's engine will agree with.
 
@@ -174,10 +174,10 @@ change stays attributable.
 - [X] T070 [P] [US5] Add the five address fields to the shop DTOs in `packages/shared-types/src/shop.ts` (or the existing shop admin types), all optional
 - [X] T071 [US5] Extend `apis/edge-api/admin/src/shops/repository.ts` and `service.ts` to read and write the address fields, ⚠ **on the routes that already exist — no new function** (research R3, `edge-admin` is at ~434/500 CloudFormation resources)
 - [X] T072 [US5] Validate `postcode` against `^[0-9]{4}$` in `apis/edge-api/admin/src/shops/service.ts` and refuse a malformed value by name — a bad postcode matches no zone in slice C and would produce a shop nobody can be sent to, silently
-- [ ] T073 [P] [US5] Add the address fields to the shop form and detail rows in `apps/back-office/src/features/shops/`
-- [ ] T074 [US5] Render a missing address as a **named gap** in `apps/back-office/src/features/shops/ShopsListScreen.tsx` rather than as blank space (FR-030)
-- [ ] T075 [US5] ⚠ Write a source guard in `apis/edge-api/admin/src/shops/hidden-fulfilment.guard.test.ts` asserting no customer-facing payload carries a shop address field — hidden fulfilment is a platform invariant (FR-031 neighbourhood, risk K4, NP9)
-- [ ] T076 [P] [US5] Write a guard in `apis/edge-api/fleet/src/vehicles/no-coordinates.guard.test.ts` asserting `public.shop` and `public.vehicle` declare no `latitude`/`longitude` column, reading the migration source (FR-031, NP10)
+- [X] T073 [P] [US5] Add the address fields to the shop form and detail rows in `apps/back-office/src/features/shops/`
+- [X] T074 [US5] Render a missing address as a **named gap** in `apps/back-office/src/features/shops/ShopsListScreen.tsx` rather than as blank space (FR-030)
+- [X] T075 [US5] ⚠ Write a source guard in `apis/edge-api/admin/src/shops/hidden-fulfilment.guard.test.ts` asserting no customer-facing payload carries a shop address field — hidden fulfilment is a platform invariant (FR-031 neighbourhood, risk K4, NP9)
+- [X] T076 [P] [US5] Write a guard in `apis/edge-api/fleet/src/vehicles/no-coordinates.guard.test.ts` asserting `public.shop` and `public.vehicle` declare no `latitude`/`longitude` column, reading the migration source (FR-031, NP10)
 
 **Checkpoint**: a driver can be told where to collect from, in the slice that needs it.
 
@@ -193,7 +193,7 @@ change stays attributable.
 - [X] T078 [US6] Extend `apis/edge-api/driver/src/driver/repository.ts` and `service.ts` to accept and store `expected_end_at` when going on duty
 - [X] T079 [US6] Extend `apis/edge-api/fleet/src/duty/repository.ts` to return `expectedEndAt` and whether it has passed, for the back-office duty panel (FR-034)
 - [X] T080 [P] [US6] Render the expected finish, or the word **unknown**, in `apps/back-office/src/features/drivers/components/DutyPanel.tsx` — ⚠ never a substituted default (FR-033)
-- [ ] T081 [P] [US6] Add the optional finish-time entry to the go-on-duty flow in `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/features/driver/`
+- [X] T081 [P] [US6] Add the optional finish-time entry to the go-on-duty flow in `apps/driver-mobile/shared/src/commonMain/kotlin/com/effyshopping/driver/mobile/features/driver/`
 - [X] T082 [P] [US6] ⚠ Write the test in `apps/back-office/src/features/drivers/components/DutyPanel.test.tsx` that a null `expectedEndAt` renders as unknown and that **no default shift length is substituted anywhere** (NP11 — one of the two negative proofs that otherwise leave a green suite)
 
 **Checkpoint**: slice C's feasibility gate has an input, and an honest answer when it does not.
@@ -219,16 +219,16 @@ change stays attributable.
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T089 [P] Write `db/seeds/061_fleet_dev.sql` — Melbourne shop addresses (real suburbs and postcodes, fictional street lines) and vehicles covering every body type and every refrigeration capability, with fictional plates (FR-039, FR-040)
-- [ ] T090 [P] Run `make check-no-phantm` and the banned-address sweep over `db/seeds/061_fleet_dev.sql` and `specs/061-fleet-foundations/`
-- [ ] T091 [P] Update the parity register `docs/audiences/driver-capabilities.md` with a §061 section, replacing the teardown notice's claim that vehicle and licence facts are unbuilt
-- [ ] T092 [P] Update `docs/logistics-engine-architecture.md` §5 to mark Slice A built, and `docs/research/logistics/decisions-01-running.md` where D8/D9/D21/D22/D23/D24 are now implemented rather than decided
-- [ ] T093 Execute negative proofs **NP1–NP6** from [quickstart.md](quickstart.md) §6 by breaking each constraint and confirming the matching container test fails
-- [ ] T094 Execute negative proofs **NP7–NP12** from quickstart §6 — ⚠ **NP11 and NP12 are the two that otherwise leave a green suite and a feature that looks like it works**
-- [ ] T095 [P] Run the full machine sweep from quickstart §1 — `pnpm -r typecheck` (expect 20/20), `pnpm -r test`, `tokens:check` **unchanged**, `brand-check`, the retired-hue sweeps
-- [ ] T096 [P] Confirm the **unchanged-suite proof** by running `pnpm -r test` and inspecting `git diff` for edited expectations: `edge-admin`, `edge-customer`, `edge-shop`, `edge-orders`, `customer-web` and `shop-web` all pass **without their expectations being edited**
-- [ ] T097 Run `CONTAINER_TESTS=1 pnpm --filter @effy/edge-fleet test` with Docker up and record C1–C10 — ⚠ **if Docker is down, say so in the sign-off rather than reporting a green suite** (risk K2; 059 shipped 40 container tests that had never run, 058's found three defects afterwards)
-- [ ] T098 Write `specs/061-fleet-foundations/SIGNOFF.md` recording what is verified, what is unrun, and every open operator item
+- [X] T089 [P] Write `db/seeds/061_fleet_dev.sql` — Melbourne shop addresses (real suburbs and postcodes, fictional street lines) and vehicles covering every body type and every refrigeration capability, with fictional plates (FR-039, FR-040)
+- [X] T090 [P] Run `make check-no-phantm` and the banned-address sweep over `db/seeds/061_fleet_dev.sql` and `specs/061-fleet-foundations/`
+- [X] T091 [P] Update the parity register `docs/audiences/driver-capabilities.md` with a §061 section, replacing the teardown notice's claim that vehicle and licence facts are unbuilt
+- [X] T092 [P] Update `docs/logistics-engine-architecture.md` §5 to mark Slice A built, and `docs/research/logistics/decisions-01-running.md` where D8/D9/D21/D22/D23/D24 are now implemented rather than decided
+- [X] T093 Execute negative proofs **NP1–NP6** from [quickstart.md](quickstart.md) §6 by breaking each constraint and confirming the matching container test fails
+- [X] T094 Execute negative proofs **NP7–NP12** from quickstart §6 — ⚠ **NP11 and NP12 are the two that otherwise leave a green suite and a feature that looks like it works**
+- [X] T095 [P] Run the full machine sweep from quickstart §1 — `pnpm -r typecheck` (expect 20/20), `pnpm -r test`, `tokens:check` **unchanged**, `brand-check`, the retired-hue sweeps
+- [X] T096 [P] Confirm the **unchanged-suite proof** by running `pnpm -r test` and inspecting `git diff` for edited expectations: `edge-admin`, `edge-customer`, `edge-shop`, `edge-orders`, `customer-web` and `shop-web` all pass **without their expectations being edited**
+- [X] T097 Run `CONTAINER_TESTS=1 pnpm --filter @effy/edge-fleet test` with Docker up and record C1–C10 — ⚠ **if Docker is down, say so in the sign-off rather than reporting a green suite** (risk K2; 059 shipped 40 container tests that had never run, 058's found three defects afterwards)
+- [X] T098 Write `specs/061-fleet-foundations/SIGNOFF.md` recording what is verified, what is unrun, and every open operator item
 
 ### Operator steps (NOT run by Claude — hand these over with exact commands)
 

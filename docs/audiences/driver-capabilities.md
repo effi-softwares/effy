@@ -5,6 +5,35 @@ surface — there is no driver web). Each capability lists the surface and the s
 
 Legend: ✅ built & verified · 🚧 partial (noted) · ⛔ deferred (blocked/own-slice) · — n/a
 
+## §061 — Fleet Foundations (built 2026-09-20, NOT DEPLOYED)
+
+Slice A of the logistics rebuild. Makes Effy able to **describe its fleet accurately**; it assigns
+nothing. Spec/artifacts: [specs/061-fleet-foundations/](../../specs/061-fleet-foundations/).
+
+| Capability | Where | Status | Notes |
+|---|---|---|---|
+| Vehicle register — add, edit, retire, browse | back-office | ✅ | `public.vehicle`; one table serves Effy-owned **and** driver-owned, distinguished by a fact not a feature |
+| Refrigeration capability (chilled / frozen) | back-office | ✅ | Effy sells groceries, so this is what the fleet is selected on |
+| Compliance — registration, insurance, roadworthy | back-office | ✅ | **derived on read**, never stored; names the lapsed item, not "non-compliant" |
+| Issue a vehicle to a driver / take it back | back-office | ✅ | odometer both ways; **at most one open holding per vehicle and per driver, enforced by two partial unique indexes** |
+| Handover history | back-office | ✅ | who had it, when, both readings. ⚠ **A handover log, not a journey log** — no position, ever |
+| Driver licence **class** | back-office | ✅ | recorded so "may they legally drive this" is checkable rather than assumed |
+| Work-readiness reasons | back-office | ✅ | + `no_vehicle`, `vehicle_non_compliant`; **every** applicable reason, never the first |
+| Shop street address | back-office | ✅ | so a driver can be told where to collect from. ⚠ **No coordinates** |
+| Expected finish time on duty | driver app + back-office | ✅ | optional; **absence renders as "unknown", never a default shift length** |
+| ⚠ Standing a driver down while they hold a vehicle | back-office | ✅ **REFUSED** | names the vehicle. 056's stranded-goods shape: a van is not a database row |
+| Driver location capture | — | ⛔ **REMOVED** | Effy does not track driver position (D20/D22). Route, handler, service and three columns deleted; a negative guard pins the absence |
+
+⚠ **The driver app gained a true answer for free.** `DriverVehicle {type, plate}` kept its shape — it
+is in the generated Kotlin contract and the Account screen renders it — while its SOURCE moved from
+two unmaintained free-text columns on the driver row to the vehicle behind the driver's open holding.
+No Kotlin changed.
+
+**Still unbuilt, and owned by later slices**: everything that assigns, carries, delivers or proves a
+package. See the teardown notice below for why the §049 and §056 tables read the way they do.
+
+---
+
 ## ⚠ §2026-09-20 — THE WORK MODEL WAS TORN DOWN; READ THIS BEFORE THE TABLES BELOW
 
 `db/migrations/20260920101500_remove_driver_work_model.sql` dropped `driver_run`, `collection_task`,

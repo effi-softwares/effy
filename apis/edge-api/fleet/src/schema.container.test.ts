@@ -51,6 +51,7 @@ vi.mock("@effy/edge-shared", async () => {
 import * as driversRepo from "./drivers/repository";
 import * as dutyRepo from "./duty/repository";
 import * as readinessRepo from "./readiness/repository";
+import * as holdingsRepo from "./holdings/repository";
 import * as vehiclesRepo from "./vehicles/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
@@ -684,7 +685,31 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(d!.blockedReasons).not.toContain("licence_expired");
     });
 
-    /** The happy path, asserted because FR-028 says an unblocked driver appears NOWHERE. */
+    /**
+     * ⚠ FR-028 — A DRIVER WHO CAN WORK APPEARS NOWHERE IN THE READINESS VIEW.
+     *
+     * The positive half is easy to get right and easy to leave untested. If an unblocked driver
+     * leaked into this list with an empty reason array, the screen would render their name with no
+     * reason beside it — which reads as "blocked, cause unknown" and sends an operator looking for a
+     * problem that does not exist.
+     */
+    it("⚠ FR-028 — an unblocked driver is ABSENT from the readiness view entirely", async () => {
+      const zoneId = await seedZone();
+      const ok = await seedDriver("Ready Romeo", { zoneId, licenceExpires: "2030-01-01" });
+      const v = await seedVehicle("EFY-RDY", { regExpires: "2030-01-01" });
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, ok]);
+      // A second driver who IS blocked, so a pass cannot come from the list simply being empty.
+      await seedDriver("Blocked Sierra", { zoneId: null });
+
+      const blocked = await readinessRepo.blockedDrivers();
+      const names = blocked.map((b) => b.driverName);
+      expect(names).toContain("Blocked Sierra");
+      expect(names).not.toContain("Ready Romeo");
+      // ⚠ And nobody in the list has an empty reason array — that would render as a blank cause.
+      for (const b of blocked) expect(b.reasons.length).toBeGreaterThan(0);
+    });
+
+    /** The happy path at the repository level, asserted because FR-028 rests on it. */
     it("⚠ reports NO reasons for a driver who can actually work", async () => {
       const zoneId = await seedZone();
       const id = await seedDriver("Kilo Clean", { zoneId, licenceExpires: "2030-01-01" });
@@ -704,6 +729,44 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
       const d = await driversRepo.getDriver(id);
       expect(d!.blockedReasons).toContain("vehicle_non_compliant");
+    });
+  });
+
+  describe("061 FR-019 — the SQL behind the stand-down guard", () => {
+    /**
+     * ⚠ THE GUARD'S INPUT, PROVEN AGAINST REAL POSTGRESQL. The decision itself is a service rule and
+     * is tested with mocks in `drivers/service.test.ts`; what cannot be tested there is whether this
+     * query actually finds a held vehicle, because a mocked repository would just return whatever
+     * the test told it to.
+     *
+     * This is the descendant of 056's finding that standing a driver down strands physical goods
+     * "permanently and invisibly". A van is not a database row.
+     */
+    it("⚠ finds the vehicle a driver is holding, with enough to NAME it in a refusal", async () => {
+      const driverId = await seedDriver("Mike Holding");
+      const v = await seedVehicle("EFY-HELD");
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, driverId]);
+
+      const held = await holdingsRepo.heldByDriver(driverId);
+      expect(held).not.toBeNull();
+      // ⚠ "Record its return first" is only actionable if the operator is told WHICH vehicle.
+      expect(held!.registrationPlate).toBe("EFY-HELD");
+      expect(held!.make).toBe("Toyota");
+    });
+
+    it("reports nothing held once the vehicle has been returned", async () => {
+      const driverId = await seedDriver("November Returned");
+      const v = await seedVehicle("EFY-BACK");
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, driverId]);
+      await pool.query(
+        `UPDATE public.vehicle_holding SET ended_at = now() WHERE vehicle_id = $1 AND ended_at IS NULL`, [v],
+      );
+      expect(await holdingsRepo.heldByDriver(driverId)).toBeNull();
+    });
+
+    it("reports nothing held for a driver who has never had a vehicle", async () => {
+      const driverId = await seedDriver("Papa Never");
+      expect(await holdingsRepo.heldByDriver(driverId)).toBeNull();
     });
   });
 

@@ -7,8 +7,10 @@ import { FleetError } from "../shared/errors";
 vi.mock("./repository");
 vi.mock("./cognito");
 vi.mock("../shared/audit");
+vi.mock("../holdings/repository");
 
 import * as cognito from "./cognito";
+import * as holdings from "../holdings/repository";
 import * as repo from "./repository";
 import { recordAudit } from "../shared/audit";
 import { createDriver, setStatus, updateDriver } from "./service";
@@ -48,6 +50,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(recordAudit).mockResolvedValue(undefined);
   vi.mocked(repo.getDriver).mockResolvedValue(PROFILE);
+  // Default: the driver holds nothing, so the FR-019 guard is inert unless a test says otherwise.
+  vi.mocked(holdings.heldByDriver).mockResolvedValue(null);
   vi.mocked(cognito.lookupDriverUser).mockResolvedValue({ sub: "sub-1", enabled: true });
 });
 
@@ -253,6 +257,55 @@ describe("updateDriver — FR-010/FR-012", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 describe("setStatus — FR-015…FR-020", () => {
+  /**
+   * ⚠ FR-019 — THE MOST IMPORTANT REFUSAL IN THIS SLICE.
+   *
+   * Standing a driver down does not make their van appear at the hub, but it DOES remove them from
+   * every list an operator reads — so the vehicle silently stops being anybody's problem while
+   * remaining physically absent. 056 found this exact shape with collected packages and recorded
+   * that it strands goods "permanently and invisibly, and this was in no register because nobody
+   * knew".
+   */
+  it("⚠ REFUSES to stand down a driver holding a vehicle, and NAMES the vehicle", async () => {
+    vi.mocked(holdings.heldByDriver).mockResolvedValue({
+      vehicleId: "v-1",
+      registrationPlate: "EFY-001",
+      make: "Toyota",
+      model: "HiAce",
+      since: "2026-09-01T00:00:00.000Z",
+    });
+
+    const err = (await setStatus("d-1", "suspended", "on leave", "actor-1", scope).catch(
+      (e) => e,
+    )) as FleetError;
+
+    expect(err.kind).toBe("conflict");
+    // ⚠ "Record its return first" is only actionable if the operator is told WHICH vehicle.
+    expect(err.message).toContain("EFY-001");
+    expect(err.fields?.[0]?.message).toContain("EFY-001");
+    // ⚠ And nothing moved — neither the record nor the sign-in account.
+    expect(repo.setStatus).not.toHaveBeenCalled();
+    expect(cognito.disableDriverUser).not.toHaveBeenCalled();
+  });
+
+  it("stands a driver down once they hold nothing", async () => {
+    vi.mocked(holdings.heldByDriver).mockResolvedValue(null);
+    vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
+    vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
+
+    await setStatus("d-1", "suspended", "on leave", "actor-1", scope);
+    expect(repo.setStatus).toHaveBeenCalled();
+  });
+
+  /** ⚠ Restoring a driver never asks about vehicles — they are coming back TO work, not leaving it. */
+  it("does not check for a held vehicle when a driver is being RESTORED", async () => {
+    vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
+    vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
+
+    await setStatus("d-1", "active", "back from leave", "actor-1", scope);
+    expect(holdings.heldByDriver).not.toHaveBeenCalled();
+  });
+
   /**
    * ⚠ TWO CASES WERE REMOVED HERE, AND THEIR SUBJECT IS RECORDED IN ORDER-FLOW-GAPS.md RATHER THAN
    * LEFT AS A SKIPPED TEST. They asserted that standing down a driver holding already-picked-up work

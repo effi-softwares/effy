@@ -119,6 +119,10 @@ export interface ShopListItemDTO {
   name: string;
   status: ShopLifecycleStatus;
   userCount: number;
+  /** ⚠ 061 FR-030 — whether an address has been recorded, so the GAP is visible on the register
+   *  without opening every shop. The address itself is not here: a list does not need a street, and
+   *  a shop's location must never travel further than it has to. */
+  hasAddress: boolean;
 }
 
 /** A shop user in the roster (embedded in ShopDetailDTO). */

@@ -19,6 +19,7 @@ import {
   driverDetailRoute,
   driversIndexRoute,
 } from "./routes/drivers";
+import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles";
 import { orderDetailRoute, ordersIndexRoute } from "./routes/orders";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
@@ -35,6 +36,8 @@ const routeTree = rootRoute.addChildren([
     orderDetailRoute,
     driversIndexRoute,
       driverDetailRoute,
+    vehiclesIndexRoute,
+    vehicleDetailRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
     feedbackIndexRoute,

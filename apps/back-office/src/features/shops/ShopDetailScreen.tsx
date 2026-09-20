@@ -108,6 +108,25 @@ export function ShopDetailScreen({ shopId }: { shopId: string }) {
         <CardContent>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             <Field label="Contact phone" value={shop.contactPhone ?? "—"} />
+            {/* ⚠ 061 — where a driver is told to collect from. A MISSING address is rendered as a
+                NAMED GAP, not as an em dash (FR-030): "—" reads as "nothing to say here", and this
+                is a gap somebody has to fill before the shop can be collected from at all. */}
+            <Field
+              label="Address"
+              value={
+                shop.address?.addressLine1
+                  ? [
+                      shop.address.addressLine1,
+                      shop.address.addressLine2,
+                      shop.address.suburb,
+                      shop.address.state,
+                      shop.address.postcode,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
+                  : "No address recorded — a driver cannot be sent here"
+              }
+            />
             <Field label="Notes" value={shop.notes ?? "—"} />
             <Field label="Created" value={formatTime(shop.createdAt)} />
             <Field label="Updated" value={formatTime(shop.updatedAt)} />

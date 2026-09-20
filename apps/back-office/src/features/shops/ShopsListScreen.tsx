@@ -45,6 +45,18 @@ const columns: ColumnDef<ShopListItem>[] = [
   },
   { accessorKey: "name", header: "Name" },
   {
+    // ⚠ 061 FR-030 — a missing address is a NAMED GAP, not a blank cell. A shop with no address
+    // cannot be collected from at all, and "—" would read as "nothing to say here".
+    id: "address",
+    header: "Address",
+    cell: ({ row }) =>
+      row.original.hasAddress ? (
+        <span className="text-muted-foreground">Recorded</span>
+      ) : (
+        <span className="font-medium">Not recorded</span>
+      ),
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => <ShopStatusBadge status={row.original.status} />,

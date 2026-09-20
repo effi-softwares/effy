@@ -24,6 +24,7 @@ import {
   enableDriverUser,
   lookupDriverUser,
 } from "./cognito";
+import { heldByDriver } from "../holdings/repository";
 import * as repo from "./repository";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -273,6 +274,36 @@ export async function setStatus(
 
   const current = await repo.getDriver(id);
   if (!current) throw notFound("driver not found");
+
+  /**
+   * ⚠⚠ STANDING A DRIVER DOWN WHILE THEY HOLD A VEHICLE IS REFUSED, AND THIS IS THE SLICE'S MOST
+   * IMPORTANT SAFETY BEHAVIOUR (FR-019).
+   *
+   * The van is in a carpark somewhere. Suspending or offboarding the driver does not make it appear
+   * at the hub — but it DOES remove them from every list an operator looks at, so the vehicle
+   * silently stops being anybody's problem while remaining physically absent. 056 found exactly this
+   * shape with collected packages and recorded that it strands goods "permanently and invisibly,
+   * and this was in no register because nobody knew".
+   *
+   * ⚠ The refusal NAMES the vehicle, because "record its return first" is only actionable if the
+   * operator knows which one. Recording a return is a statement about the physical world, which is
+   * why it stays an explicit human act rather than something this transition does on their behalf.
+   */
+  if (current.status === "active" && status !== "active") {
+    const held = await heldByDriver(id);
+    if (held) {
+      throw conflict(
+        `${current.name} still has ${held.registrationPlate} (${held.make} ${held.model}). ` +
+          `Record its return before standing them down — otherwise nothing at Effy knows who has it.`,
+        [
+          {
+            field: "vehicle",
+            message: `${held.registrationPlate} has been out since ${held.since.slice(0, 10)}`,
+          },
+        ],
+      );
+    }
+  }
 
   const email = await repo.setStatus(id, status, trimmedReason, async (tx, driverId) => {
     await recordAudit(

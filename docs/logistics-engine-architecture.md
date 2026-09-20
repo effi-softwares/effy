@@ -255,7 +255,9 @@ data is a different thing.
 
 Each is its own spec → plan → tasks → implement, in this order, because each unblocks the next.
 
-### Slice A — Fleet foundations *(brief requirement 1 + vehicles)* — **UNBLOCKED**
+### Slice A — Fleet foundations *(brief requirement 1 + vehicles)* — ✅ **BUILT 2026-09-20, NOT DEPLOYED**
+Spec/artifacts: [specs/061-fleet-foundations/](../specs/061-fleet-foundations/). 83/105 tasks; every
+build task done, the remainder are operator steps and the sign-off.
 Complete driver management; make vehicles a first-class entity.
 - **`public.vehicle`** — identity (rego, VIN, make, model, year), ownership `effy_owned|driver_owned`,
   classification, capacity (payload kg, volume, crate count), **refrigeration (chilled/frozen)**,
