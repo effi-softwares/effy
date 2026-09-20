@@ -26,6 +26,17 @@ import type { WireInt } from "./cart";
 
 export type DriverDutyStatus = "on_duty" | "off_duty";
 
+/**
+ * What the driver is currently driving, for their own Account screen.
+ *
+ * ⚠ THE SHAPE IS UNCHANGED BY 061 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it
+ * (`DriverMappers.kt`, `AccountScreen.kt`) and it is part of the generated Kotlin contract. What
+ * changed is where it COMES FROM: until 061 these were two free-text columns on the driver row that
+ * nobody maintained; they are now read from the driver's open `vehicle_holding` and the real vehicle
+ * behind it. The app shows a true answer without a single line of Kotlin changing.
+ *
+ * Both fields are null when the driver holds no vehicle, which is an ordinary state.
+ */
 export interface DriverVehicle {
   type: string | null;
   plate: string | null;
@@ -53,11 +64,10 @@ export interface DutyResponse {
 }
 
 /** POST /driver/v1/location — optional point-in-time snapshot (never streamed). */
-export interface LocationRequest {
-  lat: number;
-  lng: number;
-  changeId: string;
-}
+// ⚠ `LocationRequest` STOOD HERE AND IS GONE (061, FR-035/FR-036). Effy does not track driver
+// position. It was a receiver with no sender — no caller in `apps/driver-mobile`, no location
+// permission declared on either platform, no reader of the columns — and leaving it dormant is how
+// 059's `device_token.platform` came to contradict the live contract for two years.
 
 // ── Today (phase-aware home) ─────────────────────────────────────────────────────────────────────
 
@@ -399,7 +409,27 @@ export type DriverStatus = DriverEmploymentStatus;
 
 /** Why a driver cannot be given work. An enumerated cause, never a bare boolean — "cannot work"
  *  without "why" is not actionable, and the fix differs per cause (FR-044). */
-export type DriverBlockedReason = "no_zone" | "suspended" | "offboarded" | "licence_expired";
+/**
+ * ⚠ WIDENED BY 061, AND EVERY READER WAS AUDITED FIRST (tasks T015). 053, 056 and 057 each shipped a
+ * defect through an enum widening, and this one is unusually sharp: the console's `BLOCKED_LABEL` is
+ * a `Record<DriverBlockedReason, string>`, so a missing key renders **nothing at all** — a blocked
+ * driver with a blank reason reads as "not blocked". `model.test.ts` asserts the map is exhaustive so
+ * the next widening fails the suite instead of rendering silence.
+ *
+ * Readers at the time of widening: `apis/edge-api/fleet/src/drivers/sql.ts` (the producer),
+ * `apis/edge-api/fleet/src/readiness/`, `apps/back-office/src/features/drivers/model.ts`
+ * (`BLOCKED_LABEL`) and its ReadinessPanel/list fixtures.
+ *
+ * ⚠ `no_zone` stays and stays inert until slice B replaces `driver.delivery_zone_id` with the
+ * capability matrix. Recorded here so the next slice does not read it as drift.
+ */
+export type DriverBlockedReason =
+  | "no_zone"
+  | "suspended"
+  | "offboarded"
+  | "licence_expired"
+  | "no_vehicle"
+  | "vehicle_non_compliant";
 
 /** Whether the platform record and the sign-in account agree (FR-006, spec edge case).
  *  `record_only` / `identity_only` mean provisioning half-succeeded — the profile must SHOW that
@@ -435,8 +465,15 @@ export interface AdminDriverListResponse {
 export interface AdminDriverCredentials {
   licenceReference: string | null;
   licenceExpiresOn: string | null;
-  vehicleRegistrationExpiresOn: string | null;
+  /** ⚠ Australian licence class (061, FR-021). Recorded so "may this driver legally drive this
+   *  vehicle" is checkable rather than assumed — a WorkSafe Victoria OHS duty. */
+  licenceClass: DriverLicenceClass | null;
 }
+
+/** ⚠ `vehicleRegistrationExpiresOn` LEFT THIS TYPE in 061. A registration expiry is a fact about a
+ *  VEHICLE, not about a person, and it now lives on `public.vehicle` where a second driver holding
+ *  the same van reads the same date. It was on the driver row only because vehicles had no table. */
+export type DriverLicenceClass = "C" | "LR" | "MR" | "HR";
 
 export interface AdminDriverEmergencyContact {
   name: string | null;
@@ -473,11 +510,13 @@ export interface AdminDriverCreateRequest {
   workEmail: string;
   contactPhone?: string | null;
   zoneId?: string | null;
-  vehicleType?: string | null;
-  vehiclePlate?: string | null;
+  // ⚠ `vehicleType` / `vehiclePlate` / `vehicleRegistrationExpiresOn` LEFT THIS TYPE IN 061. A
+  // vehicle is its own record; what a driver drives is decided by ISSUING them one, not by typing a
+  // string here. A registration expiry is a fact about a vehicle, so two drivers holding the same
+  // van now read the same date instead of two hand-maintained copies.
   licenceReference?: string | null;
   licenceExpiresOn?: string | null;
-  vehicleRegistrationExpiresOn?: string | null;
+  licenceClass?: DriverLicenceClass | null;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   startedOn?: string | null;
@@ -499,11 +538,13 @@ export interface AdminDriverUpdateRequest {
   name?: string;
   contactPhone?: string | null;
   zoneId?: string | null;
-  vehicleType?: string | null;
-  vehiclePlate?: string | null;
+  // ⚠ `vehicleType` / `vehiclePlate` / `vehicleRegistrationExpiresOn` LEFT THIS TYPE IN 061. A
+  // vehicle is its own record; what a driver drives is decided by ISSUING them one, not by typing a
+  // string here. A registration expiry is a fact about a vehicle, so two drivers holding the same
+  // van now read the same date instead of two hand-maintained copies.
   licenceReference?: string | null;
   licenceExpiresOn?: string | null;
-  vehicleRegistrationExpiresOn?: string | null;
+  licenceClass?: DriverLicenceClass | null;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   startedOn?: string | null;
@@ -576,6 +617,134 @@ export interface DutyResponseAdmin {
 // ⚠ `DriverAuditEntry` below is a DIFFERENT record and deliberately survives: it is the back-office
 // change log in `admin.audit_log` — who edited a driver's profile, who stood them down and why. That
 // is employment history, not work history, and nothing about it depended on the shape of a run.
+
+// ── Vehicles (061) ───────────────────────────────────────────────────────────────────────────────
+//
+// ⚠ BACK-OFFICE ONLY. None of these enter `driver-contract.ts`, so none reaches the generated Kotlin
+// and the driver app is unaffected. A driver sees the vehicle they hold through `DriverVehicle`.
+//
+// ⚠ NO MONEY ANYWHERE. Not a purchase price, not a lease cost, not a fuel figure. The driver domain
+// has never carried currency (049 FR-013) and 061 does not introduce it.
+//
+// ⚠ NO COORDINATES ANYWHERE. Nothing on this platform computes distance (D20).
+
+export type VehicleBodyType = "van" | "ute" | "truck_light" | "car" | "motorcycle" | "bicycle";
+export type VehicleFuelType = "petrol" | "diesel" | "hybrid" | "electric" | "none";
+export type VehicleOwnership = "effy_owned" | "driver_owned";
+
+/** ⚠ `off_road` is NOT `retired`. Off-road is temporary and the vehicle comes back; retired is
+ *  terminal and the record survives for history. Collapsing them makes "where did the van go?"
+ *  unanswerable. */
+export type VehicleStatus = "active" | "off_road" | "retired";
+
+/** Which compliance item has lapsed. ⚠ DERIVED ON READ from the three expiry dates, never stored —
+ *  compliance is time-dependent and a stored flag goes stale silently at midnight (027's
+ *  counted-not-stored rule, fourth application). */
+export type VehicleComplianceIssue =
+  | "registration_expired"
+  | "insurance_expired"
+  | "roadworthy_expired";
+
+/** One row of the register (FR-001, FR-009). ⚠ Carries `complianceIssues` so an operator can answer
+ *  "what is roadworthy" WITHOUT opening a record. */
+export interface VehicleListItem {
+  id: string;
+  registrationPlate: string;
+  make: string;
+  model: string;
+  bodyType: VehicleBodyType;
+  ownership: VehicleOwnership;
+  canCarryChilled: boolean;
+  canCarryFrozen: boolean;
+  status: VehicleStatus;
+  currentHolderDriverId: string | null;
+  currentHolderName: string | null;
+  complianceIssues: VehicleComplianceIssue[];
+}
+
+export interface VehicleListResponse {
+  items: VehicleListItem[];
+  /** ⚠ Consumed by the UI, not merely returned. 053 shipped a console silently capped at 25 rows. */
+  nextCursor: string | null;
+}
+
+/** One period a driver had a vehicle (FR-016). */
+export interface VehicleHolding {
+  id: string;
+  driverId: string;
+  driverName: string;
+  startedAt: string;
+  /** null = still held. */
+  endedAt: string | null;
+  odometerStartKm: WireInt | null;
+  odometerEndKm: WireInt | null;
+  note: string | null;
+}
+
+export interface VehicleDetail extends VehicleListItem {
+  year: WireInt | null;
+  fuelType: VehicleFuelType | null;
+  payloadKg: WireInt | null;
+  loadVolumeLitres: WireInt | null;
+  crateCapacity: WireInt | null;
+  registrationExpiresOn: string | null;
+  insurancePolicyReference: string | null;
+  insuranceExpiresOn: string | null;
+  roadworthyExpiresOn: string | null;
+  odometerKm: WireInt | null;
+  statusReason: string | null;
+  notes: string | null;
+  createdAt: string;
+  /** Optimistic-concurrency token; a PATCH echoes what it loaded. */
+  updatedAt: string;
+  /** Newest first (FR-016). */
+  holdings: VehicleHolding[];
+}
+
+export interface VehicleCreateRequest {
+  registrationPlate: string;
+  make: string;
+  model: string;
+  bodyType: VehicleBodyType;
+  ownership: VehicleOwnership;
+  year?: WireInt | null;
+  fuelType?: VehicleFuelType | null;
+  payloadKg?: WireInt | null;
+  loadVolumeLitres?: WireInt | null;
+  crateCapacity?: WireInt | null;
+  canCarryChilled?: boolean;
+  canCarryFrozen?: boolean;
+  registrationExpiresOn?: string | null;
+  insurancePolicyReference?: string | null;
+  insuranceExpiresOn?: string | null;
+  roadworthyExpiresOn?: string | null;
+  odometerKm?: WireInt | null;
+  notes?: string | null;
+}
+
+/**
+ * ⚠ PRESENCE, NOT VALUE — the same rule 056 established for drivers and fixed a real defect over.
+ * A key present with `null` CLEARS the field; a key absent leaves it alone. `COALESCE($n, col)`
+ * cannot tell those apart, which is how a zone once assigned became permanent. Do not "clean" this
+ * object on the way out: dropping nulls silently restores that defect.
+ */
+export type VehicleUpdateRequest = Partial<VehicleCreateRequest> & { updatedAt: string };
+
+export interface VehicleStatusRequest {
+  status: VehicleStatus;
+  reason: string;
+}
+
+export interface HoldingIssueRequest {
+  driverId: string;
+  odometerStartKm?: WireInt | null;
+  note?: string | null;
+}
+
+export interface HoldingReturnRequest {
+  odometerEndKm?: WireInt | null;
+  note?: string | null;
+}
 
 // ── Audit ────────────────────────────────────────────────────────────────────────────────────────
 

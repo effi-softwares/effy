@@ -55,7 +55,6 @@ export async function setDuty(record: DriverRecord, onDuty: boolean): Promise<Du
   await repo.goOffDuty(record.id);
   return { dutyStatus: "off_duty", since: null };
 }
-
-export async function recordLocation(record: DriverRecord, lat: number, lng: number): Promise<void> {
-  await repo.recordLocation(record.id, lat, lng);
-}
+// ⚠ `recordLocation` STOOD HERE AND IS GONE (061, FR-035/FR-036). Effy does not track driver
+// position. It was a receiver with no sender — no caller in the mobile app, no location permission
+// declared on either platform — and dormant surface is how this platform accumulates defects.

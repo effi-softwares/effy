@@ -125,13 +125,13 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
                 value={d.zone ?? <span className="text-muted-foreground">Not assigned</span>}
               />
               <Row label="Hub" value={d.hub} />
+              {/* ⚠ 061: these read the vehicle the driver is CURRENTLY HOLDING, derived from the
+                  open holding row — not two free-text strings on the driver record that nobody
+                  maintained. Null is an ordinary state: this driver has no vehicle out. */}
               <Row label="Vehicle" value={d.vehicle.type} />
               <Row label="Registration plate" value={d.vehicle.plate} />
-              <Row
-                label="Registration expires"
-                value={formatDate(d.credentials.vehicleRegistrationExpiresOn)}
-              />
               <Row label="Licence" value={d.credentials.licenceReference} />
+              <Row label="Licence class" value={d.credentials.licenceClass} />
               <Row label="Licence expires" value={formatDate(d.credentials.licenceExpiresOn)} />
             </dl>
           </Section>

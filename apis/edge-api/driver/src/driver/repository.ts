@@ -84,12 +84,5 @@ export async function goOffDuty(driverId: string): Promise<void> {
   );
 }
 
-/** Record an optional point-in-time location snapshot on the open duty session (never streamed). */
-export async function recordLocation(driverId: string, lat: number, lng: number): Promise<void> {
-  await query(
-    `UPDATE public.driver_duty_session
-        SET last_location_lat = $2, last_location_lng = $3, last_location_at = now()
-      WHERE driver_id = $1 AND ended_at IS NULL`,
-    [driverId, lat, lng],
-  );
-}
+// ⚠ `recordLocation` STOOD HERE. The three `last_location_*` columns it wrote were dropped by
+// db/migrations/20260920143000_fleet_foundations.sql — Effy does not track driver position (D20).

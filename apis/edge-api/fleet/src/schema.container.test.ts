@@ -51,6 +51,7 @@ vi.mock("@effy/edge-shared", async () => {
 import * as driversRepo from "./drivers/repository";
 import * as dutyRepo from "./duty/repository";
 import * as readinessRepo from "./readiness/repository";
+import * as vehiclesRepo from "./vehicles/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -84,7 +85,10 @@ CREATE TABLE public."order" (
 );
 CREATE TABLE public.shop (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL,
-  status text NOT NULL DEFAULT 'active'
+  status text NOT NULL DEFAULT 'active',
+  address_line1 text, address_line2 text, suburb text,
+  postcode text CHECK (postcode ~ '^[0-9]{4}$'),
+  state text CHECK (state IN ('ACT','NSW','NT','QLD','SA','TAS','VIC','WA'))
 );
 CREATE TABLE public.shop_fulfillment (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -115,14 +119,14 @@ CREATE TABLE public.driver (
   name text NOT NULL,
   work_email citext NOT NULL UNIQUE,
   delivery_zone_id uuid REFERENCES public.delivery_zone (id) ON DELETE SET NULL,
-  vehicle_type text, vehicle_plate text,
   status text NOT NULL DEFAULT 'active'
     CHECK (status IN ('active', 'suspended', 'offboarded')),
   status_reason text,
   status_changed_at timestamptz NOT NULL DEFAULT now(),
   contact_phone text, started_on date,
   emergency_contact_name text, emergency_contact_phone text, notes text,
-  licence_reference text, licence_expires_on date, vehicle_registration_expires_on date,
+  licence_reference text, licence_expires_on date, licence_class text
+    CHECK (licence_class IN ('C', 'LR', 'MR', 'HR')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -132,10 +136,65 @@ CREATE INDEX driver_register_idx ON public.driver (name, id);
 CREATE TABLE public.driver_duty_session (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE CASCADE,
-  started_at timestamptz NOT NULL DEFAULT now(), ended_at timestamptz
+  started_at timestamptz NOT NULL DEFAULT now(), ended_at timestamptz,
+  expected_end_at timestamptz
 );
 CREATE UNIQUE INDEX driver_duty_session_open_uq
   ON public.driver_duty_session (driver_id) WHERE ended_at IS NULL;
+
+-- ── 061: the vehicle register. Mirrors 20260920143000_fleet_foundations.sql exactly. ────────────
+CREATE TABLE public.vehicle (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  registration_plate text NOT NULL CHECK (btrim(registration_plate) <> ''),
+  make text NOT NULL CHECK (btrim(make) <> ''),
+  model text NOT NULL CHECK (btrim(model) <> ''),
+  year int CHECK (year BETWEEN 1950 AND 2100),
+  body_type text NOT NULL
+    CHECK (body_type IN ('van','ute','truck_light','car','motorcycle','bicycle')),
+  fuel_type text CHECK (fuel_type IN ('petrol','diesel','hybrid','electric','none')),
+  ownership text NOT NULL DEFAULT 'effy_owned'
+    CHECK (ownership IN ('effy_owned','driver_owned')),
+  payload_kg int CHECK (payload_kg > 0),
+  load_volume_litres int CHECK (load_volume_litres > 0),
+  crate_capacity int CHECK (crate_capacity >= 0),
+  can_carry_chilled boolean NOT NULL DEFAULT false,
+  can_carry_frozen boolean NOT NULL DEFAULT false,
+  registration_expires_on date,
+  insurance_policy_reference text,
+  insurance_expires_on date,
+  roadworthy_expires_on date,
+  odometer_km int CHECK (odometer_km >= 0),
+  status text NOT NULL DEFAULT 'active'
+    CHECK (status IN ('active','off_road','retired')),
+  status_reason text, notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX vehicle_plate_active_uq ON public.vehicle (upper(registration_plate))
+  WHERE status <> 'retired';
+CREATE INDEX vehicle_status_idx ON public.vehicle (status);
+
+CREATE TABLE public.vehicle_holding (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_id uuid NOT NULL REFERENCES public.vehicle (id) ON DELETE RESTRICT,
+  driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE RESTRICT,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  ended_at timestamptz,
+  odometer_start_km int CHECK (odometer_start_km >= 0),
+  odometer_end_km int CHECK (odometer_end_km >= 0),
+  issued_by_sub text, returned_by_sub text, note text,
+  CONSTRAINT vehicle_holding_odo_ck CHECK (
+    odometer_end_km IS NULL OR odometer_start_km IS NULL OR odometer_end_km >= odometer_start_km
+  ),
+  CONSTRAINT vehicle_holding_period_ck CHECK (ended_at IS NULL OR ended_at >= started_at)
+);
+-- ⚠ THE TWO INDEXES THAT ARE FR-012 AND FR-013.
+CREATE UNIQUE INDEX vehicle_holding_open_vehicle_uq
+  ON public.vehicle_holding (vehicle_id) WHERE ended_at IS NULL;
+CREATE UNIQUE INDEX vehicle_holding_open_driver_uq
+  ON public.vehicle_holding (driver_id) WHERE ended_at IS NULL;
+CREATE INDEX vehicle_holding_vehicle_idx ON public.vehicle_holding (vehicle_id);
+CREATE INDEX vehicle_holding_driver_idx ON public.vehicle_holding (driver_id);
 
 CREATE TABLE public.order_item (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -161,7 +220,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
   beforeEach(async () => {
     await pool.query(`
-      TRUNCATE public.driver_duty_session,
+      TRUNCATE public.vehicle_holding, public.vehicle, public.driver_duty_session,
                public.driver, public.order_item, public.order_package_delivery,
                public.shop_fulfillment, public."order", public.customer_address, public.customer,
                public.shop, public.delivery_zone, public.delivery_settings, admin.audit_log
@@ -287,7 +346,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const id = await seedDriver("Clearable", { zoneId });
       await pool.query(
         `UPDATE public.driver
-            SET contact_phone = '0400 111 222', vehicle_plate = 'ABC123',
+            SET contact_phone = '0400 111 222', licence_class = 'C',
                 licence_reference = 'VIC-1', licence_expires_on = '2027-01-01',
                 emergency_contact_name = 'Kin', notes = 'note', started_on = '2026-01-01'
           WHERE id = $1`,
@@ -304,7 +363,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
         {
           zoneId: null,
           contactPhone: null,
-          vehiclePlate: null,
+          licenceClass: null,
           licenceReference: null,
           licenceExpiresOn: null,
           emergencyContactName: null,
@@ -318,7 +377,10 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       const after = await driversRepo.getDriver(id);
       expect(after!.zoneId).toBeNull();
       expect(after!.contactPhone).toBeNull();
+      // ⚠ `vehicle.plate` is no longer a driver column at all — it is derived from the open holding
+      // (061). Null here means "holds no vehicle", which is the correct answer for this driver.
       expect(after!.vehicle.plate).toBeNull();
+      expect(after!.credentials.licenceClass).toBeNull();
       expect(after!.credentials.licenceReference).toBeNull();
       expect(after!.credentials.licenceExpiresOn).toBeNull();
       expect(after!.emergencyContact.name).toBeNull();
@@ -417,6 +479,165 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // 061 — the vehicle register and holdings, against real PostgreSQL.
+  //
+  // ⚠ THIS IS WHERE THIS SLICE IS ACTUALLY PROVEN. Its correctness lives almost entirely in the
+  // schema — two partial unique indexes, a CHECK, a case-insensitive partial index — and a mocked
+  // repository test cannot observe any of it. 056's own concurrency-token defect typechecked
+  // perfectly, passed every mocked test, and would have made EVERY edit fail; only the container
+  // test found it.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  async function seedVehicle(
+    plate: string,
+    opts: { status?: string; chilled?: boolean; frozen?: boolean; regExpires?: string; odo?: number } = {},
+  ): Promise<string> {
+    const r = await pool.query<{ id: string }>(
+      `INSERT INTO public.vehicle
+         (registration_plate, make, model, body_type, status, can_carry_chilled, can_carry_frozen,
+          registration_expires_on, odometer_km)
+       VALUES ($1, 'Toyota', 'HiAce', 'van', $2, $3, $4, $5, $6) RETURNING id`,
+      [plate, opts.status ?? "active", opts.chilled ?? false, opts.frozen ?? false, opts.regExpires ?? null, opts.odo ?? null],
+    );
+    return r.rows[0]!.id;
+  }
+
+  describe("061 C1/C2 — the two exclusion rules, PROVEN UNDER CONCURRENCY", () => {
+    /**
+     * ⚠ THE SINGLE MOST IMPORTANT TEST IN THIS SLICE.
+     *
+     * FR-012 is a concurrency claim, and the design's whole argument is that a service-level
+     * read-then-write cannot make it true. Both inserts are issued WITHOUT awaiting the first, so
+     * they genuinely race; exactly one must survive and the other must be refused BY THE DATABASE.
+     */
+    it("⚠ C1 — two CONCURRENT issues of ONE VEHICLE: exactly one succeeds", async () => {
+      const v = await seedVehicle("EFY-C1");
+      const a = await seedDriver("Alpha One");
+      const b = await seedDriver("Bravo One");
+
+      const results = await Promise.allSettled([
+        pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, a]),
+        pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, b]),
+      ]);
+
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+      expect((rejected.reason as { constraint?: string }).constraint).toBe("vehicle_holding_open_vehicle_uq");
+
+      const open = await pool.query(
+        `SELECT 1 FROM public.vehicle_holding WHERE vehicle_id = $1 AND ended_at IS NULL`, [v],
+      );
+      expect(open.rowCount).toBe(1);
+    });
+
+    /** ⚠ C2 — the mirror of C1 on the other axis (FR-013). One driver, two vehicles, at once. */
+    it("⚠ C2 — two CONCURRENT issues to ONE DRIVER: exactly one succeeds", async () => {
+      const d = await seedDriver("Charlie Two");
+      const v1 = await seedVehicle("EFY-C2A");
+      const v2 = await seedVehicle("EFY-C2B");
+
+      const results = await Promise.allSettled([
+        pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v1, d]),
+        pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v2, d]),
+      ]);
+
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      const rejected = results.find((r) => r.status === "rejected") as PromiseRejectedResult;
+      expect((rejected.reason as { constraint?: string }).constraint).toBe("vehicle_holding_open_driver_uq");
+    });
+
+    /** ⚠ C6 — returning frees BOTH sides. If it freed only one, the other axis would deadlock the
+     *  fleet after a single shift and nothing would say why. */
+    it("C6 — returning a holding frees both the vehicle and the driver", async () => {
+      const v = await seedVehicle("EFY-C6");
+      const d = await seedDriver("Delta Six");
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
+      await pool.query(
+        `UPDATE public.vehicle_holding SET ended_at = now() WHERE vehicle_id = $1 AND ended_at IS NULL`, [v],
+      );
+
+      const other = await seedDriver("Echo Six");
+      const v2 = await seedVehicle("EFY-C6B");
+      await expect(
+        pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, other]),
+      ).resolves.toBeDefined();
+      await expect(
+        pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v2, d]),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe("061 C3/C4/C5 — schema rules a mocked test cannot see", () => {
+    /** ⚠ C3 — FR-018 is enforced by the DATABASE, so it holds for every writer including one nobody
+     *  has written yet. If it were a service check, the next caller would have to remember it. */
+    it("C3 — a closing odometer below the opening is refused by the database", async () => {
+      const v = await seedVehicle("EFY-C3");
+      const d = await seedDriver("Foxtrot Three");
+      const h = await pool.query<{ id: string }>(
+        `INSERT INTO public.vehicle_holding (vehicle_id, driver_id, odometer_start_km)
+         VALUES ($1, $2, 50000) RETURNING id`, [v, d],
+      );
+      await expect(
+        pool.query(`UPDATE public.vehicle_holding SET ended_at = now(), odometer_end_km = 49999 WHERE id = $1`,
+          [h.rows[0]!.id]),
+      ).rejects.toMatchObject({ constraint: "vehicle_holding_odo_ck" });
+
+      await expect(
+        pool.query(`UPDATE public.vehicle_holding SET ended_at = now(), odometer_end_km = 50000 WHERE id = $1`,
+          [h.rows[0]!.id]),
+      ).resolves.toBeDefined();
+    });
+
+    /**
+     * ⚠ C4 — plate uniqueness is scoped to NON-RETIRED, and the second half is the point. A retired
+     * van's plate can be legitimately reissued by the state years later; a blanket unique index
+     * would refuse a REAL vehicle because of a record Effy keeps only for history.
+     */
+    it("C4 — a duplicate plate is refused, and the SAME plate is accepted once the first is retired", async () => {
+      const first = await seedVehicle("EFY-C4");
+      await expect(seedVehicle("EFY-C4")).rejects.toMatchObject({ constraint: "vehicle_plate_active_uq" });
+
+      await pool.query(`UPDATE public.vehicle SET status = 'retired' WHERE id = $1`, [first]);
+      await expect(seedVehicle("EFY-C4")).resolves.toBeDefined();
+    });
+
+    /** ⚠ C5 — `abc123` and `ABC123` are the same plate to everyone except a database. */
+    it("C5 — plate uniqueness is case-insensitive", async () => {
+      await seedVehicle("efy-c5");
+      await expect(seedVehicle("EFY-C5")).rejects.toMatchObject({ constraint: "vehicle_plate_active_uq" });
+    });
+
+    /** ⚠ C7 — retiring must not destroy history. The record is why the vehicle is kept at all. */
+    it("C7 — retiring a vehicle leaves its holding history readable", async () => {
+      const v = await seedVehicle("EFY-C7");
+      const d = await seedDriver("Golf Seven");
+      await pool.query(
+        `INSERT INTO public.vehicle_holding (vehicle_id, driver_id, odometer_start_km) VALUES ($1, $2, 10)`, [v, d],
+      );
+      await pool.query(`UPDATE public.vehicle_holding SET ended_at = now(), odometer_end_km = 99 WHERE vehicle_id = $1`, [v]);
+      await pool.query(`UPDATE public.vehicle SET status = 'retired' WHERE id = $1`, [v]);
+
+      const history = await vehiclesRepo.listHoldings(v);
+      expect(history).toHaveLength(1);
+      expect(history[0]!.driverName).toBe("Golf Seven");
+      expect(history[0]!.odometerEndKm).toBe(99);
+    });
+
+    /** Compliance is DERIVED, so a date that lapsed overnight is reported without anything running. */
+    it("reports each lapsed compliance item by name, and reports none when dates are unset", async () => {
+      await seedVehicle("EFY-CMP1", { regExpires: "2020-01-01" });
+      await seedVehicle("EFY-CMP2");
+
+      const { items } = await vehiclesRepo.listVehicles({});
+      const lapsed = items.find((i) => i.registrationPlate === "EFY-CMP1");
+      const unset = items.find((i) => i.registrationPlate === "EFY-CMP2");
+      expect(lapsed!.complianceIssues).toEqual(["registration_expired"]);
+      // ⚠ A NULL expiry is NOT a lapse — nobody has supplied the date yet, which is ordinary.
+      expect(unset!.complianceIssues).toEqual([]);
+    });
+  });
+
   describe("SC-009 — readiness surfaces the gap before an order is affected", () => {
     it("⚠ flags a driver with NO ZONE as unable to receive work", async () => {
       await seedDriver("Zoneless", { zoneId: null });

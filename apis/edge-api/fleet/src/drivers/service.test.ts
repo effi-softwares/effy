@@ -31,7 +31,7 @@ const PROFILE = {
   credentials: {
     licenceReference: null,
     licenceExpiresOn: null,
-    vehicleRegistrationExpiresOn: null,
+    licenceClass: null,
   },
   emergencyContact: { name: null, phone: null },
   status: "active" as const,
@@ -200,11 +200,11 @@ describe("updateDriver — FR-010/FR-012", () => {
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
     await updateDriver(
       "d-1",
-      { vehiclePlate: "  ", updatedAt: PROFILE.updatedAt },
+      { licenceReference: "  ", updatedAt: PROFILE.updatedAt },
       "actor-1",
       scope,
     );
-    expect(vi.mocked(repo.updateDriver).mock.calls[0]![1].vehiclePlate).toBeNull();
+    expect(vi.mocked(repo.updateDriver).mock.calls[0]![1].licenceReference).toBeNull();
   });
 
   it("refuses a work-email change rather than ignoring it", async () => {

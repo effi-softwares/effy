@@ -38,7 +38,7 @@ function functionBlock(fn: string): string {
 describe("driver deployment contract — serverless.yml declares what the service needs", () => {
   it("carries the DRIVER authorizer on the core authenticated /driver/v1 routes", () => {
     for (const fn of [
-      "driverMeV1", "driverDutyV1", "driverLocationV1",
+      "driverMeV1", "driverDutyV1",
       "driverDevicesV1Post", "driverDevicesV1IdDelete",
     ]) {
       const block = functionBlock(fn);
@@ -63,6 +63,25 @@ describe("driver deployment contract — serverless.yml declares what the servic
     ]) {
       expect(yaml.includes(`${key}:`), `serverless.yml does not declare ${key}`).toBe(true);
     }
+  });
+
+  /**
+   * ⚠ EFFY DOES NOT TRACK DRIVER POSITION, AND THIS IS WHAT KEEPS IT THAT WAY (061, FR-035/FR-036).
+   *
+   * `POST /driver/v1/location` existed and was a RECEIVER WITH NO SENDER: no caller in
+   * `apps/driver-mobile`, no location permission declared on Android or iOS, no reader of the three
+   * `driver_duty_session.last_location_*` columns. Nothing was ever collected — and that is exactly
+   * what made it dangerous. The moment anyone added a location permission to make a map work, the
+   * platform would have begun recording an employee's position with no notice, no consent record and
+   * no retention rule, and NOTHING WOULD HAVE FAILED.
+   *
+   * A removal without a guard is an invitation to restore it by resemblance, so the absence is
+   * pinned rather than trusted to memory. If driver position is ever wanted, consent, notice and a
+   * retention rule land in the SAME change — see decisions D10/D20/D22.
+   */
+  it("exposes no route that accepts a driver location, and stores none", () => {
+    expect(yaml).not.toMatch(/path: .*location/i);
+    expect(yaml).not.toContain("driverLocationV1");
   });
 
   /**

@@ -38,6 +38,8 @@ export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
   suspended: "Suspended — cannot be given work",
   offboarded: "Offboarded — cannot be given work",
   licence_expired: "Licence expired — cannot be given work",
+  no_vehicle: "No vehicle assigned — cannot be given work",
+  vehicle_non_compliant: "Assigned vehicle is not roadworthy — cannot be given work",
 };
 
 // ⚠ The exception and run-type vocabularies stood here — "Delivery failed" / "Nobody home" /

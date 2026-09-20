@@ -69,12 +69,19 @@ export async function expiringCredentials(): Promise<ExpiringCredential[]> {
         AND d.licence_expires_on IS NOT NULL
         AND d.licence_expires_on <= h.limit_date
       UNION ALL
-     SELECT d.id, d.name, 'vehicle_registration'::text, d.vehicle_registration_expires_on,
-            (d.vehicle_registration_expires_on < h.today)
-       FROM public.driver d CROSS JOIN horizon h
+     -- ⚠ 061: a registration expiry is a fact about a VEHICLE, not about a person. It used to be a
+     -- column on the driver row because vehicles had no table, which meant two drivers sharing a van
+     -- kept two hand-maintained copies of one date. It is now read through the driver's OPEN holding,
+     -- so the warning names the person who will actually be stopped at the roadside.
+     SELECT d.id, d.name, 'vehicle_registration'::text, v.registration_expires_on,
+            (v.registration_expires_on < h.today)
+       FROM public.driver d
+       JOIN public.vehicle_holding vh ON vh.driver_id = d.id AND vh.ended_at IS NULL
+       JOIN public.vehicle v          ON v.id = vh.vehicle_id
+       CROSS JOIN horizon h
       WHERE d.status <> 'offboarded'
-        AND d.vehicle_registration_expires_on IS NOT NULL
-        AND d.vehicle_registration_expires_on <= h.limit_date
+        AND v.registration_expires_on IS NOT NULL
+        AND v.registration_expires_on <= h.limit_date
       ORDER BY expires_on ASC`,
     [expiryWarningDays()],
   );

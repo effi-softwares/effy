@@ -109,17 +109,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
 
-  driverLocationV1:
-    handler: src/functions/driver-location-v1-post.handler
-    description: Optional point-in-time location snapshot for nearest-driver preference (049). Never streamed.
-    events:
-      - httpApi:
-          method: POST
-          path: /driver/v1/location
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
-
   driverDevicesV1Post:
     handler: src/functions/driver-devices-v1-post.handler
     description: Register/refresh this device's FCM push token for the signed-in driver (050)

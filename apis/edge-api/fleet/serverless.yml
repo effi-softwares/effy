@@ -222,6 +222,84 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── 061 — the vehicle register. A vehicle is Effy property, not a driver's attribute. ───────────
+  vehiclesListV1:
+    handler: src/functions/vehicles-list-v1-get.handler
+    description: The vehicle register — what Effy runs and what is roadworthy (061 FR-001/FR-009). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/vehicles
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  vehicleCreateV1:
+    handler: src/functions/vehicle-create-v1-post.handler
+    description: Add a vehicle to the register (061 FR-001…FR-006). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/vehicles
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  vehicleGetV1:
+    handler: src/functions/vehicle-get-v1-get.handler
+    description: Vehicle detail, current holder and full holding history (061 FR-016). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/vehicles/{vehicleId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  vehicleUpdateV1:
+    handler: src/functions/vehicle-update-v1-patch.handler
+    description: Edit a vehicle (061 FR-007). Presence-not-value semantics. Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: PATCH
+          path: /fleet/v1/vehicles/{vehicleId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  vehicleStatusV1:
+    handler: src/functions/vehicle-status-v1-post.handler
+    description: Move a vehicle between active, off_road and retired (061 FR-008). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/vehicles/{vehicleId}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  vehicleHoldingIssueV1:
+    handler: src/functions/vehicle-holding-issue-v1-post.handler
+    description: Hand a vehicle to a driver (061 FR-010). Exclusion is guaranteed by two partial unique indexes, not by this service. Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/vehicles/{vehicleId}/holdings
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  vehicleHoldingReturnV1:
+    handler: src/functions/vehicle-holding-return-v1-post.handler
+    description: Take a vehicle back and record the closing odometer (061 FR-011). Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/vehicles/{vehicleId}/holdings/current/return
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   readinessV1:
     handler: src/functions/readiness-v1-get.handler
     description: Drivers who cannot receive work, zones with nobody in them, expiring credentials (056 FR-044…FR-046). Read = any active staff.

@@ -31,7 +31,7 @@ const DRIVER: AdminDriverProfile = {
   credentials: {
     licenceReference: null,
     licenceExpiresOn: null,
-    vehicleRegistrationExpiresOn: null,
+    licenceClass: null,
   },
   emergencyContact: { name: null, phone: null },
   status: "active",

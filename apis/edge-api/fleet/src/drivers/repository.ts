@@ -11,6 +11,7 @@
 //   3. `ORDER BY d.name ASC` with no limit and no search — the whole table, always (FR-003/FR-004).
 import { query, withTransaction } from "@effy/edge-shared";
 import type {
+  AdminDriverCredentials,
   AdminDriverListItem,
   AdminDriverProfile,
   DriverBlockedReason,
@@ -35,11 +36,11 @@ interface ListRow {
 
 interface ProfileRow extends ListRow {
   contact_phone: string | null;
-  vehicle_type: string | null;
-  vehicle_plate: string | null;
+  licence_class: string | null;
   licence_reference: string | null;
+  held_vehicle_type: string | null;
+  held_vehicle_plate: string | null;
   licence_expires_on: Date | null;
-  vehicle_registration_expires_on: Date | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   status_reason: string | null;
@@ -180,11 +181,15 @@ const PROFILE_SELECT = `
          d.contact_phone,
          d.delivery_zone_id AS zone_id,
          z.name             AS zone_name,
-         d.vehicle_type,
-         d.vehicle_plate,
+         d.licence_class,
          d.licence_reference,
          d.licence_expires_on,
-         d.vehicle_registration_expires_on,
+         -- ⚠ 061: what the driver is driving is no longer two free-text columns nobody maintained.
+         -- It is the vehicle behind their OPEN holding, so the Account screen in the driver app
+         -- shows a true answer without one line of Kotlin changing. NULL when they hold nothing,
+         -- which is an ordinary state.
+         hv.body_type         AS held_vehicle_type,
+         hv.registration_plate AS held_vehicle_plate,
          d.emergency_contact_name,
          d.emergency_contact_phone,
          d.status,
@@ -203,6 +208,11 @@ const PROFILE_SELECT = `
          (SELECT 'Effy Hub' FROM public.delivery_settings LIMIT 1) AS hub_label
     FROM public.driver d
     LEFT JOIN public.delivery_zone z ON z.id = d.delivery_zone_id
+    -- ⚠ The OPEN holding is the single source of truth for "what does this driver have".
+    -- There is deliberately no driver.current_vehicle_id: a second place stating one fact is
+    -- 033/052/053's recurring defect, where the two disagree and nobody knows which is true.
+    LEFT JOIN public.vehicle_holding hh ON hh.driver_id = d.id AND hh.ended_at IS NULL
+    LEFT JOIN public.vehicle hv         ON hv.id = hh.vehicle_id
    WHERE d.id = $1
 `;
 
@@ -221,11 +231,11 @@ export async function getDriver(
     zoneId: r.zone_id,
     zone: r.zone_name,
     hub: r.hub_label,
-    vehicle: { type: r.vehicle_type, plate: r.vehicle_plate },
+    vehicle: { type: r.held_vehicle_type, plate: r.held_vehicle_plate },
     credentials: {
       licenceReference: r.licence_reference,
       licenceExpiresOn: dateOnly(r.licence_expires_on),
-      vehicleRegistrationExpiresOn: dateOnly(r.vehicle_registration_expires_on),
+      licenceClass: r.licence_class as AdminDriverCredentials["licenceClass"],
     },
     emergencyContact: { name: r.emergency_contact_name, phone: r.emergency_contact_phone },
     status: r.status,
@@ -265,11 +275,9 @@ const MUTABLE_COLUMNS: Record<string, string> = {
   name: "name",
   contactPhone: "contact_phone",
   zoneId: "delivery_zone_id",
-  vehicleType: "vehicle_type",
-  vehiclePlate: "vehicle_plate",
   licenceReference: "licence_reference",
   licenceExpiresOn: "licence_expires_on",
-  vehicleRegistrationExpiresOn: "vehicle_registration_expires_on",
+  licenceClass: "licence_class",
   emergencyContactName: "emergency_contact_name",
   emergencyContactPhone: "emergency_contact_phone",
   startedOn: "started_on",
@@ -280,7 +288,6 @@ const MUTABLE_COLUMNS: Record<string, string> = {
 const COLUMN_CAST: Record<string, string> = {
   delivery_zone_id: "::uuid",
   licence_expires_on: "::date",
-  vehicle_registration_expires_on: "::date",
   started_on: "::date",
 };
 
