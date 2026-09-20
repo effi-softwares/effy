@@ -71,6 +71,7 @@ account.dispatchPhone
 account.hubDeskContact
 account.handbookLink
 map.markerCoordinates
+map.defaultCamera
 -->
 
 ## Known placeholders, declared up front
@@ -263,6 +264,7 @@ offline queue's own timestamp, ⚠ not invented.
 | Hub row | ✅ | `driver.hub`; rendered as a squared outline vs a filled round-rect, ⚠ **not colour alone** — the hub is a different KIND of place and a sunlit windscreen mount defeats colour |
 | **Marker coordinates** | 🟡 | ⚠ **There are none to plot.** 049 R13: shops carry no address or coordinates, orders carry an un-geocoded address. **Decorative rather than operational** because the map is *illustrative, not navigational* — routing goes through **Navigate**, which hands the device's maps app the real address string, so no decision is ever taken from a pin. **Unblocked by**: `shop.address` + geocoding |
 | Stop **ETA** column | ⛔ | ⚠ **OMITTED.** **Unblocked by**: routing + geodata |
+| **Opening camera position** | 🟡 | ⚠ Found by looking: with no camera set the map opened on the library's default and showed a Melbourne driver the Indian Ocean. Now Melbourne — the operating city (047 judges cutoffs in `Australia/Melbourne`). Still a constant. **Unblocked by**: the driver's own location, or a geocoded hub |
 
 ### Group 7 — Notifications
 *Pending — Phase 7.*

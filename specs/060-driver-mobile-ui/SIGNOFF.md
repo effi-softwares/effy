@@ -1,7 +1,8 @@
 # Sign-off: 060-driver-mobile-ui
 
-**Date**: 2026-09-20 · **Status**: 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. NOT COMMITTED, NOT
-BUILT FOR iOS, AND — THE ONE THAT MATTERS — NOT LOOKED AT BY A PERSON ON ANY DEVICE.**
+**Date**: 2026-09-20 · **Status**: 🚧 **CODE-COMPLETE AND MACHINE-VERIFIED. RUNS ON AN iOS
+SIMULATOR — a handful of screens have now been seen. NOT COMMITTED, NOT RUN ON ANDROID, AND THE
+45-SCREEN WALK IS STILL UNDONE.**
 
 **90 / 110 tasks.** All **45 in-app design screens** are built. The 20 open tasks are the operator's
 walks, two deferrals recorded below, and the remaining polish.
@@ -77,29 +78,49 @@ Found while building, none of them in the brief:
     shell"*. 049 gave it a shell. `mobile-assets:check` reported ✅ throughout, because an app
     configured to take nothing is trivially in sync.
 
-## ⚠ A crash found by running it on a simulator
+## ⚠ A crash found by running it — and a misdiagnosis worth recording
 
-Tapping **Map** killed the entire app with `SIGABRT` inside MapLibre's render thread
-(`RenderSessionHandle.kt` → `Status#check`). The simulator log gives the cause outright:
+Tapping **Map** killed the app with `SIGABRT` on MapLibre's render thread.
+
+⚠ **The first diagnosis was WRONG.** The simulator log carries
+`failed lookup: com.apple.metal.simulator.<app>`, which is benign noise present for most apps. It
+was read as "no Metal", and the map was disabled on the simulator on that basis. Two lines further
+up, the same log says the opposite:
 
 ```
-failed lookup: name = com.apple.metal.simulator.driver-mobile … error = 3: No such process
+maplibre-compose: Rendered the first map frame with METAL on maplibre-compose-render,
+                  extent MapExtent(logical=402x260, physical=1206x780, scale=3.0)
 ```
 
-MapLibre Native renders through **Metal**, and this simulator has no Metal service.
+**Metal works and the map rendered.** The abort was in **teardown** — repeated
+`Host surface lost; closing the render session` — not initialisation, which the stack frame
+(`RenderSessionHandle.kt` near `switchThreadState`) also said.
 
-⚠ **The crash was the smaller problem.** A pre-1.0 third-party renderer could terminate the whole
-app because a driver tapped a tab — mid-shift, that loses their run. And the abort is native, not a
-Kotlin exception, so it is **not catchable at the call site**.
+⚠ **The real cause was self-inflicted.** After the Map tab worked, `EffyMapCanvas` was also added to
+the Today hero strip and the en-route panel — scope creep beyond the task. Three concurrent MapLibre
+instances, **one of them inside a scrolling column** that composes and disposes as the driver
+scrolls, churned the render session until teardown raced.
 
-Fixed with `mapRenderingSupported()` (expect/actual): the map is only instantiated where a renderer
-exists, and everywhere else `EffyMapCanvas` shows the fallback. ⚠ Written as a **capability check,
-not a simulator workaround** — any device that cannot render gets the fallback rather than a crash.
-iOS detects the simulator via `SIMULATOR_DEVICE_NAME`; deliberately **not** a device-model match,
-which goes stale and fails *open* — and failing open here means crashing.
+**Fix: exactly ONE live map, on the Map tab, where it has a stable host.** Asserted by
+`MapLibreImportGuardTest`. The hero strip and en-route panel are neutral panels pointing at the Map
+tab — a 106 dp band behind a card title never justified a native renderer.
 
-⚠ **Consequence for the walk**: the Map tab shows its fallback on the simulator. **Its cartography
-can only be verified on a real device.**
+`mapRenderingSupported()` remains and returns `true` everywhere. The rule it encodes — *a pre-1.0
+third-party renderer must never be able to abort the app* — is still right; the simulator simply is
+not where it fails. The wrong reasoning is corrected in the file rather than quietly deleted.
+
+## ✅ Verified on a real iOS simulator
+
+The app **builds, installs, runs, and the Map tab renders live OpenStreetMap cartography** on an
+iPhone 17 Pro simulator (iOS 26.5). Three defects were found by *looking*, none catchable by a test:
+
+1. **"UP NEXT · 0 shops"** rendered a heading and a "Whole run ›" link over an empty list. The
+   spec's own edge case asked whether that section collapses; it did not. Now hidden when empty.
+2. **The map opened on the library's default position** — a Melbourne driver was shown the Indian
+   Ocean. Now opens on Melbourne, the operating city (registered as a decorative placeholder).
+3. **The attribution overlaid MapLibre's own logo and info button**, so two attributions collided
+   and neither read cleanly. Moved to a full-width strip below the canvas — a licence obligation
+   needs to be legible, not merely present.
 
 ## Refusals — design content NOT adopted
 

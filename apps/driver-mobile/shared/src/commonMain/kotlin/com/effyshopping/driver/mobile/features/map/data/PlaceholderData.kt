@@ -21,4 +21,15 @@ object MapPlaceholders {
      */
     val markerCoordinates: Sourced<String> =
         decorative("hub-relative", "`shop.address` + geocoding, and geocoded customer addresses")
+
+    /**
+     * Where the map opens.
+     *
+     * \u26a0 Found by looking at it on a simulator: with no camera set, the map opened on the
+     * library's default position and showed a Melbourne driver the Indian Ocean. Melbourne is the
+     * one honest default available \u2014 the platform judges its own delivery cutoffs in
+     * `Australia/Melbourne` (047) \u2014 but it is still a constant, not the driver's location.
+     */
+    val defaultCamera: Sourced<String> =
+        decorative("melbourne", "The driver's own location, or a geocoded hub position")
 }

@@ -8,9 +8,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
+import org.maplibre.spatialk.geojson.Position
 
 /**
  * The platform's map (060 US3, FR-023a…FR-023e).
@@ -36,6 +38,13 @@ import org.maplibre.compose.style.BaseStyle
  */
 private const val OPENFREEMAP_LIBERTY = "https://tiles.openfreemap.org/styles/liberty"
 
+/**
+ * Where the map opens. Effy operates in Melbourne — the platform judges its own delivery cutoffs in
+ * `Australia/Melbourne` wall-clock (047) — so this is the one honest default available while the
+ * platform has no coordinates of its own.
+ */
+private val MELBOURNE = Position(longitude = 144.9631, latitude = -37.8136)
+
 /** The attribution the OpenStreetMap/OpenFreeMap licences require us to display. */
 const val MAP_ATTRIBUTION: String = "© OpenStreetMap contributors · OpenFreeMap"
 
@@ -49,7 +58,14 @@ fun EffyMapCanvas(modifier: Modifier = Modifier) {
         EffyMapUnavailable(modifier, "Map preview isn't available on this device")
         return
     }
-    val state = rememberMapState(baseStyle = BaseStyle.Uri(OPENFREEMAP_LIBERTY))
+    val state = rememberMapState(
+        baseStyle = BaseStyle.Uri(OPENFREEMAP_LIBERTY),
+        // ⚠ FOUND BY LOOKING AT IT: with no camera the map opened on the library's default
+        // position, which showed a Melbourne driver the Indian Ocean. The platform holds no
+        // coordinates to centre on (049 R13), so this is the OPERATING CITY as a decorative
+        // default — registered as `map.defaultCamera`, and replaced by real geodata when it exists.
+        initialCameraPosition = CameraPosition(zoom = 10.0, target = MELBOURNE),
+    )
     Box(modifier, contentAlignment = Alignment.Center) {
         MaplibreMap(state = state, modifier = Modifier.fillMaxSize())
     }

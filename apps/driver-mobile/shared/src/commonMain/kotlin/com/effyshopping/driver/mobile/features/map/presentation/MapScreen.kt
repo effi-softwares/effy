@@ -69,23 +69,20 @@ fun MapScreen(
 
         Box(Modifier.fillMaxWidth().height(260.dp)) {
             EffyMapCanvas(Modifier.fillMaxSize())
-            // ⚠ Attribution is a LICENCE OBLIGATION, not a nicety (FR-023b). MapLibre renders the
-            // style's own attribution; this carries it in our chrome too, and MapAttributionTest
-            // pins it — an automatic behaviour that silently stops is the defect class this repo
-            // keeps recording.
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shape = RoundedCornerShape(topStart = 6.dp),
-                modifier = Modifier.align(Alignment.BottomEnd),
-            ) {
-                Text(
-                    MAP_ATTRIBUTION,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                )
-            }
         }
+        // \u26a0 BELOW the canvas, not overlaid on it \u2014 found by looking at a screenshot. As an
+        // overlay it sat on top of MapLibre's own logo and info button, so two attributions
+        // collided and neither read cleanly. A full-width strip is unambiguous and always legible,
+        // which is what a LICENCE OBLIGATION needs (FR-023b).
+        Text(
+            MAP_ATTRIBUTION,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+        )
 
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
