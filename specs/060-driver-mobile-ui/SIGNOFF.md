@@ -77,6 +77,30 @@ Found while building, none of them in the brief:
     shell"*. 049 gave it a shell. `mobile-assets:check` reported ✅ throughout, because an app
     configured to take nothing is trivially in sync.
 
+## ⚠ A crash found by running it on a simulator
+
+Tapping **Map** killed the entire app with `SIGABRT` inside MapLibre's render thread
+(`RenderSessionHandle.kt` → `Status#check`). The simulator log gives the cause outright:
+
+```
+failed lookup: name = com.apple.metal.simulator.driver-mobile … error = 3: No such process
+```
+
+MapLibre Native renders through **Metal**, and this simulator has no Metal service.
+
+⚠ **The crash was the smaller problem.** A pre-1.0 third-party renderer could terminate the whole
+app because a driver tapped a tab — mid-shift, that loses their run. And the abort is native, not a
+Kotlin exception, so it is **not catchable at the call site**.
+
+Fixed with `mapRenderingSupported()` (expect/actual): the map is only instantiated where a renderer
+exists, and everywhere else `EffyMapCanvas` shows the fallback. ⚠ Written as a **capability check,
+not a simulator workaround** — any device that cannot render gets the fallback rather than a crash.
+iOS detects the simulator via `SIMULATOR_DEVICE_NAME`; deliberately **not** a device-model match,
+which goes stale and fails *open* — and failing open here means crashing.
+
+⚠ **Consequence for the walk**: the Map tab shows its fallback on the simulator. **Its cartography
+can only be verified on a real device.**
+
 ## Refusals — design content NOT adopted
 
 | What | Why |
@@ -121,8 +145,11 @@ AGP 9.0.1 / compileSdk 36). Intended, recorded, not drift.
 
 ## ⚠ Open — all yours
 
-1. **T005 — the Xcode linker flags.** MapLibre needs them on the `iosApp` target or **the iOS build
-   does not link**. Kotlin compiles; the app does not. Flags in [quickstart §0](./quickstart.md).
+1. ~~**T005 — the Xcode linker flags.**~~ ✅ **NOT NEEDED — verified, not assumed.** The framework and
+   the app both link without them; the iOS app **builds, installs and runs**. ⚠ Two real gotchas
+   instead: a plain `xcodebuild` fails on `smithy-swift` for **x86_64**, so pass
+   `ONLY_ACTIVE_ARCH=YES ARCHS=arm64` (Xcode's GUI defaults to the active arch and is fine); and
+   **the Map tab needs a real device** to show cartography (see the Metal crash above).
 2. **T105 — the 45-screen walk, 90 screenshots.** ⚠ **The single most important open item.** Nothing
    else here proves the app looks right.
 3. **T106** — interaction checks on real hardware: swipe cancel-and-commit, swipe accessibility with

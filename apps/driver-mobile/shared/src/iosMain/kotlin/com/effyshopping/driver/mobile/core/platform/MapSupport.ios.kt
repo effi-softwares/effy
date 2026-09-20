@@ -1,15 +1,18 @@
 package com.effyshopping.driver.mobile.core.platform
 
-import platform.Foundation.NSProcessInfo
-
 /**
- * ⚠ **False on the iOS Simulator**, where there is no Metal service for MapLibre Native to render
- * through — see the `expect` declaration for the log line that proves it. On a real device Metal is
- * always present, so the map renders normally.
+ * ⚠ **CORRECTED.** This briefly returned `false` on the simulator, on the theory that MapLibre had
+ * no Metal service there. **That was wrong, and the log disproves it:**
  *
- * The check is the presence of `SIMULATOR_DEVICE_NAME` in the environment, which the simulator
- * always sets and a device never does. ⚠ Deliberately NOT a device-model string match: those go
- * stale with every new device and fail *open*, which here means crashing.
+ *     maplibre-compose: Rendered the first map frame with METAL on maplibre-compose-render,
+ *                       extent MapExtent(logical=402x260, physical=1206x780, scale=3.0)
+ *
+ * Metal works and the map renders. The `SIGABRT` was in **teardown** — "Host surface lost; closing
+ * the render session" — provoked by having THREE `EffyMapCanvas` instances, one of them inside a
+ * scrolling column that composes and disposes repeatedly. The fix is one map instance, not a
+ * disabled feature.
+ *
+ * The hook stays, because "a third-party renderer must never be able to abort the app" is still
+ * true — it is simply not the simulator that fails.
  */
-actual fun mapRenderingSupported(): Boolean =
-    NSProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] == null
+actual fun mapRenderingSupported(): Boolean = true

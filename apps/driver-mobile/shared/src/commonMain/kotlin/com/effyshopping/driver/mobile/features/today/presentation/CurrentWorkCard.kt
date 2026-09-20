@@ -23,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.effyshopping.driver.mobile.core.platform.EffyMapCanvas
-import com.effyshopping.driver.mobile.core.platform.MAP_ATTRIBUTION
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.domain.TodayItem
 
@@ -120,11 +118,14 @@ fun CurrentWorkCard(
 /**
  * The card's map band.
  *
- * \u26a0 Real OpenStreetMap cartography (via `EffyMapCanvas`) \u2014 but **no pin**, because the
- * platform holds no coordinates for a shop or a customer address (049 R13). It shows the driver
- * their surroundings, not their destination, and the attribution the licence requires rides with
- * it. Navigation still goes through **Navigate**, which hands the device's maps app the real
- * address string.
+ * ⚠ **A neutral panel, NOT a live map — and that is a fix, not a limitation.** It briefly rendered
+ * real cartography here. With a second instance on the en-route screen and a third on the Map tab,
+ * and this one inside a **scrolling column** that composes and disposes as the driver scrolls,
+ * MapLibre's render session tore down repeatedly ("Host surface lost") and eventually took the
+ * process with it — `SIGABRT` on the render thread.
+ *
+ * One live map, on the Map tab, where it has a stable host. A 106 dp strip behind a card title was
+ * never worth a native renderer anyway.
  */
 @Composable
 private fun MapStrip() {
@@ -132,20 +133,15 @@ private fun MapStrip() {
         Modifier
             .fillMaxWidth()
             .height(106.dp)
-            .clip(RoundedCornerShape(topStart = 13.dp, topEnd = 13.dp)),
+            .clip(RoundedCornerShape(topStart = 13.dp, topEnd = 13.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
     ) {
-        EffyMapCanvas(Modifier.fillMaxSize())
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.align(Alignment.BottomEnd),
-        ) {
-            Text(
-                MAP_ATTRIBUTION,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
-            )
-        }
+        Text(
+            "Open the Map tab to see your run",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
