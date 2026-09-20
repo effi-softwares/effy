@@ -53,6 +53,12 @@ fun UpNextList(
     val heading = "UP NEXT · ${items.size} $noun${if (items.size == 1) "" else "s"}"
 
     Column(modifier.fillMaxWidth()) {
+        // \u26a0 FOUND BY LOOKING AT IT ON A SIMULATOR, not by a test. With an empty queue this
+        // rendered "UP NEXT \u00b7 0 shops" beside a "Whole run \u203a" link \u2014 a heading for nothing and
+        // an affordance into an empty list. The spec's own edge case asked whether the section
+        // "collapses or shows an empty heading"; it showed the heading. 039's lesson exactly:
+        // layout is not a property an assertion can see.
+        if (items.isNotEmpty()) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 48.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -74,6 +80,8 @@ fun UpNextList(
                     .clickable(onClick = onOpenRun)
                     .padding(horizontal = 8.dp, vertical = 12.dp),
             )
+        }
+
         }
 
         items.forEachIndexed { index, item ->

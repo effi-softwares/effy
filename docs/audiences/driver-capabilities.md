@@ -93,3 +93,40 @@ driver app. Status:
   in `google-services.json`/`GoogleService-Info.plist` (quickstart §A1). Until then the drivers are
   NoOp — analytics/crash/push are silent, the app fully functional (FR-005/FR-027).
 - **No PII** beyond the auth subject id; analytics consent-gated (driver); push OS-permission only.
+
+## §060 — Driver Mobile UI Completion (2026-09-20)
+
+🚧 **Code-complete and machine-verified. Not committed, not built for iOS, not looked at by a
+person.** Sign-off: [specs/060-driver-mobile-ui/SIGNOFF.md](../../specs/060-driver-mobile-ui/SIGNOFF.md).
+
+All **45 in-app design screens** now exist. Before 060: 14 did not exist at all, 23 rendered the
+right information with none of the design's layout or interaction, and the Map tab was a "coming
+soon" — the app's only dead end, now deleted.
+
+| Capability | driver-mobile |
+|---|---|
+| Off-duty / phase-aware home with current-stop hero + queue | ✅ 060 |
+| Collection run with progress, per-stop actions, hub row | ✅ 060 |
+| Shop stop: **per-package ticking** + **swipe to confirm** | ✅ 060 |
+| Report a missing/short package (package · reason · note) | ✅ 060 — was one instant-fire button |
+| Hub check-in: split bar, state chips, swipe to end phase one | ✅ 060 |
+| Same-day run, drop detail | ✅ 060 |
+| **En route** / **Arrived** screens | ✅ 060 — states existed since 049 with no screen |
+| Proof: picker **with note**, photo, code (in-app keypad), signature, contactless chips | ✅ 060 |
+| Photo proof on **iOS** | ✅ 060 — ⚠ was hidden entirely; live viewfinder still Android-only |
+| Success / undeliverable **with note** | ✅ 060 |
+| **Map tab** — real OpenStreetMap (MapLibre + OpenFreeMap) | ✅ 060 — ⚠ pins are placeholder (049 R13) |
+| Account list, **Appearance** screen, **Help** screen | ✅ 060 — help did not exist |
+| Splash, driver-correct sign-in copy, 5 OTP states incl. **locked** | ✅ 060 |
+| Permission priming + **permission-denied recovery** | ✅ 060 |
+| Skeletons, failed-load, **offline banner** | ✅ 060 — the offline queue had no UI since 049 |
+| History: run record, drop record with **rendered proof photo** | ✅ 060 |
+| Activity: headline + body, read-state fixed | ✅ 060 |
+| Dispatch phone number | ⛔ **refused** — operator-supplied, never inferred |
+| ETAs · distances · delivery windows · map pins | ⛔ **omitted** — no routing, no geodata, date-granular promise |
+
+**Data provenance**: every screen and field is classified in
+[provenance-register.md](../../specs/060-driver-mobile-ui/provenance-register.md), machine-checked
+both directions by `PlaceholderRegisterGuardTest`. ⚠ Placeholder data is **not marked in the running
+app** (operator decision) — the register is the only record.
+

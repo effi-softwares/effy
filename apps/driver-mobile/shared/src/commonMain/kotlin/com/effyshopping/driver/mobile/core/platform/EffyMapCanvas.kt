@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.core.platform
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +41,14 @@ const val MAP_ATTRIBUTION: String = "© OpenStreetMap contributors · OpenFreeMa
 
 @Composable
 fun EffyMapCanvas(modifier: Modifier = Modifier) {
+    // ⚠ GUARDED, and this is not belt-and-braces — it is a fix for a crash found by running the
+    // app. Where MapLibre cannot get a renderer (no Metal service on the iOS Simulator) the native
+    // render session aborts the PROCESS: not a Kotlin exception, so not catchable here, and the
+    // driver loses their whole shift because they tapped a tab. See `mapRenderingSupported`.
+    if (!mapRenderingSupported()) {
+        EffyMapUnavailable(modifier, "Map preview isn't available on this device")
+        return
+    }
     val state = rememberMapState(baseStyle = BaseStyle.Uri(OPENFREEMAP_LIBERTY))
     Box(modifier, contentAlignment = Alignment.Center) {
         MaplibreMap(state = state, modifier = Modifier.fillMaxSize())
@@ -53,7 +62,7 @@ fun EffyMapCanvas(modifier: Modifier = Modifier) {
 @Composable
 fun EffyMapUnavailable(modifier: Modifier = Modifier, reason: String) {
     Box(
-        modifier,
+        modifier.background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
         Text(

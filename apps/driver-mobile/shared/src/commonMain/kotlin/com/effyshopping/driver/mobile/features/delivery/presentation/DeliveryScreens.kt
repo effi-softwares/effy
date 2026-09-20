@@ -3,6 +3,9 @@ package com.effyshopping.driver.mobile.features.delivery.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
+import com.effyshopping.mobile.kit.ui.SkeletonSquare
+import com.effyshopping.mobile.kit.ui.SkeletonLine
+import com.effyshopping.mobile.kit.ui.SkeletonBlock
 import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import androidx.compose.ui.draw.clip
@@ -213,7 +216,7 @@ fun DropDetailScreen(
             return
         }
         state.failed -> { FailedState(onNext); return }
-        state.isLoading && drop == null -> { Centered { CircularProgressIndicator() }; return }
+        state.isLoading && drop == null -> { DropSkeleton(reducedMotion); return }
         drop == null -> { Centered { Text(state.message ?: "Couldn't load the drop.") }; return }
     }
     drop!!
@@ -568,4 +571,38 @@ private fun Header(title: String, onBack: () -> Unit) {
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) { content() }
+}
+
+/**
+ * Design screen `detail-skeleton` (060 US6, T085).
+ *
+ * \u26a0 Built from the SAME primitives as `DropDetailBody` \u2014 a map band, a chip, a heading block,
+ * then numbered package rows. 028 recorded why that matters: a skeleton assembled from different
+ * containers than its content cannot line up with it, and the mismatch reads as a broken screen
+ * rather than as loading.
+ */
+@Composable
+private fun DropSkeleton(reducedMotion: Boolean) {
+    Column(Modifier.fillMaxSize()) {
+        SkeletonBlock(height = 220.dp, corner = 0.dp, reducedMotion = reducedMotion)
+        Column(
+            Modifier.padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            SkeletonLine(widthFraction = 0.28f, height = 22.dp, reducedMotion = reducedMotion)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SkeletonLine(widthFraction = 0.55f, height = 20.dp, reducedMotion = reducedMotion)
+                SkeletonLine(widthFraction = 0.82f, reducedMotion = reducedMotion)
+                SkeletonLine(widthFraction = 0.40f, height = 11.dp, reducedMotion = reducedMotion)
+            }
+            SkeletonBlock(height = 64.dp, reducedMotion = reducedMotion)
+            repeat(2) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SkeletonSquare(size = 34.dp, reducedMotion = reducedMotion)
+                    Spacer(Modifier.width(14.dp))
+                    SkeletonLine(widthFraction = 0.45f, reducedMotion = reducedMotion)
+                }
+            }
+        }
+    }
 }

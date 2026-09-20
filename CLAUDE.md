@@ -305,8 +305,12 @@ three web surfaces** — `apps/back-office` (005), `apps/shop-web` (007) and **`
 **Two of the three KMP mobile apps are now built** (KMP + Compose, Clean Architecture + MVVM, native
 Amplify auth behind a `commonMain` `AuthDriver`; a formal `ViewModel → UseCase → Driver/Repository`
 domain layer): **`apps/customer-mobile` (013)** and **`apps/shop-mobile` (014 — signed off, EMAIL_OTP
-only, single-token, the RBAC manager gate, tablet-first)**. **`apps/driver-mobile` remains the base
-template.** Both built mobile apps now share a **production navigation shell** (015 — `packages/mobile-kit`:
+only, single-token, the RBAC manager gate, tablet-first)**. ⚠ **`apps/driver-mobile` is BUILT TOO** —
+049 gave it the full hub-and-spoke operation and **060 gave it its appearance** (all 45 design screens,
+cobalt, OpenStreetMap via MapLibre + OpenFreeMap). ⚠ The sentence here previously read *"remains the base
+template"*, which had been **false since 049** and is the same stale-claim shape that left the app out of
+the shared asset pipeline for four features (see 060 T019). All three mobile apps share a **production
+navigation shell** (015 — `packages/mobile-kit`:
 adaptive bottom-bar/rail + per-tab back stacks; customer guest-first with deferred sign-in, shop login-first;
 built on stable Material 3, Nav3-migration-ready). Still the **documented vision**: the **catalog** (there
 are no product tables anywhere yet — spec'd as **016-shop-product-catalog**),

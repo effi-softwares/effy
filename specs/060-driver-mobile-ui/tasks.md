@@ -76,7 +76,7 @@ shop-mobile too (research R3). Edits MUST be additive and proven.
 ### Icons → the shared SSOT
 
 - [X] T017 [P] Author the four navigation glyphs (Today, Map, History, Account — outlined + selected) as VectorDrawables in `packages/design-system/mobile-assets/drawable/`, following the existing `ic_*_outlined.xml` / `ic_*_selected.xml` naming
-- [ ] T018 [P] ⚠ **RESEQUENCED to the phases that consume them** — authoring 12 glyphs blind, before the screens exist, is speculative; each is added with its screen. Author the in-screen glyphs into `packages/design-system/mobile-assets/drawable/`: hub marker, shop marker, package, camera, flash, flip, signature, chevron, check, warning, phone, settings
+- [ ] T018 [P] ⚠ **DEFERRED, recorded in SIGNOFF.** Every screen uses typographic glyphs (← › ✓ →) consistently; authoring 12 vector icons without a device to verify them is 024's exact defect (`pathData="M undefined,undefined"` — valid XML that compiled, packaged and failed to inflate). Originally **RESEQUENCED to the phases that consume them** — authoring 12 glyphs blind, before the screens exist, is speculative; each is added with its screen. Author the in-screen glyphs into `packages/design-system/mobile-assets/drawable/`: hub marker, shop marker, package, camera, flash, flip, signature, chevron, check, warning, phone, settings
 - [X] T019 ⚠ **FOUND: driver-mobile was never wired into the asset SSOT at all.** `sync-mobile-assets.mjs` gave it `kinds: ["font"]` on a 026 comment ending *"it gains `drawable` when it gets its shell"* — 049 gave it a shell and nobody returned. `mobile-assets:check` reported ✅ throughout, because an app configured to take nothing is trivially in sync. Fixed to `["drawable", "font"]`; 84 → 138 asset copies. Run `pnpm --filter @effy/design-system run tokens:check` so `mobile-assets:check` copies the new drawables into all three apps and verifies the copies. ⚠ **Then render each new icon on a device** — 024 shipped a converter that emitted `pathData="M undefined,undefined"`: **valid XML that compiled, packaged, and failed to inflate at runtime**, taking the launcher icon and splash with it (research R9)
 - [X] T020 Replace `TabGlyph` (the first-letter placeholder, `<D>/app/DriverShell.kt`) with the real per-tab icons from T017 (FR-008)
 
@@ -230,10 +230,10 @@ route instead; every task below stands except T061.
 **Independent test**: Force a slow load, a failed load and no connectivity, on a list and a detail screen.
 
 - [X] T084 [P] [US6] Build the Today skeleton in `<D>/features/today/presentation/TodaySkeleton.kt` (screen 14) from `EffySkeleton` (T010). ⚠ **Compose it from the same primitives as the real content** — 028 recorded that a skeleton built differently *cannot* match, because a `Row` coerces `Modifier.width()` into what is left (research R10)
-- [ ] T085 [P] [US6] Build the drop-detail skeleton in `<D>/features/delivery/presentation/DropSkeleton.kt` (screen 32), same rule
+- [X] T085 [P] [US6] Build the drop-detail skeleton in `<D>/features/delivery/presentation/DropSkeleton.kt` (screen 32), same rule
 - [X] T086 [P] [US6] Build the failed-load state in `<D>/features/today/presentation/TodayScreen.kt` (screen 15) on `loadFailed` (T024): named failure, "your stops are safe", and a retry action — replacing the red line of text
 - [X] T087 [US6] Build the offline banner and cached-run state (screen 13) in `<D>/features/today/presentation/TodayScreen.kt` and `<D>/app/DriverShell.kt`: a persistent indicator, rows marked cached, the last-synced line from `cachedAt`, and the promise that confirmations upload on reconnect. ⚠ The offline write queue has existed since 049 and has **never had an interface**
-- [ ] T088 [US6] Register US6's fields in `provenance-register.md` — ⚠ `cachedAt` is ✅ `PLATFORM` (the queue's own timestamp), not invented
+- [X] T088 [US6] Register US6's fields in `provenance-register.md` — ⚠ `cachedAt` is ✅ `PLATFORM` (the queue's own timestamp), not invented
 
 ---
 
@@ -247,7 +247,7 @@ route instead; every task below stands except T061.
 - [X] T090 [US7] Create a distinct collection-run record in `<D>/features/history/presentation/HistoryRunScreen.kt` (screen 39): the run's split bar, its own timeline, and the read-only footnote ⚠ (today a run gets the same generic layout as a drop)
 - [X] T091 [US7] Rebuild the drop record in `<D>/features/history/presentation/HistoryScreens.kt` (screen 40) to **render the captured proof image** with its caption ⚠ (today it prints "Photo/signature captured" and shows nothing). The geotag line is ⛔ and renders as unavailable — a wrong geotag on a delivery record is evidence in a dispute
 - [X] T092 [P] [US7] Add "Mark all read" and per-item title + body to `<D>/features/activity/presentation/ActivityScreen.kt` (screens 35–36) ⚠ (today only the body renders)
-- [ ] T093 [P] [US7] Align the four notification strings — run assigned, packages ready, window starting, short-package report — with the design in the push-handling source, and pin them in `<D>/core/push/NotificationCopyTest.kt` (FR-002, research R14)
+- [ ] T093 [P] [US7] ⚠ **NOT APP-SIDE — corrected.** The notification text is composed by the notifications WORKER; the app only displays what arrives, so changing it is backend work 060 excludes. The in-app equivalent (`ActivityItem.headline()`) is built under T092. Original: align the four notification strings — run assigned, packages ready, window starting, short-package report — with the design in the push-handling source, and pin them in `<D>/core/push/NotificationCopyTest.kt` (FR-002, research R14)
 - [X] T094 [US7] Register US7's fields in `provenance-register.md`
 
 ---
@@ -256,14 +256,14 @@ route instead; every task below stands except T061.
 
 - [X] T095 [P] ⚠ **Landed with T082 as `AudienceCopyGuardTest`** — one guard, two sweeps (shop-audience copy + currency), since both are the same mechanism over the same source. Create `<D>/NoCurrencyGuardTest.kt` — fail on `$`, `AUD`, `price`, `total`, `earning`, `payout`, `tip` in driver UI source (FR-011, SC-007). **Prove it by adding a money string**
 - [X] T096 [P] ⚠ **Covered structurally instead**: no colour literal exists anywhere in driver UI source — every colour comes from `MaterialTheme.colorScheme`, and `check-token-usage.mjs` already fails on an undeclared token. Verified by sweep. Original: create `<D>/NoDesignColourGuardTest.kt` — fail on the design's own hex values (`0a0a0a`, `fafafa`, `e01010`, `0C9409`, `151515`, `111111`) appearing as colour literals in driver source (FR-005, SC-010). **Prove it by transcribing one**
-- [ ] T097 Verify every interactive target across `<D>/features/` and `packages/mobile-kit/common/ui/` is ≥ 48 dp on the smallest supported screen (SC-011). ⚠ 033 found a control whose own comment claimed it met the minimum and was **32 dp**
-- [ ] T098 Verify reduced motion suppresses the shimmer and shortens transitions across `<D>/features/` and `packages/mobile-kit/common/ui/EffySkeleton.kt` (FR-009)
-- [ ] T099 Run the full machine sweep per [quickstart.md](./quickstart.md) §2: driver Android + iOS suites (⚠ including `compileTestKotlinIosSimulatorArm64`), `:androidApp:assembleDebug`, customer-mobile and shop-mobile **unmodified**, `pnpm --filter @effy/design-system test`, `tokens:check` **unchanged**, both retired-hue sweeps
-- [ ] T100 Run the four source sweeps in [quickstart.md](./quickstart.md) §6 and confirm all four return nothing
-- [ ] T101 Complete `provenance-register.md`: 45/45 screens, summary counts filled, no field unclassified (SC-004)
-- [ ] T102 Update `docs/audiences/driver-capabilities.md` with a §060 entry
-- [ ] T103 Update `CLAUDE.md` § Current status — ⚠ it currently states *"`apps/driver-mobile` remains the base template"*, which has been false since 049
-- [ ] T104 Write `specs/060-driver-mobile-ui/SIGNOFF.md` recording what was verified, what is placeholder, and what is deferred
+- [X] T097 Verify every interactive target across `<D>/features/` and `packages/mobile-kit/common/ui/` is ≥ 48 dp on the smallest supported screen (SC-011). ⚠ 033 found a control whose own comment claimed it met the minimum and was **32 dp**
+- [X] T098 Verify reduced motion suppresses the shimmer and shortens transitions across `<D>/features/` and `packages/mobile-kit/common/ui/EffySkeleton.kt` (FR-009)
+- [X] T099 Run the full machine sweep per [quickstart.md](./quickstart.md) §2: driver Android + iOS suites (⚠ including `compileTestKotlinIosSimulatorArm64`), `:androidApp:assembleDebug`, customer-mobile and shop-mobile **unmodified**, `pnpm --filter @effy/design-system test`, `tokens:check` **unchanged**, both retired-hue sweeps
+- [X] T100 Run the four source sweeps in [quickstart.md](./quickstart.md) §6 and confirm all four return nothing
+- [X] T101 Complete `provenance-register.md`: 45/45 screens, summary counts filled, no field unclassified (SC-004)
+- [X] T102 Update `docs/audiences/driver-capabilities.md` with a §060 entry
+- [X] T103 Update `CLAUDE.md` § Current status — ⚠ it currently states *"`apps/driver-mobile` remains the base template"*, which has been false since 049
+- [X] T104 Write `specs/060-driver-mobile-ui/SIGNOFF.md` recording what was verified, what is placeholder, and what is deferred
 
 ### ⚠ Operator-run
 
