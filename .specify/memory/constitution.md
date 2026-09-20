@@ -1,6 +1,73 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.13.0 → 2.0.0
+Bump rationale: MAJOR — Principle V's colour doctrine is REDEFINED, not extended. Three rules that
+                existing plans were justified against are REMOVED outright:
+                  (1) "The brand is MONOCHROME … there is NO brand hue" — now one brand hue, cobalt.
+                  (2) "The accent INVERTS between appearances" — the hue LIFTS instead; inverting
+                      existed only because a NEUTRAL accent cannot read against both grounds, and
+                      that premise is gone with the ramp that created it.
+                  (3) "Exactly TWO semantic colours … No third hue may be introduced as a UI colour"
+                      — now four state semantics plus three bounded non-brand hues.
+                Features 026 and 041 built to rules that no longer hold, and 057's shop-scoped token
+                layer is now prohibited outright. Under the versioning policy that is a principle
+                "redefined in a way that invalidates existing plans" — MAJOR. (v1.11.0 changed accent
+                VALUES inside a stable frame and was correctly MINOR; this changes the frame.)
+
+Trigger: feature 060-driver-mobile-ui builds the driver app on the LIVE cobalt token set — which the
+constitution as written FORBADE. The platform adopted the "Effy Shop Console" appearance identity
+platform-wide on operator direction (design project 951bb710, theme-adoption-prompt.md) and the
+working record in CLAUDE.md has reflected it since 2026-09-17, but the constitution was never
+amended. Law and practice had been in direct contradiction for three days across four features.
+
+Modified in this amendment:
+  - Principle V → the entire colour doctrine. Cobalt #1d4ed8 light / #60a5fa dark as the ONE action
+    colour, with --brand and --primary resolving to one value per appearance; the hue lifts rather
+    than inverts; the neutral ramp is demoted from accent-carrier to GROUND (near-black #151515 /
+    rail #111111 / border #2a2a2a, no blue tint in any neutral); three bounded NON-INTERACTIVE hues
+    (--accent2 attention-only, --violet and --teal data-viz + avatar tints); four state semantics
+    each on a -soft tint, with --success and --warning keeping NO -foreground pair; a four-step
+    radius scale (4/6/8/10) with pills named as a shape rather than a step; no gradients, flat fills,
+    cards bordered never shadowed; Geist / Geist Mono with General Sans retained as a FALLBACK face.
+  - Principle V → WCAG AA restated as zero-exemption AND as outranking the source design, with the
+    ONE deliberate carve-out named: borders are hairlines and are not contrast-tested. Focus rings
+    are explicitly NOT exempt (3:1, WCAG 1.4.11).
+  - Principle V → NEW prohibition: a surface MUST NOT carry a scoped token layer restating the
+    platform palette (the shape 057 shipped and this amendment reverses).
+  - Principle V → the monochrome ramp with its inverting accent and two-colour bound joins Emerald
+    and Jade as RETIRED. ⚠ A retired hex named in a COMMENT is still a sweep hit.
+  - Quality Gates → the colour gate rewritten around the token set, and check-token-usage.mjs named
+    with the reason it exists (an unknown colour utility emits NO CSS rule, so the element renders as
+    nothing with no error anywhere).
+
+Narrowed in this amendment:
+  - v1.13.0's bounded data-visualisation exception is narrowed to NOTHING. --chart-1..5 still exist
+    but are now ALIASES of the already-permitted palette (brand · violet · teal · accent2 ·
+    brand-mid), so a chart introduces no hue the UI does not already have. The exception is retained
+    as a statement of fact rather than a licence.
+
+Unchanged and restated so they are not read as dropped:
+  - The third-party sign-in mark (Google) remains the one asset-only colour exception.
+  - Dark mode required and user-selectable; native feel (HIG / Material); fat-finger targets and
+    micro-animations as requirements; the Uber Eats + eBay reference doctrine; the no-card-layouts
+    rule with its recorded-justification escape clause.
+
+Dependent updates in THIS change:
+  ✅ .specify/memory/constitution.md — Principle V, Quality Gates, version line, history.
+  ✅ .specify/templates/{plan,spec,tasks}-template.md — verified: carry NO colour references, so no
+     edit is required. The Constitution Check gate cites Principle V by name, not by value.
+  ✅ ARCHITECTURE.md — verified: carries no colour references.
+  ✅ CLAUDE.md § Design system — ALREADY correct (records the platform-wide adoption, the two forced
+     deviations, the two new guards); it was ahead of the constitution, which is the defect this
+     amendment closes.
+  ⚠ packages/design-system/src/tokens.css — already the live SSOT this amendment describes; the
+     values were read FROM it, not written TO it. No change.
+  ⚠ Features 026, 041 and 057 record monochrome justifications that are now void. They are HISTORY,
+     not live law; they are deliberately NOT rewritten. This report is the pointer that supersedes
+     them.
+
+--- previous report ---
 Version change: 1.12.0 → 1.13.0
 Bump rationale: MINOR — Principle V (Native-Feel, Consistent Design) gains ONE bounded exception to
                 the "no third hue" rule: a categorical DATA-VISUALISATION palette (--chart-1..5) is
@@ -420,27 +487,65 @@ cripple the storefront or needlessly widen the attack surface on the internal co
 
 One design-system package drives every surface.
 
-- The brand is **MONOCHROME**: a ten-step neutral ramp from `#1A1A1A` to `#FFFFFF` in which the ramp
-  itself carries every accent role — primary action fill, selected state, active navigation, focus
-  indication, emphasis — and there is **NO brand hue**.
-- The accent **INVERTS between appearances**: near-black `#1A1A1A` on light, near-white `#F5F5F5` on
-  dark, each taking the other as its label. A hue reads against both grounds; a neutral one does not,
-  so a single accent value would be invisible in one mode.
-- Exactly **TWO semantic colours** exist alongside the ramp: error/destructive `#e01010` and success
-  `#0C9409`. Neither may be used decoratively or as an accent, and **success is a NON-TEXT indicator
-  only** (4.00:1 on white — above the 3:1 bar for UI components, below the 4.5:1 bar for text). No
-  third hue may be introduced as a UI colour. Two exceptions, each an asset/data role rather than a UI
-  accent: (1) a third-party sign-in mark whose provider's brand guidelines require its own colours;
-  and (2) a bounded categorical **data-visualisation palette** (`--chart-1..5`, both appearances) that
-  MAY exist in the design-system tokens **for charts only** — never a UI accent, fill, border, or text
-  colour, never surfaced to the mobile themes, and never given a `-foreground` pair. The monochrome
-  ramp still carries every UI accent role.
-- The full token set — this ramp (light + dark), the two semantic colours, the **General Sans**
-  typeface, and the spacing + radius scales — comes from the design-system package (the SSOT), never
-  hardcoded per surface.
-- **RETIRED**: Effy Emerald `#065f46` + terracotta `#d0735a` (as of v1.11.0), and Jade `#0FB57E` /
-  fill `#047857` (as of v1.10.0). Both are swept out of live source by `scripts/check-no-emerald.sh`
-  and `scripts/check-no-jade.sh`.
+- **ONE brand hue carries every action.** `--brand` and `--primary` are **cobalt** — `#1d4ed8` on
+  light, `#60a5fa` on dark — and they resolve to the **same value** in each appearance on purpose:
+  `--primary` is the vocabulary the UI primitives consume, `--brand` the role name screens read. Two
+  names, one fact. Plus `--brand-soft` / `--brand-mid` / `--brand-ink` for tint, edge and ink on tint.
+- **The hue LIFTS between appearances; it does not invert.** Cobalt goes *lighter* on dark rather than
+  exchanging ends with its label. This **supersedes the inverting-accent rule** (v1.11.0–v1.13.0),
+  which existed because a *neutral* accent cannot read against both grounds. A hue can, so the reason
+  for inverting is gone with the monochrome ramp that required it.
+- **The neutral ramp is the GROUND, not the accent.** Near-black neutral on dark — ground `#151515`,
+  rail `#111111` (recessed, darker than the content ground), muted `#212121`, border `#2a2a2a` —
+  and **no blue tint in any neutral**. A tinted neutral beside a cobalt accent reads as a second,
+  competing hue.
+- **THREE bounded non-brand hues, none of them interactive.** `--accent2` (orange) is **attention and
+  time pressure ONLY** — notification dots, unread badges, cut-off chips — and is deliberately rare.
+  `--violet` and `--teal` are the second and third data-visualisation series and the avatar tints.
+  **None of the three may be a button, a link, a selected state, or any other interactive affordance**;
+  that role belongs to `--brand` alone. A fourth hue MUST NOT be introduced.
+- **FOUR state semantics**, each with a `-soft` tint it is written on: `--destructive`, `--success`,
+  `--warning`, and the neutral `muted`. The closed status mapping is **in-progress → brand · complete →
+  success · waiting/at-risk → warning · failed/refunded → destructive · inert → muted**. ⚠ `--success`
+  and `--warning` MUST keep **NO `-foreground` pair**: they may be text on their own tint but never a
+  fill with a label on it. The absence is mechanically enforced by `check-tokens.mjs`.
+- **The chart series is no longer a hue exception.** `--chart-1..5` still exist, but they are now
+  **aliases of the palette above** (brand · violet · teal · accent2 · brand-mid), not an independent
+  fifth set of colours. This **narrows** v1.13.0's data-visualisation exception to nothing: a chart
+  introduces no hue the UI does not already have. No chart token may acquire a `-foreground` pair, and
+  the series is not surfaced to mobile.
+- **One standing exception, asset-only**: a third-party sign-in mark whose provider's brand guidelines
+  require its own colours (Google). It is an asset, never a UI accent, and it grants no licence to use
+  those colours anywhere else.
+- **WCAG AA on every pair is a ZERO-EXEMPTION invariant**, including each solid against its own `-soft`
+  tint, and it **outranks the source design**: where an adopted value fails, the value is tuned and the
+  deviation recorded. ⚠ **Borders are the one deliberate exception** — a border is a hairline, and a
+  3:1 border reads as a slab on every surface, so `--border` is not contrast-tested. Focus rings are
+  NOT exempt: they meet the 3:1 non-text UI bar (WCAG 1.4.11).
+- **Radius is a FOUR-STEP scale**: `sm 4` (checkboxes) · `md 6` (inputs, nav items, in-row controls) ·
+  `lg 8` (buttons, icon chips) · `xl 10` (containers — cards, dialogs, sheets, table frames). ⚠ Pills
+  (badges, status chips, progress tracks) are `rounded-full`, **a shape and not a step on this scale**.
+  No surface may be sharper than the rows inside it (`check-component-shape.mjs` asserts all of this).
+- **NO GRADIENTS. Flat fills only.** Cards are **bordered, never shadowed**; shadows belong to floating
+  layers alone (dialog, popover, sheet, select, dropdown, chart tooltip).
+- The full token set — both ramps, the brand hue, the three bounded hues, the four state semantics, the
+  **Geist / Geist Mono** typefaces, and the spacing + radius scales — comes from the design-system
+  package (`packages/design-system/src/tokens.css`, the SSOT), **never hardcoded per surface** and
+  **never restated in a second file**. ⚠ General Sans is retained as the *second* name in `--font-sans`
+  because Geist is not self-hosted; that is a fallback, not a second typeface.
+- **One palette, one file.** A surface MUST NOT carry a scoped token layer that restates the platform
+  palette. Two files declaring one palette is the two-sources-for-one-fact shape this repository has
+  shipped repeated defects through.
+- **RETIRED, and swept out of live source**: Effy Emerald `#065f46` + terracotta `#d0735a` (v1.11.0),
+  Jade `#0FB57E` / fill `#047857` (v1.10.0), and — as of this amendment — **the monochrome neutral
+  ramp with its inverting accent and its two-semantic-colour bound** (v1.11.0–v1.13.0, features 026 and
+  041). The first two are swept by `scripts/check-no-emerald.sh` and `scripts/check-no-jade.sh`; ⚠ a
+  retired hex named **in a comment** is still a hit, because the sweeps do not strip comments.
+- **Mobile takes the accent and the ground, not the hues.** The Compose themes regenerate from
+  `tokens.css` and take cobalt and the neutral-grey ground. `--accent2`, `--violet`, `--teal`,
+  `--warning` and the `--brand-*` family are **web-only by design** and are not surfaced to mobile.
+  ⚠ Mobile takes **three** radius steps (sm 4 / md 6 / default 10), not the web scale's four — the
+  generator emits no `lg 8`. Drift between the two is caught by `tokens:check`.
 - Dark mode is REQUIRED on every surface, and MUST be user-selectable (Light / Dark / Follow-System).
 - Mobile MUST feel native: iOS follows Apple HIG, Android follows Material.
 - Fat-finger-friendly touch targets and micro-animations are REQUIREMENTS, not optional
@@ -576,6 +681,13 @@ Compliance is enforced at merge time, not discovered later.
   Complexity Tracking; an undocumented deviation is a defect.
 - No feature merges with an **operator-unsupplied real-world identifier** in its configuration,
   fixtures or documentation (see Real-World Identifiers).
+- No feature merges with a **colour outside the design-system token set** — the cobalt brand family,
+  the neutral ramp, the three bounded non-brand hues and the four state semantics — in the tokens or in
+  live UI. Enforced by `check-tokens.mjs` (key-set parity, the four-step radius scale, WCAG AA on every
+  pair, the no-`-foreground` rule), `check-component-shape.mjs`, `check-token-usage.mjs` (a colour
+  utility naming a token `@theme` does not declare emits **no CSS rule at all** — the element renders
+  as nothing, with no error anywhere), and the retired-hue sweeps.
+- A **second file restating the platform palette** is a defect, not a scoping choice (Principle V).
 
 ## Governance
 
@@ -597,4 +709,4 @@ habit conflicts with it, this document wins.
 - **Runtime guidance**: `CLAUDE.md` provides day-to-day working guidance for agents and
   contributors; it elaborates but never overrides this constitution.
 
-**Version**: 1.13.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-08-08
+**Version**: 2.0.0 | **Ratified**: 2026-06-25 | **Last Amended**: 2026-09-20

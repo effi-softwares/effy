@@ -1,0 +1,29 @@
+<!--
+  Google's standard four-colour "G", from the official Sign in with Google asset pack.
+
+  ⚠ THIS ASSET MUST NEVER BE RECOLOURED, AND THAT IS GOOGLE'S RULE, NOT A PREFERENCE.
+  Google's branding guidelines: "Regardless of the text, you can't change the size or color of the
+  Google 'G' logo. It must be the standard color version… and appear on a white background."
+  Monochrome versions are explicitly prohibited. The BUTTON may take a light, neutral or dark theme;
+  the MARK never changes. The icon may not appear without accompanying text stating the action.
+
+  ⚠ It lives here rather than in `packages/brand` on purpose: that package exists to RECOLOUR the Effy
+  mark through its colourways, which is the one operation forbidden here. `mobile-assets/` is already
+  the SSOT for an authored vector both mobile apps render from `commonMain`, already has a three-mode
+  drift guard that names the stale surface, and already ships third-party-licensed art alongside its
+  licence (see MATERIAL_SYMBOLS_LICENSE.txt) — the direct precedent.
+
+  ⚠ These four values are an ASSET, not tokens. The constitution's monochrome rule names this exact
+  exception: "a third-party sign-in mark whose provider's brand guidelines require its own colours;
+  that is an asset, not a token." No token is added and `tokens:check` is unaffected.
+
+  ⚠ NOTE FOR A FUTURE SWEEP: Google blue is visually close to the retired shop-splash blue that
+  `scripts/check-no-emerald.sh` bans. They are DIFFERENT values and this is not a violation — do not
+  "fix" it to match. (The banned value is deliberately not written out here; the guards scan comments.)
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="18dp" android:height="18dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#EA4335" android:pathData="M24,9.5c3.54,0 6.71,1.22 9.21,3.6l6.85,-6.85C35.9,2.38 30.47,0 24,0 14.62,0 6.51,5.38 2.56,13.22l7.98,6.19C12.43,13.72 17.74,9.5 24,9.5z" />
+    <path android:fillColor="#4285F4" android:pathData="M46.98,24.55c0,-1.57 -0.15,-3.09 -0.38,-4.55L24,20v9.02h12.94c-0.58,2.96 -2.26,5.48 -4.78,7.18l7.73,6c4.51,-4.18 7.09,-10.36 7.09,-17.65z" />
+    <path android:fillColor="#FBBC05" android:pathData="M10.53,28.59c-0.48,-1.45 -0.76,-2.99 -0.76,-4.59s0.27,-3.14 0.76,-4.59l-7.98,-6.19C0.92,16.46 0,20.12 0,24c0,3.88 0.92,7.54 2.56,10.78l7.97,-6.19z" />
+    <path android:fillColor="#34A853" android:pathData="M24,48c6.48,0 11.93,-2.13 15.89,-5.81l-7.73,-6c-2.15,1.45 -4.92,2.3 -8.16,2.3 -6.26,0 -11.57,-4.22 -13.47,-9.91l-7.98,6.19C6.51,42.62 14.62,48 24,48z" />
+</vector>

@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,6 +58,16 @@ import com.effyshopping.driver.mobile.features.history.presentation.HistoryViewM
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.presentation.TodayScreen
 import com.effyshopping.driver.mobile.features.today.presentation.TodayViewModel
+import com.effyshopping.driver.mobile.resources.Res
+import com.effyshopping.driver.mobile.resources.ic_account_outlined
+import com.effyshopping.driver.mobile.resources.ic_account_selected
+import com.effyshopping.driver.mobile.resources.ic_history_outlined
+import com.effyshopping.driver.mobile.resources.ic_history_selected
+import com.effyshopping.driver.mobile.resources.ic_map_outlined
+import com.effyshopping.driver.mobile.resources.ic_map_selected
+import com.effyshopping.driver.mobile.resources.ic_today_outlined
+import com.effyshopping.driver.mobile.resources.ic_today_selected
+import org.jetbrains.compose.resources.painterResource
 import com.effyshopping.mobile.kit.nav.rememberTabBackStacks
 import com.effyshopping.mobile.kit.shell.ResponsiveDestination
 import com.effyshopping.mobile.kit.shell.ResponsiveNavigation
@@ -95,7 +106,7 @@ fun DriverShell(
         ResponsiveDestination(
             tab = tab,
             label = tab.label,
-            icon = { selected -> TabGlyph(tab.label.first().toString(), selected) },
+            icon = { selected -> TabIcon(tab, selected) },
         )
     }
 
@@ -245,12 +256,34 @@ fun DriverShell(
     }
 }
 
+/**
+ * A tab's icon (060 FR-008).
+ *
+ * ⚠ This replaced `TabGlyph`, which rendered **the first letter of the tab's label** — "T", "M",
+ * "H", "A". That was a placeholder that shipped, and it survived four features because the driver app
+ * was never wired into the shared `mobile-assets` SSOT: `sync-mobile-assets.mjs` gave it fonts only,
+ * on a comment saying it would "gain `drawable` when it gets its shell". It got a shell in 049.
+ * `mobile-assets:check` stayed green the whole time — it verifies an app matches the SSOT for the
+ * kinds it is configured to take, and an app taking nothing is trivially in sync.
+ *
+ * The filled variant marks the selected tab in addition to the colour change, so selection does not
+ * rely on colour alone.
+ */
 @Composable
-private fun TabGlyph(letter: String, selected: Boolean) {
-    Text(
-        letter,
-        style = MaterialTheme.typography.titleMedium,
-        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+private fun TabIcon(tab: DriverTab, selected: Boolean) {
+    val icon = when (tab) {
+        DriverTab.TODAY -> if (selected) Res.drawable.ic_today_selected else Res.drawable.ic_today_outlined
+        DriverTab.MAP -> if (selected) Res.drawable.ic_map_selected else Res.drawable.ic_map_outlined
+        DriverTab.HISTORY -> if (selected) Res.drawable.ic_history_selected else Res.drawable.ic_history_outlined
+        DriverTab.ACCOUNT -> if (selected) Res.drawable.ic_account_selected else Res.drawable.ic_account_outlined
+    }
+    Icon(
+        painter = painterResource(icon),
+        // null: the destination's own label is already announced by the navigation item, so a
+        // description here would make a screen reader say the tab's name twice.
+        contentDescription = null,
+        modifier = Modifier.size(24.dp),
+        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 

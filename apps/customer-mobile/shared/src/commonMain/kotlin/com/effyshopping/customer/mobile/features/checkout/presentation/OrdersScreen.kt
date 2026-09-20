@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
-import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffySegmentedToggle
 import com.effyshopping.mobile.design.EffySpacing
 import com.effyshopping.customer.mobile.features.checkout.domain.ListOrders

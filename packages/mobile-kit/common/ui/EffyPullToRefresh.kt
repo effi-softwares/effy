@@ -1,4 +1,18 @@
-package com.effyshopping.customer.mobile.core.presentation
+// ⚠ PROMOTED from apps/customer-mobile into mobile-kit by 060 (Principle II).
+//
+// It was built by 027 and lived inside the customer app, so the driver app — which the design asks
+// to pull-to-refresh on four screens — inherited none of it. Moving it rather than copying it is the
+// point: a second implementation would drift, and the rules below are exactly the kind that get
+// forgotten in a re-write.
+//
+// ⚠ THE PROOF THIS MOVE CHANGED NOTHING is that customer-mobile's suite passes UNMODIFIED against
+// the count recorded in specs/060-driver-mobile-ui/BASELINE.md (316). An edited test would prove
+// nothing. Same evidence 028 used when it extracted the S3 presign helper.
+//
+// ⚠ This file is source-included (`kotlin.srcDir`) into ALL THREE mobile apps, which do NOT share a
+// toolchain — driver-mobile is on Compose Multiplatform 1.12.0 after 060's bump, customer-mobile and
+// shop-mobile are on 1.11.1. Keep it to APIs that exist in both.
+package com.effyshopping.mobile.kit.ui
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox

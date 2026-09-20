@@ -55,6 +55,13 @@ kotlin {
         }
 
         androidMain.dependencies {
+            // 060 — in-app camera viewfinder for photo proof (design screen `proof-photo`).
+            // Android only: iOS gets the same designed chrome with a system-camera handoff until a
+            // Swift AVFoundation bridge is written (research R8, plan Complexity Tracking).
+            implementation(libs.androidx.camera.core)
+            implementation(libs.androidx.camera.camera2)
+            implementation(libs.androidx.camera.lifecycle)
+            implementation(libs.androidx.camera.view)
             implementation(libs.androidx.core.ktx)
             implementation(libs.compose.uiToolingPreview)
             // 049 photo proof — the camera ActivityResult launcher (rememberLauncherForActivityResult).
@@ -74,6 +81,13 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.animation)
             implementation(libs.compose.material3)
+            // 060 — OpenStreetMap map rendering (MapLibre Native on Android + iOS).
+            // ⚠ Imported by EXACTLY ONE file: core/platform/EffyMapCanvas.kt. The library is
+            // pre-1.0 and documents breaking changes between minor releases, so confining it to a
+            // single call site makes an upgrade one file rather than a rewrite (research R4).
+            // MapLibreImportGuardTest asserts that, because 'only import it in one place' is a
+            // comment until something fails.
+            implementation(libs.maplibre.compose)
             implementation(libs.compose.material3.adaptive.navigation.suite)
             implementation(libs.compose.ui)
             implementation(libs.compose.ui.backhandler)

@@ -38,7 +38,7 @@ import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
 import com.effyshopping.customer.mobile.core.presentation.EffyHairline
 import com.effyshopping.customer.mobile.core.presentation.EffyPrimaryButton
-import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
 import com.effyshopping.customer.mobile.features.catalog.domain.Promotion

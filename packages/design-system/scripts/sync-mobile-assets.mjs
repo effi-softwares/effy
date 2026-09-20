@@ -28,16 +28,24 @@ const SOURCE = resolve(here, "../mobile-assets");
 /**
  * The apps that consume the shared assets.
  *
- * ⚠ driver-mobile takes FONTS ONLY (026 T025a). It is still the untouched KMP template with no
- * navigation, so syncing the nav icons would create files nothing references and a drift surface
- * nobody maintains — but the TYPEFACE is different: constitution Principle V requires it on every
- * surface, and its generated EffyTypography.kt imports the font accessors, so the files must be
- * there for the theme to compile. It gains `drawable` when it gets its shell.
+ * ⚠ driver-mobile took FONTS ONLY from 026 until 060, on the reasoning that it was "still the
+ * untouched KMP template with no navigation", so nav icons would be files nothing referenced. That
+ * comment ended with the condition for changing it — "it gains `drawable` when it gets its shell" —
+ * and 049 gave it a shell, an adaptive four-tab one. Nobody came back. The consequence was visible
+ * on screen for four features: the driver tab bar rendered the FIRST LETTER of each tab label
+ * ("T", "M", "H", "A") because the app had no icons to render, and `mobile-assets:check` reported
+ * ✅ the whole time — it verifies the apps match the SSOT for the kinds they are configured to take,
+ * so an app taking nothing is trivially in sync. 060 makes driver-mobile take `drawable`.
+ *
+ * ⚠ The lesson, and it is this repo's recurring one: a comment carrying a CONDITION ("when it gets
+ * its shell") is a promise nobody is assigned to keep. 058 put it as "a count in a comment is true
+ * only while someone maintains it". The same stale claim sat in CLAUDE.md ("apps/driver-mobile
+ * remains the base template") and is corrected by 060 T103.
  */
 export const APPS = [
   { name: "customer-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/customer-mobile/shared/src/commonMain/composeResources") },
   { name: "shop-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/shop-mobile/shared/src/commonMain/composeResources") },
-  { name: "driver-mobile", kinds: ["font"], root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
+  { name: "driver-mobile", kinds: ["drawable", "font"], root: resolve(here, "../../../apps/driver-mobile/shared/src/commonMain/composeResources") },
 ];
 
 const KINDS = ["drawable", "font"];

@@ -43,7 +43,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.effyshopping.customer.mobile.app.AppContainer
 import com.effyshopping.customer.mobile.core.presentation.EffyAppBar
-import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.money
 import com.effyshopping.customer.mobile.features.checkout.domain.GetReceipt
 import com.effyshopping.customer.mobile.features.checkout.domain.ArrivalEstimate

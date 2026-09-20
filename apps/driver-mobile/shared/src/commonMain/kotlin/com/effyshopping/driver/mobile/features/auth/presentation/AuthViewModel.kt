@@ -19,7 +19,13 @@ enum class AuthStage { Email, Code }
 
 enum class AuthSubmission { Idle, SendingCode, ConfirmingCode, ResendingCode }
 
-enum class AuthFieldError { InvalidEmail, MissingCode, InvalidCode, ExpiredCode }
+/**
+ * ⚠ 060 added [LockedOut]. Until then a driver who had exhausted their attempts saw the SAME
+ * message as one who mistyped a digit — "that code isn't right, check it and try again" — which
+ * tells them to retry something that cannot now succeed. The design has it as its own screen
+ * (`otp-locked`); the app had no state to render it from.
+ */
+enum class AuthFieldError { InvalidEmail, MissingCode, InvalidCode, ExpiredCode, LockedOut }
 
 data class AuthUiState(
     val stage: AuthStage = AuthStage.Email,

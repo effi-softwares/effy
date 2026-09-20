@@ -47,6 +47,34 @@ data class HistoryDetailRoute(val kind: String, val id: String, val title: Strin
 @Serializable
 data object ActivityRoute : AppNavKey
 
+// ── 060: four destinations the design has and the app did not ──────────────────────────────────
+
+/**
+ * Report a missing or short package at a shop stop (design screen `shop-problem`, FR-021).
+ *
+ * ⚠ Before 060 this was a bare `TextButton` that fired `onReport("missing")` on tap — the driver
+ * could not say WHICH package or WHAT was wrong, and the report went with no note.
+ */
+@Serializable
+data class ShopProblemRoute(val runId: String, val stopId: String) : AppNavKey
+
+/** Light / dark / follow-system as its own screen (design screen `appearance`). */
+@Serializable
+data object AppearanceRoute : AppNavKey
+
+/**
+ * Help & support (design screen `help`).
+ *
+ * ⚠ The app had no help screen at all, so a driver who needed dispatch had nowhere in the app to
+ * find them.
+ */
+@Serializable
+data object HelpRoute : AppNavKey
+
+/** Recovery when a permission the app needs was refused (design screen `perm-denied`). */
+@Serializable
+data object PermissionDeniedRoute : AppNavKey
+
 /**
  * The driver app's primary tabs (spec §4 IA). Today is the phase-aware home (collection run / same-day
  * run). Map/History are their own feature slices (US4/US5) — placeholders in this foundation.
@@ -75,5 +103,11 @@ val driverNavJson: Json = Json {
         subclass(DropRoute::class, DropRoute.serializer())
         subclass(HistoryDetailRoute::class, HistoryDetailRoute.serializer())
         subclass(ActivityRoute::class, ActivityRoute.serializer())
+        // ⚠ 060 — a route absent from here is NOT a compile error. It fails at runtime, only after
+        // process death, only on that tab. RouteSerializerGuardTest makes the omission a test failure.
+        subclass(ShopProblemRoute::class, ShopProblemRoute.serializer())
+        subclass(AppearanceRoute::class, AppearanceRoute.serializer())
+        subclass(HelpRoute::class, HelpRoute.serializer())
+        subclass(PermissionDeniedRoute::class, PermissionDeniedRoute.serializer())
     }
 }

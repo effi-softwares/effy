@@ -20,6 +20,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * Where a contactless package was left (060 FR-023).
+ *
+ * ⚠ Replaces free text, and that is a correctness change rather than styling: a typed answer
+ * cannot be matched against a customer's later claim, and at a doorstep it mostly is not typed at
+ * all. Serialised into the existing note field, so no contract changes.
+ */
+enum class DropSpot(val label: String) {
+    FRONT_DOOR("Front door"),
+    RECEPTION("Reception / lobby"),
+    MAILROOM("Mailroom"),
+    NEIGHBOUR("With a neighbour"),
+}
+
 data class DeliveryUiState(
     val run: DeliveryRun? = null,
     val drop: Drop? = null,
@@ -28,6 +42,17 @@ data class DeliveryUiState(
     val isLoading: Boolean = false,
     val isWorking: Boolean = false,
     val message: String? = null,
+    /**
+     * A note attached to the proof (060 FR-022).
+     *
+     * ⚠ The repository has ALWAYS accepted a note on every proof method — and every call site in
+     * the app passed `null`. This is a UI gap being closed, not a contract change.
+     */
+    val proofNote: String = "",
+    /** A note attached to an undeliverable report (060 FR-022). Same story: the parameter existed. */
+    val failNote: String = "",
+    /** The chosen drop location for contactless proof (060 FR-023). */
+    val dropSpot: DropSpot? = null,
 )
 
 class DeliveryViewModel(

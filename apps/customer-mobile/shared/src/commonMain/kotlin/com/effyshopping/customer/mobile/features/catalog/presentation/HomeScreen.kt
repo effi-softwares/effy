@@ -46,7 +46,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyEmptyState
 import com.effyshopping.customer.mobile.core.presentation.EffyHomeSkeleton
 import com.effyshopping.customer.mobile.core.presentation.EffyMinTouchTarget
 import com.effyshopping.customer.mobile.core.presentation.EffyPromoBanner
-import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyRailTile
 import com.effyshopping.customer.mobile.core.presentation.EffySectionHeader
 import com.effyshopping.customer.mobile.core.presentation.EffySurface

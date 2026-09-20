@@ -24,6 +24,18 @@ data class CollectionUiState(
     val isLoading: Boolean = false,
     val isWorking: Boolean = false,
     val message: String? = null,
+    /**
+     * Which packages the driver has ticked off at the current stop (060 FR-019). The manifest was
+     * read-only before: a driver confirmed the whole stop with one button and had no way to work
+     * through the packages as they loaded them.
+     *
+     * ⚠ **UI-LOCAL. Ticking sends nothing.** The existing single "collect" call still fires on the
+     * swipe commit, which is what keeps 060 a presentation slice (FR-024) — a per-package endpoint
+     * would be backend work. Stated consequence: this does NOT survive process death, so a driver who
+     * leaves the stop and returns starts the ticking again. Recorded in the spec's edge cases rather
+     * than discovered on a loading dock.
+     */
+    val confirmedPackageIds: Set<String> = emptySet(),
 )
 
 class CollectionViewModel(

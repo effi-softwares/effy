@@ -21,6 +21,26 @@ data class TodayUiState(
     val isLoading: Boolean = false,
     val isTogglingDuty: Boolean = false,
     val message: String? = null,
+    /**
+     * ⚠ 060: the offline write queue has existed since 049 and has never had an interface. A driver
+     * in a basement loading dock — which is where this app is used — could not tell whether the app
+     * was broken or the signal was.
+     */
+    val offline: Boolean = false,
+    /**
+     * When the shown run was last synced. ⚠ PLATFORM data, read from the offline queue's own
+     * timestamp — NOT invented. The design's "Last synced 9:14 am" is a real fact the app already has.
+     *
+     * An ISO-8601 string, matching how every other timestamp crosses into this app's presentation
+     * layer (history entries do `at.take(19).replace('T', ' ')`). The app has no kotlinx-datetime
+     * dependency and this feature does not add one for a label.
+     */
+    val cachedAt: String? = null,
+    /**
+     * ⚠ Distinct from [message], which today does double duty as both error text and informational
+     * text — so a screen cannot tell a failed load from a note and renders both as a red line.
+     */
+    val loadFailed: Boolean = false,
 )
 
 /**

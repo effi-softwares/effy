@@ -76,7 +76,7 @@ import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
 import com.effyshopping.customer.mobile.core.nav.CustomerNavKey
 import com.effyshopping.customer.mobile.core.presentation.EffyDisplay
 import com.effyshopping.customer.mobile.features.legal.presentation.LegalLinksText
-import com.effyshopping.customer.mobile.core.presentation.EffyPullToRefresh
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import com.effyshopping.customer.mobile.core.presentation.EffyQuantityStepper
 import com.effyshopping.customer.mobile.core.presentation.EffySurface
 import com.effyshopping.customer.mobile.core.presentation.ProductImage
