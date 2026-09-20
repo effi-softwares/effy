@@ -1,6 +1,6 @@
 # Data Provenance Register — Effy Driver App
 
-**Feature**: 060-driver-mobile-ui · **Created**: 2026-09-20 · **Status**: ⚠ SCAFFOLD — filled during implementation
+**Feature**: 060-driver-mobile-ui · **Created**: 2026-09-20 · **Status**: ✅ **MACHINE-CHECKED** for the 24 screens built so far (Groups 2–5). Groups 1 and 6–10 fill as those phases land.
 
 > **This document is the single authority on which parts of the driver app are real.**
 >
@@ -33,6 +33,41 @@ operational is omitted rather than invented (FR-015, SC-015).
    Without that, this file is a comment.
 
 ---
+
+## Machine-checked keys
+
+⚠ **`PlaceholderRegisterGuardTest` compares this list against the code, exactly, in both
+directions.** A placeholder declared in a `features/*/data/PlaceholderData.kt` and missing here
+fails the build naming it; a key here with no declaration fails too. Without that, this document is
+a comment — and 058 recorded what a comment is worth: *"a count in a comment is true only while
+someone maintains it."*
+
+Keys are `<feature>.<declaration>`. Every one is described in the per-screen sections below.
+
+<!-- PLACEHOLDER-KEYS
+today.eta
+today.distance
+today.deliveryWindow
+today.stopsDoneToday
+today.shiftLength
+today.heroMapStrip
+today.bayDetail
+collection.stopEta
+collection.stopDistance
+collection.stopAddress
+collection.bayDetail
+collection.assignedAt
+collection.hubDock
+collection.hubDropCount
+delivery.deliveryWindow
+delivery.dropEta
+delivery.dropDistance
+delivery.mapPanel
+delivery.photoTimestamp
+delivery.photoGeotag
+delivery.cameraControls
+delivery.iosLivePreview
+-->
 
 ## Known placeholders, declared up front
 
@@ -157,10 +192,58 @@ offline queue's own timestamp, ⚠ not invented.
 | Submitted report | ✅ | `reportIssue` — ⚠ **the package reference is prefixed into the NOTE**, because the endpoint has no package parameter. **Unblocked by**: a package column on the issue record |
 
 ### Group 4 — The pivot, hub check-in
-*Pending — Phase 2.*
+
+**Screens 19–20 · `hub-checkin` / `hub-checkin-empty`** — `HubCheckinScreen`
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Scanned-in total | ✅ | `HubSplit.scannedTotal` |
+| Same-day count | ✅ | `HubSplit.sameDayCount` |
+| Standard count | ✅ | `HubSplit.standardCount` |
+| Split bar proportions | 🔢 | Derived from the two counts (both ✅) |
+| "Checked in from N shops" | 🔢 | Derived from `run.stops.size` (✅); hidden when the run is not loaded |
+| "Loaded" chip (same-day) | 🔢 | Derived from check-in having succeeded |
+| "Staged for carrier" chip (standard) | 🔢 | ⚠ **THE DESIGN'S COPY WAS CORRECTED, not adopted.** It reads *"Handed to carrier"* at the moment of check-in — but nothing has been handed to anyone; the driver has just put packages on a dock. 053 established the platform has no `handed_over` state precisely because the carrier handoff is a separate, later event. "Staged for carrier" is true when it is shown. |
+| "Unlocks your same-day run · N packages" | 🔢 | Derived from `sameDayCount` (✅) |
+| **"7 drops across Carlton, Fitzroy…"** | — | ⚠ **OMITTED.** The drop count is not known at check-in; the delivery run has not been fetched. **Unblocked by**: the check-in response carrying a drop count |
+| **Dock number** ("dock 4") | 🟡 | ⚠ **OMITTED.** No premises detail on the hub. **Unblocked by**: premises fields |
+| Hub name in the subtitle | — | ⚠ Omitted here; the hub is already named on the collection-run screen the driver just came from |
 
 ### Group 5 — Phase 2, same-day delivery run
-*Pending — Phase 2.*
+
+
+**Screen 21 · `delivery-run`** · **22 · `drop-detail`** · **23 · `enroute`** · **24 · `arrived`**
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Drop reference, sequence, suburb, package count | ✅ | `DropSummary` |
+| "N of M delivered" + progress | 🔢 | Derived from `run.drops[].status` (✅) |
+| Customer name, full address, instructions | ✅ | `Drop` |
+| Package references | ✅ | `Drop.packages[].ref` |
+| Status chips | ✅ | `Drop.status` |
+| **Delivery window** | ⛔ | ⚠ **OMITTED everywhere.** 052 R4: the promise is date-granular. A driver would repeat an invented window to a customer. **Unblocked by**: a time-window model |
+| **ETA / distance** | ⛔ | ⚠ **OMITTED.** **Unblocked by**: routing + geodata |
+| Map panel (en-route) | 🟡 | Neutral panel. **Unblocked by**: Phase 5 + geodata |
+| Call / masked contact | — | ⚠ Disabled with a stated reason — the relay is unbuilt (049 R6) |
+
+**Screens 25–31 · proof and outcome**
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Proof methods offered | ✅ | The four the repository supports |
+| Proof **note** | ✅ | ⚠ **NEW.** `completeWithCode` / `completeContactless` / `completeWithMedia` have accepted a note since 049 and **every call site passed `null`** |
+| Drop-spot choice (contactless) | ✅ | Serialised into the note (FR-023) |
+| Captured photo / signature bytes | ✅ | Real capture → real upload |
+| Photo caption **address** | ✅ | `Drop.addressFull` |
+| Photo caption **timestamp** | — | ⚠ **OMITTED** — no clock dependency |
+| Photo caption **geotag** | ⛔ | ⚠ **OMITTED.** A wrong geotag on a delivery record is evidence in a dispute. **Unblocked by**: location capture + permission |
+| Flash / flip controls | — | ⚠ **NOT RENDERED.** Neither path exposes torch or lens selection; a dead button is worse than an absent one |
+| iOS live viewfinder | 🟡 | Stand-in + system-camera handoff. ⚠ **Still an improvement**: iOS had *no* photo proof at all. **Unblocked by**: a Swift AVFoundation bridge |
+| Success "Drops done / Drops left" | 🔢 | ✅ **Real** — derived from the run's own drop statuses |
+| Success "12:44 pm" | — | ⚠ **OMITTED** — no clock |
+| Failure reasons | ✅ | The five the domain defines |
+| Failure **note** | ✅ | ⚠ **NEW.** `fail` always accepted one; every call site passed `null` |
+| "Packages return to the hub" | — | ⚠ **COPY REFUSED.** The design promises a return-to-hub process and re-attempt. **Neither is modelled** — 056 recorded this is "closed for Effy, NOT for the shopper". The screen says only that dispatch is notified. |
 
 ### Group 6 — Map
 *Pending — Phase 4.*

@@ -227,6 +227,7 @@ fun DriverShell(
                         state = st,
                         onBack = { tabs.pop() },
                         onOpenDrop = { dropId -> tabs.push(DropRoute(route.runId, dropId)) },
+                        onRefresh = { vm.loadRun() },
                     )
                 }
                 is DropRoute -> {
@@ -244,6 +245,7 @@ fun DriverShell(
                         onDeliverSignature = { bytes, note -> vm.deliverWithSignature(route.dropId, bytes, note) },
                         onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
                         onNext = { tabs.pop() },
+                        reducedMotion = reducedMotion,
                     )
                 }
 

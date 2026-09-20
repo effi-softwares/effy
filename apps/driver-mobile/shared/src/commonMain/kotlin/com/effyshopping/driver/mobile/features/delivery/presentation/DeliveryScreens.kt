@@ -1,6 +1,18 @@
 package com.effyshopping.driver.mobile.features.delivery.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
+import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
+import com.effyshopping.driver.mobile.features.delivery.domain.Drop
+import androidx.compose.ui.draw.clip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,29 +52,60 @@ import com.effyshopping.driver.mobile.core.platform.rememberPhotoCapture
 import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
 
-/** Same-day delivery run — ordered customer drops (FR-018). */
+/**
+ * The same-day round (060 US1, design screen `delivery-run`).
+ *
+ * \u26a0 The design shows a delivery WINDOW per drop ("12:30\u20131:00"). Omitted throughout: 052 R4
+ * established the platform's delivery promise is **date-granular** \u2014 there is no time window and
+ * none can be derived. A driver reading one would repeat it to a customer as a commitment Effy has
+ * not made.
+ */
 @Composable
-fun DeliveryRunScreen(state: DeliveryUiState, onBack: () -> Unit, onOpenDrop: (String) -> Unit) {
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(20.dp)) {
-        Header("Same-day run", onBack)
-        val run = state.run
+fun DeliveryRunScreen(
+    state: DeliveryUiState,
+    onBack: () -> Unit,
+    onOpenDrop: (String) -> Unit,
+    onRefresh: () -> Unit = {},
+) {
+    val run = state.run
+    val delivered = run?.drops?.count { it.status == DropStatus.DELIVERED } ?: 0
+    val total = run?.drops?.size ?: 0
+
+    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        DeliveryHeader(
+            title = "Same-day run",
+            subtitle = if (run != null) {
+                "$total drop${if (total == 1) "" else "s"} \u00b7 from the hub"
+            } else {
+                null
+            },
+            onBack = onBack,
+        )
+
         when {
             state.isLoading && run == null -> Centered { CircularProgressIndicator() }
             run == null -> Centered { Text(state.message ?: "Couldn't load the run.") }
             run.drops.isEmpty() -> Centered { Text("No drops in this run.") }
-            else -> Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                run.drops.forEach { drop ->
-                    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth().clickable { onOpenDrop(drop.dropId) }) {
-                        Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Column {
-                                Text(drop.orderRef, style = MaterialTheme.typography.titleMedium)
-                                Text("${drop.customerSuburb} · ${drop.packageCount} package(s)",
-                                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Text(if (drop.status == DropStatus.DELIVERED) "✓" else if (drop.status == DropStatus.FAILED) "✕" else "›",
-                                style = MaterialTheme.typography.titleLarge)
+            else -> {
+                DeliveryProgressBar(if (total == 0) 0f else delivered.toFloat() / total)
+                EffyPullToRefresh(onRefresh = { onRefresh() }, modifier = Modifier.weight(1f)) {
+                    Column(
+                        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp),
+                    ) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "$delivered of $total delivered \u00b7 pull down to refresh",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(14.dp))
+
+                        run.drops.forEach { drop ->
+                            DropRow(drop = drop, onClick = { onOpenDrop(drop.dropId) })
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
+                        Spacer(Modifier.height(24.dp))
                     }
                 }
             }
@@ -70,7 +113,72 @@ fun DeliveryRunScreen(state: DeliveryUiState, onBack: () -> Unit, onOpenDrop: (S
     }
 }
 
-/** Drop detail — lifecycle advance, then proof or fail (FR-019/020/024–028). */
+@Composable
+private fun DropRow(drop: DropSummary, onClick: () -> Unit) {
+    val done = drop.status == DropStatus.DELIVERED
+    val failed = drop.status == DropStatus.FAILED
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 48.dp)
+            .padding(vertical = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = when {
+                done -> MaterialTheme.colorScheme.primary
+                failed -> MaterialTheme.colorScheme.errorContainer
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            },
+            modifier = Modifier.size(34.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    when {
+                        done -> "\u2713"
+                        failed -> "\u2715"
+                        else -> drop.sequence.toString()
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = when {
+                        done -> MaterialTheme.colorScheme.onPrimary
+                        failed -> MaterialTheme.colorScheme.onErrorContainer
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                )
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                drop.orderRef,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "${drop.customerSuburb} \u00b7 ${drop.packageCount} " +
+                    "package${if (drop.packageCount == 1) "" else "s"}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/**
+ * A drop, in whatever state it is in (060 US1, design screens `drop-detail`, `enroute`, `arrived`).
+ *
+ * \u26a0 **This dispatches on status; it is not one layout with a changing button.** Before 060
+ * every state rendered the same body \u2014 the driver tapped, the status advanced, and nothing they
+ * could see changed. `EN_ROUTE` and `ARRIVED` now have their own screens.
+ *
+ * \u26a0 **049's transition sequence is preserved exactly** (`STAGED \u2192 out_for_delivery \u2192 en_route
+ * \u2192 arrived`). The design collapses the first two into a single "Start this drop", but the
+ * platform distinguishes them and 060 changes no backend behaviour (FR-024) \u2014 so `STAGED` and
+ * `OUT_FOR_DELIVERY` share the detail screen with a label that names the step they are on, and the
+ * status chip says which.
+ */
 @Composable
 fun DropDetailScreen(
     state: DeliveryUiState,
@@ -83,144 +191,358 @@ fun DropDetailScreen(
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
     onNext: () -> Unit,
+    reducedMotion: Boolean = false,
 ) {
     val drop = state.drop
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(20.dp)) {
-        Header(drop?.orderRef ?: "Drop", onBack)
-        when {
-            state.delivered -> { DeliveredSuccess(onNext); return@Column }
-            state.failed -> { FailedState(onNext); return@Column }
-            state.isLoading && drop == null -> { Centered { CircularProgressIndicator() }; return@Column }
-            drop == null -> { Centered { Text(state.message ?: "Couldn't load the drop.") }; return@Column }
+    when {
+        state.delivered -> {
+            val d = state.drop
+            ProofSuccessScreen(
+                orderRef = d?.orderRef.orEmpty(),
+                packageCount = d?.packages?.size ?: 0,
+                address = d?.addressFull.orEmpty(),
+                // \u26a0 The method is known; the design's "12:44 pm" is not \u2014 no clock dependency.
+                methodLabel = null,
+                dropsDone = state.run?.drops?.count { it.status == DropStatus.DELIVERED },
+                dropsLeft = state.run?.drops?.count {
+                    it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED
+                },
+                onNextDrop = onNext,
+                onBackToRun = onNext,
+            )
+            return
         }
-        drop!!
+        state.failed -> { FailedState(onNext); return }
+        state.isLoading && drop == null -> { Centered { CircularProgressIndicator() }; return }
+        drop == null -> { Centered { Text(state.message ?: "Couldn't load the drop.") }; return }
+    }
+    drop!!
 
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(drop.customerName, style = MaterialTheme.typography.titleMedium)
-                    Text(drop.addressFull, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    drop.instructions?.takeIf { it.isNotBlank() }?.let {
-                        Spacer(Modifier.height(6.dp))
-                        Text("Note: $it", style = MaterialTheme.typography.bodyMedium)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text("${drop.packages.size} package(s)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = { onNavigate(drop.addressFull) }, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f).height(50.dp)) {
-                    Text("Navigate")
-                }
-                // Masked contact — the relay is not built yet (R6), so this is disabled with a clear reason.
-                OutlinedButton(onClick = {}, enabled = false, shape = RoundedCornerShape(12.dp), modifier = Modifier.weight(1f).height(50.dp)) {
-                    Text("Contact")
-                }
-            }
-            Text("Masked contact is coming soon.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        DeliveryHeader(title = drop.orderRef, subtitle = null, onBack = onBack)
 
-            state.message?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
+        state.message?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            )
+        }
 
+        Box(Modifier.weight(1f)) {
             when (drop.status) {
-                DropStatus.STAGED, DropStatus.OUT_FOR_DELIVERY, DropStatus.EN_ROUTE ->
-                    AdvanceControls(drop.status, state.isWorking, onAdvance)
-                DropStatus.ARRIVED -> ProofControls(state.isWorking, onDeliverCode, onDeliverContactless, onDeliverPhoto, onDeliverSignature, onFail)
-                else -> {}
+                DropStatus.STAGED, DropStatus.OUT_FOR_DELIVERY -> DropDetailBody(
+                    drop = drop,
+                    working = state.isWorking,
+                    onNavigate = onNavigate,
+                    onStart = {
+                        onAdvance(
+                            if (drop.status == DropStatus.STAGED) "out_for_delivery" else "en_route",
+                        )
+                    },
+                )
+
+                DropStatus.EN_ROUTE -> EnRouteScreen(
+                    drop = drop,
+                    working = state.isWorking,
+                    onNavigate = onNavigate,
+                    onArrived = { onAdvance("arrived") },
+                )
+
+                DropStatus.ARRIVED -> ArrivedFlow(
+                    drop = drop,
+                    state = state,
+                    reducedMotion = reducedMotion,
+                    dropsDone = state.run?.drops?.count { it.status == DropStatus.DELIVERED },
+                    dropsLeft = state.run?.drops?.count { it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED },
+                    onDeliverCode = onDeliverCode,
+                    onDeliverContactless = onDeliverContactless,
+                    onDeliverPhoto = onDeliverPhoto,
+                    onDeliverSignature = onDeliverSignature,
+                    onFail = onFail,
+                )
+
+                else -> Centered { Text("This drop is closed.") }
             }
         }
     }
 }
 
+/**
+ * The drop before the driver sets off (design screen `drop-detail`).
+ *
+ * \u26a0 The packages are listed individually and the screen says plainly that they travel as one
+ * drop. That is the hub-and-spoke model's least obvious consequence for a driver: two parcels from
+ * two different shops are ONE customer's order, and leaving one in the van is a failed delivery
+ * nobody notices until the customer calls.
+ */
 @Composable
-private fun AdvanceControls(status: DropStatus, working: Boolean, onAdvance: (String) -> Unit) {
-    val (label, to) = when (status) {
-        DropStatus.STAGED -> "Start delivery" to "out_for_delivery"
-        DropStatus.OUT_FOR_DELIVERY -> "En route" to "en_route"
-        else -> "I've arrived" to "arrived"
-    }
-    Button(onClick = { onAdvance(to) }, enabled = !working, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) {
-        Text(label, style = MaterialTheme.typography.titleMedium)
+private fun DropDetailBody(
+    drop: Drop,
+    working: Boolean,
+    onNavigate: (String) -> Unit,
+    onStart: () -> Unit,
+) {
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+        ) {
+            StatusChip(
+                when (drop.status) {
+                    DropStatus.STAGED -> "Staged at hub"
+                    else -> "Out for delivery"
+                },
+            )
+            Spacer(Modifier.height(18.dp))
+
+            SectionLabel("DELIVER TO")
+            Spacer(Modifier.height(8.dp))
+            Text(
+                drop.customerName,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                drop.addressFull,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            drop.instructions?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(18.dp))
+                InstructionCallout(it)
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SectionLabel("PACKAGES FOR THIS DROP \u00b7 ${drop.packages.size}")
+            Spacer(Modifier.height(8.dp))
+            drop.packages.forEachIndexed { index, pkg ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.size(34.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                "${index + 1}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Text(
+                        pkg.ref,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+
+            if (drop.packages.size > 1) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    "All ${drop.packages.size} packages were collected for this customer and " +
+                        "travel as one drop.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+        }
+
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            OutlinedButton(
+                onClick = { onNavigate(drop.addressFull) },
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+            ) { Text("Navigate \u2197") }
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = onStart,
+                enabled = !working,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+            ) {
+                Text(
+                    if (drop.status == DropStatus.STAGED) "Start this drop" else "On my way",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
     }
 }
 
+/**
+ * Arrived: the designed screen first, then proof capture (060 US1).
+ *
+ * \u26a0 One local mode variable rather than more routes. Proof is a modal step within a single
+ * drop \u2014 backing out of it must land the driver at the door, not at the run \u2014 and a route per
+ * proof method would put four entries in the back stack for one delivery.
+ */
 @Composable
-private fun ProofControls(
-    working: Boolean,
+private fun ArrivedFlow(
+    drop: Drop,
+    state: DeliveryUiState,
+    reducedMotion: Boolean,
+    dropsDone: Int?,
+    dropsLeft: Int?,
     onDeliverCode: (String, String?) -> Unit,
     onDeliverContactless: (String?) -> Unit,
     onDeliverPhoto: (ByteArray, String?) -> Unit,
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
 ) {
-    var mode by remember { mutableStateOf("pick") }
-    var code by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
+    var step by remember(drop.dropId) { mutableStateOf<ProofStep?>(null) }
+    var failing by remember(drop.dropId) { mutableStateOf(false) }
+    var note by remember(drop.dropId) { mutableStateOf("") }
+    var failNote by remember(drop.dropId) { mutableStateOf("") }
+    var reason by remember(drop.dropId) { mutableStateOf<FailureReason?>(null) }
+    var spot by remember(drop.dropId) { mutableStateOf<DropSpot?>(null) }
 
-    // Camera capture — null on platforms without it (iOS today); the Photo option is hidden then.
-    val takePhoto = rememberPhotoCapture { bytes -> onDeliverPhoto(bytes, null) }
+    val photoCapture = rememberPhotoCapture { bytes -> onDeliverPhoto(bytes, note.ifBlank { null }) }
 
-    when (mode) {
-        "pick" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Complete with proof", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { mode = "code" }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Delivery code") }
-            Button(onClick = { mode = "signature" }, enabled = !working, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Signature") }
-            if (takePhoto != null) {
-                Button(onClick = { takePhoto() }, enabled = !working, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Photo") }
-            }
-            Button(onClick = { mode = "contactless" }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("Contactless (leave at door)") }
-            TextButton(onClick = { mode = "fail" }) { Text("Can't deliver") }
-        }
-        "signature" -> SignaturePad(
-            working = working,
-            onConfirm = { bytes -> onDeliverSignature(bytes, null) },
-            onBack = { mode = "pick" },
+    when {
+        failing -> ProofFailScreen(
+            working = state.isWorking,
+            reason = reason,
+            note = failNote,
+            onReasonChange = { reason = it },
+            onNoteChange = { failNote = it },
+            onBack = { failing = false },
+            onConfirm = { reason?.let { onFail(it, failNote.ifBlank { null }) } },
         )
-        "code" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(value = code, onValueChange = { code = it.filter { c -> c.isDigit() }.take(4) },
-                label = { Text("Delivery code") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth())
-            Button(onClick = { onDeliverCode(code, null) }, enabled = code.length >= 3 && !working,
-                shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Confirm delivery") }
-            TextButton(onClick = { mode = "pick" }) { Text("Back") }
+
+        step == ProofStep.PHOTO -> ProofPhotoScreen(
+            drop = drop,
+            working = state.isWorking,
+            onBack = { step = null },
+            onCaptured = { bytes -> onDeliverPhoto(bytes, note.ifBlank { null }) },
+        )
+
+        step == ProofStep.CODE -> ProofCodeScreen(
+            customerName = drop.customerName,
+            working = state.isWorking,
+            isError = state.message != null,
+            reducedMotion = reducedMotion,
+            onBack = { step = null },
+            onUsePhotoInstead = photoCapture?.let { { step = ProofStep.PHOTO } },
+            onConfirm = { code -> onDeliverCode(code, note.ifBlank { null }) },
+        )
+
+        step == ProofStep.SIGNATURE -> Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        ) {
+            Text(
+                "Hand the phone to ${drop.customerName} to sign.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+            SignaturePad(
+                working = state.isWorking,
+                onConfirm = { bytes -> onDeliverSignature(bytes, note.ifBlank { null }) },
+                onBack = { step = null },
+            )
         }
-        "contactless" -> Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Where did you leave it? (optional)") }, modifier = Modifier.fillMaxWidth())
-            Button(onClick = { onDeliverContactless(note.ifBlank { null }) }, enabled = !working,
-                shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Confirm — left at door") }
-            TextButton(onClick = { mode = "pick" }) { Text("Back") }
-        }
-        "fail" -> FailPicker(working, onFail) { mode = "pick" }
+
+        step == ProofStep.CONTACTLESS -> ProofContactlessScreen(
+            working = state.isWorking,
+            spot = spot,
+            note = note,
+            onSpotChange = { spot = it },
+            onNoteChange = { note = it },
+            onBack = { step = null },
+            onConfirm = {
+                // \u26a0 The chosen spot is serialised into the note the repository already takes,
+                // so no contract changes (FR-023).
+                val composed = listOfNotNull(
+                    spot?.let { "Left at: ${it.label}" },
+                    note.takeIf { it.isNotBlank() },
+                ).joinToString(" \u2014 ").ifBlank { null }
+                onDeliverContactless(composed)
+            },
+        )
+
+        step == ProofStep.PICK -> ProofPicker(
+            packageCount = drop.packages.size,
+            note = note,
+            onNoteChange = { note = it },
+            onPick = { step = it },
+            photoAvailable = true,
+        )
+
+        else -> ArrivedScreen(
+            drop = drop,
+            working = state.isWorking,
+            onComplete = { step = ProofStep.PICK },
+            onCantDeliver = { failing = true },
+        )
     }
 }
 
+// \u2500\u2500 Shared chrome \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
 @Composable
-private fun FailPicker(working: Boolean, onFail: (FailureReason, String?) -> Unit, onBack: () -> Unit) {
-    val reasons = listOf(
-        FailureReason.NOBODY_HOME to "Nobody home",
-        FailureReason.WRONG_ADDRESS to "Wrong / incomplete address",
-        FailureReason.CUSTOMER_REFUSED to "Customer refused",
-        FailureReason.ACCESS_BLOCKED to "Access blocked",
-        FailureReason.OTHER to "Other",
-    )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Why can't it be delivered?", style = MaterialTheme.typography.titleMedium)
-        reasons.forEach { (reason, label) ->
-            OutlinedButton(onClick = { onFail(reason, null) }, enabled = !working, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().height(50.dp)) {
-                Text(label)
+private fun DeliveryHeader(title: String, subtitle: String?, onBack: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(start = 18.dp, end = 20.dp, top = 4.dp, bottom = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(11.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.size(48.dp).clickable(onClick = onBack),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text("\u2190", style = MaterialTheme.typography.titleMedium)
             }
         }
-        TextButton(onClick = onBack) { Text("Back") }
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+            subtitle?.let {
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun DeliveredSuccess(onNext: () -> Unit) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("✓", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
-        Text("Delivered", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = onNext, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth(0.7f).height(56.dp)) { Text("Next") }
+private fun DeliveryProgressBar(fraction: Float) {
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(5.dp)
+            .clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Box(
+            Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight()
+                .clip(CircleShape).background(MaterialTheme.colorScheme.primary),
+        )
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
 
 @Composable
@@ -232,6 +554,7 @@ private fun FailedState(onNext: () -> Unit) {
         Button(onClick = onNext, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth(0.7f).height(56.dp)) { Text("Next") }
     }
 }
+
 
 @Composable
 private fun Header(title: String, onBack: () -> Unit) {

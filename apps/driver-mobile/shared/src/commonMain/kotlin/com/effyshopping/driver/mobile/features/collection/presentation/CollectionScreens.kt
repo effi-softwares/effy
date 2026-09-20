@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
@@ -430,7 +431,23 @@ private fun MethodBadge(method: PackageMethod) {
 
 // ── Hub check-in (design screens `hub-checkin`, `hub-checkin-empty`) ────────────────────────────
 
-/** Hub check-in — the run's pivot (060 US1). Rebuilt in T037–T039. */
+/**
+ * The run's pivot (060 US1, design screens `hub-checkin` / `hub-checkin-empty`).
+ *
+ * Every package the driver collected is checked in here, and the **same-day / standard split** —
+ * already decided at checkout, so there is nothing for the driver to sort — decides what happens
+ * next. Same-day stays with them; standard is staged for an external carrier and leaves their run.
+ *
+ * ⚠ **A RECORDED CARD EXCEPTION** (Principle V, research R12): the two split blocks show two
+ * mutually-exclusive outcomes of one quantity, each with its own state. A two-row table loses the
+ * proportional relationship the screen exists to communicate.
+ *
+ * ⚠ **THE DESIGN'S COPY ASSERTS SOMETHING THAT HAS NOT HAPPENED.** Its standard block reads
+ * "Handed to carrier" at the moment of check-in. It has not been handed to anyone — the driver has
+ * just put it on a dock, and 053 established the platform has no `handed_over` state precisely
+ * because a carrier handoff is a separate later event. Reworded to **"Staged for carrier"**, which
+ * is true when it is shown.
+ */
 @Composable
 fun HubCheckinScreen(
     state: CollectionUiState,
@@ -439,40 +456,106 @@ fun HubCheckinScreen(
     onDone: () -> Unit,
 ) {
     LaunchedEffect(Unit) { if (state.hubSplit == null) onCheckIn() }
+
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-        ScreenHeader(title = "Hub check-in", subtitle = null, onBack = onBack)
+        ScreenHeader(
+            title = "Hub check-in",
+            // \u26a0 The design's "Effy Hub \u00b7 Port Melbourne \u00b7 dock 4" \u2014 the dock has no field
+            // behind it, so only the hub name is shown, and only when the driver has one assigned.
+            subtitle = null,
+            onBack = onBack,
+        )
+
         val split = state.hubSplit
         when {
             state.isWorking && split == null -> Centered { CircularProgressIndicator() }
-            split == null -> Centered { Text(state.message ?: "Checking in…") }
+            split == null -> Centered { Text(state.message ?: "Checking in\u2026") }
             else -> {
+                val shops = state.run?.stops?.size
+                val nothingSameDay = split.sameDayCount == 0
+
                 Column(
-                    Modifier.weight(1f).padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    Modifier.weight(1f).verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp),
                 ) {
-                    SplitRow("Scanned in", split.scannedTotal)
-                    HorizontalDivider()
-                    SplitRow("Same-day — load for delivery", split.sameDayCount)
-                    SplitRow("Standard — handed to carrier", split.standardCount)
-                    Text(
-                        "Standard packages leave your run at the dock.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Button(
-                        onClick = onDone,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                    ) {
+                    shops?.let {
                         Text(
-                            if (split.sameDayCount > 0) {
-                                "Start same-day delivery run"
-                            } else {
-                                "Done — nothing same-day"
-                            },
-                            style = MaterialTheme.typography.titleMedium,
+                            "Checked in from $it shop${if (it == 1) "" else "s"}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(18.dp))
+                    }
+
+                    ScannedTotal(split.scannedTotal)
+                    Spacer(Modifier.height(22.dp))
+
+                    SplitBar(sameDay = split.sameDayCount, standard = split.standardCount)
+                    Spacer(Modifier.height(26.dp))
+
+                    if (nothingSameDay) {
+                        NothingSameDayBody(split.standardCount)
+                    } else {
+                        SectionLabel("THE SPLIT")
+                        Spacer(Modifier.height(12.dp))
+                        SplitBlock(
+                            count = split.sameDayCount,
+                            title = "Same-day \u2014 yours to deliver",
+                            body = "Load these for your delivery run.",
+                            chip = "Loaded",
+                            emphasised = true,
+                        )
+                        Spacer(Modifier.height(11.dp))
+                        SplitBlock(
+                            count = split.standardCount,
+                            title = "Standard \u2014 external carrier",
+                            body = "Labelled and staged at the dock. Out of your run from here.",
+                            // \u26a0 NOT "Handed to carrier" \u2014 see the note on this screen.
+                            chip = "Staged for carrier",
+                            emphasised = false,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "The method was set at checkout \u2014 there is nothing to sort.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.height(24.dp))
+                }
+
+                state.message?.let { ErrorText(it) }
+
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                    if (nothingSameDay) {
+                        // \u26a0 A plain button, not a swipe. Nothing is being committed about goods the
+                        // driver is carrying \u2014 the run simply ends \u2014 so the deliberate gesture would
+                        // be friction without a reason. FR-018 names the two acts that need it.
+                        Button(
+                            onClick = onDone,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                        ) {
+                            Text(
+                                "End collection run",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                        }
+                    } else {
+                        SwipeToConfirm(
+                            label = "Swipe to end collection run",
+                            onConfirm = onDone,
+                            enabled = !state.isWorking,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "Unlocks your same-day delivery run \u00b7 ${split.sameDayCount} " +
+                                "package${if (split.sameDayCount == 1) "" else "s"}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
                         )
                     }
                 }
@@ -481,11 +564,145 @@ fun HubCheckinScreen(
     }
 }
 
+/** The headline figure. A count, never a currency (FR-011). */
 @Composable
-private fun SplitRow(label: String, count: Int) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-        Text("$count", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+private fun ScannedTotal(total: Int) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            total.toString(),
+            style = MaterialTheme.typography.displayMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(Modifier.width(14.dp))
+        Text(
+            "packages\nchecked in",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The proportional split.
+ *
+ * \u26a0 Carries a text label beneath it, not colour alone: the two segments are the same hue family,
+ * and a driver with a colour-vision difference reading a bar in a dim loading dock needs the numbers.
+ */
+@Composable
+private fun SplitBar(sameDay: Int, standard: Int) {
+    val total = (sameDay + standard).coerceAtLeast(1)
+    Column {
+        Row(
+            Modifier.fillMaxWidth().height(10.dp).clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            if (sameDay > 0) {
+                Box(
+                    Modifier.weight(sameDay.toFloat() / total).fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
+            if (standard > 0) {
+                Box(
+                    Modifier.weight(standard.toFloat() / total).fillMaxHeight()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(
+                "$sameDay same-day \u00b7 yours",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                "$standard standard \u00b7 carrier",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SplitBlock(
+    count: Int,
+    title: String,
+    body: String,
+    chip: String,
+    emphasised: Boolean,
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.5.dp,
+            if (emphasised) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
+            Text(
+                count.toString(),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.width(16.dp))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    body,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                StateChip(chip)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StateChip(label: String) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+        )
+    }
+}
+
+/**
+ * Design screen `hub-checkin-empty`.
+ *
+ * \u26a0 Its own body and its own closing action. Before 060 this case existed only as a different
+ * BUTTON LABEL ("Done \u2014 nothing same-day") under the identical three rows, so a driver whose run
+ * had ended was shown the same screen as one about to start a delivery round.
+ */
+@Composable
+private fun NothingSameDayBody(standardCount: Int) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+            "Nothing same-day today",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            "All $standardCount package${if (standardCount == 1) "" else "s"} on this run " +
+                "${if (standardCount == 1) "is" else "are"} standard and stay${if (standardCount == 1) "s" else ""} " +
+                "with the carrier. Your run ends here \u2014 stay on duty and dispatch may assign " +
+                "another collection round.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

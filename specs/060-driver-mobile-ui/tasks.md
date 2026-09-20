@@ -119,28 +119,28 @@ bare list of default controls. Matches [quickstart.md](./quickstart.md) §4.
 
 ### Hub check-in (screens 19–20)
 
-- [ ] T037 [US1] Rebuild `HubCheckinScreen` in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 19): the scanned-in total, a proportional split bar, and two split blocks each with a state chip ("Loaded" / "Handed to carrier"). ⚠ A recorded card exception (research R12)
-- [ ] T038 [US1] Replace the hub's confirm button with `SwipeToConfirm` (T009) — the gesture that ends phase one and unlocks phase two (FR-018)
-- [ ] T039 [US1] Build the distinct nothing-same-day state in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 20) with its own copy and closing action ⚠ (today only the button's label changes)
+- [X] T037 [US1] Rebuild `HubCheckinScreen` in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 19): the scanned-in total, a proportional split bar, and two split blocks each with a state chip ("Loaded" / "Handed to carrier"). ⚠ A recorded card exception (research R12)
+- [X] T038 [US1] Replace the hub's confirm button with `SwipeToConfirm` (T009) — the gesture that ends phase one and unlocks phase two (FR-018)
+- [X] T039 [US1] Build the distinct nothing-same-day state in `<D>/features/collection/presentation/CollectionScreens.kt` (screen 20) with its own copy and closing action ⚠ (today only the button's label changes)
 
 ### Same-day run and drops (screens 21–24)
 
-- [ ] T040 [US1] Rebuild `DeliveryRunScreen` in `<D>/features/delivery/presentation/DeliveryScreens.kt` (screen 21): progress bar, "N of M delivered", numbered drops, per-drop window and pill
-- [ ] T041 [US1] Rebuild the drop detail body in `<D>/features/delivery/presentation/DeliveryScreens.kt` (screen 22): status pill, "Deliver to" block, the instructions call-out, a **numbered package list**, and the note that packages from several shops travel as one drop
-- [ ] T042 [US1] Create the en-route state in `<D>/features/delivery/presentation/EnRouteScreen.kt` (screen 23) — ⚠ **a state that already exists in `DropStatus` and has never had a screen**: map surface, destination sheet, Call / Message / Navigate, "I've arrived"
-- [ ] T043 [US1] Create the arrived state in `<D>/features/delivery/presentation/ArrivedScreen.kt` (screen 24) — ⚠ same: the large "You're at …" heading, the instructions call-out, Call customer, Can't deliver, and `SwipeToConfirm` to complete
+- [X] T040 [US1] Rebuild `DeliveryRunScreen` in `<D>/features/delivery/presentation/DeliveryScreens.kt` (screen 21): progress bar, "N of M delivered", numbered drops, per-drop window and pill
+- [X] T041 [US1] Rebuild the drop detail body in `<D>/features/delivery/presentation/DeliveryScreens.kt` (screen 22): status pill, "Deliver to" block, the instructions call-out, a **numbered package list**, and the note that packages from several shops travel as one drop
+- [X] T042 [US1] Create the en-route state in `<D>/features/delivery/presentation/EnRouteScreen.kt` (screen 23) — ⚠ **a state that already exists in `DropStatus` and has never had a screen**: map surface, destination sheet, Call / Message / Navigate, "I've arrived"
+- [X] T043 [US1] Create the arrived state in `<D>/features/delivery/presentation/ArrivedScreen.kt` (screen 24) — ⚠ same: the large "You're at …" heading, the instructions call-out, Call customer, Can't deliver, and `SwipeToConfirm` to complete
 
 ### Proof (screens 25–31)
 
-- [ ] T044 [US1] Rebuild the proof picker in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 25): four selectable rows with glyph, title, description and chevron, **plus the optional note field** the current picker has no room for (FR-022)
-- [ ] T045 [US1] Create `expect fun CameraPreviewSurface` in `<D>/core/platform/CameraPreviewSurface.kt` and the shared photo-proof chrome in `<D>/features/delivery/presentation/ProofPhotoScreen.kt` (screen 26): header, framing guidance, caption bar, shutter, flash, flip (research R8)
-- [ ] T046 [P] [US1] Implement the Android actual in `<DA>/core/platform/CameraPreviewSurface.android.kt` — a live CameraX preview bound to the composable's lifecycle
-- [ ] T047 [P] [US1] Implement the iOS actual in `<DI>/core/platform/CameraPreviewSurface.ios.kt` — the designed stand-in that hands off to the system camera on shutter. ⚠ **This gives iOS photo proof it does not have at all today** (`rememberPhotoCapture` returns `null` there, so the option is hidden); the live AVFoundation viewfinder is deferred and recorded in the register
-- [ ] T048 [US1] Rebuild the delivery-code screen in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 27) on `DigitBoxes` + `NumericKeypad` (T011/T012), with the "customer doesn't have the code" fallback link (FR-020)
-- [ ] T049 [P] [US1] Restyle the signature screen in `<D>/features/delivery/presentation/SignaturePad.kt` (screen 28) to the design's header + Clear action + "Sign above" guidance; keep the existing capture logic
-- [ ] T050 [US1] Rebuild the contactless screen in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 29): photo thumbnail plus the **"Where you left it" chip picker** (`ChoiceChips`, T013) replacing free text, serialised into the existing note field (FR-023)
-- [ ] T051 [US1] Rebuild the completion screen in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 30): animated tick, drop detail line, the run-progress figures, and both actions (Next drop / Back to run)
-- [ ] T052 [US1] Add the note field to the undeliverable picker in `<D>/features/delivery/presentation/DeliveryScreens.kt` (screen 31) and align the reason labels with the design (FR-022)
+- [X] T044 [US1] Rebuild the proof picker in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 25): four selectable rows with glyph, title, description and chevron, **plus the optional note field** the current picker has no room for (FR-022)
+- [X] T045 [US1] Create `expect fun CameraPreviewSurface` in `<D>/core/platform/CameraPreviewSurface.kt` and the shared photo-proof chrome in `<D>/features/delivery/presentation/ProofPhotoScreen.kt` (screen 26): header, framing guidance, caption bar, shutter, flash, flip (research R8)
+- [X] T046 [P] [US1] Implement the Android actual in `<DA>/core/platform/CameraPreviewSurface.android.kt` — a live CameraX preview bound to the composable's lifecycle
+- [X] T047 [P] [US1] Implement the iOS actual in `<DI>/core/platform/CameraPreviewSurface.ios.kt` — the designed stand-in that hands off to the system camera on shutter. ⚠ **This gives iOS photo proof it does not have at all today** (`rememberPhotoCapture` returns `null` there, so the option is hidden); the live AVFoundation viewfinder is deferred and recorded in the register
+- [X] T048 [US1] Rebuild the delivery-code screen in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 27) on `DigitBoxes` + `NumericKeypad` (T011/T012), with the "customer doesn't have the code" fallback link (FR-020)
+- [X] T049 [P] [US1] Restyle the signature screen in `<D>/features/delivery/presentation/SignaturePad.kt` (screen 28) to the design's header + Clear action + "Sign above" guidance; keep the existing capture logic
+- [X] T050 [US1] Rebuild the contactless screen in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 29): photo thumbnail plus the **"Where you left it" chip picker** (`ChoiceChips`, T013) replacing free text, serialised into the existing note field (FR-023)
+- [X] T051 [US1] Rebuild the completion screen in `<D>/features/delivery/presentation/ProofScreens.kt` (screen 30): animated tick, drop detail line, the run-progress figures, and both actions (Next drop / Back to run)
+- [X] T052 [US1] Add the note field to the undeliverable picker in `<D>/features/delivery/presentation/DeliveryScreens.kt` (screen 31) and align the reason labels with the design (FR-022)
 
 **Checkpoint**: US1 complete — the app's core loop is demonstrable on its own.
 
@@ -154,13 +154,13 @@ going stale.
 **Independent test**: Open the register, pick five screens at random, and confirm the classification
 matches what the app renders — without reading code.
 
-- [ ] T053 [US2] Create the per-feature placeholder files — `<D>/features/{today,collection,delivery,map,account,history,activity}/data/PlaceholderData.kt` — and move every invented value out of the composables written in Phase 3. ⚠ **Never inline**: with no in-app marking, one file per feature is the only thing that keeps the register findable (research R11)
-- [ ] T054 [US2] Author fixtures fresh. ⚠ **Do not copy the design's sample content** (FR-012): not the named driver, not the Melbourne street addresses, not the `EFY-409xx` references, and ⚠ **not `1800 EFFY OPS`** — a dispatch number is an outward-facing identifier the constitution requires be operator-supplied
-- [ ] T055 [US2] Apply the ⛔ rule across Phase 3's screens: every `PLACEHOLDER_OPERATIONAL` field (ETA, distance, delivery window) renders via `unavailableLabel()` (T008), **never as a value** (FR-015, SC-015)
-- [ ] T056 [US2] Fill the per-screen sections of `specs/060-driver-mobile-ui/provenance-register.md` for US1's 20 screens — every readable field, its class, source or reason, and `unblockedBy`
-- [ ] T057 [US2] Create `<D>/core/placeholder/PlaceholderRegisterGuardTest.kt` — enumerate every value exported from a `PlaceholderData.kt` and **fail naming the value** if the register does not list it. ⚠ Without this the register is a comment, and 058 recorded what a comment is worth
-- [ ] T058 [US2] **Prove T057 by breaking it** — add an unlisted value to a `<D>/features/*/data/PlaceholderData.kt`, confirm `PlaceholderRegisterGuardTest` fails naming it, then remove it
-- [ ] T059 [US2] Add the `DERIVED` inheritance rule to the guard: a derived figure whose inputs include a placeholder is classified by its **weakest** input, so "3 of 4 stops done" cannot look trustworthy when one of the four was invented
+- [X] T053 [US2] Create the per-feature placeholder files — `<D>/features/{today,collection,delivery,map,account,history,activity}/data/PlaceholderData.kt` — and move every invented value out of the composables written in Phase 3. ⚠ **Never inline**: with no in-app marking, one file per feature is the only thing that keeps the register findable (research R11)
+- [X] T054 [US2] Author fixtures fresh. ⚠ **Do not copy the design's sample content** (FR-012): not the named driver, not the Melbourne street addresses, not the `EFY-409xx` references, and ⚠ **not `1800 EFFY OPS`** — a dispatch number is an outward-facing identifier the constitution requires be operator-supplied
+- [X] T055 [US2] Apply the ⛔ rule across Phase 3's screens: every `PLACEHOLDER_OPERATIONAL` field (ETA, distance, delivery window) renders via `unavailableLabel()` (T008), **never as a value** (FR-015, SC-015)
+- [X] T056 [US2] Fill the per-screen sections of `specs/060-driver-mobile-ui/provenance-register.md` for US1's 20 screens — every readable field, its class, source or reason, and `unblockedBy`
+- [X] T057 [US2] Create `<D>/core/placeholder/PlaceholderRegisterGuardTest.kt` — enumerate every value exported from a `PlaceholderData.kt` and **fail naming the value** if the register does not list it. ⚠ Without this the register is a comment, and 058 recorded what a comment is worth
+- [X] T058 [US2] ⚠ **THE PROOF FOUND A DEFECT IN THE GUARD.** The register lives OUTSIDE the Gradle project, so it was not a task input — editing it left the test **UP-TO-DATE and the guard did not run**, silent in exactly the case it exists for. Fixed by declaring it via `inputs.file(...)` in `shared/build.gradle.kts`. ⚠ And the third break (`Sourced<String> = operational(...)`) turns out to be a **COMPILE ERROR**, not a test failure — covariance already forbids it. **Prove T057 by breaking it** — add an unlisted value to a `<D>/features/*/data/PlaceholderData.kt`, confirm `PlaceholderRegisterGuardTest` fails naming it, then remove it
+- [X] T059 [US2] Add the `DERIVED` inheritance rule to the guard: a derived figure whose inputs include a placeholder is classified by its **weakest** input, so "3 of 4 stops done" cannot look trustworthy when one of the four was invented
 
 **Checkpoint**: US1 + US2 together are a demonstrable, honest MVP.
 

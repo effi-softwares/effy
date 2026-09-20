@@ -1,5 +1,6 @@
 import com.codingfeline.buildkonfig.compiler.FieldSpec.Type.STRING
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.PathSensitivity
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -133,4 +134,22 @@ dependencies {
 
 compose.resources {
     packageOfResClass = "com.effyshopping.driver.mobile.resources"
+}
+
+// ── 060: source guards read files Gradle does not otherwise track ──────────────────────────────
+//
+// ⚠ FOUND BY THE NEGATIVE PROOF, not by reasoning. `PlaceholderRegisterGuardTest` reads
+// `specs/060-driver-mobile-ui/provenance-register.md`, which lives OUTSIDE this Gradle project. It
+// is therefore invisible to the up-to-date check: editing the register left the test task
+// UP-TO-DATE and the guard simply did not run. The guard would have been silent in exactly the
+// situation it exists for — someone changing the register and not the code.
+//
+// Declaring it as an input fixes that. `optional` so a checkout without the spec directory (or a
+// future move of the file) degrades to "guard does not run" rather than "the build cannot
+// configure".
+tasks.withType<Test>().configureEach {
+    inputs.file(rootProject.file("../../specs/060-driver-mobile-ui/provenance-register.md"))
+        .withPropertyName("provenanceRegister")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .optional(true)
 }
