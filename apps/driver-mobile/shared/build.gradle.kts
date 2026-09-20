@@ -82,13 +82,12 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.animation)
             implementation(libs.compose.material3)
-            // 060 — OpenStreetMap map rendering (MapLibre Native on Android + iOS).
-            // ⚠ Imported by EXACTLY ONE file: core/platform/EffyMapCanvas.kt. The library is
-            // pre-1.0 and documents breaking changes between minor releases, so confining it to a
-            // single call site makes an upgrade one file rather than a rewrite (research R4).
-            // MapLibreImportGuardTest asserts that, because 'only import it in one place' is a
-            // comment until something fails.
-            implementation(libs.maplibre.compose)
+            // ⚠ 060 REMOVED MapLibre. It rendered real OpenStreetMap cartography and worked at
+            // runtime, but aborted the app under Xcode's debug build (SIGABRT on its own render
+            // thread, pre-1.0 threading between native callbacks and the Kotlin/Native runtime) —
+            // not fixable here, and an app that cannot be Run from Xcode is not a workable basis
+            // for developing this surface. The map is now the stylised route FR-023e always
+            // recorded as the fallback. MapLibreAbsentGuardTest keeps it out.
             // 060 \u2014 the history record renders the ACTUAL captured proof photo. Before this it
             // printed "Photo/signature captured" and showed nothing, which is useless in the one
             // situation the record exists for: a customer disputing a delivery.

@@ -33,7 +33,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.core.platform.EffyMapCanvas
-import com.effyshopping.driver.mobile.core.platform.MAP_ATTRIBUTION
 
 /**
  * The Map tab (060 US3, design screens `map-collection` / `map-delivery`).
@@ -42,12 +41,14 @@ import com.effyshopping.driver.mobile.core.platform.MAP_ATTRIBUTION
  * bottom navigation, and opened a "coming soon" message. A driver tapped a tab that was there and
  * was told to come back later.
  *
- * ⚠ **Real cartography, placeholder pins** — and the asymmetry is deliberate, not a shortcut. The
- * tiles are genuine OpenStreetMap data via OpenFreeMap. The **positions** are not: 049 R13 recorded
- * that shops carry no address or coordinates and orders carry an un-geocoded address, so there is
- * nothing on the platform to plot. The map is therefore **illustrative, not navigational** — a
- * driver who needs to get somewhere uses **Navigate** on the stop or drop, which hands the device's
- * own maps app the real address string. No routing decision is ever taken from this screen.
+ * ⚠ **A SCHEMATIC OF THE RUN, not a map of the world** — see `EffyMapCanvas`. Real MapLibre
+ * cartography was built, shipped and then removed (it aborts the app under Xcode's debug build),
+ * and it was always going to show genuine streets with **invented pins**: 049 R13 recorded that
+ * shops carry no address or coordinates and orders carry an un-geocoded address.
+ *
+ * What this screen answers is what the platform actually knows: **how many stops, in what order,
+ * ending where.** A driver who needs to get somewhere uses **Navigate** on the stop or drop, which
+ * hands the device's own maps app the real address string. No routing decision is taken here.
  */
 @Composable
 fun MapScreen(
@@ -67,21 +68,10 @@ fun MapScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        Box(Modifier.fillMaxWidth().height(260.dp)) {
-            EffyMapCanvas(Modifier.fillMaxSize())
-        }
-        // \u26a0 BELOW the canvas, not overlaid on it \u2014 found by looking at a screenshot. As an
-        // overlay it sat on top of MapLibre's own logo and info button, so two attributions
-        // collided and neither read cleanly. A full-width strip is unambiguous and always legible,
-        // which is what a LICENCE OBLIGATION needs (FR-023b).
-        Text(
-            MAP_ATTRIBUTION,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+        EffyMapCanvas(
+            modifier = Modifier.fillMaxWidth().height(260.dp),
+            stopCount = state.stops.count { !it.isHub },
+            endsAtHub = state.stops.any { it.isHub },
         )
 
         Column(

@@ -32,10 +32,6 @@ googleServices = "4.5.0"
 firebaseCrashlyticsPlugin = "3.0.6"
 firebaseBom = "34.18.0"
 posthogAndroid = "3.11.1"
-# 060 — OpenStreetMap rendering on BOTH platforms via MapLibre Native (research R1).
-# Tiles come from OpenFreeMap; NOT tile.openstreetmap.org, whose Tile Usage Policy forbids
-# distributing an app that uses it (research R2). No API key, account or billing anywhere.
-maplibreCompose = "0.17.0"
 # 060 — in-app camera viewfinder for photo proof (Android only; iOS uses a designed stand-in +
 # system-camera handoff until a Swift AVFoundation bridge exists — research R8).
 camerax = "1.5.0"
@@ -43,9 +39,6 @@ camerax = "1.5.0"
 coil = "3.1.0"
 
 [libraries]
-# 060 — reached from EXACTLY ONE file (core/platform/EffyMapCanvas.kt); the API is pre-1.0 and
-# documents breaking changes between minors, so the blast radius is bounded by a source guard.
-maplibre-compose = { module = "org.maplibre.compose:maplibre-compose", version.ref = "maplibreCompose" }
 # 060 — CameraX, androidMain only. ⚠ This CLOSES a live defect as a side effect: rememberPhotoCapture
 # returns null on iOS, so photo proof is hidden there entirely today.
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }

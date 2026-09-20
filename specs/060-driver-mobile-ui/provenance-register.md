@@ -70,8 +70,7 @@ delivery.iosLivePreview
 account.dispatchPhone
 account.hubDeskContact
 account.handbookLink
-map.markerCoordinates
-map.defaultCamera
+map.routeSchematic
 -->
 
 ## Known placeholders, declared up front
@@ -254,17 +253,24 @@ offline queue's own timestamp, ⚠ not invented.
 
 **Screens 33–34 · `map-collection` / `map-delivery`** — `MapScreen`, `EffyMapCanvas`
 
-⚠ **The cartography is real and the pins are not.** That asymmetry is the whole screen.
+⚠ **MapLibre was adopted, shipped and then REMOVED** (operator decision). It rendered real
+OpenStreetMap cartography via OpenFreeMap and worked at runtime, but **aborted the app under
+Xcode's debug build** — `SIGABRT` on its own render thread, pre-1.0 threading against the
+Kotlin/Native runtime, not fixable from this repository. The map is now the **stylised route**
+FR-023e always recorded as the fallback.
+
+⚠ **Less was lost than it sounds.** Real cartography was always going to draw genuine streets with
+**invented pins** — 049 R13: no shop coordinates, un-geocoded orders. The schematic shows only what
+the platform actually knows.
 
 | Field | Class | Source / reason |
 |---|---|---|
-| **Map cartography** | ✅ | **Real OpenStreetMap data**, served by **OpenFreeMap** (`tiles.openfreemap.org/styles/liberty`). ⚠ **NOT `tile.openstreetmap.org`** — OSM's Tile Usage Policy forbids *"distributing an app that uses tiles from openstreetmap.org"* and may block access without notice, so the map would go blank in production. No API key, no account, no billing. |
-| **Attribution** | ✅ | A licence obligation (FR-023b), rendered in our own chrome and pinned by `MapLibreImportGuardTest` |
 | Stop titles, subtitles, order | ✅ | Derived from the run the driver already holds — the map issues no fetch of its own, so it cannot disagree with Today |
-| Hub row | ✅ | `driver.hub`; rendered as a squared outline vs a filled round-rect, ⚠ **not colour alone** — the hub is a different KIND of place and a sunlit windscreen mount defeats colour |
-| **Marker coordinates** | 🟡 | ⚠ **There are none to plot.** 049 R13: shops carry no address or coordinates, orders carry an un-geocoded address. **Decorative rather than operational** because the map is *illustrative, not navigational* — routing goes through **Navigate**, which hands the device's maps app the real address string, so no decision is ever taken from a pin. **Unblocked by**: `shop.address` + geocoding |
+| Stop count and sequence | ✅ | The run |
+| Hub row and hub marker | ✅ | `driver.hub`; drawn as a **square** against circular stops — ⚠ a different shape, not a different colour, which does not survive a sunlit windscreen mount |
+| **Route schematic** | 🟡 | Encodes **order only**. Deliberately abstract: anything map-like would imply positions that do not exist. **Unblocked by**: `shop.address` + geocoding |
+| **Cartography** | — | ⚠ **REMOVED.** No tiles are fetched, so there is no attribution obligation, no vendor key and no pre-1.0 dependency |
 | Stop **ETA** column | ⛔ | ⚠ **OMITTED.** **Unblocked by**: routing + geodata |
-| **Opening camera position** | 🟡 | ⚠ Found by looking: with no camera set the map opened on the library's default and showed a Melbourne driver the Indian Ocean. Now Melbourne — the operating city (047 judges cutoffs in `Australia/Melbourne`). Still a constant. **Unblocked by**: the driver's own location, or a geocoded hub |
 
 ### Group 7 — Notifications
 *Pending — Phase 7.*

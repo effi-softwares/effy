@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Shared run scheme for the Effy Driver iOS app (060).
+
+  ⚠ WHY THIS FILE EXISTS AT ALL. Before 060 this project had NO shared scheme, so Xcode generated an
+  implicit one per machine and every developer silently inherited Xcode's defaults. The run
+  configuration was unreproducible and invisible — which is how the setting below went unnoticed.
+
+  ⚠ enableGPUValidationMode = "0" — METAL API VALIDATION IS OFF, DELIBERATELY.
+  With it on (Xcode's default), tapping the Map tab aborts the app: SIGABRT on MapLibre's render
+  thread in RenderSessionHandle.kt. PROVEN to be the cause, not inferred — the same binary launched
+  via `simctl` renders the map fine, and re-launching it with MTL_DEBUG_LAYER=1 and no debugger
+  attached reproduces the crash exactly.
+
+  ⚠ THIS DOES NOT FIX A BUG, IT HIDES ONE — and the honesty matters. MapLibre Native's Metal backend
+  is doing something the validation layer objects to. That is an UPSTREAM defect. Validation is off
+  on real devices and in release builds, so it does not affect what a driver runs; but anyone
+  debugging GPU work in this app should know the layer is disabled and why. Re-enable it to
+  reproduce, and remove this note if MapLibre fixes it.
+-->
+<Scheme LastUpgradeVersion = "1700" version = "1.7">
+   <BuildAction parallelizeBuildables = "YES" buildImplicitDependencies = "YES">
+      <BuildActionEntries>
+         <BuildActionEntry buildForTesting = "YES" buildForRunning = "YES" buildForProfiling = "YES" buildForArchiving = "YES" buildForAnalyzing = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "4D4191B4421270D92FF3A8A3"
+               BuildableName = "driver-mobile.app"
+               BlueprintName = "iosApp"
+               ReferencedContainer = "container:iosApp.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+      </BuildActionEntries>
+   </BuildAction>
+   <TestAction buildConfiguration = "Debug" selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB" shouldUseLaunchSchemeArgsEnv = "YES">
+      <Testables>
+      </Testables>
+   </TestAction>
+   <LaunchAction
+      buildConfiguration = "Debug"
+      selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
+      selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
+      launchStyle = "0"
+      useCustomWorkingDirectory = "NO"
+      ignoresPersistentStateOnLaunch = "NO"
+      debugDocumentVersioning = "YES"
+      debugServiceExtension = "internal"
+      enableGPUValidationMode = "0"
+      allowLocationSimulation = "YES">
+      <BuildableProductRunnable runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "4D4191B4421270D92FF3A8A3"
+            BuildableName = "driver-mobile.app"
+            BlueprintName = "iosApp"
+            ReferencedContainer = "container:iosApp.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </LaunchAction>
+   <ProfileAction buildConfiguration = "Release" shouldUseLaunchSchemeArgsEnv = "YES" savedToolIdentifier = "" useCustomWorkingDirectory = "NO" debugDocumentVersioning = "YES">
+      <BuildableProductRunnable runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "4D4191B4421270D92FF3A8A3"
+            BuildableName = "driver-mobile.app"
+            BlueprintName = "iosApp"
+            ReferencedContainer = "container:iosApp.xcodeproj">
+         </BuildableReference>
+      </BuildableProductRunnable>
+   </ProfileAction>
+   <AnalyzeAction buildConfiguration = "Debug"></AnalyzeAction>
+   <ArchiveAction buildConfiguration = "Release" revealArchiveInOrganizer = "YES"></ArchiveAction>
+</Scheme>

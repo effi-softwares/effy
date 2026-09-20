@@ -109,7 +109,57 @@ tab — a 106 dp band behind a card title never justified a native renderer.
 third-party renderer must never be able to abort the app* — is still right; the simulator simply is
 not where it fails. The wrong reasoning is corrected in the file rather than quietly deleted.
 
-## ✅ Verified on a real iOS simulator
+## ⚠ MapLibre was adopted, shipped, and then REMOVED
+
+**Operator decision, 2026-09-20.** MapLibre Compose rendered real OpenStreetMap cartography via
+OpenFreeMap and **worked when the app was launched normally** — but **aborted under Xcode's debug
+build** every time the Map tab opened: `SIGABRT` on its own render thread
+(`RenderSessionHandle.kt`, around `Kotlin_mm_switchThreadStateNative_debug`). The fault is in a
+**pre-1.0** library's handoff between native render callbacks and the Kotlin/Native runtime. It is
+not fixable from this repository, and an app that cannot be Run from Xcode cannot be developed.
+
+The map is now the **stylised route** that FR-023e recorded as the fallback from the start.
+
+⚠ **Less was lost than it sounds.** Real cartography was always going to draw genuine streets with
+**invented pins** — 049 R13: shops carry no address or coordinates, orders carry an un-geocoded
+address. The schematic shows only what the platform actually knows: how many stops, in what order,
+ending where. **Navigate** — which hands the device's own maps app the real address string — was
+and remains how a driver actually routes.
+
+**What removal bought back**: no tile requests, no attribution obligation, no vendor dependency, no
+pre-1.0 library, and a debuggable app.
+
+⚠ **`MapLibreAbsentGuardTest` replaces `MapLibreImportGuardTest`** and now asserts the opposite:
+MapLibre must not reappear in the catalog, the build file, or any import. It is an easy mistake to
+re-make — the dependency is one line, the screen looks like it wants a real map, and **it works
+until you run it from Xcode**, so someone could re-add it, see it render, and ship.
+
+⚠ The `tile.openstreetmap.org` prohibition is retained in that guard: OSM's Tile Usage Policy
+forbids distributing an app that uses their servers, and that stays true for any future attempt.
+
+## ⚠ THREE wrong diagnoses before that, all recorded
+
+1. **"The simulator has no Metal."** From `failed lookup: com.apple.metal.simulator.<app>` — which
+   appears on **every** launch, including the ones where the map rendered. Two lines above it the
+   same log says `Rendered the first map frame with METAL`. The system log was read before the
+   library's own.
+2. **"Three concurrent map instances."** `EffyMapCanvas` had been added to the Today hero strip and
+   the en-route panel — scope creep beyond the task, one of them inside a scrolling column.
+   Plausible; still crashed with one. ⚠ The change was kept on its own merits.
+3. **"Metal API Validation."** A `simctl` launch with `MTL_DEBUG_LAYER=1` appeared to reproduce it
+   — but that test was **confounded**: a second copy was running under Xcode at the same time, so
+   the observed crash may have been that one. It was presented as proof and was not. A shared
+   scheme with validation disabled was committed on that basis and **did not fix it**.
+
+⚠ **The scheme is kept anyway, and is a genuine improvement**: this project had **no shared scheme
+at all**, so Xcode generated one per machine and the run configuration was invisible and
+unreproducible. It is now explicit and version-controlled.
+
+**The lesson, plainly**: three theories, none tested before acting on it, each presented with more
+confidence than the evidence carried. The first two came from reading a log and suspecting a diff;
+the third from an experiment that was not actually controlled.
+
+## ✅ Verified on a real iOS simulator## ✅ Verified on a real iOS simulator
 
 The app **builds, installs, runs, and the Map tab renders live OpenStreetMap cartography** on an
 iPhone 17 Pro simulator (iOS 26.5). Three defects were found by *looking*, none catchable by a test:
