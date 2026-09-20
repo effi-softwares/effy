@@ -300,6 +300,51 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  # ── 062 — clearances: who may do what work, where. Assigns nothing. ─────────────────────────────
+  driverCapabilitiesV1:
+    handler: src/functions/driver-capabilities-v1-get.handler
+    description: Everything a driver is cleared for (062 FR-007). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/drivers/{driverId}/capabilities
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverCapabilityGrantV1:
+    handler: src/functions/driver-capability-grant-v1-post.handler
+    description: Grant one clearance (062 FR-003). Idempotent — granting one already held is a success, not a conflict. Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/drivers/{driverId}/capabilities
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  driverCapabilityRevokeV1:
+    handler: src/functions/driver-capability-revoke-v1-delete.handler
+    description: Revoke one clearance (062 FR-003). Idempotent — revoking one not held is a success. Mutate = admin/manager.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /fleet/v1/drivers/{driverId}/capabilities/{capabilityId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  coverageV1:
+    handler: src/functions/coverage-v1-get.handler
+    description: Every zone that cannot be served, per kind of work, with the reason (062 FR-016). Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/coverage
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   readinessV1:
     handler: src/functions/readiness-v1-get.handler
     description: Drivers who cannot receive work, zones with nobody in them, expiring credentials (056 FR-044…FR-046). Read = any active staff.

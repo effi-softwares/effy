@@ -38,13 +38,22 @@ export async function blockedDrivers(): Promise<BlockedDriver[]> {
  * zeroes. The screen orders by count so the empty ones sit at the top.
  */
 export async function zoneCoverage(): Promise<ZoneCoverage[]> {
+  // ⚠ 062 — counted from CLEARANCES, not from a single zone column on the driver. The old count read
+  // `d.delivery_zone_id = z.id`, which could never see a driver who covered several zones and never
+  // saw an every-zone driver at all — so a fully covered zone could report zero.
+  //
+  // ⚠ `DISTINCT` matters: a driver cleared for both collection and delivery in one zone is ONE
+  // person, and counting their grants would report a zone as twice as covered as it is.
+  const CLEARED = `
+    SELECT count(DISTINCT d.id)
+      FROM public.driver_zone_capability c
+      JOIN public.driver d ON d.id = c.driver_id
+     WHERE (c.zone_id = z.id OR c.zone_id IS NULL) AND d.status = 'active'`;
   const res = await query<{ id: string; name: string; n: string }>(
-    `SELECT z.id, z.name,
-            (SELECT count(*) FROM public.driver d
-              WHERE d.delivery_zone_id = z.id AND d.status = 'active')::text AS n
+    `SELECT z.id, z.name, (${CLEARED})::text AS n
        FROM public.delivery_zone z
-      ORDER BY (SELECT count(*) FROM public.driver d
-                 WHERE d.delivery_zone_id = z.id AND d.status = 'active') ASC, z.name ASC`,
+      WHERE z.status = 'active'
+      ORDER BY (${CLEARED}) ASC, z.name ASC`,
   );
   return res.rows.map((r) => ({ zoneId: r.id, zoneName: r.name, activeDrivers: Number(r.n) }));
 }

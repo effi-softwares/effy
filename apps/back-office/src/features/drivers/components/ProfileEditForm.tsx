@@ -16,9 +16,8 @@ import {
 } from "@effy/design-system/ui";
 
 import { driverActionError } from "../errorText";
-import { useUpdateDriver, zonesQuery } from "../queries";
+import { useUpdateDriver } from "../queries";
 
-const NO_ZONE = "none";
 
 /**
  * Edit the profile of record (FR-009, FR-010, FR-012).
@@ -41,13 +40,11 @@ export function ProfileEditForm({
   driver: AdminDriverProfile;
   onDone: () => void;
 }) {
-  const zones = useQuery(zonesQuery());
   const update = useUpdateDriver(driver.id);
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState(driver.name);
   const [contactPhone, setContactPhone] = useState(driver.contactPhone ?? "");
-  const [zoneId, setZoneId] = useState(driver.zoneId ?? NO_ZONE);
   // ⚠ 061: the vehicle type/plate FIELDS ARE GONE from this form. A vehicle is its own record now,
   // and what a driver drives is decided by issuing them one on the vehicle screen — not by typing a
   // string here that nobody maintained. The registration expiry went with them: it is a fact about a
@@ -69,7 +66,6 @@ export function ProfileEditForm({
     const body: AdminDriverUpdateRequest = {
       name: name.trim(),
       contactPhone: orNull(contactPhone),
-      zoneId: zoneId === NO_ZONE ? null : zoneId,
 
       licenceReference: orNull(licenceReference),
       licenceExpiresOn: orNull(licenceExpiresOn),
@@ -120,26 +116,9 @@ export function ProfileEditForm({
           />
         </Field>
 
-        <Field id="f-zone" label="Delivery zone">
-          <Select value={zoneId} onValueChange={setZoneId}>
-            <SelectTrigger id="f-zone">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_ZONE}>Not assigned</SelectItem>
-              {(zones.data ?? []).map((z) => (
-                <SelectItem key={z.id} value={z.id}>
-                  {z.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {zoneId === NO_ZONE ? (
-            <p className="text-xs text-muted-foreground">
-              Without a zone this driver cannot be given work.
-            </p>
-          ) : null}
-        </Field>
+        {/* ⚠ 062 — THE ZONE PICKER IS GONE. A driver's coverage is a set of clearances now
+            (function × method × zone), granted on the Clearances section below, because one zone
+            could never express "same-day delivery here, standard collection everywhere". */}
 
         <Field id="f-licence-class" label="Licence class">
           <select

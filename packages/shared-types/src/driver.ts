@@ -47,7 +47,19 @@ export interface DriverMeDTO {
   id: string;
   name: string;
   workEmail: string;
-  zone: string | null; // display name of the assigned delivery zone; null until provisioned
+  /**
+   * What the driver is cleared to cover, as one line for their own Account screen.
+   *
+   * ⚠ THE SHAPE IS UNCHANGED BY 062 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it in three
+   * places (Today, Help, Account) and it is part of the generated Kotlin contract. What changed is
+   * where it COMES FROM: until 062 this was a single assigned zone that no assignment code ever read;
+   * it is now DERIVED from the driver's clearances. The app tells the truth without a line of Kotlin
+   * changing — the same move 061 made for `DriverVehicle`.
+   *
+   * null when the driver is cleared for nothing, which is an ordinary state for a new starter and one
+   * the app already renders as unavailable rather than as a broken row.
+   */
+  zone: string | null;
   hub: string | null; // display label of the central hub (from delivery_settings)
   vehicle: DriverVehicle;
   dutyStatus: DriverDutyStatus;
@@ -424,7 +436,14 @@ export type DriverStatus = DriverEmploymentStatus;
 /** Why a driver cannot be given work. An enumerated cause, never a bare boolean — "cannot work"
  *  without "why" is not actionable, and the fix differs per cause (FR-044). */
 /**
- * ⚠ WIDENED BY 061, AND EVERY READER WAS AUDITED FIRST (tasks T015). 053, 056 and 057 each shipped a
+ * ⚠ NARROWED BY 062 AND WIDENED BY 061, AND EVERY READER WAS AUDITED BEFORE EACH (T010, T015).
+ *
+ * 062 removed `no_zone` and added `no_capabilities`. ⚠ A NARROWING IS NOT THE MIRROR OF A WIDENING:
+ * removing a member makes an exhaustive `Record<>` over it OVER-specified, which TypeScript reports
+ * as an excess property — so the compiler helps here too. But stored rows and test fixtures carrying
+ * the removed value do NOT announce themselves and had to be found by hand.
+ *
+ * ⚠ ORIGINAL 061 NOTE FOLLOWS. 053, 056 and 057 each shipped a
  * defect through an enum widening, and this one is unusually sharp: the console's `BLOCKED_LABEL` is
  * a `Record<DriverBlockedReason, string>`, so a missing key renders **nothing at all** — a blocked
  * driver with a blank reason reads as "not blocked". `model.test.ts` asserts the map is exhaustive so
@@ -434,16 +453,17 @@ export type DriverStatus = DriverEmploymentStatus;
  * `apis/edge-api/fleet/src/readiness/`, `apps/back-office/src/features/drivers/model.ts`
  * (`BLOCKED_LABEL`) and its ReadinessPanel/list fixtures.
  *
- * ⚠ `no_zone` stays and stays inert until slice B replaces `driver.delivery_zone_id` with the
- * capability matrix. Recorded here so the next slice does not read it as drift.
+ * ⚠ `no_zone` HAS NOW BEEN REMOVED by slice B, as that note predicted.
  */
 export type DriverBlockedReason =
-  | "no_zone"
   | "suspended"
   | "offboarded"
   | "licence_expired"
   | "no_vehicle"
-  | "vehicle_non_compliant";
+  | "vehicle_non_compliant"
+  /** ⚠ 062 — replaces `no_zone`. A driver cleared for nothing cannot be given work, and the remedy
+   *  is to grant them a clearance rather than to assign them a zone. */
+  | "no_capabilities";
 
 /** Whether the platform record and the sign-in account agree (FR-006, spec edge case).
  *  `record_only` / `identity_only` mean provisioning half-succeeded — the profile must SHOW that
@@ -459,8 +479,8 @@ export interface AdminDriverListItem {
   id: string;
   name: string;
   workEmail: string;
-  zone: string | null;
-  zoneId: string | null;
+  /** ⚠ 062 — breadth of clearance replaces the old single zone. A SUMMARY, never the full set. */
+  capabilitySummary: DriverCapabilitySummary;
   dutyState: DriverDutyState;
   status: DriverEmploymentStatus;
   /** Empty when the driver can receive work. Populated causes are shown inline (FR-044, SC-009). */
@@ -500,8 +520,9 @@ export interface AdminDriverProfile {
   name: string;
   workEmail: string;
   contactPhone: string | null;
-  zoneId: string | null;
-  zone: string | null;
+  // ⚠ `zoneId` / `zone` LEFT THIS TYPE IN 062. A driver's coverage is now a set of clearances
+  // (`capabilities` below), because one zone could never express "same-day delivery here, standard
+  // collection everywhere" — and because no assignment code ever read the old field.
   hub: string | null;
   vehicle: DriverVehicle;
   credentials: AdminDriverCredentials;
@@ -513,6 +534,8 @@ export interface AdminDriverProfile {
   notes: string | null;
   dutyState: DriverDutyState;
   blockedReasons: DriverBlockedReason[];
+  /** Everything this driver is cleared for (062, FR-007). */
+  capabilities: DriverCapability[];
   accountState: DriverAccountState;
   /** The optimistic-concurrency token. A PATCH must echo the value it loaded (FR: edge case
    *  "two operators edit the same driver at once"); a stale one is refused with a named 409. */
@@ -523,7 +546,9 @@ export interface AdminDriverCreateRequest {
   name: string;
   workEmail: string;
   contactPhone?: string | null;
-  zoneId?: string | null;
+  // ⚠ `zoneId` LEFT THIS TYPE IN 062. A new driver starts cleared for nothing, and clearances are
+  // granted deliberately afterwards — a create form that quietly assigns coverage is how somebody
+  // ends up eligible for work nobody decided to give them.
   // ⚠ `vehicleType` / `vehiclePlate` / `vehicleRegistrationExpiresOn` LEFT THIS TYPE IN 061. A
   // vehicle is its own record; what a driver drives is decided by ISSUING them one, not by typing a
   // string here. A registration expiry is a fact about a vehicle, so two drivers holding the same
@@ -551,7 +576,8 @@ export interface AdminDriverCreateRequest {
 export interface AdminDriverUpdateRequest {
   name?: string;
   contactPhone?: string | null;
-  zoneId?: string | null;
+  // ⚠ `zoneId` LEFT THIS TYPE IN 062 — clearances are granted and revoked through their own routes,
+  // not edited as a field on the profile.
   // ⚠ `vehicleType` / `vehiclePlate` / `vehicleRegistrationExpiresOn` LEFT THIS TYPE IN 061. A
   // vehicle is its own record; what a driver drives is decided by ISSUING them one, not by typing a
   // string here. A registration expiry is a fact about a vehicle, so two drivers holding the same
@@ -596,6 +622,7 @@ export interface AdminDriverStatusRequest {
 export interface OnDutyDriver {
   driverId: string;
   driverName: string;
+  /** ⚠ 062 — derived from clearances, not a single assigned zone. Null when cleared for nothing. */
   zone: string | null;
   sessionId: string;
   onDutySince: string;
@@ -636,6 +663,85 @@ export interface DutyResponseAdmin {
 // ⚠ `DriverAuditEntry` below is a DIFFERENT record and deliberately survives: it is the back-office
 // change log in `admin.audit_log` — who edited a driver's profile, who stood them down and why. That
 // is employment history, not work history, and nothing about it depended on the shape of a run.
+
+// ── Clearances and coverage (062) ────────────────────────────────────────────────────────────────
+//
+// ⚠ BACK-OFFICE ONLY. None of these enter `driver-contract.ts`, so none reaches the generated Kotlin.
+// A driver does not grant their own clearances; they see only the derived `DriverMeDTO.zone` line.
+
+export type CapabilityFunction = "collection" | "delivery";
+export type CapabilityMethod = "standard" | "same_day";
+
+/**
+ * One grant: this driver may do this kind of work in this place.
+ *
+ * ⚠ `zoneId: null` MEANS EVERY ZONE — including zones created afterwards. It is the single most
+ * important fact in this feature, and the one whose absence would be invisible: an enumeration of
+ * today's zones is correct when written and quietly wrong the first time a zone is added, with
+ * nothing failing and nobody told.
+ */
+export interface DriverCapability {
+  id: string;
+  function: CapabilityFunction;
+  method: CapabilityMethod;
+  /** ⚠ null = every zone. */
+  zoneId: string | null;
+  /** ⚠ null for an every-zone grant — NEVER a server-supplied "All zones" string. The label is
+   *  presentation, and a second place naming the concept is a second place it can drift. The console
+   *  renders it from `zoneId === null`. */
+  zoneName: string | null;
+  grantedAt: string;
+}
+
+export interface DriverCapabilityListResponse {
+  items: DriverCapability[];
+}
+
+/**
+ * ⚠ `zoneId` is REQUIRED and may be explicitly `null`. A key absent and a key present-with-null must
+ * not be conflated, or "everywhere" becomes indistinguishable from "the operator forgot to choose".
+ */
+export interface GrantCapabilityRequest {
+  function: CapabilityFunction;
+  method: CapabilityMethod;
+  zoneId: string | null;
+}
+
+/** Breadth of clearance for the register (FR-014). ⚠ A SUMMARY, not the full set — shipping every
+ *  grant would put an unbounded array on every row of a paged list. */
+export interface DriverCapabilitySummary {
+  total: WireInt;
+  coversEveryZone: boolean;
+  functions: CapabilityFunction[];
+}
+
+/** Why a zone cannot be served. ⚠ TWO REASONS, NOT ONE — an administrative gap and a rostering
+ *  problem have different remedies, and collapsing them tells an operator nothing about what to do. */
+export type CoverageGapReason = "no_driver_cleared" | "all_cleared_unavailable";
+
+export interface CoverageGap {
+  zoneId: string;
+  zoneName: string;
+  function: CapabilityFunction;
+  method: CapabilityMethod;
+  reason: CoverageGapReason;
+  /** ⚠ What makes the two reasons ACTIONABLE: 0 means grant somebody a clearance; more than 0 means
+   *  the people who have it cannot work today, and the fix is in the readiness view. */
+  clearedDriverCount: WireInt;
+}
+
+/**
+ * ⚠ A LIST OF PROBLEMS, NOT A MATRIX. A covered (zone, function, method) emits NO ROW at all
+ * (FR-019) — a screen that lists everything and colours the bad ones is a screen an operator has to
+ * scan.
+ *
+ * ⚠ Only the work a zone can actually RECEIVE is enumerated: same-day appears only for zones whose
+ * `sameday_eligible` is true. Otherwise "nobody is cleared for same-day in Ballarat" would be a
+ * permanent, unfixable row in the one view whose purpose is to be actionable.
+ */
+export interface CoverageResponse {
+  gaps: CoverageGap[];
+}
 
 // ── Vehicles (061) ───────────────────────────────────────────────────────────────────────────────
 //

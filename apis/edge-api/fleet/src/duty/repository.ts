@@ -48,7 +48,19 @@ export async function listOnDuty(): Promise<OnDutyDriver[]> {
             (s.started_at < now() - make_interval(hours => $1::int)) AS overdue
        FROM public.driver_duty_session s
        JOIN public.driver d             ON d.id = s.driver_id
-       LEFT JOIN public.delivery_zone z ON z.id = d.delivery_zone_id
+       -- ⚠ 062 — a driver's zone line is DERIVED from clearances now. "Every zone" when they hold an
+       -- every-zone grant, the zone's name when they cover exactly one, otherwise a count. The old
+       -- single-zone column could not express any of the three.
+       LEFT JOIN LATERAL (
+         SELECT CASE
+                  WHEN bool_or(c.zone_id IS NULL) THEN 'Every zone'
+                  WHEN count(DISTINCT cz.name) = 1 THEN min(cz.name)
+                  WHEN count(DISTINCT cz.name) > 1 THEN count(DISTINCT cz.name)::text || ' zones'
+                END AS name
+           FROM public.driver_zone_capability c
+           LEFT JOIN public.delivery_zone cz ON cz.id = c.zone_id
+          WHERE c.driver_id = d.id AND (c.zone_id IS NULL OR cz.status = 'active')
+       ) z ON TRUE
       WHERE s.ended_at IS NULL
       ORDER BY s.started_at ASC`,
     [dutyOverdueHours()],

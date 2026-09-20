@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 
 import { BLOCKED_LABEL, formatDate } from "../model";
 import { readinessQuery } from "../queries";
+import { CoveragePanel } from "./CoveragePanel";
 
 /**
  * The gaps, before an order is affected (US6, FR-044…FR-046).
@@ -58,21 +59,18 @@ export function ReadinessPanel() {
         </div>
       ) : null}
 
-      {uncovered.length > 0 ? (
-        <div className="space-y-2">
-          <h3 className="text-sm font-semibold">Zones with nobody in them</h3>
-          <ul className="divide-y border-y">
-            {uncovered.map((z) => (
-              <li key={z.zoneId} className="py-2 text-sm">
-                <span className="font-medium">{z.zoneName}</span>{" "}
-                <span className="text-muted-foreground">
-                  — no active driver is assigned to this zone
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {/* ⚠ 062 REPLACED "zones with nobody in them" WITH THIS, and the replacement says more.
+          The old list counted drivers ASSIGNED to a zone by a single-zone column — it could never
+          see a driver who covered several zones and never saw an every-zone driver at all, so a
+          fully covered zone could report nobody in it.
+
+          ⚠ It lives HERE rather than on its own page (FR-020). Two screens answering "can this
+          driver work?" would eventually disagree, and an operator would have no way to tell which
+          one was right. On the server both read a single availability rule, for the same reason. */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-semibold">Work nobody can cover</h3>
+        <CoveragePanel />
+      </div>
 
       {data.expiring.length > 0 ? (
         <div className="space-y-2">

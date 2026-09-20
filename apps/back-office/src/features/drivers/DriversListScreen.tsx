@@ -72,10 +72,24 @@ const columns: ColumnDef<AdminDriverListItem>[] = [
   },
   { accessorKey: "workEmail", header: "Work email" },
   {
-    accessorKey: "zone",
-    header: "Zone",
-    cell: ({ row }) =>
-      row.original.zone ?? <span className="text-muted-foreground">Not assigned</span>,
+    // ⚠ 062 FR-014/FR-015 — breadth of clearance, summarised. A driver cleared for NOTHING is a
+    // stated fact, not blank space: an empty cell reads as "nothing to say", and this is the one
+    // thing stopping them being given work.
+    id: "clearance",
+    header: "Cleared for",
+    cell: ({ row }) => {
+      const c = row.original.capabilitySummary;
+      if (c.total === 0) {
+        return <span className="font-medium">Nothing yet</span>;
+      }
+      const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`;
+      const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver";
+      return (
+        <span>
+          {what} <span className="text-muted-foreground">· {where}</span>
+        </span>
+      );
+    },
   },
   {
     accessorKey: "dutyState",
@@ -127,6 +141,9 @@ export function DriversListScreen() {
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(driversListQuery(params));
+  // ⚠ 062 — the zone FILTER stays, and its meaning improved: it now finds drivers CLEARED for that
+  // zone, which includes every-zone drivers. Matching only zone-specific grants would hide the
+  // people with the broadest clearance — the opposite of what an operator filtering by zone wants.
   const zones = useQuery(zonesQuery());
   // The outstanding count only — the rows live on the Exceptions section of the profile and the
   // dedicated filter below.

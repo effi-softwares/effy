@@ -26,8 +26,7 @@ const PROFILE = {
   name: "Sam Rivers",
   workEmail: "sam@effyshopping.com",
   contactPhone: null,
-  zoneId: null,
-  zone: null,
+  capabilities: [],
   hub: "Effy Hub",
   vehicle: { type: null, plate: null },
   credentials: {
@@ -177,26 +176,28 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
 describe("updateDriver — FR-010/FR-012", () => {
   it("⚠ passes a null through to the repository so a field can be CLEARED", async () => {
     // The defect FR-010 exists for: `COALESCE($n, col)` cannot distinguish "absent" from "null", so
-    // a zone once assigned could never be un-assigned by any request the API accepted.
+    // a field once set could never be cleared by any request the API accepted.
+    // ⚠ 062 — the original example was the driver's single zone, which no longer exists. The RULE is
+    // unchanged and is what this test is about, so it now uses a field that does.
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
 
     await updateDriver(
       "d-1",
-      { zoneId: null, updatedAt: PROFILE.updatedAt },
+      { contactPhone: null, updatedAt: PROFILE.updatedAt },
       "actor-1",
       scope,
     );
 
     const patch = vi.mocked(repo.updateDriver).mock.calls[0]![1];
-    expect("zoneId" in patch).toBe(true);
-    expect(patch.zoneId).toBeNull();
+    expect("contactPhone" in patch).toBe(true);
+    expect(patch.contactPhone).toBeNull();
   });
 
   it("⚠ does not send a key the caller omitted, so an untouched field stays untouched", async () => {
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
     await updateDriver("d-1", { name: "Renamed", updatedAt: PROFILE.updatedAt }, "actor-1", scope);
     const patch = vi.mocked(repo.updateDriver).mock.calls[0]![1];
-    expect("zoneId" in patch).toBe(false);
+    expect("contactPhone" in patch).toBe(false);
     expect("contactPhone" in patch).toBe(false);
   });
 

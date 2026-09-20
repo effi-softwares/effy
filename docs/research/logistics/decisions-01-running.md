@@ -21,7 +21,7 @@ questions about the same extension and must not be conflated — see D4.
 
 ---
 
-## D2. The capability matrix is a join table with NULL as a first-class "all zones" scope.
+## D2. ✅ IMPLEMENTED (062). The capability matrix is a join table with NULL as a first-class "all zones" scope.
 **Shape (agent 06):**
 ```
 driver_zone_capability(
@@ -61,7 +61,7 @@ with a feature that looks like it works.
 
 ---
 
-## D3. Capability is a FILTER, never a score.
+## D3. ✅ IMPLEMENTED (062). Capability is a FILTER, never a score.
 **Evidence (agent 06):** Bringg's and Onfleet's public docs both show the same pattern — skills live on
 the worker, tasks declare required skills, matching is a filter, and **"no match" is explicit UX**
 (Bringg: *"add a driver with the required skills… or reschedule"*) rather than silent failure.

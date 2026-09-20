@@ -29,7 +29,21 @@ export const BLOCKED_REASONS = `(
   ARRAY_REMOVE(ARRAY[
     CASE WHEN d.status = 'suspended'  THEN 'suspended'  END,
     CASE WHEN d.status = 'offboarded' THEN 'offboarded' END,
-    CASE WHEN d.delivery_zone_id IS NULL THEN 'no_zone' END,
+    -- ⚠ 062 REPLACED no_zone WITH THIS. The old reason read d.delivery_zone_id IS NULL — a
+    -- single-zone column that no assignment code ever consulted, so a driver could be reported
+    -- "inert for assignment" on the basis of a field nothing used. A driver is now blocked when they
+    -- are cleared for NOTHING, and the remedy is to grant them a clearance rather than to assign
+    -- them a zone.
+    --
+    -- ⚠ Disabled zones are excluded, so a driver whose only clearances name zones the platform has
+    -- stopped serving is correctly reported as cleared for nothing.
+    CASE WHEN NOT EXISTS (
+           SELECT 1
+             FROM public.driver_zone_capability bc
+             LEFT JOIN public.delivery_zone bz ON bz.id = bc.zone_id
+            WHERE bc.driver_id = d.id
+              AND (bc.zone_id IS NULL OR bz.status = 'active')
+         ) THEN 'no_capabilities' END,
     CASE WHEN d.licence_expires_on IS NOT NULL
           AND d.licence_expires_on < (now() AT TIME ZONE 'Australia/Melbourne')::date
          THEN 'licence_expired' END,

@@ -21,7 +21,7 @@ import { BLOCKED_LABEL, formatTime } from "./model";
  */
 describe("BLOCKED_LABEL — every blocking reason has words a person can act on", () => {
   const ALL_REASONS: DriverBlockedReason[] = [
-    "no_zone",
+    "no_capabilities",
     "suspended",
     "offboarded",
     "licence_expired",

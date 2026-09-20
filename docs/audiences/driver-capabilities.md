@@ -5,6 +5,29 @@ surface — there is no driver web). Each capability lists the surface and the s
 
 Legend: ✅ built & verified · 🚧 partial (noted) · ⛔ deferred (blocked/own-slice) · — n/a
 
+## §062 — Driver Zone Capability & Coverage (built 2026-09-20, NOT DEPLOYED)
+
+Slice B of the logistics rebuild. Makes Effy able to say **who is eligible for what work, where**; it
+assigns nothing. Spec: [specs/062-driver-zone-capability/](../../specs/062-driver-zone-capability/).
+
+| Capability | Where | Status | Notes |
+|---|---|---|---|
+| Clearance = function × method × zone, any combination | back-office | ✅ | `driver_zone_capability`; collect/deliver × standard/same-day × one, many or every zone |
+| ⚠ **"Every zone", including zones created afterwards** | back-office | ✅ | `zone_id IS NULL` is the fact, not a list of today's zones — proven by creating a zone mid-test |
+| Grant / revoke, idempotent both ways | back-office | ✅ | repeating either is a success, never a conflict — two operators can act at once |
+| Breadth of clearance on the register | back-office | ✅ | a summary, never the full set; "Nothing yet" is a stated fact |
+| Coverage gaps, per kind of work | back-office | ✅ | inside the readiness screen, never a second screen that could disagree |
+| ⚠ Two gap reasons, two remedies | back-office | ✅ | `no_driver_cleared` (grant somebody) vs `all_cleared_unavailable` (fix readiness) |
+| ⚠ Same-day gaps only where same-day is sold | back-office | ✅ | `sameday_eligible`; otherwise the view fills with permanently unfixable rows |
+| Driver's own zone line | driver app | ✅ | **derived from clearances**, shape unchanged — no Kotlin changed |
+| Single `driver.delivery_zone_id` | — | ⛔ **REMOVED** | one zone when a driver covers several, and read by nothing. `no_zone` → `no_capabilities` |
+
+⚠ **The driver app gained a truer answer for free, twice now.** 061 repointed `DriverVehicle` at the
+open holding; 062 repoints `DriverMeDTO.zone` at the driver's clearances. Both kept their shape, so
+the generated Kotlin and all 45 screens are untouched.
+
+---
+
 ## §061 — Fleet Foundations (built 2026-09-20, NOT DEPLOYED)
 
 Slice A of the logistics rebuild. Makes Effy able to **describe its fleet accurately**; it assigns

@@ -21,7 +21,10 @@ export type DriverAuditAction =
   | "driver.duty_session_ended"
   | "driver.work_released"
   | "driver.exception_resolved"
-  | "driver.proof.viewed";
+  | "driver.proof.viewed"
+  /** 062 — clearances. A clearance is a fact about a PERSON, so the target stays `driver`. */
+  | "driver.capability_granted"
+  | "driver.capability_revoked";
 
 /** Vehicle-register actions (061). ⚠ A vehicle is a different TARGET, not a different audit trail —
  *  `admin.audit_log` stays the platform's one privileged-change record (Principle II). */

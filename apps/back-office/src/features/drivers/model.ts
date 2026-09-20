@@ -34,7 +34,9 @@ export const STATUS_MEANING: Record<DriverEmploymentStatus, string> = {
  * remedy, and "cannot receive work" on its own tells nobody which one to apply.
  */
 export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
-  no_zone: "No delivery zone — cannot be given work",
+  // ⚠ 062 replaced `no_zone` with this. The old reason named a single-zone field that no
+  // assignment code ever read; the remedy now is to GRANT a clearance, not to assign a zone.
+  no_capabilities: "Not cleared for any work — cannot be given work",
   suspended: "Suspended — cannot be given work",
   offboarded: "Offboarded — cannot be given work",
   licence_expired: "Licence expired — cannot be given work",

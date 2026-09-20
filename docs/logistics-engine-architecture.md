@@ -274,7 +274,8 @@ Complete driver management; make vehicles a first-class entity.
 - Back-office: vehicle register, vehicle detail, assign/return, extended driver profile.
 - **No engine. Nothing assigns work.** Ships safely.
 
-### Slice B — Zones, capability and coverage *(brief requirement 2)*
+### Slice B — Zones, capability and coverage *(brief requirement 2)* — ✅ **BUILT 2026-09-20, NOT DEPLOYED**
+Spec/artifacts: [specs/062-driver-zone-capability/](../specs/062-driver-zone-capability/).
 - `driver_zone_capability` with the `NULLS NOT DISTINCT` index, **proven by a container test** that
   inserts the duplicate and asserts refusal.
 - Back-office: capability editor per driver — zone × function × method, including "all zones".

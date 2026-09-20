@@ -51,6 +51,8 @@ vi.mock("@effy/edge-shared", async () => {
 import * as driversRepo from "./drivers/repository";
 import * as dutyRepo from "./duty/repository";
 import * as readinessRepo from "./readiness/repository";
+import * as capRepo from "./capabilities/repository";
+import * as coverageRepo from "./coverage/repository";
 import * as holdingsRepo from "./holdings/repository";
 import * as vehiclesRepo from "./vehicles/repository";
 
@@ -106,7 +108,9 @@ CREATE TABLE public.order_package_delivery (
   PRIMARY KEY (order_id, shop_id)
 );
 CREATE TABLE public.delivery_zone (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), name text NOT NULL,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active','disabled')),
+  sameday_eligible boolean NOT NULL DEFAULT true
 );
 CREATE TABLE public.delivery_settings (
   id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -119,7 +123,6 @@ CREATE TABLE public.driver (
   cognito_sub text NOT NULL UNIQUE,
   name text NOT NULL,
   work_email citext NOT NULL UNIQUE,
-  delivery_zone_id uuid REFERENCES public.delivery_zone (id) ON DELETE SET NULL,
   status text NOT NULL DEFAULT 'active'
     CHECK (status IN ('active', 'suspended', 'offboarded')),
   status_reason text,
@@ -131,6 +134,22 @@ CREATE TABLE public.driver (
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+-- ── 062: clearances. Mirrors 20260920190000_driver_zone_capability.sql exactly. ────────────────
+CREATE TABLE public.driver_zone_capability (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id uuid NOT NULL REFERENCES public.driver (id) ON DELETE CASCADE,
+  function text NOT NULL CHECK (function IN ('collection','delivery')),
+  method text NOT NULL CHECK (method IN ('standard','same_day')),
+  zone_id uuid NULL REFERENCES public.delivery_zone (id) ON DELETE CASCADE,
+  granted_by_sub text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+-- ⚠ FR-005 AND FR-011 BOTH LIVE IN THIS INDEX. A plain UNIQUE does not deduplicate NULLs.
+CREATE UNIQUE INDEX driver_zone_capability_uq
+  ON public.driver_zone_capability (driver_id, function, method, zone_id) NULLS NOT DISTINCT;
+CREATE INDEX driver_zone_capability_driver_idx ON public.driver_zone_capability (driver_id);
+CREATE INDEX driver_zone_capability_zone_idx ON public.driver_zone_capability (zone_id);
+
 CREATE INDEX driver_name_trgm_idx ON public.driver USING gin (name gin_trgm_ops);
 CREATE INDEX driver_register_idx ON public.driver (name, id);
 
@@ -221,7 +240,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
   beforeEach(async () => {
     await pool.query(`
-      TRUNCATE public.vehicle_holding, public.vehicle, public.driver_duty_session,
+      TRUNCATE public.driver_zone_capability, public.vehicle_holding, public.vehicle, public.driver_duty_session,
                public.driver, public.order_item, public.order_package_delivery,
                public.shop_fulfillment, public."order", public.customer_address, public.customer,
                public.shop, public.delivery_zone, public.delivery_settings, admin.audit_log
@@ -231,12 +250,30 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     );
   });
 
-  async function seedZone(name = "Inner North"): Promise<string> {
+  async function seedZone(
+    name = "Inner North",
+    opts: { status?: string; sameDay?: boolean } = {},
+  ): Promise<string> {
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.delivery_zone (name) VALUES ($1) RETURNING id`,
-      [name],
+      `INSERT INTO public.delivery_zone (name, status, sameday_eligible)
+       VALUES ($1, $2, $3) RETURNING id`,
+      [name, opts.status ?? "active", opts.sameDay ?? true],
     );
     return r.rows[0]!.id;
+  }
+
+  /** Grant a clearance. ⚠ `zoneId: null` means EVERY ZONE (062 FR-010). */
+  async function grantCap(
+    driverId: string,
+    fn: "collection" | "delivery",
+    method: "standard" | "same_day",
+    zoneId: string | null,
+  ): Promise<void> {
+    await pool.query(
+      `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
+       VALUES ($1, $2, $3, $4)`,
+      [driverId, fn, method, zoneId],
+    );
   }
 
   async function seedDriver(
@@ -244,18 +281,27 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     opts: { zoneId?: string | null; status?: string; onDuty?: boolean; licenceExpires?: string } = {},
   ): Promise<string> {
     const r = await pool.query<{ id: string }>(
-      `INSERT INTO public.driver (cognito_sub, name, work_email, delivery_zone_id, status, licence_expires_on)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      `INSERT INTO public.driver (cognito_sub, name, work_email, status, licence_expires_on)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
       [
         `sub-${name}-${Math.random()}`,
         name,
         `${name.toLowerCase().replace(/\s+/g, ".")}.${Math.floor(Math.random() * 1e6)}@effyshopping.com`,
-        opts.zoneId ?? null,
         opts.status ?? "active",
         opts.licenceExpires ?? null,
       ],
     );
     const id = r.rows[0]!.id;
+    // ⚠ 062 — a driver with no clearance is BLOCKED (`no_capabilities`), which would make every
+    // pre-existing test about some other blocking reason fail for the wrong cause. Passing a zoneId
+    // now grants the full set there; passing none grants nothing, which several tests rely on.
+    if (opts.zoneId !== undefined && opts.zoneId !== null) {
+      for (const fn of ["collection", "delivery"] as const) {
+        for (const m of ["standard", "same_day"] as const) {
+          await grantCap(id, fn, m, opts.zoneId);
+        }
+      }
+    }
     if (opts.onDuty) {
       await pool.query(`INSERT INTO public.driver_duty_session (driver_id) VALUES ($1)`, [id]);
     }
@@ -355,14 +401,12 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       );
 
       const before = await driversRepo.getDriver(id);
-      expect(before!.zoneId).toBe(zoneId);
       expect(before!.contactPhone).toBe("0400 111 222");
 
       // Clear every optional field in one patch.
       const outcome = await driversRepo.updateDriver(
         id,
         {
-          zoneId: null,
           contactPhone: null,
           licenceClass: null,
           licenceReference: null,
@@ -376,7 +420,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(outcome).toBe("updated");
 
       const after = await driversRepo.getDriver(id);
-      expect(after!.zoneId).toBeNull();
       expect(after!.contactPhone).toBeNull();
       // ⚠ `vehicle.plate` is no longer a driver column at all — it is derived from the open holding
       // (061). Null here means "holds no vehicle", which is the correct answer for this driver.
@@ -649,13 +692,12 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     it("⚠ C8 — emits EVERY applicable reason at once, not just the first", async () => {
       // Suspended AND no zone AND licence expired AND no vehicle: four causes, one driver.
       const id = await seedDriver("Hotel Eight", {
-        zoneId: null,
-        status: "suspended",
+              status: "suspended",
         licenceExpires: "2020-01-01",
       });
       const d = await driversRepo.getDriver(id);
       expect(new Set(d!.blockedReasons)).toEqual(
-        new Set(["suspended", "no_zone", "licence_expired", "no_vehicle"]),
+        new Set(["suspended", "no_capabilities", "licence_expired", "no_vehicle"]),
       );
     });
 
@@ -770,13 +812,283 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
   });
 
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // 062 — clearances and coverage, against real PostgreSQL.
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+
+  describe("062 C1–C8 — clearances", () => {
+    /** ⚠ C1 — FR-005. A grant an operator repeats must SUCCEED; two doing it at once must both win. */
+    it("C1 — granting the same clearance twice is refused by the index, and surfaces as a no-op", async () => {
+      const z = await seedZone("C1 Zone");
+      const d = await seedDriver("Alpha Cap");
+      await capRepo.grant(d, "delivery", "same_day", z, "actor-1");
+      await capRepo.grant(d, "delivery", "same_day", z, "actor-1");
+
+      const rows = await pool.query(
+        `SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d],
+      );
+      expect(rows.rowCount).toBe(1);
+
+      // And the raw insert is refused by the database, not merely absorbed by the service.
+      await expect(
+        pool.query(
+          `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
+           VALUES ($1, 'delivery', 'same_day', $2)`, [d, z],
+        ),
+      ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
+    });
+
+    /**
+     * ⚠ C2 — THE `NULLS NOT DISTINCT` PROOF.
+     *
+     * A plain UNIQUE does NOT deduplicate NULLs, so without the clause an "every zone" grant could be
+     * inserted twice and FR-005's idempotence would silently not hold for the broadest clearance
+     * there is. This is 059's nullable `subject_key` shape: a green suite and a feature that looks
+     * like it works.
+     */
+    it("⚠ C2 — two identical EVERY-ZONE grants cannot both exist", async () => {
+      const d = await seedDriver("Bravo Every");
+      await capRepo.grant(d, "collection", "standard", null, "actor-1");
+
+      await expect(
+        pool.query(
+          `INSERT INTO public.driver_zone_capability (driver_id, function, method, zone_id)
+           VALUES ($1, 'collection', 'standard', NULL)`, [d],
+        ),
+      ).rejects.toMatchObject({ constraint: "driver_zone_capability_uq" });
+
+      // The service path is idempotent rather than throwing.
+      await capRepo.grant(d, "collection", "standard", null, "actor-1");
+      const rows = await pool.query(
+        `SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d],
+      );
+      expect(rows.rowCount).toBe(1);
+    });
+
+    /**
+     * ⚠⚠ C3 — THE SINGLE MOST IMPORTANT TEST IN THIS SLICE (FR-011, SC-003).
+     *
+     * A driver cleared for EVERY ZONE must cover a zone that does not exist yet. The absence of this
+     * behaviour is completely INVISIBLE: the driver quietly stops being eligible for new areas,
+     * nothing fails, and nobody is told. So it is CAUSED here — a zone is created mid-test — rather
+     * than asserted about the query's text.
+     */
+    it("⚠⚠ C3 — an EVERY-ZONE driver covers a zone CREATED AFTERWARDS", async () => {
+      // ⚠ The driver must be ABLE TO WORK for the second assertion to mean what it says. A cleared
+      // driver with no vehicle is blocked, and the coverage view would report the new zone as
+      // `all_cleared_unavailable` — which is CORRECT behaviour and would mask the thing under test.
+      // The first draft of this test missed that and failed, which is the test doing its job.
+      const d = await seedDriver("Charlie Everywhere", { licenceExpires: "2030-01-01" });
+      const v = await seedVehicle("EFY-C3", { regExpires: "2030-01-01" });
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
+      await capRepo.grant(d, "delivery", "standard", null, "actor-1");
+
+      // The zone does not exist at the moment the clearance is granted.
+      const laterZone = await seedZone("Created Afterwards");
+
+      const cleared = await pool.query<{ ok: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM public.driver_zone_capability c
+            WHERE c.driver_id = $1 AND c.function = $2 AND c.method = $3
+              AND (c.zone_id = $4 OR c.zone_id IS NULL)
+         ) AS ok`,
+        [d, "delivery", "standard", laterZone],
+      );
+      expect(cleared.rows[0]!.ok).toBe(true);
+
+      // ⚠ And the coverage view agrees — no gap for the new zone's standard delivery, because an
+      // able driver cleared for EVERY zone covers a zone that did not exist when they were cleared.
+      const gaps = await coverageRepo.coverageGaps();
+      const newZoneDeliveryGap = gaps.find(
+        (g) => g.zoneId === laterZone && g.function === "delivery" && g.method === "standard",
+      );
+      expect(newZoneDeliveryGap).toBeUndefined();
+    });
+
+    /** ⚠ C4 — the mirror of C3: a zone-SPECIFIC grant must NOT leak to another zone. */
+    it("C4 — a zone-specific grant does not match a different zone", async () => {
+      const a = await seedZone("C4 Alpha");
+      const b = await seedZone("C4 Bravo");
+      const d = await seedDriver("Delta Narrow");
+      await capRepo.grant(d, "delivery", "standard", a, "actor-1");
+
+      const inB = await pool.query<{ ok: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1 FROM public.driver_zone_capability c
+            WHERE c.driver_id = $1 AND (c.zone_id = $2 OR c.zone_id IS NULL)
+         ) AS ok`,
+        [d, b],
+      );
+      expect(inB.rows[0]!.ok).toBe(false);
+    });
+
+    it("C5 — revoking one clearance leaves the driver's others intact", async () => {
+      const z = await seedZone("C5 Zone");
+      const d = await seedDriver("Echo Multi");
+      await capRepo.grant(d, "collection", "standard", z, "actor-1");
+      await capRepo.grant(d, "delivery", "same_day", z, "actor-1");
+
+      const before = await capRepo.listForDriver(d);
+      expect(before).toHaveLength(2);
+
+      await capRepo.revoke(d, before[0]!.id);
+      const after = await capRepo.listForDriver(d);
+      expect(after).toHaveLength(1);
+      expect(after[0]!.id).toBe(before[1]!.id);
+    });
+
+    /** ⚠ C6 — FR-006. The operator's intent is already true; erroring would make two people tidying
+     *  the same record fight each other. */
+    it("C6 — revoking a clearance the driver does not hold is a no-op, not a failure", async () => {
+      const d = await seedDriver("Foxtrot None");
+      const removed = await capRepo.revoke(d, "00000000-0000-0000-0000-000000000000");
+      expect(removed).toBe(false);
+      await expect(capRepo.listForDriver(d)).resolves.toEqual([]);
+    });
+
+    it("C7 — DELETING a zone removes clearances naming it, and leaves every-zone grants untouched", async () => {
+      const z = await seedZone("C7 Doomed");
+      const d = await seedDriver("Golf Mixed");
+      await capRepo.grant(d, "delivery", "standard", z, "actor-1");
+      await capRepo.grant(d, "collection", "standard", null, "actor-1");
+
+      await pool.query(`DELETE FROM public.delivery_zone WHERE id = $1`, [z]);
+
+      const left = await capRepo.listForDriver(d);
+      expect(left).toHaveLength(1);
+      expect(left[0]!.zoneId).toBeNull(); // the every-zone grant survived
+    });
+
+    /**
+     * ⚠ C8 — DISABLING IS NOT DELETING, and conflating them would be a quiet disaster.
+     *
+     * Disabling a zone is reversible. If the clearance were removed, re-enabling the zone would leave
+     * it uncovered until somebody noticed and re-granted by hand — and nothing would say why the
+     * cover was lost.
+     */
+    it("⚠ C8 — DISABLING a zone hides its clearances but does NOT delete them; re-enabling restores cover", async () => {
+      const z = await seedZone("C8 Toggle");
+      const d = await seedDriver("Hotel Toggle");
+      await capRepo.grant(d, "delivery", "standard", z, "actor-1");
+      expect(await capRepo.listForDriver(d)).toHaveLength(1);
+
+      await pool.query(`UPDATE public.delivery_zone SET status = 'disabled' WHERE id = $1`, [z]);
+      expect(await capRepo.listForDriver(d)).toHaveLength(0); // hidden
+
+      const stillThere = await pool.query(
+        `SELECT 1 FROM public.driver_zone_capability WHERE driver_id = $1`, [d],
+      );
+      expect(stillThere.rowCount).toBe(1); // ⚠ but NOT deleted
+
+      await pool.query(`UPDATE public.delivery_zone SET status = 'active' WHERE id = $1`, [z]);
+      expect(await capRepo.listForDriver(d)).toHaveLength(1); // restored, with nobody re-granting
+    });
+  });
+
+  describe("062 C9–C14 — coverage", () => {
+    it("C9 — a zone nobody is cleared for reports no_driver_cleared", async () => {
+      const z = await seedZone("C9 Empty", { sameDay: false });
+      const gaps = await coverageRepo.coverageGaps();
+      const mine = gaps.filter((g) => g.zoneId === z);
+      expect(mine.length).toBeGreaterThan(0);
+      for (const g of mine) {
+        expect(g.reason).toBe("no_driver_cleared");
+        expect(g.clearedDriverCount).toBe(0);
+      }
+    });
+
+    /** ⚠ C10 — FR-018. Two reasons, because the remedies differ: grant somebody a clearance, versus
+     *  fix why the cleared people cannot work. */
+    it("⚠ C10 — a zone whose cleared drivers are all BLOCKED reports all_cleared_unavailable", async () => {
+      const z = await seedZone("C10 Blocked", { sameDay: false });
+      const d = await seedDriver("India Expired", { licenceExpires: "2020-01-01" });
+      for (const fn of ["collection", "delivery"] as const) {
+        await capRepo.grant(d, fn, "standard", z, "actor-1");
+      }
+
+      const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);
+      expect(gaps.length).toBe(2);
+      for (const g of gaps) {
+        expect(g.reason).toBe("all_cleared_unavailable");
+        // ⚠ This is what makes the reason actionable — somebody IS cleared; the fix is elsewhere.
+        expect(g.clearedDriverCount).toBeGreaterThan(0);
+      }
+    });
+
+    /** ⚠ C11 — FR-019. A list of problems, not a matrix. */
+    it("⚠ C11 — a COVERED combination emits no row at all", async () => {
+      const z = await seedZone("C11 Covered", { sameDay: false });
+      const v = await seedVehicle("EFY-C11", { regExpires: "2030-01-01" });
+      const d = await seedDriver("Juliet Able", { licenceExpires: "2030-01-01" });
+      await pool.query(`INSERT INTO public.vehicle_holding (vehicle_id, driver_id) VALUES ($1, $2)`, [v, d]);
+      for (const fn of ["collection", "delivery"] as const) {
+        await capRepo.grant(d, fn, "standard", z, "actor-1");
+      }
+
+      const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);
+      expect(gaps).toEqual([]);
+    });
+
+    /**
+     * ⚠⚠ C12 — SAME-DAY IS NOT SOLD EVERYWHERE, AND REPORTING IT WOULD POISON THE VIEW.
+     *
+     * `delivery_zone.sameday_eligible` (047) says outer and regional zones are standard-only by
+     * design. "Nobody is cleared for same-day in Ballarat" is a permanent, UNFIXABLE row in the one
+     * screen whose purpose is to be actionable — and an operator who cannot clear a gap learns to
+     * ignore the screen that shows it.
+     */
+    it("⚠⚠ C12 — same-day gaps appear ONLY for zones where same-day is actually offered", async () => {
+      const standardOnly = await seedZone("C12 Standard Only", { sameDay: false });
+      const sameDayZone = await seedZone("C12 Same Day", { sameDay: true });
+
+      const gaps = await coverageRepo.coverageGaps();
+      const methodsFor = (id: string) =>
+        new Set(gaps.filter((g) => g.zoneId === id).map((g) => g.method));
+
+      expect(methodsFor(standardOnly)).toEqual(new Set(["standard"]));
+      expect(methodsFor(sameDayZone)).toEqual(new Set(["standard", "same_day"]));
+    });
+
+    /** ⚠ C13 — FR-020. The two views read ONE availability rule, so they cannot disagree. */
+    it("⚠ C13 — coverage and readiness agree about whether a driver can work", async () => {
+      const z = await seedZone("C13 Agree", { sameDay: false });
+      const d = await seedDriver("Kilo Agree", { licenceExpires: "2020-01-01" });
+      for (const fn of ["collection", "delivery"] as const) {
+        await capRepo.grant(d, fn, "standard", z, "actor-1");
+      }
+
+      const blocked = await readinessRepo.blockedDrivers();
+      const isBlockedInReadiness = blocked.some((b) => b.driverName === "Kilo Agree");
+      const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);
+      const coverageSaysUnavailable = gaps.every((g) => g.reason === "all_cleared_unavailable");
+
+      expect(isBlockedInReadiness).toBe(true);
+      expect(coverageSaysUnavailable).toBe(true);
+    });
+
+    it("C14 — an offboarded driver's clearances do not count toward coverage", async () => {
+      const z = await seedZone("C14 Departed", { sameDay: false });
+      const d = await seedDriver("Lima Gone", { status: "offboarded" });
+      for (const fn of ["collection", "delivery"] as const) {
+        await capRepo.grant(d, fn, "standard", z, "actor-1");
+      }
+
+      const gaps = (await coverageRepo.coverageGaps()).filter((g) => g.zoneId === z);
+      expect(gaps.length).toBe(2);
+      for (const g of gaps) expect(g.reason).toBe("all_cleared_unavailable");
+    });
+  });
+
   describe("SC-009 — readiness surfaces the gap before an order is affected", () => {
-    it("⚠ flags a driver with NO ZONE as unable to receive work", async () => {
-      await seedDriver("Zoneless", { zoneId: null });
+    it("⚠ flags a driver cleared for NOTHING as unable to receive work", async () => {
+      await seedDriver("Uncleared");
       const blocked = await readinessRepo.blockedDrivers();
       expect(blocked).toHaveLength(1);
-      expect(blocked[0]!.driverName).toBe("Zoneless");
-      expect(blocked[0]!.reasons).toContain("no_zone");
+      expect(blocked[0]!.driverName).toBe("Uncleared");
+      // ⚠ 062 replaced `no_zone` with this. The old reason read a single-zone column that no
+      // assignment code ever consulted; a driver is now blocked when cleared for NOTHING, and the
+      // remedy is to grant a clearance rather than to assign a zone.
+      expect(blocked[0]!.reasons).toContain("no_capabilities");
     });
 
     it("reports each blocking cause separately, so the remedy is obvious", async () => {
@@ -798,9 +1110,9 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
     });
 
     it("⚠ the register carries the SAME flag, so the gap is visible where drivers are listed", async () => {
-      await seedDriver("Zoneless", { zoneId: null });
+      await seedDriver("Uncleared");
       const page = await driversRepo.listDrivers({ limit: 10 });
-      expect(page.items[0]!.blockedReasons).toContain("no_zone");
+      expect(page.items[0]!.blockedReasons).toContain("no_capabilities");
     });
 
     it("reports a zone with no active driver as uncovered", async () => {

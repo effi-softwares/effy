@@ -24,8 +24,7 @@ const DRIVER: AdminDriverProfile = {
   name: "Sam Rivers",
   workEmail: "sam@effyshopping.com",
   contactPhone: null,
-  zoneId: "z-1",
-  zone: "Inner North",
+  capabilities: [],
   hub: "Effy Hub",
   vehicle: { type: null, plate: null },
   credentials: {

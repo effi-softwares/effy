@@ -33,8 +33,7 @@ function driver(over: Partial<AdminDriverListItem> = {}): AdminDriverListItem {
     id: "d-1",
     name: "Sam Rivers",
     workEmail: "sam@effyshopping.com",
-    zone: "Inner North",
-    zoneId: "z-1",
+    capabilitySummary: { total: 4, coversEveryZone: false, functions: ["collection", "delivery"] },
     dutyState: "off_duty",
     status: "active",
     blockedReasons: [],
@@ -62,22 +61,29 @@ beforeEach(() => {
 });
 
 describe("DriversListScreen — the register", () => {
-  it("lists drivers with their zone, duty state and employment status", async () => {
+  it("lists drivers with their clearance, duty state and employment status", async () => {
     renderScreen();
     expect(await screen.findByText("Sam Rivers")).toBeInTheDocument();
     expect(screen.getByText("sam@effyshopping.com")).toBeInTheDocument();
-    expect(screen.getByText("Inner North")).toBeInTheDocument();
+    // ⚠ 062 — the register shows BREADTH OF CLEARANCE, not a single assigned zone. One zone could
+    // never express "same-day delivery here, standard collection everywhere".
+    expect(screen.getByText(/Collect \+ deliver/)).toBeInTheDocument();
     expect(screen.getByText("Off duty")).toBeInTheDocument();
   });
 
-  it("⚠ SC-009 — a driver with no zone says so on the register, before an order is affected", async () => {
+  it("⚠ SC-009 — a driver cleared for NOTHING says so on the register, before an order is affected", async () => {
     listDrivers.mockResolvedValue({
-      items: [driver({ zone: null, zoneId: null, blockedReasons: ["no_zone"] })],
+      items: [
+        driver({
+          capabilitySummary: { total: 0, coversEveryZone: false, functions: [] },
+          blockedReasons: ["no_capabilities"],
+        }),
+      ],
       nextCursor: null,
     });
     renderScreen();
     expect(
-      await screen.findByText(/No delivery zone — cannot be given work/),
+      await screen.findByText(/Not cleared for any work — cannot be given work/),
     ).toBeInTheDocument();
   });
 
