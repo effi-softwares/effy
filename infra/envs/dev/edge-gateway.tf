@@ -26,6 +26,24 @@ locals {
     driver        = { pool_id = module.driver_pool.user_pool_id, client_id = module.driver_pool.app_client_id, extra_client_ids = [aws_cognito_user_pool_client.driver_mobile.id] }
     "back-office" = { pool_id = module.back_office_pool.user_pool_id, client_id = module.back_office_pool.app_client_id, extra_client_ids = [] }
   }
+
+  # ⚠ THE ONE LIST OF BROWSER ORIGINS, consumed by this gateway's CORS **and** by the product-media
+  # bucket's (media.tf). The two must agree: a console reaches the platform over BOTH — the edge API
+  # for the request that mints a presigned url, and S3 DIRECTLY for the PUT that follows (the bytes
+  # never pass through Lambda, 016 R9). Declaring the list twice is how they came to disagree: 048
+  # added the deployed console origins here and not to the bucket, so every authenticated console
+  # call worked and only the upload failed — at a pre-flight, with nothing on any server to look at.
+  #
+  # Localhost dev: :5173 back-office (005) · :5174 shop-web (007) · :3000 customer-web.
+  # Deployed consoles (048): config-derived from the zone, never a literal, so prod supplies its own
+  # zone and gets its own origins with no logic edit (FR-017/FR-020).
+  browser_origins = concat(
+    ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    [
+      "https://${var.shop_web_subdomain}.${module.dns.zone_name}",
+      "https://${var.back_office_subdomain}.${module.dns.zone_name}",
+    ],
+  )
 }
 
 resource "aws_apigatewayv2_api" "edge" {
@@ -38,20 +56,12 @@ resource "aws_apigatewayv2_api" "edge" {
   # callers broken). The custom domain in edge-domain.tf is added ALONGSIDE it, never instead of it.
   # The raw URL is published at /effy/<env>/edge/api_default_endpoint as the break-glass fallback.
 
-  # Approved origins. Localhost dev: :5173 back-office (005) · :5174 shop-web (007) · :3000 customer-web.
-  # Deployed consoles (048): shop.<zone> + back-office.<zone>, config-derived (never a literal) so prod
-  # supplies its own zone → its own origins with no logic edit (FR-017/FR-020). A service that attaches
-  # to an external HTTP API cannot configure CORS, so it lives here — a new console origin is a
-  # Terraform change, not a code change. Without the deployed origin, every authenticated console call
-  # fails at the OPTIONS pre-flight.
+  # Approved origins live in local.browser_origins (above), shared with the product-media bucket. A
+  # service that attaches to an external HTTP API cannot configure CORS, so it lives here — a new
+  # console origin is a Terraform change, not a code change. Without the deployed origin, every
+  # authenticated console call fails at the OPTIONS pre-flight.
   cors_configuration {
-    allow_origins = concat(
-      ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
-      [
-        "https://${var.shop_web_subdomain}.${module.dns.zone_name}",
-        "https://${var.back_office_subdomain}.${module.dns.zone_name}",
-      ],
-    )
+    allow_origins  = local.browser_origins
     allow_methods  = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers  = ["Authorization", "Content-Type", "X-Request-ID"]
     expose_headers = ["x-request-id"]
