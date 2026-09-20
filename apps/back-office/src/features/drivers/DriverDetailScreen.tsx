@@ -10,10 +10,8 @@ import type { AdminDriverProfile } from "@effy/shared-types";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { AuditTrail } from "./components/AuditTrail";
-import { ExceptionsList } from "./components/ExceptionsList";
 import { ProfileEditForm } from "./components/ProfileEditForm";
 import { StatusControl } from "./components/StatusControl";
-import { WorkHistory } from "./components/WorkHistory";
 import { canManageDrivers } from "./access";
 import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model";
 import { driverDetailQuery } from "./queries";
@@ -163,13 +161,14 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         </>
       )}
 
-      <Section title="Reports from the road">
-        <ExceptionsList driverId={driverId} />
-      </Section>
+      {/* ⚠ "Reports from the road" and "Work history" stood here. Both projected the 049 work model
+          — delivery failures, collection issues, runs, stops and proof — which was dropped whole by
+          db/migrations/20260920101500_remove_driver_work_model.sql. What is left is the driver's
+          EMPLOYMENT record, which is a different thing and never depended on it.
 
-      <Section title="Work history">
-        <WorkHistory driverId={driverId} />
-      </Section>
+          ⚠ Their absence is a real loss, not a tidy-up: the exceptions list was 056's whole reason
+          for existing (the driver app had recorded undeliverable drops since 049 for a reader that
+          did not exist). The dispatch slice owns rebuilding both. */}
 
       <Section title="Change history">
         <AuditTrail driverId={driverId} />

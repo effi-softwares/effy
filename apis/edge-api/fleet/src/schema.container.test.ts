@@ -50,10 +50,7 @@ vi.mock("@effy/edge-shared", async () => {
 
 import * as driversRepo from "./drivers/repository";
 import * as dutyRepo from "./duty/repository";
-import * as exceptionsRepo from "./exceptions/repository";
-import * as historyRepo from "./history/repository";
 import * as readinessRepo from "./readiness/repository";
-import * as strandedRepo from "./stranded/repository";
 
 const RUN = process.env.CONTAINER_TESTS === "1";
 
@@ -140,78 +137,9 @@ CREATE TABLE public.driver_duty_session (
 CREATE UNIQUE INDEX driver_duty_session_open_uq
   ON public.driver_duty_session (driver_id) WHERE ended_at IS NULL;
 
-CREATE TABLE public.driver_run (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  driver_id uuid NOT NULL REFERENCES public.driver (id),
-  type text NOT NULL CHECK (type IN ('collection', 'same_day_delivery')),
-  status text NOT NULL DEFAULT 'assigned',
-  business_date date NOT NULL,
-  assigned_at timestamptz NOT NULL DEFAULT now(), completed_at timestamptz
-);
-CREATE TABLE public.collection_task (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  run_id uuid NOT NULL REFERENCES public.driver_run (id) ON DELETE CASCADE,
-  shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id),
-  shop_id uuid NOT NULL REFERENCES public.shop (id),
-  sequence int NOT NULL, status text NOT NULL DEFAULT 'assigned',
-  collected_at timestamptz,
-  CONSTRAINT collection_task_package_uq UNIQUE (shop_fulfillment_id)
-);
 CREATE TABLE public.order_item (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id uuid NOT NULL REFERENCES public."order" (id)
-);
-CREATE TABLE public.collection_task_issue (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  collection_task_id uuid NOT NULL REFERENCES public.collection_task (id) ON DELETE CASCADE,
-  order_item_id uuid REFERENCES public.order_item (id) ON DELETE SET NULL,
-  kind text NOT NULL CHECK (kind IN ('missing', 'short')),
-  note text, reported_at timestamptz NOT NULL DEFAULT now(),
-  resolved_at timestamptz, resolved_by_sub text, resolution_note text
-);
-CREATE INDEX collection_task_issue_open_idx
-  ON public.collection_task_issue (reported_at DESC) WHERE resolved_at IS NULL;
-
-CREATE TABLE public.delivery_task (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  run_id uuid NOT NULL REFERENCES public.driver_run (id) ON DELETE CASCADE,
-  order_id uuid NOT NULL REFERENCES public."order" (id),
-  customer_address_id uuid NOT NULL REFERENCES public.customer_address (id),
-  sequence int NOT NULL, status text NOT NULL DEFAULT 'staged',
-  delivered_at timestamptz,
-  CONSTRAINT delivery_task_order_uq UNIQUE (order_id)
-);
-CREATE TABLE public.delivery_task_package (
-  delivery_task_id uuid NOT NULL REFERENCES public.delivery_task (id) ON DELETE CASCADE,
-  shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id),
-  PRIMARY KEY (delivery_task_id, shop_fulfillment_id),
-  CONSTRAINT delivery_task_package_uq UNIQUE (shop_fulfillment_id)
-);
-CREATE TABLE public.proof_of_delivery (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  delivery_task_id uuid NOT NULL UNIQUE REFERENCES public.delivery_task (id) ON DELETE CASCADE,
-  method text NOT NULL, media_key text, code_verified boolean, note text,
-  captured_at timestamptz NOT NULL DEFAULT now()
-);
-CREATE TABLE public.delivery_failure (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  delivery_task_id uuid NOT NULL REFERENCES public.delivery_task (id) ON DELETE CASCADE,
-  reason text NOT NULL, note text, failed_at timestamptz NOT NULL DEFAULT now(),
-  resolved_at timestamptz, resolved_by_sub text, resolution_note text
-);
-CREATE INDEX delivery_failure_open_idx
-  ON public.delivery_failure (failed_at DESC) WHERE resolved_at IS NULL;
-
-CREATE TABLE public.driver_task_event (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  run_id uuid REFERENCES public.driver_run (id) ON DELETE CASCADE,
-  collection_task_id uuid REFERENCES public.collection_task (id) ON DELETE CASCADE,
-  delivery_task_id uuid REFERENCES public.delivery_task (id) ON DELETE CASCADE,
-  status text NOT NULL, at timestamptz NOT NULL DEFAULT now(), change_id uuid,
-  CONSTRAINT driver_task_event_one_subject CHECK (
-    (run_id IS NOT NULL)::int + (collection_task_id IS NOT NULL)::int
-    + (delivery_task_id IS NOT NULL)::int = 1
-  )
 );
 `;
 
@@ -233,9 +161,7 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
 
   beforeEach(async () => {
     await pool.query(`
-      TRUNCATE public.driver_task_event, public.delivery_failure, public.proof_of_delivery,
-               public.delivery_task_package, public.delivery_task, public.collection_task_issue,
-               public.collection_task, public.driver_run, public.driver_duty_session,
+      TRUNCATE public.driver_duty_session,
                public.driver, public.order_item, public.order_package_delivery,
                public.shop_fulfillment, public."order", public.customer_address, public.customer,
                public.shop, public.delivery_zone, public.delivery_settings, admin.audit_log
@@ -442,186 +368,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
-  describe("SC-006 — held and stranded work", () => {
-    async function seedCollectedPackage(driverId: string, ref: string, status = "collected") {
-      const pkg = await seedOrderWithPackage(ref, "collected");
-      const run = await pool.query<{ id: string }>(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date)
-         VALUES ($1, 'collection', 'active', current_date) RETURNING id`,
-        [driverId],
-      );
-      await pool.query(
-        `INSERT INTO public.collection_task (run_id, shop_fulfillment_id, shop_id, sequence, status)
-         VALUES ($1, $2, $3, 0, $4)`,
-        [run.rows[0]!.id, pkg.fulfillmentId, pkg.shopId, status],
-      );
-      return pkg;
-    }
-
-    it("⚠ reports work an ACTIVE driver holds as held, so standing them down warns first", async () => {
-      const driverId = await seedDriver("Holder", { onDuty: true });
-      await seedCollectedPackage(driverId, "EFY-HELD01");
-
-      const held = await driversRepo.heldWorkFor(driverId);
-      expect(held).toHaveLength(1);
-      expect(held[0]!.orderReference).toBe("EFY-HELD01");
-      expect(held[0]!.taskStatus).toBe("collected");
-
-      // ⚠ Not yet STRANDED — the driver is still eligible. Stranded is what it becomes afterwards.
-      expect(await strandedRepo.listStranded()).toHaveLength(0);
-    });
-
-    it("⚠ the same package becomes STRANDED the moment the driver is stood down", async () => {
-      const driverId = await seedDriver("Departing", { onDuty: true });
-      await seedCollectedPackage(driverId, "EFY-STRND1");
-
-      await pool.query(`UPDATE public.driver SET status = 'suspended' WHERE id = $1`, [driverId]);
-
-      const stranded = await strandedRepo.listStranded();
-      expect(stranded).toHaveLength(1);
-      expect(stranded[0]!.driverName).toBe("Departing");
-      expect(stranded[0]!.orderReference).toBe("EFY-STRND1");
-      expect(stranded[0]!.driverStatus).toBe("suspended");
-    });
-
-    it("⚠ does NOT report work the automatic sweep would reclaim on its own", async () => {
-      // `assigned` and `en_route` collection tasks are released by releaseIneligibleWork. Reporting
-      // them here would send an operator to release by hand something that fixes itself in minutes.
-      const driverId = await seedDriver("Not Started", { onDuty: true });
-      await seedCollectedPackage(driverId, "EFY-ASSIGN", "assigned");
-      await pool.query(`UPDATE public.driver SET status = 'suspended' WHERE id = $1`, [driverId]);
-      expect(await strandedRepo.listStranded()).toHaveLength(0);
-    });
-
-    it("releases stranded work so the package matches the sweep's candidate predicate again", async () => {
-      const driverId = await seedDriver("Released From", { onDuty: true });
-      const pkg = await seedCollectedPackage(driverId, "EFY-RELEAS");
-      await pool.query(`UPDATE public.driver SET status = 'offboarded' WHERE id = $1`, [driverId]);
-
-      const stranded = await strandedRepo.listStranded();
-      const released = await strandedRepo.releaseStranded([stranded[0]!.taskId], []);
-
-      expect(released).toBe(1);
-      expect(await strandedRepo.listStranded()).toHaveLength(0);
-      // The collection_task is gone, so nothing claims the package any more.
-      const claim = await pool.query(
-        `SELECT 1 FROM public.collection_task WHERE shop_fulfillment_id = $1`,
-        [pkg.fulfillmentId],
-      );
-      expect(claim.rowCount).toBe(0);
-      // And the release is on the run's timeline rather than vanishing from history.
-      const events = await pool.query<{ status: string }>(
-        `SELECT status FROM public.driver_task_event WHERE status = 'released_by_back_office'`,
-      );
-      expect(events.rowCount).toBe(1);
-    });
-
-    it("⚠ refuses to release work belonging to a driver who is still working", async () => {
-      // A stale screen must not be able to yank a package out of an active driver's hands.
-      const driverId = await seedDriver("Still Working", { onDuty: true });
-      await seedCollectedPackage(driverId, "EFY-ACTIVE");
-      const task = await pool.query<{ id: string }>(`SELECT id FROM public.collection_task`);
-      const released = await strandedRepo.releaseStranded([task.rows[0]!.id], []);
-      expect(released).toBe(0);
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
-  describe("SC-003 — every recorded exception is readable, measured not spot-checked", () => {
-    async function seedFailure(driverId: string, ref: string) {
-      const pkg = await seedOrderWithPackage(ref, "collected");
-      const run = await pool.query<{ id: string }>(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date)
-         VALUES ($1, 'same_day_delivery', 'active', current_date) RETURNING id`,
-        [driverId],
-      );
-      const dt = await pool.query<{ id: string }>(
-        `INSERT INTO public.delivery_task (run_id, order_id, customer_address_id, sequence, status)
-         VALUES ($1, $2, $3, 0, 'failed') RETURNING id`,
-        [run.rows[0]!.id, pkg.orderId, pkg.addressId],
-      );
-      await pool.query(
-        `INSERT INTO public.delivery_failure (delivery_task_id, reason, note)
-         VALUES ($1, 'nobody_home', 'no answer, no safe place')`,
-        [dt.rows[0]!.id],
-      );
-      return dt.rows[0]!.id;
-    }
-
-    async function seedIssue(driverId: string, ref: string) {
-      const pkg = await seedOrderWithPackage(ref, "collected");
-      const run = await pool.query<{ id: string }>(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date)
-         VALUES ($1, 'collection', 'completed', current_date) RETURNING id`,
-        [driverId],
-      );
-      const ct = await pool.query<{ id: string }>(
-        `INSERT INTO public.collection_task (run_id, shop_fulfillment_id, shop_id, sequence, status)
-         VALUES ($1, $2, $3, 0, 'short') RETURNING id`,
-        [run.rows[0]!.id, pkg.fulfillmentId, pkg.shopId],
-      );
-      await pool.query(
-        `INSERT INTO public.collection_task_issue (collection_task_id, kind, note)
-         VALUES ($1, 'short', 'two of six missing')`,
-        [ct.rows[0]!.id],
-      );
-    }
-
-    it("⚠ returns EVERY recorded exception of both kinds — the count is the assertion", async () => {
-      const driverId = await seedDriver("Reporter", { onDuty: true });
-      for (let i = 0; i < 4; i++) await seedFailure(driverId, `EFY-FAIL${i}`);
-      for (let i = 0; i < 3; i++) await seedIssue(driverId, `EFY-ISSU${i}`);
-
-      const recorded = await pool.query<{ n: string }>(
-        `SELECT ((SELECT count(*) FROM public.delivery_failure)
-               + (SELECT count(*) FROM public.collection_task_issue))::text AS n`,
-      );
-      const page = await exceptionsRepo.listExceptions({ limit: 100 });
-
-      expect(page.items).toHaveLength(Number(recorded.rows[0]!.n));
-      expect(page.items).toHaveLength(7);
-      expect(await exceptionsRepo.outstandingCount()).toBe(7);
-    });
-
-    it("carries the reason, note, driver, order and location a person needs to act", async () => {
-      const driverId = await seedDriver("Reporter", { onDuty: true });
-      await seedFailure(driverId, "EFY-DETAIL");
-      const [item] = (await exceptionsRepo.listExceptions({ limit: 10 })).items;
-      expect(item!.reason).toBe("nobody_home");
-      expect(item!.note).toBe("no answer, no safe place");
-      expect(item!.driverName).toBe("Reporter");
-      expect(item!.orderReference).toBe("EFY-DETAIL");
-      expect(item!.location).toBe("Carlton");
-    });
-
-    it("resolves one-way, keeps it readable, and drops it from the outstanding count", async () => {
-      const driverId = await seedDriver("Reporter", { onDuty: true });
-      await seedFailure(driverId, "EFY-RESOLV");
-      const [item] = (await exceptionsRepo.listExceptions({ limit: 10 })).items;
-
-      expect(await exceptionsRepo.resolveException("delivery_failure", item!.id, "actor-1", "redelivered")).toBe("resolved");
-      expect(await exceptionsRepo.outstandingCount()).toBe(0);
-      // ⚠ Still there, not deleted.
-      const resolved = await exceptionsRepo.getException("delivery_failure", item!.id);
-      expect(resolved!.resolutionNote).toBe("redelivered");
-      // A second resolve does not overwrite who resolved it first.
-      expect(await exceptionsRepo.resolveException("delivery_failure", item!.id, "actor-2", "again")).toBe("already_resolved");
-      expect((await exceptionsRepo.getException("delivery_failure", item!.id))!.resolvedBySub).toBe("actor-1");
-    });
-
-    it("defaults the list to outstanding only", async () => {
-      const driverId = await seedDriver("Reporter", { onDuty: true });
-      await seedFailure(driverId, "EFY-A");
-      await seedFailure(driverId, "EFY-B");
-      const all = await exceptionsRepo.listExceptions({ limit: 10 });
-      await exceptionsRepo.resolveException("delivery_failure", all.items[0]!.id, "actor-1", "done");
-      expect((await exceptionsRepo.listExceptions({ limit: 10, resolved: false })).items).toHaveLength(1);
-      expect((await exceptionsRepo.listExceptions({ limit: 10, resolved: true })).items).toHaveLength(1);
-      expect((await exceptionsRepo.listExceptions({ limit: 10 })).items).toHaveLength(2);
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
   describe("duty and unassigned work", () => {
     it("⚠ counts waiting work when NOBODY is on duty", async () => {
       await seedOrderWithPackage("EFY-WAIT01", "ready_for_pickup");
@@ -634,30 +380,24 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(await dutyRepo.listOnDuty()).toHaveLength(0);
     });
 
-    it("shows an on-duty driver's run progress and next stop", async () => {
+    it("shows an on-duty driver with their zone, and no work attached to them", async () => {
+      // ⚠ THE ASSERTION THAT USED TO BE HERE WAS ABOUT RUN PROGRESS — which run, stops done, next
+      // stop — and it went with the work model. What is left is the honest shape of the screen
+      // today: a named driver, on duty, in a zone, doing nothing, while the backlog below them
+      // grows. Asserting the absence rather than deleting the case keeps a record that this screen
+      // is CORRECT and the platform is not, which is the opposite of the usual reading.
       const zoneId = await seedZone();
-      const driverId = await seedDriver("Working", { zoneId, onDuty: true });
-      const run = await pool.query<{ id: string }>(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date)
-         VALUES ($1, 'collection', 'active', current_date) RETURNING id`,
-        [driverId],
-      );
-      const a = await seedOrderWithPackage("EFY-STOP01", "collected");
-      const b = await seedOrderWithPackage("EFY-STOP02", "ready_for_pickup");
-      await pool.query(
-        `INSERT INTO public.collection_task (run_id, shop_fulfillment_id, shop_id, sequence, status)
-         VALUES ($1, $2, $3, 0, 'collected'), ($1, $4, $5, 1, 'assigned')`,
-        [run.rows[0]!.id, a.fulfillmentId, a.shopId, b.fulfillmentId, b.shopId],
-      );
+      await seedDriver("Working", { zoneId, onDuty: true });
+      await seedOrderWithPackage("EFY-STOP02", "ready_for_pickup");
 
       const [row] = await dutyRepo.listOnDuty();
       expect(row!.driverName).toBe("Working");
       expect(row!.zone).toBe("Inner North");
-      expect(row!.currentRunType).toBe("collection");
-      expect(row!.completedStops).toBe(1);
-      expect(row!.totalStops).toBe(2);
-      expect(row!.nextStop).toBe("Shop EFY-STOP02");
       expect(row!.overdue).toBe(false);
+      expect(await dutyRepo.unassignedWork()).toMatchObject({
+        readyToCollect: 1,
+        driversOnDuty: 1,
+      });
     });
 
     it("flags a duty session left open past the threshold, and closes it once", async () => {
@@ -673,84 +413,6 @@ describe.skipIf(!RUN)("fleet SQL — against real PostgreSQL", () => {
       expect(await dutyRepo.endSession(row!.sessionId, noop)).toBe("ended");
       expect(await dutyRepo.endSession(row!.sessionId, noop)).toBe("already_ended");
       expect(await dutyRepo.listOnDuty()).toHaveLength(0);
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────────────────────────────────────────
-  describe("history, proof and the period summary", () => {
-    it("lists runs by working day and opens one to its ordered stops", async () => {
-      const driverId = await seedDriver("Historic", { onDuty: false });
-      const run = await pool.query<{ id: string }>(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date, completed_at)
-         VALUES ($1, 'collection', 'completed', current_date, now()) RETURNING id`,
-        [driverId],
-      );
-      const pkg = await seedOrderWithPackage("EFY-HIST01", "collected");
-      const ct = await pool.query<{ id: string }>(
-        `INSERT INTO public.collection_task (run_id, shop_fulfillment_id, shop_id, sequence, status)
-         VALUES ($1, $2, $3, 0, 'collected') RETURNING id`,
-        [run.rows[0]!.id, pkg.fulfillmentId, pkg.shopId],
-      );
-      await pool.query(
-        `INSERT INTO public.driver_task_event (collection_task_id, status) VALUES ($1, 'assigned'), ($1, 'collected')`,
-        [ct.rows[0]!.id],
-      );
-
-      const history = await historyRepo.listRuns({ driverId, limit: 10 });
-      expect(history.items).toHaveLength(1);
-      expect(history.items[0]!.completedStops).toBe(1);
-      expect(history.items[0]!.totalStops).toBe(1);
-
-      const detail = await historyRepo.getRunDetail(run.rows[0]!.id);
-      expect(detail!.driverName).toBe("Historic");
-      expect(detail!.stops).toHaveLength(1);
-      expect(detail!.stops[0]!.label).toBe("Shop EFY-HIST01");
-      expect(detail!.stops[0]!.timeline.map((t) => t.status)).toEqual(["assigned", "collected"]);
-      expect(detail!.stops[0]!.orderReference).toBe("EFY-HIST01");
-    });
-
-    it("⚠ presigns proof media rather than returning a durable address", async () => {
-      const driverId = await seedDriver("Prover", { onDuty: true });
-      const pkg = await seedOrderWithPackage("EFY-PROOF1", "collected");
-      const run = await pool.query<{ id: string }>(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date)
-         VALUES ($1, 'same_day_delivery', 'completed', current_date) RETURNING id`,
-        [driverId],
-      );
-      const dt = await pool.query<{ id: string }>(
-        `INSERT INTO public.delivery_task (run_id, order_id, customer_address_id, sequence, status, delivered_at)
-         VALUES ($1, $2, $3, 0, 'delivered', now()) RETURNING id`,
-        [run.rows[0]!.id, pkg.orderId, pkg.addressId],
-      );
-      await pool.query(
-        `INSERT INTO public.proof_of_delivery (delivery_task_id, method, media_key, note)
-         VALUES ($1, 'photo', 'driver-proof/abc.jpg', 'left at door')`,
-        [dt.rows[0]!.id],
-      );
-
-      const proof = await historyRepo.getProof(dt.rows[0]!.id);
-      expect(proof!.method).toBe("photo");
-      expect(proof!.mediaUrl).toContain("X-Amz-Expires");
-      expect(proof!.capturedByDriverName).toBe("Prover");
-    });
-
-    it("⚠ counts activity and carries no money field at all", async () => {
-      const driverId = await seedDriver("Counted", { onDuty: false });
-      await pool.query(
-        `INSERT INTO public.driver_run (driver_id, type, status, business_date)
-         VALUES ($1, 'collection', 'completed', current_date),
-                ($1, 'same_day_delivery', 'completed', current_date - 1)`,
-        [driverId],
-      );
-      const summary = await historyRepo.periodSummary(
-        driverId,
-        new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
-        new Date().toISOString().slice(0, 10),
-      );
-      expect(summary.daysWorked).toBe(2);
-      expect(summary.runsCompleted).toBe(2);
-      // FR-049 — no currency anywhere in the driver domain.
-      expect(JSON.stringify(summary)).not.toMatch(/amount|price|currency|total|aud/i);
     });
   });
 

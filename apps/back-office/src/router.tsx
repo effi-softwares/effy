@@ -17,7 +17,6 @@ import { deliveryIndexRoute } from "./routes/delivery";
 import { feedbackDetailRoute, feedbackIndexRoute } from "./routes/feedback";
 import {
   driverDetailRoute,
-  driverExceptionsRoute,
   driversIndexRoute,
 } from "./routes/drivers";
 import { orderDetailRoute, ordersIndexRoute } from "./routes/orders";
@@ -35,9 +34,7 @@ const routeTree = rootRoute.addChildren([
     ordersIndexRoute,
     orderDetailRoute,
     driversIndexRoute,
-    // ⚠ The literal path before the parameterised one — see routes/drivers.tsx.
-    driverExceptionsRoute,
-    driverDetailRoute,
+      driverDetailRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
     feedbackIndexRoute,

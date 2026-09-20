@@ -1,7 +1,6 @@
 import type {
   DriverBlockedReason,
   DriverEmploymentStatus,
-  DriverExceptionKind,
 } from "@effy/shared-types";
 
 // Screen-facing vocabulary for the driver console (056). The wire shapes come from
@@ -12,13 +11,6 @@ export interface DriverListParams {
   status?: DriverEmploymentStatus | "";
   zoneId?: string;
   includeOffboarded?: boolean;
-  cursor?: string;
-}
-
-export interface ExceptionListParams {
-  kind?: DriverExceptionKind | "";
-  resolved?: "false" | "true" | "all";
-  driverId?: string;
   cursor?: string;
 }
 
@@ -48,31 +40,10 @@ export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
   licence_expired: "Licence expired — cannot be given work",
 };
 
-export const EXCEPTION_KIND_LABEL: Record<DriverExceptionKind, string> = {
-  delivery_failure: "Delivery failed",
-  collection_issue: "Collection problem",
-};
-
-/** Driver-reported reasons, as recorded by the driver app (049). */
-export const EXCEPTION_REASON_LABEL: Record<string, string> = {
-  nobody_home: "Nobody home",
-  wrong_address: "Wrong address",
-  customer_refused: "Customer refused",
-  access_blocked: "Access blocked",
-  other: "Other",
-  missing: "Package missing at shop",
-  short: "Short at shop",
-};
-
-export function exceptionReasonLabel(reason: string): string {
-  return EXCEPTION_REASON_LABEL[reason] ?? reason;
-}
-
-/** Run types as a person reads them. */
-export const RUN_TYPE_LABEL: Record<string, string> = {
-  collection: "Collection round",
-  same_day_delivery: "Same-day delivery round",
-};
+// ⚠ The exception and run-type vocabularies stood here — "Delivery failed" / "Nobody home" /
+// "Collection round" and the rest. They named states in the 049 work model, dropped whole by
+// db/migrations/20260920101500_remove_driver_work_model.sql, and are removed rather than kept as
+// labels with nothing to label.
 
 /** "3 h 20 m on duty" — a duration a person can scan, not a timestamp they have to subtract. */
 export function durationSince(iso: string, now = Date.now()): string {

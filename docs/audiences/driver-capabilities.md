@@ -5,6 +5,34 @@ surface — there is no driver web). Each capability lists the surface and the s
 
 Legend: ✅ built & verified · 🚧 partial (noted) · ⛔ deferred (blocked/own-slice) · — n/a
 
+## ⚠ §2026-09-20 — THE WORK MODEL WAS TORN DOWN; READ THIS BEFORE THE TABLES BELOW
+
+`db/migrations/20260920101500_remove_driver_work_model.sql` dropped `driver_run`, `collection_task`,
+`collection_task_issue`, `delivery_task`, `delivery_task_package`, `proof_of_delivery`,
+`delivery_failure`, `driver_task_event` and `driver_activity`, and the backend that read and wrote
+them went with it — the assignment sweep, every `/driver/v1` work route, and the fleet console's
+stranded-work, exceptions, run-history and proof screens.
+
+**The driver app's UI was deliberately left standing** (060's 45 screens are untouched, and so is the
+generated Kotlin contract, so the app still compiles). What it no longer has is a backend to call.
+
+**So every ✅ in §049 and §056 below that describes WORK — being assigned it, collecting it,
+delivering it, proving it, or reporting a problem with it — is now ⛔ unbuilt.** The rows are kept
+verbatim rather than rewritten to ⛔, because they are the specification of what the intelligent
+dispatch slice has to deliver, and a register of dashes would lose that.
+
+**What still works end to end:** a driver is provisioned by back-office, signs in passwordlessly,
+goes on and off duty, sends a location snapshot, registers a push token, and reads their account.
+Back-office can still run the register, edit a profile, change employment status, read the change log,
+see who is on duty and see the backlog waiting for somebody.
+
+| Capability | Mobile | Status | Notes |
+|---|---|---|---|
+| Passwordless sign-in, duty, location snapshot, push registration, account | ✅ | ✅ | `public.driver` + `public.driver_duty_session` survive the teardown |
+| Anything that assigns, carries, delivers or proves a package | ✅ UI only | ⛔ | no data model, no routes — owned by the dispatch slice |
+
+---
+
 ## §049 — Driver Delivery App (hub-and-spoke)
 
 The platform's 6th and final client surface. Model: **collection run** (shops → hub) → **hub check-in**

@@ -103,70 +103,17 @@ describe("StatusControl — the employment lifecycle", () => {
     expect(confirm).toBeTruthy();
   });
 
-  it("⚠ FR-020 — the held-work refusal ITEMISES what is held, not just that something is", async () => {
-    const user = userEvent.setup();
-    setDriverStatus.mockRejectedValue({
-      kind: "conflict",
-      status: 409,
-      title: "Conflict",
-      detail: "Sam Rivers is holding 2 item(s) of work… Affected orders: EFY-AAA111, EFY-BBB222.",
-      fields: [
-        { field: "collection:ct-1", message: "collected — order EFY-AAA111 (Shop One)" },
-        { field: "delivery:dt-1", message: "out_for_delivery — order EFY-BBB222 (Carlton)" },
-      ],
-    });
-
-    renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend" }));
-    await user.type(screen.getByLabelText("Reason"), "on leave");
-    await user.click(screen.getAllByRole("button", { name: "Suspend" }).at(-1)!);
-
-    // ⚠ TWO separate places, and both matter. The sentence names the affected ORDERS so the operator
-    // knows the scale; the list names each held ITEM so they can go and deal with them. An earlier
-    // draft of this assertion was ambiguous precisely because both were present — which is the
-    // behaviour being asserted, so it is now asserted per element.
-    await screen.findByText(/is holding 2 item\(s\)/);
-    const items = screen.getAllByRole("listitem").map((li) => li.textContent ?? "");
-    expect(items).toHaveLength(2);
-    expect(items[0]).toContain("EFY-AAA111");
-    expect(items[0]).toContain("collected");
-    expect(items[1]).toContain("EFY-BBB222");
-    expect(items[1]).toContain("out_for_delivery");
-    expect(screen.getByText(/leave this work stranded/)).toBeInTheDocument();
-  });
-
-  it("⚠ the confirm after a warning is a DIFFERENT button, not the same one clicked twice", async () => {
-    // Re-pressing an unchanged control is a reflex; pressing one whose label names the consequence
-    // is a decision.
-    const user = userEvent.setup();
-    setDriverStatus.mockRejectedValue({
-      kind: "conflict",
-      status: 409,
-      title: "Conflict",
-      detail: "holding work",
-      fields: [{ field: "collection:ct-1", message: "collected — order EFY-AAA111" }],
-    });
-
-    renderControl();
-    await user.click(screen.getByRole("button", { name: "Suspend" }));
-    await user.type(screen.getByLabelText("Reason"), "on leave");
-    await user.click(screen.getAllByRole("button", { name: "Suspend" }).at(-1)!);
-
-    const escalated = await screen.findByRole("button", { name: /Suspend and strand the work/ });
-    expect(escalated).toBeInTheDocument();
-
-    setDriverStatus.mockResolvedValue({ ...DRIVER, status: "suspended" });
-    await user.click(escalated);
-    await waitFor(() =>
-      expect(setDriverStatus).toHaveBeenLastCalledWith("d-1", {
-        status: "suspended",
-        reason: "on leave",
-        acknowledgeHeldWork: true,
-      }),
-    );
-  });
-
-  it("does not acknowledge held work on the first attempt", async () => {
+  /**
+   * ⚠ TWO CASES WERE REMOVED HERE, AND WHAT THEY PROVED IS WORTH RESTATING SO IT IS REBUILT.
+   * They asserted that a stand-down refused for held work ITEMISES the affected orders rather than
+   * saying only that something is held, and that going ahead takes a SECOND, DIFFERENTLY LABELLED
+   * button — because re-pressing an unchanged control is a reflex, while pressing one whose label
+   * names the consequence is a decision.
+   *
+   * Both tested a refusal the backend can no longer raise: `heldWorkFor` read `collection_task` and
+   * `delivery_task`, dropped with the work model, and nothing assigns work, so nothing can be held.
+   */
+  it("sends the status and reason, and nothing else", async () => {
     const user = userEvent.setup();
     setDriverStatus.mockResolvedValue({ ...DRIVER, status: "suspended" });
     renderControl();
@@ -177,7 +124,6 @@ describe("StatusControl — the employment lifecycle", () => {
       expect(setDriverStatus).toHaveBeenCalledWith("d-1", {
         status: "suspended",
         reason: "on leave",
-        acknowledgeHeldWork: false,
       }),
     );
   });

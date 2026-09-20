@@ -245,16 +245,22 @@ export interface StatusOutcome {
 /**
  * Move a driver between employment states (FR-015…FR-020).
  *
- * ⚠ TWO THINGS ARE TRUE AT ONCE AND THE UI MUST SAY BOTH: access ends IMMEDIATELY (the record is
- * authoritative and the identity account is disabled in the same operation), while work already
- * assigned is only reclaimed on the assignment sweep's next round. Implying a stood-down driver has
- * been cleared of work when they have not is the exact failure this feature exists to prevent.
+ * ⚠ FR-020'S HELD-WORK REFUSAL IS GONE, AND THE HAZARD IT GUARDED IS GONE WITH IT — FOR NOW.
+ * Standing a driver down used to be refused until the operator acknowledged an itemised list of what
+ * they were already carrying, because `releaseIneligibleWork` never yanked picked-up work and the
+ * UNIQUE(shop_fulfillment_id) constraint then kept those packages claimed forever, with an order
+ * attached to each. Nothing assigns work now, so nothing can be holding any, and a warning that can
+ * never fire is a warning people learn to click through.
+ *
+ * ⚠ THE DISPATCH SLICE MUST REBUILD THIS, and it is not a nicety: it was 056's headline finding, it
+ * was in no register because nobody knew, and it strands physical goods permanently and invisibly.
+ * Releasing stranded work stays an explicit human action for the reason 056 gave — it asserts
+ * something about the physical world that no query can know.
  */
 export async function setStatus(
   id: string,
   status: DriverEmploymentStatus,
   reason: string,
-  acknowledgeHeldWork: boolean,
   actorSub: string,
   scope: RequestScope,
 ): Promise<StatusOutcome> {
@@ -267,22 +273,6 @@ export async function setStatus(
 
   const current = await repo.getDriver(id);
   if (!current) throw notFound("driver not found");
-
-  // FR-020 — leaving `active` while holding started work is refused until acknowledged.
-  if (current.status === "active" && status !== "active" && !acknowledgeHeldWork) {
-    const held = await repo.heldWorkFor(id);
-    if (held.length > 0) {
-      throw conflict(
-        `${current.name} is holding ${held.length} item(s) of work that has already been picked up ` +
-          `or started. Standing them down will not return it automatically — it must be released by ` +
-          `hand. Affected orders: ${[...new Set(held.map((h) => h.orderReference))].join(", ")}.`,
-        held.map((h) => ({
-          field: `${h.kind}:${h.taskId}`,
-          message: `${h.taskStatus} — order ${h.orderReference}${h.location ? ` (${h.location})` : ""}`,
-        })),
-      );
-    }
-  }
 
   const email = await repo.setStatus(id, status, trimmedReason, async (tx, driverId) => {
     await recordAudit(

@@ -89,7 +89,6 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
         order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL,
         CONSTRAINT opd_uq UNIQUE (order_id, shop_id)
       );
-      CREATE TABLE public.delivery_task (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
       CREATE TABLE public.carrier_handoff (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id),
@@ -105,7 +104,6 @@ describe.skipIf(!RUN)("recordArrival — against real PostgreSQL", () => {
         arrived_at timestamptz NOT NULL DEFAULT now(),
         source text NOT NULL CHECK (source IN ('driver_proof','staff_recorded','carrier_signal')),
         recorded_by_sub text,
-        delivery_task_id uuid REFERENCES public.delivery_task (id),
         note text,
         created_at timestamptz NOT NULL DEFAULT now(),
         CONSTRAINT package_arrival_package_uq UNIQUE (shop_fulfillment_id),

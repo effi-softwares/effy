@@ -515,92 +515,26 @@ export interface AdminDriverUpdateRequest {
 export interface AdminDriverStatusRequest {
   status: DriverEmploymentStatus;
   reason: string;
-  /** Set only after the operator has seen and accepted the held-work warning (FR-020). Without it,
-   *  standing down a driver who is holding started work is refused with an itemised 409. */
-  acknowledgeHeldWork?: boolean;
+  // ⚠ `acknowledgeHeldWork` was here, and the dispatch slice will need it back. It gated FR-020's
+  // itemised refusal when standing down a driver holding already-picked-up work; that work lived in
+  // `collection_task` / `delivery_task`, so with nothing assigning anything no driver can hold any.
 }
 
 // ── Held / stranded work ─────────────────────────────────────────────────────────────────────────
 
-export type StrandedWorkKind = "collection" | "delivery";
-
-/**
- * Work claimed by a driver who is no longer eligible, which the automatic release sweep will NOT
- * reclaim because it has already been physically picked up or started (FR-021).
- *
- * ⚠ DERIVED ON READ, NEVER STORED. A stored flag and the task rows can disagree, and then nobody
- * knows which is true (027's counted-not-stored rule).
- */
-export interface StrandedWork {
-  kind: StrandedWorkKind;
-  /** The collection_task id or the delivery_task id. */
-  taskId: string;
-  taskStatus: string;
-  driverId: string;
-  driverName: string;
-  driverStatus: DriverEmploymentStatus;
-  orderId: string;
-  orderReference: string;
-  /** The shop the package came from (collection), or the delivery suburb (delivery). */
-  location: string | null;
-  since: string;
-}
-
-export interface StrandedWorkResponse {
-  items: StrandedWork[];
-}
-
-export interface StrandedReleaseRequest {
-  collectionTaskIds?: string[];
-  deliveryTaskIds?: string[];
-  note: string;
-}
-
-export interface StrandedReleaseResponse {
-  released: WireInt;
-}
-
-// ── Exceptions ───────────────────────────────────────────────────────────────────────────────────
-
-export type DriverExceptionKind = "delivery_failure" | "collection_issue";
-
-/**
- * An undeliverable drop, or a missing/short package reported at a shop (FR-027, FR-028).
- *
- * ⚠ The driver app has written both since 049 and NOTHING HAS EVER READ EITHER. Both tables carry a
- * comment saying they are "recorded for back-office follow-up"; this type is the follow-up.
- */
-export interface DriverException {
-  kind: DriverExceptionKind;
-  id: string;
-  /** delivery_failure: nobody_home | wrong_address | customer_refused | access_blocked | other.
-   *  collection_issue: missing | short. */
-  reason: string;
-  note: string | null;
-  driverId: string | null;
-  driverName: string | null;
-  orderId: string | null;
-  orderReference: string | null;
-  /** The delivery suburb (failure) or the shop name (collection issue). Never a full address —
-   *  a queue screen does not need one, and it would put a customer's street on a list view. */
-  location: string | null;
-  occurredAt: string;
-  resolvedAt: string | null;
-  resolvedBySub: string | null;
-  resolutionNote: string | null;
-}
-
-export interface DriverExceptionListResponse {
-  items: DriverException[];
-  nextCursor: string | null;
-  /** Shown on entering the Drivers area (FR-032) — as a labelled figure in a section header, never
-   *  a metric card (Principle V). */
-  outstandingCount: WireInt;
-}
-
-export interface DriverExceptionResolveRequest {
-  note: string;
-}
+// ── Stranded work and exceptions: RETIRED WITH THE WORK MODEL ───────────────────────────────────
+//
+// ⚠ `StrandedWork*` and `DriverException*` described rows in `collection_task`, `delivery_task`,
+// `delivery_failure` and `collection_task_issue`, all dropped by
+// db/migrations/20260920101500_remove_driver_work_model.sql. They are removed rather than kept as a
+// dormant vocabulary, because 059 found a fourth reader of `device_token.platform` whose only sign of
+// life was a comment saying web push was out of scope — exported, imported by nothing, quietly
+// contradicting the live contract. A type nothing can populate is that shape waiting to happen.
+//
+// ⚠ THE CAPABILITY THEY SERVED IS NOT RESOLVED, ONLY UNBUILT. 056 existed because the driver app had
+// been recording exceptions since 049 for a reader that did not exist — a driver marks a drop
+// undeliverable and nobody at Effy is told. The dispatch slice inherits that requirement along with
+// the work model it must redesign; ORDER-FLOW-GAPS.md is where it stays recorded until then.
 
 // ── Duty ─────────────────────────────────────────────────────────────────────────────────────────
 
@@ -610,12 +544,6 @@ export interface OnDutyDriver {
   zone: string | null;
   sessionId: string;
   onDutySince: string;
-  /** Null when on duty with nothing assigned — which is itself worth seeing. */
-  currentRunId: string | null;
-  currentRunType: DriverRunType | null;
-  completedStops: WireInt;
-  totalStops: WireInt;
-  nextStop: string | null;
   /** True when the session has been open longer than the configured threshold (FR-037). */
   overdue: boolean;
 }
@@ -623,9 +551,10 @@ export interface OnDutyDriver {
 /**
  * Work that is ready and has no driver (FR-036).
  *
- * ⚠ Computed with the assignment sweep's OWN candidate predicate, shared as a SQL constant. If the
- * console derived it independently the screen would eventually be confidently wrong about the one
- * question it exists to answer — "why is nothing moving?".
+ * ⚠ THIS IS NOW A BACKLOG, NOT A SHORTFALL. It was computed with the assignment sweep's own candidate
+ * predicate so the screen could not disagree with what the sweep saw; there is no sweep, nothing
+ * claims work, and so every ready package counts. Until dispatch is rebuilt these figures only rise —
+ * which is the one thing about the current state an operator needs to be able to see.
  */
 export interface UnassignedWorkSummary {
   readyToCollect: WireInt;
@@ -638,68 +567,15 @@ export interface DutyResponseAdmin {
   unassigned: UnassignedWorkSummary;
 }
 
-// ── Work history ─────────────────────────────────────────────────────────────────────────────────
-
-export interface DriverRunSummary {
-  runId: string;
-  type: DriverRunType;
-  status: string;
-  businessDate: string;
-  assignedAt: string;
-  completedAt: string | null;
-  completedStops: WireInt;
-  totalStops: WireInt;
-}
-
-export interface DriverRunStop {
-  taskId: string;
-  kind: StrandedWorkKind;
-  sequence: WireInt;
-  label: string;
-  status: string;
-  orderId: string | null;
-  orderReference: string | null;
-  /** The append-only status timeline for this stop, oldest first (FR-040). */
-  timeline: { status: string; at: string }[];
-  /** Delivery stops only, and only once delivered. */
-  hasProof: boolean;
-}
-
-export interface DriverRunDetail {
-  run: DriverRunSummary;
-  driverId: string;
-  driverName: string;
-  stops: DriverRunStop[];
-}
-
-/** Counts over a chosen period (FR-043). ⚠ Counts only — this is not a timesheet and carries no
- *  currency, no hours-for-payment and no rate. */
-export interface DriverPeriodSummary {
-  from: string;
-  to: string;
-  daysWorked: WireInt;
-  runsCompleted: WireInt;
-  packagesCollected: WireInt;
-  dropsDelivered: WireInt;
-  dropsFailed: WireInt;
-}
-
-export interface DriverHistoryResponse {
-  items: DriverRunSummary[];
-  nextCursor: string | null;
-  summary: DriverPeriodSummary;
-}
-
-/** Proof of delivery for one drop (FR-041).
- *  ⚠ `mediaUrl` is a TIME-LIMITED presigned URL, never a durable address, and issuing it is audited. */
-export interface DriverProofResponse {
-  method: ProofMethod;
-  mediaUrl: string | null;
-  note: string | null;
-  capturedAt: string;
-  capturedByDriverId: string | null;
-  capturedByDriverName: string | null;
-}
+// ── Work history: RETIRED WITH THE WORK MODEL ───────────────────────────────────────────────────
+//
+// ⚠ `DriverRunSummary`, `DriverRunStop`, `DriverRunDetail`, `DriverPeriodSummary`,
+// `DriverHistoryResponse` and `DriverProofResponse` all projected `driver_run`, `collection_task`,
+// `delivery_task`, `driver_task_event` and `proof_of_delivery`. Gone with those tables.
+//
+// ⚠ `DriverAuditEntry` below is a DIFFERENT record and deliberately survives: it is the back-office
+// change log in `admin.audit_log` — who edited a driver's profile, who stood them down and why. That
+// is employment history, not work history, and nothing about it depended on the shape of a run.
 
 // ── Audit ────────────────────────────────────────────────────────────────────────────────────────
 

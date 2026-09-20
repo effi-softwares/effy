@@ -69,8 +69,6 @@ provider:
     # Driver-pool provisioning: the pool this service creates driver sign-ins in. Resolved from the
     # auth contract at deploy time — never hard-coded. The driver pool defines NO RBAC groups.
     DRIVER_USER_POOL_ID: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_id}
-    # Proof-of-delivery media lives in the shared media bucket under driver-proof/.
-    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
     # ⚠ Operational thresholds (research R11). BOTH are read by src/shared/config.ts, and
     # config.contract.test.ts reads THIS FILE to assert each one is declared. That guard exists
     # because 035 read four env vars its serverless.yml never declared — every pool resolved
@@ -96,13 +94,6 @@ provider:
             - cognito-idp:AdminDisableUser
             - cognito-idp:AdminEnableUser
           Resource: ${ssm:/effy/${sls:stage}/auth/driver/user_pool_arn}
-        # Proof-of-delivery media: READ ONLY, and only under the driver-proof/ prefix. ⚠ Narrower
-        # than edge-driver's grant on the same prefix, which also carries PutObject — back-office
-        # views proof, it never captures any.
-        - Effect: Allow
-          Action:
-            - s3:GetObject
-          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/driver-proof/*
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as
@@ -209,30 +200,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
-  # ── US3 — the exceptions the driver app has recorded since 049 and nothing ever read ────────────
-  exceptionsListV1:
-    handler: src/functions/exceptions-list-v1-get.handler
-    description: Undeliverable drops + missing/short package reports, with the outstanding count (056 FR-027…FR-032). Read = any active staff, csa most of all.
-    events:
-      - httpApi:
-          method: GET
-          path: /fleet/v1/exceptions
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  exceptionResolveV1:
-    handler: src/functions/exception-resolve-v1-post.handler
-    description: Close one exception with a note; one-way, never deleted (056 FR-031). Write = admin/manager.
-    events:
-      - httpApi:
-          method: POST
-          path: /fleet/v1/exceptions/{kind}/{exceptionId}/resolve
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  # ── US4 — duty visibility and stranded work ────────────────────────────────────────────────────
   dutyV1:
     handler: src/functions/duty-v1-get.handler
     description: Who is on duty, what they are doing, and what work is waiting for a driver (056 FR-034…FR-036). Read = any active staff.
@@ -255,63 +222,6 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
-  strandedListV1:
-    handler: src/functions/stranded-list-v1-get.handler
-    description: Work held by a driver who can no longer do it — derived, never stored (056 FR-021). Read = any active staff.
-    events:
-      - httpApi:
-          method: GET
-          path: /fleet/v1/stranded
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  strandedReleaseV1:
-    handler: src/functions/stranded-release-v1-post.handler
-    description: Return stranded work to the unassigned pool — the sweep decides who gets it (056 FR-021/FR-038). Write = admin/manager.
-    events:
-      - httpApi:
-          method: POST
-          path: /fleet/v1/stranded/release
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  # ── US5 — the work record and proof of delivery ────────────────────────────────────────────────
-  driverHistoryV1:
-    handler: src/functions/driver-history-v1-get.handler
-    description: A driver's runs by working day + period activity counts, no currency (056 FR-039/FR-043). Read = any active staff.
-    events:
-      - httpApi:
-          method: GET
-          path: /fleet/v1/drivers/{driverId}/history
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  runGetV1:
-    handler: src/functions/run-get-v1-get.handler
-    description: One run's stops in order with the time each state was reached (056 FR-040). Read = any active staff.
-    events:
-      - httpApi:
-          method: GET
-          path: /fleet/v1/runs/{runId}
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  dropProofV1:
-    handler: src/functions/drop-proof-v1-get.handler
-    description: Proof captured for a completed drop; time-limited presigned media, and issuing it is audited (056 FR-041/FR-042). Read = any active staff.
-    events:
-      - httpApi:
-          method: GET
-          path: /fleet/v1/drops/{deliveryTaskId}/proof
-          authorizer:
-            type: jwt
-            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
-
-  # ── US6 — readiness and coverage ───────────────────────────────────────────────────────────────
   readinessV1:
     handler: src/functions/readiness-v1-get.handler
     description: Drivers who cannot receive work, zones with nobody in them, expiring credentials (056 FR-044…FR-046). Read = any active staff.

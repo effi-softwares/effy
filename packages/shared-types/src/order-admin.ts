@@ -114,9 +114,17 @@ export interface PackageArrivalDTO {
 /**
  * One thing that happened to an order, for the operator to scan.
  *
- * ⚠ A READ-SIDE PROJECTION over `fulfillment_event` (020), `driver_task_event` (049),
- * `carrier_handoff` and `package_arrival` — never a stored timeline. A stored one would be a fourth
- * place every state change has to be written, and the first place it gets forgotten.
+ * ⚠ A READ-SIDE PROJECTION over `fulfillment_event` (020), `carrier_handoff` and `package_arrival`
+ * — never a stored timeline. A stored one would be a fourth place every state change has to be
+ * written, and the first place it gets forgotten.
+ *
+ * ⚠ `kind: "driver"` IS KEPT THOUGH NOTHING EMITS IT, and that is a considered exception to this
+ * repo's rule against dormant vocabulary. Its source was `driver_task_event`, dropped with the 049
+ * work model. The rule exists because a type nothing can populate quietly contradicts the live
+ * contract (059's fourth `device_token.platform` reader); here the opposite risk is larger — this
+ * union is the projection's source list, the projection is DESIGNED to gain and lose sources, and
+ * narrowing it now would force a change to the console's label map for no gain and a second change
+ * back when dispatch lands.
  */
 export interface AdminOrderHistoryEntryDTO {
   at: string;

@@ -253,64 +253,28 @@ describe("updateDriver — FR-010/FR-012", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 describe("setStatus — FR-015…FR-020", () => {
-  it("⚠ REFUSES to stand down a driver holding started work, and itemises it", async () => {
-    vi.mocked(repo.heldWorkFor).mockResolvedValue([
-      {
-        kind: "collection",
-        taskId: "ct-1",
-        taskStatus: "collected",
-        orderId: "o-1",
-        orderReference: "EFY-AAA111",
-        location: "Shop One",
-      },
-      {
-        kind: "delivery",
-        taskId: "dt-1",
-        taskStatus: "out_for_delivery",
-        orderId: "o-2",
-        orderReference: "EFY-BBB222",
-        location: "Carlton",
-      },
-    ]);
-
-    const err = (await setStatus("d-1", "suspended", "on leave", false, "actor-1", scope).catch(
-      (e) => e,
-    )) as FleetError;
-
-    expect(err.kind).toBe("conflict");
-    // The operator must be able to act on this: which orders, and how much.
-    expect(err.message).toContain("EFY-AAA111");
-    expect(err.message).toContain("EFY-BBB222");
-    expect(err.fields).toHaveLength(2);
-    // ⚠ And nothing moved.
-    expect(repo.setStatus).not.toHaveBeenCalled();
-    expect(cognito.disableDriverUser).not.toHaveBeenCalled();
-  });
-
-  it("proceeds once the operator acknowledges the held work", async () => {
-    vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
-    vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
-
-    await setStatus("d-1", "suspended", "on leave", true, "actor-1", scope);
-
-    // The held-work read is skipped entirely once acknowledged — the operator has already seen it.
-    expect(repo.heldWorkFor).not.toHaveBeenCalled();
-    expect(repo.setStatus).toHaveBeenCalled();
-    expect(cognito.disableDriverUser).toHaveBeenCalledWith("sam@effyshopping.com");
-  });
-
-  it("does not ask about held work when a driver is being RESTORED", async () => {
+  /**
+   * ⚠ TWO CASES WERE REMOVED HERE, AND THEIR SUBJECT IS RECORDED IN ORDER-FLOW-GAPS.md RATHER THAN
+   * LEFT AS A SKIPPED TEST. They asserted that standing down a driver holding already-picked-up work
+   * is REFUSED and itemised, and that acknowledging it proceeds. `heldWorkFor` read `collection_task`
+   * and `delivery_task`; with nothing assigning work, no driver can hold any, so the cases would have
+   * asserted a refusal that can never fire.
+   *
+   * A skipped test is the wrong shape for this: it looks like coverage in a summary line and passes
+   * review as "temporarily disabled" long after the reason is forgotten. The requirement belongs to
+   * the dispatch slice, in the register, where it is somebody's job.
+   */
+  it("restores a driver, re-enabling their sign-in", async () => {
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
     vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
 
-    await setStatus("d-1", "active", "back from leave", false, "actor-1", scope);
+    await setStatus("d-1", "active", "back from leave", "actor-1", scope);
 
-    expect(repo.heldWorkFor).not.toHaveBeenCalled();
     expect(cognito.enableDriverUser).toHaveBeenCalledWith("sam@effyshopping.com");
   });
 
   it("requires a reason, which is recorded against the driver", async () => {
-    const err = (await setStatus("d-1", "suspended", "   ", false, "actor-1", scope).catch(
+    const err = (await setStatus("d-1", "suspended", "   ", "actor-1", scope).catch(
       (e) => e,
     )) as FleetError;
     expect(err.kind).toBe("validation");
@@ -325,7 +289,7 @@ describe("setStatus — FR-015…FR-020", () => {
     vi.mocked(cognito.disableDriverUser).mockRejectedValue(new Error("cognito down"));
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
 
-    const out = await setStatus("d-1", "suspended", "on leave", true, "actor-1", scope);
+    const out = await setStatus("d-1", "suspended", "on leave", "actor-1", scope);
 
     expect(out.profile.status).toBe("suspended");
     expect(scope.log.error).toHaveBeenCalled();
@@ -338,7 +302,7 @@ describe("setStatus — FR-015…FR-020", () => {
     });
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "offboarded" });
 
-    await setStatus("d-1", "offboarded", "resigned", true, "actor-1", scope);
+    await setStatus("d-1", "offboarded", "resigned", "actor-1", scope);
 
     const call = vi.mocked(recordAudit).mock.calls.find(
       (c) => c[0].action === "driver.status_changed",

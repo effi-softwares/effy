@@ -5,8 +5,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 /**
  * The order READS, against real PostgreSQL 16 (053 US1).
  *
- * ⚠ THE HISTORY IS A FOUR-WAY UNION ACROSS TABLES THREE DIFFERENT SLICES OWN — `fulfillment_event`
- * (020), `driver_task_event` (049), `carrier_handoff` and `package_arrival` (053). A mock cannot
+ * ⚠ THE HISTORY IS A UNION ACROSS TABLES TWO DIFFERENT SLICES OWN — `fulfillment_event` (020),
+ * `carrier_handoff` and `package_arrival` (053). It was four-way until the 049 work model was
+ * dropped and the `driver_task_event` branch went with it. A mock cannot
  * catch a wrong column, a join that quietly excludes a row, or an ordering that only looks right on
  * one source's data. The closure repo's own container test exists for exactly this reason and this
  * query is larger.
@@ -79,19 +80,6 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
       CREATE TABLE public.order_package_delivery (
         order_id uuid NOT NULL, shop_id uuid NOT NULL, method text NOT NULL
       );
-      CREATE TABLE public.driver_run (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
-      CREATE TABLE public.collection_task (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(), shop_fulfillment_id uuid NOT NULL
-      );
-      CREATE TABLE public.delivery_task (id uuid PRIMARY KEY DEFAULT gen_random_uuid());
-      CREATE TABLE public.delivery_task_package (
-        delivery_task_id uuid NOT NULL, shop_fulfillment_id uuid NOT NULL
-      );
-      CREATE TABLE public.driver_task_event (
-        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        run_id uuid, collection_task_id uuid, delivery_task_id uuid,
-        status text NOT NULL, at timestamptz NOT NULL DEFAULT now()
-      );
       CREATE TABLE public.fulfillment_event (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         shop_fulfillment_id uuid NOT NULL REFERENCES public.shop_fulfillment (id) ON DELETE CASCADE,
@@ -109,7 +97,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         shop_fulfillment_id uuid NOT NULL UNIQUE,
         arrived_at timestamptz NOT NULL DEFAULT now(),
-        source text NOT NULL, recorded_by_sub text, delivery_task_id uuid, note text
+        source text NOT NULL, recorded_by_sub text, note text
       );
     `);
   }, 180_000);
@@ -122,8 +110,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   beforeEach(async () => {
     await pool.query(`
       TRUNCATE public.package_arrival, public.carrier_handoff, public.fulfillment_event,
-               public.driver_task_event, public.delivery_task_package, public.collection_task,
-               public.delivery_task, public.order_package_delivery, public.order_item,
+               public.order_package_delivery, public.order_item,
                public.shop_fulfillment, public.payment, public."order", public.customer,
                public.shop, public.promo_code RESTART IDENTITY CASCADE`);
   });
@@ -154,7 +141,7 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
     return { orderId: o.rows[0]!.id, fulfillmentId: f.rows[0]!.id };
   }
 
-  it("returns history from ALL FOUR sources, in time order", async () => {
+  it("returns history from every remaining source, in time order", async () => {
     const { orderId, fulfillmentId } = await seed();
 
     await pool.query(
@@ -162,15 +149,9 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
        VALUES ($1, 'state_changed', 'picking', now() - interval '4 hours')`,
       [fulfillmentId],
     );
-    const ct = await pool.query<{ id: string }>(
-      `INSERT INTO public.collection_task (shop_fulfillment_id) VALUES ($1) RETURNING id`,
-      [fulfillmentId],
-    );
-    await pool.query(
-      `INSERT INTO public.driver_task_event (collection_task_id, status, at)
-       VALUES ($1, 'collected', now() - interval '3 hours')`,
-      [ct.rows[0]!.id],
-    );
+    // ⚠ A `driver` entry stood between the shop's event and the handover, sourced from
+    // `driver_task_event`. It went with the work model; the union is three-way now and the order
+    // assertion below is what proves nothing else shifted.
     await pool.query(
       `INSERT INTO public.carrier_handoff (shop_fulfillment_id, carrier_name, recorded_by_sub, handed_over_at)
        VALUES ($1, 'Australia Post', 'staff-1', now() - interval '2 hours')`,
@@ -184,10 +165,10 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
 
     const rows = await history(orderId);
 
-    expect(rows.map((r) => r.kind)).toEqual(["fulfillment", "driver", "handoff", "arrival"]);
+    expect(rows.map((r) => r.kind)).toEqual(["fulfillment", "handoff", "arrival"]);
     expect(rows.map((r) => r.at.getTime())).toEqual([...rows.map((r) => r.at.getTime())].sort((a, b) => a - b));
-    expect(rows[2]!.summary).toBe("Handed to Australia Post");
-    expect(rows[3]!.actor_sub).toBe("staff-1");
+    expect(rows[1]!.summary).toBe("Handed to Australia Post");
+    expect(rows[2]!.actor_sub).toBe("staff-1");
   });
 
   /** ⚠ FR-003. The history entry must read the same with or without a consignment number. */
@@ -207,18 +188,16 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
   });
 
   /**
-   * ⚠ SC-010 — every arrival attributable, whichever route it came by. If research R6's driver-path
-   * extension is reverted, the `driver_proof` half disappears and this fails.
+   * ⚠ SC-010 — every arrival attributable, whichever route it came by. `package_arrival.source`
+   * survives the work-model teardown and still distinguishes the two; what it lost is
+   * `delivery_task_id`, the pointer at WHICH drop delivered it, because there are no drops.
    */
   it("distinguishes a driver arrival from a back-office one", async () => {
     const a = await seed("same_day");
-    const dt = await pool.query<{ id: string }>(
-      `INSERT INTO public.delivery_task DEFAULT VALUES RETURNING id`,
-    );
     await pool.query(
-      `INSERT INTO public.package_arrival (shop_fulfillment_id, source, delivery_task_id)
-       VALUES ($1, 'driver_proof', $2)`,
-      [a.fulfillmentId, dt.rows[0]!.id],
+      `INSERT INTO public.package_arrival (shop_fulfillment_id, source)
+       VALUES ($1, 'driver_proof')`,
+      [a.fulfillmentId],
     );
 
     const b = await seed("standard");

@@ -30,7 +30,6 @@ export const handler = async (
       event.pathParameters?.driverId ?? "",
       body.status,
       body.reason ?? "",
-      body.acknowledgeHeldWork === true,
       g.sub,
       scope,
     );

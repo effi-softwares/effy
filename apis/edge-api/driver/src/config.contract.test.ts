@@ -13,7 +13,14 @@ import { describe, expect, it } from "vitest";
  * Two properties are load-bearing and invisible to a normal unit test:
  *  1. Every authenticated /driver/v1/* route must carry the DRIVER JWT authorizer. A missing
  *     authorizer would silently make a driver-only route public (auth isolation, Principle IV).
- *  2. The DB + media env keys the code reads must be declared, or every request fails at first use.
+ *  2. The DB env keys the code reads must be declared, or every request fails at first use.
+ *
+ * ⚠ THE WORK-MODEL ROUTES ARE GONE, DELIBERATELY. Collection, hub check-in, delivery, proof, history
+ * and the activity feed were retired with 049's assignment sweep (see
+ * db/migrations/20260920101500_remove_driver_work_model.sql). What is left is the driver's IDENTITY
+ * half — who they are, whether they are on duty, where they were, and where to push to. Asserting
+ * over a list that no longer includes them is the point: a route that returns here must be added to
+ * this list, rather than inheriting the previous slice's authorizer by resemblance.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -31,10 +38,8 @@ function functionBlock(fn: string): string {
 describe("driver deployment contract — serverless.yml declares what the service needs", () => {
   it("carries the DRIVER authorizer on the core authenticated /driver/v1 routes", () => {
     for (const fn of [
-      "driverMeV1", "driverDutyV1", "driverLocationV1", "driverTodayV1",
-      "collectionRunV1", "collectionStopV1", "collectionStopCollectV1", "hubCheckinV1",
-      "deliveryRunV1", "deliveryDropV1", "deliveryDropStatusV1", "proofPresignV1", "proofV1",
-      "deliveryDropFailV1",
+      "driverMeV1", "driverDutyV1", "driverLocationV1",
+      "driverDevicesV1Post", "driverDevicesV1IdDelete",
     ]) {
       const block = functionBlock(fn);
       expect(block, `${fn} must be authenticated`).toContain("authorizer");
@@ -48,26 +53,26 @@ describe("driver deployment contract — serverless.yml declares what the servic
     }
   });
 
-  it("declares the DB + media environment keys the service reads", () => {
+  it("declares the DB environment keys the service reads", () => {
     for (const key of [
       "DB_HOST",
       "DB_PORT",
       "DB_NAME",
       "DB_USER",
       "DB_SECRET_ARN",
-      "S3_MEDIA_BUCKET",
     ]) {
       expect(yaml.includes(`${key}:`), `serverless.yml does not declare ${key}`).toBe(true);
     }
   });
 
-  it("schedules the assignment sweep worker", () => {
-    const block = functionBlock("assignmentSweep");
-    expect(block, "the worker must be scheduled").toContain("schedule");
-    expect(block, "the worker handler must exist").toContain("src/assignment/handler.handler");
-  });
-
-  it("scopes proof-media IAM to the driver-proof prefix only (never a wildcard bucket)", () => {
-    expect(yaml).toContain("driver-proof/*");
+  /**
+   * ⚠ A NEGATIVE ASSERTION, AND IT IS THE POINT OF THIS CHANGE. The greedy sweep is not paused or
+   * feature-flagged, it is gone — and a schedule is exactly the kind of thing that gets restored by
+   * someone reading the git history and assuming its absence was an oversight. Nothing in this
+   * service may run on a timer until the dispatch slice says what the timer is for.
+   */
+  it("schedules nothing — the 049 assignment sweep is retired, not disabled", () => {
+    expect(yaml).not.toContain("schedule:");
+    expect(yaml).not.toContain("assignmentSchedule");
   });
 });

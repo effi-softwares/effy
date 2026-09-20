@@ -6,10 +6,9 @@ import { ErrorState } from "@effy/web-kit/console";
 
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
-import { StrandedWorkPanel } from "./StrandedWorkPanel";
 import { canManageDrivers } from "../access";
 import { driverActionError } from "../errorText";
-import { durationSince, RUN_TYPE_LABEL } from "../model";
+import { durationSince } from "../model";
 import { dutyQuery, useEndDutySession } from "../queries";
 import { useState } from "react";
 
@@ -85,19 +84,7 @@ export function DutyPanel() {
               <span className="text-sm tabular-nums text-muted-foreground">
                 {durationSince(d.onDutySince)} on duty
               </span>
-              <span className="text-sm">
-                {d.currentRunId ? (
-                  <>
-                    {RUN_TYPE_LABEL[d.currentRunType ?? ""] ?? d.currentRunType} ·{" "}
-                    <span className="tabular-nums">
-                      {d.completedStops} of {d.totalStops}
-                    </span>
-                    {d.nextStop ? <> · next: {d.nextStop}</> : null}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">Idle — no run assigned</span>
-                )}
-              </span>
+              <span className="text-sm text-muted-foreground">Idle — nothing is assigned</span>
               {d.overdue ? (
                 <span className="flex items-center gap-2 text-sm">
                   <span className="font-medium">Shift running long</span>
@@ -128,8 +115,6 @@ export function DutyPanel() {
           {error}
         </p>
       ) : null}
-
-      <StrandedWorkPanel />
     </section>
   );
 }

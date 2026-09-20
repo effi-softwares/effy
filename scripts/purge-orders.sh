@@ -56,15 +56,12 @@ DSN="$(bash "$ROOT/infra/scripts/db-dsn.sh" "$ENV")" || {
 #   carry non-order rows too. Deleting them wholesale would take unrelated events with them.
 # ⚠ `stripe_event` IS taken whole — it is the webhook de-duplication ledger and holds nothing else. It
 #   must go, or a re-delivered webhook for a deleted order is silently skipped as "already seen".
+# ⚠ THE NINE 049 WORK TABLES ARE NO LONGER LISTED — `driver_run`, both task tables, their issue and
+#   package tables, proof, failures, the event timeline and the activity feed were dropped by
+#   20260920101500_remove_driver_work_model.sql. The `run_assigned` notification filter below STAYS:
+#   that ledger still holds rows the retired sweep wrote, and purging an order should still take
+#   them.
 read -r -d '' TARGETS <<'LIST' || true
-driver_task_event|
-proof_of_delivery|
-delivery_failure|
-delivery_task_package|
-delivery_task|
-collection_task_issue|
-collection_task|
-driver_run|
 fulfillment_event|
 fulfillment_item|
 shop_fulfillment|
@@ -114,7 +111,7 @@ DECLARE
   n bigint;
   parts text[] := '{}';
 BEGIN
-  FOREACH t IN ARRAY ARRAY['order', 'order_item', 'payment', 'shop_fulfillment', 'driver_run'] LOOP
+  FOREACH t IN ARRAY ARRAY['order', 'order_item', 'payment', 'shop_fulfillment'] LOOP
     IF to_regclass('public."' || t || '"') IS NULL THEN
       CONTINUE;
     END IF;

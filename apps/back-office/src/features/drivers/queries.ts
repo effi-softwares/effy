@@ -4,10 +4,9 @@ import type {
   AdminDriverCreateRequest,
   AdminDriverStatusRequest,
   AdminDriverUpdateRequest,
-  DriverExceptionKind,
 } from "@effy/shared-types";
 
-import type { DriverListParams, ExceptionListParams } from "./model";
+import type { DriverListParams } from "./model";
 import * as repo from "./repo";
 
 // Server state lives ONLY in the TanStack Query cache (Principle VI) — never hand-cached in
@@ -19,12 +18,7 @@ export const driverKeys = {
   list: (p: DriverListParams) => ["drivers", "list", p] as const,
   detail: (id: string) => ["drivers", "detail", id] as const,
   audit: (id: string) => ["drivers", "audit", id] as const,
-  history: (id: string) => ["drivers", "history", id] as const,
-  run: (id: string) => ["drivers", "run", id] as const,
-  proof: (id: string) => ["drivers", "proof", id] as const,
   duty: ["drivers", "duty"] as const,
-  stranded: ["drivers", "stranded"] as const,
-  exceptions: (p: ExceptionListParams) => ["drivers", "exceptions", p] as const,
   readiness: ["drivers", "readiness"] as const,
   zones: ["drivers", "zones"] as const,
 };
@@ -38,23 +32,6 @@ export const driverDetailQuery = (id: string) =>
 export const driverAuditQuery = (id: string) =>
   queryOptions({ queryKey: driverKeys.audit(id), queryFn: () => repo.getDriverAudit(id) });
 
-export const driverHistoryQuery = (id: string) =>
-  queryOptions({ queryKey: driverKeys.history(id), queryFn: () => repo.getHistory(id) });
-
-export const runDetailQuery = (runId: string) =>
-  queryOptions({ queryKey: driverKeys.run(runId), queryFn: () => repo.getRun(runId) });
-
-export const proofQuery = (deliveryTaskId: string) =>
-  queryOptions({
-    queryKey: driverKeys.proof(deliveryTaskId),
-    queryFn: () => repo.getProof(deliveryTaskId),
-    // ⚠ The media URL is a TIME-LIMITED presigned link and issuing one is audited. Caching it for a
-    // long time would either serve an expired URL or hide repeat views from the audit trail; a short
-    // stale time keeps the two honest.
-    staleTime: 60_000,
-    gcTime: 60_000,
-  });
-
 export const dutyQuery = () =>
   queryOptions({
     queryKey: driverKeys.duty,
@@ -63,12 +40,6 @@ export const dutyQuery = () =>
     // enough not to poll the database from every open console tab.
     refetchInterval: 30_000,
   });
-
-export const strandedQuery = () =>
-  queryOptions({ queryKey: driverKeys.stranded, queryFn: () => repo.getStranded() });
-
-export const exceptionsQuery = (p: ExceptionListParams) =>
-  queryOptions({ queryKey: driverKeys.exceptions(p), queryFn: () => repo.listExceptions(p) });
 
 export const readinessQuery = () =>
   queryOptions({ queryKey: driverKeys.readiness, queryFn: () => repo.getReadiness() });
@@ -113,28 +84,6 @@ export function useSetDriverStatus(driverId: string) {
     mutationFn: (body: AdminDriverStatusRequest) => repo.setDriverStatus(driverId, body),
     onSuccess: () => {
       // A status change moves duty eligibility, stranded work and readiness all at once.
-      void qc.invalidateQueries({ queryKey: driverKeys.all });
-    },
-  });
-}
-
-export function useResolveException() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { kind: DriverExceptionKind; id: string; note: string }) =>
-      repo.resolveException(v.kind, v.id, v.note),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: driverKeys.all });
-    },
-  });
-}
-
-export function useReleaseStranded() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (v: { collectionTaskIds?: string[]; deliveryTaskIds?: string[]; note: string }) =>
-      repo.releaseStranded(v),
-    onSuccess: () => {
       void qc.invalidateQueries({ queryKey: driverKeys.all });
     },
   });

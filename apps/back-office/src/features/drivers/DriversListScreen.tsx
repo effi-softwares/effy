@@ -22,7 +22,7 @@ import { CreateDriverDialog } from "./components/CreateDriverDialog";
 import { DutyPanel } from "./components/DutyPanel";
 import { canManageDrivers } from "./access";
 import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model";
-import { driversListQuery, exceptionsQuery, zonesQuery } from "./queries";
+import { driversListQuery, zonesQuery } from "./queries";
 
 const ALL = "all";
 
@@ -130,7 +130,6 @@ export function DriversListScreen() {
   const zones = useQuery(zonesQuery());
   // The outstanding count only — the rows live on the Exceptions section of the profile and the
   // dedicated filter below.
-  const exceptions = useQuery(exceptionsQuery({ resolved: "false" }));
 
   function resetPaging<T>(set: (v: T) => void) {
     return (v: T) => {
@@ -152,20 +151,9 @@ export function DriversListScreen() {
         {canManage ? <CreateDriverDialog /> : null}
       </div>
 
-      {/* ⚠ FR-032 — the outstanding count is visible on entering the Drivers area, as a sentence
-          that leads somewhere. NOT a metric card (Principle V). Rendered only when there is
-          something outstanding: a permanent "0 unresolved" line is noise that trains people to skip
-          the row it lives on. */}
-      {exceptions.data && exceptions.data.outstandingCount > 0 ? (
-        <p className="border-l-2 border-foreground py-1 pl-3 text-sm">
-          <span className="font-semibold tabular-nums">{exceptions.data.outstandingCount}</span>{" "}
-          unresolved {exceptions.data.outstandingCount === 1 ? "report" : "reports"} from the road —
-          failed deliveries and packages missing at shops.{" "}
-          <Link to="/drivers/exceptions" className="text-primary underline">
-            Review them
-          </Link>
-        </p>
-      ) : null}
+      {/* ⚠ FR-032's outstanding-reports line stood here — a count of failed deliveries and packages
+          missing at shops, as a sentence that led somewhere rather than a metric card. It read
+          `delivery_failure` and `collection_task_issue`, dropped with the work model. */}
 
       <DutyPanel />
 

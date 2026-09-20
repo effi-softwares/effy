@@ -6,20 +6,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminDriverListItem } from "@effy/shared-types";
 
 const listDrivers = vi.hoisted(() => vi.fn());
-const listExceptions = vi.hoisted(() => vi.fn());
 const listZones = vi.hoisted(() => vi.fn());
 const getDuty = vi.hoisted(() => vi.fn());
-const getStranded = vi.hoisted(() => vi.fn());
 const roles = vi.hoisted(() => ({ current: [] as string[] }));
 
 vi.mock("./repo", () => ({
   listDrivers,
-  listExceptions,
   listZones,
   getDuty,
-  getStranded,
   createDriver: vi.fn(),
-  releaseStranded: vi.fn(),
   endDutySession: vi.fn(),
 }));
 
@@ -59,13 +54,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   roles.current = ["admin"];
   listDrivers.mockResolvedValue({ items: [driver()], nextCursor: null });
-  listExceptions.mockResolvedValue({ items: [], nextCursor: null, outstandingCount: 0 });
   listZones.mockResolvedValue([{ id: "z-1", name: "Inner North" }]);
   getDuty.mockResolvedValue({
     onDuty: [],
     unassigned: { readyToCollect: 0, readyToDeliver: 0, driversOnDuty: 0 },
   });
-  getStranded.mockResolvedValue({ items: [] });
 });
 
 describe("DriversListScreen — the register", () => {
@@ -88,19 +81,12 @@ describe("DriversListScreen — the register", () => {
     ).toBeInTheDocument();
   });
 
-  it("⚠ FR-032 — the outstanding-report count is a sentence that leads somewhere, not a tile", async () => {
-    listExceptions.mockResolvedValue({ items: [], nextCursor: null, outstandingCount: 3 });
-    renderScreen();
-    expect(await screen.findByText(/unresolved reports from the road/)).toBeInTheDocument();
-    expect(screen.getByText("Review them")).toBeInTheDocument();
-  });
-
-  it("stays quiet when nothing is outstanding — a permanent '0' trains people to skip the row", async () => {
-    renderScreen();
-    await screen.findByText("Sam Rivers");
-    expect(screen.queryByText(/unresolved/)).not.toBeInTheDocument();
-  });
-
+  /**
+   * ⚠ FR-032'S OUTSTANDING-REPORT COUNT WAS ASSERTED HERE, both that it appears as a sentence
+   * leading somewhere rather than a metric tile, and that it stays silent at zero because a
+   * permanent "0 unresolved" trains people to skip the row it lives on. It counted
+   * `delivery_failure` and `collection_task_issue`, dropped with the work model.
+   */
   it("explains the empty register instead of showing a bare empty table", async () => {
     listDrivers.mockResolvedValue({ items: [], nextCursor: null });
     renderScreen();
@@ -151,7 +137,10 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
     expect(screen.getByText("12")).toBeInTheDocument();
   });
 
-  it("reports waiting work plainly when somebody IS on duty", async () => {
+  it("⚠ shows a driver on duty and IDLE while work waits — the pair is the whole point", async () => {
+    // The run-progress assertions that were here (which run, 2 of 5 stops, next: Shop Two) went with
+    // the work model. What is left is the state the platform is actually in until dispatch is
+    // rebuilt, and the screen says it in as many words rather than rendering an empty progress bar.
     getDuty.mockResolvedValue({
       onDuty: [
         {
@@ -160,11 +149,6 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
           zone: "Inner North",
           sessionId: "s-1",
           onDutySince: new Date(Date.now() - 3600_000).toISOString(),
-          currentRunId: "r-1",
-          currentRunType: "collection",
-          completedStops: 2,
-          totalStops: 5,
-          nextStop: "Shop Two",
           overdue: false,
         },
       ],
@@ -173,8 +157,10 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
     renderScreen();
     expect(await screen.findByText(/waiting to be picked up/)).toBeInTheDocument();
     expect(screen.queryByText(/Nobody is on duty/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Collection round/)).toBeInTheDocument();
-    expect(screen.getByText(/next: Shop Two/)).toBeInTheDocument();
+    // ⚠ Two "Sam Rivers" render on this screen — one in the duty panel, one in the register below
+    // it — so the assertion names the pair that matters rather than a bare text match.
+    expect(screen.getAllByText("Sam Rivers").length).toBeGreaterThan(1);
+    expect(screen.getByText(/Idle — nothing is assigned/)).toBeInTheDocument();
   });
 
   it("says drivers go on duty from the app, so nobody looks for a control that is not there", async () => {
@@ -183,56 +169,14 @@ describe("DutyPanel — FR-036, the state that was invisible", () => {
   });
 });
 
-describe("StrandedWorkPanel — the state that is permanent and invisible today", () => {
-  it("⚠ names the driver, the order and how long it has been stuck", async () => {
-    getStranded.mockResolvedValue({
-      items: [
-        {
-          kind: "collection",
-          taskId: "ct-1",
-          taskStatus: "collected",
-          driverId: "d-9",
-          driverName: "Departed Driver",
-          driverStatus: "offboarded",
-          orderId: "o-1",
-          orderReference: "EFY-STRND1",
-          location: "Shop One",
-          since: "2026-08-29T00:00:00.000Z",
-        },
-      ],
-    });
-    renderScreen();
-    expect(await screen.findByText("EFY-STRND1")).toBeInTheDocument();
-    expect(screen.getByText("Departed Driver")).toBeInTheDocument();
-    expect(screen.getByText(/will not come back on their own/)).toBeInTheDocument();
-  });
-
-  it("renders nothing at all when no work is stranded", async () => {
-    renderScreen();
-    await screen.findByText("Sam Rivers");
-    expect(screen.queryByText(/Stranded work/)).not.toBeInTheDocument();
-  });
-
-  it("⚠ gives a csa no release control", async () => {
-    roles.current = ["csa"];
-    getStranded.mockResolvedValue({
-      items: [
-        {
-          kind: "collection",
-          taskId: "ct-1",
-          taskStatus: "collected",
-          driverId: "d-9",
-          driverName: "Departed Driver",
-          driverStatus: "offboarded",
-          orderId: "o-1",
-          orderReference: "EFY-STRND1",
-          location: "Shop One",
-          since: "2026-08-29T00:00:00.000Z",
-        },
-      ],
-    });
-    renderScreen();
-    await screen.findByText("EFY-STRND1");
-    expect(screen.queryByRole("button", { name: /release/i })).not.toBeInTheDocument();
-  });
-});
+/**
+ * ⚠ THE STRANDED-WORK PANEL'S TESTS WERE REMOVED HERE, and what they covered is the most important
+ * thing in this file to rebuild. They asserted that stranded work NAMES the driver, the order and how
+ * long it has been stuck, says it "will not come back on their own", renders nothing at all when
+ * there is none, and gives a csa no release control.
+ *
+ * 056 found that condition with nothing in any register: standing a driver down could strand physical
+ * goods permanently and invisibly, because the release sweep correctly never yanked picked-up work
+ * and UNIQUE(shop_fulfillment_id) then kept those packages claimed forever. It cannot arise while
+ * nothing assigns work — and it arises again the moment something does.
+ */

@@ -366,61 +366,6 @@ export async function insertDriver(input: InsertDriverInput): Promise<string> {
   return res.rows[0]!.id;
 }
 
-export interface HeldWork {
-  kind: "collection" | "delivery";
-  taskId: string;
-  taskStatus: string;
-  orderId: string;
-  orderReference: string;
-  location: string | null;
-}
-
-/**
- * Work this driver has already picked up or started, which standing them down would strand (FR-020).
- *
- * ⚠ This is the SAME condition the stranded-work reader uses, minus the ineligibility term — because
- * here we are asking "what WOULD be stranded if we did this", before the driver becomes ineligible.
- */
-export async function heldWorkFor(driverId: string): Promise<HeldWork[]> {
-  const res = await query<{
-    kind: "collection" | "delivery";
-    task_id: string;
-    task_status: string;
-    order_id: string;
-    order_reference: string;
-    location: string | null;
-  }>(
-    `SELECT 'collection'::text AS kind, ct.id AS task_id, ct.status AS task_status,
-            sf.order_id, o.order_number AS order_reference, sh.name AS location
-       FROM public.collection_task ct
-       JOIN public.driver_run r        ON r.id = ct.run_id
-       JOIN public.shop_fulfillment sf ON sf.id = ct.shop_fulfillment_id
-       JOIN public."order" o           ON o.id = sf.order_id
-       LEFT JOIN public.shop sh        ON sh.id = ct.shop_id
-      WHERE r.driver_id = $1
-        AND ct.status IN ('collected', 'short')
-        AND r.status NOT IN ('completed', 'cancelled')
-      UNION ALL
-     SELECT 'delivery'::text, dt.id, dt.status,
-            dt.order_id, o.order_number, ca.city
-       FROM public.delivery_task dt
-       JOIN public.driver_run r  ON r.id = dt.run_id
-       JOIN public."order" o     ON o.id = dt.order_id
-       LEFT JOIN public.customer_address ca ON ca.id = dt.customer_address_id
-      WHERE r.driver_id = $1
-        AND dt.status IN ('out_for_delivery', 'en_route', 'arrived')`,
-    [driverId],
-  );
-  return res.rows.map((r) => ({
-    kind: r.kind,
-    taskId: r.task_id,
-    taskStatus: r.task_status,
-    orderId: r.order_id,
-    orderReference: r.order_reference,
-    location: r.location,
-  }));
-}
-
 /** Apply an employment status transition and audit it, in one transaction. */
 export async function setStatus(
   id: string,
