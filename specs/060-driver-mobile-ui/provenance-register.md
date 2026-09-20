@@ -67,6 +67,10 @@ delivery.photoTimestamp
 delivery.photoGeotag
 delivery.cameraControls
 delivery.iosLivePreview
+account.dispatchPhone
+account.hubDeskContact
+account.handbookLink
+map.markerCoordinates
 -->
 
 ## Known placeholders, declared up front
@@ -246,7 +250,19 @@ offline queue's own timestamp, ⚠ not invented.
 | "Packages return to the hub" | — | ⚠ **COPY REFUSED.** The design promises a return-to-hub process and re-attempt. **Neither is modelled** — 056 recorded this is "closed for Effy, NOT for the shopper". The screen says only that dispatch is notified. |
 
 ### Group 6 — Map
-*Pending — Phase 4.*
+
+**Screens 33–34 · `map-collection` / `map-delivery`** — `MapScreen`, `EffyMapCanvas`
+
+⚠ **The cartography is real and the pins are not.** That asymmetry is the whole screen.
+
+| Field | Class | Source / reason |
+|---|---|---|
+| **Map cartography** | ✅ | **Real OpenStreetMap data**, served by **OpenFreeMap** (`tiles.openfreemap.org/styles/liberty`). ⚠ **NOT `tile.openstreetmap.org`** — OSM's Tile Usage Policy forbids *"distributing an app that uses tiles from openstreetmap.org"* and may block access without notice, so the map would go blank in production. No API key, no account, no billing. |
+| **Attribution** | ✅ | A licence obligation (FR-023b), rendered in our own chrome and pinned by `MapLibreImportGuardTest` |
+| Stop titles, subtitles, order | ✅ | Derived from the run the driver already holds — the map issues no fetch of its own, so it cannot disagree with Today |
+| Hub row | ✅ | `driver.hub`; rendered as a squared outline vs a filled round-rect, ⚠ **not colour alone** — the hub is a different KIND of place and a sunlit windscreen mount defeats colour |
+| **Marker coordinates** | 🟡 | ⚠ **There are none to plot.** 049 R13: shops carry no address or coordinates, orders carry an un-geocoded address. **Decorative rather than operational** because the map is *illustrative, not navigational* — routing goes through **Navigate**, which hands the device's maps app the real address string, so no decision is ever taken from a pin. **Unblocked by**: `shop.address` + geocoding |
+| Stop **ETA** column | ⛔ | ⚠ **OMITTED.** **Unblocked by**: routing + geodata |
 
 ### Group 7 — Notifications
 *Pending — Phase 7.*
@@ -255,7 +271,21 @@ offline queue's own timestamp, ⚠ not invented.
 *Pending — Phase 7.*
 
 ### Group 9 — Account
-*Pending — Phase 5.*
+
+**Screens 41–44 · `account` / `appearance` / `help` / `signout`**
+
+| Field | Class | Source / reason |
+|---|---|---|
+| Avatar initials | 🔢 | Derived from `driver.name`, falling back to the email local-part |
+| Name, work email | ✅ | `Driver` |
+| Duty status row | ✅ | `driver.dutyStatus` |
+| Delivery zone, home hub, vehicle | ✅ | `Driver` — ⚠ render `—` when unassigned, which is a real state for a newly provisioned driver, not a gap |
+| Appearance value | ✅ | The persisted `AppearanceMode` |
+| App version | ✅ | Build config |
+| Sign-out warning's outstanding-work count | 🔢 | Derived from the active run when known; the clause is **omitted** when it is not, rather than guessing |
+| **Dispatch phone number** | ⛔ | ⚠ **REFUSED ON CONSTITUTIONAL GROUNDS.** The design supplies `1800 EFFY OPS`. A number a driver would dial is an outward-facing real-world identifier, and the constitution requires those be operator-supplied and **never inferred** — the rule exists because 037 read an address from session context and AWS mailed a real person. A plausible wrong number is worse than a blank one: the driver dials it and reaches a stranger, and every automated gate passes, because the defect is one of AUTHORITY not correctness. **Unblocked by**: the operator supplying one |
+| **Hub desk contact** | ⛔ | No contact on the operating-hub record. **Unblocked by**: a hub contact field |
+| **Driver handbook** | ⛔ | No such document exists. **Unblocked by**: an operator-published handbook URL |
 
 ### Group 10 — Cross-cutting
 *Pending — Phase 7.*

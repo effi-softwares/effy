@@ -57,7 +57,12 @@ fun ActivityScreen(state: ActivityUiState, onBack: () -> Unit, onOpen: (Activity
                                 Spacer(Modifier.size(10.dp))
                             }
                             Column(Modifier.weight(1f)) {
-                                Text(item.body, style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    item.headline(),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                                )
+                                Text(item.body, style = MaterialTheme.typography.bodyMedium)
                                 Text(item.createdAt.take(16).replace('T', ' '), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             if (clickable) Text("›", style = MaterialTheme.typography.titleLarge)
@@ -72,4 +77,20 @@ fun ActivityScreen(state: ActivityUiState, onBack: () -> Unit, onOpen: (Activity
 @Composable
 private fun Centered(content: @Composable () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+}
+
+/**
+ * A headline for an activity item.
+ *
+ * \u26a0 **DERIVED, because `ActivityItem` has no title field.** The design shows a title above the
+ * body; the domain carries `type` and `body` only. Mapping the known types to a headline is honest
+ * \u2014 the type IS platform data \u2014 and an unknown type falls back to a neutral label rather than
+ * inventing one, so a newer producer cannot make this screen lie.
+ */
+private fun ActivityItem.headline(): String = when (type) {
+    "run_assigned" -> "Run assigned"
+    "packages_ready" -> "Packages ready"
+    "window_starting" -> "Delivery window starting"
+    "short_package" -> "Short package reported"
+    else -> "Update"
 }

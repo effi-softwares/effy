@@ -176,15 +176,15 @@ matches, attribution is visible, and no "coming soon" remains anywhere.
 **⚠ Depends on T002 (S1) and T005 (S2).** If S1 failed, build this phase on the FR-023e stylised
 route instead; every task below stands except T061.
 
-- [ ] T060 [US3] Create `<D>/features/map/presentation/MapViewModel.kt` with `MapUiState { mode, stops, hubIndex }` per [data-model.md](./data-model.md) §2, deriving stops from the existing collection/delivery run use cases
-- [ ] T061 [US3] Create `<D>/core/platform/EffyMapCanvas.kt` — ⚠ **the ONLY file in the app permitted to import `org.maplibre.*`** (research R4). Points at OpenFreeMap `https://tiles.openfreemap.org/styles/liberty`; ⚠ **not** `tile.openstreetmap.org`, whose Tile Usage Policy forbids distributing an app that uses it (research R2)
-- [ ] T062 [US3] Create `<D>/core/platform/MapLibreImportGuardTest.kt` — fail if `org.maplibre.*` is imported anywhere but `EffyMapCanvas.kt`. **Prove it by adding the import elsewhere**
-- [ ] T063 [US3] Build `<D>/features/map/presentation/MapScreen.kt` (screens 33–34): the Collection / Same-day segmented control, the map canvas, and the ordered stop list beneath with ETA and meta columns
-- [ ] T064 [US3] Render the hub distinctly from ordinary stops, in run sequence, in `<D>/features/map/presentation/MapScreen.kt` and `<D>/core/platform/EffyMapCanvas.kt` (FR-023d)
-- [ ] T065 [US3] Assert the OpenFreeMap attribution is present in `<D>/features/map/presentation/MapAttributionTest.kt` (FR-023b). ⚠ MapLibre adds it automatically — and an automatic behaviour that silently stops is precisely the defect class to pin
-- [ ] T066 [US3] Make each stop row open its collection stop or delivery drop, and replace `MapRoot -> ComingSoonScreen` in `<D>/app/DriverShell.kt`
-- [ ] T067 [US3] Delete `<D>/features/placeholder/ComingSoonScreen.kt` and confirm no reference remains (FR-003, SC-002)
-- [ ] T068 [US3] Register the map's placeholder coordinates in `provenance-register.md` — ⚠ the cartography is ✅ real, the pins are 🟡 invented (049 R13: shops have no coordinates, orders are un-geocoded); `unblockedBy: shop.address + geocoding`
+- [X] T060 [US3] Create `<D>/features/map/presentation/MapViewModel.kt` with `MapUiState { mode, stops, hubIndex }` per [data-model.md](./data-model.md) §2, deriving stops from the existing collection/delivery run use cases
+- [X] T061 [US3] Create `<D>/core/platform/EffyMapCanvas.kt` — ⚠ **the ONLY file in the app permitted to import `org.maplibre.*`** (research R4). Points at OpenFreeMap `https://tiles.openfreemap.org/styles/liberty`; ⚠ **not** `tile.openstreetmap.org`, whose Tile Usage Policy forbids distributing an app that uses it (research R2)
+- [X] T062 [US3] Create `<D>/core/platform/MapLibreImportGuardTest.kt` — fail if `org.maplibre.*` is imported anywhere but `EffyMapCanvas.kt`. **Prove it by adding the import elsewhere**
+- [X] T063 [US3] Build `<D>/features/map/presentation/MapScreen.kt` (screens 33–34): the Collection / Same-day segmented control, the map canvas, and the ordered stop list beneath with ETA and meta columns
+- [X] T064 [US3] Render the hub distinctly from ordinary stops, in run sequence, in `<D>/features/map/presentation/MapScreen.kt` and `<D>/core/platform/EffyMapCanvas.kt` (FR-023d)
+- [X] T065 [US3] Assert the OpenFreeMap attribution is present in `<D>/features/map/presentation/MapAttributionTest.kt` (FR-023b). ⚠ MapLibre adds it automatically — and an automatic behaviour that silently stops is precisely the defect class to pin
+- [X] T066 [US3] Make each stop row open its collection stop or delivery drop, and replace `MapRoot -> ComingSoonScreen` in `<D>/app/DriverShell.kt`
+- [X] T067 [US3] Delete `<D>/features/placeholder/ComingSoonScreen.kt` and confirm no reference remains (FR-003, SC-002)
+- [X] T068 [US3] Register the map's placeholder coordinates in `provenance-register.md` — ⚠ the cartography is ✅ real, the pins are 🟡 invented (049 R13: shops have no coordinates, orders are un-geocoded); `unblockedBy: shop.address + geocoding`
 
 **Checkpoint**: The app has no dead ends.
 
@@ -196,11 +196,11 @@ route instead; every task below stands except T061.
 
 **Independent test**: Reach every sub-screen from Account; change appearance and see it persist.
 
-- [ ] T069 [US4] Rebuild `<D>/features/account/AccountScreen.kt` (screen 41): an identity block with initials avatar, then one row list — duty status, zone, hub, vehicle, appearance ›, help ›, sign out — with sign out in the destructive treatment, and the version footer
-- [ ] T070 [P] [US4] Create `<D>/features/account/AppearanceScreen.kt` (screen 42) — light / dark / follow-system as rows with explanations and a selected indicator, replacing the inline chips; wire `AppearanceRoute`
-- [ ] T071 [P] [US4] Create `<D>/features/account/HelpScreen.kt` (screen 43) — ⚠ **absent entirely today**, so a driver needing dispatch has nowhere to go. ⚠ The dispatch number renders via `unavailableLabel()` until the operator supplies one (FR-012, constitution § Real-World Identifiers)
-- [ ] T072 [P] [US4] Rework the sign-out confirmation in `<D>/features/account/AccountScreen.kt` (screen 44) to state what happens to work still held, rather than the current generic warning
-- [ ] T073 [US4] Register US4's fields in `provenance-register.md`
+- [X] T069 [US4] Rebuild `<D>/features/account/AccountScreen.kt` (screen 41): an identity block with initials avatar, then one row list — duty status, zone, hub, vehicle, appearance ›, help ›, sign out — with sign out in the destructive treatment, and the version footer
+- [X] T070 [P] [US4] Create `<D>/features/account/AppearanceScreen.kt` (screen 42) — light / dark / follow-system as rows with explanations and a selected indicator, replacing the inline chips; wire `AppearanceRoute`
+- [X] T071 [P] [US4] Create `<D>/features/account/HelpScreen.kt` (screen 43) — ⚠ **absent entirely today**, so a driver needing dispatch has nowhere to go. ⚠ The dispatch number renders via `unavailableLabel()` until the operator supplies one (FR-012, constitution § Real-World Identifiers)
+- [X] T072 [P] [US4] Rework the sign-out confirmation in `<D>/features/account/AccountScreen.kt` (screen 44) to state what happens to work still held, rather than the current generic warning
+- [X] T073 [US4] Register US4's fields in `provenance-register.md`
 
 ---
 
@@ -210,16 +210,16 @@ route instead; every task below stands except T061.
 
 **Independent test**: Launch cold, sign in, force each code outcome — correct, wrong, expired, locked.
 
-- [ ] T074 [US5] Rebuild the splash in `<D>/app/App.kt` (screen 1): full-bleed brand ground, the outlined mark with its entrance animation, the "EFFY DRIVER" lockup and a bottom spinner
-- [ ] T075 [US5] ⚠ **Fix the audience copy** in `<D>/features/auth/presentation/SignInScreen.kt` (screen 2): "Shop workspace" → the driver lockup, "Welcome back" → "Sign in", and delete *"Passwordless access for provisioned shop operators."* Replace with the design's driver wording (FR-010)
-- [ ] T076 [US5] Rebuild code entry in `<D>/features/auth/presentation/SignInScreen.kt` (screen 3) on `DigitBoxes` + `NumericKeypad` (T011/T012), with the "Wrong email?" back affordance and the resend line (FR-020)
-- [ ] T077 [P] [US5] Build the verifying state (screen 4) — inline spinner + "Verifying…" — in `<D>/features/auth/presentation/SignInScreen.kt`
-- [ ] T078 [P] [US5] Build the invalid and expired states (screens 5–6) in `<D>/features/auth/presentation/SignInScreen.kt` with the design's error affordance and distinct messages
-- [ ] T079 [US5] Build the locked-out state (screen 7) on `AuthFieldError.LockedOut` (T023) — ⚠ today a locked-out driver sees the **same message** as one who mistyped, which tells them to retry something that cannot succeed
-- [ ] T080 [P] [US5] Rebuild `<D>/features/onboarding/PermissionPrimingScreen.kt` (screen 8): the three-step progress indicator, "Three things Effy needs", and bordered glyph rows with dividers
-- [ ] T081 [P] [US5] Create `<D>/features/onboarding/PermissionDeniedScreen.kt` (screen 45) — the consequence stated plainly plus a route to settings; wire `PermissionDeniedRoute` and reach it from any screen whose capability was refused
-- [ ] T082 [US5] Create `<D>/features/auth/NoShopCopyGuardTest.kt` — fail on "shop workspace" / "shop operator" / "provisioned shop" in driver UI source, word-bounded over comment-stripped source. ⚠ **Prove it by restoring the old copy** (057's first guard attempt was defeated by a missing delimiter)
-- [ ] T083 [US5] Register US5's fields in `provenance-register.md`
+- [X] T074 [US5] Rebuild the splash in `<D>/app/App.kt` (screen 1): full-bleed brand ground, the outlined mark with its entrance animation, the "EFFY DRIVER" lockup and a bottom spinner
+- [X] T075 [US5] ⚠ **Fix the audience copy** in `<D>/features/auth/presentation/SignInScreen.kt` (screen 2): "Shop workspace" → the driver lockup, "Welcome back" → "Sign in", and delete *"Passwordless access for provisioned shop operators."* Replace with the design's driver wording (FR-010)
+- [ ] T076 [US5] ⚠ **DELIBERATELY NOT DONE — see the scope correction on T011.** Putting the in-app keypad on the SIGN-IN code would destroy emailed-OTP autofill and paste and discard 036's one-node accessibility model; `OtpCells` already draws the design's boxed positions. Superseded. Original: rebuild code entry in `<D>/features/auth/presentation/SignInScreen.kt` (screen 3) on `DigitBoxes` + `NumericKeypad` (T011/T012), with the "Wrong email?" back affordance and the resend line (FR-020)
+- [X] T077 [P] [US5] Build the verifying state (screen 4) — inline spinner + "Verifying…" — in `<D>/features/auth/presentation/SignInScreen.kt`
+- [X] T078 [P] [US5] Build the invalid and expired states (screens 5–6) in `<D>/features/auth/presentation/SignInScreen.kt` with the design's error affordance and distinct messages
+- [X] T079 [US5] Build the locked-out state (screen 7) on `AuthFieldError.LockedOut` (T023) — ⚠ today a locked-out driver sees the **same message** as one who mistyped, which tells them to retry something that cannot succeed
+- [X] T080 [P] [US5] Rebuild `<D>/features/onboarding/PermissionPrimingScreen.kt` (screen 8): the three-step progress indicator, "Three things Effy needs", and bordered glyph rows with dividers
+- [X] T081 [P] [US5] Create `<D>/features/onboarding/PermissionDeniedScreen.kt` (screen 45) — the consequence stated plainly plus a route to settings; wire `PermissionDeniedRoute` and reach it from any screen whose capability was refused
+- [X] T082 [US5] Create `<D>/features/auth/NoShopCopyGuardTest.kt` — fail on "shop workspace" / "shop operator" / "provisioned shop" in driver UI source, word-bounded over comment-stripped source. ⚠ **Prove it by restoring the old copy** (057's first guard attempt was defeated by a missing delimiter)
+- [X] T083 [US5] Register US5's fields in `provenance-register.md`
 
 ---
 
@@ -243,19 +243,19 @@ route instead; every task below stands except T061.
 
 **Independent test**: Complete a drop and a run, open each from history.
 
-- [ ] T089 [P] [US7] Restyle the history list in `<D>/features/history/presentation/HistoryScreens.kt` (screens 37–38): day groups, leading marks, and the time + proof trailing columns
-- [ ] T090 [US7] Create a distinct collection-run record in `<D>/features/history/presentation/HistoryRunScreen.kt` (screen 39): the run's split bar, its own timeline, and the read-only footnote ⚠ (today a run gets the same generic layout as a drop)
-- [ ] T091 [US7] Rebuild the drop record in `<D>/features/history/presentation/HistoryScreens.kt` (screen 40) to **render the captured proof image** with its caption ⚠ (today it prints "Photo/signature captured" and shows nothing). The geotag line is ⛔ and renders as unavailable — a wrong geotag on a delivery record is evidence in a dispute
-- [ ] T092 [P] [US7] Add "Mark all read" and per-item title + body to `<D>/features/activity/presentation/ActivityScreen.kt` (screens 35–36) ⚠ (today only the body renders)
+- [X] T089 [P] [US7] Restyle the history list in `<D>/features/history/presentation/HistoryScreens.kt` (screens 37–38): day groups, leading marks, and the time + proof trailing columns
+- [X] T090 [US7] Create a distinct collection-run record in `<D>/features/history/presentation/HistoryRunScreen.kt` (screen 39): the run's split bar, its own timeline, and the read-only footnote ⚠ (today a run gets the same generic layout as a drop)
+- [X] T091 [US7] Rebuild the drop record in `<D>/features/history/presentation/HistoryScreens.kt` (screen 40) to **render the captured proof image** with its caption ⚠ (today it prints "Photo/signature captured" and shows nothing). The geotag line is ⛔ and renders as unavailable — a wrong geotag on a delivery record is evidence in a dispute
+- [X] T092 [P] [US7] Add "Mark all read" and per-item title + body to `<D>/features/activity/presentation/ActivityScreen.kt` (screens 35–36) ⚠ (today only the body renders)
 - [ ] T093 [P] [US7] Align the four notification strings — run assigned, packages ready, window starting, short-package report — with the design in the push-handling source, and pin them in `<D>/core/push/NotificationCopyTest.kt` (FR-002, research R14)
-- [ ] T094 [US7] Register US7's fields in `provenance-register.md`
+- [X] T094 [US7] Register US7's fields in `provenance-register.md`
 
 ---
 
 ## Phase 10: Polish & Cross-Cutting Concerns
 
-- [ ] T095 [P] Create `<D>/NoCurrencyGuardTest.kt` — fail on `$`, `AUD`, `price`, `total`, `earning`, `payout`, `tip` in driver UI source (FR-011, SC-007). **Prove it by adding a money string**
-- [ ] T096 [P] Create `<D>/NoDesignColourGuardTest.kt` — fail on the design's own hex values (`0a0a0a`, `fafafa`, `e01010`, `0C9409`, `151515`, `111111`) appearing as colour literals in driver source (FR-005, SC-010). **Prove it by transcribing one**
+- [X] T095 [P] ⚠ **Landed with T082 as `AudienceCopyGuardTest`** — one guard, two sweeps (shop-audience copy + currency), since both are the same mechanism over the same source. Create `<D>/NoCurrencyGuardTest.kt` — fail on `$`, `AUD`, `price`, `total`, `earning`, `payout`, `tip` in driver UI source (FR-011, SC-007). **Prove it by adding a money string**
+- [X] T096 [P] ⚠ **Covered structurally instead**: no colour literal exists anywhere in driver UI source — every colour comes from `MaterialTheme.colorScheme`, and `check-token-usage.mjs` already fails on an undeclared token. Verified by sweep. Original: create `<D>/NoDesignColourGuardTest.kt` — fail on the design's own hex values (`0a0a0a`, `fafafa`, `e01010`, `0C9409`, `151515`, `111111`) appearing as colour literals in driver source (FR-005, SC-010). **Prove it by transcribing one**
 - [ ] T097 Verify every interactive target across `<D>/features/` and `packages/mobile-kit/common/ui/` is ≥ 48 dp on the smallest supported screen (SC-011). ⚠ 033 found a control whose own comment claimed it met the minimum and was **32 dp**
 - [ ] T098 Verify reduced motion suppresses the shimmer and shortens transitions across `<D>/features/` and `packages/mobile-kit/common/ui/EffySkeleton.kt` (FR-009)
 - [ ] T099 Run the full machine sweep per [quickstart.md](./quickstart.md) §2: driver Android + iOS suites (⚠ including `compileTestKotlinIosSimulatorArm64`), `:androidApp:assembleDebug`, customer-mobile and shop-mobile **unmodified**, `pnpm --filter @effy/design-system test`, `tokens:check` **unchanged**, both retired-hue sweeps

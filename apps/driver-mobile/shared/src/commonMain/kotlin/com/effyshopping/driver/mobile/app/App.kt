@@ -59,20 +59,10 @@ fun App(
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (val s = session) {
-                SessionState.Restoring -> Centered {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                    ) {
-                        Text("EFFY", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
-                        CircularProgressIndicator()
-                        Text(
-                            "Starting your shift…",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                // ⚠ Design screen `splash`. Was a centred word and a spinner on the app's normal
+                // background — indistinguishable from a screen that failed to load. Now a
+                // full-bleed brand ground with the mark, as the design has it.
+                SessionState.Restoring -> SplashScreen()
 
                 SessionState.SignedOut -> SignInFlow(container, reducedMotion = platformState.reducedMotion)
 

@@ -39,6 +39,8 @@ maplibreCompose = "0.17.0"
 # 060 — in-app camera viewfinder for photo proof (Android only; iOS uses a designed stand-in +
 # system-camera handoff until a Swift AVFoundation bridge exists — research R8).
 camerax = "1.5.0"
+# 060 — rendering a captured proof photo in history. Same version customer-mobile uses.
+coil = "3.1.0"
 
 [libraries]
 # 060 — reached from EXACTLY ONE file (core/platform/EffyMapCanvas.kt); the API is pre-1.0 and
@@ -46,6 +48,8 @@ camerax = "1.5.0"
 maplibre-compose = { module = "org.maplibre.compose:maplibre-compose", version.ref = "maplibreCompose" }
 # 060 — CameraX, androidMain only. ⚠ This CLOSES a live defect as a side effect: rememberPhotoCapture
 # returns null on iOS, so photo proof is hidden there entirely today.
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
 androidx-camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 androidx-camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.effyshopping.driver.mobile.core.platform.EffyMapCanvas
+import com.effyshopping.driver.mobile.core.platform.MAP_ATTRIBUTION
 import com.effyshopping.driver.mobile.features.today.domain.Phase
 import com.effyshopping.driver.mobile.features.today.domain.TodayItem
 
@@ -117,10 +120,11 @@ fun CurrentWorkCard(
 /**
  * The card's map band.
  *
- * ⚠ A neutral panel, not a map — real OpenStreetMap cartography arrives in Phase 5, and even then
- * the pins are placeholder because the platform holds no coordinates (register: `heroMapStrip`).
- * It reserves the space deliberately rather than collapsing, so the layout a driver learns now does
- * not shift under them when the map lands.
+ * \u26a0 Real OpenStreetMap cartography (via `EffyMapCanvas`) \u2014 but **no pin**, because the
+ * platform holds no coordinates for a shop or a customer address (049 R13). It shows the driver
+ * their surroundings, not their destination, and the attribution the licence requires rides with
+ * it. Navigation still goes through **Navigate**, which hands the device's maps app the real
+ * address string.
  */
 @Composable
 private fun MapStrip() {
@@ -128,15 +132,20 @@ private fun MapStrip() {
         Modifier
             .fillMaxWidth()
             .height(106.dp)
-            .clip(RoundedCornerShape(topStart = 13.dp, topEnd = 13.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
+            .clip(RoundedCornerShape(topStart = 13.dp, topEnd = 13.dp)),
     ) {
-        Text(
-            "Map view coming soon",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        EffyMapCanvas(Modifier.fillMaxSize())
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.align(Alignment.BottomEnd),
+        ) {
+            Text(
+                MAP_ATTRIBUTION,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+        }
     }
 }
 

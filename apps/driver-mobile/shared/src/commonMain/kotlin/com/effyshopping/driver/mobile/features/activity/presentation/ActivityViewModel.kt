@@ -36,7 +36,20 @@ class ActivityViewModel(
                 _state.update { it.copy(items = items, isLoading = false, loaded = true) }
                 // Mark the unread ones read once seen.
                 val unread = items.filter { !it.read }.map { it.id }
-                if (unread.isNotEmpty()) runCatching { markRead(unread) }
+                if (unread.isNotEmpty()) {
+                    runCatching { markRead(unread) }
+                        // ⚠ 060: the local state was NEVER updated after this call, so every
+                        // unread dot stayed on screen until the driver reloaded the tab — the
+                        // server knew they were read and the app kept saying otherwise. That is
+                        // also why the design's "Mark all read" button is absent: items are marked
+                        // read the moment the screen opens, so the button would do nothing visible,
+                        // and a control that does nothing is worse than none (054).
+                        .onSuccess {
+                            _state.update { st ->
+                                st.copy(items = st.items.map { it.copy(read = true) })
+                            }
+                        }
+                }
             } catch (e: AppException) {
                 _state.update { it.copy(isLoading = false, loaded = true, message = e.error.userMessage()) }
             }

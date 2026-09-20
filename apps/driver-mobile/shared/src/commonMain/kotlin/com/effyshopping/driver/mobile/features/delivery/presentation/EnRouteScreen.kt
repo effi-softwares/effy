@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.effyshopping.driver.mobile.core.platform.EffyMapCanvas
+import com.effyshopping.driver.mobile.core.platform.MAP_ATTRIBUTION
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 
 /**
@@ -101,7 +103,7 @@ fun EnRouteScreen(
                 ) { Text("Call") }
             }
             Text(
-                "Calling a customer without showing their number is coming soon.",
+                "Calling a customer without showing their number isn't built yet.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -123,21 +125,25 @@ fun EnRouteScreen(
 }
 
 /**
- * ⚠ A neutral panel, not a map. Real OpenStreetMap cartography arrives in Phase 5, and even then
- * the pins are placeholder — the platform holds no coordinates for a customer address (049 R13).
- * The space is reserved so the layout does not shift under the driver when the map lands.
+ * \u26a0 Real OpenStreetMap cartography, **with no route drawn on it**. The platform has no
+ * coordinates for a customer address (049 R13), so there is no line to draw and no pin to place.
+ * It orients the driver; **Navigate** does the routing, with the real address string.
  */
 @Composable
 internal fun MapPanel(height: androidx.compose.ui.unit.Dp = 220.dp) {
-    Box(
-        Modifier.fillMaxWidth().height(height).background(MaterialTheme.colorScheme.surfaceVariant),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            "Map view coming soon",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    Box(Modifier.fillMaxWidth().height(height)) {
+        EffyMapCanvas(Modifier.fillMaxSize())
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.align(Alignment.BottomEnd),
+        ) {
+            Text(
+                MAP_ATTRIBUTION,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
+            )
+        }
     }
 }
 

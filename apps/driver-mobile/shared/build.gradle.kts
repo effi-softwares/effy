@@ -89,6 +89,11 @@ kotlin {
             // MapLibreImportGuardTest asserts that, because 'only import it in one place' is a
             // comment until something fails.
             implementation(libs.maplibre.compose)
+            // 060 \u2014 the history record renders the ACTUAL captured proof photo. Before this it
+            // printed "Photo/signature captured" and showed nothing, which is useless in the one
+            // situation the record exists for: a customer disputing a delivery.
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
             implementation(libs.compose.material3.adaptive.navigation.suite)
             implementation(libs.compose.ui)
             implementation(libs.compose.ui.backhandler)

@@ -42,8 +42,18 @@ import com.effyshopping.driver.mobile.core.nav.TodayRoot
 import com.effyshopping.driver.mobile.core.nav.driverNavJson
 import com.effyshopping.driver.mobile.core.nav.driverStartRoute
 import com.effyshopping.driver.mobile.core.session.SessionState
+import com.effyshopping.driver.mobile.features.map.presentation.MapUiState
+import com.effyshopping.driver.mobile.features.map.presentation.MapStop
+import com.effyshopping.driver.mobile.features.map.presentation.MapScreen
+import com.effyshopping.driver.mobile.features.map.presentation.MapMode
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.effyshopping.driver.mobile.features.account.AccountScreen
-import com.effyshopping.driver.mobile.features.placeholder.ComingSoonScreen
+import com.effyshopping.driver.mobile.features.onboarding.PermissionDeniedScreen
+import com.effyshopping.driver.mobile.features.account.HelpScreen
+import com.effyshopping.driver.mobile.features.account.AppearanceScreen
+import com.effyshopping.driver.mobile.core.nav.PermissionDeniedRoute
+import com.effyshopping.driver.mobile.core.nav.HelpRoute
+import com.effyshopping.driver.mobile.core.nav.AppearanceRoute
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionRunScreen
 import com.effyshopping.driver.mobile.features.collection.presentation.CollectionViewModel
 import com.effyshopping.driver.mobile.features.collection.presentation.HubCheckinScreen
@@ -249,7 +259,51 @@ fun DriverShell(
                     )
                 }
 
-                MapRoot -> ComingSoonScreen("Map", "Open a delivery drop to navigate. A route map is coming soon.")
+                MapRoot -> {
+                    // ⚠ The map derives its stops from the runs the driver ALREADY has, so it
+                    // carries no fetch of its own and cannot disagree with Today. Positions are
+                    // placeholder (register: map.markerCoordinates) — the cartography is real.
+                    var mapMode by rememberSaveable { mutableStateOf(MapMode.COLLECTION) }
+                    val todayVm = viewModel(key = "today") {
+                        TodayViewModel(
+                            initialDuty = session.driver.dutyStatus,
+                            getToday = container.getToday,
+                            setDuty = container.setDuty,
+                            newChangeId = container::newChangeId,
+                            syncFlush = { container.syncCoordinator.flush() },
+                        )
+                    }
+                    val todaySt by todayVm.state.collectAsState()
+                    val today = todaySt.today
+
+                    val stops = buildList {
+                        today?.active?.let {
+                            add(MapStop(it.id, 1, it.title, it.subtitle.orEmpty()))
+                        }
+                        today?.upNext?.forEachIndexed { i, item ->
+                            add(MapStop(item.id, i + 2, item.title, item.subtitle.orEmpty()))
+                        }
+                        if (mapMode == MapMode.COLLECTION) {
+                            session.driver.hub?.takeIf { it.isNotBlank() }?.let {
+                                add(MapStop("hub", 0, it, "Check in every package · ends the run", isHub = true))
+                            }
+                        }
+                    }
+
+                    MapScreen(
+                        state = MapUiState(mode = mapMode, stops = stops),
+                        onModeChange = { mapMode = it },
+                        onOpenStop = { stop ->
+                            today?.activeRunId?.let { runId ->
+                                if (mapMode == MapMode.COLLECTION) {
+                                    tabs.push(CollectionRunRoute(runId))
+                                } else {
+                                    tabs.push(DeliveryRunRoute(runId))
+                                }
+                            }
+                        },
+                    )
+                }
                 HistoryRoot -> {
                     val vm = viewModel(key = "history") { HistoryViewModel(container.getHistory, container.getHistoryDetail) }
                     val st by vm.state.collectAsState()
@@ -264,13 +318,14 @@ fun DriverShell(
                     val vm = viewModel(key = "history") { HistoryViewModel(container.getHistory, container.getHistoryDetail) }
                     val st by vm.state.collectAsState()
                     androidx.compose.runtime.LaunchedEffect(route.id) { vm.loadDetail(route.kind, route.id) }
-                    HistoryDetailScreen(state = st, title = route.title, onBack = { tabs.pop() })
+                    HistoryDetailScreen(state = st, title = route.title, kind = route.kind, onBack = { tabs.pop() })
                 }
                 AccountRoot -> AccountScreen(
                     driver = session.driver,
                     appearanceMode = appearanceMode,
-                    onAppearanceModeChange = container.appearance::setMode,
                     signingOut = signingOut,
+                    onOpenAppearance = { tabs.push(AppearanceRoute) },
+                    onOpenHelp = { tabs.push(HelpRoute) },
                     onSignOut = {
                         if (!signingOut) {
                             signingOut = true
@@ -279,7 +334,18 @@ fun DriverShell(
                         }
                     },
                 )
-                else -> ComingSoonScreen("Today", "")
+                AppearanceRoute -> AppearanceScreen(
+                    mode = appearanceMode,
+                    onModeChange = container.appearance::setMode,
+                    onBack = { tabs.pop() },
+                )
+                HelpRoute -> HelpScreen(driver = session.driver, onBack = { tabs.pop() })
+                PermissionDeniedRoute -> PermissionDeniedScreen(onBack = { tabs.pop() })
+                // ⚠ `ComingSoonScreen` is DELETED (FR-003, SC-002): no destination in this app may
+                // show a placeholder. This branch is unreachable — every AppNavKey above is
+                // handled and RouteSerializerGuardTest enumerates them — so it renders nothing
+                // rather than inventing a screen for a route that cannot occur.
+                else -> Unit
             }
         }
     }

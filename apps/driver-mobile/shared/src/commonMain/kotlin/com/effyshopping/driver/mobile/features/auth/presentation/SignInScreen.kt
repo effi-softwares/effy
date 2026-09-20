@@ -76,7 +76,10 @@ fun SignInScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "Shop workspace",
+                    // ⚠ WAS "Shop workspace". This screen told DRIVERS they were signing in to a
+                    // shop — copy carried over wholesale from shop-mobile in 049 and never
+                    // corrected. Four features shipped over it. FR-010 / SC-008 / NoShopCopyGuard.
+                    "Driver",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -128,8 +131,8 @@ private fun EmailStage(
     onNextFocus: () -> Unit,
 ) {
     AuthStageLayout(
-        title = "Welcome back",
-        description = "Use your work email to receive a one-time sign-in code.",
+        title = "Sign in",
+        description = "Use your Effy work email. We'll send a 6-digit code — no password needed.",
         error = state.fieldError.takeIf { it == AuthFieldError.InvalidEmail }?.let { "Enter a valid work email." }
             ?: state.message,
     ) {
@@ -150,7 +153,8 @@ private fun EmailStage(
             modifier = Modifier.testTag("auth_primary_action"),
         )
         Text(
-            "Passwordless access for provisioned shop operators.",
+            // ⚠ WAS "Passwordless access for provisioned shop operators."
+            "Accounts are provisioned by Effy operations.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -170,6 +174,11 @@ private fun CodeStage(
         AuthFieldError.MissingCode -> "Enter the complete 6-digit code."
         AuthFieldError.InvalidCode -> "That code isn't right. Check it and try again."
         AuthFieldError.ExpiredCode -> "That code has expired. Request a new one."
+        // ⚠ NEW. Until 060 a locked-out driver saw InvalidCode's "check it and try again" —
+        // advice for something that cannot now succeed, sending them round the same loop.
+        AuthFieldError.LockedOut ->
+            "Too many attempts. For your security this code is locked — request a new one, or " +
+                "contact dispatch if it keeps happening."
         else -> null
     }
     AuthStageLayout(
@@ -189,6 +198,7 @@ private fun CodeStage(
                     AuthFieldError.MissingCode,
                     AuthFieldError.InvalidCode,
                     AuthFieldError.ExpiredCode,
+                    AuthFieldError.LockedOut,
                 ),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
             )
