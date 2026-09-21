@@ -50,7 +50,11 @@ fun UpNextList(
 
     val isCollection = phase == Phase.COLLECTION
     val noun = if (isCollection) "shop" else "drop"
-    val heading = "UP NEXT · ${items.size} $noun${if (items.size == 1) "" else "s"}"
+    // ⚠ With an empty queue on a collection run the heading names what is actually left — the hub —
+    // rather than "0 shops", which is the empty-heading defect this file already records once.
+    val heading =
+        if (items.isEmpty()) "UP NEXT · HUB CHECK-IN"
+        else "UP NEXT · ${items.size} $noun${if (items.size == 1) "" else "s"}"
 
     Column(modifier.fillMaxWidth()) {
         // \u26a0 FOUND BY LOOKING AT IT ON A SIMULATOR, not by a test. With an empty queue this
@@ -58,7 +62,7 @@ fun UpNextList(
         // an affordance into an empty list. The spec's own edge case asked whether the section
         // "collapses or shows an empty heading"; it showed the heading. 039's lesson exactly:
         // layout is not a property an assertion can see.
-        if (items.isNotEmpty()) {
+        if (items.isNotEmpty() || isCollection) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 48.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -98,7 +102,7 @@ fun UpNextList(
         // ⚠ Collection only. A collection run ENDS at the hub — that is the hub-and-spoke model's
         // pivot — whereas a same-day run ends at the last customer and has no such row.
         if (isCollection && hubName != null) {
-            HubRow(hubName)
+            HubRow(hubName, onOpenRun)
         }
     }
 }
@@ -137,11 +141,20 @@ private fun QueueRow(index: Int, item: TodayItem, onClick: () -> Unit) {
     }
 }
 
-/** The run's destination. Dashed and unnumbered — it is not a stop, it is where the stops end. */
+/**
+ * The run's destination. Dashed and unnumbered — it is not a stop, it is where the stops end.
+ *
+ * ⚠ IT IS CLICKABLE, AND THAT IS LOAD-BEARING. `OnDutyBody` has only two ways into a round: the
+ * hero card (drawn from `today.active`) and the "Whole run ›" link (drawn only when `upNext` is
+ * non-empty). Both vanish the moment the LAST shop stop goes `done` — `outstanding` filters to
+ * pending/arrived — which is precisely when the driver still has to check the load in at the hub.
+ * Found live: a driver collected everything, left the run screen, and had no route back to it,
+ * stranded with a full van. 056's stranded-work shape, in the UI layer.
+ */
 @Composable
-private fun HubRow(hubName: String) {
+private fun HubRow(hubName: String, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 16.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).heightIn(min = 48.dp).padding(vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
