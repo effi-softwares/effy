@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 
-import { dispatchRoundQuery } from "./queries";
+import { useSessionRoles } from "@/features/auth/useSessionRoles";
+
+import { canDispatch } from "./access";
+import { LockControl } from "./components/LockControl";
+import { ReassignDialog } from "./components/ReassignDialog";
+import { ReorderControl } from "./components/ReorderControl";
+import { dispatchDayQuery, dispatchRoundQuery } from "./queries";
 
 interface RoundDetail {
   id: string;
@@ -28,11 +34,20 @@ interface RoundDetail {
  */
 export function RoundDetailScreen({ roundId }: { roundId: string }) {
   const { data, isPending, isError } = useQuery(dispatchRoundQuery(roundId));
+  // The day view already carries every driver and their name — reusing its cache entry avoids a
+  // second endpoint whose only job would be "list drivers for a picker".
+  const day = useQuery(dispatchDayQuery());
+  const roles = useSessionRoles();
 
   if (isPending) return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
   if (isError) return <p className="p-6 text-sm text-destructive">That round could not be loaded.</p>;
 
   const round = data as RoundDetail;
+  // ⚠ ABSENT, NOT DISABLED. A csa never sees a control it cannot use — and this is a COURTESY: the
+  // gate that decides is in edge-fleet, per route, and is independently enforced.
+  const mayChange = canDispatch(roles);
+  const drivers = (day.data?.rounds ?? []).map((r) => ({ driverId: r.driverId, driverName: r.driverName }));
+  const holder = drivers.find((d) => d.driverId === round.driverId)?.driverName ?? "This driver";
 
   return (
     <div className="space-y-6 p-6">
@@ -44,12 +59,38 @@ export function RoundDetailScreen({ roundId }: { roundId: string }) {
           {round.status.replace("_", " ")}
           {round.lockedBy ? " · locked by a person, the planner will leave it alone" : ""}
         </p>
+
+        {mayChange ? (
+          <div className="mt-4 flex flex-wrap items-start gap-3">
+            <ReassignDialog
+              roundId={round.id}
+              currentDriverName={holder}
+              expectedUpdatedAt={round.updatedAt}
+              drivers={drivers.filter((d) => d.driverId !== round.driverId)}
+            />
+            <LockControl
+              roundId={round.id}
+              lockedBy={round.lockedBy}
+              expectedUpdatedAt={round.updatedAt}
+            />
+          </div>
+        ) : null}
       </header>
 
       <section aria-labelledby="stops-heading">
         <h2 id="stops-heading" className="text-base font-medium">
           Stops
         </h2>
+
+        {mayChange ? (
+          <div className="mt-3 rounded-lg border border-border p-3">
+            <ReorderControl
+              roundId={round.id}
+              stopIds={round.stops.map((s) => s.stopId)}
+              expectedUpdatedAt={round.updatedAt}
+            />
+          </div>
+        ) : null}
         <ol className="mt-3 divide-y divide-border">
           {round.stops.map((s, i) => (
             <li key={s.stopId} className="flex items-baseline justify-between gap-4 py-3">

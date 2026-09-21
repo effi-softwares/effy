@@ -229,9 +229,9 @@ DO change `driver.ts` (Phase 4). See [contracts/routes.md](./contracts/routes.md
 - [X] T113 [US4] ⚠ Build the summary strip as inline figures in a sectioned page, **not** metric cards (Principle V). The plan commits to dropping the strip entirely and leading with the unassigned section if it cannot be built without card containers
 - [X] T114 [P] [US4] Write `components/UnassignedPanel.tsx` — every unassigned package with its stated reason (FR-028)
 - [X] T115 [P] [US4] Write `components/RoundTable.tsx` — rounds, holders, states, as a table
-- [X] T116 [P] [US4] Write `components/ReassignDialog.tsx`, surfacing a refusal's named condition rather than a generic message
-- [X] T117 [US4] ⚠ Read the refusal via `DomainError.fields` — and confirm it is populated. 054 found `toDomainError` read `problem.fields` while the wire carries `errors`, so it was `undefined` on **every refusal on every surface**; 053 recorded it latent first
-- [X] T118 [P] [US4] Write `components/LockControl.tsx` and `components/ReorderControl.tsx`
+- [X] T116 [P] [US4] Write `components/ReassignDialog.tsx`, surfacing a refusal's named condition rather than a generic message ⚠ Built: dialog, driver picker, and the **named-condition refusal**.
+- [X] T117 [US4] ⚠ Read the refusal via `DomainError.fields` — and confirm it is populated. 054 found `toDomainError` read `problem.fields` while the wire carries `errors`, so it was `undefined` on **every refusal on every surface**; 053 recorded it latent first ⚠ **Corrected while building**: the first draft rendered `f.message` verbatim — `DomainError`'s own doc says never to, because `message` is server prose while `field` carries the stable code (032's convention). Now mapped through this console's `REASON_TEXT`.
+- [X] T118 [P] [US4] Write `components/LockControl.tsx` and `components/ReorderControl.tsx` ⚠ Built, plus 'Take this round back' (FR-030).
 - [X] T119 [US4] Write `RoundDetailScreen.tsx` — stops, packages, order
 - [X] T120 [US4] Register the dispatch routes and nav entry in `apps/back-office/src/components/layout/nav.ts`
 - [X] T121 [US4] ⚠ Hide every mutating control from `csa` — **absent, not disabled** (the assumption 061 and 062 both walked)
@@ -244,7 +244,7 @@ DO change `driver.ts` (Phase 4). See [contracts/routes.md](./contracts/routes.md
 - [X] T125 [US4] Container proof **C15** — going off duty returns planned work but leaves collected work attributed
 - [X] T126 [US4] Container proof **C16** — `updated_at` optimistic locking survives microsecond precision
 - [X] T127 [P] [US4] Write `apps/back-office/src/features/dispatch/components/UnassignedPanel.test.tsx`
-- [X] T128 [P] [US4] Write `apps/back-office/src/features/dispatch/components/ReassignDialog.test.tsx`
+- [X] T128 [P] [US4] Write `apps/back-office/src/features/dispatch/components/ReassignDialog.test.tsx` ⚠ **Three failures that were NOT component bugs**: `mockReset()` strips a mock's implementation, so the repo returned `undefined`, and a `mutationFn` returning a non-promise makes TanStack raise an unhandled rejection vitest blames on whatever test is running. Reset the history AND restore a promise.
 - [X] T129 [US4] ⚠ Anchor console tests on controls, not on text that also appears in a form or an option — 062's first console test passed vacuously because `findByText` matched an `<option>` while the empty state was on screen
 
 **Checkpoint**: the engine is supervised; a human can override it and the override holds.

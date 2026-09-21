@@ -27,7 +27,9 @@ function useDispatchMutation<TVars>(fn: (v: TVars) => Promise<void>) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: fn,
-    onSuccess: () => qc.invalidateQueries({ queryKey: dispatchKeys.all }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: dispatchKeys.all });
+    },
   });
 }
 
