@@ -292,7 +292,13 @@ the standard three-module layout (`shared` + `androidApp` + `iosApp`) and packag
   the mobile app is named `shop`).
 
 Baseline stack: **Kotlin 2.4.0, Compose Multiplatform 1.11.1, AGP 9.0.1, minSdk 24 /
-compileSdk + targetSdk 36**. All three are currently the base KMP template (commonMain
+compileSdk + targetSdk 36**. ⚠ **ALL THREE APPS MUST PIN THE SAME TRIO — `composeMultiplatform`,
+`kotlin` AND `material3` — AND THE DRIVER APP ONCE DID NOT.** Commit `6c7beaf` bumped it to CMP 1.12.0
+/ Kotlin 2.4.20 and left `material3` at 1.11.0-alpha07; material3 1.11 calls
+`foundation.style.StyleScope.border(Dp, Color)`, whose signature changed in foundation 1.12, so every
+screen with an `OutlinedTextField` — starting with **sign-in** — died at launch with
+`kotlin.internal.IrLinkageError`. Gradle resolved, Kotlin compiled, host tests passed: Kotlin/Native
+defers an unresolved symbol to RUNTIME. All three are currently the base KMP template (commonMain
 `Greeting`/`Platform` stubs); each feature's stack is layered in per that feature's plan/tasks.
 
 ## Current status
@@ -307,7 +313,10 @@ Amplify auth behind a `commonMain` `AuthDriver`; a formal `ViewModel → UseCase
 domain layer): **`apps/customer-mobile` (013)** and **`apps/shop-mobile` (014 — signed off, EMAIL_OTP
 only, single-token, the RBAC manager gate, tablet-first)**. ⚠ **`apps/driver-mobile` is BUILT TOO** —
 049 gave it the full hub-and-spoke operation and **060 gave it its appearance** (all 45 design screens,
-cobalt, OpenStreetMap via MapLibre + OpenFreeMap). ⚠ The sentence here previously read *"remains the base
+cobalt). ⚠ **MapLibre was ADOPTED AND THEN REMOVED in the same feature** — it aborted the app under
+Xcode's debug build (SIGABRT on its own render thread) and `MapLibreAbsentGuardTest` keeps it out; the
+map is a **schematic**, not cartography. This sentence said "OpenStreetMap via MapLibre + OpenFreeMap"
+and had been false since that removal. ⚠ The sentence here previously read *"remains the base
 template"*, which had been **false since 049** and is the same stale-claim shape that left the app out of
 the shared asset pipeline for four features (see 060 T019). All three mobile apps share a **production
 navigation shell** (015 — `packages/mobile-kit`:
@@ -327,6 +336,62 @@ Everything gets built **slice by slice**, each driven by its own spec → plan �
 surfaces in parallel: one vertical slice proves the foundation before the pattern scales.
 
 ## Active feature
+
+**063-driver-work-assignment — Driver Work Assignment & Wave Planning.** 🚧 **155/183 tasks —
+CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
+infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
+[specs/063-driver-work-assignment/SIGNOFF.md](specs/063-driver-work-assignment/SIGNOFF.md).
+
+**Slice C of the logistics rebuild** — the engine between 061's fleet and 062's clearances.
+- ⚠ **THE DEFECT: nothing on the platform assigned work to any driver.** The old work model was torn
+  down deliberately (2026-09-20) and nothing replaced it, so a shop could pick, pack and mark ready
+  every order it had and **no driver was ever told**. Now: ahead of each configured collection run the
+  planner gathers ready packages, applies hard gates, balances by load and pushes a round; the driver
+  collects, checks in at the hub, and same-day work goes back out.
+- ⚠ **THE TEARDOWN REMOVED SIXTEEN ROUTES AND NOTHING FAILED.** The driver app calls **21** routes; the
+  backend served **6**. Its client code and the `driver.ts` contract were fully intact — five HTTP
+  repositories, all wired into ViewModels — so nothing compiled wrong and no test failed. Found by
+  reading the app. `route-inventory.guard.test.ts` now reads the routes the Kotlin actually calls and
+  fails naming any the service does not declare; Slice D's three proof routes are explicit deferrals.
+- ⚠ **THE FLAGGED CUTOFF DECISION IS SETTLED**: a **deliberate Go↔TypeScript duplicate pinned by a
+  cross-language contract test with DST fixtures**. Calling `core-api` was rejected because wave
+  planning would then depend on the hot path being up, and **a missed wave is silent**. Both halves
+  proven by breaking each in turn. ⚠ 054 spent a slice deleting a rule written in 14 places; this
+  writes one in two on purpose, and is justified only while those fixtures agree.
+- ⚠ **SIX COLUMN NAMES THAT TYPECHECKED PERFECTLY**, found only by running every query against real
+  PostgreSQL: refrigeration is the `storage` **attribute** in `value_text` (not a column);
+  `order.delivery_address` is a **jsonb snapshot** (not an FK); `delivery_zone.postcode` is a mapping
+  table; `is_active` is `status`; `customer_address.postcode` is `postal_code`; `fulfillment_event`
+  has `event_type` with a closed CHECK. 056 recorded two of these exact shapes.
+- ⚠ **AN FK THAT WAS WRONG IN PRINCIPLE.** `round_stop.customer_address_id` pointed at
+  `customer_address`, but orders **snapshot** the address as jsonb (019 R13) precisely so a customer
+  editing their address book cannot corrupt a placed order. The stop now references the order.
+- ⚠ **`driver-contract:check` WAS ALREADY RED AT HEAD** — `1b386d8` added `expectedEndAt` and never
+  regenerated the Kotlin, which also still carried `LocationRequest { lat, lng }`, a DTO D22 removed.
+- ⚠ **TWELVE NEGATIVE PROOFS, AND FOUR FOUND SOMETHING.** NP7 targeted a line nothing reads (exposing
+  dead code); **NP8's guard did not catch its own proof** (it matched `stops.sort(`, the break sorted
+  `keyed`); **NP9's C14 did not exist**, then asserted against its own copy of the query; **NP11's C17
+  did not exist** — T073 had been marked complete without being written. ⚠ **Two were tests already
+  CLAIMED AS DONE.**
+- ⚠ **CAPACITY IS WEIGHT-ONLY.** Vehicles record `payload_kg`, `load_volume_litres` and
+  `crate_capacity`; the catalogue describes no product volume. A stated limitation, not an oversight —
+  inventing a per-product volume would be a gate that looks enforced and is arithmetic over a guess.
+- ⚠ **THREE THINGS REFUSED RATHER THAN FABRICATED**: delivery `instructions` (the contract carries the
+  field and **nothing stores it**), `proofCaptured`/proof (Slice D), activity read receipts (the feed
+  is derived, so there is nothing to mark).
+- **Verified**: `pnpm -r typecheck` **20/20** · edge-fleet **172** (was 121) · edge-driver **29**
+  (was 10, with **zero** container tests) · edge-shared **121** (was 75) · back-office **214** ·
+  **21 container tests against the REAL migrations** (loaded from `db/migrations`, not transcribed —
+  which surfaced ten fixture errors at once). **UNMODIFIED**: edge-orders **16**, edge-customer
+  **170**, edge-notifications **43**, edge-inventory **59**, customer-web **463**, shop-web **440**.
+  Go clean · `tokens:check` **unchanged** · `terraform validate`/`fmt`.
+- **⚠ Open (28)**: ⚠ **`edge-deploy SERVICE=fleet` BEFORE `SERVICE=driver`** — `driver` serves work
+  `fleet` creates, and the reverse gives a driver an empty day indistinguishable from "no work today";
+  `make db-up` (additive, safe before the deploy); `make apply` for two alarms; the dispatcher's
+  reassign/lock **UI controls** (service layer and container proofs done, screens read-only). ⚠ **W5 is
+  the most important walk** — a zone nobody covers must appear as unassigned *with a reason*. ⚠
+  **Nobody has looked at any screen**: 039 shipped four live defects with a fully green suite. Parity
+  register: [docs/audiences/driver-capabilities.md](docs/audiences/driver-capabilities.md) §063.
 
 **059-shop-web-pwa — Shop Console as an Installable, Notifying Production App.** 🚧 **109/128 tasks
 — CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
@@ -2323,5 +2388,5 @@ Adds the platform's **own** back-office staff/RBAC system of record (`admin.staf
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/062-driver-zone-capability/plan.md
+at specs/063-driver-work-assignment/plan.md
 <!-- SPECKIT END -->

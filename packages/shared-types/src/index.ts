@@ -44,3 +44,6 @@ export * from "./shop-team"
 export * from "./shop-order-console"
 // 058-shop-today-insights — Today (live operational) + Insights (prepared analytics)
 export * from "./shop-insights"
+// 063-driver-work-assignment — rounds, stops, packages and the dispatcher's day. ⚠ Carries no money
+// (a driver is never told an order's value) and no coordinates (sequencing is ordering, not geometry).
+export * from "./dispatch"

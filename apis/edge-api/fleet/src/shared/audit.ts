@@ -35,12 +35,26 @@ export type VehicleAuditAction =
   | "vehicle.holding_issued"
   | "vehicle.holding_returned";
 
-export type FleetAuditAction = DriverAuditAction | VehicleAuditAction;
+/**
+ * ⚠ 063 — what a DISPATCHER did by hand (FR-033). These are the actions that override the wave
+ * planner, and they are the ones most worth being able to ask "who decided this?" about later: the
+ * engine's own choices are reconstructable from `dispatch_wave`, a person's are not.
+ */
+export type DispatchAuditAction =
+  | "dispatch.reassign"
+  | "dispatch.unassign"
+  | "dispatch.reorder"
+  | "dispatch.lock"
+  | "dispatch.unlock";
+
+export type FleetAuditAction = DriverAuditAction | VehicleAuditAction | DispatchAuditAction;
 
 /** What the audited row IS. ⚠ 061 generalised this: it was hard-coded to 'driver' because a driver
  *  was the only thing this service could change. Widening the column value is the whole change — the
- *  table, the helper and the redaction rules are shared, as Principle II requires. */
-export type AuditTargetType = "driver" | "vehicle";
+ *  table, the helper and the redaction rules are shared, as Principle II requires.
+ *  ⚠ 063 added 'driver_round' the same way, and deliberately did NOT add a second audit writer
+ *  alongside: a private INSERT would have skipped the PII redaction above without anyone noticing. */
+export type AuditTargetType = "driver" | "vehicle" | "driver_round";
 
 /**
  * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.

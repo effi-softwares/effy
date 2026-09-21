@@ -30,3 +30,13 @@ export * from "./lib/low-stock";
 // 062: what a driver covers — one rule, read by back-office (to staff a zone) and by the driver app
 // (the driver's own account screen). Promoted from edge-api/fleet on its second consumer.
 export * from "./lib/driver-coverage";
+// 063: what a driver does next — ONE ordering rule, read by the dispatcher console (edge-fleet) and
+// the driver app (edge-driver). Two surfaces rendering one round in two orders is a divergence in
+// which nothing fails, so the rule is shared before a second copy can exist.
+export * from "./lib/round-ordering";
+// 063: when collection must be finished. ⚠ A DELIBERATE DUPLICATE of core-api's SameDayCutoff — the
+// runtimes cannot share code — pinned by a cross-language contract test with DST fixtures.
+export * from "./lib/collection-deadline";
+// 063: may this driver do this work. Read by the wave planner (to choose) and by the dispatcher's
+// reassign route (to refuse). If they disagreed, a dispatcher could do what the planner would not.
+export * from "./lib/driver-eligibility";

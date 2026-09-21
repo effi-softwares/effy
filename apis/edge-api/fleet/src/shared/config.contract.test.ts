@@ -66,16 +66,57 @@ describe("fleet deployment contract — serverless.yml declares what the service
     // ⚠ Exhaustive over the real file, not over a list. A new route added without an authorizer is
     // a driver-management endpoint open to the internet, and the whole point of this assertion is
     // that nobody has to remember to extend it.
+    //
+    // ⚠ 063 WIDENED THIS, AND DELIBERATELY DID NOT WEAKEN IT. The wave planner is a SCHEDULED
+    // function with no HTTP route at all, so "every function is authenticated" became untrue while
+    // the property that matters — no route is reachable without the back-office authorizer — was
+    // unchanged. The test now keys on whether a function EXPOSES A ROUTE, which is structural: a
+    // function that gains an `httpApi` event without an authorizer still fails, and one that never
+    // had a route was never the risk. Keying on a name allow-list instead would have let the next
+    // unauthenticated route in behind whatever name its author chose.
     for (const { name, block } of allFunctions()) {
+      const exposesRoute = /httpApi:/.test(block);
+
       if (name === "healthz" || name === "readyz") {
         expect(block, `${name} must stay public`).not.toContain("authorizer");
         continue;
       }
+
+      if (!exposesRoute) {
+        // A scheduled function reaches nobody. It must also not be reachable BY anybody.
+        expect(block, `${name} has no route, so it must declare a trigger`).toMatch(/schedule:|sqs:|sns:|eventBridge:/);
+        expect(block, `${name} has no route and must not declare an authorizer`).not.toContain("authorizer");
+        continue;
+      }
+
       expect(block, `${name} must be authenticated`).toContain("authorizer");
       expect(block, `${name} must use the BACK-OFFICE authorizer`).toContain(
         "edge/authorizer/back-office_id",
       );
     }
+  });
+
+  // ⚠ 063 — the dispatch routes, named explicitly. The exhaustive authorizer test above proves every
+  // route is authenticated; this proves the routes EXIST. A dispatch console whose backend silently
+  // lost a route answers nothing, which is precisely how sixteen driver routes went dead unnoticed.
+  it("declares every dispatch route the console calls (063)", () => {
+    for (const path of [
+      "/fleet/v1/dispatch/day",
+      "/fleet/v1/dispatch/rounds/{id}",
+      "/fleet/v1/dispatch/rounds/{id}/reassign",
+      "/fleet/v1/dispatch/rounds/{id}/unassign",
+      "/fleet/v1/dispatch/rounds/{id}/reorder",
+      "/fleet/v1/dispatch/rounds/{id}/lock",
+    ]) {
+      expect(yaml, `${path} is called by the console but not declared`).toContain(`path: ${path}`);
+    }
+  });
+
+  it("declares the wave planner as a scheduled function, not a route (063)", () => {
+    const planner = allFunctions().find((f) => f.name === "planWavesScheduled");
+    expect(planner, "the wave planner must exist — nothing assigns work without it").toBeDefined();
+    expect(planner!.block).toContain("schedule:");
+    expect(planner!.block).not.toContain("httpApi:");
   });
 
   it("attaches to the shared HTTP API and creates no API, stage, CORS or authorizer of its own", () => {

@@ -334,6 +334,94 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
 
+  planWavesScheduled:
+    handler: src/functions/plan-waves-scheduled.handler
+    description: >-
+      063 — the wave planner. Turns packages shops have made ready into collection rounds, and same-day
+      packages at the hub into delivery rounds. ⚠ It wakes every 5 minutes and PLANS RARELY: a wave
+      happens only when a collection run reaches run_time − prep_buffer − planning_lead. The tick is not
+      the wave; the collection schedule is.
+    timeout: 60
+    events:
+      - schedule: rate(5 minutes)
+
+  dispatchDayV1:
+    handler: src/functions/dispatch-day-v1-get.handler
+    description: 063 — the day's work: every round, its holder, and what nobody could take. Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/dispatch/day
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchRoundV1:
+    handler: src/functions/dispatch-round-v1-get.handler
+    description: 063 — one round's stops and order.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/dispatch/rounds/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchReassignV1:
+    handler: src/functions/dispatch-reassign-v1-post.handler
+    description: 063 — move a round to another driver. ⚠ Refuses an ineligible one, naming the condition (FR-034).
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/rounds/{id}/reassign
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchUnassignV1:
+    handler: src/functions/dispatch-unassign-v1-post.handler
+    description: 063 — take work back. It returns to the pool; collected packages stay with the driver who has them.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/rounds/{id}/unassign
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchReorderV1:
+    handler: src/functions/dispatch-reorder-v1-post.handler
+    description: 063 — set a dispatcher's own stop order (FR-031).
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/rounds/{id}/reorder
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchLockV1:
+    handler: src/functions/dispatch-lock-v1-post.handler
+    description: 063 — mark an assignment as a person's decision; the planner must leave it alone (FR-032).
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/dispatch/rounds/{id}/lock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchUnlockV1:
+    handler: src/functions/dispatch-unlock-v1-delete.handler
+    description: 063 — release a lock back to the engine.
+    events:
+      - httpApi:
+          method: DELETE
+          path: /fleet/v1/dispatch/rounds/{id}/lock
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   coverageV1:
     handler: src/functions/coverage-v1-get.handler
     description: Every zone that cannot be served, per kind of work, with the reason (062 FR-016). Read = any active staff.

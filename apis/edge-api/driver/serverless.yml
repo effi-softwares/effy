@@ -87,6 +87,154 @@ functions:
           method: GET
           path: /driver/readyz
 
+  driverTodayV1:
+    handler: src/functions/driver-today-v1-get.handler
+    description: >-
+      063 — what this driver should be doing now. ⚠ RESTORED, NOT NEW: HttpTodayRepository has been
+      calling this since 060 and getting a 404, because the teardown removed the work model and its
+      whole API surface while the app's client code stayed intact.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/today
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverCollectionRunV1:
+    handler: src/functions/driver-collection-run-v1-get.handler
+    description: 063 — the shops on this driver's collection round, ordered by the shared rule.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/collection/runs/{runId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverCollectionStopV1:
+    handler: src/functions/driver-collection-stop-v1-get.handler
+    description: 063 — the manifest for one shop on a collection round, with the shop's address.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/collection/runs/{runId}/stops/{stopId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDeliveryRunV1:
+    handler: src/functions/driver-delivery-run-v1-get.handler
+    description: 063 — this driver's same-day delivery round.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/delivery/runs/{runId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverCollectV1:
+    handler: src/functions/driver-collect-v1-post.handler
+    description: 063 — collect a shop's packages, with each package's own outcome. Idempotent by stop state.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/collection/runs/{runId}/stops/{stopId}/collect
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverCollectIssueV1:
+    handler: src/functions/driver-collect-issue-v1-post.handler
+    description: 063 — report a package that could not be collected. It stays ready for a later wave.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/collection/runs/{runId}/stops/{stopId}/issue
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverHubCheckinV1:
+    handler: src/functions/driver-hub-checkin-v1-post.handler
+    description: >-
+      063 — hub check-in. Shows the same-day/standard split the shopper already chose at checkout; the
+      driver classifies nothing, and a standard package's driver-side work ends here.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/hub/checkin
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDropV1:
+    handler: src/functions/driver-drop-v1-get.handler
+    description: 063 — one customer stop on a delivery round.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/delivery/drops/{dropId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDropStatusV1:
+    handler: src/functions/driver-drop-status-v1-post.handler
+    description: 063 — progress a drop. ⚠ `delivered` requires proof and is Slice D.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverHistoryV1:
+    handler: src/functions/driver-history-v1-get.handler
+    description: 063 — finished rounds by local day. ⚠ Thin until Slice D captures proof.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/history
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverHistoryDetailV1:
+    handler: src/functions/driver-history-detail-v1-get.handler
+    description: 063 — one finished item.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/history/{kind}/{id}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverActivityV1:
+    handler: src/functions/driver-activity-v1-get.handler
+    description: 063 — derived from rounds, never a stored feed.
+    events:
+      - httpApi:
+          method: GET
+          path: /driver/v1/activity
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverActivityReadV1:
+    handler: src/functions/driver-activity-read-v1-post.handler
+    description: 063 — an honest no-op: there is no read receipt to store.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/activity/read
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
   driverMeV1:
     handler: src/functions/driver-me-v1-get.handler
     description: Driver identity read — the provisioned driver record; refuses if absent/disabled (049).
