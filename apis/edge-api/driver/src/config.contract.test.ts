@@ -106,19 +106,8 @@ describe("driver deployment contract — serverless.yml declares what the servic
   // ⚠ CloudFormation tags (`!Ref`, `!GetAtt`) are not known to a plain YAML loader, so they are
   // accepted as opaque rather than treated as errors — the point is the document's SHAPE.
   it("is valid YAML that parses into functions (063)", async () => {
-    const { load, DEFAULT_SCHEMA, Type } = await import("js-yaml");
-
-    const cfnTag = (tag: string, kind: "scalar" | "sequence" | "mapping") =>
-      new Type(tag, { kind, construct: () => null });
-    const schema = DEFAULT_SCHEMA.extend(
-      ["!Ref", "!GetAtt", "!Sub", "!Join", "!ImportValue", "!Select", "!Split"].flatMap((t) => [
-        cfnTag(t, "scalar"),
-        cfnTag(t, "sequence"),
-        cfnTag(t, "mapping"),
-      ]),
-    );
-
-    const doc = load(yaml, { schema }) as { functions?: Record<string, unknown> };
+    const { parse } = await import("yaml");
+    const doc = parse(yaml, { logLevel: "error" }) as { functions?: Record<string, unknown> };
     expect(doc, "serverless.yml did not parse").toBeTruthy();
     expect(
       Object.keys(doc.functions ?? {}).length,
@@ -137,17 +126,8 @@ describe("driver deployment contract — serverless.yml declares what the servic
   // the document is well-formed. Neither can see a value that is valid YAML, valid TypeScript, and
   // too long for the service it describes.
   it("keeps every function property inside its AWS limit (063)", async () => {
-    const { load, DEFAULT_SCHEMA, Type } = await import("js-yaml");
-    const cfnTag = (tag: string, kind: "scalar" | "sequence" | "mapping") =>
-      new Type(tag, { kind, construct: () => null });
-    const schema = DEFAULT_SCHEMA.extend(
-      ["!Ref", "!GetAtt", "!Sub", "!Join", "!ImportValue", "!Select", "!Split"].flatMap((t) => [
-        cfnTag(t, "scalar"),
-        cfnTag(t, "sequence"),
-        cfnTag(t, "mapping"),
-      ]),
-    );
-    const doc = load(yaml, { schema }) as {
+    const { parse } = await import("yaml");
+    const doc = parse(yaml, { logLevel: "error" }) as {
       service?: string;
       functions?: Record<string, { description?: unknown; timeout?: unknown }>;
     };
@@ -162,17 +142,15 @@ describe("driver deployment contract — serverless.yml declares what the servic
             `stack without telling you which property is wrong.`,
         ).toBeLessThanOrEqual(256);
       }
-      // Lambda FunctionName is capped at 64; serverless builds `${service}-${stage}-${name}`.
       const fullName = `${service}-dev-${name}`;
       expect(
         fullName.length,
         `${name}: the deployed function name "${fullName}" is ${fullName.length} characters; Lambda ` +
           `caps FunctionName at 64.`,
       ).toBeLessThanOrEqual(64);
-
       if (fn.timeout !== undefined) {
-        expect(Number(fn.timeout), `${name}: Lambda timeout must be 1–900 seconds`).toBeGreaterThan(0);
-        expect(Number(fn.timeout), `${name}: Lambda timeout must be 1–900 seconds`).toBeLessThanOrEqual(900);
+        expect(Number(fn.timeout), `${name}: Lambda timeout must be 1-900 seconds`).toBeGreaterThan(0);
+        expect(Number(fn.timeout), `${name}: Lambda timeout must be 1-900 seconds`).toBeLessThanOrEqual(900);
       }
     }
   });

@@ -44,7 +44,11 @@ export function mapDispatchError(
           "That driver cannot take this round",
           named === "" ? err.detail : `That driver cannot take this round because ${named}.`,
           scope,
-          err.reasons.map((r) => ({ field: "driverId", code: r, message: REASON_TEXT[r] ?? r })),
+          // ⚠ THE STABLE CODE GOES IN `field`, which is 032's convention for a whole-request
+          // refusal — `ProblemFieldIssue` has no `code`, and inventing one would have been a second
+          // shape for a thing the contract already expresses. The console maps this code to its OWN
+          // wording; `message` is a fallback for anything that reads the problem document raw.
+          err.reasons.map((r) => ({ field: r, message: REASON_TEXT[r] ?? r })),
         );
       }
     }
