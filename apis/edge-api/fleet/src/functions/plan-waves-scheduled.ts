@@ -34,7 +34,17 @@ export const handler: ScheduledHandler = async (_event, context) => {
 
   for (const o of outcomes) {
     if (o.skippedReason !== null) {
-      scope.log.info({ kind: o.kind, skipped: o.skippedReason }, "dispatch.wave_skipped");
+      // ⚠ `nextPlanningAt` rides along on a `no_run_due` skip so the log answers "then when?".
+      // Without it, "no collection run is due for another seven hours" and "the planner is dead"
+      // produce identical output — which is exactly the ambiguity that cost a live investigation.
+      scope.log.info(
+        {
+          kind: o.kind,
+          skipped: o.skippedReason,
+          ...(o.nextPlanningAt ? { nextPlanningAt: o.nextPlanningAt.toISOString() } : {}),
+        },
+        "dispatch.wave_skipped",
+      );
       continue;
     }
 

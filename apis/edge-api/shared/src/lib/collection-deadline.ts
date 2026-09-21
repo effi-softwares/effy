@@ -184,3 +184,30 @@ export function endOfLocalDay(at: Date): Date {
   const { year, month, day } = localDateParts(at);
   return new Date(instantAtLocalTime(year, month, day + 1, 0, 0).getTime() - 1000);
 }
+
+/**
+ * The next moment a collection wave will be planned, at or after `now` — or null when no run is
+ * configured.
+ *
+ * ⚠ THIS EXISTS BECAUSE ITS ABSENCE MADE A WORKING SYSTEM LOOK BROKEN. `runDuePlanning` loops over
+ * the due runs, so when none are due the loop body never executes and collection emits NO LOG LINE
+ * AT ALL — every tick showed only the delivery outcome. Fourteen packages sat `ready_for_pickup`
+ * overnight and nothing in CloudWatch, the console or the driver app said why, because "not yet" and
+ * "nothing happened" are the same silence. The planner now reports the skip AND names this instant,
+ * so the answer to "why is nobody coming?" is in the log rather than derivable only by hand.
+ *
+ * Looks at today's runs and tomorrow's, because at 23:30 the next window is tomorrow morning's.
+ */
+export function nextPlanningTime(
+  runs: readonly CollectionRun[],
+  bufferMin: number,
+  leadMin: number,
+  now: Date,
+): Date | null {
+  const tomorrow = new Date(now.getTime() + 24 * 3600_000);
+  const candidates = [...runs.map((r) => wavePlanningTime(r, bufferMin, leadMin, now)),
+                      ...runs.map((r) => wavePlanningTime(r, bufferMin, leadMin, tomorrow))]
+    .filter((d) => d.getTime() >= now.getTime())
+    .sort((a, b) => a.getTime() - b.getTime());
+  return candidates[0] ?? null;
+}
