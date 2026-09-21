@@ -44,16 +44,24 @@ resource "aws_s3_bucket_versioning" "product_media" {
   }
 }
 
-# CORS: the browser (shop-web) and mobile web PUT bytes directly to S3 via the presigned url, so the
-# bucket itself must allow the cross-origin PUT/GET. The approved dev origins mirror the edge API's
-# CORS (edge-gateway.tf): :5174 shop-web, :5173 back-office, :3000 reserved. Presigned GET is same
-# rules. A new console origin is a Terraform change, not a code change.
+# CORS: the browser (shop-web, back-office) PUTs bytes DIRECTLY to S3 via the presigned url, so the
+# bucket itself must allow the cross-origin PUT/GET — the edge API's CORS says nothing about S3.
+#
+# ⚠ THE ORIGINS ARE local.browser_origins (edge-gateway.tf), THE SAME LIST THE GATEWAY USES, and
+# that is the fix for a real defect: this rule was localhost-only, so on the DEPLOYED consoles
+# (048) every API call succeeded and only the direct-to-S3 upload failed, at a pre-flight, with no
+# error reaching any server, log or alarm — the operator sees a browser CORS message and the
+# platform sees nothing at all. Restating the list here is what let the two drift; a new console
+# origin is now one Terraform change in one place.
+#
+# Presigned GET is the same rule. Mobile (driver/shop apps) uploads natively and is not subject to
+# CORS at all, so it is unaffected either way.
 resource "aws_s3_bucket_cors_configuration" "product_media" {
   bucket = aws_s3_bucket.product_media.id
 
   cors_rule {
     allowed_methods = ["PUT", "GET"]
-    allowed_origins = ["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"]
+    allowed_origins = local.browser_origins
     allowed_headers = ["*"]
     expose_headers  = ["ETag"]
     max_age_seconds = 3600
