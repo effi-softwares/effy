@@ -210,3 +210,46 @@ soon" — the app's only dead end, now deleted.
 both directions by `PlaceholderRegisterGuardTest`. ⚠ Placeholder data is **not marked in the running
 app** (operator decision) — the register is the only record.
 
+
+---
+
+## §063 — Driver Work Assignment & Wave Planning
+
+**The engine between 061's fleet and 062's clearances.** Before it, a shop could mark every package
+ready and no driver was ever told: the work model was torn down deliberately and nothing replaced it.
+The driver app's Today screen called a route that no longer existed.
+
+⚠ **The teardown removed sixteen routes and nobody noticed.** The app's client code and the `driver.ts`
+contract stayed fully intact — five HTTP repositories, all wired into ViewModels — while the backend
+served six routes out of the twenty-one the app calls. Found by reading the app, not by any failure.
+`route-inventory.guard.test.ts` now reads the routes the Kotlin actually calls and fails naming any
+the service does not declare, with Slice D's three proof routes listed as deliberate deferrals.
+
+| Capability | driver-mobile | back-office |
+|---|---|---|
+| Ready packages become a collection round, assigned to a cleared on-duty driver | ✅ 063 | ✅ 063 |
+| Work ordered so what to do next is first — status → time → zone → shop | ✅ 063 | ✅ 063 |
+| Hub check-in, with the same-day/standard split **shown, never decided** | ✅ 063 | — |
+| Same-day packages become a delivery round | ✅ 063 | ✅ 063 |
+| Collection stop carries the **shop's address** | ✅ 063 — retires 060's `stopAddress` placeholder | — |
+| Per-package outcome in one atomic request | ✅ 063 | — |
+| See the day: every round, its holder, what is late | — | ✅ 063 |
+| **Unassigned work with the reason nobody could take it** | — | ✅ 063 |
+| Reassign · unassign · reorder · lock | — | ✅ 063 (admin/manager) |
+| Read the day, including a **csa** | — | ✅ 063 |
+| Proof of delivery, custody events | ⛔ **Slice D** | ⛔ **Slice D** |
+| Offer / accept / decline | ⛔ **never** — drivers are employees; push-assign (D13) | — |
+| Distance, ETA, route optimisation, driver location | ⛔ **cut deliberately** (D20/D22), guarded by `no-location.guard.test.ts` | ⛔ |
+
+### What this slice refuses to fabricate
+
+- **Delivery instructions** — the contract carries the field; *nothing on the platform stores it*.
+  There is no column anywhere and checkout never asks. Returns `null` rather than putting words on a
+  driver's screen that no customer wrote.
+- **`proofCaptured` / proof detail** — always false/null until Slice D produces the records.
+- **Activity read receipts** — the feed is derived from rounds, so there is nothing to mark read. The
+  route exists (a 404 on a live screen is worse) and is an honest no-op.
+- **Volume and crate capacity** — vehicles record both; the catalogue describes no product volume, so
+  the gate is **weight only**. A van full by volume and light by weight will be over-assigned, and the
+  dispatcher sees it. Inventing a per-product volume would be a gate that looks enforced and is
+  arithmetic over a guess.

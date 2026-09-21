@@ -282,7 +282,24 @@ Spec/artifacts: [specs/062-driver-zone-capability/](../specs/062-driver-zone-cap
 - Extend 056's `readiness` screen into the coverage-gap view: **which zone has nobody today.**
 - **Still no engine.** An operator can now describe the fleet; nothing acts on it yet.
 
-### Slice C — The wave planner *(brief requirements 4 and 6)*
+### Slice C — The wave planner *(brief requirements 4 and 6)* — ✅ **BUILT (063)**
+
+**Built as `specs/063-driver-work-assignment`.** ⚠ **Its flagged decision is settled**: the cutoff rule
+is a **deliberate Go↔TypeScript duplicate pinned by a cross-language contract test with DST fixtures**
+(research R2). Calling `core-api` for the deadline was rejected because wave planning would then depend
+on the hot path being up, and **a missed wave is silent** — no error, no alarm, just packages that do
+not move. Both halves of the contract were proven by breaking each in turn.
+
+⚠ **The scope was larger than this plan recorded.** It said the driver app needed a restored route; it
+needed **fifteen** — the teardown removed sixteen routes while the app's client code and contract
+stayed intact, and nothing failed. A route-inventory guard now reads the Kotlin and fails naming any
+route the service does not declare.
+
+⚠ **Capacity is weight-only.** Vehicles record `payload_kg`, `load_volume_litres` and
+`crate_capacity`; the catalogue describes no product volume, so two of the three cannot be evaluated.
+Stated limitation, not an oversight.
+
+
 - Wave planning triggered off `delivery_collection_run`: hard gates (eligibility → capacity →
   feasibility) then proximity-free scoring, push-assign.
 - Task/work model rebuilt — informed by D16, **not a restoration of 049's shape**.

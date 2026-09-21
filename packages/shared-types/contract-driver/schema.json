@@ -73,10 +73,40 @@
     },
     "CollectRequest": {
       "additionalProperties": false,
-      "description": "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect all this shop's packages.",
+      "description": "POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's packages.",
       "properties": {
         "changeId": {
           "type": "string"
+        },
+        "packages": {
+          "description": "⚠ ADDED BY 063, OPTIONAL BY DESIGN. Absent means what it has always meant: every package at this stop was collected. Present, it records each package's own outcome IN THE SAME REQUEST.\n\nThat atomicity is the point (FR-026). With collect-all followed by a separate `/issue` call there is a window in which the platform believes a package is in the van and it is not — and if the second call never arrives (the driver walks out of signal, the app is killed), the window never closes and nobody is told. One request cannot half-happen.\n\n⚠ It is OPTIONAL rather than required so the existing client call remains valid and no Kotlin call site changes. A required field here would have meant reworking the ViewModels behind several of 060's screens to say something the old shape already said correctly.",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "note": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "outcome": {
+                "enum": [
+                  "picked_up",
+                  "not_available"
+                ],
+                "type": "string"
+              },
+              "packageId": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "packageId",
+              "outcome"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "required": [
@@ -155,6 +185,13 @@
       "additionalProperties": false,
       "description": "GET /driver/v1/collection/runs/{runId}/stops/{stopId} — a shop stop and its packages.",
       "properties": {
+        "address": {
+          "description": "⚠ See `CollectionStopSummary.address` — added by 063, retires the `stopAddress` placeholder.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "packages": {
           "items": {
             "$ref": "#/definitions/CollectionPackage"
@@ -178,6 +215,7 @@
         "stopId",
         "shopName",
         "shopCode",
+        "address",
         "packages",
         "status"
       ],
@@ -195,6 +233,13 @@
     "CollectionStopSummary": {
       "additionalProperties": false,
       "properties": {
+        "address": {
+          "description": "⚠ ADDED BY 063, AND IT RETIRES A PLACEHOLDER. `collection/data/PlaceholderData.kt` declares `stopAddress = operational(\"`shop.address`\")` — an invented value a driver could act on, so the app renders it as unavailable. 061 built `shop.address_*`; this carries it, and the unblocking condition that placeholder names is now met.\n\n⚠ AN ADDRESS, NEVER A POSITION (D20/D21). The app hands this to the device's own maps app (D7 — per stop, not per route). No coordinate exists to send.\n\nNullable because a shop whose address has not been recorded yet is an ordinary state the back-office readiness view already reports (061 FR-029/030) — and a driver must be told the address is missing rather than shown an empty line.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "packageCount": {
           "$ref": "#/definitions/WireInt"
         },
@@ -219,6 +264,7 @@
         "sequence",
         "shopName",
         "shopCode",
+        "address",
         "packageCount",
         "status"
       ],
@@ -441,6 +487,7 @@
           "type": "string"
         },
         "zone": {
+          "description": "What the driver is cleared to cover, as one line for their own Account screen.\n\n⚠ THE SHAPE IS UNCHANGED BY 062 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it in three places (Today, Help, Account) and it is part of the generated Kotlin contract. What changed is where it COMES FROM: until 062 this was a single assigned zone that no assignment code ever read; it is now DERIVED from the driver's clearances. The app tells the truth without a line of Kotlin changing — the same move 061 made for `DriverVehicle`.\n\nnull when the driver is cleared for nothing, which is an ordinary state for a new starter and one the app already renders as unavailable rather than as a broken row.",
           "type": [
             "string",
             "null"
@@ -459,6 +506,7 @@
       "type": "object"
     },
     "DriverPhase": {
+      "description": "⚠ `LocationRequest` STOOD HERE AND IS GONE (061) — see the note below.",
       "enum": [
         "collection",
         "same_day_delivery",
@@ -466,8 +514,17 @@
       ],
       "type": "string"
     },
+    "DriverRunType": {
+      "description": "The two kinds of work a driver run can be. Named as a type by 056 because back-office reads it too — it was an inline union used once, and a second consumer is exactly when a concept earns a name (Principle II: one definition per concept, not one per file).\n\n⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and then a same-day round in the same shift; neither is a role they hold.",
+      "enum": [
+        "collection",
+        "same_day_delivery"
+      ],
+      "type": "string"
+    },
     "DriverVehicle": {
       "additionalProperties": false,
+      "description": "What the driver is currently driving, for their own Account screen.\n\n⚠ THE SHAPE IS UNCHANGED BY 061 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it (`DriverMappers.kt`, `AccountScreen.kt`) and it is part of the generated Kotlin contract. What changed is where it COMES FROM: until 061 these were two free-text columns on the driver row that nobody maintained; they are now read from the driver's open `vehicle_holding` and the real vehicle behind it. The app shows a true answer without a single line of Kotlin changing.\n\nBoth fields are null when the driver holds no vehicle, which is an ordinary state.",
       "properties": {
         "plate": {
           "type": [
@@ -578,6 +635,13 @@
         "changeId": {
           "type": "string"
         },
+        "expectedEndAt": {
+          "description": "⚠ OPTIONAL, AND ITS ABSENCE MEANS UNKNOWN (061, FR-032/FR-033).\n\nWhen a driver goes on duty they may say when they expect to finish. It buys nothing today — it exists so the dispatch slice can ask \"can this driver finish this round before they go home\", which is otherwise unanswerable.\n\n⚠ IT MUST NEVER BE DEFAULTED TO A SHIFT LENGTH. An invented finish time would make a guess look like a fact at exactly the moment it decides someone's workload — and the driver would be the one who found out.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "onDuty": {
           "type": "boolean"
         }
@@ -594,6 +658,13 @@
         "dutyStatus": {
           "$ref": "#/definitions/DriverDutyStatus"
         },
+        "expectedEndAt": {
+          "description": "null = the driver did not say. Render as \"unknown\", never as a time.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "since": {
           "type": [
             "string",
@@ -603,7 +674,8 @@
       },
       "required": [
         "dutyStatus",
-        "since"
+        "since",
+        "expectedEndAt"
       ],
       "type": "object"
     },
@@ -761,11 +833,7 @@
           "$ref": "#/definitions/WireInt"
         },
         "type": {
-          "enum": [
-            "collection",
-            "same_day_delivery"
-          ],
-          "type": "string"
+          "$ref": "#/definitions/DriverRunType"
         }
       },
       "required": [
@@ -810,27 +878,6 @@
         "scannedTotal",
         "sameDayCount",
         "standardCount"
-      ],
-      "type": "object"
-    },
-    "LocationRequest": {
-      "additionalProperties": false,
-      "description": "POST /driver/v1/location — optional point-in-time snapshot (never streamed).",
-      "properties": {
-        "changeId": {
-          "type": "string"
-        },
-        "lat": {
-          "type": "number"
-        },
-        "lng": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "lat",
-        "lng",
-        "changeId"
       ],
       "type": "object"
     },
@@ -930,7 +977,15 @@
         "detail": {
           "type": "string"
         },
+        "errors": {
+          "description": "⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field issues under `errors`; `fields` was the name only this type used, so every reader keying off it saw nothing. Both are declared so the mismatch is visible here rather than rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).",
+          "items": {
+            "$ref": "#/definitions/ProblemFieldIssue"
+          },
+          "type": "array"
+        },
         "fields": {
+          "deprecated": "The wire uses `errors`. Kept so older readers still compile.",
           "items": {
             "$ref": "#/definitions/ProblemFieldIssue"
           },
@@ -1261,9 +1316,6 @@
     "hubCheckinResponse": {
       "$ref": "#/definitions/HubCheckinResponse"
     },
-    "locationRequest": {
-      "$ref": "#/definitions/LocationRequest"
-    },
     "manifestLine": {
       "$ref": "#/definitions/ManifestLine"
     },
@@ -1308,7 +1360,6 @@
     "me",
     "dutyRequest",
     "dutyResponse",
-    "locationRequest",
     "today",
     "todayItem",
     "collectionRun",

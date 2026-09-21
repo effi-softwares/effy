@@ -1,4 +1,4 @@
-import { BadgePercent, Car, LayoutDashboard, MailWarning, MessageSquare, Package, Shield, Store, Tags, Truck, Users } from "lucide-react";
+import { BadgePercent, Car, LayoutDashboard, Route, MailWarning, MessageSquare, Package, Shield, Store, Tags, Truck, Users } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -42,6 +42,11 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // asked. Adding, editing, issuing and retiring are admin/manager, gated in-screen and enforced
   // independently by the backend.
   { label: "Vehicles", to: "/vehicles", icon: Car },
+  // Dispatch has NO requiredRole, for the same reason as Drivers and Vehicles: SEEING what is stuck
+  // is support work, and a csa is exactly who is asked "where is that order". Overriding the planner
+  // — reassign, unassign, reorder, lock — is admin/manager, gated in-screen and independently
+  // enforced by edge-fleet per route.
+  { label: "Dispatch", to: "/dispatch", icon: Route },
   // Deliverability has NO requiredRole: every back-office role sees it, csa included. A CSA is
   // exactly who is on the phone to the person who cannot sign in, and "we can't reach your address"
   // is the whole answer to that call. Only the REPAIR is admin/manager (gated in-screen, enforced by

@@ -20,6 +20,7 @@ import {
   driversIndexRoute,
 } from "./routes/drivers";
 import { vehicleDetailRoute, vehiclesIndexRoute } from "./routes/vehicles";
+import { dispatchIndexRoute, dispatchRoundRoute } from "./routes/dispatch";
 import { orderDetailRoute, ordersIndexRoute } from "./routes/orders";
 import { shopDetailRoute, shopsIndexRoute } from "./routes/shops";
 import { rootRoute } from "./routes/__root";
@@ -38,6 +39,8 @@ const routeTree = rootRoute.addChildren([
       driverDetailRoute,
     vehiclesIndexRoute,
     vehicleDetailRoute,
+    dispatchIndexRoute,
+    dispatchRoundRoute,
     deliverabilityIndexRoute,
     deliverabilityDetailRoute,
     feedbackIndexRoute,

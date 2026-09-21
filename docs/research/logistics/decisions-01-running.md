@@ -205,7 +205,7 @@ what actually matters when the phone is in a pocket — and the genuinely risky 
 
 ---
 
-## D12. ⭐ THE KEYSTONE: this is a WAVE PLANNER, not a continuous dispatcher.
+## D12. ✅ IMPLEMENTED (063). ⭐ THE KEYSTONE: this is a WAVE PLANNER, not a continuous dispatcher.
 
 **Evidence (agent 01):** wave/cutoff-driven dispatch — not continuous on-demand dispatch — is the
 correct reference model, confirmed against WMS wave-planning literature (release triggered by a carrier
@@ -228,7 +228,7 @@ batch. A wave planner has both, for free, because a wave IS a deadline and a bat
 
 ---
 
-## D13. Push-assign, not offer/accept — because our drivers are employees.
+## D13. ✅ IMPLEMENTED (063). Push-assign, not offer/accept — because our drivers are employees.
 **Evidence (agent 01):** **no system reviewed uses offer/accept for an employee fleet.** That mechanic
 exists specifically to manage **gig-worker consent**. Tookan, Deliveroo's Frank and DoorDash's DeepRed
 broadcast-or-offer because their workers are independent contractors who can decline. **Onfleet and
@@ -243,7 +243,9 @@ handling, re-offer loops) before it is written.
 
 ---
 
-## D14. Algorithm: hard gates, then proximity. No solver. And DoorDash's own reasoning says so.
+## D14. ✅ IMPLEMENTED (063), WITH ONE CHANGE. Algorithm: hard gates, then ~~proximity~~ LOAD BALANCE. No solver.
+
+⚠ **The tie-break is not proximity, because D20 cut all location data.** Settled by operator decision during 063's specification: the eligible driver carrying the **fewest packages that day** wins, tied stably on driver id. `pickByLoad` in `@effy/edge-shared`; FR-014b forbids any distance proxy returning, and `no-location.guard.test.ts` makes that mechanical.
 **Evidence (agent 01):** DoorDash's rejection of greedy-nearest-driver **does not transfer to us**.
 DeepRed (ML + Gurobi MIP) exists to protect aggregate marketplace efficiency across **thousands of
 concurrent, competing orders** — a problem one hub and <10 drivers does not have. ⚠ **DoorDash itself
@@ -272,7 +274,7 @@ industry practice.
 
 ---
 
-## D15. Manage by exception — the dispatcher console is part of the engine, not a nice-to-have.
+## D15. ✅ IMPLEMENTED (063). Manage by exception — the dispatcher console is part of the engine, not a nice-to-have.
 **Evidence (agent 01):** Bringg's explicit phrase is "manage by exception". **Shipday states a ~30–50
 orders/day threshold before automation becomes necessary** — Effy's volume sits *below* where even an SMB
 vendor says an engine is needed. The industry's own philosophy at ANY scale is to surface exceptions to a
@@ -352,7 +354,7 @@ three open items:
 
 # ═══ OPERATOR DECISIONS, 2026-09-20 — these SUPERSEDE earlier entries where they conflict ═══
 
-## D20. ⭐ NO LOCATION DATA. Sequencing is an ORDERING problem, not a geometry problem.
+## D20. ✅ IMPLEMENTED (063). ⭐ NO LOCATION DATA. Sequencing is an ORDERING problem, not a geometry problem.
 **Operator direction:** *"no need! we just need to track the status of task! no need to track locations.
 but routing can be simply implemented so that we show simple order to pickup… just order the task list
 according to the task status, time and shop or customer delivery zones. no need to have exact location."*

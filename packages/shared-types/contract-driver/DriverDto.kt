@@ -45,14 +45,45 @@ data class ActivityReadRequest (
 )
 
 /**
- * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect all this shop's
+ * POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's
  * packages.
  */
 @Serializable
 data class CollectRequest (
     @SerialName("changeId")
-    val changeID: String
+    val changeID: String,
+
+    /**
+     * ⚠ ADDED BY 063, OPTIONAL BY DESIGN. Absent means what it has always meant: every package
+     * at this stop was collected. Present, it records each package's own outcome IN THE SAME
+     * REQUEST.
+     *
+     * That atomicity is the point (FR-026). With collect-all followed by a separate `/issue`
+     * call there is a window in which the platform believes a package is in the van and it is
+     * not — and if the second call never arrives (the driver walks out of signal, the app is
+     * killed), the window never closes and nobody is told. One request cannot half-happen.
+     *
+     * ⚠ It is OPTIONAL rather than required so the existing client call remains valid and no
+     * Kotlin call site changes. A required field here would have meant reworking the ViewModels
+     * behind several of 060's screens to say something the old shape already said correctly.
+     */
+    val packages: List<Package>? = null
 )
+
+@Serializable
+data class Package (
+    val note: String? = null,
+    val outcome: Outcome,
+
+    @SerialName("packageId")
+    val packageID: String
+)
+
+@Serializable
+enum class Outcome(val value: String) {
+    @SerialName("not_available") NotAvailable("not_available"),
+    @SerialName("picked_up") PickedUp("picked_up");
+}
 
 @Serializable
 data class CollectResponse (
@@ -121,6 +152,21 @@ data class DriverCollectionRunDTO (
 
 @Serializable
 data class CollectionStopSummary (
+    /**
+     * ⚠ ADDED BY 063, AND IT RETIRES A PLACEHOLDER. `collection/data/PlaceholderData.kt`
+     * declares `stopAddress = operational("`shop.address`")` — an invented value a driver could
+     * act on, so the app renders it as unavailable. 061 built `shop.address_*`; this carries
+     * it, and the unblocking condition that placeholder names is now met.
+     *
+     * ⚠ AN ADDRESS, NEVER A POSITION (D20/D21). The app hands this to the device's own maps app
+     * (D7 — per stop, not per route). No coordinate exists to send.
+     *
+     * Nullable because a shop whose address has not been recorded yet is an ordinary state the
+     * back-office readiness view already reports (061 FR-029/030) — and a driver must be told
+     * the address is missing rather than shown an empty line.
+     */
+    val address: String? = null,
+
     val packageCount: Long,
     val sequence: Long,
     val shopCode: String,
@@ -144,6 +190,12 @@ enum class CollectionStopStatus(val value: String) {
  */
 @Serializable
 data class CollectionStopDTO (
+    /**
+     * ⚠ See `CollectionStopSummary.address` — added by 063, retires the `stopAddress`
+     * placeholder.
+     */
+    val address: String? = null,
+
     val packages: List<CollectionPackage>,
     val shopCode: String,
     val shopName: String,
@@ -297,12 +349,31 @@ data class DutyRequest (
     @SerialName("changeId")
     val changeID: String,
 
+    /**
+     * ⚠ OPTIONAL, AND ITS ABSENCE MEANS UNKNOWN (061, FR-032/FR-033).
+     *
+     * When a driver goes on duty they may say when they expect to finish. It buys nothing today
+     * — it exists so the dispatch slice can ask "can this driver finish this round before they
+     * go home", which is otherwise unanswerable.
+     *
+     * ⚠ IT MUST NEVER BE DEFAULTED TO A SHIFT LENGTH. An invented finish time would make a
+     * guess look like a fact at exactly the moment it decides someone's workload — and the
+     * driver would be the one who found out.
+     */
+    val expectedEndAt: String? = null,
+
     val onDuty: Boolean
 )
 
 @Serializable
 data class DutyResponse (
     val dutyStatus: DriverDutyStatus,
+
+    /**
+     * null = the driver did not say. Render as "unknown", never as a time.
+     */
+    val expectedEndAt: String? = null,
+
     val since: String? = null
 )
 
@@ -347,11 +418,19 @@ data class HistoryRunRow (
     val runID: String,
 
     val stopCount: Long,
-    val type: Type
+    val type: DriverRunType
 )
 
+/**
+ * The two kinds of work a driver run can be. Named as a type by 056 because back-office
+ * reads it too — it was an inline union used once, and a second consumer is exactly when a
+ * concept earns a name (Principle II: one definition per concept, not one per file).
+ *
+ * ⚠ Work is TYPED TASKS, NOT DRIVER ROLES. One driver typically runs a collection round and
+ * then a same-day round in the same shift; neither is a role they hold.
+ */
 @Serializable
-enum class Type(val value: String) {
+enum class DriverRunType(val value: String) {
     @SerialName("collection") Collection("collection"),
     @SerialName("same_day_delivery") SameDayDelivery("same_day_delivery");
 }
@@ -411,18 +490,6 @@ data class HubCheckinResponse (
     val standardCount: Long
 )
 
-/**
- * POST /driver/v1/location — optional point-in-time snapshot (never streamed).
- */
-@Serializable
-data class LocationRequest (
-    @SerialName("changeId")
-    val changeID: String,
-
-    val lat: Double,
-    val lng: Double
-)
-
 @Serializable
 data class MapPoint (
     val lat: Double,
@@ -456,9 +523,35 @@ data class DriverMeDTO (
     val name: String,
     val vehicle: DriverVehicle,
     val workEmail: String,
+
+    /**
+     * What the driver is cleared to cover, as one line for their own Account screen.
+     *
+     * ⚠ THE SHAPE IS UNCHANGED BY 062 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it
+     * in three places (Today, Help, Account) and it is part of the generated Kotlin contract.
+     * What changed is where it COMES FROM: until 062 this was a single assigned zone that no
+     * assignment code ever read; it is now DERIVED from the driver's clearances. The app tells
+     * the truth without a line of Kotlin changing — the same move 061 made for
+     * `DriverVehicle`.
+     *
+     * null when the driver is cleared for nothing, which is an ordinary state for a new starter
+     * and one the app already renders as unavailable rather than as a broken row.
+     */
     val zone: String? = null
 )
 
+/**
+ * What the driver is currently driving, for their own Account screen.
+ *
+ * ⚠ THE SHAPE IS UNCHANGED BY 061 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it
+ * (`DriverMappers.kt`, `AccountScreen.kt`) and it is part of the generated Kotlin contract.
+ * What changed is where it COMES FROM: until 061 these were two free-text columns on the
+ * driver row that nobody maintained; they are now read from the driver's open
+ * `vehicle_holding` and the real vehicle behind it. The app shows a true answer without a
+ * single line of Kotlin changing.
+ *
+ * Both fields are null when the driver holds no vehicle, which is an ordinary state.
+ */
 @Serializable
 data class DriverVehicle (
     val plate: String? = null,
@@ -468,6 +561,15 @@ data class DriverVehicle (
 @Serializable
 data class ProblemJSON (
     val detail: String? = null,
+
+    /**
+     * ⚠ THE WIRE KEY IS `errors`. `@effy/edge-shared`'s `problem()` has always serialised field
+     * issues under `errors`; `fields` was the name only this type used, so every reader keying
+     * off it saw nothing. Both are declared so the mismatch is visible here rather than
+     * rediscovered per surface (053 found it; 054 fixed the reader in `@effy/api-client`).
+     */
+    val errors: List<ProblemFieldIssue>? = null,
+
     val fields: List<ProblemFieldIssue>? = null,
     val instance: String? = null,
     val status: Double,
@@ -588,6 +690,9 @@ enum class TodayItemRefKind(val value: String) {
     @SerialName("delivery_drop") DeliveryDrop("delivery_drop");
 }
 
+/**
+ * ⚠ `LocationRequest` STOOD HERE AND IS GONE (061) — see the note below.
+ */
 @Serializable
 enum class DriverPhase(val value: String) {
     @SerialName("collection") Collection("collection"),

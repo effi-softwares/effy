@@ -132,6 +132,20 @@ export interface CollectionStopSummary {
   sequence: WireInt;
   shopName: string;
   shopCode: string;
+  /**
+   * ⚠ ADDED BY 063, AND IT RETIRES A PLACEHOLDER. `collection/data/PlaceholderData.kt` declares
+   * `stopAddress = operational("`shop.address`")` — an invented value a driver could act on, so the
+   * app renders it as unavailable. 061 built `shop.address_*`; this carries it, and the unblocking
+   * condition that placeholder names is now met.
+   *
+   * ⚠ AN ADDRESS, NEVER A POSITION (D20/D21). The app hands this to the device's own maps app
+   * (D7 — per stop, not per route). No coordinate exists to send.
+   *
+   * Nullable because a shop whose address has not been recorded yet is an ordinary state the
+   * back-office readiness view already reports (061 FR-029/030) — and a driver must be told the
+   * address is missing rather than shown an empty line.
+   */
+  address: string | null;
   packageCount: WireInt;
   status: CollectionStopStatus;
 }
@@ -162,13 +176,33 @@ export interface CollectionStopDTO {
   stopId: string;
   shopName: string;
   shopCode: string;
+  /** ⚠ See `CollectionStopSummary.address` — added by 063, retires the `stopAddress` placeholder. */
+  address: string | null;
   packages: CollectionPackage[];
   status: CollectionStopStatus;
 }
 
-/** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect all this shop's packages. */
+/** POST /driver/v1/collection/runs/{runId}/stops/{stopId}/collect — collect this shop's packages. */
 export interface CollectRequest {
   changeId: string;
+  /**
+   * ⚠ ADDED BY 063, OPTIONAL BY DESIGN. Absent means what it has always meant: every package at this
+   * stop was collected. Present, it records each package's own outcome IN THE SAME REQUEST.
+   *
+   * That atomicity is the point (FR-026). With collect-all followed by a separate `/issue` call there
+   * is a window in which the platform believes a package is in the van and it is not — and if the
+   * second call never arrives (the driver walks out of signal, the app is killed), the window never
+   * closes and nobody is told. One request cannot half-happen.
+   *
+   * ⚠ It is OPTIONAL rather than required so the existing client call remains valid and no Kotlin
+   * call site changes. A required field here would have meant reworking the ViewModels behind
+   * several of 060's screens to say something the old shape already said correctly.
+   */
+  packages?: Array<{
+    packageId: string;
+    outcome: "picked_up" | "not_available";
+    note?: string | null;
+  }>;
 }
 export interface CollectResponse {
   status: "collected";

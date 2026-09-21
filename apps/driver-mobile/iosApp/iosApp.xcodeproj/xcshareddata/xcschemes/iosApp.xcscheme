@@ -6,17 +6,22 @@
   implicit one per machine and every developer silently inherited Xcode's defaults. The run
   configuration was unreproducible and invisible — which is how the setting below went unnoticed.
 
-  ⚠ enableGPUValidationMode = "0" — METAL API VALIDATION IS OFF, DELIBERATELY.
-  With it on (Xcode's default), tapping the Map tab aborts the app: SIGABRT on MapLibre's render
-  thread in RenderSessionHandle.kt. PROVEN to be the cause, not inferred — the same binary launched
-  via `simctl` renders the map fine, and re-launching it with MTL_DEBUG_LAYER=1 and no debugger
-  attached reproduces the crash exactly.
+  ⚠ METAL API VALIDATION IS ON — Xcode's default, restored deliberately.
 
-  ⚠ THIS DOES NOT FIX A BUG, IT HIDES ONE — and the honesty matters. MapLibre Native's Metal backend
-  is doing something the validation layer objects to. That is an UPSTREAM defect. Validation is off
-  on real devices and in release builds, so it does not affect what a driver runs; but anyone
-  debugging GPU work in this app should know the layer is disabled and why. Re-enable it to
-  reproduce, and remove this note if MapLibre fixes it.
+  It was previously disabled here (enableGPUValidationMode = "0") for ONE reason: MapLibre Native's
+  Metal backend aborted under the validation layer, so tapping the Map tab killed the app with
+  SIGABRT on MapLibre's render thread. The note that stood here said outright "THIS DOES NOT FIX A
+  BUG, IT HIDES ONE".
+
+  ⚠ MAPLIBRE WAS THEN REMOVED FROM THIS APP ENTIRELY (060 — see EffyMapCanvas and
+  MapLibreAbsentGuardTest), which left the suppression with nothing to suppress. It was not removed
+  at the same time, so for a while this app silently ran with a debugging safety net switched off
+  to accommodate a dependency that was no longer here. A workaround MUST NOT outlive its cause: the
+  next person to hit a real Metal fault would have been debugging blind and had no way to know.
+
+  The app now draws a schematic (EffyMapCanvas) with no GPU-heavy dependency, so validation has
+  nothing to object to. If it ever fires again, that is a REAL defect in this app — investigate it,
+  do not turn this off.
 -->
 <Scheme LastUpgradeVersion = "1700" version = "1.7">
    <BuildAction parallelizeBuildables = "YES" buildImplicitDependencies = "YES">
@@ -45,7 +50,6 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      enableGPUValidationMode = "0"
       allowLocationSimulation = "YES">
       <BuildableProductRunnable runnableDebuggingMode = "0">
          <BuildableReference
