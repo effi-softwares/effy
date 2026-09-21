@@ -11,7 +11,12 @@
 // rows, where there is nothing to overwrite. Same codebase, opposite answer, because the operations
 // are not the same shape.
 
-import { query } from "@effy/edge-shared";
+import {
+  coverageAggregateSql,
+  coverageLabel,
+  type DriverCoverageAggregate,
+  query,
+} from "@effy/edge-shared";
 import type { DriverCapability, DriverCapabilitySummary } from "@effy/shared-types";
 
 interface CapabilityRow {
@@ -134,30 +139,13 @@ export async function summariseForDrivers(
 /**
  * One line describing what a driver covers, for their OWN account screen in the driver app.
  *
- * ⚠ THIS REPLACES THE SOURCE OF `DriverMeDTO.zone` WITHOUT CHANGING ITS SHAPE. The field used to be a
- * single assigned zone that no assignment code ever read; it now reflects real clearances, so the
- * driver app tells the truth with no Kotlin changed — the same move 061 made for `DriverVehicle`.
- *
- * Null when the driver is cleared for nothing, which the app already renders as unavailable.
+ * ⚠ THE RULE ITSELF LIVES IN `@effy/edge-shared` (062). The driver service answers the same question
+ * for the driver themselves, and two copies of a label expression drift silently — a SELECT that
+ * returns the wrong string still returns successfully.
  */
 export async function coverageLabelForDriver(driverId: string): Promise<string | null> {
-  const res = await query<{ every: boolean; names: string[]; n: string }>(
-    `SELECT bool_or(c.zone_id IS NULL)                                  AS every,
-            array_remove(array_agg(DISTINCT z.name), NULL)              AS names,
-            count(*)::text                                              AS n
-       FROM public.driver_zone_capability c
-       LEFT JOIN public.delivery_zone z ON z.id = c.zone_id
-      WHERE c.driver_id = $1
-        AND (c.zone_id IS NULL OR z.status = 'active')`,
-    [driverId],
-  );
-  const r = res.rows[0];
-  if (!r || Number(r.n) === 0) return null;
-  if (r.every) return "Every zone";
-  const names = r.names ?? [];
-  if (names.length === 0) return null;
-  if (names.length === 1) return names[0]!;
-  return `${names.length} zones`;
+  const res = await query<DriverCoverageAggregate>(coverageAggregateSql("$1"), [driverId]);
+  return coverageLabel(res.rows[0]);
 }
 
 /** Look up a zone for validation. ⚠ Carries `status` so a DISABLED zone can be refused at grant time

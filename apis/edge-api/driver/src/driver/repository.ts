@@ -6,7 +6,11 @@
 // (research I2). Duty transitions use guarded/partial-unique writes so "on duty" is exactly one open
 // session.
 
-import { query } from "@effy/edge-shared";
+import {
+  coverageAggregateSql,
+  coverageLabel,
+  query,
+} from "@effy/edge-shared";
 
 import { type DriverRecord, type DriverStatus } from "./types";
 
@@ -15,8 +19,9 @@ interface DriverRow {
   cognito_sub: string;
   name: string;
   work_email: string;
-  zone_id: string | null;
-  zone_name: string | null;
+  cov_every: boolean | null;
+  cov_names: string[] | null;
+  cov_n: string;
   vehicle_type: string | null;
   vehicle_plate: string | null;
   status: DriverStatus;
@@ -29,8 +34,11 @@ const SELECT_BY_SUB = `
          d.cognito_sub,
          d.name,
          d.work_email,
-         d.delivery_zone_id AS zone_id,
-         z.name             AS zone_name,
+         -- 062: coverage is DERIVED from clearances, not read from a column. delivery_zone_id was
+         -- a single assigned zone that no assignment code ever read, and it no longer exists.
+         cov.every AS cov_every,
+         cov.names AS cov_names,
+         cov.n     AS cov_n,
          -- ⚠ 061: what the driver drives is the vehicle behind their OPEN holding, not two
          -- free-text columns on the driver row that nobody maintained. NULL is ordinary: they hold
          -- nothing right now.
@@ -40,7 +48,9 @@ const SELECT_BY_SUB = `
          s.started_at       AS on_duty_since,
          s.expected_end_at  AS expected_end_at
     FROM public.driver d
-    LEFT JOIN public.delivery_zone z ON z.id = d.delivery_zone_id
+    LEFT JOIN LATERAL (
+      ${coverageAggregateSql("d.id")}
+    ) cov ON true
     LEFT JOIN public.driver_duty_session s
            ON s.driver_id = d.id AND s.ended_at IS NULL
     LEFT JOIN public.vehicle_holding vh ON vh.driver_id = d.id AND vh.ended_at IS NULL
@@ -54,8 +64,7 @@ function mapRow(row: DriverRow): DriverRecord {
     subject: row.cognito_sub,
     name: row.name,
     workEmail: row.work_email,
-    zoneId: row.zone_id,
-    zoneName: row.zone_name,
+    coverageLabel: coverageLabel({ every: row.cov_every, names: row.cov_names, n: row.cov_n }),
     vehicleType: row.vehicle_type,
     vehiclePlate: row.vehicle_plate,
     status: row.status,

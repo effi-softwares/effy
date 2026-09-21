@@ -38,7 +38,7 @@ export function toMeDTO(record: DriverRecord): DriverMeDTO {
     id: record.id,
     name: record.name,
     workEmail: record.workEmail,
-    zone: record.zoneName,
+    zone: record.coverageLabel,
     hub: HUB_LABEL,
     vehicle: { type: record.vehicleType, plate: record.vehiclePlate },
     dutyStatus: record.dutyStatus,
