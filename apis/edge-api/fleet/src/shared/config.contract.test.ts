@@ -99,6 +99,37 @@ describe("fleet deployment contract — serverless.yml declares what the service
   // ⚠ 063 — the dispatch routes, named explicitly. The exhaustive authorizer test above proves every
   // route is authenticated; this proves the routes EXIST. A dispatch console whose backend silently
   // lost a route answers nothing, which is precisely how sixteen driver routes went dead unnoticed.
+// ⚠ THE FILE MUST ACTUALLY PARSE, AND NOTHING ELSE HERE CHECKS THAT.
+  //
+  // Every other assertion in this file reads `serverless.yml` as TEXT and matches it with regexes —
+  // which is fine for "does it declare X", and blind to whether the document is valid YAML at all.
+  // 063 shipped a description containing `: ` unquoted, which YAML reads as a mapping key: every
+  // test in this suite passed, `tsc` passed, and the failure appeared at DEPLOY, in front of the
+  // operator, as "bad indentation of a mapping entry".
+  //
+  // ⚠ CloudFormation tags (`!Ref`, `!GetAtt`) are not known to a plain YAML loader, so they are
+  // accepted as opaque rather than treated as errors — the point is the document's SHAPE.
+  it("is valid YAML that parses into functions (063)", async () => {
+    const { load, DEFAULT_SCHEMA, Type } = await import("js-yaml");
+
+    const cfnTag = (tag: string, kind: "scalar" | "sequence" | "mapping") =>
+      new Type(tag, { kind, construct: () => null });
+    const schema = DEFAULT_SCHEMA.extend(
+      ["!Ref", "!GetAtt", "!Sub", "!Join", "!ImportValue", "!Select", "!Split"].flatMap((t) => [
+        cfnTag(t, "scalar"),
+        cfnTag(t, "sequence"),
+        cfnTag(t, "mapping"),
+      ]),
+    );
+
+    const doc = load(yaml, { schema }) as { functions?: Record<string, unknown> };
+    expect(doc, "serverless.yml did not parse").toBeTruthy();
+    expect(
+      Object.keys(doc.functions ?? {}).length,
+      "no functions parsed — the document is valid YAML but not a serverless service",
+    ).toBeGreaterThan(5);
+  });
+
   it("declares every dispatch route the console calls (063)", () => {
     for (const path of [
       "/fleet/v1/dispatch/day",
@@ -164,6 +195,57 @@ describe("fleet deployment contract — serverless.yml declares what the service
     // alarms, and this alerts topic also carries "sending reputation is about to be suspended".
     expect(yaml).not.toContain("ExceptionOutstandingAlarm");
   });
+
+  // ⚠ AWS PROPERTY LIMITS, CHECKED HERE BECAUSE CLOUDFORMATION CHECKS THEM LAST.
+  //
+  // 063 shipped a 328-character function description. Lambda caps `Description` at 256, so the
+  // deploy died at `AWS::EarlyValidation::PropertyValidation` — an error that names NO property, NO
+  // function and NO limit, and arrives only after two minutes of uploading artifacts.
+  //
+  // Every assertion above this one reads the file as text, and the YAML-parse test proves only that
+  // the document is well-formed. Neither can see a value that is valid YAML, valid TypeScript, and
+  // too long for the service it describes.
+  it("keeps every function property inside its AWS limit (063)", async () => {
+    const { load, DEFAULT_SCHEMA, Type } = await import("js-yaml");
+    const cfnTag = (tag: string, kind: "scalar" | "sequence" | "mapping") =>
+      new Type(tag, { kind, construct: () => null });
+    const schema = DEFAULT_SCHEMA.extend(
+      ["!Ref", "!GetAtt", "!Sub", "!Join", "!ImportValue", "!Select", "!Split"].flatMap((t) => [
+        cfnTag(t, "scalar"),
+        cfnTag(t, "sequence"),
+        cfnTag(t, "mapping"),
+      ]),
+    );
+    const doc = load(yaml, { schema }) as {
+      service?: string;
+      functions?: Record<string, { description?: unknown; timeout?: unknown }>;
+    };
+
+    const service = typeof doc.service === "string" ? doc.service : "";
+    for (const [name, fn] of Object.entries(doc.functions ?? {})) {
+      if (typeof fn.description === "string") {
+        expect(
+          fn.description.length,
+          `${name}: Lambda Description is capped at 256 characters — this is ${fn.description.length}. ` +
+            `Put the reasoning in a YAML comment above it instead; CloudFormation will refuse the ` +
+            `stack without telling you which property is wrong.`,
+        ).toBeLessThanOrEqual(256);
+      }
+      // Lambda FunctionName is capped at 64; serverless builds `${service}-${stage}-${name}`.
+      const fullName = `${service}-dev-${name}`;
+      expect(
+        fullName.length,
+        `${name}: the deployed function name "${fullName}" is ${fullName.length} characters; Lambda ` +
+          `caps FunctionName at 64.`,
+      ).toBeLessThanOrEqual(64);
+
+      if (fn.timeout !== undefined) {
+        expect(Number(fn.timeout), `${name}: Lambda timeout must be 1–900 seconds`).toBeGreaterThan(0);
+        expect(Number(fn.timeout), `${name}: Lambda timeout must be 1–900 seconds`).toBeLessThanOrEqual(900);
+      }
+    }
+  });
+
 });
 
 /**

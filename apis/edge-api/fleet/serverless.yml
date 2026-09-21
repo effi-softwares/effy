@@ -336,18 +336,21 @@ functions:
 
   planWavesScheduled:
     handler: src/functions/plan-waves-scheduled.handler
+    # ⚠ It wakes every 5 minutes and PLANS RARELY — a wave happens only when a collection run reaches
+    # run_time − prep_buffer − planning_lead. The tick is not the wave; the collection schedule is.
+    # (Kept as a comment: Lambda's Description property is capped at 256 characters, and a 328-char
+    # one fails CloudFormation EARLY VALIDATION with no hint as to which property is wrong.)
     description: >-
-      063 — the wave planner. Turns packages shops have made ready into collection rounds, and same-day
-      packages at the hub into delivery rounds. ⚠ It wakes every 5 minutes and PLANS RARELY: a wave
-      happens only when a collection run reaches run_time − prep_buffer − planning_lead. The tick is not
-      the wave; the collection schedule is.
+      063 — the wave planner. Turns ready packages into collection rounds, and same-day packages at the
+      hub into delivery rounds.
     timeout: 60
     events:
       - schedule: rate(5 minutes)
 
   dispatchDayV1:
     handler: src/functions/dispatch-day-v1-get.handler
-    description: 063 — the day's work: every round, its holder, and what nobody could take. Read = any active staff.
+    description: >-
+      063 — the day's work: every round, its holder, and what nobody could take. Read = any active staff.
     events:
       - httpApi:
           method: GET

@@ -226,7 +226,8 @@ functions:
 
   driverActivityReadV1:
     handler: src/functions/driver-activity-read-v1-post.handler
-    description: 063 — an honest no-op: there is no read receipt to store.
+    description: >-
+      063 — an honest no-op: there is no read receipt to store.
     events:
       - httpApi:
           method: POST
