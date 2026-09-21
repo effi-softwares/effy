@@ -63,7 +63,7 @@ sign-off rather than reporting a green suite.**
 git add db/migrations/<ts>_driver_zone_capability.sql && git commit     # 003 commit-guard
 make db-up ENV=dev
 make db-status ENV=dev
-psql "$(infra/scripts/db-dsn.sh dev)" -f db/seeds/062_capability_dev.sql
+psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -f db/seeds/062_capability_dev.sql
 ```
 
 ⚠ **DESTRUCTIVE**: drops `driver.delivery_zone_id`. The values are **not** migrated into the new table

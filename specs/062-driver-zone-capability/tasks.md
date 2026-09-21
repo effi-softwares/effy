@@ -189,7 +189,7 @@ unavailable, and a fully covered zone; confirm the view tells the three apart.
 ### Operator steps (NOT run by Claude — hand these over with exact commands)
 
 - [ ] T077 **OPERATOR** Commit the migration, then `make db-up ENV=dev` (003 commit-guard) — ⚠ DESTRUCTIVE, drops `driver.delivery_zone_id`
-- [ ] T078 **OPERATOR** Load the seeds: `psql "$(infra/scripts/db-dsn.sh dev)" -f db/seeds/062_capability_dev.sql`
+- [ ] T078 **OPERATOR** Load the seeds: `psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -f db/seeds/062_capability_dev.sql`
 - [ ] T079 **OPERATOR** `make edge-deploy SERVICE=fleet ENV=dev` — ⚠ **before** the console, or the editor and coverage view call routes that do not exist
 - [ ] T080 **OPERATOR** Push to `dev` so Amplify deploys the back-office console
 - [ ] T081 **OPERATOR** Walk **W1–W19** from [quickstart.md](quickstart.md) §5 — ⚠ **W6 is the most important** (create a zone, confirm an every-zone driver covers it). 039 shipped four live defects with a fully green suite

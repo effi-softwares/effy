@@ -59,7 +59,7 @@ green suite.**
 git add db/migrations/<ts>_fleet_foundations.sql && git commit     # 003 commit-guard
 make db-up ENV=dev
 make db-status ENV=dev
-psql "$(infra/scripts/db-dsn.sh dev)" -f db/seeds/061_fleet_dev.sql
+psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -f db/seeds/061_fleet_dev.sql
 ```
 
 ⚠ **DESTRUCTIVE**: the migration drops `driver.vehicle_type`, `driver.vehicle_plate`,

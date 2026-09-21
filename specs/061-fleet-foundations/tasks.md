@@ -233,7 +233,7 @@ change stays attributable.
 ### Operator steps (NOT run by Claude — hand these over with exact commands)
 
 - [ ] T099 **OPERATOR** Commit the migration, then `make db-up ENV=dev` (003 commit-guard) — ⚠ DESTRUCTIVE, drops six columns
-- [ ] T100 **OPERATOR** Load the seeds: `psql "$(infra/scripts/db-dsn.sh dev)" -f db/seeds/061_fleet_dev.sql`
+- [ ] T100 **OPERATOR** Load the seeds: `psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -f db/seeds/061_fleet_dev.sql`
 - [ ] T101 **OPERATOR** `make edge-deploy SERVICE=fleet ENV=dev` — ⚠ **before** the console, or every screen 404s
 - [ ] T102 **OPERATOR** `make edge-deploy SERVICE=admin ENV=dev` (shop address fields)
 - [ ] T103 **OPERATOR** `make edge-deploy SERVICE=driver ENV=dev` — last; it is the step that removes a route
