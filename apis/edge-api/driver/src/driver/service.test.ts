@@ -9,13 +9,13 @@ const ACTIVE: DriverRecord = {
   subject: "sub-1",
   name: "Jomo Ondiek",
   workEmail: "jomo@effyshopping.com",
-  zoneId: "z1",
-  zoneName: "Inner North",
+  coverageLabel: "Inner North",
   vehicleType: "Van",
   vehiclePlate: "1QZ 4KP",
   status: "active",
   dutyStatus: "off_duty",
   onDutySince: null,
+  expectedEndAt: null,
 };
 
 describe("requireDriver — the access decision is the record, not the token (Principle IV)", () => {

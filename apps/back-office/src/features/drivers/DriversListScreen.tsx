@@ -22,7 +22,7 @@ import { CreateDriverDialog } from "./components/CreateDriverDialog";
 import { DutyPanel } from "./components/DutyPanel";
 import { canManageDrivers } from "./access";
 import { BLOCKED_LABEL, STATUS_LABEL, type DriverListParams } from "./model";
-import { driversListQuery, exceptionsQuery, zonesQuery } from "./queries";
+import { driversListQuery, zonesQuery } from "./queries";
 
 const ALL = "all";
 
@@ -72,10 +72,24 @@ const columns: ColumnDef<AdminDriverListItem>[] = [
   },
   { accessorKey: "workEmail", header: "Work email" },
   {
-    accessorKey: "zone",
-    header: "Zone",
-    cell: ({ row }) =>
-      row.original.zone ?? <span className="text-muted-foreground">Not assigned</span>,
+    // ⚠ 062 FR-014/FR-015 — breadth of clearance, summarised. A driver cleared for NOTHING is a
+    // stated fact, not blank space: an empty cell reads as "nothing to say", and this is the one
+    // thing stopping them being given work.
+    id: "clearance",
+    header: "Cleared for",
+    cell: ({ row }) => {
+      const c = row.original.capabilitySummary;
+      if (c.total === 0) {
+        return <span className="font-medium">Nothing yet</span>;
+      }
+      const where = c.coversEveryZone ? "every zone" : `${c.total} grant${c.total === 1 ? "" : "s"}`;
+      const what = c.functions.length === 2 ? "Collect + deliver" : c.functions[0] === "collection" ? "Collect" : "Deliver";
+      return (
+        <span>
+          {what} <span className="text-muted-foreground">· {where}</span>
+        </span>
+      );
+    },
   },
   {
     accessorKey: "dutyState",
@@ -127,10 +141,12 @@ export function DriversListScreen() {
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(driversListQuery(params));
+  // ⚠ 062 — the zone FILTER stays, and its meaning improved: it now finds drivers CLEARED for that
+  // zone, which includes every-zone drivers. Matching only zone-specific grants would hide the
+  // people with the broadest clearance — the opposite of what an operator filtering by zone wants.
   const zones = useQuery(zonesQuery());
   // The outstanding count only — the rows live on the Exceptions section of the profile and the
   // dedicated filter below.
-  const exceptions = useQuery(exceptionsQuery({ resolved: "false" }));
 
   function resetPaging<T>(set: (v: T) => void) {
     return (v: T) => {
@@ -152,20 +168,9 @@ export function DriversListScreen() {
         {canManage ? <CreateDriverDialog /> : null}
       </div>
 
-      {/* ⚠ FR-032 — the outstanding count is visible on entering the Drivers area, as a sentence
-          that leads somewhere. NOT a metric card (Principle V). Rendered only when there is
-          something outstanding: a permanent "0 unresolved" line is noise that trains people to skip
-          the row it lives on. */}
-      {exceptions.data && exceptions.data.outstandingCount > 0 ? (
-        <p className="border-l-2 border-foreground py-1 pl-3 text-sm">
-          <span className="font-semibold tabular-nums">{exceptions.data.outstandingCount}</span>{" "}
-          unresolved {exceptions.data.outstandingCount === 1 ? "report" : "reports"} from the road —
-          failed deliveries and packages missing at shops.{" "}
-          <Link to="/drivers/exceptions" className="text-primary underline">
-            Review them
-          </Link>
-        </p>
-      ) : null}
+      {/* ⚠ FR-032's outstanding-reports line stood here — a count of failed deliveries and packages
+          missing at shops, as a sentence that led somewhere rather than a metric card. It read
+          `delivery_failure` and `collection_task_issue`, dropped with the work model. */}
 
       <DutyPanel />
 

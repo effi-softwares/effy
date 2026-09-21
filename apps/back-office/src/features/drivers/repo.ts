@@ -5,25 +5,23 @@ import type {
   AdminDriverStatusRequest,
   AdminDriverUpdateRequest,
   DriverAuditResponse,
-  DriverException,
-  DriverExceptionKind,
-  DriverExceptionListResponse,
-  DriverHistoryResponse,
-  DriverProofResponse,
-  DriverRunDetail,
   DutyResponseAdmin,
   FleetReadinessResponse,
-  StrandedReleaseResponse,
-  StrandedWorkResponse,
 } from "@effy/shared-types";
 
 import { api } from "@/lib/api";
 
-import type { DriverListParams, ExceptionListParams } from "./model";
+import type { DriverListParams } from "./model";
 
 // The data layer for the back-office driver console (056). Screens never touch the api client
 // directly (Principle VI). Every endpoint lives on the `fleet` cold-path service behind the shared
 // gateway — see specs/056-driver-management/contracts/fleet-api.contract.md.
+//
+// ⚠ WORK HISTORY, PROOF, STRANDED WORK AND EXCEPTIONS LEFT THIS LAYER with the routes they called.
+// They projected the 049 work model, dropped whole by
+// db/migrations/20260920101500_remove_driver_work_model.sql. What is left is the EMPLOYMENT console —
+// the register, a profile, status transitions, the change log, duty and readiness — which never
+// depended on the shape of a run.
 
 function qs(params: Record<string, string | undefined>): string {
   const sp = new URLSearchParams();
@@ -75,58 +73,12 @@ export async function getDriverAudit(driverId: string): Promise<DriverAuditRespo
   return api.get<DriverAuditResponse>(`/fleet/v1/drivers/${driverId}/audit`);
 }
 
-export async function getHistory(
-  driverId: string,
-  cursor?: string,
-): Promise<DriverHistoryResponse> {
-  return api.get<DriverHistoryResponse>(`/fleet/v1/drivers/${driverId}/history${qs({ cursor })}`);
-}
-
-export async function getRun(runId: string): Promise<DriverRunDetail> {
-  return api.get<DriverRunDetail>(`/fleet/v1/runs/${runId}`);
-}
-
-export async function getProof(deliveryTaskId: string): Promise<DriverProofResponse> {
-  return api.get<DriverProofResponse>(`/fleet/v1/drops/${deliveryTaskId}/proof`);
-}
-
 export async function getDuty(): Promise<DutyResponseAdmin> {
   return api.get<DutyResponseAdmin>("/fleet/v1/duty");
 }
 
 export async function endDutySession(sessionId: string): Promise<unknown> {
   return api.post(`/fleet/v1/duty/${sessionId}/end`);
-}
-
-export async function getStranded(): Promise<StrandedWorkResponse> {
-  return api.get<StrandedWorkResponse>("/fleet/v1/stranded");
-}
-
-export async function releaseStranded(body: {
-  collectionTaskIds?: string[];
-  deliveryTaskIds?: string[];
-  note: string;
-}): Promise<StrandedReleaseResponse> {
-  return api.post<StrandedReleaseResponse>("/fleet/v1/stranded/release", body);
-}
-
-export async function listExceptions(p: ExceptionListParams): Promise<DriverExceptionListResponse> {
-  return api.get<DriverExceptionListResponse>(
-    `/fleet/v1/exceptions${qs({
-      kind: p.kind || undefined,
-      resolved: p.resolved && p.resolved !== "false" ? p.resolved : undefined,
-      driverId: p.driverId || undefined,
-      cursor: p.cursor,
-    })}`,
-  );
-}
-
-export async function resolveException(
-  kind: DriverExceptionKind,
-  exceptionId: string,
-  note: string,
-): Promise<DriverException> {
-  return api.post<DriverException>(`/fleet/v1/exceptions/${kind}/${exceptionId}/resolve`, { note });
 }
 
 export async function getReadiness(): Promise<FleetReadinessResponse> {

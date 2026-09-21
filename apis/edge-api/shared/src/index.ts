@@ -27,3 +27,6 @@ export * from "./lib/refund-proposals";
 // 058: the low-stock rule, promoted from edge-api/inventory when Today became its third reader.
 // One rule in one place — 054's "availability written in 14 places" lesson, applied before it bites.
 export * from "./lib/low-stock";
+// 062: what a driver covers — one rule, read by back-office (to staff a zone) and by the driver app
+// (the driver's own account screen). Promoted from edge-api/fleet on its second consumer.
+export * from "./lib/driver-coverage";

@@ -15,7 +15,7 @@ import {
 
 import { track } from "@/lib/telemetry";
 
-import { driverActionError, heldWorkItems } from "../errorText";
+import { driverActionError } from "../errorText";
 import { STATUS_MEANING } from "../model";
 import { useSetDriverStatus } from "../queries";
 
@@ -55,7 +55,6 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
   const [target, setTarget] = useState<DriverEmploymentStatus | null>(null);
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [held, setHeld] = useState<string[]>([]);
 
   const mutate = useSetDriverStatus(driver.id);
   const options = TRANSITIONS[driver.status];
@@ -64,24 +63,29 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
     setTarget(null);
     setReason("");
     setError(null);
-    setHeld([]);
   }
 
-  function submit(acknowledgeHeldWork: boolean) {
+  /**
+   * ⚠ THE HELD-WORK ACKNOWLEDGEMENT IS GONE, ALONG WITH THE SECOND CONFIRM BUTTON. Standing a driver
+   * down used to be refused with an itemised list of what they were already carrying, and going ahead
+   * required pressing a differently-labelled button that named the consequence. Nothing assigns work
+   * since the 049 work model was dropped, so no driver can be holding any and the refusal could never
+   * fire — and a warning that never fires is one people learn to dismiss.
+   *
+   * ⚠ The dispatch slice must bring both halves back: the refusal AND the second button. See
+   * apis/edge-api/fleet/src/drivers/service.ts for the hazard it guards.
+   */
+  function submit() {
     if (!target) return;
     setError(null);
     mutate.mutate(
-      { status: target, reason, acknowledgeHeldWork },
+      { status: target, reason },
       {
         onSuccess: () => {
           track({ name: "driver_status_changed", driverId: driver.id, status: target });
           close();
         },
         onError: (e) => {
-          // ⚠ The itemised held work is carried in the refusal's field list. Showing only the
-          // sentence would tell the operator that work is held without saying WHICH — and the whole
-          // point of FR-020 is that they can go and deal with those orders.
-          setHeld(heldWorkItems(e));
           setError(driverActionError(e, "status"));
         },
       },
@@ -150,21 +154,9 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
             </div>
 
             {error ? (
-              <div role="alert" className="space-y-2">
-                <p className="text-sm font-medium text-destructive">{error}</p>
-                {held.length > 0 ? (
-                  <>
-                    <ul className="space-y-1 text-sm text-muted-foreground">
-                      {held.map((item) => (
-                        <li key={item}>· {item}</li>
-                      ))}
-                    </ul>
-                    <p className="text-sm">
-                      Going ahead will leave this work stranded until someone releases it.
-                    </p>
-                  </>
-                ) : null}
-              </div>
+              <p role="alert" className="text-sm font-medium text-destructive">
+                {error}
+              </p>
             ) : null}
           </div>
 
@@ -172,27 +164,13 @@ export function StatusControl({ driver }: { driver: AdminDriverProfile }) {
             <Button type="button" variant="outline" onClick={close}>
               Cancel
             </Button>
-            {/* ⚠ A SECOND, DIFFERENT BUTTON after the warning — not the same one clicked twice.
-                Re-pressing an unchanged control is a reflex; pressing one whose label has changed to
-                name the consequence is a decision. */}
-            {held.length > 0 ? (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={mutate.isPending || reason.trim() === ""}
-                onClick={() => submit(true)}
-              >
-                {mutate.isPending ? "Working…" : `${target ? VERB[target] : ""} and strand the work`}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                disabled={mutate.isPending || reason.trim() === ""}
-                onClick={() => submit(false)}
-              >
-                {mutate.isPending ? "Working…" : (target ? VERB[target] : "Confirm")}
-              </Button>
-            )}
+            <Button
+              type="button"
+              disabled={mutate.isPending || reason.trim() === ""}
+              onClick={() => submit()}
+            >
+              {mutate.isPending ? "Working…" : (target ? VERB[target] : "Confirm")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

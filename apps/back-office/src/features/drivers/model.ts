@@ -1,7 +1,6 @@
 import type {
   DriverBlockedReason,
   DriverEmploymentStatus,
-  DriverExceptionKind,
 } from "@effy/shared-types";
 
 // Screen-facing vocabulary for the driver console (056). The wire shapes come from
@@ -12,13 +11,6 @@ export interface DriverListParams {
   status?: DriverEmploymentStatus | "";
   zoneId?: string;
   includeOffboarded?: boolean;
-  cursor?: string;
-}
-
-export interface ExceptionListParams {
-  kind?: DriverExceptionKind | "";
-  resolved?: "false" | "true" | "all";
-  driverId?: string;
   cursor?: string;
 }
 
@@ -42,37 +34,31 @@ export const STATUS_MEANING: Record<DriverEmploymentStatus, string> = {
  * remedy, and "cannot receive work" on its own tells nobody which one to apply.
  */
 export const BLOCKED_LABEL: Record<DriverBlockedReason, string> = {
-  no_zone: "No delivery zone — cannot be given work",
+  // ⚠ 062 replaced `no_zone` with this. The old reason named a single-zone field that no
+  // assignment code ever read; the remedy now is to GRANT a clearance, not to assign a zone.
+  no_capabilities: "Not cleared for any work — cannot be given work",
   suspended: "Suspended — cannot be given work",
   offboarded: "Offboarded — cannot be given work",
   licence_expired: "Licence expired — cannot be given work",
+  no_vehicle: "No vehicle assigned — cannot be given work",
+  vehicle_non_compliant: "Assigned vehicle is not roadworthy — cannot be given work",
 };
 
-export const EXCEPTION_KIND_LABEL: Record<DriverExceptionKind, string> = {
-  delivery_failure: "Delivery failed",
-  collection_issue: "Collection problem",
-};
+// ⚠ The exception and run-type vocabularies stood here — "Delivery failed" / "Nobody home" /
+// "Collection round" and the rest. They named states in the 049 work model, dropped whole by
+// db/migrations/20260920101500_remove_driver_work_model.sql, and are removed rather than kept as
+// labels with nothing to label.
 
-/** Driver-reported reasons, as recorded by the driver app (049). */
-export const EXCEPTION_REASON_LABEL: Record<string, string> = {
-  nobody_home: "Nobody home",
-  wrong_address: "Wrong address",
-  customer_refused: "Customer refused",
-  access_blocked: "Access blocked",
-  other: "Other",
-  missing: "Package missing at shop",
-  short: "Short at shop",
-};
-
-export function exceptionReasonLabel(reason: string): string {
-  return EXCEPTION_REASON_LABEL[reason] ?? reason;
+/** "6:30 pm" in Melbourne — the operator's own clock, never UTC. */
+export function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-AU", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Australia/Melbourne",
+  });
 }
-
-/** Run types as a person reads them. */
-export const RUN_TYPE_LABEL: Record<string, string> = {
-  collection: "Collection round",
-  same_day_delivery: "Same-day delivery round",
-};
 
 /** "3 h 20 m on duty" — a duration a person can scan, not a timestamp they have to subtract. */
 export function durationSince(iso: string, now = Date.now()): string {

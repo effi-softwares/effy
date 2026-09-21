@@ -32,7 +32,7 @@ export const handler = async (
   }
 
   try {
-    const result = await setDuty(guard.driver, body.onDuty);
+    const result = await setDuty(guard.driver, body.onDuty, body.expectedEndAt);
     return json(200, result, guard.scope);
   } catch (err) {
     guard.scope.log.error({ err, driverId: guard.driver.id }, "duty: transition failed");

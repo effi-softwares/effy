@@ -21,7 +21,26 @@ export type DriverAuditAction =
   | "driver.duty_session_ended"
   | "driver.work_released"
   | "driver.exception_resolved"
-  | "driver.proof.viewed";
+  | "driver.proof.viewed"
+  /** 062 — clearances. A clearance is a fact about a PERSON, so the target stays `driver`. */
+  | "driver.capability_granted"
+  | "driver.capability_revoked";
+
+/** Vehicle-register actions (061). ⚠ A vehicle is a different TARGET, not a different audit trail —
+ *  `admin.audit_log` stays the platform's one privileged-change record (Principle II). */
+export type VehicleAuditAction =
+  | "vehicle.created"
+  | "vehicle.updated"
+  | "vehicle.status_changed"
+  | "vehicle.holding_issued"
+  | "vehicle.holding_returned";
+
+export type FleetAuditAction = DriverAuditAction | VehicleAuditAction;
+
+/** What the audited row IS. ⚠ 061 generalised this: it was hard-coded to 'driver' because a driver
+ *  was the only thing this service could change. Widening the column value is the whole change — the
+ *  table, the helper and the redaction rules are shared, as Principle II requires. */
+export type AuditTargetType = "driver" | "vehicle";
 
 /**
  * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.
@@ -54,17 +73,26 @@ export function auditDetail(changes: Record<string, unknown>): Record<string, un
 
 export interface AuditInput {
   actorSub: string;
-  action: DriverAuditAction;
+  action: FleetAuditAction;
+  /** ⚠ Retained name for the driver call sites; carries the target id whatever the target is. */
   driverId: string | null;
+  /** Defaults to 'driver' so every existing call site keeps its exact behaviour. */
+  targetType?: AuditTargetType;
   detail?: Record<string, unknown>;
 }
 
 const INSERT = `INSERT INTO admin.audit_log (actor_sub, action, target_type, target_id, detail)
-                VALUES ($1, $2, 'driver', $3, $4::jsonb)`;
+                VALUES ($1, $2, $3, $4, $5::jsonb)`;
 
 /** Write one audit row. Call inside the same transaction as the change wherever one exists. */
 export async function recordAudit(input: AuditInput, tx?: pg.PoolClient): Promise<void> {
-  const args = [input.actorSub, input.action, input.driverId, JSON.stringify(input.detail ?? {})];
+  const args = [
+    input.actorSub,
+    input.action,
+    input.targetType ?? "driver",
+    input.driverId,
+    JSON.stringify(input.detail ?? {}),
+  ];
   if (tx) {
     await tx.query(INSERT, args);
     return;

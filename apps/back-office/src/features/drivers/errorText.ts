@@ -103,12 +103,6 @@ const FIELD_LABEL: Record<string, string> = {
 export function fieldLabel(field: string): string {
   return FIELD_LABEL[field] ?? field;
 }
-
-/**
- * The held-work refusal's itemised list (FR-020). The service puts one entry per held item in
- * `fields`, each `message` describing the item and its order.
- */
-export function heldWorkItems(err: unknown): string[] {
-  if (!isDomainError(err)) return [];
-  return (err.fields ?? []).map((f) => f.message).filter(Boolean);
-}
+// ⚠ `heldWorkItems` stood here — it pulled the itemised held work out of a 409's field list so the
+// stand-down dialog could name the affected orders. The refusal it read cannot be raised any more;
+// see apps/back-office/src/features/drivers/components/StatusControl.tsx.

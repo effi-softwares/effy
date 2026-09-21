@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { driverActionError, heldWorkItems } from "./errorText";
+import { driverActionError } from "./errorText";
 
 /**
  * ⚠ THIS TEST EXISTS BECAUSE THE PLATFORM HAS SHIPPED THIS EXACT DEFECT BEFORE.
@@ -84,28 +84,5 @@ describe("driverActionError — a refusal the operator can act on", () => {
   it("handles a non-DomainError throw without crashing the screen", () => {
     expect(driverActionError(new Error("boom"), "create")).toBe("Something went wrong. Try again.");
     expect(driverActionError(undefined, "create")).toBe("Something went wrong. Try again.");
-  });
-});
-
-describe("heldWorkItems — FR-020's itemisation survives to the screen", () => {
-  it("⚠ returns one line per held item, so the operator can go and deal with those orders", () => {
-    const held = thrown({
-      kind: "conflict",
-      status: 409,
-      detail: "Sam is holding 2 items…",
-      fields: [
-        { field: "collection:ct-1", message: "collected — order EFY-AAA111 (Shop One)" },
-        { field: "delivery:dt-1", message: "out_for_delivery — order EFY-BBB222 (Carlton)" },
-      ],
-    });
-    const items = heldWorkItems(held);
-    expect(items).toHaveLength(2);
-    expect(items[0]).toContain("EFY-AAA111");
-    expect(items[1]).toContain("EFY-BBB222");
-  });
-
-  it("returns nothing for an error that carries no itemisation", () => {
-    expect(heldWorkItems(thrown())).toEqual([]);
-    expect(heldWorkItems(new Error("boom"))).toEqual([]);
   });
 });

@@ -269,8 +269,18 @@ export interface HistoryRow {
  * would be a FOURTH place every state change has to be written — and the first place it gets
  * forgotten, because nothing fails when an append is missed.
  *
- * Sources: `fulfillment_event` (020, the shop's picking), `driver_task_event` (049, collection and
- * delivery), `carrier_handoff` and `package_arrival` (053).
+ * Sources: `fulfillment_event` (020, the shop's picking), `carrier_handoff` and `package_arrival`
+ * (053).
+ *
+ * ⚠ IT WAS A FOUR-WAY UNION AND IS NOW THREE. The driver branch read `driver_task_event` joined
+ * through `collection_task` / `delivery_task_package`, all dropped by
+ * db/migrations/20260920101500_remove_driver_work_model.sql. The projection shape is unchanged and
+ * the branch comes back with whatever the dispatch slice records — which is the point of deriving
+ * this on read rather than storing a timeline nobody remembers to append to.
+ *
+ * ⚠ CONSEQUENCE FOR AN OPERATOR: between "the shop marked it ready" and "it arrived" the history is
+ * now silent, because nothing records the journey. That silence is accurate. It is not a gap in this
+ * query.
  */
 export async function history(orderId: string): Promise<HistoryRow[]> {
   const res = await query<HistoryRow>(
@@ -293,18 +303,6 @@ export async function history(orderId: string): Promise<HistoryRow[]> {
               fe.shop_fulfillment_id AS fulfillment_id
          FROM public.fulfillment_event fe
          JOIN pkg ON pkg.id = fe.shop_fulfillment_id
-
-       UNION ALL
-
-       SELECT dte.at,
-              'driver'::text,
-              'Driver: ' || dte.status,
-              NULL::text,
-              COALESCE(ct.shop_fulfillment_id, dtp.shop_fulfillment_id)
-         FROM public.driver_task_event dte
-    LEFT JOIN public.collection_task ct ON ct.id = dte.collection_task_id
-    LEFT JOIN public.delivery_task_package dtp ON dtp.delivery_task_id = dte.delivery_task_id
-        WHERE COALESCE(ct.shop_fulfillment_id, dtp.shop_fulfillment_id) IN (SELECT id FROM pkg)
 
        UNION ALL
 

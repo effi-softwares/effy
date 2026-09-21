@@ -10,6 +10,8 @@
  */
 
 /** Shop RBAC roles. Prefixed so `manager` stays unambiguously the back-office role in logs. */
+import type { AustralianState } from "./delivery";
+
 export type ShopRole = "shop_manager" | "shop_staff";
 
 export const SHOP_ROLES: readonly ShopRole[] = ["shop_manager", "shop_staff"];
@@ -117,6 +119,10 @@ export interface ShopListItemDTO {
   name: string;
   status: ShopLifecycleStatus;
   userCount: number;
+  /** ⚠ 061 FR-030 — whether an address has been recorded, so the GAP is visible on the register
+   *  without opening every shop. The address itself is not here: a list does not need a street, and
+   *  a shop's location must never travel further than it has to. */
+  hasAddress: boolean;
 }
 
 /** A shop user in the roster (embedded in ShopDetailDTO). */
@@ -130,6 +136,36 @@ export interface ShopUserDTO {
   lastSeenAt: string | null;
 }
 
+/**
+ * Where a shop physically is (061, FR-029).
+ *
+ * ⚠ ADDRESS ONLY — there are NO COORDINATES, deliberately (FR-031). Nothing on this platform computes
+ * distance: sequencing is an ordering problem over task status, time, zone and shop, not a geometry
+ * problem (decision D20). A `latitude`/`longitude` pair would be read by nothing, and a column nothing
+ * reads is a design decision made in advance for a feature nobody has specified — which is the exact
+ * pattern this programme exists to clean up.
+ *
+ * ⚠ A SHOP ADDRESS MUST NEVER REACH A CUSTOMER SURFACE. Hidden fulfilment is a platform invariant: a
+ * customer buys from Effy and never learns which shop served them. Guarded by a source test.
+ *
+ * Every field is nullable. Shops exist today without an address, and the console shows the gap rather
+ * than a fabricated value.
+ */
+export interface ShopAddressDTO {
+  addressLine1: string | null;
+  addressLine2: string | null;
+  suburb: string | null;
+  /** Exactly four digits. Slice C matches this against a delivery zone; a malformed value there
+   *  silently matches nothing and produces a shop nobody can be sent to. */
+  postcode: string | null;
+  state: AustralianState | null;
+}
+
+// ⚠ `AustralianState` is IMPORTED from ./delivery, not re-declared. 047 already owns it, and a second
+// definition of one closed set is the two-sources-for-one-fact shape this repo has shipped five
+// defects through — the constitution names it outright for the palette. The barrel re-export in
+// index.ts caught the duplicate at compile time, which is the guard working.
+
 /** Full shop detail + roster (GET /admin/v1/shops/{id}). */
 export interface ShopDetailDTO {
   id: string;
@@ -138,6 +174,7 @@ export interface ShopDetailDTO {
   status: ShopLifecycleStatus;
   contactPhone: string | null;
   notes: string | null;
+  address: ShopAddressDTO;
   createdAt: string;
   updatedAt: string;
   users: ShopUserDTO[];
@@ -150,6 +187,11 @@ export interface CreateShopRequest {
   contactPhone?: string | null;
   notes?: string | null;
   primaryContact: { name: string; email: string };
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  suburb?: string | null;
+  postcode?: string | null;
+  state?: AustralianState | null;
 }
 
 /** PATCH /admin/v1/shops/{id} — edit mutable details (code is immutable, A9). */
@@ -157,6 +199,11 @@ export interface UpdateShopRequest {
   name?: string;
   contactPhone?: string | null;
   notes?: string | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  suburb?: string | null;
+  postcode?: string | null;
+  state?: AustralianState | null;
 }
 
 /** POST /admin/v1/shops/{id}/status — lifecycle transition. */

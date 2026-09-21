@@ -293,7 +293,11 @@ SELECT sf.id, sf.order_id, o.order_number,
        rf.settled AS refunded, rf.pending AS refund_pending,
        ${paymentStateSql("o.grand_total_amount", "rf.settled", "rf.pending")} AS payment,
        ${AT_RISK} AS at_risk,
-       (SELECT ct.collected_at FROM public.collection_task ct WHERE ct.shop_fulfillment_id = sf.id) AS collected_at,
+       -- ⚠ collected_at came from the driver's own collection_task row, dropped with the 049 work
+       -- model. The shop's own fulfillment_event is the only record of a collection now, and nothing
+       -- writes one until dispatch is rebuilt, so this reads NULL — which is accurate: no package is
+       -- being collected by anybody.
+       NULL::timestamptz AS collected_at,
        (SELECT pa.arrived_at   FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id) AS delivered_at
   FROM public.shop_fulfillment sf
   JOIN public."order" o ON o.id = sf.order_id
@@ -544,11 +548,15 @@ export interface ActivityRecord {
 /**
  * The portion's full history, newest first — a four-way union, like back-office's (053).
  *
- * ⚠ THE DRIVER'S TWO FACTS COME FROM THEIR OWN TABLES. The driver path records a collection in
- * `collection_task` and an arrival in `package_arrival` and does not always write `fulfillment_event`
- * — so a log built from the event table alone would say nothing after "ready for pickup". Where BOTH
- * exist (a staff-recorded arrival writes both, and so does the dev pickup stub), the event-table copy
- * is dropped so one fact appears once.
+ * ⚠ ONE OF THE DRIVER'S TWO FACTS IS GONE. The driver path recorded a collection in
+ * `collection_task` and an arrival in `package_arrival`, and did not always write
+ * `fulfillment_event` — so where both existed the event-table copy was dropped, and one fact
+ * appeared once. `collection_task` went with the work model; `package_arrival` (053) stays, and so
+ * does its de-duplication.
+ *
+ * ⚠ SO THE LOG NOW ENDS AT "ready for pickup" AND RESUMES AT "arrived", with nothing between. That
+ * is what is true — no driver is collecting anything — and it is the shop-facing symptom of the
+ * teardown that an operator will notice first.
  */
 const READ_ACTIVITY = `
 SELECT * FROM (
@@ -562,9 +570,6 @@ SELECT * FROM (
     LEFT JOIN public.order_item oi ON oi.id = fe.order_item_id
     LEFT JOIN public.shop_staff ss ON ss.id = fe.actor_staff_id
    WHERE sf.id = $1 AND sf.shop_id = $2
-     AND NOT (fe.to_status LIKE 'collected%'
-              AND EXISTS (SELECT 1 FROM public.collection_task ct
-                           WHERE ct.shop_fulfillment_id = sf.id AND ct.collected_at IS NOT NULL))
      AND NOT (fe.to_status LIKE 'delivered%'
               AND EXISTS (SELECT 1 FROM public.package_arrival pa WHERE pa.shop_fulfillment_id = sf.id))
 
@@ -578,15 +583,6 @@ SELECT * FROM (
     JOIN public.refund r ON r.order_id = sf.order_id
     LEFT JOIN public.shop_staff ss ON ss.cognito_sub = r.actor_sub AND r.actor_kind = 'shop'
    WHERE sf.id = $1 AND sf.shop_id = $2
-
-  UNION ALL
-
-  SELECT 'collection', ct.id::text, ct.collected_at,
-         NULL, NULL, ct.status, NULL, NULL, NULL, NULL::int,
-         NULL, NULL, NULL, 'driver', NULL
-    FROM public.collection_task ct
-    JOIN public.shop_fulfillment sf ON sf.id = ct.shop_fulfillment_id
-   WHERE sf.id = $1 AND sf.shop_id = $2 AND ct.collected_at IS NOT NULL
 
   UNION ALL
 

@@ -38,13 +38,22 @@ export async function blockedDrivers(): Promise<BlockedDriver[]> {
  * zeroes. The screen orders by count so the empty ones sit at the top.
  */
 export async function zoneCoverage(): Promise<ZoneCoverage[]> {
+  // ⚠ 062 — counted from CLEARANCES, not from a single zone column on the driver. The old count read
+  // `d.delivery_zone_id = z.id`, which could never see a driver who covered several zones and never
+  // saw an every-zone driver at all — so a fully covered zone could report zero.
+  //
+  // ⚠ `DISTINCT` matters: a driver cleared for both collection and delivery in one zone is ONE
+  // person, and counting their grants would report a zone as twice as covered as it is.
+  const CLEARED = `
+    SELECT count(DISTINCT d.id)
+      FROM public.driver_zone_capability c
+      JOIN public.driver d ON d.id = c.driver_id
+     WHERE (c.zone_id = z.id OR c.zone_id IS NULL) AND d.status = 'active'`;
   const res = await query<{ id: string; name: string; n: string }>(
-    `SELECT z.id, z.name,
-            (SELECT count(*) FROM public.driver d
-              WHERE d.delivery_zone_id = z.id AND d.status = 'active')::text AS n
+    `SELECT z.id, z.name, (${CLEARED})::text AS n
        FROM public.delivery_zone z
-      ORDER BY (SELECT count(*) FROM public.driver d
-                 WHERE d.delivery_zone_id = z.id AND d.status = 'active') ASC, z.name ASC`,
+      WHERE z.status = 'active'
+      ORDER BY (${CLEARED}) ASC, z.name ASC`,
   );
   return res.rows.map((r) => ({ zoneId: r.id, zoneName: r.name, activeDrivers: Number(r.n) }));
 }
@@ -69,12 +78,19 @@ export async function expiringCredentials(): Promise<ExpiringCredential[]> {
         AND d.licence_expires_on IS NOT NULL
         AND d.licence_expires_on <= h.limit_date
       UNION ALL
-     SELECT d.id, d.name, 'vehicle_registration'::text, d.vehicle_registration_expires_on,
-            (d.vehicle_registration_expires_on < h.today)
-       FROM public.driver d CROSS JOIN horizon h
+     -- ⚠ 061: a registration expiry is a fact about a VEHICLE, not about a person. It used to be a
+     -- column on the driver row because vehicles had no table, which meant two drivers sharing a van
+     -- kept two hand-maintained copies of one date. It is now read through the driver's OPEN holding,
+     -- so the warning names the person who will actually be stopped at the roadside.
+     SELECT d.id, d.name, 'vehicle_registration'::text, v.registration_expires_on,
+            (v.registration_expires_on < h.today)
+       FROM public.driver d
+       JOIN public.vehicle_holding vh ON vh.driver_id = d.id AND vh.ended_at IS NULL
+       JOIN public.vehicle v          ON v.id = vh.vehicle_id
+       CROSS JOIN horizon h
       WHERE d.status <> 'offboarded'
-        AND d.vehicle_registration_expires_on IS NOT NULL
-        AND d.vehicle_registration_expires_on <= h.limit_date
+        AND v.registration_expires_on IS NOT NULL
+        AND v.registration_expires_on <= h.limit_date
       ORDER BY expires_on ASC`,
     [expiryWarningDays()],
   );

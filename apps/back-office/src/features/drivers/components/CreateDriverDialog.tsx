@@ -22,7 +22,7 @@ import {
 import { track } from "@/lib/telemetry";
 
 import { driverActionError } from "../errorText";
-import { useCreateDriver, zonesQuery } from "../queries";
+import { useCreateDriver } from "../queries";
 
 const NO_ZONE = "none";
 
@@ -38,16 +38,13 @@ export function CreateDriverDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [workEmail, setWorkEmail] = useState("");
-  const [zoneId, setZoneId] = useState(NO_ZONE);
   const [error, setError] = useState<string | null>(null);
 
-  const zones = useQuery(zonesQuery());
   const create = useCreateDriver();
 
   function reset() {
     setName("");
     setWorkEmail("");
-    setZoneId(NO_ZONE);
     setError(null);
   }
 
@@ -78,7 +75,6 @@ export function CreateDriverDialog() {
               {
                 name,
                 workEmail,
-                zoneId: zoneId === NO_ZONE ? null : zoneId,
               },
               {
                 onSuccess: (driver) => {
@@ -119,29 +115,9 @@ export function CreateDriverDialog() {
             </p>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="driver-zone">Delivery zone</Label>
-            <Select value={zoneId} onValueChange={setZoneId}>
-              <SelectTrigger id="driver-zone">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_ZONE}>Not assigned yet</SelectItem>
-                {(zones.data ?? []).map((z) => (
-                  <SelectItem key={z.id} value={z.id}>
-                    {z.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {zoneId === NO_ZONE ? (
-              // SC-009 — stated at the moment it becomes true, not discovered later by an order
-              // that quietly fails to move.
-              <p className="text-xs text-muted-foreground">
-                A driver with no zone cannot be given work. You can assign one at any time.
-              </p>
-            ) : null}
-          </div>
+          {/* ⚠ 062 — no zone picker on CREATE. A new driver starts cleared for NOTHING, and
+              clearances are granted deliberately afterwards. A create form that quietly assigns
+              coverage is how somebody ends up eligible for work nobody decided to give them. */}
 
           {error ? (
             <p role="alert" className="text-sm font-medium text-destructive">

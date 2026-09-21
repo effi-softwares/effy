@@ -16,9 +16,8 @@ import {
 } from "@effy/design-system/ui";
 
 import { driverActionError } from "../errorText";
-import { useUpdateDriver, zonesQuery } from "../queries";
+import { useUpdateDriver } from "../queries";
 
-const NO_ZONE = "none";
 
 /**
  * Edit the profile of record (FR-009, FR-010, FR-012).
@@ -41,20 +40,18 @@ export function ProfileEditForm({
   driver: AdminDriverProfile;
   onDone: () => void;
 }) {
-  const zones = useQuery(zonesQuery());
   const update = useUpdateDriver(driver.id);
   const [error, setError] = useState<string | null>(null);
 
   const [name, setName] = useState(driver.name);
   const [contactPhone, setContactPhone] = useState(driver.contactPhone ?? "");
-  const [zoneId, setZoneId] = useState(driver.zoneId ?? NO_ZONE);
-  const [vehicleType, setVehicleType] = useState(driver.vehicle.type ?? "");
-  const [vehiclePlate, setVehiclePlate] = useState(driver.vehicle.plate ?? "");
+  // ⚠ 061: the vehicle type/plate FIELDS ARE GONE from this form. A vehicle is its own record now,
+  // and what a driver drives is decided by issuing them one on the vehicle screen — not by typing a
+  // string here that nobody maintained. The registration expiry went with them: it is a fact about a
+  // VEHICLE, so a second driver holding the same van reads the same date.
   const [licenceReference, setLicenceReference] = useState(driver.credentials.licenceReference ?? "");
   const [licenceExpiresOn, setLicenceExpiresOn] = useState(driver.credentials.licenceExpiresOn ?? "");
-  const [regExpiresOn, setRegExpiresOn] = useState(
-    driver.credentials.vehicleRegistrationExpiresOn ?? "",
-  );
+  const [licenceClass, setLicenceClass] = useState<string>(driver.credentials.licenceClass ?? "");
   const [emergencyName, setEmergencyName] = useState(driver.emergencyContact.name ?? "");
   const [emergencyPhone, setEmergencyPhone] = useState(driver.emergencyContact.phone ?? "");
   const [startedOn, setStartedOn] = useState(driver.startedOn ?? "");
@@ -69,12 +66,10 @@ export function ProfileEditForm({
     const body: AdminDriverUpdateRequest = {
       name: name.trim(),
       contactPhone: orNull(contactPhone),
-      zoneId: zoneId === NO_ZONE ? null : zoneId,
-      vehicleType: orNull(vehicleType),
-      vehiclePlate: orNull(vehiclePlate),
+
       licenceReference: orNull(licenceReference),
       licenceExpiresOn: orNull(licenceExpiresOn),
-      vehicleRegistrationExpiresOn: orNull(regExpiresOn),
+      licenceClass: orNull(licenceClass) as AdminDriverUpdateRequest["licenceClass"],
       emergencyContactName: orNull(emergencyName),
       emergencyContactPhone: orNull(emergencyPhone),
       startedOn: orNull(startedOn),
@@ -121,47 +116,26 @@ export function ProfileEditForm({
           />
         </Field>
 
-        <Field id="f-zone" label="Delivery zone">
-          <Select value={zoneId} onValueChange={setZoneId}>
-            <SelectTrigger id="f-zone">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_ZONE}>Not assigned</SelectItem>
-              {(zones.data ?? []).map((z) => (
-                <SelectItem key={z.id} value={z.id}>
-                  {z.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {zoneId === NO_ZONE ? (
-            <p className="text-xs text-muted-foreground">
-              Without a zone this driver cannot be given work.
-            </p>
-          ) : null}
-        </Field>
+        {/* ⚠ 062 — THE ZONE PICKER IS GONE. A driver's coverage is a set of clearances now
+            (function × method × zone), granted on the Clearances section below, because one zone
+            could never express "same-day delivery here, standard collection everywhere". */}
 
-        <Field id="f-vtype" label="Vehicle">
-          <Input
-            id="f-vtype"
-            value={vehicleType}
-            onChange={(e) => setVehicleType(e.target.value)}
-            placeholder="e.g. small van"
-          />
-        </Field>
-
-        <Field id="f-plate" label="Registration plate">
-          <Input id="f-plate" value={vehiclePlate} onChange={(e) => setVehiclePlate(e.target.value)} />
-        </Field>
-
-        <Field id="f-reg-exp" label="Registration expires">
-          <Input
-            id="f-reg-exp"
-            type="date"
-            value={regExpiresOn}
-            onChange={(e) => setRegExpiresOn(e.target.value)}
-          />
+        <Field id="f-licence-class" label="Licence class">
+          <select
+            id="f-licence-class"
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+            value={licenceClass}
+            onChange={(e) => setLicenceClass(e.target.value)}
+          >
+            <option value="">Not recorded</option>
+            <option value="C">C — car and light vehicle</option>
+            <option value="LR">LR — light rigid</option>
+            <option value="MR">MR — medium rigid</option>
+            <option value="HR">HR — heavy rigid</option>
+          </select>
+          <p className="text-xs text-muted-foreground">
+            Recorded so the platform can check a driver may legally drive the vehicle they hold.
+          </p>
         </Field>
 
         <Field id="f-licence" label="Licence reference">

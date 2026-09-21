@@ -7,8 +7,10 @@ import { FleetError } from "../shared/errors";
 vi.mock("./repository");
 vi.mock("./cognito");
 vi.mock("../shared/audit");
+vi.mock("../holdings/repository");
 
 import * as cognito from "./cognito";
+import * as holdings from "../holdings/repository";
 import * as repo from "./repository";
 import { recordAudit } from "../shared/audit";
 import { createDriver, setStatus, updateDriver } from "./service";
@@ -24,14 +26,13 @@ const PROFILE = {
   name: "Sam Rivers",
   workEmail: "sam@effyshopping.com",
   contactPhone: null,
-  zoneId: null,
-  zone: null,
+  capabilities: [],
   hub: "Effy Hub",
   vehicle: { type: null, plate: null },
   credentials: {
     licenceReference: null,
     licenceExpiresOn: null,
-    vehicleRegistrationExpiresOn: null,
+    licenceClass: null,
   },
   emergencyContact: { name: null, phone: null },
   status: "active" as const,
@@ -48,6 +49,8 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(recordAudit).mockResolvedValue(undefined);
   vi.mocked(repo.getDriver).mockResolvedValue(PROFILE);
+  // Default: the driver holds nothing, so the FR-019 guard is inert unless a test says otherwise.
+  vi.mocked(holdings.heldByDriver).mockResolvedValue(null);
   vi.mocked(cognito.lookupDriverUser).mockResolvedValue({ sub: "sub-1", enabled: true });
 });
 
@@ -173,26 +176,28 @@ describe("createDriver — FR-014, a work email already in use is REFUSED", () =
 describe("updateDriver — FR-010/FR-012", () => {
   it("⚠ passes a null through to the repository so a field can be CLEARED", async () => {
     // The defect FR-010 exists for: `COALESCE($n, col)` cannot distinguish "absent" from "null", so
-    // a zone once assigned could never be un-assigned by any request the API accepted.
+    // a field once set could never be cleared by any request the API accepted.
+    // ⚠ 062 — the original example was the driver's single zone, which no longer exists. The RULE is
+    // unchanged and is what this test is about, so it now uses a field that does.
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
 
     await updateDriver(
       "d-1",
-      { zoneId: null, updatedAt: PROFILE.updatedAt },
+      { contactPhone: null, updatedAt: PROFILE.updatedAt },
       "actor-1",
       scope,
     );
 
     const patch = vi.mocked(repo.updateDriver).mock.calls[0]![1];
-    expect("zoneId" in patch).toBe(true);
-    expect(patch.zoneId).toBeNull();
+    expect("contactPhone" in patch).toBe(true);
+    expect(patch.contactPhone).toBeNull();
   });
 
   it("⚠ does not send a key the caller omitted, so an untouched field stays untouched", async () => {
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
     await updateDriver("d-1", { name: "Renamed", updatedAt: PROFILE.updatedAt }, "actor-1", scope);
     const patch = vi.mocked(repo.updateDriver).mock.calls[0]![1];
-    expect("zoneId" in patch).toBe(false);
+    expect("contactPhone" in patch).toBe(false);
     expect("contactPhone" in patch).toBe(false);
   });
 
@@ -200,11 +205,11 @@ describe("updateDriver — FR-010/FR-012", () => {
     vi.mocked(repo.updateDriver).mockResolvedValue("updated");
     await updateDriver(
       "d-1",
-      { vehiclePlate: "  ", updatedAt: PROFILE.updatedAt },
+      { licenceReference: "  ", updatedAt: PROFILE.updatedAt },
       "actor-1",
       scope,
     );
-    expect(vi.mocked(repo.updateDriver).mock.calls[0]![1].vehiclePlate).toBeNull();
+    expect(vi.mocked(repo.updateDriver).mock.calls[0]![1].licenceReference).toBeNull();
   });
 
   it("refuses a work-email change rather than ignoring it", async () => {
@@ -253,64 +258,77 @@ describe("updateDriver — FR-010/FR-012", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 describe("setStatus — FR-015…FR-020", () => {
-  it("⚠ REFUSES to stand down a driver holding started work, and itemises it", async () => {
-    vi.mocked(repo.heldWorkFor).mockResolvedValue([
-      {
-        kind: "collection",
-        taskId: "ct-1",
-        taskStatus: "collected",
-        orderId: "o-1",
-        orderReference: "EFY-AAA111",
-        location: "Shop One",
-      },
-      {
-        kind: "delivery",
-        taskId: "dt-1",
-        taskStatus: "out_for_delivery",
-        orderId: "o-2",
-        orderReference: "EFY-BBB222",
-        location: "Carlton",
-      },
-    ]);
+  /**
+   * ⚠ FR-019 — THE MOST IMPORTANT REFUSAL IN THIS SLICE.
+   *
+   * Standing a driver down does not make their van appear at the hub, but it DOES remove them from
+   * every list an operator reads — so the vehicle silently stops being anybody's problem while
+   * remaining physically absent. 056 found this exact shape with collected packages and recorded
+   * that it strands goods "permanently and invisibly, and this was in no register because nobody
+   * knew".
+   */
+  it("⚠ REFUSES to stand down a driver holding a vehicle, and NAMES the vehicle", async () => {
+    vi.mocked(holdings.heldByDriver).mockResolvedValue({
+      vehicleId: "v-1",
+      registrationPlate: "EFY-001",
+      make: "Toyota",
+      model: "HiAce",
+      since: "2026-09-01T00:00:00.000Z",
+    });
 
-    const err = (await setStatus("d-1", "suspended", "on leave", false, "actor-1", scope).catch(
+    const err = (await setStatus("d-1", "suspended", "on leave", "actor-1", scope).catch(
       (e) => e,
     )) as FleetError;
 
     expect(err.kind).toBe("conflict");
-    // The operator must be able to act on this: which orders, and how much.
-    expect(err.message).toContain("EFY-AAA111");
-    expect(err.message).toContain("EFY-BBB222");
-    expect(err.fields).toHaveLength(2);
-    // ⚠ And nothing moved.
+    // ⚠ "Record its return first" is only actionable if the operator is told WHICH vehicle.
+    expect(err.message).toContain("EFY-001");
+    expect(err.fields?.[0]?.message).toContain("EFY-001");
+    // ⚠ And nothing moved — neither the record nor the sign-in account.
     expect(repo.setStatus).not.toHaveBeenCalled();
     expect(cognito.disableDriverUser).not.toHaveBeenCalled();
   });
 
-  it("proceeds once the operator acknowledges the held work", async () => {
+  it("stands a driver down once they hold nothing", async () => {
+    vi.mocked(holdings.heldByDriver).mockResolvedValue(null);
     vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
 
-    await setStatus("d-1", "suspended", "on leave", true, "actor-1", scope);
-
-    // The held-work read is skipped entirely once acknowledged — the operator has already seen it.
-    expect(repo.heldWorkFor).not.toHaveBeenCalled();
+    await setStatus("d-1", "suspended", "on leave", "actor-1", scope);
     expect(repo.setStatus).toHaveBeenCalled();
-    expect(cognito.disableDriverUser).toHaveBeenCalledWith("sam@effyshopping.com");
   });
 
-  it("does not ask about held work when a driver is being RESTORED", async () => {
+  /** ⚠ Restoring a driver never asks about vehicles — they are coming back TO work, not leaving it. */
+  it("does not check for a held vehicle when a driver is being RESTORED", async () => {
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
     vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
 
-    await setStatus("d-1", "active", "back from leave", false, "actor-1", scope);
+    await setStatus("d-1", "active", "back from leave", "actor-1", scope);
+    expect(holdings.heldByDriver).not.toHaveBeenCalled();
+  });
 
-    expect(repo.heldWorkFor).not.toHaveBeenCalled();
+  /**
+   * ⚠ TWO CASES WERE REMOVED HERE, AND THEIR SUBJECT IS RECORDED IN ORDER-FLOW-GAPS.md RATHER THAN
+   * LEFT AS A SKIPPED TEST. They asserted that standing down a driver holding already-picked-up work
+   * is REFUSED and itemised, and that acknowledging it proceeds. `heldWorkFor` read `collection_task`
+   * and `delivery_task`; with nothing assigning work, no driver can hold any, so the cases would have
+   * asserted a refusal that can never fire.
+   *
+   * A skipped test is the wrong shape for this: it looks like coverage in a summary line and passes
+   * review as "temporarily disabled" long after the reason is forgotten. The requirement belongs to
+   * the dispatch slice, in the register, where it is somebody's job.
+   */
+  it("restores a driver, re-enabling their sign-in", async () => {
+    vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
+    vi.mocked(repo.setStatus).mockResolvedValue("sam@effyshopping.com");
+
+    await setStatus("d-1", "active", "back from leave", "actor-1", scope);
+
     expect(cognito.enableDriverUser).toHaveBeenCalledWith("sam@effyshopping.com");
   });
 
   it("requires a reason, which is recorded against the driver", async () => {
-    const err = (await setStatus("d-1", "suspended", "   ", false, "actor-1", scope).catch(
+    const err = (await setStatus("d-1", "suspended", "   ", "actor-1", scope).catch(
       (e) => e,
     )) as FleetError;
     expect(err.kind).toBe("validation");
@@ -325,7 +343,7 @@ describe("setStatus — FR-015…FR-020", () => {
     vi.mocked(cognito.disableDriverUser).mockRejectedValue(new Error("cognito down"));
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "suspended" });
 
-    const out = await setStatus("d-1", "suspended", "on leave", true, "actor-1", scope);
+    const out = await setStatus("d-1", "suspended", "on leave", "actor-1", scope);
 
     expect(out.profile.status).toBe("suspended");
     expect(scope.log.error).toHaveBeenCalled();
@@ -338,7 +356,7 @@ describe("setStatus — FR-015…FR-020", () => {
     });
     vi.mocked(repo.getDriver).mockResolvedValue({ ...PROFILE, status: "offboarded" });
 
-    await setStatus("d-1", "offboarded", "resigned", true, "actor-1", scope);
+    await setStatus("d-1", "offboarded", "resigned", "actor-1", scope);
 
     const call = vi.mocked(recordAudit).mock.calls.find(
       (c) => c[0].action === "driver.status_changed",

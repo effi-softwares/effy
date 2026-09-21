@@ -11,6 +11,8 @@
 //   3. `ORDER BY d.name ASC` with no limit and no search — the whole table, always (FR-003/FR-004).
 import { query, withTransaction } from "@effy/edge-shared";
 import type {
+  AdminDriverCredentials,
+  DriverCapabilitySummary,
   AdminDriverListItem,
   AdminDriverProfile,
   DriverBlockedReason,
@@ -18,6 +20,7 @@ import type {
 } from "@effy/shared-types";
 import type pg from "pg";
 
+import { listForDriver, summariseForDrivers } from "../capabilities/repository";
 import { BLOCKED_REASONS, ON_DUTY_EXISTS } from "./sql";
 
 // ── Row shapes (data layer only — never leak past the mapper, Principle VI) ───────────────────────
@@ -26,8 +29,6 @@ interface ListRow {
   id: string;
   name: string;
   work_email: string;
-  zone_id: string | null;
-  zone_name: string | null;
   on_duty: boolean;
   status: DriverEmploymentStatus;
   blocked: string[];
@@ -35,11 +36,11 @@ interface ListRow {
 
 interface ProfileRow extends ListRow {
   contact_phone: string | null;
-  vehicle_type: string | null;
-  vehicle_plate: string | null;
+  licence_class: string | null;
   licence_reference: string | null;
+  held_vehicle_type: string | null;
+  held_vehicle_plate: string | null;
   licence_expires_on: Date | null;
-  vehicle_registration_expires_on: Date | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   status_reason: string | null;
@@ -57,30 +58,39 @@ function dateOnly(d: Date | null): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function toListItem(r: ListRow): AdminDriverListItem {
+/**
+ * ⚠ `capabilitySummary` is filled in by the CALLER, in one batched read (062, FR-014).
+ *
+ * Doing it per row would be N+1 on a paged list, and embedding the full clearance set would put an
+ * unbounded array on every row — a register does not need every grant, only whether this driver is
+ * broadly or narrowly cleared.
+ */
+function toListItem(r: ListRow, summary: DriverCapabilitySummary): AdminDriverListItem {
   return {
     id: r.id,
     name: r.name,
     workEmail: r.work_email,
-    zone: r.zone_name,
-    zoneId: r.zone_id,
+    capabilitySummary: summary,
     dutyState: r.on_duty ? "on_duty" : "off_duty",
     status: r.status,
     blockedReasons: (r.blocked ?? []) as DriverBlockedReason[],
   };
 }
 
+const EMPTY_SUMMARY: DriverCapabilitySummary = {
+  total: 0,
+  coversEveryZone: false,
+  functions: [],
+};
+
 const LIST_SELECT = `
   SELECT d.id,
          d.name,
          d.work_email,
-         d.delivery_zone_id AS zone_id,
-         z.name             AS zone_name,
          ${ON_DUTY_EXISTS}  AS on_duty,
          d.status,
          ${BLOCKED_REASONS} AS blocked
     FROM public.driver d
-    LEFT JOIN public.delivery_zone z ON z.id = d.delivery_zone_id
 `;
 
 export interface ListParams {
@@ -125,8 +135,14 @@ export async function listDrivers(params: ListParams): Promise<ListResult> {
     where.push(`d.status <> 'offboarded'`);
   }
   if (params.zoneId) {
+    // ⚠ 062 — filtering by zone now means "cleared for this zone", which includes every-zone drivers.
+    // Matching only zone-specific grants would silently hide the people with the BROADEST clearance,
+    // which is the opposite of what an operator filtering by zone is looking for.
     args.push(params.zoneId);
-    where.push(`d.delivery_zone_id = $${args.length}`);
+    where.push(`EXISTS (
+      SELECT 1 FROM public.driver_zone_capability fc
+       WHERE fc.driver_id = d.id AND (fc.zone_id = $${args.length} OR fc.zone_id IS NULL)
+    )`);
   }
   if (params.cursor) {
     const decoded = decodeCursor(params.cursor);
@@ -147,8 +163,11 @@ export async function listDrivers(params: ListParams): Promise<ListResult> {
   const rows = res.rows.slice(0, params.limit);
   const hasMore = res.rows.length > params.limit;
   const last = rows[rows.length - 1];
+  // ⚠ ONE batched read for the whole page, not one per row (FR-014). N+1 on a register is how a
+  // screen that felt fine with three drivers stops feeling fine with thirty.
+  const summaries = await summariseForDrivers(rows.map((r) => r.id));
   return {
-    items: rows.map(toListItem),
+    items: rows.map((r) => toListItem(r, summaries.get(r.id) ?? EMPTY_SUMMARY)),
     // ⚠ Minted from `name` and `id` — the SAME pair the ORDER BY and the WHERE use.
     nextCursor: hasMore && last ? encodeCursor(last.name, last.id) : null,
   };
@@ -178,13 +197,15 @@ const PROFILE_SELECT = `
          d.name,
          d.work_email,
          d.contact_phone,
-         d.delivery_zone_id AS zone_id,
-         z.name             AS zone_name,
-         d.vehicle_type,
-         d.vehicle_plate,
+         d.licence_class,
          d.licence_reference,
          d.licence_expires_on,
-         d.vehicle_registration_expires_on,
+         -- ⚠ 061: what the driver is driving is no longer two free-text columns nobody maintained.
+         -- It is the vehicle behind their OPEN holding, so the Account screen in the driver app
+         -- shows a true answer without one line of Kotlin changing. NULL when they hold nothing,
+         -- which is an ordinary state.
+         hv.body_type         AS held_vehicle_type,
+         hv.registration_plate AS held_vehicle_plate,
          d.emergency_contact_name,
          d.emergency_contact_phone,
          d.status,
@@ -202,7 +223,11 @@ const PROFILE_SELECT = `
          ${BLOCKED_REASONS} AS blocked,
          (SELECT 'Effy Hub' FROM public.delivery_settings LIMIT 1) AS hub_label
     FROM public.driver d
-    LEFT JOIN public.delivery_zone z ON z.id = d.delivery_zone_id
+    -- ⚠ The OPEN holding is the single source of truth for "what does this driver have".
+    -- There is deliberately no driver.current_vehicle_id: a second place stating one fact is
+    -- 033/052/053's recurring defect, where the two disagree and nobody knows which is true.
+    LEFT JOIN public.vehicle_holding hh ON hh.driver_id = d.id AND hh.ended_at IS NULL
+    LEFT JOIN public.vehicle hv         ON hv.id = hh.vehicle_id
    WHERE d.id = $1
 `;
 
@@ -218,14 +243,14 @@ export async function getDriver(
     name: r.name,
     workEmail: r.work_email,
     contactPhone: r.contact_phone,
-    zoneId: r.zone_id,
-    zone: r.zone_name,
     hub: r.hub_label,
-    vehicle: { type: r.vehicle_type, plate: r.vehicle_plate },
+    // ⚠ 062 — everything this driver is cleared for, read alongside the profile (FR-007).
+    capabilities: await listForDriver(id),
+    vehicle: { type: r.held_vehicle_type, plate: r.held_vehicle_plate },
     credentials: {
       licenceReference: r.licence_reference,
       licenceExpiresOn: dateOnly(r.licence_expires_on),
-      vehicleRegistrationExpiresOn: dateOnly(r.vehicle_registration_expires_on),
+      licenceClass: r.licence_class as AdminDriverCredentials["licenceClass"],
     },
     emergencyContact: { name: r.emergency_contact_name, phone: r.emergency_contact_phone },
     status: r.status,
@@ -264,12 +289,9 @@ export async function findByWorkEmail(
 const MUTABLE_COLUMNS: Record<string, string> = {
   name: "name",
   contactPhone: "contact_phone",
-  zoneId: "delivery_zone_id",
-  vehicleType: "vehicle_type",
-  vehiclePlate: "vehicle_plate",
   licenceReference: "licence_reference",
   licenceExpiresOn: "licence_expires_on",
-  vehicleRegistrationExpiresOn: "vehicle_registration_expires_on",
+  licenceClass: "licence_class",
   emergencyContactName: "emergency_contact_name",
   emergencyContactPhone: "emergency_contact_phone",
   startedOn: "started_on",
@@ -278,9 +300,7 @@ const MUTABLE_COLUMNS: Record<string, string> = {
 
 /** uuid and date columns need an explicit cast when the value can be null. */
 const COLUMN_CAST: Record<string, string> = {
-  delivery_zone_id: "::uuid",
   licence_expires_on: "::date",
-  vehicle_registration_expires_on: "::date",
   started_on: "::date",
 };
 
@@ -364,61 +384,6 @@ export async function insertDriver(input: InsertDriverInput): Promise<string> {
     args,
   );
   return res.rows[0]!.id;
-}
-
-export interface HeldWork {
-  kind: "collection" | "delivery";
-  taskId: string;
-  taskStatus: string;
-  orderId: string;
-  orderReference: string;
-  location: string | null;
-}
-
-/**
- * Work this driver has already picked up or started, which standing them down would strand (FR-020).
- *
- * ⚠ This is the SAME condition the stranded-work reader uses, minus the ineligibility term — because
- * here we are asking "what WOULD be stranded if we did this", before the driver becomes ineligible.
- */
-export async function heldWorkFor(driverId: string): Promise<HeldWork[]> {
-  const res = await query<{
-    kind: "collection" | "delivery";
-    task_id: string;
-    task_status: string;
-    order_id: string;
-    order_reference: string;
-    location: string | null;
-  }>(
-    `SELECT 'collection'::text AS kind, ct.id AS task_id, ct.status AS task_status,
-            sf.order_id, o.order_number AS order_reference, sh.name AS location
-       FROM public.collection_task ct
-       JOIN public.driver_run r        ON r.id = ct.run_id
-       JOIN public.shop_fulfillment sf ON sf.id = ct.shop_fulfillment_id
-       JOIN public."order" o           ON o.id = sf.order_id
-       LEFT JOIN public.shop sh        ON sh.id = ct.shop_id
-      WHERE r.driver_id = $1
-        AND ct.status IN ('collected', 'short')
-        AND r.status NOT IN ('completed', 'cancelled')
-      UNION ALL
-     SELECT 'delivery'::text, dt.id, dt.status,
-            dt.order_id, o.order_number, ca.city
-       FROM public.delivery_task dt
-       JOIN public.driver_run r  ON r.id = dt.run_id
-       JOIN public."order" o     ON o.id = dt.order_id
-       LEFT JOIN public.customer_address ca ON ca.id = dt.customer_address_id
-      WHERE r.driver_id = $1
-        AND dt.status IN ('out_for_delivery', 'en_route', 'arrived')`,
-    [driverId],
-  );
-  return res.rows.map((r) => ({
-    kind: r.kind,
-    taskId: r.task_id,
-    taskStatus: r.task_status,
-    orderId: r.order_id,
-    orderReference: r.order_reference,
-    location: r.location,
-  }));
 }
 
 /** Apply an employment status transition and audit it, in one transaction. */

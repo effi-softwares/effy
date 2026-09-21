@@ -14,13 +14,17 @@ export interface DriverRecord {
   subject: string; // cognito_sub
   name: string;
   workEmail: string;
-  zoneId: string | null;
-  zoneName: string | null;
+  /** ⚠ 062 — DERIVED from clearances, never a stored zone. One line ("Every zone" / a zone name /
+   *  "N zones"), or null when the driver is cleared for nothing. The rule lives in
+   *  @effy/edge-shared so back-office and the driver app cannot describe one driver differently. */
+  coverageLabel: string | null;
   vehicleType: string | null;
   vehiclePlate: string | null;
   status: DriverStatus;
   dutyStatus: DutyStatus;
   onDutySince: string | null; // ISO 8601; null when off duty
+  /** ⚠ null = the driver did not say when they expect to finish. Never a default (061, FR-033). */
+  expectedEndAt: string | null;
 }
 
 /** Raised when a driver-pool token has no provisioned record, or the record is not active. Both are

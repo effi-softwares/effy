@@ -13,7 +13,6 @@ import type {
   DriverMeDTO,
   DutyRequest,
   DutyResponse,
-  LocationRequest,
   TodayDTO,
   TodayItemRef,
   DriverCollectionRunDTO,
@@ -59,7 +58,6 @@ export interface DriverContract {
   me: DriverMeDTO;
   dutyRequest: DutyRequest;
   dutyResponse: DutyResponse;
-  locationRequest: LocationRequest;
   today: TodayDTO;
   todayItem: TodayItemRef;
   collectionRun: DriverCollectionRunDTO;

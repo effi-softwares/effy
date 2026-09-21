@@ -26,6 +26,17 @@ import type { WireInt } from "./cart";
 
 export type DriverDutyStatus = "on_duty" | "off_duty";
 
+/**
+ * What the driver is currently driving, for their own Account screen.
+ *
+ * ⚠ THE SHAPE IS UNCHANGED BY 061 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it
+ * (`DriverMappers.kt`, `AccountScreen.kt`) and it is part of the generated Kotlin contract. What
+ * changed is where it COMES FROM: until 061 these were two free-text columns on the driver row that
+ * nobody maintained; they are now read from the driver's open `vehicle_holding` and the real vehicle
+ * behind it. The app shows a true answer without a single line of Kotlin changing.
+ *
+ * Both fields are null when the driver holds no vehicle, which is an ordinary state.
+ */
 export interface DriverVehicle {
   type: string | null;
   plate: string | null;
@@ -36,7 +47,19 @@ export interface DriverMeDTO {
   id: string;
   name: string;
   workEmail: string;
-  zone: string | null; // display name of the assigned delivery zone; null until provisioned
+  /**
+   * What the driver is cleared to cover, as one line for their own Account screen.
+   *
+   * ⚠ THE SHAPE IS UNCHANGED BY 062 AND THAT IS DELIBERATE — `apps/driver-mobile` renders it in three
+   * places (Today, Help, Account) and it is part of the generated Kotlin contract. What changed is
+   * where it COMES FROM: until 062 this was a single assigned zone that no assignment code ever read;
+   * it is now DERIVED from the driver's clearances. The app tells the truth without a line of Kotlin
+   * changing — the same move 061 made for `DriverVehicle`.
+   *
+   * null when the driver is cleared for nothing, which is an ordinary state for a new starter and one
+   * the app already renders as unavailable rather than as a broken row.
+   */
+  zone: string | null;
   hub: string | null; // display label of the central hub (from delivery_settings)
   vehicle: DriverVehicle;
   dutyStatus: DriverDutyStatus;
@@ -46,18 +69,31 @@ export interface DriverMeDTO {
 export interface DutyRequest {
   onDuty: boolean;
   changeId: string;
+  /**
+   * ⚠ OPTIONAL, AND ITS ABSENCE MEANS UNKNOWN (061, FR-032/FR-033).
+   *
+   * When a driver goes on duty they may say when they expect to finish. It buys nothing today — it
+   * exists so the dispatch slice can ask "can this driver finish this round before they go home",
+   * which is otherwise unanswerable.
+   *
+   * ⚠ IT MUST NEVER BE DEFAULTED TO A SHIFT LENGTH. An invented finish time would make a guess look
+   * like a fact at exactly the moment it decides someone's workload — and the driver would be the
+   * one who found out.
+   */
+  expectedEndAt?: string | null;
 }
 export interface DutyResponse {
   dutyStatus: DriverDutyStatus;
   since: string | null; // ISO 8601; null when off duty
+  /** null = the driver did not say. Render as "unknown", never as a time. */
+  expectedEndAt: string | null;
 }
 
-/** POST /driver/v1/location — optional point-in-time snapshot (never streamed). */
-export interface LocationRequest {
-  lat: number;
-  lng: number;
-  changeId: string;
-}
+/** ⚠ `LocationRequest` STOOD HERE AND IS GONE (061) — see the note below. */
+// ⚠ `LocationRequest` STOOD HERE AND IS GONE (061, FR-035/FR-036). Effy does not track driver
+// position. It was a receiver with no sender — no caller in `apps/driver-mobile`, no location
+// permission declared on either platform, no reader of the columns — and leaving it dormant is how
+// 059's `device_token.platform` came to contradict the live contract for two years.
 
 // ── Today (phase-aware home) ─────────────────────────────────────────────────────────────────────
 
@@ -399,7 +435,35 @@ export type DriverStatus = DriverEmploymentStatus;
 
 /** Why a driver cannot be given work. An enumerated cause, never a bare boolean — "cannot work"
  *  without "why" is not actionable, and the fix differs per cause (FR-044). */
-export type DriverBlockedReason = "no_zone" | "suspended" | "offboarded" | "licence_expired";
+/**
+ * ⚠ NARROWED BY 062 AND WIDENED BY 061, AND EVERY READER WAS AUDITED BEFORE EACH (T010, T015).
+ *
+ * 062 removed `no_zone` and added `no_capabilities`. ⚠ A NARROWING IS NOT THE MIRROR OF A WIDENING:
+ * removing a member makes an exhaustive `Record<>` over it OVER-specified, which TypeScript reports
+ * as an excess property — so the compiler helps here too. But stored rows and test fixtures carrying
+ * the removed value do NOT announce themselves and had to be found by hand.
+ *
+ * ⚠ ORIGINAL 061 NOTE FOLLOWS. 053, 056 and 057 each shipped a
+ * defect through an enum widening, and this one is unusually sharp: the console's `BLOCKED_LABEL` is
+ * a `Record<DriverBlockedReason, string>`, so a missing key renders **nothing at all** — a blocked
+ * driver with a blank reason reads as "not blocked". `model.test.ts` asserts the map is exhaustive so
+ * the next widening fails the suite instead of rendering silence.
+ *
+ * Readers at the time of widening: `apis/edge-api/fleet/src/drivers/sql.ts` (the producer),
+ * `apis/edge-api/fleet/src/readiness/`, `apps/back-office/src/features/drivers/model.ts`
+ * (`BLOCKED_LABEL`) and its ReadinessPanel/list fixtures.
+ *
+ * ⚠ `no_zone` HAS NOW BEEN REMOVED by slice B, as that note predicted.
+ */
+export type DriverBlockedReason =
+  | "suspended"
+  | "offboarded"
+  | "licence_expired"
+  | "no_vehicle"
+  | "vehicle_non_compliant"
+  /** ⚠ 062 — replaces `no_zone`. A driver cleared for nothing cannot be given work, and the remedy
+   *  is to grant them a clearance rather than to assign them a zone. */
+  | "no_capabilities";
 
 /** Whether the platform record and the sign-in account agree (FR-006, spec edge case).
  *  `record_only` / `identity_only` mean provisioning half-succeeded — the profile must SHOW that
@@ -415,8 +479,8 @@ export interface AdminDriverListItem {
   id: string;
   name: string;
   workEmail: string;
-  zone: string | null;
-  zoneId: string | null;
+  /** ⚠ 062 — breadth of clearance replaces the old single zone. A SUMMARY, never the full set. */
+  capabilitySummary: DriverCapabilitySummary;
   dutyState: DriverDutyState;
   status: DriverEmploymentStatus;
   /** Empty when the driver can receive work. Populated causes are shown inline (FR-044, SC-009). */
@@ -435,8 +499,15 @@ export interface AdminDriverListResponse {
 export interface AdminDriverCredentials {
   licenceReference: string | null;
   licenceExpiresOn: string | null;
-  vehicleRegistrationExpiresOn: string | null;
+  /** ⚠ Australian licence class (061, FR-021). Recorded so "may this driver legally drive this
+   *  vehicle" is checkable rather than assumed — a WorkSafe Victoria OHS duty. */
+  licenceClass: DriverLicenceClass | null;
 }
+
+/** ⚠ `vehicleRegistrationExpiresOn` LEFT THIS TYPE in 061. A registration expiry is a fact about a
+ *  VEHICLE, not about a person, and it now lives on `public.vehicle` where a second driver holding
+ *  the same van reads the same date. It was on the driver row only because vehicles had no table. */
+export type DriverLicenceClass = "C" | "LR" | "MR" | "HR";
 
 export interface AdminDriverEmergencyContact {
   name: string | null;
@@ -449,8 +520,9 @@ export interface AdminDriverProfile {
   name: string;
   workEmail: string;
   contactPhone: string | null;
-  zoneId: string | null;
-  zone: string | null;
+  // ⚠ `zoneId` / `zone` LEFT THIS TYPE IN 062. A driver's coverage is now a set of clearances
+  // (`capabilities` below), because one zone could never express "same-day delivery here, standard
+  // collection everywhere" — and because no assignment code ever read the old field.
   hub: string | null;
   vehicle: DriverVehicle;
   credentials: AdminDriverCredentials;
@@ -462,6 +534,8 @@ export interface AdminDriverProfile {
   notes: string | null;
   dutyState: DriverDutyState;
   blockedReasons: DriverBlockedReason[];
+  /** Everything this driver is cleared for (062, FR-007). */
+  capabilities: DriverCapability[];
   accountState: DriverAccountState;
   /** The optimistic-concurrency token. A PATCH must echo the value it loaded (FR: edge case
    *  "two operators edit the same driver at once"); a stale one is refused with a named 409. */
@@ -472,12 +546,16 @@ export interface AdminDriverCreateRequest {
   name: string;
   workEmail: string;
   contactPhone?: string | null;
-  zoneId?: string | null;
-  vehicleType?: string | null;
-  vehiclePlate?: string | null;
+  // ⚠ `zoneId` LEFT THIS TYPE IN 062. A new driver starts cleared for nothing, and clearances are
+  // granted deliberately afterwards — a create form that quietly assigns coverage is how somebody
+  // ends up eligible for work nobody decided to give them.
+  // ⚠ `vehicleType` / `vehiclePlate` / `vehicleRegistrationExpiresOn` LEFT THIS TYPE IN 061. A
+  // vehicle is its own record; what a driver drives is decided by ISSUING them one, not by typing a
+  // string here. A registration expiry is a fact about a vehicle, so two drivers holding the same
+  // van now read the same date instead of two hand-maintained copies.
   licenceReference?: string | null;
   licenceExpiresOn?: string | null;
-  vehicleRegistrationExpiresOn?: string | null;
+  licenceClass?: DriverLicenceClass | null;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   startedOn?: string | null;
@@ -498,12 +576,15 @@ export interface AdminDriverCreateRequest {
 export interface AdminDriverUpdateRequest {
   name?: string;
   contactPhone?: string | null;
-  zoneId?: string | null;
-  vehicleType?: string | null;
-  vehiclePlate?: string | null;
+  // ⚠ `zoneId` LEFT THIS TYPE IN 062 — clearances are granted and revoked through their own routes,
+  // not edited as a field on the profile.
+  // ⚠ `vehicleType` / `vehiclePlate` / `vehicleRegistrationExpiresOn` LEFT THIS TYPE IN 061. A
+  // vehicle is its own record; what a driver drives is decided by ISSUING them one, not by typing a
+  // string here. A registration expiry is a fact about a vehicle, so two drivers holding the same
+  // van now read the same date instead of two hand-maintained copies.
   licenceReference?: string | null;
   licenceExpiresOn?: string | null;
-  vehicleRegistrationExpiresOn?: string | null;
+  licenceClass?: DriverLicenceClass | null;
   emergencyContactName?: string | null;
   emergencyContactPhone?: string | null;
   startedOn?: string | null;
@@ -515,107 +596,41 @@ export interface AdminDriverUpdateRequest {
 export interface AdminDriverStatusRequest {
   status: DriverEmploymentStatus;
   reason: string;
-  /** Set only after the operator has seen and accepted the held-work warning (FR-020). Without it,
-   *  standing down a driver who is holding started work is refused with an itemised 409. */
-  acknowledgeHeldWork?: boolean;
+  // ⚠ `acknowledgeHeldWork` was here, and the dispatch slice will need it back. It gated FR-020's
+  // itemised refusal when standing down a driver holding already-picked-up work; that work lived in
+  // `collection_task` / `delivery_task`, so with nothing assigning anything no driver can hold any.
 }
 
 // ── Held / stranded work ─────────────────────────────────────────────────────────────────────────
 
-export type StrandedWorkKind = "collection" | "delivery";
-
-/**
- * Work claimed by a driver who is no longer eligible, which the automatic release sweep will NOT
- * reclaim because it has already been physically picked up or started (FR-021).
- *
- * ⚠ DERIVED ON READ, NEVER STORED. A stored flag and the task rows can disagree, and then nobody
- * knows which is true (027's counted-not-stored rule).
- */
-export interface StrandedWork {
-  kind: StrandedWorkKind;
-  /** The collection_task id or the delivery_task id. */
-  taskId: string;
-  taskStatus: string;
-  driverId: string;
-  driverName: string;
-  driverStatus: DriverEmploymentStatus;
-  orderId: string;
-  orderReference: string;
-  /** The shop the package came from (collection), or the delivery suburb (delivery). */
-  location: string | null;
-  since: string;
-}
-
-export interface StrandedWorkResponse {
-  items: StrandedWork[];
-}
-
-export interface StrandedReleaseRequest {
-  collectionTaskIds?: string[];
-  deliveryTaskIds?: string[];
-  note: string;
-}
-
-export interface StrandedReleaseResponse {
-  released: WireInt;
-}
-
-// ── Exceptions ───────────────────────────────────────────────────────────────────────────────────
-
-export type DriverExceptionKind = "delivery_failure" | "collection_issue";
-
-/**
- * An undeliverable drop, or a missing/short package reported at a shop (FR-027, FR-028).
- *
- * ⚠ The driver app has written both since 049 and NOTHING HAS EVER READ EITHER. Both tables carry a
- * comment saying they are "recorded for back-office follow-up"; this type is the follow-up.
- */
-export interface DriverException {
-  kind: DriverExceptionKind;
-  id: string;
-  /** delivery_failure: nobody_home | wrong_address | customer_refused | access_blocked | other.
-   *  collection_issue: missing | short. */
-  reason: string;
-  note: string | null;
-  driverId: string | null;
-  driverName: string | null;
-  orderId: string | null;
-  orderReference: string | null;
-  /** The delivery suburb (failure) or the shop name (collection issue). Never a full address —
-   *  a queue screen does not need one, and it would put a customer's street on a list view. */
-  location: string | null;
-  occurredAt: string;
-  resolvedAt: string | null;
-  resolvedBySub: string | null;
-  resolutionNote: string | null;
-}
-
-export interface DriverExceptionListResponse {
-  items: DriverException[];
-  nextCursor: string | null;
-  /** Shown on entering the Drivers area (FR-032) — as a labelled figure in a section header, never
-   *  a metric card (Principle V). */
-  outstandingCount: WireInt;
-}
-
-export interface DriverExceptionResolveRequest {
-  note: string;
-}
+// ── Stranded work and exceptions: RETIRED WITH THE WORK MODEL ───────────────────────────────────
+//
+// ⚠ `StrandedWork*` and `DriverException*` described rows in `collection_task`, `delivery_task`,
+// `delivery_failure` and `collection_task_issue`, all dropped by
+// db/migrations/20260920101500_remove_driver_work_model.sql. They are removed rather than kept as a
+// dormant vocabulary, because 059 found a fourth reader of `device_token.platform` whose only sign of
+// life was a comment saying web push was out of scope — exported, imported by nothing, quietly
+// contradicting the live contract. A type nothing can populate is that shape waiting to happen.
+//
+// ⚠ THE CAPABILITY THEY SERVED IS NOT RESOLVED, ONLY UNBUILT. 056 existed because the driver app had
+// been recording exceptions since 049 for a reader that did not exist — a driver marks a drop
+// undeliverable and nobody at Effy is told. The dispatch slice inherits that requirement along with
+// the work model it must redesign; ORDER-FLOW-GAPS.md is where it stays recorded until then.
 
 // ── Duty ─────────────────────────────────────────────────────────────────────────────────────────
 
 export interface OnDutyDriver {
   driverId: string;
   driverName: string;
+  /** ⚠ 062 — derived from clearances, not a single assigned zone. Null when cleared for nothing. */
   zone: string | null;
   sessionId: string;
   onDutySince: string;
-  /** Null when on duty with nothing assigned — which is itself worth seeing. */
-  currentRunId: string | null;
-  currentRunType: DriverRunType | null;
-  completedStops: WireInt;
-  totalStops: WireInt;
-  nextStop: string | null;
+  /** ⚠ null = the driver did not say when they expect to finish. The console renders "unknown";
+   *  it MUST NOT substitute a default shift length (061, FR-033). */
+  expectedEndAt: string | null;
+  /** True when an expected finish has already passed — visible, not alarming. */
+  pastExpectedEnd: boolean;
   /** True when the session has been open longer than the configured threshold (FR-037). */
   overdue: boolean;
 }
@@ -623,9 +638,10 @@ export interface OnDutyDriver {
 /**
  * Work that is ready and has no driver (FR-036).
  *
- * ⚠ Computed with the assignment sweep's OWN candidate predicate, shared as a SQL constant. If the
- * console derived it independently the screen would eventually be confidently wrong about the one
- * question it exists to answer — "why is nothing moving?".
+ * ⚠ THIS IS NOW A BACKLOG, NOT A SHORTFALL. It was computed with the assignment sweep's own candidate
+ * predicate so the screen could not disagree with what the sweep saw; there is no sweep, nothing
+ * claims work, and so every ready package counts. Until dispatch is rebuilt these figures only rise —
+ * which is the one thing about the current state an operator needs to be able to see.
  */
 export interface UnassignedWorkSummary {
   readyToCollect: WireInt;
@@ -638,67 +654,221 @@ export interface DutyResponseAdmin {
   unassigned: UnassignedWorkSummary;
 }
 
-// ── Work history ─────────────────────────────────────────────────────────────────────────────────
+// ── Work history: RETIRED WITH THE WORK MODEL ───────────────────────────────────────────────────
+//
+// ⚠ `DriverRunSummary`, `DriverRunStop`, `DriverRunDetail`, `DriverPeriodSummary`,
+// `DriverHistoryResponse` and `DriverProofResponse` all projected `driver_run`, `collection_task`,
+// `delivery_task`, `driver_task_event` and `proof_of_delivery`. Gone with those tables.
+//
+// ⚠ `DriverAuditEntry` below is a DIFFERENT record and deliberately survives: it is the back-office
+// change log in `admin.audit_log` — who edited a driver's profile, who stood them down and why. That
+// is employment history, not work history, and nothing about it depended on the shape of a run.
 
-export interface DriverRunSummary {
-  runId: string;
-  type: DriverRunType;
-  status: string;
-  businessDate: string;
-  assignedAt: string;
-  completedAt: string | null;
-  completedStops: WireInt;
-  totalStops: WireInt;
+// ── Clearances and coverage (062) ────────────────────────────────────────────────────────────────
+//
+// ⚠ BACK-OFFICE ONLY. None of these enter `driver-contract.ts`, so none reaches the generated Kotlin.
+// A driver does not grant their own clearances; they see only the derived `DriverMeDTO.zone` line.
+
+export type CapabilityFunction = "collection" | "delivery";
+export type CapabilityMethod = "standard" | "same_day";
+
+/**
+ * One grant: this driver may do this kind of work in this place.
+ *
+ * ⚠ `zoneId: null` MEANS EVERY ZONE — including zones created afterwards. It is the single most
+ * important fact in this feature, and the one whose absence would be invisible: an enumeration of
+ * today's zones is correct when written and quietly wrong the first time a zone is added, with
+ * nothing failing and nobody told.
+ */
+export interface DriverCapability {
+  id: string;
+  function: CapabilityFunction;
+  method: CapabilityMethod;
+  /** ⚠ null = every zone. */
+  zoneId: string | null;
+  /** ⚠ null for an every-zone grant — NEVER a server-supplied "All zones" string. The label is
+   *  presentation, and a second place naming the concept is a second place it can drift. The console
+   *  renders it from `zoneId === null`. */
+  zoneName: string | null;
+  grantedAt: string;
 }
 
-export interface DriverRunStop {
-  taskId: string;
-  kind: StrandedWorkKind;
-  sequence: WireInt;
-  label: string;
-  status: string;
-  orderId: string | null;
-  orderReference: string | null;
-  /** The append-only status timeline for this stop, oldest first (FR-040). */
-  timeline: { status: string; at: string }[];
-  /** Delivery stops only, and only once delivered. */
-  hasProof: boolean;
+export interface DriverCapabilityListResponse {
+  items: DriverCapability[];
 }
 
-export interface DriverRunDetail {
-  run: DriverRunSummary;
+/**
+ * ⚠ `zoneId` is REQUIRED and may be explicitly `null`. A key absent and a key present-with-null must
+ * not be conflated, or "everywhere" becomes indistinguishable from "the operator forgot to choose".
+ */
+export interface GrantCapabilityRequest {
+  function: CapabilityFunction;
+  method: CapabilityMethod;
+  zoneId: string | null;
+}
+
+/** Breadth of clearance for the register (FR-014). ⚠ A SUMMARY, not the full set — shipping every
+ *  grant would put an unbounded array on every row of a paged list. */
+export interface DriverCapabilitySummary {
+  total: WireInt;
+  coversEveryZone: boolean;
+  functions: CapabilityFunction[];
+}
+
+/** Why a zone cannot be served. ⚠ TWO REASONS, NOT ONE — an administrative gap and a rostering
+ *  problem have different remedies, and collapsing them tells an operator nothing about what to do. */
+export type CoverageGapReason = "no_driver_cleared" | "all_cleared_unavailable";
+
+export interface CoverageGap {
+  zoneId: string;
+  zoneName: string;
+  function: CapabilityFunction;
+  method: CapabilityMethod;
+  reason: CoverageGapReason;
+  /** ⚠ What makes the two reasons ACTIONABLE: 0 means grant somebody a clearance; more than 0 means
+   *  the people who have it cannot work today, and the fix is in the readiness view. */
+  clearedDriverCount: WireInt;
+}
+
+/**
+ * ⚠ A LIST OF PROBLEMS, NOT A MATRIX. A covered (zone, function, method) emits NO ROW at all
+ * (FR-019) — a screen that lists everything and colours the bad ones is a screen an operator has to
+ * scan.
+ *
+ * ⚠ Only the work a zone can actually RECEIVE is enumerated: same-day appears only for zones whose
+ * `sameday_eligible` is true. Otherwise "nobody is cleared for same-day in Ballarat" would be a
+ * permanent, unfixable row in the one view whose purpose is to be actionable.
+ */
+export interface CoverageResponse {
+  gaps: CoverageGap[];
+}
+
+// ── Vehicles (061) ───────────────────────────────────────────────────────────────────────────────
+//
+// ⚠ BACK-OFFICE ONLY. None of these enter `driver-contract.ts`, so none reaches the generated Kotlin
+// and the driver app is unaffected. A driver sees the vehicle they hold through `DriverVehicle`.
+//
+// ⚠ NO MONEY ANYWHERE. Not a purchase price, not a lease cost, not a fuel figure. The driver domain
+// has never carried currency (049 FR-013) and 061 does not introduce it.
+//
+// ⚠ NO COORDINATES ANYWHERE. Nothing on this platform computes distance (D20).
+
+export type VehicleBodyType = "van" | "ute" | "truck_light" | "car" | "motorcycle" | "bicycle";
+export type VehicleFuelType = "petrol" | "diesel" | "hybrid" | "electric" | "none";
+export type VehicleOwnership = "effy_owned" | "driver_owned";
+
+/** ⚠ `off_road` is NOT `retired`. Off-road is temporary and the vehicle comes back; retired is
+ *  terminal and the record survives for history. Collapsing them makes "where did the van go?"
+ *  unanswerable. */
+export type VehicleStatus = "active" | "off_road" | "retired";
+
+/** Which compliance item has lapsed. ⚠ DERIVED ON READ from the three expiry dates, never stored —
+ *  compliance is time-dependent and a stored flag goes stale silently at midnight (027's
+ *  counted-not-stored rule, fourth application). */
+export type VehicleComplianceIssue =
+  | "registration_expired"
+  | "insurance_expired"
+  | "roadworthy_expired";
+
+/** One row of the register (FR-001, FR-009). ⚠ Carries `complianceIssues` so an operator can answer
+ *  "what is roadworthy" WITHOUT opening a record. */
+export interface VehicleListItem {
+  id: string;
+  registrationPlate: string;
+  make: string;
+  model: string;
+  bodyType: VehicleBodyType;
+  ownership: VehicleOwnership;
+  canCarryChilled: boolean;
+  canCarryFrozen: boolean;
+  status: VehicleStatus;
+  currentHolderDriverId: string | null;
+  currentHolderName: string | null;
+  complianceIssues: VehicleComplianceIssue[];
+}
+
+export interface VehicleListResponse {
+  items: VehicleListItem[];
+  /** ⚠ Consumed by the UI, not merely returned. 053 shipped a console silently capped at 25 rows. */
+  nextCursor: string | null;
+}
+
+/** One period a driver had a vehicle (FR-016). */
+export interface VehicleHolding {
+  id: string;
   driverId: string;
   driverName: string;
-  stops: DriverRunStop[];
-}
-
-/** Counts over a chosen period (FR-043). ⚠ Counts only — this is not a timesheet and carries no
- *  currency, no hours-for-payment and no rate. */
-export interface DriverPeriodSummary {
-  from: string;
-  to: string;
-  daysWorked: WireInt;
-  runsCompleted: WireInt;
-  packagesCollected: WireInt;
-  dropsDelivered: WireInt;
-  dropsFailed: WireInt;
-}
-
-export interface DriverHistoryResponse {
-  items: DriverRunSummary[];
-  nextCursor: string | null;
-  summary: DriverPeriodSummary;
-}
-
-/** Proof of delivery for one drop (FR-041).
- *  ⚠ `mediaUrl` is a TIME-LIMITED presigned URL, never a durable address, and issuing it is audited. */
-export interface DriverProofResponse {
-  method: ProofMethod;
-  mediaUrl: string | null;
+  startedAt: string;
+  /** null = still held. */
+  endedAt: string | null;
+  odometerStartKm: WireInt | null;
+  odometerEndKm: WireInt | null;
   note: string | null;
-  capturedAt: string;
-  capturedByDriverId: string | null;
-  capturedByDriverName: string | null;
+}
+
+export interface VehicleDetail extends VehicleListItem {
+  year: WireInt | null;
+  fuelType: VehicleFuelType | null;
+  payloadKg: WireInt | null;
+  loadVolumeLitres: WireInt | null;
+  crateCapacity: WireInt | null;
+  registrationExpiresOn: string | null;
+  insurancePolicyReference: string | null;
+  insuranceExpiresOn: string | null;
+  roadworthyExpiresOn: string | null;
+  odometerKm: WireInt | null;
+  statusReason: string | null;
+  notes: string | null;
+  createdAt: string;
+  /** Optimistic-concurrency token; a PATCH echoes what it loaded. */
+  updatedAt: string;
+  /** Newest first (FR-016). */
+  holdings: VehicleHolding[];
+}
+
+export interface VehicleCreateRequest {
+  registrationPlate: string;
+  make: string;
+  model: string;
+  bodyType: VehicleBodyType;
+  ownership: VehicleOwnership;
+  year?: WireInt | null;
+  fuelType?: VehicleFuelType | null;
+  payloadKg?: WireInt | null;
+  loadVolumeLitres?: WireInt | null;
+  crateCapacity?: WireInt | null;
+  canCarryChilled?: boolean;
+  canCarryFrozen?: boolean;
+  registrationExpiresOn?: string | null;
+  insurancePolicyReference?: string | null;
+  insuranceExpiresOn?: string | null;
+  roadworthyExpiresOn?: string | null;
+  odometerKm?: WireInt | null;
+  notes?: string | null;
+}
+
+/**
+ * ⚠ PRESENCE, NOT VALUE — the same rule 056 established for drivers and fixed a real defect over.
+ * A key present with `null` CLEARS the field; a key absent leaves it alone. `COALESCE($n, col)`
+ * cannot tell those apart, which is how a zone once assigned became permanent. Do not "clean" this
+ * object on the way out: dropping nulls silently restores that defect.
+ */
+export type VehicleUpdateRequest = Partial<VehicleCreateRequest> & { updatedAt: string };
+
+export interface VehicleStatusRequest {
+  status: VehicleStatus;
+  reason: string;
+}
+
+export interface HoldingIssueRequest {
+  driverId: string;
+  odometerStartKm?: WireInt | null;
+  note?: string | null;
+}
+
+export interface HoldingReturnRequest {
+  odometerEndKm?: WireInt | null;
+  note?: string | null;
 }
 
 // ── Audit ────────────────────────────────────────────────────────────────────────────────────────

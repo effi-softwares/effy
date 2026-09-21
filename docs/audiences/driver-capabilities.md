@@ -5,6 +5,86 @@ surface — there is no driver web). Each capability lists the surface and the s
 
 Legend: ✅ built & verified · 🚧 partial (noted) · ⛔ deferred (blocked/own-slice) · — n/a
 
+## §062 — Driver Zone Capability & Coverage (built 2026-09-20, NOT DEPLOYED)
+
+Slice B of the logistics rebuild. Makes Effy able to say **who is eligible for what work, where**; it
+assigns nothing. Spec: [specs/062-driver-zone-capability/](../../specs/062-driver-zone-capability/).
+
+| Capability | Where | Status | Notes |
+|---|---|---|---|
+| Clearance = function × method × zone, any combination | back-office | ✅ | `driver_zone_capability`; collect/deliver × standard/same-day × one, many or every zone |
+| ⚠ **"Every zone", including zones created afterwards** | back-office | ✅ | `zone_id IS NULL` is the fact, not a list of today's zones — proven by creating a zone mid-test |
+| Grant / revoke, idempotent both ways | back-office | ✅ | repeating either is a success, never a conflict — two operators can act at once |
+| Breadth of clearance on the register | back-office | ✅ | a summary, never the full set; "Nothing yet" is a stated fact |
+| Coverage gaps, per kind of work | back-office | ✅ | inside the readiness screen, never a second screen that could disagree |
+| ⚠ Two gap reasons, two remedies | back-office | ✅ | `no_driver_cleared` (grant somebody) vs `all_cleared_unavailable` (fix readiness) |
+| ⚠ Same-day gaps only where same-day is sold | back-office | ✅ | `sameday_eligible`; otherwise the view fills with permanently unfixable rows |
+| Driver's own zone line | driver app | ✅ | **derived from clearances**, shape unchanged — no Kotlin changed |
+| Single `driver.delivery_zone_id` | — | ⛔ **REMOVED** | one zone when a driver covers several, and read by nothing. `no_zone` → `no_capabilities` |
+
+⚠ **The driver app gained a truer answer for free, twice now.** 061 repointed `DriverVehicle` at the
+open holding; 062 repoints `DriverMeDTO.zone` at the driver's clearances. Both kept their shape, so
+the generated Kotlin and all 45 screens are untouched.
+
+---
+
+## §061 — Fleet Foundations (built 2026-09-20, NOT DEPLOYED)
+
+Slice A of the logistics rebuild. Makes Effy able to **describe its fleet accurately**; it assigns
+nothing. Spec/artifacts: [specs/061-fleet-foundations/](../../specs/061-fleet-foundations/).
+
+| Capability | Where | Status | Notes |
+|---|---|---|---|
+| Vehicle register — add, edit, retire, browse | back-office | ✅ | `public.vehicle`; one table serves Effy-owned **and** driver-owned, distinguished by a fact not a feature |
+| Refrigeration capability (chilled / frozen) | back-office | ✅ | Effy sells groceries, so this is what the fleet is selected on |
+| Compliance — registration, insurance, roadworthy | back-office | ✅ | **derived on read**, never stored; names the lapsed item, not "non-compliant" |
+| Issue a vehicle to a driver / take it back | back-office | ✅ | odometer both ways; **at most one open holding per vehicle and per driver, enforced by two partial unique indexes** |
+| Handover history | back-office | ✅ | who had it, when, both readings. ⚠ **A handover log, not a journey log** — no position, ever |
+| Driver licence **class** | back-office | ✅ | recorded so "may they legally drive this" is checkable rather than assumed |
+| Work-readiness reasons | back-office | ✅ | + `no_vehicle`, `vehicle_non_compliant`; **every** applicable reason, never the first |
+| Shop street address | back-office | ✅ | so a driver can be told where to collect from. ⚠ **No coordinates** |
+| Expected finish time on duty | driver app + back-office | ✅ | optional; **absence renders as "unknown", never a default shift length** |
+| ⚠ Standing a driver down while they hold a vehicle | back-office | ✅ **REFUSED** | names the vehicle. 056's stranded-goods shape: a van is not a database row |
+| Driver location capture | — | ⛔ **REMOVED** | Effy does not track driver position (D20/D22). Route, handler, service and three columns deleted; a negative guard pins the absence |
+
+⚠ **The driver app gained a true answer for free.** `DriverVehicle {type, plate}` kept its shape — it
+is in the generated Kotlin contract and the Account screen renders it — while its SOURCE moved from
+two unmaintained free-text columns on the driver row to the vehicle behind the driver's open holding.
+No Kotlin changed.
+
+**Still unbuilt, and owned by later slices**: everything that assigns, carries, delivers or proves a
+package. See the teardown notice below for why the §049 and §056 tables read the way they do.
+
+---
+
+## ⚠ §2026-09-20 — THE WORK MODEL WAS TORN DOWN; READ THIS BEFORE THE TABLES BELOW
+
+`db/migrations/20260920101500_remove_driver_work_model.sql` dropped `driver_run`, `collection_task`,
+`collection_task_issue`, `delivery_task`, `delivery_task_package`, `proof_of_delivery`,
+`delivery_failure`, `driver_task_event` and `driver_activity`, and the backend that read and wrote
+them went with it — the assignment sweep, every `/driver/v1` work route, and the fleet console's
+stranded-work, exceptions, run-history and proof screens.
+
+**The driver app's UI was deliberately left standing** (060's 45 screens are untouched, and so is the
+generated Kotlin contract, so the app still compiles). What it no longer has is a backend to call.
+
+**So every ✅ in §049 and §056 below that describes WORK — being assigned it, collecting it,
+delivering it, proving it, or reporting a problem with it — is now ⛔ unbuilt.** The rows are kept
+verbatim rather than rewritten to ⛔, because they are the specification of what the intelligent
+dispatch slice has to deliver, and a register of dashes would lose that.
+
+**What still works end to end:** a driver is provisioned by back-office, signs in passwordlessly,
+goes on and off duty, sends a location snapshot, registers a push token, and reads their account.
+Back-office can still run the register, edit a profile, change employment status, read the change log,
+see who is on duty and see the backlog waiting for somebody.
+
+| Capability | Mobile | Status | Notes |
+|---|---|---|---|
+| Passwordless sign-in, duty, location snapshot, push registration, account | ✅ | ✅ | `public.driver` + `public.driver_duty_session` survive the teardown |
+| Anything that assigns, carries, delivers or proves a package | ✅ UI only | ⛔ | no data model, no routes — owned by the dispatch slice |
+
+---
+
 ## §049 — Driver Delivery App (hub-and-spoke)
 
 The platform's 6th and final client surface. Model: **collection run** (shops → hub) → **hub check-in**

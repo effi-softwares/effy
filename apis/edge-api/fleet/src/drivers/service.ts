@@ -24,6 +24,7 @@ import {
   enableDriverUser,
   lookupDriverUser,
 } from "./cognito";
+import { heldByDriver } from "../holdings/repository";
 import * as repo from "./repository";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -245,16 +246,22 @@ export interface StatusOutcome {
 /**
  * Move a driver between employment states (FR-015…FR-020).
  *
- * ⚠ TWO THINGS ARE TRUE AT ONCE AND THE UI MUST SAY BOTH: access ends IMMEDIATELY (the record is
- * authoritative and the identity account is disabled in the same operation), while work already
- * assigned is only reclaimed on the assignment sweep's next round. Implying a stood-down driver has
- * been cleared of work when they have not is the exact failure this feature exists to prevent.
+ * ⚠ FR-020'S HELD-WORK REFUSAL IS GONE, AND THE HAZARD IT GUARDED IS GONE WITH IT — FOR NOW.
+ * Standing a driver down used to be refused until the operator acknowledged an itemised list of what
+ * they were already carrying, because `releaseIneligibleWork` never yanked picked-up work and the
+ * UNIQUE(shop_fulfillment_id) constraint then kept those packages claimed forever, with an order
+ * attached to each. Nothing assigns work now, so nothing can be holding any, and a warning that can
+ * never fire is a warning people learn to click through.
+ *
+ * ⚠ THE DISPATCH SLICE MUST REBUILD THIS, and it is not a nicety: it was 056's headline finding, it
+ * was in no register because nobody knew, and it strands physical goods permanently and invisibly.
+ * Releasing stranded work stays an explicit human action for the reason 056 gave — it asserts
+ * something about the physical world that no query can know.
  */
 export async function setStatus(
   id: string,
   status: DriverEmploymentStatus,
   reason: string,
-  acknowledgeHeldWork: boolean,
   actorSub: string,
   scope: RequestScope,
 ): Promise<StatusOutcome> {
@@ -268,18 +275,32 @@ export async function setStatus(
   const current = await repo.getDriver(id);
   if (!current) throw notFound("driver not found");
 
-  // FR-020 — leaving `active` while holding started work is refused until acknowledged.
-  if (current.status === "active" && status !== "active" && !acknowledgeHeldWork) {
-    const held = await repo.heldWorkFor(id);
-    if (held.length > 0) {
+  /**
+   * ⚠⚠ STANDING A DRIVER DOWN WHILE THEY HOLD A VEHICLE IS REFUSED, AND THIS IS THE SLICE'S MOST
+   * IMPORTANT SAFETY BEHAVIOUR (FR-019).
+   *
+   * The van is in a carpark somewhere. Suspending or offboarding the driver does not make it appear
+   * at the hub — but it DOES remove them from every list an operator looks at, so the vehicle
+   * silently stops being anybody's problem while remaining physically absent. 056 found exactly this
+   * shape with collected packages and recorded that it strands goods "permanently and invisibly,
+   * and this was in no register because nobody knew".
+   *
+   * ⚠ The refusal NAMES the vehicle, because "record its return first" is only actionable if the
+   * operator knows which one. Recording a return is a statement about the physical world, which is
+   * why it stays an explicit human act rather than something this transition does on their behalf.
+   */
+  if (current.status === "active" && status !== "active") {
+    const held = await heldByDriver(id);
+    if (held) {
       throw conflict(
-        `${current.name} is holding ${held.length} item(s) of work that has already been picked up ` +
-          `or started. Standing them down will not return it automatically — it must be released by ` +
-          `hand. Affected orders: ${[...new Set(held.map((h) => h.orderReference))].join(", ")}.`,
-        held.map((h) => ({
-          field: `${h.kind}:${h.taskId}`,
-          message: `${h.taskStatus} — order ${h.orderReference}${h.location ? ` (${h.location})` : ""}`,
-        })),
+        `${current.name} still has ${held.registrationPlate} (${held.make} ${held.model}). ` +
+          `Record its return before standing them down — otherwise nothing at Effy knows who has it.`,
+        [
+          {
+            field: "vehicle",
+            message: `${held.registrationPlate} has been out since ${held.since.slice(0, 10)}`,
+          },
+        ],
       );
     }
   }

@@ -49,7 +49,7 @@ describe("fleet deployment contract — serverless.yml declares what the service
     }
   });
 
-  it("declares the DB, driver-pool and media env the service depends on", () => {
+  it("declares the DB and driver-pool env the service depends on", () => {
     for (const key of [
       "DB_HOST",
       "DB_PORT",
@@ -57,7 +57,6 @@ describe("fleet deployment contract — serverless.yml declares what the service
       "DB_USER",
       "DB_SECRET_ARN",
       "DRIVER_USER_POOL_ID",
-      "S3_MEDIA_BUCKET",
     ]) {
       expect(yaml).toContain(`${key}:`);
     }
@@ -97,12 +96,18 @@ describe("fleet deployment contract — serverless.yml declares what the service
     expect(yaml).not.toContain("auth/back-office/user_pool_arn");
   });
 
-  it("grants READ-ONLY access to proof media, under the driver-proof prefix only", () => {
-    // ⚠ Narrower than edge-driver's grant on the same prefix, which also carries PutObject.
-    // Back-office VIEWS proof; it never captures any, so it must not be able to write one.
-    expect(yaml).toContain("driver-proof/*");
+  /**
+   * ⚠ A NEGATIVE ASSERTION WHERE A POSITIVE ONE USED TO BE. This service held a read-only grant on
+   * the `driver-proof/` prefix so the console could show a photo or signature; `proof_of_delivery`
+   * went with the work model, so the grant now points at objects no row references. A standing
+   * permission whose reason has been deleted is the kind nobody thinks to remove later, so its
+   * absence is pinned rather than left to memory.
+   */
+  it("holds no S3 grant at all — proof media went with the work model", () => {
+    expect(yaml).not.toContain("driver-proof");
+    expect(yaml).not.toContain("s3:GetObject");
     expect(yaml).not.toContain("s3:PutObject");
-    expect(yaml).not.toContain("s3:DeleteObject");
+    expect(yaml).not.toContain("S3_MEDIA_BUCKET");
   });
 
   it("sets versionFunctions:false from the start, not after hitting the CFN ceiling", () => {
@@ -120,23 +125,20 @@ describe("fleet deployment contract — serverless.yml declares what the service
   });
 });
 
-describe("FR-038 — assignment stays automatic; no route can target a named driver", () => {
-  it("declares no route that accepts a destination driver for a piece of work", () => {
-    // ⚠ Asserted over the WHOLE route table rather than trusting review. 049 settled "no dispatcher,
-    // no accept/decline"; the sanctioned intervention is RELEASING work back to the pool and letting
-    // the sweep decide. A path segment that names a driver as a work destination would quietly
-    // reintroduce manual dispatch.
-    const paths = [...yaml.matchAll(/path: (\S+)/g)].map((m) => m[1]!);
-    const assignmentShaped = paths.filter(
-      (p) => /assign|dispatch|reassign/i.test(p) && /driver/i.test(p),
-    );
-    expect(assignmentShaped, `manual-dispatch-shaped routes: ${assignmentShaped.join(", ")}`).toEqual(
-      [],
-    );
-
-    // The release route exists and is a release, not an assignment: it names no driver at all.
-    const release = paths.find((p) => p.includes("/stranded/release"));
-    expect(release).toBe("/fleet/v1/stranded/release");
-    expect(release).not.toContain("driverId");
-  });
-});
+/**
+ * ⚠ 056'S FR-038 GUARD IS DELIBERATELY GONE, AND THIS COMMENT IS WHY.
+ *
+ * It asserted that no route could name a driver as a work destination — "assignment stays automatic;
+ * no dispatcher, no accept/decline", which was 049's settled model and which 056 pinned over the
+ * whole route table so nobody could reintroduce manual dispatch by review oversight.
+ *
+ * That model is what is being replaced. The sweep it protected assigned every ready package on the
+ * platform to one driver and never once read `driver.delivery_zone_id`, so the guard was defending a
+ * property of a mechanism that did not work. It is removed with the mechanism rather than left
+ * standing, because a guard that outlives its rule fails the first honest attempt to build the
+ * replacement and gets deleted in a hurry by whoever is mid-slice — the worst moment to be deciding
+ * whether a rule still holds.
+ *
+ * The dispatch slice owns the question of whether an operator may target a named driver, and owns
+ * writing whatever guard its answer deserves.
+ */

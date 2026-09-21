@@ -3,6 +3,20 @@
 **Audited 2026-08-26** against the code (not the specs) at branch `052-order-confirmation-invoice`.
 Scope: everything between a customer discovering a product and their order being complete.
 
+> **⚠ UPDATE 2026-09-20 — THE 049 DRIVER WORK MODEL HAS BEEN TORN DOWN, and most of what this
+> register describes below is now describing code that no longer exists.** The greedy assignment
+> sweep, both task types, runs, proof, failures, collection issues, the status timeline and the
+> activity feed were removed by `db/migrations/20260920101500_remove_driver_work_model.sql`, ahead of
+> an intelligent dispatch slice. `public.driver` and `public.driver_duty_session` stay — a driver can
+> still be provisioned, sign in, and go on duty; there is simply nothing to give them.
+>
+> **THIS MAKES THE FLOW WORSE, NOT BETTER, AND THAT IS DELIBERATE.** An order now stops at
+> `ready_for_pickup` and only back-office arrival recording (053) can move it further. G1 is
+> effectively re-opened by a different road, and the Tier 2 failed-same-day gap is moot because there
+> are no same-day drops. **Nothing in this register is resolved by the teardown; the gaps move to the
+> dispatch slice along with the model.** The line items below are kept as the written record of what
+> the replacement has to account for.
+
 > **UPDATE 2026-08-26 — [053-order-lifecycle-completion](specs/053-order-lifecycle-completion/) closes
 > G1, G6 and G7, and part of G5.** Code-complete and machine-verified; **not deployed**. Marked inline
 > below. ⚠ After 053, the **failed same-day delivery** (Tier 2) is the ONLY remaining way an order gets
@@ -17,8 +31,16 @@ comment*, that comment is quoted — the point is that the deferral was never pi
 
 ```
 browse → product → cart → address → delivery quote → PaymentIntent → Stripe
-  → webhook finalize → per-shop fan-out → shop pick → driver collect → hub check-in
-  → same-day drop → delivered
+  → webhook finalize → per-shop fan-out → shop pick → ready_for_pickup → ⛔ NOTHING
+                                                                          ↳ back-office can record
+                                                                            an arrival (053) and
+                                                                            finish the order by hand
+```
+
+The half that is struck through was, until 2026-09-20:
+
+```
+  … → ready_for_pickup → driver collect → hub check-in → same-day drop → delivered
 ```
 
 The **paid transition** — `apis/core-api/internal/features/checkout/store.go:468` `FinalizeSucceeded` —

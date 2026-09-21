@@ -1,4 +1,4 @@
-import { BadgePercent, LayoutDashboard, MailWarning, MessageSquare, Package, Shield, Store, Tags, Truck, Users } from "lucide-react";
+import { BadgePercent, Car, LayoutDashboard, MailWarning, MessageSquare, Package, Shield, Store, Tags, Truck, Users } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -37,6 +37,11 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // (add/edit a driver, change employment status, resolve a report, release stranded work, end a
   // duty session) are admin/manager, gated in-screen and enforced by the backend.
   { label: "Drivers", to: "/drivers", icon: Users },
+  // Vehicles has NO requiredRole either, for the same reason as Drivers: reading the fleet is open
+  // to every back-office role including csa — "which van is out with whom" is a question a CSA is
+  // asked. Adding, editing, issuing and retiring are admin/manager, gated in-screen and enforced
+  // independently by the backend.
+  { label: "Vehicles", to: "/vehicles", icon: Car },
   // Deliverability has NO requiredRole: every back-office role sees it, csa included. A CSA is
   // exactly who is on the phone to the person who cannot sign in, and "we can't reach your address"
   // is the whole answer to that call. Only the REPAIR is admin/manager (gated in-screen, enforced by

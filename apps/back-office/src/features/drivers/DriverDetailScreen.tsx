@@ -10,10 +10,9 @@ import type { AdminDriverProfile } from "@effy/shared-types";
 import { useSessionRoles } from "@/features/auth/useSessionRoles";
 
 import { AuditTrail } from "./components/AuditTrail";
-import { ExceptionsList } from "./components/ExceptionsList";
+import { CapabilityEditor } from "./components/CapabilityEditor";
 import { ProfileEditForm } from "./components/ProfileEditForm";
 import { StatusControl } from "./components/StatusControl";
-import { WorkHistory } from "./components/WorkHistory";
 import { canManageDrivers } from "./access";
 import { BLOCKED_LABEL, formatDate, formatDateTime, STATUS_LABEL, STATUS_MEANING } from "./model";
 import { driverDetailQuery } from "./queries";
@@ -122,18 +121,14 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
 
           <Section title="Work assignment">
             <dl>
-              <Row
-                label="Delivery zone"
-                value={d.zone ?? <span className="text-muted-foreground">Not assigned</span>}
-              />
               <Row label="Hub" value={d.hub} />
+              {/* ⚠ 061: these read the vehicle the driver is CURRENTLY HOLDING, derived from the
+                  open holding row — not two free-text strings on the driver record that nobody
+                  maintained. Null is an ordinary state: this driver has no vehicle out. */}
               <Row label="Vehicle" value={d.vehicle.type} />
               <Row label="Registration plate" value={d.vehicle.plate} />
-              <Row
-                label="Registration expires"
-                value={formatDate(d.credentials.vehicleRegistrationExpiresOn)}
-              />
               <Row label="Licence" value={d.credentials.licenceReference} />
+              <Row label="Licence class" value={d.credentials.licenceClass} />
               <Row label="Licence expires" value={formatDate(d.credentials.licenceExpiresOn)} />
             </dl>
           </Section>
@@ -163,12 +158,20 @@ export function DriverDetailScreen({ driverId }: { driverId: string }) {
         </>
       )}
 
-      <Section title="Reports from the road">
-        <ExceptionsList driverId={driverId} />
-      </Section>
+      {/* ⚠ "Reports from the road" and "Work history" stood here. Both projected the 049 work model
+          — delivery failures, collection issues, runs, stops and proof — which was dropped whole by
+          db/migrations/20260920101500_remove_driver_work_model.sql. What is left is the driver's
+          EMPLOYMENT record, which is a different thing and never depended on it.
 
-      <Section title="Work history">
-        <WorkHistory driverId={driverId} />
+          ⚠ Their absence is a real loss, not a tidy-up: the exceptions list was 056's whole reason
+          for existing (the driver app had recorded undeliverable drops since 049 for a reader that
+          did not exist). The dispatch slice owns rebuilding both. */}
+
+      {/* ⚠ 062 — what this driver may actually do. Placed ABOVE the change history because it is
+          the question an operator opens this page to answer, and below the profile because it is a
+          decision about them rather than a fact about them. */}
+      <Section title="Cleared for">
+        <CapabilityEditor driverId={driverId} />
       </Section>
 
       <Section title="Change history">
