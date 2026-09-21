@@ -1,6 +1,7 @@
 // Driver identity + duty use-cases (049). The access decision lives here: a valid driver-pool token
 // is necessary but NOT sufficient — the platform record must exist and be active (Principle IV).
 
+import { CUSTODY_BY_DRIVER, query } from "@effy/edge-shared";
 import type { DriverMeDTO, DutyResponse } from "@effy/shared-types";
 
 import * as repo from "./repository";
@@ -45,11 +46,33 @@ export function toMeDTO(record: DriverRecord): DriverMeDTO {
   };
 }
 
+/**
+ * Raised when a driver tries to end a shift while goods are still in their van (FR-018).
+ *
+ * ⚠ IT CARRIES THE ITEMS, NOT A COUNT. 056 found that standing a driver down could strand physical
+ * goods permanently and invisibly, and its fix showed the operator "the itemised held work before
+ * confirming" for a reason: "you are holding 3 packages" can be acted on — a driver goes and finds
+ * them — while a bare refusal cannot be answered at all.
+ */
+export class HoldingPackagesError extends Error {
+  constructor(readonly held: HeldPackage[]) {
+    super("driver is still holding packages");
+    this.name = "HoldingPackagesError";
+  }
+}
+
+export interface HeldPackage {
+  packageId: string;
+  orderNumber: string;
+  shopName: string;
+}
+
 /** Go on/off duty; returns the resulting duty status. */
 export async function setDuty(
   record: DriverRecord,
   onDuty: boolean,
   expectedEndAt?: string | null,
+  acknowledgeHeld = false,
 ): Promise<DutyResponse> {
   if (onDuty) {
     // ⚠ An absent or malformed value is stored as NULL, which MEANS UNKNOWN (FR-033). It is never
@@ -64,6 +87,29 @@ export async function setDuty(
       expectedEndAt: fresh?.expectedEndAt ?? null,
     };
   }
+  // ⚠ FR-018 — A SHIFT MAY NOT END SILENTLY WITH GOODS IN THE VAN.
+  //
+  // This is not a block: a driver whose van really is empty, or who is handing over some other way,
+  // confirms and goes off duty. What it refuses is doing so WITHOUT BEING TOLD. The packages here are
+  // ones the platform believes are physically with this person, and 063's own release sweep
+  // deliberately never reclaims picked-up work — so if nobody says anything at this moment, an order
+  // can sit attached to a package in a parked van with every query skipping it.
+  if (!acknowledgeHeld) {
+    const held = await query<{ package_id: string; order_number: string; shop_name: string }>(
+      CUSTODY_BY_DRIVER,
+      [record.id],
+    );
+    if (held.rows.length > 0) {
+      throw new HoldingPackagesError(
+        held.rows.map((r) => ({
+          packageId: r.package_id,
+          orderNumber: r.order_number,
+          shopName: r.shop_name,
+        })),
+      );
+    }
+  }
+
   await repo.goOffDuty(record.id);
   return { dutyStatus: "off_duty", since: null, expectedEndAt: null };
 }

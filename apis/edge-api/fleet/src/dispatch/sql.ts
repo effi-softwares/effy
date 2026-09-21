@@ -112,3 +112,9 @@ export const ROUND_DETAIL_STOPS = `
    WHERE rs.round_id = $1
    ORDER BY rs.seq NULLS LAST, rs.id
 `;
+
+// ⚠ `CUSTODY_BY_DRIVER` MOVED TO `@effy/edge-shared` (064). Two services ask "who is holding this?":
+// this one, for the dispatcher's custody view, and `edge-api/driver`, which must state what a driver
+// holds before their shift can end (FR-018). They are separate Lambda stacks and neither can import
+// the other's `src/`, so the rule lives in the package they both depend on (Principle II).
+export { CUSTODY_BY_DRIVER } from "@effy/edge-shared";

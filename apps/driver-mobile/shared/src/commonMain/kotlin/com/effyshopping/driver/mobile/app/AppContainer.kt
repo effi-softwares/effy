@@ -37,8 +37,6 @@ import com.effyshopping.driver.mobile.features.collection.domain.GetShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.ReportCollectionIssue
 import com.effyshopping.driver.mobile.features.delivery.data.HttpDeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
-import com.effyshopping.driver.mobile.features.delivery.domain.CompleteContactless
-import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithCode
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRepository
 import com.effyshopping.driver.mobile.features.delivery.domain.FailDrop
@@ -110,8 +108,6 @@ class AppContainer(
     val getDeliveryRun by lazy { GetDeliveryRun(delivery) }
     val getDrop by lazy { GetDrop(delivery) }
     val advanceDrop by lazy { AdvanceDrop(delivery) }
-    val completeWithCode by lazy { CompleteWithCode(delivery) }
-    val completeContactless by lazy { CompleteContactless(delivery) }
     val completeWithMedia by lazy { CompleteWithMedia(delivery) }
     val failDrop by lazy { FailDrop(delivery) }
 

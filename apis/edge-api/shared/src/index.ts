@@ -37,6 +37,17 @@ export * from "./lib/round-ordering";
 // 063: when collection must be finished. ⚠ A DELIBERATE DUPLICATE of core-api's SameDayCutoff — the
 // runtimes cannot share code — pinned by a cross-language contract test with DST fixtures.
 export * from "./lib/collection-deadline";
+// 064: the S3 prefix delivery proof is written under. ⚠ Shared because the Terraform lifecycle rule
+// that archives proof is scoped to it — a disagreement archives the product catalogue or nothing,
+// and neither raises an error anywhere.
+export * from "./lib/proof-prefix";
+// 064: load the REAL migrations into a container test. Promoted from edge-fleet on its second
+// consumer — a transcribed schema that drifts is worse than no container test, because it looks
+// like proof.
+export * from "./lib/load-migrations";
+// 064: who is holding a package. Shared because the dispatcher's custody view and the driver's
+// duty-end check must never disagree about whether a van still has goods in it.
+export * from "./lib/custody";
 // 063: may this driver do this work. Read by the wave planner (to choose) and by the dispatcher's
 // reassign route (to refuse). If they disagreed, a dispatcher could do what the planner would not.
 export * from "./lib/driver-eligibility";

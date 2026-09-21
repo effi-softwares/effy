@@ -224,6 +224,28 @@ export async function commitWave(
           if (ins.rowCount && ins.rowCount > 0) assigned += 1;
         }
       }
+
+      // ⚠ 064 — A COLLECTION ROUND ENDS AT THE HUB, AND THAT ENDING IS NOW A STOP.
+      //
+      // `round_stop_kind_check` has permitted `'hub_checkin'` since 063 and nothing ever created one.
+      // The consequence was found live on 2026-09-21: `todayView`'s outstanding filter keeps only
+      // `pending`/`arrived` stops, so the moment the last shop stop went `done` the driver's home
+      // screen had nothing left — and BOTH routes into the round (the hero card, drawn from `active`,
+      // and the "Whole run" link, drawn only when the queue is non-empty) disappeared together. A
+      // driver was left holding thirteen packages with no way back into their own round, which is
+      // 056's stranded-work shape arriving through the UI instead of the database.
+      //
+      // ⚠ It carries NEITHER a shop nor an order — the same CHECK requires both to be NULL for this
+      // kind, which is exactly why `collectionRun`'s projection has to exclude it (it maps stops onto
+      // `CollectionStopSummary`, which needs a shop name and code).
+      //
+      // A delivery round has no equivalent: it ends at the last customer, not back at the hub.
+      if (plan.kind === "collection") {
+        await tx.query(
+          `INSERT INTO public.round_stop (round_id, kind) VALUES ($1, 'hub_checkin')`,
+          [roundId],
+        );
+      }
     }
 
     // FR-004a — packages joining a round already under way.

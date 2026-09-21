@@ -170,7 +170,10 @@ export function DriversListScreen() {
 
       {/* ⚠ FR-032's outstanding-reports line stood here — a count of failed deliveries and packages
           missing at shops, as a sentence that led somewhere rather than a metric card. It read
-          `delivery_failure` and `collection_task_issue`, dropped with the work model. */}
+          `delivery_failure` and `collection_task_issue`, which 063's teardown dropped.
+          ⚠ 064 REBUILT THE CAPABILITY on `delivery_attempt_failure`, and it lives on its own screen
+          (Fleet → Exceptions) rather than as a count here — a list you can triage beats a number you
+          cannot act on. This comment stays as the pointer; it is no longer a gap. */}
 
       <DutyPanel />
 

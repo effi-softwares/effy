@@ -5,8 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.presentation.userMessage
 import com.effyshopping.driver.mobile.features.delivery.domain.AdvanceDrop
-import com.effyshopping.driver.mobile.features.delivery.domain.CompleteContactless
-import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithCode
 import com.effyshopping.driver.mobile.features.delivery.domain.CompleteWithMedia
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.features.delivery.domain.DeliveryRun
@@ -60,8 +58,6 @@ class DeliveryViewModel(
     private val getRun: GetDeliveryRun,
     private val getDrop: GetDrop,
     private val advanceDrop: AdvanceDrop,
-    private val completeWithCode: CompleteWithCode,
-    private val completeContactless: CompleteContactless,
     private val completeWithMedia: CompleteWithMedia,
     private val failDrop: FailDrop,
     private val newChangeId: () -> String,
@@ -105,12 +101,16 @@ class DeliveryViewModel(
         }
     }
 
-    fun deliverWithCode(dropId: String, code: String, note: String?) = complete {
-        completeWithCode(dropId, code, note, newChangeId())
-    }
-
-    fun deliverContactless(dropId: String, note: String?) = complete {
-        completeContactless(dropId, note, newChangeId())
+    /**
+     * Complete an unattended drop.
+     *
+     * ⚠ IT TAKES BYTES NOW (064, FR-002). Leaving a package with no evidence of where it was left is
+     * the case most likely to become a dispute, so contactless carries a photograph like every other
+     * proof — the METHOD is what records that nobody took it in hand. The backend refuses a
+     * contactless proof with no media, so a no-photo path here would simply 422 at the doorstep.
+     */
+    fun deliverContactless(dropId: String, bytes: ByteArray, note: String?) = complete {
+        completeWithMedia(dropId, ProofMethod.CONTACTLESS, bytes, note, newChangeId())
     }
 
     fun deliverWithPhoto(dropId: String, bytes: ByteArray, note: String?) = complete {

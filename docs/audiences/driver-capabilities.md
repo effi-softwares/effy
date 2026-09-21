@@ -237,7 +237,15 @@ the service does not declare, with Slice D's three proof routes listed as delibe
 | **Unassigned work with the reason nobody could take it** | — | ✅ 063 |
 | Reassign · unassign · reorder · lock | — | ✅ 063 (admin/manager) |
 | Read the day, including a **csa** | — | ✅ 063 |
-| Proof of delivery, custody events | ⛔ **Slice D** | ⛔ **Slice D** |
+| **Complete a drop with proof** (photo · signature · contactless) | ✅ 064 | — |
+| **Record a drop that could not be completed**, with a reason | ✅ 064 | — |
+| **`code` proof** | ⛔ **064 deferred** — no delivery code exists to check against (FR-003) | — |
+| **Hub check-in as outstanding work**, reachable after the last shop | ✅ 064 | — |
+| **Read proof back afterwards** (method · note · time · image) | ✅ 064 | — |
+| **Delivery exceptions**: reason, note, driver, order, where the package is | — | ✅ 064 |
+| Read exceptions, including a **csa** | — | ✅ 064 |
+| Close an exception | — | ✅ 064 (admin/manager, audited) |
+| **Custody**: who holds which package, and since when | ⚠ shown before a shift can end (FR-018) | ✅ 064 |
 | Offer / accept / decline | ⛔ **never** — drivers are employees; push-assign (D13) | — |
 | Distance, ETA, route optimisation, driver location | ⛔ **cut deliberately** (D20/D22), guarded by `no-location.guard.test.ts` | ⛔ |
 
@@ -246,10 +254,35 @@ the service does not declare, with Slice D's three proof routes listed as delibe
 - **Delivery instructions** — the contract carries the field; *nothing on the platform stores it*.
   There is no column anywhere and checkout never asks. Returns `null` rather than putting words on a
   driver's screen that no customer wrote.
-- **`proofCaptured` / proof detail** — always false/null until Slice D produces the records.
+- ~~**`proofCaptured` / proof detail**~~ — **BUILT BY 064.** ⚠ It had never carried a value for a
+  second reason too: `history()`'s `drops` array was hardcoded `[]`, so the field has existed on the
+  contract since 049 and surfaced nowhere. Both halves are real now.
 - **Activity read receipts** — the feed is derived from rounds, so there is nothing to mark read. The
   route exists (a 404 on a live screen is worse) and is an honest no-op.
+- **A delivery code** (064) — the `code` proof method is deferred rather than half-built. Verifying a
+  code means issuing one and showing it to the customer, which is a change on both customer surfaces;
+  until then a `code` submission is refused **by name**, at the service and by the database CHECK.
+- **Customer-facing proof** (064, FR-027) — a shopper cannot see the proof of their own delivery yet.
+  Expected in a later slice, and nothing here forecloses it: exposing method and capture time needs no
+  change to how proof is captured or stored.
 - **Volume and crate capacity** — vehicles record both; the catalogue describes no product volume, so
   the gate is **weight only**. A van full by volume and light by weight will be over-assigned, and the
   dispatcher sees it. Inventing a per-product volume would be a gate that looks enforced and is
   arithmetic over a guess.
+
+
+## §064 — Proof of delivery & custody
+
+**The defect it closed:** a same-day order could not reach `delivered` by any driver action at all.
+The only writer of that status was back-office's manual arrival path for carrier packages, so the
+driver who handed the package over had no way to record it.
+
+⚠ **Contactless now requires a photograph** (FR-002), reversing the app's one-tap flow. An unattended
+drop is the case most likely to become a dispute; the method still records that nobody took it in hand.
+
+⚠ **Proof media is archived, never deleted** — Glacier Instant Retrieval at 90 days, which reads
+through the ordinary API in milliseconds, so no read path behaves differently with an object's age.
+
+⚠ **The exception list is readable by a `csa`, deliberately.** 056 found the app had been recording
+undeliverable drops for a reader that did not exist, and a CSA is exactly who fields "where is my
+order". Gating the list behind a manager would rebuild that gap in a smaller form.

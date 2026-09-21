@@ -50,9 +50,14 @@ private fun TodayDTO.toDomain(): Today = Today(
 )
 
 private fun TodayItemRef.toDomain(): TodayItem = TodayItem(
+    // ⚠ EXHAUSTIVE ON PURPOSE — no `else`. Adding `HubCheckin` to the wire enum broke this `when` at
+    // COMPILE TIME, which is exactly what should happen: an `else` here would have mapped an unknown
+    // kind onto some existing one and the hub would have silently rendered as a shop stop. 053, 056,
+    // 057 and 059 each shipped a defect through an enum widening that nothing forced anyone to read.
     kind = when (kind) {
         TodayItemRefKind.CollectionStop -> TodayItem.Kind.COLLECTION_STOP
         TodayItemRefKind.DeliveryDrop -> TodayItem.Kind.DELIVERY_DROP
+        TodayItemRefKind.HubCheckin -> TodayItem.Kind.HUB_CHECKIN
     },
     id = id,
     runId = runID,

@@ -45,7 +45,11 @@ export type DispatchAuditAction =
   | "dispatch.unassign"
   | "dispatch.reorder"
   | "dispatch.lock"
-  | "dispatch.unlock";
+  | "dispatch.unlock"
+  // ⚠ 064 — closing a delivery exception. It is an assertion about the physical world (the package
+  // came back, or was re-delivered, or was written off) that no query can verify, so who said it and
+  // when is the only record there will ever be.
+  | "dispatch.exception_resolve";
 
 export type FleetAuditAction = DriverAuditAction | VehicleAuditAction | DispatchAuditAction;
 
@@ -54,7 +58,7 @@ export type FleetAuditAction = DriverAuditAction | VehicleAuditAction | Dispatch
  *  table, the helper and the redaction rules are shared, as Principle II requires.
  *  ⚠ 063 added 'driver_round' the same way, and deliberately did NOT add a second audit writer
  *  alongside: a private INSERT would have skipped the PII redaction above without anyone noticing. */
-export type AuditTargetType = "driver" | "vehicle" | "driver_round";
+export type AuditTargetType = "driver" | "vehicle" | "driver_round" | "delivery_exception";
 
 /**
  * Field names whose VALUES must never reach admin.audit_log. Presence is recorded; content is not.

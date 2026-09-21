@@ -25,12 +25,39 @@ import type { ScheduledHandler } from "aws-lambda";
 
 import { logger } from "@effy/edge-shared";
 
+import { maxCustodyHours } from "../dispatch/custody";
 import { runDuePlanning } from "../planner/service";
 
 export const handler: ScheduledHandler = async (_event, context) => {
   context.callbackWaitsForEmptyEventLoop = false;
   const scope = { log: logger.child({ awsRequestId: context.awsRequestId }) };
   const outcomes = await runDuePlanning();
+
+  // ⚠ 064 — CUSTODY IS MEASURED ON THE SCHEDULE, NOT ON A SCREEN OPENING. Goods sitting in a parked
+  // van are what 056 found could be stranded permanently and invisibly, and an alarm fed by a
+  // dispatcher's page view would be quiet precisely when nobody is looking. This rides along with a
+  // tick that runs regardless. A failure to measure must not take the planner down with it — the
+  // wave matters more than the gauge.
+  try {
+    const heldHours = await maxCustodyHours();
+    console.log(
+      JSON.stringify({
+        _aws: {
+          Timestamp: Date.now(),
+          CloudWatchMetrics: [
+            {
+              Namespace: "Effy/Dispatch",
+              Dimensions: [[]],
+              Metrics: [{ Name: "DriverPackagesHeldHours", Unit: "Count" }],
+            },
+          ],
+        },
+        DriverPackagesHeldHours: heldHours,
+      }),
+    );
+  } catch (err) {
+    scope.log.error({ err }, "dispatch.custody_measure_failed");
+  }
 
   for (const o of outcomes) {
     if (o.skippedReason !== null) {

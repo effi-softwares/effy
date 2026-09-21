@@ -436,8 +436,21 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     // ⚠ FR-004b — the driver must be told it changed.
     expect(rounds.rows[0].changed_note).toMatch(/Added EFY-T/);
 
-    const stops = await q(`SELECT count(*)::int AS n FROM public.round_stop`);
-    expect(stops.rows[0].n, "one shop, one stop").toBe(1);
+    // ⚠ COUNTS SHOP STOPS, NOT ALL STOPS (updated by 064). This asserted `count(*) = 1` and began
+    // failing when 064 gave every collection round a `hub_checkin` stop — correctly, because the
+    // round genuinely has two stops now. The behaviour under test is that a late package JOINS the
+    // existing shop stop instead of minting a second one, so the count is scoped to the kind that
+    // claim is about; a looser assertion would have stopped testing it.
+    const shopStops = await q(
+      `SELECT count(*)::int AS n FROM public.round_stop WHERE kind = 'shop_pickup'`,
+    );
+    expect(shopStops.rows[0].n, "one shop, one stop").toBe(1);
+
+    // And the hub stop is there — a collection round ends at the hub (064, FR-015).
+    const hub = await q(
+      `SELECT count(*)::int AS n FROM public.round_stop WHERE kind = 'hub_checkin'`,
+    );
+    expect(hub.rows[0].n, "a collection round ends at the hub").toBe(1);
   });
 
   it("C12 — it waits for the next wave when that shop's stop is already done", async () => {

@@ -12,7 +12,13 @@ data class TodayItem(
     val subtitle: String?,
     val status: String,
 ) {
-    enum class Kind { COLLECTION_STOP, DELIVERY_DROP }
+    /**
+     * ⚠ `HUB_CHECKIN` ADDED BY 064. A collection round ends at the hub, and until this existed the
+     * home screen had nothing to show once the last shop stop was done — the round became
+     * unreachable with the load still in the van. It is a stop like any other here; what makes it
+     * different is that it has no shop and no zone.
+     */
+    enum class Kind { COLLECTION_STOP, DELIVERY_DROP, HUB_CHECKIN }
 }
 
 /**

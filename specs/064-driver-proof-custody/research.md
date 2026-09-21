@@ -291,3 +291,42 @@ aggregate, which is the entire point of an exception list.
 | 3 | Re-attempt scheduling | Out of scope, unchanged from 063. |
 | 4 | Proof for standard packages after hub | Out of scope — an external carrier holds them. |
 | 5 | How long the archive is kept | **Indefinitely, by operator direction.** ⚠ Recorded tension: Australian Privacy Principle 11.2 expects personal information to be destroyed once no longer needed, and these are photographs of people's homes. A defensible bounded alternative is **7 years** — comfortably past the 6-year limitation period for contract and tort actions in Victoria (Limitation of Actions Act 1958) and aligned with the ATO's record-keeping convention. It is one `expiration` block to add later and needs no code change. Raised, not decided. |
+
+
+---
+
+## Phase 1 baseline (T001–T004, recorded 2026-09-21)
+
+Recorded so that any later failure is attributable to this slice rather than inherited.
+
+| Check | Result |
+|---|---|
+| `pnpm -r typecheck` | **20/20 Done** |
+| `edge-shared` | **126 passed** |
+| `edge-driver` | 17 passed / 16 skipped → ⚠ **33 passed with `CONTAINER_TESTS=1`** |
+| `edge-fleet` | 118 passed / 69 skipped |
+| `driver-contract:check` | ✅ **GREEN**, working tree clean |
+| Docker | **UP** |
+
+⚠ **`driver-contract:check` is green at HEAD, unlike when 063 began** — 063 found it already red
+because `1b386d8` had changed the TypeScript and never regenerated the Kotlin. It is clean now, so a
+red result after T009 is this slice's to fix and nobody else's.
+
+⚠ **Docker is UP, so the container tests will actually run** — 052 and 059 both shipped with theirs
+never executed, and 058's, when finally run, found three defects a fully green suite had missed.
+
+### T001 — the transaction shape the proof route must match
+
+Read from `apis/edge-api/driver/src/work/complete.ts`:
+
+- `withTransaction(async (tx) => …)` wraps the whole write.
+- The owning row is locked with `FOR UPDATE OF rs`, scoped by `driver_id`, and a miss throws
+  `NotFoundError` — which is also how "not yours" is answered, so the route is not an oracle.
+- ⚠ **Idempotency is by STATE, not by a dedupe table**: a stop already `done` returns the prior
+  outcome as a success rather than a conflict, because a retry is ordinary on a phone in a loading
+  bay and must not be something the driver has to think about.
+- The `shop_fulfillment` status write is explicitly load-bearing and carries a comment saying so —
+  without it the planner re-collects the same package forever with nothing failing.
+
+`delivery_proof`'s `UNIQUE (stop_id)` gives the proof route the same property structurally: a second
+proof is unrepresentable, so the retry path returns the original outcome by construction.
