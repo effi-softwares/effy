@@ -127,7 +127,7 @@ ships, guarding against someone loosening the type to `Record<string, string>` d
 **Operator**, in this order:
 1. **Commit the migration**, then `make db-up ENV=dev` (003 commit-guard). ⚠ **DESTRUCTIVE** — drops
    `driver.vehicle_type/_plate/_registration_expires_on` and `driver_duty_session.last_location_*`.
-2. `psql "$(infra/scripts/db-dsn.sh dev)" -f db/seeds/061_fleet_dev.sql`
+2. `psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -f db/seeds/061_fleet_dev.sql`
 3. `make edge-deploy SERVICE=fleet ENV=dev` — ⚠ **before the console**, or every screen 404s
 4. `make edge-deploy SERVICE=admin ENV=dev`
 5. `make edge-deploy SERVICE=driver ENV=dev` — last; it is the step that removes a route

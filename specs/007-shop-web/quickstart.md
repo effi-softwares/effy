@@ -69,9 +69,9 @@ make db-up ENV=dev               # OPERATOR — y/N confirm
 Verify the schema landed:
 
 ```bash
-psql "$(infra/scripts/db-dsn.sh dev)" -c "\dt public.*"
+psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -c "\dt public.*"
 # → shop, shop_role, shop_staff, shop_staff_role
-psql "$(infra/scripts/db-dsn.sh dev)" -c "SELECT key FROM public.shop_role ORDER BY key;"
+psql "$(AWS_PROFILE=ef infra/scripts/db-dsn.sh dev)" -c "SELECT key FROM public.shop_role ORDER BY key;"
 # → shop_manager, shop_staff
 ```
 
