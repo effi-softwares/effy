@@ -65,26 +65,6 @@ class HttpDeliveryRepository(
         }
     }
 
-    override suspend fun completeWithCode(dropId: String, code: String, note: String?, changeId: String) {
-        val path = "driver/v1/delivery/drops/$dropId/proof"
-        val body = ProofRequest(changeID = changeId, method = DtoProofMethod.Code, code = code, note = note)
-        request {
-            offline.withReplay(path, json.encodeToString(ProofRequest.serializer(), body), changeId, "Complete a delivery") {
-                api.post(path) { setBody(body) }.ensureSuccess()
-            }
-        }
-    }
-
-    override suspend fun completeContactless(dropId: String, note: String?, changeId: String) {
-        val path = "driver/v1/delivery/drops/$dropId/proof"
-        val body = ProofRequest(changeID = changeId, method = DtoProofMethod.Contactless, note = note)
-        request {
-            offline.withReplay(path, json.encodeToString(ProofRequest.serializer(), body), changeId, "Complete a delivery") {
-                api.post(path) { setBody(body) }.ensureSuccess()
-            }
-        }
-    }
-
     override suspend fun completeWithMedia(dropId: String, method: ProofMethod, bytes: ByteArray, note: String?, changeId: String) {
         // 1. Presign (driver-authed). 2. PUT bytes to S3 (no bearer). 3. Complete the proof with the key.
         // NOT offline-queueable (the bytes can't be replayed cheaply) — a media proof needs connectivity.
@@ -95,8 +75,24 @@ class HttpDeliveryRepository(
             }.ensureSuccess().body<ProofPresignResponse>()
         }
         val uploaded = uploadBytes(presign.uploadURL, bytes, contentType)
+        // ⚠ FR-006 — the drop is NOT completed if the image did not land. The submission below carries
+        // a key to something already stored, so a delivery can never be marked against proof that
+        // failed to upload. This is also why the media path is not offline-queueable: bytes do not
+        // belong in a replay queue (research R9).
         if (!uploaded) throw AppException(AppError.Network)
-        val dtoMethod = if (method == ProofMethod.PHOTO) DtoProofMethod.Photo else DtoProofMethod.Signature
+
+        // ⚠ THIS WAS `if (method == PHOTO) Photo else Signature`, AND IT WAS A LATENT DEFECT. Any
+        // method that was not PHOTO became a SIGNATURE — harmless while only two methods reached
+        // here, and silently wrong the moment CONTACTLESS did (064 routes it through this path, since
+        // an unattended drop must be photographed). The backend would have ACCEPTED it: signature +
+        // mediaKey is a valid proof. Every "left at the door" would have been recorded as a customer
+        // signature, with nothing failing anywhere. An exhaustive `when` makes the next method a
+        // compile error instead.
+        val dtoMethod = when (method) {
+            ProofMethod.PHOTO -> DtoProofMethod.Photo
+            ProofMethod.SIGNATURE -> DtoProofMethod.Signature
+            ProofMethod.CONTACTLESS -> DtoProofMethod.Contactless
+        }
         request {
             api.post("driver/v1/delivery/drops/$dropId/proof") {
                 setBody(ProofRequest(changeID = changeId, method = dtoMethod, mediaKey = presign.mediaKey, note = note))

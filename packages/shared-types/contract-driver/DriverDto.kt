@@ -346,6 +346,21 @@ data class DropStatusResponse (
  */
 @Serializable
 data class DutyRequest (
+    /**
+     * ⚠ 064, FR-018 — "I have seen what I am carrying and I am going off duty anyway."
+     *
+     * Going off duty with packages still in the van is REFUSED (409) until this is set, and the
+     * refusal names every package. It is a confirmation, not a bypass: the requirement is that
+     * a shift cannot end SILENTLY on a van with goods in it, not that it cannot end at all — a
+     * driver whose van is genuinely empty, or who handed over some other way, says so and goes
+     * home.
+     *
+     * 056 found that standing a driver down could strand physical goods permanently and
+     * invisibly: the release sweep deliberately never reclaims picked-up work, so nothing else
+     * would ever mention it.
+     */
+    val acknowledgeHeldPackages: Boolean? = null,
+
     @SerialName("changeId")
     val changeID: String,
 
@@ -670,6 +685,14 @@ data class TodayDTO (
 
 /**
  * A compact reference to the active/queued work item shown on the home.
+ *
+ * ⚠ `"hub_checkin"` ADDED BY 064, AND IT FIXES A LIVE DEFECT. A collection round's work did
+ * not end at its last shop — the load still has to be checked in at the hub — but the hub
+ * had no representation here, so `todayView`'s outstanding filter emptied the moment the
+ * final shop stop went `done`. Both routes into the round (the hero card, drawn from
+ * `active`, and the "Whole run" link, drawn only when `upNext` is non-empty) vanished at
+ * exactly that point. Found live on 2026-09-21 with a driver holding thirteen packages and
+ * no way back into their own round.
  */
 @Serializable
 data class TodayItemRef (
@@ -687,7 +710,8 @@ data class TodayItemRef (
 @Serializable
 enum class TodayItemRefKind(val value: String) {
     @SerialName("collection_stop") CollectionStop("collection_stop"),
-    @SerialName("delivery_drop") DeliveryDrop("delivery_drop");
+    @SerialName("delivery_drop") DeliveryDrop("delivery_drop"),
+    @SerialName("hub_checkin") HubCheckin("hub_checkin");
 }
 
 /**

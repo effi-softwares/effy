@@ -3,6 +3,7 @@
 import {
   collectionDeadline,
   endOfLocalDay,
+  nextPlanningTime,
   runsDueForPlanning,
   wavePlanningTime,
   type CollectionRun,
@@ -27,6 +28,8 @@ export interface WaveOutcome {
   unassigned: number;
   /** Null when there was simply nothing to do — not an error, and not worth an alarm. */
   skippedReason: string | null;
+  /** Set only on a `no_run_due` skip: when the next collection wave will be planned. */
+  nextPlanningAt?: Date | null;
 }
 
 /**
@@ -49,6 +52,24 @@ export async function runDuePlanning(now = new Date()): Promise<WaveOutcome[]> {
 
   const due = runsDueForPlanning(runs, settings.prepBufferMin, settings.planningLeadMin, now);
   const outcomes: WaveOutcome[] = [];
+
+  if (due.length === 0) {
+    // ⚠ REPORTED, NOT PASSED OVER IN SILENCE. The loop below simply does not execute when nothing is
+    // due, so collection previously emitted no log line whatsoever — and "no run is due yet" became
+    // indistinguishable from "the planner is dead". It cost a live investigation: 14 packages ready,
+    // an on-duty driver, an empty app, and nothing anywhere connecting the three. The next planning
+    // instant rides along so the log answers "then when?" without anyone recomputing the schedule.
+    const next = nextPlanningTime(runs, settings.prepBufferMin, settings.planningLeadMin, now);
+    outcomes.push({
+      kind: "collection",
+      waveId: null,
+      considered: 0,
+      assigned: 0,
+      unassigned: 0,
+      skippedReason: "no_run_due",
+      nextPlanningAt: next,
+    });
+  }
 
   for (const run of due) {
     outcomes.push(await planCollectionWave(run, settings, now, "schedule", null));

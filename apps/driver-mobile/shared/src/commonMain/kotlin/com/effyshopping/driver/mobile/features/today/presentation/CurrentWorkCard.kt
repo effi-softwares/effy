@@ -52,8 +52,22 @@ fun CurrentWorkCard(
     modifier: Modifier = Modifier,
 ) {
     val isCollection = phase == Phase.COLLECTION
-    val kicker = if (isCollection) "CURRENT STOP" else "CURRENT DROP"
-    val actionChip = if (isCollection) "Collect" else "Deliver"
+
+    // ⚠ THE LABELS FOLLOW THE ITEM, NOT JUST THE PHASE (064). When the hub is the current work — the
+    // last step of a collection round, once every shop is done — a card reading "CURRENT STOP /
+    // Collect" would tell a driver to collect from the hub they are about to hand the load to.
+    // Deriving chrome from the phase alone was fine while every item WAS a stop.
+    val isHub = item.kind == TodayItem.Kind.HUB_CHECKIN
+    val kicker = when {
+        isHub -> "LAST STEP"
+        isCollection -> "CURRENT STOP"
+        else -> "CURRENT DROP"
+    }
+    val actionChip = when {
+        isHub -> "Check in"
+        isCollection -> "Collect"
+        else -> "Deliver"
+    }
 
     Column(modifier.fillMaxWidth()) {
         Text(

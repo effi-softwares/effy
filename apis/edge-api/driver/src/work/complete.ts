@@ -163,6 +163,21 @@ export async function hubCheckin(
       [runId, driverId, expected, arrived],
     );
 
+    // ⚠ 064 — CLOSE THE HUB STOP TOO, or the round's own work item outlives the round.
+    //
+    // 064 made hub check-in a `round_stop`, which is what gives a driver something outstanding to see
+    // (and somewhere to tap) once every shop has been collected. If checking in did not complete that
+    // stop, `todayView` would keep offering it forever on a round already marked `completed` — the
+    // mirror image of the defect the stop was added to fix.
+    //
+    // Guarded on `status <> 'done'` so a retry stays a no-op, like the check-in insert above.
+    await tx.query(
+      `UPDATE public.round_stop
+          SET status = 'done', completed_at = now()
+        WHERE round_id = $1 AND kind = 'hub_checkin' AND status <> 'done'`,
+      [runId],
+    );
+
     await tx.query(
       `UPDATE public.driver_round SET status = 'completed', updated_at = now() WHERE id = $1`,
       [runId],

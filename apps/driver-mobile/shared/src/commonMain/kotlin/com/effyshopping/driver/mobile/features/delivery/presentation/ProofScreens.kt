@@ -49,7 +49,17 @@ import com.effyshopping.mobile.kit.ui.DigitBoxes
 import com.effyshopping.mobile.kit.ui.NumericKeypad
 
 /** Which proof step the driver is on. Local to a drop — see `ArrivedFlow`. */
-internal enum class ProofStep { PICK, PHOTO, CODE, SIGNATURE, CONTACTLESS }
+/**
+ * ⚠ `CODE` REMOVED AND `CONTACTLESS_PHOTO` ADDED BY 064.
+ *
+ * `CODE` is gone because no delivery code exists on the platform to check one against (FR-003) — the
+ * backend refuses the method by name, so offering it would walk a driver to a doorstep and then fail.
+ *
+ * `CONTACTLESS_PHOTO` is the second half of an unattended drop: the driver says WHERE they left it,
+ * then photographs it (FR-002). Two steps rather than one screen because the spot is chosen before
+ * the camera opens, and a camera that opens before the driver has decided is a camera they dismiss.
+ */
+internal enum class ProofStep { PICK, PHOTO, SIGNATURE, CONTACTLESS, CONTACTLESS_PHOTO }
 
 // ── Picker (design screen `proof-pick`) ─────────────────────────────────────────────────────────
 
@@ -90,9 +100,12 @@ internal fun ProofPicker(
             if (photoAvailable) {
                 ProofOption("Photo", "Snap the packages where you left them") { onPick(ProofStep.PHOTO) }
             }
-            ProofOption("Delivery code", "Customer reads you 4 digits") { onPick(ProofStep.CODE) }
             ProofOption("Signature", "Customer signs on your screen") { onPick(ProofStep.SIGNATURE) }
-            ProofOption("Leave at door", "Contactless drop with a note") { onPick(ProofStep.CONTACTLESS) }
+            if (photoAvailable) {
+                // ⚠ Gated on the camera: an unattended drop MUST be photographed (FR-002), so
+                // without capture there is no honest way to offer it.
+                ProofOption("Leave at door", "Say where, then photograph it") { onPick(ProofStep.CONTACTLESS) }
+            }
 
             Spacer(Modifier.height(22.dp))
             Text(
@@ -239,98 +252,18 @@ internal fun ProofPhotoScreen(
     }
 }
 
-// ── Delivery code (design screen `proof-code`) ──────────────────────────────────────────────────
+// ── Delivery code — REMOVED BY 064 ──────────────────────────────────────────────────────────────
+//
+// ⚠ `ProofCodeScreen` AND ITS STEP ARE GONE, NOT HIDDEN (FR-003, research R4). No delivery code
+// exists anywhere on this platform — `delivery_code` appears in no service, migration, contract or
+// app — so there has never been anything for a four-digit entry to be checked against. The backend
+// refuses `method: "code"` by name and the database CHECK excludes the value.
+//
+// It is DELETED rather than left behind a flag because a screen nothing routes to is dead code that
+// reads as a feature, and the next person to find it restores it by resemblance. When a code is
+// actually issued, this screen comes back with the mechanism that makes it mean something — and
+// `NumericKeypad`, which it was the motivating case for, is still here for that.
 
-/**
- * The customer's four-digit code (060 US1, FR-020, design screen `proof-code`).
- *
- * ⚠ **This is the case the in-app keypad is FOR** (see `NumericKeypad`). Four digits a customer
- * reads aloud while the driver holds the phone one-handed at a doorstep: nothing autofills it, and
- * a system keyboard would cover half the screen to collect four characters. The sign-in code is the
- * opposite case and deliberately keeps its text field.
- */
-@Composable
-internal fun ProofCodeScreen(
-    customerName: String,
-    working: Boolean,
-    isError: Boolean,
-    reducedMotion: Boolean,
-    onBack: () -> Unit,
-    onUsePhotoInstead: (() -> Unit)?,
-    onConfirm: (String) -> Unit,
-) {
-    var code by remember { mutableStateOf("") }
-
-    Column(Modifier.fillMaxSize()) {
-        ProofHeader(title = "Delivery code", trailing = null, onBack = onBack)
-
-        Column(Modifier.weight(1f).padding(horizontal = 20.dp)) {
-            Text(
-                "Ask $customerName for their 4-digit code",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "It's in their Effy same-day confirmation.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(24.dp))
-
-            DigitBoxes(value = code, length = 4, isError = isError, reducedMotion = reducedMotion)
-
-            if (isError) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "That code didn't match. Check it and try again.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            }
-
-            onUsePhotoInstead?.let {
-                Spacer(Modifier.height(16.dp))
-                TextButton(onClick = it, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text("Customer doesn't have the code? Use photo instead.")
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            NumericKeypad(
-                onDigit = { d -> if (code.length < 4) code += d },
-                onBackspace = { code = code.dropLast(1) },
-                enabled = !working,
-            )
-            Spacer(Modifier.height(12.dp))
-            Button(
-                onClick = { onConfirm(code) },
-                enabled = code.length == 4 && !working,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-            ) {
-                Text(
-                    "Confirm delivery",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-// ── Contactless (design screen `proof-contactless`) ─────────────────────────────────────────────
-
-/**
- * Leave at door (060 US1, FR-023, design screen `proof-contactless`).
- *
- * ⚠ **The named drop-spots replace free text, and that is a correctness change.** A typed answer
- * cannot be matched against a customer's later claim, and at a doorstep it mostly is not typed at
- * all. The chosen spot is serialised into the note the repository already accepts, so no contract
- * changes.
- */
 @Composable
 internal fun ProofContactlessScreen(
     working: Boolean,

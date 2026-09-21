@@ -75,3 +75,65 @@ resource "aws_ssm_parameter" "media_bucket" {
   value = aws_s3_bucket.product_media.bucket
   tier  = "Standard"
 }
+
+# ── 064 — delivery proof archival ───────────────────────────────────────────────────────────────
+#
+# ⚠ PROOF IS ARCHIVED, NEVER DELETED (operator direction, 2026-09-21). It is evidence: a photograph or
+# a signature that answers "did this delivery happen?" long after everyone has forgotten. The rule
+# below moves it to cheaper storage once the active dispute window has closed — a submitted refund can
+# be rejected up to thirty days later (055) — and there is deliberately NO `expiration` block.
+#
+# ⚠ GLACIER_IR SPECIFICALLY, AND THE CHOICE IS LOAD-BEARING. Glacier Instant Retrieval serves a
+# GetObject in MILLISECONDS through the ordinary S3 API, so the presigned GET the driver app and the
+# back-office console already use keeps working untouched. GLACIER (Flexible) and DEEP_ARCHIVE both
+# require an asynchronous RestoreObject and a wait of minutes or hours, which would fork every read
+# path into "recent" and "archived" behaviour and add a restore-and-notify flow, polling, and a UI
+# state for "your evidence is being retrieved".
+#
+# The saving does not justify it. A proof image is ~200 KB; at 500 deliveries a day that is ~36 GB a
+# year, which GLACIER_IR holds for about $0.15/month per year accumulated. DEEP_ARCHIVE would save
+# roughly $0.11/month and cost an entire asynchronous retrieval subsystem. Archiving this way costs
+# ZERO CODE — the storage class changes underneath and nothing above it can tell.
+#
+# ⚠⚠ THE PREFIX FILTER IS NOT COSMETIC. This bucket is shared: `products/` holds the live catalogue
+# and `promotions/` holds banner artwork. An unscoped rule would push every product image into an
+# archive tier, where the storefront would still render perfectly and silently bill a retrieval fee on
+# EVERY PAGE VIEW. `PROOF_MEDIA_PREFIX` in @effy/edge-shared is the same value, and
+# `proof-prefix.guard.test.ts` reads this file to prove the two agree.
+#
+# ⚠ A NEAR-MISS WORTH RECORDING. While retention was still time-limited this was going to be an
+# `expiration` — and versioning is ENABLED on this bucket (above), where `expiration` does not delete
+# anything: it writes a delete marker and the object version persists indefinitely. The platform would
+# have reported every photograph deleted while all of them remained in S3, and it would have passed
+# `terraform validate`, applied cleanly, and shown the right thing in every console and test. 058's
+# `WriteTimeout` and 024's VectorDrawable are the same shape: valid, applies, wrong only where it runs.
+resource "aws_s3_bucket_lifecycle_configuration" "product_media" {
+  bucket = aws_s3_bucket.product_media.id
+
+  rule {
+    id     = "proof-archive"
+    status = "Enabled"
+
+    filter {
+      prefix = "proof/"
+    }
+
+    transition {
+      days          = 90
+      storage_class = "GLACIER_IR"
+    }
+
+    # Versioning is on, so an overwritten object leaves a noncurrent version behind. Proof keys carry
+    # a random token and are never reused, so this should match nothing — it exists so that if one
+    # ever does appear it is archived with everything else rather than sitting in STANDARD unnoticed.
+    noncurrent_version_transition {
+      noncurrent_days = 90
+      storage_class   = "GLACIER_IR"
+    }
+
+    # An upload the driver's phone abandoned mid-flight is billable storage nothing will ever read.
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}

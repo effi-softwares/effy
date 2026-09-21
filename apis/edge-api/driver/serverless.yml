@@ -43,12 +43,23 @@ provider:
     DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
     DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
     DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # 064 — delivery proof media. The bucket is shared with product and promotion media; proof is
+    # written under the `proof/` prefix, which is what the Terraform lifecycle rule archives.
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
   iam:
     role:
       statements:
         - Effect: Allow
           Action: secretsmanager:GetSecretValue
           Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # 064 — presigned PUT for proof capture and presigned GET to read it back. ⚠ Scoped to the
+        # media bucket's objects, never the bucket itself: this service must not be able to list it,
+        # which would expose every product and promotion key to a driver-pool credential.
+        - Effect: Allow
+          Action:
+            - s3:PutObject
+            - s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
   layers:
     - ${param:secretsExtensionArn}
   # NO provider.vpc — functions run OUTSIDE the VPC (dev posture), same rationale as edge-shop/admin:
@@ -182,11 +193,45 @@ functions:
 
   driverDropStatusV1:
     handler: src/functions/driver-drop-status-v1-post.handler
-    description: 063 — progress a drop. ⚠ `delivered` requires proof and is Slice D.
+    description: 063 - progress a drop to en_route/arrived. Completion is the 064 proof route.
     events:
       - httpApi:
           method: POST
           path: /driver/v1/delivery/drops/{dropId}/status
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  # ── 064 — proof of delivery ────────────────────────────────────────────────────────────────────
+  driverDropProofPresignV1:
+    handler: src/functions/driver-drop-proof-presign-v1-post.handler
+    description: 064 - mint a presigned PUT for proof media under the proof/ prefix.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/proof/presign
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDropProofV1:
+    handler: src/functions/driver-drop-proof-v1-post.handler
+    description: 064 - complete a drop with proof. This route IS the delivery completion.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/proof
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}
+
+  driverDropFailV1:
+    handler: src/functions/driver-drop-fail-v1-post.handler
+    description: 064 - record a drop that could not be completed. Never marks anything delivered.
+    events:
+      - httpApi:
+          method: POST
+          path: /driver/v1/delivery/drops/{dropId}/fail
           authorizer:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/driver_id}

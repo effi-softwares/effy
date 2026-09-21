@@ -23,11 +23,14 @@ const APP_SRC = resolve(__dirname, "../../../../../apps/driver-mobile/shared/src
 const SERVERLESS = resolve(__dirname, "../../serverless.yml");
 
 /** Slice D — the three custody mechanisms (D16). Each must be built, or deliberately un-listed here. */
-const DEFERRED_TO_SLICE_D = [
-  "driver/v1/delivery/drops/{}/proof",
-  "driver/v1/delivery/drops/{}/proof/presign",
-  "driver/v1/delivery/drops/{}/fail",
-];
+// ⚠ EMPTY, AND THAT IS THE POINT. 064 built all three routes this list held — `.../proof`,
+// `.../proof/presign` and `.../fail` — and each entry was deleted as its route landed. The second
+// test below is what forced that: a deferred route the app no longer calls fails the suite, so the
+// list cannot rot into a place where entries are added and never removed.
+//
+// It stays declared (rather than being deleted with its last entry) because the NEXT deferral should
+// be recorded here with its reason, not invented somewhere else.
+const DEFERRED_TO_SLICE_D: string[] = [];
 
 function kotlinFiles(dir: string): string[] {
   const out: string[] = [];

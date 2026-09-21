@@ -36,7 +36,13 @@ export const DAY_ROUNDS = `
  */
 export const UNASSIGNED_WORK = `
   WITH latest AS (
-    SELECT id FROM public.dispatch_wave ORDER BY started_at DESC LIMIT 1
+    -- ⚠ SCOPED TO 'collection', AND THE SCOPE IS THE WHOLE POINT. This panel lists packages that are
+    -- ready_for_pickup — collection work — and their exclusion rows are written against the
+    -- COLLECTION wave. An unscoped "latest wave" is almost always the DELIVERY wave, because the
+    -- planner writes one on every tick roughly 30ms after the collection wave, so the join matched
+    -- nothing and every row rendered with an empty reason. Found live: 14 packages listed with no
+    -- explanation while the reasons sat in the database against the previous wave id.
+    SELECT id FROM public.dispatch_wave WHERE kind = 'collection' ORDER BY started_at DESC LIMIT 1
   )
   SELECT sf.id                                   AS package_id,
          o.order_number                          AS order_number,
@@ -106,3 +112,9 @@ export const ROUND_DETAIL_STOPS = `
    WHERE rs.round_id = $1
    ORDER BY rs.seq NULLS LAST, rs.id
 `;
+
+// ⚠ `CUSTODY_BY_DRIVER` MOVED TO `@effy/edge-shared` (064). Two services ask "who is holding this?":
+// this one, for the dispatcher's custody view, and `edge-api/driver`, which must state what a driver
+// holds before their shift can end (FR-018). They are separate Lambda stacks and neither can import
+// the other's `src/`, so the rule lives in the package they both depend on (Principle II).
+export { CUSTODY_BY_DRIVER } from "@effy/edge-shared";

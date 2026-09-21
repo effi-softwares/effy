@@ -188,8 +188,7 @@ fun DropDetailScreen(
     onBack: () -> Unit,
     onNavigate: (String) -> Unit,
     onAdvance: (String) -> Unit,
-    onDeliverCode: (String, String?) -> Unit,
-    onDeliverContactless: (String?) -> Unit,
+    onDeliverContactless: (ByteArray, String?) -> Unit,
     onDeliverPhoto: (ByteArray, String?) -> Unit,
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
@@ -259,7 +258,6 @@ fun DropDetailScreen(
                     reducedMotion = reducedMotion,
                     dropsDone = state.run?.drops?.count { it.status == DropStatus.DELIVERED },
                     dropsLeft = state.run?.drops?.count { it.status != DropStatus.DELIVERED && it.status != DropStatus.FAILED },
-                    onDeliverCode = onDeliverCode,
                     onDeliverContactless = onDeliverContactless,
                     onDeliverPhoto = onDeliverPhoto,
                     onDeliverSignature = onDeliverSignature,
@@ -398,8 +396,7 @@ private fun ArrivedFlow(
     reducedMotion: Boolean,
     dropsDone: Int?,
     dropsLeft: Int?,
-    onDeliverCode: (String, String?) -> Unit,
-    onDeliverContactless: (String?) -> Unit,
+    onDeliverContactless: (ByteArray, String?) -> Unit,
     onDeliverPhoto: (ByteArray, String?) -> Unit,
     onDeliverSignature: (ByteArray, String?) -> Unit,
     onFail: (FailureReason, String?) -> Unit,
@@ -431,16 +428,6 @@ private fun ArrivedFlow(
             onCaptured = { bytes -> onDeliverPhoto(bytes, note.ifBlank { null }) },
         )
 
-        step == ProofStep.CODE -> ProofCodeScreen(
-            customerName = drop.customerName,
-            working = state.isWorking,
-            isError = state.message != null,
-            reducedMotion = reducedMotion,
-            onBack = { step = null },
-            onUsePhotoInstead = photoCapture?.let { { step = ProofStep.PHOTO } },
-            onConfirm = { code -> onDeliverCode(code, note.ifBlank { null }) },
-        )
-
         step == ProofStep.SIGNATURE -> Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         ) {
@@ -465,13 +452,26 @@ private fun ArrivedFlow(
             onNoteChange = { note = it },
             onBack = { step = null },
             onConfirm = {
-                // \u26a0 The chosen spot is serialised into the note the repository already takes,
-                // so no contract changes (FR-023).
+                // \u26a0 064 — THE SPOT IS NOT THE PROOF. Choosing "front door" records what the driver
+                // says; the photograph records what is true. An unattended drop is the case most
+                // likely to be disputed (FR-002), so this step now leads to the camera rather than
+                // completing the delivery.
+                step = ProofStep.CONTACTLESS_PHOTO
+            },
+        )
+
+        step == ProofStep.CONTACTLESS_PHOTO -> ProofPhotoScreen(
+            drop = drop,
+            working = state.isWorking,
+            onBack = { step = ProofStep.CONTACTLESS },
+            onCaptured = { bytes ->
+                // \u26a0 The chosen spot is serialised into the note the repository already takes, so
+                // no contract change (FR-023, carried over from 060).
                 val composed = listOfNotNull(
                     spot?.let { "Left at: ${it.label}" },
                     note.takeIf { it.isNotBlank() },
                 ).joinToString(" \u2014 ").ifBlank { null }
-                onDeliverContactless(composed)
+                onDeliverContactless(bytes, composed)
             },
         )
 

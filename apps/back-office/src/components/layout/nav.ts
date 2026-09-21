@@ -1,4 +1,4 @@
-import { BadgePercent, Car, LayoutDashboard, Route, MailWarning, MessageSquare, Package, Shield, Store, Tags, Truck, Users } from "lucide-react";
+import { BadgePercent, Car, LayoutDashboard, Route, MailWarning, MessageSquare, Package, PackageX, Shield, Store, Tags, Truck, Users } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -47,6 +47,12 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // — reassign, unassign, reorder, lock — is admin/manager, gated in-screen and independently
   // enforced by edge-fleet per route.
   { label: "Dispatch", to: "/dispatch", icon: Route },
+  // ⚠ Exceptions has NO requiredRole either, and this is the screen where it matters most. 056 found
+  // the driver app had been recording undeliverable drops "for a reader that does not exist" — the
+  // shopper kept seeing "on the way" with nobody at Effy told. A CSA is who fields that call, so
+  // hiding the LIST from them would rebuild the gap. Closing one is admin/manager (gated in-screen,
+  // enforced by edge-fleet per route).
+  { label: "Exceptions", to: "/exceptions", icon: PackageX },
   // Deliverability has NO requiredRole: every back-office role sees it, csa included. A CSA is
   // exactly who is on the phone to the person who cannot sign in, and "we can't reach your address"
   // is the whole answer to that call. Only the REPAIR is admin/manager (gated in-screen, enforced by

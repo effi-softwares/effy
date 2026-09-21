@@ -20,7 +20,8 @@ id** alone. `orderNumber` is deliberately **absent** (a customer-facing referenc
 | `shop_stop_collected` | `{ runId }` | All assigned packages at a shop stop are collected |
 | `hub_checked_in` | `{ runId }` | Collected packages are checked in at the hub (same-day/standard split shown) |
 | `delivery_run_opened` | `{ runId }` | A same-day delivery run is opened |
-| `drop_completed` | `{ proof }` | A drop is completed (`proof`: `delivery_code` \| `contactless`) |
+| `drop_completed` | `{ proof }` | A drop is completed (`proof`: `photo` \| `signature` \| `contactless`). ⚠ 064 removed `delivery_code` — no delivery code exists on the platform to check one against (FR-003), and `contactless` now carries a photograph (FR-002). |
+| `proof_upload_failed` | `{ reason }` | A proof image could not be uploaded, so the drop was NOT completed (FR-006). ⚠ Client-only by necessity: the bytes go straight to S3 against a presigned url and never reach a Lambda, so a failed upload is invisible to the backend. |
 
 > Adding an event means adding it to the app's `AnalyticsEvent` sealed class **and** this table
 > **first** (typed), never inlining a string at the call site. Cross-surface events

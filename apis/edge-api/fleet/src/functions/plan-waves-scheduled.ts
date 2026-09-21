@@ -9,19 +9,69 @@
 // ⚠ OVERLAPPING INVOCATIONS MUST BE SAFE. A retry after a timeout is indistinguishable from the next
 // tick, and both can read the same gather result. Exclusivity is the partial unique index
 // `round_package_open_uq`, not this handler's timing (research R6).
-import type { Context } from "aws-lambda";
+// ⚠ `ScheduledHandler` AND `logger`, NOT `preamble`. `preamble` reads
+// `event.requestContext.requestId` — it exists to correlate an HTTP request, and an EventBridge
+// event has no `requestContext` at all.
+//
+// ⚠ THIS SHIPPED WRONG AND THE PLANNER NEVER RAN ONCE. Every invocation since deploy died on the
+// handler's first line with `Cannot read properties of undefined (reading 'requestId')`, three times
+// per tick because Lambda retries an async invocation twice. Nothing caught it: the pure planner
+// tests never touch the handler, the container tests call the repository directly, and the
+// config-contract test reads the YAML. `event as never` is what silenced the one check that would
+// have — a cast asserting a shape the runtime never produces.
+//
+// The notifications drain (050) had the right shape all along; this now matches it.
+import type { ScheduledHandler } from "aws-lambda";
 
-import { preamble } from "@effy/edge-shared";
+import { logger } from "@effy/edge-shared";
 
+import { maxCustodyHours } from "../dispatch/custody";
 import { runDuePlanning } from "../planner/service";
 
-export const handler = async (event: unknown, context: Context): Promise<void> => {
-  const scope = preamble(event as never, context);
+export const handler: ScheduledHandler = async (_event, context) => {
+  context.callbackWaitsForEmptyEventLoop = false;
+  const scope = { log: logger.child({ awsRequestId: context.awsRequestId }) };
   const outcomes = await runDuePlanning();
+
+  // ⚠ 064 — CUSTODY IS MEASURED ON THE SCHEDULE, NOT ON A SCREEN OPENING. Goods sitting in a parked
+  // van are what 056 found could be stranded permanently and invisibly, and an alarm fed by a
+  // dispatcher's page view would be quiet precisely when nobody is looking. This rides along with a
+  // tick that runs regardless. A failure to measure must not take the planner down with it — the
+  // wave matters more than the gauge.
+  try {
+    const heldHours = await maxCustodyHours();
+    console.log(
+      JSON.stringify({
+        _aws: {
+          Timestamp: Date.now(),
+          CloudWatchMetrics: [
+            {
+              Namespace: "Effy/Dispatch",
+              Dimensions: [[]],
+              Metrics: [{ Name: "DriverPackagesHeldHours", Unit: "Count" }],
+            },
+          ],
+        },
+        DriverPackagesHeldHours: heldHours,
+      }),
+    );
+  } catch (err) {
+    scope.log.error({ err }, "dispatch.custody_measure_failed");
+  }
 
   for (const o of outcomes) {
     if (o.skippedReason !== null) {
-      scope.log.info({ kind: o.kind, skipped: o.skippedReason }, "dispatch.wave_skipped");
+      // ⚠ `nextPlanningAt` rides along on a `no_run_due` skip so the log answers "then when?".
+      // Without it, "no collection run is due for another seven hours" and "the planner is dead"
+      // produce identical output — which is exactly the ambiguity that cost a live investigation.
+      scope.log.info(
+        {
+          kind: o.kind,
+          skipped: o.skippedReason,
+          ...(o.nextPlanningAt ? { nextPlanningAt: o.nextPlanningAt.toISOString() } : {}),
+        },
+        "dispatch.wave_skipped",
+      );
       continue;
     }
 

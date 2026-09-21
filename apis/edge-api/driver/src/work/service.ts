@@ -89,20 +89,44 @@ export async function today(driverId: string): Promise<TodayDTO> {
   ]);
   const byStop = packagesByStop(packages);
   const sorted = ordered(stops);
+
+  // ⚠ 064 — `outstanding` IS WHY THE HUB HAD TO BECOME A STOP. It keeps only work still to be done,
+  // which is correct; the defect was that a collection round had nothing left in it once the last
+  // shop was collected, while the load was still in the van. The hub stop is what fills that gap, so
+  // `active`, `upNext` and `remainingCount` all keep describing reality until the load is checked in.
   const outstanding = sorted.filter((s) => s.stop_status === "pending" || s.stop_status === "arrived");
+
+  // What the driver is physically holding — the hub row's subtitle, and the honest count.
+  const totalPackages = packages.filter((p) => p.state === "picked_up").length;
 
   const phase: DriverPhase = round.kind === "collection" ? "collection" : "same_day_delivery";
 
-  const toRef = (s: StopRow): TodayItemRef => ({
-    kind: round.kind === "collection" ? "collection_stop" : "delivery_drop",
-    id: s.stop_id,
-    runId: round.id,
-    // ⚠ No address detail and no money on the home screen — the contract says so and 049 FR-013
-    // keeps currency out of the driver domain entirely.
-    title: round.kind === "collection" ? (s.shop_name ?? "Shop") : (s.destination_suburb ?? "Delivery"),
-    subtitle: (byStop.get(s.stop_id)?.length ?? 0) > 0 ? `${byStop.get(s.stop_id)!.length} packages` : null,
-    status: s.stop_status,
-  });
+  const toRef = (s: StopRow): TodayItemRef => {
+    // ⚠ 064 — THE HUB IS A WORK ITEM NOW, and it needs its own title because it has no shop and no
+    // destination to borrow one from. Before this it fell through to "Shop", which is what an
+    // identity-less stop looks like when a default is doing the work a case should.
+    if (s.stop_kind === "hub_checkin") {
+      const held = totalPackages;
+      return {
+        kind: "hub_checkin",
+        id: s.stop_id,
+        runId: round.id,
+        title: "Hub check-in",
+        subtitle: held > 0 ? `${held} packages to check in` : null,
+        status: s.stop_status,
+      };
+    }
+    return {
+      kind: round.kind === "collection" ? "collection_stop" : "delivery_drop",
+      id: s.stop_id,
+      runId: round.id,
+      // ⚠ No address detail and no money on the home screen — the contract says so and 049 FR-013
+      // keeps currency out of the driver domain entirely.
+      title: round.kind === "collection" ? (s.shop_name ?? "Shop") : (s.destination_suburb ?? "Delivery"),
+      subtitle: (byStop.get(s.stop_id)?.length ?? 0) > 0 ? `${byStop.get(s.stop_id)!.length} packages` : null,
+      status: s.stop_status,
+    };
+  };
 
   return {
     phase,
@@ -117,8 +141,21 @@ export async function today(driverId: string): Promise<TodayDTO> {
 export async function collectionRun(runId: string, driverId: string): Promise<DriverCollectionRunDTO> {
   if (!(await ownsRound(runId, driverId))) throw new NotFoundError();
 
-  const [stops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
+  const [allStops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
+
+  // ⚠ THE HUB STOP IS EXCLUDED HERE, DELIBERATELY (064, research R11).
+  //
+  // This projection maps every stop onto `CollectionStopSummary`, which requires a shop name, a shop
+  // code and an address. A `hub_checkin` stop carries NONE of them — `round_stop_target_ck` requires
+  // its `shop_id` and `order_id` to be NULL — so including it would emit a stop whose identity is
+  // three empty strings. That renders as a blank row a driver can tap, with no error in any log,
+  // test or screen: the same "valid, compiles, renders as nothing" shape `check-token-usage.mjs`
+  // exists to catch on the web.
+  //
+  // The hub is not hidden from the driver — it is surfaced by `todayView` below, as the round's
+  // outstanding work, which is the thing that was missing.
+  const stops = allStops.filter((s) => s.stop_kind !== "hub_checkin");
 
   return {
     runId,

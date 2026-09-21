@@ -12,6 +12,7 @@
 // can hand off to their device's maps app (D7, per-stop not per-route) — never a position.
 
 import type { WireInt } from "./cart";
+import type { DeliveryFailureReason } from "./driver";
 
 /** Collecting from shops, or delivering to customers. Independent of method and zone. */
 export type RoundKind = "collection" | "delivery";
@@ -197,4 +198,85 @@ export interface HubCheckinDTO {
    * delivery round.
    */
   standardCount: WireInt;
+}
+
+// ── 064 — delivery exceptions & custody (back-office) ────────────────────────────────────────────
+//
+// ⚠ THE READER THAT WENT MISSING TWICE. 056 was built because the driver app had been "recording
+// exceptions for a reader that does not exist" — `delivery_failure` and `collection_task_issue` were
+// annotated "recorded for back-office follow-up" and nothing had ever read either. 056 built the
+// reader; 063's teardown then dropped the tables from under it, leaving neither a writer nor a
+// reader. These shapes are the third attempt and the first with both ends.
+
+// ⚠ `DeliveryFailureReason` IS NOT REDECLARED HERE. It already exists in `./driver` as the shape the
+// driver app submits, and the reason a dispatcher reads is THE SAME REASON — one concept, one
+// definition (Principle II). A second copy would agree today and drift the first time either is
+// widened, which is how 053, 056, 057 and 059 each shipped a defect through an enum.
+// Caught by `tsc` on the first build of this file, not by review.
+
+/**
+ * One delivery that could not be completed, as back-office sees it.
+ *
+ * ⚠ `packageLocation` IS THE FIELD THAT MAKES THIS ACTIONABLE (FR-020). "Nobody was home" and "the
+ * goods are still in a van" are different problems with different urgency, and a list that cannot
+ * tell them apart is a list nobody can triage.
+ */
+export interface DeliveryExceptionDTO {
+  exceptionId: string;
+  stopId: string;
+  orderNumber: string;
+  reason: DeliveryFailureReason;
+  note: string | null;
+  driverId: string;
+  driverName: string;
+  /** Suburb only — no street address on a list screen. */
+  destinationSuburb: string | null;
+  failedAt: string; // ISO 8601
+  resolvedAt: string | null;
+  /** Derived, never stored (research R7). */
+  packageLocation: "with_driver" | "at_hub";
+}
+
+/** GET /fleet/v1/exceptions */
+export interface DeliveryExceptionListDTO {
+  exceptions: DeliveryExceptionDTO[];
+  openCount: WireInt;
+}
+
+/** POST /fleet/v1/exceptions/{id}/resolve */
+export interface ResolveExceptionRequest {
+  note?: string;
+  changeId: string;
+}
+export interface ResolveExceptionResponse {
+  exceptionId: string;
+  resolvedAt: string;
+}
+
+/**
+ * A package currently in a driver's hands.
+ *
+ * ⚠ DERIVED ON READ, NEVER STORED (research R7 — 027's counted-not-stored rule, fifth application).
+ * A custody table would be a second source of truth for a fact the round rows already state
+ * completely, and 063 found an FK that was "wrong in principle" by duplicating exactly that way.
+ *
+ * ⚠ FR-018 DEPENDS ON THIS BEING EXACT. 056 found that standing a driver down could strand physical
+ * goods permanently and invisibly — the work stayed claimed and every sweep skipped it. This is the
+ * read that makes it visible before a shift can end.
+ */
+export interface CustodyPackageDTO {
+  packageId: string;
+  orderNumber: string;
+  shopName: string;
+  /** Since when this driver has held it. */
+  heldSince: string; // ISO 8601
+  roundKind: RoundKind;
+}
+
+/** GET /fleet/v1/custody — and the shape the duty-end warning renders. */
+export interface CustodyDTO {
+  driverId: string;
+  driverName: string;
+  packages: CustodyPackageDTO[];
+  packageCount: WireInt;
 }

@@ -53,3 +53,39 @@ resource "aws_cloudwatch_metric_alarm" "dispatch_persistent_unassigned" {
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
+
+# ── 064 — custody ───────────────────────────────────────────────────────────────────────────────
+
+# ⚠ GOODS LEFT IN A PARKED VAN OVERNIGHT, WHICH NOTHING ELSE REPORTS.
+#
+# 056 found that standing a driver down could strand physical goods permanently and invisibly:
+# `releaseIneligibleWork` correctly never reclaims picked-up work (the packages really are in a van),
+# the UNIQUE index then keeps them claimed, and every sweep's `NOT EXISTS` skips them forever with a
+# customer's order attached to each one. 064's duty-end check (FR-018) stops a shift ending SILENTLY
+# that way — the driver is shown what they hold and must confirm.
+#
+# But a driver may confirm, or simply stop using the app. This alarm is the backstop for the state
+# nobody chose: custody still open long after any round could reasonably be running.
+#
+# ⚠ `treat_missing_data = "notBreaching"` — no data means nobody is holding anything, which is the
+# healthy state, not an unknown one.
+resource "aws_cloudwatch_metric_alarm" "driver_packages_held_overnight" {
+  alarm_name        = "${module.shared.name_prefix}-driver-packages-held-overnight"
+  alarm_description = "064 — packages have been in a driver's custody for longer than any round should last. They are physically in a van that is probably parked. GET /fleet/v1/custody names the driver and every package; the dispatcher must decide whether they come back to the hub or go out again."
+
+  namespace   = "Effy/Dispatch"
+  metric_name = "DriverPackagesHeldHours"
+  statistic   = "Maximum"
+
+  # A collection round is planned at most a couple of hours ahead of its run and a same-day round
+  # finishes by end of day, so twelve hours of unbroken custody is not a long round — it is a van
+  # nobody has emptied.
+  threshold           = 12
+  period              = 3600
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+  ok_actions    = [aws_sns_topic.alerts.arn]
+}

@@ -347,6 +347,42 @@ functions:
     events:
       - schedule: rate(5 minutes)
 
+  exceptionsV1:
+    handler: src/functions/exceptions-v1-get.handler
+    description: >-
+      064 — deliveries that could not be completed. Read = any active staff, including csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/exceptions
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  exceptionsResolveV1:
+    handler: src/functions/exceptions-resolve-v1-post.handler
+    description: >-
+      064 — close a delivery exception. Mutate = staff who may change an order's fate. Audited.
+    events:
+      - httpApi:
+          method: POST
+          path: /fleet/v1/exceptions/{exceptionId}/resolve
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  dispatchCustodyV1:
+    handler: src/functions/dispatch-custody-v1-get.handler
+    description: >-
+      064 — every package currently in a driver's hands. Derived, never stored. Read = any active staff.
+    events:
+      - httpApi:
+          method: GET
+          path: /fleet/v1/custody
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
   dispatchDayV1:
     handler: src/functions/dispatch-day-v1-get.handler
     description: >-

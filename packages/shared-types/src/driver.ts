@@ -70,6 +70,18 @@ export interface DutyRequest {
   onDuty: boolean;
   changeId: string;
   /**
+   * ⚠ 064, FR-018 — "I have seen what I am carrying and I am going off duty anyway."
+   *
+   * Going off duty with packages still in the van is REFUSED (409) until this is set, and the refusal
+   * names every package. It is a confirmation, not a bypass: the requirement is that a shift cannot
+   * end SILENTLY on a van with goods in it, not that it cannot end at all — a driver whose van is
+   * genuinely empty, or who handed over some other way, says so and goes home.
+   *
+   * 056 found that standing a driver down could strand physical goods permanently and invisibly: the
+   * release sweep deliberately never reclaims picked-up work, so nothing else would ever mention it.
+   */
+  acknowledgeHeldPackages?: boolean;
+  /**
    * ⚠ OPTIONAL, AND ITS ABSENCE MEANS UNKNOWN (061, FR-032/FR-033).
    *
    * When a driver goes on duty they may say when they expect to finish. It buys nothing today — it
@@ -99,9 +111,18 @@ export interface DutyResponse {
 
 export type DriverPhase = "collection" | "same_day_delivery" | "idle";
 
-/** A compact reference to the active/queued work item shown on the home. */
+/**
+ * A compact reference to the active/queued work item shown on the home.
+ *
+ * ⚠ `"hub_checkin"` ADDED BY 064, AND IT FIXES A LIVE DEFECT. A collection round's work did not end
+ * at its last shop — the load still has to be checked in at the hub — but the hub had no
+ * representation here, so `todayView`'s outstanding filter emptied the moment the final shop stop
+ * went `done`. Both routes into the round (the hero card, drawn from `active`, and the "Whole run"
+ * link, drawn only when `upNext` is non-empty) vanished at exactly that point. Found live on
+ * 2026-09-21 with a driver holding thirteen packages and no way back into their own round.
+ */
 export interface TodayItemRef {
-  kind: "collection_stop" | "delivery_drop";
+  kind: "collection_stop" | "delivery_drop" | "hub_checkin";
   id: string;
   runId: string;
   title: string; // shop name or customer suburb — no address detail, no currency

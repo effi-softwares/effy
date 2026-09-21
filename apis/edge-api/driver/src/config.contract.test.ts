@@ -53,16 +53,35 @@ describe("driver deployment contract — serverless.yml declares what the servic
     }
   });
 
-  it("declares the DB environment keys the service reads", () => {
+  it("declares the environment keys the service reads", () => {
     for (const key of [
       "DB_HOST",
       "DB_PORT",
       "DB_NAME",
       "DB_USER",
       "DB_SECRET_ARN",
+      // ⚠ 064 — the shared media helper reads this to presign proof uploads. It is in the same list
+      // as the DB keys for the same reason: 035 shipped an audience map that read FOUR env vars
+      // `serverless.yml` never declared, every pool resolved "unknown", no email was ever sent, and
+      // a hundred passing tests missed it because each one set those vars itself.
+      "S3_MEDIA_BUCKET",
     ]) {
       expect(yaml.includes(`${key}:`), `serverless.yml does not declare ${key}`).toBe(true);
     }
+  });
+
+  /**
+   * ⚠ 064 — WITHOUT THIS GRANT EVERY PROOF CAPTURE FAILS AT THE PRESIGN, and the driver sees a
+   * generic error at the doorstep. This service had NO S3 permission at all before 064; the env key
+   * above and this grant have to land together or the feature is configured and unauthorised.
+   */
+  it("grants S3 object access for proof media, scoped to objects and not the bucket", () => {
+    expect(yaml).toMatch(/s3:PutObject/);
+    expect(yaml).toMatch(/s3:GetObject/);
+    // ⚠ Objects only. A bucket-level grant would let a driver-pool credential LIST every product and
+    // promotion key in the shared bucket.
+    expect(yaml).toMatch(/arn:aws:s3:::effy-\$\{sls:stage\}-product-media\/\*/);
+    expect(yaml).not.toMatch(/s3:ListBucket/);
   });
 
   /**
