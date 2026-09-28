@@ -61,16 +61,63 @@ DSN="$(bash "$ROOT/infra/scripts/db-dsn.sh" "$ENV")" || {
 #   20260920101500_remove_driver_work_model.sql. The `run_assigned` notification filter below STAYS:
 #   that ledger still holds rows the retired sweep wrote, and purging an order should still take
 #   them.
+#
+# ⚠⚠ THIS LIST WENT STALE AND THE SCRIPT WOULD HAVE FAILED (found 2026-09-22, while purging for a
+#   064 walk). It had not been updated since the 049 teardown, so it named none of the tables 053,
+#   055, 057, 063 and 064 hung off an order: refunds, arrivals, carrier handoffs, receipts, the whole
+#   dispatch chain (`dispatch_wave` → `driver_round` → `round_stop` → `round_package`) and 064's
+#   proof and exception rows. Every one of them references `shop_fulfillment` or `"order"`, so the
+#   run aborts on a foreign-key violation partway down — loudly, at least, rather than silently
+#   leaving orphans.
+#
+#   ⚠ A SECOND SCRIPT WAS NEARLY WRITTEN INSTEAD OF FIXING THIS ONE. 064 drafted its own
+#   `reset-orders-dev.sql` without noticing `purge-orders` existed; two tools deleting one thing is
+#   how they drift, and the newer one had a WORSE env guard (it tested `current_database()`, which is
+#   `effy` in EVERY environment — so it refused dev and would have PERMITTED production). Deleted in
+#   favour of extending this.
+#
+# ⚠ THE INSIGHTS ROLLUPS GO TOO (058). They are DERIVED from orders; left behind they report revenue
+#   for orders that no longer exist, and 058's own rule is that a figure must be recomputable from
+#   source. `insights_dirty`/`insights_state` are the recompute bookkeeping and follow them.
+#
+# ⚠ S3 IS NOT TOUCHED. Deleting a `delivery_proof` row orphans its image under `proof/` in the media
+#   bucket — a bucket shared with the live product catalogue. A purge script that also deleted objects
+#   there is not something to point at dev data.
+# Dependency order: children before parents. `to_regclass` below skips anything an environment does
+# not have, so entries for tables a future migration drops stay harmless rather than breaking the run.
 read -r -d '' TARGETS <<'LIST' || true
+delivery_proof|
+delivery_attempt_failure|
+assignment_exclusion|
+round_package|
+hub_checkin|
+round_stop|
+driver_round|
+dispatch_wave|
+package_arrival|
+carrier_handoff|
+refund_line|
+refund|
+refund_request_item|
+refund_request|
+refund_proposal_dismissal|
 fulfillment_event|
 fulfillment_item|
+fulfillment_note|
+fulfillment_tag|
 shop_fulfillment|
+receipt_dispatch|
 promo_redemption|
 order_package_delivery|
 payment|
+stock_movement|order_id IS NOT NULL
 order_item|
 order|
 stripe_event|
+shop_product_sales_day|
+shop_sales_hour|
+insights_dirty|
+insights_state|
 event_outbox|aggregate_type = 'order'
 notification_request|type IN ('order_paid','order_ready','order_out_for_delivery','order_delivered','shop_new_order','run_assigned')
 LIST

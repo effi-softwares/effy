@@ -85,7 +85,10 @@ driver-mobile Android + **iOS main AND test** compile, host tests green ·
    `actual`, so `proposedRefunds` — which `refunds.ts:98` re-exports from the shared package — is
    `undefined`, and 14 tests fail with *"proposedRefunds is not a function"*. `git diff HEAD` shows no
    change from 064 in that service. It has gone unnoticed because **Docker has been down for several
-   slices**, so these tests never ran. **NOT FIXED — out of scope, reported.**
+   slices**, so these tests never ran. ✅ **FIXED 2026-09-28** — the test now mocks the shared `db`
+   module rather than the package entry. Spreading `importActual` alone would NOT have worked:
+   `refund-proposals.ts` imports `query` from `./db` by relative path, so a package-entry mock never
+   reaches it. edge-orders **54/54** with containers, typecheck clean.
 7. `history()`'s `drops` array was hardcoded `[]`, so `HistoryDropRow.proofCaptured` has existed on
    the contract since 049 and never carried a value. Now populated.
 8. ⚠ **Driver telemetry has no call sites.** Only `ScreenViewed` is ever emitted; `DutyToggled`,
@@ -139,7 +142,6 @@ be completed by the driver who made it.
 
 ## Known-red, not caused by this slice
 
-- `edge-orders` refund container tests (item 6 above).
 - `make check-no-phantm` fails on **specs 042/045/050 prose**, as CLAUDE.md already records. 064's own
   artifacts are clean — its only matches are the words "check-no-phantm" in task text.
 - ⚠ **`pnpm -r test` with `CONTAINER_TESTS=1` is flaky under parallelism** — every package starts its

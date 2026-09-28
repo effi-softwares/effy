@@ -5,10 +5,25 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 import { Pool } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const holder: { pool: Pool | null } = { pool: null };
-vi.mock("@effy/edge-shared", () => ({
+const holder = vi.hoisted(() => ({ pool: null as Pool | null }));
+
+// ⚠ THE SHARED `db` MODULE IS MOCKED, NOT THE PACKAGE ENTRY — and that is the whole fix.
+//
+// This used to mock "@effy/edge-shared" with a factory returning ONLY `query` and `withTransaction`.
+// That replaced the entire package, so everything else it exports — including `proposedRefunds`,
+// which 058 promoted there and `./refunds` re-exports — became `undefined`, and 14 tests died with
+// "proposedRefunds is not a function". Nobody noticed because Docker was down for several slices and
+// these tests never ran.
+//
+// Spreading `importActual` would NOT have been enough. `refund-proposals.ts` imports `query` from
+// "./db" by RELATIVE path, so a mock on the package entry never reaches it: the real pool would be
+// built from DB_HOST/DB_SECRET_ARN and the tests would fail on a connection instead. Mocking the one
+// module every caller shares — inside the package or out — routes all of them to the container.
+// It works because @effy/edge-shared resolves to its TypeScript source ("exports": "./src/index.ts").
+vi.mock("../../../shared/src/lib/db", () => ({
   query: (text: string, params?: unknown[]) => holder.pool!.query(text, params as never[]),
   withTransaction: async (fn: (c: unknown) => unknown) => fn(holder.pool),
+  pingDatabase: async () => undefined,
 }));
 
 import { proposedRefunds, refundRequest, refunds } from "./refunds";
