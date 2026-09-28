@@ -331,8 +331,8 @@ export async function createShopWithManager(
     let id: string;
     try {
       const ins = await client.query<{ id: string }>(
-        `INSERT INTO public.shop (code, name, contact_phone, notes,
-                                  address_line1, address_line2, suburb, postcode, state)
+        // ⚠ 061: no address here — create does not collect one; it is set through update.
+        `INSERT INTO public.shop (code, name, contact_phone, notes)
               VALUES ($1, $2, $3, $4)
            ON CONFLICT (code) DO UPDATE
               SET name = EXCLUDED.name, contact_phone = EXCLUDED.contact_phone,
