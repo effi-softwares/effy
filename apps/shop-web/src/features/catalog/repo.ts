@@ -40,6 +40,7 @@ export function encodeProductListQuery(p: ProductListParams): string {
   if (p.category) params.set("category", p.category);
   if (p.section) params.set("section", p.section);
   if (p.status) params.set("status", p.status);
+  if (p.reviewState) params.set("reviewState", p.reviewState);
   if (p.priceMin && p.priceMin.trim()) params.set("priceMin", p.priceMin.trim());
   if (p.priceMax && p.priceMax.trim()) params.set("priceMax", p.priceMax.trim());
   if (p.sort) params.set("sort", p.sort);
@@ -83,6 +84,19 @@ export async function changeProductStatus(
   body: ChangeProductStatusRequest,
 ): Promise<ProductDetail> {
   return api.post<ProductDetailDTO>(`/shop/v1/products/${id}/status`, body);
+}
+
+/**
+ * Send a never-approved product to Effy for review (067). Runs the same completeness checks publish
+ * used to → 400 field errors. It is NOT on sale afterwards; approval puts it there.
+ */
+export async function submitProductForReview(id: string): Promise<ProductDetail> {
+  return api.post<ProductDetailDTO>(`/shop/v1/products/${id}/submit`, {});
+}
+
+/** Take a submitted product back out of review, or discard a pending change (067). */
+export async function withdrawProductReview(id: string): Promise<ProductDetail> {
+  return api.post<ProductDetailDTO>(`/shop/v1/products/${id}/withdraw`, {});
 }
 
 /** Hard delete (US5). The backend refuses (409 "archive instead") anything but an unreferenced draft. */

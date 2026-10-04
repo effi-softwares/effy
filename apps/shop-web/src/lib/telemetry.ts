@@ -20,6 +20,10 @@ export type ShopAnalyticsEvent =
   | { name: "product_created"; productId: string }
   | { name: "product_edit_saved"; productId: string }
   | { name: "product_archived"; productId: string }
+  // 067 — review. ⚠ NEVER the send-back reason, a price or a margin: the first is free text written
+  // about a shop's product, the others are the shop's money.
+  | { name: "product_submitted_for_review"; productId: string }
+  | { name: "product_review_withdrawn"; productId: string }
   | { name: "catalog_search" }
   | { name: "catalog_filter_applied" }
   // Fulfilment (020) — docs/telemetry/fulfillment-events.md is the cross-surface source of truth,

@@ -19,7 +19,8 @@ export const handler = async (
   try {
     const page = await listProducts(g.shopId, {
       page: qp.page, pageSize: qp.pageSize, q: qp.q, type: qp.type, category: qp.category,
-      section: qp.section, status: qp.status, priceMin: qp.priceMin, priceMax: qp.priceMax,
+      section: qp.section, status: qp.status, reviewState: qp.reviewState,
+      priceMin: qp.priceMin, priceMax: qp.priceMax,
       sort: qp.sort, order: qp.order,
     });
     return json(200, toListDTO(page), scope);

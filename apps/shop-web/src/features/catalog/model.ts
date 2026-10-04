@@ -13,6 +13,7 @@ import type {
   ProductListItemDTO,
   ProductMediaDTO,
   ProductStatus,
+  ShopReviewState,
   ProductTypeAttributeDTO,
   ProductTypeDTO,
   RegisterMediaRequest,
@@ -72,6 +73,8 @@ export interface ProductListParams {
   category?: string;
   section?: string;
   status?: ProductStatus;
+  /** 067 — only products at this point in Effy's review. */
+  reviewState?: ShopReviewState;
   priceMin?: string;
   priceMax?: string;
   sort?: ProductSort;

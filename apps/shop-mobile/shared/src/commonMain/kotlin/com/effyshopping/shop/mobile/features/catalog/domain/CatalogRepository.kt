@@ -26,6 +26,18 @@ interface CatalogRepository {
     /** `POST /shop/v1/products/{id}/status` — lifecycle transition (publish re-validates mandatory). */
     suspend fun changeStatus(id: String, status: ProductStatus): ProductDetail
 
+    /**
+     * `POST /shop/v1/products/{id}/submit` — send a never-approved product to Effy for review (067).
+     * It is NOT on sale afterwards. Missing required details → `AppError.Validation`.
+     */
+    suspend fun submitForReview(id: String): ProductDetail
+
+    /**
+     * `POST /shop/v1/products/{id}/withdraw` — take a submission back, or discard a pending change.
+     * The live product is never touched. Nothing waiting → `AppError.Conflict`.
+     */
+    suspend fun withdrawReview(id: String): ProductDetail
+
     /** `DELETE /shop/v1/products/{id}` — hard delete ONLY if unreferenced/draft, else Conflict ("archive"). */
     suspend fun deleteProduct(id: String)
 

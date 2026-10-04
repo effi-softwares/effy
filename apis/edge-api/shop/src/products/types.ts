@@ -88,6 +88,45 @@ export interface ProductListItem {
   status: ProductStatus;
   sku: string | null;
   updatedAt: string;
+  /** 067 — where the product stands with Effy's review. */
+  reviewState: ShopReviewState;
+  /** 067 — what CUSTOMERS pay. `priceAmount` above is what the shop is paid. */
+  customerPriceAmount: string;
+}
+
+/** 067 — the six review states a shop is shown (see `REVIEW_STATE_SQL` in repository.ts). */
+export type ShopReviewState =
+  | "draft"
+  | "in_review"
+  | "sent_back"
+  | "live"
+  | "live_change_pending"
+  | "live_change_sent_back";
+
+/** 067 — what a pending change proposes: only the details that DIFFER from the live product. */
+export interface ProductChangeProposal {
+  name?: string;
+  shortDescription?: string;
+  longDescription?: string | null;
+  brand?: string | null;
+  sku?: string | null;
+  gtin?: string | null;
+  primaryCategoryId?: string;
+  productTypeId?: string;
+  /** The proposed SHOP price. */
+  priceAmount?: string;
+  compareAtAmount?: string | null;
+  weightGrams?: number;
+  attributes?: AttributeValueInput[];
+}
+
+export interface ProductPendingChange {
+  state: "in_review" | "sent_back";
+  reason: string | null;
+  submittedAt: string;
+  proposed: ProductChangeProposal;
+  /** The complete proposed image set, or null when images are not being changed. */
+  media: ProductMedia[] | null;
 }
 
 export interface ProductAttributeValue {
@@ -138,6 +177,17 @@ export interface ProductDetail {
   missingMandatoryAttributes: string[];
   createdAt: string;
   updatedAt: string;
+
+  // ── 067 ──────────────────────────────────────────────────────────────────────────────────────
+  // ⚠ `priceAmount` / `compareAtAmount` above are the SHOP's prices — what this audience entered and
+  // is paid. The customer's are below. Nothing here carries Effy's margin as a figure (FR-039).
+  reviewState: ShopReviewState;
+  reviewReason: string | null;
+  customerPriceAmount: string;
+  customerCompareAtAmount: string | null;
+  /** True once Effy has approved this product at least once. */
+  approved: boolean;
+  pendingChange: ProductPendingChange | null;
 }
 
 /** A typed value supplied for one attribute (only the field matching the data type is meaningful). */
@@ -179,6 +229,8 @@ export interface ListParams {
   category: string | null;
   section: string | null;
   status: ProductStatus | null;
+  /** 067 — filter by review state (e.g. everything Effy sent back). */
+  reviewState: ShopReviewState | null;
   priceMin: string | null;
   priceMax: string | null;
   sort: "name" | "price" | "recent";

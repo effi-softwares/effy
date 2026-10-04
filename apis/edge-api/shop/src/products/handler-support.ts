@@ -171,6 +171,22 @@ export function toDetailDTO(d: ProductDetail): ProductDetailDTO {
     missingMandatoryAttributes: d.missingMandatoryAttributes,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
+    // 067 — review state and the two prices. `priceAmount` stays the SHOP price, so an installed
+    // shop-mobile build keeps showing what the shop entered.
+    reviewState: d.reviewState,
+    reviewReason: d.reviewReason,
+    shopPriceAmount: d.priceAmount,
+    customerPriceAmount: d.customerPriceAmount,
+    customerCompareAtAmount: d.customerCompareAtAmount,
+    pendingChange: d.pendingChange
+      ? {
+          state: d.pendingChange.state,
+          reason: d.pendingChange.reason,
+          submittedAt: d.pendingChange.submittedAt,
+          proposed: d.pendingChange.proposed,
+          media: d.pendingChange.media ? d.pendingChange.media.map(toMediaDTO) : null,
+        }
+      : null,
   };
 }
 
@@ -204,6 +220,9 @@ export function toListDTO(p: Paged<ProductListItem>): ProductListDTO {
         status: i.status,
         sku: i.sku,
         updatedAt: i.updatedAt,
+        reviewState: i.reviewState,
+        shopPriceAmount: i.priceAmount,
+        customerPriceAmount: i.customerPriceAmount,
       }),
     ),
     total: p.total,

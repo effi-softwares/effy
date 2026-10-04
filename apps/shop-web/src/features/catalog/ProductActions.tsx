@@ -18,7 +18,7 @@ import { track } from "@/lib/telemetry";
 import { productMutationError } from "./errorText";
 import { ReceiveStockButton } from "./InventorySection";
 import type { ProductDetail } from "./model";
-import { useChangeStatus, useDeleteProduct } from "./queries";
+import { useChangeStatus, useDeleteProduct, useSubmitForReview, useWithdrawReview } from "./queries";
 import { ReceiveStockDialog, StartTrackingDialog } from "./StockDialogs";
 import { removalAction, visibilityAction } from "./statusControl";
 import { productStockQuery } from "./stockQueries";
@@ -53,7 +53,32 @@ export function ProductHeaderActions({
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const action = visibilityAction(detail.status);
+  const submit = useSubmitForReview(detail.id);
+  const withdraw = useWithdrawReview(detail.id);
+  const action = visibilityAction(detail.status, detail.reviewState);
+  const busy = changeStatus.isPending || submit.isPending || withdraw.isPending;
+
+  /** 067 — submit / withdraw are their own requests, not a status move. */
+  function review(kind: "submit" | "withdraw") {
+    setError(null);
+    (kind === "submit" ? submit : withdraw).mutate(undefined, {
+      onSuccess: () => {
+        setConfirm(false);
+        track({ name: kind === "submit" ? "product_submitted_for_review" : "product_review_withdrawn", productId: detail.id });
+      },
+      onError: (err) => {
+        setConfirm(false);
+        setError(
+          productMutationError(
+            err,
+            kind === "submit"
+              ? "This product has already been reviewed. Reload to see where it stands."
+              : "There is nothing waiting for review on this product. Reload to see where it stands.",
+          ),
+        );
+      },
+    });
+  }
 
   function apply(status: ProductStatus) {
     setError(null);
@@ -77,7 +102,7 @@ export function ProductHeaderActions({
         <Button
           variant="outline"
           size="sm"
-          disabled={changeStatus.isPending}
+          disabled={busy}
           onClick={() => {
             setError(null);
             setConfirm(true);
@@ -132,13 +157,14 @@ export function ProductHeaderActions({
               <AlertDialogDescription>{action.confirmBody}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={changeStatus.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogCancel disabled={busy}>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {
                   e.preventDefault();
-                  apply(action.target);
+                  if (action.kind === "status") apply(action.target);
+                  else review(action.kind);
                 }}
-                disabled={changeStatus.isPending}
+                disabled={busy}
               >
                 {action.confirmLabel}
               </AlertDialogAction>

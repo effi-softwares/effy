@@ -120,6 +120,8 @@ fun ShopShell(
                     listProducts = container.listProducts,
                     getProduct = container.getProduct,
                     stockUseCases = container.stockUseCases,
+                    submitForReview = container.submitProductForReview,
+                    withdrawReview = container.withdrawProductReview,
                 )
                 OrdersRoot -> OrdersRoute(
                     listFulfillments = container.listFulfillments,

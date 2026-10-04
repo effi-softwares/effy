@@ -231,6 +231,12 @@ export interface ProductListItemDTO {
   status: ProductStatus;
   sku: string | null;
   updatedAt: string;
+  /** 067 — where the product stands with Effy's review. */
+  reviewState?: ShopReviewState;
+  /** 067 — what the shop is paid. Equal to `priceAmount`, which is kept for installed app builds. */
+  shopPriceAmount?: string;
+  /** 067 — what customers pay: the shop price plus Effy's margin. */
+  customerPriceAmount?: string;
 }
 
 /** A typed attribute value on a product (EAV, one value shape per data type). */
@@ -293,6 +299,64 @@ export interface ProductDetailDTO {
   missingMandatoryAttributes: string[];
   createdAt: string;
   updatedAt: string;
+
+  // ── 067 — review and the two prices ───────────────────────────────────────────────────────────
+  // ⚠ NOTHING HERE NAMES OR DERIVES FROM THE MARGIN'S KIND OR VALUE, and nothing may (067 FR-039).
+  // A shop sees what it is paid and what the customer pays; the margin as a figure is Effy's.
+  reviewState?: ShopReviewState;
+  /** Why Effy last sent this product (or its pending change) back. Carries no staff identity. */
+  reviewReason?: string | null;
+  /** What the shop is paid. `priceAmount` above stays equal to it. */
+  shopPriceAmount?: string;
+  /** What customers pay. For a product with no margin set, equal to the shop price. */
+  customerPriceAmount?: string;
+  /** The customer-facing "was" price, with the same margin applied; `compareAtAmount` is the shop's. */
+  customerCompareAtAmount?: string | null;
+  /**
+   * The shop's proposed new version of an APPROVED product, waiting on Effy — or null when there is
+   * none. Customers keep seeing everything ABOVE this field until it is approved.
+   */
+  pendingChange?: ProductPendingChangeDTO | null;
+}
+
+/**
+ * Where a product stands with Effy's review (067), as a shop is shown it.
+ *
+ * ⚠ SIX STATES FROM TWO FACTS: whether the product has ever been approved, and whether something
+ * is waiting. "live" means approved — whether it is ON SALE is still `status`.
+ */
+export type ShopReviewState =
+  | "draft"
+  | "in_review"
+  | "sent_back"
+  | "live"
+  | "live_change_pending"
+  | "live_change_sent_back";
+
+/** What a pending change proposes. Only the details that DIFFER from the live product are present. */
+export interface ProductChangeProposalDTO {
+  name?: string;
+  shortDescription?: string;
+  longDescription?: string | null;
+  brand?: string | null;
+  sku?: string | null;
+  gtin?: string | null;
+  primaryCategoryId?: string;
+  productTypeId?: string;
+  /** The proposed SHOP price. */
+  priceAmount?: string;
+  compareAtAmount?: string | null;
+  weightGrams?: number;
+  attributes?: AttributeValueInputDTO[];
+}
+
+export interface ProductPendingChangeDTO {
+  state: "in_review" | "sent_back";
+  reason: string | null;
+  submittedAt: string;
+  proposed: ProductChangeProposalDTO;
+  /** The COMPLETE proposed image set, or null when the images are not being changed. */
+  media: ProductMediaDTO[] | null;
 }
 
 /** A value supplied for one attribute on create/edit (only the field matching the data type is set). */

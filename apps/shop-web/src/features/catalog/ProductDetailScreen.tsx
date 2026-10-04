@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, ImageOff } from "lucide-react";
 
 import {
+  Badge,
   LoadingArea,
   Tabs,
   TabsContent,
@@ -43,6 +44,8 @@ import {
   PricingEditDialog,
 } from "./ProductEditDialogs";
 import { productDetailQuery } from "./queries";
+import { isApproved, reviewChip, workingDetail } from "./review";
+import { ReviewPanel } from "./ReviewPanel";
 import { SectionAssignment } from "./SectionAssignment";
 import { productStockQuery } from "./stockQueries";
 
@@ -98,6 +101,12 @@ function ProductDetailBody({ productId }: { productId: string }) {
   }
 
   const detail: ProductDetail = data;
+  // 067 — the page shows the LIVE product; the editors open on the shop's own latest version.
+  const working = workingDetail(detail);
+  const chip = reviewChip(detail.reviewState);
+  const approved = isApproved(detail);
+  const shopPrice = detail.shopPriceAmount ?? detail.priceAmount;
+  const customerPrice = detail.customerPriceAmount ?? detail.priceAmount;
   const edit = (target: Exclude<EditTarget, null>) => () => setEditing(target);
 
   return (
@@ -121,8 +130,9 @@ function ProductDetailBody({ productId }: { productId: string }) {
                 an operator opens this screen with — so it takes the live stock the rest of the page
                 is already reading rather than reporting a lifecycle state an empty shelf contradicts. */}
             <ProductStatusBadge status={detail.status} stock={headerStock.data?.stock} />
+            {chip ? <Badge variant={chip.tone}>{chip.label}</Badge> : null}
             <span className="text-[13.5px] font-medium tabular-nums whitespace-nowrap">
-              {formatMoney(detail.priceAmount, detail.currency)}
+              {formatMoney(shopPrice, detail.currency)}
             </span>
           </div>
         </div>
@@ -134,6 +144,8 @@ function ProductDetailBody({ productId }: { productId: string }) {
           onDeleted={goCatalog}
         />
       </div>
+
+      <ReviewPanel detail={detail} />
 
       {detail.missingMandatoryAttributes.length > 0 ? (
         <div
@@ -197,21 +209,28 @@ function ProductDetailBody({ productId }: { productId: string }) {
               saving are the two real figures that take their places. */}
           <DetailSection
             title="Pricing"
-            subtitle="Storefront price, compare-at price and the saving it advertises."
+            subtitle={
+              approved
+                ? "What you are paid, and what customers pay. A new price is reviewed by Effy before it applies."
+                : "What you are paid. Effy sets what customers pay when it approves the product."
+            }
             action={<SectionAction onClick={edit("pricing")}>Edit</SectionAction>}
           >
             <div className="grid grid-cols-2 gap-x-8 gap-y-[18px] pt-[18px] sm:grid-cols-4">
+              <Field label="Your price" size="display" value={formatMoney(shopPrice, detail.currency)} />
+              {/* ⚠ BOTH PRICES, NEVER THE MARGIN (067 FR-033). The customer price is shown only once
+                  Effy has approved the product: before that there is no customer price, and showing
+                  the shop's own figure under that label would be a promise nobody made. */}
               <Field
-                label="Price"
+                label="Customers pay"
                 size="display"
-                value={formatMoney(detail.priceAmount, detail.currency)}
+                value={approved ? formatMoney(customerPrice, detail.currency) : "Set when approved"}
               />
               <Field
                 label="Compare at"
                 size="display"
                 value={formatMoney(detail.compareAtAmount, detail.currency)}
               />
-              <Field label="Currency" size="display" value={detail.currency} />
               <Field
                 label="Discount"
                 size="display"
@@ -251,7 +270,9 @@ function ProductDetailBody({ productId }: { productId: string }) {
         </TabsContent>
 
         <TabsContent value="media" className="grid gap-[34px]">
-          <MediaGallery detail={detail} />
+          {/* The gallery edits the shop's own latest image set — the proposed one when images are
+              part of a pending change (067). */}
+          <MediaGallery detail={working} />
         </TabsContent>
 
         {/* ⚠ THE MOCKUP CALLS THIS "Visibility and channels" AND OURS MUST NOT. Effy is a single-brand
@@ -280,22 +301,22 @@ function ProductDetailBody({ productId }: { productId: string }) {
       <ProductActivitySheet detail={detail} open={activityOpen} onOpenChange={setActivityOpen} />
 
       <BasicsEditDialog
-        detail={detail}
+        detail={working}
         open={editing === "basics"}
         onOpenChange={(o) => setEditing(o ? "basics" : null)}
       />
       <PricingEditDialog
-        detail={detail}
+        detail={working}
         open={editing === "pricing"}
         onOpenChange={(o) => setEditing(o ? "pricing" : null)}
       />
       <CategorizationEditDialog
-        detail={detail}
+        detail={working}
         open={editing === "categorization"}
         onOpenChange={(o) => setEditing(o ? "categorization" : null)}
       />
       <AttributesEditDialog
-        detail={detail}
+        detail={working}
         open={editing === "attributes"}
         onOpenChange={(o) => setEditing(o ? "attributes" : null)}
       />

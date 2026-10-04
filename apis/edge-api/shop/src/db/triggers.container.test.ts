@@ -99,8 +99,8 @@ describe.skipIf(!RUN)("shop_ops triggers — real PostgreSQL, real migrations", 
     const orderId = o.rows[0]!.id;
     const p = await pool.query<{ id: string }>(
       `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-         short_description, created_by, status)
-       SELECT $1, pt.id, c.id, 'Milk', 10, 'x', 'seed', 'active'
+         short_description, created_by, status, approved_at)
+       SELECT $1, pt.id, c.id, 'Milk', 10, 'x', 'seed', 'active', now()
          FROM public.product_type pt, public.category c
        RETURNING id`,
       [SHOP],

@@ -345,6 +345,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **067-product-approval-margin** — Product Approval & Effy Margin
 - **066-delivery-instructions** — Customer Delivery Instructions
 - **065-driver-item-manifest** — Driver Item Manifest & Temperature Classes
 - **063-driver-work-assignment** — Driver Work Assignment & Wave Planning
@@ -389,5 +390,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/066-delivery-instructions/plan.md
+at specs/067-product-approval-margin/plan.md
 <!-- SPECKIT END -->

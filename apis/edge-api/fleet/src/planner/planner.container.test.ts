@@ -371,11 +371,11 @@ describe.skipIf(!RUN)("wave planner against real PostgreSQL", () => {
     // 5 kg of goods against a 1 kg van.
     await q(
       `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, sku,
-                                   price_amount, short_description, created_by, status, weight_grams)
+                                   price_amount, short_description, created_by, status, weight_grams, approved_at)
        VALUES ($1,
                (SELECT id FROM public.product_type LIMIT 1),
                (SELECT id FROM public.category LIMIT 1),
-               'Heavy', 'SKU-H', 1, 'A heavy thing', 'test', 'active', 5000) RETURNING id`,
+               'Heavy', 'SKU-H', 1, 'A heavy thing', 'test', 'active', 5000, now()) RETURNING id`,
       [shop],
     ).then(async (p) => {
       const o = await q(`SELECT order_id FROM public.shop_fulfillment WHERE id = $1`, [sf]);

@@ -83,9 +83,9 @@ func seedCartProduct(t *testing.T, pool *pgxpool.Pool, w storageWorld, name, sto
 	var productID string
 	require.NoError(t, pool.QueryRow(ctx,
 		`INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name,
-		                             price_amount, short_description, created_by, status)
+		                             price_amount, short_description, created_by, status, approved_at)
 		 SELECT $1::uuid, (SELECT id FROM public.product_type LIMIT 1),
-		        (SELECT id FROM public.category LIMIT 1), $2, 5, 'A thing', 'seed', 'active'
+		        (SELECT id FROM public.category LIMIT 1), $2, 5, 'A thing', 'seed', 'active', now()
 		 RETURNING id::text`, w.shopID, name).Scan(&productID))
 	if storage != "" {
 		setProductStorage(t, pool, productID, storage)

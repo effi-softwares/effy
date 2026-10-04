@@ -69,7 +69,7 @@ describe("⚠ N10 — the type list is SERVED, from one catalogue", () => {
     const res = await getHandler(event("sub-1", { queryStringParameters: { token: "tok" } }), ctx);
     const dto = JSON.parse(res.body as string);
     expect(dto.availableTypes).toEqual(SHOP_NOTIFICATION_TYPES);
-    expect(dto.availableTypes).toHaveLength(5);
+    expect(dto.availableTypes).toHaveLength(7); // 059's five + 067's two review decisions
   });
 
   it("⚠ marks the manager-only type as such — a HINT, never the gate", () => {

@@ -31,7 +31,18 @@ export type AnalyticsEvent =
   | { name: "driver_created"; driverId: string }
   | { name: "driver_status_changed"; driverId: string; status: string }
   | { name: "driver_exception_resolved"; kind: string }
-  | { name: "driver_work_released"; released: number };
+  | { name: "driver_work_released"; released: number }
+  // 067 — product review. ⚠ NEVER a price, a margin value, a product name or the send-back reason:
+  // the first two are a shop's money and Effy's, the last is free text about a shop's product.
+  // `kind` and `decision` are closed vocabularies; `marginSet` says only THAT one was confirmed.
+  | {
+      name: "product_review_decided";
+      productId: string;
+      kind: "new_product" | "change";
+      decision: "approved" | "sent_back";
+      marginSet: boolean;
+    }
+  | { name: "product_margin_set"; productId: string };
 
 const telemetry = createTelemetry<AnalyticsEvent>({
   key: config.posthogKey(),

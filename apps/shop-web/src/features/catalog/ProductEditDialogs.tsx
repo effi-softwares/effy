@@ -23,6 +23,7 @@ import {
   diffScalarFields,
   seedAttributeDraft,
 } from "./focusedEdit";
+import { isApproved } from "./review";
 import type { ProductDetail, ProductType } from "./model";
 import { catalogSchemaQuery } from "./queries";
 import { useFocusedEdit } from "./useFocusedEdit";
@@ -97,7 +98,7 @@ export function BasicsEditDialog({ detail, open, onOpenChange }: EditProps) {
       open={open}
       onOpenChange={onOpenChange}
       title="Edit basics"
-      description="Name, brand, identifiers, and descriptions."
+      description={reviewNote(detail, "Name, brand, identifiers, and descriptions.")}
       canSave={canSave}
       saving={edit.saving}
       error={edit.error}
@@ -190,7 +191,7 @@ export function PricingEditDialog({ detail, open, onOpenChange }: EditProps) {
       open={open}
       onOpenChange={onOpenChange}
       title="Edit pricing"
-      description="The sell price and an optional compare-at (strike-through) price."
+      description={reviewNote(detail, "The price you are paid, and an optional compare-at (strike-through) price.")}
       canSave={canSave}
       saving={edit.saving}
       error={edit.error}
@@ -260,7 +261,7 @@ export function CategorizationEditDialog({ detail, open, onOpenChange }: EditPro
       open={open}
       onOpenChange={onOpenChange}
       title="Edit categorization"
-      description="Changing the type may change which attributes apply."
+      description={reviewNote(detail, "Changing the type may change which attributes apply.")}
       canSave={canSave}
       saving={edit.saving}
       error={edit.error}
@@ -336,7 +337,7 @@ export function AttributesEditDialog({ detail, open, onOpenChange }: EditProps) 
       open={open}
       onOpenChange={onOpenChange}
       title="Edit attributes"
-      description="The details specific to this product's type."
+      description={reviewNote(detail, "The details specific to this product's type.")}
       canSave={canSave}
       saving={edit.saving}
       error={edit.error}
@@ -402,4 +403,15 @@ function Field({
       {children}
     </div>
   );
+}
+
+/**
+ * 067 — what saving DOES, said before the shop saves. Editing a product Effy has approved does not
+ * change the storefront; it sends a change for review. A dialog that saved silently into a queue
+ * would leave the shop wondering why its storefront still shows the old name.
+ */
+function reviewNote(detail: ProductDetail, description: string): string {
+  return isApproved(detail)
+    ? `${description} This product is approved, so your change goes to Effy for review — customers see it once it is approved.`
+    : description;
 }

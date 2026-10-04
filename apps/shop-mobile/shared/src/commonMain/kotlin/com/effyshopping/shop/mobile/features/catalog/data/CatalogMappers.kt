@@ -13,10 +13,12 @@ import com.effyshopping.shop.mobile.contract.ProductDetailDTO
 import com.effyshopping.shop.mobile.contract.ProductListDTO
 import com.effyshopping.shop.mobile.contract.ProductListItemDTO
 import com.effyshopping.shop.mobile.contract.ProductMediaDTO
+import com.effyshopping.shop.mobile.contract.ProductPendingChangeDTO
 import com.effyshopping.shop.mobile.contract.ProductStatus as ProductStatusDTO
 import com.effyshopping.shop.mobile.contract.ProductTypeAttributeDTO
 import com.effyshopping.shop.mobile.contract.ProductTypeDTO
 import com.effyshopping.shop.mobile.contract.SchemaStatus as SchemaStatusDTO
+import com.effyshopping.shop.mobile.contract.ShopReviewState
 import com.effyshopping.shop.mobile.contract.ShopSectionDTO
 import com.effyshopping.shop.mobile.contract.UpdateProductRequest
 import com.effyshopping.shop.mobile.features.catalog.domain.AllowedValue
@@ -27,6 +29,9 @@ import com.effyshopping.shop.mobile.features.catalog.domain.AttributeValidation
 import com.effyshopping.shop.mobile.features.catalog.domain.CatalogSchema
 import com.effyshopping.shop.mobile.features.catalog.domain.Category
 import com.effyshopping.shop.mobile.features.catalog.domain.NewProduct
+import com.effyshopping.shop.mobile.features.catalog.domain.PendingChange
+import com.effyshopping.shop.mobile.features.catalog.domain.ProposedChange
+import com.effyshopping.shop.mobile.features.catalog.domain.ReviewState
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductAttributeValue
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductListItem
@@ -60,6 +65,21 @@ private fun ProductStatusDTO.toDomain(): ProductStatus = when (this) {
     ProductStatusDTO.Active -> ProductStatus.ACTIVE
     ProductStatusDTO.Unavailable -> ProductStatus.UNAVAILABLE
     ProductStatusDTO.Archived -> ProductStatus.ARCHIVED
+}
+
+/**
+ * ⚠ A MISSING STATE READS AS THE BEHAVIOUR BEFORE REVIEW EXISTED (067): anything past draft had been
+ * published, so it is LIVE; a draft is a DRAFT. Reading absence as "in review" would tell every shop
+ * on an older backend that its whole catalogue was waiting on Effy.
+ */
+internal fun reviewStateOf(dto: ShopReviewState?, status: ProductStatusDTO): ReviewState = when (dto) {
+    ShopReviewState.Draft -> ReviewState.DRAFT
+    ShopReviewState.InReview -> ReviewState.IN_REVIEW
+    ShopReviewState.SentBack -> ReviewState.SENT_BACK
+    ShopReviewState.Live -> ReviewState.LIVE
+    ShopReviewState.LiveChangePending -> ReviewState.LIVE_CHANGE_PENDING
+    ShopReviewState.LiveChangeSentBack -> ReviewState.LIVE_CHANGE_SENT_BACK
+    null -> if (status == ProductStatusDTO.Draft) ReviewState.DRAFT else ReviewState.LIVE
 }
 
 private fun SchemaStatusDTO.toDomain(): SchemaStatus = when (this) {
@@ -123,6 +143,7 @@ internal fun ProductListItemDTO.toDomain(): ProductListItem = ProductListItem(
     status = status.toDomain(),
     primaryImageUrl = primaryImageURL,
     updatedAt = updatedAt,
+    reviewState = reviewStateOf(reviewState, status),
 )
 
 internal fun ProductListDTO.toDomain(): ProductPage = ProductPage(
@@ -162,7 +183,8 @@ internal fun ProductDetailDTO.toDomain(): ProductDetail = ProductDetail(
     sku = sku,
     brand = brand,
     gtin = gtin,
-    priceAmount = priceAmount,
+    // The SHOP's price. `priceAmount` stays equal to it for builds that predate 067.
+    priceAmount = shopPriceAmount ?: priceAmount,
     compareAtAmount = compareAtAmount,
     currency = currency,
     status = status.toDomain(),
@@ -176,7 +198,45 @@ internal fun ProductDetailDTO.toDomain(): ProductDetail = ProductDetail(
     missingMandatoryAttributes = missingMandatoryAttributes,
     createdAt = createdAt,
     updatedAt = updatedAt,
+    reviewState = reviewStateOf(reviewState, status),
+    reviewReason = reviewReason?.ifBlank { null },
+    // ⚠ Only once approved. Before that there IS no customer price, and the shop's own figure under
+    // that label would be a promise nobody made.
+    customerPriceAmount = customerPriceAmount.takeIf { reviewStateOf(reviewState, status).approved },
+    pendingChange = pendingChange?.toDomain(this),
 )
+
+private fun dash(v: String?): String = v?.ifBlank { null } ?: "—"
+
+/**
+ * The pending change as Now / Proposed rows — only the details that differ.
+ *
+ * ⚠ A PRESENT KEY IS A CHANGE, a missing one is not — but the generated DTO cannot tell "absent" from
+ * "null", so a detail the shop proposes to CLEAR (brand → none) is not listed here. The web console
+ * shows it; the reviewer always sees it. Recorded rather than guessed at.
+ */
+private fun ProductPendingChangeDTO.toDomain(live: ProductDetailDTO): PendingChange {
+    val p = proposed
+    val rows = buildList {
+        p.name?.let { add(ProposedChange("Name", live.name, it)) }
+        p.brand?.let { add(ProposedChange("Brand", dash(live.brand), it)) }
+        p.sku?.let { add(ProposedChange("SKU", dash(live.sku), it)) }
+        p.gtin?.let { add(ProposedChange("GTIN", dash(live.gtin), it)) }
+        p.shortDescription?.let { add(ProposedChange("Short description", live.shortDescription, it)) }
+        p.longDescription?.let { add(ProposedChange("Long description", dash(live.longDescription), it)) }
+        p.priceAmount?.let {
+            add(ProposedChange("Your price", "${live.currency} ${live.shopPriceAmount ?: live.priceAmount}", "${live.currency} $it"))
+        }
+        p.compareAtAmount?.let {
+            add(ProposedChange("Compare at", live.compareAtAmount?.let { c -> "${live.currency} $c" } ?: "—", "${live.currency} $it"))
+        }
+        if (p.productTypeID != null) add(ProposedChange("Type", live.typeName, "A different type"))
+        if (p.primaryCategoryID != null) add(ProposedChange("Category", live.categoryName, "A different category"))
+        p.attributes?.let { add(ProposedChange("Attributes", "${live.attributes.size} set", "${it.size} changed")) }
+        media?.let { add(ProposedChange("Images", "${live.media.size}", "${it.size} (changed)")) }
+    }
+    return PendingChange(rows)
+}
 
 internal fun ShopSectionDTO.toDomain(): ShopSection =
     ShopSection(id = id, name = name, displayOrder = displayOrder.toInt())

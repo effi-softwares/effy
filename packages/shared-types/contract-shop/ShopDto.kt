@@ -557,12 +557,31 @@ data class ProductDetailDTO (
     val compareAtAmount: String? = null,
     val createdAt: String,
     val currency: String,
+
+    /**
+     * The customer-facing "was" price, with the same margin applied; `compareAtAmount` is the
+     * shop's.
+     */
+    val customerCompareAtAmount: String? = null,
+
+    /**
+     * What customers pay. For a product with no margin set, equal to the shop price.
+     */
+    val customerPriceAmount: String? = null,
+
     val gtin: String? = null,
     val id: String,
     val longDescription: String? = null,
     val media: List<ProductMediaDTO>,
     val missingMandatoryAttributes: List<String>,
     val name: String,
+
+    /**
+     * The shop's proposed new version of an APPROVED product, waiting on Effy — or null when
+     * there is none. Customers keep seeing everything ABOVE this field until it is approved.
+     */
+    val pendingChange: ProductPendingChangeDTO? = null,
+
     val priceAmount: String,
 
     @SerialName("primaryCategoryId")
@@ -571,10 +590,21 @@ data class ProductDetailDTO (
     @SerialName("productTypeId")
     val productTypeID: String,
 
+    /**
+     * Why Effy last sent this product (or its pending change) back. Carries no staff identity.
+     */
+    val reviewReason: String? = null,
+
+    val reviewState: ShopReviewState? = null,
     val sections: List<String>,
 
     @SerialName("shopId")
     val shopID: String,
+
+    /**
+     * What the shop is paid. `priceAmount` above stays equal to it.
+     */
+    val shopPriceAmount: String? = null,
 
     val shortDescription: String,
     val sku: String? = null,
@@ -629,6 +659,72 @@ data class ProductMediaDTO (
     val url: String
 )
 
+@Serializable
+data class ProductPendingChangeDTO (
+    /**
+     * The COMPLETE proposed image set, or null when the images are not being changed.
+     */
+    val media: List<ProductMediaDTO>? = null,
+
+    val proposed: ProductChangeProposalDTO,
+    val reason: String? = null,
+    val state: State,
+    val submittedAt: String
+)
+
+/**
+ * What a pending change proposes. Only the details that DIFFER from the live product are
+ * present.
+ */
+@Serializable
+data class ProductChangeProposalDTO (
+    val attributes: List<AttributeValueInputDTO>? = null,
+    val brand: String? = null,
+    val compareAtAmount: String? = null,
+    val gtin: String? = null,
+    val longDescription: String? = null,
+    val name: String? = null,
+
+    /**
+     * The proposed SHOP price.
+     */
+    val priceAmount: String? = null,
+
+    @SerialName("primaryCategoryId")
+    val primaryCategoryID: String? = null,
+
+    @SerialName("productTypeId")
+    val productTypeID: String? = null,
+
+    val shortDescription: String? = null,
+    val sku: String? = null,
+    val weightGrams: Double? = null
+)
+
+@Serializable
+enum class State(val value: String) {
+    @SerialName("in_review") InReview("in_review"),
+    @SerialName("sent_back") SentBack("sent_back");
+}
+
+/**
+ * Where a product stands with Effy's review (067), as a shop is shown it.
+ *
+ * ⚠ SIX STATES FROM TWO FACTS: whether the product has ever been approved, and whether
+ * something is waiting. "live" means approved — whether it is ON SALE is still `status`.
+ *
+ * 067 — where the product stands with Effy's review.
+ */
+@Serializable
+enum class ShopReviewState(val value: String) {
+    @SerialName("draft") Draft("draft"),
+    @SerialName("in_review") InReview("in_review"),
+    @SerialName("live") Live("live"),
+    @SerialName("live_change_pending") LiveChangePending("live_change_pending"),
+    @SerialName("live_change_sent_back") LiveChangeSentBack("live_change_sent_back"),
+    @SerialName("sent_back") SentBack("sent_back");
+}
+
 /**
  * Paged product list envelope. Structurally a `PagedDTO<ProductListItemDTO>` but declared
  * concretely (not a generic alias) so the Kotlin contract generator can name it.
@@ -649,12 +745,29 @@ data class ProductListItemDTO (
     val brand: String? = null,
     val categoryName: String,
     val currency: String,
+
+    /**
+     * 067 — what customers pay: the shop price plus Effy's margin.
+     */
+    val customerPriceAmount: String? = null,
+
     val id: String,
     val name: String,
     val priceAmount: String,
 
     @SerialName("primaryImageUrl")
     val primaryImageURL: String? = null,
+
+    /**
+     * 067 — where the product stands with Effy's review.
+     */
+    val reviewState: ShopReviewState? = null,
+
+    /**
+     * 067 — what the shop is paid. Equal to `priceAmount`, which is kept for installed app
+     * builds.
+     */
+    val shopPriceAmount: String? = null,
 
     val sku: String? = null,
     val status: ProductStatus,
@@ -815,9 +928,6 @@ enum class RequestableTransition(val value: String) {
     @SerialName("unfulfillable") Unfulfillable("unfulfillable");
 }
 
-/**
- * Shop RBAC roles. Prefixed so `manager` stays unambiguously the back-office role in logs.
- */
 @Serializable
 enum class ShopRole(val value: String) {
     @SerialName("shop_manager") ShopManager("shop_manager"),

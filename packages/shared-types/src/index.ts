@@ -3,6 +3,7 @@ export * from "./back-office";
 export * from "./shop";
 export * from "./customer";
 export * from "./catalog";
+export * from "./product-review";
 // 019-customer-commerce-flow
 export * from "./storefront";
 export * from "./cart";

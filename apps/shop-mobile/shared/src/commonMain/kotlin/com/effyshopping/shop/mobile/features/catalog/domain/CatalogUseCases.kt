@@ -51,3 +51,13 @@ class ListShopSections(private val repo: CatalogRepository) {
 class AssignSections(private val repo: CatalogRepository) {
     suspend operator fun invoke(id: String, sectionIds: List<String>): ProductDetail = repo.setSections(id, sectionIds)
 }
+
+/** Send a never-approved product to Effy for review (067). A shop submits; it does not publish. */
+class SubmitProductForReview(private val repo: CatalogRepository) {
+    suspend operator fun invoke(id: String): ProductDetail = repo.submitForReview(id)
+}
+
+/** Withdraw a submission, or discard a pending change (067). */
+class WithdrawProductReview(private val repo: CatalogRepository) {
+    suspend operator fun invoke(id: String): ProductDetail = repo.withdrawReview(id)
+}

@@ -29,6 +29,7 @@ import {
   type SchemaAttribute,
   type SchemaCategory,
   type SchemaProductType,
+  type ShopReviewState,
 } from "./types";
 
 // Map a Postgres unique_violation (23505) to a domain conflict, else rethrow.
@@ -233,9 +234,14 @@ export async function createProduct(
         `INSERT INTO public.product
              (shop_id, product_type_id, primary_category_id, name, sku, gtin, brand,
               price_amount, compare_at_amount, short_description, long_description, created_by,
-              weight_grams, weight_is_assumed)
+              weight_grams, weight_is_assumed,
+              shop_price_amount, shop_compare_at_amount)
+             -- ⚠ 067: a shop writes its OWN price. On a product Effy has never approved there is no
+             -- margin yet, so the customer price is the same number — written to both, so a draft
+             -- never carries a customer price that disagrees with what the shop typed.
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                     COALESCE($13::int, 500), $13 IS NULL)
+                     COALESCE($13::int, 500), $13 IS NULL,
+                     $8, $9)
           RETURNING id`,
         [
           shopId,
@@ -316,11 +322,17 @@ export async function updateProduct(
              name = $3, product_type_id = $4, primary_category_id = $5, sku = $6, gtin = $7,
              brand = $8, price_amount = $9, compare_at_amount = $10, short_description = $11,
              long_description = $12, updated_at = now(),
+             -- 067: this statement runs ONLY for a never-approved product (the service routes an
+             -- approved one to a pending change), so there is no margin and both prices are the same.
+             shop_price_amount = $9, shop_compare_at_amount = $10,
              -- ⚠ A weight is only written when one is SUPPLIED; NULL leaves the row as it stands
              -- rather than resetting a measured weight back to the assumed default.
              weight_grams      = COALESCE($14::int, weight_grams),
              weight_is_assumed = CASE WHEN $14::int IS NULL THEN weight_is_assumed ELSE false END
           WHERE id = $1 AND shop_id = $2
+            -- ⚠ The guard is IN the statement: even a caller that skipped the service cannot write
+            -- an approved product's live details from here (067 FR-015).
+            AND approved_at IS NULL
             AND date_trunc('milliseconds', updated_at) = $13::timestamptz
           RETURNING id`,
         [
@@ -349,12 +361,84 @@ export async function updateProduct(
   });
 }
 
-/** Change lifecycle status under shop scope; 404 if not this shop's. */
+/**
+ * Change lifecycle status under shop scope; false if not this shop's.
+ *
+ * ⚠ 067: `→ active` needs an approval, and the predicate says so here as well as in the service and
+ * in the table's CHECK. Three layers for one rule is deliberate: the service gives the shop a useful
+ * message, this keeps a different caller honest, and the CHECK is the one nothing can skip.
+ */
 export async function changeStatus(shopId: string, id: string, status: ProductStatus): Promise<boolean> {
   const res = await query<{ id: string }>(
     `UPDATE public.product SET status = $3, updated_at = now()
-      WHERE id = $1 AND shop_id = $2 RETURNING id`,
+      WHERE id = $1 AND shop_id = $2
+        AND ($3 <> 'active' OR approved_at IS NOT NULL)
+      RETURNING id`,
     [id, shopId, status],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+// ── 067 — review ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The review state a shop is shown, from TWO facts: has Effy ever approved this product, and is
+ * something waiting. Needs `p` (product) and a LEFT JOIN of `public.product_change pc`.
+ */
+export const REVIEW_STATE_SQL = `CASE
+    WHEN p.approved_at IS NULL THEN
+      CASE p.review_state WHEN 'in_review' THEN 'in_review' WHEN 'sent_back' THEN 'sent_back' ELSE 'draft' END
+    WHEN pc.state = 'in_review' THEN 'live_change_pending'
+    WHEN pc.state = 'sent_back' THEN 'live_change_sent_back'
+    ELSE 'live'
+  END`;
+
+export interface ReviewFacts {
+  approved: boolean;
+  reviewState: "none" | "in_review" | "sent_back";
+  status: ProductStatus;
+}
+
+export async function reviewFacts(shopId: string, id: string): Promise<ReviewFacts | null> {
+  const res = await query<{ approved: boolean; review_state: ReviewFacts["reviewState"]; status: ProductStatus }>(
+    `SELECT approved_at IS NOT NULL AS approved, review_state, status
+       FROM public.product WHERE id = $1 AND shop_id = $2`,
+    [id, shopId],
+  );
+  const r = res.rows[0];
+  return r ? { approved: r.approved, reviewState: r.review_state, status: r.status } : null;
+}
+
+/**
+ * Move a product's version forward without changing a detail.
+ *
+ * ⚠ A reviewer's decision is refused if the item changed after they opened it, and "changed" is
+ * `updated_at`. An image added to a product IN REVIEW writes `product_media`, not `product` — so
+ * without this, a shop could swap the photo after the reviewer looked and the approval would still
+ * go through on what they saw before.
+ */
+export async function touchProduct(shopId: string, id: string): Promise<void> {
+  await query(`UPDATE public.product SET updated_at = now() WHERE id = $1 AND shop_id = $2`, [id, shopId]);
+}
+
+/** Put a never-approved product in Effy's queue. False if it is not this shop's, or is approved. */
+export async function submitForReview(shopId: string, id: string): Promise<boolean> {
+  const res = await query(
+    `UPDATE public.product
+        SET review_state = 'in_review', review_reason = NULL, submitted_at = now(), updated_at = now()
+      WHERE id = $1 AND shop_id = $2 AND approved_at IS NULL`,
+    [id, shopId],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
+/** Take a never-approved product back out of the queue. A sent-back product keeps its reason. */
+export async function withdrawSubmission(shopId: string, id: string): Promise<boolean> {
+  const res = await query(
+    `UPDATE public.product
+        SET review_state = 'none', submitted_at = NULL, updated_at = now()
+      WHERE id = $1 AND shop_id = $2 AND approved_at IS NULL AND review_state = 'in_review'`,
+    [id, shopId],
   );
   return (res.rowCount ?? 0) > 0;
 }
@@ -525,6 +609,8 @@ interface ProductListRow {
   type_name: string;
   category_name: string;
   price_amount: string;
+  customer_price_amount: string;
+  review_state_shown: ShopReviewState;
   currency: string;
   status: ProductStatus;
   sku: string | null;
@@ -534,7 +620,7 @@ interface ProductListRow {
 
 const SORT_COLUMNS: Record<ListParams["sort"], string> = {
   name: "p.name",
-  price: "p.price_amount",
+  price: "COALESCE(p.shop_price_amount, p.price_amount)",
   recent: "p.created_at",
 };
 
@@ -548,20 +634,26 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
             (SELECT storage_key FROM public.product_media m
               WHERE m.product_id = p.id AND m.is_primary LIMIT 1) AS primary_storage_key,
             pt.name AS type_name, c.name AS category_name,
-            p.price_amount::text AS price_amount, p.currency, p.status, p.sku, p.updated_at,
+            -- 067: a shop is shown what IT is paid; the customer's price rides beside it.
+            COALESCE(p.shop_price_amount, p.price_amount)::text AS price_amount,
+            p.price_amount::text AS customer_price_amount,
+            ${REVIEW_STATE_SQL} AS review_state_shown,
+            p.currency, p.status, p.sku, p.updated_at,
             count(*) OVER() AS total
        FROM public.product p
        JOIN public.product_type pt ON pt.id = p.product_type_id
        JOIN public.category c ON c.id = p.primary_category_id
+       LEFT JOIN public.product_change pc ON pc.product_id = p.id
       WHERE p.shop_id = $1
+        AND ($11::text IS NULL OR ${REVIEW_STATE_SQL} = $11)
         AND ($2::text IS NULL OR
              lower(p.name || ' ' || coalesce(p.sku, '') || ' ' || coalesce(p.brand, '') || ' ' || p.short_description)
                LIKE '%' || lower($2) || '%')
         AND ($3::uuid IS NULL OR p.product_type_id = $3)
         AND ($4::uuid IS NULL OR p.primary_category_id = $4)
         AND ($5::text IS NULL OR p.status = $5)
-        AND ($6::numeric IS NULL OR p.price_amount >= $6)
-        AND ($7::numeric IS NULL OR p.price_amount <= $7)
+        AND ($6::numeric IS NULL OR COALESCE(p.shop_price_amount, p.price_amount) >= $6)
+        AND ($7::numeric IS NULL OR COALESCE(p.shop_price_amount, p.price_amount) <= $7)
         AND ($8::uuid IS NULL OR EXISTS (
               SELECT 1 FROM public.product_section ps
                WHERE ps.product_id = p.id AND ps.shop_section_id = $8))
@@ -578,6 +670,7 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       params.section,
       params.pageSize,
       (params.page - 1) * params.pageSize,
+      params.reviewState,
     ],
   );
   const total = res.rows[0] ? Number(res.rows[0].total) : 0;
@@ -594,6 +687,8 @@ export async function listProducts(shopId: string, params: ListParams): Promise<
       status: r.status,
       sku: r.sku,
       updatedAt: r.updated_at.toISOString(),
+      reviewState: r.review_state_shown,
+      customerPriceAmount: r.customer_price_amount,
     })),
     total,
     page: params.page,
@@ -624,6 +719,11 @@ interface ProductRow {
   status: ProductStatus;
   created_at: Date;
   updated_at: Date;
+  customer_price_amount: string;
+  customer_compare_at_amount: string | null;
+  review_state_shown: ShopReviewState;
+  review_reason: string | null;
+  approved: boolean;
 }
 
 interface AttrValueRow {
@@ -654,14 +754,24 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     `SELECT p.id, p.shop_id, p.product_type_id, pt.name AS type_name,
             p.primary_category_id, c.name AS category_name,
             p.name, p.sku, p.gtin, p.brand,
-            p.price_amount::text AS price_amount, p.currency,
-            p.compare_at_amount::text AS compare_at_amount,
+            -- ⚠ 067: price_amount on a shop DTO is the SHOP's price. The table's price_amount is
+            -- the customer's and is returned under its own name. Named columns only — never p.*,
+            -- which would carry Effy's margin to a shop (a guard test fails on it).
+            COALESCE(p.shop_price_amount, p.price_amount)::text AS price_amount, p.currency,
+            CASE WHEN p.shop_price_amount IS NULL THEN p.compare_at_amount
+                 ELSE p.shop_compare_at_amount END::text AS compare_at_amount,
+            p.price_amount::text AS customer_price_amount,
+            p.compare_at_amount::text AS customer_compare_at_amount,
             p.short_description, p.long_description, p.weight_grams, p.weight_is_assumed,
             p.status,
-            p.created_at, p.updated_at
+            p.created_at, p.updated_at,
+            ${REVIEW_STATE_SQL} AS review_state_shown,
+            COALESCE(pc.reason, p.review_reason) AS review_reason,
+            p.approved_at IS NOT NULL AS approved
        FROM public.product p
        JOIN public.product_type pt ON pt.id = p.product_type_id
        JOIN public.category c ON c.id = p.primary_category_id
+       LEFT JOIN public.product_change pc ON pc.product_id = p.id
       WHERE p.id = $1 AND p.shop_id = $2`,
     [id, shopId],
   );
@@ -745,5 +855,12 @@ export async function getProductDetail(shopId: string, id: string): Promise<Prod
     missingMandatoryAttributes: missing.rows.map((m) => m.name),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
+    reviewState: row.review_state_shown,
+    reviewReason: row.review_reason,
+    customerPriceAmount: row.customer_price_amount,
+    customerCompareAtAmount: row.customer_compare_at_amount,
+    approved: row.approved,
+    // Filled by the service from ./change.ts — the live product above is ALWAYS the approved one.
+    pendingChange: null,
   };
 }

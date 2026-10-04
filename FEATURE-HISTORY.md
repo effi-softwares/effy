@@ -4,6 +4,51 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**067-product-approval-margin — Product Approval & Effy Margin.** 🚧 **68/70 tasks — CODE-COMPLETE
+AND MACHINE-VERIFIED across the migration, the hot path, four cold-path services (one new), the
+back-office console, shop-web and shop-mobile. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.**
+Sign-off: [specs/067-product-approval-margin/SIGNOFF.md](specs/067-product-approval-margin/SIGNOFF.md).
+Client feedback R1 + R2 ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
+
+A shop no longer publishes. Effy approves a new product — setting its margin — before it goes on
+sale, and approves every later change to its details. Stock is never reviewed.
+- ⚠ **`price_amount` STAYS THE CUSTOMER PRICE.** It is read in ~14 hot-path places; renaming its
+  meaning would have changed every one. The new column is `shop_price_amount`, **nullable**: NULL
+  means "same as `price_amount`", and every reader takes `COALESCE(shop_price_amount, price_amount)`.
+  `NOT NULL` would have broken every writer that predates it.
+- ⚠ **"ON SALE NEEDS AN APPROVAL" IS A CHECK ON THE TABLE** (`status <> 'active' OR approved_at IS
+  NOT NULL`). A never-approved product stays `draft` with a `review_state`; there is no new status,
+  so the availability rule (054) and every storefront read are untouched.
+- ⚠ **A PENDING CHANGE LIVES IN ITS OWN ROW** (`product_change`, one per product, plus
+  `product_change_media`). The live product is not touched until approval, so "customers keep seeing
+  the approved version" is true by construction, and a send-back has nothing to undo.
+- ⚠ **A NEW COLD-PATH SERVICE, `apis/edge-api/catalog`** (routes `/catalog/v1/…`, back-office
+  authorizer). Every decision is ONE transaction under a row lock, checked against the version the
+  reviewer saw — compared as `updated_at::text`, never a JS Date (056's lesson).
+- ⚠ **ONE MARGIN CALCULATION** (`edge-shared/lib/margin.ts`, whole cents, half-up). The console's
+  preview mirrors it; the server's figure is the one that sells.
+- ⚠ **THE SHOP NEVER SEES THE MARGIN AS A FIGURE.** It sees its own price and the customer price. A
+  guard fails naming any `edge-shop` file that references the margin columns.
+- ⚠ **AN ORDER LINE KEEPS BOTH PRICES.** Shop Insights and the shop's order lines are at the shop's
+  price; order-level money on the shop order console stays what the customer paid (057 A3).
+- ⚠ **THE ONE BLIND SPOT: an unwatched queue stops shops selling, silently.** `edge-catalog` emits
+  the age of the oldest waiting item every 15 minutes; the alarm treats MISSING data as breaching.
+- ⚠ **THE EDITORS OPEN ON THE SHOP'S LATEST VERSION, NOT THE LIVE PRODUCT** (`workingDetail`). The
+  attribute editor re-sends the whole set, so seeding it from the live product would have silently
+  reverted yesterday's proposal.
+- **Deploy order matters**: `db-up` → `notifications` → `shop` **immediately** (the old shop
+  service's Publish hits the new CHECK and 500s) → `catalog` → `make apply` (the alarm, after the
+  emitter exists) → `core-deploy` → consoles.
+- **Verified**: typecheck **21/21** · edge-shared **159** · edge-catalog **43** · edge-shop **460**
+  with containers (+ the 2 already red) · edge-inventory **62** · back-office **245** · shop-web
+  **456** · shop-mobile **115** Android host, iOS main and test compile · Go checkout container
+  suite green · `tokens:check` unchanged · six negative proofs, all caught.
+- **⚠ Open (2, operator)**: the deploy and the walks. ⚠ **W1 first** — after `db-up` the catalogue
+  must look identical. Not done: shop-mobile cannot edit a product (its Edit button has been a
+  no-op since 016); nothing notifies back-office staff of a submission; the 24 h alarm threshold is
+  a default nobody at Effy chose. Registers:
+  [shop](docs/audiences/shop-capabilities.md) §067 · [admin](docs/audiences/admin-capabilities.md) §067.
+
 **066-delivery-instructions — Customer Delivery Instructions.** 🚧 **49/51 tasks — CODE-COMPLETE
 AND MACHINE-VERIFIED across the hot path, three cold-path services, both customer surfaces,
 back-office and the driver app. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:

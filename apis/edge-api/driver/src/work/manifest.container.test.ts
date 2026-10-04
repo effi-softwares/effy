@@ -53,9 +53,9 @@ async function makeShop(code: string): Promise<string> {
 async function makeProduct(shopId: string, name: string): Promise<string> {
   return (await one<{ id: string }>(
     `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name,
-                                 price_amount, short_description, created_by, status)
+                                 price_amount, short_description, created_by, status, approved_at)
      VALUES ($1, (SELECT id FROM public.product_type LIMIT 1), (SELECT id FROM public.category LIMIT 1),
-             $2, 4.50, 'A thing', 'test', 'active') RETURNING id`,
+             $2, 4.50, 'A thing', 'test', 'active', now()) RETURNING id`,
     [shopId, name],
   )).id;
 }

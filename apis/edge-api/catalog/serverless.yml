@@ -1,0 +1,167 @@
+# Effy cold-path CATALOG service — 067-product-approval-margin.
+#
+# The BACK-OFFICE half of product review: the queue of new products and pending changes, the
+# decisions (approve / send back) and Effy's margin. Attaches to the shared HTTP API; every route is
+# under /catalog/ and behind the back-office authorizer.
+#
+# ⚠ WHY A NEW SERVICE. `effy-edge-admin` packages to 434/500 CloudFormation resources with
+# `versionFunctions: false` already spent, so it cannot take these routes — the same measured
+# constraint 053 (orders), 054 (inventory) and 056 (fleet) each hit.
+#
+# ⚠ WHY NOT `effy-edge-shop`, which has room (320/500). The shop's half of review (submit, withdraw,
+# propose a change) lives there, beside the product code it changes. The DECISION routes do not: a
+# route that approves a product, declared in the service whose authorizer is the shop pool, is one
+# mis-typed authorizer id away from a shop approving its own product and setting its own margin.
+# One audience per service keeps that mistake unrepresentable.
+service: effy-edge-catalog
+frameworkVersion: "3"
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+params:
+  default:
+    logLevel: info
+    # Region-pinned AWS layer (Decisions locked: changed by hand on a region move).
+    secretsExtensionArn: arn:aws:lambda:ap-southeast-2:665172237481:layer:AWS-Parameters-and-Secrets-Lambda-Extension-Arm64:90
+  dev:
+    logLevel: debug
+
+provider:
+  name: aws
+  region: ap-southeast-2
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs22.x
+  architecture: arm64
+  memorySize: 256
+  timeout: 10
+  logRetentionInDays: 30
+  versionFunctions: false
+  tags:
+    project: effy
+    slice: 067-product-approval-margin
+    service: catalog
+  httpApi:
+    id: ${ssm:/effy/${sls:stage}/edge/http_api_id}
+  environment:
+    EFFY_ENV: ${sls:stage}
+    LOG_LEVEL: ${param:logLevel}
+    DB_HOST: ${ssm:/effy/${sls:stage}/db/endpoint}
+    DB_PORT: ${ssm:/effy/${sls:stage}/db/port}
+    DB_NAME: ${ssm:/effy/${sls:stage}/db/name}
+    DB_USER: ${ssm:/effy/${sls:stage}/db/master_username}
+    DB_SECRET_ARN: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+    # Product-media bucket (016): a reviewer LOOKS at the shop's images, so this service presigns
+    # reads. It never writes an object.
+    S3_MEDIA_BUCKET: ${ssm:/effy/${sls:stage}/media/bucket}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: secretsmanager:GetSecretValue
+          Resource: ${ssm:/effy/${sls:stage}/db/master_secret_arn}
+        # READ ONLY, on the product-media bucket only.
+        - Effect: Allow
+          Action: s3:GetObject
+          Resource: arn:aws:s3:::effy-${sls:stage}-product-media/*
+  layers:
+    - ${param:secretsExtensionArn}
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    platform: node
+    target: node22
+    format: esm
+    outputFileExtension: .mjs
+    banner:
+      js: import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+
+package:
+  individually: true
+
+functions:
+  healthz:
+    handler: src/functions/healthz-get.handler
+    description: Liveness — is the catalog service deployed and executing? Touches nothing. Public.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/healthz
+
+  reviewListV1:
+    handler: src/functions/review-list-v1-get.handler
+    description: The review queue — new products and pending changes, oldest first (067 FR-006). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/review
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  reviewMarginNotSetV1:
+    handler: src/functions/review-margin-not-set-v1-get.handler
+    description: Live products with no margin set (067 FR-008). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/review/margin-not-set
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  reviewItemV1:
+    handler: src/functions/review-item-v1-get.handler
+    description: One review item with its before/after (067 FR-009, FR-010). Read = any active staff incl. csa.
+    events:
+      - httpApi:
+          method: GET
+          path: /catalog/v1/review/items/{productId}
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  reviewApproveV1:
+    handler: src/functions/review-approve-v1-post.handler
+    description: Approve a new product or a pending change, setting the margin (067 FR-011, FR-028). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/review/items/{productId}/approve
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  reviewSendBackV1:
+    handler: src/functions/review-send-back-v1-post.handler
+    description: Send a new product or a pending change back with a reason (067 FR-012). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/review/items/{productId}/send-back
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  productMarginV1:
+    handler: src/functions/product-margin-v1-post.handler
+    description: Set or change Effy's margin on an approved product (067 FR-032). Decide = admin/manager.
+    events:
+      - httpApi:
+          method: POST
+          path: /catalog/v1/products/{productId}/margin
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/back-office_id}
+
+  reviewQueueAge:
+    handler: src/functions/review-queue-age-scheduled.handler
+    description: Emits how long the oldest review item has waited (067) — an unwatched queue stops shops selling, silently.
+    events:
+      - schedule: rate(15 minutes)
+
+resources: {}

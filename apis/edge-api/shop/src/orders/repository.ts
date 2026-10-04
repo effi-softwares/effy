@@ -342,8 +342,11 @@ SELECT oi.id AS order_item_id,
           JOIN public.refund r ON r.id = rl.refund_id
          WHERE rl.order_item_id = oi.id
            AND r.status NOT IN ('failed', 'refused')) AS refunded_quantity,
-       oi.unit_price_amount,
-       oi.line_subtotal_amount
+       -- ⚠ 067: a shop is shown its OWN price for a line — what it is owed — not what the customer
+       -- paid. The column aliases are unchanged so the mapping below reads the same; NULL shop columns
+       -- (a line written before 067) mean "the same as the customer's".
+       COALESCE(oi.shop_unit_price_amount, oi.unit_price_amount) AS unit_price_amount,
+       COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount) AS line_subtotal_amount
   FROM public.shop_fulfillment sf
   JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
   LEFT JOIN public.product p ON p.id = oi.product_id

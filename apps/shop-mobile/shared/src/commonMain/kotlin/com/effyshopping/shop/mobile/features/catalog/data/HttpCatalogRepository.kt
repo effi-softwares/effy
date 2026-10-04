@@ -58,6 +58,7 @@ class HttpCatalogRepository(private val shopApi: HttpClient) : CatalogRepository
             query.category?.let { parameter("category", it) }
             query.section?.let { parameter("section", it) }
             query.status?.let { parameter("status", it.key) }
+            query.reviewState?.let { parameter("reviewState", it.name.lowercase()) }
             query.priceMin?.let { parameter("priceMin", it) }
             query.priceMax?.let { parameter("priceMax", it) }
             query.sort?.let { parameter("sort", it.key) }
@@ -82,6 +83,14 @@ class HttpCatalogRepository(private val shopApi: HttpClient) : CatalogRepository
     override suspend fun changeStatus(id: String, status: ProductStatus): ProductDetail = request {
         shopApi.post("shop/v1/products/$id/status") { setBody(status.toStatusRequest()) }
             .ensureSuccess().body<ProductDetailDTO>().toDomain()
+    }
+
+    override suspend fun submitForReview(id: String): ProductDetail = request {
+        shopApi.post("shop/v1/products/$id/submit").ensureSuccess().body<ProductDetailDTO>().toDomain()
+    }
+
+    override suspend fun withdrawReview(id: String): ProductDetail = request {
+        shopApi.post("shop/v1/products/$id/withdraw").ensureSuccess().body<ProductDetailDTO>().toDomain()
     }
 
     override suspend fun deleteProduct(id: String) = request {

@@ -15,6 +15,37 @@ enum class ProductStatus(val key: String, val label: String) {
     ARCHIVED("archived", "Archived"),
 }
 
+/**
+ * Where a product stands with Effy's review (067). Effy approves a product before it goes on sale and
+ * approves every later change to its details; stock is never reviewed.
+ *
+ * [label] is null where there is nothing to add — a draft and a live product are already described
+ * by [ProductStatus], and a second pill repeating it is noise on every row.
+ */
+enum class ReviewState(val label: String?, val needsAttention: Boolean = false) {
+    DRAFT(null),
+    IN_REVIEW("In review"),
+    SENT_BACK("Sent back", needsAttention = true),
+    LIVE(null),
+    LIVE_CHANGE_PENDING("Change in review"),
+    LIVE_CHANGE_SENT_BACK("Change sent back", needsAttention = true);
+
+    /** Effy has approved this product at least once. Whether it is ON SALE is still [ProductStatus]. */
+    val approved: Boolean get() = this == LIVE || this == LIVE_CHANGE_PENDING || this == LIVE_CHANGE_SENT_BACK
+
+    /** A change to an approved product is waiting, or came back. */
+    val hasPendingChange: Boolean get() = this == LIVE_CHANGE_PENDING || this == LIVE_CHANGE_SENT_BACK
+}
+
+/**
+ * The shop's proposed new version of an approved product, as a list of what it changes.
+ * Customers keep seeing the live product until Effy approves it.
+ */
+data class PendingChange(val changes: List<ProposedChange>)
+
+/** One changed detail: what is on sale now, and what the shop proposed. Shop prices, never a margin. */
+data class ProposedChange(val label: String, val now: String, val proposed: String)
+
 /** The data type of a back-office-authored attribute — drives which create/edit control is rendered. */
 enum class AttributeType { BOOLEAN, LONG_TEXT, MULTI_SELECT, NUMBER, SHORT_TEXT, SINGLE_SELECT }
 
@@ -79,6 +110,7 @@ data class ProductListItem(
     val status: ProductStatus,
     val primaryImageUrl: String? = null,
     val updatedAt: String,
+    val reviewState: ReviewState = ReviewState.LIVE,
 )
 
 /** One backend-computed page of the catalog list. */
@@ -147,6 +179,12 @@ data class ProductDetail(
     val missingMandatoryAttributes: List<String>,
     val createdAt: String,
     val updatedAt: String,
+    val reviewState: ReviewState = ReviewState.LIVE,
+    /** Why Effy sent this product, or its pending change, back. From Effy — never a named person. */
+    val reviewReason: String? = null,
+    /** What customers pay: the shop's price plus Effy's margin. Null until Effy has approved it. */
+    val customerPriceAmount: String? = null,
+    val pendingChange: PendingChange? = null,
 )
 
 /** Sort keys the backend list understands. */
@@ -164,6 +202,7 @@ data class ProductQuery(
     val category: String? = null,
     val section: String? = null,
     val status: ProductStatus? = null,
+    val reviewState: ReviewState? = null,
     val priceMin: String? = null,
     val priceMax: String? = null,
     val sort: ProductSort? = null,

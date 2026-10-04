@@ -40,7 +40,7 @@ import {
 import { productMutationError } from "./errorText";
 import type { Category, ProductType } from "./model";
 import { catalogSchemaQuery, useCreateProduct } from "./queries";
-import { uploadProductMedia } from "./repo";
+import { submitProductForReview, uploadProductMedia } from "./repo";
 import {
   attributeErrors,
   attributesValid,
@@ -196,6 +196,15 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
       });
 
       track({ name: "product_created", productId: product.id });
+      // 067 — the wizard's last button sends the finished product to Effy. ⚠ A FAILED SUBMIT IS NOT A
+      // FAILED CREATE: the product exists as a draft with its image, so the shop lands on it and
+      // submits from there rather than being told nothing was saved.
+      try {
+        await submitProductForReview(product.id);
+        track({ name: "product_submitted_for_review", productId: product.id });
+      } catch {
+        /* stays a draft; its page offers "Submit for review" and says what is missing */
+      }
       if (shopId && subject) clearDraft(shopId, subject);
       setDraft(emptyDraft());
       setImageFile(null);
@@ -247,7 +256,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
     "The essentials a shopper sees, and the weight delivery is priced on.",
     "One photograph. It is what the product looks like everywhere on the storefront.",
     "The details this product type asks for. Required ones are marked.",
-    "Check it over. Nothing is published until you press Publish.",
+    "Check it over. Nothing is sent to Effy until you press Submit for review. It goes on sale once Effy approves it.",
   ] as const;
 
   return (
@@ -287,7 +296,7 @@ export function ProductCreateFlow({ onCancel, onCreated }: ProductCreateFlowProp
                 </Button>
               ) : (
                 <Button type="button" onClick={() => void publish()} disabled={busy}>
-                  {busy ? "Publishing…" : "Publish"}
+                  {busy ? "Submitting…" : "Submit for review"}
                 </Button>
               )}
             </div>

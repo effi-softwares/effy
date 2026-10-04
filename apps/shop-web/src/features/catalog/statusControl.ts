@@ -1,4 +1,4 @@
-import type { ProductStatus } from "@effy/shared-types";
+import type { ProductStatus, ShopReviewState } from "@effy/shared-types";
 
 /**
  * Pure lifecycle logic for the status menu + delete guard (US5 — no React, unit-testable).
@@ -15,7 +15,7 @@ export interface StatusTransition {
 
 /**
  * The transitions offered from a given status.
- *   draft        → publish
+ *   draft        → nothing (067: a draft reaches the storefront by Effy's approval, not by a status move)
  *   active       → make unavailable, archive
  *   unavailable  → make available (→active), archive
  *   archived     → reactivate (→active)
@@ -23,7 +23,7 @@ export interface StatusTransition {
 export function availableTransitions(status: ProductStatus): StatusTransition[] {
   switch (status) {
     case "draft":
-      return [{ status: "active", label: "Publish" }];
+      return [];
     case "active":
       return [
         { status: "unavailable", label: "Make unavailable" },
@@ -52,7 +52,7 @@ export function canHardDelete(status: ProductStatus): boolean {
  */
 export function deleteGuardMessage(status: ProductStatus): string {
   if (canHardDelete(status)) {
-    return "This draft has never been published, so it can be permanently deleted. This cannot be undone.";
+    return "This draft has never been on sale, so it can be permanently deleted. This cannot be undone.";
   }
   return "A published product can't be deleted — archive it instead. Archiving hides it from the catalog but keeps its data.";
 }
@@ -73,8 +73,14 @@ export function deleteGuardMessage(status: ProductStatus): string {
  * ──────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export interface VisibilityAction {
+  /**
+   * What pressing it does (067). `status` moves the lifecycle; `submit` sends a never-approved
+   * product to Effy for review; `withdraw` takes it back out of the queue.
+   */
+  kind: "status" | "submit" | "withdraw";
   /** The verb on the button — the outcome, never the internal status name. */
   label: string;
+  /** Where a `status` action lands. Unused by `submit` / `withdraw`. */
   target: ProductStatus;
   confirmTitle: string;
   /** What actually happens, in the operator's terms. Shown in the confirmation. */
@@ -90,19 +96,38 @@ export interface VisibilityAction {
  * (data-model §4) has exactly one on-sale state, so "put this on sale" has exactly one destination.
  * Reading the two as different actions is what produced the six-item menu this replaces.
  */
-export function visibilityAction(status: ProductStatus): VisibilityAction | null {
+export function visibilityAction(
+  status: ProductStatus,
+  reviewState?: ShopReviewState,
+): VisibilityAction | null {
   switch (status) {
     case "draft":
+      // ⚠ 067 — A SHOP NO LONGER PUBLISHES. A product Effy has never approved reaches the storefront
+      // one way: it is submitted, and Effy approves it. The button says so, because a "Publish" that
+      // the server refuses is a control that lies about what it can do.
+      if (reviewState === "in_review") {
+        return {
+          kind: "withdraw",
+          label: "Withdraw",
+          target: "draft",
+          confirmTitle: "Withdraw this product from review?",
+          confirmBody:
+            "Effy stops reviewing it and it goes back to being a draft. Nothing you entered is lost, and you can submit it again when it is ready.",
+          confirmLabel: "Withdraw",
+        };
+      }
       return {
-        label: "Publish",
-        target: "active",
-        confirmTitle: "Publish this product?",
+        kind: "submit",
+        label: reviewState === "sent_back" ? "Submit again" : "Submit for review",
+        target: "draft",
+        confirmTitle: "Submit this product for review?",
         confirmBody:
-          "It goes on sale in the Effy storefront straight away. Shoppers can buy it as soon as it is published, so check the price and the stock count first.",
-        confirmLabel: "Publish",
+          "Effy checks it and sets the price customers pay. It goes on sale when it is approved — not before. You will be told either way, and you can keep adjusting stock while you wait.",
+        confirmLabel: "Submit for review",
       };
     case "active":
       return {
+        kind: "status",
         label: "Unpublish",
         target: "unavailable",
         confirmTitle: "Unpublish this product?",
@@ -112,6 +137,7 @@ export function visibilityAction(status: ProductStatus): VisibilityAction | null
       };
     case "unavailable":
       return {
+        kind: "status",
         label: "Publish",
         target: "active",
         confirmTitle: "Put this product back on sale?",
@@ -121,6 +147,7 @@ export function visibilityAction(status: ProductStatus): VisibilityAction | null
       };
     case "archived":
       return {
+        kind: "status",
         label: "Restore",
         target: "active",
         confirmTitle: "Restore this product?",

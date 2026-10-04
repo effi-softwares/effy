@@ -83,8 +83,8 @@ describe.skipIf(!RUN)("Today's reads — real PostgreSQL, real migrations", () =
   }): Promise<string> {
     const res = await pool.query<{ id: string }>(
       `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-         short_description, created_by, status, stock_tracked, stock_on_hand, low_stock_threshold)
-       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', $3, $4, $5, $6
+         short_description, created_by, status, stock_tracked, stock_on_hand, low_stock_threshold, approved_at)
+       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', $3, $4, $5, $6, now()
          FROM public.product_type pt, public.category c
        RETURNING id`,
       [

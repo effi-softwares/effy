@@ -245,6 +245,32 @@ functions:
             type: jwt
             id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
 
+  # ── 067 — review ──────────────────────────────────────────────────────────────────────────────
+  # ⚠ The APPROVE / SEND-BACK / MARGIN routes are deliberately NOT in this service. They live in
+  # `edge-api/catalog` behind the back-office authorizer: a decision route declared here would sit
+  # one mis-wired authorizer id away from a shop approving its own product.
+  productSubmitV1:
+    handler: src/functions/product-submit-v1-post.handler
+    description: Submit a never-approved product for Effy's review — 067
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products/{id}/submit
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
+  productWithdrawV1:
+    handler: src/functions/product-withdraw-v1-post.handler
+    description: Withdraw a submission, or discard a pending change — 067
+    events:
+      - httpApi:
+          method: POST
+          path: /shop/v1/products/{id}/withdraw
+          authorizer:
+            type: jwt
+            id: ${ssm:/effy/${sls:stage}/edge/authorizer/shop_id}
+
   productStatusV1:
     handler: src/functions/product-status-v1-post.handler
     description: Change product lifecycle status (publish re-validates mandatory) — 016

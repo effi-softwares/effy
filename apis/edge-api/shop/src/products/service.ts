@@ -4,6 +4,7 @@
 // boundary. `shopId` is always the caller-resolved actor shop — never client input.
 import * as media from "./media";
 import * as repo from "./repository";
+import * as change from "./change";
 import {
   type CatalogSchema,
   type CreateProductInput,
@@ -16,7 +17,17 @@ import {
   PRODUCT_STATUSES,
   type ProductStatus,
   type SchemaAttribute,
+  type ShopReviewState,
 } from "./types";
+
+const REVIEW_STATES: readonly ShopReviewState[] = [
+  "draft",
+  "in_review",
+  "sent_back",
+  "live",
+  "live_change_pending",
+  "live_change_sent_back",
+];
 
 const PRICE_RE = /^\d+(\.\d{1,2})?$/;
 const SORTS = ["name", "price", "recent"] as const;
@@ -256,12 +267,20 @@ export async function registerMedia(
   if (!storageKey) {
     throw new ProductError("validation", "invalid media", [{ field: "storageKey", message: "is required" }]);
   }
-  const registered = await repo.registerMedia(productId, {
+  const input = {
     storageKey,
     isPrimary: body.isPrimary === true,
     altText: optText(body.altText),
     displayOrder: typeof body.displayOrder === "number" ? Math.floor(body.displayOrder) : 0,
-  });
+  };
+  // ⚠ 067 — an image added to an APPROVED product is a proposed image. It goes into the pending
+  // change's image set and reaches `product_media` — and customers — only when Effy approves.
+  const approved = await isApproved(shopId, productId);
+  const registered = approved
+    ? await change.registerChangeMedia(shopId, productId, input)
+    : await repo.registerMedia(productId, input);
+  if (!registered) throw new ProductError("not_found", "product not found");
+  if (!approved) await repo.touchProduct(shopId, productId); // a reviewer's stale view must be refused
   // Return with a presigned GET url (the stored `url` is the key).
   return { ...registered, url: await media.presignRead(registered.storageKey) };
 }
@@ -278,6 +297,7 @@ export async function listProducts(
     category?: unknown;
     section?: unknown;
     status?: unknown;
+    reviewState?: unknown;
     priceMin?: unknown;
     priceMax?: unknown;
     sort?: unknown;
@@ -302,6 +322,9 @@ export async function listProducts(
     category: optText(params.category),
     section: optText(params.section),
     status,
+    reviewState: REVIEW_STATES.includes(params.reviewState as ShopReviewState)
+      ? (params.reviewState as ShopReviewState)
+      : null,
     priceMin: numericStr(params.priceMin),
     priceMax: numericStr(params.priceMax),
     sort,
@@ -325,14 +348,23 @@ export async function updateProduct(
   id: string,
   body: Record<string, unknown>,
 ): Promise<ProductDetail> {
+  const live = await repo.getProductDetail(shopId, id);
+  if (!live) throw new ProductError("not_found", "product not found");
+
+  // ⚠ 067 — THE FORK. A product Effy has never approved is still the shop's own draft and is edited
+  // in place, as before. An APPROVED product is what customers see, and a shop's edit to it is a
+  // PROPOSAL: it is merged over anything already proposed, diffed against the live product, and
+  // saved beside it. The live row is not written from here at all.
+  const pending = live.approved ? await change.readChange(shopId, id) : null;
+  const current = live.approved ? change.overlay(live, pending?.proposed ?? null) : live;
+
   const expectedUpdatedAt = typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : "";
-  if (!expectedUpdatedAt) {
+  // The concurrency token guards the LIVE row. A proposal does not write it, so it needs none.
+  if (!live.approved && !expectedUpdatedAt) {
     throw new ProductError("validation", "invalid update", [
       { field: "expectedUpdatedAt", message: "is required (optimistic concurrency token)" },
     ]);
   }
-  const current = await repo.getProductDetail(shopId, id);
-  if (!current) throw new ProductError("not_found", "product not found");
 
   const fields: FieldIssue[] = [];
   // Merge each supplied field over the current value (a focused edit patches a subset).
@@ -368,6 +400,31 @@ export async function updateProduct(
   }
 
   if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
+
+  if (live.approved) {
+    const target: change.TargetValues = {
+      name,
+      productTypeId,
+      primaryCategoryId,
+      sku: "sku" in body ? optText(body.sku) : current.sku,
+      gtin: "gtin" in body ? optText(body.gtin) : current.gtin,
+      brand: "brand" in body ? optText(body.brand) : current.brand,
+      priceAmount,
+      compareAtAmount,
+      shortDescription,
+      longDescription: "longDescription" in body ? optText(body.longDescription) : current.longDescription,
+      weightGrams: "weightGrams" in body ? normaliseWeight(body.weightGrams, fields) : current.weightGrams,
+    };
+    if (fields.length > 0) throw new ProductError("validation", "invalid update", fields);
+    const proposal = change.diffProposal(
+      live,
+      target,
+      change.mergeAttributes(pending?.proposed.attributes, attributes),
+    );
+    const saved = await change.saveProposal(shopId, id, proposal);
+    if (saved === "not_found") throw new ProductError("not_found", "product not found");
+    return getProduct(shopId, id);
+  }
 
   const outcome = await repo.updateProduct(
     shopId,
@@ -408,6 +465,16 @@ export async function changeStatus(
     throw new ProductError("validation", "invalid status", [
       { field: "status", message: `must be one of ${PRODUCT_STATUSES.join(", ")}` },
     ]);
+  }
+  // ⚠ 067 — A SHOP CANNOT PUT A NEVER-APPROVED PRODUCT ON SALE. "Publish" is gone for those: the way
+  // on to the storefront is to submit for review. An approved product the shop took off sale goes
+  // back on immediately (FR-025) — nothing about it changed, so there is nothing to review.
+  if (status === "active") {
+    const facts = await repo.reviewFacts(shopId, id);
+    if (!facts) throw new ProductError("not_found", "product not found");
+    if (!facts.approved) {
+      throw new ProductError("conflict", "submit this product for review — Effy approves a product before it goes on sale");
+    }
   }
   // Publishing (→ active) re-validates ALL mandatory fields: every type-mandatory attribute present
   // AND a primary image (FR-010, data-model §4). This is the enforcement point create defers.
@@ -453,17 +520,26 @@ export async function patchMedia(
   mediaId: string,
   body: Record<string, unknown>,
 ): Promise<import("./types").ProductMedia> {
-  const updated = await repo.updateMedia(shopId, productId, mediaId, {
+  const patch = {
     isPrimary: typeof body.isPrimary === "boolean" ? body.isPrimary : undefined,
     displayOrder: typeof body.displayOrder === "number" ? Math.floor(body.displayOrder) : undefined,
     altText: "altText" in body ? optText(body.altText) : undefined,
-  });
+  };
+  const approved = await isApproved(shopId, productId);
+  const updated = approved
+    ? await change.updateChangeMedia(shopId, productId, mediaId, patch)
+    : await repo.updateMedia(shopId, productId, mediaId, patch);
+  if (updated && !approved) await repo.touchProduct(shopId, productId);
   if (!updated) throw new ProductError("not_found", "media not found");
   return { ...updated, url: await media.presignRead(updated.storageKey) };
 }
 
 export async function removeMedia(shopId: string, productId: string, mediaId: string): Promise<void> {
-  const outcome = await repo.deleteMedia(shopId, productId, mediaId);
+  const approved = await isApproved(shopId, productId);
+  const outcome = approved
+    ? await change.deleteChangeMedia(shopId, productId, mediaId)
+    : await repo.deleteMedia(shopId, productId, mediaId);
+  if (outcome === "deleted" && !approved) await repo.touchProduct(shopId, productId);
   if (outcome === "not_found") throw new ProductError("not_found", "media not found");
   if (outcome === "blocked") {
     throw new ProductError("validation", "an active product must keep a primary image", [
@@ -481,7 +557,67 @@ export async function getProduct(shopId: string, id: string): Promise<ProductDet
   detail.media = await Promise.all(
     detail.media.map(async (m) => ({ ...m, url: await media.presignRead(m.storageKey) })),
   );
+  // 067 — the shop's pending proposal, shown BESIDE the live product above and never merged into it:
+  // the shop must be able to see what customers are looking at right now.
+  if (detail.approved) {
+    const pending = await change.readChange(shopId, id);
+    if (pending) {
+      const proposedMedia = pending.mediaChanged ? await change.readChangeMedia(pending.id) : null;
+      detail.pendingChange = {
+        state: pending.state,
+        reason: pending.reason,
+        submittedAt: pending.submittedAt,
+        proposed: pending.proposed,
+        media: proposedMedia
+          ? await Promise.all(proposedMedia.map(async (m) => ({ ...m, url: await media.presignRead(m.storageKey) })))
+          : null,
+      };
+    }
+  }
   return detail;
+}
+
+// ── Review (067) ──────────────────────────────────────────────────────────────────────────────
+
+async function isApproved(shopId: string, productId: string): Promise<boolean> {
+  return (await repo.reviewFacts(shopId, productId))?.approved ?? false;
+}
+
+/**
+ * Submit a never-approved product for Effy's review.
+ *
+ * Runs the SAME checks "publish" used to run — every type-mandatory attribute and a primary image —
+ * because what is being asked for is the same thing: this product, on sale. The difference is who
+ * says yes.
+ */
+export async function submitForReview(shopId: string, id: string): Promise<ProductDetail> {
+  const detail = await repo.getProductDetail(shopId, id);
+  if (!detail) throw new ProductError("not_found", "product not found");
+  if (detail.approved) {
+    throw new ProductError("conflict", "this product is already approved — changes to it are reviewed as you save them");
+  }
+  const fields: FieldIssue[] = detail.missingMandatoryAttributes.map((m) => ({
+    field: "attributes",
+    message: `${m} is required before this can be reviewed`,
+  }));
+  if (!(await repo.hasPrimaryImage(shopId, id))) {
+    fields.push({ field: "media", message: "a primary image is required before this can be reviewed" });
+  }
+  if (fields.length > 0) throw new ProductError("validation", "cannot submit — missing required fields", fields);
+  if (!(await repo.submitForReview(shopId, id))) throw new ProductError("not_found", "product not found");
+  return getProduct(shopId, id);
+}
+
+/**
+ * Withdraw: take a submitted product back out of the queue, or discard a pending change.
+ * Either way the live product — if there is one — is untouched, so there is nothing to undo.
+ */
+export async function withdraw(shopId: string, id: string): Promise<ProductDetail> {
+  const facts = await repo.reviewFacts(shopId, id);
+  if (!facts) throw new ProductError("not_found", "product not found");
+  const done = facts.approved ? await change.withdrawChange(shopId, id) : await repo.withdrawSubmission(shopId, id);
+  if (!done) throw new ProductError("conflict", "there is nothing waiting for review on this product");
+  return getProduct(shopId, id);
 }
 
 // ── small helpers ───────────────────────────────────────────────────────────────────────────────

@@ -29,6 +29,9 @@ const ALL: NotificationType[] = [
   "shop_out_of_stock",
   "shop_low_stock",
   "shop_refund_proposed",
+  // 067
+  "shop_product_approved",
+  "shop_product_sent_back",
 ];
 
 describe("notification copy + wire contract", () => {
@@ -131,6 +134,24 @@ describe("notification copy + wire contract", () => {
     expect(webPathFor("shop_awaiting_pick", "")).toBe("/orders");
     expect(webPathFor("shop_new_order", "f1")).toBe("/orders/f1");
     expect(deepLinkFor("shop_awaiting_pick", "")).toBe("effy://queue");
+  });
+
+  // 067 — a review decision is about ONE product, and the shop needs the reason that sits on it.
+  // The payload carries the product id, so the tap lands on the product, not on the catalogue list.
+  it("a review decision opens the product it is about, on both surfaces (067)", () => {
+    for (const t of ["shop_product_approved", "shop_product_sent_back"] as const) {
+      expect(webPathFor(t, "p1")).toBe("/catalog/p1");
+      expect(deepLinkFor(t, "p1")).toBe("effy://product/p1");
+    }
+  });
+
+  // ⚠ A send-back reason is free text a reviewer wrote about a shop's product. It is read in the
+  // console, behind sign-in — never on a lock screen.
+  it("never puts a product name, a price or the send-back reason in the push text (067)", () => {
+    for (const t of ["shop_product_approved", "shop_product_sent_back"] as const) {
+      const c = copyFor(t);
+      expect(`${c.title} ${c.body}`).not.toMatch(/\$|\d|because|reason:/i);
+    }
   });
 
   it("recognises only the types this build knows (the database-boundary guard)", () => {

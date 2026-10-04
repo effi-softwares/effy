@@ -105,8 +105,8 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
   async function product(name: string, shop = SHOP): Promise<string> {
     const res = await pool.query<{ id: string }>(
       `INSERT INTO public.product (shop_id, product_type_id, primary_category_id, name, price_amount,
-         short_description, created_by, status)
-       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', 'active'
+         short_description, created_by, status, approved_at)
+       SELECT $1, pt.id, c.id, $2, 10, 'x', 'seed', 'active', now()
          FROM public.product_type pt, public.category c
        RETURNING id`,
       [shop, name],
@@ -207,6 +207,87 @@ describe.skipIf(!RUN)("insight rollups — real PostgreSQL, real migrations", ()
       const { from, to } = await currentWindow();
       const rows = await readHours(SHOP, from, to);
       expect(rows.reduce((n, r) => n + Number(r.grossGoods), 0)).toBe(0);
+    });
+  });
+
+  // ── 067 — a shop's sales are at the SHOP's prices ────────────────────────────────────────────
+  describe("067 — the shop's own prices", () => {
+    /** Mark every line of an order as sold at a customer price ABOVE what the shop is owed. */
+    async function withMargin(orderId: string, shopUnit: number): Promise<void> {
+      await pool.query(
+        `UPDATE public.order_item
+            SET shop_unit_price_amount = $2::numeric, shop_line_subtotal_amount = $2::numeric * quantity
+          WHERE order_id = $1`,
+        [orderId, shopUnit],
+      );
+      // The UPDATE above does not go through the order trigger; mark the bucket as the job would see it.
+      await pool.query(
+        `INSERT INTO public.insights_dirty (shop_id, bucket_start)
+         SELECT $1, public.shop_local_hour(now() - interval '30 minutes', $2) ON CONFLICT DO NOTHING`,
+        [SHOP, TZ],
+      );
+    }
+
+    /** ⚠ FR-044 — the customer paid $10 a unit; the shop is owed $8. The shop's sales say $8. */
+    it("⚠ reports goods at what the shop is owed, not what the customer paid", async () => {
+      const { orderId } = await paidOrder({ number: "EFY-M1", qty: 3 }); // customer: 3 × $10
+      await withMargin(orderId, 8);
+      await runRollup();
+
+      const { from, to } = await currentWindow();
+      const rows = await readHours(SHOP, from, to);
+      expect(rows.reduce((n, r) => n + Number(r.grossGoods), 0)).toBe(24);
+      expect(rows.reduce((n, r) => n + r.units, 0)).toBe(3);
+    });
+
+    it("attributes an item refund to the shop at ITS price for the units refunded", async () => {
+      const { orderId, itemId } = await paidOrder({ number: "EFY-M2", qty: 3 });
+      await withMargin(orderId, 8);
+      const refund = await pool.query<{ id: string }>(
+        `INSERT INTO public.refund (order_id, kind, amount, reason, idempotency_key, actor_kind,
+           actor_sub, status)
+         VALUES ($1,'item',10,'item_not_supplied','k-m2','back_office','sub-staff','succeeded') RETURNING id`,
+        [orderId],
+      );
+      // The CUSTOMER got $10 back for one unit; the shop's sales fall by the $8 it was owed for it.
+      await pool.query(
+        `INSERT INTO public.refund_line (refund_id, order_item_id, quantity, amount) VALUES ($1,$2,1,10)`,
+        [refund.rows[0]!.id, itemId],
+      );
+      await runRollup();
+
+      const { from, to } = await currentWindow();
+      const rows = await readHours(SHOP, from, to);
+      expect(rows.reduce((n, r) => n + Number(r.refunds), 0)).toBe(8);
+      expect(rows.reduce((n, r) => n + Number(r.grossGoods) - Number(r.refunds), 0)).toBe(16);
+    });
+
+    /**
+     * ⚠ A line written before 067 — or by a core-api older than it — has NO shop price. It reads as
+     * the customer price, so nothing a shop has already been shown changes.
+     */
+    it("⚠ a line with no shop price reads as its customer price", async () => {
+      const { orderId } = await paidOrder({ number: "EFY-M3", qty: 2 });
+      const stored = await pool.query(
+        `SELECT shop_unit_price_amount, shop_line_subtotal_amount FROM public.order_item WHERE order_id = $1`,
+        [orderId],
+      );
+      expect(stored.rows[0]).toEqual({ shop_unit_price_amount: null, shop_line_subtotal_amount: null });
+      await runRollup();
+
+      const { from, to } = await currentWindow();
+      const rows = await readHours(SHOP, from, to);
+      expect(rows.reduce((n, r) => n + Number(r.grossGoods), 0)).toBe(20);
+    });
+
+    it("the top-products ranking uses the shop's prices too", async () => {
+      const productId = await product("Margined milk");
+      const { orderId } = await paidOrder({ number: "EFY-M4", qty: 5, productId });
+      await withMargin(orderId, 6);
+      await runRollup();
+
+      const top = await readTopProducts(SHOP, shopDate(new Date(Date.now() - 86_400_000)), shopDate(new Date()), 10);
+      expect(Number(top.find((p) => p.productId === productId)?.revenue)).toBe(30);
     });
   });
 

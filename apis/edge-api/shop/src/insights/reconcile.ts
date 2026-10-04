@@ -56,7 +56,7 @@ ON CONFLICT DO NOTHING
 const COUNT_DIVERGENT = `
 WITH expected AS (
   SELECT public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $2) AS bucket_start,
-         SUM(oi.line_subtotal_amount) AS gross
+         SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount)) AS gross
     FROM public."order" o
     JOIN public.order_item oi ON oi.order_id = o.id AND oi.shop_id = $1::uuid
    WHERE o.status IN ('paid', 'canceled')

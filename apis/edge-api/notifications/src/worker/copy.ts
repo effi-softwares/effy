@@ -36,7 +36,10 @@ export type NotificationType =
   | "shop_awaiting_pick"
   | "shop_out_of_stock"
   | "shop_low_stock"
-  | "shop_refund_proposed";
+  | "shop_refund_proposed"
+  // 067 — Effy's decision on a product a shop submitted or changed. Push-only.
+  | "shop_product_approved"
+  | "shop_product_sent_back";
 
 /**
  * Which notification group a type belongs to, for coalescing and badge counting on the web.
@@ -151,6 +154,29 @@ const COPY: Record<NotificationType, NotificationCopy> = {
     deepLinkPath: "order",
     webPath: "/orders",
     tag: "shop-attention",
+    group: "attention",
+  },
+
+  // ── 067 review decisions ──────────────────────────────────────────────────────────────────────
+  // ⚠ NO PRODUCT NAME, NO PRICE, NO REASON in the banner: a lock screen is read by whoever is
+  // standing at the counter, and the reason Effy gave belongs on the product's own screen. Both open
+  // the catalogue, where the product's state — and a send-back reason — is shown.
+  // ⚠ Their OWN tag, not "shop-attention": an approval must not be replaced by "a product has run
+  // out" a minute later, or the shop never learns its product went on sale.
+  shop_product_approved: {
+    title: "Product approved",
+    body: "Effy approved a product. It is now on sale.",
+    deepLinkPath: "product",
+    webPath: "/catalog",
+    tag: "shop-product-review",
+    group: "attention",
+  },
+  shop_product_sent_back: {
+    title: "Product sent back",
+    body: "Effy sent a product back. Open it to see why.",
+    deepLinkPath: "product",
+    webPath: "/catalog",
+    tag: "shop-product-review",
     group: "attention",
   },
 };

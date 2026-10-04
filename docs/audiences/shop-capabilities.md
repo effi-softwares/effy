@@ -642,3 +642,33 @@ and NO NOTIFICATION HAS EVER BEEN DELIVERED.** The 40 container-backed tests are
 true. ⚠ **Every cell above is INTENDED state. FR-038 requires this table to be rewritten with
 OBSERVED state once a person has walked the console.** Sign-off:
 [specs/059-shop-web-pwa/SIGNOFF.md](../../specs/059-shop-web-pwa/SIGNOFF.md).
+
+---
+
+## §067 — Product review and the two prices (067-product-approval-margin)
+
+A shop submits; Effy approves. Stock is never reviewed.
+
+| Capability | shop-web | shop-mobile |
+|---|---|---|
+| Submit a never-approved product for review | ✅ header action; also the create wizard's last step | ✅ |
+| Withdraw a submission | ✅ | ✅ |
+| See each product's review state (list and detail) | ✅ chip + a Review filter | ✅ pill (no filter) |
+| See why Effy sent it back | ✅ | ✅ |
+| Edit an approved product → a change waiting for review | ✅ every editor, images included | ❌ mobile has no product editing (016) |
+| See what a pending change proposes (now / proposed) | ✅ | ✅ — a detail being CLEARED is not listed; category/type show no name |
+| Discard a pending change | ✅ | ✅ |
+| Take off sale / put back on sale, immediately | ✅ | ❌ no status control on mobile |
+| See its own price and the customer price | ✅ | ✅ |
+| Stock: count, adjust, threshold, tracking — immediate | ✅ (054) | ✅ (054) |
+| Push when Effy decides | ✅ opens the product | ⚠ delivered; tap-routing is not built (050 T047) |
+
+**Deliberately not available to a shop, on either surface**
+
+- **Publishing.** A product Effy has not approved cannot be put on sale by any route; the table
+  refuses it.
+- **Effy's margin as a figure**, or anything derived from its kind or value. A shop sees what it is
+  paid and what customers pay.
+- **Who reviewed it.** A send-back reason comes from Effy.
+- **Another shop's products, prices or review state.**
+

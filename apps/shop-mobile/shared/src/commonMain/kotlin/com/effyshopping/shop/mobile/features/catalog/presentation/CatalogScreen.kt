@@ -62,6 +62,9 @@ import com.effyshopping.shop.mobile.features.catalog.domain.ProductDetail
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductListItem
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductMedia
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductStatus
+import com.effyshopping.shop.mobile.features.catalog.domain.ReviewState
+import com.effyshopping.shop.mobile.features.catalog.domain.SubmitProductForReview
+import com.effyshopping.shop.mobile.features.catalog.domain.WithdrawProductReview
 import org.jetbrains.compose.resources.decodeToImageBitmap
 
 @Composable
@@ -69,8 +72,12 @@ fun CatalogRoute(
     listProducts: ListProducts,
     getProduct: GetProduct,
     stockUseCases: StockUseCases,
+    submitForReview: SubmitProductForReview,
+    withdrawReview: WithdrawProductReview,
 ) {
-    val viewModel = viewModel { CatalogViewModel(listProducts, getProduct) }
+    val viewModel = viewModel {
+        CatalogViewModel(listProducts, getProduct, submitForReview = submitForReview, withdrawReview = withdrawReview)
+    }
     val state by viewModel.state.collectAsState()
     CatalogScreen(
         state = state,
@@ -79,6 +86,7 @@ fun CatalogRoute(
         onRetry = viewModel::refresh,
         onNewProduct = {},
         onEditDetails = {},
+        onReviewAction = viewModel::runReviewAction,
         stockPane = { productId -> StockPane(productId, stockUseCases) },
     )
 }
@@ -126,6 +134,7 @@ fun CatalogScreen(
     onRetry: () -> Unit,
     onNewProduct: () -> Unit,
     onEditDetails: () -> Unit,
+    onReviewAction: () -> Unit = {},
     stockPane: @Composable (productId: String) -> Unit,
 ) {
     BoxWithConstraints(
@@ -157,6 +166,7 @@ fun CatalogScreen(
                     CatalogDetailPane(
                         state = state,
                         onEditDetails = onEditDetails,
+                        onReviewAction = onReviewAction,
                         scrollable = true,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         stockPane = stockPane,
@@ -176,6 +186,7 @@ fun CatalogScreen(
                     CatalogDetailPane(
                         state = state,
                         onEditDetails = onEditDetails,
+                        onReviewAction = onReviewAction,
                         scrollable = false,
                         modifier = Modifier.fillMaxWidth(),
                         stockPane = stockPane,
@@ -296,6 +307,7 @@ private fun CatalogProductRow(product: ProductListItem, selected: Boolean, onCli
         ) {
             Text(formatMoney(product.currency, product.priceAmount), style = MaterialTheme.typography.titleSmall)
             StatusPill(product.status)
+            ReviewPill(product.reviewState)
         }
     }
 }
@@ -304,6 +316,7 @@ private fun CatalogProductRow(product: ProductListItem, selected: Boolean, onCli
 private fun CatalogDetailPane(
     state: CatalogUiState,
     onEditDetails: () -> Unit,
+    onReviewAction: () -> Unit,
     scrollable: Boolean,
     modifier: Modifier,
     stockPane: @Composable (productId: String) -> Unit,
@@ -319,7 +332,7 @@ private fun CatalogDetailPane(
     ) {
         when {
             state.isLoadingDetail -> LoadingBlock("Loading product details")
-            state.detail != null -> ProductDetailContent(state.detail, onEditDetails, stockPane)
+            state.detail != null -> ProductDetailContent(state.detail, state, onEditDetails, onReviewAction, stockPane)
             state.products.isEmpty() -> EmptyBlock("Select a product once the catalog has items.")
             else -> EmptyBlock("Select a product to view its details.")
         }
@@ -329,7 +342,9 @@ private fun CatalogDetailPane(
 @Composable
 private fun ProductDetailContent(
     detail: ProductDetail,
+    state: CatalogUiState,
     onEditDetails: () -> Unit,
+    onReviewAction: () -> Unit,
     stockPane: @Composable (productId: String) -> Unit,
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -337,7 +352,7 @@ private fun ProductDetailContent(
         if (stackHeaderActions) {
             Column(verticalArrangement = Arrangement.spacedBy(EffySpacing.md)) {
                 ProductTitleBlock(detail)
-                ProductHeaderActions(onEditDetails)
+                ProductHeaderActions(detail, state.isActing, onEditDetails, onReviewAction)
             }
         } else {
             Row(
@@ -346,10 +361,11 @@ private fun ProductDetailContent(
                 verticalAlignment = Alignment.Top,
             ) {
                 ProductTitleBlock(detail, Modifier.weight(1f))
-                ProductHeaderActions(onEditDetails)
+                ProductHeaderActions(detail, state.isActing, onEditDetails, onReviewAction)
             }
         }
     }
+    ReviewNotice(detail, state.reviewMessage)
     MediaStrip(detail.media)
 
     var tab by remember(detail.id) { mutableStateOf(ProductDetailTab.OVERVIEW) }
@@ -366,6 +382,7 @@ private fun ProductTitleBlock(detail: ProductDetail, modifier: Modifier = Modifi
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(EffySpacing.xs)) {
         Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s), verticalAlignment = Alignment.CenterVertically) {
             StatusPill(detail.status)
+            ReviewPill(detail.reviewState)
             Text("ID: ${detail.id.take(8)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Text(detail.name, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
@@ -378,8 +395,22 @@ private fun ProductTitleBlock(detail: ProductDetail, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun ProductHeaderActions(onEditDetails: () -> Unit) {
+private fun ProductHeaderActions(
+    detail: ProductDetail,
+    isActing: Boolean,
+    onEditDetails: () -> Unit,
+    onReviewAction: () -> Unit,
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.s)) {
+        // 067 — submit / withdraw. Never "Publish": Effy's approval is what puts a product on sale.
+        reviewActionFor(detail)?.let { action ->
+            OutlinedButton(
+                onClick = onReviewAction,
+                enabled = !isActing,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text(if (isActing) "Sending…" else action.label) }
+        }
         OutlinedButton(onClick = onEditDetails, shape = RoundedCornerShape(8.dp)) { Text("Edit details") }
         OutlinedButton(onClick = {}, shape = RoundedCornerShape(8.dp)) { Text("More") }
     }
@@ -485,6 +516,7 @@ private fun ProductDetails(detail: ProductDetail) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             if (maxWidth < 560.dp) {
                 Column {
+                    PriceRows(detail)
                     DetailRow("Brand", detail.brand ?: "—")
                     DetailRow("SKU", detail.sku ?: "—")
                     DetailRow("GTIN", detail.gtin ?: "—")
@@ -495,6 +527,7 @@ private fun ProductDetails(detail: ProductDetail) {
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(EffySpacing.xl), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
+                        PriceRows(detail)
                         DetailRow("Brand", detail.brand ?: "—")
                         DetailRow("GTIN", detail.gtin ?: "—")
                         DetailRow("Type", detail.typeName)
@@ -517,6 +550,92 @@ private fun ProductDetails(detail: ProductDetail) {
             Text("ATTRIBUTES", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             detail.attributes.take(6).forEach { AttributeRow(it) }
         }
+    }
+}
+
+/**
+ * ⚠ BOTH PRICES, NEVER THE MARGIN (067 FR-033). The customer price is shown only once Effy has
+ * approved the product — before that there is no customer price to show.
+ */
+@Composable
+private fun PriceRows(detail: ProductDetail) {
+    DetailRow("Your price", formatMoney(detail.currency, detail.priceAmount))
+    DetailRow(
+        "Customers pay",
+        detail.customerPriceAmount?.let { formatMoney(detail.currency, it) } ?: "Set when approved",
+    )
+}
+
+/** The review state as a pill beside the lifecycle one. Says nothing for a draft or a live product. */
+@Composable
+private fun ReviewPill(state: ReviewState) {
+    val label = state.label ?: return
+    // ⚠ NOT COLOUR ALONE: the words carry the meaning; the error container only draws the eye to
+    // the two states that need the shop to do something.
+    Text(
+        label.uppercase(),
+        modifier = Modifier
+            .clip(CircleShape)
+            .background(
+                if (state.needsAttention) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+            )
+            .padding(horizontal = EffySpacing.s, vertical = 3.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = if (state.needsAttention) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * Where this product stands with Effy (067), in words — and, for a pending change, what it changes.
+ *
+ * ⚠ EVERYTHING BELOW THIS NOTICE IS THE LIVE PRODUCT. A saved change is listed HERE as Now / Proposed
+ * and nowhere else, because a detail row showing the proposed name would tell the shop its
+ * storefront says something it does not.
+ */
+@Composable
+private fun ReviewNotice(detail: ProductDetail, actionMessage: String?) {
+    val (title, body) = when (detail.reviewState) {
+        ReviewState.IN_REVIEW ->
+            "Waiting for Effy to review" to "It is not on sale yet. It goes on sale when Effy approves it. You can still adjust its stock."
+        ReviewState.SENT_BACK ->
+            "Effy sent this back" to "It is not on sale. Fix what is described below, then submit it again."
+        ReviewState.LIVE_CHANGE_PENDING ->
+            "Your change is waiting for Effy to review" to "Customers keep seeing and buying the product as it is until the change is approved."
+        ReviewState.LIVE_CHANGE_SENT_BACK ->
+            "Effy sent your change back" to "Nothing changed for customers. Edit the product to send the change again, or discard it."
+        ReviewState.DRAFT, ReviewState.LIVE -> null to null
+    }
+    if (title == null && actionMessage == null) return
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+            .padding(EffySpacing.lg),
+        verticalArrangement = Arrangement.spacedBy(EffySpacing.s),
+    ) {
+        if (title != null && body != null) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (detail.reviewState.needsAttention) {
+            detail.reviewReason?.let { reason ->
+                Text("WHY", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(reason, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+        detail.pendingChange?.changes?.forEach { change ->
+            Column(Modifier.fillMaxWidth().padding(top = EffySpacing.xs)) {
+                Text(change.label, style = MaterialTheme.typography.labelLarge)
+                Text(
+                    "Now: ${change.now}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text("Your change: ${change.proposed}", style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+        actionMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold) }
     }
 }
 

@@ -85,7 +85,9 @@ SELECT $1::uuid,
        now()
   FROM unnest($2::timestamptz[]) AS b(bucket_start)
   LEFT JOIN LATERAL (
-    SELECT SUM(oi.line_subtotal_amount) AS gross,
+    -- ⚠ 067: a shop's sales are what the SHOP is owed — its own prices — not what customers paid.
+    -- NULL shop columns (a line written before 067, or by an older core-api) mean "the same".
+    SELECT SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount)) AS gross,
            SUM(oi.quantity)::int        AS units,
            COUNT(DISTINCT sf.id)::int   AS orders
       FROM public."order" o
@@ -100,11 +102,14 @@ SELECT $1::uuid,
         SELECT r.order_id,
                CASE WHEN r.kind = 'cancellation'
                     THEN GREATEST(0, (
-                           SELECT COALESCE(SUM(oi.line_subtotal_amount), 0)
+                           SELECT COALESCE(SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount)), 0)
                              FROM public.order_item oi
                             WHERE oi.order_id = r.order_id AND oi.shop_id = $1::uuid
                          ) - (
-                           SELECT COALESCE(SUM(rl2.amount), 0)
+                           -- 067: what was already refunded from this shop's goods, AT THE SHOP'S
+                           -- PRICE. refund_line.amount is customer money (what went back to the
+                           -- card); the shop's share of it is the units times its own unit price.
+                           SELECT COALESCE(SUM(rl2.quantity * COALESCE(oi2.shop_unit_price_amount, oi2.unit_price_amount)), 0)
                              FROM public.refund_line rl2
                              JOIN public.refund r2 ON r2.id = rl2.refund_id
                              JOIN public.order_item oi2 ON oi2.id = rl2.order_item_id
@@ -113,7 +118,7 @@ SELECT $1::uuid,
                               AND r2.status IN ('submitted', 'succeeded')
                          ))
                     ELSE (
-                           SELECT COALESCE(SUM(rl.amount), 0)
+                           SELECT COALESCE(SUM(rl.quantity * COALESCE(oi3.shop_unit_price_amount, oi3.unit_price_amount)), 0)
                              FROM public.refund_line rl
                              JOIN public.order_item oi3 ON oi3.id = rl.order_item_id
                             WHERE rl.refund_id = r.id AND oi3.shop_id = $1::uuid
@@ -185,7 +190,7 @@ SELECT $1::uuid,
        (public.shop_local_hour(COALESCE(o.placed_at, o.created_at), $3) AT TIME ZONE $3)::date,
        oi.product_id,
        SUM(oi.quantity)::int,
-       SUM(oi.line_subtotal_amount)
+       SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount))
   FROM public."order" o
   JOIN public.order_item oi ON oi.order_id = o.id AND oi.shop_id = $1::uuid
  WHERE o.status IN ('paid', 'canceled')

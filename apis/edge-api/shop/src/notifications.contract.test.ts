@@ -68,7 +68,7 @@ describe("⚠ every 059 handler is actually registered", () => {
 });
 
 describe("⚠ the notification type catalogue has one source", () => {
-  it("the five shop types and their keys agree", () => {
+  it("the seven shop types and their keys agree", () => {
     // ⚠ Written out, not derived from the export — a list built from the implementation agrees with
     // the implementation and proves nothing (027 R13).
     expect([...KNOWN_SHOP_NOTIFICATION_TYPES].sort()).toEqual([
@@ -76,6 +76,9 @@ describe("⚠ the notification type catalogue has one source", () => {
       "shop_low_stock",
       "shop_new_order",
       "shop_out_of_stock",
+      // 067 — Effy's review decisions.
+      "shop_product_approved",
+      "shop_product_sent_back",
       "shop_refund_proposed",
     ]);
   });

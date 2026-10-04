@@ -37,6 +37,8 @@ import com.effyshopping.shop.mobile.features.catalog.domain.CreateProduct
 import com.effyshopping.shop.mobile.features.catalog.domain.DeleteProduct
 import com.effyshopping.shop.mobile.features.catalog.domain.GetCatalogSchema
 import com.effyshopping.shop.mobile.features.catalog.domain.GetProduct
+import com.effyshopping.shop.mobile.features.catalog.domain.SubmitProductForReview
+import com.effyshopping.shop.mobile.features.catalog.domain.WithdrawProductReview
 import com.effyshopping.shop.mobile.features.catalog.domain.ListProducts
 import com.effyshopping.shop.mobile.features.catalog.domain.ListShopSections
 import com.effyshopping.shop.mobile.features.catalog.domain.UpdateProduct
@@ -107,6 +109,8 @@ class AppContainer(
     val getCatalogSchema by lazy { GetCatalogSchema(catalog) }
     val listProducts by lazy { ListProducts(catalog) }
     val getProduct by lazy { GetProduct(catalog) }
+    val submitProductForReview by lazy { SubmitProductForReview(catalog) }
+    val withdrawProductReview by lazy { WithdrawProductReview(catalog) }
 
     // stock (054 US1)
     val stockUseCases by lazy {

@@ -32,6 +32,13 @@ type CheckoutLine struct {
 	// ambient — snapshotted onto the order line so a driver is told what was sold, not what the
 	// product became afterwards. Never empty: a product with no storage attribute is ambient.
 	StorageClass string
+	// 067: what the SHOP is owed per unit, beside UnitCents (what the CUSTOMER pays). Equal to
+	// UnitCents for a product with no margin. Snapshotted onto the order line so a later change to
+	// the product's price or margin cannot rewrite what either party was owed. A zero value from a
+	// caller that never set it is treated as "same as the customer price" at the insert.
+	ShopUnitCents int64
+	// HasShopPrice distinguishes "the shop price is 0.00" from "not set by this caller".
+	HasShopPrice bool
 }
 
 // PackageDelivery is the captured per-package delivery outcome, written at intent and copied into
@@ -153,7 +160,9 @@ type checkoutLineRow struct {
 	ShopID    string `db:"shop_id"`
 	Name      string `db:"name"`
 	UnitPrice string `db:"unit_price_amount"`
-	Quantity  int    `db:"quantity"`
+	// 067 — the shop's own price; equals UnitPrice when Effy has set no margin.
+	ShopUnitPrice string `db:"shop_unit_price_amount"`
+	Quantity      int    `db:"quantity"`
 	// What the shopper's cart holds, before the stock cap. Differs from Quantity only when the shop
 	// cannot supply the whole line — which is what the caller meters (054).
 	RequestedQuantity int    `db:"requested_quantity"`
@@ -167,6 +176,9 @@ SELECT ci.product_id::text AS product_id,
        p.shop_id::text     AS shop_id,
        p.name              AS name,
        p.price_amount::text AS unit_price_amount,
+       -- 067: price_amount is what the CUSTOMER pays and is what is charged. The shop's own price
+       -- rides beside it; NULL on a row written before 067 means "the same".
+       COALESCE(p.shop_price_amount, p.price_amount)::text AS shop_unit_price_amount,
        -- ⚠ 054 FR-020: the quantity PAID FOR is capped at what the shop can supply. Without this a
        -- line asking for 5 with 2 on the shelf would create a PaymentIntent for 5, and the shopper
        -- would be charged in full for three units that do not exist — the exact harm this slice
@@ -205,7 +217,12 @@ ORDER BY ci.added_at ASC`, customerID)
 		if perr != nil {
 			return nil, perr
 		}
+		shopCents, serr := money.ParseCents(r.ShopUnitPrice)
+		if serr != nil {
+			return nil, serr
+		}
 		out = append(out, CheckoutLine{
+			ShopUnitCents: shopCents, HasShopPrice: true,
 			ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name,
 			UnitCents: cents, Quantity: r.Quantity, RequestedQuantity: r.RequestedQuantity,
 			WeightGrams: r.WeightGrams, StorageClass: r.StorageClass,
@@ -376,13 +393,21 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
 
 	for _, l := range lines {
 		lineCents := l.UnitCents * int64(l.Quantity)
+		// 067 — BOTH prices are fixed here, at placement. unit_price_amount is the customer's and is
+		// what is charged; shop_unit_price_amount is what the shop is owed. They differ by Effy's
+		// margin, and neither may move once the order exists.
+		shopUnit := l.UnitCents
+		if l.HasShopPrice {
+			shopUnit = l.ShopUnitCents
+		}
 		if _, err := tx.Exec(ctx, `
 INSERT INTO public.order_item
     (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount,
-     storage_class)
-VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8)`,
+     storage_class, shop_unit_price_amount, shop_line_subtotal_amount)
+VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8, $9::numeric, $10::numeric)`,
 			orderID, l.ProductID, l.ShopID, l.Name, money.FormatCents(l.UnitCents), l.Quantity, money.FormatCents(lineCents),
-			storageClassOrAmbient(l.StorageClass)); err != nil {
+			storageClassOrAmbient(l.StorageClass),
+			money.FormatCents(shopUnit), money.FormatCents(shopUnit*int64(l.Quantity))); err != nil {
 			return "", "", fmt.Errorf("checkout: insert order item: %w", err)
 		}
 	}
@@ -557,8 +582,12 @@ func (s *pgStore) FinalizeSucceeded(ctx context.Context, orderID string) (Finali
 	// 2. Fan-out — one shop_fulfillment per distinct order_item.shop_id (item_count = Σ quantity).
 	if _, err := tx.Exec(ctx, `
 INSERT INTO public.shop_fulfillment
-    (order_id, shop_id, item_count, subtotal_amount)
-SELECT oi.order_id, oi.shop_id, SUM(oi.quantity)::int, SUM(oi.line_subtotal_amount)
+    (order_id, shop_id, item_count, subtotal_amount, shop_subtotal_amount)
+-- 067: subtotal_amount stays CUSTOMER money — the customer's own order page reads it, and the
+-- portions still sum to the order's item subtotal (019). shop_subtotal_amount is the same goods at
+-- the shop's prices, which is what the shop is shown.
+SELECT oi.order_id, oi.shop_id, SUM(oi.quantity)::int, SUM(oi.line_subtotal_amount),
+       SUM(COALESCE(oi.shop_line_subtotal_amount, oi.line_subtotal_amount))
 FROM public.order_item oi
 WHERE oi.order_id = $1
 GROUP BY oi.order_id, oi.shop_id

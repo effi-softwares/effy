@@ -22,10 +22,12 @@ import {
   listProducts,
   listSections,
   setProductSections,
+  submitProductForReview,
   updateProduct,
   updateProductMedia,
   updateSection,
   uploadProductMedia,
+  withdrawProductReview,
 } from "./repo";
 import type { ProductListParams } from "./model";
 
@@ -137,6 +139,30 @@ export function useChangeStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: ChangeProductStatusRequest) => changeProductStatus(id, body),
+    onSuccess: () => {
+      invalidateDetail(queryClient, id);
+      invalidateProducts(queryClient);
+    },
+  });
+}
+
+/** 067 — submit a never-approved product for Effy's review. */
+export function useSubmitForReview(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => submitProductForReview(id),
+    onSuccess: () => {
+      invalidateDetail(queryClient, id);
+      invalidateProducts(queryClient);
+    },
+  });
+}
+
+/** 067 — withdraw a submission, or discard a pending change. The live product is never touched. */
+export function useWithdrawReview(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => withdrawProductReview(id),
     onSuccess: () => {
       invalidateDetail(queryClient, id);
       invalidateProducts(queryClient);

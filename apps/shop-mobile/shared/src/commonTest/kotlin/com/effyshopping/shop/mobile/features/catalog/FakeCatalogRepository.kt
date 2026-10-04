@@ -17,6 +17,7 @@ import com.effyshopping.shop.mobile.features.catalog.domain.ProductPatch
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductQuery
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductStatus
 import com.effyshopping.shop.mobile.features.catalog.domain.ProductType
+import com.effyshopping.shop.mobile.features.catalog.domain.ReviewState
 import com.effyshopping.shop.mobile.features.catalog.domain.ShopSection
 
 /**
@@ -62,6 +63,25 @@ class FakeCatalogRepository(
     override suspend fun changeStatus(id: String, status: ProductStatus): ProductDetail {
         lastStatus = status
         return product.copy(status = status)
+    }
+
+    var submittedId: String? = null
+    var withdrawnId: String? = null
+    var reviewError: AppError? = null
+
+    override suspend fun submitForReview(id: String): ProductDetail {
+        reviewError?.let { throw AppException(it) }
+        submittedId = id
+        return product.copy(reviewState = ReviewState.IN_REVIEW)
+    }
+
+    override suspend fun withdrawReview(id: String): ProductDetail {
+        reviewError?.let { throw AppException(it) }
+        withdrawnId = id
+        return product.copy(
+            reviewState = if (product.reviewState.approved) ReviewState.LIVE else ReviewState.DRAFT,
+            pendingChange = null,
+        )
     }
 
     override suspend fun deleteProduct(id: String) {

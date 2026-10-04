@@ -821,6 +821,68 @@
       ],
       "type": "object"
     },
+    "ProductChangeProposalDTO": {
+      "additionalProperties": false,
+      "description": "What a pending change proposes. Only the details that DIFFER from the live product are present.",
+      "properties": {
+        "attributes": {
+          "items": {
+            "$ref": "#/definitions/AttributeValueInputDTO"
+          },
+          "type": "array"
+        },
+        "brand": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "compareAtAmount": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "gtin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "longDescription": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "priceAmount": {
+          "description": "The proposed SHOP price.",
+          "type": "string"
+        },
+        "primaryCategoryId": {
+          "type": "string"
+        },
+        "productTypeId": {
+          "type": "string"
+        },
+        "shortDescription": {
+          "type": "string"
+        },
+        "sku": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "weightGrams": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "ProductDetailDTO": {
       "additionalProperties": false,
       "description": "Full product detail. `updatedAt` is the optimistic-concurrency token (FR-023a); `missingMandatoryAttributes` is the non-blocking schema-drift notice (FR-020a).",
@@ -850,6 +912,17 @@
           "type": "string"
         },
         "currency": {
+          "type": "string"
+        },
+        "customerCompareAtAmount": {
+          "description": "The customer-facing \"was\" price, with the same margin applied; `compareAtAmount` is the shop's.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "customerPriceAmount": {
+          "description": "What customers pay. For a product with no margin set, equal to the shop price.",
           "type": "string"
         },
         "gtin": {
@@ -882,6 +955,17 @@
         "name": {
           "type": "string"
         },
+        "pendingChange": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/ProductPendingChangeDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The shop's proposed new version of an APPROVED product, waiting on Effy — or null when there is none. Customers keep seeing everything ABOVE this field until it is approved."
+        },
         "priceAmount": {
           "type": "string"
         },
@@ -891,6 +975,16 @@
         "productTypeId": {
           "type": "string"
         },
+        "reviewReason": {
+          "description": "Why Effy last sent this product (or its pending change) back. Carries no staff identity.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reviewState": {
+          "$ref": "#/definitions/ShopReviewState"
+        },
         "sections": {
           "items": {
             "type": "string"
@@ -898,6 +992,10 @@
           "type": "array"
         },
         "shopId": {
+          "type": "string"
+        },
+        "shopPriceAmount": {
+          "description": "What the shop is paid. `priceAmount` above stays equal to it.",
           "type": "string"
         },
         "shortDescription": {
@@ -999,6 +1097,10 @@
         "currency": {
           "type": "string"
         },
+        "customerPriceAmount": {
+          "description": "067 — what customers pay: the shop price plus Effy's margin.",
+          "type": "string"
+        },
         "id": {
           "type": "string"
         },
@@ -1013,6 +1115,14 @@
             "string",
             "null"
           ]
+        },
+        "reviewState": {
+          "$ref": "#/definitions/ShopReviewState",
+          "description": "067 — where the product stands with Effy's review."
+        },
+        "shopPriceAmount": {
+          "description": "067 — what the shop is paid. Equal to `priceAmount`, which is kept for installed app builds.",
+          "type": "string"
         },
         "sku": {
           "type": [
@@ -1078,6 +1188,52 @@
         "isPrimary",
         "displayOrder",
         "altText"
+      ],
+      "type": "object"
+    },
+    "ProductPendingChangeDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "media": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/definitions/ProductMediaDTO"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The COMPLETE proposed image set, or null when the images are not being changed."
+        },
+        "proposed": {
+          "$ref": "#/definitions/ProductChangeProposalDTO"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "enum": [
+            "in_review",
+            "sent_back"
+          ],
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "reason",
+        "submittedAt",
+        "proposed",
+        "media"
       ],
       "type": "object"
     },
@@ -1463,8 +1619,19 @@
       ],
       "type": "object"
     },
+    "ShopReviewState": {
+      "description": "Where a product stands with Effy's review (067), as a shop is shown it.\n\n⚠ SIX STATES FROM TWO FACTS: whether the product has ever been approved, and whether something is waiting. \"live\" means approved — whether it is ON SALE is still `status`.",
+      "enum": [
+        "draft",
+        "in_review",
+        "sent_back",
+        "live",
+        "live_change_pending",
+        "live_change_sent_back"
+      ],
+      "type": "string"
+    },
     "ShopRole": {
-      "description": "Shop RBAC roles. Prefixed so `manager` stays unambiguously the back-office role in logs.",
       "enum": [
         "shop_manager",
         "shop_staff"

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { ProductStatus } from "@effy/shared-types";
+import type { ProductStatus, ShopReviewState } from "@effy/shared-types";
 import { Boxes, ImageOff, Plus, Search, Tags, X } from "lucide-react";
 
 import {
@@ -34,6 +34,7 @@ import { track } from "@/lib/telemetry";
 import { SectionsManager } from "./SectionsManager";
 import { StockSettingsDialog } from "./ShopDefaultThreshold";
 import type { ProductListItem, ProductListParams, ProductSort } from "./model";
+import { REVIEW_FILTERS, reviewChip } from "./review";
 import { catalogSchemaQuery, productListQuery, sectionsQuery } from "./queries";
 
 const PAGE_SIZE = 20;
@@ -91,6 +92,7 @@ export function CatalogListScreen() {
   const [category, setCategory] = useState<string>(ALL);
   const [section, setSection] = useState<string>(ALL);
   const [status, setStatus] = useState<ProductStatus | typeof ALL>(ALL);
+  const [review, setReview] = useState<ShopReviewState | typeof ALL>(ALL);
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
   const [sort, setSort] = useState<ProductSort>("recent");
@@ -106,12 +108,13 @@ export function CatalogListScreen() {
       category: category === ALL ? undefined : category,
       section: section === ALL ? undefined : section,
       status: status === ALL ? undefined : status,
+      reviewState: review === ALL ? undefined : review,
       priceMin: priceMin.trim() || undefined,
       priceMax: priceMax.trim() || undefined,
       sort,
       order: sort === "recent" ? "desc" : "asc",
     }),
-    [page, q, type, category, section, status, priceMin, priceMax, sort],
+    [page, q, type, category, section, status, review, priceMin, priceMax, sort],
   );
 
   const { data, error, isPending, isError, refetch } = useQuery(productListQuery(params));
@@ -153,6 +156,13 @@ export function CatalogListScreen() {
           key: "section",
           label: sectionList.find((x) => x.id === section)?.name ?? "Section",
           clear: () => onFilter(setSection, ALL),
+        }
+      : null,
+    review !== ALL
+      ? {
+          key: "review",
+          label: REVIEW_FILTERS.find((f) => f.value === review)?.label ?? "review",
+          clear: () => onFilter(setReview, ALL),
         }
       : null,
     priceMin.trim()
@@ -225,6 +235,14 @@ export function CatalogListScreen() {
           onChange={(v) => onFilter(setSection, v)}
           options={sectionList.map((s) => ({ value: s.id, label: s.name }))}
           allLabel="All sections"
+        />
+        {/* 067 — "what is Effy still looking at, and what did it send back". */}
+        <FilterSelect
+          label="Review"
+          value={review}
+          onChange={(v) => onFilter(setReview, v as ShopReviewState | typeof ALL)}
+          options={REVIEW_FILTERS.map((f) => ({ value: f.value, label: f.label }))}
+          allLabel="Any review state"
         />
 
         <Input
@@ -352,6 +370,7 @@ function ProductRow({ product }: { product: ProductListItem }) {
   // the column states what IS known: whether the product is purchasable at all. The real meter lives
   // on the product's Inventory tab, where the count actually is.
   const available = product.status === "active";
+  const chip = reviewChip(product.reviewState);
 
   return (
     <Tr interactive>
@@ -394,10 +413,13 @@ function ProductRow({ product }: { product: ProductListItem }) {
       </Td>
       <Td className="text-muted-foreground text-[13px]">{product.categoryName}</Td>
       <Td>
-        <Pill variant={statusPill(product.status)}>{product.status}</Pill>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Pill variant={statusPill(product.status)}>{product.status}</Pill>
+          {chip ? <Pill variant={chip.tone}>{chip.label}</Pill> : null}
+        </div>
       </Td>
       <Td align="right" className="font-medium tabular-nums">
-        {product.currency} {product.priceAmount}
+        {product.currency} {product.shopPriceAmount ?? product.priceAmount}
       </Td>
       <Td align="right">
         <StockMeter

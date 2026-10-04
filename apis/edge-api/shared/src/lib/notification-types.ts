@@ -19,7 +19,10 @@ export type ShopNotificationType =
   | "shop_awaiting_pick"
   | "shop_out_of_stock"
   | "shop_low_stock"
-  | "shop_refund_proposed";
+  | "shop_refund_proposed"
+  // 067 — Effy's decision on a product the shop submitted or changed.
+  | "shop_product_approved"
+  | "shop_product_sent_back";
 
 export interface ShopNotificationTypeInfo {
   type: ShopNotificationType;
@@ -49,6 +52,10 @@ export const SHOP_NOTIFICATION_TYPES: readonly ShopNotificationTypeInfo[] = [
     group: "attention",
     requiresRole: "shop_manager",
   },
+  // 067 — raised by Effy's review decision, not by the attention evaluator. They share the
+  // "attention" group because they coalesce the same way: by tag, in the service worker.
+  { type: "shop_product_approved", label: "Products approved by Effy", group: "attention" },
+  { type: "shop_product_sent_back", label: "Products sent back by Effy", group: "attention" },
 ];
 
 export const KNOWN_SHOP_NOTIFICATION_TYPES: readonly ShopNotificationType[] =

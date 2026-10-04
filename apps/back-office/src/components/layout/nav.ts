@@ -1,4 +1,4 @@
-import { BadgePercent, Car, LayoutDashboard, Route, MailWarning, MessageSquare, Package, PackageX, Shield, Store, Tags, Truck, Users } from "lucide-react";
+import { BadgePercent, Car, ClipboardCheck, LayoutDashboard, Route, MailWarning, MessageSquare, Package, PackageX, Shield, Store, Tags, Truck, Users } from "lucide-react";
 
 import type { BackOfficeRole } from "@effy/shared-types";
 import type { NavItem } from "@effy/web-kit/console";
@@ -22,6 +22,10 @@ export const NAV: NavItem<BackOfficeRole>[] = [
   // Catalog has NO requiredRole: every back-office role sees the schema read-only (csa included);
   // admin/manager get the mutating controls (gated in-screen, enforced by the backend).
   { label: "Catalog", to: "/catalog", icon: Tags },
+  // Product review (067) has NO requiredRole: every back-office role sees the queue, csa included —
+  // a csa is who a shop rings to ask "why isn't my product on sale yet". Approving, sending back and
+  // setting a margin are admin/manager, gated in-screen and enforced by edge-catalog per route.
+  { label: "Product review", to: "/product-review", icon: ClipboardCheck },
   // included); admin/manager get the mutating controls (gated in-screen, enforced by the backend).
   // Promotions has NO requiredRole: every back-office role sees the code register read-only —
   // answering "is this code still live?" is support work. admin/manager get the mutating controls

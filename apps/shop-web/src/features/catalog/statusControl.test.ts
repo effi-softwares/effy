@@ -12,8 +12,8 @@ import {
 // and the delete guard offers hard-delete only for a draft (archive otherwise).
 
 describe("availableTransitions", () => {
-  it("draft → publish only", () => {
-    expect(availableTransitions("draft").map((t) => t.status)).toEqual(["active"]);
+  it("draft → nothing: a draft goes on sale by Effy's approval, never by a status move (067)", () => {
+    expect(availableTransitions("draft")).toEqual([]);
   });
   it("active → unavailable or archived", () => {
     expect(availableTransitions("active").map((t) => t.status)).toEqual([
@@ -60,14 +60,14 @@ describe("visibilityAction", () => {
     // ⚠ The whole point of the change. "Make unavailable" is a state machine talking to itself;
     // "Unpublish" is the outcome, and it is what the operator came to do.
     expect(visibilityAction("active")?.label).toBe("Unpublish");
-    expect(visibilityAction("draft")?.label).toBe("Publish");
+    // 067 — a shop submits; it does not publish.
+    expect(visibilityAction("draft")?.label).toBe("Submit for review");
     expect(visibilityAction("unavailable")?.label).toBe("Publish");
     expect(visibilityAction("archived")?.label).toBe("Restore");
   });
 
   it("routes every publish to the one on-sale state", () => {
     // The state machine has exactly one `active`, so "put it on sale" has exactly one destination.
-    expect(visibilityAction("draft")?.target).toBe("active");
     expect(visibilityAction("unavailable")?.target).toBe("active");
     expect(visibilityAction("archived")?.target).toBe("active");
     expect(visibilityAction("active")?.target).toBe("unavailable");
@@ -79,7 +79,8 @@ describe("visibilityAction", () => {
     // nothing useful about why.
     for (const status of ["draft", "active", "unavailable", "archived"] as const) {
       const action = visibilityAction(status);
-      if (!action) continue;
+      // Submit / withdraw are review requests, not status moves — the machine has no say in them.
+      if (!action || action.kind !== "status") continue;
       expect(availableTransitions(status).map((t) => t.status)).toContain(action.target);
     }
   });
