@@ -18,7 +18,7 @@ export interface OrderableStop {
   id: string;
   /** A dispatcher's manual position, or null when they have not set one. */
   seq: number | null;
-  status: "pending" | "arrived" | "done" | "skipped";
+  status: "pending" | "out_for_delivery" | "en_route" | "arrived" | "done" | "skipped";
   /** The deadline or promised time that applies to this stop, if any. */
   dueAt: Date | string | null;
   /** Groups stops in one area together. Null for the hub, which is in no zone. */
@@ -30,6 +30,10 @@ export interface OrderableStop {
 /** What is actionable now sorts above what is finished with. */
 const STATUS_RANK: Record<OrderableStop["status"], number> = {
   pending: 0,
+  // ⚠ 2026-09-30: the in-transit states rank with `arrived` — started, not finished. A Record over the
+  // union is what made adding them a compile error here rather than a silent `undefined` rank.
+  out_for_delivery: 1,
+  en_route: 1,
   arrived: 1,
   done: 2,
   skipped: 3,

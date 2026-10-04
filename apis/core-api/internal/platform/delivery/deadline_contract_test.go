@@ -15,6 +15,13 @@ import (
 // the hot path being up, where a missed wave is SILENT: no error, no alarm, just packages that do not
 // move (research R2, and 053's "unconfigured FCM halted the whole drain").
 //
+// ⚠ WHAT THE TWO SIDES ASSERT (corrected 2026-09-30). This side asserts SameDayCutoff — the checkout
+// rule, which was always right and did not change. The TypeScript side now asserts that its COLLECTION
+// DEADLINE MINUS THE PREP BUFFER equals the same fixture. It used to assert the deadline EQUALLED the
+// cutoff, which pinned a defect: the planner made drivers collect at the moment ordering closed, leaving
+// shops no time to pick. The driver collects at the RUN TIME; the buffer is the shop's picking time
+// before it. The fixtures below were not touched by that correction.
+//
 // ⚠ 054 SPENT A WHOLE SLICE DELETING A RULE WRITTEN IN 14 PLACES. This one is written in two on
 // purpose, and is defensible ONLY while these fixtures agree with the TypeScript ones. If this test
 // is ever weakened, delete one implementation rather than keeping both.

@@ -209,7 +209,7 @@ export const OPEN_STOP_FOR_SHOP = `
      AND dr.status IN ('planned', 'in_progress')
      AND rs.kind = 'shop_pickup'
      AND rs.shop_id = $1
-     AND rs.status IN ('pending', 'arrived')
+     AND rs.status NOT IN ('done', 'skipped')  -- ⚠ finished states named, not open ones (2026-09-30)
    ORDER BY dr.created_at ASC
    LIMIT 1
 `;

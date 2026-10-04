@@ -181,6 +181,16 @@ still makeable **today**, allowing the shop time to pick and pack (the **prep bu
 **10:00** (for the midday run) and then until **14:00** (for the afternoon run). Order at 13:00 → still
 same-day (makes the 16:00 run). Order at 15:00 → standard only (both runs missed).
 
+**When the driver actually comes (063, corrected 2026-09-30).** A run's time is when the driver
+**collects**. The prep buffer is the shop's picking time between ordering closing and that run. The
+planner assigns the collection round from **`run − planning lead`** (default **45 min**) up to the run
+itself, re-checking every 5 minutes, so a package readied late in that window still makes the run. For a
+16:00 run with a 120-min buffer: same-day ordering closes **14:00**, the shop picks, the round is planned
+from **15:15**, and the driver collects by **16:00**.
+> ⚠ Before 2026-09-30 the planner wrongly treated `run − buffer` as the collection deadline, sending
+> drivers up to two hours early and leaving shops no time to pick. If you configured runs expecting that
+> behaviour, re-check them.
+
 ### Half 2 — Per-shop exceptions (the "Same-day…" button on each zone in Tab 1)
 By default, a same-day-eligible zone is offered same-day by **every** shop. Reality differs — one shop has
 a van and staff for it, another doesn't. The exceptions dialog lets you override a **specific shop** in a

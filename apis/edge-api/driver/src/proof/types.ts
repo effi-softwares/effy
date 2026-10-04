@@ -26,7 +26,7 @@ export function isSupportedMethod(v: unknown): v is SupportedProofMethod {
 
 export interface DropRow {
   stop_id: string;
-  stop_status: "pending" | "arrived" | "done" | "skipped";
+  stop_status: "pending" | "out_for_delivery" | "en_route" | "arrived" | "done" | "skipped";
   order_id: string | null;
   round_id: string;
   round_kind: "collection" | "delivery";

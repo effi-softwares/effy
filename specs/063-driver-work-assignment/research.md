@@ -11,11 +11,35 @@ document covers what that pass left open and what building against the *current*
 `SameDayCutoff` (`apis/core-api/internal/platform/delivery/sameday.go`) answers, at checkout, *"can
 this shopper still get same-day?"* — `now ≤ run_time − prep_buffer` for the latest makeable run.
 
-The planner needs the **same arithmetic in the opposite direction**: given the 14:00 run and a 60-minute
-buffer, everything for that run must be collected by 13:00, so plan at `13:00 − planning_lead`.
+~~The planner needs the **same arithmetic in the opposite direction**: given the 14:00 run and a
+60-minute buffer, everything for that run must be collected by 13:00, so plan at `13:00 −
+planning_lead`.~~
 
-**Decision**: the wave trigger is `for each active collection run: at (run_time − prep_buffer −
-planning_lead), plan`. `planning_lead` is new configuration with a default, not a literal.
+~~**Decision**: the wave trigger is `for each active collection run: at (run_time − prep_buffer −
+planning_lead), plan`.~~
+
+> ⚠⚠ **CORRECTED 2026-09-30 — THE STRUCK-THROUGH DECISION WAS WRONG, AND THE CODE SHIPPED IT.**
+>
+> It read the prep buffer as time taken off the **end** of collection. The buffer is the time a
+> **shop** gets to pick and pack **after same-day ordering closes**; the driver collects **at the run
+> time**. The spec never said otherwise — **FR-002**: *"early enough that an assigned driver can
+> complete the round before the **run time**"*. The 047 console text and operator guide say the same.
+> Only this decision, and the code built from it, disagreed.
+>
+> Under the struck-through rule the collection deadline and the checkout cutoff were **the same
+> instant**: a shop had zero time to pick; a shopper could buy same-day at 20:59 for a package that
+> had to be collected by 21:00; after the day's last window such an order could only be collected
+> **tomorrow**; and the configured run time played no part in anything. None of it raised an error.
+>
+> ⚠ **The cross-language contract (R2) did not catch it, because it pinned the defect** —
+> `deadline == cutoff`. It now pins `cutoff == deadline − buffer`, over the same byte-identical
+> fixtures, so the Go side needed no change at all.
+>
+> **Corrected decision**: `collection deadline = run_time`; the wave is planned in
+> `[run_time − planning_lead, run_time]`, re-planning on every tick inside it. The prep buffer is
+> consulted **only by checkout**. With the live settings (120 / 45), a 14:00 run closes same-day
+> ordering at 12:00, plans from 13:15, and must be collected by 14:00 — 75 minutes for the shop to pick
+> before the first pass.
 
 **Rationale**: D12 — two independent lines of evidence (WMS wave-planning practice, and our own
 `delivery_collection_run` schema) point at the same shape. A wave *is* a deadline and a batch; the

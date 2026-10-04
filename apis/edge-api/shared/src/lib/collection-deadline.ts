@@ -130,41 +130,65 @@ export function localDateParts(at: Date): { year: number; month: number; day: nu
 }
 
 /**
- * When collection for `run` must be complete, on the local date containing `onDate`.
+ * When collection for `run` must be complete, on the local date containing `onDate`: **the run time
+ * itself.**
  *
- * `run_time − prep_buffer` — the same boundary `SameDayCutoff` compares `now` against at checkout.
+ * ⚠⚠ CORRECTED 2026-09-30 — THIS USED TO RETURN `run_time − prep_buffer`, AND THAT WAS WRONG.
+ *
+ * 063's research R1 reasoned "given the 14:00 run and a 60-minute buffer, everything for that run must
+ * be collected by 13:00" — reading the prep buffer as time taken off the END of the collection window.
+ * It is the opposite. The buffer is the time a SHOP gets to pick and pack AFTER ordering closes:
+ * checkout offers same-day while `now ≤ run_time − prep_buffer` (Go's `SameDayCutoff`, unchanged), and
+ * the driver collects AT the run time. 063's own spec always said so — FR-002: "early enough that an
+ * assigned driver can complete the round before the **run time**". The code implemented the research,
+ * not the spec.
+ *
+ * The consequences were real and completely silent:
+ *   · the collection deadline and the checkout cutoff were the SAME INSTANT, so the shop had ZERO prep
+ *     time — a shopper could buy same-day at 20:59 for a package that had to be collected by 21:00;
+ *   · after the day's last window such an order could only be collected TOMORROW — a broken same-day
+ *     promise with no error anywhere;
+ *   · the configured run time played no part in anything. Drivers were sent up to two hours early.
+ *
+ * ⚠ The cross-language contract did not catch it because it pinned `cutoff == deadline` — the bug
+ * itself. It now pins `cutoff == deadline − buffer`, which is the relationship that actually ties the
+ * two halves together: a shop always gets exactly the configured buffer between ordering closing and
+ * the driver arriving. See `collection-deadline.contract.test.ts`.
  */
-export function collectionDeadline(run: CollectionRun, bufferMin: number, onDate: Date): Date {
+export function collectionDeadline(run: CollectionRun, onDate: Date): Date {
   const { year, month, day } = localDateParts(onDate);
-  const runAt = instantAtLocalTime(year, month, day, run.hour, run.minute);
-  return new Date(runAt.getTime() - bufferMin * 60_000);
+  return instantAtLocalTime(year, month, day, run.hour, run.minute);
 }
 
 /**
- * When the wave for `run` should be planned — far enough ahead that an assigned driver can finish
- * before the deadline (FR-002).
+ * When the wave for `run` should be planned — `planning_lead` before the run, far enough ahead that an
+ * assigned driver can finish before it (FR-002).
+ *
+ * With the default settings (120-minute prep buffer, 45-minute lead) a 14:00 run closes same-day
+ * ordering at 12:00, is planned from 13:15, and must be collected by 14:00 — so a shop has 75 minutes
+ * to pick before the first planning pass, and later passes still pick up anything readied after that.
  */
-export function wavePlanningTime(run: CollectionRun, bufferMin: number, leadMin: number, onDate: Date): Date {
-  return new Date(collectionDeadline(run, bufferMin, onDate).getTime() - leadMin * 60_000);
+export function wavePlanningTime(run: CollectionRun, leadMin: number, onDate: Date): Date {
+  return new Date(collectionDeadline(run, onDate).getTime() - leadMin * 60_000);
 }
 
 /**
- * The runs whose wave is due to be planned at `now` and has not been planned yet.
+ * The runs whose wave is due to be planned at `now`.
  *
  * ⚠ The scheduled tick is NOT the wave (contracts/routes.md). The function wakes every few minutes and
  * plans only when a run has actually reached its planning time; the collection schedule decides when
- * work is created, not the cron expression.
+ * work is created, not the cron expression. Every tick inside the window plans again, which is how a
+ * package readied late still reaches the run (FR-004a).
  */
 export function runsDueForPlanning(
   runs: readonly CollectionRun[],
-  bufferMin: number,
   leadMin: number,
   now: Date,
 ): CollectionRun[] {
   return runs.filter((r) => {
-    const planAt = wavePlanningTime(r, bufferMin, leadMin, now);
-    const deadline = collectionDeadline(r, bufferMin, now);
-    // Due once the planning moment has arrived, and still worth planning until the deadline itself.
+    const planAt = wavePlanningTime(r, leadMin, now);
+    const deadline = collectionDeadline(r, now);
+    // Due once the planning moment has arrived, and still worth planning until the run itself.
     return now.getTime() >= planAt.getTime() && now.getTime() <= deadline.getTime();
   });
 }
@@ -200,13 +224,12 @@ export function endOfLocalDay(at: Date): Date {
  */
 export function nextPlanningTime(
   runs: readonly CollectionRun[],
-  bufferMin: number,
   leadMin: number,
   now: Date,
 ): Date | null {
   const tomorrow = new Date(now.getTime() + 24 * 3600_000);
-  const candidates = [...runs.map((r) => wavePlanningTime(r, bufferMin, leadMin, now)),
-                      ...runs.map((r) => wavePlanningTime(r, bufferMin, leadMin, tomorrow))]
+  const candidates = [...runs.map((r) => wavePlanningTime(r, leadMin, now)),
+                      ...runs.map((r) => wavePlanningTime(r, leadMin, tomorrow))]
     .filter((d) => d.getTime() >= now.getTime())
     .sort((a, b) => a.getTime() - b.getTime());
   return candidates[0] ?? null;

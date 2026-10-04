@@ -23,7 +23,12 @@ export type RoundStatus = "planned" | "in_progress" | "completed" | "cancelled";
 /** What kind of place a stop is. */
 export type StopKind = "shop_pickup" | "customer_drop" | "hub_checkin";
 
-export type StopStatus = "pending" | "arrived" | "done" | "skipped";
+/**
+ * ⚠ `out_for_delivery` and `en_route` ADDED 2026-09-30. They were missing, so a driver's "Start this
+ * drop" was written back as `pending` and the drop could never advance to proof. Readers that mean
+ * "still to do" must test for the FINISHED states (`done`, `skipped`) rather than list the open ones.
+ */
+export type StopStatus = "pending" | "out_for_delivery" | "en_route" | "arrived" | "done" | "skipped";
 
 /** Where one package has got to within a round. */
 export type RoundPackageState = "assigned" | "picked_up" | "not_available" | "delivered" | "failed";

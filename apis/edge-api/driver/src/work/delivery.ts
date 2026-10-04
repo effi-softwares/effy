@@ -14,6 +14,7 @@ import type {
   HistoryDTO,
 } from "@effy/shared-types";
 
+import { dropStatusOf } from "./drop-status";
 import { NotFoundError } from "./service";
 
 /** GET /driver/v1/delivery/drops/{dropId} — one customer stop. */
@@ -69,7 +70,9 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     // asks for one. Filling it with the address, or a cheerful default, would put words on a driver's
     // screen that no customer wrote. Whoever adds the field at checkout unblocks this line.
     instructions: null,
-    status: r.status === "done" ? "delivered" : r.status === "arrived" ? "arrived" : "staged",
+    // ⚠ Every stored state reads back as itself. This used to collapse everything unrecognised to
+    // "staged", which is how a drop that HAD started kept showing "Start this drop".
+    status: dropStatusOf(r.status),
     packages: [
       {
         ref: r.order_number,
@@ -98,9 +101,23 @@ export async function setDropStatus(
     );
     if (owns.rowCount === 0) throw new NotFoundError();
 
-    // ⚠ The contract's vocabulary is richer than the model's, and this is the whole mapping. Note
-    // `delivered` is NOT reachable here: completing a drop requires proof (D16), which is Slice D.
-    const next = body.to === "arrived" ? "arrived" : "pending";
+    // ⚠ A FINISHED DROP IS NEVER MOVED BACKWARDS. This function used to write whatever it was given,
+    // so a stale tap on a delivered drop would have reset it to `pending` — un-delivering a package
+    // that had proof and an arrival row. It now answers with where the drop actually is.
+    const current: string = owns.rows[0].status;
+    if (current === "done" || current === "skipped") {
+      return { status: current === "done" ? "delivered" : "failed" };
+    }
+
+    // ⚠⚠ THIS MAPPING WAS THE WHOLE DEFECT (fixed 2026-09-30). It read
+    //     const next = body.to === "arrived" ? "arrived" : "pending";
+    // so "Start this drop" (out_for_delivery) and "On my way" (en_route) were written back as the
+    // state the drop was already in. The route answered 200, the app re-read "staged", and the same
+    // button returned — a driver could never reach proof, so no same-day order could complete.
+    // `delivered` is still NOT reachable here: completing a drop requires proof (064).
+    const ALLOWED = new Set(["out_for_delivery", "en_route", "arrived"]);
+    if (!ALLOWED.has(body.to)) throw new NotFoundError();
+    const next = body.to;
     await tx.query(`UPDATE public.round_stop SET status = $2 WHERE id = $1`, [dropId, next]);
     await tx.query(
       `UPDATE public.driver_round SET status = 'in_progress', updated_at = now()

@@ -12,7 +12,7 @@ export const DAY_ROUNDS = `
          d.id   AS driver_id,
          d.name AS driver_name,
          (SELECT count(*) FROM public.round_stop rs
-           WHERE rs.round_id = dr.id AND rs.status IN ('pending','arrived'))::text AS stops_remaining,
+           WHERE rs.round_id = dr.id AND rs.status NOT IN ('done','skipped'))::text AS stops_remaining,  -- ⚠ finished states named, not open ones (2026-09-30): a started drop still counts as remaining
          (SELECT count(*) FROM public.round_package rp
             JOIN public.round_stop rs2 ON rs2.id = rp.stop_id
            WHERE rs2.round_id = dr.id AND rp.state = 'assigned')::text AS packages_remaining

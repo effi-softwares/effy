@@ -23,7 +23,7 @@ export interface StopRow {
   stop_id: string;
   seq: number | null;
   stop_kind: "shop_pickup" | "customer_drop" | "hub_checkin";
-  stop_status: "pending" | "arrived" | "done" | "skipped";
+  stop_status: "pending" | "out_for_delivery" | "en_route" | "arrived" | "done" | "skipped";
   completed_at: Date | null;
   zone_id: string | null;
   zone_name: string | null;

@@ -4,6 +4,8 @@
 // (see ./sql.ts for the vocabulary table). The app changes nothing to read this.
 
 import { orderRoundStops } from "@effy/edge-shared";
+
+import { dropStatusOf } from "./drop-status";
 import type {
   CollectionStopDTO,
   CollectionStopSummary,
@@ -94,7 +96,11 @@ export async function today(driverId: string): Promise<TodayDTO> {
   // which is correct; the defect was that a collection round had nothing left in it once the last
   // shop was collected, while the load was still in the van. The hub stop is what fills that gap, so
   // `active`, `upNext` and `remainingCount` all keep describing reality until the load is checked in.
-  const outstanding = sorted.filter((s) => s.stop_status === "pending" || s.stop_status === "arrived");
+  // ⚠ NAMES THE FINISHED STATES, NOT THE OPEN ONES (2026-09-30). This listed `pending` and `arrived`,
+  // so the moment a driver pressed "Start this drop" the drop would have left the Today screen
+  // entirely — the same shape as the hub-stop defect, by a different road. Testing for what is DONE
+  // means a future in-progress state stays visible without anyone remembering to add it here.
+  const outstanding = sorted.filter((s) => s.stop_status !== "done" && s.stop_status !== "skipped");
 
   // What the driver is physically holding — the hub row's subtitle, and the honest count.
   const totalPackages = packages.filter((p) => p.state === "picked_up").length;
@@ -235,7 +241,9 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         // `staged` here — there is no "assigned", because to a driver a package sitting at the hub
         // is staged, not allocated. Mapping the model's word through would have typechecked only
         // because I widened the contract to accept it.
-        status: s.stop_status === "done" ? "delivered" : s.stop_status === "arrived" ? "en_route" : "staged",
+        // ⚠ Was `arrived → "en_route"`, everything else → "staged": the run list disagreed with the drop
+        // screen about the same drop. Both now read through one mapping.
+        status: dropStatusOf(s.stop_status),
       } satisfies DeliveryDropSummary;
     }),
   };

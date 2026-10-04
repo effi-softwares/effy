@@ -50,7 +50,7 @@ export async function runDuePlanning(now = new Date()): Promise<WaveOutcome[]> {
     return [{ kind: "collection", waveId: null, considered: 0, assigned: 0, unassigned: 0, skippedReason: "no_active_collection_runs" }];
   }
 
-  const due = runsDueForPlanning(runs, settings.prepBufferMin, settings.planningLeadMin, now);
+  const due = runsDueForPlanning(runs, settings.planningLeadMin, now);
   const outcomes: WaveOutcome[] = [];
 
   if (due.length === 0) {
@@ -59,7 +59,7 @@ export async function runDuePlanning(now = new Date()): Promise<WaveOutcome[]> {
     // indistinguishable from "the planner is dead". It cost a live investigation: 14 packages ready,
     // an on-duty driver, an empty app, and nothing anywhere connecting the three. The next planning
     // instant rides along so the log answers "then when?" without anyone recomputing the schedule.
-    const next = nextPlanningTime(runs, settings.prepBufferMin, settings.planningLeadMin, now);
+    const next = nextPlanningTime(runs, settings.planningLeadMin, now);
     outcomes.push({
       kind: "collection",
       waveId: null,
@@ -89,8 +89,10 @@ export async function planCollectionWave(
   trigger: "schedule" | "manual",
   triggeredBySub: string | null,
 ): Promise<WaveOutcome> {
-  const deadlineAt = collectionDeadline(run, settings.prepBufferMin, now);
-  const plannedFor = wavePlanningTime(run, settings.prepBufferMin, settings.planningLeadMin, now);
+  // ⚠ The deadline is the RUN TIME (corrected 2026-09-30). The prep buffer is not consulted here at
+  // all: it is the shop's time AFTER same-day ordering closes, and it belongs to checkout.
+  const deadlineAt = collectionDeadline(run, now);
+  const plannedFor = wavePlanningTime(run, settings.planningLeadMin, now);
 
   const [packages, candidates] = await Promise.all([gatherCollectionWork(), loadCandidates()]);
   if (packages.length === 0) {
