@@ -1,5 +1,6 @@
 package com.effyshopping.driver.mobile.features.delivery.data
 
+import com.effyshopping.driver.mobile.contract.HandoverPreference
 import com.effyshopping.driver.mobile.contract.DeliveryDropDTO
 import com.effyshopping.driver.mobile.contract.DeliveryDropStatus
 import com.effyshopping.driver.mobile.contract.DeliveryFailureReason
@@ -16,6 +17,7 @@ import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.platform.uploadBytes
 import com.effyshopping.driver.mobile.features.manifest.data.toDomain
+import com.effyshopping.driver.mobile.features.delivery.domain.Handover
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
 import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
@@ -170,4 +172,10 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain()) },
     status = dropStatus(status),
     summary = summary.toDomain(),
+    // 066 — exhaustive on purpose: a third preference on the wire must fail to compile here.
+    handover = when (handover) {
+        HandoverPreference.LeaveAtDoor -> Handover.LeaveAtDoor
+        HandoverPreference.MeetAtDoor -> Handover.MeetAtDoor
+        null -> null
+    },
 )

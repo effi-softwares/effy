@@ -20,6 +20,8 @@ import type { BillingDetailsDTO } from "./payment";
 
 
 
+import type { DeliveryInstructionsDTO } from "./delivery-instructions";
+
 /** POST /v1/checkout/intent — create/locate the pending order and its PaymentIntent (019, extended 021). */
 export interface CreateCheckoutIntentRequest {
   /** The SHIPPING address (required). Snapshotted onto the order at placement. */
@@ -30,6 +32,16 @@ export interface CreateCheckoutIntentRequest {
    * amount.
    */
   billingAddressId?: string | null;
+  /**
+   * 066 — what the customer tells the driver for THIS order: a handover preference and/or a note.
+   * Absent or null → none. Validated and normalised by the server with the same rule the client
+   * uses (`normaliseDeliveryInstructions`); refused with a field error, never truncated.
+   *
+   * ⚠ The server stores exactly what THIS request carries. It never reads the address's saved
+   * default — prefilling from that is the client's job — which is why editing an address later
+   * cannot change a placed order.
+   */
+  deliveryInstructions?: DeliveryInstructionsDTO | null;
   /**
    * 047: the shopper's order-level delivery preference — "same_day" or "standard" (absent = standard).
    * Applied per package where that method is offered, standard elsewhere (FR-044). The server prices the

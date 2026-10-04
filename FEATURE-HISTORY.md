@@ -4,6 +4,38 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**066-delivery-instructions — Customer Delivery Instructions.** 🚧 **49/51 tasks — CODE-COMPLETE
+AND MACHINE-VERIFIED across the hot path, three cold-path services, both customer surfaces,
+back-office and the driver app. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
+[specs/066-delivery-instructions/SIGNOFF.md](specs/066-delivery-instructions/SIGNOFF.md). Client
+feedback R4a ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
+
+A shopper tells the driver how to deliver: "Leave at the door" / "Meet at the door" and/or a note of
+up to 250 characters, optionally saved as an address's default.
+- ⚠ **COLUMNS ON THE ORDER, NOT KEYS IN `delivery_address`.** That jsonb snapshot is read by fifteen
+  files in seven services, including the SHOP console and the RECEIPT EMAIL — both forbidden from
+  showing instructions. A guard in `edge-shared` fails naming any shop or notification file that
+  references them.
+- ⚠ **ONE RULE, PINNED ACROSS TWO LANGUAGES.** `normaliseDeliveryInstructions` lives in
+  `shared-types`; the Go hot path carries a mirror; both test suites read the SAME fixture file. The
+  limit is counted in code points (an emoji is one), matching PostgreSQL's `char_length` CHECK.
+- ⚠ **THE HOT PATH NEVER READS AN ADDRESS'S SAVED DEFAULT.** An order stores what its own request
+  carried; prefilling is the client's job. So an address edit cannot reach a placed order — by
+  construction, and a source guard keeps it that way.
+- ⚠ **THE DRIVER FIELD WAS ALWAYS NULL.** `DeliveryDropDTO.instructions` existed since 049 and three
+  screens rendered it; 066 is the first thing to fill it.
+- ⚠ **MY OWN DEFECT, CAUGHT BY A TEST**: customer-mobile's JSON omits nulls and the address PATCH
+  reads an omitted field as "leave alone", so a cleared default sent as `null` would have silently
+  KEPT it. It goes out as `{}`.
+- **Verified**: typecheck 20/20 · customer-web **489** (bundle byte-identical on 16 routes) ·
+  edge-customer **217** · edge-driver **132** · edge-orders **57** · back-office **233** ·
+  customer-mobile **331** + driver-mobile **54** Android host, both iOS test targets compile · five
+  negative proofs, all caught.
+- ⚠ **Open**: `db-up` → `core-deploy` (**before** pushing customer-web, or instructions are dropped
+  silently) → `edge-deploy SERVICE=customer|orders|driver` → push → app releases → walks W1–W13 and
+  the two live checks (251-character `curl`; sentinel-note log sweep). The telemetry event emits
+  nothing. ⚠ `make storefront-locks` is red **at HEAD**, unrelated to this slice.
+
 **065-driver-item-manifest — Driver Item Manifest & Temperature Classes.** 🚧 **41/43 tasks —
 CODE-COMPLETE AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
 [specs/065-driver-item-manifest/SIGNOFF.md](specs/065-driver-item-manifest/SIGNOFF.md). Client

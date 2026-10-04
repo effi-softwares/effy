@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.effyshopping.driver.mobile.features.delivery.domain.driverInstructions
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import com.effyshopping.driver.mobile.features.manifest.presentation.ClassSummaryRow
 
@@ -84,7 +85,7 @@ fun EnRouteScreen(
             // ⚠ Not a footnote. A buzzer that does not work, or "do not leave with the concierge",
             // is the difference between a delivery and a failed one — and the driver reads this
             // while parking.
-            drop.instructions?.takeIf { it.isNotBlank() }?.let { InstructionCallout(it) }
+            drop.driverInstructions?.let { InstructionCallout(it) }
 
             Spacer(Modifier.weight(1f))
 

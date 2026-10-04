@@ -3,6 +3,11 @@ package com.effyshopping.customer.mobile.features.addresses.data
 import com.effyshopping.customer.mobile.commerce.contract.AddressDTO
 import com.effyshopping.customer.mobile.commerce.contract.CreateAddressRequest
 import com.effyshopping.customer.mobile.commerce.contract.UpdateAddressRequest
+import com.effyshopping.customer.mobile.commerce.contract.DeliveryInstructionsDTO
+import com.effyshopping.customer.mobile.features.deliveryinstructions.data.ClearedInstructions
+import com.effyshopping.customer.mobile.features.deliveryinstructions.data.toDomain
+import com.effyshopping.customer.mobile.features.deliveryinstructions.data.toWire
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 
@@ -21,6 +26,7 @@ internal fun AddressDTO.toDomain(): SavedAddress = SavedAddress(
     postalCode = postalCode,
     country = country,
     isDefault = isDefault,
+    defaultInstructions = defaultDeliveryInstructions.toDomain(),
 )
 
 // create: NEVER sends makeDefault — the backend auto-defaults only the customer's first address
@@ -34,6 +40,7 @@ internal fun AddressDraft.toCreateRequest(): CreateAddressRequest = CreateAddres
     postalCode = postalCode,
     label = label,
     phone = phone,
+    defaultDeliveryInstructions = defaultInstructions?.toWireDefault(),
 )
 
 // edit: sends the fields only — default status is left untouched unless set-default is used (FR-017).
@@ -46,4 +53,15 @@ internal fun AddressDraft.toUpdateRequest(): UpdateAddressRequest = UpdateAddres
     postalCode = postalCode,
     label = label,
     phone = phone,
+    defaultDeliveryInstructions = defaultInstructions?.toWireDefault(),
 )
+
+/**
+ * The draft's default instructions → the wire.
+ *
+ * ⚠ An EMPTY draft becomes [ClearedInstructions] (`{}`), not `null`. This app's JSON omits nulls and
+ * the server reads an omitted field as "leave it alone", so `null` here would silently KEEP the
+ * saved default a shopper just cleared.
+ */
+internal fun InstructionsDraft.toWireDefault(): DeliveryInstructionsDTO =
+    toInstructions()?.toWire() ?: ClearedInstructions

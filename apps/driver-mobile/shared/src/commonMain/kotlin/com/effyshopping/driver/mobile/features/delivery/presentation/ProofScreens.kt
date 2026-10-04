@@ -44,6 +44,7 @@ import com.effyshopping.driver.mobile.core.platform.rememberCameraCaptureControl
 import com.effyshopping.driver.mobile.core.platform.rememberPhotoCapture
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
+import com.effyshopping.driver.mobile.features.delivery.domain.Handover
 import com.effyshopping.mobile.kit.ui.ChoiceChips
 import com.effyshopping.mobile.kit.ui.DigitBoxes
 import com.effyshopping.mobile.kit.ui.NumericKeypad
@@ -78,6 +79,7 @@ internal fun ProofPicker(
     onNoteChange: (String) -> Unit,
     onPick: (ProofStep) -> Unit,
     photoAvailable: Boolean,
+    handover: Handover? = null,
 ) {
     Column(Modifier.fillMaxSize().imePadding()) {
         Column(
@@ -97,11 +99,29 @@ internal fun ProofPicker(
             )
             Spacer(Modifier.height(20.dp))
 
+            // 066 — what the customer asked for, said BEFORE the choices. ⚠ It reorders and it
+            // informs; it never removes an option. A "leave at the door" customer who opens the door
+            // is handed the package and signs, and the driver must still be able to record that.
+            handover?.let {
+                Text(
+                    it.driverSentence,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(14.dp))
+            }
+
+            val leaveFirst = handover == Handover.LeaveAtDoor && photoAvailable
+            if (leaveFirst) {
+                ProofOption("Leave at door", "The customer asked for this. Say where, then photograph it") {
+                    onPick(ProofStep.CONTACTLESS)
+                }
+            }
             if (photoAvailable) {
                 ProofOption("Photo", "Snap the packages where you left them") { onPick(ProofStep.PHOTO) }
             }
             ProofOption("Signature", "Customer signs on your screen") { onPick(ProofStep.SIGNATURE) }
-            if (photoAvailable) {
+            if (photoAvailable && !leaveFirst) {
                 // ⚠ Gated on the camera: an unattended drop MUST be photographed (FR-002), so
                 // without capture there is no honest way to offer it.
                 ProofOption("Leave at door", "Say where, then photograph it") { onPick(ProofStep.CONTACTLESS) }

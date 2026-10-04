@@ -294,7 +294,21 @@ data class DeliveryDropDTO (
     @SerialName("dropId")
     val dropID: String,
 
+    /**
+     * 066 — how the customer asked for the order to be handed over, or null/absent for no
+     * preference. ⚠ A REQUEST, not a constraint: the app says it and leads the proof chooser
+     * with it, and never removes a way of completing the drop. Kept apart from `instructions`
+     * because the app ACTS on it.
+     */
+    val handover: HandoverPreference? = null,
+
+    /**
+     * The customer's NOTE to the driver, verbatim (066). Null when they wrote none. ⚠ Until 066
+     * this was always null: the field existed, three screens rendered it, and nothing stored
+     * it. Customer-authored free text — plain text only.
+     */
     val instructions: String? = null,
+
     val orderRef: String,
     val packages: List<DropPackageRef>,
     val status: DeliveryDropStatus,
@@ -304,6 +318,27 @@ data class DeliveryDropDTO (
      */
     val summary: ClassSummary
 )
+
+/**
+ * Delivery instructions — 066-delivery-instructions.
+ *
+ * What a customer tells the driver: how to hand the order over, and a short note. The
+ * vocabulary, the length limit and the normalisation rule live HERE and nowhere else
+ * (Principle II): the two customer surfaces use them to show a remaining-characters count,
+ * and the two backends use them to decide. A client holding a looser opinion than the
+ * server is how a 300-character note is typed, accepted by the screen and refused at
+ * payment.
+ *
+ * ⚠ THE GO HOT PATH CANNOT IMPORT THIS FILE, so it carries one mirror
+ * (`apis/core-api/internal/platform/deliveryinstructions`). The two are pinned together by
+ * `delivery-instructions.fixtures.json`, which BOTH test suites read. Changing a step here
+ * without changing it there fails the Go suite — that is the point.
+ */
+@Serializable
+enum class HandoverPreference(val value: String) {
+    @SerialName("leave_at_door") LeaveAtDoor("leave_at_door"),
+    @SerialName("meet_at_door") MeetAtDoor("meet_at_door");
+}
 
 /**
  * One physical package at a drop.

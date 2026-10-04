@@ -47,3 +47,45 @@ describe("OrderAddresses (US5, FR-016)", () => {
     expect(screen.queryByText(/same as shipping/i)).not.toBeInTheDocument()
   })
 })
+
+// ── 066 — delivery instructions ─────────────────────────────────────────────────────────────────
+
+describe("066 — delivery instructions on the receipt", () => {
+  const shipping = {
+    recipientName: "Pat", phone: null, line1: "1 Test St", line2: null,
+    city: "Carlton", region: "VIC", postalCode: "3053", country: "AU",
+  }
+
+  it("shows the preference in words and the note as typed", () => {
+    render(
+      <OrderAddresses
+        shipping={shipping}
+        instructions={{ handover: "leave_at_door", note: "Side gate\ncode 4411" }}
+      />,
+    )
+    expect(screen.getByRole("heading", { name: "Delivery instructions" })).toBeInTheDocument()
+    expect(screen.getByText("Leave at the door")).toBeInTheDocument()
+    expect(screen.getByText(/Side gate/)).toHaveTextContent("Side gate code 4411")
+  })
+
+  /** SC-003 — every order placed before 066, and every order whose shopper said nothing. */
+  it("⚠ shows NOTHING when there are none — no heading, no placeholder", () => {
+    for (const instructions of [undefined, null, { handover: null, note: null }]) {
+      const { unmount } = render(<OrderAddresses shipping={shipping} instructions={instructions} />)
+      expect(screen.queryByRole("heading", { name: "Delivery instructions" })).toBeNull()
+      expect(screen.queryByText(/none|no instructions/i)).toBeNull()
+      unmount()
+    }
+  })
+
+  /** ⚠ SC-006 — customer-authored text is never interpreted. */
+  it("⚠ renders markup in the note as the literal characters typed", () => {
+    const hostile =
+      '<b>bold</b> <a href="javascript:alert(1)">link</a> <img src=x onerror=alert(1)> <script>alert(1)</script>'
+    const { container } = render(
+      <OrderAddresses shipping={shipping} instructions={{ handover: null, note: hostile }} />,
+    )
+    expect(screen.getByText(hostile)).toBeInTheDocument()
+    expect(container.querySelector("b, a, img, script")).toBeNull()
+  })
+})

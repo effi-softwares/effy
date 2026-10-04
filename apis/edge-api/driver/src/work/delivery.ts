@@ -9,6 +9,7 @@ import { presignRead, query, withTransaction } from "@effy/edge-shared";
 import type {
   ActivityItem,
   DeliveryDropDTO,
+  HandoverPreference,
   DropStatusRequest,
   HistoryDetailDTO,
   HistoryDTO,
@@ -33,6 +34,8 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     region: string | null;
     package_count: string;
     shop_count: string;
+    delivery_note: string | null;
+    delivery_handover: HandoverPreference | null;
   }>(
     `SELECT rs.id                                   AS stop_id,
             rs.status                               AS status,
@@ -44,14 +47,16 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
             o.delivery_address ->> 'postalCode'     AS postal_code,
             o.delivery_address ->> 'region'         AS region,
             count(rp.id)::text                      AS package_count,
-            count(DISTINCT sf.shop_id)::text        AS shop_count
+            count(DISTINCT sf.shop_id)::text        AS shop_count,
+            o.delivery_note                         AS delivery_note,
+            o.delivery_handover                     AS delivery_handover
        FROM public.round_stop rs
        JOIN public.driver_round dr ON dr.id = rs.round_id
        JOIN public."order"      o  ON o.id = rs.order_id
        LEFT JOIN public.round_package   rp ON rp.stop_id = rs.id
        LEFT JOIN public.shop_fulfillment sf ON sf.id = rp.shop_fulfillment_id
       WHERE rs.id = $1 AND dr.driver_id = $2 AND rs.kind = 'customer_drop'
-      GROUP BY rs.id, rs.status, o.order_number, o.delivery_address`,
+      GROUP BY rs.id, rs.status, o.order_number, o.delivery_address, o.delivery_note, o.delivery_handover`,
     [dropId, driverId],
   );
 
@@ -71,11 +76,14 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     orderRef: r.order_number,
     customerName: r.recipient_name ?? "",
     addressFull: address,
-    // ⚠ ALWAYS NULL, AND THAT IS THE HONEST ANSWER. The contract carries this field and NOTHING ON
-    // THE PLATFORM STORES IT — there is no delivery-instructions column anywhere, and checkout never
-    // asks for one. Filling it with the address, or a cheerful default, would put words on a driver's
-    // screen that no customer wrote. Whoever adds the field at checkout unblocks this line.
-    instructions: null,
+    // The customer's own note, verbatim (066). ⚠ This line read `instructions: null` from 049 until
+    // 066, under a comment saying nothing on the platform stored it and "whoever adds the field at
+    // checkout unblocks this line". Checkout now asks; the order keeps the answer; NULL still means the
+    // customer wrote nothing, and nothing is invented in its place.
+    instructions: r.delivery_note,
+    // How they asked for it to be handed over. A REQUEST the app states and leads the proof chooser
+    // with — never a rule that removes a way of completing the drop (066 FR-020).
+    handover: r.delivery_handover,
     // ⚠ Every stored state reads back as itself. This used to collapse everything unrecognised to
     // "staged", which is how a drop that HAD started kept showing "Start this drop".
     status: dropStatusOf(r.status),

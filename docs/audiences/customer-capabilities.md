@@ -1329,3 +1329,25 @@ by a screen whose own copy admitted no money could move.
 
 **⚠ Status: code-complete and machine-verified; NOT deployed, NOT committed, NOT walked by a person.**
 Spec/artifacts: [specs/055-refunds-cancellation/](../../specs/055-refunds-cancellation/).
+
+## §066 — Delivery instructions (2026-10-04)
+
+Spec: [specs/066-delivery-instructions/](../../specs/066-delivery-instructions/). Client feedback R4a.
+
+| Capability | customer-web | customer-mobile | Notes |
+|---|---|---|---|
+| Choose "Leave at the door" / "Meet at the door" at checkout | ✅ built | ✅ built | A choice can be switched off again |
+| Add a note for the driver, up to 250 characters, with a live count | ✅ built | ✅ built | Counted as a person counts: an emoji is one |
+| Instructions shown on the confirmation and the order page | ✅ built | ✅ built | Nothing at all when none were given |
+| Save default instructions on an address | ✅ built | ✅ built | Address form on both |
+| Prefill at checkout from the selected address | ✅ built | ✅ built | Switching address replaces the draft |
+| Override for one order without changing the saved default | ✅ built | ✅ built | "Save to this address" is opt-in |
+
+⚠ **The server stores exactly what the checkout request carried** and never reads an address's saved
+default, so editing or deleting an address cannot change a placed order.
+
+⚠ **The note is plain text everywhere**, and is never shown to shops, in emails, in analytics or in
+logs. It may hold a gate code.
+
+⚠ **Not walked on either surface.** The telemetry event is declared and emits nothing.
+

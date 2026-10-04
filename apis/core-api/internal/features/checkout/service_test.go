@@ -10,6 +10,7 @@ import (
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/deliveryinstructions"
 )
 
 // ── Checkout service tests ─────────────────────────────────────────────────────────────────────
@@ -24,6 +25,9 @@ import (
 // never takes one from the client.
 
 type fakeStore struct {
+	// 066 — what the last intent wrote, and how many times one wrote at all.
+	instructionsWrites int
+	handover, note     *string
 	// 055 — what the webhook deduped, and whether it reports a redelivery.
 	seenEvents       []string
 	eventAlreadySeen bool
@@ -106,6 +110,12 @@ func (f *fakeStore) UpsertPendingOrder(_ context.Context, _ string, a OrderAmoun
 	// about it from here.
 	f.reuseAsked = reusePending
 	return "order-1", "EFY-TEST01", nil
+}
+
+func (f *fakeStore) SetOrderDeliveryInstructions(_ context.Context, _ string, handover, note *string) error {
+	f.instructionsWrites++
+	f.handover, f.note = handover, note
+	return nil
 }
 
 func (f *fakeStore) SetOrderBilling(_ context.Context, _ string, billingJSON []byte) error {
@@ -766,5 +776,31 @@ func TestConfirm_DoesNotCaptureAMethodForAnUnpaidIntent(t *testing.T) {
 	}
 	if store.savedMethod != nil {
 		t.Fatalf("savedMethod = %+v, want nothing for an unpaid intent", store.savedMethod)
+	}
+}
+
+// 066 — instructions are written on EVERY intent, including when the shopper said nothing. Skipping
+// the write for an empty value would leave an earlier draft on the order for a shopper who cleared it.
+func TestIntent_WritesDeliveryInstructionsEveryTime(t *testing.T) {
+	store, gw := storeWithMilk(), &fakeGateway{}
+	svc := svcWith(store, gw)
+
+	h, n := "leave_at_door", "Side gate"
+	if _, err := intent(svc, IntentInput{
+		AddressID:            addrID,
+		DeliveryInstructions: deliveryinstructions.Instructions{Handover: &h, Note: &n},
+	}); err != nil {
+		t.Fatalf("intent: %v", err)
+	}
+	if store.instructionsWrites != 1 || store.handover == nil || *store.handover != h || store.note == nil || *store.note != n {
+		t.Fatalf("want the instructions written once, got writes=%d", store.instructionsWrites)
+	}
+
+	if _, err := intent(svc, IntentInput{AddressID: addrID}); err != nil {
+		t.Fatalf("second intent: %v", err)
+	}
+	if store.instructionsWrites != 2 || store.handover != nil || store.note != nil {
+		t.Fatalf("want a second write clearing them, got writes=%d handover=%v note=%v",
+			store.instructionsWrites, store.handover, store.note)
 	}
 }

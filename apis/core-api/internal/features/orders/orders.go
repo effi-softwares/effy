@@ -75,8 +75,11 @@ type Order struct {
 	DeliveryAddress json.RawMessage
 	// BillingAddress is the billing snapshot (023). nil/empty means "same as shipping" — the client
 	// renders "Billing: same as shipping" rather than repeating the address. NEVER from the shop.
-	BillingAddress     json.RawMessage
-	ItemSubtotalAmount string
+	BillingAddress json.RawMessage
+	// DeliveryInstructions is what the customer told the driver at placement (066). nil when they said
+	// nothing — which is every pre-066 order — and the client then shows NOTHING: no placeholder.
+	DeliveryInstructions *DeliveryInstructions
+	ItemSubtotalAmount   string
 	// 051 FR-043 — the delivery fee as charged, so the receipt's lines reconcile to its total.
 	DeliveryFeeAmount string
 	// 027: what the promotional code took off, and the code itself. From the ORDER — a receipt explains
@@ -182,13 +185,16 @@ ORDER BY o.created_at DESC`, customerID)
 }
 
 type orderRow struct {
-	ID           string  `db:"id"`
-	OrderNumber  string  `db:"order_number"`
-	Status       string  `db:"status"`
-	PlacedAt     *string `db:"placed_at"`
-	Address      []byte  `db:"delivery_address"`
-	Billing      []byte  `db:"billing_address"`
-	ItemSubtotal string  `db:"item_subtotal_amount"`
+	ID          string  `db:"id"`
+	OrderNumber string  `db:"order_number"`
+	Status      string  `db:"status"`
+	PlacedAt    *string `db:"placed_at"`
+	Address     []byte  `db:"delivery_address"`
+	Billing     []byte  `db:"billing_address"`
+	// 066 — columns on the order, deliberately NOT keys in the address snapshot above.
+	DeliveryHandover *string `db:"delivery_handover"`
+	DeliveryNote     *string `db:"delivery_note"`
+	ItemSubtotal     string  `db:"item_subtotal_amount"`
 	// 027: the discount as computed at payment, and the code that justifies it. Read from the ORDER, not
 	// re-derived from the promotion — a receipt must stay explainable even after the code changes.
 	Discount string `db:"discount_amount"`
@@ -207,6 +213,7 @@ func (r *Repository) Get(ctx context.Context, customerID, orderID string) (order
 SELECT o.id::text AS id, o.order_number AS order_number, o.status AS status,
        o.placed_at::text AS placed_at, o.delivery_address AS delivery_address,
        o.billing_address AS billing_address,
+       o.delivery_handover AS delivery_handover, o.delivery_note AS delivery_note,
        o.item_subtotal_amount::text AS item_subtotal_amount,
        o.discount_amount::text AS discount_amount, o.promo_code AS promo_code,
        o.delivery_fee_amount::text AS delivery_fee_amount,
@@ -539,7 +546,8 @@ func (s *Service) Get(ctx context.Context, customerID, orderID string) (Order, e
 	order := Order{
 		ID: row.ID, OrderNumber: row.OrderNumber, Status: row.Status, PlacedAt: row.PlacedAt,
 		Items: domainItems, DeliveryAddress: json.RawMessage(row.Address), BillingAddress: json.RawMessage(row.Billing),
-		ItemSubtotalAmount: row.ItemSubtotal, DiscountAmount: row.Discount, PromoCode: row.PromoCode,
+		DeliveryInstructions: instructionsOf(row.DeliveryHandover, row.DeliveryNote),
+		ItemSubtotalAmount:   row.ItemSubtotal, DiscountAmount: row.Discount, PromoCode: row.PromoCode,
 		DeliveryFeeAmount: row.DeliveryFee,
 		GrandTotalAmount:  row.GrandTotal, Currency: row.Currency,
 		PaymentStatus: payment, Fulfillments: domainFul,
@@ -632,4 +640,21 @@ func max64(a, b int64) int64 {
 		return a
 	}
 	return b
+}
+
+// DeliveryInstructions is what the customer told the driver (066): a handover preference and/or a
+// note. The note is customer-authored free text — every client renders it as plain text only.
+type DeliveryInstructions struct {
+	Handover *string `json:"handover"`
+	Note     *string `json:"note"`
+}
+
+// instructionsOf turns the order's two columns into the wire value. Both NULL is "said nothing" and
+// yields nil, so the response carries `null` and a client never has to tell an empty object from an
+// absent one.
+func instructionsOf(handover, note *string) *DeliveryInstructions {
+	if handover == nil && note == nil {
+		return nil
+	}
+	return &DeliveryInstructions{Handover: handover, Note: note}
 }

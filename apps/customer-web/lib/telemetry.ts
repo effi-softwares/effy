@@ -234,6 +234,15 @@ export type StorefrontEvent =
   | { name: "checkout_address_changed"; props?: Record<string, never> }
   | { name: "checkout_address_added"; props?: Record<string, never> }
   | { name: "checkout_billing_diverged"; props?: Record<string, never> }
+  // 066 delivery instructions.
+  //
+  // ⚠ NEVER THE NOTE, ITS LENGTH, OR THE ADDRESS. The note is customer-authored and may hold a gate
+  // code; the type below admits a closed enum and two booleans and nothing else, so a call site that
+  // tries to attach the text does not compile.
+  | {
+      name: "checkout_delivery_instructions_set"
+      props: { handover: "leave_at_door" | "meet_at_door" | "none"; hasNote: boolean; fromSavedDefault: boolean }
+    }
   // 051 payment experience.
   //
   // ⚠ WHAT THESE MAY NEVER CARRY, and the type is what enforces it: no card number (not even the last

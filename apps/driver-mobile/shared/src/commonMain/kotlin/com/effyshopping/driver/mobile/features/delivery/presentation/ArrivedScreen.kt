@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.effyshopping.driver.mobile.features.delivery.domain.driverInstructions
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import com.effyshopping.mobile.kit.ui.SwipeToConfirm
 
@@ -70,7 +71,7 @@ fun ArrivedScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        drop.instructions?.takeIf { it.isNotBlank() }?.let {
+        drop.driverInstructions?.let {
             Spacer(Modifier.height(20.dp))
             InstructionCallout(it)
         }

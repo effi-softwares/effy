@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
+import com.effyshopping.customer.mobile.features.addresses.domain.SaveAddressInstructions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
@@ -68,7 +70,24 @@ sealed interface CheckoutUiState {
         val quote: DeliveryQuote? = null,
         val quoting: Boolean = false,
         val method: DeliveryMethod = DeliveryMethod.STANDARD,
+        /**
+         * 066 — what the shopper tells the driver. Starts from the selected address's SAVED default and
+         * lives HERE, not in the control, so it survives the hand-off to payment and a failed payment.
+         */
+        val instructions: InstructionsDraft = InstructionsDraft(),
+        /**
+         * 066 — "save to this address". ⚠ OFF by default and reset whenever the address changes:
+         * editing instructions for ONE order must never rewrite the saved default unasked (FR-014).
+         */
+        val saveInstructions: Boolean = false,
     ) : CheckoutUiState {
+        /** What the selected address has saved — to tell "using my default" from "changed for this order". */
+        val savedInstructions: InstructionsDraft
+            get() = InstructionsDraft.from(addresses.firstOrNull { it.id == selectedId }?.defaultInstructions)
+
+        /** The save choice is offered only when there is something the address does not already hold. */
+        val instructionsDiffer: Boolean get() = !instructions.sameAs(savedInstructions)
+
         /** The billing id to SEND (023): only when diverged AND different from shipping; else null. */
         val effectiveBillingId: String?
             get() = billingSelectedId?.takeIf { !billingSameAsShipping && it != selectedId }
@@ -101,6 +120,7 @@ class CheckoutViewModel(
     private val createIntent: CreateIntent,
     private val handoff: PaymentHandoff,
     private val quoteDelivery: QuoteDelivery,
+    private val saveAddressInstructions: SaveAddressInstructions,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<CheckoutUiState>(CheckoutUiState.Loading)
@@ -120,7 +140,12 @@ class CheckoutViewModel(
             val addresses = runCatching { listAddresses() }.getOrDefault(emptyList())
             // Pre-select the default; deterministic to the first saved address when none is default (FR-002).
             val selectedId = addresses.firstOrNull { it.isDefault }?.id ?: addresses.firstOrNull()?.id
-            _state.value = CheckoutUiState.Ready(addresses = addresses, selectedId = selectedId)
+            _state.value = CheckoutUiState.Ready(
+                addresses = addresses,
+                selectedId = selectedId,
+                // 066 — prefilled from the pre-selected address's saved default (FR-013).
+                instructions = InstructionsDraft.from(addresses.firstOrNull { it.id == selectedId }?.defaultInstructions),
+            )
             if (selectedId != null) refreshQuote(selectedId)
         }
     }
@@ -130,8 +155,30 @@ class CheckoutViewModel(
         val s = ready() ?: return
         if (s.selectedId == id) return
         // A new address re-prices delivery (FR-004): reset the method to standard until the quote returns.
-        _state.value = s.copy(selectedId = id, quote = null, method = DeliveryMethod.STANDARD, error = null)
+        _state.value = s.copy(
+            selectedId = id,
+            quote = null,
+            method = DeliveryMethod.STANDARD,
+            error = null,
+            // ⚠ 066 FR-015: REPLACED by the new address's saved instructions, even over something the
+            // shopper typed. A note is about a place — "use the side gate" carried to another building
+            // is worse than an empty field.
+            instructions = InstructionsDraft.from(s.addresses.firstOrNull { it.id == id }?.defaultInstructions),
+            saveInstructions = false,
+        )
         refreshQuote(id)
+    }
+
+    // ── Delivery instructions (066) ──────────────────────────────────────────────────────────────────
+
+    fun setInstructions(draft: InstructionsDraft) {
+        val s = ready() ?: return
+        _state.value = s.copy(instructions = draft, error = null)
+    }
+
+    fun setSaveInstructions(save: Boolean) {
+        val s = ready() ?: return
+        _state.value = s.copy(saveInstructions = save)
     }
 
     /** Choose standard vs same-day (047 US2). Only meaningful when the whole order can do same-day. */
@@ -246,6 +293,7 @@ class CheckoutViewModel(
             addressId = addressId,
             billingAddressId = s.effectiveBillingId,
             deliveryMethod = s.method,
+            deliveryInstructions = s.instructions.toInstructions(),
         )
         _state.value = s.copy(paying = true, error = null)
         viewModelScope.launch {
@@ -263,6 +311,18 @@ class CheckoutViewModel(
                     error = "We couldn’t start payment. Please try again.",
                 )
                 return@launch
+            }
+            // 066 FR-014 — ONLY when asked, and only AFTER the order accepted the instructions: a refused
+            // note must not become an address's default. Best-effort: the ORDER already has them, so a
+            // failure here costs some retyping next time and must not stand between a shopper and paying.
+            if (s.saveInstructions && s.instructionsDiffer) {
+                runCatching { saveAddressInstructions(addressId, s.instructions) }.getOrNull()?.let { saved ->
+                    val cur = ready() ?: return@launch
+                    _state.value = cur.copy(
+                        addresses = cur.addresses.map { if (it.id == saved.id) saved else it },
+                        saveInstructions = false,
+                    )
+                }
             }
             // In memory only, never in the route — the intent carries a payment client secret.
             handoff.offer(intent)

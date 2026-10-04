@@ -46,6 +46,19 @@ data class DropPackage(
     val summary: ClassSummary = ClassSummary.Empty,
 )
 
+/**
+ * How the customer asked for the order to be handed over (066).
+ *
+ * ⚠ A REQUEST, NEVER A RULE. The driver is told it and the proof chooser leads with it, but no way
+ * of completing the drop is ever removed: a customer who asked for "leave at the door" and then
+ * opens it is handed the package, and a "meet at the door" customer who is not home is recorded as
+ * a failed delivery, exactly as before.
+ */
+enum class Handover(val driverSentence: String) {
+    LeaveAtDoor("The customer asked for this to be left at the door."),
+    MeetAtDoor("The customer wants to receive this in person."),
+}
+
 data class Drop(
     val dropId: String,
     val orderRef: String,
@@ -55,9 +68,23 @@ data class Drop(
     val packages: List<DropPackage>,
     val status: DropStatus,
     val summary: ClassSummary = ClassSummary.Empty,
+    /** 066 — the customer's handover preference; null for none, and for every older order. */
+    val handover: Handover? = null,
     /** 065 — the last loaded copy, served with no connection. See `ShopStop.stale`. */
     val stale: Boolean = false,
 )
+
+/**
+ * Everything the customer told the driver, as ONE block the instruction callout shows: the handover
+ * preference in words, then their note exactly as typed. Null when they said nothing — and the
+ * screens then draw no instruction area at all (066 FR-021), never a placeholder.
+ *
+ * ⚠ The note is customer-authored free text. It is shown through a plain `Text` and never parsed.
+ */
+val Drop.driverInstructions: String?
+    get() = listOfNotNull(handover?.driverSentence, instructions?.trim()?.takeIf { it.isNotEmpty() })
+        .joinToString("\n")
+        .takeIf { it.isNotEmpty() }
 
 interface DeliveryRepository {
     suspend fun getRun(runId: String): DeliveryRun

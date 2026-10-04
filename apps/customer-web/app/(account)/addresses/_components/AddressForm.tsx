@@ -5,7 +5,9 @@ import { useState } from "react"
 import type { CreateAddressRequest, UpdateAddressRequest } from "@effy/shared-types"
 import { Button, Input, Label } from "@effy/design-system/ui"
 
+import { DeliveryInstructions } from "@/app/checkout/DeliveryInstructions"
 import { createAddress, updateAddress, type SaveResult } from "@/lib/addresses/repo"
+import { draftFrom, draftToRequest, type InstructionsDraft } from "@/lib/delivery-instructions"
 import {
   chipForLabel,
   customLabelForLabel,
@@ -82,6 +84,10 @@ export function AddressForm({
   const [form, setForm] = useState<FormState>(address ? fromAddress(address) : EMPTY)
   const [chip, setChip] = useState<LabelChip | null>(address ? chipForLabel(address.label) : null)
   const [customLabel, setCustomLabel] = useState(address ? customLabelForLabel(address.label) : "")
+  // 066 — the instructions this address prefills at checkout.
+  const [instructions, setInstructions] = useState<InstructionsDraft>(() =>
+    draftFrom(address?.defaultDeliveryInstructions),
+  )
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -121,6 +127,8 @@ export function AddressForm({
         city: form.city.trim(),
         region: form.region.trim() || null,
         postalCode: form.postalCode.trim(),
+        // 066 — always sent: `null` is how a shopper CLEARS what this address had saved.
+        defaultDeliveryInstructions: draftToRequest(instructions),
       }
       result = await updateAddress(address.id, body)
     } else {
@@ -133,6 +141,8 @@ export function AddressForm({
         city: form.city.trim(),
         region: form.region.trim() || null,
         postalCode: form.postalCode.trim(),
+        // 066 — always sent: `null` is how a shopper CLEARS what this address had saved.
+        defaultDeliveryInstructions: draftToRequest(instructions),
       }
       result = await createAddress(body)
     }
@@ -213,6 +223,14 @@ export function AddressForm({
         />
         <Field id="phone" label="Phone (optional)" value={form.phone} onChange={set("phone")} />
       </div>
+
+      <DeliveryInstructions
+        value={instructions}
+        onChange={setInstructions}
+        disabled={busy}
+        heading="Delivery instructions for this address"
+        hint="Optional. Filled in for you at checkout whenever you choose this address."
+      />
 
       {formError && (
         <p role="alert" className="text-sm text-destructive">

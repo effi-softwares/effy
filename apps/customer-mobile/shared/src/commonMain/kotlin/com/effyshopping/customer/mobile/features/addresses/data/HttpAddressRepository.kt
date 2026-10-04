@@ -5,6 +5,7 @@ import com.effyshopping.customer.mobile.commerce.contract.UpdateAddressRequest
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.core.http.ensureSuccess
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
@@ -43,6 +44,13 @@ class HttpAddressRepository(private val edge: HttpClient) : AddressRepository {
     override suspend fun setDefault(id: String): SavedAddress = request {
         edge.patch("customer/v1/addresses/$id") { setBody(UpdateAddressRequest(makeDefault = true)) }
             .ensureSuccess().body<AddressDTO>().toDomain()
+    }
+
+    override suspend fun saveInstructions(id: String, instructions: InstructionsDraft): SavedAddress = request {
+        // Only this field: every other one is null, which this app's JSON omits and the server leaves alone.
+        edge.patch("customer/v1/addresses/$id") {
+            setBody(UpdateAddressRequest(defaultDeliveryInstructions = instructions.toWireDefault()))
+        }.ensureSuccess().body<AddressDTO>().toDomain()
     }
 
     override suspend fun delete(id: String) = request {

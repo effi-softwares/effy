@@ -217,6 +217,9 @@ func TestOrderDTO_KeySetMatchesTheContract(t *testing.T) {
 		"stage": true, "paymentMethod": true, "arrivalEstimates": true,
 		// 055 — whether the SHOPPER may still cancel it themselves (FR-012). Server-derived.
 		"cancellable": true,
+		// 066 — specs/066-delivery-instructions/contracts/delivery-instructions.md: always present,
+		// `null` when the customer said nothing.
+		"deliveryInstructions": true,
 		// `billingAddress` is omitempty — absent means "same as shipping" (FR-016), so it is not
 		// required here and its ABSENCE is asserted by TestGet_BillingSameAsShippingIsEmpty.
 	}
@@ -530,5 +533,27 @@ func TestOrderDTO_WithRefundsStillLeaksNothing(t *testing.T) {
 		if strings.Contains(wire, leak) {
 			t.Fatalf("customer order payload leaks %q: %s", leak, wire)
 		}
+	}
+}
+
+// 066 — both columns NULL is "said nothing", and the wire says `null`: never an empty object a
+// client would have to tell apart from one, and never a default sentence.
+func TestInstructionsOf_NothingSaidIsNull(t *testing.T) {
+	if got := instructionsOf(nil, nil); got != nil {
+		t.Fatalf("want nil, got %+v", got)
+	}
+	blob, _ := json.Marshal(orderDTO{})
+	if !strings.Contains(string(blob), `"deliveryInstructions":null`) {
+		t.Fatalf("want an explicit null, got %s", blob)
+	}
+}
+
+func TestInstructionsOf_EitherPartAloneIsCarried(t *testing.T) {
+	h, n := "leave_at_door", "Side gate"
+	if got := instructionsOf(&h, nil); got == nil || got.Handover == nil || got.Note != nil {
+		t.Fatalf("handover alone: %+v", got)
+	}
+	if got := instructionsOf(nil, &n); got == nil || got.Note == nil || *got.Note != n || got.Handover != nil {
+		t.Fatalf("note alone: %+v", got)
 	}
 }

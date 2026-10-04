@@ -35,6 +35,13 @@ data class AddToCartRequest (
 data class AddressDTO (
     val city: String,
     val country: String,
+
+    /**
+     * 066 — the instructions this address PREFILLS at checkout, or null. A convenience for the
+     * next order only: a placed order stores what its own checkout sent and never reads this.
+     */
+    val defaultDeliveryInstructions: DeliveryInstructionsDTO? = null,
+
     val id: String,
     val isDefault: Boolean,
     val label: String? = null,
@@ -45,6 +52,37 @@ data class AddressDTO (
     val recipientName: String,
     val region: String? = null
 )
+
+@Serializable
+data class DeliveryInstructionsDTO (
+    val handover: HandoverPreference? = null,
+
+    /**
+     * Plain text, already normalised. Never interpreted as markup anywhere it is shown.
+     */
+    val note: String? = null
+)
+
+/**
+ * Delivery instructions — 066-delivery-instructions.
+ *
+ * What a customer tells the driver: how to hand the order over, and a short note. The
+ * vocabulary, the length limit and the normalisation rule live HERE and nowhere else
+ * (Principle II): the two customer surfaces use them to show a remaining-characters count,
+ * and the two backends use them to decide. A client holding a looser opinion than the
+ * server is how a 300-character note is typed, accepted by the screen and refused at
+ * payment.
+ *
+ * ⚠ THE GO HOT PATH CANNOT IMPORT THIS FILE, so it carries one mirror
+ * (`apis/core-api/internal/platform/deliveryinstructions`). The two are pinned together by
+ * `delivery-instructions.fixtures.json`, which BOTH test suites read. Changing a step here
+ * without changing it there fails the Go suite — that is the point.
+ */
+@Serializable
+enum class HandoverPreference(val value: String) {
+    @SerialName("leave_at_door") LeaveAtDoor("leave_at_door"),
+    @SerialName("meet_at_door") MeetAtDoor("meet_at_door");
+}
 
 /**
  * POST /v1/cart/promo — apply a promotional code. Signed-in only (a per-shopper cap needs
@@ -480,6 +518,13 @@ data class ConfirmCheckoutRequest (
 data class CreateAddressRequest (
     val city: String,
     val country: String? = null,
+
+    /**
+     * 066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default
+     * alone, `null` clears it, a value replaces it.
+     */
+    val defaultDeliveryInstructions: DeliveryInstructionsDTO? = null,
+
     val label: String? = null,
     val line1: String,
     val line2: String? = null,
@@ -509,6 +554,18 @@ data class CreateCheckoutIntentRequest (
      */
     @SerialName("billingAddressId")
     val billingAddressID: String? = null,
+
+    /**
+     * 066 — what the customer tells the driver for THIS order: a handover preference and/or a
+     * note. Absent or null → none. Validated and normalised by the server with the same rule
+     * the client uses (`normaliseDeliveryInstructions`); refused with a field error, never
+     * truncated.
+     *
+     * ⚠ The server stores exactly what THIS request carries. It never reads the address's saved
+     * default — prefilling from that is the client's job — which is why editing an address
+     * later cannot change a placed order.
+     */
+    val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
      * 047: the shopper's order-level delivery preference — "same_day" or "standard" (absent =
@@ -1006,6 +1063,13 @@ data class OrderDTO (
      * real gap, not a cosmetic one.
      */
     val deliveryFeeAmount: String? = null,
+
+    /**
+     * 066 — what the customer told the driver when the order was placed, or null/absent when
+     * they said nothing (every pre-066 order). Fixed once the order is paid. Render NOTHING for
+     * null — no placeholder — and render `note` as plain text only.
+     */
+    val deliveryInstructions: DeliveryInstructionsDTO? = null,
 
     /**
      * The promotional discount applied at payment (027 FR-049). The platform's own computation
@@ -1728,6 +1792,13 @@ data class ServiceabilityDTO (
 data class UpdateAddressRequest (
     val city: String? = null,
     val country: String? = null,
+
+    /**
+     * 066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default
+     * alone, `null` clears it, a value replaces it.
+     */
+    val defaultDeliveryInstructions: DeliveryInstructionsDTO? = null,
+
     val label: String? = null,
     val line1: String? = null,
     val line2: String? = null,

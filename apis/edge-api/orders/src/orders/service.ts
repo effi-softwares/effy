@@ -243,6 +243,12 @@ export async function getOrder(orderId: string): Promise<AdminOrderDetailDTO | n
 
     deliveryAddress: order.delivery_address,
     billingAddress: order.billing_address,
+    // 066 — what the customer told the driver, so staff can answer "I said leave it at the door"
+    // without asking them to repeat it. Null when they said nothing; never a default sentence.
+    deliveryInstructions:
+      order.delivery_handover === null && order.delivery_note === null
+        ? null
+        : { handover: order.delivery_handover, note: order.delivery_note },
 
     // FR-007 — a rollup: finished only when EVERY package has arrived.
     finished: packageRows.length > 0 && awaitingArrival === 0,

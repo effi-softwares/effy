@@ -33,6 +33,17 @@
         "country": {
           "type": "string"
         },
+        "defaultDeliveryInstructions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeliveryInstructionsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "066 — the instructions this address PREFILLS at checkout, or null. A convenience for the next order only: a placed order stores what its own checkout sent and never reads this."
+        },
         "id": {
           "type": "string"
         },
@@ -733,6 +744,17 @@
         "country": {
           "type": "string"
         },
+        "defaultDeliveryInstructions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeliveryInstructionsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default alone, `null` clears it, a value replaces it."
+        },
         "label": {
           "type": [
             "string",
@@ -792,6 +814,17 @@
             "string",
             "null"
           ]
+        },
+        "deliveryInstructions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeliveryInstructionsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "066 — what the customer tells the driver for THIS order: a handover preference and/or a note. Absent or null → none. Validated and normalised by the server with the same rule the client uses (`normaliseDeliveryInstructions`); refused with a field error, never truncated.\n\n⚠ The server stores exactly what THIS request carries. It never reads the address's saved default — prefilling from that is the client's job — which is why editing an address later cannot change a placed order."
         },
         "deliveryMethod": {
           "description": "047: the shopper's order-level delivery preference — \"same_day\" or \"standard\" (absent = standard). Applied per package where that method is offered, standard elsewhere (FR-044). The server prices the chosen method from the captured quote; the client NEVER sends a fee (SC-004).",
@@ -931,6 +964,33 @@
         "amount",
         "state",
         "refundedAt"
+      ],
+      "type": "object"
+    },
+    "DeliveryInstructionsDTO": {
+      "additionalProperties": false,
+      "properties": {
+        "handover": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HandoverPreference"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "description": "Plain text, already normalised. Never interpreted as markup anywhere it is shown.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "handover",
+        "note"
       ],
       "type": "object"
     },
@@ -1128,6 +1188,14 @@
       ],
       "type": "string"
     },
+    "HandoverPreference": {
+      "description": "Delivery instructions — 066-delivery-instructions.\n\nWhat a customer tells the driver: how to hand the order over, and a short note. The vocabulary, the length limit and the normalisation rule live HERE and nowhere else (Principle II): the two customer surfaces use them to show a remaining-characters count, and the two backends use them to decide. A client holding a looser opinion than the server is how a 300-character note is typed, accepted by the screen and refused at payment.\n\n⚠ THE GO HOT PATH CANNOT IMPORT THIS FILE, so it carries one mirror (`apis/core-api/internal/platform/deliveryinstructions`). The two are pinned together by `delivery-instructions.fixtures.json`, which BOTH test suites read. Changing a step here without changing it there fails the Go suite — that is the point.",
+      "enum": [
+        "leave_at_door",
+        "meet_at_door"
+      ],
+      "type": "string"
+    },
     "ListPaymentMethodsResponse": {
       "additionalProperties": false,
       "description": "GET /v1/payment-methods — the shopper's kept cards.",
@@ -1311,6 +1379,17 @@
         "deliveryFeeAmount": {
           "description": "051 FR-043 — the delivery fee as charged.\n\n⚠ The column has existed since 019 and the receipt read never selected it, so delivery sat inside the total and appeared nowhere. A receipt whose lines do not add up to its total is not one a shopper can check — and for a GST-inclusive Australian sale that is a real gap, not a cosmetic one.",
           "type": "string"
+        },
+        "deliveryInstructions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeliveryInstructionsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "066 — what the customer told the driver when the order was placed, or null/absent when they said nothing (every pre-066 order). Fixed once the order is paid. Render NOTHING for null — no placeholder — and render `note` as plain text only."
         },
         "discountAmount": {
           "description": "The promotional discount applied at payment (027 FR-049). The platform's own computation at that moment, stored on the order — so a receipt stays explainable years later even if the code has since been changed or disabled. \"0.00\" (or absent, on a pre-027 order) when no code was used. Invariant: grandTotal = itemSubtotal − discount. (There is no delivery fee on this platform.)",
@@ -2430,6 +2509,17 @@
         },
         "country": {
           "type": "string"
+        },
+        "defaultDeliveryInstructions": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DeliveryInstructionsDTO"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "066 — on UPDATE the key's PRESENCE is what is read: absent leaves the saved default alone, `null` clears it, a value replaces it."
         },
         "label": {
           "type": [

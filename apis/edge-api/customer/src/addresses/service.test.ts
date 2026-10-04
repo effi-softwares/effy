@@ -8,6 +8,7 @@ import { findByCognitoSub } from "../customer/repo";
 import type { AddressRow } from "./model";
 import { create, listByCustomer, remove, update } from "./repo";
 import {
+  AddressInstructionsError,
   AddressNotFoundError,
   AddressValidationError,
   createAddress,
@@ -49,6 +50,8 @@ function addressRow(over: Partial<AddressRow> = {}): AddressRow {
     postal_code: "3000",
     country: "AU",
     is_default: true,
+    default_delivery_handover: null,
+    default_delivery_note: null,
     ...over,
   };
 }
@@ -135,5 +138,79 @@ describe("deleteAddress — the delete-default guard (FR-016a, SC-010)", () => {
   it("deleted → resolves", async () => {
     vi.mocked(remove).mockResolvedValue("deleted");
     await expect(deleteAddress(SUB, "x")).resolves.toBeUndefined();
+  });
+});
+
+// ── 066 — default delivery instructions ────────────────────────────────────────────────────────
+
+describe("066 — an address's default delivery instructions", () => {
+  beforeEach(() => {
+    vi.mocked(findByCognitoSub).mockResolvedValue(customerRow());
+    vi.mocked(create).mockResolvedValue(addressRow());
+    vi.mocked(update).mockResolvedValue(addressRow());
+  });
+
+  it("maps saved instructions onto the DTO, and nothing saved to null", async () => {
+    vi.mocked(listByCustomer).mockResolvedValue([
+      addressRow({ id: "a", default_delivery_handover: "leave_at_door", default_delivery_note: "Side gate" }),
+      addressRow({ id: "b" }),
+    ]);
+    const [a, b] = await listAddresses(SUB);
+    expect(a!.defaultDeliveryInstructions).toEqual({ handover: "leave_at_door", note: "Side gate" });
+    expect(b!.defaultDeliveryInstructions).toBeNull();
+  });
+
+  it("normalises with the shared rule before anything is stored", async () => {
+    await createAddress(SUB, {
+      ...validInput,
+      rawDefaultDeliveryInstructions: { handover: "meet_at_door", note: "  Ring   twice  " },
+    });
+    expect(vi.mocked(create).mock.calls[0]![1].defaultDeliveryInstructions).toEqual({
+      handover: "meet_at_door",
+      note: "Ring twice",
+    });
+  });
+
+  /** ⚠ The three cases COALESCE cannot tell apart (056's lesson). */
+  it("⚠ an update with the key ABSENT leaves the saved default alone", async () => {
+    await updateAddress(SUB, "addr-1", { ...validInput });
+    expect(vi.mocked(update).mock.calls[0]![2].defaultDeliveryInstructions).toBeUndefined();
+  });
+
+  it("⚠ an update with null CLEARS the saved default", async () => {
+    await updateAddress(SUB, "addr-1", { ...validInput, rawDefaultDeliveryInstructions: null });
+    expect(vi.mocked(update).mock.calls[0]![2].defaultDeliveryInstructions).toEqual({ handover: null, note: null });
+  });
+
+  it("an update with a value replaces it", async () => {
+    await updateAddress(SUB, "addr-1", {
+      ...validInput,
+      rawDefaultDeliveryInstructions: { handover: null, note: "New note" },
+    });
+    expect(vi.mocked(update).mock.calls[0]![2].defaultDeliveryInstructions).toEqual({ handover: null, note: "New note" });
+  });
+
+  it("refuses a note over the limit and writes nothing", async () => {
+    await expect(
+      updateAddress(SUB, "addr-1", { ...validInput, rawDefaultDeliveryInstructions: { note: "x".repeat(251) } }),
+    ).rejects.toBeInstanceOf(AddressInstructionsError);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unknown handover", async () => {
+    await expect(
+      createAddress(SUB, { ...validInput, rawDefaultDeliveryInstructions: { handover: "over_the_fence" } }),
+    ).rejects.toMatchObject({ field: "handover", reason: "invalid" });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  /** FR-028 — the catch-all handler logs the error object. */
+  it("⚠ the refusal never carries the submitted text", async () => {
+    const err = await updateAddress(SUB, "addr-1", {
+      ...validInput,
+      rawDefaultDeliveryInstructions: { note: "GATE-CODE-4411 ".repeat(30) },
+    }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AddressInstructionsError);
+    expect(`${(err as Error).message} ${JSON.stringify(err)}`).not.toContain("4411");
   });
 });

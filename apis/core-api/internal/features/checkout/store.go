@@ -72,6 +72,10 @@ type Store interface {
 	// "billing is the same as shipping" (FR-009); a value is a divergent, immutable billing snapshot.
 	// Idempotent: called on every intent, so toggling "same as shipping" back ON clears a prior value.
 	SetOrderBilling(ctx context.Context, orderID string, billingJSON []byte) error
+	// SetOrderDeliveryInstructions writes what the customer told the driver (066). nil writes NULL —
+	// "said nothing". ⚠ Only a PENDING order is written: once an order is paid nothing may change its
+	// instructions (FR-010), and the predicate makes that true even for a caller that tries.
+	SetOrderDeliveryInstructions(ctx context.Context, orderID string, handover, note *string) error
 	// CaptureDelivery writes the captured per-package delivery quote (047): the order's delivery_quote JSON
 	// + expiry and a fresh set of order_package_delivery rows (delete+reinsert, like order_item). Called on
 	// every intent so a re-quote overwrites cleanly. The client never sends a fee — this is the server's.
@@ -290,6 +294,20 @@ func (s *pgStore) SetOrderBilling(ctx context.Context, orderID string, billingJS
 		`UPDATE public."order" SET billing_address = $2::jsonb, updated_at = now() WHERE id = $1`,
 		orderID, arg); err != nil {
 		return fmt.Errorf("checkout: set order billing: %w", err)
+	}
+	return nil
+}
+
+// SetOrderDeliveryInstructions writes the order's handover preference and note (066).
+//
+// ⚠ COLUMNS, NOT KEYS IN `delivery_address`. That jsonb is read by the shop console and the receipt
+// email, neither of which may show instructions; see the migration's header.
+func (s *pgStore) SetOrderDeliveryInstructions(ctx context.Context, orderID string, handover, note *string) error {
+	if _, err := s.pool.Exec(ctx,
+		`UPDATE public."order" SET delivery_handover = $2, delivery_note = $3, updated_at = now()
+		  WHERE id = $1 AND status = 'pending_payment'`,
+		orderID, handover, note); err != nil {
+		return fmt.Errorf("checkout: set order delivery instructions: %w", err)
 	}
 	return nil
 }

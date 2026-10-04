@@ -21,6 +21,7 @@
 
 // A wire integer (no decimal point on the wire) — the single definition lives in cart.ts.
 import type { WireInt } from "./cart";
+import type { HandoverPreference } from "./delivery-instructions";
 
 // ── Identity & duty ──────────────────────────────────────────────────────────────────────────────
 
@@ -334,7 +335,18 @@ export interface DeliveryDropDTO {
   orderRef: string;
   customerName: string;
   addressFull: string;
+  /**
+   * The customer's NOTE to the driver, verbatim (066). Null when they wrote none. ⚠ Until 066 this
+   * was always null: the field existed, three screens rendered it, and nothing stored it.
+   * Customer-authored free text — plain text only.
+   */
   instructions: string | null;
+  /**
+   * 066 — how the customer asked for the order to be handed over, or null/absent for no preference.
+   * ⚠ A REQUEST, not a constraint: the app says it and leads the proof chooser with it, and never
+   * removes a way of completing the drop. Kept apart from `instructions` because the app ACTS on it.
+   */
+  handover?: HandoverPreference | null;
   packages: DropPackageRef[];
   status: DeliveryDropStatus;
   /** 065 — the sum of `packages[].summary`. */

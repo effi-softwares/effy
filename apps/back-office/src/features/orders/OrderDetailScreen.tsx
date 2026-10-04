@@ -8,6 +8,7 @@ import { sessionQuery } from "@/features/auth/queries";
 
 import { canRecordOrderProgress } from "./access";
 import { orderActionError } from "./errorText";
+import { DeliveryInstructions } from "./components/DeliveryInstructions";
 import { PackageRows } from "./components/PackageRows";
 import { RefundsSection } from "./components/RefundsSection";
 import { STAGE_LABEL, type OrderDetail } from "./model";
@@ -209,6 +210,7 @@ export function OrderDetailScreen({ orderId }: { orderId: string }) {
             <div key={line}>{line}</div>
           ))}
         </address>
+        <DeliveryInstructions instructions={order.deliveryInstructions} />
         {order.billingAddress ? (
           <>
             <h3 className="pt-2 text-sm font-medium">Billing</h3>

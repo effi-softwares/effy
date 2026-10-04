@@ -50,6 +50,7 @@ the union makes the compiler refuse any attempt to attach an address property.
 | `checkout_address_changed` | — | The shipping address is switched to another saved address at checkout |
 | `checkout_address_added` | — | A new address is added inline at checkout (shipping or billing) |
 | `checkout_billing_diverged` | — | Billing is set to an address different from shipping (toggle OFF) |
+| `checkout_delivery_instructions_set` | `{ handover, hasNote, fromSavedDefault }` | An order is placed with (or without) delivery instructions (066). `handover`: `leave_at_door` \| `meet_at_door` \| `none`. ⚠ NEVER the note, its length or the address — the note is customer-authored and may hold a gate code; the event's type admits one closed enum and two booleans. ⚠ Declared on customer-web and customer-mobile; emits nothing until PostHog is initialised on web and mobile telemetry is wired. |
 
 > The shop/fulfilment boundary is a telemetry constraint too: the billing address never appears in any
 > shop-side log, metric, or event (FR-018 / SC-007).

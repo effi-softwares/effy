@@ -1,5 +1,8 @@
 package com.effyshopping.customer.mobile.features.addresses.domain
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.DeliveryInstructions
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
+
 /**
  * The address book domain (022). A first-class account capability to view / add / edit / set-default /
  * delete the customer's saved delivery addresses — over the SAME model checkout already uses (019,
@@ -23,6 +26,8 @@ data class SavedAddress(
     val postalCode: String,
     val country: String,
     val isDefault: Boolean,
+    /** 066 — the instructions this address prefills at checkout; null when none are saved. */
+    val defaultInstructions: DeliveryInstructions? = null,
 )
 
 /**
@@ -39,6 +44,13 @@ data class AddressDraft(
     val phone: String? = null,
     val line2: String? = null,
     val region: String? = null,
+    /**
+     * 066 — the address's default delivery instructions, as the form left them.
+     *
+     * ⚠ THREE STATES. `null` = this draft does not concern them (leave whatever is saved alone);
+     * an EMPTY draft = the shopper cleared them; anything else = save exactly this.
+     */
+    val defaultInstructions: InstructionsDraft? = null,
 )
 
 /**
@@ -53,6 +65,9 @@ interface AddressRepository {
     suspend fun create(draft: AddressDraft): SavedAddress
     suspend fun update(id: String, draft: AddressDraft): SavedAddress
     suspend fun setDefault(id: String): SavedAddress
+
+    /** 066 — set (or, with an empty draft, clear) an address's saved delivery instructions only. */
+    suspend fun saveInstructions(id: String, instructions: InstructionsDraft): SavedAddress
     suspend fun delete(id: String)
 }
 
@@ -68,6 +83,11 @@ class UpdateAddress(private val repo: AddressRepository) {
     suspend operator fun invoke(id: String, draft: AddressDraft): SavedAddress = repo.update(id, draft)
 }
 
+/** 066 — checkout's "save to this address": writes the default instructions and nothing else. */
+class SaveAddressInstructions(private val repo: AddressRepository) {
+    suspend operator fun invoke(id: String, instructions: InstructionsDraft): SavedAddress =
+        repo.saveInstructions(id, instructions)
+}
 class SetDefault(private val repo: AddressRepository) {
     suspend operator fun invoke(id: String): SavedAddress = repo.setDefault(id)
 }

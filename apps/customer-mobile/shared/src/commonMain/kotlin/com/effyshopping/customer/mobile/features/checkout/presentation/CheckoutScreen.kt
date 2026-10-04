@@ -1,5 +1,11 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import com.effyshopping.customer.mobile.features.deliveryinstructions.presentation.DeliveryInstructionsField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -68,6 +74,7 @@ fun CheckoutScreen(container: AppContainer, onProceedToPayment: () -> Unit, onBa
             createIntent = container.createIntent,
             handoff = container.paymentHandoff,
             quoteDelivery = container.quoteDelivery,
+            saveAddressInstructions = container.saveAddressInstructions,
         )
     }
     val state by vm.state.collectAsState()
@@ -122,6 +129,29 @@ private fun AddressAndPay(s: CheckoutUiState.Ready, vm: CheckoutViewModel, onNav
             }
         }
         EffySecondaryButton("Add a new address", onClick = { vm.openAddAddress(AddressTarget.SHIPPING) })
+
+        // 066 — what the shopper tells the driver. Shown once there is an address for it to be about.
+        if (s.selectedId != null) {
+            DeliveryInstructionsField(draft = s.instructions, onChange = vm::setInstructions)
+            // Offered only when there is something new to save — an always-present switch is a chore.
+            if (s.instructionsDiffer) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .toggleable(
+                            value = s.saveInstructions,
+                            role = Role.Checkbox,
+                            onValueChange = vm::setSaveInstructions,
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = s.saveInstructions, onCheckedChange = null)
+                    Spacer(Modifier.width(EffySpacing.s))
+                    Text("Save to this address for next time", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        }
 
         // 047: delivery — serviceability + the GST-inclusive fee, shown BEFORE pay (no drip), and the
         // standard/same-day choice when the whole order qualifies. The server owns every fee (SC-004).

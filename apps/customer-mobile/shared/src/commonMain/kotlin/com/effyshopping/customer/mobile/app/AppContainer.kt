@@ -68,6 +68,7 @@ import com.effyshopping.customer.mobile.features.account.domain.RestoreAccount
 import com.effyshopping.customer.mobile.features.account.domain.UpdateProfile
 import com.effyshopping.customer.mobile.features.account.data.HttpClosureRepository
 import com.effyshopping.customer.mobile.features.addresses.data.HttpAddressRepository
+import com.effyshopping.customer.mobile.features.addresses.domain.SaveAddressInstructions
 import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
 import com.effyshopping.customer.mobile.features.addresses.domain.DeleteAddress
@@ -336,6 +337,8 @@ class AppContainer(
     val removePaymentMethod by lazy { RemovePaymentMethod(paymentMethodsRepo) }
 
     val addSavedAddress by lazy { AddAddress(addressBookRepo) }
+    /** 066 — checkout's "save to this address" for delivery instructions. */
+    val saveAddressInstructions by lazy { SaveAddressInstructions(addressBookRepo) }
     val updateSavedAddress by lazy { UpdateAddress(addressBookRepo) }
     val setDefaultAddress by lazy { SetDefault(addressBookRepo) }
     val deleteSavedAddress by lazy { DeleteAddress(addressBookRepo) }

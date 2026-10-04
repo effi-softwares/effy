@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.domain
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.DeliveryInstructions
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 
@@ -159,6 +160,12 @@ data class Receipt(
      */
     val discountAmount: String? = null,
     val promoCode: String? = null,
+    /**
+     * 066 — what the shopper told the driver when the order was placed. Null when they said nothing,
+     * which includes every order placed before 066 — and the receipt then shows NOTHING: no heading,
+     * no placeholder.
+     */
+    val deliveryInstructions: DeliveryInstructions? = null,
     val grandTotalAmount: String,
     val currency: String,
     /** 052 — when the order was placed, pre-formatted by the mapper. Empty when unknown. */
@@ -237,6 +244,13 @@ data class PlaceOrder(
      * standard elsewhere (FR-044). The client never sends a fee — the server prices the method (SC-004).
      */
     val deliveryMethod: DeliveryMethod = DeliveryMethod.STANDARD,
+    /**
+     * 066 — what the shopper tells the driver for THIS order, or null when they said nothing.
+     *
+     * ⚠ The server stores exactly this. It never reads the address's saved default — prefilling from
+     * that is this app's job — which is why editing an address later cannot change a placed order.
+     */
+    val deliveryInstructions: DeliveryInstructions? = null,
 )
 
 /** The two delivery methods (047). Same-day is always priced ≥ standard. */

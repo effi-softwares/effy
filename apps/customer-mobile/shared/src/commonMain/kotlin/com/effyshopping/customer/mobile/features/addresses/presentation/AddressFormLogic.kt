@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.addresses.presentation
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.SavedAddress
 
@@ -27,6 +28,8 @@ fun AddressForm.toDraft(): AddressDraft = AddressDraft(
     phone = phone.trim().ifBlank { null },
     line2 = line2.trim().ifBlank { null },
     region = region.trim().ifBlank { null },
+    // 066 — always carried from the form: an emptied control CLEARS what the address had saved.
+    defaultInstructions = instructions,
 )
 
 /** The chip's resolved label string (or null for NONE / a blank Other). */
@@ -55,5 +58,6 @@ fun SavedAddress.toForm(): AddressForm {
         city = city,
         region = region.orEmpty(),
         postalCode = postalCode,
+        instructions = InstructionsDraft.from(defaultInstructions),
     )
 }

@@ -4,7 +4,7 @@
 // or an order detail in any internal console, which is why a customer told "contact support and
 // we'll sort it out" (020 FR-018b) reached people who could not see what they were being asked about.
 
-import type { OrderAwaiting } from "@effy/shared-types";
+import type { HandoverPreference, OrderAwaiting } from "@effy/shared-types";
 
 import { query } from "@effy/edge-shared";
 
@@ -158,6 +158,9 @@ export interface OrderDetailRow {
   currency: string;
   delivery_address: Record<string, unknown>;
   billing_address: Record<string, unknown> | null;
+  /** 066 — columns on the order, deliberately not keys in `delivery_address`. */
+  delivery_handover: HandoverPreference | null;
+  delivery_note: string | null;
   payment_status: string | null;
   method_type: string | null;
   method_brand: string | null;
@@ -180,6 +183,8 @@ export async function findOrder(orderId: string): Promise<OrderDetailRow | null>
             o.currency,
             o.delivery_address,
             o.billing_address,
+            o.delivery_handover,
+            o.delivery_note,
             pay.status AS payment_status,
             pay.method_type, pay.method_brand, pay.method_last4
        FROM public."order" o

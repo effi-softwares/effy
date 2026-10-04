@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import com.effyshopping.customer.mobile.core.presentation.EffyField
 import com.effyshopping.customer.mobile.core.presentation.EffyButtonShape
+import com.effyshopping.customer.mobile.features.deliveryinstructions.presentation.DeliveryInstructionsField
 import com.effyshopping.mobile.design.EffySpacing
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -64,6 +65,14 @@ fun AddressFormSheet(
         Field("Suburb / city", form.city, error = fieldErrors["city"], onChange = { onChange(form.copy(city = it)) })
         Field("State / region (optional)", form.region, onChange = { onChange(form.copy(region = it)) })
         Field("Postcode", form.postalCode, error = fieldErrors["postalCode"], keyboard = KeyboardType.Number, onChange = { onChange(form.copy(postalCode = it)) })
+
+        // 066 — what this address prefills at checkout. The same control checkout itself uses.
+        DeliveryInstructionsField(
+            draft = form.instructions,
+            onChange = { onChange(form.copy(instructions = it)) },
+            title = "Delivery instructions for this address",
+            hint = "Optional. Filled in for you at checkout whenever you choose this address.",
+        )
 
         // ⚠ 034 — NO ACTION ROW HERE. `EffySheet` owns the Save/Cancel pair so every account sheet is
         // identical: primary full-width, Cancel de-weighted beneath it. This form used to draw its own

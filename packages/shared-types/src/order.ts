@@ -12,6 +12,7 @@
 // (`RefundDTO`) lives there too and must never reach this file: it carries the provider's failure
 // text, which is staff information.
 import type { CustomerRefundDTO } from "./refund";
+import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
 /** Order lifecycle mirrored to the client (payment-driven). */
 export type OrderStatus = "pending_payment" | "paid" | "failed" | "canceled";
@@ -140,6 +141,12 @@ export interface OrderDTO {
    * address. NEVER exposed to the shop (FR-018). Absent/null on pre-023 orders.
    */
   billingAddress?: OrderAddressDTO | null;
+  /**
+   * 066 — what the customer told the driver when the order was placed, or null/absent when they
+   * said nothing (every pre-066 order). Fixed once the order is paid. Render NOTHING for null — no
+   * placeholder — and render `note` as plain text only.
+   */
+  deliveryInstructions?: DeliveryInstructionsDTO | null;
   itemSubtotalAmount: string;
   /**
    * The promotional discount applied at payment (027 FR-049). The platform's own computation at that

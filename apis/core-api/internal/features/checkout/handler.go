@@ -1,6 +1,7 @@
 package checkout
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/auth"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/customeridentity"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/deliveryinstructions"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/httpx"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
@@ -25,6 +27,10 @@ type createIntentRequest struct {
 	// 047: the order-level delivery preference ("same_day" or "standard", default standard). Applied per
 	// package where offered; the server prices it and never takes a fee from the client (FR-036/044).
 	DeliveryMethod string `json:"deliveryMethod"`
+	// 066: what the customer tells the driver for this order. Kept RAW so the one rule in
+	// platform/deliveryinstructions decides what is valid — including "the note is not text" — and the
+	// binding layer cannot silently coerce or drop it.
+	DeliveryInstructions json.RawMessage `json:"deliveryInstructions"`
 	// 051: set by a client that renders a PROVIDER-OWNED payment-method list (the mobile embedded
 	// element) and needs a customer session to do it. Web renders Effy's own list and leaves this false.
 	//
@@ -131,12 +137,22 @@ func (h *Handler) createIntent(c *gin.Context) {
 		httpx.ValidationFailed(c, "addressId is required")
 		return
 	}
+	// 066 — refused BEFORE anything is written. ⚠ The refusal names the field and the rule and never
+	// the value: a note can hold a gate code, and a validation error is exactly what gets logged.
+	instructions, ierr := deliveryinstructions.ParseJSON(req.DeliveryInstructions)
+	if ierr != nil {
+		field, reason := deliveryinstructions.FieldAndReason(ierr)
+		httpx.ValidationFailed(c, "check your delivery instructions",
+			httpx.FieldError{Field: "deliveryInstructions." + field, Message: reason})
+		return
+	}
 	cust, _ := customeridentity.FromContext(c.Request.Context())
 	res, err := h.svc.CreateCheckoutIntent(c.Request.Context(), cust.ID,
 		IntentInput{
 			AddressID:               req.AddressID,
 			BillingAddressID:        req.BillingAddressID,
 			DeliveryMethod:          req.DeliveryMethod,
+			DeliveryInstructions:    instructions,
 			WantsProviderMethodList: req.WantsProviderMethodList,
 		}, time.Now())
 	if err != nil {

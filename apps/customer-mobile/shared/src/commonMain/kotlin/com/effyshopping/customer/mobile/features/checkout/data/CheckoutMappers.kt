@@ -1,5 +1,7 @@
 package com.effyshopping.customer.mobile.features.checkout.data
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.data.toDomain
+import com.effyshopping.customer.mobile.features.deliveryinstructions.data.toWire
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentRequest
 import com.effyshopping.customer.mobile.commerce.contract.CreateCheckoutIntentResponse
 import com.effyshopping.customer.mobile.commerce.contract.OrderAddressDTO
@@ -38,6 +40,8 @@ internal fun PlaceOrder.toRequest(): CreateCheckoutIntentRequest = CreateCheckou
     billingAddressID = billingAddressId,
     // Send same_day only when chosen; standard is the server default (a null keeps the wire minimal).
     deliveryMethod = if (deliveryMethod == DeliveryMethod.SAME_DAY) "same_day" else null,
+    // 066 — null is omitted from the wire (explicitNulls = false), and absent means "none".
+    deliveryInstructions = deliveryInstructions?.toWire(),
     // ⚠ 051 — MOBILE ASKS FOR A CUSTOMER SESSION; WEB DOES NOT. The in-app element renders the
     // provider's own saved-card list and needs a session to do it. The web card route renders Effy's
     // list and confirms by payment-method id, so minting one there would be an unused provider round
@@ -178,6 +182,7 @@ internal fun OrderDTO.toReceipt(): Receipt {
         addressLine = addr.formatLine(),
         billingRecipientName = billing?.recipientName,
         billingAddressLine = billing?.formatLine(),
+        deliveryInstructions = deliveryInstructions.toDomain(),
         discountAmount = discountAmount,
         promoCode = promoCode,
         itemSubtotalAmount = itemSubtotalAmount,

@@ -28,6 +28,7 @@ import type {
   RefundRequestDTO,
 } from "./refund";
 import type { WireInt } from "./cart";
+import type { DeliveryInstructionsDTO } from "./delivery-instructions";
 
 /** How an arrival came to be known (spec FR-008; `public.package_arrival.source`). */
 export type ArrivalSource = "driver_proof" | "staff_recorded" | "carrier_signal";
@@ -169,6 +170,11 @@ export interface AdminOrderDetailDTO {
   deliveryAddress: Record<string, unknown>;
   /** Null means "same as delivery" — the console says so rather than repeating the address. */
   billingAddress: Record<string, unknown> | null;
+  /**
+   * 066 — the customer's instructions to the driver, as given at placement; null/absent when none.
+   * ⚠ Customer-authored free text: render as a text node, never as markup.
+   */
+  deliveryInstructions?: DeliveryInstructionsDTO | null;
 
   /** True when every package has arrived (FR-007 — a rollup, never a max). */
   finished: boolean;

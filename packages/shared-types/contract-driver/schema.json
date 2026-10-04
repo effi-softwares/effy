@@ -346,7 +346,19 @@
         "dropId": {
           "type": "string"
         },
+        "handover": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HandoverPreference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "066 — how the customer asked for the order to be handed over, or null/absent for no preference. ⚠ A REQUEST, not a constraint: the app says it and leads the proof chooser with it, and never removes a way of completing the drop. Kept apart from `instructions` because the app ACTS on it."
+        },
         "instructions": {
+          "description": "The customer's NOTE to the driver, verbatim (066). Null when they wrote none. ⚠ Until 066 this was always null: the field existed, three screens rendered it, and nothing stored it. Customer-authored free text — plain text only.",
           "type": [
             "string",
             "null"
@@ -734,6 +746,14 @@
         "expectedEndAt"
       ],
       "type": "object"
+    },
+    "HandoverPreference": {
+      "description": "Delivery instructions — 066-delivery-instructions.\n\nWhat a customer tells the driver: how to hand the order over, and a short note. The vocabulary, the length limit and the normalisation rule live HERE and nowhere else (Principle II): the two customer surfaces use them to show a remaining-characters count, and the two backends use them to decide. A client holding a looser opinion than the server is how a 300-character note is typed, accepted by the screen and refused at payment.\n\n⚠ THE GO HOT PATH CANNOT IMPORT THIS FILE, so it carries one mirror (`apis/core-api/internal/platform/deliveryinstructions`). The two are pinned together by `delivery-instructions.fixtures.json`, which BOTH test suites read. Changing a step here without changing it there fails the Go suite — that is the point.",
+      "enum": [
+        "leave_at_door",
+        "meet_at_door"
+      ],
+      "type": "string"
     },
     "HistoryDTO": {
       "additionalProperties": false,

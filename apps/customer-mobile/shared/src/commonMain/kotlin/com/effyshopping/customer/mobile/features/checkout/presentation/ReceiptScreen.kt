@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.checkout.presentation
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.presentation.DeliveryInstructionsText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -254,6 +255,13 @@ private fun ReceiptBody(
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.fillMaxWidth(),
     )
+
+    // 066 — ONLY when the shopper said something. No heading and no "none given" otherwise: a receipt
+    // for an order placed before this existed must look exactly as it did (SC-003).
+    receipt.deliveryInstructions?.takeUnless { it.isEmpty }?.let { said ->
+        SectionLabel("Delivery instructions", topPadding = EffySpacing.md)
+        DeliveryInstructionsText(handover = said.handover, note = said.note)
+    }
 
     SectionLabel("Billing", topPadding = EffySpacing.md)
     if (receipt.billingSameAsShipping) {

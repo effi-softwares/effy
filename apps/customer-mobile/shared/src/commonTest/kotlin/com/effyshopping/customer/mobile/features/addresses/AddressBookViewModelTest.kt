@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.addresses
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import com.effyshopping.customer.mobile.core.error.AppError
 import com.effyshopping.customer.mobile.core.error.AppException
 import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
@@ -34,6 +35,12 @@ private class FakeAddressRepository(seed: List<SavedAddress> = emptyList()) : Ad
     private var seq = seed.size
 
     override suspend fun list(): List<SavedAddress> = store.toList()
+
+    override suspend fun saveInstructions(id: String, instructions: InstructionsDraft): SavedAddress {
+        val i = store.indexOfFirst { it.id == id }
+        store[i] = store[i].copy(defaultInstructions = instructions.toInstructions())
+        return store[i]
+    }
 
     override suspend fun create(draft: AddressDraft): SavedAddress {
         createCalls++

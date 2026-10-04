@@ -1,5 +1,9 @@
 package com.effyshopping.customer.mobile.features.checkout
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.DeliveryInstructions
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.Handover
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
+import com.effyshopping.customer.mobile.features.addresses.domain.SaveAddressInstructions
 import com.effyshopping.customer.mobile.features.addresses.domain.AddAddress
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressDraft
 import com.effyshopping.customer.mobile.features.addresses.domain.AddressRepository
@@ -58,6 +62,13 @@ class CheckoutViewModelTest {
         override suspend fun update(id: String, draft: AddressDraft) = items.first()
         override suspend fun setDefault(id: String) = items.first()
         override suspend fun delete(id: String) = Unit
+
+        /** 066 — every write to an address's saved instructions, in order. */
+        val savedInstructions = mutableListOf<Pair<String, InstructionsDraft>>()
+        override suspend fun saveInstructions(id: String, instructions: InstructionsDraft): SavedAddress {
+            savedInstructions += id to instructions
+            return items.first { it.id == id }.copy(defaultInstructions = instructions.toInstructions())
+        }
     }
 
     private class FakeCheckout(
@@ -84,16 +95,21 @@ class CheckoutViewModelTest {
         handoff: PaymentHandoff = PaymentHandoff(),
     ): CheckoutViewModel {
         val repo = FakeAddresses(addresses)
+        lastAddresses = repo
         return CheckoutViewModel(
             listAddresses = ListAddresses(repo),
             addAddress = AddAddress(repo),
             createIntent = CreateIntent(checkout),
             handoff = handoff,
             quoteDelivery = QuoteDelivery(checkout),
+            saveAddressInstructions = SaveAddressInstructions(repo),
         )
     }
 
     private fun ready(vm: CheckoutViewModel) = vm.state.value as? CheckoutUiState.Ready
+
+    /** The address fake behind the most recent [vm] — for asserting what was (not) written back. */
+    private var lastAddresses: FakeAddresses? = null
 
     // ── Address selection ──────────────────────────────────────────────────────────────────────
 
@@ -261,5 +277,89 @@ class CheckoutViewModelTest {
         val vm = vm(listOf(addr("a", isDefault = true))) // default fake: standard only
         vm.setMethod(DeliveryMethod.SAME_DAY)
         assertEquals(DeliveryMethod.STANDARD, ready(vm)?.method) // ignored — not offerable
+    }
+
+    // ── Delivery instructions (066) ────────────────────────────────────────────────────────────
+
+    private val sideGate = DeliveryInstructions(Handover.LeaveAtDoor, "Side gate")
+
+    private fun home() = addr("a", isDefault = true).copy(defaultInstructions = sideGate)
+
+    @Test
+    fun `saying nothing sends no instructions`() = runTest {
+        val checkout = FakeCheckout()
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout)
+        vm.payNow()
+        assertNull(checkout.lastOrder!!.deliveryInstructions)
+    }
+
+    @Test
+    fun `a choice and a note are sent with the order`() = runTest {
+        val checkout = FakeCheckout()
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout)
+        vm.setInstructions(InstructionsDraft(Handover.MeetAtDoor, "  Ring twice  "))
+        vm.payNow()
+        assertEquals(DeliveryInstructions(Handover.MeetAtDoor, "Ring twice"), checkout.lastOrder!!.deliveryInstructions)
+    }
+
+    /** FR-013. */
+    @Test
+    fun `the selected address's saved instructions are prefilled`() = runTest {
+        val checkout = FakeCheckout()
+        val vm = vm(listOf(home()), checkout)
+        assertEquals(InstructionsDraft(Handover.LeaveAtDoor, "Side gate"), ready(vm)!!.instructions)
+        assertFalse(ready(vm)!!.instructionsDiffer)
+        vm.payNow()
+        assertEquals(sideGate, checkout.lastOrder!!.deliveryInstructions)
+        assertTrue(lastAddresses!!.savedInstructions.isEmpty())
+    }
+
+    /** ⚠ FR-014 — an override is for THIS order; the address keeps what it had. */
+    @Test
+    fun `editing for one order does not write to the address`() = runTest {
+        val checkout = FakeCheckout()
+        val vm = vm(listOf(home()), checkout)
+        vm.setInstructions(InstructionsDraft(Handover.LeaveAtDoor, "Front door today"))
+        assertTrue(ready(vm)!!.instructionsDiffer)
+        vm.payNow()
+        assertEquals("Front door today", checkout.lastOrder!!.deliveryInstructions!!.note)
+        assertTrue(lastAddresses!!.savedInstructions.isEmpty())
+    }
+
+    @Test
+    fun `asking to save writes the address after the order accepted the instructions`() = runTest {
+        val checkout = FakeCheckout()
+        val vm = vm(listOf(addr("a", isDefault = true)), checkout)
+        vm.setInstructions(InstructionsDraft(note = "Reception"))
+        vm.setSaveInstructions(true)
+        vm.payNow()
+        assertEquals(listOf("a" to InstructionsDraft(note = "Reception")), lastAddresses!!.savedInstructions)
+        assertEquals("Reception", ready(vm)!!.addresses.first().defaultInstructions!!.note)
+        assertFalse(ready(vm)!!.saveInstructions)
+    }
+
+    /** ⚠ FR-015 — a note is about a place. Typed text does not follow the shopper to another address. */
+    @Test
+    fun `switching address replaces the draft and resets the save choice`() = runTest {
+        val vm = vm(listOf(home(), addr("b")))
+        vm.setInstructions(InstructionsDraft(Handover.LeaveAtDoor, "typed for home"))
+        vm.setSaveInstructions(true)
+
+        vm.select("b")
+        assertEquals(InstructionsDraft(), ready(vm)!!.instructions)
+        assertFalse(ready(vm)!!.saveInstructions)
+
+        vm.select("a")
+        assertEquals(InstructionsDraft(Handover.LeaveAtDoor, "Side gate"), ready(vm)!!.instructions)
+    }
+
+    @Test
+    fun `clearing a prefilled default sends nothing - not the saved default`() = runTest {
+        val checkout = FakeCheckout()
+        val vm = vm(listOf(home()), checkout)
+        vm.setInstructions(InstructionsDraft())
+        vm.payNow()
+        assertNull(checkout.lastOrder!!.deliveryInstructions)
+        assertTrue(lastAddresses!!.savedInstructions.isEmpty())
     }
 }

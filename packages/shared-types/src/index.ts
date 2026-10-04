@@ -7,6 +7,7 @@ export * from "./catalog";
 export * from "./storefront";
 export * from "./cart";
 export * from "./address";
+export * from "./delivery-instructions";
 export * from "./checkout";
 export * from "./order";
 // 033-customer-saved-items (replaces the retired ./favorite)

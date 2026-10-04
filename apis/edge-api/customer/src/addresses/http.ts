@@ -3,11 +3,12 @@ import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 import { type RequestScope, problem, ProblemType, unavailable } from "@effy/edge-shared";
 
 import { CustomerBarredError, CustomerNotFoundError } from "../customer/service";
-import type { AddressInput } from "./repo";
 import {
+  AddressInstructionsError,
   AddressNotFoundError,
   AddressValidationError,
   DefaultDeleteBlockedError,
+  type AddressRequestInput,
 } from "./service";
 
 /**
@@ -15,9 +16,14 @@ import {
  * null field is preserved (COALESCE), on CREATE the required fields are validated in the service.
  * Unknown fields never reach SQL — the statements name their columns explicitly.
  */
-export function toAddressInput(body: Record<string, unknown>): AddressInput {
+export function toAddressInput(body: Record<string, unknown>): AddressRequestInput {
   const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
   return {
+    // 066 — passed through RAW, and only when the key is PRESENT: absence means "leave the saved
+    // default alone", `null` means "clear it". The service validates it with the shared rule.
+    ...("defaultDeliveryInstructions" in body
+      ? { rawDefaultDeliveryInstructions: body.defaultDeliveryInstructions ?? null }
+      : {}),
     label: str(body.label),
     recipientName: str(body.recipientName),
     phone: str(body.phone),
@@ -47,6 +53,17 @@ export function addressErrorResponse(
       ProblemType.ValidationFailed,
       "Request validation failed",
       "recipient name, line 1, city and postal code are required",
+      scope,
+    );
+  }
+  if (err instanceof AddressInstructionsError) {
+    return problem(
+      400,
+      ProblemType.ValidationFailed,
+      "Request validation failed",
+      err.reason === "too_long"
+        ? "delivery instructions can be at most 250 characters"
+        : "check the delivery instructions",
       scope,
     );
   }

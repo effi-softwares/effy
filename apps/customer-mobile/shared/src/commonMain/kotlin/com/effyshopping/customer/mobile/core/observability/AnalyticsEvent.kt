@@ -23,6 +23,20 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class OrderPlaced(orderId: String) : AnalyticsEvent("order_placed", mapOf("orderId" to orderId))
     data object SearchPerformed : AnalyticsEvent("search_performed")
 
+    /**
+     * 066 — an order was placed with (or without) delivery instructions. `handover` is
+     * `leave_at_door` | `meet_at_door` | `none`.
+     *
+     * ⚠ NEVER THE NOTE, ITS LENGTH OR THE ADDRESS. The note is customer-authored and may hold a gate
+     * code; the constructor takes a closed value and two booleans so a call site cannot pass text.
+     * ⚠ DECLARED, NOT EMITTED — like the rest of this app's commerce taxonomy, nothing fires it yet.
+     */
+    class CheckoutDeliveryInstructionsSet(handover: String, hasNote: Boolean, fromSavedDefault: Boolean) :
+        AnalyticsEvent(
+            "checkout_delivery_instructions_set",
+            mapOf("handover" to handover, "hasNote" to hasNote.toString(), "fromSavedDefault" to fromSavedDefault.toString()),
+        )
+
     // Push (platform-events.md) — the type only, never order/customer data.
     data object PushPermissionPrompted : AnalyticsEvent("push_permission_prompted")
     data object PushPermissionGranted : AnalyticsEvent("push_permission_granted")

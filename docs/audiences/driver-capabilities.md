@@ -313,3 +313,18 @@ whole item list, and a drop always reported one package however many it held.
 
 ⚠ **Not walked on either platform.** No one has seen these screens.
 
+## §066 — Customer delivery instructions (2026-10-04)
+
+Spec: [specs/066-delivery-instructions/](../../specs/066-delivery-instructions/). Client feedback R4a.
+
+| Capability | Android | iOS | Notes |
+|---|---|---|---|
+| The customer's note on the en-route, arrived and drop-detail screens | ✅ built | ✅ built (compile-verified) | The callout existed since 060 and was always empty |
+| The handover preference said in words | ✅ built | ✅ built (compile-verified) | "The customer asked for this to be left at the door." |
+| Proof chooser leads with the customer's preference | ✅ built | ✅ built (compile-verified) | Reorders and informs; removes no option |
+
+⚠ **A preference is a request, not a rule.** A "leave at the door" customer who opens the door is
+handed the package and signs; the driver can always record what actually happened.
+
+⚠ **Not walked on either platform.**
+

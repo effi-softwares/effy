@@ -80,21 +80,23 @@ type fulfillmentDTO struct {
 }
 
 type orderDTO struct {
-	ID                 string           `json:"id"`
-	OrderNumber        string           `json:"orderNumber"`
-	Status             string           `json:"status"`
-	PlacedAt           *string          `json:"placedAt"`
-	Items              []itemDTO        `json:"items"`
-	DeliveryAddress    json.RawMessage  `json:"deliveryAddress"`
-	BillingAddress     json.RawMessage  `json:"billingAddress,omitempty"`
-	ItemSubtotalAmount string           `json:"itemSubtotalAmount"`
-	DiscountAmount     string           `json:"discountAmount"`
-	DeliveryFeeAmount  string           `json:"deliveryFeeAmount"`
-	PromoCode          *string          `json:"promoCode"`
-	GrandTotalAmount   string           `json:"grandTotalAmount"`
-	Currency           string           `json:"currency"`
-	PaymentStatus      string           `json:"paymentStatus"`
-	Fulfillments       []fulfillmentDTO `json:"fulfillments"`
+	ID              string          `json:"id"`
+	OrderNumber     string          `json:"orderNumber"`
+	Status          string          `json:"status"`
+	PlacedAt        *string         `json:"placedAt"`
+	Items           []itemDTO       `json:"items"`
+	DeliveryAddress json.RawMessage `json:"deliveryAddress"`
+	BillingAddress  json.RawMessage `json:"billingAddress,omitempty"`
+	// 066 — null when the customer said nothing. Always present on the wire so a client can rely on it.
+	DeliveryInstructions *DeliveryInstructions `json:"deliveryInstructions"`
+	ItemSubtotalAmount   string                `json:"itemSubtotalAmount"`
+	DiscountAmount       string                `json:"discountAmount"`
+	DeliveryFeeAmount    string                `json:"deliveryFeeAmount"`
+	PromoCode            *string               `json:"promoCode"`
+	GrandTotalAmount     string                `json:"grandTotalAmount"`
+	Currency             string                `json:"currency"`
+	PaymentStatus        string                `json:"paymentStatus"`
+	Fulfillments         []fulfillmentDTO      `json:"fulfillments"`
 
 	// 052 — the customer-facing progress word. SERVER-DERIVED; no client computes it (FR-008).
 	Stage string `json:"stage"`
@@ -210,7 +212,8 @@ func (h *Handler) get(c *gin.Context) {
 	c.JSON(http.StatusOK, orderDTO{
 		ID: order.ID, OrderNumber: order.OrderNumber, Status: order.Status, PlacedAt: order.PlacedAt,
 		Items: items, DeliveryAddress: address, BillingAddress: billing,
-		ItemSubtotalAmount: order.ItemSubtotalAmount, DiscountAmount: order.DiscountAmount, PromoCode: order.PromoCode,
+		DeliveryInstructions: order.DeliveryInstructions,
+		ItemSubtotalAmount:   order.ItemSubtotalAmount, DiscountAmount: order.DiscountAmount, PromoCode: order.PromoCode,
 		DeliveryFeeAmount: order.DeliveryFeeAmount,
 		GrandTotalAmount:  order.GrandTotalAmount, Currency: order.Currency,
 		PaymentStatus: order.PaymentStatus, Fulfillments: ful,

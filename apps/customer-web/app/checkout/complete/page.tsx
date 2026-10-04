@@ -171,7 +171,11 @@ async function Receipt({ searchParams }: { searchParams: Promise<ReturnParams> }
           <ReceiptDocument order={dto} />
 
           <section className="rounded-xl border p-6">
-            <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
+            <OrderAddresses
+              shipping={dto.deliveryAddress}
+              billing={dto.billingAddress}
+              instructions={dto.deliveryInstructions}
+            />
           </section>
 
           <DocumentStatusNote />

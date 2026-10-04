@@ -14,6 +14,7 @@ import (
 
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/cartpolicy"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/delivery"
+	"github.com/effyshopping/effy/apis/core-api/internal/platform/deliveryinstructions"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/logger"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/money"
 	"github.com/effyshopping/effy/apis/core-api/internal/platform/pricing"
@@ -249,6 +250,13 @@ type IntentInput struct {
 	// package where it is not (FR-044/SC-011) — so a mixed basket charges same-day only where possible.
 	// The client never sends a fee; the server prices the chosen method from the captured quote (FR-036).
 	DeliveryMethod string
+	// DeliveryInstructions is what the customer tells the driver (066), ALREADY validated and
+	// normalised by platform/deliveryinstructions. The zero value is "said nothing".
+	//
+	// ⚠ This is the ONLY source of an order's instructions. The address's saved default is never read
+	// here — prefilling from it is the client's job — so editing or deleting an address cannot reach a
+	// placed order (spec US4), by construction rather than by a guard.
+	DeliveryInstructions deliveryinstructions.Instructions
 	// WantsProviderMethodList asks for a customer session, and is set ONLY by a client that renders a
 	// provider-owned payment-method list — the mobile embedded element (051, spike S2).
 	//
@@ -406,6 +414,14 @@ func (s *Service) CreateCheckoutIntent(ctx context.Context, customerID string, i
 	// so the billing details Effy sends at confirmation cannot drift from the billing address it recorded.
 	billingSnapshot, err := s.applyBilling(ctx, customerID, orderID, addressID, in.BillingAddressID, addressJSON)
 	if err != nil {
+		return IntentResult{}, err
+	}
+
+	// Delivery instructions (066). Written on EVERY intent, including with nothing: a shopper who
+	// clears the note and pays must not have the earlier draft delivered with their order. Each intent
+	// rewrites the pending order, so what is stored is what the LAST intent before payment carried.
+	if err := s.store.SetOrderDeliveryInstructions(ctx, orderID,
+		in.DeliveryInstructions.Handover, in.DeliveryInstructions.Note); err != nil {
 		return IntentResult{}, err
 	}
 

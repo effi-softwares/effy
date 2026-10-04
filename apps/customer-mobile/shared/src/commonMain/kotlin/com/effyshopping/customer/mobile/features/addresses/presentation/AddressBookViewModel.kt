@@ -1,5 +1,6 @@
 package com.effyshopping.customer.mobile.features.addresses.presentation
 
+import com.effyshopping.customer.mobile.features.deliveryinstructions.domain.InstructionsDraft
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.effyshopping.customer.mobile.core.error.AppError
@@ -31,6 +32,8 @@ data class AddressForm(
     val city: String = "",
     val region: String = "",
     val postalCode: String = "",
+    /** 066 — the address's default delivery instructions, edited with the same control as checkout. */
+    val instructions: InstructionsDraft = InstructionsDraft(),
 )
 
 /** The open add/edit sheet. [editingId] null = add; non-null = edit that address (FR-017). */

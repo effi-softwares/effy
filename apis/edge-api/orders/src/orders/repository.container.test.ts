@@ -53,6 +53,8 @@ describe.skipIf(!RUN)("order reads — against real PostgreSQL", () => {
         grand_total_amount numeric(12,2) NOT NULL DEFAULT 0,
         currency char(3) NOT NULL DEFAULT 'AUD',
         delivery_address jsonb NOT NULL DEFAULT '{}'::jsonb,
+        delivery_handover text,
+        delivery_note text,
         billing_address jsonb,
         promo_code_id uuid,
         placed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now()

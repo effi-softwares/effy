@@ -1,4 +1,4 @@
-import type { AddressDTO } from "@effy/shared-types";
+import { normaliseDeliveryInstructions, type AddressDTO } from "@effy/shared-types";
 
 import { findByCognitoSub } from "../customer/repo";
 import { CustomerBarredError, CustomerNotFoundError } from "../customer/service";
@@ -46,13 +46,45 @@ async function resolveActiveCustomerId(sub: string): Promise<string> {
   return row.id;
 }
 
+/**
+ * 066 — the saved delivery instructions failed the shared rule → 400.
+ *
+ * ⚠ Carries WHICH field and WHY, never the value: a note can hold a gate code, and an error object
+ * is exactly what the catch-all handler logs.
+ */
+export class AddressInstructionsError extends Error {
+  constructor(
+    readonly field: "handover" | "note",
+    readonly reason: "invalid" | "too_long",
+  ) {
+    super(`delivery instructions: ${field} ${reason}`);
+    this.name = "AddressInstructionsError";
+  }
+}
+
+/**
+ * Validate the request's default instructions with the ONE shared rule (Principle II) and hand the
+ * repository a normalised value — or `undefined` when the request did not mention them at all.
+ */
+export function withValidInstructions(input: AddressRequestInput): AddressInput {
+  const { rawDefaultDeliveryInstructions: raw, ...rest } = input;
+  if (raw === undefined) return rest;
+  const out = normaliseDeliveryInstructions(raw);
+  if (!out.ok) throw new AddressInstructionsError(out.field, out.reason);
+  return { ...rest, defaultDeliveryInstructions: out.value };
+}
+
+/** What the HTTP layer hands over: the repository's input plus the still-unvalidated instructions. */
+export type AddressRequestInput = AddressInput & { rawDefaultDeliveryInstructions?: unknown };
+
 export async function listAddresses(sub: string): Promise<AddressDTO[]> {
   const customerId = await resolveActiveCustomerId(sub);
   const rows = await listByCustomer(customerId);
   return rows.map(toDTO);
 }
 
-export async function createAddress(sub: string, input: AddressInput): Promise<AddressDTO> {
+export async function createAddress(sub: string, request: AddressRequestInput): Promise<AddressDTO> {
+  const input = withValidInstructions(request);
   if (!input.recipientName || !input.line1 || !input.city || !input.postalCode) {
     throw new AddressValidationError();
   }
@@ -64,8 +96,9 @@ export async function createAddress(sub: string, input: AddressInput): Promise<A
 export async function updateAddress(
   sub: string,
   id: string,
-  input: AddressInput,
+  request: AddressRequestInput,
 ): Promise<AddressDTO> {
+  const input = withValidInstructions(request);
   const customerId = await resolveActiveCustomerId(sub);
   const row = await update(customerId, id, input);
   if (!row) throw new AddressNotFoundError();

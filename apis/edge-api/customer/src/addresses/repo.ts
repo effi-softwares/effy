@@ -1,4 +1,5 @@
 import { query, withTransaction } from "@effy/edge-shared";
+import type { DeliveryInstructionsDTO } from "@effy/shared-types";
 
 import { ADDRESS_COLUMNS, type AddressRow } from "./model";
 
@@ -25,6 +26,16 @@ export interface AddressInput {
   postalCode: string | null;
   country: string | null;
   makeDefault: boolean;
+  /**
+   * 066 — the address's default delivery instructions.
+   *
+   * ⚠ `undefined` AND `null` ARE DIFFERENT INSTRUCTIONS TO THIS LAYER. `undefined` means the request
+   * did not mention them (leave the saved default alone); a value — including one whose parts are
+   * both null — means "set it to exactly this", which is how a customer CLEARS a saved default.
+   * Every other field here uses COALESCE, which cannot tell those apart; 056 recorded a profile
+   * field that could never be cleared for exactly that reason.
+   */
+  defaultDeliveryInstructions?: DeliveryInstructionsDTO;
 }
 
 export async function listByCustomer(customerId: string): Promise<AddressRow[]> {
@@ -52,8 +63,9 @@ export async function create(customerId: string, input: AddressInput): Promise<A
          WHERE customer_id = $1 AND (SELECT v FROM mkdefault)
      )
      INSERT INTO public.customer_address
-        (customer_id, label, recipient_name, phone, line1, line2, city, region, postal_code, country, is_default)
-     VALUES ($1, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'AU'), (SELECT v FROM mkdefault))
+        (customer_id, label, recipient_name, phone, line1, line2, city, region, postal_code, country, is_default,
+         default_delivery_handover, default_delivery_note)
+     VALUES ($1, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'AU'), (SELECT v FROM mkdefault), $12, $13)
      RETURNING ${ADDRESS_COLUMNS}`,
     [
       customerId,
@@ -67,6 +79,8 @@ export async function create(customerId: string, input: AddressInput): Promise<A
       input.region,
       input.postalCode,
       input.country,
+      input.defaultDeliveryInstructions?.handover ?? null,
+      input.defaultDeliveryInstructions?.note ?? null,
     ],
   );
   // INSERT … RETURNING always yields exactly one row; the guard satisfies strict index typing.
@@ -114,6 +128,9 @@ export async function update(
           postal_code    = COALESCE($10, postal_code),
           country        = COALESCE($11, country),
           is_default     = CASE WHEN $2 = true THEN true ELSE is_default END,
+          -- 066: keyed on PRESENCE ($13), not COALESCE — a present null must clear the saved default.
+          default_delivery_handover = CASE WHEN $13::boolean THEN $14 ELSE default_delivery_handover END,
+          default_delivery_note     = CASE WHEN $13::boolean THEN $15 ELSE default_delivery_note END,
           updated_at     = now()
         WHERE id = $12 AND customer_id = $1
         RETURNING ${ADDRESS_COLUMNS}`,
@@ -130,6 +147,9 @@ export async function update(
         input.postalCode,
         input.country,
         id,
+        input.defaultDeliveryInstructions !== undefined,
+        input.defaultDeliveryInstructions?.handover ?? null,
+        input.defaultDeliveryInstructions?.note ?? null,
       ],
     );
     return res.rows[0] ?? null;

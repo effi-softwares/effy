@@ -13,6 +13,13 @@ import type {
 } from "@effy/shared-types"
 
 import { ActionButton } from "@/components/storefront/actions"
+import { updateAddress } from "@/lib/addresses/repo"
+import {
+  draftFrom,
+  draftToRequest,
+  sameInstructions,
+  type InstructionsDraft,
+} from "@/lib/delivery-instructions"
 import { useCart } from "@/lib/cart-store"
 import { computeCartTotals, formatCents, parseCents } from "@/lib/cart-totals"
 import { formatMoney } from "@/lib/money"
@@ -21,6 +28,7 @@ import { capture } from "@/lib/telemetry"
 
 import { AddressPicker } from "./AddressPicker"
 import { BillingSection } from "./BillingSection"
+import { DeliveryInstructions } from "./DeliveryInstructions"
 import { PaymentStep } from "./PaymentStep"
 
 type Step = "review" | "paying"
@@ -57,6 +65,16 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   const [selectedId, setSelectedId] = useState<string | null>(
     initialAddresses.find((a) => a.isDefault)?.id ?? initialAddresses[0]?.id ?? null,
   )
+  // 066 — what the shopper tells the driver. Starts from the selected address's SAVED default, and is
+  // held here (not in the control) so it survives the move to the payment step and a failed payment.
+  const [instructions, setInstructions] = useState<InstructionsDraft>(() =>
+    draftFrom(
+      (initialAddresses.find((a) => a.isDefault) ?? initialAddresses[0])?.defaultDeliveryInstructions,
+    ),
+  )
+  // ⚠ OFF by default, and reset whenever the address changes: editing instructions for ONE order must
+  // never rewrite the address's saved default unless the shopper asks (066 FR-014).
+  const [saveInstructions, setSaveInstructions] = useState(false)
   // Billing defaults to "same as shipping" (FR-009); `billingId` is only meaningful while the toggle is
   // OFF, and is discarded when it returns ON (FR-013).
   const [billingSameAsShipping, setBillingSameAsShipping] = useState(true)
@@ -152,6 +170,11 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   function selectShipping(id: string) {
     if (id === selectedId) return
     setSelectedId(id)
+    // ⚠ 066 FR-015: the draft is REPLACED by the new address's saved instructions, even if the shopper
+    // had typed something. A note is about a place — "use the side gate" carried to a different
+    // building is worse than an empty field.
+    setInstructions(draftFrom(addresses.find((a) => a.id === id)?.defaultDeliveryInstructions))
+    setSaveInstructions(false)
     capture({ name: "checkout_address_changed" })
   }
 
@@ -159,6 +182,8 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
   function onShippingAddressAdded(created: AddressDTO) {
     appendAddress(created)
     setSelectedId(created.id)
+    setInstructions(draftFrom(created.defaultDeliveryInstructions))
+    setSaveInstructions(false)
     capture({ name: "checkout_address_added" })
   }
 
@@ -180,6 +205,12 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
     setBillingSameAsShipping(value)
     if (value) setBillingId(null)
   }
+
+  // 066 — what the selected address has SAVED, to tell "using my default" from "changed for this order".
+  const savedInstructions = draftFrom(
+    addresses.find((a) => a.id === selectedId)?.defaultDeliveryInstructions,
+  )
+  const instructionsDiffer = !sameInstructions(instructions, savedInstructions)
 
   // Pay is blocked until shipping is set (FR-007) and, when billing diverges, a billing address is
   // chosen (FR-012). Enforced at the review → delivery gate, before any payment.
@@ -216,6 +247,10 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (method === "same_day" && sameDayOfferable) {
         body.deliveryMethod = "same_day"
       }
+      // 066 — sent on EVERY placement, including as null: a shopper who cleared the note and pays
+      // must not have an earlier attempt's draft delivered with the order.
+      const deliveryInstructions = draftToRequest(instructions)
+      body.deliveryInstructions = deliveryInstructions
       const res = await fetch("/api/checkout/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,6 +263,26 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
       if (!res.ok || !data.clientSecret) {
         setError(data.error ?? "We couldn’t start payment. Please try again.")
         return
+      }
+      capture({
+        name: "checkout_delivery_instructions_set",
+        props: {
+          handover: deliveryInstructions?.handover ?? "none",
+          hasNote: !!deliveryInstructions?.note,
+          fromSavedDefault: sameInstructions(instructions, savedInstructions),
+        },
+      })
+      // 066 FR-014 — ONLY when asked, and only AFTER the order accepted them: a refused note must not
+      // become an address's default. Best-effort: the order is already right, so a failure here costs
+      // the shopper some retyping next time and must not stand between them and paying.
+      if (saveInstructions && !sameInstructions(instructions, savedInstructions)) {
+        const saved = await updateAddress(selectedId, { defaultDeliveryInstructions: deliveryInstructions })
+        if (saved.ok) {
+          setAddresses((prev) => prev.map((a) => (a.id === saved.address.id ? saved.address : a)))
+          setSaveInstructions(false)
+        }
+        // A failure is deliberately silent: the flow is already moving to payment, the ORDER has the
+        // instructions, and the checkbox stays ticked so a return to this step tries again.
       }
       setIntent(data as CreateCheckoutIntentResponse)
       setStep("paying")
@@ -266,6 +321,26 @@ export function CheckoutFlow({ initialAddresses }: { initialAddresses: AddressDT
             idPrefix="shipping"
             busy={busy}
           />
+          {selectedId && (
+            <div className="mt-6">
+              <DeliveryInstructions value={instructions} onChange={setInstructions} disabled={busy}>
+                {/* Offered only when there is something to save that the address does not already
+                    hold — an always-present checkbox reads as a chore. */}
+                {instructionsDiffer && (
+                  <label className="mt-3 flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="size-4"
+                      checked={saveInstructions}
+                      disabled={busy}
+                      onChange={(e) => setSaveInstructions(e.target.checked)}
+                    />
+                    Save to this address for next time
+                  </label>
+                )}
+              </DeliveryInstructions>
+            </div>
+          )}
         </section>
 
         <BillingSection

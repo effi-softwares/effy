@@ -1,0 +1,269 @@
+[
+  {
+    "name": "null input is no instructions",
+    "input": null,
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": null
+      }
+    }
+  },
+  {
+    "name": "both parts null",
+    "input": {
+      "handover": null,
+      "note": null
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": null
+      }
+    }
+  },
+  {
+    "name": "handover only",
+    "input": {
+      "handover": "leave_at_door",
+      "note": null
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": "leave_at_door",
+        "note": null
+      }
+    }
+  },
+  {
+    "name": "meet at door with a note",
+    "input": {
+      "handover": "meet_at_door",
+      "note": "Ring twice"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": "meet_at_door",
+        "note": "Ring twice"
+      }
+    }
+  },
+  {
+    "name": "unknown handover is refused",
+    "input": {
+      "handover": "throw_over_fence",
+      "note": null
+    },
+    "expect": {
+      "ok": false,
+      "field": "handover",
+      "reason": "invalid"
+    }
+  },
+  {
+    "name": "empty-string handover is refused",
+    "input": {
+      "handover": "",
+      "note": null
+    },
+    "expect": {
+      "ok": false,
+      "field": "handover",
+      "reason": "invalid"
+    }
+  },
+  {
+    "name": "blank note is no note",
+    "input": {
+      "handover": null,
+      "note": ""
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": null
+      }
+    }
+  },
+  {
+    "name": "whitespace-only note is no note",
+    "input": {
+      "handover": null,
+      "note": "  \t \n\r\n  "
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": null
+      }
+    }
+  },
+  {
+    "name": "outer whitespace is trimmed",
+    "input": {
+      "handover": null,
+      "note": "   Side gate   "
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "Side gate"
+      }
+    }
+  },
+  {
+    "name": "runs of spaces collapse and tabs become spaces",
+    "input": {
+      "handover": null,
+      "note": "Buzzer\t\tis    broken"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "Buzzer is broken"
+      }
+    }
+  },
+  {
+    "name": "line breaks are kept, CRLF becomes LF, empty lines dropped",
+    "input": {
+      "handover": null,
+      "note": "Gate code 4411\r\n\r\n\r\nCall on arrival\rThanks"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "Gate code 4411\nCall on arrival\nThanks"
+      }
+    }
+  },
+  {
+    "name": "control characters are removed",
+    "input": {
+      "handover": null,
+      "note": "Le\u0000ave\u0007 it\u001b here"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "Leave it here"
+      }
+    }
+  },
+  {
+    "name": "markup is kept as the characters typed",
+    "input": {
+      "handover": null,
+      "note": "<b>x</b> <script>alert(1)</script>"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "<b>x</b> <script>alert(1)</script>"
+      }
+    }
+  },
+  {
+    "name": "non-English text is kept",
+    "input": {
+      "handover": null,
+      "note": "දොර ළඟ තබන්න · 请放在门口"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "දොර ළඟ තබන්න · 请放在门口"
+      }
+    }
+  },
+  {
+    "name": "exactly 250 is accepted",
+    "input": {
+      "handover": null,
+      "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  },
+  {
+    "name": "251 is refused, never truncated",
+    "input": {
+      "handover": null,
+      "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxy"
+    },
+    "expect": {
+      "ok": false,
+      "field": "note",
+      "reason": "too_long"
+    }
+  },
+  {
+    "name": "an emoji is one character: 249 + emoji is accepted",
+    "input": {
+      "handover": null,
+      "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🚪"
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🚪"
+      }
+    }
+  },
+  {
+    "name": "250 + emoji is refused",
+    "input": {
+      "handover": null,
+      "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx🚪"
+    },
+    "expect": {
+      "ok": false,
+      "field": "note",
+      "reason": "too_long"
+    }
+  },
+  {
+    "name": "length is measured AFTER normalising",
+    "input": {
+      "handover": null,
+      "note": "   xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx    "
+    },
+    "expect": {
+      "ok": true,
+      "value": {
+        "handover": null,
+        "note": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  },
+  {
+    "name": "a non-string note is refused",
+    "input": {
+      "handover": null,
+      "note": 42
+    },
+    "expect": {
+      "ok": false,
+      "field": "note",
+      "reason": "invalid"
+    }
+  }
+]

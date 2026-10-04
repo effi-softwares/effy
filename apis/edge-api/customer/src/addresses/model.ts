@@ -1,4 +1,4 @@
-import type { AddressDTO } from "@effy/shared-types";
+import type { AddressDTO, HandoverPreference } from "@effy/shared-types";
 
 /**
  * The address book — customer profile management on the COLD path (edge-api/customer), per the
@@ -21,11 +21,15 @@ export interface AddressRow {
   postal_code: string;
   country: string;
   is_default: boolean;
+  /** 066 — the instructions this address prefills at checkout. Both null = none saved. */
+  default_delivery_handover: HandoverPreference | null;
+  default_delivery_note: string | null;
 }
 
 /** Every column the repository returns — one list, referenced by every statement. */
 export const ADDRESS_COLUMNS = `id::text, label, recipient_name, phone, line1, line2,
-          city, region, postal_code, country, is_default`;
+          city, region, postal_code, country, is_default,
+          default_delivery_handover, default_delivery_note`;
 
 export function toDTO(row: AddressRow): AddressDTO {
   return {
@@ -40,5 +44,10 @@ export function toDTO(row: AddressRow): AddressDTO {
     postalCode: row.postal_code,
     country: row.country,
     isDefault: row.is_default,
+    // 066 — null, never an empty object, when nothing is saved: the client shows nothing for null.
+    defaultDeliveryInstructions:
+      row.default_delivery_handover === null && row.default_delivery_note === null
+        ? null
+        : { handover: row.default_delivery_handover, note: row.default_delivery_note },
   };
 }

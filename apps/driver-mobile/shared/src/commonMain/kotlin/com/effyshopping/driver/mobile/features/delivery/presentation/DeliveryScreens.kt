@@ -7,6 +7,7 @@ import com.effyshopping.mobile.kit.ui.SkeletonSquare
 import com.effyshopping.mobile.kit.ui.SkeletonLine
 import com.effyshopping.mobile.kit.ui.SkeletonBlock
 import com.effyshopping.driver.mobile.features.delivery.domain.DropSummary
+import com.effyshopping.driver.mobile.features.delivery.domain.driverInstructions
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
 import androidx.compose.ui.draw.clip
 import androidx.compose.material3.HorizontalDivider
@@ -333,7 +334,7 @@ private fun DropDetailBody(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            drop.instructions?.takeIf { it.isNotBlank() }?.let {
+            drop.driverInstructions?.let {
                 Spacer(Modifier.height(18.dp))
                 InstructionCallout(it)
             }
@@ -465,6 +466,7 @@ private fun ArrivedFlow(
             onNoteChange = { note = it },
             onPick = { step = it },
             photoAvailable = true,
+            handover = drop.handover,
         )
 
         else -> ArrivedScreen(

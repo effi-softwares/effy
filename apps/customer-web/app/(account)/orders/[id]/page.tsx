@@ -73,7 +73,11 @@ async function OrderDetail({ params }: { params: Promise<{ id: string }> }) {
           {shortfalls.length > 0 ? <Unavailable shortfalls={shortfalls} /> : null}
 
           <section className="rounded-xl border p-6">
-            <OrderAddresses shipping={dto.deliveryAddress} billing={dto.billingAddress} />
+            <OrderAddresses
+              shipping={dto.deliveryAddress}
+              billing={dto.billingAddress}
+              instructions={dto.deliveryInstructions}
+            />
           </section>
 
           <DocumentStatusNote />
