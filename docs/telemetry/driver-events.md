@@ -22,6 +22,7 @@ id** alone. `orderNumber` is deliberately **absent** (a customer-facing referenc
 | `delivery_run_opened` | `{ runId }` | A same-day delivery run is opened |
 | `drop_completed` | `{ proof }` | A drop is completed (`proof`: `photo` \| `signature` \| `contactless`). ⚠ 064 removed `delivery_code` — no delivery code exists on the platform to check one against (FR-003), and `contactless` now carries a photograph (FR-002). |
 | `proof_upload_failed` | `{ reason }` | A proof image could not be uploaded, so the drop was NOT completed (FR-006). ⚠ Client-only by necessity: the bytes go straight to S3 against a presigned url and never reach a Lambda, so a failed upload is invisible to the backend. |
+| `driver_manifest_opened` | `{ surface, hasCold, lineCount }` | A driver opened a package's item list (065). `surface`: `pickup` \| `drop`. ⚠ No item names and no order reference. ⚠ Declared, not emitted — like the other driver-workflow events, nothing fires it until an analytics driver is wired through the ViewModels. |
 
 > Adding an event means adding it to the app's `AnalyticsEvent` sealed class **and** this table
 > **first** (typed), never inlining a string at the call site. Cross-surface events

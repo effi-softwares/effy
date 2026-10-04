@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
+import com.effyshopping.driver.mobile.features.manifest.presentation.ExpandableManifest
+import com.effyshopping.driver.mobile.features.manifest.presentation.StaleNotice
 import com.effyshopping.mobile.kit.ui.EffyPullToRefresh
 import com.effyshopping.mobile.kit.ui.SwipeToConfirm
 
@@ -270,6 +272,7 @@ fun ShopStopScreen(
     onCollect: () -> Unit,
     onTogglePackage: (String) -> Unit,
     onOpenProblem: () -> Unit,
+    onRetry: (() -> Unit)? = null,
 ) {
     val stop = state.stop
     val confirmed = state.confirmedPackageIds
@@ -285,12 +288,23 @@ fun ShopStopScreen(
 
         when {
             state.isLoading && stop == null -> Centered { CircularProgressIndicator() }
-            stop == null -> Centered { Text(state.message ?: "Couldn't load the stop.") }
+            // ⚠ A failed load is an ERROR WITH A WAY BACK, never an empty list (065 FR-025) — a
+            // driver must not read "no packages" off a screen that simply could not reach the server.
+            stop == null -> Centered {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(state.message ?: "Couldn't load the stop.")
+                    if (onRetry != null) {
+                        Spacer(Modifier.height(12.dp))
+                        TextButton(onClick = onRetry, modifier = Modifier.heightIn(min = 48.dp)) { Text("Try again") }
+                    }
+                }
+            }
             else -> {
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
                 ) {
+                    if (stop.stale) StaleNotice()
                     Text(
                         "Tick each package as you load it.",
                         style = MaterialTheme.typography.bodyMedium,
@@ -301,14 +315,26 @@ fun ShopStopScreen(
                     Spacer(Modifier.height(10.dp))
 
                     stop.packages.forEach { pkg ->
+                        // ⚠ 065 — the count comes from the SERVER's summary of what is in the bag.
+                        // It used to be summed here from `pkg.items`, which held every line at the
+                        // stop, so each of three packages claimed the stop's total.
+                        val units = pkg.summary.total
                         PackageRow(
                             ref = pkg.ref,
-                            line = "${pkg.destinationSuburb} · " +
-                                "${pkg.items.sumOf { it.qty }} item${if (pkg.items.sumOf { it.qty } == 1) "" else "s"}",
+                            line = "${pkg.destinationSuburb} · $units item${if (units == 1) "" else "s"}",
+                            spokenContents = pkg.summary.spoken,
                             method = pkg.method,
                             checked = pkg.ref in confirmed,
                             enabled = !done,
                             onToggle = { onTogglePackage(pkg.ref) },
+                        )
+                        // Sits OUTSIDE the tick row on purpose: opening the list must not confirm
+                        // a package the driver has not loaded.
+                        ExpandableManifest(
+                            key = pkg.ref,
+                            items = pkg.items,
+                            summary = pkg.summary,
+                            modifier = Modifier.padding(start = 38.dp, bottom = 6.dp),
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
@@ -352,12 +378,13 @@ fun ShopStopScreen(
 private fun PackageRow(
     ref: String,
     line: String,
+    spokenContents: String,
     method: PackageMethod,
     checked: Boolean,
     enabled: Boolean,
     onToggle: () -> Unit,
 ) {
-    val spoken = "$ref, $line, ${if (method == PackageMethod.SAME_DAY) "same day" else "standard"}, " +
+    val spoken = "$ref, $line, $spokenContents, ${if (method == PackageMethod.SAME_DAY) "same day" else "standard"}, " +
         if (checked) "confirmed" else "not confirmed"
     Row(
         Modifier

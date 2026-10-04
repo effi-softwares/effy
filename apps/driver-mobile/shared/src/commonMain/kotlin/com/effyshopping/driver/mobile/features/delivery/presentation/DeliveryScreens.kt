@@ -54,6 +54,9 @@ import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.core.platform.rememberPhotoCapture
 import com.effyshopping.driver.mobile.features.delivery.domain.DropStatus
 import com.effyshopping.driver.mobile.features.delivery.domain.FailureReason
+import com.effyshopping.driver.mobile.features.manifest.presentation.ClassSummaryRow
+import com.effyshopping.driver.mobile.features.manifest.presentation.ExpandableManifest
+import com.effyshopping.driver.mobile.features.manifest.presentation.StaleNotice
 
 /**
  * The same-day round (060 US1, design screen `delivery-run`).
@@ -165,6 +168,12 @@ private fun DropRow(drop: DropSummary, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // 065 \u2014 what the drop holds, without opening it: cold goods are loaded and handed over
+            // differently, and the driver plans the round from this list.
+            if (drop.summary.total > 0) {
+                Spacer(Modifier.height(6.dp))
+                ClassSummaryRow(drop.summary)
+            }
         }
     }
 }
@@ -194,6 +203,7 @@ fun DropDetailScreen(
     onFail: (FailureReason, String?) -> Unit,
     onNext: () -> Unit,
     reducedMotion: Boolean = false,
+    onRetry: (() -> Unit)? = null,
 ) {
     val drop = state.drop
     when {
@@ -216,7 +226,19 @@ fun DropDetailScreen(
         }
         state.failed -> { FailedState(onNext); return }
         state.isLoading && drop == null -> { DropSkeleton(reducedMotion); return }
-        drop == null -> { Centered { Text(state.message ?: "Couldn't load the drop.") }; return }
+        // \u26a0 An error with a way back, never an empty drop (065 FR-025).
+        drop == null -> {
+            Centered {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(state.message ?: "Couldn't load the drop.")
+                    if (onRetry != null) {
+                        Spacer(Modifier.height(12.dp))
+                        TextButton(onClick = onRetry, modifier = Modifier.heightIn(min = 48.dp)) { Text("Try again") }
+                    }
+                }
+            }
+            return
+        }
     }
     drop!!
 
@@ -317,45 +339,7 @@ private fun DropDetailBody(
             }
 
             Spacer(Modifier.height(24.dp))
-            SectionLabel("PACKAGES FOR THIS DROP \u00b7 ${drop.packages.size}")
-            Spacer(Modifier.height(8.dp))
-            drop.packages.forEachIndexed { index, pkg ->
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.size(34.dp),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                "${index + 1}",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Text(
-                        pkg.ref,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            }
-
-            if (drop.packages.size > 1) {
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "All ${drop.packages.size} packages were collected for this customer and " +
-                        "travel as one drop.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            DropManifest(drop)
             Spacer(Modifier.height(24.dp))
         }
 
@@ -603,6 +587,70 @@ private fun DropSkeleton(reducedMotion: Boolean) {
                     SkeletonLine(widthFraction = 0.45f, reducedMotion = reducedMotion)
                 }
             }
+        }
+    }
+}
+
+/**
+ * What is being handed over at this drop (065) \u2014 every package, each with what is in it.
+ *
+ * \u26a0 **A package is labelled by POSITION and nothing else.** It is one shop's portion of the order,
+ * so "Package 1 of 2" is the only name that does not say which shop packed it \u2014 and a driver who
+ * learned that would tell the customer.
+ *
+ * Shared by the drop detail and the arrived screen, so the list a driver read at the hub is the list
+ * they read at the door.
+ */
+@Composable
+internal fun DropManifest(drop: Drop, modifier: Modifier = Modifier) {
+    val count = drop.packages.size
+    Column(modifier) {
+        if (drop.stale) StaleNotice()
+        SectionLabel("PACKAGES FOR THIS DROP \u00b7 $count")
+        Spacer(Modifier.height(8.dp))
+        drop.packages.forEachIndexed { index, pkg ->
+            Row(
+                Modifier.fillMaxWidth().padding(top = 12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.size(34.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            "${index + 1}",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        if (count == 1) pkg.ref else "Package ${index + 1} of $count",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    ExpandableManifest(
+                        key = "${drop.dropId}-$index",
+                        items = pkg.items,
+                        summary = pkg.summary,
+                    )
+                }
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        }
+
+        if (count > 1) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                "All $count packages were collected for this customer and travel as one drop.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -12,6 +12,7 @@ import com.effyshopping.driver.mobile.contract.PackageMethod as DtoMethod
 import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
+import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
 import com.effyshopping.driver.mobile.core.offline.withReplay
 import kotlinx.serialization.json.Json
@@ -20,7 +21,7 @@ import com.effyshopping.driver.mobile.features.collection.domain.CollectionRepos
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionRun
 import com.effyshopping.driver.mobile.features.collection.domain.CollectionStop
 import com.effyshopping.driver.mobile.features.collection.domain.HubSplit
-import com.effyshopping.driver.mobile.features.collection.domain.ManifestLine
+import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.collection.domain.PackageMethod
 import com.effyshopping.driver.mobile.features.collection.domain.ShopStop
 import com.effyshopping.driver.mobile.features.collection.domain.StopStatus
@@ -43,8 +44,13 @@ class HttpCollectionRepository(
         api.get("driver/v1/collection/runs/$runId").ensureSuccess().body<DriverCollectionRunDTO>().toDomain()
     }
 
-    override suspend fun getStop(runId: String, stopId: String): ShopStop = request {
-        api.get("driver/v1/collection/runs/$runId/stops/$stopId").ensureSuccess().body<CollectionStopDTO>().toDomain()
+    /** 065 FR-024 — a stop the driver has already seen stays readable with no connection. */
+    private val lastStops = LastRead<String, ShopStop> { it.copy(stale = true) }
+
+    override suspend fun getStop(runId: String, stopId: String): ShopStop = lastStops.fetch(stopId) {
+        request {
+            api.get("driver/v1/collection/runs/$runId/stops/$stopId").ensureSuccess().body<CollectionStopDTO>().toDomain()
+        }
     }
 
     override suspend fun collect(runId: String, stopId: String, changeId: String) {
@@ -118,7 +124,7 @@ private fun CollectionStopDTO.toDomain() = ShopStop(
     shopName = shopName,
     shopCode = shopCode,
     packages = packages.map { p ->
-        CollectionPackage(p.ref, p.destinationSuburb, method(p.method), p.items.map { ManifestLine(it.name, it.qty.toInt()) })
+        CollectionPackage(p.ref, p.destinationSuburb, method(p.method), p.items.map { it.toDomain() }, p.summary.toDomain())
     },
     status = stopStatus(status),
 )

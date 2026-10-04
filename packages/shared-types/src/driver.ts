@@ -180,16 +180,51 @@ export interface DriverCollectionRunDTO {
 
 export type PackageMethod = "same_day" | "standard";
 
+/**
+ * How an item must be carried (065). The driver-facing vocabulary, NOT the catalogue's: the
+ * catalogue says `ambient`, a driver is shown "Normal".
+ *
+ * ⚠ `not_recorded` IS NOT A SYNONYM FOR `normal`. It is a line sold before 065 snapshotted the
+ * class, and nobody knows what it was. Showing it as Normal would tell a driver a frozen item can
+ * ride in the ambient compartment — the exact harm the class exists to prevent (065 FR-010).
+ */
+export type TemperatureClass = "frozen" | "chilled" | "normal" | "not_recorded";
+
+/**
+ * Units IN THE BAG per class (065). Counts only lines the shop actually supplied — a line marked
+ * unavailable is in no bucket. Every field is always present; a client omits a zero when rendering.
+ */
+export interface ClassSummary {
+  frozen: WireInt;
+  chilled: WireInt;
+  normal: WireInt;
+  notRecorded: WireInt;
+}
+
 export interface ManifestLine {
   name: string;
+  /**
+   * ⚠ The quantity IN THE BAG (065) — what the shop gathered, which is less than `orderedQty` when
+   * the line was part-supplied and 0 when it was not supplied at all. Until 065 this was the
+   * quantity ordered, so a driver's count disagreed with the bag whenever a shop was short.
+   */
   qty: WireInt;
+  orderedQty: WireInt;
+  /** False when the shop supplied none of this line. Shown as "not included", never hidden. */
+  included: boolean;
+  temperatureClass: TemperatureClass;
 }
 
 export interface CollectionPackage {
   ref: string; // the order number the package belongs to
   destinationSuburb: string;
   method: PackageMethod;
+  /**
+   * ⚠ THIS PACKAGE'S OWN LINES (065). Until 065 every package at a stop carried every line at the
+   * stop, so three packages of 2, 5 and 1 items each read "8 items".
+   */
   items: ManifestLine[];
+  summary: ClassSummary;
 }
 
 /** GET /driver/v1/collection/runs/{runId}/stops/{stopId} — a shop stop and its packages. */
@@ -268,6 +303,8 @@ export interface DeliveryDropSummary {
   packageCount: WireInt;
   window: string | null;
   status: DeliveryDropStatus;
+  /** 065 — the drop's total across its packages, so cold goods show in the list unopened. */
+  summary: ClassSummary;
 }
 
 /** GET /driver/v1/delivery/runs/{runId} */
@@ -277,9 +314,18 @@ export interface DeliveryRunDTO {
   drops: DeliveryDropSummary[];
 }
 
+/**
+ * One physical package at a drop.
+ *
+ * ⚠ ONE ENTRY PER PACKAGE SINCE 065, in a stable order the app labels by POSITION ("Package 1 of
+ * 2"). A package is one shop's portion, so grouping by package IS grouping by shop — which is why
+ * the entry carries no shop id, name or code, and never may.
+ */
 export interface DropPackageRef {
   ref: string;
   fromShopCount: WireInt; // how many shops contributed — never shop identity
+  items: ManifestLine[];
+  summary: ClassSummary;
 }
 
 /** GET /driver/v1/delivery/drops/{dropId} */
@@ -291,6 +337,8 @@ export interface DeliveryDropDTO {
   instructions: string | null;
   packages: DropPackageRef[];
   status: DeliveryDropStatus;
+  /** 065 — the sum of `packages[].summary`. */
+  summary: ClassSummary;
 }
 
 /** POST /driver/v1/delivery/drops/{dropId}/status */

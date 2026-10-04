@@ -6,6 +6,7 @@
 import { orderRoundStops } from "@effy/edge-shared";
 
 import { dropStatusOf } from "./drop-status";
+import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
 import type {
   CollectionStopDTO,
   CollectionStopSummary,
@@ -196,7 +197,8 @@ export async function collectionStop(
   if (!stop) throw new NotFoundError();
 
   const pkgs = (await roundPackages(runId, driverId)).filter((p) => p.stop_id === stopId);
-  const items = await packageItems(pkgs.map((p) => p.package_id));
+  const packageIds = pkgs.map((p) => p.package_id);
+  const manifests = manifestsByPackage(packageIds, await packageItems(packageIds));
 
   return {
     stopId,
@@ -204,14 +206,19 @@ export async function collectionStop(
     shopCode: stop.shop_code ?? "",
     address: addressLine([stop.address_line1, stop.address_line2, stop.suburb, stop.state, stop.postcode]),
     status: stopStatus(stop.stop_status, pkgs.some((p) => p.state === "not_available")),
-    packages: pkgs.map((p) => ({
-      ref: p.order_number,
-      destinationSuburb: p.destination_suburb ?? "",
-      method: p.method,
-      // The manifest is per shop, so every line of every package at this stop is listed together —
-      // which is what a picker at a counter actually reads from.
-      items: items.map((i) => ({ name: i.name, qty: Number(i.qty) })),
-    })),
+    packages: pkgs.map((p) => {
+      // ⚠ Each package's OWN lines (065). This used to hand every package every line at the stop,
+      // on the reasoning that "the manifest is per shop" — but the contract puts `items` on the
+      // package and the app counts them per package, so three packages each claimed the stop's total.
+      const manifest = manifests.get(p.package_id);
+      return {
+        ref: p.order_number,
+        destinationSuburb: p.destination_suburb ?? "",
+        method: p.method,
+        items: manifest?.items ?? [],
+        summary: manifest?.summary ?? { ...EMPTY_SUMMARY },
+      };
+    }),
   };
 }
 
@@ -221,6 +228,10 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
 
   const [stops, packages] = await Promise.all([roundStops(runId, driverId), roundPackages(runId, driverId)]);
   const byStop = packagesByStop(packages);
+  // ⚠ ONE items read for the whole run, not one per drop (065) — a round is a dozen drops and this
+  // list is the screen a driver opens most.
+  const allIds = packages.map((p) => p.package_id);
+  const manifests = manifestsByPackage(allIds, await packageItems(allIds));
 
   return {
     runId,
@@ -244,6 +255,7 @@ export async function deliveryRun(runId: string, driverId: string): Promise<Deli
         // ⚠ Was `arrived → "en_route"`, everything else → "staged": the run list disagreed with the drop
         // screen about the same drop. Both now read through one mapping.
         status: dropStatusOf(s.stop_status),
+        summary: addSummaries(pkgs.map((p) => manifests.get(p.package_id)?.summary ?? EMPTY_SUMMARY)),
       } satisfies DeliveryDropSummary;
     }),
   };

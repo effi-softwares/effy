@@ -4,6 +4,30 @@ Per-feature build record: what each slice changed, the defects found while build
 verified, and the operator steps still open. Moved verbatim out of `CLAUDE.md` (2026-10-04) so it is
 read on demand rather than in every session. Newest first. Links are relative to the repo root.
 
+**065-driver-item-manifest — Driver Item Manifest & Temperature Classes.** 🚧 **41/43 tasks —
+CODE-COMPLETE AND MACHINE-VERIFIED. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:
+[specs/065-driver-item-manifest/SIGNOFF.md](specs/065-driver-item-manifest/SIGNOFF.md). Client
+feedback R5 ([docs/prd/2026-10-client-feedback-prd.md](docs/prd/2026-10-client-feedback-prd.md)).
+
+Drivers see every item in each package, marked Frozen / Chilled / Normal, at pickup and at the door.
+- **The class is a SNAPSHOT on the order line** (`order_item.storage_class`, written by checkout),
+  not a read of the live catalogue — a shop's later edit must not rewrite what a driver is told
+  about goods already packed. ⚠ NULL = sold before 065, shown as "Class not recorded", **never
+  Normal**, and deliberately not backfilled.
+- ⚠ **TWO PRE-EXISTING DEFECTS FIXED**: every package at a shop stop carried the stop's whole item
+  list (three packages of 2, 5 and 1 each read "8 items"), and a drop always reported **one**
+  package however many it held.
+- ⚠ **The storage attribute's values are back-office DATA.** Copying `value_text` straight onto the
+  order line would let an admin-added fourth value fail the CHECK and stop a shopper paying;
+  anything not exactly `frozen`/`chilled` is written `ambient`.
+- ⚠ **A drop's packages are labelled by POSITION only** — a package is one shop's portion.
+- **Verified**: typecheck 20/20 · edge-driver **128** with containers (+24) · 4 Go container tests
+  against every migration · driver-mobile **49** Android host tests + iOS test compile · four
+  negative proofs, all caught.
+- ⚠ **Open**: `db-up` → `core-deploy` → `edge-deploy SERVICE=driver` (**never before `db-up`**) →
+  app release → walks W1–W10. `driver_manifest_opened` is declared, not emitted. ⚠ Two `edge-shop`
+  container tests are red **without** this slice (attention recipients; order paging).
+
 **063-driver-work-assignment — Driver Work Assignment & Wave Planning.** 🚧 **155/183 tasks —
 CODE-COMPLETE AND MACHINE-VERIFIED across the migration, both edge services, the console and the
 infrastructure. NOT DEPLOYED, NOT COMMITTED, NOT WALKED BY A PERSON.** Sign-off:

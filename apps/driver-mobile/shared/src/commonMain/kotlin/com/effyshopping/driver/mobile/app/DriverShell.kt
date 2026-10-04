@@ -204,6 +204,7 @@ fun DriverShell(
                         onCollect = { vm.collect(route.stopId) { tabs.pop() } },
                         onTogglePackage = vm::togglePackage,
                         onOpenProblem = { tabs.push(ShopProblemRoute(route.runId, route.stopId)) },
+                        onRetry = { vm.loadStop(route.stopId) },
                     )
                 }
                 is ShopProblemRoute -> {
@@ -255,6 +256,7 @@ fun DriverShell(
                         onFail = { reason, note -> vm.fail(route.dropId, reason, note) },
                         onNext = { tabs.pop() },
                         reducedMotion = reducedMotion,
+                        onRetry = { vm.loadDrop(route.dropId) },
                     )
                 }
 

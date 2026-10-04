@@ -9,7 +9,9 @@ import {
   PACKAGE_ITEMS,
   ROUND_PACKAGES,
   ROUND_STOPS,
+  STOP_PACKAGES,
 } from "./sql";
+import type { ManifestRow } from "./manifest";
 
 export interface RoundRow {
   id: string;
@@ -54,10 +56,6 @@ export interface PackageRow {
   destination_suburb: string | null;
 }
 
-export interface ItemRow {
-  name: string;
-  qty: number;
-}
 
 /** ⚠ One line a driver can read and hand to their maps app (D7). Never a coordinate. */
 export function addressLine(parts: ReadonlyArray<string | null>): string | null {
@@ -86,10 +84,16 @@ export async function roundPackages(roundId: string, driverId: string): Promise<
   return res.rows;
 }
 
-export async function packageItems(packageIds: string[]): Promise<ItemRow[]> {
+export async function packageItems(packageIds: string[]): Promise<ManifestRow[]> {
   if (packageIds.length === 0) return [];
-  const res = await query<ItemRow>(PACKAGE_ITEMS, [packageIds]);
+  const res = await query<ManifestRow>(PACKAGE_ITEMS, [packageIds]);
   return res.rows;
+}
+
+/** The package ids at one stop, in the stable order the app labels by position (065). */
+export async function stopPackageIds(stopId: string, driverId: string): Promise<string[]> {
+  const res = await query<{ package_id: string }>(STOP_PACKAGES, [stopId, driverId]);
+  return res.rows.map((r) => r.package_id);
 }
 
 /**

@@ -15,7 +15,9 @@ import com.effyshopping.driver.mobile.core.error.AppError
 import com.effyshopping.driver.mobile.core.error.AppException
 import com.effyshopping.driver.mobile.core.http.ensureSuccess
 import com.effyshopping.driver.mobile.core.platform.uploadBytes
+import com.effyshopping.driver.mobile.features.manifest.data.toDomain
 import com.effyshopping.driver.mobile.features.delivery.domain.ProofMethod
+import com.effyshopping.driver.mobile.core.offline.LastRead
 import com.effyshopping.driver.mobile.core.offline.OfflineQueue
 import com.effyshopping.driver.mobile.core.offline.withReplay
 import kotlinx.serialization.json.Json
@@ -45,8 +47,13 @@ class HttpDeliveryRepository(
         api.get("driver/v1/delivery/runs/$runId").ensureSuccess().body<DeliveryRunDTO>().toDomain()
     }
 
-    override suspend fun getDrop(dropId: String): Drop = request {
-        api.get("driver/v1/delivery/drops/$dropId").ensureSuccess().body<DeliveryDropDTO>().toDomain()
+    /** 065 FR-024 — a drop the driver has already seen stays readable with no connection. */
+    private val lastDrops = LastRead<String, Drop> { it.copy(stale = true) }
+
+    override suspend fun getDrop(dropId: String): Drop = lastDrops.fetch(dropId) {
+        request {
+            api.get("driver/v1/delivery/drops/$dropId").ensureSuccess().body<DeliveryDropDTO>().toDomain()
+        }
     }
 
     override suspend fun advance(dropId: String, to: String, changeId: String): DropStatus {
@@ -150,7 +157,7 @@ private fun DeliveryRunDTO.toDomain() = DeliveryRun(
     runId = runID,
     status = status,
     drops = drops.map {
-        DropSummary(it.dropID, it.sequence.toInt(), it.orderRef, it.customerSuburb, it.packageCount.toInt(), dropStatus(it.status))
+        DropSummary(it.dropID, it.sequence.toInt(), it.orderRef, it.customerSuburb, it.packageCount.toInt(), dropStatus(it.status), it.summary.toDomain())
     },
 )
 
@@ -160,6 +167,7 @@ private fun DeliveryDropDTO.toDomain() = Drop(
     customerName = customerName,
     addressFull = addressFull,
     instructions = instructions,
-    packages = packages.map { DropPackage(it.ref, it.fromShopCount.toInt()) },
+    packages = packages.map { p -> DropPackage(p.ref, p.fromShopCount.toInt(), p.items.map { it.toDomain() }, p.summary.toDomain()) },
     status = dropStatus(status),
+    summary = summary.toDomain(),
 )

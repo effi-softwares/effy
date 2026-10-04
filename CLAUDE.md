@@ -345,6 +345,7 @@ the entries carry gotchas and deploy-ordering rules that the code does not. Slic
 
 Features recorded:
 
+- **065-driver-item-manifest** — Driver Item Manifest & Temperature Classes
 - **063-driver-work-assignment** — Driver Work Assignment & Wave Planning
 - **059-shop-web-pwa** — Shop Console as an Installable, Notifying Production App
 - **058-shop-today-insights** — Shop Console: Today & Insights
@@ -387,5 +388,5 @@ Features recorded:
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/064-driver-proof-custody/plan.md
+at specs/065-driver-item-manifest/plan.md
 <!-- SPECKIT END -->

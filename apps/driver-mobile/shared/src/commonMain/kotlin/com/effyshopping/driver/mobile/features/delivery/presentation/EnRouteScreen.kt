@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.effyshopping.driver.mobile.features.delivery.domain.Drop
+import com.effyshopping.driver.mobile.features.manifest.presentation.ClassSummaryRow
 
 /**
  * En route to a drop (060 US1, design screen `enroute`).
@@ -73,6 +74,11 @@ fun EnRouteScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // 065 — which compartment to open on arrival, read while parking.
+                if (drop.summary.total > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    ClassSummaryRow(drop.summary)
+                }
             }
 
             // ⚠ Not a footnote. A buzzer that does not work, or "do not leave with the concierge",

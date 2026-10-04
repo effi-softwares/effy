@@ -120,22 +120,78 @@ enum class CollectionIssueKind(val value: String) {
 @Serializable
 data class CollectionPackage (
     val destinationSuburb: String,
+
+    /**
+     * ⚠ THIS PACKAGE'S OWN LINES (065). Until 065 every package at a stop carried every line at
+     * the stop, so three packages of 2, 5 and 1 items each read "8 items".
+     */
     val items: List<ManifestLine>,
+
     val method: PackageMethod,
-    val ref: String
+    val ref: String,
+    val summary: ClassSummary
 )
 
 @Serializable
 data class ManifestLine (
+    /**
+     * False when the shop supplied none of this line. Shown as "not included", never hidden.
+     */
+    val included: Boolean,
+
     val name: String,
-    val qty: Long
+    val orderedQty: Long,
+
+    /**
+     * ⚠ The quantity IN THE BAG (065) — what the shop gathered, which is less than `orderedQty`
+     * when the line was part-supplied and 0 when it was not supplied at all. Until 065 this was
+     * the quantity ordered, so a driver's count disagreed with the bag whenever a shop was
+     * short.
+     */
+    val qty: Long,
+
+    val temperatureClass: TemperatureClass
 )
+
+/**
+ * How an item must be carried (065). The driver-facing vocabulary, NOT the catalogue's: the
+ * catalogue says `ambient`, a driver is shown "Normal".
+ *
+ * ⚠ `not_recorded` IS NOT A SYNONYM FOR `normal`. It is a line sold before 065 snapshotted
+ * the class, and nobody knows what it was. Showing it as Normal would tell a driver a
+ * frozen item can ride in the ambient compartment — the exact harm the class exists to
+ * prevent (065 FR-010).
+ */
+@Serializable
+enum class TemperatureClass(val value: String) {
+    @SerialName("chilled") Chilled("chilled"),
+    @SerialName("frozen") Frozen("frozen"),
+    @SerialName("normal") Normal("normal"),
+    @SerialName("not_recorded") NotRecorded("not_recorded");
+}
 
 @Serializable
 enum class PackageMethod(val value: String) {
     @SerialName("same_day") SameDay("same_day"),
     @SerialName("standard") Standard("standard");
 }
+
+/**
+ * Units IN THE BAG per class (065). Counts only lines the shop actually supplied — a line
+ * marked unavailable is in no bucket. Every field is always present; a client omits a zero
+ * when rendering.
+ *
+ * 065 — the sum of `packages[].summary`.
+ *
+ * 065 — the drop's total across its packages, so cold goods show in the list unopened.
+ */
+@Serializable
+data class ClassSummary (
+    val chilled: Long,
+    val frozen: Long,
+    val normal: Long,
+    val notRecorded: Long
+)
 
 /**
  * GET /driver/v1/collection/runs/{runId} (driver-facing; distinct from 047's admin
@@ -241,13 +297,27 @@ data class DeliveryDropDTO (
     val instructions: String? = null,
     val orderRef: String,
     val packages: List<DropPackageRef>,
-    val status: DeliveryDropStatus
+    val status: DeliveryDropStatus,
+
+    /**
+     * 065 — the sum of `packages[].summary`.
+     */
+    val summary: ClassSummary
 )
 
+/**
+ * One physical package at a drop.
+ *
+ * ⚠ ONE ENTRY PER PACKAGE SINCE 065, in a stable order the app labels by POSITION ("Package
+ * 1 of 2"). A package is one shop's portion, so grouping by package IS grouping by shop —
+ * which is why the entry carries no shop id, name or code, and never may.
+ */
 @Serializable
 data class DropPackageRef (
     val fromShopCount: Long,
-    val ref: String
+    val items: List<ManifestLine>,
+    val ref: String,
+    val summary: ClassSummary
 )
 
 @Serializable
@@ -271,6 +341,12 @@ data class DeliveryDropSummary (
     val packageCount: Long,
     val sequence: Long,
     val status: DeliveryDropStatus,
+
+    /**
+     * 065 — the drop's total across its packages, so cold goods show in the list unopened.
+     */
+    val summary: ClassSummary,
+
     val window: String? = null
 )
 

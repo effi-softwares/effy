@@ -286,3 +286,30 @@ through the ordinary API in milliseconds, so no read path behaves differently wi
 ⚠ **The exception list is readable by a `csa`, deliberately.** 056 found the app had been recording
 undeliverable drops for a reader that did not exist, and a CSA is exactly who fields "where is my
 order". Gating the list behind a manager would rebuild that gap in a smaller form.
+
+## §065 — Item manifest & temperature classes (2026-10-04)
+
+Spec: [specs/065-driver-item-manifest/](../../specs/065-driver-item-manifest/). Client feedback R5.
+
+| Capability | Android | iOS | Notes |
+|---|---|---|---|
+| Item list per package at pickup (name, quantity, class) | ✅ built | ✅ built (compile-verified) | Same-day and standard packages alike |
+| Item list per package at the customer drop | ✅ built | ✅ built (compile-verified) | Drop detail and arrived screens; packages labelled by position |
+| Class summary without opening (package, drop list, en-route) | ✅ built | ✅ built (compile-verified) | Zero classes omitted |
+| "Not included" / part-supplied quantities | ✅ built | ✅ built (compile-verified) | From the shop's picking record |
+| Loaded stop or drop readable with no connection | ✅ built | ✅ built (compile-verified) | In memory; lost if the app is killed |
+
+⚠ **The class is a word and a drawn shape, never a colour.** A star, a droplet, a box and a dotted
+ring, all in the text colour — so it reads in greyscale and in sunlight.
+
+⚠ **"Class not recorded" is not Normal.** An order line sold before 065 has no class, and the app
+says so rather than implying a frozen item can ride in the ambient compartment.
+
+⚠ **A drop's packages are labelled "Package 1 of 2" and nothing else.** A package is one shop's
+portion; any other label would name the shop.
+
+⚠ **Two pre-existing defects fixed here**: every package at a shop stop used to carry the stop's
+whole item list, and a drop always reported one package however many it held.
+
+⚠ **Not walked on either platform.** No one has seen these screens.
+

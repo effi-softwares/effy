@@ -28,6 +28,10 @@ type CheckoutLine struct {
 	// meters the difference, and the shopper is told before they pay.
 	RequestedQuantity int
 	WeightGrams       int // 047: per-unit logistics weight; the package weight is Σ(WeightGrams × Quantity) per shop.
+	// 065: the product's storage requirement as the catalogue states it NOW — frozen | chilled |
+	// ambient — snapshotted onto the order line so a driver is told what was sold, not what the
+	// product became afterwards. Never empty: a product with no storage attribute is ambient.
+	StorageClass string
 }
 
 // PackageDelivery is the captured per-package delivery outcome, written at intent and copied into
@@ -148,8 +152,9 @@ type checkoutLineRow struct {
 	Quantity  int    `db:"quantity"`
 	// What the shopper's cart holds, before the stock cap. Differs from Quantity only when the shop
 	// cannot supply the whole line — which is what the caller meters (054).
-	RequestedQuantity int `db:"requested_quantity"`
-	WeightGrams       int `db:"weight_grams"`
+	RequestedQuantity int    `db:"requested_quantity"`
+	WeightGrams       int    `db:"weight_grams"`
+	StorageClass      string `db:"storage_class"`
 }
 
 func (s *pgStore) CartLines(ctx context.Context, customerID string) ([]CheckoutLine, error) {
@@ -166,7 +171,18 @@ SELECT ci.product_id::text AS product_id,
        LEAST(ci.quantity,
              CASE WHEN p.stock_tracked THEN p.stock_on_hand ELSE ci.quantity END) AS quantity,
        ci.quantity         AS requested_quantity,
-       p.weight_grams      AS weight_grams
+       p.weight_grams      AS weight_grams,
+       -- ⚠ 065: storage is a product ATTRIBUTE (value_text of the 'storage' definition), not a
+       -- column — 063 recorded that shape as a name that typechecks and fails at runtime.
+       -- ⚠ Anything that is not exactly frozen or chilled is ambient, INCLUDING a value the back
+       -- office adds to the attribute later: the order line's CHECK admits three values, and an
+       -- unrecognised fourth must not be able to fail a shopper's payment.
+       COALESCE((
+           SELECT CASE WHEN pav.value_text IN ('frozen', 'chilled') THEN pav.value_text END
+             FROM public.product_attribute_value pav
+             JOIN public.attribute_definition ad ON ad.id = pav.attribute_definition_id
+            WHERE pav.product_id = p.id AND ad.key = 'storage'
+            LIMIT 1), 'ambient') AS storage_class
 FROM public.cart c
 JOIN public.cart_item ci ON ci.cart_id = c.id
 JOIN public.product p ON p.id = ci.product_id
@@ -188,7 +204,7 @@ ORDER BY ci.added_at ASC`, customerID)
 		out = append(out, CheckoutLine{
 			ProductID: r.ProductID, ShopID: r.ShopID, Name: r.Name,
 			UnitCents: cents, Quantity: r.Quantity, RequestedQuantity: r.RequestedQuantity,
-			WeightGrams: r.WeightGrams,
+			WeightGrams: r.WeightGrams, StorageClass: r.StorageClass,
 		})
 	}
 	return out, nil
@@ -344,9 +360,11 @@ UPDATE public."order" SET item_subtotal_amount=$2::numeric,
 		lineCents := l.UnitCents * int64(l.Quantity)
 		if _, err := tx.Exec(ctx, `
 INSERT INTO public.order_item
-    (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount)
-VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric)`,
-			orderID, l.ProductID, l.ShopID, l.Name, money.FormatCents(l.UnitCents), l.Quantity, money.FormatCents(lineCents)); err != nil {
+    (order_id, product_id, shop_id, product_name, unit_price_amount, quantity, line_subtotal_amount,
+     storage_class)
+VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric, $8)`,
+			orderID, l.ProductID, l.ShopID, l.Name, money.FormatCents(l.UnitCents), l.Quantity, money.FormatCents(lineCents),
+			storageClassOrAmbient(l.StorageClass)); err != nil {
 			return "", "", fmt.Errorf("checkout: insert order item: %w", err)
 		}
 	}
@@ -355,6 +373,16 @@ VALUES ($1, $2, $3, $4, $5::numeric, $6, $7::numeric)`,
 		return "", "", fmt.Errorf("checkout: commit order: %w", err)
 	}
 	return orderID, orderNumber, nil
+}
+
+// storageClassOrAmbient keeps the order line's "never NULL from 065 on" promise even for a
+// CheckoutLine built by something other than CartLines (a test, a future caller) that left the
+// field empty. NULL is reserved for lines sold before 065, so an empty value here is ambient.
+func storageClassOrAmbient(c string) string {
+	if c == "frozen" || c == "chilled" {
+		return c
+	}
+	return "ambient"
 }
 
 // CaptureDelivery writes the captured delivery quote (047): the order's delivery_quote JSON + expiry, and

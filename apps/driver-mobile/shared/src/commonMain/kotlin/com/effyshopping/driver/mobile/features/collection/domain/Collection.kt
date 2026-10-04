@@ -1,5 +1,8 @@
 package com.effyshopping.driver.mobile.features.collection.domain
 
+import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
+import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
+
 /** Collection-run domain (049 US1). DTOs are mapped to these and never leak past the data layer. */
 
 enum class StopStatus { ASSIGNED, EN_ROUTE, COLLECTED, SHORT }
@@ -22,13 +25,13 @@ data class CollectionRun(
     val allCollected: Boolean get() = stops.isNotEmpty() && stops.all { it.status == StopStatus.COLLECTED || it.status == StopStatus.SHORT }
 }
 
-data class ManifestLine(val name: String, val qty: Int)
-
 data class CollectionPackage(
     val ref: String,
     val destinationSuburb: String,
     val method: PackageMethod,
+    /** ⚠ This package's OWN lines (065) — not the stop's. */
     val items: List<ManifestLine>,
+    val summary: ClassSummary,
 )
 
 data class ShopStop(
@@ -37,6 +40,11 @@ data class ShopStop(
     val shopCode: String,
     val packages: List<CollectionPackage>,
     val status: StopStatus,
+    /**
+     * 065 — true when this is the LAST LOADED copy, served because the device has no connection.
+     * The items are real; anything the shop changed since is not reflected, and the screen says so.
+     */
+    val stale: Boolean = false,
 )
 
 /** The same-day/standard split returned by hub check-in (FR-016). */

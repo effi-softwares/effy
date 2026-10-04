@@ -15,6 +15,8 @@ import type {
 } from "@effy/shared-types";
 
 import { dropStatusOf } from "./drop-status";
+import { EMPTY_SUMMARY, addSummaries, manifestsByPackage } from "./manifest";
+import { packageItems, stopPackageIds } from "./repository";
 import { NotFoundError } from "./service";
 
 /** GET /driver/v1/delivery/drops/{dropId} — one customer stop. */
@@ -56,6 +58,10 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
   const r = res.rows[0];
   if (!r) throw new NotFoundError();
 
+  // 065 — one manifest per physical package, in the stable order the app labels by position.
+  const packageIds = await stopPackageIds(dropId, driverId);
+  const manifests = manifestsByPackage(packageIds, await packageItems(packageIds));
+
   const address = [r.line1, r.line2, r.city, r.region, r.postal_code]
     .filter((p): p is string => typeof p === "string" && p.trim() !== "")
     .join(", ");
@@ -73,14 +79,21 @@ export async function deliveryDrop(dropId: string, driverId: string): Promise<De
     // ⚠ Every stored state reads back as itself. This used to collapse everything unrecognised to
     // "staged", which is how a drop that HAD started kept showing "Start this drop".
     status: dropStatusOf(r.status),
-    packages: [
-      {
+    // ⚠ ONE ENTRY PER PACKAGE (065). This used to be a single synthetic entry for the whole drop, so
+    // a driver holding two bags saw one row and could not match the list to what was in their hands.
+    packages: packageIds.map((id) => {
+      const manifest = manifests.get(id);
+      return {
         ref: r.order_number,
         // ⚠ HOW MANY shops contributed, never WHICH. Hidden fulfilment is a product rule, not a UI
-        // choice — a driver learning which shops served an order would leak it to the customer.
-        fromShopCount: Number(r.shop_count),
-      },
-    ],
+        // choice — a driver learning which shops served an order would leak it to the customer. A
+        // package is one shop's portion, so this is 1; the drop-wide count is `packages.length`.
+        fromShopCount: 1,
+        items: manifest?.items ?? [],
+        summary: manifest?.summary ?? { ...EMPTY_SUMMARY },
+      };
+    }),
+    summary: addSummaries(packageIds.map((id) => manifests.get(id)?.summary ?? EMPTY_SUMMARY)),
   };
 }
 

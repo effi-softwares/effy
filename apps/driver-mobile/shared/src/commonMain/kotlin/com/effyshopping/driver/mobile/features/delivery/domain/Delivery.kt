@@ -1,5 +1,8 @@
 package com.effyshopping.driver.mobile.features.delivery.domain
 
+import com.effyshopping.driver.mobile.features.manifest.domain.ClassSummary
+import com.effyshopping.driver.mobile.features.manifest.domain.ManifestLine
+
 /** Same-day delivery domain (049 US2). DTOs are mapped to these and never leak past the data layer. */
 
 enum class DropStatus { STAGED, OUT_FOR_DELIVERY, EN_ROUTE, ARRIVED, DELIVERED, FAILED }
@@ -24,11 +27,24 @@ data class DropSummary(
     val customerSuburb: String,
     val packageCount: Int,
     val status: DropStatus,
+    /** 065 — what the drop holds, shown in the list without opening it. */
+    val summary: ClassSummary = ClassSummary.Empty,
 )
 
 data class DeliveryRun(val runId: String, val status: String, val drops: List<DropSummary>)
 
-data class DropPackage(val ref: String, val fromShopCount: Int)
+/**
+ * One physical package at a drop (065).
+ *
+ * ⚠ LABELLED BY POSITION AND NOTHING ELSE. A package is one shop's portion, so any other label would
+ * name the shop — and hidden fulfilment is a product rule, not a UI choice.
+ */
+data class DropPackage(
+    val ref: String,
+    val fromShopCount: Int,
+    val items: List<ManifestLine> = emptyList(),
+    val summary: ClassSummary = ClassSummary.Empty,
+)
 
 data class Drop(
     val dropId: String,
@@ -38,6 +54,9 @@ data class Drop(
     val instructions: String?,
     val packages: List<DropPackage>,
     val status: DropStatus,
+    val summary: ClassSummary = ClassSummary.Empty,
+    /** 065 — the last loaded copy, served with no connection. See `ShopStop.stale`. */
+    val stale: Boolean = false,
 )
 
 interface DeliveryRepository {

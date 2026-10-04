@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -73,7 +75,13 @@ fun ArrivedScreen(
             InstructionCallout(it)
         }
 
-        Spacer(Modifier.weight(1f))
+        // 065 — what is being handed over. Scrolls on its own so a long list can never push the
+        // completion swipe off the screen of a driver holding two boxes.
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Spacer(Modifier.height(20.dp))
+            DropManifest(drop)
+            Spacer(Modifier.height(12.dp))
+        }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             // Masked contact remains unbuilt (049 R6) — disabled with a reason, not a dead button.

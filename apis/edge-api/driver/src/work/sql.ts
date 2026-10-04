@@ -80,13 +80,51 @@ export const ROUND_PACKAGES = `
    ORDER BY rp.created_at
 `;
 
-/** Line items in one package — the driver's manifest for a pickup. */
+/**
+ * Line items of the given packages — the driver's manifest (065).
+ *
+ * ⚠ KEYED BY PACKAGE. This used to return bare name/quantity rows with nothing saying which package
+ * a row belonged to, and the stop read then handed every package every row.
+ *
+ * ⚠ `storage_class` IS READ FROM THE ORDER LINE, NOT THE PRODUCT. It is a snapshot taken at
+ * placement; joining `product_attribute_value` here would let a shop's later edit rewrite what a
+ * driver is told about goods already packed (FR-009).
+ *
+ * ⚠ `gathered_qty` IS NULL WHEN THERE IS NO PICK ROW, and that is a different fact from zero —
+ * see `toLine` in ./manifest.ts.
+ *
+ * ⚠ NO MONEY COLUMN IS SELECTED, and none may be: `order_item` is a receipt line with a price on
+ * it, and the driver never sees currency (FR-020).
+ */
 export const PACKAGE_ITEMS = `
-  SELECT oi.product_name AS name, oi.quantity AS qty
-    FROM public.order_item oi
-    JOIN public.shop_fulfillment sf ON sf.order_id = oi.order_id AND sf.shop_id = oi.shop_id
+  SELECT sf.id                 AS package_id,
+         oi.product_name       AS name,
+         oi.quantity           AS ordered_qty,
+         oi.storage_class      AS storage_class,
+         fi.gathered_quantity  AS gathered_qty
+    FROM public.shop_fulfillment sf
+    JOIN public.order_item oi ON oi.order_id = sf.order_id AND oi.shop_id = sf.shop_id
+    LEFT JOIN public.fulfillment_item fi
+           ON fi.order_item_id = oi.id AND fi.shop_fulfillment_id = sf.id
    WHERE sf.id = ANY($1::uuid[])
-   ORDER BY oi.product_name
+   ORDER BY sf.id, oi.product_name, oi.id
+`;
+
+/**
+ * The packages at ONE stop, scoped to the driver — the drop's own read (065).
+ *
+ * ⚠ ORDERED BY CREATION so the app's "Package 1 of 2" is stable between two reads of one drop. The
+ * position is the ONLY label a drop's package gets: it is one shop's portion, and naming it any
+ * other way would name the shop.
+ */
+export const STOP_PACKAGES = `
+  SELECT rp.shop_fulfillment_id AS package_id
+    FROM public.round_package rp
+    JOIN public.round_stop   rs ON rs.id = rp.stop_id
+    JOIN public.driver_round dr ON dr.id = rs.round_id
+   WHERE rp.stop_id = $1
+     AND dr.driver_id = $2
+   ORDER BY rp.created_at, rp.id
 `;
 
 /** Rounds this driver finished today — the history strip on the home screen. */

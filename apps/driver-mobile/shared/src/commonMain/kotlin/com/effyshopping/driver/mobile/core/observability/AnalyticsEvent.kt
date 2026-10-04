@@ -33,6 +33,18 @@ sealed class AnalyticsEvent(val name: String, val props: Map<String, String> = e
     class DropCompleted(proof: String) : AnalyticsEvent("drop_completed", mapOf("proof" to proof))
 
     /**
+     * 065 — a driver opened a package's item list. `surface` is `pickup` | `drop`.
+     *
+     * ⚠ NO ITEM NAMES AND NO ORDER REFERENCE: what a customer bought is theirs, and three bounded
+     * values answer the only questions this event exists for — do drivers open the list, and how
+     * often are cold goods involved. ⚠ DECLARED, NOT EMITTED, like every driver-workflow event above.
+     */
+    class ManifestOpened(surface: String, hasCold: Boolean, lineCount: Int) : AnalyticsEvent(
+        "driver_manifest_opened",
+        mapOf("surface" to surface, "hasCold" to hasCold.toString(), "lineCount" to lineCount.toString()),
+    )
+
+    /**
      * ⚠ 064 — THE FR-006 CASE, AND IT CAN ONLY BE OBSERVED HERE.
      *
      * A proof image is PUT straight to S3 against a presigned url; the bytes never pass through
